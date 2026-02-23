@@ -3,9 +3,21 @@ pub mod plugin;
 pub use plugin::IpcPlugin;
 
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::{OnceLock, mpsc};
 
 use peercred_ipc::{Connection, Server};
+
+static SOCKET_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+extern "C" fn signal_handler(sig: libc::c_int) {
+    if let Some(path) = SOCKET_PATH.get() {
+        let _ = std::fs::remove_file(path);
+    }
+    unsafe {
+        libc::signal(sig, libc::SIG_DFL);
+        libc::raise(sig);
+    }
+}
 use serde::{Deserialize, Serialize};
 
 /// IPC request from CLI to engine.
@@ -77,14 +89,23 @@ impl Drop for SocketGuard {
     }
 }
 
+fn register_signal_handlers() {
+    unsafe {
+        libc::signal(libc::SIGTERM, signal_handler as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGINT, signal_handler as *const () as libc::sighandler_t);
+    }
+}
+
 /// Spawn the IPC server on a tokio runtime in a background thread.
 /// Returns a receiver for commands and a guard that cleans up the socket.
 pub fn init() -> (mpsc::Receiver<Command>, SocketGuard) {
     cleanup_stale_sockets();
 
     let path = socket_path();
-    let (tx, rx) = mpsc::channel();
+    SOCKET_PATH.set(path.clone()).ok();
+    register_signal_handlers();
 
+    let (tx, rx) = mpsc::channel();
     let sock = path.clone();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
