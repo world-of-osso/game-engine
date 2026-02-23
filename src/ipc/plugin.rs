@@ -24,16 +24,37 @@ impl Plugin for IpcPlugin {
 }
 
 /// Poll IPC commands each frame and dispatch them.
+#[allow(clippy::type_complexity)]
 fn poll_ipc(
     receiver: NonSend<mpsc::Receiver<Command>>,
     mut commands: Commands,
+    tree_query: Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
+    parent_query: Query<&ChildOf>,
 ) {
     while let Ok(cmd) = receiver.try_recv() {
-        handle_command(cmd, &mut commands);
+        dispatch(cmd, &mut commands, &tree_query, &parent_query);
     }
 }
 
-fn handle_command(cmd: Command, commands: &mut Commands) {
+#[allow(clippy::type_complexity)]
+fn dispatch(
+    cmd: Command,
+    commands: &mut Commands,
+    tree_query: &Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
+    parent_query: &Query<&ChildOf>,
+) {
     match cmd.request {
         Request::Ping => {
             let _ = cmd.respond.send(Response::Pong);
@@ -43,6 +64,10 @@ fn handle_command(cmd: Command, commands: &mut Commands) {
                 .spawn(Screenshot::primary_window())
                 .insert(ScreenshotReply(cmd.respond))
                 .observe(on_screenshot_captured);
+        }
+        Request::DumpTree { filter } => {
+            let tree = crate::dump::build_tree(tree_query, parent_query, filter.as_deref());
+            let _ = cmd.respond.send(Response::Tree(tree));
         }
     }
 }

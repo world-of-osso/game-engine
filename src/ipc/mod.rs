@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub enum Request {
     Ping,
     Screenshot,
+    DumpTree { filter: Option<String> },
 }
 
 /// IPC response from engine to CLI.
@@ -20,6 +21,7 @@ pub enum Request {
 pub enum Response {
     Pong,
     Screenshot(Vec<u8>), // WebP bytes
+    Tree(String),
     Error(String),
 }
 

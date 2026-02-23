@@ -25,6 +25,12 @@ enum Cmd {
         #[arg(default_value = "screenshot.webp")]
         output: PathBuf,
     },
+    /// Dump the entity hierarchy
+    DumpTree {
+        /// Filter by entity name (case-insensitive substring)
+        #[arg(short, long)]
+        filter: Option<String>,
+    },
 }
 
 fn find_socket() -> Result<PathBuf, String> {
@@ -57,6 +63,7 @@ fn main() {
     let result = match cli.command {
         Cmd::Ping => handle_ping(&socket),
         Cmd::Screenshot { output } => handle_screenshot(&socket, &output),
+        Cmd::DumpTree { filter } => handle_dump_tree(&socket, filter),
     };
 
     if let Err(e) = result {
@@ -74,6 +81,19 @@ fn handle_ping(socket: &PathBuf) -> Result<(), String> {
             println!("pong");
             Ok(())
         }
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_dump_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), String> {
+    let resp: Response =
+        Client::call(socket, &Request::DumpTree { filter }).map_err(|e| format!("{e}"))?;
+    match resp {
+        Response::Tree(tree) => {
+            println!("{tree}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
         other => Err(format!("unexpected response: {other:?}")),
     }
 }
