@@ -10,8 +10,8 @@ src/
 ├── lib.rs           # Re-exports dump + ipc
 ├── asset/
 │   ├── mod.rs       # Re-exports blp + m2 modules
-│   ├── blp.rs       # BlpTexturePlugin — BLP texture → Bevy Image (image-blp)
-│   └── m2.rs        # Custom MD21 chunked M2 parser (no external crate)
+│   ├── blp.rs       # BLP texture → Bevy Image (image-blp, 1-bit alpha fix)
+│   └── m2.rs        # Custom MD21 chunked M2 parser + TXID texture FDIDs (no external crate)
 ├── ipc/
 │   ├── mod.rs       # Unix socket IPC server (peercred-ipc)
 │   └── plugin.rs    # Bevy plugin bridging IPC commands to ECS
@@ -26,16 +26,21 @@ src/
 ## Dev
 
 - `cargo run --bin wow-engine -- [model.m2]` — Launch 3D scene
+- `cargo run --bin wow-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
 - `cargo run --bin wow-engine -- model.m2 --dump-tree` — Dump entity hierarchy
 - `./run-tests.sh` — cargo test + clippy
 - Edition 2024, rust-version 1.89
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
+- Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 
 ## Test Assets
 
-- M2: `data/models/humanmale.m2` + `humanmale00.skin` (downloaded via casc-extract)
-- M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format)
-- BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client
+- M2: `data/models/club_1h_torch_a_01.m2` — **textured** item model (FDID 145513 + 198077)
+- BLP: `data/textures/145513.blp` + `198077.blp` — torch flame/glow textures
+- M2: `data/models/humanmale.m2` + `humanmale00.skin` — character model (skin textures are runtime-resolved, no hardcoded BLPs available)
+- M2: `data/models/boar.m2` — creature model (runtime creature skin, no hardcoded BLPs)
+- M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format, no TXID)
+- BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client (not model textures)
 
 ## Related
 
