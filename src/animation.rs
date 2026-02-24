@@ -252,9 +252,9 @@ fn evaluate_bone_components(
     let trans = trans_wow
         .map(|t| Vec3::new(t[0], t[2], -t[1]))
         .unwrap_or(Vec3::ZERO);
-    // WoW→Bevy axis swap for quaternion: (x, y, z, w) → (x, z, -y, w)
+    // Quaternion already in Bevy space from unpack_rotation() in m2_anim.rs
     let rot = rot_raw
-        .map(|r| Quat::from_xyzw(r[0], r[2], -r[1], r[3]).normalize())
+        .map(|r| Quat::from_xyzw(r[0], r[1], r[2], r[3]).normalize())
         .unwrap_or(Quat::IDENTITY);
     let scl = scale_wow
         .map(|s| Vec3::new(s[0], s[2], s[1]))
