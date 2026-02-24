@@ -24,11 +24,20 @@ pub enum MoveDirection {
     Right,
 }
 
+/// Total jump duration in seconds (up + down).
+const JUMP_DURATION: f32 = 0.8;
+/// Peak height of jump arc in world units.
+const JUMP_HEIGHT: f32 = 2.5;
+/// Base Y position (ground level) for the player.
+const GROUND_Y: f32 = 0.5;
+
 /// Signals current movement direction and jump state.
 #[derive(Component, Default)]
 pub struct MovementState {
     pub direction: MoveDirection,
     pub jumping: bool,
+    /// Elapsed time into the jump arc (seconds).
+    pub jump_elapsed: f32,
 }
 
 /// Character facing yaw (radians). RMB rotates this; the model entity rotation follows.
@@ -163,11 +172,26 @@ fn player_movement(
 
     if keys.just_pressed(KeyCode::Space) && !movement.jumping {
         movement.jumping = true;
+        movement.jump_elapsed = 0.0;
     }
 
     if direction.length_squared() > 0.0 {
         direction = direction.normalize();
         transform.translation += direction * MOVE_SPEED * time.delta_secs();
+    }
+
+    // Parabolic jump arc
+    if movement.jumping {
+        movement.jump_elapsed += time.delta_secs();
+        if movement.jump_elapsed >= JUMP_DURATION {
+            // Land: snap to ground, clear jumping so animation system transitions to JumpEnd
+            transform.translation.y = GROUND_Y;
+            movement.jumping = false;
+        } else {
+            // t in [0,1], parabola peaks at t=0.5
+            let t = movement.jump_elapsed / JUMP_DURATION;
+            transform.translation.y = GROUND_Y + JUMP_HEIGHT * 4.0 * t * (1.0 - t);
+        }
     }
 
     // Rotate model to match character facing (base -PI/2 for WoW→Bevy model orientation)

@@ -45,7 +45,7 @@ struct M2Submesh {
     mesh_part_id: u16,
     vertex_start: u16,
     vertex_count: u16,
-    triangle_start: u16,
+    triangle_start: u32,  // computed from cumulative index counts to avoid u16 overflow
     triangle_count: u16,
 }
 
@@ -212,18 +212,21 @@ fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
 ///         indexStart(u16), indexCount(u16), ... (bone/bounding data)
 fn parse_submeshes(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2Submesh>, String> {
     let mut subs = Vec::with_capacity(count);
+    let mut cumulative_index = 0u32;
     for i in 0..count {
         let base = offset + i * 48;
         if base + 48 > data.len() {
             return Err(format!("Submesh {i} out of bounds at {base:#x}"));
         }
+        let index_count = read_u16(data, base + 10)?;
         subs.push(M2Submesh {
             mesh_part_id: read_u16(data, base)?,
             vertex_start: read_u16(data, base + 4)?,
             vertex_count: read_u16(data, base + 6)?,
-            triangle_start: read_u16(data, base + 8)?,
-            triangle_count: read_u16(data, base + 10)?,
+            triangle_start: cumulative_index,
+            triangle_count: index_count,
         });
+        cumulative_index += index_count as u32;
     }
     Ok(subs)
 }
@@ -366,6 +369,54 @@ fn first_hardcoded_texture(tex_types: &[u32], txid: &[u32]) -> Option<u32> {
         .map(|(_, fdid)| *fdid)
 }
 
+struct VertexBuffers {
+    positions: Vec<[f32; 3]>,
+    normals: Vec<[f32; 3]>,
+    uvs: Vec<[f32; 2]>,
+    joint_indices: Vec<[u16; 4]>,
+    joint_weights: Vec<[f32; 4]>,
+}
+
+/// Collect vertex attribute buffers for the submesh vertex range via the lookup table.
+fn collect_submesh_vertices(
+    vertices: &[M2Vertex],
+    lookup: &[u16],
+    vstart: usize,
+    vcount: usize,
+) -> VertexBuffers {
+    let mut buf = VertexBuffers {
+        positions: Vec::with_capacity(vcount),
+        normals: Vec::with_capacity(vcount),
+        uvs: Vec::with_capacity(vcount),
+        joint_indices: Vec::with_capacity(vcount),
+        joint_weights: Vec::with_capacity(vcount),
+    };
+    for i in 0..vcount {
+        let global_idx = lookup.get(vstart + i).copied().unwrap_or(0) as usize;
+        let Some(v) = vertices.get(global_idx) else { continue };
+        buf.positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
+        buf.normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
+        buf.uvs.push(v.tex_coords);
+        buf.joint_indices.push([
+            v.bone_indices[0] as u16, v.bone_indices[1] as u16,
+            v.bone_indices[2] as u16, v.bone_indices[3] as u16,
+        ]);
+        buf.joint_weights.push([
+            v.bone_weights[0] as f32 / 255.0, v.bone_weights[1] as f32 / 255.0,
+            v.bone_weights[2] as f32 / 255.0, v.bone_weights[3] as f32 / 255.0,
+        ]);
+    }
+    buf
+}
+
+/// Remap raw skin indices to submesh-local indices (relative to vstart).
+fn remap_submesh_indices(indices: &[u16], tstart: usize, tcount: usize, vstart: usize) -> Vec<u16> {
+    (0..tcount)
+        .filter_map(|j| indices.get(tstart + j))
+        .map(|&idx| (idx as usize).saturating_sub(vstart) as u16)
+        .collect()
+}
+
 /// Build a Bevy Mesh for one submesh: compact vertex buffer + remapped indices.
 fn build_batch_mesh(
     vertices: &[M2Vertex],
@@ -375,51 +426,18 @@ fn build_batch_mesh(
     has_bones: bool,
 ) -> Mesh {
     let vstart = sub.vertex_start as usize;
-    let vcount = sub.vertex_count as usize;
-    let tstart = sub.triangle_start as usize;
-    let tcount = sub.triangle_count as usize;
-
-    let mut positions = Vec::with_capacity(vcount);
-    let mut normals = Vec::with_capacity(vcount);
-    let mut uvs = Vec::with_capacity(vcount);
-    let mut joint_indices: Vec<[u16; 4]> = Vec::with_capacity(vcount);
-    let mut joint_weights: Vec<[f32; 4]> = Vec::with_capacity(vcount);
-
-    for i in 0..vcount {
-        let global_idx = lookup.get(vstart + i).copied().unwrap_or(0) as usize;
-        if let Some(v) = vertices.get(global_idx) {
-            positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
-            normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
-            uvs.push(v.tex_coords);
-            joint_indices.push([
-                v.bone_indices[0] as u16,
-                v.bone_indices[1] as u16,
-                v.bone_indices[2] as u16,
-                v.bone_indices[3] as u16,
-            ]);
-            joint_weights.push([
-                v.bone_weights[0] as f32 / 255.0,
-                v.bone_weights[1] as f32 / 255.0,
-                v.bone_weights[2] as f32 / 255.0,
-                v.bone_weights[3] as f32 / 255.0,
-            ]);
-        }
-    }
-
-    let mut local_indices = Vec::with_capacity(tcount);
-    for j in 0..tcount {
-        if let Some(&idx) = indices.get(tstart + j) {
-            local_indices.push((idx as usize).saturating_sub(vstart) as u16);
-        }
-    }
+    let buf = collect_submesh_vertices(vertices, lookup, vstart, sub.vertex_count as usize);
+    let local_indices = remap_submesh_indices(
+        indices, sub.triangle_start as usize, sub.triangle_count as usize, vstart,
+    );
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, buf.positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, buf.normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, buf.uvs);
     if has_bones {
-        mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_INDEX, VertexAttributeValues::Uint16x4(joint_indices));
-        mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT, joint_weights);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_INDEX, VertexAttributeValues::Uint16x4(buf.joint_indices));
+        mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT, buf.joint_weights);
     }
     mesh.insert_indices(Indices::U16(local_indices));
     mesh
@@ -529,20 +547,13 @@ fn parse_skb1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
 }
 
 /// Fallback: load bones/sequences/tracks/global_sequences from the MD20 blob.
-fn load_anim_from_md20(
-    md20: &[u8],
-) -> (
-    Vec<super::m2_anim::M2Bone>,
-    Vec<super::m2_anim::M2AnimSequence>,
-    Vec<super::m2_anim::BoneAnimTracks>,
-    Vec<u32>,
-) {
-    (
-        super::m2_anim::parse_bones(md20).unwrap_or_default(),
-        super::m2_anim::parse_sequences(md20).unwrap_or_default(),
-        super::m2_anim::parse_bone_animations(md20).unwrap_or_default(),
-        super::m2_anim::parse_global_sequences(md20).unwrap_or_default(),
-    )
+fn load_anim_from_md20(md20: &[u8]) -> SkelData {
+    SkelData {
+        bones: super::m2_anim::parse_bones(md20).unwrap_or_default(),
+        sequences: super::m2_anim::parse_sequences(md20).unwrap_or_default(),
+        bone_tracks: super::m2_anim::parse_bone_animations(md20).unwrap_or_default(),
+        global_sequences: super::m2_anim::parse_global_sequences(md20).unwrap_or_default(),
+    }
 }
 
 fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
@@ -582,7 +593,7 @@ fn build_batched_model(
     tex_types: &[u32],
     txid: &[u32],
     has_bones: bool,
-) -> Result<M2Model, String> {
+) -> Result<Vec<M2RenderBatch>, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
         let sub_idx = unit.submesh_index as usize;
@@ -601,7 +612,20 @@ fn build_batched_model(
         let overlays = body_skin_overlays(unit, tex_lookup, tex_types);
         batches.push(M2RenderBatch { mesh, texture_fdid, overlays });
     }
-    Ok(M2Model { batches, bones: Vec::new(), sequences: Vec::new(), bone_tracks: Vec::new(), global_sequences: Vec::new() })
+    Ok(batches)
+}
+
+/// Load animation data from .skel (if SKID chunk present) or from MD20 inline.
+fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
+    if chunks.skid.is_some() {
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let skel_path = path.with_file_name(format!("{stem}.skel"));
+        match load_skel_data(&skel_path) {
+            Ok(s) => return s,
+            Err(e) => eprintln!("Failed to load .skel: {e}"),
+        }
+    }
+    load_anim_from_md20(chunks.md20)
 }
 
 /// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
@@ -612,54 +636,29 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let tex_types = parse_texture_types(chunks.md20)?;
     let tex_lookup = parse_texture_lookup(chunks.md20)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
-
-    // HD models store all animation data in an external .skel file (SKID chunk).
-    // Standard models have it inline in the MD20 blob.
-    let (bones, sequences, bone_tracks, global_sequences) = if let Some(_skel_fdid) = chunks.skid
-    {
-        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        let skel_path = path.with_file_name(format!("{stem}.skel"));
-        match load_skel_data(&skel_path) {
-            Ok(s) => (s.bones, s.sequences, s.bone_tracks, s.global_sequences),
-            Err(e) => {
-                eprintln!("Failed to load .skel: {e}");
-                load_anim_from_md20(chunks.md20)
-            }
-        }
-    } else {
-        load_anim_from_md20(chunks.md20)
-    };
+    let anim = load_anim_data(path, &chunks);
     let skin = load_skin_data(path);
 
-    if let Some(ref skin) = skin
+    let batches = if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        let has_bones = !bones.is_empty();
-        let mut model = build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, has_bones)?;
-        model.bones = bones;
-        model.sequences = sequences;
-        model.bone_tracks = bone_tracks;
-        model.global_sequences = global_sequences;
-        return Ok(model);
-    }
-
-    // Fallback: single mesh, first hardcoded texture
-    let indices = match skin {
-        Some(skin) => resolve_indices(&skin.lookup, &skin.indices),
-        None => (0..vertices.len() as u16).collect(),
+        build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty())?
+    } else {
+        let indices = match skin {
+            Some(skin) => resolve_indices(&skin.lookup, &skin.indices),
+            None => (0..vertices.len() as u16).collect(),
+        };
+        let fdid = first_hardcoded_texture(&tex_types, &txid);
+        vec![M2RenderBatch { mesh: build_mesh(&vertices, indices), texture_fdid: fdid, overlays: Vec::new() }]
     };
-    let fdid = first_hardcoded_texture(&tex_types, &txid);
+
     Ok(M2Model {
-        batches: vec![M2RenderBatch {
-            mesh: build_mesh(&vertices, indices),
-            texture_fdid: fdid,
-            overlays: Vec::new(),
-        }],
-        bones,
-        sequences,
-        bone_tracks,
-        global_sequences,
+        batches,
+        bones: anim.bones,
+        sequences: anim.sequences,
+        bone_tracks: anim.bone_tracks,
+        global_sequences: anim.global_sequences,
     })
 }
 

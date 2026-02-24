@@ -353,49 +353,57 @@ fn load_batch_material(
     })
 }
 
+fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
+    Image::new(
+        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        TextureDimension::D2,
+        pixels,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    )
+}
+
+/// Load a BLP file as raw RGBA pixels and wrap them into a Bevy Image.
+fn load_blp_as_image(path: &Path) -> Result<Image, String> {
+    let (pixels, w, h) = asset::blp::load_blp_rgba(path)
+        .map_err(|e| format!("Failed to load BLP {}: {e}", path.display()))?;
+    Ok(rgba_image(pixels, w, h))
+}
+
+/// Blit one overlay onto the base pixel buffer, scaling 2x if requested.
+fn composite_overlay(
+    pixels: &mut Vec<u8>,
+    base_width: u32,
+    ov: &asset::m2::TextureOverlay,
+    texture_dir: &Path,
+) {
+    let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
+    match asset::blp::load_blp_rgba(&ov_path) {
+        Ok((ov_pixels, ov_w, ov_h)) => {
+            if ov.scale > 1 {
+                let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
+                asset::blp::blit_region(pixels, base_width, &scaled, sw, sh, ov.x, ov.y);
+            } else {
+                asset::blp::blit_region(pixels, base_width, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
+            }
+        }
+        Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
+    }
+}
+
 /// Load a base BLP texture and composite any region overlays on top.
 fn load_composited_texture(
     base_path: &Path,
     overlays: &[asset::m2::TextureOverlay],
     texture_dir: &Path,
 ) -> Option<Image> {
-    if overlays.is_empty() {
-        return match asset::blp::load_blp_to_image(base_path) {
-            Ok(img) => Some(img),
-            Err(e) => {
-                eprintln!("Failed to load BLP {}: {e}", base_path.display());
-                None
-            }
-        };
-    }
-    let (mut pixels, w, h) = match asset::blp::load_blp_rgba(base_path) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("Failed to load BLP {}: {e}", base_path.display());
-            return None;
-        }
-    };
+    let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
+        .map_err(|e| eprintln!("Failed to load BLP {}: {e}", base_path.display()))
+        .ok()?;
     for ov in overlays {
-        let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
-        match asset::blp::load_blp_rgba(&ov_path) {
-            Ok((ov_pixels, ov_w, ov_h)) => {
-                if ov.scale > 1 {
-                    let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
-                    asset::blp::blit_region(&mut pixels, w, &scaled, sw, sh, ov.x, ov.y);
-                } else {
-                    asset::blp::blit_region(&mut pixels, w, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
-                }
-            }
-            Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
-        }
+        composite_overlay(&mut pixels, w, ov, texture_dir);
     }
-    Some(Image::new(
-        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-        TextureDimension::D2,
-        pixels,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::default(),
-    ))
+    Some(rgba_image(pixels, w, h))
 }
 
 #[allow(clippy::type_complexity)]

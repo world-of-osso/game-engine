@@ -92,6 +92,10 @@ fn start_transition(player: &mut M2AnimPlayer, target_idx: usize, blend_ms: f32)
     player.time_ms = 0.0;
 }
 
+fn is_jump_anim(id: u16) -> bool {
+    matches!(id, ANIM_JUMP_START | ANIM_JUMP | ANIM_JUMP_END)
+}
+
 fn switch_animation(
     anim_data: Option<Res<M2AnimData>>,
     mut players: Query<(&mut M2AnimPlayer, &mut MovementState)>,
@@ -99,9 +103,10 @@ fn switch_animation(
     let Some(data) = anim_data else { return };
     for (mut player, mut movement) in &mut players {
         let current_id = data.sequences.get(player.current_seq_idx).map(|s| s.id);
+        let in_jump = current_id.is_some_and(is_jump_anim);
 
-        // Jump state machine: JumpStart → Jump (loop) → JumpEnd → resume
-        if movement.jumping {
+        // Jump state machine: enter on jumping flag, stay until JumpEnd finishes
+        if movement.jumping || in_jump {
             switch_jump(&mut player, &mut movement, current_id, &data.sequences);
             continue;
         }
@@ -116,6 +121,9 @@ fn switch_animation(
     }
 }
 
+/// Blend time for jump transitions — short to avoid floaty arm interpolation.
+const JUMP_BLEND_MS: f32 = 80.0;
+
 /// Handle jump state machine: JumpStart (once) → Jump (loop) → JumpEnd (once) → done.
 fn switch_jump(
     player: &mut M2AnimPlayer,
@@ -127,35 +135,30 @@ fn switch_jump(
         // Not yet in any jump anim → start JumpStart
         Some(id) if id != ANIM_JUMP_START && id != ANIM_JUMP && id != ANIM_JUMP_END => {
             if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP_START) {
-                let blend_ms = sequences[idx].blend_time as f32;
-                start_transition(player, idx, blend_ms);
+                start_transition(player, idx, JUMP_BLEND_MS);
                 player.looping = false;
             }
         }
         // JumpStart finished playing → transition to airborne loop
         Some(ANIM_JUMP_START) if anim_finished(player, sequences) => {
             if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP) {
-                let blend_ms = sequences[idx].blend_time as f32;
-                start_transition(player, idx, blend_ms);
+                start_transition(player, idx, JUMP_BLEND_MS);
                 player.looping = true;
             }
         }
-        // In airborne loop → after a fixed duration, land
-        Some(ANIM_JUMP) if player.time_ms >= 400.0 => {
+        // Airborne → wait for physics to land (camera.rs controls timing via jump_elapsed)
+        Some(ANIM_JUMP) if !movement.jumping => {
             if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP_END) {
-                let blend_ms = sequences[idx].blend_time as f32;
-                start_transition(player, idx, blend_ms);
+                start_transition(player, idx, JUMP_BLEND_MS);
                 player.looping = false;
             }
         }
-        // JumpEnd finished → clear jump, return to movement anim
+        // JumpEnd finished → return to movement anim
         Some(ANIM_JUMP_END) if anim_finished(player, sequences) => {
-            movement.jumping = false;
             player.looping = true;
             let target_id = direction_to_anim_id(movement.direction);
             if let Some(idx) = find_seq_idx(sequences, target_id) {
-                let blend_ms = sequences[idx].blend_time as f32;
-                start_transition(player, idx, blend_ms);
+                start_transition(player, idx, JUMP_BLEND_MS);
             }
         }
         _ => {}
