@@ -204,7 +204,7 @@ fn spawn_m2_model(
             Player,
             MovementState::default(),
             CharacterFacing::default(),
-            Transform::from_xyz(0.0, 0.5, 0.0)
+            Transform::from_xyz(0.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             Visibility::default(),
         ))
@@ -370,23 +370,25 @@ fn load_blp_as_image(path: &Path) -> Result<Image, String> {
     Ok(rgba_image(pixels, w, h))
 }
 
-/// Blit one overlay onto the base pixel buffer, scaling 2x if requested.
+/// Blit one overlay onto the base pixel buffer, applying the requested scaling.
 fn composite_overlay(
     pixels: &mut Vec<u8>,
     base_width: u32,
     ov: &asset::m2::TextureOverlay,
     texture_dir: &Path,
 ) {
+    use asset::m2::OverlayScale;
     let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
     match asset::blp::load_blp_rgba(&ov_path) {
-        Ok((ov_pixels, ov_w, ov_h)) => {
-            if ov.scale > 1 {
-                let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
-                asset::blp::blit_region(pixels, base_width, &scaled, sw, sh, ov.x, ov.y);
-            } else {
+        Ok((ov_pixels, ov_w, ov_h)) => match ov.scale {
+            OverlayScale::None => {
                 asset::blp::blit_region(pixels, base_width, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
             }
-        }
+            OverlayScale::Uniform2x => {
+                let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
+                asset::blp::blit_region(pixels, base_width, &scaled, sw, sh, ov.x, ov.y);
+            }
+        },
         Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
     }
 }

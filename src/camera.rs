@@ -29,7 +29,7 @@ const JUMP_DURATION: f32 = 0.8;
 /// Peak height of jump arc in world units.
 const JUMP_HEIGHT: f32 = 2.5;
 /// Base Y position (ground level) for the player.
-const GROUND_Y: f32 = 0.5;
+const GROUND_Y: f32 = 0.0;
 
 /// Signals current movement direction and jump state.
 #[derive(Component, Default)]
