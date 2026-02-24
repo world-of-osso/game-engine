@@ -28,6 +28,9 @@ pub struct M2RenderBatch {
 pub struct M2Model {
     pub batches: Vec<M2RenderBatch>,
     pub bones: Vec<super::m2_anim::M2Bone>,
+    pub sequences: Vec<super::m2_anim::M2AnimSequence>,
+    pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
+    pub global_sequences: Vec<u32>,
 }
 
 struct M2Vertex {
@@ -514,7 +517,7 @@ fn build_batched_model(
         let overlays = body_skin_overlays(unit, tex_lookup, tex_types);
         batches.push(M2RenderBatch { mesh, texture_fdid, overlays });
     }
-    Ok(M2Model { batches, bones: Vec::new() })
+    Ok(M2Model { batches, bones: Vec::new(), sequences: Vec::new(), bone_tracks: Vec::new(), global_sequences: Vec::new() })
 }
 
 /// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
@@ -527,6 +530,9 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
 
     let bones = super::m2_anim::parse_bones(chunks.md20).unwrap_or_default();
+    let sequences = super::m2_anim::parse_sequences(chunks.md20).unwrap_or_default();
+    let bone_tracks = super::m2_anim::parse_bone_animations(chunks.md20).unwrap_or_default();
+    let global_sequences = super::m2_anim::parse_global_sequences(chunks.md20).unwrap_or_default();
     let skin = load_skin_data(path);
 
     if let Some(ref skin) = skin
@@ -536,6 +542,9 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
         let has_bones = !bones.is_empty();
         let mut model = build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, has_bones)?;
         model.bones = bones;
+        model.sequences = sequences;
+        model.bone_tracks = bone_tracks;
+        model.global_sequences = global_sequences;
         return Ok(model);
     }
 
@@ -552,6 +561,9 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
             overlays: Vec::new(),
         }],
         bones,
+        sequences,
+        bone_tracks,
+        global_sequences,
     })
 }
 

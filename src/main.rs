@@ -10,9 +10,11 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use wow_engine::ipc::IpcPlugin;
 
+mod animation;
 mod asset;
 mod camera;
 
+use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{Player, WowCamera, WowCameraPlugin};
 
 const DEFAULT_M2: &str =
@@ -36,6 +38,7 @@ fn main() {
     app.add_plugins(DefaultPlugins)
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
+        .add_plugins(AnimationPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -176,32 +179,51 @@ fn spawn_m2_model(
         }
     };
 
+    // Destructure to avoid partial-move issues when consuming batches in the loop.
+    let asset::m2::M2Model { batches, bones, sequences, bone_tracks, global_sequences } = model;
+
     let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("m2_model");
     let model_entity = commands
-        .spawn((
-            Name::new(name.to_owned()),
-            Player,
-            Transform::from_xyz(0.0, 0.5, 0.0),
-            Visibility::default(),
-        ))
+        .spawn((Name::new(name.to_owned()), Player, Transform::from_xyz(0.0, 0.5, 0.0), Visibility::default()))
         .id();
 
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, model_entity);
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, model_entity);
+    let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
 
-    for (i, batch) in model.batches.into_iter().enumerate() {
+    for (i, batch) in batches.into_iter().enumerate() {
         let material = load_batch_material(&batch, i, images, materials);
-        let mut entity_cmd = commands.spawn((
-            Mesh3d(meshes.add(batch.mesh)),
-            MeshMaterial3d(material),
-        ));
+        let mut entity_cmd = commands.spawn((Mesh3d(meshes.add(batch.mesh)), MeshMaterial3d(material)));
         entity_cmd.set_parent_in_place(model_entity);
-        if let Some(ref sk) = skinning {
-            entity_cmd.insert(SkinnedMesh {
-                inverse_bindposes: sk.0.clone(),
-                joints: sk.1.clone(),
-            });
+        if let Some((ref inv_bp, ref joints)) = skinning {
+            entity_cmd.insert(SkinnedMesh { inverse_bindposes: inv_bp.clone(), joints: joints.clone() });
         }
     }
+
+    if let Some(joints) = joint_entities {
+        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
+    }
+}
+
+/// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.
+/// Returns the joint entity list if animation is active, otherwise None.
+fn attach_bone_pivots_and_player(
+    commands: &mut Commands,
+    bones: &[asset::m2_anim::M2Bone],
+    sequences: &[asset::m2_anim::M2AnimSequence],
+    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    model_entity: Entity,
+) -> Option<Vec<Entity>> {
+    let (_, joints) = skinning.as_ref()?;
+    for (i, bone) in bones.iter().enumerate() {
+        let p = bone.pivot;
+        commands.entity(joints[i]).insert(BonePivot(Vec3::new(p[0], p[2], -p[1])));
+    }
+    if sequences.is_empty() {
+        return None;
+    }
+    let stand_idx = sequences.iter().position(|s| s.id == 0).unwrap_or(0);
+    commands.entity(model_entity).insert(M2AnimPlayer { current_seq_idx: stand_idx, time_ms: 0.0, looping: true });
+    Some(joints.clone())
 }
 
 const PLACEHOLDER_COLORS: &[Color] = &[

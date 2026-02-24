@@ -367,7 +367,23 @@ fn debug_humanmale_hd_geosets() {
             visible,
         );
     }
-    println!("=== Total: {} submeshes ===\n", skin.submeshes.len());
+    println!("=== Total: {} submeshes ===", skin.submeshes.len());
+
+    // Show which submeshes are referenced by batches
+    println!("\n=== Batches ({} total) ===", skin.batches.len());
+    println!("{:>5}  {:>12}  {:>10}  {:>12}  {:>7}",
+        "batch", "submesh_idx", "texture_id", "mesh_part_id", "visible");
+    for (i, batch) in skin.batches.iter().enumerate() {
+        let sub_idx = batch.submesh_index as usize;
+        let (mpid, vis) = if sub_idx < skin.submeshes.len() {
+            let s = &skin.submeshes[sub_idx];
+            (s.mesh_part_id, default_geoset_visible(s.mesh_part_id))
+        } else {
+            (9999, false)
+        };
+        println!("{:>5}  {:>12}  {:>10}  {:>12}  {:>7}",
+            i, batch.submesh_index, batch.texture_id, mpid, vis);
+    }
 }
 
 #[test]
@@ -427,3 +443,103 @@ fn mesh_has_joint_attributes() {
     assert!(mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT).is_some(),
         "Mesh should have JOINT_WEIGHT attribute");
 }
+
+fn extract_md21_chunk(data: &[u8]) -> Option<&[u8]> {
+    let mut off = 0;
+    while off + 8 <= data.len() {
+        let chunk_id = &data[off..off + 4];
+        let size = u32::from_le_bytes(data[off + 4..off + 8].try_into().unwrap()) as usize;
+        if chunk_id == b"MD21" {
+            return Some(&data[off + 8..off + 8 + size]);
+        }
+        off += 8 + size;
+    }
+    None
+}
+
+fn print_hex_dump(md20: &[u8]) {
+    println!("\nFirst 128 bytes (hex dump):");
+    for row in 0..8 {
+        print!("0x{:04x}: ", row * 16);
+        for i in 0..16 {
+            if row * 16 + i < md20.len() {
+                print!("{:02x} ", md20[row * 16 + i]);
+            } else {
+                print!("   ");
+            }
+        }
+        println!();
+    }
+}
+
+fn print_md20_fields(md20: &[u8]) {
+    println!("\nHeader Fields:");
+    if md20.len() >= 8 {
+        let version = u32::from_le_bytes(md20[4..8].try_into().unwrap());
+        println!("  MD20 version (offset 0x04):        {}", version);
+    }
+    if md20.len() >= 0x30 {
+        let bone_count = u32::from_le_bytes(md20[0x2C..0x30].try_into().unwrap());
+        println!("  Bone count (offset 0x2C):          {}", bone_count);
+    }
+    if md20.len() >= 0x34 {
+        let bone_offset = u32::from_le_bytes(md20[0x30..0x34].try_into().unwrap());
+        println!("  Bone offset (offset 0x30):         0x{:x}", bone_offset);
+    }
+    if md20.len() >= 0x0C {
+        let name_len = u32::from_le_bytes(md20[0x08..0x0C].try_into().unwrap());
+        println!("  Name length (offset 0x08):         {}", name_len);
+    }
+    if md20.len() >= 0x10 {
+        let name_offset = u32::from_le_bytes(md20[0x0C..0x10].try_into().unwrap());
+        println!("  Name offset (offset 0x0C):         0x{:x}", name_offset);
+    }
+    if md20.len() >= 0x40 {
+        let vertex_count = u32::from_le_bytes(md20[0x3C..0x40].try_into().unwrap());
+        println!("  Vertex count (offset 0x3C):        {}", vertex_count);
+    }
+    if md20.len() >= 0x44 {
+        let vertex_offset = u32::from_le_bytes(md20[0x40..0x44].try_into().unwrap());
+        println!("  Vertex offset (offset 0x40):       0x{:x}", vertex_offset);
+    }
+}
+
+fn debug_single_model(path: &str, label: &str) {
+    println!("\n============================================================");
+    println!("File: {} ({})", path, label);
+    println!("============================================================");
+
+    let data = match std::fs::read(path) {
+        Ok(d) => d,
+        Err(e) => {
+            println!("SKIPPED: Failed to read: {}", e);
+            return;
+        }
+    };
+
+    let md20 = match extract_md21_chunk(&data) {
+        Some(m) => m,
+        None => {
+            println!("SKIPPED: MD21 chunk not found");
+            return;
+        }
+    };
+
+    println!("\nTotal MD20 length: {} bytes (0x{:x})", md20.len(), md20.len());
+    print_hex_dump(md20);
+    print_md20_fields(md20);
+
+    println!("\nBone Parsing Result:");
+    match super::super::m2_anim::parse_bones(md20) {
+        Ok(bones) => println!("  Successfully parsed {} bones", bones.len()),
+        Err(e) => println!("  ERROR parsing bones: {}", e),
+    }
+}
+
+#[test]
+fn debug_compare_md20_headers() {
+    debug_single_model("data/models/humanmale.m2", "humanmale (legacy)");
+    debug_single_model("data/models/humanmale_hd.m2", "humanmale_hd (HD)");
+    println!("\n============================================================\n");
+}
+
