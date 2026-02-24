@@ -196,6 +196,9 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(0));     // base skin
     assert!(default_geoset_visible(1));     // bald cap (closes top of head)
     assert!(default_geoset_visible(5));     // hair style on top of bald cap
+    assert!(default_geoset_visible(102));   // facial hair group 1 variant 2
+    assert!(default_geoset_visible(202));   // facial hair group 2 variant 2
+    assert!(default_geoset_visible(302));   // facial hair group 3 variant 2
     assert!(default_geoset_visible(401));   // bare wrists
     assert!(default_geoset_visible(501));   // bare feet
     assert!(default_geoset_visible(701));   // ears v1
@@ -204,6 +207,7 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(1801));  // default belt
 
     assert!(!default_geoset_visible(2));    // hair variant 2
+    assert!(!default_geoset_visible(101));  // facial hair group 1 variant 1 (bare)
     assert!(!default_geoset_visible(402));  // glove style 2
     assert!(!default_geoset_visible(1502)); // cape style 2
     assert!(!default_geoset_visible(1703)); // eyeglow

@@ -418,14 +418,22 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
     parse_skin_full(&data).ok()
 }
 
-/// Default geoset visibility: base skin + bald cap + hair style + x01 variant per group + ears.
+/// Default geoset visibility: base skin + bald cap + hair style + default variants + ears.
 /// Group 0: geoset 0 (body), 1 (bald cap closes head), 5 (hair style on top).
+/// Groups 1-3: facial hair variant 2 (102, 202, 302 — ties/accessories).
+/// Groups 4+: first variant (x01) is default per group.
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
     if mesh_part_id == 0 || mesh_part_id == 1 || mesh_part_id == 5 {
         return true;
     }
-    // Groups 1+: first variant (x01) is default for each group
-    if mesh_part_id > 100 && mesh_part_id % 100 == 1 {
+    let group = mesh_part_id / 100;
+    let variant = mesh_part_id % 100;
+    // Facial hair groups 1-3: variant 2 is the default style
+    if (1..=3).contains(&group) && variant == 2 {
+        return true;
+    }
+    // Other groups: variant 1 is default
+    if group >= 4 && variant == 1 {
         return true;
     }
     // CharacterDefaultsGeosetModifier: ears default to variant 2
