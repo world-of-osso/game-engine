@@ -184,7 +184,7 @@ fn spawn_m2_model(
 
     let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("m2_model");
     let model_entity = commands
-        .spawn((Name::new(name.to_owned()), Player, Transform::from_xyz(0.0, 0.5, 0.0), Visibility::default()))
+        .spawn((Name::new(name.to_owned()), Player, Transform::from_xyz(0.0, 0.5, 0.0).with_rotation(Quat::from_rotation_y(-PI / 2.0)), Visibility::default()))
         .id();
 
     let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, model_entity);
