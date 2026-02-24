@@ -284,7 +284,12 @@ fn default_fdid_for_type(ty: u32) -> Option<u32> {
 const UNDERWEAR_FDID: u32 = 120181; // humanmalenakedpelvisskin00_00, 256x128
 const UNDERWEAR_REGION: (u32, u32, u32, u32) = (256, 192, 256, 128); // LEG_UPPER
 
-/// Return underwear overlay for body skin (type 1) batches.
+// Scalp/hair textures (HD full-body overlays, 512x512 with alpha).
+// These are blitted at (0,0) — only the face/scalp region has pixel data.
+const SCALP_UPPER_FDID: u32 = 1043094; // scalpupperhair00_00_hd, 512x512
+const SCALP_LOWER_FDID: u32 = 1042989; // faciallowerhair00_00_hd, 512x512
+
+/// Return body skin overlays: underwear + scalp hair textures.
 fn body_skin_overlays(
     unit: &M2TextureUnit,
     tex_lookup: &[u16],
@@ -298,7 +303,11 @@ fn body_skin_overlays(
         return Vec::new();
     }
     let (x, y, _, _) = UNDERWEAR_REGION;
-    vec![TextureOverlay { fdid: UNDERWEAR_FDID, x, y }]
+    vec![
+        TextureOverlay { fdid: UNDERWEAR_FDID, x, y },
+        TextureOverlay { fdid: SCALP_UPPER_FDID, x: 0, y: 0 },
+        TextureOverlay { fdid: SCALP_LOWER_FDID, x: 0, y: 0 },
+    ]
 }
 
 /// Resolve a batch's texture through the lookup chain:

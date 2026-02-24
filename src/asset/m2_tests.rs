@@ -218,6 +218,84 @@ fn wow_to_bevy_transform() {
 }
 
 #[test]
+fn debug_blp_dimensions() {
+    let dir = "data/textures";
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        let mut paths: Vec<_> = entries.flatten().map(|e| e.path()).collect();
+        paths.sort();
+        for path in paths {
+            if path.extension().is_some_and(|e| e == "blp") {
+                match crate::asset::blp::load_blp_rgba(&path) {
+                    Ok((_, w, h)) => println!("{}: {}x{}", path.display(), w, h),
+                    Err(e) => println!("{}: ERROR: {}", path.display(), e),
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn debug_humanmale_textures() {
+    let m2_path = "data/models/humanmale.m2";
+    let skin_path = "data/models/humanmale00.skin";
+
+    let m2_data = match std::fs::read(m2_path) {
+        Ok(d) => d,
+        Err(e) => { println!("Failed to read {}: {}", m2_path, e); return; }
+    };
+    let chunks = match parse_chunks(&m2_data) {
+        Ok(c) => c,
+        Err(e) => { println!("Failed to parse chunks: {}", e); return; }
+    };
+
+    let tex_types = parse_texture_types(chunks.md20).unwrap_or_default();
+    let tex_lookup = parse_texture_lookup(chunks.md20).unwrap_or_default();
+    let txid = chunks.txid.map(parse_txid).unwrap_or_default();
+
+    println!("\n=== humanmale.m2 Texture Types ({} total) ===", tex_types.len());
+    for (i, ty) in tex_types.iter().enumerate() {
+        println!("  texture[{}]: type={}", i, ty);
+    }
+
+    println!("\n=== humanmale.m2 textureLookup ({} entries) ===", tex_lookup.len());
+    for (i, val) in tex_lookup.iter().enumerate() {
+        println!("  lookup[{}] = {}", i, val);
+    }
+
+    println!("\n=== humanmale.m2 TXID ({} entries) ===", txid.len());
+    for (i, fdid) in txid.iter().enumerate() {
+        println!("  txid[{}] = {}", i, fdid);
+    }
+
+    let skin_data = match std::fs::read(skin_path) {
+        Ok(d) => d,
+        Err(e) => { println!("Failed to read {}: {}", skin_path, e); return; }
+    };
+    let skin = match parse_skin_full(&skin_data) {
+        Ok(s) => s,
+        Err(e) => { println!("Failed to parse skin: {}", e); return; }
+    };
+
+    println!("\n=== humanmale00.skin Batches ({} total) ===", skin.batches.len());
+    println!("{:>5}  {:>12}  {:>10}  {:>14}  {:>10}  {:>12}",
+        "batch", "submesh_idx", "texture_id", "lookup_val", "tex_type", "mesh_part_id");
+    for (i, batch) in skin.batches.iter().enumerate() {
+        let sub_idx = batch.submesh_index as usize;
+        let mesh_part_id = skin.submeshes.get(sub_idx).map(|s| s.mesh_part_id).unwrap_or(9999);
+        let lookup_val = tex_lookup.get(batch.texture_id as usize).copied();
+        let tex_type = lookup_val.and_then(|v| tex_types.get(v as usize)).copied();
+        println!("{:>5}  {:>12}  {:>10}  {:>14}  {:>10}  {:>12}",
+            i,
+            batch.submesh_index,
+            batch.texture_id,
+            lookup_val.map(|v| v.to_string()).unwrap_or_else(|| "OOB".into()),
+            tex_type.map(|t| t.to_string()).unwrap_or_else(|| "OOB".into()),
+            mesh_part_id,
+        );
+    }
+}
+
+#[test]
 fn debug_humanmale_skin_submeshes() {
     // Load humanmale00.skin and print submesh mesh_part_id values
     let skin_path = "data/models/humanmale00.skin";
