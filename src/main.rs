@@ -119,7 +119,7 @@ fn setup(
     mut images: ResMut<Assets<Image>>,
     mut skinned_mesh_inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
-    spawn_scene_environment(&mut commands, &mut meshes, &mut materials);
+    spawn_scene_environment(&mut commands, &mut meshes, &mut materials, &mut images);
     let m2_path = parse_model_path();
     spawn_m2_model(
         &mut commands,
@@ -150,6 +150,7 @@ fn spawn_scene_environment(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
 ) {
     commands.spawn((
         Camera3d::default(),
@@ -169,13 +170,99 @@ fn spawn_scene_environment(
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
+
+    let grass_texture = generate_grass_texture();
+    let grass_material = materials.add(StandardMaterial {
+        base_color_texture: Some(images.add(grass_texture)),
+        perceptual_roughness: 0.9,
+        ..default()
+    });
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(100.0, 100.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.3, 0.5, 0.3),
-            ..default()
-        })),
+        MeshMaterial3d(grass_material),
     ));
+
+    spawn_ground_clutter(commands, meshes, materials);
+}
+
+/// Generate a 64x64 procedural grass texture with color variation.
+fn generate_grass_texture() -> Image {
+    const SIZE: u32 = 64;
+    let mut pixels = Vec::with_capacity((SIZE * SIZE * 4) as usize);
+    // Simple hash for deterministic pseudo-random variation
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            let hash = ((x.wrapping_mul(7919) ^ y.wrapping_mul(6271)).wrapping_mul(2903)) % 256;
+            let noise = hash as f32 / 255.0;
+            let r = (0.25 + noise * 0.1) * 255.0;
+            let g = (0.45 + noise * 0.15) * 255.0;
+            let b = (0.15 + noise * 0.08) * 255.0;
+            pixels.extend_from_slice(&[r as u8, g as u8, b as u8, 255]);
+        }
+    }
+    Image::new(
+        Extent3d { width: SIZE, height: SIZE, depth_or_array_layers: 1 },
+        TextureDimension::D2,
+        pixels,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    )
+}
+
+/// Scatter small rock/bush meshes across the ground for visual reference.
+fn spawn_ground_clutter(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    let rock_mesh = meshes.add(Sphere::new(0.15).mesh().ico(2).unwrap());
+    let bush_mesh = meshes.add(Sphere::new(0.3).mesh().ico(1).unwrap());
+
+    let rock_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.45, 0.42, 0.38),
+        perceptual_roughness: 0.95,
+        ..default()
+    });
+    let dark_rock_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.35, 0.33, 0.30),
+        perceptual_roughness: 0.95,
+        ..default()
+    });
+    let bush_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 0.4, 0.15),
+        perceptual_roughness: 0.85,
+        ..default()
+    });
+
+    // Deterministic scatter positions using simple hash
+    for i in 0u32..40 {
+        let hash1 = (i.wrapping_mul(7919).wrapping_add(1301)) % 10000;
+        let hash2 = (i.wrapping_mul(6271).wrapping_add(3571)) % 10000;
+        let x = (hash1 as f32 / 10000.0 - 0.5) * 60.0;
+        let z = (hash2 as f32 / 10000.0 - 0.5) * 60.0;
+
+        // Skip clutter too close to origin (where the player starts)
+        if x * x + z * z < 9.0 {
+            continue;
+        }
+
+        let (mesh, mat, y_scale) = if i % 5 == 0 {
+            // Bush (every 5th)
+            let scale_var = 0.7 + (hash1 % 60) as f32 / 100.0;
+            (bush_mesh.clone(), bush_mat.clone(), scale_var)
+        } else if i % 3 == 0 {
+            (rock_mesh.clone(), dark_rock_mat.clone(), 0.6 + (hash2 % 80) as f32 / 100.0)
+        } else {
+            (rock_mesh.clone(), rock_mat.clone(), 0.5 + (hash1 % 100) as f32 / 100.0)
+        };
+
+        commands.spawn((
+            Mesh3d(mesh),
+            MeshMaterial3d(mat),
+            Transform::from_xyz(x, 0.0, z)
+                .with_scale(Vec3::new(1.0, y_scale, 1.0)),
+        ));
+    }
 }
 
 fn spawn_m2_model(
