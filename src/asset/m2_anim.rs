@@ -74,6 +74,31 @@ pub struct M2Bone {
     pub pivot: [f32; 3],
 }
 
+/// Parse `count` CompBone entries starting at `offset` in `data`.
+pub fn parse_bones_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2Bone>, String> {
+    const BONE_SIZE: usize = 88; // 0x58 bytes per CompBone
+
+    let mut bones = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * BONE_SIZE;
+        if base + BONE_SIZE > data.len() {
+            return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
+        }
+        bones.push(M2Bone {
+            key_bone_id: read_i32(data, base)?,
+            flags: read_u32(data, base + 0x04)?,
+            parent_bone_id: read_i16(data, base + 0x08)?,
+            submesh_id: read_u16(data, base + 0x0A)?,
+            pivot: [
+                read_f32(data, base + 0x4C)?,
+                read_f32(data, base + 0x50)?,
+                read_f32(data, base + 0x54)?,
+            ],
+        });
+    }
+    Ok(bones)
+}
+
 /// Parse the bones M2Array from the MD20 blob at offset 0x2C.
 /// Returns bones with parent indices and pivot points.
 pub fn parse_bones(md20: &[u8]) -> Result<Vec<M2Bone>, String> {
@@ -82,28 +107,7 @@ pub fn parse_bones(md20: &[u8]) -> Result<Vec<M2Bone>, String> {
     }
     let count = read_u32(md20, 0x2C)? as usize;
     let offset = read_u32(md20, 0x30)? as usize;
-
-    const BONE_SIZE: usize = 88; // 0x58 bytes per CompBone
-
-    let mut bones = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = offset + i * BONE_SIZE;
-        if base + BONE_SIZE > md20.len() {
-            return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
-        }
-        bones.push(M2Bone {
-            key_bone_id: read_i32(md20, base)?,
-            flags: read_u32(md20, base + 0x04)?,
-            parent_bone_id: read_i16(md20, base + 0x08)?,
-            submesh_id: read_u16(md20, base + 0x0A)?,
-            pivot: [
-                read_f32(md20, base + 0x4C)?,
-                read_f32(md20, base + 0x50)?,
-                read_f32(md20, base + 0x54)?,
-            ],
-        });
-    }
-    Ok(bones)
+    parse_bones_at(md20, offset, count)
 }
 
 /// Verify bone parent chain: all parent_bone_id values are either -1 (root) or

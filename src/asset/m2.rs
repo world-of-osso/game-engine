@@ -65,6 +65,7 @@ struct SkinData {
 struct M2Chunks<'a> {
     md20: &'a [u8],
     txid: Option<&'a [u8]>,
+    skid: Option<u32>,
 }
 
 /// Read a little-endian u32 from a byte slice at the given offset.
@@ -97,10 +98,11 @@ fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
     Ok(u16::from_le_bytes(bytes))
 }
 
-/// Parse top-level chunks, extracting MD21 (MD20 payload) and optional TXID.
+/// Parse top-level chunks, extracting MD21 (MD20 payload), optional TXID, and optional SKID.
 fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
     let mut txid = None;
+    let mut skid = None;
     let mut off = 0;
     while off + 8 <= data.len() {
         let tag = &data[off..off + 4];
@@ -113,6 +115,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
         match tag {
             b"MD21" => md20 = Some(&data[off + 8..end]),
             b"TXID" => txid = Some(&data[off + 8..end]),
+            b"SKID" if size >= 4 => skid = Some(read_u32(data, off + 8)?),
             _ => {}
         }
         off = end;
@@ -120,6 +123,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     Ok(M2Chunks {
         md20: md20.ok_or("No MD21 chunk found")?,
         txid,
+        skid,
     })
 }
 
@@ -457,6 +461,36 @@ fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     mesh
 }
 
+/// Load bones from an external .skel file (SKB1 chunk).
+///
+/// .skel is chunked binary (same `[tag 4B][size 4B][data]` format as M2).
+/// SKB1 chunk data starts with an M2Array for bones (count u32, offset u32),
+/// where offsets are relative to the SKB1 chunk data start.
+fn load_skel_bones(skel_path: &Path) -> Result<Vec<super::m2_anim::M2Bone>, String> {
+    let data = std::fs::read(skel_path)
+        .map_err(|e| format!("Failed to read .skel file: {e}"))?;
+    let mut off = 0;
+    while off + 8 <= data.len() {
+        let tag = &data[off..off + 4];
+        let size = read_u32(&data, off + 4)? as usize;
+        let end = off + 8 + size;
+        if end > data.len() {
+            break;
+        }
+        if tag == b"SKB1" {
+            let chunk_data = &data[off + 8..end];
+            if chunk_data.len() < 8 {
+                return Err("SKB1 chunk too small".into());
+            }
+            let count = read_u32(chunk_data, 0)? as usize;
+            let bone_offset = read_u32(chunk_data, 4)? as usize;
+            return super::m2_anim::parse_bones_at(chunk_data, bone_offset, count);
+        }
+        off = end;
+    }
+    Err("No SKB1 chunk found in .skel file".into())
+}
+
 fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
     let stem = m2_path.file_stem()?.to_str()?;
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
@@ -478,16 +512,12 @@ fn default_geoset_visible(mesh_part_id: u16) -> bool {
     if (1..=3).contains(&group) && variant == 2 {
         return true;
     }
-    // HD equipment slots: variant 2 = bare/naked (variant 1 absent in HD models)
-    // Group 7=ears, 8=shirt sleeves, 9=leggings, 10=shirt front, 11=tabard, 12=tabard back
-    if matches!(group, 7..=12) && variant == 2 {
-        return true;
-    }
     // Other groups: variant 1 is default
     if group >= 4 && variant == 1 {
         return true;
     }
-    false
+    // CharacterDefaultsGeosetModifier: ears default to variant 2
+    mesh_part_id == 702
 }
 
 /// Build per-batch meshes from skin submesh/batch data, filtering by geoset visibility.
@@ -529,7 +559,19 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let tex_lookup = parse_texture_lookup(chunks.md20)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
 
-    let bones = super::m2_anim::parse_bones(chunks.md20).unwrap_or_default();
+    let mut bones = super::m2_anim::parse_bones(chunks.md20).unwrap_or_default();
+
+    // HD models store bones in an external .skel file (SKID chunk has the FDID).
+    if bones.is_empty() {
+        if let Some(_skel_fdid) = chunks.skid {
+            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            let skel_by_name = path.with_file_name(format!("{stem}.skel"));
+            if let Ok(skel_bones) = load_skel_bones(&skel_by_name) {
+                bones = skel_bones;
+            }
+        }
+    }
+
     let sequences = super::m2_anim::parse_sequences(chunks.md20).unwrap_or_default();
     let bone_tracks = super::m2_anim::parse_bone_animations(chunks.md20).unwrap_or_default();
     let global_sequences = super::m2_anim::parse_global_sequences(chunks.md20).unwrap_or_default();

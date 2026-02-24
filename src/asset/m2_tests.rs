@@ -202,18 +202,15 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(401));   // bare wrists
     assert!(default_geoset_visible(501));   // bare feet
     assert!(default_geoset_visible(701));   // ears v1
-    assert!(default_geoset_visible(702));   // ears v2 (HD default)
-    assert!(default_geoset_visible(802));   // HD bare shirt sleeves
-    assert!(default_geoset_visible(902));   // HD bare leggings
-    assert!(default_geoset_visible(1002));  // HD bare shirt front
-    assert!(default_geoset_visible(1102));  // HD bare tabard front
-    assert!(default_geoset_visible(1202));  // HD bare tabard back
+    assert!(default_geoset_visible(702));   // ears v2 (CharacterDefaultsGeosetModifier)
     assert!(default_geoset_visible(1301));  // default trousers
     assert!(default_geoset_visible(1801));  // default belt
 
     assert!(!default_geoset_visible(2));    // hair variant 2
     assert!(!default_geoset_visible(101));  // facial hair group 1 variant 1 (bare)
     assert!(!default_geoset_visible(402));  // glove style 2
+    assert!(!default_geoset_visible(802));  // shirt sleeves (not default visible)
+    assert!(!default_geoset_visible(902));  // leggings (not default visible)
     assert!(!default_geoset_visible(1502)); // cape style 2
     assert!(!default_geoset_visible(1703)); // eyeglow
 }
