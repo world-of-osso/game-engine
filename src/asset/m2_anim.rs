@@ -321,17 +321,17 @@ pub fn parse_bone_animations(md20: &[u8]) -> Result<Vec<BoneAnimTracks>, String>
     parse_bone_animations_at(md20, offset, count)
 }
 
-/// Unpack a WoW packed i16 quaternion to a Bevy Quat with coordinate flip.
+/// Unpack a WoW packed i16 quaternion to a Bevy Quat with coordinate conversion.
 /// WoW packs rotation as [i16; 4] (x, y, z, w).
 /// Unpack: (raw < 0 ? raw + 32768 : raw - 32767) / 32767.0
-/// Coordinate flip: Quat(-x, -z, y, w) to match WoW→Bevy transform.
+/// WoW→Bevy axis permutation: same as positions (x, y, z) → (x, z, -y),
+/// applied to quaternion imaginary part: (qx, qy, qz, qw) → (qx, qz, -qy, qw).
 pub fn unpack_rotation(packed: &[i16; 4]) -> [f32; 4] {
     let x = unpack_quat_component(packed[0]);
     let y = unpack_quat_component(packed[1]);
     let z = unpack_quat_component(packed[2]);
     let w = unpack_quat_component(packed[3]);
-    // WoW→Bevy coordinate flip: Quat(-x, -z, y, w)
-    [-x, -z, y, w]
+    [x, z, -y, w]
 }
 
 fn unpack_quat_component(raw: i16) -> f32 {
