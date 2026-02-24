@@ -263,8 +263,8 @@ fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
 /// Used when the model has no hardcoded FDID for a texture slot.
 fn default_fdid_for_type(ty: u32) -> Option<u32> {
     match ty {
-        1 => Some(1027767),  // body skin (humanmaleskin00_00_hd)
-        2 => Some(1027743),  // underwear (humanmalenakedpelvisskin00_00_hd)
+        1 => Some(120191),   // body skin (humanmaleskin00_00, 512x512)
+        2 => Some(120181),   // underwear (humanmalenakedpelvisskin00_00, 512x512)
         15 => Some(1043094), // hair/scalp (scalpupperhair00_00_hd)
         16 => Some(1042989), // beard (faciallowerhair00_00_hd)
         _ => None,
@@ -637,7 +637,7 @@ mod tests {
 
         // texture_id=1 -> lookup[1]=1 -> type=1 (runtime) -> default body skin FDID
         let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
-        assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid), Some(1027767));
+        assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid), Some(120191));
 
         // unknown runtime type -> None
         let tex_types_unk = vec![0, 99];
