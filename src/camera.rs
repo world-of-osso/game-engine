@@ -13,6 +13,12 @@ impl Plugin for WowCameraPlugin {
 #[derive(Component)]
 pub struct Player;
 
+/// Signals whether the player is currently moving (WASD/mouse).
+#[derive(Component, Default)]
+pub struct MovementState {
+    pub moving: bool,
+}
+
 #[derive(Component)]
 pub struct WowCamera {
     pub pitch: f32,
@@ -73,12 +79,12 @@ fn player_movement(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     camera_q: Query<&WowCamera>,
-    mut player_q: Query<&mut Transform, With<Player>>,
+    mut player_q: Query<(&mut Transform, &mut MovementState), With<Player>>,
 ) {
     let Ok(cam) = camera_q.single() else {
         return;
     };
-    let Ok(mut transform) = player_q.single_mut() else {
+    let Ok((mut transform, mut movement)) = player_q.single_mut() else {
         return;
     };
 
@@ -106,7 +112,8 @@ fn player_movement(
         direction += forward;
     }
 
-    if direction.length_squared() > 0.0 {
+    movement.moving = direction.length_squared() > 0.0;
+    if movement.moving {
         direction = direction.normalize();
         transform.translation += direction * MOVE_SPEED * time.delta_secs();
     }
