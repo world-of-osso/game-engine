@@ -259,9 +259,21 @@ fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
     Ok(lookup)
 }
 
+/// Default FDIDs for runtime-resolved character texture types (human male, light skin).
+/// Used when the model has no hardcoded FDID for a texture slot.
+fn default_fdid_for_type(ty: u32) -> Option<u32> {
+    match ty {
+        1 => Some(1027767),  // body skin (humanmaleskin00_00_hd)
+        2 => Some(1027743),  // underwear (humanmalenakedpelvisskin00_00_hd)
+        15 => Some(1043094), // hair/scalp (scalpupperhair00_00_hd)
+        16 => Some(1042989), // beard (faciallowerhair00_00_hd)
+        _ => None,
+    }
+}
+
 /// Resolve a batch's texture through the lookup chain:
 /// batch.texture_id -> textureLookup[id] -> textures[idx].type -> TXID[idx]
-/// Returns None for runtime-resolved textures (type != 0).
+/// For runtime-resolved types (type != 0), falls back to default character textures.
 fn resolve_batch_texture(
     unit: &M2TextureUnit,
     tex_lookup: &[u16],
@@ -270,11 +282,11 @@ fn resolve_batch_texture(
 ) -> Option<u32> {
     let tex_idx = *tex_lookup.get(unit.texture_id as usize)? as usize;
     let ty = *tex_types.get(tex_idx)?;
-    if ty != 0 {
-        return None;
+    if ty == 0 {
+        let fdid = *txid.get(tex_idx)?;
+        if fdid != 0 { return Some(fdid); }
     }
-    let fdid = *txid.get(tex_idx)?;
-    if fdid == 0 { None } else { Some(fdid) }
+    default_fdid_for_type(ty)
 }
 
 /// Resolve raw skin indices through the vertex lookup table.
@@ -623,9 +635,14 @@ mod tests {
         let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0 };
         assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid), Some(100));
 
-        // texture_id=1 -> lookup[1]=1 -> type=1 (runtime) -> None
+        // texture_id=1 -> lookup[1]=1 -> type=1 (runtime) -> default body skin FDID
         let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
-        assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid), None);
+        assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid), Some(1027767));
+
+        // unknown runtime type -> None
+        let tex_types_unk = vec![0, 99];
+        let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
+        assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid), None);
     }
 
     #[test]
@@ -634,6 +651,64 @@ mod tests {
         assert_eq!(x, 1.0);
         assert_eq!(y, 3.0); // z -> y
         assert_eq!(z, -2.0); // -y -> z
+    }
+
+    #[test]
+    fn debug_humanmale_textures() {
+        let path = std::path::Path::new("data/models/humanmale.m2");
+        let data = match std::fs::read(path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+
+        let chunks = parse_chunks(&data).expect("parse_chunks failed");
+        let tex_types = parse_texture_types(chunks.md20).expect("parse_texture_types failed");
+        let tex_lookup = parse_texture_lookup(chunks.md20).expect("parse_texture_lookup failed");
+        let txid = chunks.txid.map(parse_txid).unwrap_or_default();
+
+        let skin_path = path.with_file_name("humanmale00.skin");
+        let skin = std::fs::read(&skin_path)
+            .ok()
+            .and_then(|d| parse_skin_full(&d).ok());
+
+        println!("=== TXID FDIDs ({} entries) ===", txid.len());
+        for (i, fdid) in txid.iter().enumerate() {
+            println!("  TXID[{i}] = {fdid}");
+        }
+
+        println!("\n=== Texture Types ({} entries) ===", tex_types.len());
+        for (i, ty) in tex_types.iter().enumerate() {
+            println!("  textures[{i}].type = {ty}");
+        }
+
+        println!("\n=== textureLookup ({} entries) ===", tex_lookup.len());
+        for (i, v) in tex_lookup.iter().enumerate() {
+            println!("  textureLookup[{i}] = {v}");
+        }
+
+        match skin {
+            None => println!("\n=== Skin: not found or failed to parse ==="),
+            Some(ref skin) => {
+                println!("\n=== Skin Batches ({} entries) ===", skin.batches.len());
+                for (i, batch) in skin.batches.iter().enumerate() {
+                    let tex_idx = tex_lookup
+                        .get(batch.texture_id as usize)
+                        .copied()
+                        .map(|v| v as usize);
+                    let ty = tex_idx.and_then(|idx| tex_types.get(idx)).copied();
+                    let fdid = tex_idx.and_then(|idx| txid.get(idx)).copied();
+                    println!(
+                        "  batch[{i}]: submesh_index={}, texture_id={} -> textureLookup[{}]={} -> type={} -> FDID={}",
+                        batch.submesh_index,
+                        batch.texture_id,
+                        batch.texture_id,
+                        tex_idx.map(|v| v.to_string()).unwrap_or("OOB".into()),
+                        ty.map(|v| v.to_string()).unwrap_or("OOB".into()),
+                        fdid.map(|v| v.to_string()).unwrap_or("OOB".into()),
+                    );
+                }
+            }
+        }
     }
 
 }
