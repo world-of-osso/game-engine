@@ -76,7 +76,7 @@ impl Default for WowCamera {
 }
 
 const SENSITIVITY: f32 = 0.01;
-const MOVE_SPEED: f32 = 10.0;
+const MOVE_SPEED: f32 = 2.5; // Match M2 Walk movespeed (2.5 yards/sec)
 const ZOOM_STEP: f32 = 2.0;
 const ZOOM_LERP_SPEED: f32 = 10.0;
 const PITCH_LIMIT: f32 = 88.0_f32 * std::f32::consts::PI / 180.0;

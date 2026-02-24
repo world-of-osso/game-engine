@@ -30,6 +30,61 @@ fn minimal_md20(pos: [f32; 3]) -> Vec<u8> {
     md20
 }
 
+fn compute_skin_offsets(
+    lookup_len: usize,
+    indices_len: usize,
+    submesh_len: usize,
+    batch_len: usize,
+) -> (u32, u32, u32, u32, u32) {
+    let header_size: u32 = 44;
+    let lookup_offset = header_size;
+    let indices_offset = lookup_offset + (lookup_len as u32) * 2;
+    let sub_offset = indices_offset + (indices_len as u32) * 2;
+    let batch_offset = sub_offset + (submesh_len as u32) * 48;
+    let total = batch_offset + (batch_len as u32) * 24;
+    (lookup_offset, indices_offset, sub_offset, batch_offset, total)
+}
+
+fn write_skin_header(skin: &mut [u8], lookup_offset: u32, indices_offset: u32, sub_offset: u32, batch_offset: u32, lookup_len: usize, indices_len: usize, submesh_len: usize, batch_len: usize) {
+    skin[0..4].copy_from_slice(b"SKIN");
+    skin[4..8].copy_from_slice(&(lookup_len as u32).to_le_bytes());
+    skin[8..12].copy_from_slice(&lookup_offset.to_le_bytes());
+    skin[12..16].copy_from_slice(&(indices_len as u32).to_le_bytes());
+    skin[16..20].copy_from_slice(&indices_offset.to_le_bytes());
+    skin[28..32].copy_from_slice(&(submesh_len as u32).to_le_bytes());
+    skin[32..36].copy_from_slice(&sub_offset.to_le_bytes());
+    skin[36..40].copy_from_slice(&(batch_len as u32).to_le_bytes());
+    skin[40..44].copy_from_slice(&batch_offset.to_le_bytes());
+}
+
+fn write_skin_data(skin: &mut [u8], lookup: &[u16], indices: &[u16], submeshes: &[(u16, u16, u16, u16)], batches: &[(u16, u16)], lookup_offset: u32, indices_offset: u32, sub_offset: u32, batch_offset: u32) {
+    let lookup_offset = lookup_offset as usize;
+    let indices_offset = indices_offset as usize;
+    let sub_offset = sub_offset as usize;
+    let batch_offset = batch_offset as usize;
+
+    for (i, &v) in lookup.iter().enumerate() {
+        let off = lookup_offset + i * 2;
+        skin[off..off + 2].copy_from_slice(&v.to_le_bytes());
+    }
+    for (i, &v) in indices.iter().enumerate() {
+        let off = indices_offset + i * 2;
+        skin[off..off + 2].copy_from_slice(&v.to_le_bytes());
+    }
+    for (i, &(vs, vc, ts, tc)) in submeshes.iter().enumerate() {
+        let base = sub_offset + i * 48;
+        skin[base + 4..base + 6].copy_from_slice(&vs.to_le_bytes());
+        skin[base + 6..base + 8].copy_from_slice(&vc.to_le_bytes());
+        skin[base + 8..base + 10].copy_from_slice(&ts.to_le_bytes());
+        skin[base + 10..base + 12].copy_from_slice(&tc.to_le_bytes());
+    }
+    for (i, &(sub_idx, tex_id)) in batches.iter().enumerate() {
+        let base = batch_offset + i * 24;
+        skin[base + 4..base + 6].copy_from_slice(&sub_idx.to_le_bytes());
+        skin[base + 16..base + 18].copy_from_slice(&tex_id.to_le_bytes());
+    }
+}
+
 /// Build a minimal skin file with full header (44 bytes) + data sections.
 fn build_skin(
     lookup: &[u16],
@@ -37,45 +92,12 @@ fn build_skin(
     submeshes: &[(u16, u16, u16, u16)],
     batches: &[(u16, u16)],
 ) -> Vec<u8> {
-    let header_size: u32 = 44;
-    let lookup_offset = header_size;
-    let indices_offset = lookup_offset + (lookup.len() as u32) * 2;
-    let sub_offset = indices_offset + (indices.len() as u32) * 2;
-    let batch_offset = sub_offset + (submeshes.len() as u32) * 48;
-    let total = batch_offset + (batches.len() as u32) * 24;
+    let (lookup_offset, indices_offset, sub_offset, batch_offset, total) =
+        compute_skin_offsets(lookup.len(), indices.len(), submeshes.len(), batches.len());
 
     let mut skin = vec![0u8; total as usize];
-    skin[0..4].copy_from_slice(b"SKIN");
-
-    skin[4..8].copy_from_slice(&(lookup.len() as u32).to_le_bytes());
-    skin[8..12].copy_from_slice(&lookup_offset.to_le_bytes());
-    skin[12..16].copy_from_slice(&(indices.len() as u32).to_le_bytes());
-    skin[16..20].copy_from_slice(&indices_offset.to_le_bytes());
-    skin[28..32].copy_from_slice(&(submeshes.len() as u32).to_le_bytes());
-    skin[32..36].copy_from_slice(&sub_offset.to_le_bytes());
-    skin[36..40].copy_from_slice(&(batches.len() as u32).to_le_bytes());
-    skin[40..44].copy_from_slice(&batch_offset.to_le_bytes());
-
-    for (i, &v) in lookup.iter().enumerate() {
-        let off = lookup_offset as usize + i * 2;
-        skin[off..off + 2].copy_from_slice(&v.to_le_bytes());
-    }
-    for (i, &v) in indices.iter().enumerate() {
-        let off = indices_offset as usize + i * 2;
-        skin[off..off + 2].copy_from_slice(&v.to_le_bytes());
-    }
-    for (i, &(vs, vc, ts, tc)) in submeshes.iter().enumerate() {
-        let base = sub_offset as usize + i * 48;
-        skin[base + 4..base + 6].copy_from_slice(&vs.to_le_bytes());
-        skin[base + 6..base + 8].copy_from_slice(&vc.to_le_bytes());
-        skin[base + 8..base + 10].copy_from_slice(&ts.to_le_bytes());
-        skin[base + 10..base + 12].copy_from_slice(&tc.to_le_bytes());
-    }
-    for (i, &(sub_idx, tex_id)) in batches.iter().enumerate() {
-        let base = batch_offset as usize + i * 24;
-        skin[base + 4..base + 6].copy_from_slice(&sub_idx.to_le_bytes());
-        skin[base + 16..base + 18].copy_from_slice(&tex_id.to_le_bytes());
-    }
+    write_skin_header(&mut skin, lookup_offset, indices_offset, sub_offset, batch_offset, lookup.len(), indices.len(), submeshes.len(), batches.len());
+    write_skin_data(&mut skin, lookup, indices, submeshes, batches, lookup_offset, indices_offset, sub_offset, batch_offset);
 
     skin
 }
@@ -179,16 +201,19 @@ fn resolve_batch_texture_chain() {
 
     // Type 0 (hardcoded) → FDID from TXID
     let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0 };
-    assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid), Some(100));
+    assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false), Some(100));
 
-    // Type 1 (body skin) → default FDID
+    // Type 1 (body skin) → default FDID (SD)
     let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
-    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid), Some(120191));
+    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false), Some(120191));
+
+    // Type 1 (body skin) → default FDID (HD)
+    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, true), Some(1027767));
 
     // Unknown type → None (placeholder)
     let tex_types_unk = vec![0, 99];
     let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
-    assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid), None);
+    assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid, false), None);
 }
 
 #[test]
@@ -240,66 +265,6 @@ fn debug_blp_dimensions() {
     }
 }
 
-#[test]
-fn debug_humanmale_textures() {
-    let m2_path = "data/models/humanmale.m2";
-    let skin_path = "data/models/humanmale00.skin";
-
-    let m2_data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(e) => { println!("Failed to read {}: {}", m2_path, e); return; }
-    };
-    let chunks = match parse_chunks(&m2_data) {
-        Ok(c) => c,
-        Err(e) => { println!("Failed to parse chunks: {}", e); return; }
-    };
-
-    let tex_types = parse_texture_types(chunks.md20).unwrap_or_default();
-    let tex_lookup = parse_texture_lookup(chunks.md20).unwrap_or_default();
-    let txid = chunks.txid.map(parse_txid).unwrap_or_default();
-
-    println!("\n=== humanmale.m2 Texture Types ({} total) ===", tex_types.len());
-    for (i, ty) in tex_types.iter().enumerate() {
-        println!("  texture[{}]: type={}", i, ty);
-    }
-
-    println!("\n=== humanmale.m2 textureLookup ({} entries) ===", tex_lookup.len());
-    for (i, val) in tex_lookup.iter().enumerate() {
-        println!("  lookup[{}] = {}", i, val);
-    }
-
-    println!("\n=== humanmale.m2 TXID ({} entries) ===", txid.len());
-    for (i, fdid) in txid.iter().enumerate() {
-        println!("  txid[{}] = {}", i, fdid);
-    }
-
-    let skin_data = match std::fs::read(skin_path) {
-        Ok(d) => d,
-        Err(e) => { println!("Failed to read {}: {}", skin_path, e); return; }
-    };
-    let skin = match parse_skin_full(&skin_data) {
-        Ok(s) => s,
-        Err(e) => { println!("Failed to parse skin: {}", e); return; }
-    };
-
-    println!("\n=== humanmale00.skin Batches ({} total) ===", skin.batches.len());
-    println!("{:>5}  {:>12}  {:>10}  {:>14}  {:>10}  {:>12}",
-        "batch", "submesh_idx", "texture_id", "lookup_val", "tex_type", "mesh_part_id");
-    for (i, batch) in skin.batches.iter().enumerate() {
-        let sub_idx = batch.submesh_index as usize;
-        let mesh_part_id = skin.submeshes.get(sub_idx).map(|s| s.mesh_part_id).unwrap_or(9999);
-        let lookup_val = tex_lookup.get(batch.texture_id as usize).copied();
-        let tex_type = lookup_val.and_then(|v| tex_types.get(v as usize)).copied();
-        println!("{:>5}  {:>12}  {:>10}  {:>14}  {:>10}  {:>12}",
-            i,
-            batch.submesh_index,
-            batch.texture_id,
-            lookup_val.map(|v| v.to_string()).unwrap_or_else(|| "OOB".into()),
-            tex_type.map(|t| t.to_string()).unwrap_or_else(|| "OOB".into()),
-            mesh_part_id,
-        );
-    }
-}
 
 #[test]
 fn debug_humanmale_skin_submeshes() {
@@ -333,55 +298,6 @@ fn debug_humanmale_skin_submeshes() {
     }
 }
 
-#[test]
-fn debug_humanmale_hd_geosets() {
-    let m2_path = "data/models/humanmale_hd.m2";
-    let skin_path = "data/models/humanmale_hd00.skin";
-
-    if std::fs::metadata(m2_path).is_err() {
-        println!("Skipping: {} not found", m2_path);
-        return;
-    }
-
-    let skin_data = match std::fs::read(skin_path) {
-        Ok(d) => d,
-        Err(e) => { println!("Failed to read {}: {}", skin_path, e); return; }
-    };
-    let skin = match parse_skin_full(&skin_data) {
-        Ok(s) => s,
-        Err(e) => { println!("Failed to parse skin: {}", e); return; }
-    };
-
-    println!("\n=== humanmale_hd00.skin Submeshes ({} total) ===", skin.submeshes.len());
-    println!("{:>5}  {:>12}  {:>12}  {:>7}",
-        "idx", "mesh_part_id", "vertex_count", "visible");
-    for (i, submesh) in skin.submeshes.iter().enumerate() {
-        let visible = default_geoset_visible(submesh.mesh_part_id);
-        println!("{:>5}  {:>12}  {:>12}  {:>7}",
-            i,
-            submesh.mesh_part_id,
-            submesh.vertex_count,
-            visible,
-        );
-    }
-    println!("=== Total: {} submeshes ===", skin.submeshes.len());
-
-    // Show which submeshes are referenced by batches
-    println!("\n=== Batches ({} total) ===", skin.batches.len());
-    println!("{:>5}  {:>12}  {:>10}  {:>12}  {:>7}",
-        "batch", "submesh_idx", "texture_id", "mesh_part_id", "visible");
-    for (i, batch) in skin.batches.iter().enumerate() {
-        let sub_idx = batch.submesh_index as usize;
-        let (mpid, vis) = if sub_idx < skin.submeshes.len() {
-            let s = &skin.submeshes[sub_idx];
-            (s.mesh_part_id, default_geoset_visible(s.mesh_part_id))
-        } else {
-            (9999, false)
-        };
-        println!("{:>5}  {:>12}  {:>10}  {:>12}  {:>7}",
-            i, batch.submesh_index, batch.texture_id, mpid, vis);
-    }
-}
 
 #[test]
 fn parse_vertices_has_bone_data() {
@@ -622,64 +538,6 @@ fn debug_hd_skel_info() {
     print_bone_check_summary(skel_bone_count, max_bone_index, verts.len());
 }
 
-#[test]
-fn debug_hd_skin_details() {
-    let skin_path = "data/models/humanmale_hd00.skin";
-    let data = match std::fs::read(skin_path) {
-        Ok(d) => d,
-        Err(e) => { println!("Failed to read {}: {}", skin_path, e); return; }
-    };
-
-    if data.len() < 36 {
-        println!("Skin file too small");
-        return;
-    }
-
-    let lookup_count = u32::from_le_bytes(data[4..8].try_into().unwrap());
-    let lookup_offset = u32::from_le_bytes(data[8..12].try_into().unwrap());
-    let indices_count = u32::from_le_bytes(data[12..16].try_into().unwrap());
-    let bones_count = u32::from_le_bytes(data[20..24].try_into().unwrap());
-    let submesh_count = u32::from_le_bytes(data[28..32].try_into().unwrap());
-    let submesh_offset = u32::from_le_bytes(data[32..36].try_into().unwrap());
-
-    println!("\n=== humanmale_hd00.skin Details ===");
-    println!("lookup_count: {}", lookup_count);
-    println!("indices_count: {}", indices_count);
-    println!("bones_count: {}", bones_count);
-
-    // Find max value in lookup table
-    let mut max_lookup = 0u16;
-    let lookup_start = lookup_offset as usize;
-    let lookup_end = lookup_start + (lookup_count as usize * 2);
-    if lookup_end <= data.len() {
-        for i in 0..lookup_count as usize {
-            let off = lookup_start + i * 2;
-            let val = u16::from_le_bytes(data[off..off + 2].try_into().unwrap());
-            if val > max_lookup {
-                max_lookup = val;
-            }
-        }
-        println!("max lookup value: {}", max_lookup);
-    }
-
-    // Check submeshes for vertex overflow
-    let submesh_start = submesh_offset as usize;
-    let mut has_overflow = false;
-    for i in 0..submesh_count as usize {
-        let off = submesh_start + i * 48;
-        if off + 8 <= data.len() {
-            let vs = u16::from_le_bytes(data[off + 4..off + 6].try_into().unwrap());
-            let vc = u16::from_le_bytes(data[off + 6..off + 8].try_into().unwrap());
-            let sum = (vs as u32) + (vc as u32);
-            println!("submesh[{}]: vertex_start={}, vertex_count={}, sum={}", i, vs, vc, sum);
-            if sum > 65535 {
-                has_overflow = true;
-            }
-        }
-    }
-
-    println!("Vertex sum exceeds u16::MAX? {}", has_overflow);
-}
 
 fn count_bones_with_stand_keyframes(model: &super::M2Model) -> usize {
     let stand_idx = model.sequences.iter().position(|s| s.id == 0).unwrap();
@@ -698,6 +556,7 @@ fn count_bones_with_stand_keyframes(model: &super::M2Model) -> usize {
         })
         .count()
 }
+
 
 #[test]
 fn load_m2_hd_has_skel_animation_data() {
