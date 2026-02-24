@@ -44,6 +44,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     // Camera with WoW-style orbit controller
     commands.spawn((
@@ -84,7 +85,8 @@ fn setup(
         .unwrap_or_else(|| PathBuf::from(DEFAULT_M2));
 
     match asset::m2::load_m2(&m2_path) {
-        Ok(mesh) => {
+        Ok(model) => {
+            let material = load_model_material(&model, &mut images, &mut materials);
             let name = m2_path
                 .file_stem()
                 .and_then(|s| s.to_str())
@@ -92,16 +94,46 @@ fn setup(
             commands.spawn((
                 Name::new(name.to_owned()),
                 Player,
-                Mesh3d(meshes.add(mesh)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.8, 0.4, 0.2),
-                    ..default()
-                })),
+                Mesh3d(meshes.add(model.mesh)),
+                MeshMaterial3d(material),
                 Transform::from_xyz(0.0, 0.5, 0.0),
             ));
         }
         Err(e) => eprintln!("Failed to load M2 {}: {e}", m2_path.display()),
     }
+}
+
+fn load_model_material(
+    model: &asset::m2::M2Model,
+    images: &mut Assets<Image>,
+    materials: &mut Assets<StandardMaterial>,
+) -> Handle<StandardMaterial> {
+    let texture_dir = PathBuf::from("data/textures");
+    for &fdid in &model.texture_ids {
+        let blp_path = texture_dir.join(format!("{fdid}.blp"));
+        if blp_path.exists() {
+            match asset::blp::load_blp_to_image(&blp_path) {
+                Ok(image) => {
+                    let handle = images.add(image);
+                    return materials.add(StandardMaterial {
+                        base_color_texture: Some(handle),
+                        ..default()
+                    });
+                }
+                Err(e) => eprintln!("Failed to load BLP {}: {e}", blp_path.display()),
+            }
+        }
+    }
+    if !model.texture_ids.is_empty() {
+        eprintln!("Textures needed (download with casc-extract):");
+        for fdid in &model.texture_ids {
+            eprintln!("  FDID {fdid} -> data/textures/{fdid}.blp");
+        }
+    }
+    materials.add(StandardMaterial {
+        base_color: Color::srgb(0.8, 0.4, 0.2),
+        ..default()
+    })
 }
 
 #[allow(clippy::type_complexity)]

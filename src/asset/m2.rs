@@ -8,10 +8,20 @@ fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
     [x, z, -y]
 }
 
+pub struct M2Model {
+    pub mesh: Mesh,
+    pub texture_ids: Vec<u32>,
+}
+
 struct M2Vertex {
     position: [f32; 3],
     normal: [f32; 3],
     tex_coords: [f32; 2],
+}
+
+struct M2Chunks<'a> {
+    md20: &'a [u8],
+    txid: Option<&'a [u8]>,
 }
 
 /// Read a little-endian u32 from a byte slice at the given offset.
@@ -44,22 +54,30 @@ fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
     Ok(u16::from_le_bytes(bytes))
 }
 
-/// Find the MD21 chunk and return the inner MD20 data slice.
-fn parse_md21_chunk(data: &[u8]) -> Result<&[u8], String> {
+/// Parse top-level chunks, extracting MD21 (MD20 payload) and optional TXID.
+fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
+    let mut md20 = None;
+    let mut txid = None;
     let mut off = 0;
     while off + 8 <= data.len() {
         let tag = &data[off..off + 4];
         let size = read_u32(data, off + 4)? as usize;
-        if tag == b"MD21" {
-            let end = off + 8 + size;
-            if end > data.len() {
-                return Err(format!("MD21 chunk truncated: need {end}, have {}", data.len()));
-            }
-            return Ok(&data[off + 8..end]);
+        let end = off + 8 + size;
+        if end > data.len() {
+            let tag_str = std::str::from_utf8(tag).unwrap_or("????");
+            return Err(format!("Chunk {tag_str} truncated at offset {off:#x}"));
         }
-        off += 8 + size;
+        match tag {
+            b"MD21" => md20 = Some(&data[off + 8..end]),
+            b"TXID" => txid = Some(&data[off + 8..end]),
+            _ => {}
+        }
+        off = end;
     }
-    Err("No MD21 chunk found".into())
+    Ok(M2Chunks {
+        md20: md20.ok_or("No MD21 chunk found")?,
+        txid,
+    })
 }
 
 /// Parse the vertex array from the MD20 blob (M2Array at offset 0x3C).
@@ -126,6 +144,48 @@ fn load_skin_indices(m2_path: &Path) -> Option<Vec<u16>> {
     parse_skin(&data).ok()
 }
 
+/// Parse texture types from the MD20 textures M2Array at offset 0x50.
+/// Each texture entry is 16 bytes: { type: u32, flags: u32, name: M2Array }.
+fn parse_texture_types(md20: &[u8]) -> Result<Vec<u32>, String> {
+    if md20.len() < 0x58 {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, 0x50)? as usize;
+    let offset = read_u32(md20, 0x54)? as usize;
+    let mut types = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * 16;
+        if base + 16 > md20.len() {
+            return Err(format!("Texture entry {i} out of bounds at {base:#x}"));
+        }
+        types.push(read_u32(md20, base)?);
+    }
+    Ok(types)
+}
+
+/// Parse the TXID chunk as an array of u32 FileDataIDs.
+fn parse_txid(data: &[u8]) -> Vec<u32> {
+    (0..data.len() / 4)
+        .filter_map(|i| read_u32(data, i * 4).ok())
+        .collect()
+}
+
+/// Extract hardcoded (type 0) texture FileDataIDs from MD20 + TXID.
+fn extract_texture_ids(md20: &[u8], txid: Option<&[u8]>) -> Result<Vec<u32>, String> {
+    let txid_data = match txid {
+        Some(data) => data,
+        None => return Ok(Vec::new()),
+    };
+    let types = parse_texture_types(md20)?;
+    let fdids = parse_txid(txid_data);
+    Ok(types
+        .iter()
+        .zip(fdids.iter())
+        .filter(|(ty, fdid)| **ty == 0 && **fdid != 0)
+        .map(|(_, fdid)| *fdid)
+        .collect())
+}
+
 fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     let mut positions = Vec::with_capacity(vertices.len());
     let mut normals = Vec::with_capacity(vertices.len());
@@ -145,16 +205,20 @@ fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     mesh
 }
 
-/// Load an M2 model file (chunked MD21 format) and convert it to a Bevy [`Mesh`].
-pub fn load_m2(path: &Path) -> Result<Mesh, String> {
+/// Load an M2 model file (chunked MD21 format) and return mesh + texture IDs.
+pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
-    let md20 = parse_md21_chunk(&data)?;
-    let vertices = parse_vertices(md20)?;
+    let chunks = parse_chunks(&data)?;
+    let vertices = parse_vertices(chunks.md20)?;
+    let texture_ids = extract_texture_ids(chunks.md20, chunks.txid)?;
 
     let indices = load_skin_indices(path)
         .unwrap_or_else(|| (0..vertices.len() as u16).collect());
 
-    Ok(build_mesh(&vertices, indices))
+    Ok(M2Model {
+        mesh: build_mesh(&vertices, indices),
+        texture_ids,
+    })
 }
 
 #[cfg(test)]
@@ -202,26 +266,69 @@ mod tests {
     }
 
     #[test]
-    fn parse_md21_finds_chunk() {
+    fn parse_chunks_finds_md21() {
         let md20 = minimal_md20([1.0, 2.0, 3.0]);
         let data = wrap_md21(&md20);
-        let result = parse_md21_chunk(&data).unwrap();
-        assert_eq!(result, &md20);
+        let chunks = parse_chunks(&data).unwrap();
+        assert_eq!(chunks.md20, &md20);
+        assert!(chunks.txid.is_none());
     }
 
     #[test]
-    fn parse_md21_skips_unknown_chunks() {
+    fn parse_chunks_captures_txid() {
         let md20 = minimal_md20([0.0, 0.0, 0.0]);
+        let txid_data: Vec<u8> = [42u32, 99u32]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
         let mut data = Vec::new();
-        // Prepend a dummy TXID chunk (8 bytes of zeros)
         data.extend_from_slice(b"TXID");
-        data.extend_from_slice(&8u32.to_le_bytes());
-        data.extend_from_slice(&[0u8; 8]);
-        // Then the real MD21
+        data.extend_from_slice(&(txid_data.len() as u32).to_le_bytes());
+        data.extend_from_slice(&txid_data);
         data.extend_from_slice(&wrap_md21(&md20));
 
-        let result = parse_md21_chunk(&data).unwrap();
-        assert_eq!(result, &md20);
+        let chunks = parse_chunks(&data).unwrap();
+        assert_eq!(chunks.md20, &md20);
+        assert_eq!(chunks.txid.unwrap(), &txid_data);
+    }
+
+    #[test]
+    fn parse_txid_reads_fdids() {
+        let data: Vec<u8> = [42u32, 99u32, 0u32]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
+        assert_eq!(parse_txid(&data), vec![42, 99, 0]);
+    }
+
+    #[test]
+    fn extract_texture_ids_filters_type_0() {
+        // MD20 with textures M2Array at 0x50: 2 entries at offset 0x60
+        let tex_offset: u32 = 0x60;
+        let mut md20 = vec![0u8; tex_offset as usize + 32];
+        md20[0..4].copy_from_slice(b"MD20");
+        md20[4..8].copy_from_slice(&274u32.to_le_bytes());
+        md20[0x50..0x54].copy_from_slice(&2u32.to_le_bytes());
+        md20[0x54..0x58].copy_from_slice(&tex_offset.to_le_bytes());
+        // Entry 0: type=0 (hardcoded)
+        let b = tex_offset as usize;
+        md20[b..b + 4].copy_from_slice(&0u32.to_le_bytes());
+        // Entry 1: type=1 (character skin)
+        md20[b + 16..b + 20].copy_from_slice(&1u32.to_le_bytes());
+
+        let txid: Vec<u8> = [100u32, 200u32]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
+        let ids = extract_texture_ids(&md20, Some(&txid)).unwrap();
+        assert_eq!(ids, vec![100]);
+    }
+
+    #[test]
+    fn extract_texture_ids_empty_without_txid() {
+        let md20 = minimal_md20([0.0, 0.0, 0.0]);
+        let ids = extract_texture_ids(&md20, None).unwrap();
+        assert!(ids.is_empty());
     }
 
     #[test]
