@@ -31,6 +31,18 @@ pub struct MovementState {
     pub jumping: bool,
 }
 
+/// Character facing yaw (radians). RMB rotates this; the model entity rotation follows.
+#[derive(Component)]
+pub struct CharacterFacing {
+    pub yaw: f32,
+}
+
+impl Default for CharacterFacing {
+    fn default() -> Self {
+        Self { yaw: 0.0 }
+    }
+}
+
 #[derive(Component)]
 pub struct WowCamera {
     pub pitch: f32,
@@ -54,7 +66,7 @@ impl Default for WowCamera {
     }
 }
 
-const SENSITIVITY: f32 = 0.003;
+const SENSITIVITY: f32 = 0.01;
 const MOVE_SPEED: f32 = 10.0;
 const ZOOM_STEP: f32 = 2.0;
 const ZOOM_LERP_SPEED: f32 = 10.0;
@@ -65,6 +77,7 @@ fn camera_input(
     mouse_scroll: Res<AccumulatedMouseScroll>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut camera_q: Query<&mut WowCamera>,
+    mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
     let Ok(mut cam) = camera_q.single_mut() else {
         return;
@@ -72,9 +85,19 @@ fn camera_input(
 
     let rmb = mouse_buttons.pressed(MouseButton::Right);
     let lmb = mouse_buttons.pressed(MouseButton::Left);
+    let delta = mouse_motion.delta;
 
-    if rmb || lmb {
-        let delta = mouse_motion.delta;
+    if rmb {
+        // RMB: rotate character facing + camera follows
+        let yaw_delta = -delta.x * SENSITIVITY;
+        cam.yaw += yaw_delta;
+        cam.pitch -= delta.y * SENSITIVITY;
+        cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
+        if let Ok(mut facing) = facing_q.single_mut() {
+            facing.yaw += yaw_delta;
+        }
+    } else if lmb {
+        // LMB: orbit camera only (character doesn't turn)
         cam.yaw -= delta.x * SENSITIVITY;
         cam.pitch -= delta.y * SENSITIVITY;
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
@@ -90,22 +113,20 @@ fn player_movement(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
-    camera_q: Query<&WowCamera>,
-    mut player_q: Query<(&mut Transform, &mut MovementState), With<Player>>,
+    mut player_q: Query<
+        (&mut Transform, &mut MovementState, &CharacterFacing),
+        With<Player>,
+    >,
 ) {
-    let Ok(cam) = camera_q.single() else {
+    let Ok((mut transform, mut movement, facing)) = player_q.single_mut() else {
         return;
     };
-    let Ok((mut transform, mut movement)) = player_q.single_mut() else {
-        return;
-    };
+
+    // Movement relative to character facing (not camera)
+    let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
+    let right = Vec3::new(-forward.z, 0.0, forward.x);
 
     let mut direction = Vec3::ZERO;
-
-    // WASD relative to camera yaw (horizontal plane only)
-    let forward = Vec3::new(-cam.yaw.sin(), 0.0, -cam.yaw.cos());
-    let right = Vec3::new(forward.z, 0.0, -forward.x);
-
     if keys.pressed(KeyCode::KeyW) {
         direction += forward;
     }
@@ -118,13 +139,10 @@ fn player_movement(
     if keys.pressed(KeyCode::KeyD) {
         direction += right;
     }
-
-    // Both mouse buttons = move forward
     if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
         direction += forward;
     }
 
-    // Determine dominant direction: forward/backward take priority over strafe
     let fwd = keys.pressed(KeyCode::KeyW)
         || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
     let back = keys.pressed(KeyCode::KeyS);
@@ -151,6 +169,9 @@ fn player_movement(
         direction = direction.normalize();
         transform.translation += direction * MOVE_SPEED * time.delta_secs();
     }
+
+    // Rotate model to match character facing (base -PI/2 for WoW→Bevy model orientation)
+    transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
 }
 
 fn camera_follow(

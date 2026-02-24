@@ -15,7 +15,7 @@ mod asset;
 mod camera;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
-use camera::{MovementState, Player, WowCamera, WowCameraPlugin};
+use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
 
 const DEFAULT_M2: &str =
     "/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2";
@@ -129,6 +129,21 @@ fn setup(
         &mut skinned_mesh_inverse_bindposes,
         &m2_path,
     );
+
+    // Static reference object (chest) so you can see movement relative to the world
+    let chest_path = Path::new("data/models/chest01.m2");
+    if chest_path.exists() {
+        spawn_static_m2(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &mut images,
+            &mut skinned_mesh_inverse_bindposes,
+            chest_path,
+            Transform::from_xyz(5.0, 0.0, 0.0)
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+        );
+    }
 }
 
 fn spawn_scene_environment(
@@ -184,7 +199,15 @@ fn spawn_m2_model(
 
     let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("m2_model");
     let model_entity = commands
-        .spawn((Name::new(name.to_owned()), Player, MovementState::default(), Transform::from_xyz(0.0, 0.5, 0.0).with_rotation(Quat::from_rotation_y(-PI / 2.0)), Visibility::default()))
+        .spawn((
+            Name::new(name.to_owned()),
+            Player,
+            MovementState::default(),
+            CharacterFacing::default(),
+            Transform::from_xyz(0.0, 0.5, 0.0)
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+            Visibility::default(),
+        ))
         .id();
 
     let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, model_entity);
@@ -201,6 +224,40 @@ fn spawn_m2_model(
 
     if let Some(joints) = joint_entities {
         commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
+    }
+}
+
+/// Spawn a static (non-player) M2 model as a scene prop.
+fn spawn_static_m2(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    transform: Transform,
+) {
+    let model = match asset::m2::load_m2(m2_path) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Failed to load M2 {}: {e}", m2_path.display());
+            return;
+        }
+    };
+
+    let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("prop");
+    let root = commands
+        .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
+        .id();
+
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, root);
+    for (i, batch) in model.batches.into_iter().enumerate() {
+        let mat = load_batch_material(&batch, i, images, materials);
+        let mut cmd = commands.spawn((Mesh3d(meshes.add(batch.mesh)), MeshMaterial3d(mat)));
+        cmd.set_parent_in_place(root);
+        if let Some((ref inv_bp, ref joints)) = skinning {
+            cmd.insert(SkinnedMesh { inverse_bindposes: inv_bp.clone(), joints: joints.clone() });
+        }
     }
 }
 
