@@ -540,3 +540,186 @@ fn debug_compare_md20_headers() {
     println!("\n============================================================\n");
 }
 
+fn extract_skb1_bone_count(skel_data: &[u8]) -> Option<u32> {
+    let mut off = 0;
+    while off + 8 <= skel_data.len() {
+        let chunk_id = &skel_data[off..off + 4];
+        let size = u32::from_le_bytes(skel_data[off + 4..off + 8].try_into().unwrap()) as usize;
+        if chunk_id == b"SKB1" && size >= 4 {
+            let bone_count_bytes: [u8; 4] = skel_data[off + 8..off + 12].try_into().unwrap();
+            return Some(u32::from_le_bytes(bone_count_bytes));
+        }
+        off += 8 + size;
+    }
+    None
+}
+
+fn find_max_bone_index(verts: &[M2Vertex]) -> u8 {
+    let mut max = 0u8;
+    for vert in verts {
+        for &bone_idx in &vert.bone_indices {
+            if bone_idx > max {
+                max = bone_idx;
+            }
+        }
+    }
+    max
+}
+
+fn print_bone_check_summary(skel_bone_count: u32, max_bone_index: u8, vert_count: usize) {
+    println!("\n============================================================");
+    println!("SUMMARY:");
+    println!("  Total vertices: {}", vert_count);
+    println!("  .skel SKB1 bone count:  {}", skel_bone_count);
+    println!("  Max bone_index used:    {}", max_bone_index);
+    println!("  Safe? {} (max_bone_index < bone_count)",
+        if (max_bone_index as u32) < skel_bone_count { "YES" } else { "NO" });
+    println!("============================================================\n");
+}
+
+#[test]
+fn debug_hd_skel_info() {
+    let skel_path = "data/models/humanmale_hd.skel";
+    let m2_path = "data/models/humanmale_hd.m2";
+
+    println!("\n============================================================");
+    println!("SKB1 Bone Count from humanmale_hd.skel");
+    println!("============================================================");
+
+    let skel_data = match std::fs::read(skel_path) {
+        Ok(d) => d,
+        Err(e) => { println!("FAILED to read {}: {}", skel_path, e); return; }
+    };
+
+    let skel_bone_count = match extract_skb1_bone_count(&skel_data) {
+        Some(count) => { println!("SKB1 chunk bone count: {}", count); count },
+        None => { println!("ERROR: Could not find SKB1 chunk or read bone count"); return; }
+    };
+
+    println!("\n============================================================");
+    println!("Max Bone Index from humanmale_hd.m2 vertices");
+    println!("============================================================");
+
+    let m2_data = match std::fs::read(m2_path) {
+        Ok(d) => d,
+        Err(e) => { println!("FAILED to read {}: {}", m2_path, e); return; }
+    };
+
+    let md20 = match extract_md21_chunk(&m2_data) {
+        Some(m) => m,
+        None => { println!("ERROR: Could not find MD21 chunk"); return; }
+    };
+
+    let verts = match parse_vertices(md20) {
+        Ok(v) => v,
+        Err(e) => { println!("ERROR parsing vertices: {}", e); return; }
+    };
+
+    let max_bone_index = find_max_bone_index(&verts);
+    println!("Total vertices: {}", verts.len());
+    println!("Max bone_index in vertices: {}", max_bone_index);
+
+    print_bone_check_summary(skel_bone_count, max_bone_index, verts.len());
+}
+
+#[test]
+fn debug_hd_skin_details() {
+    let skin_path = "data/models/humanmale_hd00.skin";
+    let data = match std::fs::read(skin_path) {
+        Ok(d) => d,
+        Err(e) => { println!("Failed to read {}: {}", skin_path, e); return; }
+    };
+
+    if data.len() < 36 {
+        println!("Skin file too small");
+        return;
+    }
+
+    let lookup_count = u32::from_le_bytes(data[4..8].try_into().unwrap());
+    let lookup_offset = u32::from_le_bytes(data[8..12].try_into().unwrap());
+    let indices_count = u32::from_le_bytes(data[12..16].try_into().unwrap());
+    let bones_count = u32::from_le_bytes(data[20..24].try_into().unwrap());
+    let submesh_count = u32::from_le_bytes(data[28..32].try_into().unwrap());
+    let submesh_offset = u32::from_le_bytes(data[32..36].try_into().unwrap());
+
+    println!("\n=== humanmale_hd00.skin Details ===");
+    println!("lookup_count: {}", lookup_count);
+    println!("indices_count: {}", indices_count);
+    println!("bones_count: {}", bones_count);
+
+    // Find max value in lookup table
+    let mut max_lookup = 0u16;
+    let lookup_start = lookup_offset as usize;
+    let lookup_end = lookup_start + (lookup_count as usize * 2);
+    if lookup_end <= data.len() {
+        for i in 0..lookup_count as usize {
+            let off = lookup_start + i * 2;
+            let val = u16::from_le_bytes(data[off..off + 2].try_into().unwrap());
+            if val > max_lookup {
+                max_lookup = val;
+            }
+        }
+        println!("max lookup value: {}", max_lookup);
+    }
+
+    // Check submeshes for vertex overflow
+    let submesh_start = submesh_offset as usize;
+    let mut has_overflow = false;
+    for i in 0..submesh_count as usize {
+        let off = submesh_start + i * 48;
+        if off + 8 <= data.len() {
+            let vs = u16::from_le_bytes(data[off + 4..off + 6].try_into().unwrap());
+            let vc = u16::from_le_bytes(data[off + 6..off + 8].try_into().unwrap());
+            let sum = (vs as u32) + (vc as u32);
+            println!("submesh[{}]: vertex_start={}, vertex_count={}, sum={}", i, vs, vc, sum);
+            if sum > 65535 {
+                has_overflow = true;
+            }
+        }
+    }
+
+    println!("Vertex sum exceeds u16::MAX? {}", has_overflow);
+}
+
+fn count_bones_with_stand_keyframes(model: &super::M2Model) -> usize {
+    let stand_idx = model.sequences.iter().position(|s| s.id == 0).unwrap();
+    model
+        .bone_tracks
+        .iter()
+        .filter(|t| {
+            t.translation
+                .sequences
+                .get(stand_idx)
+                .is_some_and(|(ts, _)| !ts.is_empty())
+                || t.rotation
+                    .sequences
+                    .get(stand_idx)
+                    .is_some_and(|(ts, _)| !ts.is_empty())
+        })
+        .count()
+}
+
+#[test]
+fn load_m2_hd_has_skel_animation_data() {
+    let m2_path = std::path::Path::new("data/models/humanmale_hd.m2");
+    if !m2_path.exists() {
+        println!("Skipping: humanmale_hd.m2 not found");
+        return;
+    }
+    let model = load_m2(m2_path).expect("Failed to load humanmale_hd.m2");
+
+    assert!(!model.bones.is_empty(), "HD model should have bones from .skel (got 0)");
+    assert!(!model.sequences.is_empty(), "HD model should have sequences from .skel (got 0)");
+    assert!(!model.bone_tracks.is_empty(), "HD model should have bone_tracks from .skel (got 0)");
+    assert_eq!(model.bones.len(), model.bone_tracks.len(), "Bone count should match bone_tracks");
+    assert!(model.sequences.iter().any(|s| s.id == 0), "HD model should have Stand (id=0)");
+
+    let bones_with_data = count_bones_with_stand_keyframes(&model);
+    assert!(bones_with_data > 0, "At least some bones should have Stand keyframes in .skel");
+
+    println!(
+        "humanmale_hd via .skel: {} bones, {} sequences, {}/{} bones with Stand keyframes",
+        model.bones.len(), model.sequences.len(), bones_with_data, model.bone_tracks.len()
+    );
+}
+

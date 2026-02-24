@@ -138,6 +138,28 @@ pub struct M2AnimSequence {
     pub next_animation: i16,  // -1 = none, else index into sequences
 }
 
+/// Parse `count` sequence entries starting at `offset` in `data`.
+pub fn parse_sequences_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2AnimSequence>, String> {
+    const SEQ_SIZE: usize = 64;
+    let mut sequences = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * SEQ_SIZE;
+        if base + SEQ_SIZE > data.len() {
+            return Err(format!("Sequence {i} out of bounds at offset {base:#x}"));
+        }
+        sequences.push(M2AnimSequence {
+            id: read_u16(data, base)?,
+            variation_id: read_u16(data, base + 0x02)?,
+            duration: read_u32(data, base + 0x04)?,
+            movespeed: read_f32(data, base + 0x08)?,
+            flags: read_u32(data, base + 0x0C)?,
+            blend_time: read_u16(data, base + 0x1C)?,
+            next_animation: read_i16(data, base + 0x3C)?,
+        });
+    }
+    Ok(sequences)
+}
+
 /// Parse the sequences M2Array from the MD20 blob at offset 0x1C.
 ///
 /// Each sequence entry is 64 bytes. Relevant fields:
@@ -154,26 +176,16 @@ pub fn parse_sequences(md20: &[u8]) -> Result<Vec<M2AnimSequence>, String> {
     }
     let count = read_u32(md20, 0x1C)? as usize;
     let offset = read_u32(md20, 0x20)? as usize;
+    parse_sequences_at(md20, offset, count)
+}
 
-    const SEQ_SIZE: usize = 64;
-
-    let mut sequences = Vec::with_capacity(count);
+/// Parse `count` global sequence durations starting at `offset` in `data`.
+pub fn parse_global_sequences_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<u32>, String> {
+    let mut durations = Vec::with_capacity(count);
     for i in 0..count {
-        let base = offset + i * SEQ_SIZE;
-        if base + SEQ_SIZE > md20.len() {
-            return Err(format!("Sequence {i} out of bounds at offset {base:#x}"));
-        }
-        sequences.push(M2AnimSequence {
-            id: read_u16(md20, base)?,
-            variation_id: read_u16(md20, base + 0x02)?,
-            duration: read_u32(md20, base + 0x04)?,
-            movespeed: read_f32(md20, base + 0x08)?,
-            flags: read_u32(md20, base + 0x0C)?,
-            blend_time: read_u16(md20, base + 0x1C)?,
-            next_animation: read_i16(md20, base + 0x3C)?,
-        });
+        durations.push(read_u32(data, offset + i * 4)?);
     }
-    Ok(sequences)
+    Ok(durations)
 }
 
 /// Parse the global sequences M2Array from the MD20 blob at offset 0x14.
@@ -186,12 +198,7 @@ pub fn parse_global_sequences(md20: &[u8]) -> Result<Vec<u32>, String> {
     }
     let count = read_u32(md20, 0x14)? as usize;
     let offset = read_u32(md20, 0x18)? as usize;
-
-    let mut durations = Vec::with_capacity(count);
-    for i in 0..count {
-        durations.push(read_u32(md20, offset + i * 4)?);
-    }
-    Ok(durations)
+    parse_global_sequences_at(md20, offset, count)
 }
 
 /// A single animation track: keyframes for one transform component of one bone.
@@ -286,6 +293,23 @@ fn read_inner_value_array<T: Copy>(
     Ok(out)
 }
 
+/// Parse animation tracks for `count` bones starting at `offset` in `data`.
+pub fn parse_bone_animations_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<BoneAnimTracks>, String> {
+    const BONE_SIZE: usize = 88;
+    let mut tracks = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * BONE_SIZE;
+        if base + BONE_SIZE > data.len() {
+            return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
+        }
+        let translation = parse_anim_track(data, base + 0x10, 12, parse_vec3)?;
+        let rotation = parse_anim_track(data, base + 0x24, 8, parse_quat_packed)?;
+        let scale = parse_anim_track(data, base + 0x38, 12, parse_vec3)?;
+        tracks.push(BoneAnimTracks { translation, rotation, scale });
+    }
+    Ok(tracks)
+}
+
 /// Parse animation tracks for all bones from the MD20 blob.
 /// Returns one BoneAnimTracks per bone, in the same order as parse_bones.
 pub fn parse_bone_animations(md20: &[u8]) -> Result<Vec<BoneAnimTracks>, String> {
@@ -294,23 +318,7 @@ pub fn parse_bone_animations(md20: &[u8]) -> Result<Vec<BoneAnimTracks>, String>
     }
     let count = read_u32(md20, 0x2C)? as usize;
     let offset = read_u32(md20, 0x30)? as usize;
-
-    const BONE_SIZE: usize = 88;
-
-    let mut tracks = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = offset + i * BONE_SIZE;
-        if base + BONE_SIZE > md20.len() {
-            return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
-        }
-
-        let translation = parse_anim_track(md20, base + 0x10, 12, parse_vec3)?;
-        let rotation = parse_anim_track(md20, base + 0x24, 8, parse_quat_packed)?;
-        let scale = parse_anim_track(md20, base + 0x38, 12, parse_vec3)?;
-
-        tracks.push(BoneAnimTracks { translation, rotation, scale });
-    }
-    Ok(tracks)
+    parse_bone_animations_at(md20, offset, count)
 }
 
 /// Unpack a WoW packed i16 quaternion to a Bevy Quat with coordinate flip.

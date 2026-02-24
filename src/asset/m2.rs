@@ -461,14 +461,27 @@ fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     mesh
 }
 
-/// Load bones from an external .skel file (SKB1 chunk).
+struct SkelData {
+    bones: Vec<super::m2_anim::M2Bone>,
+    sequences: Vec<super::m2_anim::M2AnimSequence>,
+    bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
+    global_sequences: Vec<u32>,
+}
+
+/// Load animation data from an external .skel file (SKS1 + SKB1 chunks).
 ///
 /// .skel is chunked binary (same `[tag 4B][size 4B][data]` format as M2).
-/// SKB1 chunk data starts with an M2Array for bones (count u32, offset u32),
-/// where offsets are relative to the SKB1 chunk data start.
-fn load_skel_bones(skel_path: &Path) -> Result<Vec<super::m2_anim::M2Bone>, String> {
+/// SKS1 contains sequences + global sequences. SKB1 contains bones + animation tracks.
+/// All M2Array offsets within each chunk are relative to the chunk data start.
+fn load_skel_data(skel_path: &Path) -> Result<SkelData, String> {
     let data = std::fs::read(skel_path)
         .map_err(|e| format!("Failed to read .skel file: {e}"))?;
+    let mut result = SkelData {
+        bones: Vec::new(),
+        sequences: Vec::new(),
+        bone_tracks: Vec::new(),
+        global_sequences: Vec::new(),
+    };
     let mut off = 0;
     while off + 8 <= data.len() {
         let tag = &data[off..off + 4];
@@ -477,18 +490,59 @@ fn load_skel_bones(skel_path: &Path) -> Result<Vec<super::m2_anim::M2Bone>, Stri
         if end > data.len() {
             break;
         }
-        if tag == b"SKB1" {
-            let chunk_data = &data[off + 8..end];
-            if chunk_data.len() < 8 {
-                return Err("SKB1 chunk too small".into());
+        let chunk = &data[off + 8..end];
+        match tag {
+            b"SKS1" if chunk.len() >= 24 => {
+                parse_sks1_chunk(chunk, &mut result)?;
             }
-            let count = read_u32(chunk_data, 0)? as usize;
-            let bone_offset = read_u32(chunk_data, 4)? as usize;
-            return super::m2_anim::parse_bones_at(chunk_data, bone_offset, count);
+            b"SKB1" if chunk.len() >= 16 => {
+                parse_skb1_chunk(chunk, &mut result)?;
+            }
+            _ => {}
         }
         off = end;
     }
-    Err("No SKB1 chunk found in .skel file".into())
+    Ok(result)
+}
+
+/// Parse SKS1 chunk: global_loops M2Array at 0x00, sequences M2Array at 0x08.
+fn parse_sks1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
+    let gl_count = read_u32(chunk, 0)? as usize;
+    let gl_offset = read_u32(chunk, 4)? as usize;
+    result.global_sequences =
+        super::m2_anim::parse_global_sequences_at(chunk, gl_offset, gl_count)?;
+
+    let seq_count = read_u32(chunk, 8)? as usize;
+    let seq_offset = read_u32(chunk, 12)? as usize;
+    result.sequences = super::m2_anim::parse_sequences_at(chunk, seq_offset, seq_count)?;
+    Ok(())
+}
+
+/// Parse SKB1 chunk: bones M2Array at 0x00 (bones + animation tracks share the same data).
+fn parse_skb1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
+    let bone_count = read_u32(chunk, 0)? as usize;
+    let bone_offset = read_u32(chunk, 4)? as usize;
+    result.bones = super::m2_anim::parse_bones_at(chunk, bone_offset, bone_count)?;
+    result.bone_tracks =
+        super::m2_anim::parse_bone_animations_at(chunk, bone_offset, bone_count)?;
+    Ok(())
+}
+
+/// Fallback: load bones/sequences/tracks/global_sequences from the MD20 blob.
+fn load_anim_from_md20(
+    md20: &[u8],
+) -> (
+    Vec<super::m2_anim::M2Bone>,
+    Vec<super::m2_anim::M2AnimSequence>,
+    Vec<super::m2_anim::BoneAnimTracks>,
+    Vec<u32>,
+) {
+    (
+        super::m2_anim::parse_bones(md20).unwrap_or_default(),
+        super::m2_anim::parse_sequences(md20).unwrap_or_default(),
+        super::m2_anim::parse_bone_animations(md20).unwrap_or_default(),
+        super::m2_anim::parse_global_sequences(md20).unwrap_or_default(),
+    )
 }
 
 fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
@@ -559,22 +613,22 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let tex_lookup = parse_texture_lookup(chunks.md20)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
 
-    let mut bones = super::m2_anim::parse_bones(chunks.md20).unwrap_or_default();
-
-    // HD models store bones in an external .skel file (SKID chunk has the FDID).
-    if bones.is_empty() {
-        if let Some(_skel_fdid) = chunks.skid {
-            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            let skel_by_name = path.with_file_name(format!("{stem}.skel"));
-            if let Ok(skel_bones) = load_skel_bones(&skel_by_name) {
-                bones = skel_bones;
+    // HD models store all animation data in an external .skel file (SKID chunk).
+    // Standard models have it inline in the MD20 blob.
+    let (bones, sequences, bone_tracks, global_sequences) = if let Some(_skel_fdid) = chunks.skid
+    {
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let skel_path = path.with_file_name(format!("{stem}.skel"));
+        match load_skel_data(&skel_path) {
+            Ok(s) => (s.bones, s.sequences, s.bone_tracks, s.global_sequences),
+            Err(e) => {
+                eprintln!("Failed to load .skel: {e}");
+                load_anim_from_md20(chunks.md20)
             }
         }
-    }
-
-    let sequences = super::m2_anim::parse_sequences(chunks.md20).unwrap_or_default();
-    let bone_tracks = super::m2_anim::parse_bone_animations(chunks.md20).unwrap_or_default();
-    let global_sequences = super::m2_anim::parse_global_sequences(chunks.md20).unwrap_or_default();
+    } else {
+        load_anim_from_md20(chunks.md20)
+    };
     let skin = load_skin_data(path);
 
     if let Some(ref skin) = skin
