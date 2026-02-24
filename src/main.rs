@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
+use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use wow_engine::ipc::IpcPlugin;
 
 mod asset;
@@ -17,8 +18,16 @@ const DEFAULT_M2: &str =
 #[derive(Resource)]
 struct DumpTreeFlag;
 
+#[derive(Resource)]
+struct ScreenshotRequest {
+    output: PathBuf,
+    frames_remaining: u32,
+}
+
 fn main() {
-    let dump_tree = std::env::args().any(|a| a == "--dump-tree");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let screenshot = parse_screenshot_args(&args);
+    let dump_tree = args.iter().any(|a| a == "--dump-tree");
 
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
@@ -37,7 +46,64 @@ fn main() {
         app.add_systems(PostStartup, dump_tree_and_exit);
     }
 
+    if let Some(req) = screenshot {
+        app.insert_resource(req);
+        app.add_systems(Update, take_screenshot);
+    }
+
     app.run();
+}
+
+/// Parse `screenshot <output> [model]` from args. Returns None if not a screenshot command.
+fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
+    if args.first().map(|s| s.as_str()) != Some("screenshot") {
+        return None;
+    }
+    let output = args.get(1).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("screenshot.webp"));
+    Some(ScreenshotRequest { output, frames_remaining: 3 })
+}
+
+/// Find the model path from CLI args.
+/// Normal: `wow-engine [model.m2] [--flags]`
+/// Screenshot: `wow-engine screenshot [output.webp] [model.m2]`
+fn parse_model_path() -> PathBuf {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(|s| s.as_str()) == Some("screenshot") {
+        // Third arg (index 2) is the model path
+        args.get(2).map(PathBuf::from)
+    } else {
+        args.iter().find(|a| !a.starts_with("--")).map(PathBuf::from)
+    }
+    .unwrap_or_else(|| PathBuf::from(DEFAULT_M2))
+}
+
+fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>>) {
+    let Some(mut req) = req else { return };
+    if req.frames_remaining > 0 {
+        req.frames_remaining -= 1;
+        return;
+    }
+    commands.remove_resource::<ScreenshotRequest>();
+    let output = req.output.clone();
+    commands
+        .spawn(Screenshot::primary_window())
+        .observe(move |trigger: On<ScreenshotCaptured>, mut exit: MessageWriter<AppExit>| {
+            save_screenshot(&trigger.image, &output);
+            exit.write(AppExit::Success);
+        });
+}
+
+fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
+    let Some(data) = img.data.as_ref() else {
+        eprintln!("Screenshot has no pixel data");
+        return;
+    };
+    let size = img.size();
+    let encoder = webp::Encoder::from_rgba(data, size.x, size.y);
+    let webp_data = encoder.encode(15.0);
+    std::fs::write(output, &*webp_data)
+        .unwrap_or_else(|e| eprintln!("Failed to write {}: {e}", output.display()));
+    println!("Saved {} ({} bytes)", output.display(), webp_data.len());
 }
 
 fn setup(
@@ -78,11 +144,7 @@ fn setup(
     ));
 
     // Load M2 model from CLI arg or default path
-    let m2_path = std::env::args()
-        .skip(1)
-        .find(|a| !a.starts_with("--"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(DEFAULT_M2));
+    let m2_path = parse_model_path();
 
     match asset::m2::load_m2(&m2_path) {
         Ok(model) => {
