@@ -375,12 +375,14 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
     parse_skin_full(&data).ok()
 }
 
-/// Default geoset visibility: base skin (id==0) + x01 variant per group + ears override.
+/// Default geoset visibility: base skin + default hair + x01 variant per group + ears override.
 /// Matches WMVx ModelDefaultsGeosetModifier + CharacterDefaultsGeosetModifier.
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    if mesh_part_id == 0 {
+    // Group 0: base skin (0) and default hair style (1)
+    if mesh_part_id == 0 || mesh_part_id == 1 {
         return true;
     }
+    // Groups 1+: first variant (x01) is default for each group
     if mesh_part_id > 100 && mesh_part_id % 100 == 1 {
         return true;
     }

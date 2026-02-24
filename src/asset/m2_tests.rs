@@ -191,6 +191,7 @@ fn resolve_batch_texture_chain() {
 #[test]
 fn default_geoset_visibility() {
     assert!(default_geoset_visible(0));     // base skin
+    assert!(default_geoset_visible(1));     // default hair style
     assert!(default_geoset_visible(401));   // bare wrists
     assert!(default_geoset_visible(501));   // bare feet
     assert!(default_geoset_visible(701));   // ears v1
@@ -198,7 +199,7 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(1301));  // default trousers
     assert!(default_geoset_visible(1801));  // default belt
 
-    assert!(!default_geoset_visible(1));    // skin variant, not base
+    assert!(!default_geoset_visible(2));    // hair variant 2
     assert!(!default_geoset_visible(402));  // glove style 2
     assert!(!default_geoset_visible(1502)); // cape style 2
     assert!(!default_geoset_visible(1703)); // eyeglow
@@ -210,4 +211,36 @@ fn wow_to_bevy_transform() {
     assert_eq!(x, 1.0);
     assert_eq!(y, 3.0);
     assert_eq!(z, -2.0);
+}
+
+#[test]
+fn debug_humanmale_skin_submeshes() {
+    // Load humanmale00.skin and print submesh mesh_part_id values
+    let skin_path = "data/models/humanmale00.skin";
+    match std::fs::read(skin_path) {
+        Ok(data) => {
+            match parse_skin_full(&data) {
+                Ok(skin) => {
+                    println!("\n=== humanmale00.skin Submeshes ===");
+                    for (i, submesh) in skin.submeshes.iter().enumerate() {
+                        println!("sub[{}]: mesh_part_id={}, vertex_start={}, vertex_count={}, tri_start={}, tri_count={}",
+                            i,
+                            submesh.mesh_part_id,
+                            submesh.vertex_start,
+                            submesh.vertex_count,
+                            submesh.triangle_start,
+                            submesh.triangle_count,
+                        );
+                    }
+                    println!("\n=== humanmale00.skin Batches ===");
+                    for (i, batch) in skin.batches.iter().enumerate() {
+                        println!("batch[{}]: submesh_index={}, texture_id={}", i, batch.submesh_index, batch.texture_id);
+                    }
+                    println!("=== Total: {} submeshes, {} batches ===\n", skin.submeshes.len(), skin.batches.len());
+                },
+                Err(e) => println!("Failed to parse skin: {}", e),
+            }
+        }
+        Err(e) => println!("Failed to read {}: {}", skin_path, e),
+    }
 }
