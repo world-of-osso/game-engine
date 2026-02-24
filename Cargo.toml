@@ -7,7 +7,6 @@ rust-version = "1.89"
 [dependencies]
 bevy = { version = "0.18", features = ["default"] }
 image-blp = "1"
-wow-m2 = "0.6"
 peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
 tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time"] }
 serde = { version = "1", features = ["derive"] }
