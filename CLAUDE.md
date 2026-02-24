@@ -51,6 +51,12 @@ src/
 - M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format, no TXID)
 - BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client (not model textures)
 
+## Animation
+
+- Animation transitions must always crossfade smoothly — never snap between poses. Use `blend_time` from M2 sequence data with a minimum of 150ms for movement transitions.
+- When re-transitioning mid-blend (e.g. quick direction changes), preserve blend progress so the outgoing pose weight is continuous. Resetting to 0 causes visible pops.
+- WoW animation IDs: Stand=0, Walk=4, Run=5, ShuffleLeft=11, ShuffleRight=12, WalkBackwards=13, JumpStart=37, Jump=38, JumpEnd=39
+
 ## Related
 
 - casc-extract: `../casc-extract/` — CLI to download WoW M2/BLP assets from Blizzard CASC CDN (cascette-rs)

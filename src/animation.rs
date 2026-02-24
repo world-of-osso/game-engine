@@ -3,7 +3,7 @@ use super::asset::m2_anim::{
     BoneAnimTracks, M2AnimSequence,
     evaluate_vec3_track, evaluate_rotation_track,
 };
-use super::camera::MovementState;
+use super::camera::{MoveDirection, MovementState};
 
 /// Marker component for bone entities, storing their pivot in Bevy coordinates.
 #[derive(Component)]
@@ -35,38 +35,138 @@ pub struct M2AnimPlayer {
     pub transition: Option<AnimTransition>,
 }
 
-const ANIM_ID_STAND: u16 = 0;
-const ANIM_ID_WALK: u16 = 4;
+// WoW animation IDs
+const ANIM_STAND: u16 = 0;
+const ANIM_WALK: u16 = 4;
+const ANIM_SHUFFLE_LEFT: u16 = 11;
+const ANIM_SHUFFLE_RIGHT: u16 = 12;
+const ANIM_WALK_BACKWARDS: u16 = 13;
+const ANIM_JUMP_START: u16 = 37;
+const ANIM_JUMP: u16 = 38;  // airborne loop
+const ANIM_JUMP_END: u16 = 39;
 
-fn switch_animation(
-    anim_data: Option<Res<M2AnimData>>,
-    mut players: Query<(&mut M2AnimPlayer, &MovementState)>,
-) {
-    let Some(data) = anim_data else { return };
-    for (mut player, movement) in &mut players {
-        let current_id = data.sequences.get(player.current_seq_idx).map(|s| s.id);
-        let target_id = if movement.moving { ANIM_ID_WALK } else { ANIM_ID_STAND };
+/// Map movement direction to a WoW animation ID.
+fn direction_to_anim_id(dir: MoveDirection) -> u16 {
+    match dir {
+        MoveDirection::None => ANIM_STAND,
+        MoveDirection::Forward => ANIM_WALK,
+        MoveDirection::Backward => ANIM_WALK_BACKWARDS,
+        MoveDirection::Left => ANIM_SHUFFLE_LEFT,
+        MoveDirection::Right => ANIM_SHUFFLE_RIGHT,
+    }
+}
 
-        if current_id == Some(target_id) {
-            continue;
-        }
+/// Find the sequence index for an animation ID, or None if the model lacks it.
+fn find_seq_idx(sequences: &[M2AnimSequence], anim_id: u16) -> Option<usize> {
+    sequences.iter().position(|s| s.id == anim_id)
+}
 
-        let Some(target_idx) = data.sequences.iter().position(|s| s.id == target_id) else {
-            continue;
-        };
+const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 
-        let blend_time = data.sequences[target_idx].blend_time as f32;
-        let blend_duration = if blend_time > 0.0 { blend_time } else { 150.0 };
+/// Start a crossfade transition to a new sequence.
+/// If already mid-transition, blends from the current blended pose (not the raw source).
+fn start_transition(player: &mut M2AnimPlayer, target_idx: usize, blend_ms: f32) {
+    let blend_duration = blend_ms.max(MIN_MOVEMENT_BLEND_MS);
 
+    // If mid-transition, keep blending from current pose by preserving from_* as-is
+    // but update the blend progress proportionally so the pose doesn't jump.
+    if let Some(ref existing) = player.transition {
+        let progress = (existing.blend_elapsed_ms / existing.blend_duration_ms).clamp(0.0, 1.0);
+        // Start the new blend from where the old blend currently is
+        player.transition = Some(AnimTransition {
+            from_seq_idx: player.current_seq_idx,
+            from_time_ms: player.time_ms,
+            blend_duration_ms: blend_duration,
+            // Start partway through so the outgoing pose weight matches current blend
+            blend_elapsed_ms: blend_duration * (1.0 - progress) * 0.5,
+        });
+    } else {
         player.transition = Some(AnimTransition {
             from_seq_idx: player.current_seq_idx,
             from_time_ms: player.time_ms,
             blend_duration_ms: blend_duration,
             blend_elapsed_ms: 0.0,
         });
-        player.current_seq_idx = target_idx;
-        player.time_ms = 0.0;
     }
+    player.current_seq_idx = target_idx;
+    player.time_ms = 0.0;
+}
+
+fn switch_animation(
+    anim_data: Option<Res<M2AnimData>>,
+    mut players: Query<(&mut M2AnimPlayer, &mut MovementState)>,
+) {
+    let Some(data) = anim_data else { return };
+    for (mut player, mut movement) in &mut players {
+        let current_id = data.sequences.get(player.current_seq_idx).map(|s| s.id);
+
+        // Jump state machine: JumpStart → Jump (loop) → JumpEnd → resume
+        if movement.jumping {
+            switch_jump(&mut player, &mut movement, current_id, &data.sequences);
+            continue;
+        }
+
+        let target_id = direction_to_anim_id(movement.direction);
+        if current_id == Some(target_id) {
+            continue;
+        }
+        let Some(target_idx) = find_seq_idx(&data.sequences, target_id) else { continue };
+        let blend_ms = data.sequences[target_idx].blend_time as f32;
+        start_transition(&mut player, target_idx, blend_ms);
+    }
+}
+
+/// Handle jump state machine: JumpStart (once) → Jump (loop) → JumpEnd (once) → done.
+fn switch_jump(
+    player: &mut M2AnimPlayer,
+    movement: &mut MovementState,
+    current_id: Option<u16>,
+    sequences: &[M2AnimSequence],
+) {
+    match current_id {
+        // Not yet in any jump anim → start JumpStart
+        Some(id) if id != ANIM_JUMP_START && id != ANIM_JUMP && id != ANIM_JUMP_END => {
+            if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP_START) {
+                let blend_ms = sequences[idx].blend_time as f32;
+                start_transition(player, idx, blend_ms);
+                player.looping = false;
+            }
+        }
+        // JumpStart finished playing → transition to airborne loop
+        Some(ANIM_JUMP_START) if anim_finished(player, sequences) => {
+            if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP) {
+                let blend_ms = sequences[idx].blend_time as f32;
+                start_transition(player, idx, blend_ms);
+                player.looping = true;
+            }
+        }
+        // In airborne loop → after a fixed duration, land
+        Some(ANIM_JUMP) if player.time_ms >= 400.0 => {
+            if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP_END) {
+                let blend_ms = sequences[idx].blend_time as f32;
+                start_transition(player, idx, blend_ms);
+                player.looping = false;
+            }
+        }
+        // JumpEnd finished → clear jump, return to movement anim
+        Some(ANIM_JUMP_END) if anim_finished(player, sequences) => {
+            movement.jumping = false;
+            player.looping = true;
+            let target_id = direction_to_anim_id(movement.direction);
+            if let Some(idx) = find_seq_idx(sequences, target_id) {
+                let blend_ms = sequences[idx].blend_time as f32;
+                start_transition(player, idx, blend_ms);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Check if the current (non-looping) animation has played through.
+fn anim_finished(player: &M2AnimPlayer, sequences: &[M2AnimSequence]) -> bool {
+    sequences
+        .get(player.current_seq_idx)
+        .is_some_and(|seq| player.time_ms >= seq.duration as f32)
 }
 
 fn tick_animation(
@@ -79,8 +179,12 @@ fn tick_animation(
     for mut player in &mut players {
         let Some(seq) = data.sequences.get(player.current_seq_idx) else { continue };
         player.time_ms += delta_ms;
-        if player.looping && seq.duration > 0 {
-            player.time_ms %= seq.duration as f32;
+        if seq.duration > 0 {
+            if player.looping {
+                player.time_ms %= seq.duration as f32;
+            } else {
+                player.time_ms = player.time_ms.min(seq.duration as f32);
+            }
         }
 
         let mut clear_transition = false;

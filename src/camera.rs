@@ -13,10 +13,22 @@ impl Plugin for WowCameraPlugin {
 #[derive(Component)]
 pub struct Player;
 
-/// Signals whether the player is currently moving (WASD/mouse).
+/// Movement direction relative to the character's facing.
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub enum MoveDirection {
+    #[default]
+    None,
+    Forward,
+    Backward,
+    Left,
+    Right,
+}
+
+/// Signals current movement direction and jump state.
 #[derive(Component, Default)]
 pub struct MovementState {
-    pub moving: bool,
+    pub direction: MoveDirection,
+    pub jumping: bool,
 }
 
 #[derive(Component)]
@@ -112,8 +124,30 @@ fn player_movement(
         direction += forward;
     }
 
-    movement.moving = direction.length_squared() > 0.0;
-    if movement.moving {
+    // Determine dominant direction: forward/backward take priority over strafe
+    let fwd = keys.pressed(KeyCode::KeyW)
+        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
+    let back = keys.pressed(KeyCode::KeyS);
+    let left = keys.pressed(KeyCode::KeyA);
+    let right_key = keys.pressed(KeyCode::KeyD);
+
+    movement.direction = if fwd {
+        MoveDirection::Forward
+    } else if back {
+        MoveDirection::Backward
+    } else if left {
+        MoveDirection::Left
+    } else if right_key {
+        MoveDirection::Right
+    } else {
+        MoveDirection::None
+    };
+
+    if keys.just_pressed(KeyCode::Space) && !movement.jumping {
+        movement.jumping = true;
+    }
+
+    if direction.length_squared() > 0.0 {
         direction = direction.normalize();
         transform.translation += direction * MOVE_SPEED * time.delta_secs();
     }
