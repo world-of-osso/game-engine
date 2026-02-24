@@ -1,6 +1,8 @@
 use std::f32::consts::PI;
 use std::path::PathBuf;
+use std::time::Duration;
 
+use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
 use wow_engine::ipc::IpcPlugin;
 
@@ -18,6 +20,12 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugins(IpcPlugin)
+        .add_plugins(FpsOverlayPlugin {
+            config: FpsOverlayConfig {
+                refresh_interval: Duration::from_millis(500),
+                ..default()
+            },
+        })
         .add_systems(Startup, setup);
 
     if dump_tree {
