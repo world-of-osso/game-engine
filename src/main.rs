@@ -5,6 +5,7 @@ use std::time::Duration;
 use bevy::asset::RenderAssetUsages;
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
+use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use wow_engine::ipc::IpcPlugin;
@@ -113,8 +114,25 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    mut skinned_mesh_inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
-    // Camera with WoW-style orbit controller
+    spawn_scene_environment(&mut commands, &mut meshes, &mut materials);
+    let m2_path = parse_model_path();
+    spawn_m2_model(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut images,
+        &mut skinned_mesh_inverse_bindposes,
+        &m2_path,
+    );
+}
+
+fn spawn_scene_environment(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
     commands.spawn((
         Camera3d::default(),
         Transform::default(),
@@ -125,8 +143,6 @@ fn setup(
             ..default()
         },
     ));
-
-    // Directional light (sun)
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
@@ -135,8 +151,6 @@ fn setup(
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
-
-    // Ground plane (100x100)
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(100.0, 100.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
@@ -144,35 +158,49 @@ fn setup(
             ..default()
         })),
     ));
+}
 
-    // Load M2 model from CLI arg or default path
-    let m2_path = parse_model_path();
-
-    match asset::m2::load_m2(&m2_path) {
-        Ok(model) => {
-            let name = m2_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("m2_model");
-            commands
-                .spawn((
-                    Name::new(name.to_owned()),
-                    Player,
-                    Transform::from_xyz(0.0, 0.5, 0.0),
-                    Visibility::default(),
-                ))
-                .with_children(|parent| {
-                    for (i, batch) in model.batches.into_iter().enumerate() {
-                        let material =
-                            load_batch_material(&batch, i, &mut images, &mut materials);
-                        parent.spawn((
-                            Mesh3d(meshes.add(batch.mesh)),
-                            MeshMaterial3d(material),
-                        ));
-                    }
-                });
+fn spawn_m2_model(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+) {
+    let model = match asset::m2::load_m2(m2_path) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Failed to load M2 {}: {e}", m2_path.display());
+            return;
         }
-        Err(e) => eprintln!("Failed to load M2 {}: {e}", m2_path.display()),
+    };
+
+    let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("m2_model");
+    let model_entity = commands
+        .spawn((
+            Name::new(name.to_owned()),
+            Player,
+            Transform::from_xyz(0.0, 0.5, 0.0),
+            Visibility::default(),
+        ))
+        .id();
+
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, model_entity);
+
+    for (i, batch) in model.batches.into_iter().enumerate() {
+        let material = load_batch_material(&batch, i, images, materials);
+        let mut entity_cmd = commands.spawn((
+            Mesh3d(meshes.add(batch.mesh)),
+            MeshMaterial3d(material),
+        ));
+        entity_cmd.set_parent_in_place(model_entity);
+        if let Some(ref sk) = skinning {
+            entity_cmd.insert(SkinnedMesh {
+                inverse_bindposes: sk.0.clone(),
+                joints: sk.1.clone(),
+            });
+        }
     }
 }
 
@@ -184,6 +212,39 @@ const PLACEHOLDER_COLORS: &[Color] = &[
     Color::srgb(0.7, 0.7, 0.3), // yellow
     Color::srgb(0.6, 0.3, 0.7), // purple
 ];
+
+/// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
+/// Returns None if the model has no bones (static mesh).
+fn spawn_skeleton(
+    commands: &mut Commands,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    bones: &[asset::m2_anim::M2Bone],
+    model_entity: Entity,
+) -> Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)> {
+    if bones.is_empty() {
+        return None;
+    }
+
+    let joint_entities: Vec<Entity> = bones
+        .iter()
+        .map(|_| commands.spawn(Transform::IDENTITY).id())
+        .collect();
+
+    for (i, bone) in bones.iter().enumerate() {
+        let parent = if bone.parent_bone_id >= 0 {
+            joint_entities[bone.parent_bone_id as usize]
+        } else {
+            model_entity
+        };
+        commands.entity(joint_entities[i]).set_parent_in_place(parent);
+    }
+
+    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(
+        vec![Mat4::IDENTITY; bones.len()],
+    ));
+
+    Some((inv_bp, joint_entities))
+}
 
 fn load_batch_material(
     batch: &asset::m2::M2RenderBatch,

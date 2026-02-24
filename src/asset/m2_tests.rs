@@ -202,7 +202,12 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(401));   // bare wrists
     assert!(default_geoset_visible(501));   // bare feet
     assert!(default_geoset_visible(701));   // ears v1
-    assert!(default_geoset_visible(702));   // ears v2 (character default override)
+    assert!(default_geoset_visible(702));   // ears v2 (HD default)
+    assert!(default_geoset_visible(802));   // HD bare shirt sleeves
+    assert!(default_geoset_visible(902));   // HD bare leggings
+    assert!(default_geoset_visible(1002));  // HD bare shirt front
+    assert!(default_geoset_visible(1102));  // HD bare tabard front
+    assert!(default_geoset_visible(1202));  // HD bare tabard back
     assert!(default_geoset_visible(1301));  // default trousers
     assert!(default_geoset_visible(1801));  // default belt
 
@@ -329,4 +334,96 @@ fn debug_humanmale_skin_submeshes() {
         }
         Err(e) => println!("Failed to read {}: {}", skin_path, e),
     }
+}
+
+#[test]
+fn debug_humanmale_hd_geosets() {
+    let m2_path = "data/models/humanmale_hd.m2";
+    let skin_path = "data/models/humanmale_hd00.skin";
+
+    if std::fs::metadata(m2_path).is_err() {
+        println!("Skipping: {} not found", m2_path);
+        return;
+    }
+
+    let skin_data = match std::fs::read(skin_path) {
+        Ok(d) => d,
+        Err(e) => { println!("Failed to read {}: {}", skin_path, e); return; }
+    };
+    let skin = match parse_skin_full(&skin_data) {
+        Ok(s) => s,
+        Err(e) => { println!("Failed to parse skin: {}", e); return; }
+    };
+
+    println!("\n=== humanmale_hd00.skin Submeshes ({} total) ===", skin.submeshes.len());
+    println!("{:>5}  {:>12}  {:>12}  {:>7}",
+        "idx", "mesh_part_id", "vertex_count", "visible");
+    for (i, submesh) in skin.submeshes.iter().enumerate() {
+        let visible = default_geoset_visible(submesh.mesh_part_id);
+        println!("{:>5}  {:>12}  {:>12}  {:>7}",
+            i,
+            submesh.mesh_part_id,
+            submesh.vertex_count,
+            visible,
+        );
+    }
+    println!("=== Total: {} submeshes ===\n", skin.submeshes.len());
+}
+
+#[test]
+fn parse_vertices_has_bone_data() {
+    let md20 = minimal_md20([1.0, 2.0, 3.0]);
+    let verts = parse_vertices(&md20).unwrap();
+    assert_eq!(verts.len(), 1);
+    // minimal_md20 zeroes bone data — verify it parsed rather than skipped
+    assert_eq!(verts[0].bone_weights, [0, 0, 0, 0]);
+    assert_eq!(verts[0].bone_indices, [0, 0, 0, 0]);
+}
+
+#[test]
+fn parse_vertices_bone_data_nonzero() {
+    // Build an MD20 with custom bone data in the vertex
+    let vertex_offset: u32 = 0x48;
+    let mut md20 = vec![0u8; vertex_offset as usize + 48];
+    md20[0..4].copy_from_slice(b"MD20");
+    md20[4..8].copy_from_slice(&264u32.to_le_bytes());
+    md20[0x3C..0x40].copy_from_slice(&1u32.to_le_bytes());
+    md20[0x40..0x44].copy_from_slice(&vertex_offset.to_le_bytes());
+
+    let base = vertex_offset as usize;
+    // position
+    md20[base..base + 4].copy_from_slice(&0.0f32.to_le_bytes());
+    md20[base + 4..base + 8].copy_from_slice(&0.0f32.to_le_bytes());
+    md20[base + 8..base + 12].copy_from_slice(&0.0f32.to_le_bytes());
+    // bone_weights at offset 12
+    md20[base + 12] = 255;
+    md20[base + 13] = 128;
+    md20[base + 14] = 64;
+    md20[base + 15] = 0;
+    // bone_indices at offset 16
+    md20[base + 16] = 0;
+    md20[base + 17] = 1;
+    md20[base + 18] = 2;
+    md20[base + 19] = 3;
+    // normal at offset 20
+    md20[base + 24..base + 28].copy_from_slice(&1.0f32.to_le_bytes());
+
+    let verts = parse_vertices(&md20).unwrap();
+    assert_eq!(verts[0].bone_weights, [255, 128, 64, 0]);
+    assert_eq!(verts[0].bone_indices, [0, 1, 2, 3]);
+}
+
+#[test]
+fn mesh_has_joint_attributes() {
+    // Build a minimal model with vertices and verify mesh has joint attributes
+    let md20 = minimal_md20([1.0, 0.0, 0.0]);
+    let verts = parse_vertices(&md20).unwrap();
+    let indices: Vec<u16> = vec![0];
+    let mesh = build_mesh(&verts, indices);
+
+    // Verify joint attributes are present
+    assert!(mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX).is_some(),
+        "Mesh should have JOINT_INDEX attribute");
+    assert!(mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT).is_some(),
+        "Mesh should have JOINT_WEIGHT attribute");
 }

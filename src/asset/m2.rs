@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use bevy::asset::RenderAssetUsages;
-use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
+use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
 
 /// Convert WoW coordinate (X-right, Y-forward, Z-up) to Bevy (X-right, Y-up, Z-back).
 fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
@@ -27,10 +27,13 @@ pub struct M2RenderBatch {
 
 pub struct M2Model {
     pub batches: Vec<M2RenderBatch>,
+    pub bones: Vec<super::m2_anim::M2Bone>,
 }
 
 struct M2Vertex {
     position: [f32; 3],
+    bone_weights: [u8; 4],
+    bone_indices: [u8; 4],
     normal: [f32; 3],
     tex_coords: [f32; 2],
 }
@@ -131,13 +134,18 @@ fn parse_vertices(md20: &[u8]) -> Result<Vec<M2Vertex>, String> {
         if base + 48 > md20.len() {
             return Err(format!("Vertex {i} out of bounds at offset {base:#x}"));
         }
+        let bw_slice = md20.get(base + 12..base + 16).ok_or_else(|| format!("Vertex {i} bone_weights out of bounds at {base:#x}"))?;
+        let bone_weights: [u8; 4] = bw_slice.try_into().unwrap();
+        let bi_slice = md20.get(base + 16..base + 20).ok_or_else(|| format!("Vertex {i} bone_indices out of bounds at {base:#x}"))?;
+        let bone_indices: [u8; 4] = bi_slice.try_into().unwrap();
         vertices.push(M2Vertex {
             position: [
                 read_f32(md20, base)?,
                 read_f32(md20, base + 4)?,
                 read_f32(md20, base + 8)?,
             ],
-            // skip bone_weights (4 bytes) + bone_indices (4 bytes)
+            bone_weights,
+            bone_indices,
             normal: [
                 read_f32(md20, base + 20)?,
                 read_f32(md20, base + 24)?,
@@ -357,6 +365,7 @@ fn build_batch_mesh(
     lookup: &[u16],
     indices: &[u16],
     sub: &M2Submesh,
+    has_bones: bool,
 ) -> Mesh {
     let vstart = sub.vertex_start as usize;
     let vcount = sub.vertex_count as usize;
@@ -366,6 +375,8 @@ fn build_batch_mesh(
     let mut positions = Vec::with_capacity(vcount);
     let mut normals = Vec::with_capacity(vcount);
     let mut uvs = Vec::with_capacity(vcount);
+    let mut joint_indices: Vec<[u16; 4]> = Vec::with_capacity(vcount);
+    let mut joint_weights: Vec<[f32; 4]> = Vec::with_capacity(vcount);
 
     for i in 0..vcount {
         let global_idx = lookup.get(vstart + i).copied().unwrap_or(0) as usize;
@@ -373,6 +384,18 @@ fn build_batch_mesh(
             positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
             normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
             uvs.push(v.tex_coords);
+            joint_indices.push([
+                v.bone_indices[0] as u16,
+                v.bone_indices[1] as u16,
+                v.bone_indices[2] as u16,
+                v.bone_indices[3] as u16,
+            ]);
+            joint_weights.push([
+                v.bone_weights[0] as f32 / 255.0,
+                v.bone_weights[1] as f32 / 255.0,
+                v.bone_weights[2] as f32 / 255.0,
+                v.bone_weights[3] as f32 / 255.0,
+            ]);
         }
     }
 
@@ -387,6 +410,10 @@ fn build_batch_mesh(
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    if has_bones {
+        mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_INDEX, VertexAttributeValues::Uint16x4(joint_indices));
+        mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT, joint_weights);
+    }
     mesh.insert_indices(Indices::U16(local_indices));
     mesh
 }
@@ -396,17 +423,33 @@ fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     let mut positions = Vec::with_capacity(vertices.len());
     let mut normals = Vec::with_capacity(vertices.len());
     let mut uvs = Vec::with_capacity(vertices.len());
+    let mut joint_indices: Vec<[u16; 4]> = Vec::with_capacity(vertices.len());
+    let mut joint_weights: Vec<[f32; 4]> = Vec::with_capacity(vertices.len());
 
     for v in vertices {
         positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
         normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
         uvs.push(v.tex_coords);
+        joint_indices.push([
+            v.bone_indices[0] as u16,
+            v.bone_indices[1] as u16,
+            v.bone_indices[2] as u16,
+            v.bone_indices[3] as u16,
+        ]);
+        joint_weights.push([
+            v.bone_weights[0] as f32 / 255.0,
+            v.bone_weights[1] as f32 / 255.0,
+            v.bone_weights[2] as f32 / 255.0,
+            v.bone_weights[3] as f32 / 255.0,
+        ]);
     }
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_INDEX, VertexAttributeValues::Uint16x4(joint_indices));
+    mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT, joint_weights);
     mesh.insert_indices(Indices::U16(indices));
     mesh
 }
@@ -432,12 +475,16 @@ fn default_geoset_visible(mesh_part_id: u16) -> bool {
     if (1..=3).contains(&group) && variant == 2 {
         return true;
     }
+    // HD equipment slots: variant 2 = bare/naked (variant 1 absent in HD models)
+    // Group 7=ears, 8=shirt sleeves, 9=leggings, 10=shirt front, 11=tabard, 12=tabard back
+    if matches!(group, 7..=12) && variant == 2 {
+        return true;
+    }
     // Other groups: variant 1 is default
     if group >= 4 && variant == 1 {
         return true;
     }
-    // CharacterDefaultsGeosetModifier: ears default to variant 2
-    mesh_part_id == 702
+    false
 }
 
 /// Build per-batch meshes from skin submesh/batch data, filtering by geoset visibility.
@@ -447,6 +494,7 @@ fn build_batched_model(
     tex_lookup: &[u16],
     tex_types: &[u32],
     txid: &[u32],
+    has_bones: bool,
 ) -> Result<M2Model, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
@@ -461,12 +509,12 @@ fn build_batched_model(
         if !default_geoset_visible(sub.mesh_part_id) {
             continue;
         }
-        let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub);
+        let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
         let texture_fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid);
         let overlays = body_skin_overlays(unit, tex_lookup, tex_types);
         batches.push(M2RenderBatch { mesh, texture_fdid, overlays });
     }
-    Ok(M2Model { batches })
+    Ok(M2Model { batches, bones: Vec::new() })
 }
 
 /// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
@@ -478,13 +526,17 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let tex_lookup = parse_texture_lookup(chunks.md20)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
 
+    let bones = super::m2_anim::parse_bones(chunks.md20).unwrap_or_default();
     let skin = load_skin_data(path);
 
     if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        return build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid);
+        let has_bones = !bones.is_empty();
+        let mut model = build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, has_bones)?;
+        model.bones = bones;
+        return Ok(model);
     }
 
     // Fallback: single mesh, first hardcoded texture
@@ -499,6 +551,7 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
             texture_fdid: fdid,
             overlays: Vec::new(),
         }],
+        bones,
     })
 }
 
