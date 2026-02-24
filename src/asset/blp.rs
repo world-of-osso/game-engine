@@ -40,8 +40,27 @@ pub fn load_blp_rgba(path: &Path) -> Result<(Vec<u8>, u32, u32), String> {
     Ok((pixels, w, h))
 }
 
+/// Scale RGBA pixels by 2x using nearest-neighbor.
+pub fn scale_2x(pixels: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
+    let new_w = w * 2;
+    let new_h = h * 2;
+    let mut out = vec![0u8; (new_w * new_h * 4) as usize];
+    for y in 0..h {
+        for x in 0..w {
+            let si = ((y * w + x) * 4) as usize;
+            let pixel = &pixels[si..si + 4];
+            for dy in 0..2u32 {
+                for dx in 0..2u32 {
+                    let di = (((y * 2 + dy) * new_w + x * 2 + dx) * 4) as usize;
+                    out[di..di + 4].copy_from_slice(pixel);
+                }
+            }
+        }
+    }
+    (out, new_w, new_h)
+}
+
 /// Blit an overlay onto a base image at (dst_x, dst_y) with alpha blending.
-/// Overlay is scaled to fit if dimensions don't match the region.
 pub fn blit_region(base: &mut [u8], base_w: u32, overlay: &[u8], ov_w: u32, ov_h: u32, dst_x: u32, dst_y: u32) {
     for row in 0..ov_h {
         for col in 0..ov_w {

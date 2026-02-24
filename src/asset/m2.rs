@@ -13,6 +13,8 @@ pub struct TextureOverlay {
     pub fdid: u32,
     pub x: u32,
     pub y: u32,
+    /// Nearest-neighbor scale factor (1 = no scaling, 2 = 2x).
+    pub scale: u32,
 }
 
 pub struct M2RenderBatch {
@@ -284,10 +286,12 @@ fn default_fdid_for_type(ty: u32) -> Option<u32> {
 const UNDERWEAR_FDID: u32 = 120181; // humanmalenakedpelvisskin00_00, 256x128
 const UNDERWEAR_REGION: (u32, u32, u32, u32) = (256, 192, 256, 128); // LEG_UPPER
 
-// Scalp/hair textures (HD full-body overlays, 512x512 with alpha).
-// These are blitted at (0,0) — only the face/scalp region has pixel data.
-const SCALP_UPPER_FDID: u32 = 1043094; // scalpupperhair00_00_hd, 512x512
-const SCALP_LOWER_FDID: u32 = 1042989; // faciallowerhair00_00_hd, 512x512
+// Standard-def scalp/hair textures (need 2x scale to match 512x512 body).
+// Region coords from CharComponentTextureSections layout 153.
+const SCALP_UPPER_FDID: u32 = 120233; // scalpupperhair00_00, 128x32 → 2x = 256x64
+const SCALP_UPPER_REGION: (u32, u32) = (0, 320); // FACE_UPPER
+const SCALP_LOWER_FDID: u32 = 119383; // faciallowerhair00_00, 128x64 → 2x = 256x128
+const SCALP_LOWER_REGION: (u32, u32) = (0, 384); // FACE_LOWER
 
 /// Return body skin overlays: underwear + scalp hair textures.
 fn body_skin_overlays(
@@ -304,9 +308,9 @@ fn body_skin_overlays(
     }
     let (x, y, _, _) = UNDERWEAR_REGION;
     vec![
-        TextureOverlay { fdid: UNDERWEAR_FDID, x, y },
-        TextureOverlay { fdid: SCALP_UPPER_FDID, x: 0, y: 0 },
-        TextureOverlay { fdid: SCALP_LOWER_FDID, x: 0, y: 0 },
+        TextureOverlay { fdid: UNDERWEAR_FDID, x, y, scale: 1 },
+        TextureOverlay { fdid: SCALP_UPPER_FDID, x: SCALP_UPPER_REGION.0, y: SCALP_UPPER_REGION.1, scale: 2 },
+        TextureOverlay { fdid: SCALP_LOWER_FDID, x: SCALP_LOWER_REGION.0, y: SCALP_LOWER_REGION.1, scale: 2 },
     ]
 }
 

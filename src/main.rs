@@ -239,7 +239,12 @@ fn load_composited_texture(
         let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
         match asset::blp::load_blp_rgba(&ov_path) {
             Ok((ov_pixels, ov_w, ov_h)) => {
-                asset::blp::blit_region(&mut pixels, w, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
+                if ov.scale > 1 {
+                    let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
+                    asset::blp::blit_region(&mut pixels, w, &scaled, sw, sh, ov.x, ov.y);
+                } else {
+                    asset::blp::blit_region(&mut pixels, w, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
+                }
             }
             Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
         }
