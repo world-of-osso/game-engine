@@ -32,12 +32,21 @@ src/
 - Edition 2024, rust-version 1.89
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
+- **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
+
+## Data Assets
+
+- `data/community-listfile.csv` — WoW FDID→path mapping (136MB, from wowdev/wow-listfile). **Use this local copy, never re-download.**
+- `data/CharComponentTextureSections.csv` — Character texture region coordinates from wago.tools DB2
+- `data/textures/` — BLP textures named by FDID (e.g. `120191.blp`)
+- `data/models/` — M2 models and .skin files
 
 ## Test Assets
 
 - M2: `data/models/club_1h_torch_a_01.m2` — **textured** item model (FDID 145513 + 198077)
 - BLP: `data/textures/145513.blp` + `198077.blp` — torch flame/glow textures
-- M2: `data/models/humanmale.m2` + `humanmale00.skin` — character model (skin textures are runtime-resolved, no hardcoded BLPs available)
+- M2: `data/models/humanmale.m2` + `humanmale00.skin` — legacy character model (minimal hair, 142KB)
+- M2: `data/models/humanmale_hd.m2` + `humanmale_hd00.skin` — **HD character model** (FDID 1011653, 11MB, 113 submeshes, full hairstyles)
 - M2: `data/models/boar.m2` — creature model (runtime creature skin, no hardcoded BLPs)
 - M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format, no TXID)
 - BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client (not model textures)
