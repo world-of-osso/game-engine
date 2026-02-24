@@ -7,6 +7,9 @@ use bevy::prelude::*;
 use wow_engine::ipc::IpcPlugin;
 
 mod asset;
+mod camera;
+
+use camera::{Player, WowCamera, WowCameraPlugin};
 
 const DEFAULT_M2: &str =
     "/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2";
@@ -20,6 +23,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugins(IpcPlugin)
+        .add_plugins(WowCameraPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -41,10 +45,11 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Camera positioned above and behind, looking at origin; ambient light attached to camera
+    // Camera with WoW-style orbit controller
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(0.0, 10.0, 20.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::default(),
+        WowCamera::default(),
         AmbientLight {
             color: Color::WHITE,
             brightness: 150.0,
@@ -86,6 +91,7 @@ fn setup(
                 .unwrap_or("m2_model");
             commands.spawn((
                 Name::new(name.to_owned()),
+                Player,
                 Mesh3d(meshes.add(mesh)),
                 MeshMaterial3d(materials.add(StandardMaterial {
                     base_color: Color::srgb(0.8, 0.4, 0.2),
