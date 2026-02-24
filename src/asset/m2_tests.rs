@@ -177,12 +177,15 @@ fn resolve_batch_texture_chain() {
     let tex_types = vec![0, 1];
     let txid = vec![100, 200];
 
+    // Type 0 (hardcoded) → FDID from TXID
     let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0 };
     assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid), Some(100));
 
+    // Type 1 (body skin) → default FDID
     let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
     assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid), Some(120191));
 
+    // Unknown type → None (placeholder)
     let tex_types_unk = vec![0, 99];
     let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
     assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid), None);
@@ -191,7 +194,7 @@ fn resolve_batch_texture_chain() {
 #[test]
 fn default_geoset_visibility() {
     assert!(default_geoset_visible(0));     // base skin
-    assert!(default_geoset_visible(1));     // default hair style
+    assert!(default_geoset_visible(5));     // hair style placeholder (meshPartID 5)
     assert!(default_geoset_visible(401));   // bare wrists
     assert!(default_geoset_visible(501));   // bare feet
     assert!(default_geoset_visible(701));   // ears v1
@@ -199,6 +202,7 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(1301));  // default trousers
     assert!(default_geoset_visible(1801));  // default belt
 
+    assert!(!default_geoset_visible(1));    // bald (meshPartID 1 = 28 vertices)
     assert!(!default_geoset_visible(2));    // hair variant 2
     assert!(!default_geoset_visible(402));  // glove style 2
     assert!(!default_geoset_visible(1502)); // cape style 2

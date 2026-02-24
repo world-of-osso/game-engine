@@ -28,6 +28,53 @@ pub fn load_blp_to_image(path: &Path) -> Result<Image, String> {
     ))
 }
 
+/// Load a BLP file and return raw RGBA pixels + dimensions.
+pub fn load_blp_rgba(path: &Path) -> Result<(Vec<u8>, u32, u32), String> {
+    let blp = load_blp(path).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    let blp_img = blp_to_image(&blp, 0).map_err(|e| format!("Failed to convert BLP: {e}"))?;
+    let rgba = blp_img.to_rgba8();
+    let w = rgba.width();
+    let h = rgba.height();
+    let mut pixels = rgba.into_raw();
+    fix_1bit_alpha(&mut pixels);
+    Ok((pixels, w, h))
+}
+
+/// Blit an overlay onto a base image at (dst_x, dst_y) with alpha blending.
+/// Overlay is scaled to fit if dimensions don't match the region.
+pub fn blit_region(base: &mut [u8], base_w: u32, overlay: &[u8], ov_w: u32, ov_h: u32, dst_x: u32, dst_y: u32) {
+    for row in 0..ov_h {
+        for col in 0..ov_w {
+            let bx = dst_x + col;
+            let by = dst_y + row;
+            if bx >= base_w {
+                continue;
+            }
+            let bi = ((by * base_w + bx) * 4) as usize;
+            let oi = ((row * ov_w + col) * 4) as usize;
+            if bi + 3 >= base.len() || oi + 3 >= overlay.len() {
+                continue;
+            }
+            let alpha = overlay[oi + 3] as u16;
+            if alpha == 0 {
+                continue;
+            }
+            if alpha == 255 {
+                base[bi] = overlay[oi];
+                base[bi + 1] = overlay[oi + 1];
+                base[bi + 2] = overlay[oi + 2];
+                base[bi + 3] = 255;
+            } else {
+                let inv = 255 - alpha;
+                base[bi] = ((alpha * overlay[oi] as u16 + inv * base[bi] as u16) / 255) as u8;
+                base[bi + 1] = ((alpha * overlay[oi + 1] as u16 + inv * base[bi + 1] as u16) / 255) as u8;
+                base[bi + 2] = ((alpha * overlay[oi + 2] as u16 + inv * base[bi + 2] as u16) / 255) as u8;
+                base[bi + 3] = base[bi + 3].max(overlay[oi + 3]);
+            }
+        }
+    }
+}
+
 fn fix_1bit_alpha(pixels: &mut [u8]) {
     let max_alpha = pixels.iter().skip(3).step_by(4).copied().max().unwrap_or(0);
     if max_alpha > 1 {

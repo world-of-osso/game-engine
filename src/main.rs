@@ -1,9 +1,11 @@
 use std::f32::consts::PI;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use bevy::asset::RenderAssetUsages;
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use wow_engine::ipc::IpcPlugin;
 
@@ -193,14 +195,12 @@ fn load_batch_material(
     if let Some(fdid) = batch.texture_fdid {
         let blp_path = texture_dir.join(format!("{fdid}.blp"));
         if blp_path.exists() {
-            match asset::blp::load_blp_to_image(&blp_path) {
-                Ok(image) => {
-                    return materials.add(StandardMaterial {
-                        base_color_texture: Some(images.add(image)),
-                        ..default()
-                    });
-                }
-                Err(e) => eprintln!("Failed to load BLP {}: {e}", blp_path.display()),
+            if let Some(image) = load_composited_texture(&blp_path, &batch.overlays, &texture_dir)
+            {
+                return materials.add(StandardMaterial {
+                    base_color_texture: Some(images.add(image)),
+                    ..default()
+                });
             }
         } else {
             eprintln!("Missing texture: data/textures/{fdid}.blp (download with casc-extract)");
@@ -211,6 +211,46 @@ fn load_batch_material(
         base_color: color,
         ..default()
     })
+}
+
+/// Load a base BLP texture and composite any region overlays on top.
+fn load_composited_texture(
+    base_path: &Path,
+    overlays: &[asset::m2::TextureOverlay],
+    texture_dir: &Path,
+) -> Option<Image> {
+    if overlays.is_empty() {
+        return match asset::blp::load_blp_to_image(base_path) {
+            Ok(img) => Some(img),
+            Err(e) => {
+                eprintln!("Failed to load BLP {}: {e}", base_path.display());
+                None
+            }
+        };
+    }
+    let (mut pixels, w, h) = match asset::blp::load_blp_rgba(base_path) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Failed to load BLP {}: {e}", base_path.display());
+            return None;
+        }
+    };
+    for ov in overlays {
+        let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
+        match asset::blp::load_blp_rgba(&ov_path) {
+            Ok((ov_pixels, ov_w, ov_h)) => {
+                asset::blp::blit_region(&mut pixels, w, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
+            }
+            Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
+        }
+    }
+    Some(Image::new(
+        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        TextureDimension::D2,
+        pixels,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    ))
 }
 
 #[allow(clippy::type_complexity)]

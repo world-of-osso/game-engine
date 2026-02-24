@@ -8,10 +8,19 @@ fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
     [x, z, -y]
 }
 
+/// A region overlay to composite onto the base texture.
+pub struct TextureOverlay {
+    pub fdid: u32,
+    pub x: u32,
+    pub y: u32,
+}
+
 pub struct M2RenderBatch {
     pub mesh: Mesh,
-    /// None = runtime-resolved texture (character/creature skin), use placeholder color.
+    /// None = runtime-resolved texture, use placeholder color.
     pub texture_fdid: Option<u32>,
+    /// Region overlays composited onto the base texture (e.g. underwear on body skin).
+    pub overlays: Vec<TextureOverlay>,
 }
 
 pub struct M2Model {
@@ -265,12 +274,31 @@ fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
 /// Used when the model has no hardcoded FDID for a texture slot.
 fn default_fdid_for_type(ty: u32) -> Option<u32> {
     match ty {
-        1 => Some(120191),   // body skin (humanmaleskin00_00, 512x512)
-        2 => Some(120181),   // underwear (humanmalenakedpelvisskin00_00, 512x512)
-        15 => Some(1043094), // hair/scalp (scalpupperhair00_00_hd)
-        16 => Some(1042989), // beard (faciallowerhair00_00_hd)
+        1 => Some(120191), // body skin (humanmaleskin00_00, 512x512)
         _ => None,
     }
+}
+
+/// Default underwear overlay for body skin (type 1) batches.
+/// Region coords from CharComponentTextureSections layout 153 (512x512).
+const UNDERWEAR_FDID: u32 = 120181; // humanmalenakedpelvisskin00_00, 256x128
+const UNDERWEAR_REGION: (u32, u32, u32, u32) = (256, 192, 256, 128); // LEG_UPPER
+
+/// Return underwear overlay for body skin (type 1) batches.
+fn body_skin_overlays(
+    unit: &M2TextureUnit,
+    tex_lookup: &[u16],
+    tex_types: &[u32],
+) -> Vec<TextureOverlay> {
+    let Some(&lookup_val) = tex_lookup.get(unit.texture_id as usize) else {
+        return Vec::new();
+    };
+    let ty = tex_types.get(lookup_val as usize).copied().unwrap_or(0);
+    if ty != 1 {
+        return Vec::new();
+    }
+    let (x, y, _, _) = UNDERWEAR_REGION;
+    vec![TextureOverlay { fdid: UNDERWEAR_FDID, x, y }]
 }
 
 /// Resolve a batch's texture through the lookup chain:
@@ -286,7 +314,9 @@ fn resolve_batch_texture(
     let ty = *tex_types.get(tex_idx)?;
     if ty == 0 {
         let fdid = *txid.get(tex_idx)?;
-        if fdid != 0 { return Some(fdid); }
+        if fdid != 0 {
+            return Some(fdid);
+        }
     }
     default_fdid_for_type(ty)
 }
@@ -375,11 +405,10 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
     parse_skin_full(&data).ok()
 }
 
-/// Default geoset visibility: base skin + default hair + x01 variant per group + ears override.
-/// Matches WMVx ModelDefaultsGeosetModifier + CharacterDefaultsGeosetModifier.
+/// Default geoset visibility: base skin + a hair style + x01 variant per group + ears override.
+/// Group 0: geoset 0 (base skin) + geoset 5 (hair style placeholder, 1 is bald).
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    // Group 0: base skin (0) and default hair style (1)
-    if mesh_part_id == 0 || mesh_part_id == 1 {
+    if mesh_part_id == 0 || mesh_part_id == 5 {
         return true;
     }
     // Groups 1+: first variant (x01) is default for each group
@@ -413,7 +442,8 @@ fn build_batched_model(
         }
         let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub);
         let texture_fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid);
-        batches.push(M2RenderBatch { mesh, texture_fdid });
+        let overlays = body_skin_overlays(unit, tex_lookup, tex_types);
+        batches.push(M2RenderBatch { mesh, texture_fdid, overlays });
     }
     Ok(M2Model { batches })
 }
@@ -446,6 +476,7 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
         batches: vec![M2RenderBatch {
             mesh: build_mesh(&vertices, indices),
             texture_fdid: fdid,
+            overlays: Vec::new(),
         }],
     })
 }
