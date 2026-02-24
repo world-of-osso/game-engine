@@ -1,32 +1,39 @@
 # wow-engine
 
-Bevy 0.18 3D engine for rendering WoW assets. Sibling to wow-ui-sim (iced-based UI simulator).
+Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and eventually the full game world. Sibling to wow-ui-sim (iced-based UI overlay).
 
 ## Structure
 
 ```
 src/
-├── main.rs          # Bevy App: camera, lights, ground plane, placeholder cube
-└── asset/
-    ├── mod.rs        # Re-exports blp + m2 modules
-    ├── blp.rs        # BlpTexturePlugin — BLP texture → Bevy Image (image-blp)
-    └── m2.rs         # WowModelPlugin — M2 model → Bevy Mesh (wow-m2)
+├── main.rs          # Bevy App: camera, lights, ground plane, M2 model loading
+├── lib.rs           # Re-exports dump + ipc
+├── asset/
+│   ├── mod.rs       # Re-exports blp + m2 modules
+│   ├── blp.rs       # BlpTexturePlugin — BLP texture → Bevy Image (image-blp)
+│   └── m2.rs        # Custom MD21 chunked M2 parser (no external crate)
+├── ipc/
+│   ├── mod.rs       # Unix socket IPC server (peercred-ipc)
+│   └── plugin.rs    # Bevy plugin bridging IPC commands to ECS
+└── dump.rs          # Entity hierarchy dump for dump-tree IPC command
 ```
 
 ## Dependencies
 
-- `bevy = "0.18"` — Engine, ECS, renderer
+- `bevy = "0.18"` — Engine, ECS, renderer (with `bevy_dev_tools` for FPS overlay)
 - `image-blp = "1"` — BLP decoding (same version as wow-ui-sim)
-- `wow-m2 = "0.6"` — M2 model parsing (structs only, mesh conversion is ours)
 
 ## Dev
 
-- `cargo run` — Launch 3D scene
+- `cargo run --bin wow-engine -- [model.m2]` — Launch 3D scene
+- `cargo run --bin wow-engine -- model.m2 --dump-tree` — Dump entity hierarchy
 - `./run-tests.sh` — cargo test + clippy
 - Edition 2024, rust-version 1.89
+- `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 
 ## Test Assets
 
+- M2: `data/models/humanmale.m2` + `humanmale00.skin` (downloaded via casc-extract)
 - M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format)
 - BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client
 
