@@ -148,52 +148,67 @@ fn setup(
 
     match asset::m2::load_m2(&m2_path) {
         Ok(model) => {
-            let material = load_model_material(&model, &mut images, &mut materials);
             let name = m2_path
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("m2_model");
-            commands.spawn((
-                Name::new(name.to_owned()),
-                Player,
-                Mesh3d(meshes.add(model.mesh)),
-                MeshMaterial3d(material),
-                Transform::from_xyz(0.0, 0.5, 0.0),
-            ));
+            commands
+                .spawn((
+                    Name::new(name.to_owned()),
+                    Player,
+                    Transform::from_xyz(0.0, 0.5, 0.0),
+                    Visibility::default(),
+                ))
+                .with_children(|parent| {
+                    for (i, batch) in model.batches.into_iter().enumerate() {
+                        let material =
+                            load_batch_material(&batch, i, &mut images, &mut materials);
+                        parent.spawn((
+                            Mesh3d(meshes.add(batch.mesh)),
+                            MeshMaterial3d(material),
+                        ));
+                    }
+                });
         }
         Err(e) => eprintln!("Failed to load M2 {}: {e}", m2_path.display()),
     }
 }
 
-fn load_model_material(
-    model: &asset::m2::M2Model,
+const PLACEHOLDER_COLORS: &[Color] = &[
+    Color::srgb(0.8, 0.5, 0.3), // skin tone
+    Color::srgb(0.3, 0.5, 0.8), // blue
+    Color::srgb(0.3, 0.8, 0.3), // green
+    Color::srgb(0.8, 0.3, 0.3), // red
+    Color::srgb(0.7, 0.7, 0.3), // yellow
+    Color::srgb(0.6, 0.3, 0.7), // purple
+];
+
+fn load_batch_material(
+    batch: &asset::m2::M2RenderBatch,
+    index: usize,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
 ) -> Handle<StandardMaterial> {
     let texture_dir = PathBuf::from("data/textures");
-    for &fdid in &model.texture_ids {
+    if let Some(fdid) = batch.texture_fdid {
         let blp_path = texture_dir.join(format!("{fdid}.blp"));
         if blp_path.exists() {
             match asset::blp::load_blp_to_image(&blp_path) {
                 Ok(image) => {
-                    let handle = images.add(image);
                     return materials.add(StandardMaterial {
-                        base_color_texture: Some(handle),
+                        base_color_texture: Some(images.add(image)),
                         ..default()
                     });
                 }
                 Err(e) => eprintln!("Failed to load BLP {}: {e}", blp_path.display()),
             }
+        } else {
+            eprintln!("Missing texture: data/textures/{fdid}.blp (download with casc-extract)");
         }
     }
-    if !model.texture_ids.is_empty() {
-        eprintln!("Textures needed (download with casc-extract):");
-        for fdid in &model.texture_ids {
-            eprintln!("  FDID {fdid} -> data/textures/{fdid}.blp");
-        }
-    }
+    let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
     materials.add(StandardMaterial {
-        base_color: Color::srgb(0.8, 0.4, 0.2),
+        base_color: color,
         ..default()
     })
 }
