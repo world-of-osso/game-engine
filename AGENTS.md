@@ -6,10 +6,12 @@ Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and e
 
 ```
 src/
-├── main.rs          # Bevy App: camera, lights, ground plane, M2 model loading
+├── main.rs          # Bevy App: camera, lights, ground plane, M2/ADT dispatch
 ├── lib.rs           # Re-exports dump + ipc
+├── terrain.rs       # ADT terrain spawning (spawn_adt, camera positioning)
 ├── asset/
-│   ├── mod.rs       # Re-exports blp + m2 modules
+│   ├── mod.rs       # Re-exports blp + m2 + adt modules
+│   ├── adt.rs       # ADT terrain parser: MCNK heightmaps → Bevy meshes
 │   ├── blp.rs       # BLP texture → Bevy Image (image-blp, 1-bit alpha fix)
 │   └── m2.rs        # Custom MD21 chunked M2 parser + TXID texture FDIDs (no external crate)
 ├── ipc/
@@ -25,7 +27,8 @@ src/
 
 ## Dev
 
-- `cargo run --bin wow-engine -- [model.m2]` — Launch 3D scene
+- `cargo run --bin wow-engine -- [model.m2]` — Launch 3D scene with M2 model
+- `cargo run --bin wow-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
 - `cargo run --bin wow-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
 - `cargo run --bin wow-engine -- model.m2 --dump-tree` — Dump entity hierarchy
 - `./run-tests.sh` — cargo test + clippy
@@ -40,6 +43,7 @@ src/
 - `data/CharComponentTextureSections.csv` — Character texture region coordinates from wago.tools DB2
 - `data/textures/` — BLP textures named by FDID (e.g. `120191.blp`)
 - `data/models/` — M2 models and .skin files
+- `data/terrain/` — ADT terrain files
 
 ## Test Assets
 
@@ -49,7 +53,18 @@ src/
 - M2: `data/models/humanmale_hd.m2` + `humanmale_hd00.skin` — **HD character model** (FDID 1011653, 11MB, 113 submeshes, full hairstyles)
 - M2: `data/models/boar.m2` — creature model (runtime creature skin, no hardcoded BLPs)
 - M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format, no TXID)
+- ADT: `data/terrain/azeroth_32_48.adt` — Elwynn Forest terrain tile (FDID 778027, 350KB, 256 MCNK chunks)
 - BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client (not model textures)
+
+## ADT Terrain
+
+- ADT chunks use **reversed 4CC** magic: `REVM`=MVER, `RDHM`=MHDR, `KNCM`=MCNK, `TVCM`=MCVT, `RNCM`=MCNR
+- MCNK position at offset 0x68 is stored as **[Y, X, Z]** (not [X, Y, Z])
+- MCVT: 145 floats (9×9 outer + 8×8 inner ROAM grid), heights relative to MCNK position.Z
+- Terrain grows in **negative X/Y** from the chunk corner position
+- Each MCNK = 33.33 yards (CHUNK_SIZE = 100/3), 16×16 chunks per ADT tile
+- Split files: root .adt (heights/normals), _tex0.adt (texture layers), _obj0.adt (doodads/WMOs)
+- Currently renders root ADT only (heights + normals, flat green material)
 
 ## Animation
 

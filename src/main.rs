@@ -13,12 +13,13 @@ use wow_engine::ipc::IpcPlugin;
 mod animation;
 mod asset;
 mod camera;
+mod terrain;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
 
-const DEFAULT_M2: &str =
-    "/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2";
+const DEFAULT_M2: &str = "data/models/humanmale_hd.m2";
+const DEFAULT_ADT: &str = "data/terrain/azeroth_32_48.adt";
 
 #[derive(Resource)]
 struct DumpTreeFlag;
@@ -69,18 +70,16 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     Some(ScreenshotRequest { output, frames_remaining: 3 })
 }
 
-/// Find the model path from CLI args.
-/// Normal: `wow-engine [model.m2] [--flags]`
-/// Screenshot: `wow-engine screenshot [output.webp] [model.m2]`
-fn parse_model_path() -> PathBuf {
+/// Find the asset path from CLI args. Returns None when no explicit path given.
+/// Normal: `wow-engine [asset]`
+/// Screenshot: `wow-engine screenshot [output.webp] [asset]`
+fn parse_asset_path() -> Option<PathBuf> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(|s| s.as_str()) == Some("screenshot") {
-        // Third arg (index 2) is the model path
         args.get(2).map(PathBuf::from)
     } else {
         args.iter().find(|a| !a.starts_with("--")).map(PathBuf::from)
     }
-    .unwrap_or_else(|| PathBuf::from(DEFAULT_M2))
 }
 
 fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>>) {
@@ -117,32 +116,114 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
-    mut skinned_mesh_inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
-    spawn_scene_environment(
-        &mut commands, &mut meshes, &mut materials, &mut images,
-        &mut skinned_mesh_inverse_bindposes,
-    );
-    let m2_path = parse_model_path();
-    spawn_m2_model(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut images,
-        &mut skinned_mesh_inverse_bindposes,
-        &m2_path,
+    let asset_path = parse_asset_path();
+    let is_terrain = asset_path.as_ref().is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
+        || asset_path.is_none();
+
+    let camera = spawn_scene_environment(
+        &mut commands, &mut meshes, &mut materials, &mut images, is_terrain,
     );
 
-    // Static reference object (chest) so you can see movement relative to the world
+    match asset_path {
+        Some(p) if p.extension().is_some_and(|e| e == "adt") => {
+            spawn_terrain(&mut commands, &mut meshes, &mut materials, camera, &p);
+        }
+        Some(p) => {
+            spawn_m2_scene(
+                &mut commands, &mut meshes, &mut materials, &mut images,
+                &mut inverse_bp, &p,
+            );
+        }
+        None => spawn_default_scene(
+            &mut commands, &mut meshes, &mut materials, &mut images,
+            &mut inverse_bp,
+        ),
+    }
+}
+
+fn spawn_terrain(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    camera: Entity,
+    adt_path: &Path,
+) -> Option<Vec3> {
+    match terrain::spawn_adt(commands, meshes, materials, adt_path) {
+        Ok(result) => {
+            commands.entity(camera).insert(result.camera);
+            Some(result.center)
+        }
+        Err(e) => { eprintln!("ADT load error: {e}"); None }
+    }
+}
+
+/// Default scene: terrain + HD human + chest, all together.
+fn spawn_default_scene(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+) {
+    let adt_path = Path::new(DEFAULT_ADT);
+    let center = if adt_path.exists() {
+        // Load terrain but don't override camera — WowCamera will follow the player.
+        match terrain::spawn_adt(commands, meshes, materials, adt_path) {
+            Ok(result) => Some(result.center),
+            Err(e) => { eprintln!("ADT load error: {e}"); None }
+        }
+    } else {
+        None
+    };
+
+    let m2_path = Path::new(DEFAULT_M2);
+    if m2_path.exists() {
+        spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path);
+    }
+
+    let chest_offset = Vec3::new(5.0, 0.0, 0.0);
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         spawn_static_m2(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut images,
-            &mut skinned_mesh_inverse_bindposes,
-            chest_path,
+            commands, meshes, materials, images, inverse_bp, chest_path,
+            Transform::from_translation(center.unwrap_or_default() + chest_offset)
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+        );
+    }
+
+    // Move player to terrain center if terrain was loaded.
+    if let Some(pos) = center {
+        set_player_position(commands, pos);
+    }
+}
+
+/// Find the Player entity and move it to the given position.
+fn set_player_position(commands: &mut Commands, pos: Vec3) {
+    commands.queue(move |world: &mut World| {
+        let mut q = world.query_filtered::<&mut Transform, With<Player>>();
+        for mut xf in q.iter_mut(world) {
+            xf.translation = pos;
+        }
+    });
+}
+
+fn spawn_m2_scene(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+) {
+    spawn_m2_model(commands, meshes, materials, images, inverse_bindposes, m2_path);
+    spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes);
+
+    let chest_path = Path::new("data/models/chest01.m2");
+    if chest_path.exists() {
+        spawn_static_m2(
+            commands, meshes, materials, images, inverse_bindposes, chest_path,
             Transform::from_xyz(5.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
         );
@@ -154,14 +235,16 @@ fn spawn_scene_environment(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
-    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-) {
-    commands.spawn((
-        Camera3d::default(),
-        Transform::default(),
-        WowCamera::default(),
-        AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() },
-    ));
+    is_terrain: bool,
+) -> Entity {
+    let camera = commands
+        .spawn((
+            Camera3d::default(),
+            Transform::default(),
+            WowCamera::default(),
+            AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() },
+        ))
+        .id();
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
@@ -171,8 +254,10 @@ fn spawn_scene_environment(
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
 
-    spawn_ground_plane(commands, meshes, materials, images);
-    spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes);
+    if !is_terrain {
+        spawn_ground_plane(commands, meshes, materials, images);
+    }
+    camera
 }
 
 /// Load the grass BLP texture with repeat tiling and spawn the ground plane.

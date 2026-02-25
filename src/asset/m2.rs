@@ -3,7 +3,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
 
 /// Convert WoW coordinate (X-right, Y-forward, Z-up) to Bevy (X-right, Y-up, Z-back).
-fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
+pub fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
     [x, z, -y]
 }
 
