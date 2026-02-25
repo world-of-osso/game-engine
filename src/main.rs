@@ -119,7 +119,10 @@ fn setup(
     mut images: ResMut<Assets<Image>>,
     mut skinned_mesh_inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
-    spawn_scene_environment(&mut commands, &mut meshes, &mut materials, &mut images);
+    spawn_scene_environment(
+        &mut commands, &mut meshes, &mut materials, &mut images,
+        &mut skinned_mesh_inverse_bindposes,
+    );
     let m2_path = parse_model_path();
     spawn_m2_model(
         &mut commands,
@@ -151,16 +154,13 @@ fn spawn_scene_environment(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
 ) {
     commands.spawn((
         Camera3d::default(),
         Transform::default(),
         WowCamera::default(),
-        AmbientLight {
-            color: Color::WHITE,
-            brightness: 150.0,
-            ..default()
-        },
+        AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() },
     ));
     commands.spawn((
         DirectionalLight {
@@ -171,18 +171,45 @@ fn spawn_scene_environment(
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
 
-    let grass_texture = generate_grass_texture();
-    let grass_material = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(grass_texture)),
+    spawn_ground_plane(commands, meshes, materials, images);
+    spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes);
+}
+
+/// Load the grass BLP texture with repeat tiling and spawn the ground plane.
+fn spawn_ground_plane(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+) {
+    let mut grass_image = load_blp_as_image(Path::new("data/textures/187126.blp"))
+        .unwrap_or_else(|e| { eprintln!("{e}"); generate_grass_texture() });
+    grass_image.sampler = bevy::image::ImageSampler::Descriptor(
+        bevy::image::ImageSamplerDescriptor {
+            address_mode_u: bevy::image::ImageAddressMode::Repeat,
+            address_mode_v: bevy::image::ImageAddressMode::Repeat,
+            ..bevy::image::ImageSamplerDescriptor::linear()
+        },
+    );
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(images.add(grass_image)),
         perceptual_roughness: 0.9,
         ..default()
     });
-    commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(100.0, 100.0))),
-        MeshMaterial3d(grass_material),
-    ));
+    let mut mesh = Plane3d::default().mesh().size(100.0, 100.0).build();
+    scale_mesh_uvs(&mut mesh, 20.0);
+    commands.spawn((Mesh3d(meshes.add(mesh)), MeshMaterial3d(material)));
+}
 
-    spawn_ground_clutter(commands, meshes, materials);
+/// Multiply all UV coordinates in a mesh by the given factor for texture tiling.
+fn scale_mesh_uvs(mesh: &mut Mesh, factor: f32) {
+    use bevy::mesh::VertexAttributeValues;
+    if let Some(VertexAttributeValues::Float32x2(uvs)) = mesh.attribute_mut(Mesh::ATTRIBUTE_UV_0) {
+        for uv in uvs.iter_mut() {
+            uv[0] *= factor;
+            uv[1] *= factor;
+        }
+    }
 }
 
 /// Generate a 64x64 procedural grass texture with color variation.
@@ -209,59 +236,78 @@ fn generate_grass_texture() -> Image {
     )
 }
 
-/// Scatter small rock/bush meshes across the ground for visual reference.
+const HERB_MODELS: &[&str] = &[
+    "data/models/bush_peacebloom01.m2",
+    "data/models/bush_silverleaf01.m2",
+];
+
+/// Compute a deterministic scatter position from index. Returns None if too close to origin.
+fn scatter_position(i: u32) -> Option<(f32, f32, u32, u32)> {
+    let hash1 = (i.wrapping_mul(7919).wrapping_add(1301)) % 10000;
+    let hash2 = (i.wrapping_mul(6271).wrapping_add(3571)) % 10000;
+    let x = (hash1 as f32 / 10000.0 - 0.5) * 60.0;
+    let z = (hash2 as f32 / 10000.0 - 0.5) * 60.0;
+    if x * x + z * z < 9.0 { return None; }
+    Some((x, z, hash1, hash2))
+}
+
+/// Scatter rocks and herb models across the ground.
 fn spawn_ground_clutter(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+) {
+    spawn_rock_clutter(commands, meshes, materials);
+    spawn_herb_clutter(commands, meshes, materials, images, inverse_bindposes);
+}
+
+fn spawn_rock_clutter(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
     let rock_mesh = meshes.add(Sphere::new(0.15).mesh().ico(2).unwrap());
-    let bush_mesh = meshes.add(Sphere::new(0.3).mesh().ico(1).unwrap());
-
     let rock_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.45, 0.42, 0.38),
-        perceptual_roughness: 0.95,
-        ..default()
+        base_color: Color::srgb(0.45, 0.42, 0.38), perceptual_roughness: 0.95, ..default()
     });
-    let dark_rock_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.35, 0.33, 0.30),
-        perceptual_roughness: 0.95,
-        ..default()
-    });
-    let bush_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.2, 0.4, 0.15),
-        perceptual_roughness: 0.85,
-        ..default()
+    let dark_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.35, 0.33, 0.30), perceptual_roughness: 0.95, ..default()
     });
 
-    // Deterministic scatter positions using simple hash
-    for i in 0u32..40 {
-        let hash1 = (i.wrapping_mul(7919).wrapping_add(1301)) % 10000;
-        let hash2 = (i.wrapping_mul(6271).wrapping_add(3571)) % 10000;
-        let x = (hash1 as f32 / 10000.0 - 0.5) * 60.0;
-        let z = (hash2 as f32 / 10000.0 - 0.5) * 60.0;
-
-        // Skip clutter too close to origin (where the player starts)
-        if x * x + z * z < 9.0 {
-            continue;
-        }
-
-        let (mesh, mat, y_scale) = if i % 5 == 0 {
-            // Bush (every 5th)
-            let scale_var = 0.7 + (hash1 % 60) as f32 / 100.0;
-            (bush_mesh.clone(), bush_mat.clone(), scale_var)
-        } else if i % 3 == 0 {
-            (rock_mesh.clone(), dark_rock_mat.clone(), 0.6 + (hash2 % 80) as f32 / 100.0)
+    for i in 0u32..30 {
+        let Some((x, z, hash1, hash2)) = scatter_position(i) else { continue };
+        if i % 3 == 0 { continue; } // leave gaps for herbs
+        let (mat, scale) = if i % 2 == 0 {
+            (&dark_mat, 0.6 + (hash2 % 80) as f32 / 100.0)
         } else {
-            (rock_mesh.clone(), rock_mat.clone(), 0.5 + (hash1 % 100) as f32 / 100.0)
+            (&rock_mat, 0.5 + (hash1 % 100) as f32 / 100.0)
         };
-
         commands.spawn((
-            Mesh3d(mesh),
-            MeshMaterial3d(mat),
-            Transform::from_xyz(x, 0.0, z)
-                .with_scale(Vec3::new(1.0, y_scale, 1.0)),
+            Mesh3d(rock_mesh.clone()), MeshMaterial3d(mat.clone()),
+            Transform::from_xyz(x, 0.0, z).with_scale(Vec3::new(1.0, scale, 1.0)),
         ));
+    }
+}
+
+fn spawn_herb_clutter(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+) {
+    for i in 0u32..15 {
+        let Some((x, z, hash1, _)) = scatter_position(i.wrapping_mul(3).wrapping_add(7)) else {
+            continue;
+        };
+        let herb_path = Path::new(HERB_MODELS[(hash1 as usize) % HERB_MODELS.len()]);
+        let yaw = (hash1 % 628) as f32 / 100.0;
+        let transform = Transform::from_xyz(x, 0.0, z)
+            .with_rotation(Quat::from_rotation_y(yaw))
+            .with_scale(Vec3::splat(0.3));
+        spawn_static_m2(commands, meshes, materials, images, inverse_bindposes, herb_path, transform);
     }
 }
 
