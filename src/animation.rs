@@ -153,12 +153,13 @@ fn switch_jump(
                 player.looping = false;
             }
         }
-        // JumpEnd finished → return to movement anim
+        // JumpEnd finished → return to movement anim with normal blend
         Some(ANIM_JUMP_END) if anim_finished(player, sequences) => {
             player.looping = true;
             let target_id = direction_to_anim_id(movement.direction);
             if let Some(idx) = find_seq_idx(sequences, target_id) {
-                start_transition(player, idx, JUMP_BLEND_MS);
+                let blend_ms = sequences[idx].blend_time as f32;
+                start_transition(player, idx, blend_ms);
             }
         }
         _ => {}
@@ -196,7 +197,8 @@ fn tick_animation(
             if let Some(from_seq) = data.sequences.get(tr.from_seq_idx) {
                 tr.from_time_ms += delta_ms;
                 if from_seq.duration > 0 {
-                    tr.from_time_ms %= from_seq.duration as f32;
+                    // Clamp at end — wrapping would snap to frame 0 mid-blend
+                    tr.from_time_ms = tr.from_time_ms.min(from_seq.duration as f32);
                 }
             }
             if tr.blend_elapsed_ms >= tr.blend_duration_ms {

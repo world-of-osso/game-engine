@@ -5,7 +5,7 @@ pub struct WowCameraPlugin;
 
 impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (camera_input, player_movement, camera_follow).chain());
+        app.add_systems(Update, (camera_input, cursor_grab, player_movement, camera_follow).chain());
     }
 }
 
@@ -118,6 +118,53 @@ fn camera_input(
     }
 }
 
+/// Compute movement direction vector and animation direction from input.
+fn compute_movement_input(
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    facing: &CharacterFacing,
+) -> (Vec3, MoveDirection) {
+    let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
+    let right = Vec3::new(-forward.z, 0.0, forward.x);
+
+    let mut direction = Vec3::ZERO;
+    if keys.pressed(KeyCode::KeyW) { direction += forward; }
+    if keys.pressed(KeyCode::KeyS) { direction -= forward; }
+    if keys.pressed(KeyCode::KeyA) { direction -= right; }
+    if keys.pressed(KeyCode::KeyD) { direction += right; }
+    if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
+        direction += forward;
+    }
+
+    let fwd = keys.pressed(KeyCode::KeyW)
+        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
+    let anim_dir = if fwd {
+        MoveDirection::Forward
+    } else if keys.pressed(KeyCode::KeyS) {
+        MoveDirection::Backward
+    } else if keys.pressed(KeyCode::KeyA) {
+        MoveDirection::Left
+    } else if keys.pressed(KeyCode::KeyD) {
+        MoveDirection::Right
+    } else {
+        MoveDirection::None
+    };
+
+    (direction, anim_dir)
+}
+
+/// Update jump arc height or land when duration expires.
+fn update_jump_arc(movement: &mut MovementState, transform: &mut Transform, dt: f32) {
+    movement.jump_elapsed += dt;
+    if movement.jump_elapsed >= JUMP_DURATION {
+        transform.translation.y = GROUND_Y;
+        movement.jumping = false;
+    } else {
+        let t = movement.jump_elapsed / JUMP_DURATION;
+        transform.translation.y = GROUND_Y + JUMP_HEIGHT * 4.0 * t * (1.0 - t);
+    }
+}
+
 fn player_movement(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -131,44 +178,8 @@ fn player_movement(
         return;
     };
 
-    // Movement relative to character facing (not camera)
-    let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
-    let right = Vec3::new(-forward.z, 0.0, forward.x);
-
-    let mut direction = Vec3::ZERO;
-    if keys.pressed(KeyCode::KeyW) {
-        direction += forward;
-    }
-    if keys.pressed(KeyCode::KeyS) {
-        direction -= forward;
-    }
-    if keys.pressed(KeyCode::KeyA) {
-        direction -= right;
-    }
-    if keys.pressed(KeyCode::KeyD) {
-        direction += right;
-    }
-    if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
-        direction += forward;
-    }
-
-    let fwd = keys.pressed(KeyCode::KeyW)
-        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
-    let back = keys.pressed(KeyCode::KeyS);
-    let left = keys.pressed(KeyCode::KeyA);
-    let right_key = keys.pressed(KeyCode::KeyD);
-
-    movement.direction = if fwd {
-        MoveDirection::Forward
-    } else if back {
-        MoveDirection::Backward
-    } else if left {
-        MoveDirection::Left
-    } else if right_key {
-        MoveDirection::Right
-    } else {
-        MoveDirection::None
-    };
+    let (direction, anim_dir) = compute_movement_input(&keys, &mouse_buttons, &facing);
+    movement.direction = anim_dir;
 
     if keys.just_pressed(KeyCode::Space) && !movement.jumping {
         movement.jumping = true;
@@ -176,26 +187,30 @@ fn player_movement(
     }
 
     if direction.length_squared() > 0.0 {
-        direction = direction.normalize();
-        transform.translation += direction * MOVE_SPEED * time.delta_secs();
+        let dir = direction.normalize();
+        transform.translation += dir * MOVE_SPEED * time.delta_secs();
     }
 
-    // Parabolic jump arc
     if movement.jumping {
-        movement.jump_elapsed += time.delta_secs();
-        if movement.jump_elapsed >= JUMP_DURATION {
-            // Land: snap to ground, clear jumping so animation system transitions to JumpEnd
-            transform.translation.y = GROUND_Y;
-            movement.jumping = false;
-        } else {
-            // t in [0,1], parabola peaks at t=0.5
-            let t = movement.jump_elapsed / JUMP_DURATION;
-            transform.translation.y = GROUND_Y + JUMP_HEIGHT * 4.0 * t * (1.0 - t);
-        }
+        update_jump_arc(&mut movement, &mut transform, time.delta_secs());
     }
 
-    // Rotate model to match character facing (base -PI/2 for WoW→Bevy model orientation)
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
+}
+
+fn cursor_grab(
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    mut cursor_q: Query<&mut bevy::window::CursorOptions>,
+) {
+    let Ok(mut cursor) = cursor_q.single_mut() else { return };
+    let held = mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
+    if held {
+        cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
+        cursor.visible = false;
+    } else {
+        cursor.grab_mode = bevy::window::CursorGrabMode::None;
+        cursor.visible = true;
+    }
 }
 
 fn camera_follow(
