@@ -225,7 +225,7 @@ fn apply_animation(
 
         let current = evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
 
-        let (trans, mut rot, scl) = if let Some(ref tr) = player.transition {
+        let (trans, rot, scl) = if let Some(ref tr) = player.transition {
             let from = evaluate_bone_components(tracks, tr.from_seq_idx, tr.from_time_ms as u32);
             let t = (tr.blend_elapsed_ms / tr.blend_duration_ms).clamp(0.0, 1.0);
             (

@@ -30,6 +30,10 @@ pub struct M2RenderBatch {
     pub texture_fdid: Option<u32>,
     /// Region overlays composited onto the base texture (e.g. underwear on body skin).
     pub overlays: Vec<TextureOverlay>,
+    /// M2Material flags for this batch (0x04 = two-sided, 0x01 = unlit).
+    pub render_flags: u16,
+    /// Blending mode (0=opaque, 1=alpha_key, 2=alpha, 4=add, etc.).
+    pub blend_mode: u16,
 }
 
 pub struct M2Model {
@@ -60,6 +64,14 @@ struct M2TextureUnit {
     submesh_index: u16,
     /// Index into the MD20 textureLookup table.
     texture_id: u16,
+    /// Index into the MD20 materials (render flags) table.
+    render_flags_index: u16,
+}
+
+/// Parsed M2Material entry (4 bytes: flags u16 + blending_mode u16).
+struct M2Material {
+    flags: u16,
+    blend_mode: u16,
 }
 
 struct SkinData {
@@ -263,6 +275,7 @@ fn parse_texture_units(data: &[u8], offset: usize, count: usize) -> Result<Vec<M
         units.push(M2TextureUnit {
             submesh_index: read_u16(data, base + 4)?,
             texture_id: read_u16(data, base + 16)?,
+            render_flags_index: read_u16(data, base + 10)?,
         });
     }
     Ok(units)
@@ -285,6 +298,19 @@ fn parse_texture_types(md20: &[u8]) -> Result<Vec<u32>, String> {
         types.push(read_u32(md20, base)?);
     }
     Ok(types)
+}
+
+/// Parse M2Material entries (flags u16 + blend_mode u16) at MD20 offset 0x70.
+fn parse_materials(md20: &[u8]) -> Result<Vec<M2Material>, String> {
+    if md20.len() < 0x78 { return Ok(Vec::new()); }
+    let count = read_u32(md20, 0x70)? as usize;
+    let offset = read_u32(md20, 0x74)? as usize;
+    let mut mats = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * 4;
+        mats.push(M2Material { flags: read_u16(md20, base)?, blend_mode: read_u16(md20, base + 2)? });
+    }
+    Ok(mats)
 }
 
 /// Parse the TXID chunk as an array of u32 FileDataIDs.
@@ -374,9 +400,7 @@ fn body_skin_overlays(
     ]
 }
 
-/// Resolve a batch's texture through the lookup chain:
-/// batch.texture_id -> textureLookup[id] -> textures[idx].type -> TXID[idx]
-/// For runtime-resolved types (type != 0), falls back to default character textures.
+/// batch.texture_id -> textureLookup -> textures[].type -> TXID[]. Type!=0 uses defaults.
 fn resolve_batch_texture(
     unit: &M2TextureUnit,
     tex_lookup: &[u16],
@@ -496,38 +520,13 @@ fn build_batch_mesh(
 
 /// Build a Bevy Mesh from all vertices + resolved index list (fallback path).
 fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
-    let mut positions = Vec::with_capacity(vertices.len());
-    let mut normals = Vec::with_capacity(vertices.len());
-    let mut uvs = Vec::with_capacity(vertices.len());
-    let mut joint_indices: Vec<[u16; 4]> = Vec::with_capacity(vertices.len());
-    let mut joint_weights: Vec<[f32; 4]> = Vec::with_capacity(vertices.len());
-
-    for v in vertices {
-        positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
-        normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
-        uvs.push(v.tex_coords);
-        joint_indices.push([
-            v.bone_indices[0] as u16,
-            v.bone_indices[1] as u16,
-            v.bone_indices[2] as u16,
-            v.bone_indices[3] as u16,
-        ]);
-        joint_weights.push([
-            v.bone_weights[0] as f32 / 255.0,
-            v.bone_weights[1] as f32 / 255.0,
-            v.bone_weights[2] as f32 / 255.0,
-            v.bone_weights[3] as f32 / 255.0,
-        ]);
-    }
-
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_INDEX, VertexAttributeValues::Uint16x4(joint_indices));
-    mesh.insert_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT, joint_weights);
-    mesh.insert_indices(Indices::U16(indices));
-    mesh
+    let identity_lookup: Vec<u16> = (0..vertices.len() as u16).collect();
+    let sub = M2Submesh {
+        mesh_part_id: 0, vertex_start: 0,
+        vertex_count: vertices.len() as u16,
+        triangle_start: 0, triangle_count: indices.len() as u16,
+    };
+    build_batch_mesh(vertices, &identity_lookup, &identity_lookup, &indices, &sub, true)
 }
 
 struct SkelData {
@@ -659,10 +658,10 @@ fn resolve_batch_fdid_and_overlays(
     (fdid, overlays)
 }
 
-/// Build per-batch meshes from skin submesh/batch data, filtering by geoset visibility.
 fn build_batched_model(
     vertices: &[M2Vertex],
     skin: &SkinData,
+    materials: &[M2Material],
     tex_lookup: &[u16],
     tex_types: &[u32],
     txid: &[u32],
@@ -684,7 +683,10 @@ fn build_batched_model(
         }
         let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.bone_lookup, &skin.indices, sub, has_bones);
         let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(unit, tex_lookup, tex_types, txid, is_hd);
-        batches.push(M2RenderBatch { mesh, texture_fdid, overlays });
+        let mat = materials.get(unit.render_flags_index as usize);
+        let render_flags = mat.map(|m| m.flags).unwrap_or(0);
+        let blend_mode = mat.map(|m| m.blend_mode).unwrap_or(0);
+        batches.push(M2RenderBatch { mesh, texture_fdid, overlays, render_flags, blend_mode });
     }
     Ok(batches)
 }
@@ -712,19 +714,17 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
     let anim = load_anim_data(path, &chunks);
     let skin = load_skin_data(path);
+    let materials = parse_materials(chunks.md20)?;
 
     let batches = if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty(), chunks.skid.is_some())?
+        build_batched_model(&vertices, skin, &materials, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty(), chunks.skid.is_some())?
     } else {
-        let indices = match skin {
-            Some(skin) => resolve_indices(&skin.lookup, &skin.indices),
-            None => (0..vertices.len() as u16).collect(),
-        };
+        let indices = match skin { Some(s) => resolve_indices(&s.lookup, &s.indices), None => (0..vertices.len() as u16).collect() };
         let fdid = first_hardcoded_texture(&tex_types, &txid);
-        vec![M2RenderBatch { mesh: build_mesh(&vertices, indices), texture_fdid: fdid, overlays: Vec::new() }]
+        vec![M2RenderBatch { mesh: build_mesh(&vertices, indices), texture_fdid: fdid, overlays: Vec::new(), render_flags: 0, blend_mode: 0 }]
     };
 
     Ok(M2Model {

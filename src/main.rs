@@ -471,20 +471,39 @@ fn load_batch_material(
         if blp_path.exists() {
             if let Some(image) = load_composited_texture(&blp_path, &batch.overlays, &texture_dir)
             {
-                return materials.add(StandardMaterial {
-                    base_color_texture: Some(images.add(image)),
-                    ..default()
-                });
+                return materials.add(m2_material(Some(images.add(image)), None, batch));
             }
         } else {
             eprintln!("Missing texture: data/textures/{fdid}.blp (download with casc-extract)");
         }
     }
     let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
-    materials.add(StandardMaterial {
-        base_color: color,
+    materials.add(m2_material(None, Some(color), batch))
+}
+
+/// Build a StandardMaterial from M2 render flags (two-sided, unlit, blend mode).
+fn m2_material(
+    texture: Option<Handle<Image>>,
+    color: Option<Color>,
+    batch: &asset::m2::M2RenderBatch,
+) -> StandardMaterial {
+    let two_sided = batch.render_flags & 0x04 != 0;
+    let unlit = batch.render_flags & 0x01 != 0;
+    let cull_mode = if two_sided { None } else { Some(bevy::render::render_resource::Face::Back) };
+    let alpha_mode = match batch.blend_mode {
+        1 => AlphaMode::Mask(0.5),
+        2 | 3 | 7 => AlphaMode::Blend,
+        4 | 5 | 6 => AlphaMode::Add,
+        _ => AlphaMode::Opaque,
+    };
+    StandardMaterial {
+        base_color_texture: texture,
+        base_color: color.unwrap_or(Color::WHITE),
+        unlit,
+        cull_mode,
+        alpha_mode,
         ..default()
-    })
+    }
 }
 
 fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {

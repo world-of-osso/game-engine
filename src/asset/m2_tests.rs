@@ -200,11 +200,11 @@ fn resolve_batch_texture_chain() {
     let txid = vec![100, 200];
 
     // Type 0 (hardcoded) → FDID from TXID
-    let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0 };
+    let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0, render_flags_index: 0 };
     assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false), Some(100));
 
     // Type 1 (body skin) → default FDID (SD)
-    let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
+    let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1, render_flags_index: 0 };
     assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false), Some(120191));
 
     // Type 1 (body skin) → default FDID (HD)
@@ -212,7 +212,7 @@ fn resolve_batch_texture_chain() {
 
     // Unknown type → None (placeholder)
     let tex_types_unk = vec![0, 99];
-    let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1 };
+    let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1, render_flags_index: 0 };
     assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid, false), None);
 }
 
