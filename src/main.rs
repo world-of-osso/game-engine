@@ -460,33 +460,15 @@ fn spawn_skeleton(
     Some((inv_bp, joint_entities))
 }
 
-/// Compute inverse bind pose matrices from Stand animation at t=0.
+/// Identity inverse bind poses — M2 vertices are stored in rest pose (no bone deformation).
+/// Animation transforms (including Stand) move vertices from rest to the desired pose.
+/// This matches WMVx behavior which applies bone transforms directly without inverse bind poses.
 fn compute_inverse_bind_poses(
     bones: &[asset::m2_anim::M2Bone],
-    bone_tracks: &[asset::m2_anim::BoneAnimTracks],
-    sequences: &[asset::m2_anim::M2AnimSequence],
+    _bone_tracks: &[asset::m2_anim::BoneAnimTracks],
+    _sequences: &[asset::m2_anim::M2AnimSequence],
 ) -> Vec<Mat4> {
-    let stand_idx = sequences.iter().position(|s| s.id == 0).unwrap_or(0);
-    let mut model_space = vec![Mat4::IDENTITY; bones.len()];
-
-    for (i, bone) in bones.iter().enumerate() {
-        let pivot = Vec3::new(bone.pivot[0], bone.pivot[2], -bone.pivot[1]);
-        let local = if let Some(tracks) = bone_tracks.get(i) {
-            let (trans, rot, scl) = animation::evaluate_bone_components(tracks, stand_idx, 0);
-            let effective_trans = trans + pivot - rot * (scl * pivot);
-            Mat4::from_scale_rotation_translation(scl, rot, effective_trans)
-        } else {
-            Mat4::IDENTITY
-        };
-        let parent_mat = if bone.parent_bone_id >= 0 {
-            model_space[bone.parent_bone_id as usize]
-        } else {
-            Mat4::IDENTITY
-        };
-        model_space[i] = parent_mat * local;
-    }
-
-    model_space.iter().map(|m| m.inverse()).collect()
+    vec![Mat4::IDENTITY; bones.len()]
 }
 
 

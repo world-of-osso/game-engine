@@ -604,8 +604,8 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
 /// Groups 1-3: facial hair variant 2 (102, 202, 302 — ties/accessories).
 /// Groups 4+: first variant (x01) is default per group.
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    // DEBUG: body + forearms + face + bald cap + ears + torso + hair + legs + feet + belt
-    matches!(mesh_part_id, 0 | 1 | 5 | 401 | 501 | 702 | 1301 | 1801 | 2001 | 2201 | 3202)
+    // DEBUG: body + forearms + face + bald cap + ears + torso + hair + legs + feet + belt + eyebrows + eyes
+    matches!(mesh_part_id, 0 | 1 | 5 | 401 | 501 | 702 | 1301 | 1801 | 2001 | 2201 | 3202 | 3401 | 5101)
 }
 
 fn resolve_batch_fdid_and_overlays(
