@@ -17,8 +17,11 @@
 - Scalp hair overlay (1043094) composited on top of face texture ✓
 - DK eye glow (group 17) hidden by default ✓
 - Eye reflection geoset (5101, FDID 5210142) renders correctly ✓ — pure white 128x128 specular map, gray under lighting is expected
-- **Jaw open in bind pose** — inner mouth/teeth visible from front (animation issue)
-- **Face skin tone darker than body** — needs investigation
+- Skin bone_lookup remap applied ✓ — vertex bone_indices now correctly mapped through skin's bone table
+- M2 render flags parsed ✓ — two-sided (0x04), unlit (0x01), blend modes applied per batch
+- Jaw close rotation hack (-45° X) applied to jaw bone ✓ — partially closes mouth
+- **Face still appears dark/transparent** — face geosets render but face skin not visible (see Known Issue #1)
+- **Jaw partially closed** — -45° X helps but not enough, face skin still occluded
 
 ## What Was Done
 
@@ -72,29 +75,49 @@
 ### Model orientation fix (uncommitted)
 - Model rotated `-PI/2` around Y to face the camera at default yaw
 
+### Skin bone remap (committed: f0ef7fe)
+- Skin file has bone_lookup table at offset 20 mapping local vertex bone_indices → global skeleton bone indices
+- Without remap, vertices bind to wrong bones (e.g. chin at local 135/136 instead of global 88)
+- Added `bone_lookup: Vec<u16>` to SkinData, `remap_bone_indices()` helper
+- Applied in `collect_submesh_vertices`
+
+### M2 render flags (committed: 1c9cf49)
+- Parsed M2Material table (flags u16 + blend_mode u16) from MD20 offset 0x70
+- 10 material entries for humanmale_hd: includes two-sided (0x04), unlit (0x01), blend modes
+- Face batch uses render_flags_index=4: `flags=0x0004` (two-sided), `blend=0` (opaque)
+- Applied per-batch: cull_mode (two-sided), unlit, alpha_mode (opaque/mask/blend/add)
+
+### Jaw close hack (uncommitted)
+- -45° X rotation applied to jaw bone (key_bone_id=7) in animation system
+- Partially closes mouth but face skin still not dominant
+
 ## Known Issues
 
-### 1. Jaw wide open — bind pose geometry (HIGH)
+### 1. Face dark/not visible — inner mouth occlusion (HIGH)
 
-The jaw (key_bone_id=7, bone index 88, parent 39=head) is dramatically open. The bind pose vertex data itself has the mouth wide open.
+The face geosets (mpid=5, type-6 texture) DO render and ARE textured correctly. The face texture (1027494) has 100% alpha=255 — it is fully opaque. The composited face+hair texture is correct (warm skin tones verified via runtime pixel dump).
 
-**Investigation complete:**
-- Stand idle has 49 jaw rotation keyframes, ALL are pure WoW Y-axis (Bevy Z-axis) oscillation 2–3° — a breathing side-to-side yaw. No pitch component at all. The animation is a subtle breathing wiggle, not a mouth open/close.
-- Quaternion pipeline verified correct: `unpack_quat_component` matches WMVx exactly, `[x, z, -y, w]` conversion verified via rotation matrix decomposition. WMVx's `(-x, -z, y, w)` is the conjugate but paired with their R^T matrix → same net rotation.
-- Bone flags: both head (39) and jaw (88) have only `transformed` (0x200). No billboard, no ignoreParent flags. WMVx has no special-case code for jaw (key_bone_id=7).
-- No parent skeleton: SKPD chunk absent from humanmale_hd.skel. Skeleton is self-contained.
-- .skel chunks: SKL1(16B), SKS1(28.5KB), SKB1(19.2MB), SKA1(2KB), AFID(608B), BFID(88B)
+**Root cause:** The face geoset (mpid=5, 792 vertices) contains BOTH outer face skin AND inner mouth cavity geometry in the same mesh. 462 vertices (58%) map to dark inner-mouth texture regions (luma ≤ 80), 330 (42%) map to bright skin. With the jaw wide open in bind pose, the dark inner-mouth triangles face the camera and z-occlude the bright face skin triangles.
 
-**Debug data:**
-- Head bone 39: pivot=(-0.005, 1.848, -0.001), rot=(0.0008, 0.0024, -0.0244, 0.9997)
-- Jaw bone 88: pivot=(0.058, 1.861, -0.001), rot=(0.0, 0.0, 0.0218, 0.9998)
+**What was tried:**
+- Unlit materials → still dark (rules out lighting/normals)
+- Hiding body mesh → still dark (rules out body occlusion)
+- Solid red color on face → renders correctly (geometry is fine)
+- Runtime texture pixel dump → RGBA(206,154,115,255) warm skin (texture is fine)
+- Face texture alpha check → 100% alpha=255, zero transparent pixels
+- Jaw close -45° X rotation hack → partially helps, jaw visibly closing but face skin still not dominant
 
-**Impact:** Inner mouth cavity and teeth fully visible from front. Dark mouth makes face appear much darker than body.
+**Jaw investigation:**
+- Jaw = key_bone_id=7, bone index 88, parent 39 (head)
+- Stand idle: 49 jaw keyframes, ALL pure Z-yaw 2-3° breathing wiggle. No pitch (no open/close).
+- Bone remap now applied (committed) — vertex bone_indices correctly remapped through skin's bone table
+- -45° X rotation hack applied but insufficient
 
 **Remaining theories:**
-1. **Bone remap table not applied** — skin file has non-empty bone-remap table (37,813 entries for HD). Chin vertices use local bone indices 135/136, NOT global bone 88 (jaw). If we pass raw vertex bone_indices without remapping through the skin's bone table, vertices attach to wrong bones. This is the most likely root cause.
-2. AFID chunk lists external `.anim` files — the real jaw-close animation data may live in an external anim file, not inline in SKB1
-3. Compare with WMVx rendered output to confirm whether this is expected
+1. The -45° jaw close isn't enough — may need a larger angle or different axis
+2. AFID chunk lists external `.anim` files — the real jaw-close data may live there
+3. The face mesh may need to be split: outer face vs inner mouth rendered separately
+4. Body mesh head area may have a hole that the face geosets fill — if face geosets don't cover it, background shows through
 
 ### 2. Eye geosets — specular overlay, not iris (MEDIUM)
 
@@ -108,17 +131,9 @@ Eye reflection geoset (mpid 5101, group 51) uses FDID 5210142: a **128x128 pure-
 
 Eye iris texture FDID 4531024 (342KB) already downloaded but not wired up (mpid 1702-1705, not visible by default).
 
-### 3. Face skin tone mismatch (MEDIUM)
-
-Face texture (1027494) appears darker than body texture (1027767) under the same lighting. Likely caused by inner mouth geometry (dark cavity) rather than genuine tone difference. Will resolve when jaw issue is fixed.
-
-### 4. HD geoset defaults need model-aware logic (LOW)
+### 3. HD geoset defaults need model-aware logic (LOW)
 
 Groups 7-12 variant 2 is bare skin on HD but equipment on legacy. A single static `default_geoset_visible()` can't handle both. Future: detect model type or check which variants exist.
-
-### 4. M2 render flags not parsed (LOW)
-
-`render_flags_index` from M2Batch is read but not stored. WoW render flag bit 0x04 (two-sided) controls backface culling per batch. Currently all batches use Bevy's default (backface cull).
 
 ## Type-6 Geoset Atlas Layout (humanmale_hd, 512x512)
 
@@ -174,9 +189,10 @@ Groups 7-12 variant 2 is bare skin on HD but equipment on legacy. A single stati
 
 | File | Change |
 |------|--------|
-| `src/asset/m2.rs` | SKID chunk, `load_skel_data()`, skel parsers, geoset revert, u32 triangle_start fix, HD texture resolution (`is_hd`, `OverlayScale`, body/face/hair FDID constants, `body_skin_overlays` HD path, `batch_texture_type` helper), DK eyeglow visibility fix |
+| `src/asset/m2.rs` | SKID chunk, `load_skel_data()`, skel parsers, geoset revert, u32 triangle_start fix, HD texture resolution, DK eyeglow fix, bone_lookup remap, `parse_materials()`, render_flags_index on M2TextureUnit |
 | `src/asset/m2_anim.rs` | `parse_bones_at()`, `parse_sequences_at()`, `parse_global_sequences_at()`, `parse_bone_animations_at()` |
 | `src/asset/m2_tests.rs` | Updated geoset/texture assertions, HD test cases |
-| `src/asset/m2_debug_tests.rs` | UV range analysis, geoset position dumps, texture dumps, composited head dump |
+| `src/asset/m2_debug_tests.rs` | UV range analysis, geoset position dumps, face vertex texture sampling, render flags dump, alpha stats |
 | `src/asset/blp.rs` | `scale_2x()`, `blit_region()` compositing helpers |
-| `src/main.rs` | Model rotation, `composite_overlay` for `OverlayScale`, grass texture, ground clutter |
+| `src/animation.rs` | `jaw_bone_idx` on M2AnimData, `JAW_CLOSE_ROTATION` constant, jaw close in `apply_animation` |
+| `src/main.rs` | Model rotation, `composite_overlay`, `m2_material()` with render flags, `jaw_bone_idx` wiring |

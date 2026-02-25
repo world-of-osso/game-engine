@@ -356,7 +356,8 @@ fn spawn_m2_model(
     }
 
     if let Some(joints) = joint_entities {
-        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
+        let jaw_bone_idx = bones.iter().position(|b| b.key_bone_id == 7);
+        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints, jaw_bone_idx });
     }
 }
 
@@ -501,6 +502,7 @@ fn m2_material(
         base_color: color.unwrap_or(Color::WHITE),
         unlit,
         cull_mode,
+        double_sided: two_sided,
         alpha_mode,
         ..default()
     }
