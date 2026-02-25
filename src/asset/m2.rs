@@ -618,7 +618,7 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
 /// Groups 1-3: facial hair variant 2 (102, 202, 302 — ties/accessories).
 /// Groups 4+: first variant (x01) is default per group.
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    if mesh_part_id == 1 || mesh_part_id == 5 {
+    if matches!(mesh_part_id, 0 | 1 | 5) {
         return true;
     }
     let group = mesh_part_id / 100;
@@ -649,12 +649,9 @@ fn resolve_batch_fdid_and_overlays(
     let tex_type = batch_texture_type(unit, tex_lookup, tex_types);
     let mut fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid, is_hd);
     if is_hd && fdid.is_none() && tex_type == Some(6) {
-        fdid = Some(HD_FACE_FDID);
+        fdid = Some(HD_SCALP_HAIR_FDID);
     }
     let mut overlays = body_skin_overlays(unit, tex_lookup, tex_types, is_hd);
-    if is_hd && fdid == Some(HD_FACE_FDID) && tex_type == Some(6) {
-        overlays.push(TextureOverlay { fdid: HD_SCALP_HAIR_FDID, x: 0, y: 0, scale: OverlayScale::None });
-    }
     (fdid, overlays)
 }
 
