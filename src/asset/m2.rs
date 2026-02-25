@@ -77,8 +77,6 @@ struct M2Material {
 struct SkinData {
     lookup: Vec<u16>,
     indices: Vec<u16>,
-    /// Maps local bone indices (from vertex data) to global bone indices.
-    bone_lookup: Vec<u16>,
     submeshes: Vec<M2Submesh>,
     batches: Vec<M2TextureUnit>,
 }
@@ -201,8 +199,7 @@ fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
     let lookup_offset = read_u32(data, 8)? as usize;
     let indices_count = read_u32(data, 12)? as usize;
     let indices_offset = read_u32(data, 16)? as usize;
-    let bone_count = read_u32(data, 20)? as usize;
-    let bone_offset = read_u32(data, 24)? as usize;
+    // bones at offset 20 (not used — vertex bone indices are already global)
     let sub_count = read_u32(data, 28)? as usize;
     let sub_offset = read_u32(data, 32)? as usize;
     let batch_count = read_u32(data, 36)? as usize;
@@ -218,20 +215,12 @@ fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
         indices.push(read_u16(data, indices_offset + i * 2)?);
     }
 
-    let mut bone_lookup = Vec::with_capacity(bone_count);
-    for i in 0..bone_count {
-        // Skin bone table uses u8 entries (local → global bone index)
-        let b = *data.get(bone_offset + i).ok_or("Skin bone table out of bounds")?;
-        bone_lookup.push(b as u16);
-    }
-
     let submeshes = parse_submeshes(data, sub_offset, sub_count)?;
     let batches = parse_texture_units(data, batch_offset, batch_count)?;
 
     Ok(SkinData {
         lookup,
         indices,
-        bone_lookup,
         submeshes,
         batches,
     })
@@ -450,15 +439,10 @@ struct VertexBuffers {
     joint_weights: Vec<[f32; 4]>,
 }
 
-fn remap_bone_indices(raw: [u8; 4], bone_lookup: &[u16]) -> [u16; 4] {
-    raw.map(|i| bone_lookup.get(i as usize).copied().unwrap_or(i as u16))
-}
-
 /// Collect vertex attribute buffers for the submesh vertex range via the lookup table.
 fn collect_submesh_vertices(
     vertices: &[M2Vertex],
     lookup: &[u16],
-    bone_lookup: &[u16],
     vstart: usize,
     vcount: usize,
 ) -> VertexBuffers {
@@ -475,7 +459,10 @@ fn collect_submesh_vertices(
         buf.positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
         buf.normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
         buf.uvs.push(v.tex_coords);
-        buf.joint_indices.push(remap_bone_indices(v.bone_indices, bone_lookup));
+        buf.joint_indices.push([
+            v.bone_indices[0] as u16, v.bone_indices[1] as u16,
+            v.bone_indices[2] as u16, v.bone_indices[3] as u16,
+        ]);
         buf.joint_weights.push([
             v.bone_weights[0] as f32 / 255.0, v.bone_weights[1] as f32 / 255.0,
             v.bone_weights[2] as f32 / 255.0, v.bone_weights[3] as f32 / 255.0,
@@ -495,13 +482,12 @@ fn remap_submesh_indices(indices: &[u16], tstart: usize, tcount: usize, vstart: 
 fn build_batch_mesh(
     vertices: &[M2Vertex],
     lookup: &[u16],
-    bone_lookup: &[u16],
     indices: &[u16],
     sub: &M2Submesh,
     has_bones: bool,
 ) -> Mesh {
     let vstart = sub.vertex_start as usize;
-    let buf = collect_submesh_vertices(vertices, lookup, bone_lookup, vstart, sub.vertex_count as usize);
+    let buf = collect_submesh_vertices(vertices, lookup, vstart, sub.vertex_count as usize);
     let local_indices = remap_submesh_indices(
         indices, sub.triangle_start as usize, sub.triangle_count as usize, vstart,
     );
@@ -526,7 +512,7 @@ fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
         vertex_count: vertices.len() as u16,
         triangle_start: 0, triangle_count: indices.len() as u16,
     };
-    build_batch_mesh(vertices, &identity_lookup, &identity_lookup, &indices, &sub, true)
+    build_batch_mesh(vertices, &identity_lookup, &indices, &sub, true)
 }
 
 struct SkelData {
@@ -661,7 +647,7 @@ fn build_batched_model(
         if !default_geoset_visible(sub.mesh_part_id) {
             continue;
         }
-        let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.bone_lookup, &skin.indices, sub, has_bones);
+        let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
         let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(unit, tex_lookup, tex_types, txid, is_hd);
         let mat = materials.get(unit.render_flags_index as usize);
         let render_flags = mat.map(|m| m.flags).unwrap_or(0);

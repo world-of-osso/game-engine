@@ -33,6 +33,13 @@ mesh_part_id = (group * 100) + variant. Variant 0 = hidden, variant 1+ = visible
 | 1 | Body skin | Body (mpid 0), face (mpid 3201), arms, legs, etc. |
 | 6 | Face/hair texture | Bald cap (mpid 1), hair (mpid 5), facial hair (102/202/302) |
 
+## Bone Indices
+
+M2 vertex bone indices are **global** skeleton indices — NOT local per-geoset indices.
+The skin file's bone table (offset 20, `properties` field) is NOT used for remapping.
+WMVx confirms this: vertices index directly into the global bone array.
+Do NOT apply skin bone lookup remapping — it breaks animation (wrong bone bindings).
+
 ## Face Rendering
 
 The face is **not** part of the type-6 (hair) texture system.

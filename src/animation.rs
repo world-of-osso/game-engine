@@ -16,7 +16,6 @@ pub struct M2AnimData {
     pub bone_tracks: Vec<BoneAnimTracks>,
     pub global_sequences: Vec<u32>,
     pub joint_entities: Vec<Entity>,
-    pub jaw_bone_idx: Option<usize>,
 }
 
 /// Active crossfade between two animation sequences.
@@ -63,8 +62,6 @@ fn find_seq_idx(sequences: &[M2AnimSequence], anim_id: u16) -> Option<usize> {
 }
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
-/// Close the jaw in bind pose — HD models have it wide open by default.
-const JAW_CLOSE_ROTATION: Quat = Quat::from_xyzw(-0.3827, 0.0, 0.0, 0.9239); // ~-45° X
 
 /// Start a crossfade transition to a new sequence.
 /// If already mid-transition, blends from the current blended pose (not the raw source).
@@ -239,9 +236,6 @@ fn apply_animation(
             current
         };
 
-        if data.jaw_bone_idx == Some(bone_idx) {
-            rot = JAW_CLOSE_ROTATION * rot;
-        }
         apply_bone_transform(pivot.0, trans, rot, scl, &mut transform);
     }
 }

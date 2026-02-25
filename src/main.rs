@@ -356,8 +356,7 @@ fn spawn_m2_model(
     }
 
     if let Some(joints) = joint_entities {
-        let jaw_bone_idx = bones.iter().position(|b| b.key_bone_id == 7);
-        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints, jaw_bone_idx });
+        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
     }
 }
 
