@@ -343,7 +343,7 @@ fn spawn_m2_model(
         ))
         .id();
 
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, model_entity);
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, &bone_tracks, &sequences, model_entity);
     let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
 
     for (i, batch) in batches.into_iter().enumerate() {
@@ -384,7 +384,7 @@ fn spawn_static_m2(
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
 
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, root);
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, &model.bone_tracks, &model.sequences, root);
     for (i, batch) in model.batches.into_iter().enumerate() {
         let mat = load_batch_material(&batch, i, images, materials);
         let mut cmd = commands.spawn((Mesh3d(meshes.add(batch.mesh)), MeshMaterial3d(mat)));
@@ -432,6 +432,8 @@ fn spawn_skeleton(
     commands: &mut Commands,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     bones: &[asset::m2_anim::M2Bone],
+    bone_tracks: &[asset::m2_anim::BoneAnimTracks],
+    sequences: &[asset::m2_anim::M2AnimSequence],
     model_entity: Entity,
 ) -> Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)> {
     if bones.is_empty() {
@@ -453,10 +455,39 @@ fn spawn_skeleton(
     }
 
     let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(
-        vec![Mat4::IDENTITY; bones.len()],
+        compute_inverse_bind_poses(bones, bone_tracks, sequences),
     ));
 
     Some((inv_bp, joint_entities))
+}
+
+/// Compute inverse bind pose matrices from Stand animation at t=0.
+fn compute_inverse_bind_poses(
+    bones: &[asset::m2_anim::M2Bone],
+    bone_tracks: &[asset::m2_anim::BoneAnimTracks],
+    sequences: &[asset::m2_anim::M2AnimSequence],
+) -> Vec<Mat4> {
+    let stand_idx = sequences.iter().position(|s| s.id == 0).unwrap_or(0);
+    let mut model_space = vec![Mat4::IDENTITY; bones.len()];
+
+    for (i, bone) in bones.iter().enumerate() {
+        let pivot = Vec3::new(bone.pivot[0], bone.pivot[2], -bone.pivot[1]);
+        let local = if let Some(tracks) = bone_tracks.get(i) {
+            let (trans, rot, scl) = animation::evaluate_bone_components(tracks, stand_idx, 0);
+            let effective_trans = trans + pivot - rot * (scl * pivot);
+            Mat4::from_scale_rotation_translation(scl, rot, effective_trans)
+        } else {
+            Mat4::IDENTITY
+        };
+        let parent_mat = if bone.parent_bone_id >= 0 {
+            model_space[bone.parent_bone_id as usize]
+        } else {
+            Mat4::IDENTITY
+        };
+        model_space[i] = parent_mat * local;
+    }
+
+    model_space.iter().map(|m| m.inverse()).collect()
 }
 
 

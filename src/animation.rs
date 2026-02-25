@@ -225,7 +225,6 @@ fn apply_animation(
     for (bone_idx, joint_entity) in data.joint_entities.iter().enumerate() {
         let Some(tracks) = data.bone_tracks.get(bone_idx) else { continue };
         let Ok((mut transform, pivot)) = bone_query.get_mut(*joint_entity) else { continue };
-
         let current = evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
 
         let (trans, mut rot, scl) = if let Some(ref tr) = player.transition {
@@ -248,7 +247,7 @@ fn apply_animation(
 }
 
 /// Evaluate animation tracks and return (translation, rotation, scale) in Bevy coordinates.
-fn evaluate_bone_components(
+pub fn evaluate_bone_components(
     tracks: &BoneAnimTracks,
     seq_idx: usize,
     time_ms: u32,

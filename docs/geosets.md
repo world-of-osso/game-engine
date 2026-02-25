@@ -73,6 +73,7 @@ From `humanmale_hd.m2` + skin file:
 | 701 | 7 | 1 | 66 | Ears (hidden variant) |
 | 702 | 7 | 2 | 134 | Ears (visible variant) |
 | 1301 | 13 | 1 | 266 | Underwear / upper legs |
+| 1801 | 18 | 1 | 64 | Waist |
 | 1801 | 18 | 1 | 64 | Belt |
 | 2001 | 20 | 1 | 444 | Feet |
 | 2201 | 22 | 1 | 452 | Chest |
