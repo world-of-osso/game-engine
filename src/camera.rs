@@ -78,10 +78,41 @@ impl Default for WowCamera {
 const SENSITIVITY: f32 = 0.01;
 const MOVE_SPEED: f32 = 2.5; // Match M2 Walk movespeed (2.5 yards/sec)
 const ZOOM_STEP: f32 = 2.0;
+const KEY_ROTATE_SPEED: f32 = 2.5; // radians/sec for arrow key rotation
+const KEY_ZOOM_SPEED: f32 = 15.0; // units/sec for page up/down zoom
 const ZOOM_LERP_SPEED: f32 = 10.0;
 const PITCH_LIMIT: f32 = 88.0_f32 * std::f32::consts::PI / 180.0;
 
+fn apply_keyboard_camera(
+    keys: &ButtonInput<KeyCode>,
+    dt: f32,
+    cam: &mut WowCamera,
+    facing_q: &mut Query<&mut CharacterFacing, With<Player>>,
+) {
+    // Arrow keys: rotate camera + character facing (like RMB drag)
+    if keys.pressed(KeyCode::ArrowLeft) || keys.pressed(KeyCode::ArrowRight) {
+        let sign = if keys.pressed(KeyCode::ArrowLeft) { 1.0 } else { -1.0 };
+        let yaw_delta = sign * KEY_ROTATE_SPEED * dt;
+        cam.yaw += yaw_delta;
+        if let Ok(mut facing) = facing_q.single_mut() {
+            facing.yaw += yaw_delta;
+        }
+    }
+    if keys.pressed(KeyCode::ArrowUp) || keys.pressed(KeyCode::ArrowDown) {
+        let sign = if keys.pressed(KeyCode::ArrowUp) { 1.0 } else { -1.0 };
+        cam.pitch = (cam.pitch + sign * KEY_ROTATE_SPEED * dt).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+    }
+    // Page Up/Down: zoom in/out
+    if keys.pressed(KeyCode::PageUp) || keys.pressed(KeyCode::PageDown) {
+        let sign = if keys.pressed(KeyCode::PageUp) { -1.0 } else { 1.0 };
+        cam.target_distance = (cam.target_distance + sign * KEY_ZOOM_SPEED * dt)
+            .clamp(cam.min_distance, cam.max_distance);
+    }
+}
+
 fn camera_input(
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
     mouse_motion: Res<AccumulatedMouseMotion>,
     mouse_scroll: Res<AccumulatedMouseScroll>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -95,6 +126,7 @@ fn camera_input(
     let rmb = mouse_buttons.pressed(MouseButton::Right);
     let lmb = mouse_buttons.pressed(MouseButton::Left);
     let delta = mouse_motion.delta;
+    let dt = time.delta_secs();
 
     if rmb {
         // RMB: rotate character facing + camera follows
@@ -111,6 +143,8 @@ fn camera_input(
         cam.pitch -= delta.y * SENSITIVITY;
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
+
+    apply_keyboard_camera(&keys, dt, &mut cam, &mut facing_q);
 
     if mouse_scroll.delta.y != 0.0 {
         cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;
@@ -234,6 +268,8 @@ fn camera_follow(
     let offset = rotation * Vec3::new(0.0, 0.0, cam.distance);
 
     let eye_target = player_tf.translation + Vec3::Y * 1.5;
-    cam_tf.translation = eye_target + offset;
+    let mut pos = eye_target + offset;
+    pos.y = pos.y.max(GROUND_Y + 0.5);
+    cam_tf.translation = pos;
     cam_tf.look_at(eye_target, Vec3::Y);
 }
