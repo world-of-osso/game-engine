@@ -232,22 +232,24 @@ fn vertex_position(grid_row: usize, col: usize, pos: [f32; 3], heights: &[f32; M
 
 /// Build one Bevy mesh from a parsed MCNK.
 fn build_mcnk_mesh(chunk: &McnkData) -> Mesh {
-    let (positions, normals, indices) = build_mcnk_geometry(chunk);
+    let (positions, normals, uvs, indices) = build_mcnk_geometry(chunk);
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     mesh.insert_indices(Indices::U32(indices));
     mesh
 }
 
-/// Compute positions, normals, and triangle indices for the 145-vertex diamond grid.
+/// Compute positions, normals, UVs, and triangle indices for the 145-vertex diamond grid.
 fn build_mcnk_geometry(
     chunk: &McnkData,
-) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<u32>) {
+) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>) {
     // Flatten the 145 vertices into sequential arrays (indexed by vertex_index).
     let mut positions = Vec::with_capacity(MCVT_COUNT);
     let mut normals_out = Vec::with_capacity(MCVT_COUNT);
+    let mut uvs = Vec::with_capacity(MCVT_COUNT);
     for i in 0..MCVT_COUNT {
         // Reconstruct grid_row / col from flat index i.
         // Layout: [9, 8, 9, 8, ..., 9] with 17 per outer+inner pair.
@@ -260,10 +262,19 @@ fn build_mcnk_geometry(
         };
         positions.push(vertex_position(grid_row, col, chunk.pos, &chunk.heights));
         normals_out.push(chunk.normals[i]);
+        // UV coordinates: [0.0, 1.0] across the chunk
+        let uv = if grid_row.is_multiple_of(2) {
+            // outer vertex
+            [col as f32 / 8.0, (grid_row / 2) as f32 / 8.0]
+        } else {
+            // inner vertex
+            [(col as f32 + 0.5) / 8.0, ((grid_row / 2) as f32 + 0.5) / 8.0]
+        };
+        uvs.push(uv);
     }
 
     let indices = build_mcnk_indices();
-    (positions, normals_out, indices)
+    (positions, normals_out, uvs, indices)
 }
 
 /// Build the triangle index list for the 8×8 quad grid (256 quads × 4 triangles = 1024 tris).
@@ -362,4 +373,192 @@ fn collect_mcnk_chunks(data: &[u8]) -> Result<Vec<&[u8]>, String> {
         return Err("No KNCM (MCNK) chunks found in ADT file".to_string());
     }
     Ok(mcnks)
+}
+
+// ── _tex0.adt types ───────────────────────────────────────────────────────────
+
+/// One texture layer within a MCNK chunk from the _tex0.adt file.
+pub struct TextureLayer {
+    pub texture_index: u32,
+    pub flags: u32,
+    /// 4096 bytes (64×64 8-bit alpha values). None for base layer (layer 0,
+    /// which has no use_alpha_map flag set).
+    pub alpha_map: Option<Vec<u8>>,
+}
+
+/// Texture layers for one MCNK chunk from the _tex0.adt file.
+pub struct ChunkTexLayers {
+    pub layers: Vec<TextureLayer>,
+}
+
+/// Parsed data from a _tex0.adt split file.
+pub struct AdtTexData {
+    /// FileDataIDs for diffuse/specular textures (from DIDM / MDID chunk).
+    pub texture_fdids: Vec<u32>,
+    /// Per-chunk texture layer data; one entry per MCNK (256 total).
+    pub chunk_layers: Vec<ChunkTexLayers>,
+}
+
+// ── MCAL RLE decompression ────────────────────────────────────────────────────
+
+/// Apply one RLE fill run: repeat `value` up to `count` times into `out`.
+fn rle_fill(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: usize) -> Result<(), String> {
+    if *i >= src.len() {
+        return Err("MCAL RLE fill: missing value byte".to_string());
+    }
+    let value = src[*i];
+    *i += 1;
+    for _ in 0..count {
+        if out.len() < limit {
+            out.push(value);
+        }
+    }
+    Ok(())
+}
+
+/// Apply one RLE copy run: copy next `count` bytes from `src` into `out`.
+fn rle_copy(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: usize) -> Result<(), String> {
+    let end = *i + count;
+    if end > src.len() {
+        return Err(format!(
+            "MCAL RLE copy: need {count} bytes at {:#x} but only {} remain",
+            *i,
+            src.len() - *i
+        ));
+    }
+    for &b in &src[*i..end] {
+        if out.len() < limit {
+            out.push(b);
+        }
+    }
+    *i = end;
+    Ok(())
+}
+
+/// Decompress MCAL RLE data into exactly 4096 bytes.
+///
+/// Each byte header: bit 7 = mode, bits 0–6 = count.
+///   mode 0 (copy):  read next `count` bytes literally.
+///   mode 1 (fill):  read next 1 byte, repeat it `count` times.
+fn decompress_mcal_rle(src: &[u8]) -> Result<Vec<u8>, String> {
+    const EXPECTED: usize = 4096;
+    let mut out = Vec::with_capacity(EXPECTED);
+    let mut i = 0;
+    while out.len() < EXPECTED {
+        if i >= src.len() {
+            return Err(format!(
+                "MCAL RLE underrun: only {} of {} bytes produced",
+                out.len(),
+                EXPECTED
+            ));
+        }
+        let header = src[i];
+        i += 1;
+        let fill = (header & 0x80) != 0;
+        let count = (header & 0x7f) as usize;
+        if fill {
+            rle_fill(&mut out, src, &mut i, count, EXPECTED)?;
+        } else {
+            rle_copy(&mut out, src, &mut i, count, EXPECTED)?;
+        }
+    }
+    Ok(out)
+}
+
+// ── _tex0.adt MCNK subchunk parsing ──────────────────────────────────────────
+
+const MCLY_FLAG_USE_ALPHA_MAP: u32 = 0x100;
+const MCLY_FLAG_ALPHA_COMPRESSED: u32 = 0x200;
+
+/// Read the alpha map for one MCLY layer from the MCAL blob.
+///
+/// Returns `None` for the base layer (no `use_alpha_map` flag).
+fn read_layer_alpha_map(flags: u32, offset_in_mcal: usize, mcal: &[u8], layer_idx: usize) -> Result<Option<Vec<u8>>, String> {
+    if (flags & MCLY_FLAG_USE_ALPHA_MAP) == 0 {
+        return Ok(None);
+    }
+    let raw = &mcal[offset_in_mcal..];
+    let data = if (flags & MCLY_FLAG_ALPHA_COMPRESSED) != 0 {
+        decompress_mcal_rle(raw)?
+    } else {
+        if raw.len() < 4096 {
+            return Err(format!(
+                "MCAL uncompressed layer {layer_idx}: need 4096 bytes but only {} remain at offset {offset_in_mcal:#x}",
+                raw.len()
+            ));
+        }
+        raw[..4096].to_vec()
+    };
+    Ok(Some(data))
+}
+
+/// Build texture layers from MCLY and MCAL payloads.
+fn build_texture_layers(mcly: &[u8], mcal: &[u8]) -> Result<Vec<TextureLayer>, String> {
+    let layer_count = mcly.len() / 16;
+    let mut layers = Vec::with_capacity(layer_count);
+    for i in 0..layer_count {
+        let base = i * 16;
+        let texture_index = read_u32(mcly, base)?;
+        let flags = read_u32(mcly, base + 0x04)?;
+        let offset_in_mcal = read_u32(mcly, base + 0x08)? as usize;
+        let alpha_map = read_layer_alpha_map(flags, offset_in_mcal, mcal, i)?;
+        layers.push(TextureLayer { texture_index, flags, alpha_map });
+    }
+    Ok(layers)
+}
+
+/// Parse YLCM (MCLY) + LACM (MCAL) subchunks from a _tex0 MCNK payload.
+///
+/// Unlike root .adt MCNK payloads, _tex0 MCNK payloads have NO 128-byte header —
+/// subchunks begin immediately.
+fn parse_tex0_mcnk(payload: &[u8]) -> Result<ChunkTexLayers, String> {
+    let mut mcly_payload: Option<&[u8]> = None;
+    let mut mcal_payload: Option<&[u8]> = None;
+
+    for chunk in ChunkIter::new(payload) {
+        let (tag, data) = chunk?;
+        match tag {
+            b"YLCM" => mcly_payload = Some(data),
+            b"LACM" => mcal_payload = Some(data),
+            _ => {}
+        }
+    }
+
+    let mcly = mcly_payload.unwrap_or(&[]);
+    let mcal = mcal_payload.unwrap_or(&[]);
+    let layers = build_texture_layers(mcly, mcal)?;
+    Ok(ChunkTexLayers { layers })
+}
+
+// ── _tex0.adt top-level parser ────────────────────────────────────────────────
+
+/// Parse a `_tex0.adt` split file and return texture FDIDs and per-chunk layer data.
+pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
+    let mut texture_fdids: Vec<u32> = Vec::new();
+    let mut chunk_layers: Vec<ChunkTexLayers> = Vec::with_capacity(256);
+
+    for chunk in ChunkIter::new(data) {
+        let (tag, payload) = chunk?;
+        match tag {
+            b"DIDM" => {
+                // MDID: array of u32 FileDataIDs for diffuse textures.
+                let count = payload.len() / 4;
+                texture_fdids.reserve(count);
+                for i in 0..count {
+                    texture_fdids.push(read_u32(payload, i * 4)?);
+                }
+            }
+            b"KNCM" => {
+                // MCNK: no 128-byte header in _tex0, subchunks start immediately.
+                chunk_layers.push(parse_tex0_mcnk(payload)?);
+            }
+            _ => {}
+        }
+    }
+
+    if chunk_layers.is_empty() {
+        return Err("No KNCM chunks found in _tex0.adt file".to_string());
+    }
+
+    Ok(AdtTexData { texture_fdids, chunk_layers })
 }

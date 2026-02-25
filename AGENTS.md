@@ -64,7 +64,9 @@ src/
 - Terrain grows in **negative X/Y** from the chunk corner position
 - Each MCNK = 33.33 yards (CHUNK_SIZE = 100/3), 16×16 chunks per ADT tile
 - Split files: root .adt (heights/normals), _tex0.adt (texture layers), _obj0.adt (doodads/WMOs)
-- Currently renders root ADT only (heights + normals, flat green material)
+- Renders root ADT (heights/normals) + _tex0 (texture splatting via CPU compositing)
+- _tex0 parsing: MDID (specular FDIDs, diffuse = FDID-1), MCLY (16-byte layer entries), MCAL (RLE alpha maps)
+- Ground textures tile 8× per MCNK, composited at 256×256 per chunk, alpha-blended from 64×64 maps
 
 ## Animation
 
