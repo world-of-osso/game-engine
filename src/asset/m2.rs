@@ -618,25 +618,8 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
 /// Groups 1-3: facial hair variant 2 (102, 202, 302 — ties/accessories).
 /// Groups 4+: first variant (x01) is default per group.
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    if matches!(mesh_part_id, 0 | 1 | 5) {
-        return true;
-    }
-    let group = mesh_part_id / 100;
-    let variant = mesh_part_id % 100;
-    // Facial hair groups 1-3: variant 2 is the default style
-    if (1..=3).contains(&group) && variant == 2 {
-        return true;
-    }
-    // Eyeglow (group 17): off by default (variant 1 = DK only)
-    if group == 17 {
-        return false;
-    }
-    // Other groups: variant 1 is default
-    if group >= 4 && variant == 1 {
-        return true;
-    }
-    // CharacterDefaultsGeosetModifier: ears default to variant 2
-    mesh_part_id == 702
+    // DEBUG: body + forearms + face + bald cap + ears + torso + hair + legs + feet + belt
+    matches!(mesh_part_id, 0 | 1 | 5 | 401 | 501 | 702 | 1301 | 1801 | 2001 | 2201 | 3202)
 }
 
 fn resolve_batch_fdid_and_overlays(
