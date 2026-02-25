@@ -59,7 +59,6 @@ pub fn scale_2x(pixels: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
     }
     (out, new_w, new_h)
 }
-
 /// Blit an overlay onto a base image at (dst_x, dst_y) with alpha blending.
 pub fn blit_region(base: &mut [u8], base_w: u32, overlay: &[u8], ov_w: u32, ov_h: u32, dst_x: u32, dst_y: u32) {
     for row in 0..ov_h {

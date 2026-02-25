@@ -458,6 +458,7 @@ fn spawn_skeleton(
     Some((inv_bp, joint_entities))
 }
 
+
 fn load_batch_material(
     batch: &asset::m2::M2RenderBatch,
     index: usize,

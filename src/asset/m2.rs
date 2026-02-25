@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
 
@@ -8,13 +7,21 @@ fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
     [x, z, -y]
 }
 
+/// How to scale a texture overlay before blitting.
+#[derive(Clone, Copy)]
+pub enum OverlayScale {
+    /// No scaling.
+    None,
+    /// 2x both dimensions (nearest-neighbor).
+    Uniform2x,
+}
+
 /// A region overlay to composite onto the base texture.
 pub struct TextureOverlay {
     pub fdid: u32,
     pub x: u32,
     pub y: u32,
-    /// Nearest-neighbor scale factor (1 = no scaling, 2 = 2x).
-    pub scale: u32,
+    pub scale: OverlayScale,
 }
 
 pub struct M2RenderBatch {
@@ -58,6 +65,8 @@ struct M2TextureUnit {
 struct SkinData {
     lookup: Vec<u16>,
     indices: Vec<u16>,
+    /// Maps local bone indices (from vertex data) to global bone indices.
+    bone_lookup: Vec<u16>,
     submeshes: Vec<M2Submesh>,
     batches: Vec<M2TextureUnit>,
 }
@@ -180,7 +189,8 @@ fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
     let lookup_offset = read_u32(data, 8)? as usize;
     let indices_count = read_u32(data, 12)? as usize;
     let indices_offset = read_u32(data, 16)? as usize;
-    // bones at offset 20 (skip)
+    let bone_count = read_u32(data, 20)? as usize;
+    let bone_offset = read_u32(data, 24)? as usize;
     let sub_count = read_u32(data, 28)? as usize;
     let sub_offset = read_u32(data, 32)? as usize;
     let batch_count = read_u32(data, 36)? as usize;
@@ -196,12 +206,20 @@ fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
         indices.push(read_u16(data, indices_offset + i * 2)?);
     }
 
+    let mut bone_lookup = Vec::with_capacity(bone_count);
+    for i in 0..bone_count {
+        // Skin bone table uses u8 entries (local → global bone index)
+        let b = *data.get(bone_offset + i).ok_or("Skin bone table out of bounds")?;
+        bone_lookup.push(b as u16);
+    }
+
     let submeshes = parse_submeshes(data, sub_offset, sub_count)?;
     let batches = parse_texture_units(data, batch_offset, batch_count)?;
 
     Ok(SkinData {
         lookup,
         indices,
+        bone_lookup,
         submeshes,
         batches,
     })
@@ -292,17 +310,29 @@ fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
 
 /// Default FDIDs for runtime-resolved character texture types (human male, light skin).
 /// Used when the model has no hardcoded FDID for a texture slot.
-fn default_fdid_for_type(ty: u32) -> Option<u32> {
-    match ty {
-        1 => Some(120191), // body skin (humanmaleskin00_00, 512x512)
+/// HD models use higher-resolution textures with different layouts.
+fn default_fdid_for_type(ty: u32, is_hd: bool) -> Option<u32> {
+    match (ty, is_hd) {
+        (1, true) => Some(1027767),   // body skin HD (humanmaleskin00_00_hd, 1024x512)
+        (1, false) => Some(120191),   // body skin SD (humanmaleskin00_00, 512x512)
         _ => None,
     }
 }
 
-/// Default underwear overlay for body skin (type 1) batches.
-/// Region coords from CharComponentTextureSections layout 153 (512x512).
-const UNDERWEAR_FDID: u32 = 120181; // humanmalenakedpelvisskin00_00, 256x128
-const UNDERWEAR_REGION: (u32, u32, u32, u32) = (256, 192, 256, 128); // LEG_UPPER
+/// HD face texture — base for type-6 head atlas + composited onto body atlas FACE_UPPER region.
+const HD_FACE_FDID: u32 = 1027494; // humanmalefaceupper00_00_hd, 512x512
+
+/// HD scalp hair overlay — composited on top of face texture for type-6 geosets.
+/// From DB2: ChrCustomizationMaterial TargetID=11 (ScalpUpperHair), Peasant style + color 0.
+const HD_SCALP_HAIR_FDID: u32 = 1043094; // scalpupperhair00_00_hd, 512x512
+
+/// SD underwear overlay (layout 153, 512x512 body texture).
+const UNDERWEAR_SD_FDID: u32 = 120181; // humanmalenakedpelvisskin00_00, 256x128
+const UNDERWEAR_SD_POS: (u32, u32) = (256, 192); // TORSO_UPPER region
+
+/// HD underwear overlay (1024x512 body texture, same region coords as SD).
+const UNDERWEAR_HD_FDID: u32 = 1027743; // humanmalenakedpelvisskin00_00_hd, 256x128
+const UNDERWEAR_HD_POS: (u32, u32) = (256, 192); // TORSO_UPPER region (same as SD)
 
 // Standard-def scalp/hair textures (need 2x scale to match 512x512 body).
 // Region coords from CharComponentTextureSections layout 153.
@@ -312,10 +342,14 @@ const SCALP_LOWER_FDID: u32 = 119383; // faciallowerhair00_00, 128x64 → 2x = 2
 const SCALP_LOWER_REGION: (u32, u32) = (0, 384); // FACE_LOWER
 
 /// Return body skin overlays: underwear + scalp hair textures.
+/// HD models have separate face geometry with dedicated textures, so scalp overlays
+/// are only composited for legacy models (which bake scalp into the body texture).
+/// HD body texture is 1024x512 (2x wider, same height) — underwear needs Width2x scaling.
 fn body_skin_overlays(
     unit: &M2TextureUnit,
     tex_lookup: &[u16],
     tex_types: &[u32],
+    is_hd: bool,
 ) -> Vec<TextureOverlay> {
     let Some(&lookup_val) = tex_lookup.get(unit.texture_id as usize) else {
         return Vec::new();
@@ -324,11 +358,19 @@ fn body_skin_overlays(
     if ty != 1 {
         return Vec::new();
     }
-    let (x, y, _, _) = UNDERWEAR_REGION;
+    if is_hd {
+        let (x, y) = UNDERWEAR_HD_POS;
+        return vec![
+            // Face texture composited onto body atlas right half (FACE_UPPER region)
+            TextureOverlay { fdid: HD_FACE_FDID, x: 512, y: 0, scale: OverlayScale::None },
+            TextureOverlay { fdid: UNDERWEAR_HD_FDID, x, y, scale: OverlayScale::None },
+        ];
+    }
+    let (x, y) = UNDERWEAR_SD_POS;
     vec![
-        TextureOverlay { fdid: UNDERWEAR_FDID, x, y, scale: 1 },
-        TextureOverlay { fdid: SCALP_UPPER_FDID, x: SCALP_UPPER_REGION.0, y: SCALP_UPPER_REGION.1, scale: 2 },
-        TextureOverlay { fdid: SCALP_LOWER_FDID, x: SCALP_LOWER_REGION.0, y: SCALP_LOWER_REGION.1, scale: 2 },
+        TextureOverlay { fdid: UNDERWEAR_SD_FDID, x, y, scale: OverlayScale::None },
+        TextureOverlay { fdid: SCALP_UPPER_FDID, x: SCALP_UPPER_REGION.0, y: SCALP_UPPER_REGION.1, scale: OverlayScale::Uniform2x },
+        TextureOverlay { fdid: SCALP_LOWER_FDID, x: SCALP_LOWER_REGION.0, y: SCALP_LOWER_REGION.1, scale: OverlayScale::Uniform2x },
     ]
 }
 
@@ -340,6 +382,7 @@ fn resolve_batch_texture(
     tex_lookup: &[u16],
     tex_types: &[u32],
     txid: &[u32],
+    is_hd: bool,
 ) -> Option<u32> {
     let tex_idx = *tex_lookup.get(unit.texture_id as usize)? as usize;
     let ty = *tex_types.get(tex_idx)?;
@@ -349,7 +392,13 @@ fn resolve_batch_texture(
             return Some(fdid);
         }
     }
-    default_fdid_for_type(ty)
+    default_fdid_for_type(ty, is_hd)
+}
+
+/// Get the texture type for a batch (through the lookup chain).
+fn batch_texture_type(unit: &M2TextureUnit, tex_lookup: &[u16], tex_types: &[u32]) -> Option<u32> {
+    let tex_idx = *tex_lookup.get(unit.texture_id as usize)? as usize;
+    tex_types.get(tex_idx).copied()
 }
 
 /// Resolve raw skin indices through the vertex lookup table.
@@ -377,10 +426,15 @@ struct VertexBuffers {
     joint_weights: Vec<[f32; 4]>,
 }
 
+fn remap_bone_indices(raw: [u8; 4], bone_lookup: &[u16]) -> [u16; 4] {
+    raw.map(|i| bone_lookup.get(i as usize).copied().unwrap_or(i as u16))
+}
+
 /// Collect vertex attribute buffers for the submesh vertex range via the lookup table.
 fn collect_submesh_vertices(
     vertices: &[M2Vertex],
     lookup: &[u16],
+    bone_lookup: &[u16],
     vstart: usize,
     vcount: usize,
 ) -> VertexBuffers {
@@ -397,10 +451,7 @@ fn collect_submesh_vertices(
         buf.positions.push(wow_to_bevy(v.position[0], v.position[1], v.position[2]));
         buf.normals.push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
         buf.uvs.push(v.tex_coords);
-        buf.joint_indices.push([
-            v.bone_indices[0] as u16, v.bone_indices[1] as u16,
-            v.bone_indices[2] as u16, v.bone_indices[3] as u16,
-        ]);
+        buf.joint_indices.push(remap_bone_indices(v.bone_indices, bone_lookup));
         buf.joint_weights.push([
             v.bone_weights[0] as f32 / 255.0, v.bone_weights[1] as f32 / 255.0,
             v.bone_weights[2] as f32 / 255.0, v.bone_weights[3] as f32 / 255.0,
@@ -408,7 +459,6 @@ fn collect_submesh_vertices(
     }
     buf
 }
-
 /// Remap raw skin indices to submesh-local indices (relative to vstart).
 fn remap_submesh_indices(indices: &[u16], tstart: usize, tcount: usize, vstart: usize) -> Vec<u16> {
     (0..tcount)
@@ -421,12 +471,13 @@ fn remap_submesh_indices(indices: &[u16], tstart: usize, tcount: usize, vstart: 
 fn build_batch_mesh(
     vertices: &[M2Vertex],
     lookup: &[u16],
+    bone_lookup: &[u16],
     indices: &[u16],
     sub: &M2Submesh,
     has_bones: bool,
 ) -> Mesh {
     let vstart = sub.vertex_start as usize;
-    let buf = collect_submesh_vertices(vertices, lookup, vstart, sub.vertex_count as usize);
+    let buf = collect_submesh_vertices(vertices, lookup, bone_lookup, vstart, sub.vertex_count as usize);
     let local_indices = remap_submesh_indices(
         indices, sub.triangle_start as usize, sub.triangle_count as usize, vstart,
     );
@@ -568,7 +619,7 @@ fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
 /// Groups 1-3: facial hair variant 2 (102, 202, 302 — ties/accessories).
 /// Groups 4+: first variant (x01) is default per group.
 fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    if mesh_part_id == 0 || mesh_part_id == 1 || mesh_part_id == 5 {
+    if mesh_part_id == 1 || mesh_part_id == 5 {
         return true;
     }
     let group = mesh_part_id / 100;
@@ -577,12 +628,35 @@ fn default_geoset_visible(mesh_part_id: u16) -> bool {
     if (1..=3).contains(&group) && variant == 2 {
         return true;
     }
+    // Eyeglow (group 17): off by default (variant 1 = DK only)
+    if group == 17 {
+        return false;
+    }
     // Other groups: variant 1 is default
     if group >= 4 && variant == 1 {
         return true;
     }
     // CharacterDefaultsGeosetModifier: ears default to variant 2
     mesh_part_id == 702
+}
+
+fn resolve_batch_fdid_and_overlays(
+    unit: &M2TextureUnit,
+    tex_lookup: &[u16],
+    tex_types: &[u32],
+    txid: &[u32],
+    is_hd: bool,
+) -> (Option<u32>, Vec<TextureOverlay>) {
+    let tex_type = batch_texture_type(unit, tex_lookup, tex_types);
+    let mut fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid, is_hd);
+    if is_hd && fdid.is_none() && tex_type == Some(6) {
+        fdid = Some(HD_FACE_FDID);
+    }
+    let mut overlays = body_skin_overlays(unit, tex_lookup, tex_types, is_hd);
+    if is_hd && fdid == Some(HD_FACE_FDID) && tex_type == Some(6) {
+        overlays.push(TextureOverlay { fdid: HD_SCALP_HAIR_FDID, x: 0, y: 0, scale: OverlayScale::None });
+    }
+    (fdid, overlays)
 }
 
 /// Build per-batch meshes from skin submesh/batch data, filtering by geoset visibility.
@@ -593,6 +667,7 @@ fn build_batched_model(
     tex_types: &[u32],
     txid: &[u32],
     has_bones: bool,
+    is_hd: bool,
 ) -> Result<Vec<M2RenderBatch>, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
@@ -607,9 +682,8 @@ fn build_batched_model(
         if !default_geoset_visible(sub.mesh_part_id) {
             continue;
         }
-        let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
-        let texture_fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid);
-        let overlays = body_skin_overlays(unit, tex_lookup, tex_types);
+        let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.bone_lookup, &skin.indices, sub, has_bones);
+        let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(unit, tex_lookup, tex_types, txid, is_hd);
         batches.push(M2RenderBatch { mesh, texture_fdid, overlays });
     }
     Ok(batches)
@@ -643,7 +717,7 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty())?
+        build_batched_model(&vertices, skin, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty(), chunks.skid.is_some())?
     } else {
         let indices = match skin {
             Some(skin) => resolve_indices(&skin.lookup, &skin.indices),
@@ -665,3 +739,11 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
 #[cfg(test)]
 #[path = "m2_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "m2_debug_tests.rs"]
+mod debug_tests;
+
+#[cfg(test)]
+#[path = "m2_jaw_debug_tests.rs"]
+mod jaw_debug_tests;
