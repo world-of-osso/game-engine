@@ -2,10 +2,11 @@ use std::path::Path;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::image::Image;
+use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
-use crate::asset::{adt, blp};
+use crate::asset::{adt, adt_obj, blp, wmo};
 
 /// Marker component for the ADT terrain root entity.
 #[derive(Component)]
@@ -37,6 +38,7 @@ pub fn spawn_adt(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
     let data = std::fs::read(adt_path)
@@ -47,21 +49,17 @@ pub fn spawn_adt(
     let ground_textures = tex_data.as_ref().map(|td| load_ground_textures(td, adt_path));
 
     let chunk_materials = build_chunk_materials(
-        materials,
-        images,
-        tex_data.as_ref(),
-        ground_textures.as_ref(),
+        materials, images, tex_data.as_ref(), ground_textures.as_ref(),
     );
 
     spawn_chunk_entities(commands, meshes, &chunk_materials, &adt_data);
+    spawn_obj0(commands, meshes, materials, images, inverse_bp, adt_path);
 
     let result = compute_spawn_result(&adt_data);
     let tex_count = tex_data.as_ref().map_or(0, |td| td.texture_fdids.len());
     eprintln!(
         "Spawned ADT terrain: {} chunks, {} ground textures from {}",
-        adt_data.chunks.len(),
-        tex_count,
-        adt_path.display(),
+        adt_data.chunks.len(), tex_count, adt_path.display(),
     );
     Ok(result)
 }
@@ -262,8 +260,287 @@ fn compute_spawn_result(adt_data: &adt::AdtData) -> AdtSpawnResult {
     let (min, max) = adt_data.bounds();
     let extent = (max - min).length();
 
-    let eye = Vec3::new(center.x, center.y + extent * 0.5, center.z + extent * 0.3);
-    let camera = Transform::from_translation(eye).looking_at(center, Vec3::Y);
+    // Northshire Abbey WMO position
+    let abbey = Vec3::new(17245.0, 25964.0, -80.0);
+    let eye = abbey + Vec3::new(200.0, 50.0, 200.0);
+    let camera = Transform::from_translation(eye).looking_at(abbey, Vec3::Y);
 
     AdtSpawnResult { camera, center }
+}
+
+// ── _obj0.adt object spawning ────────────────────────────────────────────────
+
+/// Try to load the companion _obj0.adt file.
+fn load_obj0(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
+    let stem = adt_path.file_stem()?.to_str()?;
+    let obj0_name = format!("{stem}_obj0.adt");
+    let obj0_path = adt_path.with_file_name(obj0_name);
+    let data = std::fs::read(&obj0_path).ok()?;
+    match adt_obj::load_adt_obj0(&data) {
+        Ok(obj) => Some(obj),
+        Err(e) => {
+            eprintln!("Failed to parse _obj0: {e}");
+            None
+        }
+    }
+}
+
+/// Load _obj0.adt and spawn doodads + WMOs.
+fn spawn_obj0(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_path: &Path,
+) {
+    let Some(obj_data) = load_obj0(adt_path) else { return };
+    spawn_obj0_doodads(commands, meshes, materials, images, inverse_bp, &obj_data);
+    spawn_obj0_wmos(commands, meshes, materials, images, &obj_data);
+}
+
+/// Spawn doodads (M2 models) from _obj0 placement data.
+fn spawn_obj0_doodads(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    obj_data: &adt_obj::AdtObjData,
+) {
+    let mut spawned = 0u32;
+    for doodad in &obj_data.doodads {
+        if try_spawn_doodad(commands, meshes, materials, images, inverse_bp, doodad) {
+            spawned += 1;
+        }
+    }
+    eprintln!("Spawned {spawned}/{} doodads", obj_data.doodads.len());
+}
+
+/// Try to spawn a single doodad. Returns true if the M2 was found and spawned.
+fn try_spawn_doodad(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    doodad: &adt_obj::DoodadPlacement,
+) -> bool {
+    let Some(m2_path) = resolve_doodad_m2(doodad) else { return false };
+    if !m2_path.exists() {
+        return false;
+    }
+    let transform = doodad_transform(doodad);
+    super::spawn_static_m2(commands, meshes, materials, images, inverse_bp, &m2_path, transform);
+    true
+}
+
+/// Resolve a doodad placement to a local M2 file path.
+fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
+    // If we have a direct FDID, look it up in the listfile for the path.
+    if let Some(fdid) = doodad.fdid {
+        return Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")));
+    }
+    // Otherwise resolve the WoW path to an FDID via listfile.
+    let wow_path = doodad.path.as_ref()?;
+    let fdid = wow_engine::listfile::lookup_path(wow_path)?;
+    Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")))
+}
+
+/// Convert WoW doodad placement (position + Euler degrees + scale) to a Bevy Transform.
+fn doodad_transform(d: &adt_obj::DoodadPlacement) -> Transform {
+    use super::asset::m2::wow_to_bevy;
+    let pos = wow_to_bevy(d.position[0], d.position[1], d.position[2]);
+    let rotation = doodad_rotation(d.rotation);
+    Transform::from_translation(Vec3::from(pos))
+        .with_rotation(rotation)
+        .with_scale(Vec3::splat(d.scale))
+}
+
+/// Convert WoW Euler rotation (degrees around Y, X, Z) to a Bevy quaternion.
+fn doodad_rotation(rot: [f32; 3]) -> Quat {
+    let rx = rot[0].to_radians();
+    let ry = rot[1].to_radians();
+    let rz = rot[2].to_radians();
+    // WoW rotations: Y-up, applied as Y→X→Z. Remap to Bevy coordinate system.
+    Quat::from_euler(EulerRot::YXZ, ry, rx, rz)
+}
+
+// ── _obj0.adt WMO spawning ──────────────────────────────────────────────────
+
+/// Spawn WMOs from _obj0 placement data.
+fn spawn_obj0_wmos(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    obj_data: &adt_obj::AdtObjData,
+) {
+    let mut spawned = 0u32;
+    for placement in &obj_data.wmos {
+        if try_spawn_wmo(commands, meshes, materials, images, placement) {
+            spawned += 1;
+        }
+    }
+    eprintln!("Spawned {spawned}/{} WMOs", obj_data.wmos.len());
+}
+
+/// Try to spawn a single WMO. Returns true if root file was found and spawned.
+fn try_spawn_wmo(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    placement: &adt_obj::WmoPlacement,
+) -> bool {
+    let Some(root_fdid) = resolve_wmo_fdid(placement) else { return false };
+    let root_path = format!("data/models/{root_fdid}.wmo");
+    let Ok(root_data) = std::fs::read(&root_path) else { return false };
+    let Ok(root) = wmo::load_wmo_root(&root_data) else {
+        eprintln!("Failed to parse WMO root {root_fdid}");
+        return false;
+    };
+
+    let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
+    let transform = wmo_transform(placement);
+    let root_entity = commands
+        .spawn((
+            Name::new(format!("wmo_{root_fdid}")),
+            transform,
+            Visibility::default(),
+        ))
+        .id();
+
+    let mut group_count = 0u32;
+    for (i, group_fdid) in group_fdids.iter().enumerate() {
+        let Some(fdid) = group_fdid else { continue };
+        if spawn_wmo_group(commands, meshes, materials, images, &root, *fdid, root_entity) {
+            group_count += 1;
+        } else {
+            eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
+        }
+    }
+
+    let pos = transform.translation;
+    eprintln!(
+        "WMO {root_fdid}: {group_count}/{} groups, {} materials, pos=[{:.0}, {:.0}, {:.0}]",
+        root.n_groups, root.materials.len(), pos.x, pos.y, pos.z,
+    );
+    group_count > 0
+}
+
+/// Resolve a WMO placement to its root FileDataID.
+fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
+    if let Some(fdid) = wmo.fdid {
+        return Some(fdid);
+    }
+    let wow_path = wmo.path.as_ref()?;
+    wow_engine::listfile::lookup_path(wow_path)
+}
+
+/// Resolve group file FDIDs by looking up root path in listfile and deriving group paths.
+fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
+    let Some(root_path) = wow_engine::listfile::lookup_fdid(root_fdid) else {
+        eprintln!("  WMO {root_fdid}: not in listfile, cannot resolve group FDIDs");
+        return vec![None; n_groups as usize];
+    };
+
+    let base = root_path.trim_end_matches(".wmo");
+    (0..n_groups)
+        .map(|i| {
+            let group_path = format!("{base}_{i:03}.wmo");
+            wow_engine::listfile::lookup_path(&group_path)
+        })
+        .collect()
+}
+
+/// Parse and spawn one WMO group file as children of the root entity.
+fn spawn_wmo_group(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    root: &wmo::WmoRootData,
+    group_fdid: u32,
+    root_entity: Entity,
+) -> bool {
+    let group_path = format!("data/models/{group_fdid}.wmo");
+    let Ok(data) = std::fs::read(&group_path) else { return false };
+    let Ok(group) = wmo::load_wmo_group(&data) else {
+        eprintln!("Failed to parse WMO group {group_fdid}");
+        return false;
+    };
+
+    for batch in group.batches {
+        let mat = wmo_batch_material(materials, images, root, batch.material_index);
+        let child = commands
+            .spawn((
+                Mesh3d(meshes.add(batch.mesh)),
+                MeshMaterial3d(mat),
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id();
+        commands.entity(root_entity).add_child(child);
+    }
+    true
+}
+
+/// Build a Bevy material for a WMO batch, loading the BLP texture if available.
+fn wmo_batch_material(
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    root: &wmo::WmoRootData,
+    material_index: u16,
+) -> Handle<StandardMaterial> {
+    let mat_def = root.materials.get(material_index as usize);
+    let texture_fdid = mat_def.map(|m| m.texture_fdid).unwrap_or(0);
+    let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
+
+    if texture_fdid > 0 {
+        let blp_path = format!("data/textures/{texture_fdid}.blp");
+        if let Ok((pixels, w, h)) = blp::load_blp_rgba(std::path::Path::new(&blp_path)) {
+            let image = Image::new(
+                bevy::render::render_resource::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+                bevy::render::render_resource::TextureDimension::D2,
+                pixels,
+                bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+                RenderAssetUsages::default(),
+            );
+            return materials.add(wmo_standard_material(Some(images.add(image)), blend_mode));
+        }
+    }
+
+    // Fallback: gray material
+    materials.add(wmo_standard_material(None, blend_mode))
+}
+
+fn wmo_standard_material(
+    texture: Option<Handle<Image>>,
+    blend_mode: u32,
+) -> StandardMaterial {
+    let alpha_mode = match blend_mode {
+        1 => AlphaMode::Mask(0.5),
+        2 | 3 => AlphaMode::Blend,
+        _ => AlphaMode::Opaque,
+    };
+    StandardMaterial {
+        base_color: if texture.is_none() { Color::srgb(0.6, 0.6, 0.6) } else { Color::WHITE },
+        base_color_texture: texture,
+        perceptual_roughness: 0.8,
+        double_sided: true,
+        cull_mode: None,
+        alpha_mode,
+        ..default()
+    }
+}
+
+/// Convert WMO placement to a Bevy Transform (same convention as doodads).
+fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
+    use super::asset::m2::wow_to_bevy;
+    let pos = wow_to_bevy(w.position[0], w.position[1], w.position[2]);
+    let rotation = doodad_rotation(w.rotation);
+    Transform::from_translation(Vec3::from(pos))
+        .with_rotation(rotation)
+        .with_scale(Vec3::splat(w.scale))
 }

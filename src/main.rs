@@ -128,7 +128,7 @@ fn setup(
 
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
-            spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut images, camera, &p);
+            spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, camera, &p);
         }
         Some(p) => {
             spawn_m2_scene(
@@ -148,10 +148,11 @@ fn spawn_terrain(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     camera: Entity,
     adt_path: &Path,
 ) -> Option<Vec3> {
-    match terrain::spawn_adt(commands, meshes, materials, images, adt_path) {
+    match terrain::spawn_adt(commands, meshes, materials, images, inverse_bp, adt_path) {
         Ok(result) => {
             commands.entity(camera).insert(result.camera);
             Some(result.center)
@@ -171,7 +172,7 @@ fn spawn_default_scene(
     let adt_path = Path::new(DEFAULT_ADT);
     let center = if adt_path.exists() {
         // Load terrain but don't override camera — WowCamera will follow the player.
-        match terrain::spawn_adt(commands, meshes, materials, images, adt_path) {
+        match terrain::spawn_adt(commands, meshes, materials, images, inverse_bp, adt_path) {
             Ok(result) => Some(result.center),
             Err(e) => { eprintln!("ADT load error: {e}"); None }
         }

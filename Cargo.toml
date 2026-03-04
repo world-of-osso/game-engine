@@ -14,6 +14,13 @@ webp = "0.3"
 glob = "0.3"
 libc = "0.2"
 clap = { version = "4", features = ["derive"] }
+cascette-client-storage = { path = "/home/osso/Repos/cascette-rs/crates/cascette-client-storage", features = ["local-install"] }
+cascette-crypto = { path = "/home/osso/Repos/cascette-rs/crates/cascette-crypto" }
+cascette-formats = { path = "/home/osso/Repos/cascette-rs/crates/cascette-formats" }
+
+[[bin]]
+name = "casc-local"
+path = "src/bin/casc_local.rs"
 
 # Optimize deps in debug builds (Bevy is unusably slow at opt-level 0)
 [profile.dev.package."*"]
