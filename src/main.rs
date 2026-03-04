@@ -128,7 +128,14 @@ fn setup(
 
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
-            spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, camera, &p);
+            let center = spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, camera, &p);
+            let m2_path = Path::new(DEFAULT_M2);
+            if m2_path.exists() {
+                spawn_m2_model(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, m2_path);
+            }
+            if let Some(pos) = center {
+                set_player_position(&mut commands, pos);
+            }
         }
         Some(p) => {
             spawn_m2_scene(
