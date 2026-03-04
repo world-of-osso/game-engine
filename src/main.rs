@@ -6,6 +6,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
+use bevy::pbr::MaterialPlugin;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use wow_engine::ipc::IpcPlugin;
@@ -14,6 +15,7 @@ mod animation;
 mod asset;
 mod camera;
 mod terrain;
+mod terrain_material;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
@@ -40,6 +42,7 @@ fn main() {
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
+        .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -115,6 +118,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain_mats: ResMut<Assets<terrain_material::TerrainMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
@@ -128,7 +132,7 @@ fn setup(
 
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
-            let center = spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, camera, &p);
+            let center = spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut images, &mut inverse_bp, camera, &p);
             let m2_path = Path::new(DEFAULT_M2);
             if m2_path.exists() {
                 spawn_m2_model(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, m2_path);
@@ -144,8 +148,8 @@ fn setup(
             );
         }
         None => spawn_default_scene(
-            &mut commands, &mut meshes, &mut materials, &mut images,
-            &mut inverse_bp,
+            &mut commands, &mut meshes, &mut materials, &mut terrain_mats,
+            &mut images, &mut inverse_bp,
         ),
     }
 }
@@ -154,12 +158,13 @@ fn spawn_terrain(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     camera: Entity,
     adt_path: &Path,
 ) -> Option<Vec3> {
-    match terrain::spawn_adt(commands, meshes, materials, images, inverse_bp, adt_path) {
+    match terrain::spawn_adt(commands, meshes, materials, terrain_mats, images, inverse_bp, adt_path) {
         Ok(result) => {
             commands.entity(camera).insert(result.camera);
             Some(result.center)
@@ -173,13 +178,14 @@ fn spawn_default_scene(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
 ) {
     let adt_path = Path::new(DEFAULT_ADT);
     let center = if adt_path.exists() {
         // Load terrain but don't override camera — WowCamera will follow the player.
-        match terrain::spawn_adt(commands, meshes, materials, images, inverse_bp, adt_path) {
+        match terrain::spawn_adt(commands, meshes, materials, terrain_mats, images, inverse_bp, adt_path) {
             Ok(result) => Some(result.center),
             Err(e) => { eprintln!("ADT load error: {e}"); None }
         }
