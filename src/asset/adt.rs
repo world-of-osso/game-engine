@@ -3,12 +3,23 @@ use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 use super::m2::wow_to_bevy;
 
-const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
-const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0; // distance between outer vertices
+pub(crate) const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
+pub(crate) const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0; // distance between outer vertices
 const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
 
 /// Number of vertices in one MCNK height grid (9×9 outer + 8×8 inner).
 const MCVT_COUNT: usize = 145;
+
+/// Per-chunk height data for runtime terrain collision queries.
+#[derive(Clone)]
+pub struct ChunkHeightGrid {
+    pub index_x: u32,
+    pub index_y: u32,
+    pub origin_x: f32, // Bevy X of chunk corner (= WoW pos[1])
+    pub origin_z: f32, // Bevy Z of chunk corner (= -WoW pos[0])
+    pub base_y: f32,   // WoW pos[2], heights are relative to this
+    pub heights: [f32; 145],
+}
 
 #[allow(dead_code)]
 pub struct McnkMesh {
@@ -19,6 +30,7 @@ pub struct McnkMesh {
 
 pub struct AdtData {
     pub chunks: Vec<McnkMesh>,
+    pub height_grids: Vec<ChunkHeightGrid>,
     bounds_min: [f32; 3],
     bounds_max: [f32; 3],
     /// Bevy-space position at the terrain center (surface height, not bounding box center).
@@ -62,13 +74,13 @@ fn read_i8(data: &[u8], off: usize) -> Result<i8, String> {
 // ── chunk iteration ──────────────────────────────────────────────────────────
 
 /// Iterator over IFF-style chunks: reversed 4CC tag + u32 LE size + payload.
-struct ChunkIter<'a> {
+pub struct ChunkIter<'a> {
     data: &'a [u8],
     off: usize,
 }
 
 impl<'a> ChunkIter<'a> {
-    fn new(data: &'a [u8]) -> Self {
+    pub fn new(data: &'a [u8]) -> Self {
         Self { data, off: 0 }
     }
 }
@@ -199,7 +211,7 @@ fn parse_mcnk_subchunks(
 /// The grid has alternating outer (9-wide) and inner (8-wide) rows:
 /// row 0: outer (9 verts), row 1: inner (8 verts), row 2: outer, …
 /// Grid row `r` maps to array row `r/2` outer or `r/2` inner.
-fn vertex_index(grid_row: usize, col: usize) -> usize {
+pub(crate) fn vertex_index(grid_row: usize, col: usize) -> usize {
     // Array is laid out as: 9 outer, 8 inner, 9 outer, 8 inner, ..., 9 outer
     // For outer row r_outer (0..=8): base = r_outer * 17, index = base + col
     // For inner row r_inner (0..=7): base = r_inner * 17 + 9, index = base + col
@@ -316,12 +328,23 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
 
     let (bounds_min, bounds_max) = compute_bounds(&parsed);
     let center_surface = center_surface_position(&parsed);
+    let height_grids = parsed
+        .iter()
+        .map(|d| ChunkHeightGrid {
+            index_x: d.index_x,
+            index_y: d.index_y,
+            origin_x: d.pos[1],
+            origin_z: -d.pos[0],
+            base_y: d.pos[2],
+            heights: d.heights,
+        })
+        .collect();
     let chunks = parsed
         .iter()
         .map(|d| McnkMesh { mesh: build_mcnk_mesh(d), index_x: d.index_x, index_y: d.index_y })
         .collect();
 
-    Ok(AdtData { chunks, bounds_min, bounds_max, center_surface })
+    Ok(AdtData { chunks, height_grids, bounds_min, bounds_max, center_surface })
 }
 
 /// Compute Bevy-space bounding box from MCNK corner positions + height extremes.

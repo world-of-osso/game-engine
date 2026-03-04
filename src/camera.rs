@@ -1,6 +1,8 @@
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::prelude::*;
 
+use crate::terrain::TerrainHeightmap;
+
 pub struct WowCameraPlugin;
 
 impl Plugin for WowCameraPlugin {
@@ -188,14 +190,14 @@ fn compute_movement_input(
 }
 
 /// Update jump arc height or land when duration expires.
-fn update_jump_arc(movement: &mut MovementState, transform: &mut Transform, dt: f32) {
+fn update_jump_arc(movement: &mut MovementState, transform: &mut Transform, dt: f32, ground_y: f32) {
     movement.jump_elapsed += dt;
     if movement.jump_elapsed >= JUMP_DURATION {
-        transform.translation.y = GROUND_Y;
+        transform.translation.y = ground_y;
         movement.jumping = false;
     } else {
         let t = movement.jump_elapsed / JUMP_DURATION;
-        transform.translation.y = GROUND_Y + JUMP_HEIGHT * 4.0 * t * (1.0 - t);
+        transform.translation.y = ground_y + JUMP_HEIGHT * 4.0 * t * (1.0 - t);
     }
 }
 
@@ -203,6 +205,7 @@ fn player_movement(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
+    terrain: Option<Res<TerrainHeightmap>>,
     mut player_q: Query<
         (&mut Transform, &mut MovementState, &CharacterFacing),
         With<Player>,
@@ -225,8 +228,15 @@ fn player_movement(
         transform.translation += dir * MOVE_SPEED * time.delta_secs();
     }
 
+    let ground_y = terrain
+        .as_ref()
+        .and_then(|t| t.height_at(transform.translation.x, transform.translation.z))
+        .unwrap_or(GROUND_Y);
+
     if movement.jumping {
-        update_jump_arc(&mut movement, &mut transform, time.delta_secs());
+        update_jump_arc(&mut movement, &mut transform, time.delta_secs(), ground_y);
+    } else {
+        transform.translation.y = ground_y;
     }
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
@@ -249,6 +259,7 @@ fn cursor_grab(
 
 fn camera_follow(
     time: Res<Time>,
+    terrain: Option<Res<TerrainHeightmap>>,
     player_q: Query<&Transform, (With<Player>, Without<WowCamera>)>,
     mut camera_q: Query<(&mut WowCamera, &mut Transform), Without<Player>>,
 ) {
@@ -269,7 +280,11 @@ fn camera_follow(
 
     let eye_target = player_tf.translation + Vec3::Y * 1.5;
     let mut pos = eye_target + offset;
-    pos.y = pos.y.max(GROUND_Y + 0.5);
+    let cam_ground = terrain
+        .as_ref()
+        .and_then(|t| t.height_at(pos.x, pos.z))
+        .unwrap_or(GROUND_Y);
+    pos.y = pos.y.max(cam_ground + 0.5);
     cam_tf.translation = pos;
     cam_tf.look_at(eye_target, Vec3::Y);
 }
