@@ -634,6 +634,8 @@ fn default_geoset_visible(mesh_part_id: u16) -> bool {
         1..=3 => variant == 2,
         // Group 7: ears — variants 1 and 2 both visible
         7 => matches!(variant, 1 | 2),
+        // Group 32: face — all variants visible (nose, mouth, cheeks are separate)
+        32 => variant >= 1,
         // All other groups: variant 1 is default
         _ => variant == 1,
     }
