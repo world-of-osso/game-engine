@@ -1,0 +1,405 @@
+use std::collections::{HashMap, HashSet};
+
+use crate::ui::frame::{Frame, WidgetType};
+use crate::ui::layout::LayoutRect;
+
+/// Central registry owning all UI frames, keyed by ID.
+pub struct FrameRegistry {
+    frames: HashMap<u64, Frame>,
+    names: HashMap<String, u64>,
+    next_id: u64,
+    pub screen_width: f32,
+    pub screen_height: f32,
+    pub render_dirty: HashSet<u64>,
+    pub rect_dirty: HashSet<u64>,
+    pub anchor_dependents: HashMap<u64, HashSet<u64>>,
+}
+
+impl FrameRegistry {
+    pub fn new(screen_width: f32, screen_height: f32) -> Self {
+        Self {
+            frames: HashMap::new(),
+            names: HashMap::new(),
+            next_id: 1,
+            screen_width,
+            screen_height,
+            render_dirty: HashSet::new(),
+            rect_dirty: HashSet::new(),
+            anchor_dependents: HashMap::new(),
+        }
+    }
+
+    pub fn screen_rect(&self) -> LayoutRect {
+        LayoutRect {
+            x: 0.0,
+            y: 0.0,
+            width: self.screen_width,
+            height: self.screen_height,
+        }
+    }
+
+    /// Allocate an ID without creating a frame (for external creation).
+    pub fn next_id(&mut self) -> u64 {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
+    }
+
+    /// Insert a pre-built frame into the registry and wire up parent-child.
+    pub fn insert_frame(&mut self, frame: Frame) {
+        let id = frame.id;
+        let parent_id = frame.parent_id;
+
+        if let Some(n) = &frame.name {
+            self.names.insert(n.clone(), id);
+        }
+        self.render_dirty.insert(id);
+        self.frames.insert(id, frame);
+
+        if let Some(pid) = parent_id
+            && let Some(parent) = self.frames.get_mut(&pid)
+        {
+            if !parent.children.contains(&id) {
+                parent.children.push(id);
+            }
+        }
+    }
+
+    /// Remove a frame and unlink it from its parent.
+    pub fn remove_frame(&mut self, id: u64) {
+        if let Some(frame) = self.frames.remove(&id) {
+            if let Some(name) = &frame.name {
+                self.names.remove(name);
+            }
+            if let Some(pid) = frame.parent_id
+                && let Some(parent) = self.frames.get_mut(&pid)
+            {
+                parent.children.retain(|&c| c != id);
+            }
+            self.render_dirty.remove(&id);
+        }
+    }
+
+    /// Create a new frame, inheriting effective properties from parent.
+    pub fn create_frame(&mut self, name: &str, parent_id: Option<u64>) -> u64 {
+        let id = self.next_id;
+        self.next_id += 1;
+
+        let mut frame = Frame::new(
+            id,
+            if name.is_empty() {
+                None
+            } else {
+                Some(name.to_string())
+            },
+            WidgetType::Frame,
+        );
+        frame.parent_id = parent_id;
+
+        if let Some(pid) = parent_id
+            && let Some(parent) = self.frames.get(&pid)
+        {
+            frame.visible = parent.visible && frame.shown;
+            frame.effective_alpha = parent.effective_alpha * frame.alpha;
+            frame.effective_scale = parent.effective_scale * frame.scale;
+            frame.frame_level = parent.frame_level + 1;
+        }
+
+        if let Some(n) = &frame.name {
+            self.names.insert(n.clone(), id);
+        }
+
+        self.render_dirty.insert(id);
+
+        // Must insert frame before mutating parent
+        self.frames.insert(id, frame);
+
+        if let Some(pid) = parent_id
+            && let Some(parent) = self.frames.get_mut(&pid)
+        {
+            parent.children.push(id);
+        }
+
+        id
+    }
+
+    pub fn get(&self, id: u64) -> Option<&Frame> {
+        self.frames.get(&id)
+    }
+
+    pub fn get_mut(&mut self, id: u64) -> Option<&mut Frame> {
+        self.render_dirty.insert(id);
+        self.frames.get_mut(&id)
+    }
+
+    pub fn get_by_name(&self, name: &str) -> Option<u64> {
+        self.names.get(name).copied()
+    }
+
+    pub fn frames_iter(&self) -> impl Iterator<Item = &Frame> {
+        self.frames.values()
+    }
+
+    /// Set a frame's alpha and propagate effective_alpha down the subtree.
+    pub fn set_alpha(&mut self, id: u64, alpha: f32) {
+        let parent_effective = self.parent_effective_alpha(id);
+        if let Some(frame) = self.frames.get_mut(&id) {
+            frame.alpha = alpha;
+            let new_effective = if frame.visible {
+                parent_effective * alpha
+            } else {
+                0.0
+            };
+            frame.effective_alpha = new_effective;
+            self.render_dirty.insert(id);
+        }
+        let children = self.child_ids(id);
+        for child_id in children {
+            self.propagate_alpha(child_id);
+        }
+    }
+
+    /// Set a frame's shown state and propagate visibility + alpha down the subtree.
+    pub fn set_shown(&mut self, id: u64, shown: bool) {
+        let parent_visible = self.parent_visible(id);
+        let parent_effective_alpha = self.parent_effective_alpha(id);
+        if let Some(frame) = self.frames.get_mut(&id) {
+            frame.shown = shown;
+            frame.visible = parent_visible && shown;
+            frame.effective_alpha = if frame.visible {
+                parent_effective_alpha * frame.alpha
+            } else {
+                0.0
+            };
+            self.render_dirty.insert(id);
+        }
+        let children = self.child_ids(id);
+        for child_id in children {
+            self.propagate_visibility(child_id);
+            self.propagate_alpha(child_id);
+        }
+    }
+
+    /// Set a frame's scale and propagate effective_scale down the subtree.
+    pub fn set_scale(&mut self, id: u64, scale: f32) {
+        let parent_effective = self.parent_effective_scale(id);
+        if let Some(frame) = self.frames.get_mut(&id) {
+            frame.scale = scale;
+            frame.effective_scale = parent_effective * scale;
+            self.render_dirty.insert(id);
+        }
+        let children = self.child_ids(id);
+        for child_id in children {
+            self.propagate_scale(child_id);
+        }
+    }
+
+    // --- helpers ---
+
+    fn child_ids(&self, id: u64) -> Vec<u64> {
+        self.frames
+            .get(&id)
+            .map(|f| f.children.clone())
+            .unwrap_or_default()
+    }
+
+    fn parent_visible(&self, id: u64) -> bool {
+        self.frames
+            .get(&id)
+            .and_then(|f| f.parent_id)
+            .and_then(|pid| self.frames.get(&pid))
+            .is_none_or(|p| p.visible)
+    }
+
+    fn parent_effective_alpha(&self, id: u64) -> f32 {
+        self.frames
+            .get(&id)
+            .and_then(|f| f.parent_id)
+            .and_then(|pid| self.frames.get(&pid))
+            .map_or(1.0, |p| p.effective_alpha)
+    }
+
+    fn parent_effective_scale(&self, id: u64) -> f32 {
+        self.frames
+            .get(&id)
+            .and_then(|f| f.parent_id)
+            .and_then(|pid| self.frames.get(&pid))
+            .map_or(1.0, |p| p.effective_scale)
+    }
+
+    fn propagate_visibility(&mut self, id: u64) {
+        let parent_visible = self.parent_visible(id);
+        let children = if let Some(frame) = self.frames.get_mut(&id) {
+            frame.visible = parent_visible && frame.shown;
+            self.render_dirty.insert(id);
+            frame.children.clone()
+        } else {
+            return;
+        };
+        for child_id in children {
+            self.propagate_visibility(child_id);
+        }
+    }
+
+    fn propagate_alpha(&mut self, id: u64) {
+        let parent_effective = self.parent_effective_alpha(id);
+        let children = if let Some(frame) = self.frames.get_mut(&id) {
+            frame.effective_alpha = if frame.visible {
+                parent_effective * frame.alpha
+            } else {
+                0.0
+            };
+            self.render_dirty.insert(id);
+            frame.children.clone()
+        } else {
+            return;
+        };
+        for child_id in children {
+            self.propagate_alpha(child_id);
+        }
+    }
+
+    fn propagate_scale(&mut self, id: u64) {
+        let parent_effective = self.parent_effective_scale(id);
+        let children = if let Some(frame) = self.frames.get_mut(&id) {
+            frame.effective_scale = parent_effective * frame.scale;
+            self.render_dirty.insert(id);
+            frame.children.clone()
+        } else {
+            return;
+        };
+        for child_id in children {
+            self.propagate_scale(child_id);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_and_lookup_by_id() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let id = reg.create_frame("TestFrame", None);
+        let frame = reg.get(id).unwrap();
+        assert_eq!(frame.id, id);
+        assert_eq!(frame.name.as_deref(), Some("TestFrame"));
+        assert_eq!(frame.widget_type, WidgetType::Frame);
+    }
+
+    #[test]
+    fn lookup_by_name() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let id = reg.create_frame("MyFrame", None);
+        assert_eq!(reg.get_by_name("MyFrame"), Some(id));
+        assert_eq!(reg.get_by_name("NoSuchFrame"), None);
+    }
+
+    #[test]
+    fn parent_child_relationship() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let parent = reg.create_frame("Parent", None);
+        let child = reg.create_frame("Child", Some(parent));
+
+        let child_frame = reg.get(child).unwrap();
+        assert_eq!(child_frame.parent_id, Some(parent));
+
+        let parent_frame = reg.get(parent).unwrap();
+        assert!(parent_frame.children.contains(&child));
+    }
+
+    #[test]
+    fn effective_alpha_propagation() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let parent = reg.create_frame("Parent", None);
+        let child = reg.create_frame("Child", Some(parent));
+
+        reg.set_alpha(parent, 0.5);
+        reg.set_alpha(child, 0.5);
+
+        let child_frame = reg.get(child).unwrap();
+        assert!((child_frame.effective_alpha - 0.25).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn visibility_propagation() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let parent = reg.create_frame("Parent", None);
+        let child = reg.create_frame("Child", Some(parent));
+
+        // Hide parent
+        reg.set_shown(parent, false);
+
+        let parent_frame = reg.get(parent).unwrap();
+        assert!(!parent_frame.shown);
+        assert!(!parent_frame.visible);
+
+        let child_frame = reg.get(child).unwrap();
+        // Child's shown stays true, but visible becomes false
+        assert!(child_frame.shown);
+        assert!(!child_frame.visible);
+
+        // Show parent again
+        reg.set_shown(parent, true);
+        let child_frame = reg.get(child).unwrap();
+        assert!(child_frame.visible);
+    }
+
+    #[test]
+    fn hidden_frame_effective_alpha_zero() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let parent = reg.create_frame("Parent", None);
+        let child = reg.create_frame("Child", Some(parent));
+
+        reg.set_alpha(child, 0.8);
+        reg.set_shown(parent, false);
+
+        let child_frame = reg.get(child).unwrap();
+        assert!((child_frame.effective_alpha - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn scale_propagation() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let parent = reg.create_frame("Parent", None);
+        let child = reg.create_frame("Child", Some(parent));
+
+        reg.set_scale(parent, 2.0);
+        reg.set_scale(child, 0.5);
+
+        let child_frame = reg.get(child).unwrap();
+        assert!((child_frame.effective_scale - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn frame_level_inheritance() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let root = reg.create_frame("Root", None);
+        let mid = reg.create_frame("Mid", Some(root));
+        let leaf = reg.create_frame("Leaf", Some(mid));
+
+        assert_eq!(reg.get(root).unwrap().frame_level, 0);
+        assert_eq!(reg.get(mid).unwrap().frame_level, 1);
+        assert_eq!(reg.get(leaf).unwrap().frame_level, 2);
+    }
+
+    #[test]
+    fn screen_rect() {
+        let reg = FrameRegistry::new(1920.0, 1080.0);
+        let rect = reg.screen_rect();
+        assert!((rect.x - 0.0).abs() < f32::EPSILON);
+        assert!((rect.y - 0.0).abs() < f32::EPSILON);
+        assert!((rect.width - 1920.0).abs() < f32::EPSILON);
+        assert!((rect.height - 1080.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn empty_name_not_registered() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let id = reg.create_frame("", None);
+        let frame = reg.get(id).unwrap();
+        assert!(frame.name.is_none());
+        assert_eq!(reg.get_by_name(""), None);
+    }
+}
