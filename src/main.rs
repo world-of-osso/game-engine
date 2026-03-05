@@ -45,6 +45,7 @@ fn main() {
 
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
+        .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
