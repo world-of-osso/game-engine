@@ -44,6 +44,8 @@ src/
 - `data/textures/` — BLP textures named by FDID (e.g. `120191.blp`)
 - `data/models/` — M2 models and .skin files
 - `data/terrain/` — ADT terrain files
+- WoW install: `/syncthing/World of Warcraft/` — full install synced from Windows (CASC at `Data/`, retail at `_retail_/`)
+- **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `doc/casc-extraction.md`.
 
 ## Test Assets
 
@@ -76,10 +78,11 @@ src/
 
 ## Related
 
-- casc-extract: `../casc-extract/` — CLI to download WoW M2/BLP assets from Blizzard CASC CDN (cascette-rs)
+- casc-extract: `../casc-extract/` — CLI to extract WoW assets (cascette-rs). Currently CDN-only, needs local CASC mode.
 - wow-ui-sim: `../wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
 - WoWee: https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
 - cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)
+- wowmapview 0.5: https://sourceforge.net/projects/wowmapview/ — C++ WoW map viewer (ADT/WMO/M2 rendering reference)
 - Future: wow-engine 3D scene + wow-ui-sim UI overlay

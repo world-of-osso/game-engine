@@ -346,6 +346,27 @@ mod tests {
     }
 
     #[test]
+    fn debug_bridge_vertex_coords() {
+        let data = std::fs::read("data/models/108122.wmo")
+            .expect("missing bridge group");
+        let mogp = find_mogp(&data).unwrap();
+        let sub = &mogp[MOGP_HEADER_SIZE..];
+        let raw = parse_group_subchunks(sub).unwrap();
+        eprintln!("Bridge group: {} verts, {} indices", raw.vertices.len(), raw.indices.len());
+        for (i, v) in raw.vertices.iter().take(5).enumerate() {
+            eprintln!("  raw vert {i}: [{:.1}, {:.1}, {:.1}]", v[0], v[1], v[2]);
+        }
+        let min = raw.vertices.iter().fold([f32::MAX; 3], |mut m, v| {
+            m[0] = m[0].min(v[0]); m[1] = m[1].min(v[1]); m[2] = m[2].min(v[2]); m
+        });
+        let max = raw.vertices.iter().fold([f32::MIN; 3], |mut m, v| {
+            m[0] = m[0].max(v[0]); m[1] = m[1].max(v[1]); m[2] = m[2].max(v[2]); m
+        });
+        eprintln!("  bounds min: [{:.1}, {:.1}, {:.1}]", min[0], min[1], min[2]);
+        eprintln!("  bounds max: [{:.1}, {:.1}, {:.1}]", max[0], max[1], max[2]);
+    }
+
+    #[test]
     fn parse_elwynn_bridge_root() {
         let data = std::fs::read("data/models/108121.wmo")
             .expect("missing test asset: elwynnwidebridge root");
