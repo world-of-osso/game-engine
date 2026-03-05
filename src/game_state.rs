@@ -1,7 +1,11 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
 
+use crate::camera::WowCamera;
 use crate::networking::ServerAddr;
+use crate::sky;
 
 /// Game state machine controlling which systems are active.
 #[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -33,6 +37,9 @@ impl Plugin for GameStatePlugin {
         }
         app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
         app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
+        if has_server {
+            app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
+        }
         app.add_systems(OnExit(GameState::InWorld), on_exit_in_world);
         app.add_systems(
             Update,
@@ -52,6 +59,28 @@ fn on_enter_connecting(mut commands: Commands, time: Res<Time>) {
 
 fn on_enter_in_world() {
     info!("Entering InWorld state — game systems active");
+}
+
+/// Spawn world environment (lights, sky dome) when entering InWorld in server mode.
+/// Only registered when ServerAddr is present — skipped in standalone mode.
+fn spawn_world_environment(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sky_materials: ResMut<Assets<sky::SkyMaterial>>,
+    camera_q: Query<Entity, With<WowCamera>>,
+) {
+    if let Ok(camera) = camera_q.single() {
+        commands.spawn((
+            DirectionalLight {
+                illuminance: light_consts::lux::OVERCAST_DAY,
+                shadows_enabled: true,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
+        ));
+        sky::spawn_sky_dome(&mut commands, &mut meshes, &mut sky_materials, camera);
+        commands.remove_resource::<ClearColor>();
+    }
 }
 
 fn on_exit_in_world() {

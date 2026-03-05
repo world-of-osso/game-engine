@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy::pbr::MaterialPlugin;
 
+use crate::game_state::GameState;
+
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 
 // ---------------------------------------------------------------------------
@@ -359,6 +361,7 @@ fn sync_water_sky_color(
 fn spawn_time_display(mut commands: Commands) {
     commands.spawn((
         TimeDisplay,
+        Visibility::Hidden,
         Text::new("12:00"),
         TextFont { font_size: 20.0, ..default() },
         TextColor(Color::WHITE),
@@ -369,6 +372,18 @@ fn spawn_time_display(mut commands: Commands) {
             ..default()
         },
     ));
+}
+
+fn show_time_display(mut query: Query<&mut Visibility, With<TimeDisplay>>) {
+    for mut vis in &mut query {
+        *vis = Visibility::Visible;
+    }
+}
+
+fn hide_time_display(mut query: Query<&mut Visibility, With<TimeDisplay>>) {
+    for mut vis in &mut query {
+        *vis = Visibility::Hidden;
+    }
 }
 
 /// Convert GameTime minutes (0–2880) to HH:MM clock string.
@@ -425,10 +440,12 @@ impl Plugin for SkyPlugin {
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
             .add_systems(Startup, spawn_time_display)
-            .add_systems(Update, advance_game_time)
-            .add_systems(Update, update_sky_colors.after(advance_game_time))
-            .add_systems(Update, update_time_display.after(advance_game_time))
-            .add_systems(Update, time_speed_controls);
+            .add_systems(Update, advance_game_time.run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, update_sky_colors.after(advance_game_time).run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, update_time_display.after(advance_game_time).run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, time_speed_controls.run_if(in_state(GameState::InWorld)))
+            .add_systems(OnEnter(GameState::InWorld), show_time_display)
+            .add_systems(OnExit(GameState::InWorld), hide_time_display);
     }
 }
 

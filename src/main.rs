@@ -52,10 +52,14 @@ fn main() {
     let screenshot = parse_screenshot_args(&args);
     let dump_tree = args.iter().any(|a| a == "--dump-tree");
     let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
+    let enable_sound = args.iter().any(|a| a == "--sound");
     let server_addr = parse_server_arg(&args);
 
     let mut app = App::new();
     register_plugins(&mut app);
+    if enable_sound {
+        app.add_plugins(sound::SoundPlugin);
+    }
     if let Some(addr) = server_addr {
         app.insert_resource(networking::ServerAddr(addr));
     }
@@ -94,7 +98,6 @@ fn register_plugins(app: &mut App) {
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(target::TargetPlugin)
-        .add_plugins(sound::SoundPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -126,7 +129,13 @@ fn parse_server_arg(args: &[String]) -> Option<std::net::SocketAddr> {
 fn parse_asset_path() -> Option<PathBuf> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(|s| s.as_str()) == Some("screenshot") {
-        args.get(2).map(PathBuf::from)
+        // screenshot <output> [asset] -- skip flags like --server
+        let mut skip_next = false;
+        args.iter().skip(2).find(|a| {
+            if skip_next { skip_next = false; return false; }
+            if *a == "--server" { skip_next = true; return false; }
+            !a.starts_with("--")
+        }).map(PathBuf::from)
     } else {
         // Skip --server and its value
         let mut skip_next = false;
@@ -178,7 +187,20 @@ fn setup(
     mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     mut heightmap: ResMut<TerrainHeightmap>,
     mut adt_manager: ResMut<AdtManager>,
+    server_addr: Option<Res<networking::ServerAddr>>,
 ) {
+    // Server mode: minimal scene — dark background, camera only, no world content.
+    if server_addr.is_some() {
+        commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
+        commands.spawn((
+            Camera3d::default(),
+            Transform::default(),
+            WowCamera::default(),
+            AmbientLight { color: Color::WHITE, brightness: 0.0, ..default() },
+        ));
+        return;
+    }
+
     let asset_path = parse_asset_path();
     let is_terrain = asset_path.as_ref().is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
         || asset_path.is_none();

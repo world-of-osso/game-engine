@@ -80,7 +80,7 @@ fn build_login_ui(
 fn build_login_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
     let root = create_frame(reg, "LoginRoot", None, WidgetType::Frame, sw, sh);
     set_layout(reg, root, 0.0, 0.0, sw, sh);
-    set_bg(reg, root, [0.05, 0.05, 0.12, 0.95]);
+    set_bg(reg, root, [0.05, 0.05, 0.12, 1.0]);
     set_strata(reg, root, FrameStrata::Fullscreen);
     root
 }

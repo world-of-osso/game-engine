@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::asset::adt::ChunkHeightGrid;
+use crate::game_state::GameState;
 use crate::terrain::TerrainHeightmap;
 
 const MINIMAP_TILE_SIZE: u32 = 256;
@@ -55,16 +56,35 @@ pub struct MinimapDot {
 
 pub struct MinimapPlugin;
 
+/// Marker for all minimap HUD nodes, used to toggle visibility by game state.
+#[derive(Component)]
+pub struct MinimapHud;
+
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
+        let in_world = in_state(GameState::InWorld);
         app.init_resource::<MinimapState>()
             .add_systems(Startup, (spawn_minimap_display, spawn_minimap_border, spawn_minimap_arrow, spawn_zone_name, spawn_coord_text))
-            .add_systems(Update, generate_tile_textures)
-            .add_systems(Update, update_minimap_composite.after(generate_tile_textures))
-            .add_systems(Update, draw_entity_dots.after(update_minimap_composite))
-            .add_systems(Update, update_coord_text)
-            .add_systems(Update, update_zone_name)
-            .add_systems(Update, rotate_minimap);
+            .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
+            .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
+            .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
+            .add_systems(Update, update_minimap_composite.after(generate_tile_textures).run_if(in_world.clone()))
+            .add_systems(Update, draw_entity_dots.after(update_minimap_composite).run_if(in_world.clone()))
+            .add_systems(Update, update_coord_text.run_if(in_world.clone()))
+            .add_systems(Update, update_zone_name.run_if(in_world.clone()))
+            .add_systems(Update, rotate_minimap.run_if(in_world));
+    }
+}
+
+fn show_minimap_hud(mut query: Query<&mut Visibility, With<MinimapHud>>) {
+    for mut vis in &mut query {
+        *vis = Visibility::Visible;
+    }
+}
+
+fn hide_minimap_hud(mut query: Query<&mut Visibility, With<MinimapHud>>) {
+    for mut vis in &mut query {
+        *vis = Visibility::Hidden;
     }
 }
 
@@ -99,6 +119,8 @@ fn spawn_minimap_display(mut commands: Commands, mut images: ResMut<Assets<Image
 
     commands.spawn((
         MinimapDisplay,
+        MinimapHud,
+        Visibility::Hidden,
         ImageNode::new(handle),
         Node {
             position_type: PositionType::Absolute,
@@ -151,6 +173,8 @@ fn spawn_minimap_border(mut commands: Commands, mut images: ResMut<Assets<Image>
 
     commands.spawn((
         MinimapBorder,
+        MinimapHud,
+        Visibility::Hidden,
         ImageNode::new(handle),
         Node {
             position_type: PositionType::Absolute,
@@ -173,6 +197,8 @@ fn spawn_minimap_arrow(mut commands: Commands, mut images: ResMut<Assets<Image>>
 
     commands.spawn((
         MinimapArrow,
+        MinimapHud,
+        Visibility::Hidden,
         ImageNode::new(handle),
         Node {
             position_type: PositionType::Absolute,
@@ -262,8 +288,7 @@ fn update_minimap_composite(
     player_q: Query<&Transform, With<crate::camera::Player>>,
     minimap: Res<MinimapState>,
     composite_res: Option<Res<MinimapComposite>>,
-    images: Res<Assets<Image>>,
-    mut images_mut: ResMut<Assets<Image>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     let Ok(player_tf) = player_q.single() else { return };
     let Some(composite_res) = composite_res else { return };
@@ -281,7 +306,7 @@ fn update_minimap_composite(
     let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
     let display = crop_with_circle(&composite, comp_size, px_x, px_y, MINIMAP_DISPLAY_SIZE);
 
-    if let Some(img) = images_mut.get_mut(&composite_res.handle) {
+    if let Some(img) = images.get_mut(&composite_res.handle) {
         img.data = Some(display);
     }
 }
@@ -496,6 +521,8 @@ fn find_height_range(chunks: &[Option<ChunkHeightGrid>]) -> (f32, f32) {
 fn spawn_zone_name(mut commands: Commands) {
     commands.spawn((
         MinimapZoneName,
+        MinimapHud,
+        Visibility::Hidden,
         Text::new("Elwynn Forest"),
         TextFont { font_size: 16.0, ..default() },
         TextColor(Color::srgba(1.0, 0.82, 0.0, 1.0)),
@@ -513,6 +540,8 @@ fn spawn_zone_name(mut commands: Commands) {
 fn spawn_coord_text(mut commands: Commands) {
     commands.spawn((
         MinimapCoords,
+        MinimapHud,
+        Visibility::Hidden,
         Text::new("0, 0"),
         TextFont { font_size: 14.0, ..default() },
         TextColor(Color::WHITE),

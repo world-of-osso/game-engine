@@ -8,6 +8,7 @@ use bevy::prelude::*;
 
 use crate::asset::adt::{self, ChunkHeightGrid, CHUNK_SIZE, UNIT_SIZE, vertex_index};
 use crate::asset::{adt_obj, blp, wmo};
+use crate::game_state::GameState;
 use crate::terrain_material::{self, TerrainMaterial};
 use crate::water_material::{self, WaterMaterial, WaterSettings};
 
@@ -826,7 +827,8 @@ impl Plugin for AdtStreamingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AdtManager>()
             .init_resource::<TerrainHeightmap>()
-            .add_systems(Update, (adt_streaming_system, receive_loaded_tiles).chain());
+            .add_systems(Update, (adt_streaming_system, receive_loaded_tiles).chain()
+                .run_if(in_state(GameState::InWorld)));
     }
 }
 
