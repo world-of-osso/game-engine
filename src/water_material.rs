@@ -25,6 +25,7 @@ pub struct WaterSettings {
     pub fresnel_power: f32,
     pub specular_strength: f32,
     pub time: f32,
+    pub sky_color: Vec4,
 }
 
 impl Default for WaterSettings {
@@ -37,6 +38,7 @@ impl Default for WaterSettings {
             fresnel_power: 3.0,
             specular_strength: 1.5,
             time: 0.0,
+            sky_color: Vec4::new(0.6, 0.75, 0.9, 1.0),
         }
     }
 }

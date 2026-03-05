@@ -13,6 +13,7 @@ struct WaterSettings {
     fresnel_power: f32,
     specular_strength: f32,
     time: f32,
+    sky_color: vec4<f32>,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: WaterSettings;
@@ -52,7 +53,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let spec = pow(max(dot(N, H), 0.0), 64.0) * settings.specular_strength;
 
     // Mix water tint with sky reflection based on fresnel
-    let sky_color = vec3<f32>(0.6, 0.75, 0.9);
+    let sky_color = settings.sky_color.rgb;
     let water_color = settings.base_color.rgb;
     let color = mix(water_color, sky_color, fresnel) + vec3<f32>(spec);
     let alpha = mix(0.4, 0.85, fresnel);

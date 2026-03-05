@@ -14,6 +14,8 @@ use wow_engine::ipc::IpcPlugin;
 mod animation;
 mod asset;
 mod camera;
+mod sky;
+mod sky_material;
 mod terrain;
 mod terrain_material;
 mod water_material;
@@ -46,6 +48,7 @@ fn main() {
         .add_plugins(wow_engine::culling::CullingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(water_material::WaterMaterialPlugin)
+        .add_plugins(sky::SkyPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -123,6 +126,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut terrain_mats: ResMut<Assets<terrain_material::TerrainMaterial>>,
     mut water_mats: ResMut<Assets<water_material::WaterMaterial>>,
+    mut sky_mats: ResMut<Assets<sky::SkyMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
@@ -131,7 +135,7 @@ fn setup(
         || asset_path.is_none();
 
     let camera = spawn_scene_environment(
-        &mut commands, &mut meshes, &mut materials, &mut images, is_terrain,
+        &mut commands, &mut meshes, &mut materials, &mut sky_mats, &mut images, is_terrain,
     );
 
     match asset_path {
@@ -255,6 +259,7 @@ fn spawn_scene_environment(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    sky_materials: &mut Assets<sky::SkyMaterial>,
     images: &mut Assets<Image>,
     is_terrain: bool,
 ) -> Entity {
@@ -274,6 +279,8 @@ fn spawn_scene_environment(
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
+
+    sky::spawn_sky_dome(commands, meshes, sky_materials, camera);
 
     if !is_terrain {
         spawn_ground_plane(commands, meshes, materials, images);
