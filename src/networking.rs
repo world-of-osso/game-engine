@@ -3,15 +3,16 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::*;
 use lightyear::prelude::client::*;
 use shared::components::{Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation};
-use shared::protocol::{ChatChannel, ChatMessage, InputChannel, PlayerInput};
+use shared::protocol::{ChatChannel, ChatMessage, CombatChannel, InputChannel, PlayerInput, SetTarget};
 pub use shared::protocol::ChatType;
 use std::time::Duration;
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
+use crate::target::CurrentTarget;
 
 /// Marker for entities spawned from server replication.
 #[derive(Component)]
-struct RemoteEntity;
+pub struct RemoteEntity;
 
 /// Marker for the local player entity (the one this client controls).
 #[derive(Component)]
@@ -64,6 +65,7 @@ impl Plugin for NetworkPlugin {
         app.add_systems(Update, send_player_input);
         app.add_systems(Update, send_chat_message);
         app.add_systems(Update, receive_chat_messages);
+        app.add_systems(Update, send_target_to_server);
         app.add_systems(Update, sync_replicated_transforms);
         app.add_systems(Update, interpolate_remote_entities);
         app.add_observer(on_connected);
@@ -318,6 +320,21 @@ fn receive_chat_messages(
                 chat_log.messages.remove(0);
             }
         }
+    }
+}
+
+/// When CurrentTarget changes, send a SetTarget message to the server.
+fn send_target_to_server(
+    current: Res<CurrentTarget>,
+    mut senders: Query<&mut MessageSender<SetTarget>>,
+) {
+    if !current.is_changed() {
+        return;
+    }
+    let target_bits = current.0.map(|e| e.to_bits());
+    let msg = SetTarget { target_entity: target_bits };
+    for mut sender in senders.iter_mut() {
+        sender.send::<CombatChannel>(msg.clone());
     }
 }
 

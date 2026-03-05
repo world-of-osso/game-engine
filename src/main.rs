@@ -15,9 +15,11 @@ mod animation;
 mod asset;
 mod camera;
 mod health_bar;
+mod nameplate;
 mod networking;
 mod sky;
 mod sky_material;
+mod target;
 mod terrain;
 mod terrain_material;
 mod water_material;
@@ -31,7 +33,6 @@ const DEFAULT_ADT: &str = "data/terrain/azeroth_32_48.adt";
 
 #[derive(Resource)]
 struct DumpTreeFlag;
-
 #[derive(Resource)]
 struct ScreenshotRequest {
     output: PathBuf,
@@ -45,6 +46,24 @@ fn main() {
     let server_addr = parse_server_arg(&args);
 
     let mut app = App::new();
+    register_plugins(&mut app);
+    if let Some(addr) = server_addr {
+        app.insert_resource(networking::ServerAddr(addr));
+        app.add_plugins(networking::NetworkPlugin);
+    }
+    if dump_tree {
+        app.insert_resource(DumpTreeFlag);
+        app.add_systems(PostStartup, dump_tree_and_exit);
+    }
+    if let Some(req) = screenshot {
+        app.insert_resource(req);
+        app.add_systems(Update, take_screenshot);
+    }
+    app.run();
+}
+
+/// Register all core engine plugins and the startup system.
+fn register_plugins(app: &mut App) {
     app.add_plugins(DefaultPlugins)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(IpcPlugin)
@@ -56,6 +75,8 @@ fn main() {
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(sky::SkyPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
+        .add_plugins(nameplate::NameplatePlugin)
+        .add_plugins(target::TargetPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -63,23 +84,6 @@ fn main() {
             },
         })
         .add_systems(Startup, setup);
-
-    if let Some(addr) = server_addr {
-        app.insert_resource(networking::ServerAddr(addr));
-        app.add_plugins(networking::NetworkPlugin);
-    }
-
-    if dump_tree {
-        app.insert_resource(DumpTreeFlag);
-        app.add_systems(PostStartup, dump_tree_and_exit);
-    }
-
-    if let Some(req) = screenshot {
-        app.insert_resource(req);
-        app.add_systems(Update, take_screenshot);
-    }
-
-    app.run();
 }
 
 /// Parse `screenshot <output> [model]` from args. Returns None if not a screenshot command.
@@ -496,7 +500,7 @@ fn spawn_m2_model(
         ))
         .id();
 
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, &bone_tracks, &sequences, model_entity);
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, model_entity);
     let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
 
     for (i, batch) in batches.into_iter().enumerate() {
@@ -536,7 +540,7 @@ fn spawn_static_m2(
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
 
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, &model.bone_tracks, &model.sequences, root);
+    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, root);
     for (i, batch) in model.batches.into_iter().enumerate() {
         let mat = load_batch_material(&batch, i, images, materials);
         let mut cmd = commands.spawn((Mesh3d(meshes.add(batch.mesh)), MeshMaterial3d(mat)));
@@ -585,8 +589,6 @@ fn spawn_skeleton(
     commands: &mut Commands,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     bones: &[asset::m2_anim::M2Bone],
-    bone_tracks: &[asset::m2_anim::BoneAnimTracks],
-    sequences: &[asset::m2_anim::M2AnimSequence],
     model_entity: Entity,
 ) -> Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)> {
     if bones.is_empty() {
@@ -608,23 +610,16 @@ fn spawn_skeleton(
     }
 
     let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(
-        compute_inverse_bind_poses(bones, bone_tracks, sequences),
+        compute_inverse_bind_poses(bones),
     ));
 
     Some((inv_bp, joint_entities))
 }
 
-/// Identity inverse bind poses — M2 vertices are stored in rest pose (no bone deformation).
-/// Animation transforms (including Stand) move vertices from rest to the desired pose.
-/// This matches WMVx behavior which applies bone transforms directly without inverse bind poses.
-fn compute_inverse_bind_poses(
-    bones: &[asset::m2_anim::M2Bone],
-    _bone_tracks: &[asset::m2_anim::BoneAnimTracks],
-    _sequences: &[asset::m2_anim::M2AnimSequence],
-) -> Vec<Mat4> {
+/// Identity inverse bind poses — M2 vertices are in rest pose, animation moves them.
+fn compute_inverse_bind_poses(bones: &[asset::m2_anim::M2Bone]) -> Vec<Mat4> {
     vec![Mat4::IDENTITY; bones.len()]
 }
-
 
 fn load_batch_material(
     batch: &asset::m2::M2RenderBatch,
