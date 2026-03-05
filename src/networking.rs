@@ -92,6 +92,7 @@ fn send_player_input(
         direction,
         facing_yaw: facing.yaw,
         jumping: movement.jumping,
+        running: movement.running,
     };
 
     for mut sender in senders.iter_mut() {
