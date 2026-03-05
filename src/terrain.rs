@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, mpsc};
 
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -24,15 +25,37 @@ pub struct AdtTile {
     pub tile_y: u32,
 }
 
+/// Parsed ADT data ready to be spawned on the main thread.
+struct ParsedTile {
+    tile_y: u32,
+    tile_x: u32,
+    adt_path: PathBuf,
+    adt_data: adt::AdtData,
+    tex_data: Option<adt::AdtTexData>,
+    obj_data: Option<adt_obj::AdtObjData>,
+}
+
+/// Result from a background tile load task.
+enum TileLoadResult {
+    Success(ParsedTile),
+    Failed { tile_y: u32, tile_x: u32, error: String },
+}
+
 /// Manages multi-tile ADT streaming around the player.
 #[derive(Resource)]
 pub struct AdtManager {
     /// Map name extracted from the initial ADT (e.g., "azeroth").
     pub map_name: String,
-    /// Currently loaded tiles: (tile_y, tile_x) → root entity.
+    /// Currently loaded tiles: (row, col) → root entity.
     pub loaded: HashMap<(u32, u32), Entity>,
     /// Tiles that failed to load (missing files); don't retry.
-    pub failed: std::collections::HashSet<(u32, u32)>,
+    pub failed: HashSet<(u32, u32)>,
+    /// Tiles currently being loaded in background threads.
+    pending: HashSet<(u32, u32)>,
+    /// Receiver for completed background tile loads (Mutex for Sync).
+    tile_rx: Mutex<mpsc::Receiver<TileLoadResult>>,
+    /// Sender cloned into background threads.
+    tile_tx: mpsc::Sender<TileLoadResult>,
     /// Radius of tiles to keep loaded around player (1 = 3×3 grid).
     pub load_radius: u32,
     /// Tile coordinates of the initially loaded tile.
@@ -41,10 +64,14 @@ pub struct AdtManager {
 
 impl Default for AdtManager {
     fn default() -> Self {
+        let (tile_tx, tile_rx) = mpsc::channel();
         Self {
             map_name: String::new(),
             loaded: HashMap::new(),
-            failed: std::collections::HashSet::new(),
+            failed: HashSet::new(),
+            pending: HashSet::new(),
+            tile_rx: Mutex::new(tile_rx),
+            tile_tx,
             load_radius: 1,
             initial_tile: (0, 0),
         }
@@ -221,16 +248,65 @@ fn spawn_adt_entities(
     tile: &AdtTile,
 ) -> Entity {
     let tex_data = load_tex0(adt_path);
+    let obj_data = load_obj0(adt_path);
+    let root = spawn_from_parsed(
+        commands, meshes, materials, terrain_materials, water_materials,
+        images, inverse_bp, adt_path, adt_data, tex_data.as_ref(), tile,
+    );
+    if let Some(ref obj) = obj_data {
+        spawn_obj0_doodads(commands, meshes, materials, images, inverse_bp, obj);
+        spawn_obj0_wmos(commands, meshes, materials, images, obj);
+    }
+    root
+}
+
+/// Spawn entities from pre-parsed tile data (used by both sync and async paths).
+fn spawn_from_parsed(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_path: &Path,
+    adt_data: &adt::AdtData,
+    tex_data: Option<&adt::AdtTexData>,
+    tile: &AdtTile,
+) -> Entity {
     let ground_images = tex_data
-        .as_ref()
         .map(|td| terrain_material::load_ground_images(images, td, adt_path));
     let chunk_materials = terrain_material::build_terrain_materials(
-        terrain_materials, images, tex_data.as_ref(), ground_images.as_deref(),
+        terrain_materials, images, tex_data, ground_images.as_deref(),
     );
 
     let root = spawn_chunk_entities(commands, meshes, &chunk_materials, adt_data, tile);
     spawn_water(commands, meshes, water_materials, images, adt_data);
-    spawn_obj0(commands, meshes, materials, images, inverse_bp, adt_path);
+    root
+}
+
+/// Spawn entities from a fully-parsed tile (async receive path).
+fn spawn_parsed_tile(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    parsed: &ParsedTile,
+) -> Entity {
+    let tile = AdtTile { tile_x: parsed.tile_x, tile_y: parsed.tile_y };
+    let root = spawn_from_parsed(
+        commands, meshes, materials, terrain_materials, water_materials,
+        images, inverse_bp, &parsed.adt_path, &parsed.adt_data,
+        parsed.tex_data.as_ref(), &tile,
+    );
+    // Spawn doodads/WMOs from pre-parsed obj0 data
+    if let Some(ref obj_data) = parsed.obj_data {
+        spawn_obj0_doodads(commands, meshes, materials, images, inverse_bp, obj_data);
+        spawn_obj0_wmos(commands, meshes, materials, images, obj_data);
+    }
     root
 }
 
@@ -244,33 +320,6 @@ fn log_adt_spawn(adt_data: &adt::AdtData, adt_path: &Path) {
     );
 }
 
-/// Spawn an ADT tile by (map_name, tile_y, tile_x) using listfile FDID lookup.
-pub fn spawn_adt_tile(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
-    map_name: &str,
-    tile_y: u32,
-    tile_x: u32,
-) -> Result<Entity, String> {
-    let adt_path = resolve_tile_path(map_name, tile_y, tile_x)?;
-    let tile = AdtTile { tile_x, tile_y };
-    let adt_data = load_and_parse_adt(&adt_path)?;
-
-    let root = spawn_adt_entities(
-        commands, meshes, materials, terrain_materials, water_materials,
-        images, inverse_bp, &adt_path, &adt_data, &tile,
-    );
-
-    heightmap.insert_tile(tile_y, tile_x, &adt_data);
-    log_adt_spawn(&adt_data, &adt_path);
-    Ok(root)
-}
 
 /// Resolve the local file path for an ADT tile via listfile FDID lookup.
 fn resolve_tile_path(map_name: &str, tile_y: u32, tile_x: u32) -> Result<PathBuf, String> {
@@ -493,19 +542,6 @@ fn load_obj0(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
     }
 }
 
-/// Load _obj0.adt and spawn doodads + WMOs.
-fn spawn_obj0(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    adt_path: &Path,
-) {
-    let Some(obj_data) = load_obj0(adt_path) else { return };
-    spawn_obj0_doodads(commands, meshes, materials, images, inverse_bp, &obj_data);
-    spawn_obj0_wmos(commands, meshes, materials, images, &obj_data);
-}
 
 /// Spawn doodads (M2 models) from _obj0 placement data.
 fn spawn_obj0_doodads(
@@ -777,24 +813,16 @@ impl Plugin for AdtStreamingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AdtManager>()
             .init_resource::<TerrainHeightmap>()
-            .add_systems(Update, adt_streaming_system);
+            .add_systems(Update, (adt_streaming_system, receive_loaded_tiles).chain());
     }
 }
 
-/// Load/unload ADT tiles based on player position, keeping a grid around the player.
-#[allow(clippy::too_many_arguments)]
+/// Dispatch background loads and unload distant tiles.
 fn adt_streaming_system(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut terrain_mats: ResMut<Assets<TerrainMaterial>>,
-    mut water_mats: ResMut<Assets<WaterMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     mut adt_manager: ResMut<AdtManager>,
     mut heightmap: ResMut<TerrainHeightmap>,
     player_q: Query<&Transform, With<crate::camera::Player>>,
-    tile_q: Query<Entity, With<AdtTile>>,
 ) {
     if adt_manager.map_name.is_empty() { return; }
     let Ok(player_tf) = player_q.single() else { return; };
@@ -804,12 +832,67 @@ fn adt_streaming_system(
     );
     let desired = compute_desired_tiles(center_y, center_x, adt_manager.load_radius);
 
-    unload_distant_tiles(&mut commands, &mut adt_manager, &mut heightmap, &desired, &tile_q);
-    load_missing_tiles(
-        &mut commands, &mut meshes, &mut materials, &mut terrain_mats,
-        &mut water_mats, &mut images, &mut inverse_bp,
-        &mut adt_manager, &mut heightmap, &desired,
-    );
+    unload_distant_tiles(&mut commands, &mut adt_manager, &mut heightmap, &desired);
+    dispatch_tile_loads(&mut adt_manager, &desired);
+}
+
+/// Receive parsed tiles from background threads and spawn entities.
+#[allow(clippy::too_many_arguments)]
+fn receive_loaded_tiles(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain_mats: ResMut<Assets<TerrainMaterial>>,
+    mut water_mats: ResMut<Assets<WaterMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut adt_manager: ResMut<AdtManager>,
+    mut heightmap: ResMut<TerrainHeightmap>,
+) {
+    // Drain all ready results (non-blocking), then process them
+    let results: Vec<_> = {
+        let rx = adt_manager.tile_rx.lock().unwrap();
+        rx.try_iter().collect()
+    };
+    for result in results {
+        handle_tile_result(
+            &mut commands, &mut meshes, &mut materials, &mut terrain_mats,
+            &mut water_mats, &mut images, &mut inverse_bp,
+            &mut adt_manager, &mut heightmap, result,
+        );
+    }
+}
+
+fn handle_tile_result(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_mats: &mut Assets<TerrainMaterial>,
+    water_mats: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+    result: TileLoadResult,
+) {
+    match result {
+        TileLoadResult::Success(parsed) => {
+            let key = (parsed.tile_y, parsed.tile_x);
+            adt_manager.pending.remove(&key);
+            let root = spawn_parsed_tile(
+                commands, meshes, materials, terrain_mats,
+                water_mats, images, inverse_bp, &parsed,
+            );
+            heightmap.insert_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data);
+            adt_manager.loaded.insert(key, root);
+            log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
+        }
+        TileLoadResult::Failed { tile_y, tile_x, error } => {
+            adt_manager.pending.remove(&(tile_y, tile_x));
+            adt_manager.failed.insert((tile_y, tile_x));
+            eprintln!("Cannot load ADT tile ({tile_y}, {tile_x}): {error}");
+        }
+    }
 }
 
 /// Compute the set of (tile_y, tile_x) that should be loaded around a center tile.
@@ -834,7 +917,6 @@ fn unload_distant_tiles(
     adt_manager: &mut AdtManager,
     heightmap: &mut TerrainHeightmap,
     desired: &[(u32, u32)],
-    tile_q: &Query<Entity, With<AdtTile>>,
 ) {
     let to_remove: Vec<(u32, u32)> = adt_manager.loaded.keys()
         .filter(|k| !desired.contains(k))
@@ -850,35 +932,38 @@ fn unload_distant_tiles(
     }
 }
 
-/// Load tiles that are in the desired set but not yet loaded.
-#[allow(clippy::too_many_arguments)]
-fn load_missing_tiles(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    terrain_mats: &mut Assets<TerrainMaterial>,
-    water_mats: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    adt_manager: &mut AdtManager,
-    heightmap: &mut TerrainHeightmap,
-    desired: &[(u32, u32)],
-) {
+/// Dispatch background thread loads for tiles not yet loaded or pending.
+fn dispatch_tile_loads(adt_manager: &mut AdtManager, desired: &[(u32, u32)]) {
     for &(ty, tx) in desired {
         if adt_manager.loaded.contains_key(&(ty, tx)) { continue; }
         if adt_manager.failed.contains(&(ty, tx)) { continue; }
-        match spawn_adt_tile(
-            commands, meshes, materials, terrain_mats, water_mats,
-            images, inverse_bp, heightmap, &adt_manager.map_name, ty, tx,
-        ) {
-            Ok(entity) => {
-                adt_manager.loaded.insert((ty, tx), entity);
-                eprintln!("Loaded ADT tile ({ty}, {tx})");
-            }
+        if adt_manager.pending.contains(&(ty, tx)) { continue; }
+
+        // Resolve path on main thread (needs listfile, which is global state)
+        let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
+            Ok(p) => p,
             Err(e) => {
                 adt_manager.failed.insert((ty, tx));
                 eprintln!("Cannot load ADT tile ({ty}, {tx}): {e}");
+                continue;
             }
-        }
+        };
+
+        adt_manager.pending.insert((ty, tx));
+        let tx_chan = adt_manager.tile_tx.clone();
+        std::thread::spawn(move || {
+            tx_chan.send(parse_tile_background(ty, tx, path)).ok();
+        });
     }
+}
+
+/// Parse an ADT tile and its companions on a background thread.
+fn parse_tile_background(tile_y: u32, tile_x: u32, adt_path: PathBuf) -> TileLoadResult {
+    let adt_data = match load_and_parse_adt(&adt_path) {
+        Ok(d) => d,
+        Err(e) => return TileLoadResult::Failed { tile_y, tile_x, error: e },
+    };
+    let tex_data = load_tex0(&adt_path);
+    let obj_data = load_obj0(&adt_path);
+    TileLoadResult::Success(ParsedTile { tile_y, tile_x, adt_path, adt_data, tex_data, obj_data })
 }
