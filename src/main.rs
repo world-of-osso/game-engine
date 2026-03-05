@@ -42,6 +42,7 @@ fn main() {
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
+        .add_plugins(wow_engine::culling::CullingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
@@ -469,12 +470,12 @@ fn spawn_static_m2(
     skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
     transform: Transform,
-) {
+) -> Option<Entity> {
     let model = match asset::m2::load_m2(m2_path) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
-            return;
+            return None;
         }
     };
 
@@ -492,6 +493,7 @@ fn spawn_static_m2(
             cmd.insert(SkinnedMesh { inverse_bindposes: inv_bp.clone(), joints: joints.clone() });
         }
     }
+    Some(root)
 }
 
 /// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.

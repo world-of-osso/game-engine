@@ -195,14 +195,22 @@ fn spawn_chunk_entities(
     for (i, chunk) in adt_data.chunks.iter().enumerate() {
         let mesh_handle = meshes.add(chunk.mesh.clone());
         let mat = chunk_materials.get(i).unwrap_or(&chunk_materials[0]);
-        let child = commands
-            .spawn((
-                Mesh3d(mesh_handle),
-                MeshMaterial3d(mat.clone()),
-                Transform::default(),
-                Visibility::default(),
-            ))
-            .id();
+        let mut spawn = commands.spawn((
+            Mesh3d(mesh_handle),
+            MeshMaterial3d(mat.clone()),
+            Transform::default(),
+            Visibility::default(),
+        ));
+        if let Some(grid) = adt_data.height_grids.get(i) {
+            spawn.insert(wow_engine::culling::TerrainChunk {
+                world_center: Vec3::new(
+                    grid.origin_x + CHUNK_SIZE / 2.0,
+                    grid.base_y,
+                    grid.origin_z - CHUNK_SIZE / 2.0,
+                ),
+            });
+        }
+        let child = spawn.id();
         commands.entity(root).add_child(child);
     }
 }
@@ -283,7 +291,10 @@ fn try_spawn_doodad(
         return false;
     }
     let transform = doodad_transform(doodad);
-    super::spawn_static_m2(commands, meshes, materials, images, inverse_bp, &m2_path, transform);
+    let Some(entity) = super::spawn_static_m2(commands, meshes, materials, images, inverse_bp, &m2_path, transform) else {
+        return false;
+    };
+    commands.entity(entity).insert(wow_engine::culling::Doodad);
     true
 }
 
@@ -360,6 +371,7 @@ fn try_spawn_wmo(
             Name::new(format!("wmo_{root_fdid}")),
             transform,
             Visibility::default(),
+            wow_engine::culling::Wmo,
         ))
         .id();
 
