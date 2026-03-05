@@ -699,7 +699,7 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
     })
 }
 
-/// Read the exists bitmask: `height` bytes, each with `width` bits (MSB = col 0).
+/// Read the exists bitmask: `height` bytes, each with `width` bits (LSB = col 0).
 fn read_exists_bitmask(
     payload: &[u8],
     offset: usize,
@@ -710,8 +710,8 @@ fn read_exists_bitmask(
     if offset == 0 {
         // No bitmask pointer → all quads exist.
         for row in 0..height as usize {
-            // Set `width` bits from MSB.
-            exists[row] = 0xFF << (8 - width);
+            // Set `width` bits from LSB.
+            exists[row] = (1u16.wrapping_shl(width as u32) - 1) as u8;
         }
         return Ok(exists);
     }
@@ -817,8 +817,8 @@ fn quad_exists(layer: &WaterLayer, row: usize, col: usize) -> bool {
         return false;
     }
     let byte = layer.exists[row];
-    // MSB = col 0: bit (7 - col)
-    (byte >> (7 - col)) & 1 != 0
+    // LSB = col 0
+    (byte >> col) & 1 != 0
 }
 
 /// Emit the 4 vertices for one water quad at local (row, col).
