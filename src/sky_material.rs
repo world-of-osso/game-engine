@@ -46,8 +46,8 @@ impl Material for SkyMaterial {
         _layout: &bevy::mesh::MeshVertexBufferLayoutRef,
         _key: bevy::pbr::MaterialPipelineKey<Self>,
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
-        // Render the inside of the sphere.
-        descriptor.primitive.cull_mode = Some(Face::Front);
+        // Render inside of sphere: mesh winding is inward-facing, cull outer surface.
+        descriptor.primitive.cull_mode = Some(Face::Back);
         // Sky must render behind everything — disable depth write.
         if let Some(ds) = descriptor.depth_stencil.as_mut() {
             ds.depth_write_enabled = false;

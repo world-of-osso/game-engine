@@ -258,7 +258,7 @@ pub fn spawn_sky_dome(
     sky_materials: &mut Assets<SkyMaterial>,
     camera_entity: Entity,
 ) {
-    let mesh = build_sky_dome_mesh(5000.0, 32, 16);
+    let mesh = build_sky_dome_mesh(900.0, 32, 16);
     let material = sky_materials.add(SkyMaterial {
         uniforms: SkyUniforms::default(),
     });
