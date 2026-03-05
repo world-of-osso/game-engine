@@ -28,7 +28,7 @@ impl Default for CullingConfig {
         Self {
             chunk_distance_sq: 400.0 * 400.0,
             doodad_distance_sq: 200.0 * 200.0,
-            wmo_distance_sq: 500.0 * 500.0,
+            wmo_distance_sq: 2000.0 * 2000.0,
             update_threshold_sq: 5.0 * 5.0,
         }
     }
