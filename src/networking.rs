@@ -10,6 +10,11 @@ use shared::components::{ModelDisplay, Npc, Player as NetPlayer, Position as Net
 use shared::protocol::{ChatChannel, ChatMessage, CombatChannel, InputChannel, LoadTerrain, PlayerInput, SetTarget};
 pub use shared::protocol::ChatType;
 
+pub use crate::networking_auth::{
+    AuthToken, CharacterList, LoginUsername, SelectedCharacterId,
+    load_auth_token,
+};
+
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
 use crate::creature_display::CreatureDisplayMap;
 use crate::target::CurrentTarget;
@@ -70,27 +75,43 @@ impl Plugin for NetworkPlugin {
             tick_duration: Duration::from_secs_f64(1.0 / TICK_RATE_HZ),
         });
         app.add_plugins(shared::ProtocolPlugin);
-        app.init_resource::<CurrentZone>();
-        app.init_resource::<ChatLog>();
-        app.init_resource::<ChatInput>();
-        app.add_systems(
-            OnEnter(crate::game_state::GameState::Connecting),
-            connect_to_server,
-        );
-        app.add_systems(Update, send_player_input);
-        app.add_systems(Update, send_chat_message);
-        app.add_systems(Update, receive_chat_messages);
-        app.add_systems(Update, send_target_to_server);
-        app.add_systems(Update, track_player_zone);
-        app.add_systems(Update, receive_load_terrain);
-        app.add_systems(Update, sync_replicated_transforms);
-        app.add_systems(Update, interpolate_remote_entities);
-        app.add_observer(on_connected);
-        app.add_observer(on_link_established);
-        app.add_observer(spawn_replicated_player);
-        app.add_observer(spawn_replicated_npc);
-        app.add_observer(cleanup_disconnected_player);
+        register_net_resources(app);
+        register_net_systems(app);
+        register_net_observers(app);
     }
+}
+
+fn register_net_resources(app: &mut App) {
+    app.init_resource::<CurrentZone>();
+    app.init_resource::<ChatLog>();
+    app.init_resource::<ChatInput>();
+    app.insert_resource(AuthToken(load_auth_token()));
+    app.init_resource::<CharacterList>();
+    app.init_resource::<SelectedCharacterId>();
+    app.init_resource::<LoginUsername>();
+}
+
+fn register_net_systems(app: &mut App) {
+    use crate::networking_auth as auth;
+    app.add_systems(
+        OnEnter(crate::game_state::GameState::Connecting),
+        connect_to_server,
+    );
+    app.add_systems(Update, (
+        send_player_input, send_chat_message, receive_chat_messages,
+        send_target_to_server, track_player_zone, receive_load_terrain,
+        sync_replicated_transforms, interpolate_remote_entities,
+        auth::receive_login_response, auth::receive_create_character_response,
+        auth::receive_delete_character_response, auth::receive_enter_world_response,
+    ));
+}
+
+fn register_net_observers(app: &mut App) {
+    app.add_observer(on_connected);
+    app.add_observer(on_link_established);
+    app.add_observer(spawn_replicated_player);
+    app.add_observer(spawn_replicated_npc);
+    app.add_observer(cleanup_disconnected_player);
 }
 
 fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
@@ -128,8 +149,21 @@ fn on_link_established(trigger: On<Add, LinkOf>, mut commands: Commands) {
         .insert(ReplicationReceiver::default());
 }
 
-fn on_connected(_trigger: On<Add, Connected>) {
+fn on_connected(
+    _trigger: On<Add, Connected>,
+    auth_token: Res<AuthToken>,
+    username: Res<LoginUsername>,
+    mut senders: Query<&mut MessageSender<shared::protocol::LoginRequest>>,
+) {
     info!("Connected to server!");
+    let request = shared::protocol::LoginRequest {
+        token: auth_token.0.clone(),
+        username: username.0.clone(),
+    };
+    for mut sender in senders.iter_mut() {
+        sender.send::<shared::protocol::AuthChannel>(request.clone());
+    }
+    info!("Sent LoginRequest for '{}'", username.0);
 }
 
 /// Send movement input to the server every frame.
@@ -194,44 +228,47 @@ fn spawn_replicated_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     query: Query<(&NetPosition, &NetPlayer, Option<&NetRotation>), With<Replicated>>,
-    local_id: Option<Res<LocalClientId>>,
+    selected: Option<Res<SelectedCharacterId>>,
 ) {
     let entity = trigger.entity;
     let Ok((pos, player, rotation)) = query.get(entity) else {
         return;
     };
-    let is_local = is_local_player(&player.name, local_id.as_deref());
+    let is_local = is_local_player_entity(entity, selected.as_deref());
     info!(
         "Spawning replicated player '{}' (local={is_local}) at ({:.1}, {:.1}, {:.1})",
         player.name, pos.x, pos.y, pos.z
     );
-    let capsule = meshes.add(Capsule3d::new(0.4, 1.6));
-    let color = if is_local { Color::srgb(0.2, 1.0, 0.3) } else { Color::srgb(0.2, 0.6, 1.0) };
-    let material = materials.add(StandardMaterial {
-        base_color: color,
-        ..default()
-    });
     let position = Vec3::new(pos.x, pos.y, pos.z);
     let yaw = rotation.map_or(0.0, |r| r.y);
+    let (capsule, material) = build_player_capsule(&mut meshes, &mut materials, is_local);
     let mut ecmds = commands.entity(entity);
     ecmds.insert((
-        Mesh3d(capsule),
-        MeshMaterial3d(material),
-        Transform::from_xyz(pos.x, pos.y, pos.z)
-            .with_rotation(Quat::from_rotation_y(yaw)),
-        RemoteEntity,
-        InterpolationTarget { target: position },
-        RotationTarget { yaw },
+        Mesh3d(capsule), MeshMaterial3d(material),
+        Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
+        RemoteEntity, InterpolationTarget { target: position }, RotationTarget { yaw },
     ));
     if is_local {
         ecmds.insert((LocalPlayer, Player, MovementState::default(), CharacterFacing::default()));
     }
 }
 
-/// Check if a replicated player name matches our local client_id.
-fn is_local_player(name: &str, local_id: Option<&LocalClientId>) -> bool {
-    let Some(local) = local_id else { return false };
-    name == format!("Player-{}", local.0)
+fn build_player_capsule(
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    is_local: bool,
+) -> (Handle<Mesh>, Handle<StandardMaterial>) {
+    let capsule = meshes.add(Capsule3d::new(0.4, 1.6));
+    let color = if is_local { Color::srgb(0.2, 1.0, 0.3) } else { Color::srgb(0.2, 0.6, 1.0) };
+    let material = materials.add(StandardMaterial { base_color: color, ..default() });
+    (capsule, material)
+}
+
+/// Check if a replicated entity matches our selected character's player_entity bits.
+fn is_local_player_entity(entity: Entity, selected: Option<&SelectedCharacterId>) -> bool {
+    let Some(sel) = selected else { return false };
+    let Some(bits) = sel.0 else { return false };
+    entity.to_bits() == bits
 }
 
 /// When the server replicates a new NPC, try to load its M2 model; fall back to capsule.
@@ -652,62 +689,37 @@ mod tests {
         assert_eq!(log.messages[99].0, "player100");
     }
 
-    #[test]
-    fn is_local_player_matches_own_client_id() {
-        let local = LocalClientId(12345);
-        assert!(is_local_player("Player-12345", Some(&local)));
+    fn test_entity() -> Entity {
+        let mut world = World::new();
+        world.spawn_empty().id()
     }
 
     #[test]
-    fn is_local_player_rejects_different_id() {
-        let local = LocalClientId(12345);
-        assert!(!is_local_player("Player-99999", Some(&local)));
+    fn is_local_player_entity_matches_selected() {
+        let entity = test_entity();
+        let selected = SelectedCharacterId(Some(entity.to_bits()));
+        assert!(is_local_player_entity(entity, Some(&selected)));
     }
 
     #[test]
-    fn is_local_player_returns_false_without_resource() {
-        assert!(!is_local_player("Player-12345", None));
+    fn is_local_player_entity_rejects_different() {
+        let mut world = World::new();
+        let entity = world.spawn_empty().id();
+        let other = world.spawn_empty().id();
+        let selected = SelectedCharacterId(Some(other.to_bits()));
+        assert!(!is_local_player_entity(entity, Some(&selected)));
     }
 
     #[test]
-    fn local_player_gets_camera_components() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(LocalClientId(42));
-
-        let entity = app.world_mut().spawn_empty().id();
-        let local_id = app.world().get_resource::<LocalClientId>();
-        let is_local = is_local_player("Player-42", local_id);
-        assert!(is_local, "Player-42 should match LocalClientId(42)");
-
-        // Insert components the observer would insert for a local player.
-        app.world_mut().entity_mut(entity).insert((
-            RemoteEntity, Transform::default(),
-            LocalPlayer, Player, MovementState::default(), CharacterFacing::default(),
-        ));
-
-        assert!(app.world().get::<Player>(entity).is_some(), "should have Player");
-        assert!(app.world().get::<LocalPlayer>(entity).is_some(), "should have LocalPlayer");
-        assert!(app.world().get::<MovementState>(entity).is_some(), "should have MovementState");
-        assert!(app.world().get::<CharacterFacing>(entity).is_some(), "should have CharacterFacing");
+    fn is_local_player_entity_none_without_resource() {
+        let entity = test_entity();
+        assert!(!is_local_player_entity(entity, None));
     }
 
     #[test]
-    fn remote_player_stays_capsule() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(LocalClientId(42));
-
-        let entity = app.world_mut().spawn_empty().id();
-        let local_id = app.world().get_resource::<LocalClientId>();
-        let is_local = is_local_player("Player-999", local_id);
-        assert!(!is_local, "Player-999 should NOT match LocalClientId(42)");
-
-        // Only insert base components (no camera components for remote).
-        app.world_mut().entity_mut(entity).insert((RemoteEntity, Transform::default()));
-
-        assert!(app.world().get::<Player>(entity).is_none(), "should NOT have Player");
-        assert!(app.world().get::<LocalPlayer>(entity).is_none(), "should NOT have LocalPlayer");
-        assert!(app.world().get::<MovementState>(entity).is_none(), "should NOT have MovementState");
+    fn is_local_player_entity_none_when_not_selected() {
+        let entity = test_entity();
+        let selected = SelectedCharacterId(None);
+        assert!(!is_local_player_entity(entity, Some(&selected)));
     }
 }

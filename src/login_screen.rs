@@ -265,8 +265,10 @@ fn try_connect(
         status.0 = format!("Invalid address: {server_text}");
         return;
     };
+    let username = get_editbox_text(reg, login.username_input);
     status.0 = format!("Connecting to {addr}...");
     commands.insert_resource(networking::ServerAddr(addr));
+    commands.insert_resource(networking::LoginUsername(username));
     next_state.set(GameState::Connecting);
 }
 

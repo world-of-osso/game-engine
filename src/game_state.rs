@@ -89,15 +89,17 @@ fn on_exit_in_world() {
 
 /// Check if a `Connected` component exists on any entity (lightyear sets this on connection).
 /// Times out after `CONNECT_TIMEOUT_SECS` and returns to Login.
+/// Wait for connection. LoginResponse handler transitions to CharSelect on success.
+/// Times out after `CONNECT_TIMEOUT_SECS` and returns to Login.
 fn check_connection_status(
     connected_q: Query<(), With<Connected>>,
     time: Res<Time>,
     start_time: Option<Res<ConnectingStartTime>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    // Connection established — on_connected sends LoginRequest,
+    // receive_login_response will transition to CharSelect.
     if !connected_q.is_empty() {
-        info!("Connection established, transitioning to Loading");
-        next_state.set(GameState::Loading);
         return;
     }
     if let Some(start) = start_time {

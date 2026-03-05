@@ -29,6 +29,8 @@ mod terrain;
 mod terrain_material;
 mod water_material;
 mod login_screen;
+mod networking_auth;
+mod char_select;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
@@ -66,6 +68,7 @@ fn main() {
     app.add_plugins(game_state::GameStatePlugin);
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
+    app.add_plugins(char_select::CharSelectPlugin);
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
         app.add_systems(PostStartup, dump_tree_and_exit);
