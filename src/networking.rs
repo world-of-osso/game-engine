@@ -295,4 +295,46 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn sync_replicated_transforms_copies_position() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, sync_replicated_transforms);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                NetPosition { x: 10.0, y: 20.0, z: 30.0 },
+                Transform::default(),
+                RemoteEntity,
+            ))
+            .id();
+
+        app.update();
+
+        let transform = app.world().get::<Transform>(entity).unwrap();
+        assert_eq!(transform.translation, Vec3::new(10.0, 20.0, 30.0));
+    }
+
+    #[test]
+    fn sync_skips_entities_without_remote_marker() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, sync_replicated_transforms);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                NetPosition { x: 5.0, y: 6.0, z: 7.0 },
+                Transform::default(),
+                // no RemoteEntity marker
+            ))
+            .id();
+
+        app.update();
+
+        let transform = app.world().get::<Transform>(entity).unwrap();
+        assert_eq!(transform.translation, Vec3::ZERO);
+    }
 }
