@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use crate::asset::adt::{self, ChunkHeightGrid, CHUNK_SIZE, UNIT_SIZE, vertex_index};
 use crate::asset::{adt_obj, blp, wmo};
 use crate::terrain_material::{self, TerrainMaterial};
+use crate::water_material::{self, WaterMaterial, WaterSettings};
 
 /// Marker component for the ADT terrain root entity.
 #[derive(Component)]
@@ -128,6 +129,7 @@ pub fn spawn_adt(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     adt_path: &Path,
@@ -149,6 +151,7 @@ pub fn spawn_adt(
     );
 
     spawn_chunk_entities(commands, meshes, &chunk_materials, &adt_data);
+    spawn_water(commands, meshes, water_materials, images, &adt_data);
     spawn_obj0(commands, meshes, materials, images, inverse_bp, adt_path);
 
     let heightmap = TerrainHeightmap::from_adt(&adt_data);
@@ -156,9 +159,11 @@ pub fn spawn_adt(
 
     let result = compute_spawn_result(&adt_data);
     let tex_count = tex_data.as_ref().map_or(0, |td| td.texture_fdids.len());
+    let water_count = adt_data.water.as_ref()
+        .map_or(0, |w| w.chunks.iter().filter(|c| !c.layers.is_empty()).count());
     eprintln!(
-        "Spawned ADT terrain: {} chunks, {} ground textures from {}",
-        adt_data.chunks.len(), tex_count, adt_path.display(),
+        "Spawned ADT terrain: {} chunks, {} ground textures, {} water chunks from {}",
+        adt_data.chunks.len(), tex_count, water_count, adt_path.display(),
     );
     Ok(result)
 }
@@ -220,12 +225,64 @@ fn compute_spawn_result(adt_data: &adt::AdtData) -> AdtSpawnResult {
     let (min, max) = adt_data.bounds();
     let extent = (max - min).length();
 
-    // Northshire Abbey WMO position
-    let abbey = Vec3::new(17245.0, 25964.0, -80.0);
-    let eye = abbey + Vec3::new(200.0, 50.0, 200.0);
-    let camera = Transform::from_translation(eye).looking_at(abbey, Vec3::Y);
+    // Position near Crystal Lake water (first water chunk in Elwynn)
+    let target = first_water_position(adt_data).unwrap_or(center);
+    let eye = target + Vec3::new(30.0, 20.0, 30.0);
+    let camera = Transform::from_translation(eye).looking_at(target, Vec3::Y);
 
     AdtSpawnResult { camera, center }
+}
+
+/// Find the Bevy-space center of the first water chunk (for camera positioning).
+fn first_water_position(adt_data: &adt::AdtData) -> Option<Vec3> {
+    let water = adt_data.water.as_ref()?;
+    for (i, cw) in water.chunks.iter().enumerate() {
+        if let Some(layer) = cw.layers.first() {
+            if layer.width == 0 || layer.height == 0 { continue; }
+            let pos = adt_data.chunk_positions[i];
+            use crate::asset::m2::wow_to_bevy;
+            let center_col = layer.x_offset as f32 + layer.width as f32 / 2.0;
+            let center_row = layer.y_offset as f32 + layer.height as f32 / 2.0;
+            let wx = pos[1] - center_col * CHUNK_SIZE / 8.0;
+            let wy = pos[0] - center_row * CHUNK_SIZE / 8.0;
+            let [bx, by, bz] = wow_to_bevy(wx, wy, layer.min_height);
+            return Some(Vec3::new(bx, by, bz));
+        }
+    }
+    None
+}
+
+// ── water spawning ──────────────────────────────────────────────────────────
+
+fn spawn_water(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    adt_data: &adt::AdtData,
+) {
+    let Some(ref water_data) = adt_data.water else { return };
+    let normal_map = images.add(water_material::generate_water_normal_map());
+    let mat = water_materials.add(WaterMaterial {
+        settings: WaterSettings::default(),
+        normal_map,
+    });
+
+    for (i, chunk_water) in water_data.chunks.iter().enumerate() {
+        for layer in &chunk_water.layers {
+            if layer.width == 0 || layer.height == 0 {
+                continue;
+            }
+            let chunk_pos = adt_data.chunk_positions[i];
+            let mesh = adt::build_water_mesh(chunk_pos, layer);
+            commands.spawn((
+                Mesh3d(meshes.add(mesh)),
+                MeshMaterial3d(mat.clone()),
+                Transform::default(),
+                Visibility::default(),
+            ));
+        }
+    }
 }
 
 // ── _obj0.adt object spawning ────────────────────────────────────────────────
