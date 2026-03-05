@@ -49,9 +49,11 @@ pub struct AdtManager {
     /// Currently loaded tiles: (row, col) → root entity.
     pub loaded: HashMap<(u32, u32), Entity>,
     /// Tiles that failed to load (missing files); don't retry.
-    pub failed: HashSet<(u32, u32)>,
+    pub(crate) failed: HashSet<(u32, u32)>,
     /// Tiles currently being loaded in background threads.
-    pending: HashSet<(u32, u32)>,
+    pub(crate) pending: HashSet<(u32, u32)>,
+    /// Tiles explicitly requested by the server (beyond the local streaming radius).
+    pub server_requested: HashSet<(u32, u32)>,
     /// Receiver for completed background tile loads (Mutex for Sync).
     tile_rx: Mutex<mpsc::Receiver<TileLoadResult>>,
     /// Sender cloned into background threads.
@@ -70,6 +72,7 @@ impl Default for AdtManager {
             loaded: HashMap::new(),
             failed: HashSet::new(),
             pending: HashSet::new(),
+            server_requested: HashSet::new(),
             tile_rx: Mutex::new(tile_rx),
             tile_tx,
             load_radius: 1,
@@ -950,6 +953,29 @@ fn dispatch_tile_loads(adt_manager: &mut AdtManager, desired: &[(u32, u32)]) {
         if adt_manager.pending.contains(&(ty, tx)) { continue; }
 
         // Resolve path on main thread (needs listfile, which is global state)
+        let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
+            Ok(p) => p,
+            Err(e) => {
+                adt_manager.failed.insert((ty, tx));
+                eprintln!("Cannot load ADT tile ({ty}, {tx}): {e}");
+                continue;
+            }
+        };
+
+        adt_manager.pending.insert((ty, tx));
+        let tx_chan = adt_manager.tile_tx.clone();
+        std::thread::spawn(move || {
+            tx_chan.send(parse_tile_background(ty, tx, path)).ok();
+        });
+    }
+
+    // Also dispatch tiles explicitly requested by the server
+    let requested: Vec<_> = adt_manager.server_requested.drain().collect();
+    for (ty, tx) in requested {
+        if adt_manager.loaded.contains_key(&(ty, tx)) { continue; }
+        if adt_manager.failed.contains(&(ty, tx)) { continue; }
+        if adt_manager.pending.contains(&(ty, tx)) { continue; }
+
         let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
             Ok(p) => p,
             Err(e) => {
