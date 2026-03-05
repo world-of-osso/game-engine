@@ -85,4 +85,5 @@ src/
 - cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)
 - wowmapview 0.5: https://sourceforge.net/projects/wowmapview/ — C++ WoW map viewer (ADT/WMO/M2 rendering reference)
-- Future: wow-engine 3D scene + wow-ui-sim UI overlay
+- game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
+- Future: wow-engine 3D scene + wow-ui-sim UI overlay + game-server authoritative backend
