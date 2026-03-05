@@ -1,14 +1,19 @@
+use std::path::Path;
+use std::time::Duration;
+
 use bevy::prelude::*;
+use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::*;
 use lightyear::prelude::client::*;
-use shared::components::{Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation};
-use shared::protocol::{ChatChannel, ChatMessage, CombatChannel, InputChannel, PlayerInput, SetTarget};
+use shared::components::{ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation, Zone};
+use shared::protocol::{ChatChannel, ChatMessage, CombatChannel, InputChannel, LoadTerrain, PlayerInput, SetTarget};
 pub use shared::protocol::ChatType;
-use std::time::Duration;
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
+use crate::creature_display::CreatureDisplayMap;
 use crate::target::CurrentTarget;
+use crate::terrain::AdtManager;
 
 /// Marker for entities spawned from server replication.
 #[derive(Component)]
@@ -30,6 +35,12 @@ struct InterpolationTarget {
 
 /// Maximum number of messages stored in the chat log.
 const MAX_CHAT_LOG: usize = 100;
+
+/// Tracks the zone the local player is currently in (replicated from server).
+#[derive(Resource, Default)]
+pub struct CurrentZone {
+    pub zone_id: u32,
+}
 
 /// Chat log storing received messages: (sender, content, chat_type).
 #[derive(Resource, Default)]
@@ -59,13 +70,19 @@ impl Plugin for NetworkPlugin {
             tick_duration: Duration::from_secs_f64(1.0 / TICK_RATE_HZ),
         });
         app.add_plugins(shared::ProtocolPlugin);
+        app.init_resource::<CurrentZone>();
         app.init_resource::<ChatLog>();
         app.init_resource::<ChatInput>();
-        app.add_systems(Startup, connect_to_server);
+        app.add_systems(
+            OnEnter(crate::game_state::GameState::Connecting),
+            connect_to_server,
+        );
         app.add_systems(Update, send_player_input);
         app.add_systems(Update, send_chat_message);
         app.add_systems(Update, receive_chat_messages);
         app.add_systems(Update, send_target_to_server);
+        app.add_systems(Update, track_player_zone);
+        app.add_systems(Update, receive_load_terrain);
         app.add_systems(Update, sync_replicated_transforms);
         app.add_systems(Update, interpolate_remote_entities);
         app.add_observer(on_connected);
@@ -217,35 +234,73 @@ fn is_local_player(name: &str, local_id: Option<&LocalClientId>) -> bool {
     name == format!("Player-{}", local.0)
 }
 
-/// When the server replicates a new NPC, spawn a colored capsule mesh.
+/// When the server replicates a new NPC, try to load its M2 model; fall back to capsule.
 fn spawn_replicated_npc(
     trigger: On<Add, Npc>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    query: Query<(&NetPosition, &Npc, Option<&NetRotation>), With<Replicated>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    query: Query<(&NetPosition, &Npc, Option<&NetRotation>, Option<&ModelDisplay>), With<Replicated>>,
+    display_map: Option<Res<CreatureDisplayMap>>,
 ) {
     let entity = trigger.entity;
-    let Ok((pos, npc, rotation)) = query.get(entity) else {
+    let Ok((pos, npc, rotation, model_display)) = query.get(entity) else {
         return;
     };
+    let position = Vec3::new(pos.x, pos.y, pos.z);
+    let yaw = rotation.map_or(0.0, |r| r.y);
+    let transform = Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw));
+    commands.entity(entity).insert((
+        transform, Visibility::default(), RemoteEntity,
+        InterpolationTarget { target: position },
+        RotationTarget { yaw },
+    ));
+    let m2_loaded = try_spawn_npc_model(
+        &mut commands, &mut meshes, &mut materials, &mut images, &mut inv_bp,
+        entity, model_display, display_map.as_deref(),
+    );
+    if !m2_loaded {
+        spawn_npc_capsule(&mut commands, &mut meshes, &mut materials, entity);
+    }
+    debug!("Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})", npc.template_id, pos.x, pos.y, pos.z);
+}
+
+/// Try to resolve display_id → FDID → M2 file and attach meshes. Returns true on success.
+fn try_spawn_npc_model(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    entity: Entity,
+    model_display: Option<&ModelDisplay>,
+    display_map: Option<&CreatureDisplayMap>,
+) -> bool {
+    let display_id = model_display.map(|md| md.display_id).unwrap_or(0);
+    if display_id == 0 { return false; }
+    let fdid = display_map.and_then(|dm| dm.get_fdid(display_id));
+    let Some(fdid) = fdid else { return false };
+    let m2_path_str = format!("data/models/{fdid}.m2");
+    let m2_path = Path::new(&m2_path_str);
+    if !m2_path.exists() { return false; }
+    crate::m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, inv_bp, m2_path, entity)
+}
+
+/// Attach a capsule mesh as fallback for NPCs without M2 models.
+fn spawn_npc_capsule(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    entity: Entity,
+) {
     let capsule = meshes.add(Capsule3d::new(0.3, 1.2));
     let material = materials.add(StandardMaterial {
         base_color: Color::srgb(0.8, 0.3, 0.2),
         ..default()
     });
-    let position = Vec3::new(pos.x, pos.y, pos.z);
-    let yaw = rotation.map_or(0.0, |r| r.y);
-    commands.entity(entity).insert((
-        Mesh3d(capsule),
-        MeshMaterial3d(material),
-        Transform::from_xyz(pos.x, pos.y, pos.z)
-            .with_rotation(Quat::from_rotation_y(yaw)),
-        RemoteEntity,
-        InterpolationTarget { target: position },
-        RotationTarget { yaw },
-    ));
-    debug!("Spawned NPC capsule template_id={} at ({:.0}, {:.0}, {:.0})", npc.template_id, pos.x, pos.y, pos.z);
+    commands.entity(entity).insert((Mesh3d(capsule), MeshMaterial3d(material)));
 }
 
 /// Target rotation for smooth interpolation of remote entities.
@@ -323,6 +378,33 @@ fn receive_chat_messages(
     }
 }
 
+/// Receive LoadTerrain messages from the server and initialize/stream the AdtManager.
+fn receive_load_terrain(
+    mut receivers: Query<&mut MessageReceiver<LoadTerrain>>,
+    mut adt_manager: ResMut<AdtManager>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            let key = (msg.initial_tile_y, msg.initial_tile_x);
+            if adt_manager.map_name.is_empty() {
+                info!("Server requested terrain: {} tile ({}, {})",
+                    msg.map_name, msg.initial_tile_y, msg.initial_tile_x);
+                adt_manager.map_name = msg.map_name;
+                adt_manager.initial_tile = key;
+            } else if adt_manager.loaded.contains_key(&key)
+                || adt_manager.pending.contains(&key)
+                || adt_manager.failed.contains(&key)
+            {
+                continue;
+            } else {
+                debug!("Server requested additional tile ({}, {})",
+                    msg.initial_tile_y, msg.initial_tile_x);
+                adt_manager.server_requested.insert(key);
+            }
+        }
+    }
+}
+
 /// When CurrentTarget changes, send a SetTarget message to the server.
 fn send_target_to_server(
     current: Res<CurrentTarget>,
@@ -335,6 +417,19 @@ fn send_target_to_server(
     let msg = SetTarget { target_entity: target_bits };
     for mut sender in senders.iter_mut() {
         sender.send::<CombatChannel>(msg.clone());
+    }
+}
+
+/// Watch for Zone component changes on the local player and update the CurrentZone resource.
+fn track_player_zone(
+    player_q: Query<&Zone, (With<Player>, Changed<Zone>)>,
+    mut current_zone: ResMut<CurrentZone>,
+) {
+    if let Ok(zone) = player_q.single() {
+        if current_zone.zone_id != zone.id {
+            info!("Entered zone {}", zone.id);
+            current_zone.zone_id = zone.id;
+        }
     }
 }
 

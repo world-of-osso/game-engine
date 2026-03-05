@@ -26,6 +26,7 @@ pub enum Request {
     Ping,
     Screenshot,
     DumpTree { filter: Option<String> },
+    DumpUiTree { filter: Option<String> },
 }
 
 /// IPC response from engine to CLI.

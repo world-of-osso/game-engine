@@ -5,7 +5,7 @@ use std::time::Duration;
 use bevy::asset::RenderAssetUsages;
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
-use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
+use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::pbr::MaterialPlugin;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
@@ -14,8 +14,10 @@ use game_engine::ipc::IpcPlugin;
 mod animation;
 mod asset;
 mod camera;
+mod creature_display;
 mod game_state;
 mod health_bar;
+pub mod m2_spawn;
 mod nameplate;
 mod networking;
 mod sky;
@@ -26,6 +28,7 @@ mod sound;
 mod terrain;
 mod terrain_material;
 mod water_material;
+mod login_screen;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
@@ -37,6 +40,8 @@ const DEFAULT_ADT: &str = "data/terrain/azeroth_32_48.adt";
 #[derive(Resource)]
 struct DumpTreeFlag;
 #[derive(Resource)]
+struct DumpUiTreeFlag;
+#[derive(Resource)]
 struct ScreenshotRequest {
     output: PathBuf,
     frames_remaining: u32,
@@ -46,23 +51,30 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let screenshot = parse_screenshot_args(&args);
     let dump_tree = args.iter().any(|a| a == "--dump-tree");
+    let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
     let server_addr = parse_server_arg(&args);
 
     let mut app = App::new();
     register_plugins(&mut app);
     if let Some(addr) = server_addr {
         app.insert_resource(networking::ServerAddr(addr));
-        app.add_plugins(networking::NetworkPlugin);
     }
     app.add_plugins(game_state::GameStatePlugin);
+    app.add_plugins(networking::NetworkPlugin);
+    app.add_plugins(login_screen::LoginScreenPlugin);
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
         app.add_systems(PostStartup, dump_tree_and_exit);
+    }
+    if dump_ui_tree {
+        app.insert_resource(DumpUiTreeFlag);
+        app.add_systems(PostStartup, dump_ui_tree_and_exit);
     }
     if let Some(req) = screenshot {
         app.insert_resource(req);
         app.add_systems(Update, take_screenshot);
     }
+    app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     app.run();
 }
 
@@ -479,7 +491,7 @@ fn spawn_m2_model(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
 ) {
     let model = match asset::m2::load_m2(m2_path) {
@@ -489,12 +501,19 @@ fn spawn_m2_model(
             return;
         }
     };
-
-    // Destructure to avoid partial-move issues when consuming batches in the loop.
     let asset::m2::M2Model { batches, bones, sequences, bone_tracks, global_sequences } = model;
 
+    let model_entity = spawn_player_root(commands, m2_path);
+    let skinning = m2_spawn::attach_m2_batches(commands, meshes, materials, images, inv_bp, batches, &bones, model_entity);
+    let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
+    if let Some(joints) = joint_entities {
+        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
+    }
+}
+
+fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
     let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("m2_model");
-    let model_entity = commands
+    commands
         .spawn((
             Name::new(name.to_owned()),
             Player,
@@ -504,23 +523,7 @@ fn spawn_m2_model(
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             Visibility::default(),
         ))
-        .id();
-
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &bones, model_entity);
-    let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
-
-    for (i, batch) in batches.into_iter().enumerate() {
-        let material = load_batch_material(&batch, i, images, materials);
-        let mut entity_cmd = commands.spawn((Mesh3d(meshes.add(batch.mesh)), MeshMaterial3d(material)));
-        entity_cmd.set_parent_in_place(model_entity);
-        if let Some((ref inv_bp, ref joints)) = skinning {
-            entity_cmd.insert(SkinnedMesh { inverse_bindposes: inv_bp.clone(), joints: joints.clone() });
-        }
-    }
-
-    if let Some(joints) = joint_entities {
-        commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
-    }
+        .id()
 }
 
 /// Spawn a static (non-player) M2 model as a scene prop.
@@ -533,29 +536,16 @@ fn spawn_static_m2(
     m2_path: &Path,
     transform: Transform,
 ) -> Option<Entity> {
-    let model = match asset::m2::load_m2(m2_path) {
-        Ok(m) => m,
-        Err(e) => {
-            eprintln!("Failed to load M2 {}: {e}", m2_path.display());
-            return None;
-        }
-    };
-
     let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("prop");
     let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
-
-    let skinning = spawn_skeleton(commands, skinned_mesh_inverse_bindposes, &model.bones, root);
-    for (i, batch) in model.batches.into_iter().enumerate() {
-        let mat = load_batch_material(&batch, i, images, materials);
-        let mut cmd = commands.spawn((Mesh3d(meshes.add(batch.mesh)), MeshMaterial3d(mat)));
-        cmd.set_parent_in_place(root);
-        if let Some((ref inv_bp, ref joints)) = skinning {
-            cmd.insert(SkinnedMesh { inverse_bindposes: inv_bp.clone(), joints: joints.clone() });
-        }
+    if m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, skinned_mesh_inverse_bindposes, m2_path, root) {
+        Some(root)
+    } else {
+        commands.entity(root).despawn();
+        None
     }
-    Some(root)
 }
 
 /// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.
@@ -580,102 +570,7 @@ fn attach_bone_pivots_and_player(
     Some(joints.clone())
 }
 
-const PLACEHOLDER_COLORS: &[Color] = &[
-    Color::srgb(0.8, 0.5, 0.3), // skin tone
-    Color::srgb(0.3, 0.5, 0.8), // blue
-    Color::srgb(0.3, 0.8, 0.3), // green
-    Color::srgb(0.8, 0.3, 0.3), // red
-    Color::srgb(0.7, 0.7, 0.3), // yellow
-    Color::srgb(0.6, 0.3, 0.7), // purple
-];
-
-/// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
-/// Returns None if the model has no bones (static mesh).
-fn spawn_skeleton(
-    commands: &mut Commands,
-    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    bones: &[asset::m2_anim::M2Bone],
-    model_entity: Entity,
-) -> Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)> {
-    if bones.is_empty() {
-        return None;
-    }
-
-    let joint_entities: Vec<Entity> = bones
-        .iter()
-        .map(|_| commands.spawn(Transform::IDENTITY).id())
-        .collect();
-
-    for (i, bone) in bones.iter().enumerate() {
-        let parent = if bone.parent_bone_id >= 0 {
-            joint_entities[bone.parent_bone_id as usize]
-        } else {
-            model_entity
-        };
-        commands.entity(joint_entities[i]).set_parent_in_place(parent);
-    }
-
-    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(
-        compute_inverse_bind_poses(bones),
-    ));
-
-    Some((inv_bp, joint_entities))
-}
-
-/// Identity inverse bind poses — M2 vertices are in rest pose, animation moves them.
-fn compute_inverse_bind_poses(bones: &[asset::m2_anim::M2Bone]) -> Vec<Mat4> {
-    vec![Mat4::IDENTITY; bones.len()]
-}
-
-fn load_batch_material(
-    batch: &asset::m2::M2RenderBatch,
-    index: usize,
-    images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
-) -> Handle<StandardMaterial> {
-    let texture_dir = PathBuf::from("data/textures");
-    if let Some(fdid) = batch.texture_fdid {
-        let blp_path = texture_dir.join(format!("{fdid}.blp"));
-        if blp_path.exists() {
-            if let Some(image) = load_composited_texture(&blp_path, &batch.overlays, &texture_dir)
-            {
-                return materials.add(m2_material(Some(images.add(image)), None, batch));
-            }
-        } else {
-            eprintln!("Missing texture: data/textures/{fdid}.blp (download with casc-extract)");
-        }
-    }
-    let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
-    materials.add(m2_material(None, Some(color), batch))
-}
-
-/// Build a StandardMaterial from M2 render flags (two-sided, unlit, blend mode).
-fn m2_material(
-    texture: Option<Handle<Image>>,
-    color: Option<Color>,
-    batch: &asset::m2::M2RenderBatch,
-) -> StandardMaterial {
-    let two_sided = batch.render_flags & 0x04 != 0;
-    let unlit = batch.render_flags & 0x01 != 0;
-    let cull_mode = if two_sided { None } else { Some(bevy::render::render_resource::Face::Back) };
-    let alpha_mode = match batch.blend_mode {
-        1 => AlphaMode::Mask(0.5),
-        2 | 3 | 7 => AlphaMode::Blend,
-        4 | 5 | 6 => AlphaMode::Add,
-        _ => AlphaMode::Opaque,
-    };
-    StandardMaterial {
-        base_color_texture: texture,
-        base_color: color.unwrap_or(Color::WHITE),
-        unlit,
-        cull_mode,
-        double_sided: two_sided,
-        alpha_mode,
-        ..default()
-    }
-}
-
-fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
+pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
     Image::new(
         Extent3d { width: w, height: h, depth_or_array_layers: 1 },
         TextureDimension::D2,
@@ -692,44 +587,6 @@ fn load_blp_as_image(path: &Path) -> Result<Image, String> {
     Ok(rgba_image(pixels, w, h))
 }
 
-/// Blit one overlay onto the base pixel buffer, applying the requested scaling.
-fn composite_overlay(
-    pixels: &mut Vec<u8>,
-    base_width: u32,
-    ov: &asset::m2::TextureOverlay,
-    texture_dir: &Path,
-) {
-    use asset::m2::OverlayScale;
-    let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
-    match asset::blp::load_blp_rgba(&ov_path) {
-        Ok((ov_pixels, ov_w, ov_h)) => match ov.scale {
-            OverlayScale::None => {
-                asset::blp::blit_region(pixels, base_width, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
-            }
-            OverlayScale::Uniform2x => {
-                let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
-                asset::blp::blit_region(pixels, base_width, &scaled, sw, sh, ov.x, ov.y);
-            }
-        },
-        Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
-    }
-}
-
-/// Load a base BLP texture and composite any region overlays on top.
-fn load_composited_texture(
-    base_path: &Path,
-    overlays: &[asset::m2::TextureOverlay],
-    texture_dir: &Path,
-) -> Option<Image> {
-    let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
-        .map_err(|e| eprintln!("Failed to load BLP {}: {e}", base_path.display()))
-        .ok()?;
-    for ov in overlays {
-        composite_overlay(&mut pixels, w, ov, texture_dir);
-    }
-    Some(rgba_image(pixels, w, h))
-}
-
 #[allow(clippy::type_complexity)]
 fn dump_tree_and_exit(
     tree_query: Query<(
@@ -743,6 +600,15 @@ fn dump_tree_and_exit(
     mut exit: MessageWriter<AppExit>,
 ) {
     let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
+    println!("{tree}");
+    exit.write(AppExit::Success);
+}
+
+fn dump_ui_tree_and_exit(
+    ui_state: Res<game_engine::ui::plugin::UiState>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
     exit.write(AppExit::Success);
 }

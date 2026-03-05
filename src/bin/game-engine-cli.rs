@@ -31,6 +31,12 @@ enum Cmd {
         #[arg(short, long)]
         filter: Option<String>,
     },
+    /// Dump the UI frame hierarchy
+    DumpUiTree {
+        /// Filter by frame name (case-insensitive substring)
+        #[arg(short, long)]
+        filter: Option<String>,
+    },
 }
 
 fn find_socket() -> Result<PathBuf, String> {
@@ -64,6 +70,7 @@ fn main() {
         Cmd::Ping => handle_ping(&socket),
         Cmd::Screenshot { output } => handle_screenshot(&socket, &output),
         Cmd::DumpTree { filter } => handle_dump_tree(&socket, filter),
+        Cmd::DumpUiTree { filter } => handle_dump_ui_tree(&socket, filter),
     };
 
     if let Err(e) = result {
@@ -88,6 +95,19 @@ fn handle_ping(socket: &PathBuf) -> Result<(), String> {
 fn handle_dump_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), String> {
     let resp: Response =
         Client::call(socket, &Request::DumpTree { filter }).map_err(|e| format!("{e}"))?;
+    match resp {
+        Response::Tree(tree) => {
+            println!("{tree}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), String> {
+    let resp: Response =
+        Client::call(socket, &Request::DumpUiTree { filter }).map_err(|e| format!("{e}"))?;
     match resp {
         Response::Tree(tree) => {
             println!("{tree}");

@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 
 use super::{Command, Request, Response, init};
+use crate::ui::plugin::UiState;
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
 #[derive(Component)]
@@ -36,9 +37,10 @@ fn poll_ipc(
         &Transform,
     )>,
     parent_query: Query<&ChildOf>,
+    ui_state: Res<UiState>,
 ) {
     while let Ok(cmd) = receiver.try_recv() {
-        dispatch(cmd, &mut commands, &tree_query, &parent_query);
+        dispatch(cmd, &mut commands, &tree_query, &parent_query, &ui_state);
     }
 }
 
@@ -54,6 +56,7 @@ fn dispatch(
         &Transform,
     )>,
     parent_query: &Query<&ChildOf>,
+    ui_state: &UiState,
 ) {
     match cmd.request {
         Request::Ping => {
@@ -67,6 +70,10 @@ fn dispatch(
         }
         Request::DumpTree { filter } => {
             let tree = crate::dump::build_tree(tree_query, parent_query, filter.as_deref());
+            let _ = cmd.respond.send(Response::Tree(tree));
+        }
+        Request::DumpUiTree { filter } => {
+            let tree = crate::dump::build_ui_tree(&ui_state.registry, filter.as_deref());
             let _ = cmd.respond.send(Response::Tree(tree));
         }
     }

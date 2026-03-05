@@ -1,6 +1,19 @@
 use crate::ui::anchor::Anchor;
 use crate::ui::layout::LayoutRect;
 use crate::ui::strata::{DrawLayer, FrameStrata};
+use crate::ui::widgets::button::ButtonData;
+use crate::ui::widgets::edit_box::EditBoxData;
+use crate::ui::widgets::font_string::FontStringData;
+use crate::ui::widgets::texture::TextureData;
+
+/// Per-widget-type data attached to a frame.
+#[derive(Debug, Clone)]
+pub enum WidgetData {
+    FontString(FontStringData),
+    EditBox(EditBoxData),
+    Button(ButtonData),
+    Texture(TextureData),
+}
 
 /// WoW widget types corresponding to frame XML element names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -73,6 +86,9 @@ pub struct Frame {
     pub clamped_to_screen: bool,
     pub movable: bool,
     pub resizable: bool,
+
+    // Widget-specific data
+    pub widget_data: Option<WidgetData>,
 }
 
 impl Frame {
@@ -105,6 +121,7 @@ impl Frame {
             clamped_to_screen: false,
             movable: false,
             resizable: false,
+            widget_data: None,
         }
     }
 }
