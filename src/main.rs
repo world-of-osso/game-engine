@@ -23,6 +23,7 @@ mod water_material;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
+use terrain::{AdtManager, AdtStreamingPlugin, TerrainHeightmap};
 
 const DEFAULT_M2: &str = "data/models/humanmale_hd.m2";
 const DEFAULT_ADT: &str = "data/terrain/azeroth_32_48.adt";
@@ -48,6 +49,7 @@ fn main() {
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
         .add_plugins(game_engine::culling::CullingPlugin)
+        .add_plugins(AdtStreamingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(sky::SkyPlugin)
@@ -149,6 +151,8 @@ fn setup(
     mut sky_mats: ResMut<Assets<sky::SkyMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut heightmap: ResMut<TerrainHeightmap>,
+    mut adt_manager: ResMut<AdtManager>,
 ) {
     let asset_path = parse_asset_path();
     let is_terrain = asset_path.as_ref().is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
@@ -160,7 +164,7 @@ fn setup(
 
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
-            let center = spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut water_mats, &mut images, &mut inverse_bp, camera, &p);
+            let center = spawn_terrain(&mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut water_mats, &mut images, &mut inverse_bp, &mut heightmap, &mut adt_manager, camera, &p);
             let m2_path = Path::new(DEFAULT_M2);
             if m2_path.exists() {
                 spawn_m2_model(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, m2_path);
@@ -178,6 +182,7 @@ fn setup(
         None => spawn_default_scene(
             &mut commands, &mut meshes, &mut materials, &mut terrain_mats,
             &mut water_mats, &mut images, &mut inverse_bp,
+            &mut heightmap, &mut adt_manager,
         ),
     }
 }
@@ -190,12 +195,17 @@ fn spawn_terrain(
     water_mats: &mut Assets<water_material::WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
+    adt_manager: &mut AdtManager,
     camera: Entity,
     adt_path: &Path,
 ) -> Option<Vec3> {
-    match terrain::spawn_adt(commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, adt_path) {
+    match terrain::spawn_adt(commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_path) {
         Ok(result) => {
             commands.entity(camera).insert(result.camera);
+            adt_manager.map_name = result.map_name;
+            adt_manager.initial_tile = (result.tile_y, result.tile_x);
+            adt_manager.loaded.insert((result.tile_y, result.tile_x), result.root_entity);
             Some(result.center)
         }
         Err(e) => { eprintln!("ADT load error: {e}"); None }
@@ -211,12 +221,19 @@ fn spawn_default_scene(
     water_mats: &mut Assets<water_material::WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
+    adt_manager: &mut AdtManager,
 ) {
     let adt_path = Path::new(DEFAULT_ADT);
     let center = if adt_path.exists() {
         // Load terrain but don't override camera — WowCamera will follow the player.
-        match terrain::spawn_adt(commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, adt_path) {
-            Ok(result) => Some(result.center),
+        match terrain::spawn_adt(commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_path) {
+            Ok(result) => {
+                adt_manager.map_name = result.map_name;
+                adt_manager.initial_tile = (result.tile_y, result.tile_x);
+                adt_manager.loaded.insert((result.tile_y, result.tile_x), result.root_entity);
+                Some(result.center)
+            }
             Err(e) => { eprintln!("ADT load error: {e}"); None }
         }
     } else {

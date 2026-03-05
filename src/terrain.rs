@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -9,21 +10,57 @@ use crate::asset::{adt_obj, blp, wmo};
 use crate::terrain_material::{self, TerrainMaterial};
 use crate::water_material::{self, WaterMaterial, WaterSettings};
 
+/// WoW tile size in yards: 16 chunks × 33.33 yards/chunk = 533.33.
+const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
+
 /// Marker component for the ADT terrain root entity.
 #[derive(Component)]
 pub struct AdtTerrain;
 
-/// Queryable heightmap for terrain collision. Built from ADT height grids.
+/// Marker component tagging all entities belonging to a specific ADT tile.
+#[derive(Component, Clone)]
+pub struct AdtTile {
+    pub tile_x: u32,
+    pub tile_y: u32,
+}
+
+/// Manages multi-tile ADT streaming around the player.
 #[derive(Resource)]
+pub struct AdtManager {
+    /// Map name extracted from the initial ADT (e.g., "azeroth").
+    pub map_name: String,
+    /// Currently loaded tiles: (tile_y, tile_x) → root entity.
+    pub loaded: HashMap<(u32, u32), Entity>,
+    /// Tiles that failed to load (missing files); don't retry.
+    pub failed: std::collections::HashSet<(u32, u32)>,
+    /// Radius of tiles to keep loaded around player (1 = 3×3 grid).
+    pub load_radius: u32,
+    /// Tile coordinates of the initially loaded tile.
+    pub initial_tile: (u32, u32),
+}
+
+impl Default for AdtManager {
+    fn default() -> Self {
+        Self {
+            map_name: String::new(),
+            loaded: HashMap::new(),
+            failed: std::collections::HashSet::new(),
+            load_radius: 1,
+            initial_tile: (0, 0),
+        }
+    }
+}
+
+/// Queryable heightmap for terrain collision across multiple tiles.
+#[derive(Resource, Default)]
 pub struct TerrainHeightmap {
-    grids: Vec<Option<ChunkHeightGrid>>, // 256 slots, indexed by y*16+x
-    bounds_min: Vec3,
-    bounds_max: Vec3,
+    /// Per-tile grids: (tile_y, tile_x) → 256 chunk height grids.
+    tiles: HashMap<(u32, u32), Vec<Option<ChunkHeightGrid>>>,
 }
 
 impl TerrainHeightmap {
-    /// Build from parsed ADT data.
-    fn from_adt(adt_data: &adt::AdtData) -> Self {
+    /// Add height grids from one ADT tile.
+    pub fn insert_tile(&mut self, tile_y: u32, tile_x: u32, adt_data: &adt::AdtData) {
         let mut grids: Vec<Option<ChunkHeightGrid>> = vec![None; 256];
         for g in &adt_data.height_grids {
             let idx = (g.index_y * 16 + g.index_x) as usize;
@@ -31,18 +68,19 @@ impl TerrainHeightmap {
                 grids[idx] = Some(g.clone());
             }
         }
-        let (bounds_min, bounds_max) = adt_data.bounds();
-        Self { grids, bounds_min, bounds_max }
+        self.tiles.insert((tile_y, tile_x), grids);
     }
 
-    /// Look up terrain height at a Bevy-space (x, z) position.
+    /// Remove height grids for a tile.
+    pub fn remove_tile(&mut self, tile_y: u32, tile_x: u32) {
+        self.tiles.remove(&(tile_y, tile_x));
+    }
+
+    /// Look up terrain height at a Bevy-space (x, z) position across all loaded tiles.
     pub fn height_at(&self, bx: f32, bz: f32) -> Option<f32> {
-        if bx < self.bounds_min.x || bx > self.bounds_max.x
-            || bz < self.bounds_min.z || bz > self.bounds_max.z
-        {
-            return None;
-        }
-        self.grids.iter().flatten().find_map(|g| chunk_height_at(g, bx, bz))
+        self.tiles.values()
+            .flat_map(|grids| grids.iter().flatten())
+            .find_map(|g| chunk_height_at(g, bx, bz))
     }
 }
 
@@ -120,8 +158,14 @@ fn barycentric_height(
 pub struct AdtSpawnResult {
     pub camera: Transform,
     pub center: Vec3,
+    /// Root entity of the spawned ADT tile.
+    pub root_entity: Entity,
+    /// Tile coordinates extracted from the filename.
+    pub tile_y: u32,
+    pub tile_x: u32,
+    /// Map name extracted from the filename.
+    pub map_name: String,
 }
-
 
 /// Load an ADT file, build meshes, and spawn them into the Bevy scene.
 pub fn spawn_adt(
@@ -132,40 +176,171 @@ pub fn spawn_adt(
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
+    let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
+    let tile = AdtTile { tile_x, tile_y };
+    let adt_data = load_and_parse_adt(adt_path)?;
+
+    let root = spawn_adt_entities(
+        commands, meshes, materials, terrain_materials, water_materials,
+        images, inverse_bp, adt_path, &adt_data, &tile,
+    );
+
+    heightmap.insert_tile(tile_y, tile_x, &adt_data);
+    log_adt_spawn(&adt_data, adt_path);
+
+    let spawn_result = compute_spawn_result(&adt_data);
+    Ok(AdtSpawnResult {
+        camera: spawn_result.0,
+        center: spawn_result.1,
+        root_entity: root,
+        tile_y, tile_x, map_name,
+    })
+}
+
+/// Load and parse an ADT file from disk.
+fn load_and_parse_adt(adt_path: &Path) -> Result<adt::AdtData, String> {
     let data = std::fs::read(adt_path)
         .map_err(|e| format!("Failed to read {}: {e}", adt_path.display()))?;
-    let adt_data = adt::load_adt(&data)?;
+    adt::load_adt(&data)
+}
 
+/// Spawn all entities for one ADT tile: terrain chunks, water, and objects.
+fn spawn_adt_entities(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_path: &Path,
+    adt_data: &adt::AdtData,
+    tile: &AdtTile,
+) -> Entity {
     let tex_data = load_tex0(adt_path);
     let ground_images = tex_data
         .as_ref()
         .map(|td| terrain_material::load_ground_images(images, td, adt_path));
-
     let chunk_materials = terrain_material::build_terrain_materials(
-        terrain_materials,
-        images,
-        tex_data.as_ref(),
-        ground_images.as_deref(),
+        terrain_materials, images, tex_data.as_ref(), ground_images.as_deref(),
     );
 
-    spawn_chunk_entities(commands, meshes, &chunk_materials, &adt_data);
-    spawn_water(commands, meshes, water_materials, images, &adt_data);
+    let root = spawn_chunk_entities(commands, meshes, &chunk_materials, adt_data, tile);
+    spawn_water(commands, meshes, water_materials, images, adt_data);
     spawn_obj0(commands, meshes, materials, images, inverse_bp, adt_path);
+    root
+}
 
-    let heightmap = TerrainHeightmap::from_adt(&adt_data);
-    commands.insert_resource(heightmap);
-
-    let result = compute_spawn_result(&adt_data);
-    let tex_count = tex_data.as_ref().map_or(0, |td| td.texture_fdids.len());
+/// Log a summary of a spawned ADT tile.
+fn log_adt_spawn(adt_data: &adt::AdtData, adt_path: &Path) {
     let water_count = adt_data.water.as_ref()
         .map_or(0, |w| w.chunks.iter().filter(|c| !c.layers.is_empty()).count());
     eprintln!(
-        "Spawned ADT terrain: {} chunks, {} ground textures, {} water chunks from {}",
-        adt_data.chunks.len(), tex_count, water_count, adt_path.display(),
+        "Spawned ADT terrain: {} chunks, {} water chunks from {}",
+        adt_data.chunks.len(), water_count, adt_path.display(),
     );
-    Ok(result)
+}
+
+/// Spawn an ADT tile by (map_name, tile_y, tile_x) using listfile FDID lookup.
+pub fn spawn_adt_tile(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
+    map_name: &str,
+    tile_y: u32,
+    tile_x: u32,
+) -> Result<Entity, String> {
+    let adt_path = resolve_tile_path(map_name, tile_y, tile_x)?;
+    let tile = AdtTile { tile_x, tile_y };
+    let adt_data = load_and_parse_adt(&adt_path)?;
+
+    let root = spawn_adt_entities(
+        commands, meshes, materials, terrain_materials, water_materials,
+        images, inverse_bp, &adt_path, &adt_data, &tile,
+    );
+
+    heightmap.insert_tile(tile_y, tile_x, &adt_data);
+    log_adt_spawn(&adt_data, &adt_path);
+    Ok(root)
+}
+
+/// Resolve the local file path for an ADT tile via listfile FDID lookup.
+fn resolve_tile_path(map_name: &str, tile_y: u32, tile_x: u32) -> Result<PathBuf, String> {
+    let wow_path = format!("world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}.adt");
+    let fdid = game_engine::listfile::lookup_path(&wow_path)
+        .ok_or_else(|| format!("Tile ({tile_y},{tile_x}) not in listfile: {wow_path}"))?;
+    let local = PathBuf::from(format!("data/terrain/{map_name}_{tile_y}_{tile_x}.adt"));
+    if local.exists() {
+        return Ok(local);
+    }
+    // Fall back to FDID-based naming.
+    let fdid_path = PathBuf::from(format!("data/terrain/{fdid}.adt"));
+    if fdid_path.exists() {
+        return Ok(fdid_path);
+    }
+    Err(format!("ADT tile files not found: {} or {}", local.display(), fdid_path.display()))
+}
+
+/// Parse map name and tile coordinates from an ADT filename.
+///
+/// Supports both `mapname_Y_X.adt` and FDID-based `778027.adt` (via listfile reverse lookup).
+fn parse_tile_coords_from_path(adt_path: &Path) -> Result<(String, u32, u32), String> {
+    let stem = adt_path.file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("Invalid ADT path: {}", adt_path.display()))?;
+
+    // Try name-based: "azeroth_32_48"
+    if let Some(result) = try_parse_named_stem(stem) {
+        return Ok(result);
+    }
+    // Try FDID-based: "778027" → reverse lookup via listfile
+    if let Ok(fdid) = stem.parse::<u32>() {
+        return parse_coords_from_fdid(fdid);
+    }
+    Err(format!("Cannot parse tile coords from: {stem}"))
+}
+
+/// Try to parse "mapname_Y_X" from an ADT stem.
+fn try_parse_named_stem(stem: &str) -> Option<(String, u32, u32)> {
+    let parts: Vec<&str> = stem.rsplitn(3, '_').collect();
+    if parts.len() < 3 { return None; }
+    let tile_x = parts[0].parse::<u32>().ok()?;
+    let tile_y = parts[1].parse::<u32>().ok()?;
+    let map_name = parts[2].to_string();
+    Some((map_name, tile_y, tile_x))
+}
+
+/// Reverse-lookup an FDID to extract map name and tile coordinates.
+fn parse_coords_from_fdid(fdid: u32) -> Result<(String, u32, u32), String> {
+    let wow_path = game_engine::listfile::lookup_fdid(fdid)
+        .ok_or_else(|| format!("FDID {fdid} not in listfile"))?;
+    // Path like "world/maps/azeroth/azeroth_32_48.adt"
+    let filename = wow_path.rsplit('/').next().unwrap_or(wow_path);
+    let stem = filename.strip_suffix(".adt").unwrap_or(filename);
+    try_parse_named_stem(stem)
+        .ok_or_else(|| format!("Cannot parse tile coords from listfile path: {wow_path}"))
+}
+
+/// Convert a Bevy world position to WoW tile coordinates (tile_y, tile_x).
+///
+/// WoW world origin is at tile (32, 32). MCNK world positions decrease from there.
+/// Bevy X = WoW X (pos[1]), Bevy Z = -WoW Y (pos[0]).
+pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
+    // wow_to_bevy: [x, z, -y] so bevy_x = wow_x, bevy_z = -wow_y
+    // WoW world coords: wx = bx, wy = -bz
+    // Tile coords: tile = floor((32 * TILE_SIZE - world_coord) / TILE_SIZE)
+    let center = 32.0 * TILE_SIZE;
+    let tile_y = ((center - (-bz)) / TILE_SIZE).floor() as i32;
+    let tile_x = ((center - bx) / TILE_SIZE).floor() as i32;
+    (tile_y.clamp(0, 63) as u32, tile_x.clamp(0, 63) as u32)
 }
 
 /// Try to load the companion _tex0.adt file.
@@ -192,9 +367,10 @@ fn spawn_chunk_entities(
     meshes: &mut Assets<Mesh>,
     chunk_materials: &[Handle<TerrainMaterial>],
     adt_data: &adt::AdtData,
-) {
+    tile: &AdtTile,
+) -> Entity {
     let root = commands
-        .spawn((AdtTerrain, Transform::default(), Visibility::default()))
+        .spawn((AdtTerrain, tile.clone(), Transform::default(), Visibility::default()))
         .id();
 
     for (i, chunk) in adt_data.chunks.iter().enumerate() {
@@ -203,6 +379,7 @@ fn spawn_chunk_entities(
         let mut spawn = commands.spawn((
             Mesh3d(mesh_handle),
             MeshMaterial3d(mat.clone()),
+            tile.clone(),
             Transform::default(),
             Visibility::default(),
         ));
@@ -218,19 +395,18 @@ fn spawn_chunk_entities(
         let child = spawn.id();
         commands.entity(root).add_child(child);
     }
+    root
 }
 
-fn compute_spawn_result(adt_data: &adt::AdtData) -> AdtSpawnResult {
+fn compute_spawn_result(adt_data: &adt::AdtData) -> (Transform, Vec3) {
     let center: Vec3 = adt_data.center_surface.into();
-    let (min, max) = adt_data.bounds();
-    let extent = (max - min).length();
 
     // Position near Crystal Lake water (first water chunk in Elwynn)
     let target = first_water_position(adt_data).unwrap_or(center);
     let eye = target + Vec3::new(30.0, 20.0, 30.0);
     let camera = Transform::from_translation(eye).looking_at(target, Vec3::Y);
 
-    AdtSpawnResult { camera, center }
+    (camera, center)
 }
 
 /// Find the Bevy-space center of the first water chunk (for camera positioning).
@@ -576,4 +752,118 @@ fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
         .with_scale(Vec3::splat(w.scale))
+}
+
+// ── ADT streaming ────────────────────────────────────────────────────────────
+
+pub struct AdtStreamingPlugin;
+
+impl Plugin for AdtStreamingPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<AdtManager>()
+            .init_resource::<TerrainHeightmap>()
+            .add_systems(Update, adt_streaming_system);
+    }
+}
+
+/// Load/unload ADT tiles based on player position, keeping a grid around the player.
+#[allow(clippy::too_many_arguments)]
+fn adt_streaming_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain_mats: ResMut<Assets<TerrainMaterial>>,
+    mut water_mats: ResMut<Assets<WaterMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut adt_manager: ResMut<AdtManager>,
+    mut heightmap: ResMut<TerrainHeightmap>,
+    player_q: Query<&Transform, With<crate::camera::Player>>,
+    tile_q: Query<Entity, With<AdtTile>>,
+) {
+    if adt_manager.map_name.is_empty() { return; }
+    let Ok(player_tf) = player_q.single() else { return; };
+
+    let (center_y, center_x) = bevy_to_tile_coords(
+        player_tf.translation.x, player_tf.translation.z,
+    );
+    let desired = compute_desired_tiles(center_y, center_x, adt_manager.load_radius);
+
+    unload_distant_tiles(&mut commands, &mut adt_manager, &mut heightmap, &desired, &tile_q);
+    load_missing_tiles(
+        &mut commands, &mut meshes, &mut materials, &mut terrain_mats,
+        &mut water_mats, &mut images, &mut inverse_bp,
+        &mut adt_manager, &mut heightmap, &desired,
+    );
+}
+
+/// Compute the set of (tile_y, tile_x) that should be loaded around a center tile.
+fn compute_desired_tiles(center_y: u32, center_x: u32, radius: u32) -> Vec<(u32, u32)> {
+    let r = radius as i32;
+    let mut tiles = Vec::with_capacity(((2 * r + 1) * (2 * r + 1)) as usize);
+    for dy in -r..=r {
+        for dx in -r..=r {
+            let ty = center_y as i32 + dy;
+            let tx = center_x as i32 + dx;
+            if ty >= 0 && ty < 64 && tx >= 0 && tx < 64 {
+                tiles.push((ty as u32, tx as u32));
+            }
+        }
+    }
+    tiles
+}
+
+/// Unload tiles that are no longer in the desired set.
+fn unload_distant_tiles(
+    commands: &mut Commands,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+    desired: &[(u32, u32)],
+    tile_q: &Query<Entity, With<AdtTile>>,
+) {
+    let to_remove: Vec<(u32, u32)> = adt_manager.loaded.keys()
+        .filter(|k| !desired.contains(k))
+        .copied()
+        .collect();
+
+    for key in to_remove {
+        if let Some(root) = adt_manager.loaded.remove(&key) {
+            commands.entity(root).despawn();
+        }
+        heightmap.remove_tile(key.0, key.1);
+        eprintln!("Unloaded ADT tile ({}, {})", key.0, key.1);
+    }
+}
+
+/// Load tiles that are in the desired set but not yet loaded.
+#[allow(clippy::too_many_arguments)]
+fn load_missing_tiles(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_mats: &mut Assets<TerrainMaterial>,
+    water_mats: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+    desired: &[(u32, u32)],
+) {
+    for &(ty, tx) in desired {
+        if adt_manager.loaded.contains_key(&(ty, tx)) { continue; }
+        if adt_manager.failed.contains(&(ty, tx)) { continue; }
+        match spawn_adt_tile(
+            commands, meshes, materials, terrain_mats, water_mats,
+            images, inverse_bp, heightmap, &adt_manager.map_name, ty, tx,
+        ) {
+            Ok(entity) => {
+                adt_manager.loaded.insert((ty, tx), entity);
+                eprintln!("Loaded ADT tile ({ty}, {tx})");
+            }
+            Err(e) => {
+                adt_manager.failed.insert((ty, tx));
+                eprintln!("Cannot load ADT tile ({ty}, {tx}): {e}");
+            }
+        }
+    }
 }
