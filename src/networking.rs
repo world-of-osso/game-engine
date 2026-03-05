@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::*;
 use lightyear::prelude::client::*;
-use shared::components::{Player as NetPlayer, Position as NetPosition};
+use shared::components::{Npc, Player as NetPlayer, Position as NetPosition};
 use shared::protocol::{InputChannel, PlayerInput};
 use std::time::Duration;
 
@@ -33,6 +33,7 @@ impl Plugin for NetworkPlugin {
         app.add_observer(on_connected);
         app.add_observer(on_link_established);
         app.add_observer(spawn_replicated_player);
+        app.add_observer(spawn_replicated_npc);
     }
 }
 
@@ -150,6 +151,32 @@ fn spawn_replicated_player(
         Transform::from_xyz(pos.x, pos.y, pos.z),
         RemoteEntity,
     ));
+}
+
+/// When the server replicates a new NPC, spawn a colored capsule mesh.
+fn spawn_replicated_npc(
+    trigger: On<Add, Npc>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    query: Query<(&NetPosition, &Npc), With<Replicated>>,
+) {
+    let entity = trigger.entity;
+    let Ok((pos, npc)) = query.get(entity) else {
+        return;
+    };
+    let capsule = meshes.add(Capsule3d::new(0.3, 1.2));
+    let material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.8, 0.3, 0.2),
+        ..default()
+    });
+    commands.entity(entity).insert((
+        Mesh3d(capsule),
+        MeshMaterial3d(material),
+        Transform::from_xyz(pos.x, pos.y, pos.z),
+        RemoteEntity,
+    ));
+    debug!("Spawned NPC capsule template_id={} at ({:.0}, {:.0}, {:.0})", npc.template_id, pos.x, pos.y, pos.z);
 }
 
 /// Sync replicated Position components to Bevy Transforms.
