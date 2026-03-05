@@ -85,6 +85,7 @@ struct M2Chunks<'a> {
     md20: &'a [u8],
     txid: Option<&'a [u8]>,
     skid: Option<u32>,
+    sfid: Vec<u32>,
 }
 
 /// Read a little-endian u32 from a byte slice at the given offset.
@@ -122,6 +123,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
     let mut txid = None;
     let mut skid = None;
+    let mut sfid = Vec::new();
     let mut off = 0;
     while off + 8 <= data.len() {
         let tag = &data[off..off + 4];
@@ -135,6 +137,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
             b"MD21" => md20 = Some(&data[off + 8..end]),
             b"TXID" => txid = Some(&data[off + 8..end]),
             b"SKID" if size >= 4 => skid = Some(read_u32(data, off + 8)?),
+            b"SFID" => sfid = parse_sfid(&data[off + 8..end]),
             _ => {}
         }
         off = end;
@@ -143,6 +146,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
         md20: md20.ok_or("No MD21 chunk found")?,
         txid,
         skid,
+        sfid,
     })
 }
 
@@ -593,7 +597,23 @@ fn load_anim_from_md20(md20: &[u8]) -> SkelData {
     }
 }
 
-fn load_skin_data(m2_path: &Path) -> Option<SkinData> {
+/// Parse SFID chunk: array of u32 skin file FDIDs.
+fn parse_sfid(data: &[u8]) -> Vec<u32> {
+    data.chunks_exact(4)
+        .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+        .collect()
+}
+
+/// Load skin data, trying SFID FDID first, then name-based fallback.
+fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
+    // Try SFID FDID (LOD 0) first — works for FDID-named files
+    if let Some(&fdid) = sfid.first() {
+        let skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
+        if let Ok(data) = std::fs::read(&skin_path) {
+            return parse_skin_full(&data).ok();
+        }
+    }
+    // Fallback: name-based (e.g. humanmale_hd00.skin)
     let stem = m2_path.file_stem()?.to_str()?;
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
     let data = std::fs::read(&skin_path).ok()?;
@@ -681,7 +701,7 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
     let tex_lookup = parse_texture_lookup(chunks.md20)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
     let anim = load_anim_data(path, &chunks);
-    let skin = load_skin_data(path);
+    let skin = load_skin_data(path, &chunks.sfid);
     let materials = parse_materials(chunks.md20)?;
 
     let batches = if let Some(ref skin) = skin
