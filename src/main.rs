@@ -14,6 +14,7 @@ use game_engine::ipc::IpcPlugin;
 mod animation;
 mod asset;
 mod camera;
+mod game_state;
 mod health_bar;
 mod nameplate;
 mod networking;
@@ -51,6 +52,7 @@ fn main() {
         app.insert_resource(networking::ServerAddr(addr));
         app.add_plugins(networking::NetworkPlugin);
     }
+    app.add_plugins(game_state::GameStatePlugin);
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
         app.add_systems(PostStartup, dump_tree_and_exit);

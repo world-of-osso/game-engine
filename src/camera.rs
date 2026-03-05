@@ -1,4 +1,5 @@
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 
 use crate::terrain::TerrainHeightmap;
@@ -74,6 +75,12 @@ pub struct WowCamera {
     pub target_distance: f32,
     pub min_distance: f32,
     pub max_distance: f32,
+    /// How fast the camera follows the player position (lerp speed).
+    pub follow_speed: f32,
+    /// How fast the camera zooms toward target_distance (lerp speed).
+    pub zoom_speed: f32,
+    /// Whether the camera is currently pulled in due to collision.
+    pub collided: bool,
 }
 
 impl Default for WowCamera {
@@ -85,6 +92,9 @@ impl Default for WowCamera {
             target_distance: 15.0,
             min_distance: 2.0,
             max_distance: 40.0,
+            follow_speed: 10.0,
+            zoom_speed: 8.0,
+            collided: false,
         }
     }
 }
@@ -95,7 +105,10 @@ const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
 const ZOOM_STEP: f32 = 2.0;
 const KEY_ROTATE_SPEED: f32 = 2.5; // radians/sec for arrow key rotation
 const KEY_ZOOM_SPEED: f32 = 15.0; // units/sec for page up/down zoom
-const ZOOM_LERP_SPEED: f32 = 10.0;
+const COLLISION_OFFSET: f32 = 0.3;
+const EYE_HEIGHT: f32 = 1.8;
+/// Speed at which camera recovers (lerps back out) after collision clears.
+const COLLISION_RECOVERY_SPEED: f32 = 5.0;
 const PITCH_LIMIT: f32 = 88.0_f32 * std::f32::consts::PI / 180.0;
 
 fn apply_keyboard_camera(
@@ -275,11 +288,21 @@ fn cursor_grab(
     }
 }
 
+/// Compute camera distance clamped by a collision hit.
+/// Returns the adjusted distance if hit is closer than intended, otherwise the intended distance.
+fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>) -> f32 {
+    match hit_distance {
+        Some(hit) if hit < intended_distance => (hit - COLLISION_OFFSET).max(0.5),
+        _ => intended_distance,
+    }
+}
+
 fn camera_follow(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
     player_q: Query<&Transform, (With<Player>, Without<WowCamera>)>,
     mut camera_q: Query<(&mut WowCamera, &mut Transform), Without<Player>>,
+    mut ray_cast: MeshRayCast,
 ) {
     let Ok(player_tf) = player_q.single() else {
         return;
@@ -288,21 +311,138 @@ fn camera_follow(
         return;
     };
 
-    // Smooth zoom
     let dt = time.delta_secs();
-    cam.distance = cam.distance.lerp(cam.target_distance, ZOOM_LERP_SPEED * dt);
+
+    // Smooth zoom: lerp actual distance toward target
+    let zoom_t = (cam.zoom_speed * dt).min(1.0);
+    cam.distance = cam.distance.lerp(cam.target_distance, zoom_t);
+
+    // Smooth follow: lerp camera focus toward player position
+    let follow_t = (cam.follow_speed * dt).min(1.0);
+    let eye_target = player_tf.translation + Vec3::Y * EYE_HEIGHT;
 
     // Orbit offset from yaw/pitch
     let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
-    let offset = rotation * Vec3::new(0.0, 0.0, cam.distance);
+    let orbit_dir = rotation * Vec3::NEG_Z;
+    let intended_pos = eye_target - orbit_dir * cam.distance;
 
-    let eye_target = player_tf.translation + Vec3::Y * 1.5;
-    let mut pos = eye_target + offset;
+    // Collision: raycast from player eye to intended camera position
+    let ray_dir = (intended_pos - eye_target).normalize_or_zero();
+    let effective_distance = if ray_dir.length_squared() > 0.0 {
+        let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
+        let hits = ray_cast.cast_ray(ray, &default());
+        let closest_hit = hits.first().map(|(_, hit)| hit.distance);
+        let adjusted = collision_adjusted_distance(cam.distance, closest_hit);
+        if adjusted < cam.distance {
+            cam.collided = true;
+            adjusted // snap in immediately
+        } else if cam.collided {
+            // Collision cleared — lerp back out smoothly
+            let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
+            let recovered = cam_tf.translation.distance(eye_target).lerp(cam.distance, recovery_t);
+            if (recovered - cam.distance).abs() < 0.05 {
+                cam.collided = false;
+            }
+            recovered
+        } else {
+            cam.distance
+        }
+    } else {
+        cam.distance
+    };
+
+    let mut pos = eye_target - orbit_dir * effective_distance;
+
+    // Clamp camera above terrain
     let cam_ground = terrain
         .as_ref()
         .and_then(|t| t.height_at(pos.x, pos.z))
         .unwrap_or(GROUND_Y);
     pos.y = pos.y.max(cam_ground + 0.5);
-    cam_tf.translation = pos;
+
+    // Smooth follow for final position
+    cam_tf.translation = cam_tf.translation.lerp(pos, follow_t);
     cam_tf.look_at(eye_target, Vec3::Y);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_smooth_follow_lerps() {
+        // Given current pos far from target, lerp should move partway
+        let current = Vec3::new(0.0, 5.0, 10.0);
+        let target = Vec3::new(10.0, 5.0, 10.0);
+        let follow_speed: f32 = 10.0;
+        let dt: f32 = 0.016; // ~60fps
+        let t = (follow_speed * dt).min(1.0);
+        let result = current.lerp(target, t);
+
+        // Should move toward target but not reach it in one frame
+        assert!(result.x > current.x, "should move toward target");
+        assert!(result.x < target.x, "should not reach target in one frame");
+        assert!((result.x - 1.6).abs() < 0.1, "expected ~1.6, got {}", result.x);
+    }
+
+    #[test]
+    fn test_zoom_interpolation() {
+        // When target_distance differs from distance, distance should move toward it
+        let mut distance: f32 = 15.0;
+        let target_distance: f32 = 5.0;
+        let zoom_speed: f32 = 8.0;
+        let dt: f32 = 0.016;
+
+        // Simulate a few frames
+        for _ in 0..10 {
+            let t = (zoom_speed * dt).min(1.0);
+            distance = distance.lerp(target_distance, t);
+        }
+
+        assert!(distance < 15.0, "distance should decrease toward target");
+        assert!(distance > 5.0, "should not reach target in 10 frames");
+        // After 10 frames at 8.0 speed, should be noticeably closer
+        assert!(distance < 10.0, "expected significant progress, got {}", distance);
+    }
+
+    #[test]
+    fn test_collision_pulls_camera_forward() {
+        // Hit closer than intended -> clamp
+        let intended = 15.0;
+        let hit = Some(8.0);
+        let result = collision_adjusted_distance(intended, hit);
+        assert!((result - 7.7).abs() < 0.01, "expected 8.0 - 0.3 = 7.7, got {}", result);
+
+        // No hit -> keep intended
+        let result_no_hit = collision_adjusted_distance(intended, None);
+        assert_eq!(result_no_hit, intended);
+
+        // Hit farther than intended -> keep intended
+        let result_far = collision_adjusted_distance(intended, Some(20.0));
+        assert_eq!(result_far, intended);
+
+        // Very close hit -> clamp to minimum 0.5
+        let result_close = collision_adjusted_distance(15.0, Some(0.2));
+        assert!((result_close - 0.5).abs() < 0.01, "should clamp to 0.5, got {}", result_close);
+    }
+
+    #[test]
+    fn test_collision_recovery_lerps_back() {
+        // Simulate recovery: camera was at 5.0 (collided), target is 15.0
+        let current_dist: f32 = 5.0;
+        let target_dist: f32 = 15.0;
+        let recovery_speed: f32 = 5.0;
+        let dt: f32 = 0.016;
+        let recovery_t = (recovery_speed * dt).min(1.0);
+        let recovered = current_dist.lerp(target_dist, recovery_t);
+
+        // Should move toward target but not snap
+        assert!(recovered > current_dist, "should move outward");
+        assert!(recovered < target_dist, "should not snap to target");
+        assert!(
+            (recovered - 5.8).abs() < 0.5,
+            "expected gradual recovery, got {}",
+            recovered
+        );
+    }
 }
