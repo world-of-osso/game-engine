@@ -4,6 +4,13 @@ use bevy::pbr::MaterialPlugin;
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 
 // ---------------------------------------------------------------------------
+// Time display UI
+// ---------------------------------------------------------------------------
+
+#[derive(Component)]
+struct TimeDisplay;
+
+// ---------------------------------------------------------------------------
 // GameTime resource
 // ---------------------------------------------------------------------------
 
@@ -346,6 +353,65 @@ fn sync_water_sky_color(
 }
 
 // ---------------------------------------------------------------------------
+// Time display systems
+// ---------------------------------------------------------------------------
+
+fn spawn_time_display(mut commands: Commands) {
+    commands.spawn((
+        TimeDisplay,
+        Text::new("12:00"),
+        TextFont { font_size: 20.0, ..default() },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            right: Val::Px(220.0),
+            ..default()
+        },
+    ));
+}
+
+/// Convert GameTime minutes (0–2880) to HH:MM clock string.
+fn format_game_clock(total: f32) -> String {
+    let m = total.rem_euclid(2880.0);
+    let hours = (m / 120.0) as u32 % 24;
+    let mins = ((m % 120.0) / 2.0) as u32;
+    format!("{hours:02}:{mins:02}")
+}
+
+fn update_time_display(
+    game_time: Res<GameTime>,
+    mut query: Query<&mut Text, With<TimeDisplay>>,
+) {
+    let clock = format_game_clock(game_time.minutes);
+    for mut text in &mut query {
+        **text = clock.clone();
+    }
+}
+
+fn time_speed_controls(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut game_time: ResMut<GameTime>,
+) {
+    if keys.just_pressed(KeyCode::BracketRight) {
+        game_time.speed = match game_time.speed as u32 {
+            0 => 1.0,
+            1 => 10.0,
+            10 => 60.0,
+            _ => 0.0,
+        };
+    }
+    if keys.just_pressed(KeyCode::BracketLeft) {
+        game_time.speed = match game_time.speed as u32 {
+            0 => 60.0,
+            60 => 10.0,
+            10 => 1.0,
+            _ => 0.0,
+        };
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
 
@@ -358,8 +424,11 @@ impl Plugin for SkyPlugin {
         app.add_plugins(MaterialPlugin::<SkyMaterial>::default())
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
+            .add_systems(Startup, spawn_time_display)
             .add_systems(Update, advance_game_time)
-            .add_systems(Update, update_sky_colors.after(advance_game_time));
+            .add_systems(Update, update_sky_colors.after(advance_game_time))
+            .add_systems(Update, update_time_display.after(advance_game_time))
+            .add_systems(Update, time_speed_controls);
     }
 }
 
@@ -419,6 +488,22 @@ mod tests {
         let result = interpolate_colors(&rows, 720.0);
         let top = result.sky_top.to_linear();
         assert!((top.red - 0.5).abs() < 0.05);
+    }
+
+    #[test]
+    fn game_time_to_clock() {
+        // noon = 1440 minutes → 12:00
+        assert_eq!(format_game_clock(1440.0), "12:00");
+        // 6am = 720 minutes → 06:00
+        assert_eq!(format_game_clock(720.0), "06:00");
+        // midnight = 0 → 00:00
+        assert_eq!(format_game_clock(0.0), "00:00");
+        // midnight wrap = 2880 → 00:00
+        assert_eq!(format_game_clock(2880.0), "00:00");
+        // dusk = 2160 → 18:00
+        assert_eq!(format_game_clock(2160.0), "18:00");
+        // 6:30am = 720 + 60 = 780 → 06:30
+        assert_eq!(format_game_clock(780.0), "06:30");
     }
 
     #[test]

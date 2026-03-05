@@ -98,6 +98,16 @@ impl TerrainHeightmap {
         self.tiles.insert((tile_y, tile_x), grids);
     }
 
+    /// Get all loaded tile coordinate keys.
+    pub fn tile_keys(&self) -> impl Iterator<Item = &(u32, u32)> {
+        self.tiles.keys()
+    }
+
+    /// Get chunk grids for a specific tile.
+    pub fn tile_chunks(&self, tile_y: u32, tile_x: u32) -> Option<&Vec<Option<ChunkHeightGrid>>> {
+        self.tiles.get(&(tile_y, tile_x))
+    }
+
     /// Remove height grids for a tile.
     pub fn remove_tile(&mut self, tile_y: u32, tile_x: u32) {
         self.tiles.remove(&(tile_y, tile_x));

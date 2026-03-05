@@ -21,6 +21,7 @@ mod networking;
 mod sky;
 mod sky_material;
 mod target;
+mod minimap;
 mod terrain;
 mod terrain_material;
 mod water_material;
@@ -75,6 +76,7 @@ fn register_plugins(app: &mut App) {
         .add_plugins(AdtStreamingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(water_material::WaterMaterialPlugin)
+        .add_plugins(minimap::MinimapPlugin)
         .add_plugins(sky::SkyPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
