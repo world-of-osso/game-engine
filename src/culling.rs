@@ -102,3 +102,147 @@ fn distance_cull_system(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::SystemState;
+
+    type CullState = SystemState<(
+        Res<'static, CullingConfig>,
+        ResMut<'static, LastCullPosition>,
+        Query<'static, 'static, &'static Transform, With<Camera3d>>,
+        Query<'static, 'static, (&'static TerrainChunk, &'static mut Visibility)>,
+        Query<
+            'static,
+            'static,
+            (&'static Transform, &'static mut Visibility),
+            (With<Doodad>, Without<TerrainChunk>, Without<Camera3d>),
+        >,
+        Query<
+            'static,
+            'static,
+            (&'static Transform, &'static mut Visibility),
+            (With<Wmo>, Without<Doodad>, Without<TerrainChunk>, Without<Camera3d>),
+        >,
+    )>;
+
+    fn setup_world(cam_pos: Vec3, threshold_sq: f32) -> (World, CullState) {
+        let mut world = World::default();
+        world.insert_resource(CullingConfig {
+            chunk_distance_sq: threshold_sq,
+            doodad_distance_sq: threshold_sq,
+            wmo_distance_sq: threshold_sq,
+            update_threshold_sq: 0.0,
+        });
+        world.insert_resource(LastCullPosition(Vec3::new(f32::MAX, 0.0, 0.0)));
+        world.spawn((Camera3d::default(), Transform::from_translation(cam_pos)));
+        let state = SystemState::new(&mut world);
+        (world, state)
+    }
+
+    fn run_cull(world: &mut World, state: &mut CullState) {
+        let (config, last_pos, camera_q, chunks, doodads, wmos) = state.get_mut(world);
+        distance_cull_system(config, last_pos, camera_q, chunks, doodads, wmos);
+        state.apply(world);
+    }
+
+    #[test]
+    fn chunk_within_range_stays_visible() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 100.0 * 100.0);
+        let e = world.spawn((
+            TerrainChunk { world_center: Vec3::new(50.0, 0.0, 0.0) },
+            Visibility::Visible,
+        )).id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(e).unwrap(), Visibility::Visible);
+    }
+
+    #[test]
+    fn chunk_beyond_range_gets_hidden() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 100.0 * 100.0);
+        let e = world.spawn((
+            TerrainChunk { world_center: Vec3::new(200.0, 0.0, 0.0) },
+            Visibility::Visible,
+        )).id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(e).unwrap(), Visibility::Hidden);
+    }
+
+    #[test]
+    fn doodad_culled_by_distance() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        let near = world.spawn((
+            Doodad,
+            Transform::from_xyz(10.0, 0.0, 0.0),
+            Visibility::Visible,
+        )).id();
+        let far = world.spawn((
+            Doodad,
+            Transform::from_xyz(100.0, 0.0, 0.0),
+            Visibility::Visible,
+        )).id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(near).unwrap(), Visibility::Visible);
+        assert_eq!(*world.get::<Visibility>(far).unwrap(), Visibility::Hidden);
+    }
+
+    #[test]
+    fn wmo_culled_by_distance() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        let near = world.spawn((
+            Wmo,
+            Transform::from_xyz(0.0, 0.0, 30.0),
+            Visibility::Visible,
+        )).id();
+        let far = world.spawn((
+            Wmo,
+            Transform::from_xyz(0.0, 0.0, 300.0),
+            Visibility::Visible,
+        )).id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(near).unwrap(), Visibility::Visible);
+        assert_eq!(*world.get::<Visibility>(far).unwrap(), Visibility::Hidden);
+    }
+
+    #[test]
+    fn hidden_object_becomes_visible_when_camera_approaches() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        let e = world.spawn((
+            Doodad,
+            Transform::from_xyz(100.0, 0.0, 0.0),
+            Visibility::Visible,
+        )).id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(e).unwrap(), Visibility::Hidden);
+
+        // Move camera close
+        let cam = world.query_filtered::<Entity, With<Camera3d>>().single(&world).unwrap();
+        world.get_mut::<Transform>(cam).unwrap().translation = Vec3::new(90.0, 0.0, 0.0);
+        world.resource_mut::<LastCullPosition>().0 = Vec3::new(f32::MAX, 0.0, 0.0);
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(e).unwrap(), Visibility::Visible);
+    }
+
+    #[test]
+    fn skips_update_when_camera_hasnt_moved_enough() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        world.resource_mut::<CullingConfig>().update_threshold_sq = 1000.0 * 1000.0;
+        world.resource_mut::<LastCullPosition>().0 = Vec3::ZERO;
+
+        let e = world.spawn((
+            Doodad,
+            Transform::from_xyz(100.0, 0.0, 0.0),
+            Visibility::Visible,
+        )).id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(*world.get::<Visibility>(e).unwrap(), Visibility::Visible);
+    }
+}
