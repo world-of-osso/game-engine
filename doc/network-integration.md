@@ -1,6 +1,6 @@
-# Network Integration Plan: wow-engine ↔ game-server
+# Network Integration Plan: game-engine ↔ game-server
 
-Bridges wow-engine (3D client) with game-server (headless Bevy + lightyear).
+Bridges game-engine (3D client) with game-server (headless Bevy + lightyear).
 End goal: connect → see world with other players and NPCs.
 
 Login/UI is handled separately — not in scope here.
@@ -21,12 +21,12 @@ Login/UI is handled separately — not in scope here.
 - No creature ECS spawning from WorldData
 - No input handling from clients
 
-### wow-engine (working)
+### game-engine (working)
 - Full 3D: M2 models, ADT terrain, WMOs, water, animation, distance culling
 - FPS camera + WASD movement with terrain collision
 - IPC server (Unix socket for CLI commands)
 
-### wow-engine (missing)
+### game-engine (missing)
 - Zero lightyear integration
 - Movement is local-only (direct Transform mutation)
 - No concept of remote entities
@@ -35,7 +35,7 @@ Login/UI is handled separately — not in scope here.
 
 ## Phase 1: Minimal Network Loop
 
-**Goal**: wow-engine connects to game-server, server spawns a player entity,
+**Goal**: game-engine connects to game-server, server spawns a player entity,
 client sees its own replicated position. Auto-connect on launch (no login screen).
 
 ### 1a. Server: Spawn player on connect
@@ -54,9 +54,9 @@ client sees its own replicated position. Auto-connect on launch (no login screen
 - Register on `CombatChannel` (reliable, client→server)
 - Server system: apply validated movement from inputs to `Position`
 
-### 1c. wow-engine: Add lightyear client
+### 1c. game-engine: Add lightyear client
 
-**File**: `wow-engine/Cargo.toml` + new `src/networking.rs`
+**File**: `game-engine/Cargo.toml` + new `src/networking.rs`
 
 - Add `lightyear` dep with `client`, `netcode`, `replication`, `udp` features
 - Add `shared` crate as path dependency
@@ -64,17 +64,17 @@ client sees its own replicated position. Auto-connect on launch (no login screen
 - Startup system: spawn client entity with `NetcodeClient`, `ReplicationReceiver`
 - Auto-connect to `127.0.0.1:5000`
 
-### 1d. wow-engine: Receive replicated entities
+### 1d. game-engine: Receive replicated entities
 
-**File**: `wow-engine/src/networking.rs`
+**File**: `game-engine/src/networking.rs`
 
 - System: detect `Added<Position>` with `Replicated` marker
 - For own player: attach camera follow
 - For other entities: spawn placeholder mesh
 
-### 1e. wow-engine: Send movement inputs
+### 1e. game-engine: Send movement inputs
 
-**File**: `wow-engine/src/camera.rs` (refactor)
+**File**: `game-engine/src/camera.rs` (refactor)
 
 - Extract input capture from `player_movement()` into `capture_input()` → `PlayerInput`
 - Send `PlayerInput` via lightyear `MessageSender`
@@ -107,9 +107,9 @@ WASD moves with server authority.
 - Server resolves `creature_template.models[0].display_id` at spawn time
 - Client maps `display_id` → FDID → M2 file (needs CreatureDisplayInfo DB2 or lookup table)
 
-### 2c. wow-engine: Spawn M2 for replicated NPCs
+### 2c. game-engine: Spawn M2 for replicated NPCs
 
-**File**: `wow-engine/src/networking.rs`
+**File**: `game-engine/src/networking.rs`
 
 - System: on `Added<Npc>` with `Replicated` — resolve model, spawn M2 mesh
 - Position from replicated `Position` component
@@ -131,9 +131,9 @@ WASD moves with server authority.
 - Server sends when player enters range of a new tile
 - Interest management: 3×3 grid around player's current tile
 
-### 3b. wow-engine: Multi-tile terrain manager
+### 3b. game-engine: Multi-tile terrain manager
 
-**File**: `wow-engine/src/terrain.rs` (refactor)
+**File**: `game-engine/src/terrain.rs` (refactor)
 
 - `TerrainManager` resource: tracks loaded tiles as `HashMap<(u8,u8), Entity>`
 - On `LoadTerrain` message: extract ADT from CASC if missing, spawn terrain
@@ -197,11 +197,11 @@ game-server/crates/server/     ← headless binary
   └── lightyear (server, netcode, udp)
   └── redb, rusqlite
 
-wow-engine/                    ← 3D client binary
+game-engine/                    ← 3D client binary
   └── shared (path = "../game-server/crates/shared")
   └── lightyear (client, netcode, replication, udp)
   └── bevy (full rendering)
 ```
 
-wow-engine uses shared directly. The game-server/client crate is unused —
-wow-engine IS the client.
+game-engine uses shared directly. The game-server/client crate is unused —
+game-engine IS the client.

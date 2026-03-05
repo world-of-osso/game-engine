@@ -9,7 +9,7 @@ use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::pbr::MaterialPlugin;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
-use wow_engine::ipc::IpcPlugin;
+use game_engine::ipc::IpcPlugin;
 
 mod animation;
 mod asset;
@@ -45,7 +45,7 @@ fn main() {
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
-        .add_plugins(wow_engine::culling::CullingPlugin)
+        .add_plugins(game_engine::culling::CullingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(sky::SkyPlugin)
@@ -80,8 +80,8 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
 }
 
 /// Find the asset path from CLI args. Returns None when no explicit path given.
-/// Normal: `wow-engine [asset]`
-/// Screenshot: `wow-engine screenshot [output.webp] [asset]`
+/// Normal: `game-engine [asset]`
+/// Screenshot: `game-engine screenshot [output.webp] [asset]`
 fn parse_asset_path() -> Option<PathBuf> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(|s| s.as_str()) == Some("screenshot") {
@@ -701,7 +701,7 @@ fn dump_tree_and_exit(
     parent_query: Query<&ChildOf>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let tree = wow_engine::dump::build_tree(&tree_query, &parent_query, None);
+    let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
     println!("{tree}");
     exit.write(AppExit::Success);
 }

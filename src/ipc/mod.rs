@@ -43,15 +43,15 @@ pub struct Command {
     pub respond: mpsc::Sender<Response>,
 }
 
-/// Socket path: /tmp/wow-engine-<pid>.sock
+/// Socket path: /tmp/game-engine-<pid>.sock
 fn socket_path() -> PathBuf {
     let pid = std::process::id();
-    PathBuf::from(format!("/tmp/wow-engine-{pid}.sock"))
+    PathBuf::from(format!("/tmp/game-engine-{pid}.sock"))
 }
 
 /// Pattern for discovering sockets.
 pub fn socket_glob() -> String {
-    "/tmp/wow-engine-*.sock".into()
+    "/tmp/game-engine-*.sock".into()
 }
 
 /// Remove stale sockets whose PID no longer exists.
@@ -71,7 +71,7 @@ pub fn cleanup_stale_sockets() {
 
 fn extract_pid_and_check(path: &Path) -> Option<bool> {
     let stem = path.file_stem()?.to_str()?;
-    let pid_str = stem.strip_prefix("wow-engine-")?;
+    let pid_str = stem.strip_prefix("game-engine-")?;
     let pid: u32 = pid_str.parse().ok()?;
     // Check if process exists via kill(pid, 0)
     let alive = unsafe { libc::kill(pid as i32, 0) } == 0;

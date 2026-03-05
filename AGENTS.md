@@ -1,4 +1,4 @@
-# wow-engine
+# game-engine
 
 Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and eventually the full game world. Sibling to wow-ui-sim (iced-based UI overlay).
 
@@ -27,10 +27,10 @@ src/
 
 ## Dev
 
-- `cargo run --bin wow-engine -- [model.m2]` — Launch 3D scene with M2 model
-- `cargo run --bin wow-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
-- `cargo run --bin wow-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
-- `cargo run --bin wow-engine -- model.m2 --dump-tree` — Dump entity hierarchy
+- `cargo run --bin game-engine -- [model.m2]` — Launch 3D scene with M2 model
+- `cargo run --bin game-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
+- `cargo run --bin game-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
+- `cargo run --bin game-engine -- model.m2 --dump-tree` — Dump entity hierarchy
 - `./run-tests.sh` — cargo test + clippy
 - Edition 2024, rust-version 1.89
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
@@ -86,4 +86,4 @@ src/
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)
 - wowmapview 0.5: https://sourceforge.net/projects/wowmapview/ — C++ WoW map viewer (ADT/WMO/M2 rendering reference)
 - game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
-- Future: wow-engine 3D scene + wow-ui-sim UI overlay + game-server authoritative backend
+- Future: game-engine 3D scene + wow-ui-sim UI overlay + game-server authoritative backend

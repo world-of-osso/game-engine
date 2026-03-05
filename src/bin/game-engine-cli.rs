@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use peercred_ipc::Client;
-use wow_engine::ipc::{Request, Response, socket_glob};
+use game_engine::ipc::{Request, Response, socket_glob};
 
 #[derive(Parser)]
-#[command(name = "wow-engine-cli", about = "Control a running wow-engine instance")]
+#[command(name = "game-engine-cli", about = "Control a running game-engine instance")]
 struct Cli {
     /// Unix socket path (auto-discovered if omitted)
     #[arg(short, long)]
@@ -41,7 +41,7 @@ fn find_socket() -> Result<PathBuf, String> {
         .collect();
 
     match sockets.len() {
-        0 => Err("no running wow-engine instance found".into()),
+        0 => Err("no running game-engine instance found".into()),
         1 => Ok(sockets.remove(0)),
         n => Err(format!("{n} instances found, specify --socket")),
     }

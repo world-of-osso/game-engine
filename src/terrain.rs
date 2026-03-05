@@ -207,7 +207,7 @@ fn spawn_chunk_entities(
             Visibility::default(),
         ));
         if let Some(grid) = adt_data.height_grids.get(i) {
-            spawn.insert(wow_engine::culling::TerrainChunk {
+            spawn.insert(game_engine::culling::TerrainChunk {
                 world_center: Vec3::new(
                     grid.origin_x + CHUNK_SIZE / 2.0,
                     grid.base_y,
@@ -351,7 +351,7 @@ fn try_spawn_doodad(
     let Some(entity) = super::spawn_static_m2(commands, meshes, materials, images, inverse_bp, &m2_path, transform) else {
         return false;
     };
-    commands.entity(entity).insert(wow_engine::culling::Doodad);
+    commands.entity(entity).insert(game_engine::culling::Doodad);
     true
 }
 
@@ -363,7 +363,7 @@ fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::Pat
     }
     // Otherwise resolve the WoW path to an FDID via listfile.
     let wow_path = doodad.path.as_ref()?;
-    let fdid = wow_engine::listfile::lookup_path(wow_path)?;
+    let fdid = game_engine::listfile::lookup_path(wow_path)?;
     Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")))
 }
 
@@ -427,7 +427,7 @@ fn try_spawn_wmo(
             Name::new(format!("wmo_{root_fdid}")),
             transform,
             Visibility::default(),
-            wow_engine::culling::Wmo,
+            game_engine::culling::Wmo,
         ))
         .id();
 
@@ -455,12 +455,12 @@ fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
         return Some(fdid);
     }
     let wow_path = wmo.path.as_ref()?;
-    wow_engine::listfile::lookup_path(wow_path)
+    game_engine::listfile::lookup_path(wow_path)
 }
 
 /// Resolve group file FDIDs by looking up root path in listfile and deriving group paths.
 fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
-    let Some(root_path) = wow_engine::listfile::lookup_fdid(root_fdid) else {
+    let Some(root_path) = game_engine::listfile::lookup_fdid(root_fdid) else {
         eprintln!("  WMO {root_fdid}: not in listfile, cannot resolve group FDIDs");
         return vec![None; n_groups as usize];
     };
@@ -469,7 +469,7 @@ fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
     (0..n_groups)
         .map(|i| {
             let group_path = format!("{base}_{i:03}.wmo");
-            wow_engine::listfile::lookup_path(&group_path)
+            game_engine::listfile::lookup_path(&group_path)
         })
         .collect()
 }

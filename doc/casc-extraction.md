@@ -23,7 +23,7 @@ Full WoW installation synced from Windows via Syncthing:
 
 ## casc-local (Primary Tool)
 
-Binary in wow-engine that reads directly from local CASC archives.
+Binary in game-engine that reads directly from local CASC archives.
 
 ```bash
 # Extract by FileDataID (saves as {fdid}.{ext} based on listfile)

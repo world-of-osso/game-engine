@@ -139,7 +139,7 @@ async fn extract_fdid(
 }
 
 /// Resolve FDID to a filename. Uses FDID-based naming for consistency
-/// with wow-engine's `data/models/{fdid}.m2` convention.
+/// with game-engine's `data/models/{fdid}.m2` convention.
 fn resolve_filename(fdid: u32) -> String {
     let listfile_path = PathBuf::from(CACHE_DIR).join("listfile.csv");
     let ext = resolve_extension(fdid, &listfile_path);
