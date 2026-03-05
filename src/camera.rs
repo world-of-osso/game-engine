@@ -16,7 +16,7 @@ impl Plugin for WowCameraPlugin {
 pub struct Player;
 
 /// Movement direction relative to the character's facing.
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoveDirection {
     #[default]
     None,

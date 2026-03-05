@@ -14,6 +14,7 @@ use game_engine::ipc::IpcPlugin;
 mod animation;
 mod asset;
 mod camera;
+mod networking;
 mod sky;
 mod sky_material;
 mod terrain;

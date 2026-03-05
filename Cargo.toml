@@ -17,6 +17,8 @@ clap = { version = "4", features = ["derive"] }
 cascette-client-storage = { path = "/home/osso/Repos/cascette-rs/crates/cascette-client-storage", features = ["local-install"] }
 cascette-crypto = { path = "/home/osso/Repos/cascette-rs/crates/cascette-crypto" }
 cascette-formats = { path = "/home/osso/Repos/cascette-rs/crates/cascette-formats" }
+lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
+shared = { path = "../game-server/crates/shared" }
 
 [[bin]]
 name = "casc-local"
