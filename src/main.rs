@@ -40,6 +40,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let screenshot = parse_screenshot_args(&args);
     let dump_tree = args.iter().any(|a| a == "--dump-tree");
+    let server_addr = parse_server_arg(&args);
 
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
@@ -57,6 +58,11 @@ fn main() {
             },
         })
         .add_systems(Startup, setup);
+
+    if let Some(addr) = server_addr {
+        app.insert_resource(networking::ServerAddr(addr));
+        app.add_plugins(networking::NetworkPlugin);
+    }
 
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
@@ -80,6 +86,13 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     Some(ScreenshotRequest { output, frames_remaining: 3 })
 }
 
+/// Parse `--server <addr>` from args. Returns None if not present.
+fn parse_server_arg(args: &[String]) -> Option<std::net::SocketAddr> {
+    args.windows(2)
+        .find(|w| w[0] == "--server")
+        .and_then(|w| w[1].parse().ok())
+}
+
 /// Find the asset path from CLI args. Returns None when no explicit path given.
 /// Normal: `game-engine [asset]`
 /// Screenshot: `game-engine screenshot [output.webp] [asset]`
@@ -88,7 +101,13 @@ fn parse_asset_path() -> Option<PathBuf> {
     if args.first().map(|s| s.as_str()) == Some("screenshot") {
         args.get(2).map(PathBuf::from)
     } else {
-        args.iter().find(|a| !a.starts_with("--")).map(PathBuf::from)
+        // Skip --server and its value
+        let mut skip_next = false;
+        args.iter().find(|a| {
+            if skip_next { skip_next = false; return false; }
+            if *a == "--server" { skip_next = true; return false; }
+            !a.starts_with("--")
+        }).map(PathBuf::from)
     }
 }
 

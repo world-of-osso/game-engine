@@ -8,6 +8,10 @@ use std::time::Duration;
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
 
+/// Marker for entities spawned from server replication.
+#[derive(Component)]
+struct RemoteEntity;
+
 const CLIENT_PORT: u16 = 0; // OS-assigned ephemeral port
 const TICK_RATE_HZ: f64 = 20.0;
 
@@ -25,9 +29,10 @@ impl Plugin for NetworkPlugin {
         app.add_plugins(shared::ProtocolPlugin);
         app.add_systems(Startup, connect_to_server);
         app.add_systems(Update, send_player_input);
-        app.add_systems(Update, log_replicated_positions);
+        app.add_systems(Update, sync_replicated_transforms);
         app.add_observer(on_connected);
         app.add_observer(on_link_established);
+        app.add_observer(spawn_replicated_player);
     }
 }
 
@@ -121,15 +126,38 @@ fn movement_to_direction(movement: &MovementState, facing: &CharacterFacing) -> 
     dir
 }
 
-/// Log positions of replicated entities for diagnostics.
-fn log_replicated_positions(
-    query: Query<(&NetPosition, &NetPlayer), (With<Replicated>, Changed<NetPosition>)>,
+/// When the server replicates a new player, spawn a visible capsule mesh.
+fn spawn_replicated_player(
+    trigger: On<Add, NetPlayer>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    query: Query<(&NetPosition, &NetPlayer), With<Replicated>>,
 ) {
-    for (pos, player) in query.iter() {
-        debug!(
-            "Server position for '{}': ({:.1}, {:.1}, {:.1})",
-            player.name, pos.x, pos.y, pos.z
-        );
+    let entity = trigger.entity;
+    let Ok((pos, player)) = query.get(entity) else {
+        return;
+    };
+    info!("Spawning replicated player '{}' at ({:.1}, {:.1}, {:.1})", player.name, pos.x, pos.y, pos.z);
+    let capsule = meshes.add(Capsule3d::new(0.4, 1.6));
+    let material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 0.6, 1.0),
+        ..default()
+    });
+    commands.entity(entity).insert((
+        Mesh3d(capsule),
+        MeshMaterial3d(material),
+        Transform::from_xyz(pos.x, pos.y, pos.z),
+        RemoteEntity,
+    ));
+}
+
+/// Sync replicated Position components to Bevy Transforms.
+fn sync_replicated_transforms(
+    mut query: Query<(&NetPosition, &mut Transform), (With<RemoteEntity>, Changed<NetPosition>)>,
+) {
+    for (pos, mut transform) in query.iter_mut() {
+        transform.translation = Vec3::new(pos.x, pos.y, pos.z);
     }
 }
 
