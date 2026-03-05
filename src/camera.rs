@@ -131,13 +131,13 @@ fn camera_input(
     let dt = time.delta_secs();
 
     if rmb {
-        // RMB: rotate character facing + camera follows
+        // RMB: character snaps to face camera direction, then both rotate together
         let yaw_delta = -delta.x * SENSITIVITY;
         cam.yaw += yaw_delta;
         cam.pitch -= delta.y * SENSITIVITY;
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
         if let Ok(mut facing) = facing_q.single_mut() {
-            facing.yaw += yaw_delta;
+            facing.yaw = cam.yaw + std::f32::consts::PI;
         }
     } else if lmb {
         // LMB: orbit camera only (character doesn't turn)
