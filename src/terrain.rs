@@ -329,25 +329,42 @@ fn parse_coords_from_fdid(fdid: u32) -> Result<(String, u32, u32), String> {
         .ok_or_else(|| format!("Cannot parse tile coords from listfile path: {wow_path}"))
 }
 
-/// Convert a Bevy world position to WoW tile coordinates (tile_y, tile_x).
+/// Convert a Bevy world position to WoW ADT tile coordinates.
 ///
-/// WoW world origin is at tile (32, 32). MCNK world positions decrease from there.
-/// Bevy X = WoW X (pos[1]), Bevy Z = -WoW Y (pos[0]).
+/// Returns (row, col) matching the ADT filename convention: `map_{row}_{col}.adt`.
+/// WoW MCNK stores position as [Y, X, Z]; Bevy maps: bx=wow_x, bz=-wow_y.
+/// ADT filename row = f(wow_x) = f(bx), col = f(wow_y) = f(-bz).
 pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
-    // wow_to_bevy: [x, z, -y] so bevy_x = wow_x, bevy_z = -wow_y
-    // WoW world coords: wx = bx, wy = -bz
-    // Tile coords: tile = floor((32 * TILE_SIZE - world_coord) / TILE_SIZE)
     let center = 32.0 * TILE_SIZE;
-    let tile_y = ((center - (-bz)) / TILE_SIZE).floor() as i32;
-    let tile_x = ((center - bx) / TILE_SIZE).floor() as i32;
-    (tile_y.clamp(0, 63) as u32, tile_x.clamp(0, 63) as u32)
+    let row = ((center - bx) / TILE_SIZE).floor() as i32;
+    let col = ((center + bz) / TILE_SIZE).floor() as i32;
+    (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
+}
+
+/// Resolve companion file path (e.g. "_tex0", "_obj0") for an ADT.
+///
+/// For name-based files (e.g. `azeroth_32_48.adt`), appends suffix directly.
+/// For FDID-based files (e.g. `778027.adt`), looks up the companion FDID via listfile.
+fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<PathBuf> {
+    let stem = adt_path.file_stem()?.to_str()?;
+    // Name-based: "azeroth_32_48" → "azeroth_32_48_tex0.adt"
+    let direct = adt_path.with_file_name(format!("{stem}{suffix}.adt"));
+    if direct.exists() {
+        return Some(direct);
+    }
+    // FDID-based: reverse lookup to get WoW path, then find companion FDID
+    let fdid: u32 = stem.parse().ok()?;
+    let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
+    let wow_stem = wow_path.strip_suffix(".adt")?;
+    let companion_wow = format!("{wow_stem}{suffix}.adt");
+    let companion_fdid = game_engine::listfile::lookup_path(&companion_wow)?;
+    let companion_path = adt_path.with_file_name(format!("{companion_fdid}.adt"));
+    if companion_path.exists() { Some(companion_path) } else { None }
 }
 
 /// Try to load the companion _tex0.adt file.
 fn load_tex0(adt_path: &Path) -> Option<adt::AdtTexData> {
-    let stem = adt_path.file_stem()?.to_str()?;
-    let tex0_name = format!("{stem}_tex0.adt");
-    let tex0_path = adt_path.with_file_name(tex0_name);
+    let tex0_path = resolve_companion_path(adt_path, "_tex0")?;
     let data = std::fs::read(&tex0_path).ok()?;
     match adt::load_adt_tex0(&data) {
         Ok(td) => {
@@ -465,9 +482,7 @@ fn spawn_water(
 
 /// Try to load the companion _obj0.adt file.
 fn load_obj0(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
-    let stem = adt_path.file_stem()?.to_str()?;
-    let obj0_name = format!("{stem}_obj0.adt");
-    let obj0_path = adt_path.with_file_name(obj0_name);
+    let obj0_path = resolve_companion_path(adt_path, "_obj0")?;
     let data = std::fs::read(&obj0_path).ok()?;
     match adt_obj::load_adt_obj0(&data) {
         Ok(obj) => Some(obj),
