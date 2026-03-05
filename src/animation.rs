@@ -38,6 +38,7 @@ pub struct M2AnimPlayer {
 // WoW animation IDs
 const ANIM_STAND: u16 = 0;
 const ANIM_WALK: u16 = 4;
+const ANIM_RUN: u16 = 5;
 const ANIM_SHUFFLE_LEFT: u16 = 11;
 const ANIM_SHUFFLE_RIGHT: u16 = 12;
 const ANIM_WALK_BACKWARDS: u16 = 13;
@@ -46,10 +47,10 @@ const ANIM_JUMP: u16 = 38;  // airborne loop
 const ANIM_JUMP_END: u16 = 39;
 
 /// Map movement direction to a WoW animation ID.
-fn direction_to_anim_id(dir: MoveDirection) -> u16 {
+fn direction_to_anim_id(dir: MoveDirection, running: bool) -> u16 {
     match dir {
         MoveDirection::None => ANIM_STAND,
-        MoveDirection::Forward => ANIM_WALK,
+        MoveDirection::Forward => if running { ANIM_RUN } else { ANIM_WALK },
         MoveDirection::Backward => ANIM_WALK_BACKWARDS,
         MoveDirection::Left => ANIM_SHUFFLE_LEFT,
         MoveDirection::Right => ANIM_SHUFFLE_RIGHT,
@@ -111,7 +112,7 @@ fn switch_animation(
             continue;
         }
 
-        let target_id = direction_to_anim_id(movement.direction);
+        let target_id = direction_to_anim_id(movement.direction, movement.running);
         if current_id == Some(target_id) {
             continue;
         }
@@ -156,7 +157,7 @@ fn switch_jump(
         // JumpEnd finished → return to movement anim with normal blend
         Some(ANIM_JUMP_END) if anim_finished(player, sequences) => {
             player.looping = true;
-            let target_id = direction_to_anim_id(movement.direction);
+            let target_id = direction_to_anim_id(movement.direction, movement.running);
             if let Some(idx) = find_seq_idx(sequences, target_id) {
                 let blend_ms = sequences[idx].blend_time as f32;
                 start_transition(player, idx, blend_ms);

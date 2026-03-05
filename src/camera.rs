@@ -33,13 +33,25 @@ const JUMP_HEIGHT: f32 = 2.5;
 /// Base Y position (ground level) for the player.
 const GROUND_Y: f32 = 0.0;
 
-/// Signals current movement direction and jump state.
-#[derive(Component, Default)]
+/// Signals current movement direction, run/walk toggle, and jump state.
+#[derive(Component)]
 pub struct MovementState {
     pub direction: MoveDirection,
+    pub running: bool,
     pub jumping: bool,
     /// Elapsed time into the jump arc (seconds).
     pub jump_elapsed: f32,
+}
+
+impl Default for MovementState {
+    fn default() -> Self {
+        Self {
+            direction: MoveDirection::None,
+            running: true, // WoW defaults to running
+            jumping: false,
+            jump_elapsed: 0.0,
+        }
+    }
 }
 
 /// Character facing yaw (radians). RMB rotates this; the model entity rotation follows.
@@ -78,7 +90,8 @@ impl Default for WowCamera {
 }
 
 const SENSITIVITY: f32 = 0.01;
-const MOVE_SPEED: f32 = 2.5; // Match M2 Walk movespeed (2.5 yards/sec)
+const WALK_SPEED: f32 = 2.5; // M2 Walk movespeed (2.5 yards/sec)
+const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
 const ZOOM_STEP: f32 = 2.0;
 const KEY_ROTATE_SPEED: f32 = 2.5; // radians/sec for arrow key rotation
 const KEY_ZOOM_SPEED: f32 = 15.0; // units/sec for page up/down zoom
@@ -218,14 +231,19 @@ fn player_movement(
     let (direction, anim_dir) = compute_movement_input(&keys, &mouse_buttons, &facing);
     movement.direction = anim_dir;
 
+    if keys.just_pressed(KeyCode::KeyZ) {
+        movement.running = !movement.running;
+    }
+
     if keys.just_pressed(KeyCode::Space) && !movement.jumping {
         movement.jumping = true;
         movement.jump_elapsed = 0.0;
     }
 
+    let speed = if movement.running { RUN_SPEED } else { WALK_SPEED };
     if direction.length_squared() > 0.0 {
         let dir = direction.normalize();
-        transform.translation += dir * MOVE_SPEED * time.delta_secs();
+        transform.translation += dir * speed * time.delta_secs();
     }
 
     let ground_y = terrain
