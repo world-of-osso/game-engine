@@ -95,12 +95,17 @@ pub fn blit_region(base: &mut [u8], base_w: u32, overlay: &[u8], ov_w: u32, ov_h
 
 fn fix_1bit_alpha(pixels: &mut [u8]) {
     let max_alpha = pixels.iter().skip(3).step_by(4).copied().max().unwrap_or(0);
-    if max_alpha > 1 {
-        return;
-    }
-    for alpha in pixels.iter_mut().skip(3).step_by(4) {
-        if *alpha > 0 {
+    if max_alpha == 0 {
+        // No alpha channel — set all pixels fully opaque.
+        for alpha in pixels.iter_mut().skip(3).step_by(4) {
             *alpha = 255;
+        }
+    } else if max_alpha == 1 {
+        // 1-bit alpha — expand 1 → 255.
+        for alpha in pixels.iter_mut().skip(3).step_by(4) {
+            if *alpha > 0 {
+                *alpha = 255;
+            }
         }
     }
 }
