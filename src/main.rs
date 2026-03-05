@@ -14,6 +14,7 @@ use game_engine::ipc::IpcPlugin;
 mod animation;
 mod asset;
 mod camera;
+mod health_bar;
 mod networking;
 mod sky;
 mod sky_material;
@@ -53,6 +54,7 @@ fn main() {
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(sky::SkyPlugin)
+        .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
