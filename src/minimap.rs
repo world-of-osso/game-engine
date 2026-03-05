@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
@@ -34,9 +35,17 @@ pub struct MinimapDisplay;
 #[derive(Component)]
 pub struct MinimapArrow;
 
+/// Marker for minimap border ring overlay.
+#[derive(Component)]
+pub struct MinimapBorder;
+
 /// Marker for minimap coordinate text.
 #[derive(Component)]
 pub struct MinimapCoords;
+
+/// Marker for zone name text above coordinates.
+#[derive(Component)]
+pub struct MinimapZoneName;
 
 /// Marker for entity dots.
 #[derive(Component)]
@@ -49,11 +58,12 @@ pub struct MinimapPlugin;
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MinimapState>()
-            .add_systems(Startup, (spawn_minimap_display, spawn_minimap_arrow, spawn_coord_text))
+            .add_systems(Startup, (spawn_minimap_display, spawn_minimap_border, spawn_minimap_arrow, spawn_zone_name, spawn_coord_text))
             .add_systems(Update, generate_tile_textures)
             .add_systems(Update, update_minimap_composite.after(generate_tile_textures))
             .add_systems(Update, draw_entity_dots.after(update_minimap_composite))
             .add_systems(Update, update_coord_text)
+            .add_systems(Update, update_zone_name)
             .add_systems(Update, rotate_minimap);
     }
 }
@@ -98,6 +108,59 @@ fn spawn_minimap_display(mut commands: Commands, mut images: ResMut<Assets<Image
             height: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
             ..default()
         },
+    ));
+}
+
+/// Create a 200x200 RGBA image with a dark ring at the circle edge.
+fn create_border_image() -> Image {
+    let size = MINIMAP_DISPLAY_SIZE as usize;
+    let center = size as f32 / 2.0;
+    let outer_radius = center;
+    let inner_radius = center - 3.0;
+    let mut data = vec![0u8; size * size * 4];
+
+    for y in 0..size {
+        for x in 0..size {
+            let dx = x as f32 - center + 0.5;
+            let dy = y as f32 - center + 0.5;
+            let dist = (dx * dx + dy * dy).sqrt();
+
+            if dist >= inner_radius && dist <= outer_radius {
+                let i = (y * size + x) * 4;
+                data[i] = 80;      // R - dark gold/brown
+                data[i + 1] = 60;  // G
+                data[i + 2] = 20;  // B
+                data[i + 3] = 220; // A
+            }
+        }
+    }
+
+    Image::new(
+        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        TextureDimension::D2,
+        data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
+    )
+}
+
+/// Spawn the minimap border ring overlay on top of the minimap.
+fn spawn_minimap_border(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    let border_img = create_border_image();
+    let handle = images.add(border_img);
+
+    commands.spawn((
+        MinimapBorder,
+        ImageNode::new(handle),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            right: Val::Px(10.0),
+            width: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
+            height: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
+            ..default()
+        },
+        ZIndex(10),
     ));
 }
 
@@ -173,7 +236,9 @@ fn generate_tile_textures(
         if minimap.generated.contains(&(ty, tx)) {
             continue;
         }
-        if let Some(image) = render_tile_image(&heightmap, ty, tx) {
+        let image = try_load_minimap_blp(tx, ty)
+            .or_else(|| render_tile_image(&heightmap, ty, tx));
+        if let Some(image) = image {
             let handle = images.add(image);
             minimap.tile_images.insert((ty, tx), handle);
             minimap.generated.insert((ty, tx));
@@ -183,6 +248,13 @@ fn generate_tile_textures(
     let loaded: HashSet<(u32, u32)> = heightmap.tile_keys().copied().collect();
     minimap.tile_images.retain(|k, _| loaded.contains(k));
     minimap.generated.retain(|k| loaded.contains(k));
+}
+
+/// Try loading a pre-rendered BLP minimap tile from `data/minimap/map{x}_{y}.blp`.
+fn try_load_minimap_blp(tile_x: u32, tile_y: u32) -> Option<Image> {
+    let path = format!("data/minimap/map{tile_x}_{tile_y}.blp");
+    let (pixels, w, h) = crate::asset::blp::load_blp_rgba(Path::new(&path)).ok()?;
+    Some(crate::rgba_image(pixels, w, h))
 }
 
 /// Composite tile images centered on the player, crop and apply circular mask.
@@ -420,6 +492,23 @@ fn find_height_range(chunks: &[Option<ChunkHeightGrid>]) -> (f32, f32) {
     if min_h > max_h { (0.0, 1.0) } else { (min_h, max_h) }
 }
 
+/// Spawn zone name text below the minimap.
+fn spawn_zone_name(mut commands: Commands) {
+    commands.spawn((
+        MinimapZoneName,
+        Text::new("Elwynn Forest"),
+        TextFont { font_size: 16.0, ..default() },
+        TextColor(Color::srgba(1.0, 0.82, 0.0, 1.0)),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(215.0),
+            right: Val::Px(10.0),
+            width: Val::Px(200.0),
+            ..default()
+        },
+    ));
+}
+
 /// Spawn coordinate text below the minimap.
 fn spawn_coord_text(mut commands: Commands) {
     commands.spawn((
@@ -429,7 +518,7 @@ fn spawn_coord_text(mut commands: Commands) {
         TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(215.0), // below minimap (10 + 200 + 5)
+            top: Val::Px(235.0), // below minimap + zone name
             right: Val::Px(10.0),
             width: Val::Px(200.0),
             ..default()
@@ -447,6 +536,42 @@ fn update_coord_text(
     let z = tf.translation.z;
     for mut text in &mut text_q {
         **text = format!("{x:.0}, {z:.0}");
+    }
+}
+
+/// Update the zone name text when the current zone changes.
+fn update_zone_name(
+    zone: Option<Res<crate::networking::CurrentZone>>,
+    mut text_q: Query<&mut Text, With<MinimapZoneName>>,
+) {
+    let Some(zone) = zone else { return };
+    if !zone.is_changed() { return; }
+    let name = zone_id_to_name(zone.zone_id);
+    for mut text in &mut text_q {
+        **text = name.to_string();
+    }
+}
+
+/// Map a WoW zone ID to its display name.
+fn zone_id_to_name(id: u32) -> &'static str {
+    match id {
+        10 => "Duskwood",
+        12 => "Elwynn Forest",
+        14 => "Durotar",
+        17 => "The Barrens",
+        38 => "Loch Modan",
+        40 => "Westfall",
+        44 => "Redridge Mountains",
+        85 => "Tirisfal Glades",
+        215 => "Mulgore",
+        331 => "Ashenvale",
+        1497 => "Undercity",
+        1519 => "Stormwind City",
+        1537 => "Ironforge",
+        1637 => "Orgrimmar",
+        1638 => "Thunder Bluff",
+        1657 => "Darnassus",
+        _ => "Unknown",
     }
 }
 
@@ -596,5 +721,21 @@ mod tests {
         let result = crop_with_circle(&comp, 100, 50, 50, 100);
         // Corner (0,0) should be transparent (outside circle)
         assert_eq!(result[3], 0);
+    }
+
+    #[test]
+    fn border_image_has_opaque_ring() {
+        let img = create_border_image();
+        let data = img.data.as_ref().unwrap();
+        let size = MINIMAP_DISPLAY_SIZE as usize;
+        // Edge pixel (top center) should be on the ring
+        let edge_x = size / 2;
+        let edge_y = 1;
+        let i = (edge_y * size + edge_x) * 4;
+        assert!(data[i + 3] > 0, "Border ring should have alpha at edge");
+
+        // Center pixel should be transparent
+        let center_i = (size / 2 * size + size / 2) * 4;
+        assert_eq!(data[center_i + 3], 0, "Center should be transparent");
     }
 }
