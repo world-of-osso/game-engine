@@ -369,8 +369,7 @@ fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::Pat
 
 /// Convert WoW doodad placement (position + Euler degrees + scale) to a Bevy Transform.
 fn doodad_transform(d: &adt_obj::DoodadPlacement) -> Transform {
-    use super::asset::m2::wow_to_bevy;
-    let pos = wow_to_bevy(d.position[0], d.position[1], d.position[2]);
+    let pos = placement_to_bevy(d.position);
     let rotation = doodad_rotation(d.rotation);
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
@@ -556,10 +555,23 @@ fn wmo_standard_material(
     }
 }
 
-/// Convert WMO placement to a Bevy Transform (same convention as doodads).
-fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
+/// Convert MODF/MDDF placement position to Bevy-space.
+///
+/// MODF/MDDF store positions as `[X_adt, Height, Y_adt]` in a coordinate system where
+/// world coords = 32*TILESIZE - adt coords (for X and Y_adt).
+/// MCNK headers already store converted world coordinates, but MODF/MDDF do not.
+fn placement_to_bevy(raw: [f32; 3]) -> [f32; 3] {
     use super::asset::m2::wow_to_bevy;
-    let pos = wow_to_bevy(w.position[0], w.position[1], w.position[2]);
+    const MAP_OFFSET: f32 = 32.0 * CHUNK_SIZE * 16.0; // 32 * 533.33 = 17066.67
+    let wx = MAP_OFFSET - raw[0];
+    let wy = MAP_OFFSET - raw[2];
+    let wz = raw[1]; // height
+    wow_to_bevy(wx, wy, wz)
+}
+
+/// Convert WMO placement to a Bevy Transform.
+fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
+    let pos = placement_to_bevy(w.position);
     let rotation = doodad_rotation(w.rotation);
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
