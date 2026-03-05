@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.89"
 
 [dependencies]
-bevy = { version = "0.18", features = ["default", "bevy_dev_tools"] }
+bevy = { version = "0.18", features = ["default", "bevy_dev_tools", "bevy_audio", "wav"] }
 image-blp = "1"
 peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
 tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time"] }

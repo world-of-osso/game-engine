@@ -22,6 +22,7 @@ mod sky;
 mod sky_material;
 mod target;
 mod minimap;
+mod sound;
 mod terrain;
 mod terrain_material;
 mod water_material;
@@ -81,6 +82,7 @@ fn register_plugins(app: &mut App) {
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(target::TargetPlugin)
+        .add_plugins(sound::SoundPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
