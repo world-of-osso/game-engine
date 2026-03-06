@@ -111,6 +111,11 @@ enum Cmd {
         #[command(subcommand)]
         command: MapCmd,
     },
+    /// Runtime equipment rendering controls
+    Equipment {
+        #[command(subcommand)]
+        command: EquipmentCmd,
+    },
 }
 
 #[derive(Subcommand)]
@@ -334,6 +339,22 @@ enum WaypointCmd {
     Clear,
 }
 
+#[derive(Subcommand)]
+enum EquipmentCmd {
+    /// Set an equipped model path for a slot
+    Set {
+        #[arg(long)]
+        slot: String,
+        #[arg(long)]
+        model: PathBuf,
+    },
+    /// Clear a slot so its model despawns
+    Clear {
+        #[arg(long)]
+        slot: String,
+    },
+}
+
 fn find_socket() -> Result<PathBuf, String> {
     let pattern = socket_glob();
     let mut sockets: Vec<PathBuf> = glob::glob(&pattern)
@@ -379,6 +400,7 @@ fn main() {
         Cmd::Collection { command } => handle_collection(&socket, command),
         Cmd::Profession { command } => handle_profession(&socket, command),
         Cmd::Map { command } => handle_map(&socket, command),
+        Cmd::Equipment { command } => handle_equipment(&socket, command),
     };
 
     if let Err(e) = result {
@@ -668,6 +690,19 @@ fn handle_map(socket: &PathBuf, command: MapCmd) -> Result<(), String> {
     }
 }
 
+fn handle_equipment(socket: &PathBuf, command: EquipmentCmd) -> Result<(), String> {
+    let request = equipment_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
 fn mail_request(command: MailCmd) -> Result<Request, String> {
     let request = match command {
         MailCmd::Status => Request::MailStatus,
@@ -793,6 +828,29 @@ fn map_request(command: MapCmd) -> Result<Request, String> {
         },
     };
     Ok(request)
+}
+
+fn equipment_request(command: EquipmentCmd) -> Result<Request, String> {
+    let request = match command {
+        EquipmentCmd::Set { slot, model } => Request::EquipmentSet {
+            slot: parse_equipment_slot(&slot)?.to_string(),
+            model_path: model.display().to_string(),
+        },
+        EquipmentCmd::Clear { slot } => Request::EquipmentClear {
+            slot: parse_equipment_slot(&slot)?.to_string(),
+        },
+    };
+    Ok(request)
+}
+
+fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "mainhand" | "main-hand" | "main" | "mh" => Ok("mainhand"),
+        "offhand" | "off-hand" | "off" | "oh" => Ok("offhand"),
+        _ => Err(format!(
+            "invalid slot '{value}', expected mainhand or offhand"
+        )),
+    }
 }
 
 fn status_request(command: StatusCmd) -> Result<Request, String> {
@@ -1088,5 +1146,37 @@ mod tests {
         let request = map_request(MapCmd::Target).expect("valid map target command");
 
         assert_eq!(request, Request::MapTarget);
+    }
+
+    #[test]
+    fn equipment_set_command_maps_to_request() {
+        let request = equipment_request(EquipmentCmd::Set {
+            slot: "mainhand".into(),
+            model: PathBuf::from("data/models/club_1h_torch_a_01.m2"),
+        })
+        .expect("valid equipment set command");
+
+        assert_eq!(
+            request,
+            Request::EquipmentSet {
+                slot: "mainhand".into(),
+                model_path: "data/models/club_1h_torch_a_01.m2".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn equipment_clear_command_maps_to_request() {
+        let request = equipment_request(EquipmentCmd::Clear {
+            slot: "offhand".into(),
+        })
+        .expect("valid equipment clear command");
+
+        assert_eq!(
+            request,
+            Request::EquipmentClear {
+                slot: "offhand".into(),
+            }
+        );
     }
 }
