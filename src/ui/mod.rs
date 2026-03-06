@@ -12,4 +12,5 @@ pub mod render;
 pub mod strata;
 pub mod wasm_host;
 pub mod addon_watcher;
+pub mod overlay;
 pub mod widgets;
