@@ -54,6 +54,7 @@ impl FrameRegistry {
             self.names.insert(n.clone(), id);
         }
         self.render_dirty.insert(id);
+        self.rect_dirty.insert(id);
         self.frames.insert(id, frame);
 
         if let Some(pid) = parent_id
@@ -77,6 +78,8 @@ impl FrameRegistry {
                 parent.children.retain(|&c| c != id);
             }
             self.render_dirty.remove(&id);
+            self.rect_dirty.remove(&id);
+            self.anchor_dependents.remove(&id);
         }
     }
 
@@ -110,6 +113,7 @@ impl FrameRegistry {
         }
 
         self.render_dirty.insert(id);
+        self.rect_dirty.insert(id);
 
         // Must insert frame before mutating parent
         self.frames.insert(id, frame);
@@ -138,6 +142,90 @@ impl FrameRegistry {
 
     pub fn frames_iter(&self) -> impl Iterator<Item = &Frame> {
         self.frames.values()
+    }
+
+    pub fn set_point(
+        &mut self,
+        id: u64,
+        anchor: crate::ui::anchor::Anchor,
+    ) -> Result<(), &'static str> {
+        if !self.frames.contains_key(&id) {
+            return Err("frame not found");
+        }
+        if anchor.relative_to == Some(id) {
+            return Err("frame cannot anchor to itself");
+        }
+        if let Some(target_id) = anchor.relative_to
+            && self.depends_on(target_id, id)
+        {
+            return Err("anchor cycle detected");
+        }
+
+        let previous_anchor = {
+            let frame = self.frames.get_mut(&id).expect("checked above");
+            if let Some(existing) = frame
+                .anchors
+                .iter_mut()
+                .find(|existing| existing.point == anchor.point)
+            {
+                let previous = *existing;
+                *existing = anchor;
+                Some(previous)
+            } else {
+                frame.anchors.push(anchor);
+                None
+            }
+        };
+
+        if let Some(previous) = previous_anchor {
+            self.unregister_anchor_dependency(id, previous);
+        }
+        self.register_anchor_dependency(id, anchor);
+        self.mark_rect_dirty(id);
+        Ok(())
+    }
+
+    pub fn clear_all_points(&mut self, id: u64) {
+        let anchors = self
+            .frames
+            .get(&id)
+            .map(|frame| frame.anchors.clone())
+            .unwrap_or_default();
+        for anchor in anchors {
+            self.unregister_anchor_dependency(id, anchor);
+        }
+        if let Some(frame) = self.frames.get_mut(&id) {
+            frame.anchors.clear();
+        }
+        self.mark_rect_dirty(id);
+    }
+
+    pub fn set_all_points(
+        &mut self,
+        id: u64,
+        relative_to: Option<u64>,
+    ) -> Result<(), &'static str> {
+        self.clear_all_points(id);
+        self.set_point(
+            id,
+            crate::ui::anchor::Anchor {
+                point: crate::ui::anchor::AnchorPoint::TopLeft,
+                relative_to,
+                relative_point: crate::ui::anchor::AnchorPoint::TopLeft,
+                x_offset: 0.0,
+                y_offset: 0.0,
+            },
+        )?;
+        self.set_point(
+            id,
+            crate::ui::anchor::Anchor {
+                point: crate::ui::anchor::AnchorPoint::BottomRight,
+                relative_to,
+                relative_point: crate::ui::anchor::AnchorPoint::BottomRight,
+                x_offset: 0.0,
+                y_offset: 0.0,
+            },
+        )
     }
 
     /// Set a frame's alpha and propagate effective_alpha down the subtree.
@@ -272,11 +360,77 @@ impl FrameRegistry {
             self.propagate_scale(child_id);
         }
     }
+
+    fn register_anchor_dependency(&mut self, frame_id: u64, anchor: crate::ui::anchor::Anchor) {
+        if let Some(target_id) = anchor.relative_to {
+            self.anchor_dependents
+                .entry(target_id)
+                .or_default()
+                .insert(frame_id);
+        }
+    }
+
+    fn unregister_anchor_dependency(&mut self, frame_id: u64, anchor: crate::ui::anchor::Anchor) {
+        let Some(target_id) = anchor.relative_to else {
+            return;
+        };
+        let remove_entry = if let Some(dependents) = self.anchor_dependents.get_mut(&target_id) {
+            dependents.remove(&frame_id);
+            dependents.is_empty()
+        } else {
+            false
+        };
+        if remove_entry {
+            self.anchor_dependents.remove(&target_id);
+        }
+    }
+
+    fn mark_rect_dirty(&mut self, id: u64) {
+        if !self.rect_dirty.insert(id) {
+            return;
+        }
+
+        let mut dependents = self
+            .anchor_dependents
+            .get(&id)
+            .map(|items| items.iter().copied().collect::<Vec<_>>())
+            .unwrap_or_default();
+        dependents.extend(self.child_ids(id));
+        for dependent_id in dependents {
+            self.mark_rect_dirty(dependent_id);
+        }
+    }
+
+    fn depends_on(&self, start_id: u64, target_id: u64) -> bool {
+        if start_id == target_id {
+            return true;
+        }
+
+        let mut stack = vec![start_id];
+        let mut visited = HashSet::new();
+        while let Some(current) = stack.pop() {
+            if !visited.insert(current) {
+                continue;
+            }
+            if current == target_id {
+                return true;
+            }
+            if let Some(frame) = self.frames.get(&current) {
+                for anchor in &frame.anchors {
+                    if let Some(next) = anchor.relative_to {
+                        stack.push(next);
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::anchor::{Anchor, AnchorPoint};
 
     #[test]
     fn create_and_lookup_by_id() {
@@ -401,5 +555,109 @@ mod tests {
         let frame = reg.get(id).unwrap();
         assert!(frame.name.is_none());
         assert_eq!(reg.get_by_name(""), None);
+    }
+
+    fn test_anchor(
+        point: AnchorPoint,
+        relative_to: Option<u64>,
+        relative_point: AnchorPoint,
+    ) -> Anchor {
+        Anchor {
+            point,
+            relative_to,
+            relative_point,
+            x_offset: 0.0,
+            y_offset: 0.0,
+        }
+    }
+
+    #[test]
+    fn set_point_tracks_dependents_and_marks_rect_dirty() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let target = reg.create_frame("Target", None);
+        let child = reg.create_frame("Child", None);
+
+        reg.set_point(
+            child,
+            test_anchor(AnchorPoint::TopLeft, Some(target), AnchorPoint::BottomRight),
+        )
+        .unwrap();
+
+        let frame = reg.get(child).unwrap();
+        assert_eq!(frame.anchors.len(), 1);
+        assert_eq!(frame.anchors[0].point, AnchorPoint::TopLeft);
+        assert_eq!(frame.anchors[0].relative_to, Some(target));
+        assert!(reg.rect_dirty.contains(&child));
+        assert!(reg.anchor_dependents[&target].contains(&child));
+    }
+
+    #[test]
+    fn set_point_replaces_existing_point_and_updates_dependents() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let first = reg.create_frame("First", None);
+        let second = reg.create_frame("Second", None);
+        let child = reg.create_frame("Child", None);
+
+        reg.set_point(
+            child,
+            test_anchor(AnchorPoint::Center, Some(first), AnchorPoint::Center),
+        )
+        .unwrap();
+        reg.set_point(
+            child,
+            test_anchor(AnchorPoint::Center, Some(second), AnchorPoint::TopLeft),
+        )
+        .unwrap();
+
+        let frame = reg.get(child).unwrap();
+        assert_eq!(frame.anchors.len(), 1);
+        assert_eq!(frame.anchors[0].relative_to, Some(second));
+        assert!(
+            reg.anchor_dependents
+                .get(&first)
+                .is_none_or(|dependents| !dependents.contains(&child))
+        );
+        assert!(reg.anchor_dependents[&second].contains(&child));
+    }
+
+    #[test]
+    fn clear_all_points_removes_dependencies() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let target = reg.create_frame("Target", None);
+        let child = reg.create_frame("Child", None);
+
+        reg.set_point(
+            child,
+            test_anchor(AnchorPoint::TopLeft, Some(target), AnchorPoint::TopLeft),
+        )
+        .unwrap();
+
+        reg.clear_all_points(child);
+
+        let frame = reg.get(child).unwrap();
+        assert!(frame.anchors.is_empty());
+        assert!(reg.rect_dirty.contains(&child));
+        assert!(
+            reg.anchor_dependents
+                .get(&target)
+                .is_none_or(|dependents| !dependents.contains(&child))
+        );
+    }
+
+    #[test]
+    fn set_all_points_creates_stretch_anchors() {
+        let mut reg = FrameRegistry::new(1024.0, 768.0);
+        let target = reg.create_frame("Target", None);
+        let child = reg.create_frame("Child", None);
+
+        reg.set_all_points(child, Some(target)).unwrap();
+
+        let frame = reg.get(child).unwrap();
+        assert_eq!(frame.anchors.len(), 2);
+        assert_eq!(frame.anchors[0].point, AnchorPoint::TopLeft);
+        assert_eq!(frame.anchors[1].point, AnchorPoint::BottomRight);
+        assert_eq!(frame.anchors[0].relative_to, Some(target));
+        assert_eq!(frame.anchors[1].relative_to, Some(target));
+        assert!(reg.anchor_dependents[&target].contains(&child));
     }
 }

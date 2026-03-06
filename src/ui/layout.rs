@@ -1,4 +1,7 @@
+use std::collections::HashSet;
+
 use crate::ui::anchor::{Anchor, AnchorPoint, anchor_position, frame_position_from_anchor};
+use crate::ui::registry::FrameRegistry;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayoutRect {
@@ -34,6 +37,17 @@ fn resolve_target(anchor: &Anchor, parent: &LayoutRect) -> (f32, f32) {
     (ax + anchor.x_offset, ay - anchor.y_offset)
 }
 
+fn resolve_target_in_rect(anchor: &Anchor, target_rect: &LayoutRect) -> (f32, f32) {
+    let (ax, ay) = anchor_position(
+        anchor.relative_point,
+        target_rect.x,
+        target_rect.y,
+        target_rect.width,
+        target_rect.height,
+    );
+    (ax + anchor.x_offset, ay - anchor.y_offset)
+}
+
 /// Resolve a frame's layout rectangle from its anchors, explicit size, and parent rect.
 ///
 /// Follows WoW anchor semantics: no anchors places at parent top-left, one anchor
@@ -55,6 +69,137 @@ pub fn resolve_anchors(
         1 => resolve_single_anchor(&anchors[0], width, height, parent_rect),
         _ => resolve_two_anchors(&anchors[0], &anchors[1], width, height, parent_rect),
     }
+}
+
+pub fn resolve_frame_layout(registry: &FrameRegistry, frame_id: u64) -> Option<LayoutRect> {
+    let frame = registry.get(frame_id)?;
+    if frame.anchors.is_empty()
+        && let Some(existing) = frame.layout_rect.clone()
+    {
+        return Some(existing);
+    }
+    let fallback_target = frame
+        .parent_id
+        .and_then(|parent_id| registry.get(parent_id))
+        .and_then(|parent| parent.layout_rect.clone())
+        .unwrap_or_else(|| registry.screen_rect());
+
+    Some(match frame.anchors.as_slice() {
+        [] => LayoutRect {
+            x: fallback_target.x,
+            y: fallback_target.y,
+            width: frame.width,
+            height: frame.height,
+        },
+        [anchor] => {
+            let target_rect = anchor
+                .relative_to
+                .and_then(|target_id| registry.get(target_id))
+                .and_then(|target| target.layout_rect.as_ref())
+                .unwrap_or(&fallback_target);
+            let (tx, ty) = resolve_target_in_rect(anchor, target_rect);
+            let (fx, fy) =
+                frame_position_from_anchor(anchor.point, tx, ty, frame.width, frame.height);
+            LayoutRect {
+                x: fx,
+                y: fy,
+                width: frame.width,
+                height: frame.height,
+            }
+        }
+        [a, b, ..] => {
+            let a_target_rect = a
+                .relative_to
+                .and_then(|target_id| registry.get(target_id))
+                .and_then(|target| target.layout_rect.as_ref())
+                .unwrap_or(&fallback_target);
+            let b_target_rect = b
+                .relative_to
+                .and_then(|target_id| registry.get(target_id))
+                .and_then(|target| target.layout_rect.as_ref())
+                .unwrap_or(&fallback_target);
+            let (t1x, t1y) = resolve_target_in_rect(a, a_target_rect);
+            let (t2x, t2y) = resolve_target_in_rect(b, b_target_rect);
+
+            let (frac1x, frac1y) = point_to_edge_offsets(a.point);
+            let (frac2x, frac2y) = point_to_edge_offsets(b.point);
+
+            let (final_x, final_w) = if (frac1x - frac2x).abs() > f32::EPSILON {
+                stretch_axis(t1x, frac1x, t2x, frac2x)
+            } else {
+                let fx = t1x - frac1x * frame.width;
+                (fx, frame.width)
+            };
+
+            let (final_y, final_h) = if (frac1y - frac2y).abs() > f32::EPSILON {
+                stretch_axis(t1y, frac1y, t2y, frac2y)
+            } else {
+                let fy = t1y - frac1y * frame.height;
+                (fy, frame.height)
+            };
+
+            LayoutRect {
+                x: final_x,
+                y: final_y,
+                width: final_w,
+                height: final_h,
+            }
+        }
+    })
+}
+
+pub fn recompute_layouts(registry: &mut FrameRegistry) {
+    let frame_ids: Vec<u64> = registry.frames_iter().map(|frame| frame.id).collect();
+    let dirty_ids: Vec<u64> = if registry.rect_dirty.is_empty() {
+        frame_ids
+    } else {
+        registry.rect_dirty.iter().copied().collect()
+    };
+
+    let mut visiting = HashSet::new();
+    let mut resolved = HashSet::new();
+    for frame_id in dirty_ids {
+        resolve_frame_recursive(registry, frame_id, &mut visiting, &mut resolved);
+    }
+    registry.rect_dirty.clear();
+}
+
+fn resolve_frame_recursive(
+    registry: &mut FrameRegistry,
+    frame_id: u64,
+    visiting: &mut HashSet<u64>,
+    resolved: &mut HashSet<u64>,
+) {
+    if resolved.contains(&frame_id) {
+        return;
+    }
+    if !visiting.insert(frame_id) {
+        return;
+    }
+
+    let Some((parent_id, anchors)) = registry
+        .get(frame_id)
+        .map(|frame| (frame.parent_id, frame.anchors.clone()))
+    else {
+        visiting.remove(&frame_id);
+        return;
+    };
+
+    if let Some(parent_id) = parent_id {
+        resolve_frame_recursive(registry, parent_id, visiting, resolved);
+    }
+    for target_id in anchors.iter().filter_map(|anchor| anchor.relative_to) {
+        resolve_frame_recursive(registry, target_id, visiting, resolved);
+    }
+
+    if let Some(layout_rect) = resolve_frame_layout(registry, frame_id)
+        && let Some(frame) = registry.get_mut(frame_id)
+    {
+        frame.layout_rect = Some(layout_rect);
+    }
+
+    visiting.remove(&frame_id);
+    resolved.insert(frame_id);
 }
 
 fn resolve_single_anchor(
@@ -271,6 +416,113 @@ mod tests {
                 width: 100.0,
                 height: 50.0,
             }
+        );
+    }
+
+    #[test]
+    fn resolve_frame_layout_uses_relative_frame_rect() {
+        let mut registry = FrameRegistry::new(800.0, 600.0);
+        let target = registry.create_frame("Target", None);
+        let child = registry.create_frame("Child", None);
+
+        registry.get_mut(target).unwrap().layout_rect = Some(LayoutRect {
+            x: 100.0,
+            y: 80.0,
+            width: 200.0,
+            height: 120.0,
+        });
+
+        let frame = registry.get_mut(child).unwrap();
+        frame.width = 50.0;
+        frame.height = 30.0;
+        frame.anchors.push(Anchor {
+            point: AnchorPoint::TopLeft,
+            relative_to: Some(target),
+            relative_point: AnchorPoint::BottomRight,
+            x_offset: 10.0,
+            y_offset: -5.0,
+        });
+
+        let rect = resolve_frame_layout(&registry, child).unwrap();
+        assert_eq!(
+            rect,
+            LayoutRect {
+                x: 310.0,
+                y: 205.0,
+                width: 50.0,
+                height: 30.0,
+            }
+        );
+    }
+
+    #[test]
+    fn resolve_frame_layout_falls_back_to_screen_for_root_frame() {
+        let mut registry = FrameRegistry::new(800.0, 600.0);
+        let child = registry.create_frame("Child", None);
+        let frame = registry.get_mut(child).unwrap();
+        frame.width = 100.0;
+        frame.height = 40.0;
+        frame.anchors.push(Anchor {
+            point: AnchorPoint::Center,
+            relative_to: None,
+            relative_point: AnchorPoint::Center,
+            x_offset: 0.0,
+            y_offset: 0.0,
+        });
+
+        let rect = resolve_frame_layout(&registry, child).unwrap();
+        assert_eq!(
+            rect,
+            LayoutRect {
+                x: 350.0,
+                y: 280.0,
+                width: 100.0,
+                height: 40.0,
+            }
+        );
+    }
+
+    #[test]
+    fn recompute_layouts_updates_anchored_children() {
+        let mut registry = FrameRegistry::new(800.0, 600.0);
+        let parent = registry.create_frame("Parent", None);
+        let child = registry.create_frame("Child", Some(parent));
+
+        {
+            let frame = registry.get_mut(parent).unwrap();
+            frame.width = 300.0;
+            frame.height = 200.0;
+            frame.layout_rect = Some(LayoutRect {
+                x: 40.0,
+                y: 50.0,
+                width: 300.0,
+                height: 200.0,
+            });
+        }
+
+        {
+            let frame = registry.get_mut(child).unwrap();
+            frame.width = 100.0;
+            frame.height = 40.0;
+            frame.anchors.push(Anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: Some(parent),
+                relative_point: AnchorPoint::BottomRight,
+                x_offset: 5.0,
+                y_offset: -10.0,
+            });
+        }
+
+        recompute_layouts(&mut registry);
+
+        assert_eq!(
+            registry.get(child).unwrap().layout_rect,
+            Some(LayoutRect {
+                x: 345.0,
+                y: 260.0,
+                width: 100.0,
+                height: 40.0,
+            })
         );
     }
 }

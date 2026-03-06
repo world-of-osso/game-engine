@@ -32,6 +32,7 @@ impl Plugin for UiPlugin {
             Update,
             (
                 sync_dioxus_ui,
+                recompute_layout,
                 crate::ui::render::sync_ui_quads,
                 crate::ui::render::sync_ui_text,
             )
@@ -42,6 +43,10 @@ impl Plugin for UiPlugin {
 
 fn sync_dioxus_ui(mut state: ResMut<UiState>, mut runtime: NonSendMut<DioxusUiRuntime>) {
     runtime.sync(&mut state.registry);
+}
+
+fn recompute_layout(mut state: ResMut<UiState>) {
+    crate::ui::layout::recompute_layouts(&mut state.registry);
 }
 
 #[cfg(test)]

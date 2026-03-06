@@ -3,8 +3,9 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 use lightyear::prelude::*;
 
+use game_engine::ui::anchor::{Anchor, AnchorPoint};
 use game_engine::ui::frame::{Frame, WidgetData, WidgetType};
-use game_engine::ui::layout::LayoutRect;
+use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
@@ -635,15 +636,39 @@ fn create_button(
 }
 
 fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) {
+    let (relative_to, x_offset, y_offset) = reg
+        .get(id)
+        .and_then(|frame| frame.parent_id)
+        .and_then(|parent_id| {
+            reg.get(parent_id)
+                .and_then(|parent| parent.layout_rect.as_ref())
+                .map(|rect| (Some(parent_id), x - rect.x, y - rect.y))
+        })
+        .unwrap_or((None, x, y));
+
     if let Some(frame) = reg.get_mut(id) {
-        frame.layout_rect = Some(LayoutRect {
-            x,
-            y,
-            width: w,
-            height: h,
-        });
         frame.width = w;
         frame.height = h;
+        frame.layout_rect = None;
+    }
+
+    reg.clear_all_points(id);
+    reg.set_point(
+        id,
+        Anchor {
+            point: AnchorPoint::TopLeft,
+            relative_to,
+            relative_point: AnchorPoint::TopLeft,
+            x_offset,
+            y_offset: -y_offset,
+        },
+    )
+    .expect("screen layout helper must create a valid anchor");
+
+    if let Some(layout_rect) = resolve_frame_layout(reg, id)
+        && let Some(frame) = reg.get_mut(id)
+    {
+        frame.layout_rect = Some(layout_rect);
     }
 }
 

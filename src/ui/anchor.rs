@@ -31,6 +31,7 @@ impl AnchorPoint {
 }
 
 /// A resolved anchor linking one frame's point to another frame's point with offsets.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Anchor {
     pub point: AnchorPoint,
     pub relative_to: Option<u64>,

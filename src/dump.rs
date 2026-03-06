@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::ui::frame::{Frame, WidgetData, WidgetType};
+use crate::ui::frame::{Frame, WidgetData};
 use crate::ui::registry::FrameRegistry;
 
 /// Snapshot of one entity's tree-relevant data.
