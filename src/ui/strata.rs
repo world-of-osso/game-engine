@@ -92,12 +92,18 @@ mod tests {
     #[test]
     fn strata_from_str_valid() {
         assert_eq!(FrameStrata::from_str("WORLD"), Some(FrameStrata::World));
-        assert_eq!(FrameStrata::from_str("BACKGROUND"), Some(FrameStrata::Background));
+        assert_eq!(
+            FrameStrata::from_str("BACKGROUND"),
+            Some(FrameStrata::Background)
+        );
         assert_eq!(FrameStrata::from_str("LOW"), Some(FrameStrata::Low));
         assert_eq!(FrameStrata::from_str("MEDIUM"), Some(FrameStrata::Medium));
         assert_eq!(FrameStrata::from_str("HIGH"), Some(FrameStrata::High));
         assert_eq!(FrameStrata::from_str("DIALOG"), Some(FrameStrata::Dialog));
-        assert_eq!(FrameStrata::from_str("FULLSCREEN"), Some(FrameStrata::Fullscreen));
+        assert_eq!(
+            FrameStrata::from_str("FULLSCREEN"),
+            Some(FrameStrata::Fullscreen)
+        );
         assert_eq!(
             FrameStrata::from_str("FULLSCREEN_DIALOG"),
             Some(FrameStrata::FullscreenDialog)
@@ -114,7 +120,10 @@ mod tests {
 
     #[test]
     fn draw_layer_from_str_valid() {
-        assert_eq!(DrawLayer::from_str("BACKGROUND"), Some(DrawLayer::Background));
+        assert_eq!(
+            DrawLayer::from_str("BACKGROUND"),
+            Some(DrawLayer::Background)
+        );
         assert_eq!(DrawLayer::from_str("BORDER"), Some(DrawLayer::Border));
         assert_eq!(DrawLayer::from_str("ARTWORK"), Some(DrawLayer::Artwork));
         assert_eq!(DrawLayer::from_str("OVERLAY"), Some(DrawLayer::Overlay));

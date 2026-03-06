@@ -1,6 +1,6 @@
-use bevy::prelude::*;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::prelude::*;
 use lightyear::prelude::*;
 
 use game_engine::ui::frame::{Frame, WidgetData, WidgetType};
@@ -54,7 +54,11 @@ impl Plugin for CharSelectPlugin {
         app.add_systems(OnExit(GameState::CharSelect), teardown_char_select_ui);
         app.add_systems(
             Update,
-            (char_select_mouse_input, char_select_keyboard_input, char_select_update_visuals)
+            (
+                char_select_mouse_input,
+                char_select_keyboard_input,
+                char_select_update_visuals,
+            )
                 .into_configs()
                 .run_if(in_state(GameState::CharSelect)),
         );
@@ -82,9 +86,16 @@ fn build_char_select_ui(
     let status_text = build_cs_status(reg, root, sw, sh);
 
     commands.insert_resource(CharSelectUi {
-        root, char_buttons, enter_button, create_button,
-        delete_button, back_button, create_panel,
-        create_name_input, create_confirm_button, status_text,
+        root,
+        char_buttons,
+        enter_button,
+        create_button,
+        delete_button,
+        back_button,
+        create_panel,
+        create_name_input,
+        create_confirm_button,
+        status_text,
     });
 }
 
@@ -97,9 +108,22 @@ fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
 }
 
 fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
-    let title = create_frame(reg, "CSTitle", Some(root), WidgetType::FontString, 400.0, 40.0);
+    let title = create_frame(
+        reg,
+        "CSTitle",
+        Some(root),
+        WidgetType::FontString,
+        400.0,
+        40.0,
+    );
     set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.08, 400.0, 40.0);
-    set_font_string(reg, title, "Character Selection", 26.0, [1.0, 0.82, 0.0, 1.0]);
+    set_font_string(
+        reg,
+        title,
+        "Character Selection",
+        26.0,
+        [1.0, 0.82, 0.0, 1.0],
+    );
 }
 
 fn build_character_list(
@@ -116,7 +140,14 @@ fn build_character_list(
 
     for ch in &char_list.0 {
         let text = format!("{} - Lv{} R{} C{}", ch.name, ch.level, ch.race, ch.class);
-        let btn = create_button(reg, &format!("Char_{}", ch.character_id), Some(root), panel_w, 32.0, &text);
+        let btn = create_button(
+            reg,
+            &format!("Char_{}", ch.character_id),
+            Some(root),
+            panel_w,
+            32.0,
+            &text,
+        );
         set_layout(reg, btn, panel_x, y, panel_w, 32.0);
         set_bg(reg, btn, [0.12, 0.12, 0.22, 1.0]);
         buttons.push(btn);
@@ -138,9 +169,33 @@ fn build_cs_action_buttons(
     let y = sh * 0.78;
 
     let enter = create_action_button(reg, root, "EnterWorld", "Enter World", start_x, y, btn_w);
-    let create = create_action_button(reg, root, "CreateChar", "Create", start_x + btn_w + gap, y, btn_w);
-    let delete = create_action_button(reg, root, "DeleteChar", "Delete", start_x + (btn_w + gap) * 2.0, y, btn_w);
-    let back = create_action_button(reg, root, "BackToLogin", "Back", start_x + (btn_w + gap) * 3.0, y, btn_w);
+    let create = create_action_button(
+        reg,
+        root,
+        "CreateChar",
+        "Create",
+        start_x + btn_w + gap,
+        y,
+        btn_w,
+    );
+    let delete = create_action_button(
+        reg,
+        root,
+        "DeleteChar",
+        "Delete",
+        start_x + (btn_w + gap) * 2.0,
+        y,
+        btn_w,
+    );
+    let back = create_action_button(
+        reg,
+        root,
+        "BackToLogin",
+        "Back",
+        start_x + (btn_w + gap) * 3.0,
+        y,
+        btn_w,
+    );
     (enter, create, delete, back)
 }
 
@@ -159,37 +214,67 @@ fn create_action_button(
     btn
 }
 
-fn build_create_panel(
-    reg: &mut FrameRegistry,
-    root: u64,
-    sw: f32,
-    sh: f32,
-) -> (u64, u64, u64) {
+fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (u64, u64, u64) {
     let panel_w = 300.0;
     let panel_x = (sw - panel_w) / 2.0;
     let panel_y = sh * 0.55;
 
-    let panel = create_frame(reg, "CreatePanel", Some(root), WidgetType::Frame, panel_w, 120.0);
+    let panel = create_frame(
+        reg,
+        "CreatePanel",
+        Some(root),
+        WidgetType::Frame,
+        panel_w,
+        120.0,
+    );
     set_layout(reg, panel, panel_x, panel_y, panel_w, 120.0);
     set_bg(reg, panel, [0.08, 0.08, 0.18, 0.95]);
 
-    let label = create_frame(reg, "CreateNameLabel", Some(panel), WidgetType::FontString, panel_w, 20.0);
+    let label = create_frame(
+        reg,
+        "CreateNameLabel",
+        Some(panel),
+        WidgetType::FontString,
+        panel_w,
+        20.0,
+    );
     set_layout(reg, label, panel_x, panel_y + 8.0, panel_w, 20.0);
     set_font_string_left(reg, label, "Character Name", 13.0, [0.8, 0.8, 0.9, 1.0]);
 
     let name_input = create_editbox(reg, "CreateNameInput", Some(panel), panel_w - 20.0, 30.0);
-    set_layout(reg, name_input, panel_x + 10.0, panel_y + 32.0, panel_w - 20.0, 30.0);
+    set_layout(
+        reg,
+        name_input,
+        panel_x + 10.0,
+        panel_y + 32.0,
+        panel_w - 20.0,
+        30.0,
+    );
     set_bg(reg, name_input, [0.12, 0.12, 0.2, 1.0]);
 
     let confirm = create_button(reg, "CreateConfirm", Some(panel), 120.0, 30.0, "Create");
-    set_layout(reg, confirm, panel_x + (panel_w - 120.0) / 2.0, panel_y + 76.0, 120.0, 30.0);
+    set_layout(
+        reg,
+        confirm,
+        panel_x + (panel_w - 120.0) / 2.0,
+        panel_y + 76.0,
+        120.0,
+        30.0,
+    );
     set_bg(reg, confirm, [0.2, 0.5, 0.3, 1.0]);
 
     (panel, name_input, confirm)
 }
 
 fn build_cs_status(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 {
-    let status = create_frame(reg, "CSStatus", Some(root), WidgetType::FontString, 400.0, 24.0);
+    let status = create_frame(
+        reg,
+        "CSStatus",
+        Some(root),
+        WidgetType::FontString,
+        400.0,
+        24.0,
+    );
     set_layout(reg, status, (sw - 400.0) / 2.0, sh * 0.88, 400.0, 24.0);
     set_font_string(reg, status, "", 13.0, [0.9, 0.5, 0.5, 1.0]);
     status
@@ -223,11 +308,23 @@ fn char_select_mouse_input(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
-    if !buttons.just_pressed(MouseButton::Left) { return }
-    let Some(cursor) = cursor_pos(&windows) else { return };
+    if !buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+    let Some(cursor) = cursor_pos(&windows) else {
+        return;
+    };
     handle_cs_click(
-        cs, &ui, cursor, &mut selected, &mut focus, &mut create_visible,
-        &mut senders, &mut del_senders, &char_list, &mut next_state,
+        cs,
+        &ui,
+        cursor,
+        &mut selected,
+        &mut focus,
+        &mut create_visible,
+        &mut senders,
+        &mut del_senders,
+        &char_list,
+        &mut next_state,
     );
 }
 
@@ -248,7 +345,11 @@ fn handle_cs_click(
     next_state: &mut NextState<GameState>,
 ) {
     let (mx, my) = (cursor.x, cursor.y);
-    if let Some(idx) = cs.char_buttons.iter().position(|&id| hit_frame(ui, id, mx, my)) {
+    if let Some(idx) = cs
+        .char_buttons
+        .iter()
+        .position(|&id| hit_frame(ui, id, mx, my))
+    {
         selected.0 = Some(idx);
         focus.0 = None;
     } else if hit_frame(ui, cs.enter_button, mx, my) {
@@ -275,8 +376,12 @@ fn try_enter_world(
     senders: &mut Query<&mut MessageSender<SelectCharacter>>,
 ) {
     let Some(idx) = selected.0 else { return };
-    let Some(ch) = char_list.0.get(idx) else { return };
-    let msg = SelectCharacter { character_id: ch.character_id };
+    let Some(ch) = char_list.0.get(idx) else {
+        return;
+    };
+    let msg = SelectCharacter {
+        character_id: ch.character_id,
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
     }
@@ -289,8 +394,12 @@ fn try_delete_character(
     senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
 ) {
     let Some(idx) = selected.0 else { return };
-    let Some(ch) = char_list.0.get(idx) else { return };
-    let msg = DeleteCharacter { character_id: ch.character_id };
+    let Some(ch) = char_list.0.get(idx) else {
+        return;
+    };
+    let msg = DeleteCharacter {
+        character_id: ch.character_id,
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
     }
@@ -308,7 +417,9 @@ fn char_select_keyboard_input(
     let Some(focused_id) = focus.0 else { return };
 
     for event in key_events.read() {
-        if event.state != ButtonState::Pressed { continue }
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
@@ -342,8 +453,14 @@ fn try_create_character(
     senders: &mut Query<&mut MessageSender<CreateCharacter>>,
 ) {
     let name = get_editbox_text(reg, cs.create_name_input);
-    if name.is_empty() { return; }
-    let msg = CreateCharacter { name: name.clone(), race: 1, class: 1 };
+    if name.is_empty() {
+        return;
+    }
+    let msg = CreateCharacter {
+        name: name.clone(),
+        race: 1,
+        class: 1,
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
     }
@@ -372,7 +489,11 @@ fn update_char_button_highlights(
 ) {
     for (i, &btn_id) in cs.char_buttons.iter().enumerate() {
         let is_selected = selected.0 == Some(i);
-        let color = if is_selected { [0.2, 0.2, 0.4, 1.0] } else { [0.12, 0.12, 0.22, 1.0] };
+        let color = if is_selected {
+            [0.2, 0.2, 0.4, 1.0]
+        } else {
+            [0.12, 0.12, 0.22, 1.0]
+        };
         set_bg(reg, btn_id, color);
     }
 }
@@ -392,7 +513,9 @@ fn rebuild_char_buttons_if_changed(
     for (i, &btn_id) in cs.char_buttons.iter().enumerate() {
         if let Some(ch) = char_list.0.get(i) {
             let text = format!("{} - Lv{} R{} C{}", ch.name, ch.level, ch.race, ch.class);
-            if let Some(WidgetData::Button(bd)) = reg.get_mut(btn_id).and_then(|f| f.widget_data.as_mut()) {
+            if let Some(WidgetData::Button(bd)) =
+                reg.get_mut(btn_id).and_then(|f| f.widget_data.as_mut())
+            {
                 bd.text = text;
             }
         }
@@ -441,9 +564,16 @@ fn editbox_cursor_end(reg: &mut FrameRegistry, id: u64) {
 }
 
 fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
-    if !ch.chars().all(|c| !c.is_control()) { return }
+    if !ch.chars().all(|c| !c.is_control()) {
+        return;
+    }
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if eb.max_letters.is_some_and(|max| eb.text.len() >= max as usize) { return }
+        if eb
+            .max_letters
+            .is_some_and(|max| eb.text.len() >= max as usize)
+        {
+            return;
+        }
         eb.text.insert_str(eb.cursor_position, ch);
         eb.cursor_position += ch.len();
     }
@@ -451,13 +581,23 @@ fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
 
 fn get_editbox_text(reg: &FrameRegistry, id: u64) -> String {
     reg.get(id)
-        .and_then(|f| match &f.widget_data { Some(WidgetData::EditBox(eb)) => Some(eb.text.clone()), _ => None })
+        .and_then(|f| match &f.widget_data {
+            Some(WidgetData::EditBox(eb)) => Some(eb.text.clone()),
+            _ => None,
+        })
         .unwrap_or_default()
 }
 
 // --- Frame creation helpers (duplicated from login_screen) ---
 
-fn create_frame(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, wt: WidgetType, w: f32, h: f32) -> u64 {
+fn create_frame(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    wt: WidgetType,
+    w: f32,
+    h: f32,
+) -> u64 {
     let id = reg.next_id();
     let mut frame = Frame::new(id, Some(name.to_string()), wt);
     frame.parent_id = parent;
@@ -476,17 +616,32 @@ fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f
     id
 }
 
-fn create_button(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f32, h: f32, text: &str) -> u64 {
+fn create_button(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    w: f32,
+    h: f32,
+    text: &str,
+) -> u64 {
     let id = create_frame(reg, name, parent, WidgetType::Button, w, h);
     if let Some(frame) = reg.get_mut(id) {
-        frame.widget_data = Some(WidgetData::Button(ButtonData { text: text.to_string(), ..Default::default() }));
+        frame.widget_data = Some(WidgetData::Button(ButtonData {
+            text: text.to_string(),
+            ..Default::default()
+        }));
     }
     id
 }
 
 fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) {
     if let Some(frame) = reg.get_mut(id) {
-        frame.layout_rect = Some(LayoutRect { x, y, width: w, height: h });
+        frame.layout_rect = Some(LayoutRect {
+            x,
+            y,
+            width: w,
+            height: h,
+        });
         frame.width = w;
         frame.height = h;
     }
@@ -507,7 +662,11 @@ fn set_strata(reg: &mut FrameRegistry, id: u64, strata: FrameStrata) {
 fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
-            text: text.to_string(), font_size: size, color, justify_h: JustifyH::Center, ..Default::default()
+            text: text.to_string(),
+            font_size: size,
+            color,
+            justify_h: JustifyH::Center,
+            ..Default::default()
         }));
     }
 }
@@ -515,14 +674,20 @@ fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, colo
 fn set_font_string_left(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
-            text: text.to_string(), font_size: size, color, justify_h: JustifyH::Left, ..Default::default()
+            text: text.to_string(),
+            font_size: size,
+            color,
+            justify_h: JustifyH::Left,
+            ..Default::default()
         }));
     }
 }
 
 fn hit_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
     ui.registry.get(frame_id).is_some_and(|f| {
-        f.layout_rect.as_ref().is_some_and(|r| mx >= r.x && mx <= r.x + r.width && my >= r.y && my <= r.y + r.height)
+        f.layout_rect
+            .as_ref()
+            .is_some_and(|r| mx >= r.x && mx <= r.x + r.width && my >= r.y && my <= r.y + r.height)
     })
 }
 

@@ -85,13 +85,22 @@ mod tests {
     fn from_str_all_points() {
         assert_eq!(AnchorPoint::from_str("TOPLEFT"), Some(AnchorPoint::TopLeft));
         assert_eq!(AnchorPoint::from_str("TOP"), Some(AnchorPoint::Top));
-        assert_eq!(AnchorPoint::from_str("TOPRIGHT"), Some(AnchorPoint::TopRight));
+        assert_eq!(
+            AnchorPoint::from_str("TOPRIGHT"),
+            Some(AnchorPoint::TopRight)
+        );
         assert_eq!(AnchorPoint::from_str("LEFT"), Some(AnchorPoint::Left));
         assert_eq!(AnchorPoint::from_str("CENTER"), Some(AnchorPoint::Center));
         assert_eq!(AnchorPoint::from_str("RIGHT"), Some(AnchorPoint::Right));
-        assert_eq!(AnchorPoint::from_str("BOTTOMLEFT"), Some(AnchorPoint::BottomLeft));
+        assert_eq!(
+            AnchorPoint::from_str("BOTTOMLEFT"),
+            Some(AnchorPoint::BottomLeft)
+        );
         assert_eq!(AnchorPoint::from_str("BOTTOM"), Some(AnchorPoint::Bottom));
-        assert_eq!(AnchorPoint::from_str("BOTTOMRIGHT"), Some(AnchorPoint::BottomRight));
+        assert_eq!(
+            AnchorPoint::from_str("BOTTOMRIGHT"),
+            Some(AnchorPoint::BottomRight)
+        );
     }
 
     #[test]

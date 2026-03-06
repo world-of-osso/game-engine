@@ -15,13 +15,35 @@ pub enum Smoothing {
 
 #[derive(Debug, Clone)]
 pub enum AnimationType {
-    Alpha { from: f32, to: f32 },
-    Translation { from: [f32; 2], to: [f32; 2] },
-    Scale { from: [f32; 2], to: [f32; 2], origin: [f32; 2] },
-    Rotation { from_deg: f32, to_deg: f32 },
-    VertexColor { from: [f32; 4], to: [f32; 4] },
-    FlipBook { frame_count: u32, frame_rate: f32 },
-    TexCoordTranslation { from: [f32; 2], to: [f32; 2] },
+    Alpha {
+        from: f32,
+        to: f32,
+    },
+    Translation {
+        from: [f32; 2],
+        to: [f32; 2],
+    },
+    Scale {
+        from: [f32; 2],
+        to: [f32; 2],
+        origin: [f32; 2],
+    },
+    Rotation {
+        from_deg: f32,
+        to_deg: f32,
+    },
+    VertexColor {
+        from: [f32; 4],
+        to: [f32; 4],
+    },
+    FlipBook {
+        frame_count: u32,
+        frame_rate: f32,
+    },
+    TexCoordTranslation {
+        from: [f32; 2],
+        to: [f32; 2],
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
+use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use crate::camera::Player;
@@ -39,9 +39,15 @@ fn click_to_target(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else { return };
-    let Ok((camera, cam_tf)) = cameras.single() else { return };
-    let Some(ray) = camera.viewport_to_world(cam_tf, cursor).ok() else { return };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, cam_tf)) = cameras.single() else {
+        return;
+    };
+    let Some(ray) = camera.viewport_to_world(cam_tf, cursor).ok() else {
+        return;
+    };
 
     let hits = ray_cast.cast_ray(ray, &default());
     for &(entity, _) in hits {
@@ -62,7 +68,9 @@ fn tab_target(
     if !keys.just_pressed(KeyCode::Tab) {
         return;
     }
-    let Ok(player_tf) = player_q.single() else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
     let sorted = sorted_targets_by_distance(player_tf, &remote_q);
     current.0 = pick_next_target(&sorted, current.0);
 }
@@ -119,7 +127,9 @@ fn spawn_target_circle(
         commands.entity(e).despawn();
     }
     let Some(target) = current.0 else { return };
-    let Ok(tf) = target_tf.get(target) else { return };
+    let Ok(tf) = target_tf.get(target) else {
+        return;
+    };
 
     let ring = meshes.add(Torus::new(0.6, 0.8));
     let mat = materials.add(StandardMaterial {
@@ -144,7 +154,9 @@ fn update_target_circle(
     mut circle_q: Query<&mut Transform, With<TargetMarker>>,
 ) {
     let Some(target) = current.0 else { return };
-    let Ok(tf) = target_tf.get(target) else { return };
+    let Ok(tf) = target_tf.get(target) else {
+        return;
+    };
     for mut circle_tf in circle_q.iter_mut() {
         circle_tf.translation = tf.translation + Vec3::Y * 0.05;
     }
@@ -162,24 +174,24 @@ mod tests {
         app.init_resource::<CurrentTarget>();
 
         // Spawn player at origin
-        let _player = app.world_mut().spawn((
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            Player,
-        )).id();
+        let _player = app
+            .world_mut()
+            .spawn((Transform::from_xyz(0.0, 0.0, 0.0), Player))
+            .id();
 
         // Spawn 3 remote entities at increasing distances
-        let e1 = app.world_mut().spawn((
-            Transform::from_xyz(5.0, 0.0, 0.0),
-            RemoteEntity,
-        )).id();
-        let e2 = app.world_mut().spawn((
-            Transform::from_xyz(10.0, 0.0, 0.0),
-            RemoteEntity,
-        )).id();
-        let e3 = app.world_mut().spawn((
-            Transform::from_xyz(15.0, 0.0, 0.0),
-            RemoteEntity,
-        )).id();
+        let e1 = app
+            .world_mut()
+            .spawn((Transform::from_xyz(5.0, 0.0, 0.0), RemoteEntity))
+            .id();
+        let e2 = app
+            .world_mut()
+            .spawn((Transform::from_xyz(10.0, 0.0, 0.0), RemoteEntity))
+            .id();
+        let e3 = app
+            .world_mut()
+            .spawn((Transform::from_xyz(15.0, 0.0, 0.0), RemoteEntity))
+            .id();
 
         // Simulate tab cycling by calling pick_next_target directly
         let sorted = vec![e1, e2, e3];
@@ -214,7 +226,9 @@ mod tests {
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(entity);
 
         // Press Escape
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Escape);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Escape);
         app.update();
 
         let target = app.world().resource::<CurrentTarget>();
@@ -228,21 +242,27 @@ mod tests {
         app.init_resource::<CurrentTarget>();
 
         // Spawn a target entity
-        let target = app.world_mut().spawn(
-            Transform::from_xyz(10.0, 0.0, 5.0),
-        ).id();
+        let target = app
+            .world_mut()
+            .spawn(Transform::from_xyz(10.0, 0.0, 5.0))
+            .id();
 
         // Spawn a circle tracking it
-        let circle = app.world_mut().spawn((
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            TargetMarker,
-        )).id();
+        let circle = app
+            .world_mut()
+            .spawn((Transform::from_xyz(0.0, 0.0, 0.0), TargetMarker))
+            .id();
 
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(target);
         app.add_systems(Update, update_target_circle);
         app.update();
 
-        let circle_pos = app.world().entity(circle).get::<Transform>().unwrap().translation;
+        let circle_pos = app
+            .world()
+            .entity(circle)
+            .get::<Transform>()
+            .unwrap()
+            .translation;
         assert!(
             (circle_pos.x - 10.0).abs() < 0.01,
             "circle x should follow target, got {}",

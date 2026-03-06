@@ -79,7 +79,13 @@ fn spawn_world_environment(
             },
             Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
         ));
-        sky::spawn_sky_dome(&mut commands, &mut meshes, &mut sky_materials, &mut images, camera);
+        sky::spawn_sky_dome(
+            &mut commands,
+            &mut meshes,
+            &mut sky_materials,
+            &mut images,
+            camera,
+        );
         commands.remove_resource::<ClearColor>();
     }
 }

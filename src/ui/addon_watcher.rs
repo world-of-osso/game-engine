@@ -8,7 +8,10 @@ use std::sync::mpsc::{self, Receiver};
 /// For now, returns a receiver with no sender (will never receive events).
 pub fn start_addon_watcher(path: &Path) -> Result<Receiver<PathBuf>, String> {
     if !path.is_dir() {
-        return Err(format!("addon directory does not exist: {}", path.display()));
+        return Err(format!(
+            "addon directory does not exist: {}",
+            path.display()
+        ));
     }
     let (_tx, rx) = mpsc::channel();
     Ok(rx)
@@ -20,8 +23,7 @@ pub fn scan_addon_dir(path: &Path) -> Result<Vec<PathBuf>, String> {
         return Err(format!("not a directory: {}", path.display()));
     }
     let mut wasm_files = Vec::new();
-    let entries =
-        std::fs::read_dir(path).map_err(|e| format!("failed to read dir: {e}"))?;
+    let entries = std::fs::read_dir(path).map_err(|e| format!("failed to read dir: {e}"))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("dir entry error: {e}"))?;
         let p = entry.path();

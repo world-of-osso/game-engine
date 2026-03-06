@@ -35,7 +35,9 @@ fn spawn_player_nameplate(
     query: Query<&NetPlayer>,
 ) {
     let entity = trigger.entity;
-    let Ok(player) = query.get(entity) else { return };
+    let Ok(player) = query.get(entity) else {
+        return;
+    };
     let nameplate = spawn_nameplate_entity(
         &mut commands,
         &player.name,
@@ -47,11 +49,7 @@ fn spawn_player_nameplate(
 }
 
 /// Observer: spawn a nameplate child when an Npc is added.
-fn spawn_npc_nameplate(
-    trigger: On<Add, Npc>,
-    mut commands: Commands,
-    query: Query<&Npc>,
-) {
+fn spawn_npc_nameplate(trigger: On<Add, Npc>, mut commands: Commands, query: Query<&Npc>) {
     let entity = trigger.entity;
     let Ok(npc) = query.get(entity) else { return };
     let label = format!("Creature {}", npc.template_id);
@@ -92,7 +90,9 @@ fn billboard_nameplates(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
     mut plate_query: Query<&mut Transform, With<Nameplate>>,
 ) {
-    let Ok(camera_global) = camera_query.single() else { return };
+    let Ok(camera_global) = camera_query.single() else {
+        return;
+    };
     let camera_pos = camera_global.translation();
     for mut transform in plate_query.iter_mut() {
         let dir = camera_pos - transform.translation;
@@ -121,7 +121,9 @@ fn fade_nameplates_by_distance(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
     mut plate_query: Query<(&GlobalTransform, &mut TextColor), With<Nameplate>>,
 ) {
-    let Ok(camera_global) = camera_query.single() else { return };
+    let Ok(camera_global) = camera_query.single() else {
+        return;
+    };
     let camera_pos = camera_global.translation();
     for (global_tf, mut text_color) in plate_query.iter_mut() {
         let dist = camera_pos.distance(global_tf.translation());

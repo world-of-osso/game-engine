@@ -64,12 +64,31 @@ impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
         let in_world = in_state(GameState::InWorld);
         app.init_resource::<MinimapState>()
-            .add_systems(Startup, (spawn_minimap_display, spawn_minimap_border, spawn_minimap_arrow, spawn_zone_name, spawn_coord_text))
+            .add_systems(
+                Startup,
+                (
+                    spawn_minimap_display,
+                    spawn_minimap_border,
+                    spawn_minimap_arrow,
+                    spawn_zone_name,
+                    spawn_coord_text,
+                ),
+            )
             .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
             .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
             .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
-            .add_systems(Update, update_minimap_composite.after(generate_tile_textures).run_if(in_world.clone()))
-            .add_systems(Update, draw_entity_dots.after(update_minimap_composite).run_if(in_world.clone()))
+            .add_systems(
+                Update,
+                update_minimap_composite
+                    .after(generate_tile_textures)
+                    .run_if(in_world.clone()),
+            )
+            .add_systems(
+                Update,
+                draw_entity_dots
+                    .after(update_minimap_composite)
+                    .run_if(in_world.clone()),
+            )
             .add_systems(Update, update_coord_text.run_if(in_world.clone()))
             .add_systems(Update, update_zone_name.run_if(in_world.clone()))
             .add_systems(Update, rotate_minimap.run_if(in_world));
@@ -103,7 +122,11 @@ fn rotate_minimap(
 fn create_blank_image(w: u32, h: u32) -> Image {
     let data = vec![0u8; (w * h * 4) as usize];
     Image::new(
-        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -115,7 +138,9 @@ fn create_blank_image(w: u32, h: u32) -> Image {
 fn spawn_minimap_display(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let blank = create_blank_image(MINIMAP_DISPLAY_SIZE, MINIMAP_DISPLAY_SIZE);
     let handle = images.add(blank);
-    commands.insert_resource(MinimapComposite { handle: handle.clone() });
+    commands.insert_resource(MinimapComposite {
+        handle: handle.clone(),
+    });
 
     commands.spawn((
         MinimapDisplay,
@@ -149,16 +174,20 @@ fn create_border_image() -> Image {
 
             if dist >= inner_radius && dist <= outer_radius {
                 let i = (y * size + x) * 4;
-                data[i] = 80;      // R - dark gold/brown
-                data[i + 1] = 60;  // G
-                data[i + 2] = 20;  // B
+                data[i] = 80; // R - dark gold/brown
+                data[i + 1] = 60; // G
+                data[i + 2] = 20; // B
                 data[i + 3] = 220; // A
             }
         }
     }
 
     Image::new(
-        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size as u32,
+            height: size as u32,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -220,16 +249,20 @@ fn create_arrow_image() -> Image {
         for x in 0..size {
             if point_in_triangle(x as f32, y as f32, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0) {
                 let i = (y * size + x) * 4;
-                data[i] = 255;     // R
+                data[i] = 255; // R
                 data[i + 1] = 220; // G
-                data[i + 2] = 0;   // B
+                data[i + 2] = 0; // B
                 data[i + 3] = 255; // A
             }
         }
     }
 
     Image::new(
-        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size as u32,
+            height: size as u32,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -239,10 +272,14 @@ fn create_arrow_image() -> Image {
 
 /// Check if point (px, py) is inside triangle defined by three vertices.
 fn point_in_triangle(
-    px: f32, py: f32,
-    x1: f32, y1: f32,
-    x2: f32, y2: f32,
-    x3: f32, y3: f32,
+    px: f32,
+    py: f32,
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    y2: f32,
+    x3: f32,
+    y3: f32,
 ) -> bool {
     let d1 = (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
     let d2 = (px - x3) * (y2 - y3) - (x2 - x3) * (py - y3);
@@ -262,8 +299,7 @@ fn generate_tile_textures(
         if minimap.generated.contains(&(ty, tx)) {
             continue;
         }
-        let image = try_load_minimap_blp(tx, ty)
-            .or_else(|| render_tile_image(&heightmap, ty, tx));
+        let image = try_load_minimap_blp(tx, ty).or_else(|| render_tile_image(&heightmap, ty, tx));
         if let Some(image) = image {
             let handle = images.add(image);
             minimap.tile_images.insert((ty, tx), handle);
@@ -290,8 +326,12 @@ fn update_minimap_composite(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Ok(player_tf) = player_q.single() else { return };
-    let Some(composite_res) = composite_res else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let Some(composite_res) = composite_res else {
+        return;
+    };
 
     let bx = player_tf.translation.x;
     let bz = player_tf.translation.z;
@@ -301,7 +341,15 @@ fn update_minimap_composite(
     let tile_px = MINIMAP_TILE_SIZE as usize;
     let mut composite = build_dark_composite(comp_size);
 
-    blit_tiles(&mut composite, comp_size, tile_px, player_row, player_col, &minimap, &images);
+    blit_tiles(
+        &mut composite,
+        comp_size,
+        tile_px,
+        player_row,
+        player_col,
+        &minimap,
+        &images,
+    );
 
     let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
     let display = crop_with_circle(&composite, comp_size, px_x, px_y, MINIMAP_DISPLAY_SIZE);
@@ -338,11 +386,19 @@ fn blit_tiles(
         for dx in 0..3i32 {
             let row = center_row as i32 + dy - 1;
             let col = center_col as i32 + dx - 1;
-            if row < 0 || col < 0 { continue; }
+            if row < 0 || col < 0 {
+                continue;
+            }
             let key = (row as u32, col as u32);
-            let Some(handle) = minimap.tile_images.get(&key) else { continue };
-            let Some(tile_img) = images.get(handle) else { continue };
-            let Some(tile_data) = tile_img.data.as_ref() else { continue };
+            let Some(handle) = minimap.tile_images.get(&key) else {
+                continue;
+            };
+            let Some(tile_img) = images.get(handle) else {
+                continue;
+            };
+            let Some(tile_data) = tile_img.data.as_ref() else {
+                continue;
+            };
 
             let off_x = dx as usize * tile_px;
             let off_y = dy as usize * tile_px;
@@ -358,7 +414,8 @@ fn blit_image(dst: &mut [u8], dst_w: usize, src: &[u8], src_w: usize, off_x: usi
         let di_start = ((off_y + y) * dst_w + off_x) * 4;
         let row_bytes = src_w * 4;
         if si_start + row_bytes <= src.len() && di_start + row_bytes <= dst.len() {
-            dst[di_start..di_start + row_bytes].copy_from_slice(&src[si_start..si_start + row_bytes]);
+            dst[di_start..di_start + row_bytes]
+                .copy_from_slice(&src[si_start..si_start + row_bytes]);
         }
     }
 }
@@ -408,7 +465,9 @@ fn crop_with_circle(
             let dy = y as f32 - radius + 0.5;
             let dist = (dx * dx + dy * dy).sqrt();
 
-            if dist > radius { continue; }
+            if dist > radius {
+                continue;
+            }
 
             let di = (y * ds + x) * 4;
             let sx = cx as i32 - ds as i32 / 2 + x as i32;
@@ -442,7 +501,11 @@ fn render_tile_image(heightmap: &TerrainHeightmap, tile_y: u32, tile_x: u32) -> 
     }
 
     Some(Image::new(
-        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size as u32,
+            height: size as u32,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -514,7 +577,11 @@ fn find_height_range(chunks: &[Option<ChunkHeightGrid>]) -> (f32, f32) {
             max_h = max_h.max(h);
         }
     }
-    if min_h > max_h { (0.0, 1.0) } else { (min_h, max_h) }
+    if min_h > max_h {
+        (0.0, 1.0)
+    } else {
+        (min_h, max_h)
+    }
 }
 
 /// Spawn zone name text below the minimap.
@@ -524,7 +591,10 @@ fn spawn_zone_name(mut commands: Commands) {
         MinimapHud,
         Visibility::Hidden,
         Text::new("Elwynn Forest"),
-        TextFont { font_size: 16.0, ..default() },
+        TextFont {
+            font_size: 16.0,
+            ..default()
+        },
         TextColor(Color::srgba(1.0, 0.82, 0.0, 1.0)),
         Node {
             position_type: PositionType::Absolute,
@@ -543,7 +613,10 @@ fn spawn_coord_text(mut commands: Commands) {
         MinimapHud,
         Visibility::Hidden,
         Text::new("0, 0"),
-        TextFont { font_size: 14.0, ..default() },
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
         TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
@@ -574,7 +647,9 @@ fn update_zone_name(
     mut text_q: Query<&mut Text, With<MinimapZoneName>>,
 ) {
     let Some(zone) = zone else { return };
-    if !zone.is_changed() { return; }
+    if !zone.is_changed() {
+        return;
+    }
     let name = zone_id_to_name(zone.zone_id);
     for mut text in &mut text_q {
         **text = name.to_string();
@@ -614,10 +689,18 @@ fn draw_entity_dots(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Ok(player_tf) = player_q.single() else { return };
-    let Some(composite_res) = composite_res else { return };
-    let Some(img) = images.get_mut(&composite_res.handle) else { return };
-    let Some(data) = img.data.as_mut() else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let Some(composite_res) = composite_res else {
+        return;
+    };
+    let Some(img) = images.get_mut(&composite_res.handle) else {
+        return;
+    };
+    let Some(data) = img.data.as_mut() else {
+        return;
+    };
 
     let ds = MINIMAP_DISPLAY_SIZE as usize;
     let center = ds as f32 / 2.0;
@@ -633,9 +716,15 @@ fn draw_entity_dots(
         let py = center - dx / yards_per_pixel;
 
         let dist = ((px - center).powi(2) + (py - center).powi(2)).sqrt();
-        if dist > center - 3.0 { continue; }
+        if dist > center - 3.0 {
+            continue;
+        }
 
-        let color = if npc.is_some() { [255, 200, 0, 255] } else { [0, 255, 0, 255] };
+        let color = if npc.is_some() {
+            [255, 200, 0, 255]
+        } else {
+            [0, 255, 0, 255]
+        };
         draw_dot(data, ds, px as i32, py as i32, &color);
     }
 }
@@ -698,7 +787,9 @@ mod tests {
 
     #[test]
     fn triangle_outside() {
-        assert!(!point_in_triangle(0.0, 0.0, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0));
+        assert!(!point_in_triangle(
+            0.0, 0.0, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0
+        ));
     }
 
     #[test]

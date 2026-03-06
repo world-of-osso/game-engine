@@ -24,7 +24,11 @@ const BAR_Y_OFFSET: f32 = 2.5;
 
 /// Compute the health bar color based on current/max HP.
 pub fn health_bar_color(current: f32, max: f32) -> Color {
-    let pct = if max > 0.0 { (current / max).clamp(0.0, 1.0) } else { 0.0 };
+    let pct = if max > 0.0 {
+        (current / max).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
     let (r, g, b) = health_pct_to_rgb(pct);
     Color::srgb(r, g, b)
 }
@@ -64,7 +68,14 @@ fn spawn_health_bars(
     let pct = health_pct(health);
     let (bg_mesh, fg_mesh) = create_bar_meshes(&mut meshes);
     let (bg_material, fg_material) = create_bar_materials(&mut materials, health);
-    let bar_root = spawn_bar_entity(&mut commands, bg_mesh, fg_mesh, bg_material, fg_material, pct);
+    let bar_root = spawn_bar_entity(
+        &mut commands,
+        bg_mesh,
+        fg_mesh,
+        bg_material,
+        fg_material,
+        pct,
+    );
     commands.entity(entity).add_child(bar_root);
 }
 
@@ -150,7 +161,14 @@ fn update_health_bars(
             let Ok(bar_children) = bar_query.get(child) else {
                 continue;
             };
-            update_foreground(bar_children, pct, health, &mut fg_query, &mut materials, &mat_query);
+            update_foreground(
+                bar_children,
+                pct,
+                health,
+                &mut fg_query,
+                &mut materials,
+                &mat_query,
+            );
         }
     }
 }

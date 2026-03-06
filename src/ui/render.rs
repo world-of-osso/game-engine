@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::camera::visibility::RenderLayers;
+use bevy::prelude::*;
 use bevy::text::TextFont;
 
 use crate::ui::frame::WidgetData;
@@ -48,13 +48,25 @@ pub fn sync_ui_quads(
     let sorted_ids = build_sorted_frame_ids(&state);
 
     // Map frame_id → sort_index for z-ordering.
-    let sort_map: std::collections::HashMap<u64, usize> =
-        sorted_ids.iter().copied().enumerate().map(|(i, id)| (id, i)).collect();
+    let sort_map: std::collections::HashMap<u64, usize> = sorted_ids
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(i, id)| (id, i))
+        .collect();
 
     // Update or despawn existing quads.
     for (entity, ui_quad) in &quads {
         if let Some(&sort_idx) = sort_map.get(&ui_quad.0) {
-            update_existing_quad(&state, entity, ui_quad.0, sort_idx, screen_w, screen_h, &mut commands);
+            update_existing_quad(
+                &state,
+                entity,
+                ui_quad.0,
+                sort_idx,
+                screen_w,
+                screen_h,
+                &mut commands,
+            );
         } else {
             commands.entity(entity).despawn();
         }
@@ -62,7 +74,15 @@ pub fn sync_ui_quads(
 
     // Spawn new quads for frames that don't have one yet.
     let existing: std::collections::HashSet<u64> = quads.iter().map(|(_, q)| q.0).collect();
-    spawn_new_quads(&state, &sorted_ids, &sort_map, &existing, screen_w, screen_h, &mut commands);
+    spawn_new_quads(
+        &state,
+        &sorted_ids,
+        &sort_map,
+        &existing,
+        screen_w,
+        screen_h,
+        &mut commands,
+    );
 
     state.registry.render_dirty.clear();
 }
@@ -77,11 +97,7 @@ fn build_sorted_frame_ids(state: &UiState) -> Vec<u64> {
         .map(|f| (f.id, f.strata, f.frame_level, f.raise_order))
         .collect();
 
-    frames.sort_by(|a, b| {
-        a.1.cmp(&b.1)
-            .then(a.2.cmp(&b.2))
-            .then(a.3.cmp(&b.3))
-    });
+    frames.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)));
 
     frames.into_iter().map(|(id, _, _, _)| id).collect()
 }
@@ -96,7 +112,10 @@ fn frame_transform(
     screen_w: f32,
     screen_h: f32,
 ) -> Transform {
-    let bx = f.width.mul_add(0.5, f.layout_rect.as_ref().map_or(0.0, |r| r.x)) - screen_w * 0.5;
+    let bx = f
+        .width
+        .mul_add(0.5, f.layout_rect.as_ref().map_or(0.0, |r| r.x))
+        - screen_w * 0.5;
     let by = screen_h * 0.5 - f.layout_rect.as_ref().map_or(0.0, |r| r.y) - f.height * 0.5;
     let bz = sort_idx as f32 * 0.001;
     Transform::from_xyz(bx, by, bz)
@@ -169,7 +188,14 @@ pub struct UiText(pub u64);
 pub fn sync_ui_text(
     state: Res<UiState>,
     mut commands: Commands,
-    mut texts: Query<(Entity, &UiText, &mut Text2d, &mut TextFont, &mut TextColor, &mut Transform)>,
+    mut texts: Query<(
+        Entity,
+        &UiText,
+        &mut Text2d,
+        &mut TextFont,
+        &mut TextColor,
+        &mut Transform,
+    )>,
 ) {
     let screen_w = state.registry.screen_width;
     let screen_h = state.registry.screen_height;
@@ -203,7 +229,10 @@ pub fn sync_ui_text(
         let transform = text_transform(frame, screen_w, screen_h, justify);
         commands.spawn((
             Text2d::new(content),
-            TextFont { font_size, ..default() },
+            TextFont {
+                font_size,
+                ..default()
+            },
             TextColor(text_color),
             transform,
             RenderLayers::layer(UI_RENDER_LAYER),
@@ -225,7 +254,12 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> (String, f32, Color, J
     match &frame.widget_data {
         Some(WidgetData::FontString(fs)) => {
             let [r, g, b, a] = fs.color;
-            (fs.text.clone(), fs.font_size, Color::srgba(r, g, b, a * frame.effective_alpha), fs.justify_h)
+            (
+                fs.text.clone(),
+                fs.font_size,
+                Color::srgba(r, g, b, a * frame.effective_alpha),
+                fs.justify_h,
+            )
         }
         Some(WidgetData::EditBox(eb)) => {
             let display = if eb.password {
@@ -233,11 +267,19 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> (String, f32, Color, J
             } else {
                 eb.text.clone()
             };
-            (display, 14.0, Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha), JustifyH::Left)
+            (
+                display,
+                14.0,
+                Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha),
+                JustifyH::Left,
+            )
         }
-        Some(WidgetData::Button(btn)) => {
-            (btn.text.clone(), 14.0, Color::srgba(1.0, 0.82, 0.0, frame.effective_alpha), JustifyH::Center)
-        }
+        Some(WidgetData::Button(btn)) => (
+            btn.text.clone(),
+            14.0,
+            Color::srgba(1.0, 0.82, 0.0, frame.effective_alpha),
+            JustifyH::Center,
+        ),
         _ => (String::new(), 12.0, Color::WHITE, JustifyH::Center),
     }
 }

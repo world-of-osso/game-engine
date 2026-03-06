@@ -187,7 +187,12 @@ mod tests {
     #[test]
     fn single_topleft_with_offset() {
         // x_offset=10, y_offset=-5 means target_y = parent_y - (-5) = 5
-        let anchors = [anchor(AnchorPoint::TopLeft, AnchorPoint::TopLeft, 10.0, -5.0)];
+        let anchors = [anchor(
+            AnchorPoint::TopLeft,
+            AnchorPoint::TopLeft,
+            10.0,
+            -5.0,
+        )];
         let result = resolve_anchors(&anchors, 100.0, 50.0, &parent());
         assert_eq!(
             result,

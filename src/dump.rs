@@ -57,11 +57,7 @@ fn emit_entity(
     all: &[EntityInfo],
     lines: &mut Vec<String>,
 ) {
-    let label = info
-        .name
-        .as_deref()
-        .unwrap_or("unnamed")
-        .to_owned();
+    let label = info.name.as_deref().unwrap_or("unnamed").to_owned();
 
     let passes = filter
         .map(|f| label.to_lowercase().contains(&f.to_lowercase()))
