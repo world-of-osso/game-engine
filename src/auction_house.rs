@@ -443,3 +443,105 @@ fn format_mailbox(state: &AuctionHouseState) -> String {
         .join("\n");
     format!("mailbox: {}\n{}", state.mailbox.len(), lines)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::protocol::{AuctionSortDir, AuctionSortField, AuctionTimeLeft};
+
+    #[test]
+    fn auction_status_request_returns_immediate_snapshot() {
+        let (tx, rx) = mpsc::channel();
+        let mut state = AuctionHouseState {
+            is_open: true,
+            search_total: 3,
+            ..Default::default()
+        };
+
+        let handled = queue_ipc_request(&mut state, &Request::AuctionStatus, tx);
+
+        assert!(handled);
+        let Response::Text(text) = rx.recv().expect("response") else {
+            panic!("expected text response");
+        };
+        assert!(text.contains("open: true"));
+        assert!(text.contains("search_total: 3"));
+        assert!(state.pending_actions.is_empty());
+    }
+
+    #[test]
+    fn browse_request_enqueues_network_action_and_reply_slot() {
+        let (tx, _rx) = mpsc::channel();
+        let mut state = AuctionHouseState::default();
+        let query = AuctionSearchQuery {
+            text: "linen".into(),
+            page: 1,
+            page_size: 20,
+            min_level: None,
+            max_level: None,
+            quality: Some(1),
+            usable_only: false,
+            sort_field: AuctionSortField::Name,
+            sort_dir: AuctionSortDir::Asc,
+        };
+
+        let handled = queue_ipc_request(
+            &mut state,
+            &Request::AuctionBrowse {
+                query: query.clone(),
+            },
+            tx,
+        );
+
+        assert!(handled);
+        assert_eq!(state.pending_actions.len(), 1);
+        assert_eq!(state.pending_replies.len(), 1);
+        match &state.pending_actions[0].action {
+            Action::Browse(queued) => assert_eq!(queued, &query),
+            _ => panic!("expected browse action"),
+        }
+    }
+
+    #[test]
+    fn format_search_results_includes_listing_data() {
+        let state = AuctionHouseState {
+            last_query: Some(AuctionSearchQuery {
+                text: "linen".into(),
+                page: 0,
+                page_size: 10,
+                min_level: None,
+                max_level: None,
+                quality: None,
+                usable_only: false,
+                sort_field: AuctionSortField::Name,
+                sort_dir: AuctionSortDir::Asc,
+            }),
+            search_total: 1,
+            search_results: vec![AuctionListingSummary {
+                auction_id: 42,
+                item: AuctionInventoryItem {
+                    item_guid: 10,
+                    item_id: 2589,
+                    name: "Linen Cloth".into(),
+                    quality: 1,
+                    required_level: 1,
+                    stack_count: 5,
+                    vendor_sell_price: 13,
+                },
+                owner_name: "Seller".into(),
+                stack_count: 5,
+                min_bid: 100,
+                current_bid: Some(110),
+                min_next_bid: 115,
+                buyout_price: Some(150),
+                time_left: AuctionTimeLeft::Medium,
+            }],
+            ..Default::default()
+        };
+
+        let text = format_search_results(&state);
+
+        assert!(text.contains("search page=0 size=10 total=1 text=linen"));
+        assert!(text.contains("#42 Linen Cloth x5 owner=Seller bid=110 next=115 buyout=150"));
+    }
+}

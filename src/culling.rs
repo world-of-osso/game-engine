@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
+use bevy::camera::primitives::Frustum;
 use bevy::prelude::*;
-use bevy::render::primitives::Frustum;
 
 /// Marker for terrain chunk entities. Stores precomputed world center for distance checks.
 #[derive(Component)]
@@ -178,10 +178,11 @@ fn portal_in_frustum(
 
 /// Test if a point is inside all 6 frustum half-spaces.
 fn point_in_frustum(point: Vec3, frustum: &Frustum) -> bool {
+    let point = Vec3A::from(point);
     for half_space in &frustum.half_spaces {
         let normal = half_space.normal();
         let d = half_space.d();
-        if normal.dot(point.into()) + d < 0.0 {
+        if normal.dot(point) + d < 0.0 {
             return false;
         }
     }

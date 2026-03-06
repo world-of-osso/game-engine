@@ -202,6 +202,51 @@ fn log_wmo_spawn(root_fdid: u32, group_count: u32, root: &wmo::WmoRootData, tran
     );
 }
 
+fn build_portal_graph(root: &wmo::WmoRootData) -> game_engine::culling::WmoPortalGraph {
+    let mut adjacency = vec![Vec::new(); root.n_groups as usize];
+    let mut refs_by_portal = vec![Vec::new(); root.portals.len()];
+    for portal_ref in &root.portal_refs {
+        if let Some(group_refs) = refs_by_portal.get_mut(portal_ref.portal_index as usize) {
+            group_refs.push(portal_ref.group_index);
+        }
+    }
+
+    for (portal_idx, groups) in refs_by_portal.iter().enumerate() {
+        if groups.len() < 2 {
+            continue;
+        }
+        for &src in groups {
+            if let Some(neighbors) = adjacency.get_mut(src as usize) {
+                for &dst in groups {
+                    if src != dst {
+                        neighbors.push((portal_idx, dst));
+                    }
+                }
+            }
+        }
+    }
+
+    let portal_verts = root
+        .portals
+        .iter()
+        .map(|portal| {
+            portal
+                .vertices
+                .iter()
+                .map(|vertex| {
+                    let [x, y, z] = *vertex;
+                    Vec3::from(crate::asset::m2::wow_to_bevy(x, y, z))
+                })
+                .collect()
+        })
+        .collect();
+
+    game_engine::culling::WmoPortalGraph {
+        adjacency,
+        portal_verts,
+    }
+}
+
 /// Resolve a WMO placement to its root FileDataID.
 fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
     if let Some(fdid) = wmo.fdid {
