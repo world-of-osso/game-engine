@@ -3433,6 +3433,7 @@ dependencies = [
  "dioxus-core",
  "game-api",
  "glob",
+ "half",
  "image-blp",
  "libc",
  "lightyear",

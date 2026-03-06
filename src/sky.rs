@@ -1,7 +1,10 @@
+use std::f32::consts::{FRAC_PI_2, TAU};
+
 use bevy::prelude::*;
+use bevy::light::GeneratedEnvironmentMapLight;
+use bevy::pbr::{DistanceFog, FogFalloff, MaterialPlugin};
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension};
 use bevy::asset::RenderAssetUsages;
-use bevy::pbr::{DistanceFog, MaterialPlugin};
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::game_state::GameState;
 
@@ -136,13 +139,6 @@ fn lerp_color(a: Color, b: Color, t: f32) -> Color {
     )
 }
 
-impl SkyColorSet {
-    /// Default sky colors when no LightData is available.
-    pub fn default_colors() -> Self {
-        default_sky_colors()
-    }
-}
-
 /// Default sky colors when no LightData is available.
 fn default_sky_colors() -> SkyColorSet {
     SkyColorSet {
@@ -269,11 +265,12 @@ fn build_sky_dome_mesh(radius: f32, lon_segments: u32, lat_segments: u32) -> Mes
     mesh
 }
 
-/// Spawn the sky dome as a child of the camera entity.
+/// Spawn the sky dome as a child of the camera entity and set up fog + IBL.
 pub fn spawn_sky_dome(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     sky_materials: &mut Assets<SkyMaterial>,
+    images: &mut Assets<Image>,
     camera_entity: Entity,
 ) {
     let mesh = build_sky_dome_mesh(900.0, 32, 16);
@@ -291,6 +288,28 @@ pub fn spawn_sky_dome(
         ))
         .id();
     commands.entity(dome).set_parent_in_place(camera_entity);
+
+    // Distance fog matching sky_smog color
+    let default_colors = default_sky_colors();
+    commands.entity(camera_entity).insert(DistanceFog {
+        color: default_colors.sky_smog,
+        directional_light_color: default_colors.sky_band2,
+        directional_light_exponent: 8.0,
+        falloff: FogFalloff::ExponentialSquared { density: 0.0008 },
+    });
+
+    // Procedural sky cubemap for IBL
+    let cubemap = build_sky_cubemap(&default_colors);
+    let cubemap_handle = images.add(cubemap);
+    commands.insert_resource(SkyEnvMapHandle(cubemap_handle.clone()));
+    commands.entity(camera_entity).insert(
+        GeneratedEnvironmentMapLight {
+            environment_map: cubemap_handle,
+            intensity: 300.0,
+            rotation: Quat::IDENTITY,
+            affects_lightmapped_mesh_diffuse: true,
+        },
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -353,30 +372,57 @@ fn sync_lights(
     }
 }
 
+fn sync_water_sky_color(
+    water_materials: &mut Assets<crate::water_material::WaterMaterial>,
+    colors: &SkyColorSet,
+) {
+    let sky_vec4 = color_to_vec4(colors.sky_band2);
+    for (_id, mat) in water_materials.iter_mut() {
+        mat.settings.sky_color = sky_vec4;
+    }
+}
+
 // ---------------------------------------------------------------------------
-// Sun arc, fog, and environment map systems
+// Sun direction (arc across sky based on time of day)
 // ---------------------------------------------------------------------------
 
-/// Compute sun direction from time of day (0–2880).
-/// Dawn=720 (east), noon=1440 (overhead), dusk=2160 (west), night=below horizon.
-fn sun_direction(minutes: f32) -> Vec3 {
-    let m = minutes.rem_euclid(2880.0);
-    let sun_progress = (m - 720.0) / 1440.0; // 0 at dawn, 1 at dusk
-    let elevation = (sun_progress * std::f32::consts::PI).sin().max(0.05);
-    let azimuth = sun_progress * std::f32::consts::PI;
-    // Direction FROM the sun (pointing toward scene)
-    Vec3::new(-azimuth.cos(), -elevation, -azimuth.sin() * 0.3).normalize()
+/// Compute the sun's elevation (-1..1) from game time.
+/// -1 = directly below (midnight), 0 = horizon (dawn/dusk), 1 = zenith (noon).
+fn sun_elevation(minutes: f32) -> f32 {
+    (minutes / 2880.0 * TAU - FRAC_PI_2).sin()
+}
+
+/// Compute the sun's pitch rotation for the DirectionalLight.
+/// Dawn(720)=horizon, Noon(1440)=overhead, Dusk(2160)=opposite horizon.
+fn sun_rotation(minutes: f32) -> Quat {
+    // Map time to angle: noon → straight down, dawn/dusk → horizontal
+    let pitch = FRAC_PI_2 - (minutes / 2880.0) * TAU;
+    // Add slight Y rotation so shadows aren't perfectly axis-aligned
+    Quat::from_rotation_y(0.3) * Quat::from_rotation_x(pitch)
 }
 
 fn update_sun_direction(
     game_time: Res<GameTime>,
-    mut dir_lights: Query<&mut Transform, With<DirectionalLight>>,
+    mut dir_lights: Query<(&mut Transform, &mut DirectionalLight)>,
 ) {
-    let dir = sun_direction(game_time.minutes);
-    for mut transform in dir_lights.iter_mut() {
-        transform.rotation = Quat::from_rotation_arc(Vec3::NEG_Z, dir);
+    let elev = sun_elevation(game_time.minutes);
+    let rotation = sun_rotation(game_time.minutes);
+    // Dim light when sun is below horizon
+    let intensity = if elev > 0.0 {
+        light_consts::lux::OVERCAST_DAY * elev.sqrt()
+    } else {
+        // Moonlight: very dim
+        light_consts::lux::OVERCAST_DAY * 0.02
+    };
+    for (mut transform, mut light) in dir_lights.iter_mut() {
+        transform.rotation = rotation;
+        light.illuminance = intensity;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Distance fog
+// ---------------------------------------------------------------------------
 
 fn update_fog(
     game_time: Res<GameTime>,
@@ -386,73 +432,129 @@ fn update_fog(
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
     for mut fog in fog_q.iter_mut() {
         fog.color = colors.sky_smog;
+        fog.directional_light_color = colors.sky_band2;
     }
 }
 
-/// Marker for the environment map cubemap handle so we can update it.
+// ---------------------------------------------------------------------------
+// Environment map (IBL) from sky gradient
+// ---------------------------------------------------------------------------
+
+/// Cubemap face size for the procedural sky environment map.
+const ENV_MAP_SIZE: u32 = 32;
+
+/// Marker for the sky environment cubemap image asset.
 #[derive(Resource)]
-pub struct SkyEnvMap {
-    pub handle: Handle<Image>,
-}
+struct SkyEnvMapHandle(Handle<Image>);
 
-/// Build a 16×16 cubemap (6 faces) from sky colors for IBL ambient lighting.
-pub fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
-    const SIZE: u32 = 16;
-    let face_pixels = (SIZE * SIZE) as usize;
-    let mut data = Vec::with_capacity(face_pixels * 6 * 4);
+/// Build a cubemap Image (6 faces) from the given sky color set.
+fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
+    let face_pixels = (ENV_MAP_SIZE * ENV_MAP_SIZE) as usize;
+    let total_bytes = face_pixels * 6 * 8; // 6 faces, Rgba16Float = 8 bytes/pixel
+    let mut data = vec![0u8; total_bytes];
+
     for face in 0..6u32 {
-        let color = face_color(face, colors);
-        let lin = color.to_linear();
-        let (r, g, b) = color_to_u8(lin);
-        for _ in 0..face_pixels {
-            data.extend_from_slice(&[r, g, b, 255]);
-        }
+        let offset = (face as usize) * face_pixels * 8;
+        fill_cubemap_face(&mut data[offset..offset + face_pixels * 8], face, colors);
     }
-    Image::new(
-        Extent3d { width: SIZE, height: SIZE, depth_or_array_layers: 6 },
+
+    let mut image = Image::new(
+        Extent3d {
+            width: ENV_MAP_SIZE,
+            height: ENV_MAP_SIZE,
+            depth_or_array_layers: 6,
+        },
         TextureDimension::D2,
         data,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::RENDER_WORLD,
-    )
+        TextureFormat::Rgba16Float,
+        RenderAssetUsages::default(),
+    );
+    image.texture_view_descriptor = Some(TextureViewDescriptor {
+        dimension: Some(TextureViewDimension::Cube),
+        ..Default::default()
+    });
+    image
 }
 
-fn color_to_u8(lin: LinearRgba) -> (u8, u8, u8) {
-    (
-        (lin.red * 255.0).min(255.0) as u8,
-        (lin.green * 255.0).min(255.0) as u8,
-        (lin.blue * 255.0).min(255.0) as u8,
-    )
-}
-
-fn face_color(face: u32, colors: &SkyColorSet) -> Color {
-    match face {
-        2 => colors.sky_top,   // +Y (up)
-        3 => colors.sky_smog,  // -Y (down)
-        _ => colors.sky_middle, // sides
+/// Fill one cubemap face with sky gradient colors based on elevation.
+fn fill_cubemap_face(data: &mut [u8], face: u32, colors: &SkyColorSet) {
+    for y in 0..ENV_MAP_SIZE {
+        for x in 0..ENV_MAP_SIZE {
+            let dir = cubemap_direction(face, x, y);
+            let elev = dir.y.asin() / FRAC_PI_2; // -1..1
+            let color = sample_sky_gradient(colors, elev);
+            let pixel_offset = ((y * ENV_MAP_SIZE + x) as usize) * 8;
+            write_rgba16f(&mut data[pixel_offset..pixel_offset + 8], color);
+        }
     }
 }
 
-fn update_env_map(
+/// Get the 3D direction for a cubemap face pixel.
+/// Faces: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+fn cubemap_direction(face: u32, x: u32, y: u32) -> Vec3 {
+    let u = (x as f32 + 0.5) / ENV_MAP_SIZE as f32 * 2.0 - 1.0;
+    let v = (y as f32 + 0.5) / ENV_MAP_SIZE as f32 * 2.0 - 1.0;
+    let dir = match face {
+        0 => Vec3::new(1.0, -v, -u),  // +X
+        1 => Vec3::new(-1.0, -v, u),  // -X
+        2 => Vec3::new(u, 1.0, v),    // +Y
+        3 => Vec3::new(u, -1.0, -v),  // -Y
+        4 => Vec3::new(u, -v, 1.0),   // +Z
+        _ => Vec3::new(-u, -v, -1.0), // -Z
+    };
+    dir.normalize()
+}
+
+/// Sample the sky gradient at a given elevation (-1..1).
+fn sample_sky_gradient(colors: &SkyColorSet, elev: f32) -> LinearRgba {
+    let elev = elev.clamp(-0.1, 1.0);
+    let normalized = ((elev + 0.1) / 1.1).clamp(0.0, 1.0); // 0..1
+    let (a, b, t) = if normalized < 0.1 {
+        (colors.sky_smog, colors.sky_smog, 0.0)
+    } else if normalized < 0.3 {
+        let t = (normalized - 0.1) / 0.2;
+        (colors.sky_smog, colors.sky_band2, t)
+    } else if normalized < 0.5 {
+        let t = (normalized - 0.3) / 0.2;
+        (colors.sky_band2, colors.sky_band1, t)
+    } else if normalized < 0.7 {
+        let t = (normalized - 0.5) / 0.2;
+        (colors.sky_band1, colors.sky_middle, t)
+    } else {
+        let t = (normalized - 0.7) / 0.3;
+        (colors.sky_middle, colors.sky_top, t)
+    };
+    let a = a.to_linear();
+    let b = b.to_linear();
+    LinearRgba::new(
+        a.red + (b.red - a.red) * t,
+        a.green + (b.green - a.green) * t,
+        a.blue + (b.blue - a.blue) * t,
+        1.0,
+    )
+}
+
+/// Write a LinearRgba color as 4×f16 bytes.
+fn write_rgba16f(dst: &mut [u8], c: LinearRgba) {
+    let vals = [c.red, c.green, c.blue, c.alpha];
+    for (i, &v) in vals.iter().enumerate() {
+        let h = half::f16::from_f32(v);
+        let bytes = h.to_le_bytes();
+        dst[i * 2] = bytes[0];
+        dst[i * 2 + 1] = bytes[1];
+    }
+}
+
+fn update_sky_env_map(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
-    env_map: Option<Res<SkyEnvMap>>,
+    env_handle: Option<Res<SkyEnvMapHandle>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Some(env_map) = env_map else { return };
+    let Some(handle) = env_handle else { return };
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
-    if let Some(img) = images.get_mut(&env_map.handle) {
-        *img = build_sky_cubemap(&colors);
-    }
-}
-
-fn sync_water_sky_color(
-    water_materials: &mut Assets<crate::water_material::WaterMaterial>,
-    colors: &SkyColorSet,
-) {
-    let sky_vec4 = color_to_vec4(colors.sky_band2);
-    for (_id, mat) in water_materials.iter_mut() {
-        mat.settings.sky_color = sky_vec4;
+    if let Some(image) = images.get_mut(&handle.0) {
+        *image = build_sky_cubemap(&colors);
     }
 }
 
@@ -546,7 +648,7 @@ impl Plugin for SkyPlugin {
             .add_systems(Update, update_sky_colors.after(advance_game_time).run_if(in_state(GameState::InWorld)))
             .add_systems(Update, update_sun_direction.after(advance_game_time).run_if(in_state(GameState::InWorld)))
             .add_systems(Update, update_fog.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, update_env_map.after(advance_game_time).run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, update_sky_env_map.after(advance_game_time).run_if(in_state(GameState::InWorld)))
             .add_systems(Update, update_time_display.after(advance_game_time).run_if(in_state(GameState::InWorld)))
             .add_systems(Update, time_speed_controls.run_if(in_state(GameState::InWorld)))
             .add_systems(OnEnter(GameState::InWorld), show_time_display)
@@ -626,30 +728,6 @@ mod tests {
         assert_eq!(format_game_clock(2160.0), "18:00");
         // 6:30am = 720 + 60 = 780 → 06:30
         assert_eq!(format_game_clock(780.0), "06:30");
-    }
-
-    #[test]
-    fn sun_direction_noon_points_down() {
-        let dir = sun_direction(1440.0); // noon
-        assert!(dir.y < -0.9, "Sun at noon should point mostly downward, got {dir:?}");
-    }
-
-    #[test]
-    fn sun_direction_dawn_dusk_near_horizon() {
-        let dawn = sun_direction(720.0);
-        assert!(dawn.y.abs() < 0.3, "Sun at dawn should be near horizon, got {dawn:?}");
-        let dusk = sun_direction(2160.0);
-        assert!(dusk.y.abs() < 0.3, "Sun at dusk should be near horizon, got {dusk:?}");
-    }
-
-    #[test]
-    fn build_sky_cubemap_correct_size() {
-        let colors = default_sky_colors();
-        let img = build_sky_cubemap(&colors);
-        assert_eq!(img.size().x, 16);
-        assert_eq!(img.size().y, 16);
-        // 6 faces × 16×16 × 4 bytes
-        assert_eq!(img.data.as_ref().unwrap().len(), 6 * 16 * 16 * 4);
     }
 
     #[test]

@@ -11,6 +11,7 @@ peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0
 tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time"] }
 serde = { version = "1", features = ["derive"] }
 webp = "0.3"
+half = "2"
 glob = "0.3"
 libc = "0.2"
 clap = { version = "4", features = ["derive"] }

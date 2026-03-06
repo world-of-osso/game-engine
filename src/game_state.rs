@@ -67,6 +67,7 @@ fn spawn_world_environment(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut sky_materials: ResMut<Assets<sky::SkyMaterial>>,
+    mut images: ResMut<Assets<Image>>,
     camera_q: Query<Entity, With<WowCamera>>,
 ) {
     if let Ok(camera) = camera_q.single() {
@@ -78,7 +79,7 @@ fn spawn_world_environment(
             },
             Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
         ));
-        sky::spawn_sky_dome(&mut commands, &mut meshes, &mut sky_materials, camera);
+        sky::spawn_sky_dome(&mut commands, &mut meshes, &mut sky_materials, &mut images, camera);
         commands.remove_resource::<ClearColor>();
     }
 }
