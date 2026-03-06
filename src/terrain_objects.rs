@@ -155,12 +155,14 @@ fn try_spawn_wmo(
 
     let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
     let transform = wmo_transform(placement);
+    let portal_graph = build_portal_graph(&root);
     let root_entity = commands
         .spawn((
             Name::new(format!("wmo_{root_fdid}")),
             transform,
             Visibility::default(),
             game_engine::culling::Wmo,
+            portal_graph,
         ))
         .id();
 

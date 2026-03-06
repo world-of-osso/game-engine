@@ -4,5 +4,6 @@ pub mod blp;
 pub mod casc_resolver;
 pub mod m2;
 pub mod m2_anim;
+pub mod m2_attach;
 pub mod m2_particle;
 pub mod wmo;

@@ -44,6 +44,29 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
 pub struct WmoRootData {
     pub n_groups: u32,
     pub materials: Vec<WmoMaterialDef>,
+    pub portals: Vec<WmoPortal>,
+    pub portal_refs: Vec<WmoPortalRef>,
+    pub group_infos: Vec<WmoGroupInfo>,
+}
+
+/// A portal polygon (doorway/opening between groups).
+pub struct WmoPortal {
+    pub vertices: Vec<[f32; 3]>,
+    pub normal: [f32; 3],
+}
+
+/// A portal reference linking a group to a portal and destination group.
+pub struct WmoPortalRef {
+    pub portal_index: u16,
+    pub group_index: u16,
+    pub side: i16,
+}
+
+/// Per-group info from MOGI chunk: flags and bounding box.
+pub struct WmoGroupInfo {
+    pub flags: u32,
+    pub bbox_min: [f32; 3],
+    pub bbox_max: [f32; 3],
 }
 
 pub struct WmoMaterialDef {
@@ -68,6 +91,12 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     let mut n_groups = 0u32;
     let mut materials = Vec::new();
 
+    let mut portals = Vec::new();
+    let mut portal_refs = Vec::new();
+    let mut group_infos = Vec::new();
+    let mut portal_vertices: Vec<[f32; 3]> = Vec::new();
+    let mut mopt_raw: Vec<(u16, u16)> = Vec::new(); // (start_vertex, count) per portal
+
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         match tag {
@@ -82,11 +111,31 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
                 // MOMT: 64 bytes per material
                 materials = parse_momt(payload)?;
             }
+            b"VPOM" => {
+                // MOPV: portal vertices (array of [f32;3])
+                portal_vertices = parse_vec3_array(payload)?;
+            }
+            b"TPOM" => {
+                // MOPT: portal definitions
+                let (p, raw) = parse_mopt(payload)?;
+                portals = p;
+                mopt_raw = raw;
+            }
+            b"RPOM" => {
+                // MOPR: portal references
+                portal_refs = parse_mopr(payload)?;
+            }
+            b"IGOM" => {
+                // MOGI: group info (flags + bounding boxes)
+                group_infos = parse_mogi(payload)?;
+            }
             _ => {}
         }
     }
 
-    Ok(WmoRootData { n_groups, materials })
+    resolve_portal_vertices(&mut portals, &mopt_raw, &portal_vertices);
+
+    Ok(WmoRootData { n_groups, materials, portals, portal_refs, group_infos })
 }
 
 /// Parse MOMT chunk: 64 bytes per material entry.
@@ -101,6 +150,73 @@ fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
         mats.push(WmoMaterialDef { texture_fdid, flags, blend_mode });
     }
     Ok(mats)
+}
+
+/// Parse MOPT chunk: 20 bytes per portal. Returns portals (with empty vertices) and vertex ranges.
+fn parse_mopt(data: &[u8]) -> Result<(Vec<WmoPortal>, Vec<(u16, u16)>), String> {
+    let count = data.len() / 20;
+    let mut portals = Vec::with_capacity(count);
+    let mut ranges = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = i * 20;
+        let start_vertex = read_u16(data, base)?;
+        let vert_count = read_u16(data, base + 2)?;
+        let normal = [
+            read_f32(data, base + 4)?,
+            read_f32(data, base + 8)?,
+            read_f32(data, base + 12)?,
+        ];
+        portals.push(WmoPortal { vertices: Vec::new(), normal });
+        ranges.push((start_vertex, vert_count));
+    }
+    Ok((portals, ranges))
+}
+
+/// Resolve portal vertices from MOPV data into parsed portals.
+fn resolve_portal_vertices(portals: &mut [WmoPortal], ranges: &[(u16, u16)], vertices: &[[f32; 3]]) {
+    for (portal, &(start, count)) in portals.iter_mut().zip(ranges.iter()) {
+        let s = start as usize;
+        let e = (s + count as usize).min(vertices.len());
+        if s < vertices.len() {
+            portal.vertices = vertices[s..e].to_vec();
+        }
+    }
+}
+
+/// Parse MOPR chunk: 8 bytes per portal reference.
+fn parse_mopr(data: &[u8]) -> Result<Vec<WmoPortalRef>, String> {
+    let count = data.len() / 8;
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = i * 8;
+        let portal_index = read_u16(data, base)?;
+        let group_index = read_u16(data, base + 2)?;
+        let side = read_u16(data, base + 4)? as i16;
+        out.push(WmoPortalRef { portal_index, group_index, side });
+    }
+    Ok(out)
+}
+
+/// Parse MOGI chunk: 32 bytes per group (flags u32, bbox_min [f32;3], bbox_max [f32;3], name_ofs i32).
+fn parse_mogi(data: &[u8]) -> Result<Vec<WmoGroupInfo>, String> {
+    let count = data.len() / 32;
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = i * 32;
+        let flags = read_u32(data, base)?;
+        let bbox_min = [
+            read_f32(data, base + 4)?,
+            read_f32(data, base + 8)?,
+            read_f32(data, base + 12)?,
+        ];
+        let bbox_max = [
+            read_f32(data, base + 16)?,
+            read_f32(data, base + 20)?,
+            read_f32(data, base + 24)?,
+        ];
+        out.push(WmoGroupInfo { flags, bbox_min, bbox_max });
+    }
+    Ok(out)
 }
 
 // ── group file parsing ──────────────────────────────────────────────────────

@@ -1,0 +1,1 @@
+(bevy::prelude::Entity, &ui::render::UiText, &mut bevy::prelude::Text2d, &mut bevy::prelude::TextFont, &mut bevy::prelude::TextColor, &mut bevy::prelude::Transform)

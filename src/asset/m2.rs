@@ -43,6 +43,8 @@ pub struct M2Model {
     pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
     pub global_sequences: Vec<u32>,
     pub particle_emitters: Vec<super::m2_particle::M2ParticleEmitter>,
+    pub attachments: Vec<super::m2_attach::M2Attachment>,
+    pub attachment_lookup: Vec<i16>,
 }
 
 struct M2Vertex {
@@ -747,6 +749,8 @@ pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
     let batches = build_render_batches(chunks.md20, path, &chunks, &txid, !anim.bones.is_empty(), skin_fdids)?;
     let mut particles = super::m2_particle::parse_particle_emitters(chunks.md20);
     super::m2_particle::resolve_texture_fdids(&mut particles, &txid);
+    let attachments = super::m2_attach::parse_attachments(chunks.md20).unwrap_or_default();
+    let attachment_lookup = super::m2_attach::parse_attachment_lookup(chunks.md20).unwrap_or_default();
     Ok(M2Model {
         batches,
         bones: anim.bones,
@@ -754,6 +758,8 @@ pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
         bone_tracks: anim.bone_tracks,
         global_sequences: anim.global_sequences,
         particle_emitters: particles,
+        attachments,
+        attachment_lookup,
     })
 }
 

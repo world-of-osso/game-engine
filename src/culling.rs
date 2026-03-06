@@ -1,4 +1,7 @@
+use std::collections::{HashSet, VecDeque};
+
 use bevy::prelude::*;
+use bevy::render::primitives::Frustum;
 
 /// Marker for terrain chunk entities. Stores precomputed world center for distance checks.
 #[derive(Component)]
@@ -13,6 +16,25 @@ pub struct Doodad;
 /// Marker for WMO root entities.
 #[derive(Component)]
 pub struct Wmo;
+
+/// Marker for a WMO group entity (child of a Wmo root). Stores the group index
+/// and its AABB in WMO-local space (from MOGI).
+#[derive(Component)]
+pub struct WmoGroup {
+    pub group_index: u16,
+    pub bbox_min: Vec3,
+    pub bbox_max: Vec3,
+}
+
+/// Portal culling data stored on the WMO root entity.
+/// Contains the portal graph needed for BFS visibility traversal.
+#[derive(Component)]
+pub struct WmoPortalGraph {
+    /// Per-group list of (portal_index, destination_group_index).
+    pub adjacency: Vec<Vec<(usize, u16)>>,
+    /// Portal polygon vertices in WMO-local space (converted to Bevy coords).
+    pub portal_verts: Vec<Vec<Vec3>>,
+}
 
 /// Distance thresholds for culling. Objects beyond these distances are hidden.
 #[derive(Resource)]
@@ -43,7 +65,7 @@ impl Plugin for CullingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CullingConfig>()
             .init_resource::<LastCullPosition>()
-            .add_systems(Update, distance_cull_system);
+            .add_systems(Update, (distance_cull_system, wmo_portal_cull_system));
     }
 }
 
@@ -101,6 +123,129 @@ fn distance_cull_system(
             *vis = desired;
         }
     }
+}
+
+// ── WMO portal culling ──────────────────────────────────────────────────────
+
+/// BFS from camera group through portals visible in the frustum.
+fn bfs_visible_groups(
+    start_group: u16,
+    graph: &WmoPortalGraph,
+    frustum: &Frustum,
+    wmo_transform: &GlobalTransform,
+) -> HashSet<u16> {
+    let mut visible = HashSet::new();
+    visible.insert(start_group);
+    let mut queue = VecDeque::new();
+    queue.push_back(start_group);
+
+    while let Some(current) = queue.pop_front() {
+        let Some(neighbors) = graph.adjacency.get(current as usize) else { continue };
+        for &(portal_idx, dest_group) in neighbors {
+            if visible.contains(&dest_group) {
+                continue;
+            }
+            if portal_in_frustum(graph, portal_idx, frustum, wmo_transform) {
+                visible.insert(dest_group);
+                queue.push_back(dest_group);
+            }
+        }
+    }
+
+    visible
+}
+
+/// Check if a portal polygon has any vertex inside the camera frustum.
+fn portal_in_frustum(
+    graph: &WmoPortalGraph,
+    portal_idx: usize,
+    frustum: &Frustum,
+    wmo_transform: &GlobalTransform,
+) -> bool {
+    let Some(verts) = graph.portal_verts.get(portal_idx) else { return false };
+    if verts.is_empty() {
+        return true; // No geometry = assume visible
+    }
+    // Check if any portal vertex is inside all frustum half-spaces
+    for local_v in verts {
+        let world_v = wmo_transform.transform_point(*local_v);
+        if point_in_frustum(world_v, frustum) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Test if a point is inside all 6 frustum half-spaces.
+fn point_in_frustum(point: Vec3, frustum: &Frustum) -> bool {
+    for half_space in &frustum.half_spaces {
+        let normal = half_space.normal();
+        let d = half_space.d();
+        if normal.dot(point.into()) + d < 0.0 {
+            return false;
+        }
+    }
+    true
+}
+
+/// Portal-based visibility culling for WMO interiors.
+fn wmo_portal_cull_system(
+    camera_q: Query<(&GlobalTransform, &Frustum), With<Camera3d>>,
+    wmo_q: Query<(Entity, &GlobalTransform, &WmoPortalGraph), With<Wmo>>,
+    mut group_q: Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+) {
+    let Ok((cam_gtf, frustum)) = camera_q.single() else { return };
+    let cam_pos = cam_gtf.translation();
+
+    for (wmo_entity, wmo_gtf, graph) in &wmo_q {
+        let local_cam = wmo_gtf.affine().inverse().transform_point3(cam_pos);
+
+        // Collect group info for camera detection (immutable pass)
+        let camera_group = find_camera_group_from_query(local_cam, wmo_entity, &group_q);
+
+        // Not inside any group = outside the WMO, skip portal culling
+        let Some(cam_group) = camera_group else { continue };
+
+        let visible_set = bfs_visible_groups(cam_group, graph, frustum, wmo_gtf);
+
+        // Apply visibility (mutable pass)
+        for (group, mut vis, child_of) in &mut group_q {
+            if child_of.parent() != wmo_entity {
+                continue;
+            }
+            let desired = if visible_set.contains(&group.group_index) {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+            if *vis != desired {
+                *vis = desired;
+            }
+        }
+    }
+}
+
+/// Find which group the camera is in, filtering by WMO parent.
+fn find_camera_group_from_query(
+    local_cam: Vec3,
+    wmo_entity: Entity,
+    group_q: &Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+) -> Option<u16> {
+    for (group, _, child_of) in group_q.iter() {
+        if child_of.parent() != wmo_entity {
+            continue;
+        }
+        if local_cam.x >= group.bbox_min.x
+            && local_cam.y >= group.bbox_min.y
+            && local_cam.z >= group.bbox_min.z
+            && local_cam.x <= group.bbox_max.x
+            && local_cam.y <= group.bbox_max.y
+            && local_cam.z <= group.bbox_max.z
+        {
+            return Some(group.group_index);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
