@@ -759,8 +759,9 @@ fn wmo_batch_material(
     let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
 
     if texture_fdid > 0 {
-        let blp_path = format!("data/textures/{texture_fdid}.blp");
-        if let Ok(image) = blp::load_blp_gpu_image(std::path::Path::new(&blp_path)) {
+        let blp_path = crate::asset::casc_resolver::ensure_texture(texture_fdid)
+            .unwrap_or_else(|| std::path::PathBuf::from(format!("data/textures/{texture_fdid}.blp")));
+        if let Ok(image) = blp::load_blp_gpu_image(&blp_path) {
             return materials.add(wmo_standard_material(Some(images.add(image)), blend_mode));
         }
     }

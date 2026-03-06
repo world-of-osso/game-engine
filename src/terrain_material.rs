@@ -98,7 +98,8 @@ pub fn load_ground_images(
         .iter()
         .map(|&spec_fdid| {
             let diffuse_fdid = spec_fdid - 1;
-            let blp_path = tex_dir.join(format!("{diffuse_fdid}.blp"));
+            let blp_path = crate::asset::casc_resolver::ensure_texture(diffuse_fdid)
+                .unwrap_or_else(|| tex_dir.join(format!("{diffuse_fdid}.blp")));
             load_blp_as_terrain_image(images, &blp_path, diffuse_fdid)
         })
         .collect()
