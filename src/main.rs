@@ -94,6 +94,7 @@ fn main() {
 fn register_plugins(app: &mut App) {
     app.add_plugins(DefaultPlugins)
         .add_plugins(game_engine::auction_house::AuctionHousePlugin)
+        .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use game_engine::ipc::{Request, Response, socket_glob};
+use game_engine::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use peercred_ipc::Client;
 use shared::protocol::{
     AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
@@ -48,6 +49,11 @@ enum Cmd {
     Auction {
         #[command(subcommand)]
         command: AuctionCmd,
+    },
+    /// Mailbox operations via the running engine
+    Mail {
+        #[command(subcommand)]
+        command: MailCmd,
     },
 }
 
@@ -109,6 +115,41 @@ enum AuctionCmd {
     },
 }
 
+#[derive(Subcommand)]
+enum MailCmd {
+    Status,
+    List {
+        #[arg(long)]
+        character: Option<String>,
+        #[arg(long)]
+        include_deleted: bool,
+    },
+    Read {
+        #[arg(long)]
+        mail_id: u64,
+    },
+    Send {
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        subject: String,
+        #[arg(long)]
+        body: String,
+        #[arg(long, default_value_t = 0)]
+        money: u64,
+    },
+    Claim {
+        #[arg(long)]
+        mail_id: u64,
+    },
+    Delete {
+        #[arg(long)]
+        mail_id: u64,
+    },
+}
+
 fn find_socket() -> Result<PathBuf, String> {
     let pattern = socket_glob();
     let mut sockets: Vec<PathBuf> = glob::glob(&pattern)
@@ -142,6 +183,7 @@ fn main() {
         Cmd::DumpTree { filter } => handle_dump_tree(&socket, filter),
         Cmd::DumpUiTree { filter } => handle_dump_ui_tree(&socket, filter),
         Cmd::Auction { command } => handle_auction(&socket, command),
+        Cmd::Mail { command } => handle_mail(&socket, command),
     };
 
     if let Err(e) = result {
@@ -275,6 +317,59 @@ fn handle_auction(socket: &PathBuf, command: AuctionCmd) -> Result<(), String> {
     }
 }
 
+fn handle_mail(socket: &PathBuf, command: MailCmd) -> Result<(), String> {
+    let request = mail_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn mail_request(command: MailCmd) -> Result<Request, String> {
+    let request = match command {
+        MailCmd::Status => Request::MailStatus,
+        MailCmd::List {
+            character,
+            include_deleted,
+        } => Request::MailList {
+            query: ListMailQuery {
+                character,
+                include_deleted,
+            },
+        },
+        MailCmd::Read { mail_id } => Request::MailRead {
+            read: ReadMail { mail_id },
+        },
+        MailCmd::Send {
+            to,
+            from,
+            subject,
+            body,
+            money,
+        } => Request::MailSend {
+            mail: SendMail {
+                to,
+                from,
+                subject,
+                body,
+                money,
+            },
+        },
+        MailCmd::Claim { mail_id } => Request::MailClaim {
+            claim: ClaimMail { mail_id },
+        },
+        MailCmd::Delete { mail_id } => Request::MailDelete {
+            delete: DeleteMail { mail_id },
+        },
+    };
+    Ok(request)
+}
+
 fn parse_duration(value: &str) -> Result<AuctionDuration, String> {
     match value.to_ascii_lowercase().as_str() {
         "short" => Ok(AuctionDuration::Short),
@@ -301,5 +396,80 @@ fn parse_sort_dir(value: &str) -> Result<AuctionSortDir, String> {
         "asc" => Ok(AuctionSortDir::Asc),
         "desc" => Ok(AuctionSortDir::Desc),
         _ => Err(format!("invalid sort direction '{value}'")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use game_engine::mail::{DeleteMail, ListMailQuery, ReadMail, SendMail};
+
+    #[test]
+    fn mail_send_command_maps_to_send_request() {
+        let request = mail_request(MailCmd::Send {
+            to: "Thrall".into(),
+            from: "Jaina".into(),
+            subject: "Supplies".into(),
+            body: "Three crates are ready.".into(),
+            money: 1250,
+        })
+        .expect("valid send command");
+
+        assert_eq!(
+            request,
+            Request::MailSend {
+                mail: SendMail {
+                    to: "Thrall".into(),
+                    from: "Jaina".into(),
+                    subject: "Supplies".into(),
+                    body: "Three crates are ready.".into(),
+                    money: 1250,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn mail_list_command_maps_to_list_request() {
+        let request = mail_request(MailCmd::List {
+            character: Some("Thrall".into()),
+            include_deleted: true,
+        })
+        .expect("valid list command");
+
+        assert_eq!(
+            request,
+            Request::MailList {
+                query: ListMailQuery {
+                    character: Some("Thrall".into()),
+                    include_deleted: true,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn mail_read_command_maps_to_read_request() {
+        let request = mail_request(MailCmd::Read { mail_id: 42 }).expect("valid read command");
+
+        assert_eq!(
+            request,
+            Request::MailRead {
+                read: ReadMail { mail_id: 42 },
+            }
+        );
+    }
+
+    #[test]
+    fn mail_delete_command_maps_to_delete_request() {
+        let request =
+            mail_request(MailCmd::Delete { mail_id: 42 }).expect("valid delete command");
+
+        assert_eq!(
+            request,
+            Request::MailDelete {
+                delete: DeleteMail { mail_id: 42 },
+            }
+        );
     }
 }

@@ -7,6 +7,7 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 
 use super::{Command, Request, Response, init};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
+use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::ui::plugin::UiState;
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
@@ -40,6 +41,7 @@ fn poll_ipc(
     parent_query: Query<&ChildOf>,
     ui_state: Res<UiState>,
     mut auction_house: ResMut<AuctionHouseState>,
+    mut mail: ResMut<MailState>,
 ) {
     while let Ok(cmd) = receiver.try_recv() {
         dispatch(
@@ -49,6 +51,7 @@ fn poll_ipc(
             &parent_query,
             &ui_state,
             &mut auction_house,
+            mail.as_mut(),
         );
     }
 }
@@ -67,8 +70,12 @@ fn dispatch(
     parent_query: &Query<&ChildOf>,
     ui_state: &UiState,
     auction_house: &mut AuctionHouseState,
+    mail: &mut MailState,
 ) {
     if queue_ipc_request(auction_house, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
+    if queue_mail_ipc_request(mail, &cmd.request, cmd.respond.clone()) {
         return;
     }
     match cmd.request {
@@ -100,7 +107,13 @@ fn dispatch(
         | Request::AuctionBuyout { .. }
         | Request::AuctionCancel { .. }
         | Request::AuctionClaimMail { .. }
-        | Request::AuctionStatus => {}
+        | Request::AuctionStatus
+        | Request::MailSend { .. }
+        | Request::MailList { .. }
+        | Request::MailRead { .. }
+        | Request::MailClaim { .. }
+        | Request::MailDelete { .. }
+        | Request::MailStatus => {}
     }
 }
 

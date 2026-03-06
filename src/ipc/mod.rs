@@ -23,8 +23,10 @@ use shared::protocol::{
     AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
 };
 
+use crate::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
+
 /// IPC request from CLI to engine.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Request {
     Ping,
     Screenshot,
@@ -42,6 +44,12 @@ pub enum Request {
     AuctionCancel { cancel: CancelAuction },
     AuctionClaimMail { claim: ClaimAuctionMail },
     AuctionStatus,
+    MailSend { mail: SendMail },
+    MailList { query: ListMailQuery },
+    MailRead { read: ReadMail },
+    MailClaim { claim: ClaimMail },
+    MailDelete { delete: DeleteMail },
+    MailStatus,
 }
 
 /// IPC response from engine to CLI.
