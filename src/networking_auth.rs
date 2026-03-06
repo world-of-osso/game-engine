@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::protocol::{
     AuthChannel, CharacterListEntry, CreateCharacterResponse, DeleteCharacterResponse,
-    EnterWorldResponse, LoginRequest, LoginResponse,
+    EnterWorldResponse, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
 };
 
 use crate::game_state::GameState;
@@ -23,6 +23,18 @@ pub struct SelectedCharacterId(pub Option<u64>);
 #[derive(Resource, Default)]
 pub struct LoginUsername(pub String);
 
+/// Password captured from the login screen (cleared after sending).
+#[derive(Resource, Default)]
+pub struct LoginPassword(pub String);
+
+/// Whether the user is logging in or registering a new account.
+#[derive(Resource, Default, Clone, Copy, PartialEq, Eq)]
+pub enum LoginMode {
+    #[default]
+    Login,
+    Register,
+}
+
 const AUTH_TOKEN_PATH: &str = "data/auth_token";
 
 pub fn load_auth_token() -> Option<String> {
@@ -35,20 +47,51 @@ fn save_auth_token(token: &str) {
     }
 }
 
-/// Send LoginRequest when connection is established.
-pub fn send_login_request(
-    auth_token: Res<AuthToken>,
-    username: Res<LoginUsername>,
-    mut senders: Query<&mut MessageSender<LoginRequest>>,
+/// Send LoginRequest or RegisterRequest depending on mode.
+pub fn send_auth_request(
+    auth_token: &AuthToken,
+    username: &LoginUsername,
+    password: &LoginPassword,
+    mode: &LoginMode,
+    login_senders: &mut Query<&mut MessageSender<LoginRequest>>,
+    register_senders: &mut Query<&mut MessageSender<RegisterRequest>>,
+) {
+    match mode {
+        LoginMode::Login => send_login(auth_token, username, password, login_senders),
+        LoginMode::Register => send_register(username, password, register_senders),
+    }
+}
+
+fn send_login(
+    auth_token: &AuthToken,
+    username: &LoginUsername,
+    password: &LoginPassword,
+    senders: &mut Query<&mut MessageSender<LoginRequest>>,
 ) {
     let request = LoginRequest {
         token: auth_token.0.clone(),
         username: username.0.clone(),
+        password: password.0.clone(),
     };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(request.clone());
     }
     info!("Sent LoginRequest for '{}'", username.0);
+}
+
+fn send_register(
+    username: &LoginUsername,
+    password: &LoginPassword,
+    senders: &mut Query<&mut MessageSender<RegisterRequest>>,
+) {
+    let request = RegisterRequest {
+        username: username.0.clone(),
+        password: password.0.clone(),
+    };
+    for mut sender in senders.iter_mut() {
+        sender.send::<AuthChannel>(request.clone());
+    }
+    info!("Sent RegisterRequest for '{}'", username.0);
 }
 
 /// Handle LoginResponse: save token, populate character list, transition state.
@@ -119,6 +162,39 @@ pub fn receive_delete_character_response(
                 error!("Delete character failed: {err}");
             }
         }
+    }
+}
+
+/// Handle RegisterResponse: save token and transition on success.
+pub fn receive_register_response(
+    mut receivers: Query<&mut MessageReceiver<RegisterResponse>>,
+    mut auth_token: ResMut<AuthToken>,
+    mut char_list: ResMut<CharacterList>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for resp in receiver.receive() {
+            handle_register_response(resp, &mut auth_token, &mut char_list, &mut next_state);
+        }
+    }
+}
+
+fn handle_register_response(
+    resp: RegisterResponse,
+    auth_token: &mut AuthToken,
+    char_list: &mut CharacterList,
+    next_state: &mut NextState<GameState>,
+) {
+    if resp.success {
+        save_auth_token(&resp.token);
+        auth_token.0 = Some(resp.token);
+        char_list.0.clear();
+        info!("Registration success, transitioning to CharSelect");
+        next_state.set(GameState::CharSelect);
+    } else {
+        let err = resp.error.unwrap_or_default();
+        error!("Registration failed: {err}");
+        next_state.set(GameState::Login);
     }
 }
 

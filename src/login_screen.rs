@@ -20,7 +20,9 @@ struct LoginUi {
     root: u64,
     server_input: u64,
     username_input: u64,
+    password_input: u64,
     connect_button: u64,
+    register_button: u64,
     status_text: u64,
 }
 
@@ -60,7 +62,7 @@ fn build_login_ui(
 
     let root = build_login_background(reg, sw, sh);
     build_login_titles(reg, root, sw, sh);
-    let (server_input, username_input, connect_button, status_text) =
+    let (server_input, username_input, password_input, connect_button, register_button, status_text) =
         build_login_form(reg, root, sw, sh);
 
     // Pre-fill from --server CLI arg if provided.
@@ -72,7 +74,9 @@ fn build_login_ui(
         root,
         server_input,
         username_input,
+        password_input,
         connect_button,
+        register_button,
         status_text,
     });
 }
@@ -95,27 +99,39 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
     set_font_string(reg, sub, "Game Engine", 18.0, [0.7, 0.7, 0.8, 1.0]);
 }
 
-fn build_login_form(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (u64, u64, u64, u64) {
+fn build_login_form(
+    reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32,
+) -> (u64, u64, u64, u64, u64, u64) {
     let panel_w = 340.0;
     let panel_x = (sw - panel_w) / 2.0;
     let mut y = sh * 0.35;
 
     let server_input = build_labeled_editbox(reg, root, panel_x, &mut y, panel_w, "Server Address", "ServerInput");
     set_editbox_text(reg, server_input, "127.0.0.1:25565");
-
     let username_input = build_labeled_editbox(reg, root, panel_x, &mut y, panel_w, "Username", "UsernameInput");
+    let password_input = build_labeled_editbox(reg, root, panel_x, &mut y, panel_w, "Password", "PasswordInput");
     y += 8.0;
 
-    let connect_button = create_button(reg, "ConnectButton", Some(root), 200.0, 36.0, "Connect");
+    let connect_button = create_button(reg, "ConnectButton", Some(root), 200.0, 36.0, "Login");
     set_layout(reg, connect_button, (sw - 200.0) / 2.0, y, 200.0, 36.0);
     set_bg(reg, connect_button, [0.15, 0.35, 0.6, 1.0]);
-    y += 56.0;
+    y += 44.0;
+
+    let register_button = build_mode_toggle(reg, root, sw, y, panel_w);
+    y += 32.0;
 
     let status_text = create_frame(reg, "LoginStatus", Some(root), WidgetType::FontString, panel_w, 24.0);
     set_layout(reg, status_text, panel_x, y, panel_w, 24.0);
     set_font_string(reg, status_text, "", 13.0, [0.9, 0.5, 0.5, 1.0]);
 
-    (server_input, username_input, connect_button, status_text)
+    (server_input, username_input, password_input, connect_button, register_button, status_text)
+}
+
+fn build_mode_toggle(reg: &mut FrameRegistry, root: u64, sw: f32, y: f32, panel_w: f32) -> u64 {
+    let btn = create_frame(reg, "RegisterToggle", Some(root), WidgetType::FontString, panel_w, 20.0);
+    set_layout(reg, btn, (sw - panel_w) / 2.0, y, panel_w, 20.0);
+    set_font_string(reg, btn, "Don't have an account? Register", 12.0, [0.5, 0.7, 1.0, 1.0]);
+    btn
 }
 
 fn build_labeled_editbox(
@@ -155,11 +171,12 @@ fn teardown_login_ui(
 fn login_mouse_input(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
-    ui: Res<UiState>,
+    mut ui: ResMut<UiState>,
     login_ui: Option<Res<LoginUi>>,
     mut focus: ResMut<LoginFocus>,
     mut next_state: ResMut<NextState<GameState>>,
     mut status: ResMut<LoginStatus>,
+    mut login_mode: ResMut<networking::LoginMode>,
     mut commands: Commands,
 ) {
     let Some(login) = login_ui.as_ref() else { return };
@@ -167,12 +184,17 @@ fn login_mouse_input(
     let Some(window) = windows.iter().next() else { return };
     let Some(cursor) = window.cursor_position() else { return };
 
-    if hit_frame(&ui, login.server_input, cursor.x, cursor.y) {
+    let (cx, cy) = (cursor.x, cursor.y);
+    if hit_frame(&ui, login.server_input, cx, cy) {
         focus.0 = Some(login.server_input);
-    } else if hit_frame(&ui, login.username_input, cursor.x, cursor.y) {
+    } else if hit_frame(&ui, login.username_input, cx, cy) {
         focus.0 = Some(login.username_input);
-    } else if hit_frame(&ui, login.connect_button, cursor.x, cursor.y) {
-        try_connect(&ui.registry, login, &mut status, &mut next_state, &mut commands);
+    } else if hit_frame(&ui, login.password_input, cx, cy) {
+        focus.0 = Some(login.password_input);
+    } else if hit_frame(&ui, login.connect_button, cx, cy) {
+        try_connect(&ui.registry, login, &mut status, &mut next_state, &*login_mode, &mut commands);
+    } else if hit_frame(&ui, login.register_button, cx, cy) {
+        toggle_login_mode(&mut login_mode, &mut ui.registry, login);
     } else {
         focus.0 = None;
     }
@@ -185,6 +207,7 @@ fn login_keyboard_input(
     login_ui: Option<Res<LoginUi>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut status: ResMut<LoginStatus>,
+    login_mode: Res<networking::LoginMode>,
     mut commands: Commands,
 ) {
     let Some(login) = login_ui.as_ref() else { return };
@@ -195,7 +218,7 @@ fn login_keyboard_input(
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
-            handle_login_key(event.key_code, focused_id, &mut ui, login, &mut status, &mut next_state, &mut commands);
+            handle_login_key(event.key_code, focused_id, &mut ui, login, &mut status, &mut next_state, &*login_mode, &mut commands);
         }
     }
 }
@@ -207,6 +230,7 @@ fn handle_login_key(
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
+    mode: &networking::LoginMode,
     commands: &mut Commands,
 ) {
     match key {
@@ -216,7 +240,7 @@ fn handle_login_key(
         KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1),
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-        KeyCode::Enter => try_connect(&ui.registry, login, status, next_state, commands),
+        KeyCode::Enter => try_connect(&ui.registry, login, status, next_state, mode, commands),
         _ => {}
     }
 }
@@ -235,7 +259,7 @@ fn login_update_visuals(
         }
     }
 
-    for &id in &[login.server_input, login.username_input] {
+    for &id in &[login.server_input, login.username_input, login.password_input] {
         let is_focused = focus.0 == Some(id);
         if let Some(frame) = ui.registry.get_mut(id) {
             frame.background_color = Some(if is_focused {
@@ -254,6 +278,7 @@ fn try_connect(
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
+    mode: &networking::LoginMode,
     commands: &mut Commands,
 ) {
     let server_text = get_editbox_text(reg, login.server_input);
@@ -266,10 +291,38 @@ fn try_connect(
         return;
     };
     let username = get_editbox_text(reg, login.username_input);
+    let password = get_editbox_text(reg, login.password_input);
     status.0 = format!("Connecting to {addr}...");
     commands.insert_resource(networking::ServerAddr(addr));
     commands.insert_resource(networking::LoginUsername(username));
+    commands.insert_resource(networking::LoginPassword(password));
+    commands.insert_resource(*mode);
     next_state.set(GameState::Connecting);
+}
+
+fn toggle_login_mode(
+    mode: &mut networking::LoginMode,
+    reg: &mut FrameRegistry,
+    login: &LoginUi,
+) {
+    *mode = match *mode {
+        networking::LoginMode::Login => networking::LoginMode::Register,
+        networking::LoginMode::Register => networking::LoginMode::Login,
+    };
+    update_mode_labels(reg, login, *mode);
+}
+
+fn update_mode_labels(reg: &mut FrameRegistry, login: &LoginUi, mode: networking::LoginMode) {
+    let (btn_text, toggle_text) = match mode {
+        networking::LoginMode::Login => ("Login", "Don't have an account? Register"),
+        networking::LoginMode::Register => ("Register", "Already have an account? Login"),
+    };
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(login.connect_button).and_then(|f| f.widget_data.as_mut()) {
+        bd.text = btn_text.to_string();
+    }
+    if let Some(WidgetData::FontString(fs)) = reg.get_mut(login.register_button).and_then(|f| f.widget_data.as_mut()) {
+        fs.text = toggle_text.to_string();
+    }
 }
 
 // --- EditBox manipulation ---

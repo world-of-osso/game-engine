@@ -11,7 +11,7 @@ use shared::protocol::{ChatChannel, ChatMessage, CombatChannel, InputChannel, Lo
 pub use shared::protocol::ChatType;
 
 pub use crate::networking_auth::{
-    AuthToken, CharacterList, LoginUsername, SelectedCharacterId,
+    AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername, SelectedCharacterId,
     load_auth_token,
 };
 
@@ -89,6 +89,8 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<CharacterList>();
     app.init_resource::<SelectedCharacterId>();
     app.init_resource::<LoginUsername>();
+    app.init_resource::<LoginPassword>();
+    app.init_resource::<LoginMode>();
 }
 
 fn register_net_systems(app: &mut App) {
@@ -103,6 +105,7 @@ fn register_net_systems(app: &mut App) {
         sync_replicated_transforms, interpolate_remote_entities,
         auth::receive_login_response, auth::receive_create_character_response,
         auth::receive_delete_character_response, auth::receive_enter_world_response,
+        auth::receive_register_response,
     ));
 }
 
@@ -153,17 +156,16 @@ fn on_connected(
     _trigger: On<Add, Connected>,
     auth_token: Res<AuthToken>,
     username: Res<LoginUsername>,
-    mut senders: Query<&mut MessageSender<shared::protocol::LoginRequest>>,
+    password: Res<LoginPassword>,
+    login_mode: Res<LoginMode>,
+    mut login_senders: Query<&mut MessageSender<shared::protocol::LoginRequest>>,
+    mut register_senders: Query<&mut MessageSender<shared::protocol::RegisterRequest>>,
 ) {
     info!("Connected to server!");
-    let request = shared::protocol::LoginRequest {
-        token: auth_token.0.clone(),
-        username: username.0.clone(),
-    };
-    for mut sender in senders.iter_mut() {
-        sender.send::<shared::protocol::AuthChannel>(request.clone());
-    }
-    info!("Sent LoginRequest for '{}'", username.0);
+    crate::networking_auth::send_auth_request(
+        &auth_token, &username, &password, &login_mode,
+        &mut login_senders, &mut register_senders,
+    );
 }
 
 /// Send movement input to the server every frame.
