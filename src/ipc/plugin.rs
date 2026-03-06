@@ -4,13 +4,13 @@ use std::sync::mpsc;
 
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
-use lightyear::prelude::MessageSender;
 use lightyear::prelude::client::Connected;
+use lightyear::prelude::MessageSender;
 
-use super::{Command, Request, Response, init};
-use crate::auction_house::{AuctionHouseState, queue_ipc_request};
+use super::{init, Command, Request, Response};
+use crate::auction_house::{queue_ipc_request, AuctionHouseState};
 use crate::item_info::lookup_item_info;
-use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
+use crate::mail::{queue_ipc_request as queue_mail_ipc_request, MailState};
 use crate::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupRole,
@@ -30,6 +30,27 @@ use shared::protocol::{
 #[derive(Component)]
 struct ScreenshotReply(mpsc::Sender<Response>);
 
+#[derive(Debug, Clone)]
+pub enum EquipmentControlCommand {
+    Set { slot: String, model_path: String },
+    Clear { slot: String },
+}
+
+#[derive(Resource, Default, Debug)]
+pub struct EquipmentControlQueue {
+    pub pending: Vec<EquipmentControlCommand>,
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct IpcSenderParams<'w, 's> {
+    spell_cast_senders: Query<'w, 's, &'static mut MessageSender<SpellCastIntent>>,
+    spell_stop_senders: Query<'w, 's, &'static mut MessageSender<StopSpellCast>>,
+    group_invite_senders: Query<'w, 's, &'static mut MessageSender<GroupInviteIntent>>,
+    group_uninvite_senders: Query<'w, 's, &'static mut MessageSender<GroupUninviteIntent>>,
+    equipment_control: ResMut<'w, EquipmentControlQueue>,
+    connected_query: Query<'w, 's, Entity, With<Connected>>,
+}
+
 pub struct IpcPlugin;
 
 impl Plugin for IpcPlugin {
@@ -38,6 +59,7 @@ impl Plugin for IpcPlugin {
 
         app.insert_non_send_resource(receiver)
             .insert_non_send_resource(guard)
+            .init_resource::<EquipmentControlQueue>()
             .add_systems(Update, poll_ipc);
     }
 }
@@ -80,11 +102,7 @@ fn poll_ipc(
         ResMut<MapStatusSnapshot>,
     ),
     current_target: Res<CurrentTarget>,
-    mut spell_cast_senders: Query<&mut MessageSender<SpellCastIntent>>,
-    mut spell_stop_senders: Query<&mut MessageSender<StopSpellCast>>,
-    mut group_invite_senders: Query<&mut MessageSender<GroupInviteIntent>>,
-    mut group_uninvite_senders: Query<&mut MessageSender<GroupUninviteIntent>>,
-    connected_query: Query<(), With<Connected>>,
+    mut sender_params: IpcSenderParams,
 ) {
     let (network_status, terrain_status, sound_status, currencies_status, reputations_status) =
         primary_status_snapshots;
@@ -123,11 +141,12 @@ fn poll_ipc(
             &profession_status,
             map_status.as_mut(),
             &current_target,
-            &mut spell_cast_senders,
-            &mut spell_stop_senders,
-            &mut group_invite_senders,
-            &mut group_uninvite_senders,
-            !connected_query.is_empty(),
+            &mut sender_params.spell_cast_senders,
+            &mut sender_params.spell_stop_senders,
+            &mut sender_params.group_invite_senders,
+            &mut sender_params.group_uninvite_senders,
+            sender_params.equipment_control.as_mut(),
+            !sender_params.connected_query.is_empty(),
         );
     }
 }
@@ -167,6 +186,7 @@ fn dispatch(
     spell_stop_senders: &mut Query<&mut MessageSender<StopSpellCast>>,
     group_invite_senders: &mut Query<&mut MessageSender<GroupInviteIntent>>,
     group_uninvite_senders: &mut Query<&mut MessageSender<GroupUninviteIntent>>,
+    equipment_control: &mut EquipmentControlQueue,
     connected: bool,
 ) {
     if queue_ipc_request(auction_house, &cmd.request, cmd.respond.clone()) {
@@ -451,6 +471,25 @@ fn dispatch(
             let _ = cmd.respond.send(Response::Text(format_profession_recipes(
                 profession_status,
                 &text,
+            )));
+        }
+        Request::EquipmentSet { slot, model_path } => {
+            equipment_control
+                .pending
+                .push(EquipmentControlCommand::Set {
+                    slot: slot.clone(),
+                    model_path: model_path.clone(),
+                });
+            let _ = cmd.respond.send(Response::Text(format!(
+                "equipment set queued slot={slot} model={model_path}",
+            )));
+        }
+        Request::EquipmentClear { slot } => {
+            equipment_control
+                .pending
+                .push(EquipmentControlCommand::Clear { slot: slot.clone() });
+            let _ = cmd.respond.send(Response::Text(format!(
+                "equipment clear queued slot={slot}"
             )));
         }
         Request::MapPosition => {

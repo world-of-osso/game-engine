@@ -131,6 +131,13 @@ pub enum Request {
     ProfessionRecipes {
         text: String,
     },
+    EquipmentSet {
+        slot: String,
+        model_path: String,
+    },
+    EquipmentClear {
+        slot: String,
+    },
     MapPosition,
     MapTarget,
     MapWaypointAdd {

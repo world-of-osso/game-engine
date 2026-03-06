@@ -19,8 +19,8 @@ use shared::protocol::{
 };
 
 pub use crate::networking_auth::{
-    load_auth_token, AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername,
-    SelectedCharacterId,
+    AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername, SelectedCharacterId,
+    load_auth_token,
 };
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
@@ -130,6 +130,11 @@ fn register_net_systems(app: &mut App) {
             sync_map_status_snapshot,
             receive_quest_log_snapshot,
             receive_group_roster_snapshot,
+        ),
+    );
+    app.add_systems(
+        Update,
+        (
             receive_group_command_response,
             receive_combat_log_snapshot,
             receive_combat_events,
@@ -138,6 +143,11 @@ fn register_net_systems(app: &mut App) {
             receive_load_terrain,
             sync_replicated_transforms,
             interpolate_remote_entities,
+        ),
+    );
+    app.add_systems(
+        Update,
+        (
             auth::receive_login_response,
             auth::receive_create_character_response,
             auth::receive_delete_character_response,

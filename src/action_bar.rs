@@ -46,6 +46,20 @@ impl Plugin for ActionBarPlugin {
 
 fn build_action_bars(mut ui: ResMut<UiState>, mut commands: Commands) {
     let reg = &mut ui.registry;
+    if reg.get_by_name("MainActionBar").is_some() {
+        return;
+    }
+    let bars = create_action_bars(reg);
+    commands.insert_resource(bars);
+}
+
+pub fn ensure_action_bars(reg: &mut FrameRegistry) {
+    if reg.get_by_name("MainActionBar").is_none() {
+        let _ = create_action_bars(reg);
+    }
+}
+
+fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
     let sw = reg.screen_width;
     let sh = reg.screen_height;
 
@@ -99,13 +113,13 @@ fn build_action_bars(mut ui: ResMut<UiState>, mut commands: Commands) {
     );
     let right_bar_2 = create_side_bar(reg, "MultiBarLeft", right_2_x, right_base_y, side_w, side_h);
 
-    commands.insert_resource(ActionBarsUi {
+    ActionBarsUi {
         main_root,
         right_bar_1,
         right_bar_2,
         main_slots,
         flashes: [0.0; SLOT_COUNT],
-    });
+    }
 }
 
 fn create_side_bar(reg: &mut FrameRegistry, name: &str, x: f32, y: f32, w: f32, h: f32) -> u64 {

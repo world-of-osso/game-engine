@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use game_engine::ipc::IpcPlugin;
+use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot, GroupStatusSnapshot,
@@ -95,6 +96,7 @@ fn main() {
     app.add_systems(Update, sync_terrain_status_snapshot);
     app.add_systems(Update, sync_sound_status_snapshot);
     app.add_systems(Update, sync_character_stats_snapshot);
+    app.add_systems(Update, apply_equipment_ipc_commands);
     app.add_systems(Update, sync_equipped_gear_status_snapshot);
     app.add_systems(Update, sync_map_status_snapshot);
     if dump_tree {
@@ -280,16 +282,79 @@ fn sync_equipped_gear_status_snapshot(
 ) {
     snapshot.entries.clear();
     if let Some(equipment) = local_player_query.iter().next() {
-        let mut entries = equipment
-            .slots
-            .iter()
-            .map(|(slot, path)| EquippedGearEntry {
+        let mut entries = Vec::with_capacity(equipment.slots.len());
+        for (slot, path) in &equipment.slots {
+            entries.push(EquippedGearEntry {
                 slot: format!("{slot:?}"),
                 path: path.display().to_string(),
-            })
-            .collect::<Vec<_>>();
+            });
+        }
         entries.sort_by(|a, b| a.slot.cmp(&b.slot));
         snapshot.entries = entries;
+    }
+}
+
+fn apply_equipment_ipc_commands(
+    mut queue: ResMut<EquipmentControlQueue>,
+    mut commands: Commands,
+    mut local_player_query: Query<(Entity, Option<&mut equipment::Equipment>), With<Player>>,
+) {
+    if queue.pending.is_empty() {
+        return;
+    }
+
+    let Some((entity, maybe_equipment)) = local_player_query.iter_mut().next() else {
+        queue.pending.clear();
+        return;
+    };
+
+    let mut pending = std::mem::take(&mut queue.pending);
+    if let Some(mut equipment) = maybe_equipment {
+        for command in pending.drain(..) {
+            apply_equipment_command(&mut equipment, command);
+        }
+        return;
+    }
+
+    let mut equipment = equipment::Equipment::default();
+    for command in pending.drain(..) {
+        apply_equipment_command(&mut equipment, command);
+    }
+    commands.entity(entity).insert(equipment);
+}
+
+fn apply_equipment_command(equipment: &mut equipment::Equipment, command: EquipmentControlCommand) {
+    match command {
+        EquipmentControlCommand::Set { slot, model_path } => {
+            let Some(slot) = parse_equipment_slot(&slot) else {
+                warn!("Ignoring equipment set with invalid slot '{slot}'");
+                return;
+            };
+            let path = PathBuf::from(model_path);
+            if !path.exists() {
+                warn!(
+                    "Ignoring equipment set for missing model path {}",
+                    path.display()
+                );
+                return;
+            }
+            equipment.slots.insert(slot, path);
+        }
+        EquipmentControlCommand::Clear { slot } => {
+            let Some(slot) = parse_equipment_slot(&slot) else {
+                warn!("Ignoring equipment clear with invalid slot '{slot}'");
+                return;
+            };
+            equipment.slots.remove(&slot);
+        }
+    }
+}
+
+fn parse_equipment_slot(value: &str) -> Option<equipment::EquipmentSlot> {
+    match value.to_ascii_lowercase().as_str() {
+        "mainhand" | "main-hand" | "main" | "mh" => Some(equipment::EquipmentSlot::MainHand),
+        "offhand" | "off-hand" | "off" | "oh" => Some(equipment::EquipmentSlot::OffHand),
+        _ => None,
     }
 }
 
@@ -1084,6 +1149,7 @@ fn dump_ui_tree_and_exit(
     mut exit: MessageWriter<AppExit>,
 ) {
     dioxus_runtime.sync(&mut ui_state.registry);
+    action_bar::ensure_action_bars(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
     exit.write(AppExit::Success);
