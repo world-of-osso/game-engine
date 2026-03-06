@@ -13,6 +13,7 @@ use game_engine::ipc::IpcPlugin;
 
 mod animation;
 mod asset;
+mod particle;
 mod camera;
 mod creature_display;
 mod game_state;
@@ -101,6 +102,7 @@ fn register_plugins(app: &mut App) {
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(target::TargetPlugin)
+        .add_plugins(particle::ParticlePlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -526,11 +528,15 @@ fn spawn_m2_model(
             return;
         }
     };
-    let asset::m2::M2Model { batches, bones, sequences, bone_tracks, global_sequences } = model;
+    let asset::m2::M2Model { batches, bones, sequences, bone_tracks, global_sequences, particle_emitters } = model;
 
     let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(commands, meshes, materials, images, inv_bp, batches, &bones, model_entity);
     let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
+    if !particle_emitters.is_empty() {
+        let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
+        particle::spawn_emitters(commands, meshes, materials, images, &particle_emitters, bone_slice, model_entity);
+    }
     if let Some(joints) = joint_entities {
         commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
     }

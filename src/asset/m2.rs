@@ -42,6 +42,7 @@ pub struct M2Model {
     pub sequences: Vec<super::m2_anim::M2AnimSequence>,
     pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
     pub global_sequences: Vec<u32>,
+    pub particle_emitters: Vec<super::m2_particle::M2ParticleEmitter>,
 }
 
 struct M2Vertex {
@@ -89,7 +90,7 @@ struct M2Chunks<'a> {
 }
 
 /// Read a little-endian u32 from a byte slice at the given offset.
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
+pub(crate) fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
         .ok_or_else(|| format!("read_u32 out of bounds at offset {off:#x}"))?
@@ -99,7 +100,7 @@ fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
 }
 
 /// Read a little-endian f32 from a byte slice at the given offset.
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
+pub(crate) fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
         .ok_or_else(|| format!("read_f32 out of bounds at offset {off:#x}"))?
@@ -109,7 +110,7 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
 }
 
 /// Read a little-endian u16 from a byte slice at the given offset.
-fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
+pub(crate) fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
     let bytes: [u8; 2] = data
         .get(off..off + 2)
         .ok_or_else(|| format!("read_u16 out of bounds at offset {off:#x}"))?
@@ -715,37 +716,44 @@ fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
     load_anim_from_md20(chunks.md20)
 }
 
-/// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
-/// `skin_fdids` provides creature Monster Skin 1/2/3 texture FDIDs for types 11/12/13.
-/// Pass `[0,0,0]` for non-creature models.
-pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
-    let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
-    let chunks = parse_chunks(&data)?;
-    let vertices = parse_vertices(chunks.md20)?;
-    let tex_types = parse_texture_types(chunks.md20)?;
-    let tex_lookup = parse_texture_lookup(chunks.md20)?;
-    let txid = chunks.txid.map(parse_txid).unwrap_or_default();
-    let anim = load_anim_data(path, &chunks);
+/// Build render batches from parsed M2 data (mesh geometry + textures).
+fn build_render_batches(
+    md20: &[u8], path: &Path, chunks: &M2Chunks<'_>, txid: &[u32],
+    has_bones: bool, skin_fdids: &[u32; 3],
+) -> Result<Vec<M2RenderBatch>, String> {
+    let vertices = parse_vertices(md20)?;
+    let tex_types = parse_texture_types(md20)?;
+    let tex_lookup = parse_texture_lookup(md20)?;
+    let materials = parse_materials(md20)?;
     let skin = load_skin_data(path, &chunks.sfid);
-    let materials = parse_materials(chunks.md20)?;
-
-    let batches = if let Some(ref skin) = skin
+    if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        build_batched_model(&vertices, skin, &materials, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty(), chunks.skid.is_some(), skin_fdids)?
+        build_batched_model(&vertices, skin, &materials, &tex_lookup, &tex_types, txid, has_bones, chunks.skid.is_some(), skin_fdids)
     } else {
         let indices = match skin { Some(s) => resolve_indices(&s.lookup, &s.indices), None => (0..vertices.len() as u16).collect() };
-        let fdid = first_hardcoded_texture(&tex_types, &txid);
-        vec![M2RenderBatch { mesh: build_mesh(&vertices, indices), texture_fdid: fdid, overlays: Vec::new(), render_flags: 0, blend_mode: 0 }]
-    };
+        let fdid = first_hardcoded_texture(&tex_types, txid);
+        Ok(vec![M2RenderBatch { mesh: build_mesh(&vertices, indices), texture_fdid: fdid, overlays: Vec::new(), render_flags: 0, blend_mode: 0 }])
+    }
+}
 
+/// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
+pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+    let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
+    let chunks = parse_chunks(&data)?;
+    let txid = chunks.txid.map(parse_txid).unwrap_or_default();
+    let anim = load_anim_data(path, &chunks);
+    let batches = build_render_batches(chunks.md20, path, &chunks, &txid, !anim.bones.is_empty(), skin_fdids)?;
+    let mut particles = super::m2_particle::parse_particle_emitters(chunks.md20);
+    super::m2_particle::resolve_texture_fdids(&mut particles, &txid);
     Ok(M2Model {
         batches,
         bones: anim.bones,
         sequences: anim.sequences,
         bone_tracks: anim.bone_tracks,
         global_sequences: anim.global_sequences,
+        particle_emitters: particles,
     })
 }
 
