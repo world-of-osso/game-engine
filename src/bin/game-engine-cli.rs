@@ -1044,4 +1044,49 @@ mod tests {
 
         assert_eq!(request, Request::MapWaypointAdd { x: 42.1, y: 65.7 });
     }
+
+    #[test]
+    fn combat_log_command_maps_to_request() {
+        let request = combat_request(CombatCmd::Log { lines: 10 }).expect("valid combat command");
+
+        assert_eq!(request, Request::CombatLog { lines: 10 });
+    }
+
+    #[test]
+    fn reputation_list_command_maps_to_request() {
+        let request =
+            reputation_request(ReputationCmd::List).expect("valid reputation list command");
+
+        assert_eq!(request, Request::ReputationList);
+    }
+
+    #[test]
+    fn collection_mounts_missing_command_maps_to_request() {
+        let request = collection_request(CollectionCmd::Mounts { missing: true })
+            .expect("valid collection mounts command");
+
+        assert_eq!(request, Request::CollectionMounts { missing: true });
+    }
+
+    #[test]
+    fn profession_recipes_command_maps_to_request() {
+        let request = profession_request(ProfessionCmd::Recipes {
+            text: "potion".into(),
+        })
+        .expect("valid profession recipes command");
+
+        assert_eq!(
+            request,
+            Request::ProfessionRecipes {
+                text: "potion".into()
+            }
+        );
+    }
+
+    #[test]
+    fn map_target_command_maps_to_request() {
+        let request = map_request(MapCmd::Target).expect("valid map target command");
+
+        assert_eq!(request, Request::MapTarget);
+    }
 }

@@ -12,17 +12,26 @@ use shared::components::{
 };
 pub use shared::protocol::ChatType;
 use shared::protocol::{
-    ChatChannel, ChatMessage, CombatChannel, InputChannel, LoadTerrain, PlayerInput, SetTarget,
+    ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
+    CombatLogEventKindSnapshot, CombatLogSnapshot, GroupCommandResponse, GroupRoleSnapshot,
+    GroupRosterSnapshot, InputChannel, LoadTerrain, PlayerInput, ProfessionSnapshot,
+    QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot, SetTarget,
 };
 
 pub use crate::networking_auth::{
-    AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername, SelectedCharacterId,
-    load_auth_token,
+    load_auth_token, AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername,
+    SelectedCharacterId,
 };
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
 use crate::creature_display::CreatureDisplayMap;
 use crate::terrain::AdtManager;
+use game_engine::status::{
+    CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
+    CombatLogEventKind, CombatLogStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot,
+    MapStatusSnapshot, ProfessionRecipeEntry, ProfessionStatusSnapshot, QuestEntry,
+    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability,
+};
 
 /// Marker for entities spawned from server replication.
 #[derive(Component)]
@@ -66,6 +75,7 @@ const INTERPOLATION_SPEED: f32 = 10.0;
 
 const CLIENT_PORT: u16 = 0; // OS-assigned ephemeral port
 const TICK_RATE_HZ: f64 = 20.0;
+const MAX_COMBAT_LOG: usize = 200;
 
 /// Resource holding the server address to connect to.
 #[derive(Resource)]
@@ -95,6 +105,12 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<LoginUsername>();
     app.init_resource::<LoginPassword>();
     app.init_resource::<LoginMode>();
+    app.init_resource::<QuestLogStatusSnapshot>();
+    app.init_resource::<GroupStatusSnapshot>();
+    app.init_resource::<CombatLogStatusSnapshot>();
+    app.init_resource::<CollectionStatusSnapshot>();
+    app.init_resource::<ProfessionStatusSnapshot>();
+    app.init_resource::<MapStatusSnapshot>();
 }
 
 fn register_net_systems(app: &mut App) {
@@ -111,6 +127,14 @@ fn register_net_systems(app: &mut App) {
             receive_chat_messages,
             send_target_to_server,
             track_player_zone,
+            sync_map_status_snapshot,
+            receive_quest_log_snapshot,
+            receive_group_roster_snapshot,
+            receive_group_command_response,
+            receive_combat_log_snapshot,
+            receive_combat_events,
+            receive_collection_snapshot,
+            receive_profession_snapshot,
             receive_load_terrain,
             sync_replicated_transforms,
             interpolate_remote_entities,
@@ -121,6 +145,18 @@ fn register_net_systems(app: &mut App) {
             auth::receive_register_response,
         ),
     );
+}
+
+fn sync_map_status_snapshot(
+    mut snapshot: ResMut<MapStatusSnapshot>,
+    current_zone: Res<CurrentZone>,
+    player_query: Query<&Transform, With<Player>>,
+) {
+    snapshot.zone_id = current_zone.zone_id;
+    if let Some(transform) = player_query.iter().next() {
+        snapshot.player_x = transform.translation.x;
+        snapshot.player_z = transform.translation.z;
+    }
 }
 
 fn register_net_observers(app: &mut App) {
@@ -533,6 +569,220 @@ fn receive_load_terrain(
                 );
                 adt_manager.server_requested.insert(key);
             }
+        }
+    }
+}
+
+fn receive_quest_log_snapshot(
+    mut receivers: Query<&mut MessageReceiver<QuestLogSnapshot>>,
+    mut snapshot: ResMut<QuestLogStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg.entries.into_iter().map(map_quest_entry).collect();
+            snapshot.watched_quest_ids = msg.watched_quest_ids;
+        }
+    }
+}
+
+fn map_quest_entry(entry: shared::protocol::QuestEntrySnapshot) -> QuestEntry {
+    QuestEntry {
+        quest_id: entry.quest_id,
+        title: entry.title,
+        zone: entry.zone,
+        completed: entry.completed,
+        repeatability: map_repeatability(entry.repeatability),
+        objectives: entry
+            .objectives
+            .into_iter()
+            .map(|obj| QuestObjectiveEntry {
+                text: obj.text,
+                current: obj.current,
+                required: obj.required,
+                completed: obj.completed,
+            })
+            .collect(),
+    }
+}
+
+fn map_repeatability(value: QuestRepeatabilitySnapshot) -> QuestRepeatability {
+    match value {
+        QuestRepeatabilitySnapshot::Normal => QuestRepeatability::Normal,
+        QuestRepeatabilitySnapshot::Daily => QuestRepeatability::Daily,
+        QuestRepeatabilitySnapshot::Weekly => QuestRepeatability::Weekly,
+    }
+}
+
+fn receive_group_roster_snapshot(
+    mut receivers: Query<&mut MessageReceiver<GroupRosterSnapshot>>,
+    mut snapshot: ResMut<GroupStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.is_raid = msg.is_raid;
+            snapshot.ready_count = msg.ready_count;
+            snapshot.total_count = msg.total_count;
+            snapshot.members = msg.members.into_iter().map(map_group_member).collect();
+        }
+    }
+}
+
+fn map_group_member(member: shared::protocol::GroupMemberSnapshot) -> GroupMemberEntry {
+    GroupMemberEntry {
+        name: member.name,
+        role: match member.role {
+            GroupRoleSnapshot::Tank => GroupRole::Tank,
+            GroupRoleSnapshot::Healer => GroupRole::Healer,
+            GroupRoleSnapshot::Damage => GroupRole::Damage,
+            GroupRoleSnapshot::None => GroupRole::None,
+        },
+        is_leader: member.is_leader,
+        online: member.online,
+        subgroup: member.subgroup,
+    }
+}
+
+fn receive_group_command_response(
+    mut receivers: Query<&mut MessageReceiver<GroupCommandResponse>>,
+    mut snapshot: ResMut<GroupStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.last_server_message = Some(msg.message);
+        }
+    }
+}
+
+fn receive_combat_log_snapshot(
+    mut receivers: Query<&mut MessageReceiver<CombatLogSnapshot>>,
+    mut snapshot: ResMut<CombatLogStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg.entries.into_iter().map(map_combat_entry).collect();
+            if snapshot.entries.len() > MAX_COMBAT_LOG {
+                let start = snapshot.entries.len() - MAX_COMBAT_LOG;
+                snapshot.entries = snapshot.entries.split_off(start);
+            }
+        }
+    }
+}
+
+fn map_combat_entry(entry: shared::protocol::CombatLogEntrySnapshot) -> CombatLogEntry {
+    CombatLogEntry {
+        kind: match entry.kind {
+            CombatLogEventKindSnapshot::Damage => CombatLogEventKind::Damage,
+            CombatLogEventKindSnapshot::Heal => CombatLogEventKind::Heal,
+            CombatLogEventKindSnapshot::Interrupt => CombatLogEventKind::Interrupt,
+            CombatLogEventKindSnapshot::AuraApplied => CombatLogEventKind::AuraApplied,
+            CombatLogEventKindSnapshot::Death => CombatLogEventKind::Death,
+        },
+        source: entry.source,
+        target: entry.target,
+        spell: entry.spell,
+        amount: entry.amount,
+        aura: entry.aura,
+        text: entry.text,
+    }
+}
+
+fn receive_combat_events(
+    mut receivers: Query<&mut MessageReceiver<CombatEvent>>,
+    mut snapshot: ResMut<CombatLogStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            let (kind, amount, text) = match msg.event_type {
+                CombatEventType::MeleeDamage => (
+                    CombatLogEventKind::Damage,
+                    Some(msg.damage.round() as i32),
+                    format!(
+                        "{} hit {} for {}",
+                        msg.attacker,
+                        msg.target,
+                        msg.damage.round() as i32
+                    ),
+                ),
+                CombatEventType::Death => (
+                    CombatLogEventKind::Death,
+                    None,
+                    format!("{} died", msg.target),
+                ),
+                CombatEventType::Respawn => (
+                    CombatLogEventKind::AuraApplied,
+                    None,
+                    format!("{} respawned", msg.target),
+                ),
+            };
+            append_combat_entry(
+                &mut snapshot,
+                CombatLogEntry {
+                    kind,
+                    source: msg.attacker.to_string(),
+                    target: msg.target.to_string(),
+                    spell: None,
+                    amount,
+                    aura: None,
+                    text,
+                },
+            );
+        }
+    }
+}
+
+fn append_combat_entry(snapshot: &mut CombatLogStatusSnapshot, entry: CombatLogEntry) {
+    snapshot.entries.push(entry);
+    if snapshot.entries.len() > MAX_COMBAT_LOG {
+        let overflow = snapshot.entries.len() - MAX_COMBAT_LOG;
+        snapshot.entries.drain(0..overflow);
+    }
+}
+
+fn receive_collection_snapshot(
+    mut receivers: Query<&mut MessageReceiver<CollectionSnapshot>>,
+    mut snapshot: ResMut<CollectionStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.mounts = msg
+                .mounts
+                .into_iter()
+                .map(|mount| CollectionMountEntry {
+                    mount_id: mount.mount_id,
+                    name: mount.name,
+                    known: mount.known,
+                })
+                .collect();
+            snapshot.pets = msg
+                .pets
+                .into_iter()
+                .map(|pet| CollectionPetEntry {
+                    pet_id: pet.pet_id,
+                    name: pet.name,
+                    known: pet.known,
+                })
+                .collect();
+        }
+    }
+}
+
+fn receive_profession_snapshot(
+    mut receivers: Query<&mut MessageReceiver<ProfessionSnapshot>>,
+    mut snapshot: ResMut<ProfessionStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.recipes = msg
+                .recipes
+                .into_iter()
+                .map(|recipe| ProfessionRecipeEntry {
+                    spell_id: recipe.spell_id,
+                    profession: recipe.profession,
+                    name: recipe.name,
+                    craftable: recipe.craftable,
+                    cooldown: recipe.cooldown,
+                })
+                .collect();
         }
     }
 }

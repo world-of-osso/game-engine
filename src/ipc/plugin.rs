@@ -12,13 +12,19 @@ use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
-    CharacterStatsSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot,
-    GuildVaultStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, NetworkStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupRole,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    WarbankStatusSnapshot, Waypoint,
 };
 use crate::targeting::CurrentTarget;
 use crate::ui::plugin::UiState;
-use shared::protocol::{AuctionInventorySnapshot, CombatChannel, SpellCastIntent, StopSpellCast};
+use shared::protocol::{
+    AuctionInventorySnapshot, CombatChannel, GroupInviteIntent, GroupUninviteIntent,
+    SpellCastIntent, StopSpellCast,
+};
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
 #[derive(Component)]
@@ -65,15 +71,33 @@ fn poll_ipc(
         Res<WarbankStatusSnapshot>,
         Res<EquippedGearStatusSnapshot>,
     ),
+    expanded_status_snapshots: (
+        Res<QuestLogStatusSnapshot>,
+        Res<GroupStatusSnapshot>,
+        Res<CombatLogStatusSnapshot>,
+        Res<CollectionStatusSnapshot>,
+        Res<ProfessionStatusSnapshot>,
+        ResMut<MapStatusSnapshot>,
+    ),
     current_target: Res<CurrentTarget>,
     mut spell_cast_senders: Query<&mut MessageSender<SpellCastIntent>>,
     mut spell_stop_senders: Query<&mut MessageSender<StopSpellCast>>,
+    mut group_invite_senders: Query<&mut MessageSender<GroupInviteIntent>>,
+    mut group_uninvite_senders: Query<&mut MessageSender<GroupUninviteIntent>>,
     connected_query: Query<(), With<Connected>>,
 ) {
     let (network_status, terrain_status, sound_status, currencies_status, reputations_status) =
         primary_status_snapshots;
     let (character_stats, guild_vault_status, warbank_status, equipped_gear_status) =
         secondary_status_snapshots;
+    let (
+        quest_status,
+        group_status,
+        combat_log_status,
+        collection_status,
+        profession_status,
+        mut map_status,
+    ) = expanded_status_snapshots;
     while let Ok(cmd) = receiver.try_recv() {
         dispatch(
             cmd,
@@ -92,9 +116,17 @@ fn poll_ipc(
             &guild_vault_status,
             &warbank_status,
             &equipped_gear_status,
+            &quest_status,
+            &group_status,
+            &combat_log_status,
+            &collection_status,
+            &profession_status,
+            map_status.as_mut(),
             &current_target,
             &mut spell_cast_senders,
             &mut spell_stop_senders,
+            &mut group_invite_senders,
+            &mut group_uninvite_senders,
             !connected_query.is_empty(),
         );
     }
@@ -124,9 +156,17 @@ fn dispatch(
     guild_vault_status: &GuildVaultStatusSnapshot,
     warbank_status: &WarbankStatusSnapshot,
     equipped_gear_status: &EquippedGearStatusSnapshot,
+    quest_status: &QuestLogStatusSnapshot,
+    group_status: &GroupStatusSnapshot,
+    combat_log_status: &CombatLogStatusSnapshot,
+    collection_status: &CollectionStatusSnapshot,
+    profession_status: &ProfessionStatusSnapshot,
+    map_status: &mut MapStatusSnapshot,
     current_target: &CurrentTarget,
     spell_cast_senders: &mut Query<&mut MessageSender<SpellCastIntent>>,
     spell_stop_senders: &mut Query<&mut MessageSender<StopSpellCast>>,
+    group_invite_senders: &mut Query<&mut MessageSender<GroupInviteIntent>>,
+    group_uninvite_senders: &mut Query<&mut MessageSender<GroupUninviteIntent>>,
     connected: bool,
 ) {
     if queue_ipc_request(auction_house, &cmd.request, cmd.respond.clone()) {
@@ -274,9 +314,16 @@ fn dispatch(
                     return;
                 }
             };
+            let (spell_id, spell_token) = match resolve_spell_identifier(&spell) {
+                Ok(value) => value,
+                Err(error) => {
+                    let _ = cmd.respond.send(Response::Error(error));
+                    return;
+                }
+            };
             let intent = SpellCastIntent {
-                spell_id: parse_spell_id(&spell),
-                spell: spell.clone(),
+                spell_id,
+                spell: spell_token,
                 target_entity: target_bits,
             };
             if send_combat_message(spell_cast_senders, intent.clone()) {
@@ -314,88 +361,121 @@ fn dispatch(
         Request::QuestList => {
             let _ = cmd
                 .respond
-                .send(Response::Text("quest list: unavailable".into()));
+                .send(Response::Text(format_quest_list(quest_status)));
         }
         Request::QuestWatch => {
             let _ = cmd
                 .respond
-                .send(Response::Text("quest watch: unavailable".into()));
+                .send(Response::Text(format_quest_watch(quest_status)));
         }
         Request::QuestShow { quest_id } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "quest show id={quest_id}: unavailable"
-            )));
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_quest_show(quest_status, quest_id)));
         }
         Request::GroupRoster => {
             let _ = cmd
                 .respond
-                .send(Response::Text("group roster: unavailable".into()));
+                .send(Response::Text(format_group_roster(group_status)));
         }
         Request::GroupStatus => {
             let _ = cmd
                 .respond
-                .send(Response::Text("group status: unavailable".into()));
+                .send(Response::Text(format_group_status(group_status)));
         }
         Request::GroupInvite { name } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "group invite {name}: pending server support"
-            )));
+            if !connected {
+                let _ = cmd.respond.send(Response::Error(
+                    "group invite is unavailable: not connected".into(),
+                ));
+            } else if send_combat_message(
+                group_invite_senders,
+                GroupInviteIntent { name: name.clone() },
+            ) {
+                let _ = cmd
+                    .respond
+                    .send(Response::Text(format!("group invite submitted for {name}")));
+            } else {
+                let _ = cmd
+                    .respond
+                    .send(Response::Error("group invite sender unavailable".into()));
+            }
         }
         Request::GroupUninvite { name } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "group uninvite {name}: pending server support"
-            )));
+            if !connected {
+                let _ = cmd.respond.send(Response::Error(
+                    "group uninvite is unavailable: not connected".into(),
+                ));
+            } else if send_combat_message(
+                group_uninvite_senders,
+                GroupUninviteIntent { name: name.clone() },
+            ) {
+                let _ = cmd.respond.send(Response::Text(format!(
+                    "group uninvite submitted for {name}"
+                )));
+            } else {
+                let _ = cmd
+                    .respond
+                    .send(Response::Error("group uninvite sender unavailable".into()));
+            }
         }
         Request::CombatLog { lines } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "combat log lines={lines}: unavailable"
-            )));
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_combat_log(combat_log_status, lines)));
         }
         Request::CombatRecap { target } => {
-            let target = target.unwrap_or_else(|| "current".into());
-            let _ = cmd.respond.send(Response::Text(format!(
-                "combat recap target={target}: unavailable"
+            let _ = cmd.respond.send(Response::Text(format_combat_recap(
+                combat_log_status,
+                target.as_deref(),
             )));
         }
         Request::ReputationList => {
-            let _ = cmd
-                .respond
-                .send(Response::Text("reputation list: unavailable".into()));
+            let _ = cmd.respond.send(Response::Text(format_reputations_status(
+                reputations_status,
+            )));
         }
         Request::CollectionMounts { missing } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "collection mounts missing={missing}: unavailable"
+            let _ = cmd.respond.send(Response::Text(format_collection_mounts(
+                collection_status,
+                missing,
             )));
         }
         Request::CollectionPets { missing } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "collection pets missing={missing}: unavailable"
+            let _ = cmd.respond.send(Response::Text(format_collection_pets(
+                collection_status,
+                missing,
             )));
         }
         Request::ProfessionRecipes { text } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "profession recipes text={text}: unavailable"
+            let _ = cmd.respond.send(Response::Text(format_profession_recipes(
+                profession_status,
+                &text,
             )));
         }
         Request::MapPosition => {
             let _ = cmd
                 .respond
-                .send(Response::Text("map position: unavailable".into()));
+                .send(Response::Text(format_map_position(map_status)));
         }
         Request::MapTarget => {
-            let _ = cmd
-                .respond
-                .send(Response::Text("map target: unavailable".into()));
-        }
-        Request::MapWaypointAdd { x, y } => {
-            let _ = cmd.respond.send(Response::Text(format!(
-                "map waypoint add x={x:.2} y={y:.2}: unavailable"
+            let _ = cmd.respond.send(Response::Text(format_map_target(
+                map_status,
+                current_target,
+                tree_query,
             )));
         }
-        Request::MapWaypointClear => {
+        Request::MapWaypointAdd { x, y } => {
+            map_status.waypoint = Some(Waypoint { x, y });
             let _ = cmd
                 .respond
-                .send(Response::Text("map waypoint clear: unavailable".into()));
+                .send(Response::Text(format_map_position(map_status)));
+        }
+        Request::MapWaypointClear => {
+            map_status.waypoint = None;
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_map_position(map_status)));
         }
         Request::AuctionOpen
         | Request::AuctionBrowse { .. }
@@ -620,6 +700,311 @@ fn format_item_info(item: &crate::item_info::ItemStaticInfo, appearance_known: b
     )
 }
 
+fn format_quest_list(snapshot: &QuestLogStatusSnapshot) -> String {
+    if snapshot.entries.is_empty() {
+        return "quests: 0\n-".into();
+    }
+    let lines = snapshot
+        .entries
+        .iter()
+        .map(|entry| {
+            format!(
+                "{} {} zone={} repeat={} completed={} objectives={}",
+                entry.quest_id,
+                entry.title,
+                entry.zone,
+                quest_repeatability_label(&entry.repeatability),
+                entry.completed,
+                entry.objectives.len()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("quests: {}\n{lines}", snapshot.entries.len())
+}
+
+fn format_quest_watch(snapshot: &QuestLogStatusSnapshot) -> String {
+    let watched = snapshot
+        .watched_quest_ids
+        .iter()
+        .filter_map(|id| snapshot.entries.iter().find(|entry| entry.quest_id == *id))
+        .collect::<Vec<_>>();
+    if watched.is_empty() {
+        return "quest_watch: 0\n-".into();
+    }
+    let lines = watched
+        .iter()
+        .map(|entry| {
+            let objective = entry
+                .objectives
+                .iter()
+                .map(|obj| format!("{} {}/{}", obj.text, obj.current, obj.required))
+                .collect::<Vec<_>>()
+                .join("; ");
+            format!("{} {} [{}]", entry.quest_id, entry.title, objective)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("quest_watch: {}\n{lines}", watched.len())
+}
+
+fn format_quest_show(snapshot: &QuestLogStatusSnapshot, quest_id: u32) -> String {
+    let Some(entry) = snapshot
+        .entries
+        .iter()
+        .find(|entry| entry.quest_id == quest_id)
+    else {
+        return format!("quest {quest_id}: not found");
+    };
+    let objectives = if entry.objectives.is_empty() {
+        "-".into()
+    } else {
+        entry
+            .objectives
+            .iter()
+            .map(|obj| {
+                format!(
+                    "{} {}/{} completed={}",
+                    obj.text, obj.current, obj.required, obj.completed
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    format!(
+        "quest_id: {}\ntitle: {}\nzone: {}\nrepeatability: {}\ncompleted: {}\nobjectives:\n{}",
+        entry.quest_id,
+        entry.title,
+        entry.zone,
+        quest_repeatability_label(&entry.repeatability),
+        entry.completed,
+        objectives,
+    )
+}
+
+fn quest_repeatability_label(value: &QuestRepeatability) -> &'static str {
+    match value {
+        QuestRepeatability::Normal => "normal",
+        QuestRepeatability::Daily => "daily",
+        QuestRepeatability::Weekly => "weekly",
+    }
+}
+
+fn format_group_roster(snapshot: &GroupStatusSnapshot) -> String {
+    if snapshot.members.is_empty() {
+        return "group_roster: 0\n-".into();
+    }
+    let lines = snapshot
+        .members
+        .iter()
+        .map(|member| {
+            format!(
+                "{} leader={} role={} online={} subgroup={}",
+                member.name,
+                member.is_leader,
+                group_role_label(&member.role),
+                member.online,
+                member.subgroup
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("group_roster: {}\n{lines}", snapshot.members.len())
+}
+
+fn format_group_status(snapshot: &GroupStatusSnapshot) -> String {
+    format!(
+        "in_group: {}\nis_raid: {}\nmembers: {}\nready: {}/{}\nlast_message: {}",
+        !snapshot.members.is_empty(),
+        snapshot.is_raid,
+        snapshot.members.len(),
+        snapshot.ready_count,
+        snapshot.total_count,
+        snapshot.last_server_message.as_deref().unwrap_or("-")
+    )
+}
+
+fn group_role_label(role: &GroupRole) -> &'static str {
+    match role {
+        GroupRole::Tank => "tank",
+        GroupRole::Healer => "healer",
+        GroupRole::Damage => "damage",
+        GroupRole::None => "none",
+    }
+}
+
+fn format_combat_log(snapshot: &CombatLogStatusSnapshot, lines: u16) -> String {
+    if snapshot.entries.is_empty() {
+        return "combat_log: 0\n-".into();
+    }
+    let take_count = usize::from(lines).max(1);
+    let selected = snapshot
+        .entries
+        .iter()
+        .rev()
+        .take(take_count)
+        .collect::<Vec<_>>();
+    let text = selected
+        .iter()
+        .map(|entry| format_combat_entry(entry))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("combat_log: {}\n{}", selected.len(), text)
+}
+
+fn format_combat_recap(snapshot: &CombatLogStatusSnapshot, target: Option<&str>) -> String {
+    let target = target.unwrap_or("current").to_ascii_lowercase();
+    let filtered = snapshot
+        .entries
+        .iter()
+        .rev()
+        .filter(|entry| {
+            target == "current"
+                || entry.target.to_ascii_lowercase() == target
+                || entry.source.to_ascii_lowercase() == target
+        })
+        .take(10)
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        return format!("combat_recap target={target}: 0\n-");
+    }
+    let text = filtered
+        .iter()
+        .map(|entry| format_combat_entry(entry))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("combat_recap target={target}: {}\n{text}", filtered.len())
+}
+
+fn format_combat_entry(entry: &CombatLogEntry) -> String {
+    let kind = match entry.kind {
+        CombatLogEventKind::Damage => "damage",
+        CombatLogEventKind::Heal => "heal",
+        CombatLogEventKind::Interrupt => "interrupt",
+        CombatLogEventKind::AuraApplied => "aura",
+        CombatLogEventKind::Death => "death",
+    };
+    format!(
+        "{} src={} dst={} spell={} amount={} aura={} text={}",
+        kind,
+        entry.source,
+        entry.target,
+        entry.spell.as_deref().unwrap_or("-"),
+        entry
+            .amount
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "-".into()),
+        entry.aura.as_deref().unwrap_or("-"),
+        entry.text,
+    )
+}
+
+fn format_collection_mounts(snapshot: &CollectionStatusSnapshot, missing: bool) -> String {
+    let filtered = snapshot
+        .mounts
+        .iter()
+        .filter(|entry| !missing || !entry.known)
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        return "mounts: 0\n-".into();
+    }
+    let lines = filtered
+        .iter()
+        .map(|entry| format!("{} {} known={}", entry.mount_id, entry.name, entry.known))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("mounts: {}\n{lines}", filtered.len())
+}
+
+fn format_collection_pets(snapshot: &CollectionStatusSnapshot, missing: bool) -> String {
+    let filtered = snapshot
+        .pets
+        .iter()
+        .filter(|entry| !missing || !entry.known)
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        return "pets: 0\n-".into();
+    }
+    let lines = filtered
+        .iter()
+        .map(|entry| format!("{} {} known={}", entry.pet_id, entry.name, entry.known))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("pets: {}\n{lines}", filtered.len())
+}
+
+fn format_profession_recipes(snapshot: &ProfessionStatusSnapshot, text: &str) -> String {
+    let needle = text.trim().to_ascii_lowercase();
+    let filtered = snapshot
+        .recipes
+        .iter()
+        .filter(|entry| needle.is_empty() || entry.name.to_ascii_lowercase().contains(&needle))
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        return format!("recipes text={text}: 0\n-");
+    }
+    let lines = filtered
+        .iter()
+        .map(|entry| {
+            format!(
+                "{} {} profession={} craftable={} cooldown={}",
+                entry.spell_id,
+                entry.name,
+                entry.profession,
+                entry.craftable,
+                entry.cooldown.as_deref().unwrap_or("-")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("recipes text={text}: {}\n{lines}", filtered.len())
+}
+
+fn format_map_position(snapshot: &MapStatusSnapshot) -> String {
+    let waypoint = snapshot
+        .waypoint
+        .map(|waypoint| format!("{:.2},{:.2}", waypoint.x, waypoint.y))
+        .unwrap_or_else(|| "-".into());
+    format!(
+        "zone_id: {}\nposition: {:.2},{:.2}\nwaypoint: {}",
+        snapshot.zone_id, snapshot.player_x, snapshot.player_z, waypoint
+    )
+}
+
+fn format_map_target(
+    map_status: &MapStatusSnapshot,
+    current_target: &CurrentTarget,
+    tree_query: &Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
+) -> String {
+    let Some(target) = current_target.0 else {
+        return map_target_none_text();
+    };
+    let Ok((entity, name, _, _, transform)) = tree_query.get(target) else {
+        return "map_target: missing\ndistance: -".into();
+    };
+    let dx = transform.translation.x - map_status.player_x;
+    let dz = transform.translation.z - map_status.player_z;
+    let distance = (dx * dx + dz * dz).sqrt();
+    format!(
+        "map_target: {}\nentity: {}\nposition: {:.2},{:.2}\ndistance: {:.2}",
+        name.map(|value| value.as_str()).unwrap_or("unnamed"),
+        entity.to_bits(),
+        transform.translation.x,
+        transform.translation.z,
+        distance,
+    )
+}
+
+fn map_target_none_text() -> String {
+    "map_target: none\ndistance: -".into()
+}
+
 fn build_inventory_entries(
     bags: Option<&AuctionInventorySnapshot>,
     guild_vault: &[crate::status::StorageItemEntry],
@@ -755,8 +1140,21 @@ fn format_inventory_whereis(entries: &[InventoryItemEntry], item_id: u32) -> Str
     )
 }
 
-fn parse_spell_id(spell: &str) -> Option<u32> {
-    spell.parse().ok()
+fn resolve_spell_identifier(spell: &str) -> Result<(Option<u32>, String), String> {
+    let trimmed = spell.trim();
+    if trimmed.is_empty() {
+        return Err("spell identifier cannot be empty".into());
+    }
+    if let Ok(spell_id) = trimmed.parse::<u32>() {
+        return Ok((Some(spell_id), trimmed.to_string()));
+    }
+    let valid_token = trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == ' ' || ch == '-');
+    if !valid_token {
+        return Err(format!("invalid spell identifier '{trimmed}'"));
+    }
+    Ok((None, trimmed.to_string()))
 }
 
 fn resolve_spell_target(
@@ -1038,5 +1436,195 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].storage, "bags");
         assert_eq!(entries[0].item_id, 2589);
+    }
+
+    #[test]
+    fn quest_list_formats_daily_and_objective_counters() {
+        let snapshot = QuestLogStatusSnapshot {
+            entries: vec![crate::status::QuestEntry {
+                quest_id: 101,
+                title: "Defend the Farm".into(),
+                zone: "Westfall".into(),
+                completed: false,
+                repeatability: QuestRepeatability::Daily,
+                objectives: vec![crate::status::QuestObjectiveEntry {
+                    text: "Harvest Watchers slain".into(),
+                    current: 3,
+                    required: 8,
+                    completed: false,
+                }],
+            }],
+            watched_quest_ids: vec![],
+        };
+
+        let text = format_quest_list(&snapshot);
+
+        assert!(text.contains("repeat=daily"));
+        assert!(text.contains("objectives=1"));
+    }
+
+    #[test]
+    fn group_roster_formatter_shows_leader_role_online_and_subgroup() {
+        let snapshot = GroupStatusSnapshot {
+            is_raid: false,
+            members: vec![crate::status::GroupMemberEntry {
+                name: "Thrall".into(),
+                role: GroupRole::Healer,
+                is_leader: true,
+                online: true,
+                subgroup: 1,
+            }],
+            ready_count: 1,
+            total_count: 1,
+            last_server_message: None,
+        };
+
+        let text = format_group_roster(&snapshot);
+
+        assert!(text.contains("leader=true"));
+        assert!(text.contains("role=healer"));
+        assert!(text.contains("online=true"));
+        assert!(text.contains("subgroup=1"));
+    }
+
+    #[test]
+    fn combat_log_formats_damage_heal_interrupt_aura_and_death() {
+        let snapshot = CombatLogStatusSnapshot {
+            entries: vec![
+                CombatLogEntry {
+                    kind: CombatLogEventKind::Damage,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: Some("Strike".into()),
+                    amount: Some(10),
+                    aura: None,
+                    text: "hit".into(),
+                },
+                CombatLogEntry {
+                    kind: CombatLogEventKind::Heal,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: Some("Heal".into()),
+                    amount: Some(8),
+                    aura: None,
+                    text: "heal".into(),
+                },
+                CombatLogEntry {
+                    kind: CombatLogEventKind::Interrupt,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: Some("Kick".into()),
+                    amount: None,
+                    aura: None,
+                    text: "interrupt".into(),
+                },
+                CombatLogEntry {
+                    kind: CombatLogEventKind::AuraApplied,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: Some("Buff".into()),
+                    amount: None,
+                    aura: Some("Power".into()),
+                    text: "aura".into(),
+                },
+                CombatLogEntry {
+                    kind: CombatLogEventKind::Death,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: None,
+                    amount: None,
+                    aura: None,
+                    text: "death".into(),
+                },
+            ],
+        };
+
+        let text = format_combat_log(&snapshot, 10);
+
+        assert!(text.contains("damage"));
+        assert!(text.contains("heal"));
+        assert!(text.contains("interrupt"));
+        assert!(text.contains("aura"));
+        assert!(text.contains("death"));
+    }
+
+    #[test]
+    fn combat_recap_orders_newest_first() {
+        let snapshot = CombatLogStatusSnapshot {
+            entries: vec![
+                CombatLogEntry {
+                    kind: CombatLogEventKind::Damage,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: Some("First".into()),
+                    amount: Some(1),
+                    aura: None,
+                    text: "first".into(),
+                },
+                CombatLogEntry {
+                    kind: CombatLogEventKind::Damage,
+                    source: "A".into(),
+                    target: "B".into(),
+                    spell: Some("Second".into()),
+                    amount: Some(2),
+                    aura: None,
+                    text: "second".into(),
+                },
+            ],
+        };
+
+        let text = format_combat_recap(&snapshot, Some("B"));
+        let first = text.find("Second").expect("second entry present");
+        let second = text.find("First").expect("first entry present");
+
+        assert!(first < second);
+    }
+
+    #[test]
+    fn collection_mounts_missing_filters_known_entries() {
+        let snapshot = CollectionStatusSnapshot {
+            mounts: vec![
+                crate::status::CollectionMountEntry {
+                    mount_id: 1,
+                    name: "Horse".into(),
+                    known: true,
+                },
+                crate::status::CollectionMountEntry {
+                    mount_id: 2,
+                    name: "Wolf".into(),
+                    known: false,
+                },
+            ],
+            pets: vec![],
+        };
+
+        let text = format_collection_mounts(&snapshot, true);
+
+        assert!(!text.contains("Horse"));
+        assert!(text.contains("Wolf"));
+    }
+
+    #[test]
+    fn profession_recipes_filters_by_text() {
+        let snapshot = ProfessionStatusSnapshot {
+            recipes: vec![crate::status::ProfessionRecipeEntry {
+                spell_id: 100,
+                profession: "Alchemy".into(),
+                name: "Major Healing Potion".into(),
+                craftable: true,
+                cooldown: None,
+            }],
+        };
+
+        let text = format_profession_recipes(&snapshot, "potion");
+
+        assert!(text.contains("Major Healing Potion"));
+    }
+
+    #[test]
+    fn map_target_none_formatter_is_clear() {
+        let text = map_target_none_text();
+
+        assert_eq!(text, "map_target: none\ndistance: -");
     }
 }

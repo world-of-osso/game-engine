@@ -182,6 +182,147 @@ pub struct InventorySearchSnapshot {
     pub entries: Vec<InventoryItemEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QuestRepeatability {
+    Normal,
+    Daily,
+    Weekly,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QuestObjectiveEntry {
+    pub text: String,
+    pub current: u32,
+    pub required: u32,
+    pub completed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QuestEntry {
+    pub quest_id: u32,
+    pub title: String,
+    pub zone: String,
+    pub completed: bool,
+    pub repeatability: QuestRepeatability,
+    pub objectives: Vec<QuestObjectiveEntry>,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct QuestLogStatusSnapshot {
+    pub entries: Vec<QuestEntry>,
+    pub watched_quest_ids: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum GroupRole {
+    Tank,
+    Healer,
+    Damage,
+    None,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GroupMemberEntry {
+    pub name: String,
+    pub role: GroupRole,
+    pub is_leader: bool,
+    pub online: bool,
+    pub subgroup: u8,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct GroupStatusSnapshot {
+    pub is_raid: bool,
+    pub members: Vec<GroupMemberEntry>,
+    pub ready_count: u16,
+    pub total_count: u16,
+    pub last_server_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum CombatLogEventKind {
+    Damage,
+    Heal,
+    Interrupt,
+    AuraApplied,
+    Death,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CombatLogEntry {
+    pub kind: CombatLogEventKind,
+    pub source: String,
+    pub target: String,
+    pub spell: Option<String>,
+    pub amount: Option<i32>,
+    pub aura: Option<String>,
+    pub text: String,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct CombatLogStatusSnapshot {
+    pub entries: Vec<CombatLogEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionMountEntry {
+    pub mount_id: u32,
+    pub name: String,
+    pub known: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionPetEntry {
+    pub pet_id: u32,
+    pub name: String,
+    pub known: bool,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct CollectionStatusSnapshot {
+    pub mounts: Vec<CollectionMountEntry>,
+    pub pets: Vec<CollectionPetEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProfessionRecipeEntry {
+    pub spell_id: u32,
+    pub profession: String,
+    pub name: String,
+    pub craftable: bool,
+    pub cooldown: Option<String>,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct ProfessionStatusSnapshot {
+    pub recipes: Vec<ProfessionRecipeEntry>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct Waypoint {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MapStatusSnapshot {
+    pub zone_id: u32,
+    pub player_x: f32,
+    pub player_z: f32,
+    pub waypoint: Option<Waypoint>,
+}
+
+impl Default for MapStatusSnapshot {
+    fn default() -> Self {
+        Self {
+            zone_id: 0,
+            player_x: 0.0,
+            player_z: 0.0,
+            waypoint: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,5 +404,54 @@ mod tests {
         let snapshot = InventorySearchSnapshot::default();
 
         assert!(snapshot.entries.is_empty());
+    }
+
+    #[test]
+    fn quest_log_snapshot_defaults_to_empty_entries() {
+        let snapshot = QuestLogStatusSnapshot::default();
+
+        assert!(snapshot.entries.is_empty());
+        assert!(snapshot.watched_quest_ids.is_empty());
+    }
+
+    #[test]
+    fn group_status_snapshot_defaults_to_empty_members() {
+        let snapshot = GroupStatusSnapshot::default();
+
+        assert!(snapshot.members.is_empty());
+        assert_eq!(snapshot.ready_count, 0);
+        assert_eq!(snapshot.total_count, 0);
+    }
+
+    #[test]
+    fn combat_log_snapshot_defaults_to_no_entries() {
+        let snapshot = CombatLogStatusSnapshot::default();
+
+        assert!(snapshot.entries.is_empty());
+    }
+
+    #[test]
+    fn collection_snapshot_defaults_to_empty_lists() {
+        let snapshot = CollectionStatusSnapshot::default();
+
+        assert!(snapshot.mounts.is_empty());
+        assert!(snapshot.pets.is_empty());
+    }
+
+    #[test]
+    fn profession_snapshot_defaults_to_empty_recipes() {
+        let snapshot = ProfessionStatusSnapshot::default();
+
+        assert!(snapshot.recipes.is_empty());
+    }
+
+    #[test]
+    fn map_status_snapshot_defaults_to_origin() {
+        let snapshot = MapStatusSnapshot::default();
+
+        assert_eq!(snapshot.zone_id, 0);
+        assert_eq!(snapshot.player_x, 0.0);
+        assert_eq!(snapshot.player_z, 0.0);
+        assert!(snapshot.waypoint.is_none());
     }
 }
