@@ -42,6 +42,8 @@ pub struct M2Model {
     pub sequences: Vec<super::m2_anim::M2AnimSequence>,
     pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
     pub global_sequences: Vec<u32>,
+    pub attachments: Vec<super::m2_attach::M2Attachment>,
+    pub attachment_lookup: Vec<i16>,
 }
 
 struct M2Vertex {
@@ -89,7 +91,7 @@ struct M2Chunks<'a> {
 }
 
 /// Read a little-endian u32 from a byte slice at the given offset.
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
+pub(crate) fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
         .ok_or_else(|| format!("read_u32 out of bounds at offset {off:#x}"))?
@@ -99,7 +101,7 @@ fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
 }
 
 /// Read a little-endian f32 from a byte slice at the given offset.
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
+pub(crate) fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
         .ok_or_else(|| format!("read_f32 out of bounds at offset {off:#x}"))?
@@ -109,7 +111,7 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
 }
 
 /// Read a little-endian u16 from a byte slice at the given offset.
-fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
+pub(crate) fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
     let bytes: [u8; 2] = data
         .get(off..off + 2)
         .ok_or_else(|| format!("read_u16 out of bounds at offset {off:#x}"))?
@@ -728,6 +730,8 @@ pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
     let anim = load_anim_data(path, &chunks);
     let skin = load_skin_data(path, &chunks.sfid);
     let materials = parse_materials(chunks.md20)?;
+    let attachments = super::m2_attach::parse_attachments(chunks.md20).unwrap_or_default();
+    let attachment_lookup = super::m2_attach::parse_attachment_lookup(chunks.md20).unwrap_or_default();
 
     let batches = if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
@@ -746,6 +750,8 @@ pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
         sequences: anim.sequences,
         bone_tracks: anim.bone_tracks,
         global_sequences: anim.global_sequences,
+        attachments,
+        attachment_lookup,
     })
 }
 

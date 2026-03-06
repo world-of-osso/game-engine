@@ -15,6 +15,7 @@ mod animation;
 mod asset;
 mod camera;
 mod creature_display;
+mod equipment;
 mod game_state;
 mod health_bar;
 pub mod m2_spawn;
@@ -101,6 +102,7 @@ fn register_plugins(app: &mut App) {
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(target::TargetPlugin)
+        .add_plugins(equipment::EquipmentPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),
@@ -526,13 +528,26 @@ fn spawn_m2_model(
             return;
         }
     };
-    let asset::m2::M2Model { batches, bones, sequences, bone_tracks, global_sequences } = model;
+    let asset::m2::M2Model {
+        batches, bones, sequences, bone_tracks, global_sequences,
+        attachments, ..
+    } = model;
 
     let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(commands, meshes, materials, images, inv_bp, batches, &bones, model_entity);
     let joint_entities = attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
     if let Some(joints) = joint_entities {
         commands.insert_resource(M2AnimData { sequences, bone_tracks, global_sequences, joint_entities: joints });
+    }
+    // Attach equipment: attachment points + default main-hand torch
+    if !attachments.is_empty() {
+        let attach_pts = equipment::build_attachment_points(&attachments);
+        let mut equip = equipment::Equipment::default();
+        let torch = Path::new("data/models/club_1h_torch_a_01.m2");
+        if torch.exists() {
+            equip.slots.insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
+        }
+        commands.entity(model_entity).insert((attach_pts, equip));
     }
 }
 
