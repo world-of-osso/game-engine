@@ -1,6 +1,6 @@
 # game-engine
 
-Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and eventually the full game world. Sibling to wow-ui-sim (iced-based UI overlay).
+Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and eventually the full game world. Standalone renderer with its own Bevy UI/debug tooling.
 
 ## Structure
 
@@ -86,4 +86,4 @@ src/
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)
 - wowmapview 0.5: https://sourceforge.net/projects/wowmapview/ — C++ WoW map viewer (ADT/WMO/M2 rendering reference)
 - game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
-- Future: game-engine 3D scene + wow-ui-sim UI overlay + game-server authoritative backend
+- Future: game-engine as a full standalone client renderer + game-server authoritative backend

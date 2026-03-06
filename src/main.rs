@@ -11,9 +11,11 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
-    CharacterStatsSnapshot, CurrenciesStatusSnapshot, EquippedGearEntry,
-    EquippedGearStatusSnapshot, GuildVaultStatusSnapshot, NetworkStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
+    CurrenciesStatusSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot, GroupStatusSnapshot,
+    GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    WarbankStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -93,6 +95,7 @@ fn main() {
     app.add_systems(Update, sync_sound_status_snapshot);
     app.add_systems(Update, sync_character_stats_snapshot);
     app.add_systems(Update, sync_equipped_gear_status_snapshot);
+    app.add_systems(Update, sync_map_status_snapshot);
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
         app.add_systems(PostStartup, dump_tree_and_exit);
@@ -153,6 +156,12 @@ fn register_plugins(app: &mut App) {
         .init_resource::<GuildVaultStatusSnapshot>()
         .init_resource::<WarbankStatusSnapshot>()
         .init_resource::<EquippedGearStatusSnapshot>()
+        .init_resource::<QuestLogStatusSnapshot>()
+        .init_resource::<GroupStatusSnapshot>()
+        .init_resource::<CombatLogStatusSnapshot>()
+        .init_resource::<CollectionStatusSnapshot>()
+        .init_resource::<ProfessionStatusSnapshot>()
+        .init_resource::<MapStatusSnapshot>()
         .add_systems(Startup, setup);
 }
 
@@ -282,6 +291,18 @@ fn sync_equipped_gear_status_snapshot(
     }
 }
 
+fn sync_map_status_snapshot(
+    mut snapshot: ResMut<MapStatusSnapshot>,
+    current_zone: Res<networking::CurrentZone>,
+    player_query: Query<&Transform, With<Player>>,
+) {
+    snapshot.zone_id = current_zone.zone_id;
+    if let Some(transform) = player_query.iter().next() {
+        snapshot.player_x = transform.translation.x;
+        snapshot.player_z = transform.translation.z;
+    }
+}
+
 /// Parse `screenshot <output> [model]` from args. Returns None if not a screenshot command.
 fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     if args.first().map(|s| s.as_str()) != Some("screenshot") {
@@ -386,6 +407,7 @@ fn setup(
     mut heightmap: ResMut<TerrainHeightmap>,
     mut adt_manager: ResMut<AdtManager>,
     server_addr: Option<Res<networking::ServerAddr>>,
+    creature_display_map: Res<creature_display::CreatureDisplayMap>,
 ) {
     // Server mode: minimal scene — dark background, camera only, no world content.
     if server_addr.is_some() {
@@ -442,6 +464,7 @@ fn setup(
                     &mut images,
                     &mut inverse_bp,
                     m2_path,
+                    &creature_display_map,
                 );
             }
             if let Some(pos) = center {
@@ -456,6 +479,7 @@ fn setup(
                 &mut images,
                 &mut inverse_bp,
                 &p,
+                &creature_display_map,
             );
         }
         None => spawn_default_scene(
@@ -468,6 +492,7 @@ fn setup(
             &mut inverse_bp,
             &mut heightmap,
             &mut adt_manager,
+            &creature_display_map,
         ),
     }
 }
@@ -523,6 +548,7 @@ fn spawn_default_scene(
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
     adt_manager: &mut AdtManager,
+    creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     let adt_path = Path::new(DEFAULT_ADT);
     let center = if adt_path.exists() {
@@ -557,7 +583,15 @@ fn spawn_default_scene(
 
     let m2_path = Path::new(DEFAULT_M2);
     if m2_path.exists() {
-        spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path);
+        spawn_m2_model(
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            m2_path,
+            creature_display_map,
+        );
     }
 
     let chest_offset = Vec3::new(5.0, 0.0, 0.0);
@@ -572,6 +606,7 @@ fn spawn_default_scene(
             chest_path,
             Transform::from_translation(center.unwrap_or_default() + chest_offset)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+            creature_display_map,
         );
     }
 
@@ -598,6 +633,7 @@ fn spawn_m2_scene(
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
+    creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     spawn_m2_model(
         commands,
@@ -606,8 +642,16 @@ fn spawn_m2_scene(
         images,
         inverse_bindposes,
         m2_path,
+        creature_display_map,
     );
-    spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes);
+    spawn_ground_clutter(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        creature_display_map,
+    );
 
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
@@ -620,6 +664,7 @@ fn spawn_m2_scene(
             chest_path,
             Transform::from_xyz(5.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+            creature_display_map,
         );
     }
 }
@@ -753,9 +798,17 @@ fn spawn_ground_clutter(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     spawn_rock_clutter(commands, meshes, materials);
-    spawn_herb_clutter(commands, meshes, materials, images, inverse_bindposes);
+    spawn_herb_clutter(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        creature_display_map,
+    );
 }
 
 fn spawn_rock_clutter(
@@ -801,6 +854,7 @@ fn spawn_herb_clutter(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     for i in 0u32..15 {
         let Some((x, z, hash1, _)) = scatter_position(i.wrapping_mul(3).wrapping_add(7)) else {
@@ -819,6 +873,7 @@ fn spawn_herb_clutter(
             inverse_bindposes,
             herb_path,
             transform,
+            creature_display_map,
         );
     }
 }
@@ -830,8 +885,12 @@ fn spawn_m2_model(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
+    creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
-    let model = match asset::m2::load_m2(m2_path, &[0, 0, 0]) {
+    let skin_fdids = creature_display_map
+        .resolve_skin_fdids_for_model_path(m2_path)
+        .unwrap_or([0, 0, 0]);
+    let model = match asset::m2::load_m2(m2_path, &skin_fdids) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
@@ -923,6 +982,7 @@ fn spawn_static_m2(
     skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
     transform: Transform,
+    creature_display_map: &creature_display::CreatureDisplayMap,
 ) -> Option<Entity> {
     let name = m2_path
         .file_stem()
@@ -931,6 +991,9 @@ fn spawn_static_m2(
     let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
+    let skin_fdids = creature_display_map
+        .resolve_skin_fdids_for_model_path(m2_path)
+        .unwrap_or([0, 0, 0]);
     if m2_spawn::spawn_m2_on_entity(
         commands,
         meshes,
@@ -939,7 +1002,7 @@ fn spawn_static_m2(
         skinned_mesh_inverse_bindposes,
         m2_path,
         root,
-        &[0, 0, 0],
+        &skin_fdids,
     ) {
         Some(root)
     } else {

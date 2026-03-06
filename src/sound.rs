@@ -1,3 +1,6 @@
+use std::f32::consts::TAU;
+use std::path::Path;
+
 use bevy::audio::{AudioSinkPlayback, Volume};
 use bevy::prelude::*;
 
@@ -6,8 +9,14 @@ pub struct SoundPlugin;
 impl Plugin for SoundPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(SoundSettings::default())
-            .add_systems(Startup, (load_sound_assets, spawn_ambient_sound).chain())
+            .insert_resource(MusicPlaybackState::default())
+            .add_systems(
+                Startup,
+                (load_sound_assets, spawn_ambient_sound, spawn_music_sound).chain(),
+            )
             .add_systems(Update, toggle_mute)
+            .add_systems(Update, update_audio_volumes)
+            .add_systems(Update, maintain_music_playback)
             .add_systems(Update, attach_footstep_tracker)
             .add_systems(Update, footstep_trigger.after(attach_footstep_tracker));
     }
@@ -18,6 +27,8 @@ pub struct SoundSettings {
     pub master_volume: f32,
     pub footstep_volume: f32,
     pub ambient_volume: f32,
+    pub music_volume: f32,
+    pub music_enabled: bool,
     pub muted: bool,
 }
 
@@ -27,6 +38,8 @@ impl Default for SoundSettings {
             master_volume: 1.0,
             footstep_volume: 0.5,
             ambient_volume: 0.3,
+            music_volume: 0.45,
+            music_enabled: true,
             muted: false,
         }
     }
@@ -37,10 +50,21 @@ pub struct SoundAssets {
     pub footstep_light: Handle<AudioSource>,
     pub footstep_heavy: Handle<AudioSource>,
     pub ambient_loop: Handle<AudioSource>,
+    pub music_loop_fallback: Handle<AudioSource>,
+    pub music_tracks: Vec<Handle<AudioSource>>,
 }
 
 #[derive(Component)]
 pub struct AmbientSound;
+
+#[derive(Component)]
+pub struct MusicSound;
+
+#[derive(Resource, Default)]
+struct MusicPlaybackState {
+    next_track_idx: usize,
+    active_track_name: Option<String>,
+}
 
 /// Tracks the last footstep trigger point to avoid double-plays.
 #[derive(Component, Default)]
@@ -60,15 +84,23 @@ fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<Aud
         bytes: heavy_wav.into(),
     });
 
-    let ambient_wav = generate_wav(&generate_ambient_samples(2000));
+    let ambient_wav = generate_wav(&generate_ambient_samples(30_000));
     let ambient_loop = audio_assets.add(AudioSource {
         bytes: ambient_wav.into(),
     });
+
+    let music_wav = generate_wav(&generate_music_samples(24_000));
+    let music_loop_fallback = audio_assets.add(AudioSource {
+        bytes: music_wav.into(),
+    });
+    let music_tracks = load_external_music_tracks(&mut audio_assets);
 
     commands.insert_resource(SoundAssets {
         footstep_light,
         footstep_heavy,
         ambient_loop,
+        music_loop_fallback,
+        music_tracks,
     });
 }
 
@@ -85,6 +117,30 @@ fn spawn_ambient_sound(
     ));
 }
 
+fn spawn_music_sound(
+    mut commands: Commands,
+    sound_assets: Res<SoundAssets>,
+    settings: Res<SoundSettings>,
+    mut state: ResMut<MusicPlaybackState>,
+) {
+    if !settings.music_enabled {
+        return;
+    }
+    if let Some((handle, name, looped)) = next_music_track(&sound_assets, &mut state) {
+        let playback = if looped {
+            PlaybackSettings::LOOP.with_volume(Volume::Linear(compute_music_volume(&settings)))
+        } else {
+            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(compute_music_volume(&settings)))
+        };
+        commands.spawn((
+            MusicSound,
+            AudioPlayer::<AudioSource>::new(handle),
+            playback,
+        ));
+        state.active_track_name = Some(name);
+    }
+}
+
 fn compute_ambient_volume(settings: &SoundSettings) -> f32 {
     if settings.muted {
         0.0
@@ -93,17 +149,79 @@ fn compute_ambient_volume(settings: &SoundSettings) -> f32 {
     }
 }
 
+fn compute_music_volume(settings: &SoundSettings) -> f32 {
+    if settings.muted || !settings.music_enabled {
+        0.0
+    } else {
+        settings.music_volume * settings.master_volume
+    }
+}
+
 fn toggle_mute(
     keys: Res<ButtonInput<KeyCode>>,
     mut settings: ResMut<SoundSettings>,
-    mut sinks: Query<&mut AudioSink, With<AmbientSound>>,
+    mut ambient_sinks: Query<&mut AudioSink, With<AmbientSound>>,
+    mut music_sinks: Query<&mut AudioSink, With<MusicSound>>,
 ) {
     if keys.just_pressed(KeyCode::KeyM) {
         settings.muted = !settings.muted;
-        let volume = compute_ambient_volume(&settings);
-        for mut sink in &mut sinks {
-            sink.set_volume(Volume::Linear(volume));
+        let ambient_volume = compute_ambient_volume(&settings);
+        for mut sink in &mut ambient_sinks {
+            sink.set_volume(Volume::Linear(ambient_volume));
         }
+        let music_volume = compute_music_volume(&settings);
+        for mut sink in &mut music_sinks {
+            sink.set_volume(Volume::Linear(music_volume));
+        }
+    }
+}
+
+fn update_audio_volumes(
+    settings: Res<SoundSettings>,
+    mut ambient_sinks: Query<&mut AudioSink, With<AmbientSound>>,
+    mut music_sinks: Query<&mut AudioSink, With<MusicSound>>,
+) {
+    if !settings.is_changed() {
+        return;
+    }
+    let ambient_volume = compute_ambient_volume(&settings);
+    for mut sink in &mut ambient_sinks {
+        sink.set_volume(Volume::Linear(ambient_volume));
+    }
+    let music_volume = compute_music_volume(&settings);
+    for mut sink in &mut music_sinks {
+        sink.set_volume(Volume::Linear(music_volume));
+    }
+}
+
+fn maintain_music_playback(
+    mut commands: Commands,
+    sound_assets: Res<SoundAssets>,
+    settings: Res<SoundSettings>,
+    mut state: ResMut<MusicPlaybackState>,
+    music_query: Query<Entity, With<MusicSound>>,
+) {
+    if !settings.music_enabled {
+        for entity in &music_query {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
+    if !music_query.is_empty() {
+        return;
+    }
+    if let Some((handle, name, looped)) = next_music_track(&sound_assets, &mut state) {
+        let playback = if looped {
+            PlaybackSettings::LOOP.with_volume(Volume::Linear(compute_music_volume(&settings)))
+        } else {
+            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(compute_music_volume(&settings)))
+        };
+        commands.spawn((
+            MusicSound,
+            AudioPlayer::<AudioSource>::new(handle),
+            playback,
+        ));
+        state.active_track_name = Some(name);
     }
 }
 
@@ -192,6 +310,60 @@ fn play_footstep(
     ));
 }
 
+fn next_music_track(
+    sound_assets: &SoundAssets,
+    state: &mut MusicPlaybackState,
+) -> Option<(Handle<AudioSource>, String, bool)> {
+    if !sound_assets.music_tracks.is_empty() {
+        let idx = state.next_track_idx % sound_assets.music_tracks.len();
+        state.next_track_idx = state.next_track_idx.wrapping_add(1);
+        return Some((
+            sound_assets.music_tracks[idx].clone(),
+            format!("external-{idx}"),
+            false,
+        ));
+    }
+    Some((
+        sound_assets.music_loop_fallback.clone(),
+        "procedural-fallback".to_string(),
+        true,
+    ))
+}
+
+fn load_external_music_tracks(audio_assets: &mut Assets<AudioSource>) -> Vec<Handle<AudioSource>> {
+    let mut tracks = Vec::new();
+    for dir in ["data/sound/music", "data/music"] {
+        let path = Path::new(dir);
+        let Ok(entries) = std::fs::read_dir(path) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() || !is_supported_audio_file(&path) {
+                continue;
+            }
+            match std::fs::read(&path) {
+                Ok(bytes) => {
+                    tracks.push(audio_assets.add(AudioSource {
+                        bytes: bytes.into(),
+                    }));
+                }
+                Err(e) => {
+                    eprintln!("Failed to read music track {}: {e}", path.display());
+                }
+            }
+        }
+    }
+    tracks
+}
+
+fn is_supported_audio_file(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("wav") | Some("ogg") | Some("mp3") | Some("flac")
+    )
+}
+
 /// Generate a procedural footstep impact sound with configurable amplitude and duration.
 fn generate_footstep_samples(amplitude: f32, duration_ms: u32) -> Vec<i16> {
     let sample_rate = 44100u32;
@@ -232,6 +404,34 @@ fn generate_ambient_samples(duration_ms: u32) -> Vec<i16> {
         let pink = (b0 + b1 + b2 + white * 0.1848) * 0.05;
 
         samples.push((pink * 32767.0).clamp(-32767.0, 32767.0) as i16);
+    }
+
+    crossfade_loop_ends(&mut samples);
+    samples
+}
+
+/// Generate a soft procedural music bed for fallback playback.
+fn generate_music_samples(duration_ms: u32) -> Vec<i16> {
+    let sample_rate = 44_100u32;
+    let num_samples = (sample_rate * duration_ms / 1000) as usize;
+    let mut samples = Vec::with_capacity(num_samples);
+
+    // Four-bar progression in A minor-ish colors.
+    let roots = [110.0_f32, 130.8128, 98.0, 146.8324];
+    let bar_seconds = 2.0_f32;
+
+    for i in 0..num_samples {
+        let t = i as f32 / sample_rate as f32;
+        let bar = ((t / bar_seconds) as usize) % roots.len();
+        let root = roots[bar];
+        let phase = t * TAU;
+
+        let bass = (phase * root).sin() * 0.35;
+        let fifth = (phase * (root * 1.5)).sin() * 0.18;
+        let pad = (phase * (root * 2.0)).sin() * 0.10;
+        let tremolo = (phase * 0.4).sin() * 0.15 + 0.85;
+        let signal = (bass + fifth + pad) * tremolo;
+        samples.push((signal * 24_000.0).clamp(-32_767.0, 32_767.0) as i16);
     }
 
     crossfade_loop_ends(&mut samples);
@@ -321,6 +521,12 @@ mod tests {
     }
 
     #[test]
+    fn music_samples_length() {
+        let samples = generate_music_samples(4000);
+        assert_eq!(samples.len(), 176_400);
+    }
+
+    #[test]
     fn wav_header_valid() {
         let samples = vec![0i16; 100];
         let wav = generate_wav(&samples);
@@ -355,6 +561,21 @@ mod tests {
         let vol = compute_ambient_volume(&s);
         assert!(vol > 0.0);
         assert!((vol - 0.3).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn music_volume_unmuted() {
+        let s = SoundSettings::default();
+        let vol = compute_music_volume(&s);
+        assert!(vol > 0.0);
+        assert!((vol - 0.45).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn music_volume_muted() {
+        let mut s = SoundSettings::default();
+        s.muted = true;
+        assert_eq!(compute_music_volume(&s), 0.0);
     }
 
     #[test]

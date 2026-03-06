@@ -8,6 +8,7 @@ use bevy::prelude::*;
 
 use crate::asset::adt::CHUNK_SIZE;
 use crate::asset::{adt_obj, blp, wmo};
+use crate::m2_spawn;
 
 use crate::terrain::resolve_companion_path;
 
@@ -95,9 +96,26 @@ fn try_spawn_doodad(
         return None;
     }
     let transform = doodad_transform(doodad);
-    let entity = crate::spawn_static_m2(
-        commands, meshes, materials, images, inverse_bp, &m2_path, transform,
-    )?;
+    let name = m2_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("prop");
+    let entity = commands
+        .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
+        .id();
+    if !m2_spawn::spawn_m2_on_entity(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bp,
+        &m2_path,
+        entity,
+        &[0, 0, 0],
+    ) {
+        commands.entity(entity).despawn();
+        return None;
+    }
     commands.entity(entity).insert(game_engine::culling::Doodad);
     Some(entity)
 }

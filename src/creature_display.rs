@@ -38,6 +38,39 @@ impl CreatureDisplayMap {
         self.entries.get(&display_id).map(|e| e.skin_fdids)
     }
 
+    /// Pick a preferred non-empty skin set for a model FDID.
+    ///
+    /// When multiple display IDs share the same model, we pick the entry with the
+    /// most populated texture slots (then lowest display ID for deterministic ties).
+    pub fn get_skin_fdids_for_model_fdid(&self, model_fdid: u32) -> Option<[u32; 3]> {
+        select_preferred_skin_fdids(
+            self.entries
+                .iter()
+                .filter(|(_, entry)| entry.model_fdid == model_fdid)
+                .map(|(display_id, entry)| (*display_id, entry.skin_fdids)),
+        )
+    }
+
+    /// Resolve preferred skin texture FDIDs from a local model path.
+    ///
+    /// Supports both FDID-named files (`123456.m2`) and named files (`boar.m2`).
+    /// Named files are resolved via `community-listfile.csv` filename matching.
+    pub fn resolve_skin_fdids_for_model_path(&self, model_path: &Path) -> Option<[u32; 3]> {
+        let stem = model_path.file_stem()?.to_str()?;
+        if let Ok(model_fdid) = stem.parse::<u32>() {
+            return self.get_skin_fdids_for_model_fdid(model_fdid);
+        }
+        let model_name = model_path.file_name()?.to_str()?.to_ascii_lowercase();
+        select_preferred_skin_fdids(self.entries.iter().filter_map(|(display_id, entry)| {
+            let wow_path = game_engine::listfile::lookup_fdid(entry.model_fdid)?;
+            let wow_name = Path::new(wow_path)
+                .file_name()?
+                .to_str()?
+                .to_ascii_lowercase();
+            (wow_name == model_name).then_some((*display_id, entry.skin_fdids))
+        }))
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -54,6 +87,29 @@ impl CreatureDisplayMap {
         info!("Loaded {} creature display→FDID mappings", map.len());
         map
     }
+}
+
+fn select_preferred_skin_fdids(
+    candidates: impl Iterator<Item = (u32, [u32; 3])>,
+) -> Option<[u32; 3]> {
+    let mut best: Option<(usize, u32, [u32; 3])> = None;
+    for (display_id, skin_fdids) in candidates {
+        let filled_slots = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
+        if filled_slots == 0 {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((best_filled, best_display_id, _)) => {
+                filled_slots > best_filled
+                    || (filled_slots == best_filled && display_id < best_display_id)
+            }
+        };
+        if better {
+            best = Some((filled_slots, display_id, skin_fdids));
+        }
+    }
+    best.map(|(_, _, skin_fdids)| skin_fdids)
 }
 
 /// Parse CreatureModelData.csv: model_id → file_data_id.
@@ -214,5 +270,62 @@ mod tests {
 
         // Display ID 150 has all 3 TextureVariation slots populated
         assert_eq!(map.get_skin_fdids(150), Some([1245235, 1245243, 1245229]));
+    }
+
+    #[test]
+    fn preferred_skin_fdids_for_model_fdid_chooses_most_populated() {
+        let mut map = CreatureDisplayMap::default();
+        map.entries.insert(
+            20,
+            CreatureDisplay {
+                model_fdid: 9000,
+                skin_fdids: [111, 0, 0],
+            },
+        );
+        map.entries.insert(
+            10,
+            CreatureDisplay {
+                model_fdid: 9000,
+                skin_fdids: [222, 333, 0],
+            },
+        );
+        map.entries.insert(
+            30,
+            CreatureDisplay {
+                model_fdid: 9000,
+                skin_fdids: [444, 0, 0],
+            },
+        );
+
+        assert_eq!(map.get_skin_fdids_for_model_fdid(9000), Some([222, 333, 0]));
+    }
+
+    #[test]
+    fn preferred_skin_fdids_for_model_fdid_returns_none_for_empty_slots() {
+        let mut map = CreatureDisplayMap::default();
+        map.entries.insert(
+            1,
+            CreatureDisplay {
+                model_fdid: 1234,
+                skin_fdids: [0, 0, 0],
+            },
+        );
+        assert_eq!(map.get_skin_fdids_for_model_fdid(1234), None);
+    }
+
+    #[test]
+    fn resolve_skin_fdids_for_local_boar_model() {
+        let display_path = Path::new("data/CreatureDisplayInfo.csv");
+        let model_path = Path::new("data/CreatureModelData.csv");
+        let boar_model = Path::new("data/models/boar.m2");
+        if !display_path.exists() || !model_path.exists() || !boar_model.exists() {
+            return;
+        }
+        let map = CreatureDisplayMap::load(display_path, model_path);
+        let skin_fdids = map.resolve_skin_fdids_for_model_path(boar_model);
+        assert!(
+            skin_fdids.is_some_and(|fdids| fdids.iter().any(|fdid| *fdid != 0)),
+            "expected non-empty skin FDIDs for boar.m2"
+        );
     }
 }
