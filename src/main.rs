@@ -519,7 +519,7 @@ fn spawn_m2_model(
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
 ) {
-    let model = match asset::m2::load_m2(m2_path) {
+    let model = match asset::m2::load_m2(m2_path, &[0, 0, 0]) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
@@ -565,7 +565,7 @@ fn spawn_static_m2(
     let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
-    if m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, skinned_mesh_inverse_bindposes, m2_path, root) {
+    if m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, skinned_mesh_inverse_bindposes, m2_path, root, &[0, 0, 0]) {
         Some(root)
     } else {
         commands.entity(root).despawn();

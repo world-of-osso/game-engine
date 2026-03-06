@@ -321,10 +321,11 @@ fn try_spawn_npc_model(
     if display_id == 0 { return false; }
     let fdid = display_map.and_then(|dm| dm.get_fdid(display_id));
     let Some(fdid) = fdid else { return false };
+    let skin_fdids = display_map.and_then(|dm| dm.get_skin_fdids(display_id)).unwrap_or([0, 0, 0]);
     let m2_path_str = format!("data/models/{fdid}.m2");
     let m2_path = Path::new(&m2_path_str);
     if !m2_path.exists() { return false; }
-    crate::m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, inv_bp, m2_path, entity)
+    crate::m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, inv_bp, m2_path, entity, &skin_fdids)
 }
 
 /// Attach a capsule mesh as fallback for NPCs without M2 models.

@@ -119,7 +119,7 @@ fn dump_eye_texture_ppm() {
 #[test]
 #[ignore]
 fn dump_hd_bone_key_ids() {
-    let model = load_m2("data/models/humanmale_hd.m2".as_ref()).unwrap();
+    let model = load_m2("data/models/humanmale_hd.m2".as_ref(), &[0, 0, 0]).unwrap();
     let stand_idx = model.sequences.iter().position(|s| s.id == 0).unwrap();
 
     println!("\n=== humanmale_hd bone key_bone_ids ===");

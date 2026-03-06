@@ -201,19 +201,19 @@ fn resolve_batch_texture_chain() {
 
     // Type 0 (hardcoded) → FDID from TXID
     let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0, render_flags_index: 0 };
-    assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false), Some(100));
+    assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]), Some(100));
 
     // Type 1 (body skin) → default FDID (SD)
     let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1, render_flags_index: 0 };
-    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false), Some(120191));
+    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]), Some(120191));
 
     // Type 1 (body skin) → default FDID (HD)
-    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, true), Some(1027767));
+    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, true, &[0, 0, 0]), Some(1027767));
 
     // Unknown type → None (placeholder)
     let tex_types_unk = vec![0, 99];
     let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1, render_flags_index: 0 };
-    assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid, false), None);
+    assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid, false, &[0, 0, 0]), None);
 }
 
 #[test]
@@ -565,7 +565,7 @@ fn load_m2_hd_has_skel_animation_data() {
         println!("Skipping: humanmale_hd.m2 not found");
         return;
     }
-    let model = load_m2(m2_path).expect("Failed to load humanmale_hd.m2");
+    let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load humanmale_hd.m2");
 
     assert!(!model.bones.is_empty(), "HD model should have bones from .skel (got 0)");
     assert!(!model.sequences.is_empty(), "HD model should have sequences from .skel (got 0)");

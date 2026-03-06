@@ -330,13 +330,22 @@ fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
 /// Default FDIDs for runtime-resolved character texture types (human male, light skin).
 /// Used when the model has no hardcoded FDID for a texture slot.
 /// HD models use higher-resolution textures with different layouts.
-fn default_fdid_for_type(ty: u32, is_hd: bool) -> Option<u32> {
+/// `skin_fdids` supplies creature Monster Skin 1/2/3 (types 11/12/13).
+fn default_fdid_for_type(ty: u32, is_hd: bool, skin_fdids: &[u32; 3]) -> Option<u32> {
     match (ty, is_hd) {
         (1, true) => Some(1027767),   // body skin HD (humanmaleskin00_00_hd, 1024x512)
         (1, false) => Some(120191),   // body skin SD (humanmaleskin00_00, 512x512)
+        (11, _) => nonzero(skin_fdids[0]), // Monster Skin 1
+        (12, _) => nonzero(skin_fdids[1]), // Monster Skin 2
+        (13, _) => nonzero(skin_fdids[2]), // Monster Skin 3
         (19, _) => Some(3484643),     // eye color (eyes00_00, default human male)
         _ => None,
     }
+}
+
+/// Return Some(fdid) if nonzero, None otherwise.
+fn nonzero(fdid: u32) -> Option<u32> {
+    if fdid != 0 { Some(fdid) } else { None }
 }
 
 /// HD face texture — base for type-6 head atlas + composited onto body atlas FACE_UPPER region.
@@ -401,6 +410,7 @@ fn resolve_batch_texture(
     tex_types: &[u32],
     txid: &[u32],
     is_hd: bool,
+    skin_fdids: &[u32; 3],
 ) -> Option<u32> {
     let tex_idx = *tex_lookup.get(unit.texture_id as usize)? as usize;
     let ty = *tex_types.get(tex_idx)?;
@@ -410,7 +420,7 @@ fn resolve_batch_texture(
             return Some(fdid);
         }
     }
-    default_fdid_for_type(ty, is_hd)
+    default_fdid_for_type(ty, is_hd, skin_fdids)
 }
 
 /// Get the texture type for a batch (through the lookup chain).
@@ -647,13 +657,14 @@ fn resolve_batch_fdid_and_overlays(
     tex_types: &[u32],
     txid: &[u32],
     is_hd: bool,
+    skin_fdids: &[u32; 3],
 ) -> (Option<u32>, Vec<TextureOverlay>) {
     let tex_type = batch_texture_type(unit, tex_lookup, tex_types);
-    let mut fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid, is_hd);
+    let mut fdid = resolve_batch_texture(unit, tex_lookup, tex_types, txid, is_hd, skin_fdids);
     if is_hd && fdid.is_none() && tex_type == Some(6) {
         fdid = Some(HD_SCALP_HAIR_FDID);
     }
-    let mut overlays = body_skin_overlays(unit, tex_lookup, tex_types, is_hd);
+    let overlays = body_skin_overlays(unit, tex_lookup, tex_types, is_hd);
     (fdid, overlays)
 }
 
@@ -666,6 +677,7 @@ fn build_batched_model(
     txid: &[u32],
     has_bones: bool,
     is_hd: bool,
+    skin_fdids: &[u32; 3],
 ) -> Result<Vec<M2RenderBatch>, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
@@ -681,7 +693,7 @@ fn build_batched_model(
             continue;
         }
         let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
-        let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(unit, tex_lookup, tex_types, txid, is_hd);
+        let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(unit, tex_lookup, tex_types, txid, is_hd, skin_fdids);
         let mat = materials.get(unit.render_flags_index as usize);
         let render_flags = mat.map(|m| m.flags).unwrap_or(0);
         let blend_mode = mat.map(|m| m.blend_mode).unwrap_or(0);
@@ -704,7 +716,9 @@ fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
 }
 
 /// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
-pub fn load_m2(path: &Path) -> Result<M2Model, String> {
+/// `skin_fdids` provides creature Monster Skin 1/2/3 texture FDIDs for types 11/12/13.
+/// Pass `[0,0,0]` for non-creature models.
+pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
     let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
     let chunks = parse_chunks(&data)?;
     let vertices = parse_vertices(chunks.md20)?;
@@ -719,7 +733,7 @@ pub fn load_m2(path: &Path) -> Result<M2Model, String> {
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        build_batched_model(&vertices, skin, &materials, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty(), chunks.skid.is_some())?
+        build_batched_model(&vertices, skin, &materials, &tex_lookup, &tex_types, &txid, !anim.bones.is_empty(), chunks.skid.is_some(), skin_fdids)?
     } else {
         let indices = match skin { Some(s) => resolve_indices(&s.lookup, &s.indices), None => (0..vertices.len() as u16).collect() };
         let fdid = first_hardcoded_texture(&tex_types, &txid);
