@@ -22,6 +22,7 @@ use shared::components::{
     Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer,
 };
 
+mod action_bar;
 mod animation;
 mod asset;
 mod camera;
@@ -135,6 +136,7 @@ fn register_plugins(app: &mut App) {
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(minimap::MinimapPlugin)
+        .add_plugins(action_bar::ActionBarPlugin)
         .add_plugins(sky::SkyPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
