@@ -384,7 +384,9 @@ fn spawn_ground_plane(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
 ) {
-    let mut grass_image = load_blp_as_image(Path::new("data/textures/187126.blp"))
+    let grass_path = asset::casc_resolver::ensure_texture(187126)
+        .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
+    let mut grass_image = load_blp_as_image(&grass_path)
         .unwrap_or_else(|e| { eprintln!("{e}"); generate_grass_texture() });
     grass_image.sampler = bevy::image::ImageSampler::Descriptor(
         bevy::image::ImageSamplerDescriptor {

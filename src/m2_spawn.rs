@@ -109,7 +109,8 @@ fn load_batch_material(
 ) -> Handle<StandardMaterial> {
     let texture_dir = PathBuf::from("data/textures");
     if let Some(fdid) = batch.texture_fdid {
-        let blp_path = texture_dir.join(format!("{fdid}.blp"));
+        let blp_path = asset::casc_resolver::ensure_texture(fdid)
+            .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
         if let Some(mat) = try_load_textured_material(&blp_path, batch, &texture_dir, images, materials) {
             return mat;
         }
@@ -179,7 +180,8 @@ fn composite_overlay(
     texture_dir: &Path,
 ) {
     use asset::m2::OverlayScale;
-    let ov_path = texture_dir.join(format!("{}.blp", ov.fdid));
+    let ov_path = asset::casc_resolver::ensure_texture(ov.fdid)
+        .unwrap_or_else(|| texture_dir.join(format!("{}.blp", ov.fdid)));
     match asset::blp::load_blp_rgba(&ov_path) {
         Ok((ov_pixels, ov_w, ov_h)) => match ov.scale {
             OverlayScale::None => {
