@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::f32::consts::{FRAC_PI_2, TAU};
 
 use bevy::asset::RenderAssetUsages;
@@ -7,6 +8,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{
     Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension,
 };
+use serde::Deserialize;
 
 use crate::game_state::GameState;
 
@@ -40,10 +42,10 @@ impl Default for GameTime {
 }
 
 // ---------------------------------------------------------------------------
-// LightData CSV parsing
+// LightData parsing (RON + CSV fallback)
 // ---------------------------------------------------------------------------
 
-/// One keyframe row from LightData.csv, filtered to a single LightParamID.
+/// One keyframe row filtered to a single LightParamID.
 #[derive(Debug, Clone)]
 struct LightDataRow {
     time: f32,
@@ -58,7 +60,26 @@ struct LightDataRow {
     fog_color: Color,
 }
 
-/// Decode a BGR32 integer (as stored in LightData.csv) to linear Color.
+#[derive(Debug, Deserialize)]
+struct LightDataFile {
+    by_param: BTreeMap<u32, Vec<LightDataSerializedRow>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LightDataSerializedRow {
+    time: f32,
+    direct_color: u32,
+    ambient_color: u32,
+    sky_top: u32,
+    sky_middle: u32,
+    sky_band1: u32,
+    sky_band2: u32,
+    sky_smog: u32,
+    #[serde(default)]
+    fog_color: u32,
+}
+
+/// Decode a BGR32 integer (as stored in LightData exports) to linear Color.
 fn decode_bgr32(val: u32) -> Color {
     let r = (val & 0xFF) as f32 / 255.0;
     let g = ((val >> 8) & 0xFF) as f32 / 255.0;
@@ -80,8 +101,37 @@ pub struct SkyColorSet {
     pub fog_color: Color,
 }
 
-/// Resolve CSV column indices for LightData fields.
-fn resolve_column_indices(header: &str) -> [usize; 9] {
+fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
+    LightDataRow {
+        time: row.time,
+        direct_color: decode_bgr32(row.direct_color),
+        ambient_color: decode_bgr32(row.ambient_color),
+        sky_top: decode_bgr32(row.sky_top),
+        sky_middle: decode_bgr32(row.sky_middle),
+        sky_band1: decode_bgr32(row.sky_band1),
+        sky_band2: decode_bgr32(row.sky_band2),
+        sky_smog: decode_bgr32(row.sky_smog),
+        fog_color: decode_bgr32(row.fog_color),
+    }
+}
+
+fn load_light_data_ron(path: &str, param_id: u32) -> Result<Vec<LightDataRow>, String> {
+    let contents = std::fs::read_to_string(path).map_err(|e| format!("read {path}: {e}"))?;
+    let mut file: LightDataFile =
+        ron::from_str(&contents).map_err(|e| format!("parse {path}: {e}"))?;
+    let mut rows: Vec<LightDataRow> = file
+        .by_param
+        .remove(&param_id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(deserialize_light_row)
+        .collect();
+    rows.sort_by(|a, b| a.time.total_cmp(&b.time));
+    Ok(rows)
+}
+
+/// Resolve CSV column indices for legacy LightData.csv fallback.
+fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 10] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
@@ -95,11 +145,16 @@ fn resolve_column_indices(header: &str) -> [usize; 9] {
         idx("SkyBand1Color", 7),
         idx("SkyBand2Color", 8),
         idx("SkySmogColor", 9),
+        idx("SkyFogColor", 10),
     ]
 }
 
 /// Parse a single CSV line into a LightDataRow using pre-resolved column indices.
-fn parse_light_row(line: &str, ci: &[usize; 9], param_id: u32) -> Option<LightDataRow> {
+fn parse_csv_fallback_light_row(
+    line: &str,
+    ci: &[usize; 10],
+    param_id: u32,
+) -> Option<LightDataRow> {
     let fields: Vec<&str> = line.split(',').collect();
     let pid: u32 = fields.get(ci[0])?.parse().ok()?;
     if pid != param_id {
@@ -115,16 +170,16 @@ fn parse_light_row(line: &str, ci: &[usize; 9], param_id: u32) -> Option<LightDa
         sky_band1: decode_bgr32(p(6)),
         sky_band2: decode_bgr32(p(7)),
         sky_smog: decode_bgr32(p(8)),
-        fog_color: Color::BLACK, // not used yet
+        fog_color: decode_bgr32(p(9)),
     })
 }
 
-/// Load LightData.csv rows for a specific LightParamID, sorted by time.
-fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
+/// Load legacy LightData.csv rows for a specific LightParamID, sorted by time.
+fn load_light_data_csv_fallback(path: &str, param_id: u32) -> Vec<LightDataRow> {
     let contents = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Failed to read {path}: {e}");
+            eprintln!("Failed to read fallback {path}: {e}");
             return Vec::new();
         }
     };
@@ -133,12 +188,28 @@ fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
         Some(h) => h,
         None => return Vec::new(),
     };
-    let ci = resolve_column_indices(header);
+    let ci = resolve_csv_fallback_column_indices(header);
     let mut rows: Vec<LightDataRow> = lines
-        .filter_map(|l| parse_light_row(l, &ci, param_id))
+        .filter_map(|l| parse_csv_fallback_light_row(l, &ci, param_id))
         .collect();
-    rows.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
+    rows.sort_by(|a, b| a.time.total_cmp(&b.time));
     rows
+}
+
+/// Load LightData.ron rows for a specific LightParamID, with CSV fallback.
+fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
+    match load_light_data_ron(path, param_id) {
+        Ok(rows) => rows,
+        Err(err) => {
+            eprintln!("{err}");
+            if let Some(base) = path.strip_suffix(".ron") {
+                let csv_path = format!("{base}.csv");
+                eprintln!("Falling back to legacy CSV: {csv_path}");
+                return load_light_data_csv_fallback(&csv_path, param_id);
+            }
+            Vec::new()
+        }
+    }
 }
 
 fn lerp_color(a: Color, b: Color, t: f32) -> Color {
@@ -681,7 +752,7 @@ pub struct SkyPlugin;
 
 impl Plugin for SkyPlugin {
     fn build(&self, app: &mut App) {
-        let keyframes = load_light_data("data/LightData.csv", 12);
+        let keyframes = load_light_data("data/LightData.ron", 12);
         info!(
             "Loaded {} sky keyframes for LightParamID 12",
             keyframes.len()
@@ -817,7 +888,7 @@ mod tests {
 
     #[test]
     fn load_light_data_real() {
-        let rows = load_light_data("data/LightData.csv", 12);
+        let rows = load_light_data("data/LightData.ron", 12);
         assert!(!rows.is_empty(), "Should find rows for LightParamID 12");
         for w in rows.windows(2) {
             assert!(w[0].time <= w[1].time, "Rows should be sorted by time");
