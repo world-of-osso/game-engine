@@ -1,5 +1,7 @@
 use bevy::prelude::*;
-use bevy::pbr::MaterialPlugin;
+use bevy::asset::RenderAssetUsages;
+use bevy::pbr::{DistanceFog, MaterialPlugin};
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::game_state::GameState;
 
@@ -132,6 +134,13 @@ fn lerp_color(a: Color, b: Color, t: f32) -> Color {
         a.blue + (b.blue - a.blue) * t,
         1.0,
     )
+}
+
+impl SkyColorSet {
+    /// Default sky colors when no LightData is available.
+    pub fn default_colors() -> Self {
+        default_sky_colors()
+    }
 }
 
 /// Default sky colors when no LightData is available.
@@ -344,6 +353,99 @@ fn sync_lights(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Sun arc, fog, and environment map systems
+// ---------------------------------------------------------------------------
+
+/// Compute sun direction from time of day (0–2880).
+/// Dawn=720 (east), noon=1440 (overhead), dusk=2160 (west), night=below horizon.
+fn sun_direction(minutes: f32) -> Vec3 {
+    let m = minutes.rem_euclid(2880.0);
+    let sun_progress = (m - 720.0) / 1440.0; // 0 at dawn, 1 at dusk
+    let elevation = (sun_progress * std::f32::consts::PI).sin().max(0.05);
+    let azimuth = sun_progress * std::f32::consts::PI;
+    // Direction FROM the sun (pointing toward scene)
+    Vec3::new(-azimuth.cos(), -elevation, -azimuth.sin() * 0.3).normalize()
+}
+
+fn update_sun_direction(
+    game_time: Res<GameTime>,
+    mut dir_lights: Query<&mut Transform, With<DirectionalLight>>,
+) {
+    let dir = sun_direction(game_time.minutes);
+    for mut transform in dir_lights.iter_mut() {
+        transform.rotation = Quat::from_rotation_arc(Vec3::NEG_Z, dir);
+    }
+}
+
+fn update_fog(
+    game_time: Res<GameTime>,
+    keyframes: Res<LightKeyframes>,
+    mut fog_q: Query<&mut DistanceFog>,
+) {
+    let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+    for mut fog in fog_q.iter_mut() {
+        fog.color = colors.sky_smog;
+    }
+}
+
+/// Marker for the environment map cubemap handle so we can update it.
+#[derive(Resource)]
+pub struct SkyEnvMap {
+    pub handle: Handle<Image>,
+}
+
+/// Build a 16×16 cubemap (6 faces) from sky colors for IBL ambient lighting.
+pub fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
+    const SIZE: u32 = 16;
+    let face_pixels = (SIZE * SIZE) as usize;
+    let mut data = Vec::with_capacity(face_pixels * 6 * 4);
+    for face in 0..6u32 {
+        let color = face_color(face, colors);
+        let lin = color.to_linear();
+        let (r, g, b) = color_to_u8(lin);
+        for _ in 0..face_pixels {
+            data.extend_from_slice(&[r, g, b, 255]);
+        }
+    }
+    Image::new(
+        Extent3d { width: SIZE, height: SIZE, depth_or_array_layers: 6 },
+        TextureDimension::D2,
+        data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    )
+}
+
+fn color_to_u8(lin: LinearRgba) -> (u8, u8, u8) {
+    (
+        (lin.red * 255.0).min(255.0) as u8,
+        (lin.green * 255.0).min(255.0) as u8,
+        (lin.blue * 255.0).min(255.0) as u8,
+    )
+}
+
+fn face_color(face: u32, colors: &SkyColorSet) -> Color {
+    match face {
+        2 => colors.sky_top,   // +Y (up)
+        3 => colors.sky_smog,  // -Y (down)
+        _ => colors.sky_middle, // sides
+    }
+}
+
+fn update_env_map(
+    game_time: Res<GameTime>,
+    keyframes: Res<LightKeyframes>,
+    env_map: Option<Res<SkyEnvMap>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let Some(env_map) = env_map else { return };
+    let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+    if let Some(img) = images.get_mut(&env_map.handle) {
+        *img = build_sky_cubemap(&colors);
+    }
+}
+
 fn sync_water_sky_color(
     water_materials: &mut Assets<crate::water_material::WaterMaterial>,
     colors: &SkyColorSet,
@@ -442,6 +544,9 @@ impl Plugin for SkyPlugin {
             .add_systems(Startup, spawn_time_display)
             .add_systems(Update, advance_game_time.run_if(in_state(GameState::InWorld)))
             .add_systems(Update, update_sky_colors.after(advance_game_time).run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, update_sun_direction.after(advance_game_time).run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, update_fog.after(advance_game_time).run_if(in_state(GameState::InWorld)))
+            .add_systems(Update, update_env_map.after(advance_game_time).run_if(in_state(GameState::InWorld)))
             .add_systems(Update, update_time_display.after(advance_game_time).run_if(in_state(GameState::InWorld)))
             .add_systems(Update, time_speed_controls.run_if(in_state(GameState::InWorld)))
             .add_systems(OnEnter(GameState::InWorld), show_time_display)
@@ -521,6 +626,30 @@ mod tests {
         assert_eq!(format_game_clock(2160.0), "18:00");
         // 6:30am = 720 + 60 = 780 → 06:30
         assert_eq!(format_game_clock(780.0), "06:30");
+    }
+
+    #[test]
+    fn sun_direction_noon_points_down() {
+        let dir = sun_direction(1440.0); // noon
+        assert!(dir.y < -0.9, "Sun at noon should point mostly downward, got {dir:?}");
+    }
+
+    #[test]
+    fn sun_direction_dawn_dusk_near_horizon() {
+        let dawn = sun_direction(720.0);
+        assert!(dawn.y.abs() < 0.3, "Sun at dawn should be near horizon, got {dawn:?}");
+        let dusk = sun_direction(2160.0);
+        assert!(dusk.y.abs() < 0.3, "Sun at dusk should be near horizon, got {dusk:?}");
+    }
+
+    #[test]
+    fn build_sky_cubemap_correct_size() {
+        let colors = default_sky_colors();
+        let img = build_sky_cubemap(&colors);
+        assert_eq!(img.size().x, 16);
+        assert_eq!(img.size().y, 16);
+        // 6 faces × 16×16 × 4 bytes
+        assert_eq!(img.data.as_ref().unwrap().len(), 6 * 16 * 16 * 4);
     }
 
     #[test]

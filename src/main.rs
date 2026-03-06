@@ -6,7 +6,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::prelude::*;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
-use bevy::pbr::MaterialPlugin;
+use bevy::pbr::{DistanceFog, FogFalloff, MaterialPlugin};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use game_engine::ipc::IpcPlugin;
@@ -342,6 +342,33 @@ fn spawn_m2_scene(
     }
 }
 
+fn spawn_camera_with_env(commands: &mut Commands, images: &mut Assets<Image>) -> Entity {
+    let sky_colors = sky::SkyColorSet::default_colors();
+    let cubemap = sky::build_sky_cubemap(&sky_colors);
+    let cubemap_handle = images.add(cubemap);
+    commands.insert_resource(sky::SkyEnvMap { handle: cubemap_handle.clone() });
+    commands
+        .spawn((
+            Camera3d::default(),
+            Transform::default(),
+            WowCamera::default(),
+            AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() },
+            DistanceFog {
+                color: sky_colors.sky_smog,
+                directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
+                directional_light_exponent: 30.0,
+                falloff: FogFalloff::ExponentialSquared { density: 0.0008 },
+            },
+            EnvironmentMapLight {
+                diffuse_map: cubemap_handle.clone(),
+                specular_map: cubemap_handle,
+                intensity: 300.0,
+                ..default()
+            },
+        ))
+        .id()
+}
+
 fn spawn_scene_environment(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -350,14 +377,7 @@ fn spawn_scene_environment(
     images: &mut Assets<Image>,
     is_terrain: bool,
 ) -> Entity {
-    let camera = commands
-        .spawn((
-            Camera3d::default(),
-            Transform::default(),
-            WowCamera::default(),
-            AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() },
-        ))
-        .id();
+    let camera = spawn_camera_with_env(commands, images);
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
@@ -366,9 +386,7 @@ fn spawn_scene_environment(
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
-
     sky::spawn_sky_dome(commands, meshes, sky_materials, camera);
-
     if !is_terrain {
         spawn_ground_plane(commands, meshes, materials, images);
     }
