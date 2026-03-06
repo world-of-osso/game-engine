@@ -1,13 +1,10 @@
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::targeting::CurrentTarget;
 
 use crate::camera::Player;
 use crate::networking::RemoteEntity;
-
-/// The entity currently targeted by the local player.
-#[derive(Resource, Default, Debug)]
-pub struct CurrentTarget(pub Option<Entity>);
 
 /// Marker on the selection circle entity.
 #[derive(Component)]

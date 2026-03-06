@@ -4,6 +4,7 @@ use std::sync::mpsc;
 
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
+use lightyear::prelude::MessageSender;
 use lightyear::prelude::client::Connected;
 
 use super::{Command, Request, Response, init};
@@ -12,11 +13,12 @@ use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
     CharacterStatsSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot,
-    GuildVaultStatusSnapshot, NetworkStatusSnapshot, ReputationsStatusSnapshot,
-    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    GuildVaultStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, NetworkStatusSnapshot,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
+use crate::targeting::CurrentTarget;
 use crate::ui::plugin::UiState;
-use shared::protocol::AuctionInventorySnapshot;
+use shared::protocol::{AuctionInventorySnapshot, CombatChannel, SpellCastIntent, StopSpellCast};
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
 #[derive(Component)]
@@ -63,6 +65,9 @@ fn poll_ipc(
         Res<WarbankStatusSnapshot>,
         Res<EquippedGearStatusSnapshot>,
     ),
+    current_target: Res<CurrentTarget>,
+    mut spell_cast_senders: Query<&mut MessageSender<SpellCastIntent>>,
+    mut spell_stop_senders: Query<&mut MessageSender<StopSpellCast>>,
     connected_query: Query<(), With<Connected>>,
 ) {
     let (network_status, terrain_status, sound_status, currencies_status, reputations_status) =
@@ -87,6 +92,9 @@ fn poll_ipc(
             &guild_vault_status,
             &warbank_status,
             &equipped_gear_status,
+            &current_target,
+            &mut spell_cast_senders,
+            &mut spell_stop_senders,
             !connected_query.is_empty(),
         );
     }
@@ -116,6 +124,9 @@ fn dispatch(
     guild_vault_status: &GuildVaultStatusSnapshot,
     warbank_status: &WarbankStatusSnapshot,
     equipped_gear_status: &EquippedGearStatusSnapshot,
+    current_target: &CurrentTarget,
+    spell_cast_senders: &mut Query<&mut MessageSender<SpellCastIntent>>,
+    spell_stop_senders: &mut Query<&mut MessageSender<StopSpellCast>>,
     connected: bool,
 ) {
     if queue_ipc_request(auction_house, &cmd.request, cmd.respond.clone()) {
@@ -218,6 +229,174 @@ fn dispatch(
                 let _ = cmd.respond.send(Response::Error(error));
             }
         },
+        Request::InventoryList => {
+            let entries = build_inventory_entries(
+                auction_house.inventory.as_ref(),
+                &guild_vault_status.entries,
+                &warbank_status.entries,
+            );
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_inventory_list(&entries)));
+        }
+        Request::InventorySearch { text } => {
+            let entries = build_inventory_entries(
+                auction_house.inventory.as_ref(),
+                &guild_vault_status.entries,
+                &warbank_status.entries,
+            );
+            let snapshot = inventory_search_snapshot(&entries, &text);
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_inventory_search(&snapshot, &text)));
+        }
+        Request::InventoryWhereis { item_id } => {
+            let entries = build_inventory_entries(
+                auction_house.inventory.as_ref(),
+                &guild_vault_status.entries,
+                &warbank_status.entries,
+            );
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_inventory_whereis(&entries, item_id)));
+        }
+        Request::SpellCast { spell, target } => {
+            if !connected {
+                let _ = cmd.respond.send(Response::Error(
+                    "spell cast is unavailable: not connected".into(),
+                ));
+                return;
+            }
+            let target_bits = match resolve_spell_target(target.as_deref(), current_target) {
+                Ok(bits) => bits,
+                Err(error) => {
+                    let _ = cmd.respond.send(Response::Error(error));
+                    return;
+                }
+            };
+            let intent = SpellCastIntent {
+                spell_id: parse_spell_id(&spell),
+                spell: spell.clone(),
+                target_entity: target_bits,
+            };
+            if send_combat_message(spell_cast_senders, intent.clone()) {
+                let target_text = intent
+                    .target_entity
+                    .map(|bits| bits.to_string())
+                    .unwrap_or_else(|| "-".into());
+                let _ = cmd.respond.send(Response::Text(format!(
+                    "spell cast submitted spell={} target={target_text}",
+                    intent.spell,
+                )));
+            } else {
+                let _ = cmd.respond.send(Response::Error(
+                    "spell cast is unavailable: not connected".into(),
+                ));
+            }
+        }
+        Request::SpellStop => {
+            if !connected {
+                let _ = cmd.respond.send(Response::Error(
+                    "spell stop is unavailable: not connected".into(),
+                ));
+                return;
+            }
+            if send_combat_message(spell_stop_senders, StopSpellCast) {
+                let _ = cmd
+                    .respond
+                    .send(Response::Text("spell stop submitted".into()));
+            } else {
+                let _ = cmd.respond.send(Response::Error(
+                    "spell stop is unavailable: not connected".into(),
+                ));
+            }
+        }
+        Request::QuestList => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("quest list: unavailable".into()));
+        }
+        Request::QuestWatch => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("quest watch: unavailable".into()));
+        }
+        Request::QuestShow { quest_id } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "quest show id={quest_id}: unavailable"
+            )));
+        }
+        Request::GroupRoster => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("group roster: unavailable".into()));
+        }
+        Request::GroupStatus => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("group status: unavailable".into()));
+        }
+        Request::GroupInvite { name } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "group invite {name}: pending server support"
+            )));
+        }
+        Request::GroupUninvite { name } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "group uninvite {name}: pending server support"
+            )));
+        }
+        Request::CombatLog { lines } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "combat log lines={lines}: unavailable"
+            )));
+        }
+        Request::CombatRecap { target } => {
+            let target = target.unwrap_or_else(|| "current".into());
+            let _ = cmd.respond.send(Response::Text(format!(
+                "combat recap target={target}: unavailable"
+            )));
+        }
+        Request::ReputationList => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("reputation list: unavailable".into()));
+        }
+        Request::CollectionMounts { missing } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "collection mounts missing={missing}: unavailable"
+            )));
+        }
+        Request::CollectionPets { missing } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "collection pets missing={missing}: unavailable"
+            )));
+        }
+        Request::ProfessionRecipes { text } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "profession recipes text={text}: unavailable"
+            )));
+        }
+        Request::MapPosition => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("map position: unavailable".into()));
+        }
+        Request::MapTarget => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("map target: unavailable".into()));
+        }
+        Request::MapWaypointAdd { x, y } => {
+            let _ = cmd.respond.send(Response::Text(format!(
+                "map waypoint add x={x:.2} y={y:.2}: unavailable"
+            )));
+        }
+        Request::MapWaypointClear => {
+            let _ = cmd
+                .respond
+                .send(Response::Text("map waypoint clear: unavailable".into()));
+        }
         Request::AuctionOpen
         | Request::AuctionBrowse { .. }
         | Request::AuctionOwned
@@ -441,6 +620,182 @@ fn format_item_info(item: &crate::item_info::ItemStaticInfo, appearance_known: b
     )
 }
 
+fn build_inventory_entries(
+    bags: Option<&AuctionInventorySnapshot>,
+    guild_vault: &[crate::status::StorageItemEntry],
+    warbank: &[crate::status::StorageItemEntry],
+) -> Vec<InventoryItemEntry> {
+    let mut entries = Vec::new();
+
+    if let Some(snapshot) = bags {
+        for (index, item) in snapshot.items.iter().enumerate() {
+            entries.push(InventoryItemEntry {
+                storage: "bags".into(),
+                slot: index as u32,
+                item_guid: item.item_guid,
+                item_id: item.item_id,
+                name: item.name.clone(),
+                stack_count: item.stack_count,
+            });
+        }
+    }
+
+    entries.extend(guild_vault.iter().map(|entry| InventoryItemEntry {
+        storage: "guild_vault".into(),
+        slot: entry.slot,
+        item_guid: entry.item_guid,
+        item_id: entry.item_id,
+        name: entry.name.clone(),
+        stack_count: entry.stack_count,
+    }));
+
+    entries.extend(warbank.iter().map(|entry| InventoryItemEntry {
+        storage: "warbank".into(),
+        slot: entry.slot,
+        item_guid: entry.item_guid,
+        item_id: entry.item_id,
+        name: entry.name.clone(),
+        stack_count: entry.stack_count,
+    }));
+
+    entries
+}
+
+fn inventory_search_snapshot(
+    entries: &[InventoryItemEntry],
+    text: &str,
+) -> InventorySearchSnapshot {
+    let needle = text.trim().to_ascii_lowercase();
+    if needle.is_empty() {
+        return InventorySearchSnapshot {
+            entries: entries.to_vec(),
+        };
+    }
+    InventorySearchSnapshot {
+        entries: entries
+            .iter()
+            .filter(|entry| entry.name.to_ascii_lowercase().contains(&needle))
+            .cloned()
+            .collect(),
+    }
+}
+
+fn format_inventory_list(entries: &[InventoryItemEntry]) -> String {
+    if entries.is_empty() {
+        return "inventory: 0\n-".into();
+    }
+    let lines = entries
+        .iter()
+        .map(|entry| {
+            format!(
+                "{}:{} {} {} {} x{}",
+                entry.storage,
+                entry.slot,
+                entry.item_guid,
+                entry.item_id,
+                entry.name,
+                entry.stack_count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("inventory: {}\n{lines}", entries.len())
+}
+
+fn format_inventory_search(snapshot: &InventorySearchSnapshot, text: &str) -> String {
+    if snapshot.entries.is_empty() {
+        return format!("inventory search text={text}: 0\n-");
+    }
+    let mut lines = Vec::new();
+    for storage in ["bags", "guild_vault", "warbank"] {
+        let grouped = snapshot
+            .entries
+            .iter()
+            .filter(|entry| entry.storage == storage)
+            .collect::<Vec<_>>();
+        if grouped.is_empty() {
+            continue;
+        }
+        lines.push(format!("[{storage}]"));
+        lines.extend(grouped.iter().map(|entry| {
+            format!(
+                "{} {} {} {} x{}",
+                entry.slot, entry.item_guid, entry.item_id, entry.name, entry.stack_count
+            )
+        }));
+    }
+    format!(
+        "inventory search text={text}: {}\n{}",
+        snapshot.entries.len(),
+        lines.join("\n")
+    )
+}
+
+fn format_inventory_whereis(entries: &[InventoryItemEntry], item_id: u32) -> String {
+    let matches = entries
+        .iter()
+        .filter(|entry| entry.item_id == item_id)
+        .collect::<Vec<_>>();
+    if matches.is_empty() {
+        return format!("inventory whereis item_id={item_id}: 0\n-");
+    }
+    let lines = matches
+        .iter()
+        .map(|entry| {
+            format!(
+                "{}:{} {} {} x{}",
+                entry.storage, entry.slot, entry.item_guid, entry.name, entry.stack_count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "inventory whereis item_id={item_id}: {}\n{lines}",
+        matches.len()
+    )
+}
+
+fn parse_spell_id(spell: &str) -> Option<u32> {
+    spell.parse().ok()
+}
+
+fn resolve_spell_target(
+    selector: Option<&str>,
+    current_target: &CurrentTarget,
+) -> Result<Option<u64>, String> {
+    let Some(selector) = selector else {
+        return current_target
+            .0
+            .map(|entity| Some(entity.to_bits()))
+            .ok_or_else(|| "no current target selected".into());
+    };
+    if selector.eq_ignore_ascii_case("current") {
+        return current_target
+            .0
+            .map(|entity| Some(entity.to_bits()))
+            .ok_or_else(|| "no current target selected".into());
+    }
+    if selector.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+    selector
+        .parse::<u64>()
+        .map(Some)
+        .map_err(|_| format!("invalid target selector '{selector}'"))
+}
+
+fn send_combat_message<T: Clone + lightyear::prelude::Message>(
+    senders: &mut Query<&mut MessageSender<T>>,
+    message: T,
+) -> bool {
+    let mut sent = false;
+    for mut sender in senders.iter_mut() {
+        sender.send::<CombatChannel>(message.clone());
+        sent = true;
+    }
+    sent
+}
+
 /// Per-entity observer triggered when this screenshot is captured.
 fn on_screenshot_captured(
     trigger: On<ScreenshotCaptured>,
@@ -471,6 +826,7 @@ fn encode_screenshot(img: &bevy::image::Image) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shared::protocol::AuctionInventoryItem;
 
     #[test]
     fn formats_network_status_snapshot() {
@@ -612,5 +968,75 @@ mod tests {
         assert!(text.contains("item_id: 2589"));
         assert!(text.contains("name: Linen Cloth"));
         assert!(text.contains("appearance_known: true"));
+    }
+
+    #[test]
+    fn inventory_search_groups_entries_by_storage() {
+        let snapshot = InventorySearchSnapshot {
+            entries: vec![
+                InventoryItemEntry {
+                    storage: "bags".into(),
+                    slot: 4,
+                    item_guid: 101,
+                    item_id: 25,
+                    name: "Worn Shortsword".into(),
+                    stack_count: 1,
+                },
+                InventoryItemEntry {
+                    storage: "guild_vault".into(),
+                    slot: 7,
+                    item_guid: 202,
+                    item_id: 2589,
+                    name: "Linen Cloth".into(),
+                    stack_count: 12,
+                },
+            ],
+        };
+
+        let text = format_inventory_search(&snapshot, "lin");
+
+        assert!(text.contains("[bags]"));
+        assert!(text.contains("[guild_vault]"));
+        assert!(text.contains("Linen Cloth"));
+    }
+
+    #[test]
+    fn inventory_search_empty_result_formats_placeholder() {
+        let text = format_inventory_search(&InventorySearchSnapshot::default(), "torch");
+
+        assert_eq!(text, "inventory search text=torch: 0\n-");
+    }
+
+    #[test]
+    fn resolve_spell_target_requires_current_selection() {
+        let target = CurrentTarget(None);
+
+        let err = resolve_spell_target(Some("current"), &target).expect_err("missing target");
+
+        assert_eq!(err, "no current target selected");
+    }
+
+    #[test]
+    fn build_inventory_entries_reads_bag_snapshot() {
+        let entries = build_inventory_entries(
+            Some(&AuctionInventorySnapshot {
+                gold: 0,
+                items: vec![AuctionInventoryItem {
+                    item_guid: 42,
+                    item_id: 2589,
+                    name: "Linen Cloth".into(),
+                    quality: 1,
+                    required_level: 1,
+                    stack_count: 7,
+                    vendor_sell_price: 13,
+                }],
+            }),
+            &[],
+            &[],
+        );
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].storage, "bags");
+        assert_eq!(entries[0].item_id, 2589);
     }
 }

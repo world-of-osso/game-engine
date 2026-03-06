@@ -4,6 +4,7 @@ use std::time::Duration;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
+use game_engine::targeting::CurrentTarget;
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use shared::components::{
@@ -21,7 +22,6 @@ pub use crate::networking_auth::{
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
 use crate::creature_display::CreatureDisplayMap;
-use crate::target::CurrentTarget;
 use crate::terrain::AdtManager;
 
 /// Marker for entities spawned from server replication.

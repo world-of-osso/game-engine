@@ -167,6 +167,21 @@ pub struct EquippedGearStatusSnapshot {
     pub entries: Vec<EquippedGearEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InventoryItemEntry {
+    pub storage: String,
+    pub slot: u32,
+    pub item_guid: u64,
+    pub item_id: u32,
+    pub name: String,
+    pub stack_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct InventorySearchSnapshot {
+    pub entries: Vec<InventoryItemEntry>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,6 +254,13 @@ mod tests {
     #[test]
     fn equipped_gear_defaults_to_empty_list() {
         let snapshot = EquippedGearStatusSnapshot::default();
+
+        assert!(snapshot.entries.is_empty());
+    }
+
+    #[test]
+    fn inventory_search_snapshot_defaults_to_empty_entries() {
+        let snapshot = InventorySearchSnapshot::default();
 
         assert!(snapshot.entries.is_empty());
     }

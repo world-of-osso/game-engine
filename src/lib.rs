@@ -7,4 +7,5 @@ pub mod item_info;
 pub mod listfile;
 pub mod mail;
 pub mod status;
+pub mod targeting;
 pub mod ui;

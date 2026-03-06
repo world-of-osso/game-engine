@@ -27,23 +27,39 @@ use crate::item_info::ItemInfoQuery;
 use crate::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 
 /// IPC request from CLI to engine.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Request {
     Ping,
     Screenshot,
-    DumpTree { filter: Option<String> },
-    DumpUiTree { filter: Option<String> },
+    DumpTree {
+        filter: Option<String>,
+    },
+    DumpUiTree {
+        filter: Option<String>,
+    },
     AuctionOpen,
-    AuctionBrowse { query: AuctionSearchQuery },
+    AuctionBrowse {
+        query: AuctionSearchQuery,
+    },
     AuctionOwned,
     AuctionBids,
     AuctionInventory,
     AuctionMailbox,
-    AuctionCreate { create: CreateAuction },
-    AuctionBid { bid: PlaceBid },
-    AuctionBuyout { buyout: BuyoutAuction },
-    AuctionCancel { cancel: CancelAuction },
-    AuctionClaimMail { claim: ClaimAuctionMail },
+    AuctionCreate {
+        create: CreateAuction,
+    },
+    AuctionBid {
+        bid: PlaceBid,
+    },
+    AuctionBuyout {
+        buyout: BuyoutAuction,
+    },
+    AuctionCancel {
+        cancel: CancelAuction,
+    },
+    AuctionClaimMail {
+        claim: ClaimAuctionMail,
+    },
     AuctionStatus,
     NetworkStatus,
     TerrainStatus,
@@ -55,13 +71,73 @@ pub enum Request {
     GuildVaultStatus,
     WarbankStatus,
     EquippedGearStatus,
-    ItemInfo { query: ItemInfoQuery },
-    MailSend { mail: SendMail },
-    MailList { query: ListMailQuery },
-    MailRead { read: ReadMail },
-    MailClaim { claim: ClaimMail },
-    MailDelete { delete: DeleteMail },
+    ItemInfo {
+        query: ItemInfoQuery,
+    },
+    MailSend {
+        mail: SendMail,
+    },
+    MailList {
+        query: ListMailQuery,
+    },
+    MailRead {
+        read: ReadMail,
+    },
+    MailClaim {
+        claim: ClaimMail,
+    },
+    MailDelete {
+        delete: DeleteMail,
+    },
     MailStatus,
+    InventoryList,
+    InventorySearch {
+        text: String,
+    },
+    InventoryWhereis {
+        item_id: u32,
+    },
+    QuestList,
+    QuestWatch,
+    QuestShow {
+        quest_id: u32,
+    },
+    GroupRoster,
+    GroupStatus,
+    GroupInvite {
+        name: String,
+    },
+    GroupUninvite {
+        name: String,
+    },
+    SpellCast {
+        spell: String,
+        target: Option<String>,
+    },
+    SpellStop,
+    CombatLog {
+        lines: u16,
+    },
+    CombatRecap {
+        target: Option<String>,
+    },
+    ReputationList,
+    CollectionMounts {
+        missing: bool,
+    },
+    CollectionPets {
+        missing: bool,
+    },
+    ProfessionRecipes {
+        text: String,
+    },
+    MapPosition,
+    MapTarget,
+    MapWaypointAdd {
+        x: f32,
+        y: f32,
+    },
+    MapWaypointClear,
 }
 
 /// IPC response from engine to CLI.

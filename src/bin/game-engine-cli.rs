@@ -66,6 +66,51 @@ enum Cmd {
         #[command(subcommand)]
         command: ItemCmd,
     },
+    /// Inventory and storage inspection
+    Inventory {
+        #[command(subcommand)]
+        command: InventoryCmd,
+    },
+    /// Quest log views
+    Quest {
+        #[command(subcommand)]
+        command: QuestCmd,
+    },
+    /// Group roster commands
+    Group {
+        #[command(subcommand)]
+        command: GroupCmd,
+    },
+    /// Spell commands
+    Spell {
+        #[command(subcommand)]
+        command: SpellCmd,
+    },
+    /// Combat text views
+    Combat {
+        #[command(subcommand)]
+        command: CombatCmd,
+    },
+    /// Reputation reports
+    Reputation {
+        #[command(subcommand)]
+        command: ReputationCmd,
+    },
+    /// Collection reports
+    Collection {
+        #[command(subcommand)]
+        command: CollectionCmd,
+    },
+    /// Profession reports
+    Profession {
+        #[command(subcommand)]
+        command: ProfessionCmd,
+    },
+    /// Map and waypoint utilities
+    Map {
+        #[command(subcommand)]
+        command: MapCmd,
+    },
 }
 
 #[derive(Subcommand)]
@@ -183,6 +228,112 @@ enum ItemCmd {
     },
 }
 
+#[derive(Subcommand)]
+enum InventoryCmd {
+    List,
+    Search {
+        #[arg(long, default_value = "")]
+        text: String,
+    },
+    Whereis {
+        #[arg(long)]
+        item_id: u32,
+    },
+}
+
+#[derive(Subcommand)]
+enum QuestCmd {
+    List,
+    Watch,
+    Show {
+        #[arg(long)]
+        id: u32,
+    },
+}
+
+#[derive(Subcommand)]
+enum GroupCmd {
+    Roster,
+    Status,
+    Invite {
+        #[arg(long)]
+        name: String,
+    },
+    Uninvite {
+        #[arg(long)]
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum SpellCmd {
+    Cast {
+        #[arg(long)]
+        spell: String,
+        #[arg(long)]
+        target: Option<String>,
+    },
+    Stop,
+}
+
+#[derive(Subcommand)]
+enum CombatCmd {
+    Log {
+        #[arg(long, default_value_t = 30)]
+        lines: u16,
+    },
+    Recap {
+        #[arg(long)]
+        target: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ReputationCmd {
+    List,
+}
+
+#[derive(Subcommand)]
+enum CollectionCmd {
+    Mounts {
+        #[arg(long)]
+        missing: bool,
+    },
+    Pets {
+        #[arg(long)]
+        missing: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum ProfessionCmd {
+    Recipes {
+        #[arg(long, default_value = "")]
+        text: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum MapCmd {
+    Position,
+    Target,
+    Waypoint {
+        #[command(subcommand)]
+        command: WaypointCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum WaypointCmd {
+    Add {
+        #[arg(long)]
+        x: f32,
+        #[arg(long)]
+        y: f32,
+    },
+    Clear,
+}
+
 fn find_socket() -> Result<PathBuf, String> {
     let pattern = socket_glob();
     let mut sockets: Vec<PathBuf> = glob::glob(&pattern)
@@ -219,6 +370,15 @@ fn main() {
         Cmd::Mail { command } => handle_mail(&socket, command),
         Cmd::Status { command } => handle_status(&socket, command),
         Cmd::Item { command } => handle_item(&socket, command),
+        Cmd::Inventory { command } => handle_inventory(&socket, command),
+        Cmd::Quest { command } => handle_quest(&socket, command),
+        Cmd::Group { command } => handle_group(&socket, command),
+        Cmd::Spell { command } => handle_spell(&socket, command),
+        Cmd::Combat { command } => handle_combat(&socket, command),
+        Cmd::Reputation { command } => handle_reputation(&socket, command),
+        Cmd::Collection { command } => handle_collection(&socket, command),
+        Cmd::Profession { command } => handle_profession(&socket, command),
+        Cmd::Map { command } => handle_map(&socket, command),
     };
 
     if let Err(e) = result {
@@ -391,6 +551,123 @@ fn handle_item(socket: &PathBuf, command: ItemCmd) -> Result<(), String> {
     }
 }
 
+fn handle_inventory(socket: &PathBuf, command: InventoryCmd) -> Result<(), String> {
+    let request = inventory_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_quest(socket: &PathBuf, command: QuestCmd) -> Result<(), String> {
+    let request = quest_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_group(socket: &PathBuf, command: GroupCmd) -> Result<(), String> {
+    let request = group_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_spell(socket: &PathBuf, command: SpellCmd) -> Result<(), String> {
+    let request = spell_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_combat(socket: &PathBuf, command: CombatCmd) -> Result<(), String> {
+    let request = combat_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_reputation(socket: &PathBuf, command: ReputationCmd) -> Result<(), String> {
+    let request = reputation_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_collection(socket: &PathBuf, command: CollectionCmd) -> Result<(), String> {
+    let request = collection_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_profession(socket: &PathBuf, command: ProfessionCmd) -> Result<(), String> {
+    let request = profession_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_map(socket: &PathBuf, command: MapCmd) -> Result<(), String> {
+    let request = map_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
 fn mail_request(command: MailCmd) -> Result<Request, String> {
     let request = match command {
         MailCmd::Status => Request::MailStatus,
@@ -435,6 +712,84 @@ fn item_request(command: ItemCmd) -> Result<Request, String> {
     let request = match command {
         ItemCmd::Info { item_id } => Request::ItemInfo {
             query: ItemInfoQuery { item_id },
+        },
+    };
+    Ok(request)
+}
+
+fn inventory_request(command: InventoryCmd) -> Result<Request, String> {
+    let request = match command {
+        InventoryCmd::List => Request::InventoryList,
+        InventoryCmd::Search { text } => Request::InventorySearch { text },
+        InventoryCmd::Whereis { item_id } => Request::InventoryWhereis { item_id },
+    };
+    Ok(request)
+}
+
+fn quest_request(command: QuestCmd) -> Result<Request, String> {
+    let request = match command {
+        QuestCmd::List => Request::QuestList,
+        QuestCmd::Watch => Request::QuestWatch,
+        QuestCmd::Show { id } => Request::QuestShow { quest_id: id },
+    };
+    Ok(request)
+}
+
+fn group_request(command: GroupCmd) -> Result<Request, String> {
+    let request = match command {
+        GroupCmd::Roster => Request::GroupRoster,
+        GroupCmd::Status => Request::GroupStatus,
+        GroupCmd::Invite { name } => Request::GroupInvite { name },
+        GroupCmd::Uninvite { name } => Request::GroupUninvite { name },
+    };
+    Ok(request)
+}
+
+fn spell_request(command: SpellCmd) -> Result<Request, String> {
+    let request = match command {
+        SpellCmd::Cast { spell, target } => Request::SpellCast { spell, target },
+        SpellCmd::Stop => Request::SpellStop,
+    };
+    Ok(request)
+}
+
+fn combat_request(command: CombatCmd) -> Result<Request, String> {
+    let request = match command {
+        CombatCmd::Log { lines } => Request::CombatLog { lines },
+        CombatCmd::Recap { target } => Request::CombatRecap { target },
+    };
+    Ok(request)
+}
+
+fn reputation_request(command: ReputationCmd) -> Result<Request, String> {
+    let request = match command {
+        ReputationCmd::List => Request::ReputationList,
+    };
+    Ok(request)
+}
+
+fn collection_request(command: CollectionCmd) -> Result<Request, String> {
+    let request = match command {
+        CollectionCmd::Mounts { missing } => Request::CollectionMounts { missing },
+        CollectionCmd::Pets { missing } => Request::CollectionPets { missing },
+    };
+    Ok(request)
+}
+
+fn profession_request(command: ProfessionCmd) -> Result<Request, String> {
+    let request = match command {
+        ProfessionCmd::Recipes { text } => Request::ProfessionRecipes { text },
+    };
+    Ok(request)
+}
+
+fn map_request(command: MapCmd) -> Result<Request, String> {
+    let request = match command {
+        MapCmd::Position => Request::MapPosition,
+        MapCmd::Target => Request::MapTarget,
+        MapCmd::Waypoint { command } => match command {
+            WaypointCmd::Add { x, y } => Request::MapWaypointAdd { x, y },
+            WaypointCmd::Clear => Request::MapWaypointClear,
         },
     };
     Ok(request)
@@ -638,5 +993,55 @@ mod tests {
                 query: ItemInfoQuery { item_id: 2589 },
             }
         );
+    }
+
+    #[test]
+    fn spell_cast_command_maps_to_ipc_request() {
+        let request = spell_request(SpellCmd::Cast {
+            spell: "133".into(),
+            target: Some("current".into()),
+        })
+        .expect("valid spell cast command");
+
+        assert!(matches!(request, Request::SpellCast { .. }));
+    }
+
+    #[test]
+    fn inventory_search_command_maps_to_request() {
+        let request = inventory_request(InventoryCmd::Search {
+            text: "torch".into(),
+        })
+        .expect("valid inventory search command");
+
+        assert_eq!(
+            request,
+            Request::InventorySearch {
+                text: "torch".into()
+            }
+        );
+    }
+
+    #[test]
+    fn quest_list_command_maps_to_request() {
+        let request = quest_request(QuestCmd::List).expect("valid quest list command");
+
+        assert_eq!(request, Request::QuestList);
+    }
+
+    #[test]
+    fn group_roster_command_maps_to_request() {
+        let request = group_request(GroupCmd::Roster).expect("valid group roster command");
+
+        assert_eq!(request, Request::GroupRoster);
+    }
+
+    #[test]
+    fn map_waypoint_add_command_maps_to_request() {
+        let request = map_request(MapCmd::Waypoint {
+            command: WaypointCmd::Add { x: 42.1, y: 65.7 },
+        })
+        .expect("valid waypoint command");
+
+        assert_eq!(request, Request::MapWaypointAdd { x: 42.1, y: 65.7 });
     }
 }
