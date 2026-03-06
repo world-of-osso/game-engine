@@ -23,6 +23,7 @@ use shared::protocol::{
     AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
 };
 
+use crate::item_info::ItemInfoQuery;
 use crate::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 
 /// IPC request from CLI to engine.
@@ -44,6 +45,17 @@ pub enum Request {
     AuctionCancel { cancel: CancelAuction },
     AuctionClaimMail { claim: ClaimAuctionMail },
     AuctionStatus,
+    NetworkStatus,
+    TerrainStatus,
+    SoundStatus,
+    CurrenciesStatus,
+    ReputationsStatus,
+    CharacterStatsStatus,
+    BagsStatus,
+    GuildVaultStatus,
+    WarbankStatus,
+    EquippedGearStatus,
+    ItemInfo { query: ItemInfoQuery },
     MailSend { mail: SendMail },
     MailList { query: ListMailQuery },
     MailRead { read: ReadMail },

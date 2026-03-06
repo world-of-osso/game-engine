@@ -10,6 +10,14 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use game_engine::ipc::IpcPlugin;
+use game_engine::status::{
+    CharacterStatsSnapshot, CurrenciesStatusSnapshot, NetworkStatusSnapshot,
+    EquippedGearEntry, EquippedGearStatusSnapshot, GuildVaultStatusSnapshot,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    WarbankStatusSnapshot,
+};
+use lightyear::prelude::client::Connected;
+use shared::components::{Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer};
 
 mod animation;
 mod asset;
@@ -74,6 +82,11 @@ fn main() {
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
+    app.add_systems(Update, sync_network_status_snapshot);
+    app.add_systems(Update, sync_terrain_status_snapshot);
+    app.add_systems(Update, sync_sound_status_snapshot);
+    app.add_systems(Update, sync_character_stats_snapshot);
+    app.add_systems(Update, sync_equipped_gear_status_snapshot);
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
         app.add_systems(PostStartup, dump_tree_and_exit);
@@ -116,7 +129,139 @@ fn register_plugins(app: &mut App) {
                 ..default()
             },
         })
+        .init_resource::<NetworkStatusSnapshot>()
+        .init_resource::<TerrainStatusSnapshot>()
+        .init_resource::<SoundStatusSnapshot>()
+        .init_resource::<CurrenciesStatusSnapshot>()
+        .init_resource::<ReputationsStatusSnapshot>()
+        .init_resource::<CharacterStatsSnapshot>()
+        .init_resource::<GuildVaultStatusSnapshot>()
+        .init_resource::<WarbankStatusSnapshot>()
+        .init_resource::<EquippedGearStatusSnapshot>()
         .add_systems(Startup, setup);
+}
+
+fn sync_network_status_snapshot(
+    mut snapshot: ResMut<NetworkStatusSnapshot>,
+    server_addr: Option<Res<networking::ServerAddr>>,
+    game_state: Option<Res<State<game_state::GameState>>>,
+    local_client_id: Option<Res<networking::LocalClientId>>,
+    current_zone: Res<networking::CurrentZone>,
+    chat_log: Res<networking::ChatLog>,
+    connected_query: Query<(), With<Connected>>,
+    remote_query: Query<(), With<networking::RemoteEntity>>,
+    local_player_query: Query<(), With<networking::LocalPlayer>>,
+) {
+    snapshot.server_addr = server_addr.map(|addr| addr.0.to_string());
+    snapshot.game_state = game_state
+        .map(|state| format!("{:?}", state.get()))
+        .unwrap_or_else(|| "Unavailable".into());
+    snapshot.connected = !connected_query.is_empty();
+    snapshot.connected_links = connected_query.iter().count();
+    snapshot.local_client_id = local_client_id.map(|id| id.0);
+    snapshot.zone_id = current_zone.zone_id;
+    snapshot.remote_entities = remote_query.iter().count();
+    snapshot.local_players = local_player_query.iter().count();
+    snapshot.chat_messages = chat_log.messages.len();
+}
+
+fn sync_terrain_status_snapshot(
+    mut snapshot: ResMut<TerrainStatusSnapshot>,
+    adt_manager: Res<AdtManager>,
+    heightmap: Res<TerrainHeightmap>,
+) {
+    snapshot.map_name = adt_manager.map_name.clone();
+    snapshot.initial_tile = adt_manager.initial_tile;
+    snapshot.load_radius = adt_manager.load_radius;
+    snapshot.loaded_tiles = adt_manager.loaded.len();
+    snapshot.pending_tiles = adt_manager.pending.len();
+    snapshot.failed_tiles = adt_manager.failed.len();
+    snapshot.server_requested_tiles = adt_manager.server_requested.len();
+    snapshot.heightmap_tiles = heightmap.tile_keys().count();
+}
+
+fn sync_sound_status_snapshot(
+    mut snapshot: ResMut<SoundStatusSnapshot>,
+    sound_settings: Option<Res<sound::SoundSettings>>,
+    ambient_query: Query<(), With<sound::AmbientSound>>,
+    sinks: Query<&AudioSink>,
+) {
+    if let Some(settings) = sound_settings {
+        snapshot.enabled = true;
+        snapshot.muted = settings.muted;
+        snapshot.master_volume = settings.master_volume;
+        snapshot.footstep_volume = settings.footstep_volume;
+        snapshot.ambient_volume = settings.ambient_volume;
+    } else {
+        *snapshot = SoundStatusSnapshot::default();
+    }
+    snapshot.ambient_entities = ambient_query.iter().count();
+    snapshot.active_sinks = sinks.iter().count();
+}
+
+fn sync_character_stats_snapshot(
+    mut snapshot: ResMut<CharacterStatsSnapshot>,
+    character_list: Res<networking::CharacterList>,
+    selected_character_id: Res<networking::SelectedCharacterId>,
+    current_zone: Res<networking::CurrentZone>,
+    local_player_query: Query<
+        (
+            Option<&NetPlayer>,
+            Option<&NetHealth>,
+            Option<&NetMana>,
+            Option<&NetMovementSpeed>,
+        ),
+        With<networking::LocalPlayer>,
+    >,
+) {
+    let selected_character = selected_character_id
+        .0
+        .and_then(|character_id| character_list.0.iter().find(|entry| entry.character_id == character_id));
+
+    snapshot.name = selected_character
+        .map(|entry| entry.name.clone())
+        .or_else(|| {
+            local_player_query
+                .iter()
+                .find_map(|(player, _, _, _)| player.map(|player| player.name.clone()))
+        });
+    snapshot.level = selected_character.map(|entry| entry.level);
+    snapshot.race = selected_character.map(|entry| entry.race);
+    snapshot.class = selected_character.map(|entry| entry.class);
+    snapshot.zone_id = current_zone.zone_id;
+
+    if let Some((_, health, mana, speed)) = local_player_query.iter().next() {
+        snapshot.health_current = health.map(|value| value.current);
+        snapshot.health_max = health.map(|value| value.max);
+        snapshot.mana_current = mana.map(|value| value.current);
+        snapshot.mana_max = mana.map(|value| value.max);
+        snapshot.movement_speed = speed.map(|value| value.0);
+    } else {
+        snapshot.health_current = None;
+        snapshot.health_max = None;
+        snapshot.mana_current = None;
+        snapshot.mana_max = None;
+        snapshot.movement_speed = None;
+    }
+}
+
+fn sync_equipped_gear_status_snapshot(
+    mut snapshot: ResMut<EquippedGearStatusSnapshot>,
+    local_player_query: Query<&equipment::Equipment, With<Player>>,
+) {
+    snapshot.entries.clear();
+    if let Some(equipment) = local_player_query.iter().next() {
+        let mut entries = equipment
+            .slots
+            .iter()
+            .map(|(slot, path)| EquippedGearEntry {
+                slot: format!("{slot:?}"),
+                path: path.display().to_string(),
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by(|a, b| a.slot.cmp(&b.slot));
+        snapshot.entries = entries;
+    }
 }
 
 /// Parse `screenshot <output> [model]` from args. Returns None if not a screenshot command.

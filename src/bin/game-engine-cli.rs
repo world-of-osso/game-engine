@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use game_engine::ipc::{Request, Response, socket_glob};
+use game_engine::item_info::ItemInfoQuery;
 use game_engine::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use peercred_ipc::Client;
 use shared::protocol::{
@@ -54,6 +55,16 @@ enum Cmd {
     Mail {
         #[command(subcommand)]
         command: MailCmd,
+    },
+    /// Runtime subsystem status via the running engine
+    Status {
+        #[command(subcommand)]
+        command: StatusCmd,
+    },
+    /// Item information lookups via the running engine
+    Item {
+        #[command(subcommand)]
+        command: ItemCmd,
     },
 }
 
@@ -150,6 +161,28 @@ enum MailCmd {
     },
 }
 
+#[derive(Subcommand)]
+enum StatusCmd {
+    Network,
+    Terrain,
+    Sound,
+    Currencies,
+    Reputations,
+    CharacterStats,
+    Bags,
+    GuildVault,
+    Warbank,
+    EquippedGear,
+}
+
+#[derive(Subcommand)]
+enum ItemCmd {
+    Info {
+        #[arg(long)]
+        item_id: u32,
+    },
+}
+
 fn find_socket() -> Result<PathBuf, String> {
     let pattern = socket_glob();
     let mut sockets: Vec<PathBuf> = glob::glob(&pattern)
@@ -184,6 +217,8 @@ fn main() {
         Cmd::DumpUiTree { filter } => handle_dump_ui_tree(&socket, filter),
         Cmd::Auction { command } => handle_auction(&socket, command),
         Cmd::Mail { command } => handle_mail(&socket, command),
+        Cmd::Status { command } => handle_status(&socket, command),
+        Cmd::Item { command } => handle_item(&socket, command),
     };
 
     if let Err(e) = result {
@@ -330,6 +365,32 @@ fn handle_mail(socket: &PathBuf, command: MailCmd) -> Result<(), String> {
     }
 }
 
+fn handle_status(socket: &PathBuf, command: StatusCmd) -> Result<(), String> {
+    let request = status_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_item(socket: &PathBuf, command: ItemCmd) -> Result<(), String> {
+    let request = item_request(command)?;
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
 fn mail_request(command: MailCmd) -> Result<Request, String> {
     let request = match command {
         MailCmd::Status => Request::MailStatus,
@@ -366,6 +427,31 @@ fn mail_request(command: MailCmd) -> Result<Request, String> {
         MailCmd::Delete { mail_id } => Request::MailDelete {
             delete: DeleteMail { mail_id },
         },
+    };
+    Ok(request)
+}
+
+fn item_request(command: ItemCmd) -> Result<Request, String> {
+    let request = match command {
+        ItemCmd::Info { item_id } => Request::ItemInfo {
+            query: ItemInfoQuery { item_id },
+        },
+    };
+    Ok(request)
+}
+
+fn status_request(command: StatusCmd) -> Result<Request, String> {
+    let request = match command {
+        StatusCmd::Network => Request::NetworkStatus,
+        StatusCmd::Terrain => Request::TerrainStatus,
+        StatusCmd::Sound => Request::SoundStatus,
+        StatusCmd::Currencies => Request::CurrenciesStatus,
+        StatusCmd::Reputations => Request::ReputationsStatus,
+        StatusCmd::CharacterStats => Request::CharacterStatsStatus,
+        StatusCmd::Bags => Request::BagsStatus,
+        StatusCmd::GuildVault => Request::GuildVaultStatus,
+        StatusCmd::Warbank => Request::WarbankStatus,
+        StatusCmd::EquippedGear => Request::EquippedGearStatus,
     };
     Ok(request)
 }
@@ -469,6 +555,88 @@ mod tests {
             request,
             Request::MailDelete {
                 delete: DeleteMail { mail_id: 42 },
+            }
+        );
+    }
+
+    #[test]
+    fn network_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Network).expect("valid status command");
+
+        assert_eq!(request, Request::NetworkStatus);
+    }
+
+    #[test]
+    fn terrain_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Terrain).expect("valid status command");
+
+        assert_eq!(request, Request::TerrainStatus);
+    }
+
+    #[test]
+    fn sound_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Sound).expect("valid status command");
+
+        assert_eq!(request, Request::SoundStatus);
+    }
+
+    #[test]
+    fn currencies_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Currencies).expect("valid status command");
+
+        assert_eq!(request, Request::CurrenciesStatus);
+    }
+
+    #[test]
+    fn reputations_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Reputations).expect("valid status command");
+
+        assert_eq!(request, Request::ReputationsStatus);
+    }
+
+    #[test]
+    fn character_stats_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::CharacterStats).expect("valid status command");
+
+        assert_eq!(request, Request::CharacterStatsStatus);
+    }
+
+    #[test]
+    fn bags_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Bags).expect("valid status command");
+
+        assert_eq!(request, Request::BagsStatus);
+    }
+
+    #[test]
+    fn guild_vault_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::GuildVault).expect("valid status command");
+
+        assert_eq!(request, Request::GuildVaultStatus);
+    }
+
+    #[test]
+    fn warbank_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::Warbank).expect("valid status command");
+
+        assert_eq!(request, Request::WarbankStatus);
+    }
+
+    #[test]
+    fn equipped_gear_status_command_maps_to_request() {
+        let request = status_request(StatusCmd::EquippedGear).expect("valid status command");
+
+        assert_eq!(request, Request::EquippedGearStatus);
+    }
+
+    #[test]
+    fn item_info_command_maps_to_request() {
+        let request = item_request(ItemCmd::Info { item_id: 2589 }).expect("valid item command");
+
+        assert_eq!(
+            request,
+            Request::ItemInfo {
+                query: ItemInfoQuery { item_id: 2589 },
             }
         );
     }

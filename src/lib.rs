@@ -3,6 +3,8 @@ pub mod auction_house;
 pub mod culling;
 pub mod dump;
 pub mod ipc;
+pub mod item_info;
 pub mod listfile;
 pub mod mail;
+pub mod status;
 pub mod ui;
