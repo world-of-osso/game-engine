@@ -153,10 +153,11 @@ fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
     }
     let mut normals = [[0.0f32; 3]; MCVT_COUNT];
     for (i, n) in normals.iter_mut().enumerate() {
-        let nx = read_i8(payload, i * 3)? as f32 / 127.0;
-        let ny = read_i8(payload, i * 3 + 1)? as f32 / 127.0;
-        let nz = read_i8(payload, i * 3 + 2)? as f32 / 127.0;
-        // WoW normals: X-right, Y-forward, Z-up → wow_to_bevy
+        // MCNR bytes are stored as [X, Z, Y] (not [X, Y, Z])
+        let nx = read_i8(payload, i * 3)? as f32 / 127.0;     // X_wow
+        let nz = read_i8(payload, i * 3 + 1)? as f32 / 127.0; // Z_wow
+        let ny = read_i8(payload, i * 3 + 2)? as f32 / 127.0; // Y_wow
+        // wow_to_bevy expects (X_wow, Y_wow, Z_wow)
         *n = wow_to_bevy(nx, ny, nz);
     }
     Ok(normals)
@@ -855,4 +856,45 @@ fn water_height(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
     let w = layer.width as usize + 1;
     let idx = vert_row * w + vert_col;
     layer.vertex_heights.get(idx).copied().unwrap_or(layer.min_height)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mcnr_normal_swizzle() {
+        // MCNR stores [X_wow, Z_wow, Y_wow] as signed bytes.
+        // A flat ground normal in WoW is (0, 0, 127) = pointing Z-up.
+        // In Bevy Y-up space, this should become [0, 1, 0].
+        let mut payload = vec![0u8; MCVT_COUNT * 3];
+        // Set first vertex: X=0, Z=127 (up in WoW), Y=0
+        payload[0] = 0;   // X_wow = 0
+        payload[1] = 127;  // Z_wow = 127 (this is the "up" component)
+        payload[2] = 0;   // Y_wow = 0
+
+        let normals = parse_mcnr(&payload).unwrap();
+        let n = normals[0];
+        // wow_to_bevy(0, 0, 1.0) = [0, 1.0, 0] (Y-up in Bevy)
+        assert!((n[0]).abs() < 0.01, "X should be ~0, got {}", n[0]);
+        assert!((n[1] - 1.0).abs() < 0.01, "Y should be ~1, got {}", n[1]);
+        assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
+    }
+
+    #[test]
+    fn mcnr_tilted_normal() {
+        // A hillside tilted in WoW X direction: X=90, Z=90, Y=0
+        // wow_to_bevy(90/127, 0, 90/127) = [90/127, 90/127, 0]
+        let mut payload = vec![0u8; MCVT_COUNT * 3];
+        payload[0] = 90;  // X_wow
+        payload[1] = 90;  // Z_wow (up component)
+        payload[2] = 0;   // Y_wow
+
+        let normals = parse_mcnr(&payload).unwrap();
+        let n = normals[0];
+        let expected_xz = 90.0 / 127.0;
+        assert!((n[0] - expected_xz).abs() < 0.01, "X should be ~{expected_xz}, got {}", n[0]);
+        assert!((n[1] - expected_xz).abs() < 0.01, "Y should be ~{expected_xz}, got {}", n[1]);
+        assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
+    }
 }
