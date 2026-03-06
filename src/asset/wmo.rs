@@ -135,7 +135,13 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
 
     resolve_portal_vertices(&mut portals, &mopt_raw, &portal_vertices);
 
-    Ok(WmoRootData { n_groups, materials, portals, portal_refs, group_infos })
+    Ok(WmoRootData {
+        n_groups,
+        materials,
+        portals,
+        portal_refs,
+        group_infos,
+    })
 }
 
 /// Parse MOMT chunk: 64 bytes per material entry.
@@ -147,7 +153,11 @@ fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
         let flags = read_u32(data, base)?;
         let blend_mode = read_u32(data, base + 8)?;
         let texture_fdid = read_u32(data, base + 0x0C)?;
-        mats.push(WmoMaterialDef { texture_fdid, flags, blend_mode });
+        mats.push(WmoMaterialDef {
+            texture_fdid,
+            flags,
+            blend_mode,
+        });
     }
     Ok(mats)
 }
@@ -166,14 +176,21 @@ fn parse_mopt(data: &[u8]) -> Result<(Vec<WmoPortal>, Vec<(u16, u16)>), String> 
             read_f32(data, base + 8)?,
             read_f32(data, base + 12)?,
         ];
-        portals.push(WmoPortal { vertices: Vec::new(), normal });
+        portals.push(WmoPortal {
+            vertices: Vec::new(),
+            normal,
+        });
         ranges.push((start_vertex, vert_count));
     }
     Ok((portals, ranges))
 }
 
 /// Resolve portal vertices from MOPV data into parsed portals.
-fn resolve_portal_vertices(portals: &mut [WmoPortal], ranges: &[(u16, u16)], vertices: &[[f32; 3]]) {
+fn resolve_portal_vertices(
+    portals: &mut [WmoPortal],
+    ranges: &[(u16, u16)],
+    vertices: &[[f32; 3]],
+) {
     for (portal, &(start, count)) in portals.iter_mut().zip(ranges.iter()) {
         let s = start as usize;
         let e = (s + count as usize).min(vertices.len());
@@ -192,7 +209,11 @@ fn parse_mopr(data: &[u8]) -> Result<Vec<WmoPortalRef>, String> {
         let portal_index = read_u16(data, base)?;
         let group_index = read_u16(data, base + 2)?;
         let side = read_u16(data, base + 4)? as i16;
-        out.push(WmoPortalRef { portal_index, group_index, side });
+        out.push(WmoPortalRef {
+            portal_index,
+            group_index,
+            side,
+        });
     }
     Ok(out)
 }
@@ -214,7 +235,11 @@ fn parse_mogi(data: &[u8]) -> Result<Vec<WmoGroupInfo>, String> {
             read_f32(data, base + 20)?,
             read_f32(data, base + 24)?,
         ];
-        out.push(WmoGroupInfo { flags, bbox_min, bbox_max });
+        out.push(WmoGroupInfo {
+            flags,
+            bbox_min,
+            bbox_max,
+        });
     }
     Ok(out)
 }
@@ -228,7 +253,10 @@ const MOGP_HEADER_SIZE: usize = 68;
 pub fn load_wmo_group(data: &[u8]) -> Result<WmoGroupData, String> {
     let mogp_payload = find_mogp(data)?;
     if mogp_payload.len() < MOGP_HEADER_SIZE {
-        return Err(format!("MOGP payload too small: {} bytes", mogp_payload.len()));
+        return Err(format!(
+            "MOGP payload too small: {} bytes",
+            mogp_payload.len()
+        ));
     }
 
     let sub_chunks = &mogp_payload[MOGP_HEADER_SIZE..];
@@ -290,7 +318,13 @@ fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         return Err("WMO group missing MOVI (indices)".to_string());
     }
 
-    Ok(RawGroupData { vertices, normals, uvs, indices, batches })
+    Ok(RawGroupData {
+        vertices,
+        normals,
+        uvs,
+        indices,
+        batches,
+    })
 }
 
 /// Parse array of [f32; 3] from chunk payload.
@@ -343,7 +377,13 @@ fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
         } else {
             material_id_small as u16
         };
-        batches.push(RawBatch { start_index, count, min_index, max_index, material_id });
+        batches.push(RawBatch {
+            start_index,
+            count,
+            min_index,
+            max_index,
+            material_id,
+        });
     }
     Ok(batches)
 }
@@ -355,28 +395,39 @@ fn build_group_batches(raw: &RawGroupData) -> Result<WmoGroupData, String> {
     if raw.batches.is_empty() {
         let mesh = build_whole_group_mesh(raw);
         return Ok(WmoGroupData {
-            batches: vec![WmoGroupBatch { mesh, material_index: 0 }],
+            batches: vec![WmoGroupBatch {
+                mesh,
+                material_index: 0,
+            }],
         });
     }
 
     let mut out = Vec::with_capacity(raw.batches.len());
     for batch in &raw.batches {
         let mesh = build_batch_mesh(raw, batch);
-        out.push(WmoGroupBatch { mesh, material_index: batch.material_id });
+        out.push(WmoGroupBatch {
+            mesh,
+            material_index: batch.material_id,
+        });
     }
     Ok(WmoGroupData { batches: out })
 }
 
 /// Build a Bevy mesh for the entire group (fallback when no MOBA batches).
 fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
-    let positions: Vec<[f32; 3]> = raw.vertices.iter()
+    let positions: Vec<[f32; 3]> = raw
+        .vertices
+        .iter()
         .map(|v| wow_to_bevy(v[0], v[1], v[2]))
         .collect();
     let normals = convert_normals(&raw.normals, positions.len());
     let uvs = convert_uvs(&raw.uvs, positions.len());
     let indices: Vec<u32> = raw.indices.iter().map(|&i| i as u32).collect();
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -415,7 +466,10 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
         .map(|&i| (i - batch.min_index) as u32)
         .collect();
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -463,23 +517,38 @@ mod tests {
 
     #[test]
     fn debug_bridge_vertex_coords() {
-        let data = std::fs::read("data/models/108122.wmo")
-            .expect("missing bridge group");
+        let data = std::fs::read("data/models/108122.wmo").expect("missing bridge group");
         let mogp = find_mogp(&data).unwrap();
         let sub = &mogp[MOGP_HEADER_SIZE..];
         let raw = parse_group_subchunks(sub).unwrap();
-        eprintln!("Bridge group: {} verts, {} indices", raw.vertices.len(), raw.indices.len());
+        eprintln!(
+            "Bridge group: {} verts, {} indices",
+            raw.vertices.len(),
+            raw.indices.len()
+        );
         for (i, v) in raw.vertices.iter().take(5).enumerate() {
             eprintln!("  raw vert {i}: [{:.1}, {:.1}, {:.1}]", v[0], v[1], v[2]);
         }
         let min = raw.vertices.iter().fold([f32::MAX; 3], |mut m, v| {
-            m[0] = m[0].min(v[0]); m[1] = m[1].min(v[1]); m[2] = m[2].min(v[2]); m
+            m[0] = m[0].min(v[0]);
+            m[1] = m[1].min(v[1]);
+            m[2] = m[2].min(v[2]);
+            m
         });
         let max = raw.vertices.iter().fold([f32::MIN; 3], |mut m, v| {
-            m[0] = m[0].max(v[0]); m[1] = m[1].max(v[1]); m[2] = m[2].max(v[2]); m
+            m[0] = m[0].max(v[0]);
+            m[1] = m[1].max(v[1]);
+            m[2] = m[2].max(v[2]);
+            m
         });
-        eprintln!("  bounds min: [{:.1}, {:.1}, {:.1}]", min[0], min[1], min[2]);
-        eprintln!("  bounds max: [{:.1}, {:.1}, {:.1}]", max[0], max[1], max[2]);
+        eprintln!(
+            "  bounds min: [{:.1}, {:.1}, {:.1}]",
+            min[0], min[1], min[2]
+        );
+        eprintln!(
+            "  bounds max: [{:.1}, {:.1}, {:.1}]",
+            max[0], max[1], max[2]
+        );
     }
 
     #[test]
@@ -490,10 +559,14 @@ mod tests {
         assert!(root.n_groups > 0, "should have at least one group");
         eprintln!(
             "elwynnwidebridge: {} groups, {} materials",
-            root.n_groups, root.materials.len(),
+            root.n_groups,
+            root.materials.len(),
         );
         for (i, m) in root.materials.iter().enumerate() {
-            eprintln!("  mat {i}: texture_fdid={} flags={:#x} blend={}", m.texture_fdid, m.flags, m.blend_mode);
+            eprintln!(
+                "  mat {i}: texture_fdid={} flags={:#x} blend={}",
+                m.texture_fdid, m.flags, m.blend_mode
+            );
         }
     }
 
@@ -506,7 +579,10 @@ mod tests {
         eprintln!("elwynnwidebridge group 0: {} batches", group.batches.len());
         for (i, b) in group.batches.iter().enumerate() {
             let vc = b.mesh.count_vertices();
-            eprintln!("  batch {i}: material_index={} vertices={vc}", b.material_index);
+            eprintln!(
+                "  batch {i}: material_index={} vertices={vc}",
+                b.material_index
+            );
         }
     }
 }

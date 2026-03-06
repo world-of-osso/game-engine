@@ -83,10 +83,8 @@ fn init_casc() -> Result<CascState, String> {
         return Err(format!("WoW data not found at {}", data_root.display()));
     }
 
-    let install = Installation::open(data_root)
-        .map_err(|e| format!("CASC open: {e}"))?;
-    run_async(install.initialize())
-        .map_err(|e| format!("CASC init: {e}"))?;
+    let install = Installation::open(data_root).map_err(|e| format!("CASC open: {e}"))?;
+    run_async(install.initialize()).map_err(|e| format!("CASC init: {e}"))?;
 
     load_resolution_files(&install)?;
     eprintln!("CASC resolver initialized from {WOW_DATA_PATH}");

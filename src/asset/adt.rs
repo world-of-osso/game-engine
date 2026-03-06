@@ -154,7 +154,7 @@ fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
     let mut normals = [[0.0f32; 3]; MCVT_COUNT];
     for (i, n) in normals.iter_mut().enumerate() {
         // MCNR bytes are stored as [X, Z, Y] (not [X, Y, Z])
-        let nx = read_i8(payload, i * 3)? as f32 / 127.0;     // X_wow
+        let nx = read_i8(payload, i * 3)? as f32 / 127.0; // X_wow
         let nz = read_i8(payload, i * 3 + 1)? as f32 / 127.0; // Z_wow
         let ny = read_i8(payload, i * 3 + 2)? as f32 / 127.0; // Y_wow
         // wow_to_bevy expects (X_wow, Y_wow, Z_wow)
@@ -190,13 +190,17 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     let sub = &payload[128..];
     let (heights, normals) = parse_mcnk_subchunks(sub)?;
 
-    Ok(McnkData { index_x, index_y, pos, heights, normals })
+    Ok(McnkData {
+        index_x,
+        index_y,
+        pos,
+        heights,
+        normals,
+    })
 }
 
 /// Scan sub-chunks after the MCNK 128-byte header for TVCM and RNCM.
-fn parse_mcnk_subchunks(
-    sub: &[u8],
-) -> Result<([f32; MCVT_COUNT], [[f32; 3]; MCVT_COUNT]), String> {
+fn parse_mcnk_subchunks(sub: &[u8]) -> Result<([f32; MCVT_COUNT], [[f32; 3]; MCVT_COUNT]), String> {
     let mut heights = None;
     let mut normals = None;
 
@@ -241,7 +245,12 @@ pub(crate) fn vertex_index(grid_row: usize, col: usize) -> usize {
 ///
 /// MCNK position is stored as `[Y_wow, X_wow, Z_wow]`.
 /// Cols step in -X (from pos[1]), rows step in -Y (from pos[0]).
-fn vertex_position(grid_row: usize, col: usize, pos: [f32; 3], heights: &[f32; MCVT_COUNT]) -> [f32; 3] {
+fn vertex_position(
+    grid_row: usize,
+    col: usize,
+    pos: [f32; 3],
+    heights: &[f32; MCVT_COUNT],
+) -> [f32; 3] {
     let idx = vertex_index(grid_row, col);
     let r = (grid_row / 2) as f32;
     let c = col as f32;
@@ -249,7 +258,10 @@ fn vertex_position(grid_row: usize, col: usize, pos: [f32; 3], heights: &[f32; M
     let (wx, wy) = if grid_row.is_multiple_of(2) {
         (pos[1] - c * UNIT_SIZE, pos[0] - r * UNIT_SIZE)
     } else {
-        (pos[1] - c * UNIT_SIZE - HALF_UNIT, pos[0] - r * UNIT_SIZE - HALF_UNIT)
+        (
+            pos[1] - c * UNIT_SIZE - HALF_UNIT,
+            pos[0] - r * UNIT_SIZE - HALF_UNIT,
+        )
     };
     wow_to_bevy(wx, wy, pos[2] + heights[idx])
 }
@@ -260,7 +272,10 @@ fn vertex_position(grid_row: usize, col: usize, pos: [f32; 3], heights: &[f32; M
 fn build_mcnk_mesh(chunk: &McnkData) -> Mesh {
     let (positions, normals, uvs, indices) = build_mcnk_geometry(chunk);
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -294,7 +309,10 @@ fn build_mcnk_geometry(
             [col as f32 / 8.0, (grid_row / 2) as f32 / 8.0]
         } else {
             // inner vertex
-            [(col as f32 + 0.5) / 8.0, ((grid_row / 2) as f32 + 0.5) / 8.0]
+            [
+                (col as f32 + 0.5) / 8.0,
+                ((grid_row / 2) as f32 + 0.5) / 8.0,
+            ]
         };
         uvs.push(uv);
     }
@@ -356,11 +374,23 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
         .collect();
     let chunks = parsed
         .iter()
-        .map(|d| McnkMesh { mesh: build_mcnk_mesh(d), index_x: d.index_x, index_y: d.index_y })
+        .map(|d| McnkMesh {
+            mesh: build_mcnk_mesh(d),
+            index_x: d.index_x,
+            index_y: d.index_y,
+        })
         .collect();
     let water = mh2o_payload.map(|p| parse_mh2o(p)).transpose()?;
 
-    Ok(AdtData { chunks, height_grids, bounds_min, bounds_max, center_surface, chunk_positions, water })
+    Ok(AdtData {
+        chunks,
+        height_grids,
+        bounds_min,
+        bounds_max,
+        center_surface,
+        chunk_positions,
+        water,
+    })
 }
 
 /// Compute Bevy-space bounding box from MCNK corner positions + height extremes.
@@ -373,7 +403,11 @@ fn compute_bounds(chunks: &[McnkData]) -> ([f32; 3], [f32; 3]) {
         // pos = [Y, X, Z]; cols step in -X (pos[1]), rows step in -Y (pos[0])
         for &(wx, wy, wz) in &[
             (c.pos[1], c.pos[0], c.pos[2] + h_min),
-            (c.pos[1] - CHUNK_SIZE, c.pos[0] - CHUNK_SIZE, c.pos[2] + h_max),
+            (
+                c.pos[1] - CHUNK_SIZE,
+                c.pos[0] - CHUNK_SIZE,
+                c.pos[2] + h_max,
+            ),
         ] {
             let [bx, by, bz] = wow_to_bevy(wx, wy, wz);
             min[0] = min[0].min(bx);
@@ -444,7 +478,13 @@ pub struct AdtTexData {
 // ── MCAL RLE decompression ────────────────────────────────────────────────────
 
 /// Apply one RLE fill run: repeat `value` up to `count` times into `out`.
-fn rle_fill(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: usize) -> Result<(), String> {
+fn rle_fill(
+    out: &mut Vec<u8>,
+    src: &[u8],
+    i: &mut usize,
+    count: usize,
+    limit: usize,
+) -> Result<(), String> {
     if *i >= src.len() {
         return Err("MCAL RLE fill: missing value byte".to_string());
     }
@@ -459,7 +499,13 @@ fn rle_fill(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: u
 }
 
 /// Apply one RLE copy run: copy next `count` bytes from `src` into `out`.
-fn rle_copy(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: usize) -> Result<(), String> {
+fn rle_copy(
+    out: &mut Vec<u8>,
+    src: &[u8],
+    i: &mut usize,
+    count: usize,
+    limit: usize,
+) -> Result<(), String> {
     let end = *i + count;
     if end > src.len() {
         return Err(format!(
@@ -515,7 +561,12 @@ const MCLY_FLAG_ALPHA_COMPRESSED: u32 = 0x200;
 /// Read the alpha map for one MCLY layer from the MCAL blob.
 ///
 /// Returns `None` for the base layer (no `use_alpha_map` flag).
-fn read_layer_alpha_map(flags: u32, offset_in_mcal: usize, mcal: &[u8], layer_idx: usize) -> Result<Option<Vec<u8>>, String> {
+fn read_layer_alpha_map(
+    flags: u32,
+    offset_in_mcal: usize,
+    mcal: &[u8],
+    layer_idx: usize,
+) -> Result<Option<Vec<u8>>, String> {
     if (flags & MCLY_FLAG_USE_ALPHA_MAP) == 0 {
         return Ok(None);
     }
@@ -544,7 +595,11 @@ fn build_texture_layers(mcly: &[u8], mcal: &[u8]) -> Result<Vec<TextureLayer>, S
         let flags = read_u32(mcly, base + 0x04)?;
         let offset_in_mcal = read_u32(mcly, base + 0x08)? as usize;
         let alpha_map = read_layer_alpha_map(flags, offset_in_mcal, mcal, i)?;
-        layers.push(TextureLayer { texture_index, flags, alpha_map });
+        layers.push(TextureLayer {
+            texture_index,
+            flags,
+            alpha_map,
+        });
     }
     Ok(layers)
 }
@@ -602,7 +657,10 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
         return Err("No KNCM chunks found in _tex0.adt file".to_string());
     }
 
-    Ok(AdtTexData { texture_fdids, chunk_layers })
+    Ok(AdtTexData {
+        texture_fdids,
+        chunk_layers,
+    })
 }
 
 // ── MH2O water types ────────────────────────────────────────────────────────
@@ -762,7 +820,10 @@ const WATER_STEP: f32 = CHUNK_SIZE / 8.0;
 pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
     let (positions, normals, uvs, indices) = build_water_geometry(chunk_pos, layer);
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -855,7 +916,11 @@ fn water_height(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
     }
     let w = layer.width as usize + 1;
     let idx = vert_row * w + vert_col;
-    layer.vertex_heights.get(idx).copied().unwrap_or(layer.min_height)
+    layer
+        .vertex_heights
+        .get(idx)
+        .copied()
+        .unwrap_or(layer.min_height)
 }
 
 #[cfg(test)]
@@ -869,9 +934,9 @@ mod tests {
         // In Bevy Y-up space, this should become [0, 1, 0].
         let mut payload = vec![0u8; MCVT_COUNT * 3];
         // Set first vertex: X=0, Z=127 (up in WoW), Y=0
-        payload[0] = 0;   // X_wow = 0
-        payload[1] = 127;  // Z_wow = 127 (this is the "up" component)
-        payload[2] = 0;   // Y_wow = 0
+        payload[0] = 0; // X_wow = 0
+        payload[1] = 127; // Z_wow = 127 (this is the "up" component)
+        payload[2] = 0; // Y_wow = 0
 
         let normals = parse_mcnr(&payload).unwrap();
         let n = normals[0];
@@ -886,15 +951,23 @@ mod tests {
         // A hillside tilted in WoW X direction: X=90, Z=90, Y=0
         // wow_to_bevy(90/127, 0, 90/127) = [90/127, 90/127, 0]
         let mut payload = vec![0u8; MCVT_COUNT * 3];
-        payload[0] = 90;  // X_wow
-        payload[1] = 90;  // Z_wow (up component)
-        payload[2] = 0;   // Y_wow
+        payload[0] = 90; // X_wow
+        payload[1] = 90; // Z_wow (up component)
+        payload[2] = 0; // Y_wow
 
         let normals = parse_mcnr(&payload).unwrap();
         let n = normals[0];
         let expected_xz = 90.0 / 127.0;
-        assert!((n[0] - expected_xz).abs() < 0.01, "X should be ~{expected_xz}, got {}", n[0]);
-        assert!((n[1] - expected_xz).abs() < 0.01, "Y should be ~{expected_xz}, got {}", n[1]);
+        assert!(
+            (n[0] - expected_xz).abs() < 0.01,
+            "X should be ~{expected_xz}, got {}",
+            n[0]
+        );
+        assert!(
+            (n[1] - expected_xz).abs() < 0.01,
+            "Y should be ~{expected_xz}, got {}",
+            n[1]
+        );
         assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
     }
 }

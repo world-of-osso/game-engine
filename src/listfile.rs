@@ -11,18 +11,21 @@ struct Listfile {
 
 /// Get the global listfile, loading lazily from `data/community-listfile.csv`.
 fn get() -> &'static Listfile {
-    LISTFILE.get_or_init(|| {
-        match load_listfile(Path::new("data/community-listfile.csv")) {
+    LISTFILE.get_or_init(
+        || match load_listfile(Path::new("data/community-listfile.csv")) {
             Ok(lf) => {
                 eprintln!("Loaded listfile: {} entries", lf.by_fdid.len());
                 lf
             }
             Err(e) => {
                 eprintln!("Failed to load listfile: {e}");
-                Listfile { by_fdid: HashMap::new(), by_path: HashMap::new() }
+                Listfile {
+                    by_fdid: HashMap::new(),
+                    by_path: HashMap::new(),
+                }
             }
-        }
-    })
+        },
+    )
 }
 
 /// Look up a WoW internal path by FileDataID.
@@ -44,8 +47,12 @@ fn load_listfile(csv_path: &Path) -> Result<Listfile, String> {
     let mut by_path = HashMap::with_capacity(1_500_000);
 
     for line in data.lines() {
-        let Some((fdid_str, path)) = line.split_once(';') else { continue };
-        let Ok(fdid) = fdid_str.parse::<u32>() else { continue };
+        let Some((fdid_str, path)) = line.split_once(';') else {
+            continue;
+        };
+        let Ok(fdid) = fdid_str.parse::<u32>() else {
+            continue;
+        };
         by_fdid.insert(fdid, path.to_owned());
         by_path.insert(path.to_ascii_lowercase(), fdid);
     }

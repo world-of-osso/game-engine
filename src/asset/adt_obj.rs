@@ -60,7 +60,10 @@ pub fn load_adt_obj0(data: &[u8]) -> Result<AdtObjData, String> {
 
     eprintln!(
         "Loaded _obj0: {} doodads ({} model paths), {} WMOs ({} WMO paths)",
-        doodads.len(), paths.len(), wmos.len(), wmo_paths.len(),
+        doodads.len(),
+        paths.len(),
+        wmos.len(),
+        wmo_paths.len(),
     );
 
     Ok(AdtObjData { doodads, wmos })
@@ -78,9 +81,12 @@ struct Obj0Chunks {
 /// Iterate top-level chunks and collect the ones we care about.
 fn collect_obj0_chunks(data: &[u8]) -> Result<Obj0Chunks, String> {
     let mut c = Obj0Chunks {
-        mmdx: Vec::new(), mmid: Vec::new(),
-        mwmo: Vec::new(), mwid: Vec::new(),
-        mddf: None, modf: None,
+        mmdx: Vec::new(),
+        mmid: Vec::new(),
+        mwmo: Vec::new(),
+        mwid: Vec::new(),
+        mddf: None,
+        modf: None,
     };
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
@@ -200,9 +206,14 @@ fn parse_mddf_entry(
     let (fdid, path) = resolve_doodad(name_id, flags, string_table, offset_table);
 
     Ok(DoodadPlacement {
-        name_id, unique_id, position, rotation,
+        name_id,
+        unique_id,
+        position,
+        rotation,
         scale: scale_raw as f32 / 1024.0,
-        flags, fdid, path,
+        flags,
+        fdid,
+        path,
     })
 }
 
@@ -253,10 +264,16 @@ fn parse_modf_entry(
     let (fdid, path) = resolve_wmo(name_id, flags, string_table, offset_table);
 
     Ok(WmoPlacement {
-        name_id, unique_id, position, rotation,
-        flags, doodad_set, name_set,
+        name_id,
+        unique_id,
+        position,
+        rotation,
+        flags,
+        doodad_set,
+        name_set,
         scale: scale_raw as f32 / 1024.0,
-        fdid, path,
+        fdid,
+        path,
     })
 }
 
@@ -278,24 +295,37 @@ mod tests {
 
     #[test]
     fn parse_elwynn_obj0() {
-        let data = std::fs::read("data/terrain/azeroth_32_48_obj0.adt")
-            .expect("missing test asset");
+        let data =
+            std::fs::read("data/terrain/azeroth_32_48_obj0.adt").expect("missing test asset");
         let obj = load_adt_obj0(&data).expect("parse failed");
         assert!(!obj.doodads.is_empty(), "expected doodads");
         eprintln!("{} doodads, {} WMOs", obj.doodads.len(), obj.wmos.len());
         // Check first doodad has valid scale and position
         let d = &obj.doodads[0];
         assert!(d.scale > 0.0, "scale should be positive");
-        assert!(d.position[0] != 0.0 || d.position[1] != 0.0, "position shouldn't be zero");
-        assert!(d.fdid.is_some() || d.path.is_some(), "doodad should have fdid or path");
+        assert!(
+            d.position[0] != 0.0 || d.position[1] != 0.0,
+            "position shouldn't be zero"
+        );
+        assert!(
+            d.fdid.is_some() || d.path.is_some(),
+            "doodad should have fdid or path"
+        );
         // Print unique FDIDs
         let mut fdids: Vec<u32> = obj.doodads.iter().filter_map(|d| d.fdid).collect();
         fdids.sort();
         fdids.dedup();
-        eprintln!("Unique doodad FDIDs ({}), {} WMOs", fdids.len(), obj.wmos.len());
+        eprintln!(
+            "Unique doodad FDIDs ({}), {} WMOs",
+            fdids.len(),
+            obj.wmos.len()
+        );
         // Verify WMOs have resolved FDIDs
         for w in &obj.wmos {
-            assert!(w.fdid.is_some() || w.path.is_some(), "WMO should have fdid or path");
+            assert!(
+                w.fdid.is_some() || w.path.is_some(),
+                "WMO should have fdid or path"
+            );
         }
     }
 }

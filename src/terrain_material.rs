@@ -47,7 +47,11 @@ impl Material for TerrainMaterial {
 /// 1x1 placeholder for unused texture slots.
 pub fn placeholder_image(images: &mut Assets<Image>) -> Handle<Image> {
     let mut img = Image::new(
-        Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         vec![128, 128, 128, 255],
         TextureFormat::Rgba8UnormSrgb,
@@ -60,7 +64,11 @@ pub fn placeholder_image(images: &mut Assets<Image>) -> Handle<Image> {
 /// 1x1 black alpha texture (all layers transparent).
 pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
     let mut img = Image::new(
-        Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         vec![0, 0, 0, 255],
         TextureFormat::Rgba8UnormSrgb,
@@ -92,7 +100,10 @@ pub fn load_ground_images(
     tex_data: &adt::AdtTexData,
     adt_path: &std::path::Path,
 ) -> Vec<Option<Handle<Image>>> {
-    let tex_dir = adt_path.parent().unwrap_or(std::path::Path::new(".")).join("../textures");
+    let tex_dir = adt_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join("../textures");
     tex_data
         .texture_fdids
         .iter()
@@ -112,7 +123,10 @@ fn load_blp_as_terrain_image(
 ) -> Option<Handle<Image>> {
     match crate::asset::blp::load_blp_gpu_image(blp_path) {
         Ok(mut img) => {
-            eprintln!("  Loaded ground texture FDID {fdid} ({:?})", img.texture_descriptor.format);
+            eprintln!(
+                "  Loaded ground texture FDID {fdid} ({:?})",
+                img.texture_descriptor.format
+            );
             img.sampler = repeat_linear_sampler();
             Some(images.add(img))
         }
@@ -125,10 +139,7 @@ fn load_blp_as_terrain_image(
 
 /// Pack up to 3 alpha maps (64x64 each) into a single RGB image.
 /// R = layer 1 alpha, G = layer 2 alpha, B = layer 3 alpha.
-pub fn pack_alpha_maps(
-    images: &mut Assets<Image>,
-    layers: &[adt::TextureLayer],
-) -> Handle<Image> {
+pub fn pack_alpha_maps(images: &mut Assets<Image>, layers: &[adt::TextureLayer]) -> Handle<Image> {
     const SIZE: u32 = 64;
     let mut rgba = vec![0u8; (SIZE * SIZE * 4) as usize];
 
@@ -145,7 +156,11 @@ pub fn pack_alpha_maps(
     }
 
     let mut img = Image::new(
-        Extent3d { width: SIZE, height: SIZE, depth_or_array_layers: 1 },
+        Extent3d {
+            width: SIZE,
+            height: SIZE,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         rgba,
         TextureFormat::Rgba8UnormSrgb,

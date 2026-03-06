@@ -48,7 +48,15 @@ pub fn spawn_obj_entities(
     obj_data: &adt_obj::AdtObjData,
 ) -> Vec<Entity> {
     let mut entities = Vec::new();
-    spawn_doodads(commands, meshes, materials, images, inverse_bp, obj_data, &mut entities);
+    spawn_doodads(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bp,
+        obj_data,
+        &mut entities,
+    );
     spawn_wmos(commands, meshes, materials, images, obj_data, &mut entities);
     entities
 }
@@ -87,7 +95,9 @@ fn try_spawn_doodad(
         return None;
     }
     let transform = doodad_transform(doodad);
-    let entity = crate::spawn_static_m2(commands, meshes, materials, images, inverse_bp, &m2_path, transform)?;
+    let entity = crate::spawn_static_m2(
+        commands, meshes, materials, images, inverse_bp, &m2_path, transform,
+    )?;
     commands.entity(entity).insert(game_engine::culling::Doodad);
     Some(entity)
 }
@@ -166,9 +176,22 @@ fn try_spawn_wmo(
         ))
         .id();
 
-    let group_count = spawn_wmo_groups(commands, meshes, materials, images, &root, &group_fdids, root_fdid, root_entity);
+    let group_count = spawn_wmo_groups(
+        commands,
+        meshes,
+        materials,
+        images,
+        &root,
+        &group_fdids,
+        root_fdid,
+        root_entity,
+    );
     log_wmo_spawn(root_fdid, group_count, &root, &transform);
-    if group_count > 0 { Some(root_entity) } else { None }
+    if group_count > 0 {
+        Some(root_entity)
+    } else {
+        None
+    }
 }
 
 /// Spawn all WMO groups as children. Returns count of successfully spawned groups.
@@ -185,7 +208,15 @@ fn spawn_wmo_groups(
     let mut count = 0u32;
     for (i, group_fdid) in group_fdids.iter().enumerate() {
         let Some(fdid) = group_fdid else { continue };
-        if spawn_wmo_group(commands, meshes, materials, images, root, *fdid, root_entity) {
+        if spawn_wmo_group(
+            commands,
+            meshes,
+            materials,
+            images,
+            root,
+            *fdid,
+            root_entity,
+        ) {
             count += 1;
         } else {
             eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
@@ -198,7 +229,11 @@ fn log_wmo_spawn(root_fdid: u32, group_count: u32, root: &wmo::WmoRootData, tran
     let pos = transform.translation;
     eprintln!(
         "WMO {root_fdid}: {group_count}/{} groups, {} materials, pos=[{:.0}, {:.0}, {:.0}]",
-        root.n_groups, root.materials.len(), pos.x, pos.y, pos.z,
+        root.n_groups,
+        root.materials.len(),
+        pos.x,
+        pos.y,
+        pos.z,
     );
 }
 
@@ -282,8 +317,12 @@ fn spawn_wmo_group(
     root_entity: Entity,
 ) -> bool {
     let group_path = format!("data/models/{group_fdid}.wmo");
-    let Ok(data) = std::fs::read(&group_path) else { return false };
-    let Ok(group) = wmo::load_wmo_group(&data) else { return false };
+    let Ok(data) = std::fs::read(&group_path) else {
+        return false;
+    };
+    let Ok(group) = wmo::load_wmo_group(&data) else {
+        return false;
+    };
 
     for batch in group.batches {
         let mat = wmo_batch_material(materials, images, root, batch.material_index);
@@ -312,8 +351,10 @@ fn wmo_batch_material(
     let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
 
     if texture_fdid > 0 {
-        let blp_path = crate::asset::casc_resolver::ensure_texture(texture_fdid)
-            .unwrap_or_else(|| std::path::PathBuf::from(format!("data/textures/{texture_fdid}.blp")));
+        let blp_path =
+            crate::asset::casc_resolver::ensure_texture(texture_fdid).unwrap_or_else(|| {
+                std::path::PathBuf::from(format!("data/textures/{texture_fdid}.blp"))
+            });
         if let Ok(image) = blp::load_blp_gpu_image(&blp_path) {
             return materials.add(wmo_standard_material(Some(images.add(image)), blend_mode));
         }
@@ -328,7 +369,11 @@ fn wmo_standard_material(texture: Option<Handle<Image>>, blend_mode: u32) -> Sta
         _ => AlphaMode::Opaque,
     };
     StandardMaterial {
-        base_color: if texture.is_none() { Color::srgb(0.6, 0.6, 0.6) } else { Color::WHITE },
+        base_color: if texture.is_none() {
+            Color::srgb(0.6, 0.6, 0.6)
+        } else {
+            Color::WHITE
+        },
         base_color_texture: texture,
         perceptual_roughness: 0.8,
         double_sided: true,

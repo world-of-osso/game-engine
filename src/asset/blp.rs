@@ -52,10 +52,16 @@ fn gpu_image_from_dxtn(
     height: u32,
     format: TextureFormat,
 ) -> Result<Image, String> {
-    let data = dxtn.images.first()
+    let data = dxtn
+        .images
+        .first()
         .ok_or_else(|| "BLP DXT has no mipmap level 0".to_string())?;
     Ok(Image::new(
-        Extent3d { width, height, depth_or_array_layers: 1 },
+        Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data.content.clone(),
         format,
@@ -95,7 +101,15 @@ pub fn scale_2x(pixels: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
     (out, new_w, new_h)
 }
 /// Blit an overlay onto a base image at (dst_x, dst_y) with alpha blending.
-pub fn blit_region(base: &mut [u8], base_w: u32, overlay: &[u8], ov_w: u32, ov_h: u32, dst_x: u32, dst_y: u32) {
+pub fn blit_region(
+    base: &mut [u8],
+    base_w: u32,
+    overlay: &[u8],
+    ov_w: u32,
+    ov_h: u32,
+    dst_x: u32,
+    dst_y: u32,
+) {
     for row in 0..ov_h {
         for col in 0..ov_w {
             let bx = dst_x + col;
@@ -120,8 +134,10 @@ pub fn blit_region(base: &mut [u8], base_w: u32, overlay: &[u8], ov_w: u32, ov_h
             } else {
                 let inv = 255 - alpha;
                 base[bi] = ((alpha * overlay[oi] as u16 + inv * base[bi] as u16) / 255) as u8;
-                base[bi + 1] = ((alpha * overlay[oi + 1] as u16 + inv * base[bi + 1] as u16) / 255) as u8;
-                base[bi + 2] = ((alpha * overlay[oi + 2] as u16 + inv * base[bi + 2] as u16) / 255) as u8;
+                base[bi + 1] =
+                    ((alpha * overlay[oi + 1] as u16 + inv * base[bi + 1] as u16) / 255) as u8;
+                base[bi + 2] =
+                    ((alpha * overlay[oi + 2] as u16 + inv * base[bi + 2] as u16) / 255) as u8;
                 base[bi + 3] = base[bi + 3].max(overlay[oi + 3]);
             }
         }

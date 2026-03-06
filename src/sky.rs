@@ -1,10 +1,12 @@
 use std::f32::consts::{FRAC_PI_2, TAU};
 
-use bevy::prelude::*;
+use bevy::asset::RenderAssetUsages;
 use bevy::light::GeneratedEnvironmentMapLight;
 use bevy::pbr::{DistanceFog, FogFalloff, MaterialPlugin};
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension};
-use bevy::asset::RenderAssetUsages;
+use bevy::prelude::*;
+use bevy::render::render_resource::{
+    Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension,
+};
 
 use crate::game_state::GameState;
 
@@ -30,7 +32,10 @@ pub struct GameTime {
 
 impl Default for GameTime {
     fn default() -> Self {
-        Self { minutes: 1440.0, speed: 0.0 }
+        Self {
+            minutes: 1440.0,
+            speed: 0.0,
+        }
     }
 }
 
@@ -78,14 +83,17 @@ pub struct SkyColorSet {
 /// Resolve CSV column indices for LightData fields.
 fn resolve_column_indices(header: &str) -> [usize; 9] {
     let cols: Vec<&str> = header.split(',').collect();
-    let idx = |name: &str, fallback: usize| {
-        cols.iter().position(|c| *c == name).unwrap_or(fallback)
-    };
+    let idx =
+        |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
     [
-        idx("LightParamID", 1), idx("Time", 2),
-        idx("DirectColor", 3), idx("AmbientColor", 4),
-        idx("SkyTopColor", 5), idx("SkyMiddleColor", 6),
-        idx("SkyBand1Color", 7), idx("SkyBand2Color", 8),
+        idx("LightParamID", 1),
+        idx("Time", 2),
+        idx("DirectColor", 3),
+        idx("AmbientColor", 4),
+        idx("SkyTopColor", 5),
+        idx("SkyMiddleColor", 6),
+        idx("SkyBand1Color", 7),
+        idx("SkyBand2Color", 8),
         idx("SkySmogColor", 9),
     ]
 }
@@ -115,7 +123,10 @@ fn parse_light_row(line: &str, ci: &[usize; 9], param_id: u32) -> Option<LightDa
 fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
     let contents = match std::fs::read_to_string(path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("Failed to read {path}: {e}"); return Vec::new(); }
+        Err(e) => {
+            eprintln!("Failed to read {path}: {e}");
+            return Vec::new();
+        }
     };
     let mut lines = contents.lines();
     let header = match lines.next() {
@@ -123,7 +134,9 @@ fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
         None => return Vec::new(),
     };
     let ci = resolve_column_indices(header);
-    let mut rows: Vec<LightDataRow> = lines.filter_map(|l| parse_light_row(l, &ci, param_id)).collect();
+    let mut rows: Vec<LightDataRow> = lines
+        .filter_map(|l| parse_light_row(l, &ci, param_id))
+        .collect();
     rows.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
     rows
 }
@@ -172,7 +185,11 @@ fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow,
     for i in 0..rows.len() {
         let next = (i + 1) % rows.len();
         let t0 = rows[i].time;
-        let t1 = if next == 0 { rows[next].time + 2880.0 } else { rows[next].time };
+        let t1 = if next == 0 {
+            rows[next].time + 2880.0
+        } else {
+            rows[next].time
+        };
         let m_adj = if next == 0 && m < t0 { m + 2880.0 } else { m };
         if m_adj >= t0 && m_adj <= t1 {
             let span = t1 - t0;
@@ -184,7 +201,11 @@ fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow,
     let last = &rows[rows.len() - 1];
     let first = &rows[0];
     let span = (first.time + 2880.0) - last.time;
-    let t = if span > 0.0 { (m + 2880.0 - last.time) / span } else { 0.0 };
+    let t = if span > 0.0 {
+        (m + 2880.0 - last.time) / span
+    } else {
+        0.0
+    };
     (last, first, t)
 }
 
@@ -214,8 +235,15 @@ pub struct SkyDome;
 struct LightKeyframes(Vec<LightDataRow>);
 
 /// Compute vertices for one latitude ring of the sky dome.
-fn push_ring(positions: &mut Vec<[f32; 3]>, normals: &mut Vec<[f32; 3]>, uvs: &mut Vec<[f32; 2]>,
-             radius: f32, lon_segments: u32, v: f32, theta: f32) {
+fn push_ring(
+    positions: &mut Vec<[f32; 3]>,
+    normals: &mut Vec<[f32; 3]>,
+    uvs: &mut Vec<[f32; 2]>,
+    radius: f32,
+    lon_segments: u32,
+    v: f32,
+    theta: f32,
+) {
     let y = radius * theta.cos();
     let ring_r = radius * theta.sin();
     for lon in 0..=lon_segments {
@@ -251,7 +279,15 @@ fn build_sky_dome_mesh(radius: f32, lon_segments: u32, lat_segments: u32) -> Mes
         let v = lat as f32 / lat_segments as f32;
         // Map v=0 to slightly below horizon (-10°), v=1 to zenith
         let theta = std::f32::consts::PI * (0.55 - v * 0.55);
-        push_ring(&mut positions, &mut normals, &mut uvs, radius, lon_segments, v, theta);
+        push_ring(
+            &mut positions,
+            &mut normals,
+            &mut uvs,
+            radius,
+            lon_segments,
+            v,
+            theta,
+        );
     }
     let indices = build_dome_indices(lon_segments, lat_segments);
     let mut mesh = Mesh::new(
@@ -302,14 +338,14 @@ pub fn spawn_sky_dome(
     let cubemap = build_sky_cubemap(&default_colors);
     let cubemap_handle = images.add(cubemap);
     commands.insert_resource(SkyEnvMapHandle(cubemap_handle.clone()));
-    commands.entity(camera_entity).insert(
-        GeneratedEnvironmentMapLight {
+    commands
+        .entity(camera_entity)
+        .insert(GeneratedEnvironmentMapLight {
             environment_map: cubemap_handle,
             intensity: 300.0,
             rotation: Quat::IDENTITY,
             affects_lightmapped_mesh_diffuse: true,
-        },
-    );
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -577,7 +613,10 @@ fn spawn_time_display(mut commands: Commands) {
         TimeDisplay,
         Visibility::Hidden,
         Text::new("12:00"),
-        TextFont { font_size: 20.0, ..default() },
+        TextFont {
+            font_size: 20.0,
+            ..default()
+        },
         TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
@@ -608,20 +647,14 @@ fn format_game_clock(total: f32) -> String {
     format!("{hours:02}:{mins:02}")
 }
 
-fn update_time_display(
-    game_time: Res<GameTime>,
-    mut query: Query<&mut Text, With<TimeDisplay>>,
-) {
+fn update_time_display(game_time: Res<GameTime>, mut query: Query<&mut Text, With<TimeDisplay>>) {
     let clock = format_game_clock(game_time.minutes);
     for mut text in &mut query {
         **text = clock.clone();
     }
 }
 
-fn time_speed_controls(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut game_time: ResMut<GameTime>,
-) {
+fn time_speed_controls(keys: Res<ButtonInput<KeyCode>>, mut game_time: ResMut<GameTime>) {
     if keys.just_pressed(KeyCode::BracketRight) {
         game_time.speed = match game_time.speed as u32 {
             0 => 1.0,
@@ -649,18 +682,52 @@ pub struct SkyPlugin;
 impl Plugin for SkyPlugin {
     fn build(&self, app: &mut App) {
         let keyframes = load_light_data("data/LightData.csv", 12);
-        info!("Loaded {} sky keyframes for LightParamID 12", keyframes.len());
+        info!(
+            "Loaded {} sky keyframes for LightParamID 12",
+            keyframes.len()
+        );
         app.add_plugins(MaterialPlugin::<SkyMaterial>::default())
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
             .add_systems(Startup, spawn_time_display)
-            .add_systems(Update, advance_game_time.run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, update_sky_colors.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, update_sun_direction.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, update_fog.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, update_sky_env_map.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, update_time_display.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-            .add_systems(Update, time_speed_controls.run_if(in_state(GameState::InWorld)))
+            .add_systems(
+                Update,
+                advance_game_time.run_if(in_state(GameState::InWorld)),
+            )
+            .add_systems(
+                Update,
+                update_sky_colors
+                    .after(advance_game_time)
+                    .run_if(in_state(GameState::InWorld)),
+            )
+            .add_systems(
+                Update,
+                update_sun_direction
+                    .after(advance_game_time)
+                    .run_if(in_state(GameState::InWorld)),
+            )
+            .add_systems(
+                Update,
+                update_fog
+                    .after(advance_game_time)
+                    .run_if(in_state(GameState::InWorld)),
+            )
+            .add_systems(
+                Update,
+                update_sky_env_map
+                    .after(advance_game_time)
+                    .run_if(in_state(GameState::InWorld)),
+            )
+            .add_systems(
+                Update,
+                update_time_display
+                    .after(advance_game_time)
+                    .run_if(in_state(GameState::InWorld)),
+            )
+            .add_systems(
+                Update,
+                time_speed_controls.run_if(in_state(GameState::InWorld)),
+            )
             .add_systems(OnEnter(GameState::InWorld), show_time_display)
             .add_systems(OnExit(GameState::InWorld), hide_time_display);
     }
@@ -706,17 +773,25 @@ mod tests {
         let rows = vec![
             LightDataRow {
                 time: 0.0,
-                direct_color: Color::WHITE, ambient_color: Color::WHITE,
+                direct_color: Color::WHITE,
+                ambient_color: Color::WHITE,
                 sky_top: Color::linear_rgb(0.0, 0.0, 0.0),
-                sky_middle: Color::BLACK, sky_band1: Color::BLACK,
-                sky_band2: Color::BLACK, sky_smog: Color::BLACK, fog_color: Color::BLACK,
+                sky_middle: Color::BLACK,
+                sky_band1: Color::BLACK,
+                sky_band2: Color::BLACK,
+                sky_smog: Color::BLACK,
+                fog_color: Color::BLACK,
             },
             LightDataRow {
                 time: 1440.0,
-                direct_color: Color::WHITE, ambient_color: Color::WHITE,
+                direct_color: Color::WHITE,
+                ambient_color: Color::WHITE,
                 sky_top: Color::linear_rgb(1.0, 1.0, 1.0),
-                sky_middle: Color::WHITE, sky_band1: Color::WHITE,
-                sky_band2: Color::WHITE, sky_smog: Color::WHITE, fog_color: Color::WHITE,
+                sky_middle: Color::WHITE,
+                sky_band1: Color::WHITE,
+                sky_band2: Color::WHITE,
+                sky_smog: Color::WHITE,
+                fog_color: Color::WHITE,
             },
         ];
         let result = interpolate_colors(&rows, 720.0);

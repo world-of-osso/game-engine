@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::asset::adt::{self, ChunkHeightGrid, CHUNK_SIZE, UNIT_SIZE, vertex_index};
+use crate::asset::adt::{self, CHUNK_SIZE, ChunkHeightGrid, UNIT_SIZE, vertex_index};
 
 /// Queryable heightmap for terrain collision across multiple tiles.
 #[derive(Resource, Default)]
@@ -43,7 +43,8 @@ impl TerrainHeightmap {
 
     /// Look up terrain height at a Bevy-space (x, z) position across all loaded tiles.
     pub fn height_at(&self, bx: f32, bz: f32) -> Option<f32> {
-        self.tiles.values()
+        self.tiles
+            .values()
             .flat_map(|grids| grids.iter().flatten())
             .find_map(|g| chunk_height_at(g, bx, bz))
     }
@@ -66,13 +67,7 @@ fn chunk_height_at(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
 }
 
 /// Interpolate height within a quad using the 4-triangle fan from center vertex.
-fn interpolate_quad_height(
-    g: &ChunkHeightGrid,
-    row: usize,
-    col: usize,
-    fx: f32,
-    fz: f32,
-) -> f32 {
+fn interpolate_quad_height(g: &ChunkHeightGrid, row: usize, col: usize, fx: f32, fz: f32) -> f32 {
     let h = |idx: usize| g.base_y + g.heights[idx];
     let tl = h(vertex_index(row * 2, col));
     let tr = h(vertex_index(row * 2, col + 1));
@@ -98,10 +93,17 @@ fn interpolate_quad_height(
 
 /// Barycentric interpolation of height at (px, pz) within triangle (A, B, C).
 fn barycentric_height(
-    px: f32, pz: f32,
-    ax: f32, az: f32, ha: f32,
-    bx: f32, bz: f32, hb: f32,
-    cx: f32, cz: f32, hc: f32,
+    px: f32,
+    pz: f32,
+    ax: f32,
+    az: f32,
+    ha: f32,
+    bx: f32,
+    bz: f32,
+    hb: f32,
+    cx: f32,
+    cz: f32,
+    hc: f32,
 ) -> f32 {
     let det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
     if det.abs() < 1e-10 {

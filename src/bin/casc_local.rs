@@ -91,7 +91,12 @@ fn load_resolution_files(install: &Installation) {
 fn find_build_id() -> String {
     let id_file = PathBuf::from(CACHE_DIR).join("build-id.txt");
     std::fs::read_to_string(&id_file)
-        .unwrap_or_else(|_| panic!("Missing {}, run `casc-extract init` first", id_file.display()))
+        .unwrap_or_else(|_| {
+            panic!(
+                "Missing {}, run `casc-extract init` first",
+                id_file.display()
+            )
+        })
         .trim()
         .to_string()
 }
@@ -99,14 +104,18 @@ fn find_build_id() -> String {
 fn load_root(install: &Installation, path: &Path) {
     let data = std::fs::read(path)
         .unwrap_or_else(|_| panic!("Missing {}, run `casc-extract init`", path.display()));
-    install.load_root_file(&data).expect("failed to load root file");
+    install
+        .load_root_file(&data)
+        .expect("failed to load root file");
     eprintln!("Loaded root file ({} bytes)", data.len());
 }
 
 fn load_encoding(install: &Installation, path: &Path) {
     let data = std::fs::read(path)
         .unwrap_or_else(|_| panic!("Missing {}, run `casc-extract init`", path.display()));
-    install.load_encoding_file(&data).expect("failed to load encoding file");
+    install
+        .load_encoding_file(&data)
+        .expect("failed to load encoding file");
     eprintln!("Loaded encoding file ({} bytes)", data.len());
 }
 

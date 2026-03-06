@@ -72,10 +72,7 @@ impl Plugin for WaterMaterialPlugin {
     }
 }
 
-fn update_water_time(
-    time: Res<Time>,
-    mut water_materials: ResMut<Assets<WaterMaterial>>,
-) {
+fn update_water_time(time: Res<Time>, mut water_materials: ResMut<Assets<WaterMaterial>>) {
     let t = time.elapsed_secs();
     for (_id, mat) in water_materials.iter_mut() {
         mat.settings.time = t;
@@ -101,7 +98,11 @@ pub fn generate_water_normal_map() -> Image {
         }
     }
     let mut img = Image::new(
-        Extent3d { width: size, height: size, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size,
+            height: size,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8Unorm,
@@ -117,11 +118,21 @@ pub fn generate_water_normal_map() -> Image {
 
 /// Tileable FBM noise: 5 octaves of value noise, each tileable at `size`.
 fn fbm_tileable_noise(out: &mut [f32], size: u32) {
-    let octaves = [(4.0, 0.4), (8.0, 0.3), (16.0, 0.15), (32.0, 0.1), (64.0, 0.05)];
+    let octaves = [
+        (4.0, 0.4),
+        (8.0, 0.3),
+        (16.0, 0.15),
+        (32.0, 0.1),
+        (64.0, 0.05),
+    ];
     for (freq, amp) in octaves {
         for y in 0..size {
             for x in 0..size {
-                let v = tileable_value_noise(x as f32 * freq / size as f32, y as f32 * freq / size as f32, freq);
+                let v = tileable_value_noise(
+                    x as f32 * freq / size as f32,
+                    y as f32 * freq / size as f32,
+                    freq,
+                );
                 out[(y * size + x) as usize] += v * amp;
             }
         }
@@ -154,7 +165,9 @@ fn wrap(v: i32, period: u32) -> u32 {
 
 /// Hash two u32 coords to a float in [-1, 1].
 fn hash_f32(x: u32, y: u32) -> f32 {
-    let mut h = x.wrapping_mul(374761393).wrapping_add(y.wrapping_mul(668265263));
+    let mut h = x
+        .wrapping_mul(374761393)
+        .wrapping_add(y.wrapping_mul(668265263));
     h = (h ^ (h >> 13)).wrapping_mul(1274126177);
     h ^= h >> 16;
     (h & 0xFFFF) as f32 / 32767.5 - 1.0
