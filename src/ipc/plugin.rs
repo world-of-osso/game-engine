@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 
 use super::{Command, Request, Response, init};
+use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::ui::plugin::UiState;
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
@@ -38,9 +39,17 @@ fn poll_ipc(
     )>,
     parent_query: Query<&ChildOf>,
     ui_state: Res<UiState>,
+    mut auction_house: ResMut<AuctionHouseState>,
 ) {
     while let Ok(cmd) = receiver.try_recv() {
-        dispatch(cmd, &mut commands, &tree_query, &parent_query, &ui_state);
+        dispatch(
+            cmd,
+            &mut commands,
+            &tree_query,
+            &parent_query,
+            &ui_state,
+            &mut auction_house,
+        );
     }
 }
 
@@ -57,7 +66,11 @@ fn dispatch(
     )>,
     parent_query: &Query<&ChildOf>,
     ui_state: &UiState,
+    auction_house: &mut AuctionHouseState,
 ) {
+    if queue_ipc_request(auction_house, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
     match cmd.request {
         Request::Ping => {
             let _ = cmd.respond.send(Response::Pong);
@@ -76,6 +89,18 @@ fn dispatch(
             let tree = crate::dump::build_ui_tree(&ui_state.registry, filter.as_deref());
             let _ = cmd.respond.send(Response::Tree(tree));
         }
+        Request::AuctionOpen
+        | Request::AuctionBrowse { .. }
+        | Request::AuctionOwned
+        | Request::AuctionBids
+        | Request::AuctionInventory
+        | Request::AuctionMailbox
+        | Request::AuctionCreate { .. }
+        | Request::AuctionBid { .. }
+        | Request::AuctionBuyout { .. }
+        | Request::AuctionCancel { .. }
+        | Request::AuctionClaimMail { .. }
+        | Request::AuctionStatus => {}
     }
 }
 

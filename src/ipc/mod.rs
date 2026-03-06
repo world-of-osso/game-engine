@@ -19,6 +19,9 @@ extern "C" fn signal_handler(sig: libc::c_int) {
     }
 }
 use serde::{Deserialize, Serialize};
+use shared::protocol::{
+    AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
+};
 
 /// IPC request from CLI to engine.
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +30,18 @@ pub enum Request {
     Screenshot,
     DumpTree { filter: Option<String> },
     DumpUiTree { filter: Option<String> },
+    AuctionOpen,
+    AuctionBrowse { query: AuctionSearchQuery },
+    AuctionOwned,
+    AuctionBids,
+    AuctionInventory,
+    AuctionMailbox,
+    AuctionCreate { create: CreateAuction },
+    AuctionBid { bid: PlaceBid },
+    AuctionBuyout { buyout: BuyoutAuction },
+    AuctionCancel { cancel: CancelAuction },
+    AuctionClaimMail { claim: ClaimAuctionMail },
+    AuctionStatus,
 }
 
 /// IPC response from engine to CLI.
@@ -35,6 +50,7 @@ pub enum Response {
     Pong,
     Screenshot(Vec<u8>), // WebP bytes
     Tree(String),
+    Text(String),
     Error(String),
 }
 
@@ -92,8 +108,14 @@ impl Drop for SocketGuard {
 
 fn register_signal_handlers() {
     unsafe {
-        libc::signal(libc::SIGTERM, signal_handler as *const () as libc::sighandler_t);
-        libc::signal(libc::SIGINT, signal_handler as *const () as libc::sighandler_t);
+        libc::signal(
+            libc::SIGTERM,
+            signal_handler as *const () as libc::sighandler_t,
+        );
+        libc::signal(
+            libc::SIGINT,
+            signal_handler as *const () as libc::sighandler_t,
+        );
     }
 }
 

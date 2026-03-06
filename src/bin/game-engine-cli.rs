@@ -1,11 +1,18 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use peercred_ipc::Client;
 use game_engine::ipc::{Request, Response, socket_glob};
+use peercred_ipc::Client;
+use shared::protocol::{
+    AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
+    CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
+};
 
 #[derive(Parser)]
-#[command(name = "game-engine-cli", about = "Control a running game-engine instance")]
+#[command(
+    name = "game-engine-cli",
+    about = "Control a running game-engine instance"
+)]
 struct Cli {
     /// Unix socket path (auto-discovered if omitted)
     #[arg(short, long)]
@@ -36,6 +43,69 @@ enum Cmd {
         /// Filter by frame name (case-insensitive substring)
         #[arg(short, long)]
         filter: Option<String>,
+    },
+    /// Auction house operations via the running engine
+    Auction {
+        #[command(subcommand)]
+        command: AuctionCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum AuctionCmd {
+    Open,
+    Status,
+    Browse {
+        #[arg(long, default_value = "")]
+        text: String,
+        #[arg(long, default_value_t = 0)]
+        page: u32,
+        #[arg(long, default_value_t = 20)]
+        page_size: u32,
+        #[arg(long)]
+        min_level: Option<u16>,
+        #[arg(long)]
+        max_level: Option<u16>,
+        #[arg(long)]
+        quality: Option<u8>,
+        #[arg(long, default_value = "name")]
+        sort: String,
+        #[arg(long, default_value = "asc")]
+        dir: String,
+    },
+    Owned,
+    Bids,
+    Inventory,
+    Mailbox,
+    ClaimMail {
+        #[arg(long)]
+        mail_id: u64,
+    },
+    Create {
+        #[arg(long)]
+        item_guid: u64,
+        #[arg(long)]
+        stack: u32,
+        #[arg(long)]
+        bid: u32,
+        #[arg(long)]
+        buyout: Option<u32>,
+        #[arg(long, default_value = "medium")]
+        duration: String,
+    },
+    Bid {
+        #[arg(long)]
+        id: u64,
+        #[arg(long)]
+        amount: u32,
+    },
+    Buyout {
+        #[arg(long)]
+        id: u64,
+    },
+    Cancel {
+        #[arg(long)]
+        id: u64,
     },
 }
 
@@ -71,6 +141,7 @@ fn main() {
         Cmd::Screenshot { output } => handle_screenshot(&socket, &output),
         Cmd::DumpTree { filter } => handle_dump_tree(&socket, filter),
         Cmd::DumpUiTree { filter } => handle_dump_ui_tree(&socket, filter),
+        Cmd::Auction { command } => handle_auction(&socket, command),
     };
 
     if let Err(e) = result {
@@ -80,8 +151,7 @@ fn main() {
 }
 
 fn handle_ping(socket: &PathBuf) -> Result<(), String> {
-    let resp: Response =
-        Client::call(socket, &Request::Ping).map_err(|e| format!("{e}"))?;
+    let resp: Response = Client::call(socket, &Request::Ping).map_err(|e| format!("{e}"))?;
 
     match resp {
         Response::Pong => {
@@ -119,8 +189,7 @@ fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), S
 }
 
 fn handle_screenshot(socket: &PathBuf, output: &PathBuf) -> Result<(), String> {
-    let resp: Response =
-        Client::call(socket, &Request::Screenshot).map_err(|e| format!("{e}"))?;
+    let resp: Response = Client::call(socket, &Request::Screenshot).map_err(|e| format!("{e}"))?;
 
     match resp {
         Response::Screenshot(data) => {
@@ -131,5 +200,106 @@ fn handle_screenshot(socket: &PathBuf, output: &PathBuf) -> Result<(), String> {
         }
         Response::Error(msg) => Err(msg),
         other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn handle_auction(socket: &PathBuf, command: AuctionCmd) -> Result<(), String> {
+    let request = match command {
+        AuctionCmd::Open => Request::AuctionOpen,
+        AuctionCmd::Status => Request::AuctionStatus,
+        AuctionCmd::Browse {
+            text,
+            page,
+            page_size,
+            min_level,
+            max_level,
+            quality,
+            sort,
+            dir,
+        } => Request::AuctionBrowse {
+            query: AuctionSearchQuery {
+                text,
+                page,
+                page_size,
+                min_level,
+                max_level,
+                quality,
+                usable_only: false,
+                sort_field: parse_sort_field(&sort)?,
+                sort_dir: parse_sort_dir(&dir)?,
+            },
+        },
+        AuctionCmd::Owned => Request::AuctionOwned,
+        AuctionCmd::Bids => Request::AuctionBids,
+        AuctionCmd::Inventory => Request::AuctionInventory,
+        AuctionCmd::Mailbox => Request::AuctionMailbox,
+        AuctionCmd::ClaimMail { mail_id } => Request::AuctionClaimMail {
+            claim: ClaimAuctionMail { mail_id },
+        },
+        AuctionCmd::Create {
+            item_guid,
+            stack,
+            bid,
+            buyout,
+            duration,
+        } => Request::AuctionCreate {
+            create: CreateAuction {
+                item_guid,
+                stack_count: stack,
+                min_bid: bid,
+                buyout_price: buyout,
+                duration: parse_duration(&duration)?,
+            },
+        },
+        AuctionCmd::Bid { id, amount } => Request::AuctionBid {
+            bid: PlaceBid {
+                auction_id: id,
+                amount,
+            },
+        },
+        AuctionCmd::Buyout { id } => Request::AuctionBuyout {
+            buyout: BuyoutAuction { auction_id: id },
+        },
+        AuctionCmd::Cancel { id } => Request::AuctionCancel {
+            cancel: CancelAuction { auction_id: id },
+        },
+    };
+
+    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+        Response::Text(text) => {
+            println!("{text}");
+            Ok(())
+        }
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn parse_duration(value: &str) -> Result<AuctionDuration, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "short" => Ok(AuctionDuration::Short),
+        "medium" => Ok(AuctionDuration::Medium),
+        "long" => Ok(AuctionDuration::Long),
+        _ => Err(format!("invalid duration '{value}'")),
+    }
+}
+
+fn parse_sort_field(value: &str) -> Result<AuctionSortField, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "name" => Ok(AuctionSortField::Name),
+        "bid" | "min_bid" => Ok(AuctionSortField::MinBid),
+        "buyout" => Ok(AuctionSortField::Buyout),
+        "time" | "time_left" => Ok(AuctionSortField::TimeLeft),
+        "quality" => Ok(AuctionSortField::Quality),
+        "level" | "required_level" => Ok(AuctionSortField::RequiredLevel),
+        _ => Err(format!("invalid sort field '{value}'")),
+    }
+}
+
+fn parse_sort_dir(value: &str) -> Result<AuctionSortDir, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "asc" => Ok(AuctionSortDir::Asc),
+        "desc" => Ok(AuctionSortDir::Desc),
+        _ => Err(format!("invalid sort direction '{value}'")),
     }
 }
