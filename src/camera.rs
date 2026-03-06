@@ -1,8 +1,21 @@
+use std::collections::HashSet;
+
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
-use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
+use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
 
+use crate::sky::SkyDome;
 use crate::terrain::TerrainHeightmap;
+
+/// Recursively collect all descendant entities into the set.
+fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut HashSet<Entity>) {
+    if let Ok(children) = children_q.get(entity) {
+        for child in children.iter() {
+            out.insert(child);
+            collect_descendants(child, children_q, out);
+        }
+    }
+}
 
 pub struct WowCameraPlugin;
 
@@ -300,11 +313,13 @@ fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>
 fn camera_follow(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
-    player_q: Query<&Transform, (With<Player>, Without<WowCamera>)>,
+    player_q: Query<(Entity, &Transform), (With<Player>, Without<WowCamera>)>,
     mut camera_q: Query<(&mut WowCamera, &mut Transform), Without<Player>>,
     mut ray_cast: MeshRayCast,
+    sky_q: Query<Entity, With<SkyDome>>,
+    children_q: Query<&Children>,
 ) {
-    let Ok(player_tf) = player_q.single() else {
+    let Ok((player_entity, player_tf)) = player_q.single() else {
         return;
     };
     let Ok((mut cam, mut cam_tf)) = camera_q.single_mut() else {
@@ -330,7 +345,16 @@ fn camera_follow(
     let ray_dir = (intended_pos - eye_target).normalize_or_zero();
     let effective_distance = if ray_dir.length_squared() > 0.0 {
         let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
-        let hits = ray_cast.cast_ray(ray, &default());
+        // Exclude player model (+ children), sky dome from collision
+        let mut excluded = HashSet::new();
+        excluded.insert(player_entity);
+        collect_descendants(player_entity, &children_q, &mut excluded);
+        for e in sky_q.iter() {
+            excluded.insert(e);
+        }
+        let filter = |entity: Entity| !excluded.contains(&entity);
+        let settings = MeshRayCastSettings::default().with_filter(&filter);
+        let hits = ray_cast.cast_ray(ray, &settings);
         let closest_hit = hits.first().map(|(_, hit)| hit.distance);
         let adjusted = collision_adjusted_distance(cam.distance, closest_hit);
         if adjusted < cam.distance {

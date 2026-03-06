@@ -545,13 +545,23 @@ fn write_rgba16f(dst: &mut [u8], c: LinearRgba) {
     }
 }
 
+/// Tracks the last game-time minute the env map was rebuilt at.
+#[derive(Resource, Default)]
+struct EnvMapLastMinute(f32);
+
 fn update_sky_env_map(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
     env_handle: Option<Res<SkyEnvMapHandle>>,
     mut images: ResMut<Assets<Image>>,
+    mut last: Local<f32>,
 ) {
     let Some(handle) = env_handle else { return };
+    // Only rebuild cubemap when time changes by >1 minute (avoid per-frame GPU re-upload)
+    if (game_time.minutes - *last).abs() < 1.0 {
+        return;
+    }
+    *last = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
     if let Some(image) = images.get_mut(&handle.0) {
         *image = build_sky_cubemap(&colors);
