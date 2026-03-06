@@ -8,9 +8,11 @@ use crate::asset::adt;
 
 /// Custom terrain material: ground texture layers + alpha blending + hex tiling.
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
+/// Uses height-based blending (ground texture alpha = height channel)
+/// for more natural transitions between terrain layers.
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
 pub struct TerrainMaterial {
-    /// x = layer_count (1-4)
+    /// x = layer_count (1-4), y = height_blend_strength
     #[uniform(0)]
     pub config: Vec4,
 
@@ -189,6 +191,10 @@ pub fn build_terrain_materials(
         .collect()
 }
 
+/// Height blend strength: how much the texture alpha channel influences
+/// layer transitions. 0 = flat alpha blending, 2-4 = natural rocky edges.
+const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
+
 fn fallback_material(ph: &Placeholders) -> TerrainMaterial {
     TerrainMaterial {
         config: Vec4::ZERO,
@@ -222,7 +228,7 @@ fn build_chunk_material(
     };
 
     terrain_materials.add(TerrainMaterial {
-        config: Vec4::new(layer_count, 0.0, 0.0, 0.0),
+        config: Vec4::new(layer_count, HEIGHT_BLEND_STRENGTH, 0.0, 0.0),
         ground_0: ground(0),
         ground_1: ground(1),
         ground_2: ground(2),

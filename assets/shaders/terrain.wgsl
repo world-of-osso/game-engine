@@ -1,10 +1,12 @@
 // Terrain shader with hex tiling (Heitz & Neyret 2018)
 // Breaks visible texture repetition by sampling each ground layer 3x
 // at hex-grid-offset UVs with per-cell random rotation + offset.
+// Height-based blending uses ground texture alpha as height channel
+// to make transitions between layers look more natural.
 
 #import bevy_pbr::forward_io::VertexOutput
 
-// config.x = layer_count (1-4)
+// config.x = layer_count (1-4), config.y = height_blend_strength (0=off, typical 2-4)
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> config: vec4<f32>;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var ground_0: texture_2d<f32>;
@@ -138,30 +140,55 @@ fn hex_sample(idx: u32, uv: vec2<f32>) -> vec4<f32> {
     return color;
 }
 
+// ── Height-based blend ──────────────────────────────────────────────────────
+// Uses the ground texture alpha channel as a height map to make layer
+// transitions less blobby. Rocks/roots poke through based on height.
+// Formula: effective_alpha = saturate(alpha + (height - 0.5) * strength)
+
+fn sample_height(idx: u32, uv: vec2<f32>) -> f32 {
+    // Read the alpha channel of the ground texture as height (0..1).
+    // Textures without height data have alpha=1.0 everywhere (from fix_1bit_alpha),
+    // so (1.0 - 0.5) * strength just shifts alpha up slightly — safe fallback.
+    let tiled_uv = uv * TILE_REPEAT;
+    return sample_ground(idx, tiled_uv).a;
+}
+
+fn height_blend_alpha(base_alpha: f32, height: f32, strength: f32) -> f32 {
+    return saturate(base_alpha + (height - 0.5) * strength);
+}
+
 // ── Fragment entry ───────────────────────────────────────────────────────────
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = in.uv;
     let layer_count = u32(config.x);
+    let blend_strength = config.y;
 
     // Base layer (full opacity, always present)
     var color = hex_sample(0u, uv);
 
     // Blend upper layers using packed alpha map (R=layer1, G=layer2, B=layer3)
+    // When blend_strength > 0, height from texture alpha modulates transitions.
     if layer_count > 1u {
         let alpha = textureSample(alpha_packed, alpha_sampler, uv);
 
         let c1 = hex_sample(1u, uv);
-        color = mix(color, c1, alpha.r);
+        let h1 = sample_height(1u, uv);
+        let a1 = height_blend_alpha(alpha.r, h1, blend_strength);
+        color = mix(color, c1, a1);
 
         if layer_count > 2u {
             let c2 = hex_sample(2u, uv);
-            color = mix(color, c2, alpha.g);
+            let h2 = sample_height(2u, uv);
+            let a2 = height_blend_alpha(alpha.g, h2, blend_strength);
+            color = mix(color, c2, a2);
         }
         if layer_count > 3u {
             let c3 = hex_sample(3u, uv);
-            color = mix(color, c3, alpha.b);
+            let h3 = sample_height(3u, uv);
+            let a3 = height_blend_alpha(alpha.b, h3, blend_strength);
+            color = mix(color, c3, a3);
         }
     }
 
