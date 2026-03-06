@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, mpsc};
+use std::sync::{mpsc, Mutex};
 
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -33,12 +33,16 @@ pub struct AdtTile {
 pub enum DoodadLod {
     /// Full detail (_obj0.adt) — used for near tiles.
     Full,
-    /// Reduced detail (_obj1.adt) — used for distant tiles.
+    /// Reduced detail (_obj1.adt) — used for mid-distance tiles.
     Lod1,
+    /// Lowest detail (_obj2.adt) — used for far tiles.
+    Lod2,
 }
 
 /// Distance threshold in tiles: tiles farther than this use LOD1 doodads.
 const LOD1_TILE_DISTANCE: u32 = 2;
+/// Distance threshold in tiles: tiles farther than this use LOD2 doodads.
+const LOD2_TILE_DISTANCE: u32 = 4;
 
 /// Parsed ADT data ready to be spawned on the main thread.
 struct ParsedTile {
@@ -683,7 +687,9 @@ fn tile_lod_for_distance(ty: u32, tx: u32, center_y: u32, center_x: u32) -> Dood
     let dy = ty.abs_diff(center_y);
     let dx = tx.abs_diff(center_x);
     let dist = dy.max(dx);
-    if dist > LOD1_TILE_DISTANCE {
+    if dist > LOD2_TILE_DISTANCE {
+        DoodadLod::Lod2
+    } else if dist > LOD1_TILE_DISTANCE {
         DoodadLod::Lod1
     } else {
         DoodadLod::Full
@@ -776,6 +782,7 @@ fn load_obj_for_lod(adt_path: &Path, lod: DoodadLod) -> Option<adt_obj::AdtObjDa
     match lod {
         DoodadLod::Full => terrain_objects::load_obj0(adt_path),
         DoodadLod::Lod1 => terrain_objects::load_obj1(adt_path),
+        DoodadLod::Lod2 => terrain_objects::load_obj2(adt_path),
     }
 }
 

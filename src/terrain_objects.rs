@@ -37,6 +37,13 @@ pub fn load_obj1(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
     load_obj(adt_path, "_obj1").or_else(|| load_obj(adt_path, "_obj0"))
 }
 
+/// Load _obj2.adt (LOD level 2), falling back to _obj1 then _obj0.
+pub fn load_obj2(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
+    load_obj(adt_path, "_obj2")
+        .or_else(|| load_obj(adt_path, "_obj1"))
+        .or_else(|| load_obj(adt_path, "_obj0"))
+}
+
 // ── doodad spawning ─────────────────────────────────────────────────────────
 
 /// Spawn doodads and WMOs, returning the entities created.
