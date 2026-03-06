@@ -5,7 +5,7 @@ use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
 
 use crate::sky::SkyDome;
-use crate::terrain::TerrainHeightmap;
+use crate::terrain_heightmap::TerrainHeightmap;
 
 /// Recursively collect all descendant entities into the set.
 fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut HashSet<Entity>) {

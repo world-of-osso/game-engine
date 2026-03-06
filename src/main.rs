@@ -27,7 +27,9 @@ mod target;
 mod minimap;
 mod sound;
 mod terrain;
+mod terrain_heightmap;
 mod terrain_material;
+mod terrain_objects;
 mod water_material;
 mod login_screen;
 mod networking_auth;
@@ -35,7 +37,8 @@ mod char_select;
 
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
-use terrain::{AdtManager, AdtStreamingPlugin, TerrainHeightmap};
+use terrain::{AdtManager, AdtStreamingPlugin};
+use terrain_heightmap::TerrainHeightmap;
 
 const DEFAULT_M2: &str = "data/models/humanmale_hd.m2";
 const DEFAULT_ADT: &str = "data/terrain/azeroth_32_48.adt";

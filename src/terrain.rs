@@ -6,8 +6,10 @@ use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
-use crate::asset::adt::{self, ChunkHeightGrid, CHUNK_SIZE, UNIT_SIZE, vertex_index};
-use crate::asset::{adt_obj, blp, wmo};
+use crate::asset::adt::{self, CHUNK_SIZE};
+use crate::terrain_heightmap::TerrainHeightmap;
+use crate::asset::adt_obj;
+use crate::terrain_objects;
 use crate::game_state::GameState;
 use crate::terrain_material::{self, TerrainMaterial};
 use crate::water_material::{self, WaterMaterial, WaterSettings};
@@ -26,6 +28,18 @@ pub struct AdtTile {
     pub tile_y: u32,
 }
 
+/// LOD level for doodad/WMO placements on a tile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DoodadLod {
+    /// Full detail (_obj0.adt) — used for near tiles.
+    Full,
+    /// Reduced detail (_obj1.adt) — used for distant tiles.
+    Lod1,
+}
+
+/// Distance threshold in tiles: tiles farther than this use LOD1 doodads.
+const LOD1_TILE_DISTANCE: u32 = 2;
+
 /// Parsed ADT data ready to be spawned on the main thread.
 struct ParsedTile {
     tile_y: u32,
@@ -34,6 +48,7 @@ struct ParsedTile {
     adt_data: adt::AdtData,
     tex_data: Option<adt::AdtTexData>,
     obj_data: Option<adt_obj::AdtObjData>,
+    lod: DoodadLod,
 }
 
 /// Result from a background tile load task.
@@ -55,6 +70,10 @@ pub struct AdtManager {
     pub(crate) pending: HashSet<(u32, u32)>,
     /// Tiles explicitly requested by the server (beyond the local streaming radius).
     pub server_requested: HashSet<(u32, u32)>,
+    /// Current doodad LOD level per loaded tile.
+    pub(crate) tile_lod: HashMap<(u32, u32), DoodadLod>,
+    /// Doodad/WMO entities per tile, for despawning on LOD swap.
+    pub(crate) tile_doodad_entities: HashMap<(u32, u32), Vec<Entity>>,
     /// Receiver for completed background tile loads (Mutex for Sync).
     tile_rx: Mutex<mpsc::Receiver<TileLoadResult>>,
     /// Sender cloned into background threads.
@@ -74,125 +93,14 @@ impl Default for AdtManager {
             failed: HashSet::new(),
             pending: HashSet::new(),
             server_requested: HashSet::new(),
+            tile_lod: HashMap::new(),
+            tile_doodad_entities: HashMap::new(),
             tile_rx: Mutex::new(tile_rx),
             tile_tx,
             load_radius: 1,
             initial_tile: (0, 0),
         }
     }
-}
-
-/// Queryable heightmap for terrain collision across multiple tiles.
-#[derive(Resource, Default)]
-pub struct TerrainHeightmap {
-    /// Per-tile grids: (tile_y, tile_x) → 256 chunk height grids.
-    tiles: HashMap<(u32, u32), Vec<Option<ChunkHeightGrid>>>,
-}
-
-impl TerrainHeightmap {
-    /// Add height grids from one ADT tile.
-    pub fn insert_tile(&mut self, tile_y: u32, tile_x: u32, adt_data: &adt::AdtData) {
-        let mut grids: Vec<Option<ChunkHeightGrid>> = vec![None; 256];
-        for g in &adt_data.height_grids {
-            let idx = (g.index_y * 16 + g.index_x) as usize;
-            if idx < 256 {
-                grids[idx] = Some(g.clone());
-            }
-        }
-        self.tiles.insert((tile_y, tile_x), grids);
-    }
-
-    /// Get all loaded tile coordinate keys.
-    pub fn tile_keys(&self) -> impl Iterator<Item = &(u32, u32)> {
-        self.tiles.keys()
-    }
-
-    /// Get chunk grids for a specific tile.
-    pub fn tile_chunks(&self, tile_y: u32, tile_x: u32) -> Option<&Vec<Option<ChunkHeightGrid>>> {
-        self.tiles.get(&(tile_y, tile_x))
-    }
-
-    /// Remove height grids for a tile.
-    pub fn remove_tile(&mut self, tile_y: u32, tile_x: u32) {
-        self.tiles.remove(&(tile_y, tile_x));
-    }
-
-    /// Look up terrain height at a Bevy-space (x, z) position across all loaded tiles.
-    pub fn height_at(&self, bx: f32, bz: f32) -> Option<f32> {
-        self.tiles.values()
-            .flat_map(|grids| grids.iter().flatten())
-            .find_map(|g| chunk_height_at(g, bx, bz))
-    }
-}
-
-/// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
-fn chunk_height_at(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
-    // Terrain grows in -X from origin_x, +Z from origin_z
-    let local_x = g.origin_x - bx;
-    let local_z = bz - g.origin_z;
-    if local_x < 0.0 || local_x >= CHUNK_SIZE || local_z < 0.0 || local_z >= CHUNK_SIZE {
-        return None;
-    }
-    let col = (local_x / UNIT_SIZE).floor() as usize;
-    let row = (local_z / UNIT_SIZE).floor() as usize;
-    let col = col.min(7);
-    let row = row.min(7);
-    let frac_x = (local_x - col as f32 * UNIT_SIZE) / UNIT_SIZE;
-    let frac_z = (local_z - row as f32 * UNIT_SIZE) / UNIT_SIZE;
-    Some(interpolate_quad_height(g, row, col, frac_x, frac_z))
-}
-
-/// Interpolate height within a quad using the 4-triangle fan from center vertex.
-fn interpolate_quad_height(
-    g: &ChunkHeightGrid,
-    row: usize,
-    col: usize,
-    fx: f32,
-    fz: f32,
-) -> f32 {
-    let h = |idx: usize| g.base_y + g.heights[idx];
-    let tl = h(vertex_index(row * 2, col));
-    let tr = h(vertex_index(row * 2, col + 1));
-    let bl = h(vertex_index(row * 2 + 2, col));
-    let br = h(vertex_index(row * 2 + 2, col + 1));
-    let center = h(vertex_index(row * 2 + 1, col));
-
-    // Determine which triangle: compare distance from center (0.5, 0.5)
-    let dx = fx - 0.5;
-    let dz = fz - 0.5;
-    let (ha, hb, ax, az, bxx, bz) = if dz.abs() >= dx.abs() {
-        if dz < 0.0 {
-            // Top triangle: TL(0,0), TR(1,0), C(0.5,0.5)
-            (tl, tr, 0.0, 0.0, 1.0, 0.0)
-        } else {
-            // Bottom triangle: BR(1,1), BL(0,1), C(0.5,0.5)
-            (br, bl, 1.0, 1.0, 0.0, 1.0)
-        }
-    } else if dx > 0.0 {
-        // Right triangle: TR(1,0), BR(1,1), C(0.5,0.5)
-        (tr, br, 1.0, 0.0, 1.0, 1.0)
-    } else {
-        // Left triangle: BL(0,1), TL(0,0), C(0.5,0.5)
-        (bl, tl, 0.0, 1.0, 0.0, 0.0)
-    };
-    barycentric_height(fx, fz, ax, az, ha, bxx, bz, hb, 0.5, 0.5, center)
-}
-
-/// Barycentric interpolation of height at (px, pz) within triangle (A, B, C).
-fn barycentric_height(
-    px: f32, pz: f32,
-    ax: f32, az: f32, ha: f32,
-    bx: f32, bz: f32, hb: f32,
-    cx: f32, cz: f32, hc: f32,
-) -> f32 {
-    let det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
-    if det.abs() < 1e-10 {
-        return (ha + hb + hc) / 3.0;
-    }
-    let wa = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / det;
-    let wb = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / det;
-    let wc = 1.0 - wa - wb;
-    wa * ha + wb * hb + wc * hc
 }
 
 /// Result of spawning an ADT: camera and ground position for placing models.
@@ -262,14 +170,13 @@ fn spawn_adt_entities(
     tile: &AdtTile,
 ) -> Entity {
     let tex_data = load_tex0(adt_path);
-    let obj_data = load_obj0(adt_path);
+    let obj_data = terrain_objects::load_obj0(adt_path);
     let root = spawn_from_parsed(
         commands, meshes, materials, terrain_materials, water_materials,
         images, inverse_bp, adt_path, adt_data, tex_data.as_ref(), tile,
     );
     if let Some(ref obj) = obj_data {
-        spawn_obj0_doodads(commands, meshes, materials, images, inverse_bp, obj);
-        spawn_obj0_wmos(commands, meshes, materials, images, obj);
+        terrain_objects::spawn_obj_entities(commands, meshes, materials, images, inverse_bp, obj);
     }
     root
 }
@@ -309,19 +216,20 @@ fn spawn_parsed_tile(
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     parsed: &ParsedTile,
-) -> Entity {
+) -> (Entity, Vec<Entity>) {
     let tile = AdtTile { tile_x: parsed.tile_x, tile_y: parsed.tile_y };
     let root = spawn_from_parsed(
         commands, meshes, materials, terrain_materials, water_materials,
         images, inverse_bp, &parsed.adt_path, &parsed.adt_data,
         parsed.tex_data.as_ref(), &tile,
     );
-    // Spawn doodads/WMOs from pre-parsed obj0 data
-    if let Some(ref obj_data) = parsed.obj_data {
-        spawn_obj0_doodads(commands, meshes, materials, images, inverse_bp, obj_data);
-        spawn_obj0_wmos(commands, meshes, materials, images, obj_data);
-    }
-    root
+    // Spawn doodads/WMOs from pre-parsed obj data
+    let doodad_entities = if let Some(ref obj_data) = parsed.obj_data {
+        terrain_objects::spawn_obj_entities(commands, meshes, materials, images, inverse_bp, obj_data)
+    } else {
+        Vec::new()
+    };
+    (root, doodad_entities)
 }
 
 /// Log a summary of a spawned ADT tile.
@@ -408,7 +316,7 @@ pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
 ///
 /// For name-based files (e.g. `azeroth_32_48.adt`), appends suffix directly.
 /// For FDID-based files (e.g. `778027.adt`), looks up the companion FDID via listfile.
-fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<PathBuf> {
+pub(crate) fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<PathBuf> {
     let stem = adt_path.file_stem()?.to_str()?;
     // Name-based: "azeroth_32_48" → "azeroth_32_48_tex0.adt"
     let direct = adt_path.with_file_name(format!("{stem}{suffix}.adt"));
@@ -541,278 +449,6 @@ fn spawn_water(
     }
 }
 
-// ── _obj0.adt object spawning ────────────────────────────────────────────────
-
-/// Try to load the companion _obj0.adt file.
-fn load_obj0(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
-    let obj0_path = resolve_companion_path(adt_path, "_obj0")?;
-    let data = std::fs::read(&obj0_path).ok()?;
-    match adt_obj::load_adt_obj0(&data) {
-        Ok(obj) => Some(obj),
-        Err(e) => {
-            eprintln!("Failed to parse _obj0: {e}");
-            None
-        }
-    }
-}
-
-
-/// Spawn doodads (M2 models) from _obj0 placement data.
-fn spawn_obj0_doodads(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    obj_data: &adt_obj::AdtObjData,
-) {
-    let mut spawned = 0u32;
-    for doodad in &obj_data.doodads {
-        if try_spawn_doodad(commands, meshes, materials, images, inverse_bp, doodad) {
-            spawned += 1;
-        }
-    }
-    eprintln!("Spawned {spawned}/{} doodads", obj_data.doodads.len());
-}
-
-/// Try to spawn a single doodad. Returns true if the M2 was found and spawned.
-fn try_spawn_doodad(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    doodad: &adt_obj::DoodadPlacement,
-) -> bool {
-    let Some(m2_path) = resolve_doodad_m2(doodad) else { return false };
-    if !m2_path.exists() {
-        return false;
-    }
-    let transform = doodad_transform(doodad);
-    let Some(entity) = super::spawn_static_m2(commands, meshes, materials, images, inverse_bp, &m2_path, transform) else {
-        return false;
-    };
-    commands.entity(entity).insert(game_engine::culling::Doodad);
-    true
-}
-
-/// Resolve a doodad placement to a local M2 file path.
-fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
-    // If we have a direct FDID, look it up in the listfile for the path.
-    if let Some(fdid) = doodad.fdid {
-        return Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")));
-    }
-    // Otherwise resolve the WoW path to an FDID via listfile.
-    let wow_path = doodad.path.as_ref()?;
-    let fdid = game_engine::listfile::lookup_path(wow_path)?;
-    Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")))
-}
-
-/// Convert WoW doodad placement (position + Euler degrees + scale) to a Bevy Transform.
-fn doodad_transform(d: &adt_obj::DoodadPlacement) -> Transform {
-    let pos = placement_to_bevy(d.position);
-    let rotation = doodad_rotation(d.rotation);
-    Transform::from_translation(Vec3::from(pos))
-        .with_rotation(rotation)
-        .with_scale(Vec3::splat(d.scale))
-}
-
-/// Convert WoW Euler rotation (degrees around Y, X, Z) to a Bevy quaternion.
-fn doodad_rotation(rot: [f32; 3]) -> Quat {
-    let rx = rot[0].to_radians();
-    let ry = rot[1].to_radians();
-    let rz = rot[2].to_radians();
-    // WoW rotations: Y-up, applied as Y→X→Z. Remap to Bevy coordinate system.
-    Quat::from_euler(EulerRot::YXZ, ry, rx, rz)
-}
-
-// ── _obj0.adt WMO spawning ──────────────────────────────────────────────────
-
-/// Spawn WMOs from _obj0 placement data.
-fn spawn_obj0_wmos(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    obj_data: &adt_obj::AdtObjData,
-) {
-    let mut spawned = 0u32;
-    for placement in &obj_data.wmos {
-        if try_spawn_wmo(commands, meshes, materials, images, placement) {
-            spawned += 1;
-        }
-    }
-    eprintln!("Spawned {spawned}/{} WMOs", obj_data.wmos.len());
-}
-
-/// Try to spawn a single WMO. Returns true if root file was found and spawned.
-fn try_spawn_wmo(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    placement: &adt_obj::WmoPlacement,
-) -> bool {
-    let Some(root_fdid) = resolve_wmo_fdid(placement) else { return false };
-    let root_path = format!("data/models/{root_fdid}.wmo");
-    let Ok(root_data) = std::fs::read(&root_path) else { return false };
-    let Ok(root) = wmo::load_wmo_root(&root_data) else {
-        eprintln!("Failed to parse WMO root {root_fdid}");
-        return false;
-    };
-
-    let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
-    let transform = wmo_transform(placement);
-    let root_entity = commands
-        .spawn((
-            Name::new(format!("wmo_{root_fdid}")),
-            transform,
-            Visibility::default(),
-            game_engine::culling::Wmo,
-        ))
-        .id();
-
-    let mut group_count = 0u32;
-    for (i, group_fdid) in group_fdids.iter().enumerate() {
-        let Some(fdid) = group_fdid else { continue };
-        if spawn_wmo_group(commands, meshes, materials, images, &root, *fdid, root_entity) {
-            group_count += 1;
-        } else {
-            eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
-        }
-    }
-
-    let pos = transform.translation;
-    eprintln!(
-        "WMO {root_fdid}: {group_count}/{} groups, {} materials, pos=[{:.0}, {:.0}, {:.0}]",
-        root.n_groups, root.materials.len(), pos.x, pos.y, pos.z,
-    );
-    group_count > 0
-}
-
-/// Resolve a WMO placement to its root FileDataID.
-fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
-    if let Some(fdid) = wmo.fdid {
-        return Some(fdid);
-    }
-    let wow_path = wmo.path.as_ref()?;
-    game_engine::listfile::lookup_path(wow_path)
-}
-
-/// Resolve group file FDIDs by looking up root path in listfile and deriving group paths.
-fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
-    let Some(root_path) = game_engine::listfile::lookup_fdid(root_fdid) else {
-        eprintln!("  WMO {root_fdid}: not in listfile, cannot resolve group FDIDs");
-        return vec![None; n_groups as usize];
-    };
-
-    let base = root_path.trim_end_matches(".wmo");
-    (0..n_groups)
-        .map(|i| {
-            let group_path = format!("{base}_{i:03}.wmo");
-            game_engine::listfile::lookup_path(&group_path)
-        })
-        .collect()
-}
-
-/// Parse and spawn one WMO group file as children of the root entity.
-fn spawn_wmo_group(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    root: &wmo::WmoRootData,
-    group_fdid: u32,
-    root_entity: Entity,
-) -> bool {
-    let group_path = format!("data/models/{group_fdid}.wmo");
-    let Ok(data) = std::fs::read(&group_path) else { return false };
-    let Ok(group) = wmo::load_wmo_group(&data) else {
-        eprintln!("Failed to parse WMO group {group_fdid}");
-        return false;
-    };
-
-    for batch in group.batches {
-        let mat = wmo_batch_material(materials, images, root, batch.material_index);
-        let child = commands
-            .spawn((
-                Mesh3d(meshes.add(batch.mesh)),
-                MeshMaterial3d(mat),
-                Transform::default(),
-                Visibility::default(),
-            ))
-            .id();
-        commands.entity(root_entity).add_child(child);
-    }
-    true
-}
-
-/// Build a Bevy material for a WMO batch, loading the BLP texture if available.
-fn wmo_batch_material(
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    root: &wmo::WmoRootData,
-    material_index: u16,
-) -> Handle<StandardMaterial> {
-    let mat_def = root.materials.get(material_index as usize);
-    let texture_fdid = mat_def.map(|m| m.texture_fdid).unwrap_or(0);
-    let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
-
-    if texture_fdid > 0 {
-        let blp_path = crate::asset::casc_resolver::ensure_texture(texture_fdid)
-            .unwrap_or_else(|| std::path::PathBuf::from(format!("data/textures/{texture_fdid}.blp")));
-        if let Ok(image) = blp::load_blp_gpu_image(&blp_path) {
-            return materials.add(wmo_standard_material(Some(images.add(image)), blend_mode));
-        }
-    }
-
-    // Fallback: gray material
-    materials.add(wmo_standard_material(None, blend_mode))
-}
-
-fn wmo_standard_material(
-    texture: Option<Handle<Image>>,
-    blend_mode: u32,
-) -> StandardMaterial {
-    let alpha_mode = match blend_mode {
-        1 => AlphaMode::Mask(0.5),
-        2 | 3 => AlphaMode::Blend,
-        _ => AlphaMode::Opaque,
-    };
-    StandardMaterial {
-        base_color: if texture.is_none() { Color::srgb(0.6, 0.6, 0.6) } else { Color::WHITE },
-        base_color_texture: texture,
-        perceptual_roughness: 0.8,
-        double_sided: true,
-        cull_mode: None,
-        alpha_mode,
-        ..default()
-    }
-}
-
-/// Convert MODF/MDDF placement position to Bevy-space.
-///
-/// MODF/MDDF store positions as `[X_adt, Height, Y_adt]` in a coordinate system where
-/// world coords = 32*TILESIZE - adt coords (for X and Y_adt).
-/// MCNK headers already store converted world coordinates, but MODF/MDDF do not.
-fn placement_to_bevy(raw: [f32; 3]) -> [f32; 3] {
-    use super::asset::m2::wow_to_bevy;
-    const MAP_OFFSET: f32 = 32.0 * CHUNK_SIZE * 16.0; // 32 * 533.33 = 17066.67
-    let wx = MAP_OFFSET - raw[0];
-    let wy = MAP_OFFSET - raw[2];
-    let wz = raw[1]; // height
-    wow_to_bevy(wx, wy, wz)
-}
-
-/// Convert WMO placement to a Bevy Transform.
-fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
-    let pos = placement_to_bevy(w.position);
-    let rotation = doodad_rotation(w.rotation);
-    Transform::from_translation(Vec3::from(pos))
-        .with_rotation(rotation)
-        .with_scale(Vec3::splat(w.scale))
-}
-
 // ── ADT streaming ────────────────────────────────────────────────────────────
 
 pub struct AdtStreamingPlugin;
@@ -821,7 +457,7 @@ impl Plugin for AdtStreamingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AdtManager>()
             .init_resource::<TerrainHeightmap>()
-            .add_systems(Update, (adt_streaming_system, receive_loaded_tiles).chain()
+            .add_systems(Update, (adt_streaming_system, receive_loaded_tiles, doodad_lod_swap_system).chain()
                 .run_if(in_state(GameState::InWorld)));
     }
 }
@@ -842,7 +478,7 @@ fn adt_streaming_system(
     let desired = compute_desired_tiles(center_y, center_x, adt_manager.load_radius);
 
     unload_distant_tiles(&mut commands, &mut adt_manager, &mut heightmap, &desired);
-    dispatch_tile_loads(&mut adt_manager, &desired);
+    dispatch_tile_loads(&mut adt_manager, &desired, center_y, center_x);
 }
 
 /// Receive parsed tiles from background threads and spawn entities.
@@ -888,12 +524,15 @@ fn handle_tile_result(
         TileLoadResult::Success(parsed) => {
             let key = (parsed.tile_y, parsed.tile_x);
             adt_manager.pending.remove(&key);
-            let root = spawn_parsed_tile(
+            let (root, doodad_entities) = spawn_parsed_tile(
                 commands, meshes, materials, terrain_mats,
                 water_mats, images, inverse_bp, &parsed,
             );
             heightmap.insert_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data);
             adt_manager.loaded.insert(key, root);
+            let lod = parsed.lod;
+            adt_manager.tile_lod.insert(key, lod);
+            adt_manager.tile_doodad_entities.insert(key, doodad_entities);
             log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
         }
         TileLoadResult::Failed { tile_y, tile_x, error } => {
@@ -936,66 +575,144 @@ fn unload_distant_tiles(
         if let Some(root) = adt_manager.loaded.remove(&key) {
             commands.entity(root).despawn();
         }
+        adt_manager.tile_lod.remove(&key);
+        despawn_tile_doodad_entities(commands, adt_manager, key);
         heightmap.remove_tile(key.0, key.1);
         eprintln!("Unloaded ADT tile ({}, {})", key.0, key.1);
     }
 }
 
+/// Compute the LOD level for a tile based on Chebyshev distance from player.
+fn tile_lod_for_distance(ty: u32, tx: u32, center_y: u32, center_x: u32) -> DoodadLod {
+    let dy = ty.abs_diff(center_y);
+    let dx = tx.abs_diff(center_x);
+    let dist = dy.max(dx);
+    if dist > LOD1_TILE_DISTANCE { DoodadLod::Lod1 } else { DoodadLod::Full }
+}
+
 /// Dispatch background thread loads for tiles not yet loaded or pending.
-fn dispatch_tile_loads(adt_manager: &mut AdtManager, desired: &[(u32, u32)]) {
+fn dispatch_tile_loads(adt_manager: &mut AdtManager, desired: &[(u32, u32)], center_y: u32, center_x: u32) {
     for &(ty, tx) in desired {
-        if adt_manager.loaded.contains_key(&(ty, tx)) { continue; }
-        if adt_manager.failed.contains(&(ty, tx)) { continue; }
-        if adt_manager.pending.contains(&(ty, tx)) { continue; }
-
-        // Resolve path on main thread (needs listfile, which is global state)
-        let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
-            Ok(p) => p,
-            Err(e) => {
-                adt_manager.failed.insert((ty, tx));
-                eprintln!("Cannot load ADT tile ({ty}, {tx}): {e}");
-                continue;
-            }
-        };
-
-        adt_manager.pending.insert((ty, tx));
-        let tx_chan = adt_manager.tile_tx.clone();
-        std::thread::spawn(move || {
-            tx_chan.send(parse_tile_background(ty, tx, path)).ok();
-        });
+        dispatch_single_tile(adt_manager, ty, tx, center_y, center_x);
     }
-
-    // Also dispatch tiles explicitly requested by the server
     let requested: Vec<_> = adt_manager.server_requested.drain().collect();
     for (ty, tx) in requested {
-        if adt_manager.loaded.contains_key(&(ty, tx)) { continue; }
-        if adt_manager.failed.contains(&(ty, tx)) { continue; }
-        if adt_manager.pending.contains(&(ty, tx)) { continue; }
-
-        let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
-            Ok(p) => p,
-            Err(e) => {
-                adt_manager.failed.insert((ty, tx));
-                eprintln!("Cannot load ADT tile ({ty}, {tx}): {e}");
-                continue;
-            }
-        };
-
-        adt_manager.pending.insert((ty, tx));
-        let tx_chan = adt_manager.tile_tx.clone();
-        std::thread::spawn(move || {
-            tx_chan.send(parse_tile_background(ty, tx, path)).ok();
-        });
+        dispatch_single_tile(adt_manager, ty, tx, center_y, center_x);
     }
 }
 
+/// Dispatch a single tile load if not already loaded/pending/failed.
+fn dispatch_single_tile(adt_manager: &mut AdtManager, ty: u32, tx: u32, center_y: u32, center_x: u32) {
+    if adt_manager.loaded.contains_key(&(ty, tx)) { return; }
+    if adt_manager.failed.contains(&(ty, tx)) { return; }
+    if adt_manager.pending.contains(&(ty, tx)) { return; }
+
+    let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
+        Ok(p) => p,
+        Err(e) => {
+            adt_manager.failed.insert((ty, tx));
+            eprintln!("Cannot load ADT tile ({ty}, {tx}): {e}");
+            return;
+        }
+    };
+
+    let lod = tile_lod_for_distance(ty, tx, center_y, center_x);
+    adt_manager.pending.insert((ty, tx));
+    let tx_chan = adt_manager.tile_tx.clone();
+    std::thread::spawn(move || {
+        tx_chan.send(parse_tile_background(ty, tx, path, lod)).ok();
+    });
+}
+
 /// Parse an ADT tile and its companions on a background thread.
-fn parse_tile_background(tile_y: u32, tile_x: u32, adt_path: PathBuf) -> TileLoadResult {
+fn parse_tile_background(tile_y: u32, tile_x: u32, adt_path: PathBuf, lod: DoodadLod) -> TileLoadResult {
     let adt_data = match load_and_parse_adt(&adt_path) {
         Ok(d) => d,
         Err(e) => return TileLoadResult::Failed { tile_y, tile_x, error: e },
     };
     let tex_data = load_tex0(&adt_path);
-    let obj_data = load_obj0(&adt_path);
-    TileLoadResult::Success(ParsedTile { tile_y, tile_x, adt_path, adt_data, tex_data, obj_data })
+    let obj_data = load_obj_for_lod(&adt_path, lod);
+    TileLoadResult::Success(ParsedTile { tile_y, tile_x, adt_path, adt_data, tex_data, obj_data, lod })
+}
+
+/// Load the appropriate obj file based on LOD level.
+fn load_obj_for_lod(adt_path: &Path, lod: DoodadLod) -> Option<adt_obj::AdtObjData> {
+    match lod {
+        DoodadLod::Full => terrain_objects::load_obj0(adt_path),
+        DoodadLod::Lod1 => terrain_objects::load_obj1(adt_path),
+    }
+}
+
+/// Swap doodad LOD levels when player crosses distance thresholds.
+#[allow(clippy::too_many_arguments)]
+fn doodad_lod_swap_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut adt_manager: ResMut<AdtManager>,
+    player_q: Query<&Transform, With<crate::camera::Player>>,
+) {
+    if adt_manager.map_name.is_empty() { return; }
+    let Ok(player_tf) = player_q.single() else { return; };
+    let (cy, cx) = bevy_to_tile_coords(player_tf.translation.x, player_tf.translation.z);
+    let swaps = find_lod_swaps(&adt_manager, cy, cx);
+    for (key, new_lod) in swaps {
+        swap_tile_lod(&mut commands, &mut meshes, &mut materials, &mut images, &mut inverse_bp, &mut adt_manager, key, new_lod);
+    }
+}
+
+/// Find tiles whose LOD level needs changing.
+fn find_lod_swaps(adt_manager: &AdtManager, cy: u32, cx: u32) -> Vec<((u32, u32), DoodadLod)> {
+    adt_manager.tile_lod.iter()
+        .filter_map(|(&key, &current_lod)| {
+            let desired = tile_lod_for_distance(key.0, key.1, cy, cx);
+            if desired != current_lod { Some((key, desired)) } else { None }
+        })
+        .collect()
+}
+
+/// Swap a tile's doodads to a new LOD level.
+fn swap_tile_lod(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_manager: &mut AdtManager,
+    key: (u32, u32),
+    new_lod: DoodadLod,
+) {
+    let Ok(adt_path) = resolve_tile_path(&adt_manager.map_name, key.0, key.1) else { return };
+    despawn_tile_doodad_entities(commands, adt_manager, key);
+    let new_entities = spawn_lod_doodads(commands, meshes, materials, images, inverse_bp, &adt_path, new_lod);
+    adt_manager.tile_lod.insert(key, new_lod);
+    adt_manager.tile_doodad_entities.insert(key, new_entities);
+    eprintln!("LOD swap tile ({}, {}): {:?}", key.0, key.1, new_lod);
+}
+
+/// Despawn doodad/WMO entities for a tile (without removing LOD tracking).
+fn despawn_tile_doodad_entities(commands: &mut Commands, adt_manager: &mut AdtManager, key: (u32, u32)) {
+    if let Some(entities) = adt_manager.tile_doodad_entities.remove(&key) {
+        for e in entities {
+            commands.entity(e).despawn();
+        }
+    }
+}
+
+/// Load and spawn doodads/WMOs for a given LOD level.
+fn spawn_lod_doodads(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    adt_path: &Path,
+    lod: DoodadLod,
+) -> Vec<Entity> {
+    match load_obj_for_lod(adt_path, lod) {
+        Some(ref obj) => terrain_objects::spawn_obj_entities(commands, meshes, materials, images, inverse_bp, obj),
+        None => Vec::new(),
+    }
 }

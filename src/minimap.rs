@@ -7,7 +7,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::asset::adt::ChunkHeightGrid;
 use crate::game_state::GameState;
-use crate::terrain::TerrainHeightmap;
+use crate::terrain_heightmap::TerrainHeightmap;
 
 const MINIMAP_TILE_SIZE: u32 = 256;
 const MINIMAP_DISPLAY_SIZE: u32 = 200;
