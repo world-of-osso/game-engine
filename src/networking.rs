@@ -1,14 +1,18 @@
 use std::path::Path;
 use std::time::Duration;
 
-use bevy::prelude::*;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+use bevy::prelude::*;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
-use lightyear::prelude::*;
 use lightyear::prelude::client::*;
-use shared::components::{ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation, Zone};
-use shared::protocol::{ChatChannel, ChatMessage, CombatChannel, InputChannel, LoadTerrain, PlayerInput, SetTarget};
+use lightyear::prelude::*;
+use shared::components::{
+    ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation, Zone,
+};
 pub use shared::protocol::ChatType;
+use shared::protocol::{
+    ChatChannel, ChatMessage, CombatChannel, InputChannel, LoadTerrain, PlayerInput, SetTarget,
+};
 
 pub use crate::networking_auth::{
     AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername, SelectedCharacterId,
@@ -99,14 +103,24 @@ fn register_net_systems(app: &mut App) {
         OnEnter(crate::game_state::GameState::Connecting),
         connect_to_server,
     );
-    app.add_systems(Update, (
-        send_player_input, send_chat_message, receive_chat_messages,
-        send_target_to_server, track_player_zone, receive_load_terrain,
-        sync_replicated_transforms, interpolate_remote_entities,
-        auth::receive_login_response, auth::receive_create_character_response,
-        auth::receive_delete_character_response, auth::receive_enter_world_response,
-        auth::receive_register_response,
-    ));
+    app.add_systems(
+        Update,
+        (
+            send_player_input,
+            send_chat_message,
+            receive_chat_messages,
+            send_target_to_server,
+            track_player_zone,
+            receive_load_terrain,
+            sync_replicated_transforms,
+            interpolate_remote_entities,
+            auth::receive_login_response,
+            auth::receive_create_character_response,
+            auth::receive_delete_character_response,
+            auth::receive_enter_world_response,
+            auth::receive_register_response,
+        ),
+    );
 }
 
 fn register_net_observers(app: &mut App) {
@@ -163,8 +177,12 @@ fn on_connected(
 ) {
     info!("Connected to server!");
     crate::networking_auth::send_auth_request(
-        &auth_token, &username, &password, &login_mode,
-        &mut login_senders, &mut register_senders,
+        &auth_token,
+        &username,
+        &password,
+        &login_mode,
+        &mut login_senders,
+        &mut register_senders,
     );
 }
 
@@ -246,12 +264,20 @@ fn spawn_replicated_player(
     let (capsule, material) = build_player_capsule(&mut meshes, &mut materials, is_local);
     let mut ecmds = commands.entity(entity);
     ecmds.insert((
-        Mesh3d(capsule), MeshMaterial3d(material),
+        Mesh3d(capsule),
+        MeshMaterial3d(material),
         Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
-        RemoteEntity, InterpolationTarget { target: position }, RotationTarget { yaw },
+        RemoteEntity,
+        InterpolationTarget { target: position },
+        RotationTarget { yaw },
     ));
     if is_local {
-        ecmds.insert((LocalPlayer, Player, MovementState::default(), CharacterFacing::default()));
+        ecmds.insert((
+            LocalPlayer,
+            Player,
+            MovementState::default(),
+            CharacterFacing::default(),
+        ));
     }
 }
 
@@ -261,8 +287,15 @@ fn build_player_capsule(
     is_local: bool,
 ) -> (Handle<Mesh>, Handle<StandardMaterial>) {
     let capsule = meshes.add(Capsule3d::new(0.4, 1.6));
-    let color = if is_local { Color::srgb(0.2, 1.0, 0.3) } else { Color::srgb(0.2, 0.6, 1.0) };
-    let material = materials.add(StandardMaterial { base_color: color, ..default() });
+    let color = if is_local {
+        Color::srgb(0.2, 1.0, 0.3)
+    } else {
+        Color::srgb(0.2, 0.6, 1.0)
+    };
+    let material = materials.add(StandardMaterial {
+        base_color: color,
+        ..default()
+    });
     (capsule, material)
 }
 
@@ -281,7 +314,15 @@ fn spawn_replicated_npc(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    query: Query<(&NetPosition, &Npc, Option<&NetRotation>, Option<&ModelDisplay>), With<Replicated>>,
+    query: Query<
+        (
+            &NetPosition,
+            &Npc,
+            Option<&NetRotation>,
+            Option<&ModelDisplay>,
+        ),
+        With<Replicated>,
+    >,
     display_map: Option<Res<CreatureDisplayMap>>,
 ) {
     let entity = trigger.entity;
@@ -292,18 +333,29 @@ fn spawn_replicated_npc(
     let yaw = rotation.map_or(0.0, |r| r.y);
     let transform = Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw));
     commands.entity(entity).insert((
-        transform, Visibility::default(), RemoteEntity,
+        transform,
+        Visibility::default(),
+        RemoteEntity,
         InterpolationTarget { target: position },
         RotationTarget { yaw },
     ));
     let m2_loaded = try_spawn_npc_model(
-        &mut commands, &mut meshes, &mut materials, &mut images, &mut inv_bp,
-        entity, model_display, display_map.as_deref(),
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut images,
+        &mut inv_bp,
+        entity,
+        model_display,
+        display_map.as_deref(),
     );
     if !m2_loaded {
         spawn_npc_capsule(&mut commands, &mut meshes, &mut materials, entity);
     }
-    debug!("Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})", npc.template_id, pos.x, pos.y, pos.z);
+    debug!(
+        "Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})",
+        npc.template_id, pos.x, pos.y, pos.z
+    );
 }
 
 /// Try to resolve display_id → FDID → M2 file and attach meshes. Returns true on success.
@@ -318,14 +370,29 @@ fn try_spawn_npc_model(
     display_map: Option<&CreatureDisplayMap>,
 ) -> bool {
     let display_id = model_display.map(|md| md.display_id).unwrap_or(0);
-    if display_id == 0 { return false; }
+    if display_id == 0 {
+        return false;
+    }
     let fdid = display_map.and_then(|dm| dm.get_fdid(display_id));
     let Some(fdid) = fdid else { return false };
-    let skin_fdids = display_map.and_then(|dm| dm.get_skin_fdids(display_id)).unwrap_or([0, 0, 0]);
+    let skin_fdids = display_map
+        .and_then(|dm| dm.get_skin_fdids(display_id))
+        .unwrap_or([0, 0, 0]);
     let m2_path_str = format!("data/models/{fdid}.m2");
     let m2_path = Path::new(&m2_path_str);
-    if !m2_path.exists() { return false; }
-    crate::m2_spawn::spawn_m2_on_entity(commands, meshes, materials, images, inv_bp, m2_path, entity, &skin_fdids)
+    if !m2_path.exists() {
+        return false;
+    }
+    crate::m2_spawn::spawn_m2_on_entity(
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        m2_path,
+        entity,
+        &skin_fdids,
+    )
 }
 
 /// Attach a capsule mesh as fallback for NPCs without M2 models.
@@ -340,7 +407,9 @@ fn spawn_npc_capsule(
         base_color: Color::srgb(0.8, 0.3, 0.2),
         ..default()
     });
-    commands.entity(entity).insert((Mesh3d(capsule), MeshMaterial3d(material)));
+    commands
+        .entity(entity)
+        .insert((Mesh3d(capsule), MeshMaterial3d(material)));
 }
 
 /// Target rotation for smooth interpolation of remote entities.
@@ -352,8 +421,16 @@ struct RotationTarget {
 /// When server sends a new position/rotation, update interpolation targets.
 fn sync_replicated_transforms(
     mut query: Query<
-        (&NetPosition, &mut InterpolationTarget, Option<&NetRotation>, Option<&mut RotationTarget>),
-        (With<RemoteEntity>, Or<(Changed<NetPosition>, Changed<NetRotation>)>),
+        (
+            &NetPosition,
+            &mut InterpolationTarget,
+            Option<&NetRotation>,
+            Option<&mut RotationTarget>,
+        ),
+        (
+            With<RemoteEntity>,
+            Or<(Changed<NetPosition>, Changed<NetRotation>)>,
+        ),
     >,
 ) {
     for (pos, mut interp, rotation, rot_target) in query.iter_mut() {
@@ -367,7 +444,14 @@ fn sync_replicated_transforms(
 /// Smoothly lerp remote entity transforms toward their interpolation targets each frame.
 fn interpolate_remote_entities(
     time: Res<Time>,
-    mut query: Query<(&InterpolationTarget, Option<&RotationTarget>, &mut Transform), With<RemoteEntity>>,
+    mut query: Query<
+        (
+            &InterpolationTarget,
+            Option<&RotationTarget>,
+            &mut Transform,
+        ),
+        With<RemoteEntity>,
+    >,
 ) {
     let t = (INTERPOLATION_SPEED * time.delta_secs()).min(1.0);
     for (interp, rot_target, mut transform) in query.iter_mut() {
@@ -397,7 +481,9 @@ fn send_chat_message(
     mut chat_input: ResMut<ChatInput>,
     mut senders: Query<&mut MessageSender<ChatMessage>>,
 ) {
-    let Some(msg) = chat_input.0.take() else { return };
+    let Some(msg) = chat_input.0.take() else {
+        return;
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<ChatChannel>(msg.clone());
     }
@@ -410,7 +496,9 @@ fn receive_chat_messages(
 ) {
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
-            chat_log.messages.push((msg.sender, msg.content, msg.channel));
+            chat_log
+                .messages
+                .push((msg.sender, msg.content, msg.channel));
             if chat_log.messages.len() > MAX_CHAT_LOG {
                 chat_log.messages.remove(0);
             }
@@ -427,8 +515,10 @@ fn receive_load_terrain(
         for msg in receiver.receive() {
             let key = (msg.initial_tile_y, msg.initial_tile_x);
             if adt_manager.map_name.is_empty() {
-                info!("Server requested terrain: {} tile ({}, {})",
-                    msg.map_name, msg.initial_tile_y, msg.initial_tile_x);
+                info!(
+                    "Server requested terrain: {} tile ({}, {})",
+                    msg.map_name, msg.initial_tile_y, msg.initial_tile_x
+                );
                 adt_manager.map_name = msg.map_name;
                 adt_manager.initial_tile = key;
             } else if adt_manager.loaded.contains_key(&key)
@@ -437,8 +527,10 @@ fn receive_load_terrain(
             {
                 continue;
             } else {
-                debug!("Server requested additional tile ({}, {})",
-                    msg.initial_tile_y, msg.initial_tile_x);
+                debug!(
+                    "Server requested additional tile ({}, {})",
+                    msg.initial_tile_y, msg.initial_tile_x
+                );
                 adt_manager.server_requested.insert(key);
             }
         }
@@ -454,7 +546,9 @@ fn send_target_to_server(
         return;
     }
     let target_bits = current.0.map(|e| e.to_bits());
-    let msg = SetTarget { target_entity: target_bits };
+    let msg = SetTarget {
+        target_entity: target_bits,
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<CombatChannel>(msg.clone());
     }
@@ -590,8 +684,16 @@ mod tests {
         let entity = app
             .world_mut()
             .spawn((
-                NetPosition { x: 0.0, y: 0.0, z: 0.0 },
-                NetRotation { x: 0.0, y: 1.5, z: 0.0 },
+                NetPosition {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                NetRotation {
+                    x: 0.0,
+                    y: 1.5,
+                    z: 0.0,
+                },
                 InterpolationTarget { target: Vec3::ZERO },
                 RotationTarget { yaw: 0.0 },
                 RemoteEntity,
@@ -601,7 +703,11 @@ mod tests {
         app.update();
 
         let rot = app.world().get::<RotationTarget>(entity).unwrap();
-        assert!((rot.yaw - 1.5).abs() < 1e-6, "rotation target should be 1.5, got {}", rot.yaw);
+        assert!(
+            (rot.yaw - 1.5).abs() < 1e-6,
+            "rotation target should be 1.5, got {}",
+            rot.yaw
+        );
     }
 
     #[test]
@@ -613,7 +719,11 @@ mod tests {
         let entity = app
             .world_mut()
             .spawn((
-                NetPosition { x: 10.0, y: 20.0, z: 30.0 },
+                NetPosition {
+                    x: 10.0,
+                    y: 20.0,
+                    z: 30.0,
+                },
                 InterpolationTarget { target: Vec3::ZERO },
                 RemoteEntity,
             ))
@@ -634,7 +744,11 @@ mod tests {
         let entity = app
             .world_mut()
             .spawn((
-                NetPosition { x: 5.0, y: 6.0, z: 7.0 },
+                NetPosition {
+                    x: 5.0,
+                    y: 6.0,
+                    z: 7.0,
+                },
                 InterpolationTarget { target: Vec3::ZERO },
                 // no RemoteEntity marker
             ))
@@ -678,11 +792,8 @@ mod tests {
     fn chat_log_caps_at_max() {
         let mut log = ChatLog::default();
         for i in 0..101 {
-            log.messages.push((
-                format!("player{i}"),
-                format!("msg{i}"),
-                ChatType::Say,
-            ));
+            log.messages
+                .push((format!("player{i}"), format!("msg{i}"), ChatType::Say));
             if log.messages.len() > MAX_CHAT_LOG {
                 log.messages.remove(0);
             }

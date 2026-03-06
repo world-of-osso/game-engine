@@ -1,6 +1,4 @@
-use game_engine::mail::{
-    DeleteMail, ListMailQuery, MailState, ReadMail, SendMail,
-};
+use game_engine::mail::{DeleteMail, ListMailQuery, MailState, ReadMail, SendMail};
 
 #[test]
 fn send_mail_lists_it_for_the_recipient() {

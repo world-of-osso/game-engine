@@ -548,8 +548,7 @@ mod tests {
 
     #[test]
     fn mail_delete_command_maps_to_delete_request() {
-        let request =
-            mail_request(MailCmd::Delete { mail_id: 42 }).expect("valid delete command");
+        let request = mail_request(MailCmd::Delete { mail_id: 42 }).expect("valid delete command");
 
         assert_eq!(
             request,

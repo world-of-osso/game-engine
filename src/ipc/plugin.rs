@@ -11,12 +11,12 @@ use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
-    CharacterStatsSnapshot, CurrenciesStatusSnapshot, NetworkStatusSnapshot,
-    EquippedGearStatusSnapshot, GuildVaultStatusSnapshot, ReputationsStatusSnapshot,
+    CharacterStatsSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot,
+    GuildVaultStatusSnapshot, NetworkStatusSnapshot, ReputationsStatusSnapshot,
     SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
-use shared::protocol::AuctionInventorySnapshot;
 use crate::ui::plugin::UiState;
+use shared::protocol::AuctionInventorySnapshot;
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
 #[derive(Component)]
@@ -65,19 +65,10 @@ fn poll_ipc(
     ),
     connected_query: Query<(), With<Connected>>,
 ) {
-    let (
-        network_status,
-        terrain_status,
-        sound_status,
-        currencies_status,
-        reputations_status,
-    ) = primary_status_snapshots;
-    let (
-        character_stats,
-        guild_vault_status,
-        warbank_status,
-        equipped_gear_status,
-    ) = secondary_status_snapshots;
+    let (network_status, terrain_status, sound_status, currencies_status, reputations_status) =
+        primary_status_snapshots;
+    let (character_stats, guild_vault_status, warbank_status, equipped_gear_status) =
+        secondary_status_snapshots;
     while let Ok(cmd) = receiver.try_recv() {
         dispatch(
             cmd,
@@ -152,9 +143,10 @@ fn dispatch(
             let _ = cmd.respond.send(Response::Tree(tree));
         }
         Request::NetworkStatus => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_network_status(network_status, connected)));
+            let _ = cmd.respond.send(Response::Text(format_network_status(
+                network_status,
+                connected,
+            )));
         }
         Request::TerrainStatus => {
             let _ = cmd
@@ -172,41 +164,47 @@ fn dispatch(
                 .send(Response::Text(format_currencies_status(currencies_status)));
         }
         Request::ReputationsStatus => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_reputations_status(reputations_status)));
+            let _ = cmd.respond.send(Response::Text(format_reputations_status(
+                reputations_status,
+            )));
         }
         Request::CharacterStatsStatus => {
             let _ = cmd
                 .respond
-                .send(Response::Text(format_character_stats_status(character_stats)));
+                .send(Response::Text(format_character_stats_status(
+                    character_stats,
+                )));
         }
         Request::BagsStatus => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_bags_status(auction_house.inventory.as_ref())));
+            let _ = cmd.respond.send(Response::Text(format_bags_status(
+                auction_house.inventory.as_ref(),
+            )));
         }
         Request::GuildVaultStatus => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_storage_list("guild_vault", &guild_vault_status.entries)));
+            let _ = cmd.respond.send(Response::Text(format_storage_list(
+                "guild_vault",
+                &guild_vault_status.entries,
+            )));
         }
         Request::WarbankStatus => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_storage_list("warbank", &warbank_status.entries)));
+            let _ = cmd.respond.send(Response::Text(format_storage_list(
+                "warbank",
+                &warbank_status.entries,
+            )));
         }
         Request::EquippedGearStatus => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_equipped_gear_status(equipped_gear_status)));
+            let _ = cmd.respond.send(Response::Text(format_equipped_gear_status(
+                equipped_gear_status,
+            )));
         }
         Request::ItemInfo { query } => match lookup_item_info(query.item_id) {
             Ok(Some(item)) => {
-                let appearance_known = auction_house
-                    .inventory
-                    .as_ref()
-                    .is_some_and(|inventory| inventory.items.iter().any(|entry| entry.item_id == item.item_id));
+                let appearance_known = auction_house.inventory.as_ref().is_some_and(|inventory| {
+                    inventory
+                        .items
+                        .iter()
+                        .any(|entry| entry.item_id == item.item_id)
+                });
                 let _ = cmd
                     .respond
                     .send(Response::Text(format_item_info(&item, appearance_known)));
@@ -388,13 +386,15 @@ fn format_bags_status(snapshot: Option<&AuctionInventorySnapshot>) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("bags: {}\ngold: {}\n{}", snapshot.items.len(), snapshot.gold, lines)
+    format!(
+        "bags: {}\ngold: {}\n{}",
+        snapshot.items.len(),
+        snapshot.gold,
+        lines
+    )
 }
 
-fn format_storage_list(
-    title: &str,
-    entries: &[crate::status::StorageItemEntry],
-) -> String {
+fn format_storage_list(title: &str, entries: &[crate::status::StorageItemEntry]) -> String {
     if entries.is_empty() {
         return format!("{title}: 0\n-");
     }

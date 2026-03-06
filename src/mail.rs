@@ -75,7 +75,9 @@ impl Plugin for MailPlugin {
 
 impl MailState {
     pub fn send(&mut self, mail: SendMail) -> Result<MailDelivery, String> {
-        if mail.to.trim().is_empty() || mail.from.trim().is_empty() || mail.subject.trim().is_empty()
+        if mail.to.trim().is_empty()
+            || mail.from.trim().is_empty()
+            || mail.subject.trim().is_empty()
         {
             return Err("to, from, and subject are required".into());
         }

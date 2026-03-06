@@ -23,8 +23,8 @@ pub struct ItemStaticInfo {
 
 pub fn lookup_item_info(item_id: u32) -> Result<Option<ItemStaticInfo>, String> {
     let path = Path::new("/syncthing/Sync/Projects/wow/wow-ui-sim/data/items.rs");
-    let file = std::fs::File::open(path)
-        .map_err(|e| format!("failed to open {}: {e}", path.display()))?;
+    let file =
+        std::fs::File::open(path).map_err(|e| format!("failed to open {}: {e}", path.display()))?;
     let reader = std::io::BufReader::new(file);
     lookup_item_info_in_reader(reader, item_id)
 }

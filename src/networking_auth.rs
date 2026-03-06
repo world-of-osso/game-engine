@@ -38,7 +38,9 @@ pub enum LoginMode {
 const AUTH_TOKEN_PATH: &str = "data/auth_token";
 
 pub fn load_auth_token() -> Option<String> {
-    std::fs::read_to_string(AUTH_TOKEN_PATH).ok().filter(|s| !s.trim().is_empty())
+    std::fs::read_to_string(AUTH_TOKEN_PATH)
+        .ok()
+        .filter(|s| !s.trim().is_empty())
 }
 
 fn save_auth_token(token: &str) {
