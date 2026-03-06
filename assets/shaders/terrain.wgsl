@@ -141,20 +141,41 @@ fn hex_sample(idx: u32, uv: vec2<f32>) -> vec4<f32> {
 }
 
 // ── Height-based blend ──────────────────────────────────────────────────────
-// Uses the ground texture alpha channel as a height map to make layer
-// transitions less blobby. Rocks/roots poke through based on height.
-// Formula: effective_alpha = saturate(alpha + (height - 0.5) * strength)
+// WoW-style layer stacking still starts from alpha-painted order (base -> 1 -> 2 -> 3),
+// but we re-weight each layer by its texture height channel and normalize.
+// This keeps paint masks authoritative while letting rocky/high texels win locally.
 
-fn sample_height(idx: u32, uv: vec2<f32>) -> f32 {
-    // Read the alpha channel of the ground texture as height (0..1).
-    // Textures without height data have alpha=1.0 everywhere (from fix_1bit_alpha),
-    // so (1.0 - 0.5) * strength just shifts alpha up slightly — safe fallback.
-    let tiled_uv = uv * TILE_REPEAT;
-    return sample_ground(idx, tiled_uv).a;
+fn paint_weights(alpha: vec3<f32>, layer_count: u32) -> vec4<f32> {
+    var w0 = 1.0;
+    var w1 = 0.0;
+    var w2 = 0.0;
+    var w3 = 0.0;
+
+    if layer_count > 1u {
+        w0 = 1.0 - alpha.r;
+        w1 = alpha.r;
+    }
+    if layer_count > 2u {
+        let keep = 1.0 - alpha.g;
+        w0 = w0 * keep;
+        w1 = w1 * keep;
+        w2 = alpha.g;
+    }
+    if layer_count > 3u {
+        let keep = 1.0 - alpha.b;
+        w0 = w0 * keep;
+        w1 = w1 * keep;
+        w2 = w2 * keep;
+        w3 = alpha.b;
+    }
+
+    return vec4<f32>(w0, w1, w2, w3);
 }
 
-fn height_blend_alpha(base_alpha: f32, height: f32, strength: f32) -> f32 {
-    return saturate(base_alpha + (height - 0.5) * strength);
+fn height_weight(height: f32, strength: f32) -> f32 {
+    // strength=0 -> no height influence. Positive strength amplifies highs,
+    // de-emphasizes lows, while remaining stable for textures with flat alpha.
+    return exp2((height - 0.5) * max(strength, 0.0));
 }
 
 // ── Fragment entry ───────────────────────────────────────────────────────────
@@ -165,32 +186,32 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let layer_count = u32(config.x);
     let blend_strength = config.y;
 
-    // Base layer (full opacity, always present)
-    var color = hex_sample(0u, uv);
+    let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
+    let paint = paint_weights(alpha, layer_count);
 
-    // Blend upper layers using packed alpha map (R=layer1, G=layer2, B=layer3)
-    // When blend_strength > 0, height from texture alpha modulates transitions.
-    if layer_count > 1u {
-        let alpha = textureSample(alpha_packed, alpha_sampler, uv);
+    // Sample each potential layer once; alpha channel is used as height.
+    let c0 = hex_sample(0u, uv);
+    let c1 = hex_sample(1u, uv);
+    let c2 = hex_sample(2u, uv);
+    let c3 = hex_sample(3u, uv);
 
-        let c1 = hex_sample(1u, uv);
-        let h1 = sample_height(1u, uv);
-        let a1 = height_blend_alpha(alpha.r, h1, blend_strength);
-        color = mix(color, c1, a1);
-
-        if layer_count > 2u {
-            let c2 = hex_sample(2u, uv);
-            let h2 = sample_height(2u, uv);
-            let a2 = height_blend_alpha(alpha.g, h2, blend_strength);
-            color = mix(color, c2, a2);
-        }
-        if layer_count > 3u {
-            let c3 = hex_sample(3u, uv);
-            let h3 = sample_height(3u, uv);
-            let a3 = height_blend_alpha(alpha.b, h3, blend_strength);
-            color = mix(color, c3, a3);
-        }
+    var weights = vec4<f32>(
+        paint.x * height_weight(c0.a, blend_strength),
+        paint.y * height_weight(c1.a, blend_strength),
+        paint.z * height_weight(c2.a, blend_strength),
+        paint.w * height_weight(c3.a, blend_strength),
+    );
+    let wsum = weights.x + weights.y + weights.z + weights.w;
+    if wsum > 1e-6 {
+        weights = weights / wsum;
+    } else {
+        weights = paint;
     }
+
+    let color = vec4<f32>(
+        c0.rgb * weights.x + c1.rgb * weights.y + c2.rgb * weights.z + c3.rgb * weights.w,
+        1.0,
+    );
 
     // Basic Lambert lighting
     let n = normalize(in.world_normal);
