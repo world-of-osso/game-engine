@@ -119,7 +119,11 @@ fn read_midpoint(md20: &[u8], emitter: &[u8], off: usize) -> f32 {
 fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
     Ok(M2ParticleEmitter {
         flags: read_u32(em, 0x04)?,
-        position: [read_f32(em, 0x08)?, read_f32(em, 0x0C)?, read_f32(em, 0x10)?],
+        position: [
+            read_f32(em, 0x08)?,
+            read_f32(em, 0x0C)?,
+            read_f32(em, 0x10)?,
+        ],
         bone_index: read_u16(em, 0x14)?,
         texture_index: read_u16(em, 0x16)? & 0x1F,
         texture_fdid: None,

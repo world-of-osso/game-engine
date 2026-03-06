@@ -42,10 +42,26 @@ fn compute_skin_offsets(
     let sub_offset = indices_offset + (indices_len as u32) * 2;
     let batch_offset = sub_offset + (submesh_len as u32) * 48;
     let total = batch_offset + (batch_len as u32) * 24;
-    (lookup_offset, indices_offset, sub_offset, batch_offset, total)
+    (
+        lookup_offset,
+        indices_offset,
+        sub_offset,
+        batch_offset,
+        total,
+    )
 }
 
-fn write_skin_header(skin: &mut [u8], lookup_offset: u32, indices_offset: u32, sub_offset: u32, batch_offset: u32, lookup_len: usize, indices_len: usize, submesh_len: usize, batch_len: usize) {
+fn write_skin_header(
+    skin: &mut [u8],
+    lookup_offset: u32,
+    indices_offset: u32,
+    sub_offset: u32,
+    batch_offset: u32,
+    lookup_len: usize,
+    indices_len: usize,
+    submesh_len: usize,
+    batch_len: usize,
+) {
     skin[0..4].copy_from_slice(b"SKIN");
     skin[4..8].copy_from_slice(&(lookup_len as u32).to_le_bytes());
     skin[8..12].copy_from_slice(&lookup_offset.to_le_bytes());
@@ -57,7 +73,17 @@ fn write_skin_header(skin: &mut [u8], lookup_offset: u32, indices_offset: u32, s
     skin[40..44].copy_from_slice(&batch_offset.to_le_bytes());
 }
 
-fn write_skin_data(skin: &mut [u8], lookup: &[u16], indices: &[u16], submeshes: &[(u16, u16, u16, u16)], batches: &[(u16, u16)], lookup_offset: u32, indices_offset: u32, sub_offset: u32, batch_offset: u32) {
+fn write_skin_data(
+    skin: &mut [u8],
+    lookup: &[u16],
+    indices: &[u16],
+    submeshes: &[(u16, u16, u16, u16)],
+    batches: &[(u16, u16)],
+    lookup_offset: u32,
+    indices_offset: u32,
+    sub_offset: u32,
+    batch_offset: u32,
+) {
     let lookup_offset = lookup_offset as usize;
     let indices_offset = indices_offset as usize;
     let sub_offset = sub_offset as usize;
@@ -96,8 +122,28 @@ fn build_skin(
         compute_skin_offsets(lookup.len(), indices.len(), submeshes.len(), batches.len());
 
     let mut skin = vec![0u8; total as usize];
-    write_skin_header(&mut skin, lookup_offset, indices_offset, sub_offset, batch_offset, lookup.len(), indices.len(), submeshes.len(), batches.len());
-    write_skin_data(&mut skin, lookup, indices, submeshes, batches, lookup_offset, indices_offset, sub_offset, batch_offset);
+    write_skin_header(
+        &mut skin,
+        lookup_offset,
+        indices_offset,
+        sub_offset,
+        batch_offset,
+        lookup.len(),
+        indices.len(),
+        submeshes.len(),
+        batches.len(),
+    );
+    write_skin_data(
+        &mut skin,
+        lookup,
+        indices,
+        submeshes,
+        batches,
+        lookup_offset,
+        indices_offset,
+        sub_offset,
+        batch_offset,
+    );
 
     skin
 }
@@ -200,42 +246,73 @@ fn resolve_batch_texture_chain() {
     let txid = vec![100, 200];
 
     // Type 0 (hardcoded) → FDID from TXID
-    let unit0 = M2TextureUnit { submesh_index: 0, texture_id: 0, render_flags_index: 0 };
-    assert_eq!(resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]), Some(100));
+    let unit0 = M2TextureUnit {
+        submesh_index: 0,
+        texture_id: 0,
+        render_flags_index: 0,
+    };
+    assert_eq!(
+        resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]),
+        Some(100)
+    );
 
     // Type 1 (body skin) → default FDID (SD)
-    let unit1 = M2TextureUnit { submesh_index: 0, texture_id: 1, render_flags_index: 0 };
-    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]), Some(120191));
+    let unit1 = M2TextureUnit {
+        submesh_index: 0,
+        texture_id: 1,
+        render_flags_index: 0,
+    };
+    assert_eq!(
+        resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]),
+        Some(120191)
+    );
 
     // Type 1 (body skin) → default FDID (HD)
-    assert_eq!(resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, true, &[0, 0, 0]), Some(1027767));
+    assert_eq!(
+        resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, true, &[0, 0, 0]),
+        Some(1027767)
+    );
 
     // Unknown type → None (placeholder)
     let tex_types_unk = vec![0, 99];
-    let unit2 = M2TextureUnit { submesh_index: 0, texture_id: 1, render_flags_index: 0 };
-    assert_eq!(resolve_batch_texture(&unit2, &tex_lookup, &tex_types_unk, &txid, false, &[0, 0, 0]), None);
+    let unit2 = M2TextureUnit {
+        submesh_index: 0,
+        texture_id: 1,
+        render_flags_index: 0,
+    };
+    assert_eq!(
+        resolve_batch_texture(
+            &unit2,
+            &tex_lookup,
+            &tex_types_unk,
+            &txid,
+            false,
+            &[0, 0, 0]
+        ),
+        None
+    );
 }
 
 #[test]
 fn default_geoset_visibility() {
-    assert!(default_geoset_visible(0));     // base skin
-    assert!(default_geoset_visible(1));     // bald cap (closes top of head)
-    assert!(default_geoset_visible(5));     // hair style on top of bald cap
-    assert!(default_geoset_visible(102));   // facial hair group 1 variant 2
-    assert!(default_geoset_visible(202));   // facial hair group 2 variant 2
-    assert!(default_geoset_visible(302));   // facial hair group 3 variant 2
-    assert!(default_geoset_visible(401));   // bare wrists
-    assert!(default_geoset_visible(501));   // bare feet
-    assert!(default_geoset_visible(701));   // ears v1
-    assert!(default_geoset_visible(702));   // ears v2 (CharacterDefaultsGeosetModifier)
-    assert!(default_geoset_visible(1301));  // default trousers
-    assert!(default_geoset_visible(1801));  // default belt
+    assert!(default_geoset_visible(0)); // base skin
+    assert!(default_geoset_visible(1)); // bald cap (closes top of head)
+    assert!(default_geoset_visible(5)); // hair style on top of bald cap
+    assert!(default_geoset_visible(102)); // facial hair group 1 variant 2
+    assert!(default_geoset_visible(202)); // facial hair group 2 variant 2
+    assert!(default_geoset_visible(302)); // facial hair group 3 variant 2
+    assert!(default_geoset_visible(401)); // bare wrists
+    assert!(default_geoset_visible(501)); // bare feet
+    assert!(default_geoset_visible(701)); // ears v1
+    assert!(default_geoset_visible(702)); // ears v2 (CharacterDefaultsGeosetModifier)
+    assert!(default_geoset_visible(1301)); // default trousers
+    assert!(default_geoset_visible(1801)); // default belt
 
-    assert!(!default_geoset_visible(2));    // hair variant 2
-    assert!(!default_geoset_visible(101));  // facial hair group 1 variant 1 (bare)
-    assert!(!default_geoset_visible(402));  // glove style 2
-    assert!(!default_geoset_visible(802));  // shirt sleeves (not default visible)
-    assert!(!default_geoset_visible(902));  // leggings (not default visible)
+    assert!(!default_geoset_visible(2)); // hair variant 2
+    assert!(!default_geoset_visible(101)); // facial hair group 1 variant 1 (bare)
+    assert!(!default_geoset_visible(402)); // glove style 2
+    assert!(!default_geoset_visible(802)); // shirt sleeves (not default visible)
+    assert!(!default_geoset_visible(902)); // leggings (not default visible)
     assert!(!default_geoset_visible(1502)); // cape style 2
     assert!(!default_geoset_visible(1703)); // eyeglow
 }
@@ -265,39 +342,43 @@ fn debug_blp_dimensions() {
     }
 }
 
-
 #[test]
 fn debug_humanmale_skin_submeshes() {
     // Load humanmale00.skin and print submesh mesh_part_id values
     let skin_path = "data/models/humanmale00.skin";
     match std::fs::read(skin_path) {
-        Ok(data) => {
-            match parse_skin_full(&data) {
-                Ok(skin) => {
-                    println!("\n=== humanmale00.skin Submeshes ===");
-                    for (i, submesh) in skin.submeshes.iter().enumerate() {
-                        println!("sub[{}]: mesh_part_id={}, vertex_start={}, vertex_count={}, tri_start={}, tri_count={}",
-                            i,
-                            submesh.mesh_part_id,
-                            submesh.vertex_start,
-                            submesh.vertex_count,
-                            submesh.triangle_start,
-                            submesh.triangle_count,
-                        );
-                    }
-                    println!("\n=== humanmale00.skin Batches ===");
-                    for (i, batch) in skin.batches.iter().enumerate() {
-                        println!("batch[{}]: submesh_index={}, texture_id={}", i, batch.submesh_index, batch.texture_id);
-                    }
-                    println!("=== Total: {} submeshes, {} batches ===\n", skin.submeshes.len(), skin.batches.len());
-                },
-                Err(e) => println!("Failed to parse skin: {}", e),
+        Ok(data) => match parse_skin_full(&data) {
+            Ok(skin) => {
+                println!("\n=== humanmale00.skin Submeshes ===");
+                for (i, submesh) in skin.submeshes.iter().enumerate() {
+                    println!(
+                        "sub[{}]: mesh_part_id={}, vertex_start={}, vertex_count={}, tri_start={}, tri_count={}",
+                        i,
+                        submesh.mesh_part_id,
+                        submesh.vertex_start,
+                        submesh.vertex_count,
+                        submesh.triangle_start,
+                        submesh.triangle_count,
+                    );
+                }
+                println!("\n=== humanmale00.skin Batches ===");
+                for (i, batch) in skin.batches.iter().enumerate() {
+                    println!(
+                        "batch[{}]: submesh_index={}, texture_id={}",
+                        i, batch.submesh_index, batch.texture_id
+                    );
+                }
+                println!(
+                    "=== Total: {} submeshes, {} batches ===\n",
+                    skin.submeshes.len(),
+                    skin.batches.len()
+                );
             }
-        }
+            Err(e) => println!("Failed to parse skin: {}", e),
+        },
         Err(e) => println!("Failed to read {}: {}", skin_path, e),
     }
 }
-
 
 #[test]
 fn parse_vertices_has_bone_data() {
@@ -351,10 +432,14 @@ fn mesh_has_joint_attributes() {
     let mesh = build_mesh(&verts, indices);
 
     // Verify joint attributes are present
-    assert!(mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX).is_some(),
-        "Mesh should have JOINT_INDEX attribute");
-    assert!(mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT).is_some(),
-        "Mesh should have JOINT_WEIGHT attribute");
+    assert!(
+        mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX).is_some(),
+        "Mesh should have JOINT_INDEX attribute"
+    );
+    assert!(
+        mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT).is_some(),
+        "Mesh should have JOINT_WEIGHT attribute"
+    );
 }
 
 fn extract_md21_chunk(data: &[u8]) -> Option<&[u8]> {
@@ -438,7 +523,11 @@ fn debug_single_model(path: &str, label: &str) {
         }
     };
 
-    println!("\nTotal MD20 length: {} bytes (0x{:x})", md20.len(), md20.len());
+    println!(
+        "\nTotal MD20 length: {} bytes (0x{:x})",
+        md20.len(),
+        md20.len()
+    );
     print_hex_dump(md20);
     print_md20_fields(md20);
 
@@ -488,8 +577,14 @@ fn print_bone_check_summary(skel_bone_count: u32, max_bone_index: u8, vert_count
     println!("  Total vertices: {}", vert_count);
     println!("  .skel SKB1 bone count:  {}", skel_bone_count);
     println!("  Max bone_index used:    {}", max_bone_index);
-    println!("  Safe? {} (max_bone_index < bone_count)",
-        if (max_bone_index as u32) < skel_bone_count { "YES" } else { "NO" });
+    println!(
+        "  Safe? {} (max_bone_index < bone_count)",
+        if (max_bone_index as u32) < skel_bone_count {
+            "YES"
+        } else {
+            "NO"
+        }
+    );
     println!("============================================================\n");
 }
 
@@ -504,12 +599,21 @@ fn debug_hd_skel_info() {
 
     let skel_data = match std::fs::read(skel_path) {
         Ok(d) => d,
-        Err(e) => { println!("FAILED to read {}: {}", skel_path, e); return; }
+        Err(e) => {
+            println!("FAILED to read {}: {}", skel_path, e);
+            return;
+        }
     };
 
     let skel_bone_count = match extract_skb1_bone_count(&skel_data) {
-        Some(count) => { println!("SKB1 chunk bone count: {}", count); count },
-        None => { println!("ERROR: Could not find SKB1 chunk or read bone count"); return; }
+        Some(count) => {
+            println!("SKB1 chunk bone count: {}", count);
+            count
+        }
+        None => {
+            println!("ERROR: Could not find SKB1 chunk or read bone count");
+            return;
+        }
     };
 
     println!("\n============================================================");
@@ -518,17 +622,26 @@ fn debug_hd_skel_info() {
 
     let m2_data = match std::fs::read(m2_path) {
         Ok(d) => d,
-        Err(e) => { println!("FAILED to read {}: {}", m2_path, e); return; }
+        Err(e) => {
+            println!("FAILED to read {}: {}", m2_path, e);
+            return;
+        }
     };
 
     let md20 = match extract_md21_chunk(&m2_data) {
         Some(m) => m,
-        None => { println!("ERROR: Could not find MD21 chunk"); return; }
+        None => {
+            println!("ERROR: Could not find MD21 chunk");
+            return;
+        }
     };
 
     let verts = match parse_vertices(md20) {
         Ok(v) => v,
-        Err(e) => { println!("ERROR parsing vertices: {}", e); return; }
+        Err(e) => {
+            println!("ERROR parsing vertices: {}", e);
+            return;
+        }
     };
 
     let max_bone_index = find_max_bone_index(&verts);
@@ -537,7 +650,6 @@ fn debug_hd_skel_info() {
 
     print_bone_check_summary(skel_bone_count, max_bone_index, verts.len());
 }
-
 
 fn count_bones_with_stand_keyframes(model: &super::M2Model) -> usize {
     let stand_idx = model.sequences.iter().position(|s| s.id == 0).unwrap();
@@ -557,7 +669,6 @@ fn count_bones_with_stand_keyframes(model: &super::M2Model) -> usize {
         .count()
 }
 
-
 #[test]
 fn load_m2_hd_has_skel_animation_data() {
     let m2_path = std::path::Path::new("data/models/humanmale_hd.m2");
@@ -567,18 +678,39 @@ fn load_m2_hd_has_skel_animation_data() {
     }
     let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load humanmale_hd.m2");
 
-    assert!(!model.bones.is_empty(), "HD model should have bones from .skel (got 0)");
-    assert!(!model.sequences.is_empty(), "HD model should have sequences from .skel (got 0)");
-    assert!(!model.bone_tracks.is_empty(), "HD model should have bone_tracks from .skel (got 0)");
-    assert_eq!(model.bones.len(), model.bone_tracks.len(), "Bone count should match bone_tracks");
-    assert!(model.sequences.iter().any(|s| s.id == 0), "HD model should have Stand (id=0)");
+    assert!(
+        !model.bones.is_empty(),
+        "HD model should have bones from .skel (got 0)"
+    );
+    assert!(
+        !model.sequences.is_empty(),
+        "HD model should have sequences from .skel (got 0)"
+    );
+    assert!(
+        !model.bone_tracks.is_empty(),
+        "HD model should have bone_tracks from .skel (got 0)"
+    );
+    assert_eq!(
+        model.bones.len(),
+        model.bone_tracks.len(),
+        "Bone count should match bone_tracks"
+    );
+    assert!(
+        model.sequences.iter().any(|s| s.id == 0),
+        "HD model should have Stand (id=0)"
+    );
 
     let bones_with_data = count_bones_with_stand_keyframes(&model);
-    assert!(bones_with_data > 0, "At least some bones should have Stand keyframes in .skel");
+    assert!(
+        bones_with_data > 0,
+        "At least some bones should have Stand keyframes in .skel"
+    );
 
     println!(
         "humanmale_hd via .skel: {} bones, {} sequences, {}/{} bones with Stand keyframes",
-        model.bones.len(), model.sequences.len(), bones_with_data, model.bone_tracks.len()
+        model.bones.len(),
+        model.sequences.len(),
+        bones_with_data,
+        model.bone_tracks.len()
     );
 }
-

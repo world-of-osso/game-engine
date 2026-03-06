@@ -21,7 +21,10 @@ pub struct WowCameraPlugin;
 
 impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (camera_input, cursor_grab, player_movement, camera_follow).chain());
+        app.add_systems(
+            Update,
+            (camera_input, cursor_grab, player_movement, camera_follow).chain(),
+        );
     }
 }
 
@@ -132,7 +135,11 @@ fn apply_keyboard_camera(
 ) {
     // Arrow keys: rotate camera + character facing (like RMB drag)
     if keys.pressed(KeyCode::ArrowLeft) || keys.pressed(KeyCode::ArrowRight) {
-        let sign = if keys.pressed(KeyCode::ArrowLeft) { 1.0 } else { -1.0 };
+        let sign = if keys.pressed(KeyCode::ArrowLeft) {
+            1.0
+        } else {
+            -1.0
+        };
         let yaw_delta = sign * KEY_ROTATE_SPEED * dt;
         cam.yaw += yaw_delta;
         if let Ok(mut facing) = facing_q.single_mut() {
@@ -140,12 +147,20 @@ fn apply_keyboard_camera(
         }
     }
     if keys.pressed(KeyCode::ArrowUp) || keys.pressed(KeyCode::ArrowDown) {
-        let sign = if keys.pressed(KeyCode::ArrowUp) { 1.0 } else { -1.0 };
+        let sign = if keys.pressed(KeyCode::ArrowUp) {
+            1.0
+        } else {
+            -1.0
+        };
         cam.pitch = (cam.pitch + sign * KEY_ROTATE_SPEED * dt).clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
     // Page Up/Down: zoom in/out
     if keys.pressed(KeyCode::PageUp) || keys.pressed(KeyCode::PageDown) {
-        let sign = if keys.pressed(KeyCode::PageUp) { -1.0 } else { 1.0 };
+        let sign = if keys.pressed(KeyCode::PageUp) {
+            -1.0
+        } else {
+            1.0
+        };
         cam.target_distance = (cam.target_distance + sign * KEY_ZOOM_SPEED * dt)
             .clamp(cam.min_distance, cam.max_distance);
     }
@@ -189,7 +204,9 @@ fn camera_input(
 
     if mouse_scroll.delta.y != 0.0 {
         cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;
-        cam.target_distance = cam.target_distance.clamp(cam.min_distance, cam.max_distance);
+        cam.target_distance = cam
+            .target_distance
+            .clamp(cam.min_distance, cam.max_distance);
     }
 }
 
@@ -203,10 +220,18 @@ fn compute_movement_input(
     let right = Vec3::new(-forward.z, 0.0, forward.x);
 
     let mut direction = Vec3::ZERO;
-    if keys.pressed(KeyCode::KeyW) { direction += forward; }
-    if keys.pressed(KeyCode::KeyS) { direction -= forward; }
-    if keys.pressed(KeyCode::KeyA) { direction -= right; }
-    if keys.pressed(KeyCode::KeyD) { direction += right; }
+    if keys.pressed(KeyCode::KeyW) {
+        direction += forward;
+    }
+    if keys.pressed(KeyCode::KeyS) {
+        direction -= forward;
+    }
+    if keys.pressed(KeyCode::KeyA) {
+        direction -= right;
+    }
+    if keys.pressed(KeyCode::KeyD) {
+        direction += right;
+    }
     if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
         direction += forward;
     }
@@ -229,7 +254,12 @@ fn compute_movement_input(
 }
 
 /// Update jump arc height or land when duration expires.
-fn update_jump_arc(movement: &mut MovementState, transform: &mut Transform, dt: f32, ground_y: f32) {
+fn update_jump_arc(
+    movement: &mut MovementState,
+    transform: &mut Transform,
+    dt: f32,
+    ground_y: f32,
+) {
     movement.jump_elapsed += dt;
     if movement.jump_elapsed >= JUMP_DURATION {
         transform.translation.y = ground_y;
@@ -245,10 +275,7 @@ fn player_movement(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     terrain: Option<Res<TerrainHeightmap>>,
-    mut player_q: Query<
-        (&mut Transform, &mut MovementState, &CharacterFacing),
-        With<Player>,
-    >,
+    mut player_q: Query<(&mut Transform, &mut MovementState, &CharacterFacing), With<Player>>,
 ) {
     let Ok((mut transform, mut movement, facing)) = player_q.single_mut() else {
         return;
@@ -266,7 +293,11 @@ fn player_movement(
         movement.jump_elapsed = 0.0;
     }
 
-    let speed = if movement.running { RUN_SPEED } else { WALK_SPEED };
+    let speed = if movement.running {
+        RUN_SPEED
+    } else {
+        WALK_SPEED
+    };
     if direction.length_squared() > 0.0 {
         let dir = direction.normalize();
         transform.translation += dir * speed * time.delta_secs();
@@ -290,8 +321,11 @@ fn cursor_grab(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut cursor_q: Query<&mut bevy::window::CursorOptions>,
 ) {
-    let Ok(mut cursor) = cursor_q.single_mut() else { return };
-    let held = mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
+    let Ok(mut cursor) = cursor_q.single_mut() else {
+        return;
+    };
+    let held =
+        mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
     if held {
         cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
         cursor.visible = false;
@@ -363,7 +397,10 @@ fn camera_follow(
         } else if cam.collided {
             // Collision cleared — lerp back out smoothly
             let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
-            let recovered = cam_tf.translation.distance(eye_target).lerp(cam.distance, recovery_t);
+            let recovered = cam_tf
+                .translation
+                .distance(eye_target)
+                .lerp(cam.distance, recovery_t);
             if (recovered - cam.distance).abs() < 0.05 {
                 cam.collided = false;
             }
@@ -406,7 +443,11 @@ mod tests {
         // Should move toward target but not reach it in one frame
         assert!(result.x > current.x, "should move toward target");
         assert!(result.x < target.x, "should not reach target in one frame");
-        assert!((result.x - 1.6).abs() < 0.1, "expected ~1.6, got {}", result.x);
+        assert!(
+            (result.x - 1.6).abs() < 0.1,
+            "expected ~1.6, got {}",
+            result.x
+        );
     }
 
     #[test]
@@ -426,7 +467,11 @@ mod tests {
         assert!(distance < 15.0, "distance should decrease toward target");
         assert!(distance > 5.0, "should not reach target in 10 frames");
         // After 10 frames at 8.0 speed, should be noticeably closer
-        assert!(distance < 10.0, "expected significant progress, got {}", distance);
+        assert!(
+            distance < 10.0,
+            "expected significant progress, got {}",
+            distance
+        );
     }
 
     #[test]
@@ -435,7 +480,11 @@ mod tests {
         let intended = 15.0;
         let hit = Some(8.0);
         let result = collision_adjusted_distance(intended, hit);
-        assert!((result - 7.7).abs() < 0.01, "expected 8.0 - 0.3 = 7.7, got {}", result);
+        assert!(
+            (result - 7.7).abs() < 0.01,
+            "expected 8.0 - 0.3 = 7.7, got {}",
+            result
+        );
 
         // No hit -> keep intended
         let result_no_hit = collision_adjusted_distance(intended, None);
@@ -447,7 +496,11 @@ mod tests {
 
         // Very close hit -> clamp to minimum 0.5
         let result_close = collision_adjusted_distance(15.0, Some(0.2));
-        assert!((result_close - 0.5).abs() < 0.01, "should clamp to 0.5, got {}", result_close);
+        assert!(
+            (result_close - 0.5).abs() < 0.01,
+            "should clamp to 0.5, got {}",
+            result_close
+        );
     }
 
     #[test]

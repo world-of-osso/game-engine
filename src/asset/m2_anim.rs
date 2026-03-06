@@ -131,15 +131,19 @@ pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
 pub struct M2AnimSequence {
     pub id: u16,
     pub variation_id: u16,
-    pub duration: u32,  // milliseconds
+    pub duration: u32, // milliseconds
     pub movespeed: f32,
     pub flags: u32,
-    pub blend_time: u16,      // milliseconds, for transitions
-    pub next_animation: i16,  // -1 = none, else index into sequences
+    pub blend_time: u16,     // milliseconds, for transitions
+    pub next_animation: i16, // -1 = none, else index into sequences
 }
 
 /// Parse `count` sequence entries starting at `offset` in `data`.
-pub fn parse_sequences_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2AnimSequence>, String> {
+pub fn parse_sequences_at(
+    data: &[u8],
+    offset: usize,
+    count: usize,
+) -> Result<Vec<M2AnimSequence>, String> {
     const SEQ_SIZE: usize = 64;
     let mut sequences = Vec::with_capacity(count);
     for i in 0..count {
@@ -180,7 +184,11 @@ pub fn parse_sequences(md20: &[u8]) -> Result<Vec<M2AnimSequence>, String> {
 }
 
 /// Parse `count` global sequence durations starting at `offset` in `data`.
-pub fn parse_global_sequences_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<u32>, String> {
+pub fn parse_global_sequences_at(
+    data: &[u8],
+    offset: usize,
+    count: usize,
+) -> Result<Vec<u32>, String> {
     let mut durations = Vec::with_capacity(count);
     for i in 0..count {
         durations.push(read_u32(data, offset + i * 4)?);
@@ -218,7 +226,11 @@ pub struct BoneAnimTracks {
 }
 
 fn parse_vec3(md20: &[u8], off: usize) -> Result<[f32; 3], String> {
-    Ok([read_f32(md20, off)?, read_f32(md20, off + 4)?, read_f32(md20, off + 8)?])
+    Ok([
+        read_f32(md20, off)?,
+        read_f32(md20, off + 4)?,
+        read_f32(md20, off + 8)?,
+    ])
 }
 
 fn parse_quat_packed(md20: &[u8], off: usize) -> Result<[i16; 4], String> {
@@ -257,7 +269,8 @@ fn parse_anim_track<T: Copy>(
     let mut sequences = Vec::with_capacity(count);
     for i in 0..count {
         let timestamps = read_inner_u32_array(md20, ts_outer_offset + i * 8)?;
-        let values = read_inner_value_array(md20, keys_outer_offset + i * 8, value_size, &parse_value)?;
+        let values =
+            read_inner_value_array(md20, keys_outer_offset + i * 8, value_size, &parse_value)?;
         sequences.push((timestamps, values));
     }
 
@@ -294,7 +307,11 @@ fn read_inner_value_array<T: Copy>(
 }
 
 /// Parse animation tracks for `count` bones starting at `offset` in `data`.
-pub fn parse_bone_animations_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<BoneAnimTracks>, String> {
+pub fn parse_bone_animations_at(
+    data: &[u8],
+    offset: usize,
+    count: usize,
+) -> Result<Vec<BoneAnimTracks>, String> {
     const BONE_SIZE: usize = 88;
     let mut tracks = Vec::with_capacity(count);
     for i in 0..count {
@@ -305,7 +322,11 @@ pub fn parse_bone_animations_at(data: &[u8], offset: usize, count: usize) -> Res
         let translation = parse_anim_track(data, base + 0x10, 12, parse_vec3)?;
         let rotation = parse_anim_track(data, base + 0x24, 8, parse_quat_packed)?;
         let scale = parse_anim_track(data, base + 0x38, 12, parse_vec3)?;
-        tracks.push(BoneAnimTracks { translation, rotation, scale });
+        tracks.push(BoneAnimTracks {
+            translation,
+            rotation,
+            scale,
+        });
     }
     Ok(tracks)
 }
@@ -437,7 +458,12 @@ fn slerp(a: &[f32; 4], b: &[f32; 4], t: f32) -> [f32; 4] {
             + result[2] * result[2]
             + result[3] * result[3])
             .sqrt();
-        return [result[0] / len, result[1] / len, result[2] / len, result[3] / len];
+        return [
+            result[0] / len,
+            result[1] / len,
+            result[2] / len,
+            result[3] / len,
+        ];
     }
 
     let theta = dot.acos();
@@ -461,8 +487,7 @@ mod tests {
     fn extract_md20(data: &[u8]) -> &[u8] {
         let mut off = 0;
         while off + 8 <= data.len() {
-            let size =
-                u32::from_le_bytes(data[off + 4..off + 8].try_into().unwrap()) as usize;
+            let size = u32::from_le_bytes(data[off + 4..off + 8].try_into().unwrap()) as usize;
             if &data[off..off + 4] == b"MD21" {
                 return &data[off + 8..off + 8 + size];
             }
@@ -512,9 +537,7 @@ mod tests {
 
     #[test]
     fn parse_single_root_bone() {
-        let md20 = md20_with_bones(&[
-            (-1, 0, -1, 0, [1.0, 2.0, 3.0]),
-        ]);
+        let md20 = md20_with_bones(&[(-1, 0, -1, 0, [1.0, 2.0, 3.0])]);
         let bones = parse_bones(&md20).unwrap();
         assert_eq!(bones.len(), 1);
         assert_eq!(bones[0].parent_bone_id, -1);
@@ -524,9 +547,9 @@ mod tests {
     #[test]
     fn parse_bone_hierarchy() {
         let md20 = md20_with_bones(&[
-            (0, 0, -1, 0, [0.0, 0.0, 0.0]),  // root
-            (1, 0, 0, 0, [1.0, 0.0, 0.0]),    // child of root
-            (2, 0, 1, 0, [2.0, 0.0, 0.0]),    // child of bone 1
+            (0, 0, -1, 0, [0.0, 0.0, 0.0]), // root
+            (1, 0, 0, 0, [1.0, 0.0, 0.0]),  // child of root
+            (2, 0, 1, 0, [2.0, 0.0, 0.0]),  // child of bone 1
         ]);
         let bones = parse_bones(&md20).unwrap();
         assert_eq!(bones.len(), 3);
@@ -539,7 +562,7 @@ mod tests {
     #[test]
     fn validate_detects_invalid_parent() {
         let md20 = md20_with_bones(&[
-            (0, 0, 5, 0, [0.0, 0.0, 0.0]),  // parent=5, but only 1 bone
+            (0, 0, 5, 0, [0.0, 0.0, 0.0]), // parent=5, but only 1 bone
         ]);
         let bones = parse_bones(&md20).unwrap();
         assert!(validate_bone_hierarchy(&bones).is_err());
@@ -550,7 +573,10 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
@@ -558,7 +584,10 @@ mod tests {
         assert!(!bones.is_empty(), "humanmale should have bones, got 0");
         println!("humanmale: {} bones", bones.len());
         assert!(validate_bone_hierarchy(&bones).is_ok());
-        assert!(bones.iter().any(|b| b.parent_bone_id == -1), "Should have at least one root bone");
+        assert!(
+            bones.iter().any(|b| b.parent_bone_id == -1),
+            "Should have at least one root bone"
+        );
     }
 
     #[test]
@@ -566,7 +595,10 @@ mod tests {
         let m2_path = "data/models/humanmale_hd.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
@@ -581,12 +613,19 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let sequences = parse_sequences(md20).unwrap();
 
-        assert!(sequences.len() >= 100, "Expected 100+ sequences, got {}", sequences.len());
+        assert!(
+            sequences.len() >= 100,
+            "Expected 100+ sequences, got {}",
+            sequences.len()
+        );
 
         let stand = sequences.iter().find(|s| s.id == 0);
         assert!(stand.is_some(), "Stand animation (id=0) not found");
@@ -602,7 +641,10 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let global_seqs = parse_global_sequences(md20).unwrap();
@@ -617,29 +659,56 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
         let tracks = parse_bone_animations(md20).unwrap();
 
-        assert_eq!(tracks.len(), bones.len(), "Should have one track set per bone");
+        assert_eq!(
+            tracks.len(),
+            bones.len(),
+            "Should have one track set per bone"
+        );
 
         // Find the Stand animation index (id=0)
         let sequences = parse_sequences(md20).unwrap();
-        let stand_idx = sequences.iter().position(|s| s.id == 0).expect("Stand not found");
+        let stand_idx = sequences
+            .iter()
+            .position(|s| s.id == 0)
+            .expect("Stand not found");
 
         // At least some bones should have keyframes for Stand
-        let bones_with_stand_keyframes = tracks.iter()
+        let bones_with_stand_keyframes = tracks
+            .iter()
             .filter(|t| {
-                t.translation.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
-                || t.rotation.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
-                || t.scale.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
+                t.translation
+                    .sequences
+                    .get(stand_idx)
+                    .map_or(false, |(ts, _)| !ts.is_empty())
+                    || t.rotation
+                        .sequences
+                        .get(stand_idx)
+                        .map_or(false, |(ts, _)| !ts.is_empty())
+                    || t.scale
+                        .sequences
+                        .get(stand_idx)
+                        .map_or(false, |(ts, _)| !ts.is_empty())
             })
             .count();
 
-        println!("humanmale: {}/{} bones have Stand keyframes", bones_with_stand_keyframes, bones.len());
-        assert!(bones_with_stand_keyframes > 0, "At least some bones should have Stand animation data");
+        println!(
+            "humanmale: {}/{} bones have Stand keyframes",
+            bones_with_stand_keyframes,
+            bones.len()
+        );
+        assert!(
+            bones_with_stand_keyframes > 0,
+            "At least some bones should have Stand animation data"
+        );
     }
 
     #[test]
@@ -686,13 +755,25 @@ mod tests {
     #[test]
     fn rotation_unpack_identity() {
         // raw=-1 (negative path): (-1 + 32768) / 32767 = 32767/32767 = 1.0
-        assert!((unpack_quat_component(-1) - 1.0).abs() < 0.001, "raw=-1 should give ~1.0");
+        assert!(
+            (unpack_quat_component(-1) - 1.0).abs() < 0.001,
+            "raw=-1 should give ~1.0"
+        );
         // raw=0 (non-negative path): (0 - 32767) / 32767 = -1.0
-        assert!((unpack_quat_component(0) - (-1.0)).abs() < 0.001, "raw=0 should give ~-1.0");
+        assert!(
+            (unpack_quat_component(0) - (-1.0)).abs() < 0.001,
+            "raw=0 should give ~-1.0"
+        );
         // raw=-32768 (negative path): (-32768 + 32768) / 32767 = 0.0
-        assert!((unpack_quat_component(-32768) - 0.0).abs() < 0.001, "raw=-32768 should give ~0.0");
+        assert!(
+            (unpack_quat_component(-32768) - 0.0).abs() < 0.001,
+            "raw=-32768 should give ~0.0"
+        );
         // raw=32767 (non-negative path): (32767 - 32767) / 32767 = 0.0
-        assert!((unpack_quat_component(32767) - 0.0).abs() < 0.001, "raw=32767 should give 0.0");
+        assert!(
+            (unpack_quat_component(32767) - 0.0).abs() < 0.001,
+            "raw=32767 should give 0.0"
+        );
     }
 
     #[test]

@@ -1,9 +1,8 @@
-use bevy::prelude::*;
 use super::asset::m2_anim::{
-    BoneAnimTracks, M2AnimSequence,
-    evaluate_vec3_track, evaluate_rotation_track,
+    BoneAnimTracks, M2AnimSequence, evaluate_rotation_track, evaluate_vec3_track,
 };
 use super::camera::{MoveDirection, MovementState};
+use bevy::prelude::*;
 
 /// Marker component for bone entities, storing their pivot in Bevy coordinates.
 #[derive(Component)]
@@ -43,14 +42,20 @@ const ANIM_SHUFFLE_LEFT: u16 = 11;
 const ANIM_SHUFFLE_RIGHT: u16 = 12;
 const ANIM_WALK_BACKWARDS: u16 = 13;
 const ANIM_JUMP_START: u16 = 37;
-const ANIM_JUMP: u16 = 38;  // airborne loop
+const ANIM_JUMP: u16 = 38; // airborne loop
 const ANIM_JUMP_END: u16 = 39;
 
 /// Map movement direction to a WoW animation ID.
 fn direction_to_anim_id(dir: MoveDirection, running: bool) -> u16 {
     match dir {
         MoveDirection::None => ANIM_STAND,
-        MoveDirection::Forward => if running { ANIM_RUN } else { ANIM_WALK },
+        MoveDirection::Forward => {
+            if running {
+                ANIM_RUN
+            } else {
+                ANIM_WALK
+            }
+        }
         MoveDirection::Backward => ANIM_WALK_BACKWARDS,
         MoveDirection::Left => ANIM_SHUFFLE_LEFT,
         MoveDirection::Right => ANIM_SHUFFLE_RIGHT,
@@ -116,7 +121,9 @@ fn switch_animation(
         if current_id == Some(target_id) {
             continue;
         }
-        let Some(target_idx) = find_seq_idx(&data.sequences, target_id) else { continue };
+        let Some(target_idx) = find_seq_idx(&data.sequences, target_id) else {
+            continue;
+        };
         let blend_ms = data.sequences[target_idx].blend_time as f32;
         start_transition(&mut player, target_idx, blend_ms);
     }
@@ -182,7 +189,9 @@ fn tick_animation(
     let Some(data) = anim_data else { return };
     let delta_ms = time.delta_secs() * 1000.0;
     for mut player in &mut players {
-        let Some(seq) = data.sequences.get(player.current_seq_idx) else { continue };
+        let Some(seq) = data.sequences.get(player.current_seq_idx) else {
+            continue;
+        };
         player.time_ms += delta_ms;
         if seq.duration > 0 {
             if player.looping {
@@ -218,12 +227,19 @@ fn apply_animation(
     mut bone_query: Query<(&mut Transform, &BonePivot)>,
 ) {
     let Some(data) = anim_data else { return };
-    let Some(player) = players.iter().next() else { return };
+    let Some(player) = players.iter().next() else {
+        return;
+    };
 
     for (bone_idx, joint_entity) in data.joint_entities.iter().enumerate() {
-        let Some(tracks) = data.bone_tracks.get(bone_idx) else { continue };
-        let Ok((mut transform, pivot)) = bone_query.get_mut(*joint_entity) else { continue };
-        let current = evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
+        let Some(tracks) = data.bone_tracks.get(bone_idx) else {
+            continue;
+        };
+        let Ok((mut transform, pivot)) = bone_query.get_mut(*joint_entity) else {
+            continue;
+        };
+        let current =
+            evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
 
         let (trans, mut rot, scl) = if let Some(ref tr) = player.transition {
             let from = evaluate_bone_components(tracks, tr.from_seq_idx, tr.from_time_ms as u32);
@@ -280,6 +296,9 @@ pub struct AnimationPlugin;
 
 impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (switch_animation, tick_animation, apply_animation).chain());
+        app.add_systems(
+            Update,
+            (switch_animation, tick_animation, apply_animation).chain(),
+        );
     }
 }

@@ -15,7 +15,10 @@ pub struct ParticlePlugin;
 
 impl Plugin for ParticlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (emit_particles, update_particles, billboard_particles));
+        app.add_systems(
+            Update,
+            (emit_particles, update_particles, billboard_particles),
+        );
     }
 }
 
@@ -181,7 +184,9 @@ fn compute_velocity_spread(em: &M2ParticleEmitter, seed: u32) -> Vec2 {
 
 /// Simple deterministic float in [-1, 1] from seed + salt.
 fn hash_float(seed: u32, salt: u32) -> f32 {
-    let h = seed.wrapping_mul(2654435761).wrapping_add(salt.wrapping_mul(7919));
+    let h = seed
+        .wrapping_mul(2654435761)
+        .wrapping_add(salt.wrapping_mul(7919));
     (h % 10000) as f32 / 5000.0 - 1.0
 }
 

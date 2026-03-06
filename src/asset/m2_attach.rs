@@ -86,7 +86,10 @@ mod tests {
 
         // Should have a right hand attachment (id=0)
         let right_hand = attachments.iter().find(|a| a.id == 0);
-        assert!(right_hand.is_some(), "Should have right hand attachment (id=0)");
+        assert!(
+            right_hand.is_some(),
+            "Should have right hand attachment (id=0)"
+        );
         let rh = right_hand.unwrap();
         assert!(rh.bone < 200, "Bone index should be reasonable");
 

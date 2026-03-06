@@ -59,7 +59,9 @@ impl CreatureDisplayMap {
 /// Parse CreatureModelData.csv: model_id → file_data_id.
 fn parse_model_data(path: &Path) -> HashMap<u32, u32> {
     let mut map = HashMap::new();
-    let Ok(content) = std::fs::read_to_string(path) else { return map };
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return map;
+    };
     let mut lines = content.lines();
     let Some((id_col, fdid_col)) = find_two_columns(lines.next().unwrap_or(""), "ID", "FileDataID")
     else {
@@ -73,8 +75,12 @@ fn parse_model_data(path: &Path) -> HashMap<u32, u32> {
 
 fn insert_model_entry(map: &mut HashMap<u32, u32>, line: &str, id_col: usize, fdid_col: usize) {
     let cols: Vec<&str> = line.split(',').collect();
-    let Some(id) = cols.get(id_col).and_then(|s| s.parse::<u32>().ok()) else { return };
-    let Some(fdid) = cols.get(fdid_col).and_then(|s| s.parse::<u32>().ok()) else { return };
+    let Some(id) = cols.get(id_col).and_then(|s| s.parse::<u32>().ok()) else {
+        return;
+    };
+    let Some(fdid) = cols.get(fdid_col).and_then(|s| s.parse::<u32>().ok()) else {
+        return;
+    };
     if fdid > 0 {
         map.insert(id, fdid);
     }
@@ -88,12 +94,19 @@ struct DisplayInfoColumns {
 }
 
 /// Parse CreatureDisplayInfo.csv and join with model_fdids to get display_id → CreatureDisplay.
-fn parse_display_info(path: &Path, model_fdids: &HashMap<u32, u32>) -> HashMap<u32, CreatureDisplay> {
+fn parse_display_info(
+    path: &Path,
+    model_fdids: &HashMap<u32, u32>,
+) -> HashMap<u32, CreatureDisplay> {
     let mut map = HashMap::new();
-    let Ok(content) = std::fs::read_to_string(path) else { return map };
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return map;
+    };
     let mut lines = content.lines();
     let header = lines.next().unwrap_or("");
-    let Some(cols) = find_display_info_columns(header) else { return map };
+    let Some(cols) = find_display_info_columns(header) else {
+        return map;
+    };
     for line in lines {
         insert_display_entry(&mut map, line, &cols, model_fdids);
     }
@@ -121,18 +134,29 @@ fn insert_display_entry(
     model_fdids: &HashMap<u32, u32>,
 ) {
     let cols: Vec<&str> = line.split(',').collect();
-    let Some(display_id) = cols.get(col.id).and_then(|s| s.parse::<u32>().ok()) else { return };
-    let Some(model_id) = cols.get(col.model).and_then(|s| s.parse::<u32>().ok()) else { return };
-    let parse_fdid = |idx: usize| cols.get(idx).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+    let Some(display_id) = cols.get(col.id).and_then(|s| s.parse::<u32>().ok()) else {
+        return;
+    };
+    let Some(model_id) = cols.get(col.model).and_then(|s| s.parse::<u32>().ok()) else {
+        return;
+    };
+    let parse_fdid = |idx: usize| {
+        cols.get(idx)
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(0)
+    };
     if let Some(&model_fdid) = model_fdids.get(&model_id) {
-        map.insert(display_id, CreatureDisplay {
-            model_fdid,
-            skin_fdids: [
-                parse_fdid(col.tex_var[0]),
-                parse_fdid(col.tex_var[1]),
-                parse_fdid(col.tex_var[2]),
-            ],
-        });
+        map.insert(
+            display_id,
+            CreatureDisplay {
+                model_fdid,
+                skin_fdids: [
+                    parse_fdid(col.tex_var[0]),
+                    parse_fdid(col.tex_var[1]),
+                    parse_fdid(col.tex_var[2]),
+                ],
+            },
+        );
     }
 }
 
@@ -149,7 +173,10 @@ mod tests {
 
     #[test]
     fn find_two_columns_works() {
-        assert_eq!(find_two_columns("ID,ModelID,Flags", "ID", "ModelID"), Some((0, 1)));
+        assert_eq!(
+            find_two_columns("ID,ModelID,Flags", "ID", "ModelID"),
+            Some((0, 1))
+        );
         assert_eq!(find_two_columns("ID,ModelID,Flags", "ID", "Nope"), None);
     }
 

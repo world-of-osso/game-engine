@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use bevy::prelude::*;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+use bevy::prelude::*;
 
 use crate::animation::M2AnimData;
 use crate::asset::m2_attach::M2Attachment;
@@ -53,11 +53,7 @@ fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
 pub fn build_attachment_points(attachments: &[M2Attachment]) -> AttachmentPoints {
     let mut points = HashMap::new();
     for att in attachments {
-        let pos = crate::asset::m2::wow_to_bevy(
-            att.position[0],
-            att.position[1],
-            att.position[2],
-        );
+        let pos = crate::asset::m2::wow_to_bevy(att.position[0], att.position[1], att.position[2]);
         points.insert(att.id, (att.bone, Vec3::from(pos)));
     }
     AttachmentPoints { points }
@@ -84,8 +80,16 @@ pub fn spawn_equipment(
                 continue;
             };
             spawn_item_on_bone(
-                &mut commands, &mut meshes, &mut materials, &mut images,
-                &mut inv_bp, &data.joint_entities, bone_idx, offset, path, slot,
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &mut images,
+                &mut inv_bp,
+                &data.joint_entities,
+                bone_idx,
+                offset,
+                path,
+                slot,
             );
         }
     }
@@ -122,7 +126,14 @@ fn spawn_item_on_bone(
         .set_parent_in_place(joint)
         .id();
     if !m2_spawn::spawn_m2_on_entity(
-        commands, meshes, materials, images, inv_bp, m2_path, item_root, &[0, 0, 0],
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        m2_path,
+        item_root,
+        &[0, 0, 0],
     ) {
         commands.entity(item_root).despawn();
     }

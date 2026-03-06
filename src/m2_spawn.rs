@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use bevy::prelude::*;
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
+use bevy::prelude::*;
 
 use crate::asset;
 
@@ -24,7 +24,16 @@ pub fn spawn_m2_on_entity(
             return false;
         }
     };
-    attach_m2_batches(commands, meshes, materials, images, inverse_bindposes, model.batches, &model.bones, entity);
+    attach_m2_batches(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        model.batches,
+        &model.bones,
+        entity,
+    );
     true
 }
 
@@ -62,7 +71,10 @@ fn spawn_skinned_mesh(
     let mut cmd = commands.spawn((Mesh3d(meshes.add(mesh)), MeshMaterial3d(material)));
     cmd.set_parent_in_place(parent);
     if let Some((inv_bp, joints)) = skinning {
-        cmd.insert(SkinnedMesh { inverse_bindposes: inv_bp.clone(), joints: joints.clone() });
+        cmd.insert(SkinnedMesh {
+            inverse_bindposes: inv_bp.clone(),
+            joints: joints.clone(),
+        });
     }
 }
 
@@ -86,11 +98,14 @@ fn spawn_skeleton(
         } else {
             model_entity
         };
-        commands.entity(joint_entities[i]).set_parent_in_place(parent);
+        commands
+            .entity(joint_entities[i])
+            .set_parent_in_place(parent);
     }
-    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(
-        vec![Mat4::IDENTITY; bones.len()],
-    ));
+    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(vec![
+        Mat4::IDENTITY;
+        bones.len()
+    ]));
     Some((inv_bp, joint_entities))
 }
 
@@ -111,7 +126,9 @@ fn load_batch_material(
     if let Some(fdid) = batch.texture_fdid {
         let blp_path = asset::casc_resolver::ensure_texture(fdid)
             .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
-        if let Some(mat) = try_load_textured_material(&blp_path, batch, &texture_dir, images, materials) {
+        if let Some(mat) =
+            try_load_textured_material(&blp_path, batch, &texture_dir, images, materials)
+        {
             return mat;
         }
     }
@@ -141,7 +158,11 @@ pub fn m2_material(
 ) -> StandardMaterial {
     let two_sided = batch.render_flags & 0x04 != 0;
     let unlit = batch.render_flags & 0x01 != 0;
-    let cull_mode = if two_sided { None } else { Some(bevy::render::render_resource::Face::Back) };
+    let cull_mode = if two_sided {
+        None
+    } else {
+        Some(bevy::render::render_resource::Face::Back)
+    };
     let alpha_mode = match batch.blend_mode {
         1 => AlphaMode::Mask(0.5),
         2 | 3 | 7 => AlphaMode::Blend,

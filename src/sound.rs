@@ -51,15 +51,25 @@ pub struct FootstepTracker {
 
 fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<AudioSource>>) {
     let light_wav = generate_wav(&generate_footstep_samples(0.3, 60));
-    let footstep_light = audio_assets.add(AudioSource { bytes: light_wav.into() });
+    let footstep_light = audio_assets.add(AudioSource {
+        bytes: light_wav.into(),
+    });
 
     let heavy_wav = generate_wav(&generate_footstep_samples(0.5, 80));
-    let footstep_heavy = audio_assets.add(AudioSource { bytes: heavy_wav.into() });
+    let footstep_heavy = audio_assets.add(AudioSource {
+        bytes: heavy_wav.into(),
+    });
 
     let ambient_wav = generate_wav(&generate_ambient_samples(2000));
-    let ambient_loop = audio_assets.add(AudioSource { bytes: ambient_wav.into() });
+    let ambient_loop = audio_assets.add(AudioSource {
+        bytes: ambient_wav.into(),
+    });
 
-    commands.insert_resource(SoundAssets { footstep_light, footstep_heavy, ambient_loop });
+    commands.insert_resource(SoundAssets {
+        footstep_light,
+        footstep_heavy,
+        ambient_loop,
+    });
 }
 
 fn spawn_ambient_sound(
@@ -127,7 +137,9 @@ fn footstep_trigger(
         return;
     }
     let Some(anim_data) = anim_data else { return };
-    let Some(sound_assets) = sound_assets else { return };
+    let Some(sound_assets) = sound_assets else {
+        return;
+    };
 
     for (anim_player, mut tracker) in &mut player_q {
         let seq = &anim_data.sequences[anim_player.current_seq_idx];
@@ -285,10 +297,16 @@ mod tests {
     #[test]
     fn footstep_samples_decay() {
         let samples = generate_footstep_samples(0.5, 100);
-        let first_avg: f32 =
-            samples[..100].iter().map(|s| s.unsigned_abs() as f32).sum::<f32>() / 100.0;
-        let last_avg: f32 =
-            samples[4300..].iter().map(|s| s.unsigned_abs() as f32).sum::<f32>() / 110.0;
+        let first_avg: f32 = samples[..100]
+            .iter()
+            .map(|s| s.unsigned_abs() as f32)
+            .sum::<f32>()
+            / 100.0;
+        let last_avg: f32 = samples[4300..]
+            .iter()
+            .map(|s| s.unsigned_abs() as f32)
+            .sum::<f32>()
+            / 110.0;
         assert!(
             first_avg > last_avg,
             "first_avg={first_avg} should be > last_avg={last_avg}"
