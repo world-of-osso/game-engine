@@ -605,11 +605,9 @@ pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
     )
 }
 
-/// Load a BLP file as raw RGBA pixels and wrap them into a Bevy Image.
+/// Load a BLP file as a GPU-compressed Image (BC1/BC2/BC3) when possible.
 fn load_blp_as_image(path: &Path) -> Result<Image, String> {
-    let (pixels, w, h) = asset::blp::load_blp_rgba(path)
-        .map_err(|e| format!("Failed to load BLP {}: {e}", path.display()))?;
-    Ok(rgba_image(pixels, w, h))
+    asset::blp::load_blp_gpu_image(path)
 }
 
 #[allow(clippy::type_complexity)]

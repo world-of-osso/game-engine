@@ -107,16 +107,9 @@ fn load_blp_as_terrain_image(
     blp_path: &std::path::Path,
     fdid: u32,
 ) -> Option<Handle<Image>> {
-    match crate::asset::blp::load_blp_rgba(blp_path) {
-        Ok((pixels, w, h)) => {
-            eprintln!("  Loaded ground texture FDID {fdid} ({w}x{h})");
-            let mut img = Image::new(
-                Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-                TextureDimension::D2,
-                pixels,
-                TextureFormat::Rgba8UnormSrgb,
-                RenderAssetUsages::default(),
-            );
+    match crate::asset::blp::load_blp_gpu_image(blp_path) {
+        Ok(mut img) => {
+            eprintln!("  Loaded ground texture FDID {fdid} ({:?})", img.texture_descriptor.format);
             img.sampler = repeat_linear_sampler();
             Some(images.add(img))
         }

@@ -760,14 +760,7 @@ fn wmo_batch_material(
 
     if texture_fdid > 0 {
         let blp_path = format!("data/textures/{texture_fdid}.blp");
-        if let Ok((pixels, w, h)) = blp::load_blp_rgba(std::path::Path::new(&blp_path)) {
-            let image = Image::new(
-                bevy::render::render_resource::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-                bevy::render::render_resource::TextureDimension::D2,
-                pixels,
-                bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
-                bevy::asset::RenderAssetUsages::default(),
-            );
+        if let Ok(image) = blp::load_blp_gpu_image(std::path::Path::new(&blp_path)) {
             return materials.add(wmo_standard_material(Some(images.add(image)), blend_mode));
         }
     }

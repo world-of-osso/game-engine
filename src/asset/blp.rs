@@ -5,6 +5,7 @@ use bevy::image::Image;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use image_blp::convert::blp_to_image;
 use image_blp::parser::load_blp;
+use image_blp::types::BlpContent;
 
 pub fn load_blp_to_image(path: &Path) -> Result<Image, String> {
     let blp = load_blp(path).map_err(|e| format!("Failed to load BLP: {e}"))?;
@@ -24,6 +25,40 @@ pub fn load_blp_to_image(path: &Path) -> Result<Image, String> {
         TextureDimension::D2,
         pixels,
         TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    ))
+}
+
+/// Load a BLP as a GPU-compressed Image when possible (BC1/BC2/BC3).
+/// Falls back to RGBA8 decompression for JPEG/Raw BLPs.
+/// This skips CPU-side DXT decompression entirely for DXT BLPs.
+pub fn load_blp_gpu_image(path: &Path) -> Result<Image, String> {
+    let blp = load_blp(path).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    let (w, h) = (blp.header.width, blp.header.height);
+    match &blp.content {
+        BlpContent::Dxt1(dxtn) => gpu_image_from_dxtn(dxtn, w, h, TextureFormat::Bc1RgbaUnormSrgb),
+        BlpContent::Dxt3(dxtn) => gpu_image_from_dxtn(dxtn, w, h, TextureFormat::Bc2RgbaUnormSrgb),
+        BlpContent::Dxt5(dxtn) => gpu_image_from_dxtn(dxtn, w, h, TextureFormat::Bc3RgbaUnormSrgb),
+        _ => {
+            // Non-DXT: fall back to CPU decode
+            load_blp_to_image(path)
+        }
+    }
+}
+
+fn gpu_image_from_dxtn(
+    dxtn: &image_blp::types::BlpDxtn,
+    width: u32,
+    height: u32,
+    format: TextureFormat,
+) -> Result<Image, String> {
+    let data = dxtn.images.first()
+        .ok_or_else(|| "BLP DXT has no mipmap level 0".to_string())?;
+    Ok(Image::new(
+        Extent3d { width, height, depth_or_array_layers: 1 },
+        TextureDimension::D2,
+        data.content.clone(),
+        format,
         RenderAssetUsages::default(),
     ))
 }
