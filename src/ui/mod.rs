@@ -1,7 +1,9 @@
+pub mod addon_watcher;
 pub mod anchor;
 pub mod animation;
 pub mod dioxus_elements;
 pub mod dioxus_renderer;
+pub mod dioxus_runtime;
 pub mod event;
 pub mod frame;
 pub mod input;
@@ -11,5 +13,4 @@ pub mod registry;
 pub mod render;
 pub mod strata;
 pub mod wasm_host;
-pub mod addon_watcher;
 pub mod widgets;

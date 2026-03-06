@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::ui::dioxus_runtime::DioxusUiRuntime;
 use crate::ui::event::EventBus;
 use crate::ui::registry::FrameRegistry;
 use crate::ui::wasm_host::WasmHost;
@@ -25,12 +26,22 @@ impl Plugin for UiPlugin {
             focused_frame: None,
         };
         app.insert_resource(state);
+        app.insert_non_send_resource(DioxusUiRuntime::new());
         app.add_systems(Startup, crate::ui::render::setup_ui_camera);
-        app.add_systems(Update, (
-            crate::ui::render::sync_ui_quads,
-            crate::ui::render::sync_ui_text,
-        ));
+        app.add_systems(
+            Update,
+            (
+                sync_dioxus_ui,
+                crate::ui::render::sync_ui_quads,
+                crate::ui::render::sync_ui_text,
+            )
+                .chain(),
+        );
     }
+}
+
+fn sync_dioxus_ui(mut state: ResMut<UiState>, mut runtime: NonSendMut<DioxusUiRuntime>) {
+    runtime.sync(&mut state.registry);
 }
 
 #[cfg(test)]

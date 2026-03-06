@@ -11,13 +11,14 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
-    CharacterStatsSnapshot, CurrenciesStatusSnapshot, NetworkStatusSnapshot,
-    EquippedGearEntry, EquippedGearStatusSnapshot, GuildVaultStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot,
+    CharacterStatsSnapshot, CurrenciesStatusSnapshot, EquippedGearEntry,
+    EquippedGearStatusSnapshot, GuildVaultStatusSnapshot, NetworkStatusSnapshot,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
-use shared::components::{Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer};
+use shared::components::{
+    Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer,
+};
 
 mod animation;
 mod asset;
@@ -70,6 +71,11 @@ fn main() {
     let enable_sound = args.iter().any(|a| a == "--sound");
     let server_addr = parse_server_arg(&args);
 
+    if dump_ui_tree && !dump_tree && screenshot.is_none() {
+        run_headless_ui_dump_app();
+        return;
+    }
+
     let mut app = App::new();
     register_plugins(&mut app);
     if enable_sound {
@@ -100,6 +106,15 @@ fn main() {
         app.add_systems(Update, take_screenshot);
     }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
+    app.run();
+}
+
+fn run_headless_ui_dump_app() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_plugins(game_engine::ui::plugin::UiPlugin)
+        .insert_resource(DumpUiTreeFlag)
+        .add_systems(PostStartup, dump_ui_tree_and_exit);
     app.run();
 }
 
@@ -214,9 +229,12 @@ fn sync_character_stats_snapshot(
         With<networking::LocalPlayer>,
     >,
 ) {
-    let selected_character = selected_character_id
-        .0
-        .and_then(|character_id| character_list.0.iter().find(|entry| entry.character_id == character_id));
+    let selected_character = selected_character_id.0.and_then(|character_id| {
+        character_list
+            .0
+            .iter()
+            .find(|entry| entry.character_id == character_id)
+    });
 
     snapshot.name = selected_character
         .map(|entry| entry.name.clone())
@@ -996,9 +1014,11 @@ fn dump_tree_and_exit(
 }
 
 fn dump_ui_tree_and_exit(
-    ui_state: Res<game_engine::ui::plugin::UiState>,
+    mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
+    mut dioxus_runtime: NonSendMut<game_engine::ui::dioxus_runtime::DioxusUiRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    dioxus_runtime.sync(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
     exit.write(AppExit::Success);

@@ -87,6 +87,28 @@ impl GameUiRenderer {
             "Frame"
         }
     }
+
+    fn apply_template_root_attributes(
+        template: &Template,
+        index: usize,
+        registry: &mut FrameRegistry,
+        frame_id: u64,
+    ) {
+        let Some(TemplateNode::Element { attrs, .. }) = template.roots.get(index) else {
+            return;
+        };
+
+        for attr in *attrs {
+            if let dioxus_core::TemplateAttribute::Static {
+                name,
+                value,
+                namespace,
+            } = attr
+            {
+                apply_static_attribute(registry, frame_id, name, *namespace, value);
+            }
+        }
+    }
 }
 
 /// Create frames from Dioxus mutations.
@@ -99,10 +121,7 @@ pub struct MutationApplier<'a> {
 }
 
 impl<'a> MutationApplier<'a> {
-    pub fn new(
-        renderer: &'a mut GameUiRenderer,
-        registry: &'a mut FrameRegistry,
-    ) -> Self {
+    pub fn new(renderer: &'a mut GameUiRenderer, registry: &'a mut FrameRegistry) -> Self {
         Self { renderer, registry }
     }
 }
@@ -144,7 +163,8 @@ impl WriteMutations for MutationApplier<'_> {
 
     fn load_template(&mut self, template: Template, index: usize, id: ElementId) {
         let tag = GameUiRenderer::template_root_tag(&template, index);
-        self.renderer.create_frame_for_tag(tag, id, self.registry);
+        let frame_id = self.renderer.create_frame_for_tag(tag, id, self.registry);
+        GameUiRenderer::apply_template_root_attributes(&template, index, self.registry, frame_id);
         self.renderer.stack.push(id);
 
         // Cache template if new.
@@ -246,49 +266,101 @@ fn apply_attribute(
 
     match name {
         "width" => {
-            if let AttributeValue::Float(v) = value {
-                frame.width = *v as f32;
-            }
+            assign_f32(value, |v| frame.width = v);
         }
         "height" => {
-            if let AttributeValue::Float(v) = value {
-                frame.height = *v as f32;
-            }
+            assign_f32(value, |v| frame.height = v);
         }
         "alpha" => {
-            if let AttributeValue::Float(v) = value {
-                frame.alpha = *v as f32;
-            }
+            assign_f32(value, |v| frame.alpha = v);
         }
         "shown" => {
-            if let AttributeValue::Bool(v) = value {
-                frame.shown = *v;
-            }
+            assign_bool(value, |v| frame.shown = v);
         }
         "strata" => {
-            if let AttributeValue::Text(s) = value {
+            if let Some(s) = as_text(value) {
                 frame.strata = parse_strata(s);
             }
         }
         "name" => {
-            if let AttributeValue::Text(s) = value {
+            if let Some(s) = as_text(value) {
                 frame.name = Some(s.to_string());
             }
         }
         "mouse_enabled" => {
-            if let AttributeValue::Bool(v) = value {
-                frame.mouse_enabled = *v;
-            }
+            assign_bool(value, |v| frame.mouse_enabled = v);
         }
         "movable" => {
-            if let AttributeValue::Bool(v) = value {
-                frame.movable = *v;
+            assign_bool(value, |v| frame.movable = v);
+        }
+        "background_color" => {
+            if let Some(s) = as_text(value)
+                && let Some(color) = parse_color(s)
+            {
+                frame.background_color = Some(color);
             }
         }
         _ => {
             // Unknown attributes are silently ignored for forward compat.
         }
     }
+}
+
+fn apply_static_attribute(
+    registry: &mut FrameRegistry,
+    frame_id: u64,
+    name: &'static str,
+    namespace: Option<&'static str>,
+    value: &'static str,
+) {
+    let attr = AttributeValue::Text(value.to_string());
+    let _ = namespace;
+    apply_attribute(registry, frame_id, name, &attr);
+}
+
+fn as_text(value: &AttributeValue) -> Option<&str> {
+    match value {
+        AttributeValue::Text(s) => Some(s),
+        _ => None,
+    }
+}
+
+fn assign_f32(value: &AttributeValue, mut assign: impl FnMut(f32)) {
+    match value {
+        AttributeValue::Float(v) => assign(*v as f32),
+        AttributeValue::Int(v) => assign(*v as f32),
+        AttributeValue::Text(s) => {
+            if let Ok(v) = s.parse::<f32>() {
+                assign(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn assign_bool(value: &AttributeValue, mut assign: impl FnMut(bool)) {
+    match value {
+        AttributeValue::Bool(v) => assign(*v),
+        AttributeValue::Text(s) => match s.as_str() {
+            "true" | "TRUE" | "1" => assign(true),
+            "false" | "FALSE" | "0" => assign(false),
+            _ => {}
+        },
+        _ => {}
+    }
+}
+
+fn parse_color(s: &str) -> Option<[f32; 4]> {
+    let parts: Vec<_> = s.split(',').map(str::trim).collect();
+    if parts.len() != 4 {
+        return None;
+    }
+
+    let mut color = [0.0; 4];
+    for (i, part) in parts.into_iter().enumerate() {
+        color[i] = part.parse().ok()?;
+    }
+    Some(color)
 }
 
 fn parse_strata(s: &str) -> FrameStrata {
@@ -446,7 +518,10 @@ mod tests {
         assert_eq!(parse_strata("HIGH"), FrameStrata::High);
         assert_eq!(parse_strata("DIALOG"), FrameStrata::Dialog);
         assert_eq!(parse_strata("FULLSCREEN"), FrameStrata::Fullscreen);
-        assert_eq!(parse_strata("FULLSCREEN_DIALOG"), FrameStrata::FullscreenDialog);
+        assert_eq!(
+            parse_strata("FULLSCREEN_DIALOG"),
+            FrameStrata::FullscreenDialog
+        );
         assert_eq!(parse_strata("TOOLTIP"), FrameStrata::Tooltip);
         assert_eq!(parse_strata("UNKNOWN"), FrameStrata::default());
     }
