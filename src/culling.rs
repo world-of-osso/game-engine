@@ -3,6 +3,8 @@ use std::collections::{HashSet, VecDeque};
 use bevy::camera::primitives::Frustum;
 use bevy::prelude::*;
 
+use crate::game_state_enum::GameState;
+
 /// Marker for terrain chunk entities. Stores precomputed world center for distance checks.
 #[derive(Component)]
 pub struct TerrainChunk {
@@ -65,7 +67,11 @@ impl Plugin for CullingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CullingConfig>()
             .init_resource::<LastCullPosition>()
-            .add_systems(Update, (distance_cull_system, wmo_portal_cull_system));
+            .add_systems(
+                Update,
+                (distance_cull_system, wmo_portal_cull_system)
+                    .run_if(in_state(GameState::InWorld)),
+            );
     }
 }
 

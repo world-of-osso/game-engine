@@ -35,10 +35,6 @@ impl Plugin for UiPlugin {
         app.add_systems(
             Update,
             (
-                sync_dioxus_ui,
-                tick_spellbook_cooldowns,
-                handle_spellbook_pointer,
-                handle_spellbook_keyboard,
                 recompute_layout,
                 crate::ui::render::sync_ui_quads,
                 crate::ui::render::sync_ui_text,
@@ -48,11 +44,11 @@ impl Plugin for UiPlugin {
     }
 }
 
-fn sync_dioxus_ui(mut state: ResMut<UiState>, mut runtime: NonSendMut<DioxusUiRuntime>) {
+pub fn sync_dioxus_ui(mut state: ResMut<UiState>, mut runtime: NonSendMut<DioxusUiRuntime>) {
     runtime.sync(&mut state.registry);
 }
 
-fn tick_spellbook_cooldowns(
+pub fn tick_spellbook_cooldowns(
     time: Option<Res<Time>>,
     mut state: ResMut<UiState>,
     mut runtime: NonSendMut<DioxusUiRuntime>,
@@ -63,7 +59,7 @@ fn tick_spellbook_cooldowns(
     runtime.advance_cooldowns(&mut state.registry, time.delta_secs());
 }
 
-fn handle_spellbook_pointer(
+pub fn handle_spellbook_pointer(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     mut state: ResMut<UiState>,
@@ -96,7 +92,7 @@ fn handle_spellbook_pointer(
     }
 }
 
-fn handle_spellbook_keyboard(
+pub fn handle_spellbook_keyboard(
     mut key_events: Option<MessageReader<KeyboardInput>>,
     mut state: ResMut<UiState>,
     mut runtime: NonSendMut<DioxusUiRuntime>,

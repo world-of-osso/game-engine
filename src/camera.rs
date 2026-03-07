@@ -4,6 +4,7 @@ use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
 
+use crate::game_state::GameState;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
 
@@ -23,7 +24,9 @@ impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (camera_input, cursor_grab, player_movement, camera_follow).chain(),
+            (camera_input, cursor_grab, player_movement, camera_follow)
+                .chain()
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }

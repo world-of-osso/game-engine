@@ -111,13 +111,19 @@ fn main() {
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
-    app.add_systems(Update, sync_network_status_snapshot);
-    app.add_systems(Update, sync_terrain_status_snapshot);
-    app.add_systems(Update, sync_sound_status_snapshot);
-    app.add_systems(Update, sync_character_stats_snapshot);
-    app.add_systems(Update, apply_equipment_ipc_commands);
-    app.add_systems(Update, sync_equipped_gear_status_snapshot);
-    app.add_systems(Update, sync_map_status_snapshot);
+    app.add_systems(
+        Update,
+        (
+            sync_network_status_snapshot,
+            sync_terrain_status_snapshot,
+            sync_sound_status_snapshot,
+            sync_character_stats_snapshot,
+            apply_equipment_ipc_commands,
+            sync_equipped_gear_status_snapshot,
+            sync_map_status_snapshot,
+        )
+            .run_if(in_state(game_state::GameState::InWorld)),
+    );
     if dump_tree {
         app.insert_resource(DumpTreeFlag);
         app.add_systems(PostStartup, dump_tree_and_exit);
@@ -186,7 +192,10 @@ fn register_plugins(app: &mut App) {
         .init_resource::<ProfessionStatusSnapshot>()
         .init_resource::<MapStatusSnapshot>()
         .add_systems(Startup, (setup, install_wow_cursor))
-        .add_systems(Update, update_wow_cursor_style);
+        .add_systems(
+            Update,
+            update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
+        );
 }
 
 fn install_wow_cursor(

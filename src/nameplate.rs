@@ -1,13 +1,19 @@
 use bevy::prelude::*;
 use shared::components::{Npc, Player as NetPlayer};
 
+use crate::game_state::GameState;
+
 pub struct NameplatePlugin;
 
 impl Plugin for NameplatePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(spawn_player_nameplate);
         app.add_observer(spawn_npc_nameplate);
-        app.add_systems(Update, (billboard_nameplates, fade_nameplates_by_distance));
+        app.add_systems(
+            Update,
+            (billboard_nameplates, fade_nameplates_by_distance)
+                .run_if(in_state(GameState::InWorld)),
+        );
     }
 }
 

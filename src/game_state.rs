@@ -7,16 +7,7 @@ use crate::camera::WowCamera;
 use crate::networking::ServerAddr;
 use crate::sky;
 
-/// Game state machine controlling which systems are active.
-#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum GameState {
-    #[default]
-    Login,
-    Connecting,
-    CharSelect,
-    Loading,
-    InWorld,
-}
+pub use game_engine::game_state_enum::GameState;
 
 /// Resource tracking when we entered the Connecting state (for timeout).
 #[derive(Resource)]
@@ -48,6 +39,17 @@ impl Plugin for GameStatePlugin {
         app.add_systems(
             Update,
             check_loading_complete.run_if(in_state(GameState::Loading)),
+        );
+        app.add_systems(
+            Update,
+            (
+                game_engine::ui::plugin::sync_dioxus_ui,
+                game_engine::ui::plugin::tick_spellbook_cooldowns,
+                game_engine::ui::plugin::handle_spellbook_pointer,
+                game_engine::ui::plugin::handle_spellbook_keyboard,
+            )
+                .chain()
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }

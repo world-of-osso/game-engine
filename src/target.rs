@@ -4,6 +4,7 @@ use bevy::window::PrimaryWindow;
 use game_engine::targeting::CurrentTarget;
 
 use crate::camera::Player;
+use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
 
 /// Marker on the selection circle entity.
@@ -15,11 +16,17 @@ pub struct TargetPlugin;
 impl Plugin for TargetPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentTarget>();
-        app.add_systems(Update, click_to_target);
-        app.add_systems(Update, tab_target);
-        app.add_systems(Update, clear_target);
-        app.add_systems(Update, spawn_target_circle);
-        app.add_systems(Update, update_target_circle);
+        app.add_systems(
+            Update,
+            (
+                click_to_target,
+                tab_target,
+                clear_target,
+                spawn_target_circle,
+                update_target_circle,
+            )
+                .run_if(in_state(GameState::InWorld)),
+        );
     }
 }
 

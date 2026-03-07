@@ -114,11 +114,16 @@ fn register_net_resources(app: &mut App) {
 }
 
 fn register_net_systems(app: &mut App) {
-    use crate::networking_auth as auth;
     app.add_systems(
         OnEnter(crate::game_state::GameState::Connecting),
         connect_to_server,
     );
+    register_gameplay_net_systems(app);
+    register_auth_net_systems(app);
+}
+
+fn register_gameplay_net_systems(app: &mut App) {
+    use crate::game_state::GameState;
     app.add_systems(
         Update,
         (
@@ -130,7 +135,8 @@ fn register_net_systems(app: &mut App) {
             sync_map_status_snapshot,
             receive_quest_log_snapshot,
             receive_group_roster_snapshot,
-        ),
+        )
+            .run_if(in_state(GameState::InWorld)),
     );
     app.add_systems(
         Update,
@@ -143,8 +149,13 @@ fn register_net_systems(app: &mut App) {
             receive_load_terrain,
             sync_replicated_transforms,
             interpolate_remote_entities,
-        ),
+        )
+            .run_if(in_state(GameState::InWorld)),
     );
+}
+
+fn register_auth_net_systems(app: &mut App) {
+    use crate::networking_auth as auth;
     app.add_systems(
         Update,
         (

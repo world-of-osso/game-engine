@@ -2,6 +2,7 @@ use super::asset::m2_anim::{
     BoneAnimTracks, M2AnimSequence, evaluate_rotation_track, evaluate_vec3_track,
 };
 use super::camera::{MoveDirection, MovementState};
+use super::game_state::GameState;
 use bevy::prelude::*;
 
 /// Marker component for bone entities, storing their pivot in Bevy coordinates.
@@ -298,7 +299,9 @@ impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (switch_animation, tick_animation, apply_animation).chain(),
+            (switch_animation, tick_animation, apply_animation)
+                .chain()
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }

@@ -110,7 +110,7 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
         40.0,
     );
     set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.15, 400.0, 40.0);
-    set_font_string(reg, title, "World of Warcraft", 28.0, [1.0, 0.82, 0.0, 1.0]);
+    set_font_string(reg, title, "World of Osso", 28.0, [1.0, 0.82, 0.0, 1.0]);
 
     let sub = create_frame(
         reg,

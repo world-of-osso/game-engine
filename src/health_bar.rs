@@ -1,12 +1,17 @@
 use bevy::prelude::*;
 use shared::components::Health;
 
+use crate::game_state::GameState;
+
 pub struct HealthBarPlugin;
 
 impl Plugin for HealthBarPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(spawn_health_bars);
-        app.add_systems(Update, (update_health_bars, billboard_health_bars));
+        app.add_systems(
+            Update,
+            (update_health_bars, billboard_health_bars).run_if(in_state(GameState::InWorld)),
+        );
     }
 }
 

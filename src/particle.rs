@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
 use crate::asset::m2_particle::M2ParticleEmitter;
+use crate::game_state::GameState;
 
 pub struct ParticlePlugin;
 
@@ -17,7 +18,8 @@ impl Plugin for ParticlePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (emit_particles, update_particles, billboard_particles),
+            (emit_particles, update_particles, billboard_particles)
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }
