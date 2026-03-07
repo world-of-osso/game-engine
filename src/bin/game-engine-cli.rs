@@ -628,11 +628,18 @@ fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Resu
 }
 
 fn handle_text_response(socket: &PathBuf, request: Request, json: bool) -> Result<(), String> {
-    let resp: Response = Client::call(socket, &request).map_err(|e| format!("{e}"))?;
-
-    let output = format_text_response_output(resp, json)?;
+    let output = execute_text_request_output(socket, request, json)?;
     println!("{output}");
     Ok(())
+}
+
+fn execute_text_request_output(
+    socket: &PathBuf,
+    request: Request,
+    json: bool,
+) -> Result<String, String> {
+    let resp: Response = Client::call(socket, &request).map_err(|e| format!("{e}"))?;
+    format_text_response_output(resp, json)
 }
 
 fn print_json<T: serde::Serialize>(value: &T) -> Result<(), String> {
@@ -859,7 +866,10 @@ fn parse_sort_dir(value: &str) -> Result<AuctionSortDir, String> {
 mod tests {
     use super::*;
     use game_engine::mail::{DeleteMail, ListMailQuery, ReadMail, SendMail};
+    use peercred_ipc::Server;
     use serde_json::Value;
+    use std::sync::mpsc;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn mail_send_command_maps_to_send_request() {
@@ -1185,5 +1195,85 @@ mod tests {
         let err = format_text_response_output(Response::Pong, false).expect_err("should fail");
 
         assert!(err.contains("unexpected response"));
+    }
+
+    #[test]
+    fn json_mode_roundtrips_ipc_and_keeps_enum_shape() {
+        let socket = unique_test_socket("json-roundtrip");
+        let server_expected = Request::InventorySearch {
+            text: "torch".into(),
+        };
+        let client_request = Request::InventorySearch {
+            text: "torch".into(),
+        };
+        let server = spawn_mock_server(
+            socket.clone(),
+            server_expected,
+            Response::Text("inventory ok".into()),
+        );
+
+        let output =
+            execute_text_request_output(&socket, client_request, true).expect("json output");
+        let parsed: Value = serde_json::from_str(&output).expect("valid json");
+        assert_eq!(parsed["Text"], Value::String("inventory ok".into()));
+
+        server.join().expect("mock server thread");
+    }
+
+    #[test]
+    fn text_mode_roundtrips_ipc_and_returns_plain_text() {
+        let socket = unique_test_socket("text-roundtrip");
+        let expected = Request::QuestList;
+        let server = spawn_mock_server(
+            socket.clone(),
+            expected,
+            Response::Text("quest list output".into()),
+        );
+
+        let output =
+            execute_text_request_output(&socket, Request::QuestList, false).expect("text output");
+        assert_eq!(output, "quest list output");
+
+        server.join().expect("mock server thread");
+    }
+
+    fn unique_test_socket(label: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "game-engine-cli-{label}-{}-{nanos}.sock",
+            std::process::id()
+        ))
+    }
+
+    fn spawn_mock_server(
+        socket: PathBuf,
+        expected_request: Request,
+        response: Response,
+    ) -> std::thread::JoinHandle<()> {
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
+            let socket_for_runtime = socket.clone();
+            runtime.block_on(async move {
+                let server = Server::bind(&socket_for_runtime).expect("bind mock socket");
+                ready_tx.send(()).expect("notify ready");
+                let (mut conn, _) = server.accept().await.expect("accept connection");
+                let got_request: Request = conn.read().await.expect("read request");
+                assert_eq!(got_request, expected_request);
+                conn.write(&response).await.expect("write response");
+            });
+            let _ = std::fs::remove_file(&socket);
+        });
+
+        ready_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("mock server ready");
+        handle
     }
 }
