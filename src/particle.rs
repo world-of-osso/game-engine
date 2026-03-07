@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 
+use bevy::math::Affine2;
 use bevy::prelude::*;
 
 use crate::asset::blp;
@@ -47,6 +48,13 @@ struct Particle {
     /// Scale (uniform) at start, mid, end.
     scales: [f32; 3],
     mid_point: f32,
+    atlas_uv: AtlasUv,
+}
+
+#[derive(Clone, Copy)]
+struct AtlasUv {
+    scale: Vec2,
+    offset: Vec2,
 }
 
 /// Spawn emitter entities for an M2 model's particle emitters.
@@ -159,6 +167,7 @@ fn spawn_particle(
         em.scales[1][0].max(0.05),
         em.scales[2][0].max(0.05),
     ];
+    let atlas_uv = select_atlas_uv(em, seed);
 
     commands.spawn((
         Name::new("Particle"),
@@ -174,8 +183,23 @@ fn spawn_particle(
             opacity: em.opacity,
             scales,
             mid_point: em.mid_point,
+            atlas_uv,
         },
     ));
+}
+
+fn select_atlas_uv(em: &M2ParticleEmitter, seed: u32) -> AtlasUv {
+    let rows = em.tile_rows.max(1) as u32;
+    let cols = em.tile_cols.max(1) as u32;
+    let tile_count = rows.saturating_mul(cols).max(1);
+    let tile_index = seed % tile_count;
+    let col = tile_index % cols;
+    let row = tile_index / cols;
+    let scale = Vec2::new(1.0 / cols as f32, 1.0 / rows as f32);
+    AtlasUv {
+        scale,
+        offset: Vec2::new(col as f32 * scale.x, row as f32 * scale.y),
+    }
 }
 
 fn compute_velocity_spread(em: &M2ParticleEmitter, seed: u32) -> Vec2 {
@@ -200,10 +224,16 @@ fn color_to_vec3(c: [f32; 3]) -> Vec3 {
 fn update_particles(
     mut commands: Commands,
     time: Res<Time>,
-    mut particles: Query<(Entity, &mut Particle, &mut Transform)>,
+    mut particles: Query<(
+        Entity,
+        &mut Particle,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+    )>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let dt = time.delta_secs();
-    for (entity, mut p, mut xf) in &mut particles {
+    for (entity, mut p, mut xf, material_handle) in &mut particles {
         p.age += dt;
         if p.age >= p.max_age {
             commands.entity(entity).despawn();
@@ -213,10 +243,20 @@ fn update_particles(
         p.velocity.y -= p.gravity * dt;
         xf.translation += p.velocity * dt;
 
-        // Interpolate scale and apply
         let t = p.age / p.max_age;
         let scale = lerp_over_lifetime(p.scales[0], p.scales[1], p.scales[2], p.mid_point, t);
         xf.scale = Vec3::splat(scale.max(0.01));
+
+        if let Some(material) = materials.get_mut(&material_handle.0) {
+            let color =
+                lerp_vec3_over_lifetime(p.colors[0], p.colors[1], p.colors[2], p.mid_point, t);
+            let alpha =
+                lerp_over_lifetime(p.opacity[0], p.opacity[1], p.opacity[2], p.mid_point, t)
+                    .clamp(0.0, 1.0);
+            material.base_color = Color::srgba(color.x, color.y, color.z, alpha);
+            material.uv_transform =
+                Affine2::from_scale_angle_translation(p.atlas_uv.scale, 0.0, p.atlas_uv.offset);
+        }
     }
 }
 
@@ -236,6 +276,14 @@ fn lerp_over_lifetime(start: f32, mid: f32, end: f32, mid_point: f32, t: f32) ->
 }
 
 /// System: orient particle quads to face the camera (billboard).
+fn lerp_vec3_over_lifetime(start: Vec3, mid: Vec3, end: Vec3, mid_point: f32, t: f32) -> Vec3 {
+    Vec3::new(
+        lerp_over_lifetime(start.x, mid.x, end.x, mid_point, t),
+        lerp_over_lifetime(start.y, mid.y, end.y, mid_point, t),
+        lerp_over_lifetime(start.z, mid.z, end.z, mid_point, t),
+    )
+}
+
 fn billboard_particles(
     camera: Query<&GlobalTransform, With<Camera3d>>,
     mut particles: Query<&mut Transform, With<Particle>>,
