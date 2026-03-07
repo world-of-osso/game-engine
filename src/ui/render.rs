@@ -205,7 +205,7 @@ fn frame_color(f: &crate::ui::frame::Frame) -> Color {
 /// left-aligned by shifting right by half the difference between the full
 /// frame width and the filled width.  All other frames use their full size
 /// with no offset.
-fn frame_sprite_params(f: &crate::ui::frame::Frame) -> (Vec2, Vec2) {
+pub(crate) fn frame_sprite_params(f: &crate::ui::frame::Frame) -> (Vec2, Vec2) {
     if let Some(WidgetData::StatusBar(sb)) = &f.widget_data {
         let fill = ((sb.value - sb.min) / (sb.max - sb.min).max(f64::EPSILON))
             .clamp(0.0, 1.0) as f32;
@@ -513,6 +513,44 @@ mod tests {
         app.update();
         let mut q = app.world_mut().query_filtered::<(), With<UiQuad>>();
         assert_eq!(q.iter(app.world()).count(), baseline + 1);
+    }
+
+    #[test]
+    fn statusbar_sprite_params_proportional_to_fill() {
+        let mut frame = crate::ui::frame::Frame::new(1, None, crate::ui::frame::WidgetType::StatusBar);
+        frame.width = 200.0;
+        frame.height = 20.0;
+        frame.widget_data = Some(WidgetData::StatusBar(
+            crate::ui::widgets::slider::StatusBarData {
+                value: 0.5,
+                min: 0.0,
+                max: 1.0,
+                ..Default::default()
+            },
+        ));
+        let (size, offset) = frame_sprite_params(&frame);
+        assert!((size.x - 100.0).abs() < 0.01, "half fill → width 100, got {}", size.x);
+        assert_eq!(size.y, 20.0);
+        assert!((offset.x - (-50.0)).abs() < 0.01, "offset_x should be -50, got {}", offset.x);
+        assert_eq!(offset.y, 0.0);
+    }
+
+    #[test]
+    fn statusbar_sprite_params_full_fill() {
+        let mut frame = crate::ui::frame::Frame::new(1, None, crate::ui::frame::WidgetType::StatusBar);
+        frame.width = 200.0;
+        frame.height = 20.0;
+        frame.widget_data = Some(WidgetData::StatusBar(
+            crate::ui::widgets::slider::StatusBarData {
+                value: 1.0,
+                min: 0.0,
+                max: 1.0,
+                ..Default::default()
+            },
+        ));
+        let (size, offset) = frame_sprite_params(&frame);
+        assert!((size.x - 200.0).abs() < 0.01);
+        assert!((offset.x).abs() < 0.01);
     }
 
     #[test]

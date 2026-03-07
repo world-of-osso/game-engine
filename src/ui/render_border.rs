@@ -114,7 +114,7 @@ fn spawn_edge(
 }
 
 /// Compute transform, size, color for one border edge (0=top, 1=bottom, 2=left, 3=right).
-fn edge_geometry(
+pub(crate) fn edge_geometry(
     frame: &crate::ui::frame::Frame,
     backdrop: &Backdrop,
     edge: u8,
@@ -140,4 +140,55 @@ fn edge_geometry(
     let bx = cx - screen_w * 0.5;
     let by = screen_h * 0.5 - cy;
     (Transform::from_xyz(bx, by, 9.5), Vec2::new(w, h), color)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::plugin::UiPlugin;
+
+    #[test]
+    fn border_with_border_color_spawns_4_entities() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        {
+            let mut ui = app.world_mut().resource_mut::<UiState>();
+            let id = ui.registry.create_frame("BorderFrame", None);
+            let frame = ui.registry.get_mut(id).unwrap();
+            frame.width = 100.0;
+            frame.height = 50.0;
+            frame.backdrop = Some(Backdrop {
+                border_color: Some([1.0, 0.0, 0.0, 1.0]),
+                ..Default::default()
+            });
+        }
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiBorder>>();
+        assert_eq!(q.iter(app.world()).count(), 4);
+    }
+
+    #[test]
+    fn frame_without_border_color_spawns_no_border() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        {
+            let mut ui = app.world_mut().resource_mut::<UiState>();
+            let id = ui.registry.create_frame("NoBorderFrame", None);
+            let frame = ui.registry.get_mut(id).unwrap();
+            frame.width = 100.0;
+            frame.height = 50.0;
+            frame.backdrop = Some(Backdrop {
+                bg_color: Some([0.1, 0.1, 0.1, 1.0]),
+                border_color: None,
+                ..Default::default()
+            });
+        }
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiBorder>>();
+        assert_eq!(q.iter(app.world()).count(), 0);
+    }
 }

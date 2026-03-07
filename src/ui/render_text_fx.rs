@@ -207,3 +207,85 @@ fn outline_offsets(outline: Outline) -> &'static [(f32, f32)] {
         ],
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::frame::WidgetData;
+    use crate::ui::plugin::UiPlugin;
+    use crate::ui::widgets::font_string::{FontStringData, Outline as FsOutline};
+    use bevy::prelude::*;
+
+    fn make_font_string_frame(app: &mut App, name: &str, fs: FontStringData) {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        let id = ui.registry.create_frame(name, None);
+        let frame = ui.registry.get_mut(id).unwrap();
+        frame.width = 100.0;
+        frame.height = 20.0;
+        frame.widget_data = Some(WidgetData::FontString(fs));
+    }
+
+    #[test]
+    fn shadow_color_spawns_shadow_entity() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        make_font_string_frame(&mut app, "ShadowText", FontStringData {
+            text: "Hello".into(),
+            shadow_color: Some([0.0, 0.0, 0.0, 1.0]),
+            ..Default::default()
+        });
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiTextShadow>>();
+        assert_eq!(q.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn no_shadow_color_spawns_no_shadow() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        make_font_string_frame(&mut app, "NoShadowText", FontStringData {
+            text: "Hello".into(),
+            shadow_color: None,
+            ..Default::default()
+        });
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiTextShadow>>();
+        assert_eq!(q.iter(app.world()).count(), 0);
+    }
+
+    #[test]
+    fn outline_spawns_4_outline_entities() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        make_font_string_frame(&mut app, "OutlineText", FontStringData {
+            text: "Hi".into(),
+            outline: FsOutline::Outline,
+            ..Default::default()
+        });
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiTextOutline>>();
+        assert_eq!(q.iter(app.world()).count(), 4);
+    }
+
+    #[test]
+    fn thick_outline_spawns_8_outline_entities() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        make_font_string_frame(&mut app, "ThickOutlineText", FontStringData {
+            text: "Hi".into(),
+            outline: FsOutline::ThickOutline,
+            ..Default::default()
+        });
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiTextOutline>>();
+        assert_eq!(q.iter(app.world()).count(), 8);
+    }
+}

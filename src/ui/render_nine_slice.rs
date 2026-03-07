@@ -82,7 +82,7 @@ fn spawn_missing_parts(
 /// Compute transform, size, color for one nine-slice part.
 /// Layout: corners are edge×edge; edges stretch; center fills interior.
 /// Parts: 0=TL, 1=T, 2=TR, 3=L, 4=Center, 5=R, 6=BL, 7=B, 8=BR
-fn part_geometry(
+pub(crate) fn part_geometry(
     frame: &crate::ui::frame::Frame,
     ns: &NineSlice,
     part: u8,
@@ -116,4 +116,47 @@ fn part_geometry(
     let bx = cx - screen_w * 0.5;
     let by = screen_h * 0.5 - cy;
     (Transform::from_xyz(bx, by, 9.4), Vec2::new(w, h), color)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::plugin::UiPlugin;
+
+    #[test]
+    fn nine_slice_spawns_9_parts() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        {
+            let mut ui = app.world_mut().resource_mut::<UiState>();
+            let id = ui.registry.create_frame("NineSliceFrame", None);
+            let frame = ui.registry.get_mut(id).unwrap();
+            frame.width = 200.0;
+            frame.height = 100.0;
+            frame.nine_slice = Some(NineSlice::default());
+        }
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiNineSlicePart>>();
+        assert_eq!(q.iter(app.world()).count(), 9);
+    }
+
+    #[test]
+    fn frame_without_nine_slice_spawns_no_parts() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(UiPlugin);
+        app.update();
+        {
+            let mut ui = app.world_mut().resource_mut::<UiState>();
+            let id = ui.registry.create_frame("PlainFrame", None);
+            let frame = ui.registry.get_mut(id).unwrap();
+            frame.width = 200.0;
+            frame.height = 100.0;
+        }
+        app.update();
+        let mut q = app.world_mut().query_filtered::<(), With<UiNineSlicePart>>();
+        assert_eq!(q.iter(app.world()).count(), 0);
+    }
 }

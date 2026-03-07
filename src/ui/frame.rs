@@ -168,4 +168,9 @@ impl Frame {
             widget_data: None,
         }
     }
+
+    #[cfg(test)]
+    pub fn default_for_test() -> Self {
+        Self::new(0, None, WidgetType::Frame)
+    }
 }
