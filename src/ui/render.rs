@@ -171,7 +171,8 @@ fn is_renderable(f: &crate::ui::frame::Frame) -> bool {
         && f.height > 0.0
         && (f.background_color.is_some()
             || frame_texture_fdid(f).is_some()
-            || f.backdrop.as_ref().is_some_and(|b| b.bg_color.is_some()))
+            || f.backdrop.as_ref().is_some_and(|b| b.bg_color.is_some())
+            || matches!(f.widget_data, Some(WidgetData::StatusBar(_))))
 }
 
 fn frame_texture_fdid(f: &crate::ui::frame::Frame) -> Option<u32> {
@@ -198,6 +199,24 @@ fn frame_color(f: &crate::ui::frame::Frame) -> Color {
     Color::srgba(r, g, b, a * f.effective_alpha)
 }
 
+/// Returns `(size, offset)` for the sprite quad.
+///
+/// For StatusBar, width is scaled by the fill fraction and the quad is
+/// left-aligned by shifting right by half the difference between the full
+/// frame width and the filled width.  All other frames use their full size
+/// with no offset.
+fn frame_sprite_params(f: &crate::ui::frame::Frame) -> (Vec2, Vec2) {
+    if let Some(WidgetData::StatusBar(sb)) = &f.widget_data {
+        let fill = ((sb.value - sb.min) / (sb.max - sb.min).max(f64::EPSILON))
+            .clamp(0.0, 1.0) as f32;
+        let filled_w = f.width * fill;
+        let offset_x = (filled_w - f.width) * 0.5;
+        (Vec2::new(filled_w, f.height), Vec2::new(offset_x, 0.0))
+    } else {
+        (Vec2::new(f.width, f.height), Vec2::ZERO)
+    }
+}
+
 fn update_quad(
     state: &UiState,
     entity: Entity,
@@ -213,13 +232,16 @@ fn update_quad(
     let Some(frame) = state.registry.get(frame_id) else {
         return;
     };
-    let transform = frame_transform(frame, sort_idx, sw, sh);
+    let (sprite_size, sprite_offset) = frame_sprite_params(frame);
+    let mut transform = frame_transform(frame, sort_idx, sw, sh);
+    transform.translation.x += sprite_offset.x;
+    transform.translation.y += sprite_offset.y;
     let (color, image) = frame_visual(frame, images, texture_cache, missing_textures);
     commands.entity(entity).insert((
         transform,
         Sprite {
             color,
-            custom_size: Some(Vec2::new(frame.width, frame.height)),
+            custom_size: Some(sprite_size),
             image,
             ..default()
         },
@@ -246,12 +268,15 @@ fn spawn_new_quads(
             continue;
         };
         let sort_idx = sort_map[&frame_id];
-        let transform = frame_transform(frame, sort_idx, sw, sh);
+        let (sprite_size, sprite_offset) = frame_sprite_params(frame);
+        let mut transform = frame_transform(frame, sort_idx, sw, sh);
+        transform.translation.x += sprite_offset.x;
+        transform.translation.y += sprite_offset.y;
         let (color, image) = frame_visual(frame, images, texture_cache, missing_textures);
         commands.spawn((
             Sprite {
                 color,
-                custom_size: Some(Vec2::new(frame.width, frame.height)),
+                custom_size: Some(sprite_size),
                 image,
                 ..default()
             },
@@ -268,21 +293,33 @@ fn frame_visual(
     texture_cache: &mut HashMap<u32, Handle<Image>>,
     missing_textures: &mut HashSet<u32>,
 ) -> (Color, Handle<Image>) {
+    if let Some(WidgetData::StatusBar(sb)) = &frame.widget_data {
+        let [r, g, b, a] = sb.color;
+        return (Color::srgba(r, g, b, a * frame.effective_alpha), Handle::default());
+    }
     if let Some(fdid) = frame_texture_fdid(frame)
         && let Some(handle) = load_texture(fdid, images, texture_cache, missing_textures)
     {
+        // TODO: additive blend requires custom pipeline
         return (texture_tint(frame), handle);
     }
     (frame_color(frame), Handle::default())
 }
 
 /// Apply vertex_color tinting and effective_alpha to textured frames.
-fn texture_tint(frame: &crate::ui::frame::Frame) -> Color {
-    let [r, g, b, a] = match &frame.widget_data {
-        Some(WidgetData::Texture(tex)) => tex.vertex_color,
-        _ => [1.0, 1.0, 1.0, 1.0],
+/// If the texture is desaturated, compute luminance and use grey.
+pub fn texture_tint(frame: &crate::ui::frame::Frame) -> Color {
+    let (vertex_color, desaturated) = match &frame.widget_data {
+        Some(WidgetData::Texture(tex)) => (tex.vertex_color, tex.desaturated),
+        _ => ([1.0, 1.0, 1.0, 1.0], false),
     };
-    Color::srgba(r, g, b, a * frame.effective_alpha)
+    let [r, g, b, a] = vertex_color;
+    if desaturated {
+        let lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        Color::srgba(lum, lum, lum, a * frame.effective_alpha)
+    } else {
+        Color::srgba(r, g, b, a * frame.effective_alpha)
+    }
 }
 
 fn load_texture(

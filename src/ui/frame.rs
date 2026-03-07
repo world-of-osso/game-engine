@@ -4,6 +4,7 @@ use crate::ui::strata::{DrawLayer, FrameStrata};
 use crate::ui::widgets::button::ButtonData;
 use crate::ui::widgets::edit_box::EditBoxData;
 use crate::ui::widgets::font_string::FontStringData;
+use crate::ui::widgets::slider::StatusBarData;
 use crate::ui::widgets::texture::TextureData;
 
 /// Per-widget-type data attached to a frame.
@@ -13,6 +14,7 @@ pub enum WidgetData {
     EditBox(EditBoxData),
     Button(ButtonData),
     Texture(TextureData),
+    StatusBar(StatusBarData),
 }
 
 /// WoW widget types corresponding to frame XML element names.
@@ -37,6 +39,24 @@ pub enum WidgetType {
     SimpleHTML,
     GameTooltip,
     Minimap,
+}
+
+/// Nine-slice frame rendering (solid color corners/edges/center, no texture).
+#[derive(Debug, Clone)]
+pub struct NineSlice {
+    pub edge_size: f32,
+    pub bg_color: [f32; 4],
+    pub border_color: [f32; 4],
+}
+
+impl Default for NineSlice {
+    fn default() -> Self {
+        Self {
+            edge_size: 4.0,
+            bg_color: [0.0, 0.0, 0.0, 0.8],
+            border_color: [1.0, 1.0, 1.0, 1.0],
+        }
+    }
 }
 
 /// Backdrop decoration for a frame (background fill + border).
@@ -102,6 +122,7 @@ pub struct Frame {
     // Appearance
     pub background_color: Option<[f32; 4]>,
     pub backdrop: Option<Backdrop>,
+    pub nine_slice: Option<NineSlice>,
 
     // Behavior
     pub clamped_to_screen: bool,
@@ -140,6 +161,7 @@ impl Frame {
             hit_rect_insets: [0.0; 4],
             background_color: None,
             backdrop: None,
+            nine_slice: None,
             clamped_to_screen: false,
             movable: false,
             resizable: false,
