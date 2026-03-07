@@ -6,9 +6,11 @@ use bevy::asset::RenderAssetUsages;
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::pbr::MaterialPlugin;
+use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
+use bevy::window::{CursorIcon, CursorOptions, CustomCursor, CustomCursorImage, PrimaryWindow};
 use game_engine::ipc::IpcPlugin;
 use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
@@ -49,6 +51,7 @@ mod terrain_material;
 mod terrain_objects;
 mod water_material;
 
+use crate::networking::RemoteEntity;
 use animation::{AnimationPlugin, BonePivot, M2AnimData, M2AnimPlayer};
 use camera::{CharacterFacing, MovementState, Player, WowCamera, WowCameraPlugin};
 use terrain::{AdtManager, AdtStreamingPlugin};
@@ -65,6 +68,18 @@ struct DumpUiTreeFlag;
 struct ScreenshotRequest {
     output: PathBuf,
     frames_remaining: u32,
+}
+
+#[derive(Resource)]
+struct WowCursorAssets {
+    default_point: Handle<Image>,
+    hover_point: Handle<Image>,
+}
+
+#[derive(Resource, Clone, Copy, PartialEq, Eq)]
+enum ActiveWowCursor {
+    Default,
+    Hover,
 }
 
 fn main() {
@@ -166,7 +181,115 @@ fn register_plugins(app: &mut App) {
         .init_resource::<CollectionStatusSnapshot>()
         .init_resource::<ProfessionStatusSnapshot>()
         .init_resource::<MapStatusSnapshot>()
-        .add_systems(Startup, setup);
+        .add_systems(Startup, (setup, install_wow_cursor))
+        .add_systems(Update, update_wow_cursor_style);
+}
+
+fn install_wow_cursor(
+    mut commands: Commands,
+    primary_window: Query<Entity, With<PrimaryWindow>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let Ok(window_entity) = primary_window.single() else {
+        return;
+    };
+
+    let default_path = Path::new("/syncthing/Sync/Projects/wow/Interface/CURSOR/Point.blp");
+    let hover_path = Path::new("/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Point.blp");
+    let default_image = match asset::blp::load_blp_gpu_image(default_path) {
+        Ok(image) => image,
+        Err(error) => {
+            warn!(
+                "failed to load WoW cursor {}: {error}",
+                default_path.display()
+            );
+            return;
+        }
+    };
+    let hover_image = match asset::blp::load_blp_gpu_image(hover_path) {
+        Ok(image) => image,
+        Err(error) => {
+            warn!(
+                "failed to load WoW cursor {}: {error}",
+                hover_path.display()
+            );
+            return;
+        }
+    };
+
+    let default_cursor = images.add(default_image);
+    let hover_cursor = images.add(hover_image);
+    commands.insert_resource(WowCursorAssets {
+        default_point: default_cursor.clone(),
+        hover_point: hover_cursor,
+    });
+    commands.insert_resource(ActiveWowCursor::Default);
+    commands
+        .entity(window_entity)
+        .insert(CursorIcon::Custom(CustomCursor::Image(CustomCursorImage {
+            handle: default_cursor,
+            hotspot: (0, 0),
+            ..default()
+        })));
+}
+
+fn update_wow_cursor_style(
+    windows: Query<(&Window, &CursorOptions, Entity), With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<WowCamera>>,
+    remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+    assets: Option<Res<WowCursorAssets>>,
+    mut active: Option<ResMut<ActiveWowCursor>>,
+    mut ray_cast: MeshRayCast,
+    mut commands: Commands,
+) {
+    let (window, cursor_opts, window_entity) = match windows.single() {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+    if !cursor_opts.visible {
+        return;
+    }
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, camera_tf)) = cameras.single() else {
+        return;
+    };
+    let Some(ray) = camera.viewport_to_world(camera_tf, cursor).ok() else {
+        return;
+    };
+    let Some(assets) = assets else {
+        return;
+    };
+    let Some(mut active) = active else {
+        return;
+    };
+
+    let hover_remote = ray_cast
+        .cast_ray(ray, &default())
+        .iter()
+        .any(|(entity, _)| remote_q.get(*entity).is_ok());
+    let desired = if hover_remote {
+        ActiveWowCursor::Hover
+    } else {
+        ActiveWowCursor::Default
+    };
+    if *active == desired {
+        return;
+    }
+    *active = desired;
+
+    let handle = match desired {
+        ActiveWowCursor::Default => assets.default_point.clone(),
+        ActiveWowCursor::Hover => assets.hover_point.clone(),
+    };
+    commands
+        .entity(window_entity)
+        .insert(CursorIcon::Custom(CustomCursor::Image(CustomCursorImage {
+            handle,
+            hotspot: (0, 0),
+            ..default()
+        })));
 }
 
 fn sync_network_status_snapshot(
