@@ -8,7 +8,7 @@ use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
-use game_engine::ui::widgets::button::ButtonData;
+use game_engine::ui::widgets::button::{ButtonData, CheckButtonData};
 use game_engine::ui::widgets::edit_box::EditBoxData;
 use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
 
@@ -29,7 +29,9 @@ struct LoginUi {
     password_input: u64,
     connect_button: u64,
     reconnect_button: u64,
-    register_button: u64,
+    create_account_button: u64,
+    menu_button: u64,
+    save_checkbox: u64,
     exit_button: u64,
     status_text: u64,
 }
@@ -42,6 +44,9 @@ struct LoginFocus(Option<u64>);
 #[derive(Resource, Default)]
 struct LoginStatus(String);
 
+#[derive(Resource, Default)]
+struct LoginSaveAccount(bool);
+
 /// Fade-in timer for login screen appearance.
 #[derive(Resource)]
 struct LoginFadeIn(f32);
@@ -52,6 +57,7 @@ impl Plugin for LoginScreenPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LoginFocus>();
         app.init_resource::<LoginStatus>();
+        app.init_resource::<LoginSaveAccount>();
         app.add_systems(OnEnter(GameState::Login), build_login_ui);
         app.add_systems(OnExit(GameState::Login), teardown_login_ui);
         app.add_systems(
@@ -81,8 +87,8 @@ fn build_login_ui(
     let root = build_login_background(reg, sw, sh);
     build_login_titles(reg, root, sw, sh);
     let (server_input, username_input, password_input) = build_login_inputs(reg, root, sw, sh);
-    let (connect_button, reconnect_button, register_button, exit_button, status_text) =
-        build_login_buttons(reg, root, sw, sh);
+    let buttons = build_login_buttons(reg, root, sw, sh);
+    let (connect_button, reconnect_button, create_account_button, menu_button, save_checkbox, exit_button, status_text) = buttons;
 
     if let Some(addr) = server_addr {
         set_editbox_text(reg, server_input, &addr.0.to_string());
@@ -97,7 +103,9 @@ fn build_login_ui(
         password_input,
         connect_button,
         reconnect_button,
-        register_button,
+        create_account_button,
+        menu_button,
+        save_checkbox,
         exit_button,
         status_text,
     });
@@ -158,7 +166,7 @@ fn build_login_buttons(
     root: u64,
     sw: f32,
     sh: f32,
- ) -> (u64, u64, u64, u64, u64) {
+) -> (u64, u64, u64, u64, u64, u64, u64) {
     let panel_w = 320.0;
     let panel_x = (sw - panel_w) / 2.0;
     let mut y = sh * 0.35 + 3.0 * 72.0 + 8.0;
@@ -171,10 +179,19 @@ fn build_login_buttons(
     set_layout(reg, reconnect, (sw - 250.0) / 2.0, y, 250.0, 66.0);
     set_bg(reg, reconnect, [0.15, 0.4, 0.2, 1.0]);
     hide_frame(reg, reconnect);
-    y += 74.0;
 
-    let register = build_mode_toggle(reg, root, sw, y, panel_w);
-    y += 32.0;
+    let controls_y = y + 74.0;
+    let save_checkbox = build_save_account_checkbox(reg, root, sw, controls_y - 36.0);
+    let create_account = build_action_button(
+        reg,
+        root,
+        "CreateAccountButton",
+        "Don't have an account? Register",
+        sw,
+        controls_y,
+    );
+    let menu = build_action_button(reg, root, "MenuButton", "Menu", sw, controls_y + 38.0);
+    y = controls_y + 76.0;
 
     let status = create_frame(reg, "LoginStatus", Some(root), WidgetType::FontString, panel_w, 24.0);
     set_layout(reg, status, panel_x, y, panel_w, 24.0);
@@ -185,19 +202,27 @@ fn build_login_buttons(
     set_bg(reg, exit, [0.3, 0.1, 0.1, 1.0]);
 
     build_footer_text(reg, root, sw, sh);
-    (connect, reconnect, register, exit, status)
+    (connect, reconnect, create_account, menu, save_checkbox, exit, status)
 }
 
-fn build_mode_toggle(reg: &mut FrameRegistry, root: u64, sw: f32, y: f32, panel_w: f32) -> u64 {
-    let btn = create_button(
-        reg,
-        "RegisterToggle",
-        Some(root),
-        panel_w,
-        20.0,
-        "Don't have an account? Register",
-    );
-    set_layout(reg, btn, (sw - panel_w) / 2.0, y, panel_w, 20.0);
+fn build_action_button(
+    reg: &mut FrameRegistry,
+    root: u64,
+    name: &str,
+    text: &str,
+    sw: f32,
+    y: f32,
+) -> u64 {
+    let btn = create_button(reg, name, Some(root), 200.0, 30.0, text);
+    set_layout(reg, btn, (sw - 200.0) / 2.0, y, 200.0, 30.0);
+    set_bg(reg, btn, [0.12, 0.12, 0.2, 1.0]);
+    btn
+}
+
+fn build_save_account_checkbox(reg: &mut FrameRegistry, root: u64, sw: f32, y: f32) -> u64 {
+    let btn = create_check_button(reg, "SaveAccountCheckbox", Some(root), 200.0, 30.0, false);
+    set_layout(reg, btn, (sw - 200.0) / 2.0, y, 200.0, 30.0);
+    set_bg(reg, btn, [0.12, 0.12, 0.2, 1.0]);
     btn
 }
 
@@ -239,6 +264,10 @@ fn build_footer_text(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
     let disclaimer = create_frame(reg, "DisclaimerText", Some(root), WidgetType::FontString, 400.0, 16.0);
     set_layout(reg, disclaimer, (sw - 400.0) / 2.0, sh - 20.0, 400.0, 16.0);
     set_font_string(reg, disclaimer, "© 2025 World of Osso. All rights reserved.", 11.0, [0.4, 0.4, 0.4, 1.0]);
+
+    let logo = create_frame(reg, "BlizzardLogo", Some(root), WidgetType::FontString, 100.0, 20.0);
+    set_layout(reg, logo, (sw - 100.0) / 2.0, sh - 40.0, 100.0, 20.0);
+    set_font_string(reg, logo, "BLIZZARD", 14.0, [0.8, 0.6, 0.0, 1.0]);
 }
 
 fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
@@ -287,6 +316,7 @@ fn login_mouse_input(
     mut next_state: ResMut<NextState<GameState>>,
     mut status: ResMut<LoginStatus>,
     mut login_mode: ResMut<networking::LoginMode>,
+    mut save_account: ResMut<LoginSaveAccount>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -323,8 +353,11 @@ fn login_mouse_input(
             &*login_mode,
             &mut commands,
         );
-    } else if hit_frame(&ui, login.register_button, cx, cy) {
+    } else if hit_frame(&ui, login.save_checkbox, cx, cy) {
+        toggle_save_account(&mut save_account, &mut ui.registry, login.save_checkbox);
+    } else if hit_frame(&ui, login.create_account_button, cx, cy) {
         toggle_login_mode(&mut login_mode, &mut ui.registry, login);
+    } else if hit_frame(&ui, login.menu_button, cx, cy) {
     } else if hit_frame(&ui, login.exit_button, cx, cy) {
         exit.write(AppExit::Success);
     } else {
@@ -518,7 +551,7 @@ fn update_mode_labels(reg: &mut FrameRegistry, login: &LoginUi, mode: networking
         bd.text = btn_text.to_string();
     }
     if let Some(WidgetData::Button(bd)) = reg
-        .get_mut(login.register_button)
+        .get_mut(login.create_account_button)
         .and_then(|f| f.widget_data.as_mut())
     {
         bd.text = toggle_text.to_string();
@@ -616,6 +649,25 @@ fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f
     id
 }
 
+fn checkbox_text(checked: bool) -> &'static str {
+    if checked {
+        "[x] Save account name"
+    } else {
+        "[ ] Save account name"
+    }
+}
+
+fn toggle_save_account(save: &mut LoginSaveAccount, reg: &mut FrameRegistry, id: u64) {
+    save.0 = !save.0;
+    set_button_text(reg, id, checkbox_text(save.0));
+}
+
+fn set_button_text(reg: &mut FrameRegistry, id: u64, text: &str) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.text = text.to_string();
+    }
+}
+
 fn create_button(
     reg: &mut FrameRegistry,
     name: &str,
@@ -630,6 +682,24 @@ fn create_button(
             text: text.to_string(),
             ..Default::default()
         }));
+    }
+    id
+}
+
+fn create_check_button(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    w: f32,
+    h: f32,
+    checked: bool,
+) -> u64 {
+    let id = create_frame(reg, name, parent, WidgetType::CheckButton, w, h);
+    if let Some(frame) = reg.get_mut(id) {
+        let mut data = CheckButtonData::default();
+        data.checked = checked;
+        data.button.text = checkbox_text(checked).to_string();
+        frame.widget_data = Some(WidgetData::Button(data.button));
     }
     id
 }
