@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 
+use bevy::math::Affine2;
 use bevy::prelude::*;
 
 use crate::asset::blp;
