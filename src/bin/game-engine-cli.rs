@@ -20,6 +20,10 @@ struct Cli {
     #[arg(short, long)]
     socket: Option<PathBuf>,
 
+    /// Output responses as JSON
+    #[arg(long)]
+    json: bool,
+
     #[command(subcommand)]
     command: Cmd,
 }
@@ -371,6 +375,7 @@ fn find_socket() -> Result<PathBuf, String> {
 
 fn main() {
     let cli = Cli::parse();
+    let json = cli.json;
     let socket = match cli.socket {
         Some(s) => s,
         None => match find_socket() {
@@ -383,24 +388,24 @@ fn main() {
     };
 
     let result = match cli.command {
-        Cmd::Ping => handle_ping(&socket),
-        Cmd::Screenshot { output } => handle_screenshot(&socket, &output),
-        Cmd::DumpTree { filter } => handle_dump_tree(&socket, filter),
-        Cmd::DumpUiTree { filter } => handle_dump_ui_tree(&socket, filter),
-        Cmd::Auction { command } => handle_auction(&socket, command),
-        Cmd::Mail { command } => handle_mail(&socket, command),
-        Cmd::Status { command } => handle_status(&socket, command),
-        Cmd::Item { command } => handle_item(&socket, command),
-        Cmd::Inventory { command } => handle_inventory(&socket, command),
-        Cmd::Quest { command } => handle_quest(&socket, command),
-        Cmd::Group { command } => handle_group(&socket, command),
-        Cmd::Spell { command } => handle_spell(&socket, command),
-        Cmd::Combat { command } => handle_combat(&socket, command),
-        Cmd::Reputation { command } => handle_reputation(&socket, command),
-        Cmd::Collection { command } => handle_collection(&socket, command),
-        Cmd::Profession { command } => handle_profession(&socket, command),
-        Cmd::Map { command } => handle_map(&socket, command),
-        Cmd::Equipment { command } => handle_equipment(&socket, command),
+        Cmd::Ping => handle_ping(&socket, json),
+        Cmd::Screenshot { output } => handle_screenshot(&socket, &output, json),
+        Cmd::DumpTree { filter } => handle_dump_tree(&socket, filter, json),
+        Cmd::DumpUiTree { filter } => handle_dump_ui_tree(&socket, filter, json),
+        Cmd::Auction { command } => handle_auction(&socket, command, json),
+        Cmd::Mail { command } => handle_mail(&socket, command, json),
+        Cmd::Status { command } => handle_status(&socket, command, json),
+        Cmd::Item { command } => handle_item(&socket, command, json),
+        Cmd::Inventory { command } => handle_inventory(&socket, command, json),
+        Cmd::Quest { command } => handle_quest(&socket, command, json),
+        Cmd::Group { command } => handle_group(&socket, command, json),
+        Cmd::Spell { command } => handle_spell(&socket, command, json),
+        Cmd::Combat { command } => handle_combat(&socket, command, json),
+        Cmd::Reputation { command } => handle_reputation(&socket, command, json),
+        Cmd::Collection { command } => handle_collection(&socket, command, json),
+        Cmd::Profession { command } => handle_profession(&socket, command, json),
+        Cmd::Map { command } => handle_map(&socket, command, json),
+        Cmd::Equipment { command } => handle_equipment(&socket, command, json),
     };
 
     if let Err(e) = result {
@@ -409,8 +414,12 @@ fn main() {
     }
 }
 
-fn handle_ping(socket: &PathBuf) -> Result<(), String> {
+fn handle_ping(socket: &PathBuf, json: bool) -> Result<(), String> {
     let resp: Response = Client::call(socket, &Request::Ping).map_err(|e| format!("{e}"))?;
+
+    if json {
+        return print_json(&resp);
+    }
 
     match resp {
         Response::Pong => {
@@ -421,9 +430,12 @@ fn handle_ping(socket: &PathBuf) -> Result<(), String> {
     }
 }
 
-fn handle_dump_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), String> {
+fn handle_dump_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> Result<(), String> {
     let resp: Response =
         Client::call(socket, &Request::DumpTree { filter }).map_err(|e| format!("{e}"))?;
+    if json {
+        return print_json(&resp);
+    }
     match resp {
         Response::Tree(tree) => {
             println!("{tree}");
@@ -434,9 +446,12 @@ fn handle_dump_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), Stri
     }
 }
 
-fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), String> {
+fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> Result<(), String> {
     let resp: Response =
         Client::call(socket, &Request::DumpUiTree { filter }).map_err(|e| format!("{e}"))?;
+    if json {
+        return print_json(&resp);
+    }
     match resp {
         Response::Tree(tree) => {
             println!("{tree}");
@@ -447,14 +462,21 @@ fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>) -> Result<(), S
     }
 }
 
-fn handle_screenshot(socket: &PathBuf, output: &PathBuf) -> Result<(), String> {
+fn handle_screenshot(socket: &PathBuf, output: &PathBuf, json: bool) -> Result<(), String> {
     let resp: Response = Client::call(socket, &Request::Screenshot).map_err(|e| format!("{e}"))?;
 
     match resp {
         Response::Screenshot(data) => {
             std::fs::write(output, &data)
                 .map_err(|e| format!("failed to write {}: {e}", output.display()))?;
-            println!("saved {} ({} bytes)", output.display(), data.len());
+            if json {
+                print_json(&serde_json::json!({
+                    "path": output.display().to_string(),
+                    "bytes": data.len()
+                }))?;
+            } else {
+                println!("saved {} ({} bytes)", output.display(), data.len());
+            }
             Ok(())
         }
         Response::Error(msg) => Err(msg),
@@ -462,7 +484,7 @@ fn handle_screenshot(socket: &PathBuf, output: &PathBuf) -> Result<(), String> {
     }
 }
 
-fn handle_auction(socket: &PathBuf, command: AuctionCmd) -> Result<(), String> {
+fn handle_auction(socket: &PathBuf, command: AuctionCmd, json: bool) -> Result<(), String> {
     let request = match command {
         AuctionCmd::Open => Request::AuctionOpen,
         AuctionCmd::Status => Request::AuctionStatus,
@@ -524,163 +546,98 @@ fn handle_auction(socket: &PathBuf, command: AuctionCmd) -> Result<(), String> {
         },
     };
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_mail(socket: &PathBuf, command: MailCmd) -> Result<(), String> {
+fn handle_mail(socket: &PathBuf, command: MailCmd, json: bool) -> Result<(), String> {
     let request = mail_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_status(socket: &PathBuf, command: StatusCmd) -> Result<(), String> {
+fn handle_status(socket: &PathBuf, command: StatusCmd, json: bool) -> Result<(), String> {
     let request = status_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_item(socket: &PathBuf, command: ItemCmd) -> Result<(), String> {
+fn handle_item(socket: &PathBuf, command: ItemCmd, json: bool) -> Result<(), String> {
     let request = item_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_inventory(socket: &PathBuf, command: InventoryCmd) -> Result<(), String> {
+fn handle_inventory(socket: &PathBuf, command: InventoryCmd, json: bool) -> Result<(), String> {
     let request = inventory_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_quest(socket: &PathBuf, command: QuestCmd) -> Result<(), String> {
+fn handle_quest(socket: &PathBuf, command: QuestCmd, json: bool) -> Result<(), String> {
     let request = quest_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_group(socket: &PathBuf, command: GroupCmd) -> Result<(), String> {
+fn handle_group(socket: &PathBuf, command: GroupCmd, json: bool) -> Result<(), String> {
     let request = group_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_spell(socket: &PathBuf, command: SpellCmd) -> Result<(), String> {
+fn handle_spell(socket: &PathBuf, command: SpellCmd, json: bool) -> Result<(), String> {
     let request = spell_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_combat(socket: &PathBuf, command: CombatCmd) -> Result<(), String> {
+fn handle_combat(socket: &PathBuf, command: CombatCmd, json: bool) -> Result<(), String> {
     let request = combat_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_reputation(socket: &PathBuf, command: ReputationCmd) -> Result<(), String> {
+fn handle_reputation(socket: &PathBuf, command: ReputationCmd, json: bool) -> Result<(), String> {
     let request = reputation_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_collection(socket: &PathBuf, command: CollectionCmd) -> Result<(), String> {
+fn handle_collection(socket: &PathBuf, command: CollectionCmd, json: bool) -> Result<(), String> {
     let request = collection_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_profession(socket: &PathBuf, command: ProfessionCmd) -> Result<(), String> {
+fn handle_profession(socket: &PathBuf, command: ProfessionCmd, json: bool) -> Result<(), String> {
     let request = profession_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+    handle_text_response(socket, request, json)
 }
 
-fn handle_map(socket: &PathBuf, command: MapCmd) -> Result<(), String> {
+fn handle_map(socket: &PathBuf, command: MapCmd, json: bool) -> Result<(), String> {
     let request = map_request(command)?;
 
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
+    handle_text_response(socket, request, json)
+}
+
+fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Result<(), String> {
+    let request = equipment_request(command)?;
+
+    handle_text_response(socket, request, json)
+}
+
+fn handle_text_response(socket: &PathBuf, request: Request, json: bool) -> Result<(), String> {
+    let resp: Response = Client::call(socket, &request).map_err(|e| format!("{e}"))?;
+
+    if json {
+        return match resp {
+            Response::Error(msg) => Err(msg),
+            other => print_json(&other),
+        };
+    }
+
+    match resp {
         Response::Text(text) => {
             println!("{text}");
             Ok(())
@@ -690,17 +647,11 @@ fn handle_map(socket: &PathBuf, command: MapCmd) -> Result<(), String> {
     }
 }
 
-fn handle_equipment(socket: &PathBuf, command: EquipmentCmd) -> Result<(), String> {
-    let request = equipment_request(command)?;
-
-    match Client::call(socket, &request).map_err(|e| format!("{e}"))? {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
-        Response::Error(msg) => Err(msg),
-        other => Err(format!("unexpected response: {other:?}")),
-    }
+fn print_json<T: serde::Serialize>(value: &T) -> Result<(), String> {
+    let serialized =
+        serde_json::to_string_pretty(value).map_err(|e| format!("failed to encode json: {e}"))?;
+    println!("{serialized}");
+    Ok(())
 }
 
 fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -1178,5 +1129,34 @@ mod tests {
                 slot: "offhand".into(),
             }
         );
+    }
+
+    #[test]
+    fn json_flag_parses_for_new_command_families() {
+        let cli = Cli::try_parse_from([
+            "game-engine-cli",
+            "--json",
+            "inventory",
+            "search",
+            "--text",
+            "torch",
+        ])
+        .expect("cli args should parse");
+
+        assert!(cli.json);
+        assert!(matches!(
+            cli.command,
+            Cmd::Inventory {
+                command: InventoryCmd::Search { .. }
+            }
+        ));
+    }
+
+    #[test]
+    fn text_response_serializes_in_json_mode() {
+        let serialized =
+            serde_json::to_string(&Response::Text("ok".into())).expect("response serializes");
+
+        assert_eq!(serialized, "{\"Text\":\"ok\"}");
     }
 }
