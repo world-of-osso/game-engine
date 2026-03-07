@@ -39,6 +39,26 @@ pub enum WidgetType {
     Minimap,
 }
 
+/// Backdrop decoration for a frame (background fill + border).
+#[derive(Debug, Clone)]
+pub struct Backdrop {
+    pub bg_color: Option<[f32; 4]>,
+    pub border_color: Option<[f32; 4]>,
+    pub edge_size: f32,
+    pub insets: [f32; 4], // left, right, top, bottom
+}
+
+impl Default for Backdrop {
+    fn default() -> Self {
+        Self {
+            bg_color: None,
+            border_color: None,
+            edge_size: 1.0,
+            insets: [0.0; 4],
+        }
+    }
+}
+
 /// A UI frame in the WoW frame hierarchy.
 pub struct Frame {
     pub id: u64,
@@ -81,6 +101,7 @@ pub struct Frame {
 
     // Appearance
     pub background_color: Option<[f32; 4]>,
+    pub backdrop: Option<Backdrop>,
 
     // Behavior
     pub clamped_to_screen: bool,
@@ -118,6 +139,7 @@ impl Frame {
             keyboard_enabled: false,
             hit_rect_insets: [0.0; 4],
             background_color: None,
+            backdrop: None,
             clamped_to_screen: false,
             movable: false,
             resizable: false,

@@ -38,6 +38,9 @@ impl Plugin for UiPlugin {
                 recompute_layout,
                 crate::ui::render::sync_ui_quads,
                 crate::ui::render::sync_ui_text,
+                crate::ui::render_border::sync_ui_borders,
+                crate::ui::render_text_fx::sync_ui_text_shadows,
+                crate::ui::render_text_fx::sync_ui_text_outlines,
             )
                 .chain(),
         );

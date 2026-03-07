@@ -1,0 +1,209 @@
+//! Text shadow and outline rendering.
+
+use bevy::camera::visibility::RenderLayers;
+use bevy::prelude::*;
+use bevy::text::TextFont;
+use std::collections::HashSet;
+
+use crate::ui::frame::WidgetData;
+use crate::ui::plugin::UiState;
+use crate::ui::widgets::font_string::{JustifyH, Outline};
+
+use super::render::{UiText, UI_RENDER_LAYER};
+
+/// Marker for shadow text entities.
+#[derive(Component)]
+pub struct UiTextShadow(pub u64);
+
+/// Marker for outline text entities.
+#[derive(Component)]
+pub struct UiTextOutline(pub u64);
+
+/// Syncs text shadows — a dark copy of text rendered behind the main text.
+pub fn sync_ui_text_shadows(
+    state: Res<UiState>,
+    mut commands: Commands,
+    mut shadows: Query<(
+        Entity,
+        &UiTextShadow,
+        &mut Text2d,
+        &mut TextFont,
+        &mut TextColor,
+        &mut Transform,
+    )>,
+) {
+    let screen_w = state.registry.screen_width;
+    let screen_h = state.registry.screen_height;
+    let mut existing: HashSet<u64> = HashSet::new();
+
+    for (entity, shadow, mut text, mut font, mut color, mut transform) in shadows.iter_mut() {
+        let Some(props) = extract_shadow(state.registry.get(shadow.0)) else {
+            commands.entity(entity).despawn();
+            continue;
+        };
+        existing.insert(shadow.0);
+        update_shadow_entity(&props, &mut text, &mut font, &mut color);
+        let _ = (&mut transform, screen_w, screen_h); // transform set at spawn
+    }
+
+    spawn_missing_shadows(&state, &existing, screen_w, screen_h, &mut commands);
+}
+
+fn spawn_missing_shadows(
+    state: &UiState,
+    existing: &HashSet<u64>,
+    screen_w: f32,
+    screen_h: f32,
+    commands: &mut Commands,
+) {
+    for frame in state.registry.frames_iter() {
+        if existing.contains(&frame.id) {
+            continue;
+        }
+        let Some(props) = extract_shadow(Some(frame)) else {
+            continue;
+        };
+        let transform = shadow_transform(frame, &props, screen_w, screen_h);
+        let [r, g, b, a] = props.shadow_color;
+        commands.spawn((
+            Text2d::new(props.content),
+            TextFont { font_size: props.font_size, ..default() },
+            TextColor(Color::srgba(r, g, b, a * frame.effective_alpha)),
+            transform,
+            RenderLayers::layer(UI_RENDER_LAYER),
+            UiText(frame.id),
+            UiTextShadow(frame.id),
+        ));
+    }
+}
+
+struct ShadowProps {
+    content: String,
+    font_size: f32,
+    shadow_color: [f32; 4],
+    shadow_offset: [f32; 2],
+    justify: JustifyH,
+}
+
+fn extract_shadow(frame: Option<&crate::ui::frame::Frame>) -> Option<ShadowProps> {
+    let frame = frame?;
+    if !frame.visible {
+        return None;
+    }
+    let Some(WidgetData::FontString(fs)) = &frame.widget_data else {
+        return None;
+    };
+    if fs.text.is_empty() {
+        return None;
+    }
+    let shadow_color = fs.shadow_color?;
+    Some(ShadowProps {
+        content: fs.text.clone(),
+        font_size: fs.font_size,
+        shadow_color,
+        shadow_offset: fs.shadow_offset,
+        justify: fs.justify_h,
+    })
+}
+
+fn update_shadow_entity(
+    props: &ShadowProps,
+    text: &mut Text2d,
+    font: &mut TextFont,
+    color: &mut TextColor,
+) {
+    *text = Text2d::new(&props.content);
+    font.font_size = props.font_size;
+    let [r, g, b, a] = props.shadow_color;
+    *color = TextColor(Color::srgba(r, g, b, a));
+}
+
+fn shadow_transform(
+    frame: &crate::ui::frame::Frame,
+    props: &ShadowProps,
+    screen_w: f32,
+    screen_h: f32,
+) -> Transform {
+    let mut t = super::render::text_transform(frame, screen_w, screen_h, props.justify);
+    t.translation.x += props.shadow_offset[0];
+    t.translation.y -= props.shadow_offset[1];
+    t.translation.z = 9.9;
+    t
+}
+
+/// Syncs text outlines — dark copies of text at directional offsets.
+pub fn sync_ui_text_outlines(
+    state: Res<UiState>,
+    mut commands: Commands,
+    outlines: Query<(Entity, &UiTextOutline)>,
+) {
+    let screen_w = state.registry.screen_width;
+    let screen_h = state.registry.screen_height;
+
+    let mut existing: HashSet<u64> = HashSet::new();
+    for (entity, outline) in &outlines {
+        if has_outline_frame(&state, outline.0) {
+            existing.insert(outline.0);
+        } else {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    for frame in state.registry.frames_iter() {
+        if !frame.visible || existing.contains(&frame.id) || !has_outline(frame) {
+            continue;
+        }
+        spawn_outlines(frame, screen_w, screen_h, &mut commands);
+    }
+}
+
+fn has_outline_frame(state: &UiState, id: u64) -> bool {
+    state.registry.get(id).is_some_and(|f| f.visible && has_outline(f))
+}
+
+fn has_outline(frame: &crate::ui::frame::Frame) -> bool {
+    matches!(
+        &frame.widget_data,
+        Some(WidgetData::FontString(fs)) if fs.outline != Outline::None && !fs.text.is_empty()
+    )
+}
+
+fn spawn_outlines(
+    frame: &crate::ui::frame::Frame,
+    screen_w: f32,
+    screen_h: f32,
+    commands: &mut Commands,
+) {
+    let Some(WidgetData::FontString(fs)) = &frame.widget_data else {
+        return;
+    };
+    let base = super::render::text_transform(frame, screen_w, screen_h, fs.justify_h);
+    let alpha = frame.effective_alpha;
+
+    for &(dx, dy) in outline_offsets(fs.outline) {
+        let mut transform = base;
+        transform.translation.x += dx;
+        transform.translation.y += dy;
+        transform.translation.z = 9.8;
+        commands.spawn((
+            Text2d::new(&fs.text),
+            TextFont { font_size: fs.font_size, ..default() },
+            TextColor(Color::srgba(0.0, 0.0, 0.0, alpha)),
+            transform,
+            RenderLayers::layer(UI_RENDER_LAYER),
+            UiText(frame.id),
+            UiTextOutline(frame.id),
+        ));
+    }
+}
+
+fn outline_offsets(outline: Outline) -> &'static [(f32, f32)] {
+    match outline {
+        Outline::None => &[],
+        Outline::Outline => &[(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)],
+        Outline::ThickOutline => &[
+            (-2.0, 0.0), (2.0, 0.0), (0.0, -2.0), (0.0, 2.0),
+            (-1.4, -1.4), (1.4, -1.4), (-1.4, 1.4), (1.4, 1.4),
+        ],
+    }
+}
