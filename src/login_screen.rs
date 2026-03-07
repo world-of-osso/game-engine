@@ -3,7 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
-use game_engine::ui::frame::{Frame, WidgetData, WidgetType};
+use game_engine::ui::frame::{Backdrop, Frame, WidgetData, WidgetType};
 use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
@@ -18,7 +18,7 @@ use crate::networking;
 const BTN_COLOR_NORMAL: [f32; 4] = [0.15, 0.35, 0.6, 1.0];
 const BTN_COLOR_HOVER: [f32; 4] = [0.25, 0.45, 0.7, 1.0];
 const BTN_COLOR_PRESSED: [f32; 4] = [0.1, 0.25, 0.45, 1.0];
-const FADE_IN_DURATION: f32 = 0.5;
+const FADE_IN_DURATION: f32 = 0.75;
 
 /// Resource holding frame IDs for the login screen UI.
 #[derive(Resource)]
@@ -28,7 +28,9 @@ struct LoginUi {
     username_input: u64,
     password_input: u64,
     connect_button: u64,
+    reconnect_button: u64,
     register_button: u64,
+    exit_button: u64,
     status_text: u64,
 }
 
@@ -79,7 +81,7 @@ fn build_login_ui(
     let root = build_login_background(reg, sw, sh);
     build_login_titles(reg, root, sw, sh);
     let (server_input, username_input, password_input) = build_login_inputs(reg, root, sw, sh);
-    let (connect_button, register_button, status_text) =
+    let (connect_button, reconnect_button, register_button, exit_button, status_text) =
         build_login_buttons(reg, root, sw, sh);
 
     if let Some(addr) = server_addr {
@@ -94,7 +96,9 @@ fn build_login_ui(
         username_input,
         password_input,
         connect_button,
+        reconnect_button,
         register_button,
+        exit_button,
         status_text,
     });
 }
@@ -137,7 +141,7 @@ fn build_login_inputs(
     sw: f32,
     sh: f32,
 ) -> (u64, u64, u64) {
-    let panel_w = 340.0;
+    let panel_w = 320.0;
     let panel_x = (sw - panel_w) / 2.0;
     let mut y = sh * 0.35;
 
@@ -154,15 +158,20 @@ fn build_login_buttons(
     root: u64,
     sw: f32,
     sh: f32,
-) -> (u64, u64, u64) {
-    let panel_w = 340.0;
+ ) -> (u64, u64, u64, u64, u64) {
+    let panel_w = 320.0;
     let panel_x = (sw - panel_w) / 2.0;
-    let mut y = sh * 0.35 + 3.0 * 72.0 + 8.0; // after 3 input fields (each 72px) + gap
+    let mut y = sh * 0.35 + 3.0 * 72.0 + 8.0;
 
-    let connect = create_button(reg, "ConnectButton", Some(root), 200.0, 36.0, "Login");
-    set_layout(reg, connect, (sw - 200.0) / 2.0, y, 200.0, 36.0);
+    let connect = create_button(reg, "ConnectButton", Some(root), 250.0, 66.0, "Login");
+    set_layout(reg, connect, (sw - 250.0) / 2.0, y, 250.0, 66.0);
     set_bg(reg, connect, BTN_COLOR_NORMAL);
-    y += 44.0;
+
+    let reconnect = create_button(reg, "ReconnectButton", Some(root), 250.0, 66.0, "Reconnect");
+    set_layout(reg, reconnect, (sw - 250.0) / 2.0, y, 250.0, 66.0);
+    set_bg(reg, reconnect, [0.15, 0.4, 0.2, 1.0]);
+    hide_frame(reg, reconnect);
+    y += 74.0;
 
     let register = build_mode_toggle(reg, root, sw, y, panel_w);
     y += 32.0;
@@ -171,26 +180,24 @@ fn build_login_buttons(
     set_layout(reg, status, panel_x, y, panel_w, 24.0);
     set_font_string(reg, status, "", 13.0, [0.9, 0.5, 0.5, 1.0]);
 
-    (connect, register, status)
+    let exit = create_button(reg, "ExitButton", Some(root), 80.0, 28.0, "Quit");
+    set_layout(reg, exit, sw - 90.0, sh - 44.0, 80.0, 28.0);
+    set_bg(reg, exit, [0.3, 0.1, 0.1, 1.0]);
+
+    build_footer_text(reg, root, sw, sh);
+    (connect, reconnect, register, exit, status)
 }
 
 fn build_mode_toggle(reg: &mut FrameRegistry, root: u64, sw: f32, y: f32, panel_w: f32) -> u64 {
-    let btn = create_frame(
+    let btn = create_button(
         reg,
         "RegisterToggle",
         Some(root),
-        WidgetType::FontString,
         panel_w,
         20.0,
+        "Don't have an account? Register",
     );
     set_layout(reg, btn, (sw - panel_w) / 2.0, y, panel_w, 20.0);
-    set_font_string(
-        reg,
-        btn,
-        "Don't have an account? Register",
-        12.0,
-        [0.5, 0.7, 1.0, 1.0],
-    );
     btn
 }
 
@@ -215,12 +222,47 @@ fn build_labeled_editbox(
     set_font_string_left(reg, label, label_text, 13.0, [0.8, 0.8, 0.9, 1.0]);
     *y += 24.0;
 
-    let input = create_editbox(reg, name, Some(root), panel_w, 32.0);
-    set_layout(reg, input, panel_x, *y, panel_w, 32.0);
-    set_bg(reg, input, [0.12, 0.12, 0.2, 1.0]);
+    let input = create_editbox(reg, name, Some(root), panel_w, 40.0);
+    set_layout(reg, input, panel_x, *y, panel_w, 40.0);
+    set_editbox_backdrop(reg, input);
     *y += 48.0;
 
     input
+}
+
+
+fn build_footer_text(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
+    let version = create_frame(reg, "VersionText", Some(root), WidgetType::FontString, 200.0, 16.0);
+    set_layout(reg, version, 10.0, sh - 20.0, 200.0, 16.0);
+    set_font_string_left(reg, version, "game-engine v0.1.0", 11.0, [0.5, 0.5, 0.5, 1.0]);
+
+    let disclaimer = create_frame(reg, "DisclaimerText", Some(root), WidgetType::FontString, 400.0, 16.0);
+    set_layout(reg, disclaimer, (sw - 400.0) / 2.0, sh - 20.0, 400.0, 16.0);
+    set_font_string(reg, disclaimer, "© 2025 World of Osso. All rights reserved.", 11.0, [0.4, 0.4, 0.4, 1.0]);
+}
+
+fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.backdrop = Some(Backdrop {
+            bg_color: Some([0.06, 0.06, 0.10, 0.9]),
+            border_color: Some([0.3, 0.25, 0.15, 1.0]),
+            edge_size: 1.0,
+            insets: [0.0; 4],
+        });
+    }
+}
+
+fn hide_frame(reg: &mut FrameRegistry, id: u64) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.visible = false;
+        frame.shown = false;
+    }
+}
+
+fn select_all_editbox(reg: &mut FrameRegistry, id: u64) {
+    if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        eb.cursor_position = eb.text.len();
+    }
 }
 
 fn teardown_login_ui(
@@ -246,6 +288,7 @@ fn login_mouse_input(
     mut status: ResMut<LoginStatus>,
     mut login_mode: ResMut<networking::LoginMode>,
     mut commands: Commands,
+    mut exit: MessageWriter<AppExit>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
@@ -263,10 +306,13 @@ fn login_mouse_input(
     let (cx, cy) = (cursor.x, cursor.y);
     if hit_frame(&ui, login.server_input, cx, cy) {
         focus.0 = Some(login.server_input);
+        select_all_editbox(&mut ui.registry, login.server_input);
     } else if hit_frame(&ui, login.username_input, cx, cy) {
         focus.0 = Some(login.username_input);
+        select_all_editbox(&mut ui.registry, login.username_input);
     } else if hit_frame(&ui, login.password_input, cx, cy) {
         focus.0 = Some(login.password_input);
+        select_all_editbox(&mut ui.registry, login.password_input);
     } else if hit_frame(&ui, login.connect_button, cx, cy) {
         set_bg(&mut ui.registry, login.connect_button, BTN_COLOR_PRESSED);
         try_connect(
@@ -279,6 +325,8 @@ fn login_mouse_input(
         );
     } else if hit_frame(&ui, login.register_button, cx, cy) {
         toggle_login_mode(&mut login_mode, &mut ui.registry, login);
+    } else if hit_frame(&ui, login.exit_button, cx, cy) {
+        exit.write(AppExit::Success);
     } else {
         focus.0 = None;
     }
@@ -292,7 +340,6 @@ fn login_keyboard_input(
     mut next_state: ResMut<NextState<GameState>>,
     mut status: ResMut<LoginStatus>,
     login_mode: Res<networking::LoginMode>,
-    mut exit: MessageWriter<AppExit>,
     mut commands: Commands,
 ) {
     let Some(login) = login_ui.as_ref() else {
@@ -309,7 +356,7 @@ fn login_keyboard_input(
                 continue;
             }
             KeyCode::Escape => {
-                exit.write(AppExit::Success);
+                focus.0 = None;
                 continue;
             }
             _ => {}
@@ -470,11 +517,11 @@ fn update_mode_labels(reg: &mut FrameRegistry, login: &LoginUi, mode: networking
     {
         bd.text = btn_text.to_string();
     }
-    if let Some(WidgetData::FontString(fs)) = reg
+    if let Some(WidgetData::Button(bd)) = reg
         .get_mut(login.register_button)
         .and_then(|f| f.widget_data.as_mut())
     {
-        fs.text = toggle_text.to_string();
+        bd.text = toggle_text.to_string();
     }
 }
 
