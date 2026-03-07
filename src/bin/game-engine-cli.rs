@@ -630,28 +630,34 @@ fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Resu
 fn handle_text_response(socket: &PathBuf, request: Request, json: bool) -> Result<(), String> {
     let resp: Response = Client::call(socket, &request).map_err(|e| format!("{e}"))?;
 
+    let output = format_text_response_output(resp, json)?;
+    println!("{output}");
+    Ok(())
+}
+
+fn print_json<T: serde::Serialize>(value: &T) -> Result<(), String> {
+    let serialized = serialize_json(value)?;
+    println!("{serialized}");
+    Ok(())
+}
+
+fn format_text_response_output(resp: Response, json: bool) -> Result<String, String> {
     if json {
         return match resp {
             Response::Error(msg) => Err(msg),
-            other => print_json(&other),
+            other => serialize_json(&other),
         };
     }
 
     match resp {
-        Response::Text(text) => {
-            println!("{text}");
-            Ok(())
-        }
+        Response::Text(text) => Ok(text),
         Response::Error(msg) => Err(msg),
         other => Err(format!("unexpected response: {other:?}")),
     }
 }
 
-fn print_json<T: serde::Serialize>(value: &T) -> Result<(), String> {
-    let serialized =
-        serde_json::to_string_pretty(value).map_err(|e| format!("failed to encode json: {e}"))?;
-    println!("{serialized}");
-    Ok(())
+fn serialize_json<T: serde::Serialize>(value: &T) -> Result<String, String> {
+    serde_json::to_string_pretty(value).map_err(|e| format!("failed to encode json: {e}"))
 }
 
 fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -853,6 +859,7 @@ fn parse_sort_dir(value: &str) -> Result<AuctionSortDir, String> {
 mod tests {
     use super::*;
     use game_engine::mail::{DeleteMail, ListMailQuery, ReadMail, SendMail};
+    use serde_json::Value;
 
     #[test]
     fn mail_send_command_maps_to_send_request() {
@@ -1155,8 +1162,28 @@ mod tests {
     #[test]
     fn text_response_serializes_in_json_mode() {
         let serialized =
-            serde_json::to_string(&Response::Text("ok".into())).expect("response serializes");
+            format_text_response_output(Response::Text("ok".into()), true).expect("json output");
+        let parsed: Value = serde_json::from_str(&serialized).expect("valid json");
 
-        assert_eq!(serialized, "{\"Text\":\"ok\"}");
+        assert_eq!(parsed["Text"], Value::String("ok".into()));
+        assert!(parsed.get("ok").is_none());
+        assert!(parsed.get("data").is_none());
+    }
+
+    #[test]
+    fn pong_response_serializes_in_json_mode_with_enum_shape() {
+        let serialized = serialize_json(&Response::Pong).expect("json output");
+        let parsed: Value = serde_json::from_str(&serialized).expect("valid json");
+
+        assert_eq!(parsed["Pong"], Value::Null);
+        assert!(parsed.get("ok").is_none());
+        assert!(parsed.get("data").is_none());
+    }
+
+    #[test]
+    fn text_response_formatter_errors_for_non_text_in_text_mode() {
+        let err = format_text_response_output(Response::Pong, false).expect_err("should fail");
+
+        assert!(err.contains("unexpected response"));
     }
 }
