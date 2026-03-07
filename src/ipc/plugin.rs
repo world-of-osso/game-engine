@@ -4,13 +4,13 @@ use std::sync::mpsc;
 
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
-use lightyear::prelude::client::Connected;
 use lightyear::prelude::MessageSender;
+use lightyear::prelude::client::Connected;
 
-use super::{init, Command, Request, Response};
-use crate::auction_house::{queue_ipc_request, AuctionHouseState};
+use super::{Command, Request, Response, init};
+use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::item_info::lookup_item_info;
-use crate::mail::{queue_ipc_request as queue_mail_ipc_request, MailState};
+use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupRole,
