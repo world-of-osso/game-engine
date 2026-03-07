@@ -1,10 +1,13 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::text::TextFont;
+use std::collections::{HashMap, HashSet};
 
+use crate::asset;
 use crate::ui::frame::WidgetData;
 use crate::ui::plugin::UiState;
 use crate::ui::widgets::font_string::JustifyH;
+use crate::ui::widgets::texture::TextureSource;
 
 /// Marker component for the 2D UI overlay camera.
 #[derive(Component)]
@@ -39,7 +42,10 @@ pub fn setup_ui_camera(mut commands: Commands) {
 pub fn sync_ui_quads(
     mut state: ResMut<UiState>,
     mut commands: Commands,
+    mut images: Option<ResMut<Assets<Image>>>,
     quads: Query<(Entity, &UiQuad)>,
+    mut texture_cache: Local<HashMap<u32, Handle<Image>>>,
+    mut missing_textures: Local<HashSet<u32>>,
 ) {
     let screen_w = state.registry.screen_width;
     let screen_h = state.registry.screen_height;
@@ -48,7 +54,7 @@ pub fn sync_ui_quads(
     let sorted_ids = build_sorted_frame_ids(&state);
 
     // Map frame_id → sort_index for z-ordering.
-    let sort_map: std::collections::HashMap<u64, usize> = sorted_ids
+    let sort_map: HashMap<u64, usize> = sorted_ids
         .iter()
         .copied()
         .enumerate()
@@ -66,6 +72,9 @@ pub fn sync_ui_quads(
                 screen_w,
                 screen_h,
                 &mut commands,
+                &mut images,
+                &mut texture_cache,
+                &mut missing_textures,
             );
         } else {
             commands.entity(entity).despawn();
@@ -73,7 +82,7 @@ pub fn sync_ui_quads(
     }
 
     // Spawn new quads for frames that don't have one yet.
-    let existing: std::collections::HashSet<u64> = quads.iter().map(|(_, q)| q.0).collect();
+    let existing: HashSet<u64> = quads.iter().map(|(_, q)| q.0).collect();
     spawn_new_quads(
         &state,
         &sorted_ids,
@@ -82,6 +91,9 @@ pub fn sync_ui_quads(
         screen_w,
         screen_h,
         &mut commands,
+        &mut images,
+        &mut texture_cache,
+        &mut missing_textures,
     );
 
     state.registry.render_dirty.clear();
@@ -103,7 +115,20 @@ fn build_sorted_frame_ids(state: &UiState) -> Vec<u64> {
 }
 
 fn is_renderable(f: &crate::ui::frame::Frame) -> bool {
-    f.visible && f.width > 0.0 && f.height > 0.0 && f.background_color.is_some()
+    f.visible
+        && f.width > 0.0
+        && f.height > 0.0
+        && (f.background_color.is_some() || frame_texture_fdid(f).is_some())
+}
+
+fn frame_texture_fdid(f: &crate::ui::frame::Frame) -> Option<u32> {
+    let WidgetData::Texture(texture) = f.widget_data.as_ref()? else {
+        return None;
+    };
+    let TextureSource::FileDataId(fdid) = texture.source else {
+        return None;
+    };
+    Some(fdid)
 }
 
 fn frame_transform(
@@ -134,15 +159,19 @@ fn update_existing_quad(
     screen_w: f32,
     screen_h: f32,
     commands: &mut Commands,
+    images: &mut Option<ResMut<Assets<Image>>>,
+    texture_cache: &mut HashMap<u32, Handle<Image>>,
+    missing_textures: &mut HashSet<u32>,
 ) {
     if let Some(frame) = state.registry.get(frame_id) {
         let transform = frame_transform(frame, sort_idx, screen_w, screen_h);
-        let color = frame_color(frame);
+        let (color, image) = frame_visual(frame, images, texture_cache, missing_textures);
         commands.entity(entity).insert((
             transform,
             Sprite {
                 color,
                 custom_size: Some(Vec2::new(frame.width, frame.height)),
+                image,
                 ..default()
             },
         ));
@@ -152,11 +181,14 @@ fn update_existing_quad(
 fn spawn_new_quads(
     state: &UiState,
     sorted_ids: &[u64],
-    sort_map: &std::collections::HashMap<u64, usize>,
-    existing: &std::collections::HashSet<u64>,
+    sort_map: &HashMap<u64, usize>,
+    existing: &HashSet<u64>,
     screen_w: f32,
     screen_h: f32,
     commands: &mut Commands,
+    images: &mut Option<ResMut<Assets<Image>>>,
+    texture_cache: &mut HashMap<u32, Handle<Image>>,
+    missing_textures: &mut HashSet<u32>,
 ) {
     for &frame_id in sorted_ids {
         if existing.contains(&frame_id) {
@@ -165,11 +197,12 @@ fn spawn_new_quads(
         if let Some(frame) = state.registry.get(frame_id) {
             let sort_idx = sort_map[&frame_id];
             let transform = frame_transform(frame, sort_idx, screen_w, screen_h);
-            let color = frame_color(frame);
+            let (color, image) = frame_visual(frame, images, texture_cache, missing_textures);
             commands.spawn((
                 Sprite {
                     color,
                     custom_size: Some(Vec2::new(frame.width, frame.height)),
+                    image,
                     ..default()
                 },
                 transform,
@@ -178,6 +211,50 @@ fn spawn_new_quads(
             ));
         }
     }
+}
+
+fn frame_visual(
+    frame: &crate::ui::frame::Frame,
+    images: &mut Option<ResMut<Assets<Image>>>,
+    texture_cache: &mut HashMap<u32, Handle<Image>>,
+    missing_textures: &mut HashSet<u32>,
+) -> (Color, Handle<Image>) {
+    if let Some(fdid) = frame_texture_fdid(frame)
+        && let Some(handle) = load_spell_icon(fdid, images, texture_cache, missing_textures)
+    {
+        let alpha = frame.effective_alpha.clamp(0.0, 1.0);
+        return (Color::srgba(1.0, 1.0, 1.0, alpha), handle);
+    }
+
+    (frame_color(frame), Handle::default())
+}
+
+fn load_spell_icon(
+    fdid: u32,
+    images: &mut Option<ResMut<Assets<Image>>>,
+    texture_cache: &mut HashMap<u32, Handle<Image>>,
+    missing_textures: &mut HashSet<u32>,
+) -> Option<Handle<Image>> {
+    if let Some(handle) = texture_cache.get(&fdid) {
+        return Some(handle.clone());
+    }
+    if missing_textures.contains(&fdid) {
+        return None;
+    }
+    let assets = images.as_mut().map(|images| &mut **images)?;
+
+    let path = asset::casc_resolver::ensure_texture(fdid)?;
+    let image = match asset::blp::load_blp_gpu_image(&path) {
+        Ok(image) => image,
+        Err(_) => {
+            missing_textures.insert(fdid);
+            return None;
+        }
+    };
+
+    let handle = assets.add(image);
+    texture_cache.insert(fdid, handle.clone());
+    Some(handle)
 }
 
 /// Links a Bevy Text2d entity to a UI frame by its ID.
@@ -351,6 +428,11 @@ mod tests {
         app.add_plugins(UiPlugin);
         app.update();
 
+        let baseline = {
+            let mut query = app.world_mut().query_filtered::<(), With<UiQuad>>();
+            query.iter(app.world()).count()
+        };
+
         {
             let mut ui = app.world_mut().resource_mut::<UiState>();
             let id = ui.registry.create_frame("NoColor", None);
@@ -364,7 +446,10 @@ mod tests {
 
         let mut query = app.world_mut().query_filtered::<(), With<UiQuad>>();
         let count = query.iter(app.world()).count();
-        assert_eq!(count, 0, "Should not create quad without background color");
+        assert_eq!(
+            count, baseline,
+            "Frame without background color should not add a new quad"
+        );
     }
 
     #[test]
@@ -373,6 +458,11 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_plugins(UiPlugin);
         app.update();
+
+        let baseline = {
+            let mut query = app.world_mut().query_filtered::<(), With<UiQuad>>();
+            query.iter(app.world()).count()
+        };
 
         let frame_id;
         {
@@ -387,7 +477,7 @@ mod tests {
         app.update(); // quad spawned
 
         let mut query = app.world_mut().query_filtered::<(), With<UiQuad>>();
-        assert_eq!(query.iter(app.world()).count(), 1);
+        assert_eq!(query.iter(app.world()).count(), baseline + 1);
 
         // Hide the frame
         {
@@ -398,6 +488,6 @@ mod tests {
         app.update(); // quad despawned
 
         let mut query = app.world_mut().query_filtered::<(), With<UiQuad>>();
-        assert_eq!(query.iter(app.world()).count(), 0);
+        assert_eq!(query.iter(app.world()).count(), baseline);
     }
 }

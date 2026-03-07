@@ -11,6 +11,7 @@ pub mod layout;
 pub mod plugin;
 pub mod registry;
 pub mod render;
+pub mod spellbook_data;
 pub mod strata;
 pub mod wasm_host;
 pub mod widgets;
