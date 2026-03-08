@@ -31,6 +31,7 @@ const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBa
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
+const GLUE_BUTTON_SIZE: (f32, f32) = (200.0, 30.0);
 
 #[derive(Resource)]
 struct LoginUi {
@@ -367,7 +368,14 @@ fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -
 }
 
 fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> u64 {
-    let exit = create_button(reg, "ExitButton", Some(root), 80.0, 28.0, "Quit");
+    let exit = create_button(
+        reg,
+        "ExitButton",
+        Some(root),
+        GLUE_BUTTON_SIZE.0,
+        GLUE_BUTTON_SIZE.1,
+        "Quit",
+    );
     set_strata(reg, exit, FrameStrata::Medium);
     set_anchor(
         reg,
@@ -393,7 +401,14 @@ fn build_action_button_anchored(
     x_off: f32,
     y_off: f32,
 ) -> u64 {
-    let btn = create_button(reg, name, Some(root), 250.0, 30.0, text);
+    let btn = create_button(
+        reg,
+        name,
+        Some(root),
+        GLUE_BUTTON_SIZE.0,
+        GLUE_BUTTON_SIZE.1,
+        text,
+    );
     set_strata(reg, btn, FrameStrata::Medium);
     set_anchor(reg, btn, point, relative_to, relative_point, x_off, y_off);
     set_button_textures(reg, btn, TEX_DLG_NORMAL, TEX_DLG_PUSHED, TEX_DLG_HL);
