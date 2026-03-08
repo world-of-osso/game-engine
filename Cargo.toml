@@ -21,9 +21,9 @@ cascette-client-storage = { path = "/home/osso/Repos/cascette-rs/crates/cascette
 cascette-crypto = { path = "/home/osso/Repos/cascette-rs/crates/cascette-crypto" }
 cascette-formats = { path = "/home/osso/Repos/cascette-rs/crates/cascette-formats" }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
-shared = { path = "/syncthing/Sync/Projects/wow/game-server/crates/shared" }
+shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/shared" }
 dioxus-core = "0.7"
-game-api = { path = "/syncthing/Sync/Projects/wow/game-api" }
+game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
 
 [[bin]]
 name = "casc-local"
