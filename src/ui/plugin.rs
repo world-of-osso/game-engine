@@ -164,7 +164,10 @@ fn send_spellbook_action(
     }
 }
 
-fn sync_screen_size(mut state: ResMut<UiState>, windows: Query<&Window, With<bevy::window::PrimaryWindow>>) {
+fn sync_screen_size(
+    mut state: ResMut<UiState>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+) {
     let Ok(window) = windows.single() else { return };
     let (w, h) = (window.width(), window.height());
     if (state.registry.screen_width - w).abs() > 0.5

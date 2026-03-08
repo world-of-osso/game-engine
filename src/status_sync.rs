@@ -1,0 +1,231 @@
+use std::path::PathBuf;
+
+use bevy::prelude::*;
+use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
+use game_engine::status::{
+    CharacterStatsSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+};
+use lightyear::prelude::client::Connected;
+use shared::components::{
+    Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer,
+};
+
+use crate::camera::Player;
+use crate::equipment;
+use crate::networking;
+use crate::sound;
+use crate::terrain::{AdtManager};
+use crate::terrain_heightmap::TerrainHeightmap;
+
+pub fn sync_network_status_snapshot(
+    mut snapshot: ResMut<NetworkStatusSnapshot>,
+    server_addr: Option<Res<networking::ServerAddr>>,
+    game_state: Option<Res<State<crate::game_state::GameState>>>,
+    local_client_id: Option<Res<networking::LocalClientId>>,
+    current_zone: Res<networking::CurrentZone>,
+    chat_log: Res<networking::ChatLog>,
+    connected_query: Query<(), With<Connected>>,
+    remote_query: Query<(), With<networking::RemoteEntity>>,
+    local_player_query: Query<(), With<networking::LocalPlayer>>,
+) {
+    snapshot.server_addr = server_addr.map(|addr| addr.0.to_string());
+    snapshot.game_state = game_state
+        .map(|state| format!("{:?}", state.get()))
+        .unwrap_or_else(|| "Unavailable".into());
+    snapshot.connected = !connected_query.is_empty();
+    snapshot.connected_links = connected_query.iter().count();
+    snapshot.local_client_id = local_client_id.map(|id| id.0);
+    snapshot.zone_id = current_zone.zone_id;
+    snapshot.remote_entities = remote_query.iter().count();
+    snapshot.local_players = local_player_query.iter().count();
+    snapshot.chat_messages = chat_log.messages.len();
+}
+
+pub fn sync_terrain_status_snapshot(
+    mut snapshot: ResMut<TerrainStatusSnapshot>,
+    adt_manager: Res<AdtManager>,
+    heightmap: Res<TerrainHeightmap>,
+) {
+    snapshot.map_name = adt_manager.map_name.clone();
+    snapshot.initial_tile = adt_manager.initial_tile;
+    snapshot.load_radius = adt_manager.load_radius;
+    snapshot.loaded_tiles = adt_manager.loaded.len();
+    snapshot.pending_tiles = adt_manager.pending.len();
+    snapshot.failed_tiles = adt_manager.failed.len();
+    snapshot.server_requested_tiles = adt_manager.server_requested.len();
+    snapshot.heightmap_tiles = heightmap.tile_keys().count();
+}
+
+pub fn sync_sound_status_snapshot(
+    mut snapshot: ResMut<SoundStatusSnapshot>,
+    sound_settings: Option<Res<sound::SoundSettings>>,
+    ambient_query: Query<(), With<sound::AmbientSound>>,
+    sinks: Query<&AudioSink>,
+) {
+    if let Some(settings) = sound_settings {
+        snapshot.enabled = true;
+        snapshot.muted = settings.muted;
+        snapshot.master_volume = settings.master_volume;
+        snapshot.footstep_volume = settings.footstep_volume;
+        snapshot.ambient_volume = settings.ambient_volume;
+    } else {
+        *snapshot = SoundStatusSnapshot::default();
+    }
+    snapshot.ambient_entities = ambient_query.iter().count();
+    snapshot.active_sinks = sinks.iter().count();
+}
+
+/// Fill health/mana/speed from the local player entity into the snapshot.
+fn fill_local_player_stats(
+    snapshot: &mut CharacterStatsSnapshot,
+    local_player_query: &Query<
+        (
+            Option<&NetPlayer>,
+            Option<&NetHealth>,
+            Option<&NetMana>,
+            Option<&NetMovementSpeed>,
+        ),
+        With<networking::LocalPlayer>,
+    >,
+) {
+    if let Some((_, health, mana, speed)) = local_player_query.iter().next() {
+        snapshot.health_current = health.map(|v| v.current);
+        snapshot.health_max = health.map(|v| v.max);
+        snapshot.mana_current = mana.map(|v| v.current);
+        snapshot.mana_max = mana.map(|v| v.max);
+        snapshot.movement_speed = speed.map(|v| v.0);
+    } else {
+        snapshot.health_current = None;
+        snapshot.health_max = None;
+        snapshot.mana_current = None;
+        snapshot.mana_max = None;
+        snapshot.movement_speed = None;
+    }
+}
+
+pub fn sync_character_stats_snapshot(
+    mut snapshot: ResMut<CharacterStatsSnapshot>,
+    character_list: Res<networking::CharacterList>,
+    selected_character_id: Res<networking::SelectedCharacterId>,
+    current_zone: Res<networking::CurrentZone>,
+    local_player_query: Query<
+        (
+            Option<&NetPlayer>,
+            Option<&NetHealth>,
+            Option<&NetMana>,
+            Option<&NetMovementSpeed>,
+        ),
+        With<networking::LocalPlayer>,
+    >,
+) {
+    let selected_character = selected_character_id.0.and_then(|character_id| {
+        character_list
+            .0
+            .iter()
+            .find(|entry| entry.character_id == character_id)
+    });
+    snapshot.name = selected_character
+        .map(|entry| entry.name.clone())
+        .or_else(|| {
+            local_player_query
+                .iter()
+                .find_map(|(player, _, _, _)| player.map(|player| player.name.clone()))
+        });
+    snapshot.level = selected_character.map(|entry| entry.level);
+    snapshot.race = selected_character.map(|entry| entry.race);
+    snapshot.class = selected_character.map(|entry| entry.class);
+    snapshot.zone_id = current_zone.zone_id;
+    fill_local_player_stats(&mut snapshot, &local_player_query);
+}
+
+pub fn sync_equipped_gear_status_snapshot(
+    mut snapshot: ResMut<EquippedGearStatusSnapshot>,
+    local_player_query: Query<&equipment::Equipment, With<Player>>,
+) {
+    snapshot.entries.clear();
+    if let Some(equipment) = local_player_query.iter().next() {
+        let mut entries = Vec::with_capacity(equipment.slots.len());
+        for (slot, path) in &equipment.slots {
+            entries.push(EquippedGearEntry {
+                slot: format!("{slot:?}"),
+                path: path.display().to_string(),
+            });
+        }
+        entries.sort_by(|a, b| a.slot.cmp(&b.slot));
+        snapshot.entries = entries;
+    }
+}
+
+pub fn apply_equipment_ipc_commands(
+    mut queue: ResMut<EquipmentControlQueue>,
+    mut commands: Commands,
+    mut local_player_query: Query<(Entity, Option<&mut equipment::Equipment>), With<Player>>,
+) {
+    if queue.pending.is_empty() {
+        return;
+    }
+    let Some((entity, maybe_equipment)) = local_player_query.iter_mut().next() else {
+        queue.pending.clear();
+        return;
+    };
+    let mut pending = std::mem::take(&mut queue.pending);
+    if let Some(mut equipment) = maybe_equipment {
+        for command in pending.drain(..) {
+            apply_equipment_command(&mut equipment, command);
+        }
+        return;
+    }
+    let mut equipment = equipment::Equipment::default();
+    for command in pending.drain(..) {
+        apply_equipment_command(&mut equipment, command);
+    }
+    commands.entity(entity).insert(equipment);
+}
+
+fn apply_equipment_command(equipment: &mut equipment::Equipment, command: EquipmentControlCommand) {
+    match command {
+        EquipmentControlCommand::Set { slot, model_path } => {
+            let Some(slot) = parse_equipment_slot(&slot) else {
+                warn!("Ignoring equipment set with invalid slot '{slot}'");
+                return;
+            };
+            let path = PathBuf::from(model_path);
+            if !path.exists() {
+                warn!(
+                    "Ignoring equipment set for missing model path {}",
+                    path.display()
+                );
+                return;
+            }
+            equipment.slots.insert(slot, path);
+        }
+        EquipmentControlCommand::Clear { slot } => {
+            let Some(slot) = parse_equipment_slot(&slot) else {
+                warn!("Ignoring equipment clear with invalid slot '{slot}'");
+                return;
+            };
+            equipment.slots.remove(&slot);
+        }
+    }
+}
+
+fn parse_equipment_slot(value: &str) -> Option<equipment::EquipmentSlot> {
+    match value.to_ascii_lowercase().as_str() {
+        "mainhand" | "main-hand" | "main" | "mh" => Some(equipment::EquipmentSlot::MainHand),
+        "offhand" | "off-hand" | "off" | "oh" => Some(equipment::EquipmentSlot::OffHand),
+        _ => None,
+    }
+}
+
+pub fn sync_map_status_snapshot(
+    mut snapshot: ResMut<MapStatusSnapshot>,
+    current_zone: Res<networking::CurrentZone>,
+    player_query: Query<&Transform, With<Player>>,
+) {
+    snapshot.zone_id = current_zone.zone_id;
+    if let Some(transform) = player_query.iter().next() {
+        snapshot.player_x = transform.translation.x;
+        snapshot.player_z = transform.translation.z;
+    }
+}

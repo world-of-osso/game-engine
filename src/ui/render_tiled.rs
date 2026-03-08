@@ -37,8 +37,16 @@ fn frame_tiled_fdid(f: &crate::ui::frame::Frame) -> Option<u32> {
 
 fn tile_size(frame: &crate::ui::frame::Frame, horiz: bool, vert: bool) -> Vec2 {
     Vec2::new(
-        if !vert { frame.width } else { DEFAULT_TILE_SIZE },
-        if !horiz { frame.height } else { DEFAULT_TILE_SIZE },
+        if !vert {
+            frame.width
+        } else {
+            DEFAULT_TILE_SIZE
+        },
+        if !horiz {
+            frame.height
+        } else {
+            DEFAULT_TILE_SIZE
+        },
     )
 }
 
@@ -102,11 +110,21 @@ fn spawn_or_update_tile(
     let bx = pos.x - screen_w * 0.5;
     let by = screen_h * 0.5 - pos.y;
     let transform = Transform::from_xyz(bx, by, 0.001);
-    let sprite = Sprite { color, custom_size: Some(tile_sz), image: handle, ..default() };
+    let sprite = Sprite {
+        color,
+        custom_size: Some(tile_sz),
+        image: handle,
+        ..default()
+    };
     if let Some(&entity) = existing.get(&(frame_id, tile_idx)) {
         commands.entity(entity).insert((transform, sprite));
     } else {
-        commands.spawn((sprite, transform, RenderLayers::layer(UI_RENDER_LAYER), UiTile(frame_id, tile_idx)));
+        commands.spawn((
+            sprite,
+            transform,
+            RenderLayers::layer(UI_RENDER_LAYER),
+            UiTile(frame_id, tile_idx),
+        ));
     }
 }
 
@@ -122,9 +140,15 @@ fn sync_tiled_frame(
     screen_w: f32,
     screen_h: f32,
 ) {
-    let Some(frame) = state.registry.get(frame_id) else { return };
-    let Some((horiz, vert)) = frame_tiling(frame) else { return };
-    let Some(fdid) = frame_tiled_fdid(frame) else { return };
+    let Some(frame) = state.registry.get(frame_id) else {
+        return;
+    };
+    let Some((horiz, vert)) = frame_tiling(frame) else {
+        return;
+    };
+    let Some(fdid) = frame_tiled_fdid(frame) else {
+        return;
+    };
     let Some(handle) = load_tile_texture(fdid, images, texture_cache, missing_textures) else {
         return;
     };
@@ -135,8 +159,16 @@ fn sync_tiled_frame(
         let tile_idx = idx as u32;
         needed.insert((frame_id, tile_idx));
         spawn_or_update_tile(
-            commands, existing, frame_id, tile_idx,
-            *pos, tile_sz, color, handle.clone(), screen_w, screen_h,
+            commands,
+            existing,
+            frame_id,
+            tile_idx,
+            *pos,
+            tile_sz,
+            color,
+            handle.clone(),
+            screen_w,
+            screen_h,
         );
     }
 }
@@ -165,9 +197,16 @@ pub fn sync_ui_tiled_textures(
 
     for frame_id in frame_ids {
         sync_tiled_frame(
-            frame_id, &state, &mut commands, &mut images,
-            &existing, &mut needed, &mut texture_cache, &mut missing_textures,
-            screen_w, screen_h,
+            frame_id,
+            &state,
+            &mut commands,
+            &mut images,
+            &existing,
+            &mut needed,
+            &mut texture_cache,
+            &mut missing_textures,
+            screen_w,
+            screen_h,
         );
     }
 

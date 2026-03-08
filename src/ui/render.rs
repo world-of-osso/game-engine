@@ -64,16 +64,33 @@ pub fn sync_ui_quads(
         .collect();
 
     update_or_despawn_quads(
-        &state, &sort_map, screen_w, screen_h,
-        &mut commands, &mut images, &mut texture_cache, &mut file_texture_cache,
-        &mut missing_textures, &mut missing_file_textures, &quads,
+        &state,
+        &sort_map,
+        screen_w,
+        screen_h,
+        &mut commands,
+        &mut images,
+        &mut texture_cache,
+        &mut file_texture_cache,
+        &mut missing_textures,
+        &mut missing_file_textures,
+        &quads,
     );
 
     let existing: HashSet<u64> = quads.iter().map(|(_, q)| q.0).collect();
     spawn_new_quads(
-        &state, &sorted_ids, &sort_map, &existing, screen_w, screen_h,
-        &mut commands, &mut images, &mut texture_cache, &mut file_texture_cache,
-        &mut missing_textures, &mut missing_file_textures,
+        &state,
+        &sorted_ids,
+        &sort_map,
+        &existing,
+        screen_w,
+        screen_h,
+        &mut commands,
+        &mut images,
+        &mut texture_cache,
+        &mut file_texture_cache,
+        &mut missing_textures,
+        &mut missing_file_textures,
     );
 
     state.registry.render_dirty.clear();
@@ -95,10 +112,18 @@ fn update_or_despawn_quads(
     for (entity, ui_quad) in quads {
         if let Some(&sort_idx) = sort_map.get(&ui_quad.0) {
             update_quad(
-                state, entity, ui_quad.0, sort_idx,
-                screen_w, screen_h, commands, images,
-                texture_cache, file_texture_cache,
-                missing_textures, missing_file_textures,
+                state,
+                entity,
+                ui_quad.0,
+                sort_idx,
+                screen_w,
+                screen_h,
+                commands,
+                images,
+                texture_cache,
+                file_texture_cache,
+                missing_textures,
+                missing_file_textures,
             );
         } else {
             commands.entity(entity).despawn();
@@ -128,7 +153,7 @@ fn is_renderable(f: &crate::ui::frame::Frame) -> bool {
         && f.width > 0.0
         && f.height > 0.0
         && (f.background_color.is_some()
-            || frame_texture_fdid(f).is_some()
+            || frame_texture_source(f).is_some()
             || frame_has_button_texture(f)
             || f.backdrop.as_ref().is_some_and(|b| b.bg_color.is_some())
             || matches!(f.widget_data, Some(WidgetData::StatusBar(_))))
@@ -138,23 +163,24 @@ fn frame_has_button_texture(f: &crate::ui::frame::Frame) -> bool {
     let Some(WidgetData::Button(btn)) = &f.widget_data else {
         return false;
     };
-    btn.normal_texture.is_some()
-        || btn.pushed_texture.is_some()
-        || btn.disabled_texture.is_some()
+    btn.normal_texture.is_some() || btn.pushed_texture.is_some() || btn.disabled_texture.is_some()
 }
 
-fn frame_texture_fdid(f: &crate::ui::frame::Frame) -> Option<u32> {
+fn frame_texture_source(f: &crate::ui::frame::Frame) -> Option<&TextureSource> {
     let WidgetData::Texture(texture) = f.widget_data.as_ref()? else {
         return None;
     };
-    let TextureSource::FileDataId(fdid) = texture.source else {
+    if matches!(texture.source, TextureSource::None) {
         return None;
-    };
-    Some(fdid)
+    }
+    Some(&texture.source)
 }
 
 fn frame_transform(f: &crate::ui::frame::Frame, sort_idx: usize, sw: f32, sh: f32) -> Transform {
-    let bx = f.width.mul_add(0.5, f.layout_rect.as_ref().map_or(0.0, |r| r.x)) - sw * 0.5;
+    let bx = f
+        .width
+        .mul_add(0.5, f.layout_rect.as_ref().map_or(0.0, |r| r.x))
+        - sw * 0.5;
     let by = sh * 0.5 - f.layout_rect.as_ref().map_or(0.0, |r| r.y) - f.height * 0.5;
     Transform::from_xyz(bx, by, sort_idx as f32 * 0.001)
 }
@@ -175,8 +201,8 @@ fn frame_color(f: &crate::ui::frame::Frame) -> Color {
 /// with no offset.
 pub(crate) fn frame_sprite_params(f: &crate::ui::frame::Frame) -> (Vec2, Vec2) {
     if let Some(WidgetData::StatusBar(sb)) = &f.widget_data {
-        let fill = ((sb.value - sb.min) / (sb.max - sb.min).max(f64::EPSILON))
-            .clamp(0.0, 1.0) as f32;
+        let fill =
+            ((sb.value - sb.min) / (sb.max - sb.min).max(f64::EPSILON)).clamp(0.0, 1.0) as f32;
         let filled_w = f.width * fill;
         let offset_x = (filled_w - f.width) * 0.5;
         (Vec2::new(filled_w, f.height), Vec2::new(offset_x, 0.0))
@@ -207,8 +233,12 @@ fn update_quad(
     transform.translation.x += sprite_offset.x;
     transform.translation.y += sprite_offset.y;
     let (color, image) = frame_visual(
-        frame, images, texture_cache, file_texture_cache,
-        missing_textures, missing_file_textures,
+        frame,
+        images,
+        texture_cache,
+        file_texture_cache,
+        missing_textures,
+        missing_file_textures,
     );
     commands.entity(entity).insert((
         transform,
@@ -248,8 +278,12 @@ fn spawn_new_quads(
         transform.translation.x += sprite_offset.x;
         transform.translation.y += sprite_offset.y;
         let (color, image) = frame_visual(
-            frame, images, texture_cache, file_texture_cache,
-            missing_textures, missing_file_textures,
+            frame,
+            images,
+            texture_cache,
+            file_texture_cache,
+            missing_textures,
+            missing_file_textures,
         );
         commands.spawn((
             Sprite {
@@ -275,19 +309,33 @@ fn frame_visual(
 ) -> (Color, Handle<Image>) {
     if let Some(WidgetData::StatusBar(sb)) = &frame.widget_data {
         let [r, g, b, a] = sb.color;
-        return (Color::srgba(r, g, b, a * frame.effective_alpha), Handle::default());
+        return (
+            Color::srgba(r, g, b, a * frame.effective_alpha),
+            Handle::default(),
+        );
     }
     if let Some(WidgetData::Button(btn)) = &frame.widget_data {
         if let Some(handle) = button_texture(
-            btn, frame.effective_alpha, images,
-            texture_cache, file_texture_cache,
-            missing_textures, missing_file_textures,
+            btn,
+            frame.effective_alpha,
+            images,
+            texture_cache,
+            file_texture_cache,
+            missing_textures,
+            missing_file_textures,
         ) {
             return handle;
         }
     }
-    if let Some(fdid) = frame_texture_fdid(frame)
-        && let Some(handle) = load_texture(fdid, images, texture_cache, missing_textures)
+    if let Some(source) = frame_texture_source(frame)
+        && let Some(handle) = load_texture_source(
+            source,
+            images,
+            texture_cache,
+            file_texture_cache,
+            missing_textures,
+            missing_file_textures,
+        )
     {
         // TODO: additive blend requires custom pipeline
         return (texture_tint(frame), handle);
@@ -306,8 +354,12 @@ fn button_texture(
 ) -> Option<(Color, Handle<Image>)> {
     let source = select_button_texture_source(btn)?;
     let handle = load_texture_source(
-        source, images, texture_cache, file_texture_cache,
-        missing_textures, missing_file_textures,
+        source,
+        images,
+        texture_cache,
+        file_texture_cache,
+        missing_textures,
+        missing_file_textures,
     )?;
     Some((Color::srgba(1.0, 1.0, 1.0, effective_alpha), handle))
 }
@@ -316,7 +368,10 @@ fn select_button_texture_source(
     btn: &crate::ui::widgets::button::ButtonData,
 ) -> Option<&TextureSource> {
     let source = match btn.state {
-        ButtonState::Disabled => btn.disabled_texture.as_ref().or(btn.normal_texture.as_ref()),
+        ButtonState::Disabled => btn
+            .disabled_texture
+            .as_ref()
+            .or(btn.normal_texture.as_ref()),
         ButtonState::Pushed => btn.pushed_texture.as_ref().or(btn.normal_texture.as_ref()),
         ButtonState::Normal => btn.normal_texture.as_ref(),
     }?;
@@ -334,7 +389,14 @@ pub fn load_texture_source_pub(
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
 ) -> Option<Handle<Image>> {
-    load_texture_source(source, images, texture_cache, file_texture_cache, missing_textures, missing_file_textures)
+    load_texture_source(
+        source,
+        images,
+        texture_cache,
+        file_texture_cache,
+        missing_textures,
+        missing_file_textures,
+    )
 }
 
 fn load_texture_source(
@@ -440,14 +502,27 @@ pub fn sync_ui_button_highlights(
     let sh = state.registry.screen_height;
 
     for frame in state.registry.frames_iter() {
-        let Some(path) = button_highlight_file_path(frame) else { continue };
+        let Some(path) = button_highlight_file_path(frame) else {
+            continue;
+        };
         seen.insert(frame.id);
-        let Some(WidgetData::Button(btn)) = &frame.widget_data else { continue };
+        let Some(WidgetData::Button(btn)) = &frame.widget_data else {
+            continue;
+        };
         if !btn.hovered || btn.state == ButtonState::Disabled {
-            if let Some(&entity) = existing.get(&frame.id) { commands.entity(entity).despawn(); }
+            if let Some(&entity) = existing.get(&frame.id) {
+                commands.entity(entity).despawn();
+            }
             continue;
         }
-        let Some(handle) = load_file_texture(path, &mut images, &mut file_texture_cache, &mut missing_file_textures) else { continue };
+        let Some(handle) = load_file_texture(
+            path,
+            &mut images,
+            &mut file_texture_cache,
+            &mut missing_file_textures,
+        ) else {
+            continue;
+        };
         upsert_highlight_sprite(frame, handle, sw, sh, &existing, &mut commands);
     }
 
@@ -455,7 +530,9 @@ pub fn sync_ui_button_highlights(
 }
 
 fn button_highlight_file_path(frame: &crate::ui::frame::Frame) -> Option<&str> {
-    let WidgetData::Button(btn) = frame.widget_data.as_ref()? else { return None };
+    let WidgetData::Button(btn) = frame.widget_data.as_ref()? else {
+        return None;
+    };
     match btn.highlight_texture.as_ref()? {
         TextureSource::File(p) => Some(p.as_str()),
         _ => None,
@@ -473,14 +550,27 @@ fn upsert_highlight_sprite(
     let alpha = frame.effective_alpha * 0.5;
     let color = Color::srgba(1.0, 1.0, 1.0, alpha);
     let size = Vec2::new(frame.width, frame.height);
-    let bx = frame.width.mul_add(0.5, frame.layout_rect.as_ref().map_or(0.0, |r| r.x)) - sw * 0.5;
+    let bx = frame
+        .width
+        .mul_add(0.5, frame.layout_rect.as_ref().map_or(0.0, |r| r.x))
+        - sw * 0.5;
     let by = sh * 0.5 - frame.layout_rect.as_ref().map_or(0.0, |r| r.y) - frame.height * 0.5;
     let transform = Transform::from_xyz(bx, by, 500.0);
-    let sprite = Sprite { color, custom_size: Some(size), image: handle, ..default() };
+    let sprite = Sprite {
+        color,
+        custom_size: Some(size),
+        image: handle,
+        ..default()
+    };
     if let Some(&entity) = existing.get(&frame.id) {
         commands.entity(entity).insert((transform, sprite));
     } else {
-        commands.spawn((sprite, transform, RenderLayers::layer(UI_RENDER_LAYER), UiButtonHighlight(frame.id)));
+        commands.spawn((
+            sprite,
+            transform,
+            RenderLayers::layer(UI_RENDER_LAYER),
+            UiButtonHighlight(frame.id),
+        ));
     }
 }
 
@@ -511,11 +601,17 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
 
     for id in ids {
         let texture = {
-            let Some(frame) = state.registry.get(id) else { continue };
-            let Some(WidgetData::Button(btn)) = &frame.widget_data else { continue };
+            let Some(frame) = state.registry.get(id) else {
+                continue;
+            };
+            let Some(WidgetData::Button(btn)) = &frame.widget_data else {
+                continue;
+            };
             select_button_texture_source(btn).cloned()
         };
-        let Some(frame) = state.registry.get_mut(id) else { continue };
+        let Some(frame) = state.registry.get_mut(id) else {
+            continue;
+        };
         match texture {
             Some(tex) => {
                 frame.nine_slice = Some(NineSlice {
@@ -646,7 +742,8 @@ mod tests {
 
     #[test]
     fn statusbar_sprite_params_proportional_to_fill() {
-        let mut frame = crate::ui::frame::Frame::new(1, None, crate::ui::frame::WidgetType::StatusBar);
+        let mut frame =
+            crate::ui::frame::Frame::new(1, None, crate::ui::frame::WidgetType::StatusBar);
         frame.width = 200.0;
         frame.height = 20.0;
         frame.widget_data = Some(WidgetData::StatusBar(
@@ -658,15 +755,24 @@ mod tests {
             },
         ));
         let (size, offset) = frame_sprite_params(&frame);
-        assert!((size.x - 100.0).abs() < 0.01, "half fill → width 100, got {}", size.x);
+        assert!(
+            (size.x - 100.0).abs() < 0.01,
+            "half fill → width 100, got {}",
+            size.x
+        );
         assert_eq!(size.y, 20.0);
-        assert!((offset.x - (-50.0)).abs() < 0.01, "offset_x should be -50, got {}", offset.x);
+        assert!(
+            (offset.x - (-50.0)).abs() < 0.01,
+            "offset_x should be -50, got {}",
+            offset.x
+        );
         assert_eq!(offset.y, 0.0);
     }
 
     #[test]
     fn statusbar_sprite_params_full_fill() {
-        let mut frame = crate::ui::frame::Frame::new(1, None, crate::ui::frame::WidgetType::StatusBar);
+        let mut frame =
+            crate::ui::frame::Frame::new(1, None, crate::ui::frame::WidgetType::StatusBar);
         frame.width = 200.0;
         frame.height = 20.0;
         frame.widget_data = Some(WidgetData::StatusBar(
@@ -690,7 +796,9 @@ mod tests {
             ..Default::default()
         };
         let (_, _, color, _) = crate::ui::render_text::extract_button_text(&btn, 1.0);
-        let Color::Srgba(srgba) = color else { panic!("expected srgba") };
+        let Color::Srgba(srgba) = color else {
+            panic!("expected srgba")
+        };
         assert!(srgba.red < 0.6, "disabled should be grey");
     }
 }

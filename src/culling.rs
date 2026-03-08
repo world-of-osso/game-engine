@@ -69,8 +69,7 @@ impl Plugin for CullingPlugin {
             .init_resource::<LastCullPosition>()
             .add_systems(
                 Update,
-                (distance_cull_system, wmo_portal_cull_system)
-                    .run_if(in_state(GameState::InWorld)),
+                (distance_cull_system, wmo_portal_cull_system).run_if(in_state(GameState::InWorld)),
             );
     }
 }

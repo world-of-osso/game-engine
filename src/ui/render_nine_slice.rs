@@ -5,10 +5,10 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
+use super::render::{UI_RENDER_LAYER, load_texture_source_pub};
 use crate::ui::frame::NineSlice;
 use crate::ui::plugin::UiState;
 use crate::ui::widgets::texture::TextureSource;
-use super::render::{UI_RENDER_LAYER, load_texture_source_pub};
 
 /// Links a Bevy sprite to a nine-slice part (frame_id, part 0-8).
 #[derive(Component)]
@@ -35,9 +35,18 @@ pub fn sync_ui_nine_slices(
             existing.insert((part.0, part.1));
             let z = z_map.get(&part.0).copied().unwrap_or(0.0);
             update_part(
-                &state, entity, part, screen_w, screen_h, z, &mut commands,
-                &mut images, &mut texture_cache, &mut file_texture_cache,
-                &mut missing_textures, &mut missing_file_textures,
+                &state,
+                entity,
+                part,
+                screen_w,
+                screen_h,
+                z,
+                &mut commands,
+                &mut images,
+                &mut texture_cache,
+                &mut file_texture_cache,
+                &mut missing_textures,
+                &mut missing_file_textures,
             );
         } else {
             commands.entity(entity).despawn();
@@ -45,9 +54,17 @@ pub fn sync_ui_nine_slices(
     }
 
     spawn_missing_parts(
-        &state, &existing, &z_map, screen_w, screen_h, &mut commands,
-        &mut images, &mut texture_cache, &mut file_texture_cache,
-        &mut missing_textures, &mut missing_file_textures,
+        &state,
+        &existing,
+        &z_map,
+        screen_w,
+        screen_h,
+        &mut commands,
+        &mut images,
+        &mut texture_cache,
+        &mut file_texture_cache,
+        &mut missing_textures,
+        &mut missing_file_textures,
     );
 }
 
@@ -68,7 +85,10 @@ fn build_z_map(state: &UiState) -> HashMap<u64, f32> {
 }
 
 fn should_keep_part(state: &UiState, part: &UiNineSlicePart) -> bool {
-    state.registry.get(part.0).is_some_and(|f| f.visible && f.nine_slice.is_some())
+    state
+        .registry
+        .get(part.0)
+        .is_some_and(|f| f.visible && f.nine_slice.is_some())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -86,16 +106,31 @@ fn update_part(
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
 ) {
-    let Some(frame) = state.registry.get(part.0) else { return };
-    let Some(nine_slice) = &frame.nine_slice else { return };
+    let Some(frame) = state.registry.get(part.0) else {
+        return;
+    };
+    let Some(nine_slice) = &frame.nine_slice else {
+        return;
+    };
     let (transform, size, color) = part_geometry(frame, nine_slice, part.1, screen_w, screen_h, z);
     let (image, tex_rect) = resolve_part_texture(
-        nine_slice, part.1, images, texture_cache, file_texture_cache,
-        missing_textures, missing_file_textures,
+        nine_slice,
+        part.1,
+        images,
+        texture_cache,
+        file_texture_cache,
+        missing_textures,
+        missing_file_textures,
     );
     commands.entity(entity).insert((
         transform,
-        Sprite { color, custom_size: Some(size), image, rect: tex_rect, ..default() },
+        Sprite {
+            color,
+            custom_size: Some(size),
+            image,
+            rect: tex_rect,
+            ..default()
+        },
     ));
 }
 
@@ -114,18 +149,36 @@ fn spawn_missing_parts(
     missing_file_textures: &mut HashSet<String>,
 ) {
     for frame in state.registry.frames_iter() {
-        if !frame.visible { continue; }
-        let Some(nine_slice) = &frame.nine_slice else { continue };
+        if !frame.visible {
+            continue;
+        }
+        let Some(nine_slice) = &frame.nine_slice else {
+            continue;
+        };
         let z = z_map.get(&frame.id).copied().unwrap_or(0.0);
         for p in 0..9u8 {
-            if existing.contains(&(frame.id, p)) { continue; }
-            let (transform, size, color) = part_geometry(frame, nine_slice, p, screen_w, screen_h, z);
+            if existing.contains(&(frame.id, p)) {
+                continue;
+            }
+            let (transform, size, color) =
+                part_geometry(frame, nine_slice, p, screen_w, screen_h, z);
             let (image, tex_rect) = resolve_part_texture(
-                nine_slice, p, images, texture_cache, file_texture_cache,
-                missing_textures, missing_file_textures,
+                nine_slice,
+                p,
+                images,
+                texture_cache,
+                file_texture_cache,
+                missing_textures,
+                missing_file_textures,
             );
             commands.spawn((
-                Sprite { color, custom_size: Some(size), image, rect: tex_rect, ..default() },
+                Sprite {
+                    color,
+                    custom_size: Some(size),
+                    image,
+                    rect: tex_rect,
+                    ..default()
+                },
                 transform,
                 RenderLayers::layer(UI_RENDER_LAYER),
                 UiNineSlicePart(frame.id, p),
@@ -152,8 +205,12 @@ fn resolve_part_texture(
         return (Handle::default(), None);
     }
     let Some(handle) = load_texture_source_pub(
-        source, images, texture_cache, file_texture_cache,
-        missing_textures, missing_file_textures,
+        source,
+        images,
+        texture_cache,
+        file_texture_cache,
+        missing_textures,
+        missing_file_textures,
     ) else {
         return (Handle::default(), None);
     };
@@ -174,15 +231,15 @@ fn resolve_part_texture(
 /// Compute the UV sub-rect (in pixel coords) for each of the 9 parts.
 fn uv_rect_for_part(part: u8, w: f32, h: f32, c: f32) -> Rect {
     let (min_x, max_x, min_y, max_y) = match part {
-        0 => (0.0,   c,   0.0,   c),
-        1 => (c,     w-c, 0.0,   c),
-        2 => (w-c,   w,   0.0,   c),
-        3 => (0.0,   c,   c,     h-c),
-        4 => (c,     w-c, c,     h-c),
-        5 => (w-c,   w,   c,     h-c),
-        6 => (0.0,   c,   h-c,   h),
-        7 => (c,     w-c, h-c,   h),
-        _ => (w-c,   w,   h-c,   h),
+        0 => (0.0, c, 0.0, c),
+        1 => (c, w - c, 0.0, c),
+        2 => (w - c, w, 0.0, c),
+        3 => (0.0, c, c, h - c),
+        4 => (c, w - c, c, h - c),
+        5 => (w - c, w, c, h - c),
+        6 => (0.0, c, h - c, h),
+        7 => (c, w - c, h - c, h),
+        _ => (w - c, w, h - c, h),
     };
     Rect {
         min: Vec2::new(min_x, min_y),
@@ -212,22 +269,50 @@ pub(crate) fn part_geometry(
 
     // cx/cy in WoW screen space (top-left origin, y down)
     let (cx, cy, w, h, is_border) = match part {
-        0 => (fx + e * 0.5,           fy + e * 0.5,            e,       e,       true),
-        1 => (fx + e + inner_w * 0.5, fy + e * 0.5,            inner_w, e,       true),
-        2 => (fx + e + inner_w + e * 0.5, fy + e * 0.5,        e,       e,       true),
-        3 => (fx + e * 0.5,           fy + e + inner_h * 0.5,  e,       inner_h, true),
-        4 => (fx + e + inner_w * 0.5, fy + e + inner_h * 0.5, inner_w, inner_h, false),
-        5 => (fx + e + inner_w + e * 0.5, fy + e + inner_h * 0.5, e,   inner_h, true),
-        6 => (fx + e * 0.5,           fy + e + inner_h + e * 0.5, e,   e,       true),
-        7 => (fx + e + inner_w * 0.5, fy + e + inner_h + e * 0.5, inner_w, e,   true),
-        _ => (fx + e + inner_w + e * 0.5, fy + e + inner_h + e * 0.5, e, e,    true),
+        0 => (fx + e * 0.5, fy + e * 0.5, e, e, true),
+        1 => (fx + e + inner_w * 0.5, fy + e * 0.5, inner_w, e, true),
+        2 => (fx + e + inner_w + e * 0.5, fy + e * 0.5, e, e, true),
+        3 => (fx + e * 0.5, fy + e + inner_h * 0.5, e, inner_h, true),
+        4 => (
+            fx + e + inner_w * 0.5,
+            fy + e + inner_h * 0.5,
+            inner_w,
+            inner_h,
+            false,
+        ),
+        5 => (
+            fx + e + inner_w + e * 0.5,
+            fy + e + inner_h * 0.5,
+            e,
+            inner_h,
+            true,
+        ),
+        6 => (fx + e * 0.5, fy + e + inner_h + e * 0.5, e, e, true),
+        7 => (
+            fx + e + inner_w * 0.5,
+            fy + e + inner_h + e * 0.5,
+            inner_w,
+            e,
+            true,
+        ),
+        _ => (
+            fx + e + inner_w + e * 0.5,
+            fy + e + inner_h + e * 0.5,
+            e,
+            e,
+            true,
+        ),
     };
 
     // When a texture is set, use white tint so the texture shows through.
     let color = if ns.texture.is_some() && !matches!(ns.texture, Some(TextureSource::None)) {
         Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha)
     } else {
-        let [r, g, b, a] = if is_border { ns.border_color } else { ns.bg_color };
+        let [r, g, b, a] = if is_border {
+            ns.border_color
+        } else {
+            ns.bg_color
+        };
         Color::srgba(r, g, b, a * frame.effective_alpha)
     };
 
@@ -256,7 +341,9 @@ mod tests {
             frame.nine_slice = Some(NineSlice::default());
         }
         app.update();
-        let mut q = app.world_mut().query_filtered::<(), With<UiNineSlicePart>>();
+        let mut q = app
+            .world_mut()
+            .query_filtered::<(), With<UiNineSlicePart>>();
         assert_eq!(q.iter(app.world()).count(), 9);
     }
 
@@ -274,7 +361,9 @@ mod tests {
             frame.height = 100.0;
         }
         app.update();
-        let mut q = app.world_mut().query_filtered::<(), With<UiNineSlicePart>>();
+        let mut q = app
+            .world_mut()
+            .query_filtered::<(), With<UiNineSlicePart>>();
         assert_eq!(q.iter(app.world()).count(), 0);
     }
 

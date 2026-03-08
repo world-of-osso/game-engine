@@ -1,8 +1,8 @@
 pub mod asset;
-pub mod game_state_enum;
 pub mod auction_house;
 pub mod culling;
 pub mod dump;
+pub mod game_state_enum;
 pub mod ipc;
 pub mod item_info;
 pub mod listfile;

@@ -37,7 +37,10 @@ pub fn sync_ui_borders(
 
 fn should_keep_border(state: &UiState, border: &UiBorder) -> bool {
     state.registry.get(border.0).is_some_and(|f| {
-        f.visible && f.backdrop.as_ref().is_some_and(|b| b.border_color.is_some())
+        f.visible
+            && f.backdrop
+                .as_ref()
+                .is_some_and(|b| b.border_color.is_some())
     })
 }
 

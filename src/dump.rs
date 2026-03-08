@@ -190,12 +190,7 @@ fn format_widget_extra(f: &Frame) -> String {
     }
 }
 
-fn emit_anchor_lines(
-    f: &Frame,
-    registry: &FrameRegistry,
-    indent: &str,
-    lines: &mut Vec<String>,
-) {
+fn emit_anchor_lines(f: &Frame, registry: &FrameRegistry, indent: &str, lines: &mut Vec<String>) {
     for anchor in &f.anchors {
         let rel_name = anchor
             .relative_to
@@ -218,7 +213,10 @@ fn emit_texture_lines(f: &Frame, indent: &str, lines: &mut Vec<String>) {
             lines.push(format!("{indent}  [pushed]{}", format_texture_source(src)));
         }
         if let Some(src) = &btn.highlight_texture {
-            lines.push(format!("{indent}  [highlight]{}", format_texture_source(src)));
+            lines.push(format!(
+                "{indent}  [highlight]{}",
+                format_texture_source(src)
+            ));
         }
     }
 }

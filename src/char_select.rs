@@ -12,10 +12,14 @@ use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonData;
 use game_engine::ui::widgets::edit_box::EditBoxData;
 use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
+use game_engine::ui::widgets::texture::{TextureData, TextureSource};
 use shared::protocol::{AuthChannel, CreateCharacter, DeleteCharacter, SelectCharacter};
 
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
+
+const TEX_CHAR_SELECT_BACKGROUND: &str = "data/glues/charselect/UI_CharacterSelectTEX.blp";
+const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 
 /// Resource holding frame IDs for the character select UI.
 #[derive(Resource)]
@@ -103,12 +107,40 @@ fn build_char_select_ui(
 fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
     let root = create_frame(reg, "CharSelectRoot", None, WidgetType::Frame, sw, sh);
     set_layout(reg, root, 0.0, 0.0, sw, sh);
-    set_bg(reg, root, [0.05, 0.05, 0.12, 1.0]);
+    set_bg(reg, root, [0.01, 0.01, 0.01, 1.0]);
     set_strata(reg, root, FrameStrata::Fullscreen);
+    let bg = create_texture(
+        reg,
+        "CharSelectBackground",
+        Some(root),
+        sw,
+        sh,
+        TEX_CHAR_SELECT_BACKGROUND,
+    );
+    set_layout(reg, bg, 0.0, 0.0, sw, sh);
+    let overlay = create_frame(
+        reg,
+        "CharSelectBackgroundShade",
+        Some(root),
+        WidgetType::Frame,
+        sw,
+        sh,
+    );
+    set_layout(reg, overlay, 0.0, 0.0, sw, sh);
+    set_bg(reg, overlay, [0.0, 0.0, 0.0, 0.18]);
     root
 }
 
 fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
+    let logo = create_texture(
+        reg,
+        "CharSelectLogo",
+        Some(root),
+        256.0,
+        128.0,
+        TEX_GAME_LOGO,
+    );
+    set_layout(reg, logo, 3.0, 15.0, 256.0, 128.0);
     let title = create_frame(
         reg,
         "CSTitle",
@@ -613,6 +645,24 @@ fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f
     let id = create_frame(reg, name, parent, WidgetType::EditBox, w, h);
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::EditBox(EditBoxData::default()));
+    }
+    id
+}
+
+fn create_texture(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    w: f32,
+    h: f32,
+    path: &str,
+) -> u64 {
+    let id = create_frame(reg, name, parent, WidgetType::Texture, w, h);
+    if let Some(frame) = reg.get_mut(id) {
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::File(path.to_string()),
+            ..Default::default()
+        }));
     }
     id
 }

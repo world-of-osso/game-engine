@@ -16,7 +16,12 @@ pub fn sync_ui_text(
     state: Res<UiState>,
     mut commands: Commands,
     mut texts: Query<(
-        Entity, &UiText, &mut Text2d, &mut TextFont, &mut TextColor, &mut Transform,
+        Entity,
+        &UiText,
+        &mut Text2d,
+        &mut TextFont,
+        &mut TextColor,
+        &mut Transform,
     )>,
 ) {
     let screen_w = state.registry.screen_width;
@@ -59,7 +64,10 @@ fn spawn_missing_text(
         let transform = text_transform(frame, screen_w, screen_h, justify);
         commands.spawn((
             Text2d::new(content),
-            TextFont { font_size, ..default() },
+            TextFont {
+                font_size,
+                ..default()
+            },
             TextColor(text_color),
             text_anchor(justify),
             transform,
@@ -82,24 +90,46 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> (String, f32, Color, J
     match &frame.widget_data {
         Some(WidgetData::FontString(fs)) => {
             let [r, g, b, a] = fs.color;
-            (fs.text.clone(), fs.font_size, Color::srgba(r, g, b, a * frame.effective_alpha), fs.justify_h)
+            (
+                fs.text.clone(),
+                fs.font_size,
+                Color::srgba(r, g, b, a * frame.effective_alpha),
+                fs.justify_h,
+            )
         }
         Some(WidgetData::EditBox(eb)) => {
-            let display = if eb.password { "*".repeat(eb.text.len()) } else { eb.text.clone() };
-            (display, 14.0, Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha), JustifyH::Left)
+            let display = if eb.password {
+                "*".repeat(eb.text.len())
+            } else {
+                eb.text.clone()
+            };
+            (
+                display,
+                14.0,
+                Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha),
+                JustifyH::Left,
+            )
         }
         Some(WidgetData::Button(btn)) => extract_button_text(btn, frame.effective_alpha),
         _ => (String::new(), 12.0, Color::WHITE, JustifyH::Center),
     }
 }
 
-pub(crate) fn extract_button_text(btn: &crate::ui::widgets::button::ButtonData, alpha: f32) -> (String, f32, Color, JustifyH) {
+pub(crate) fn extract_button_text(
+    btn: &crate::ui::widgets::button::ButtonData,
+    alpha: f32,
+) -> (String, f32, Color, JustifyH) {
     let (r, g, b) = match btn.state {
         ButtonState::Normal => (1.0, 0.82, 0.0),
         ButtonState::Pushed => (0.8, 0.65, 0.0),
         ButtonState::Disabled => (0.5, 0.5, 0.5),
     };
-    (btn.text.clone(), 14.0, Color::srgba(r, g, b, alpha), JustifyH::Center)
+    (
+        btn.text.clone(),
+        14.0,
+        Color::srgba(r, g, b, alpha),
+        JustifyH::Center,
+    )
 }
 
 /// Compute the transform for a text entity. Public for use by render_text_fx.
