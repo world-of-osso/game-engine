@@ -33,6 +33,11 @@ const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.92, 0.72, 1.0];
+const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
+const STATUS_CONNECTING: &str = "Connecting...";
+const STATUS_RECONNECTING: &str = "Reconnecting...";
+const STATUS_MENU_UNAVAILABLE: &str = "Menu is not implemented yet";
+const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
 
 #[derive(Resource)]
 struct LoginUi {
@@ -642,6 +647,7 @@ fn login_mouse_input(
     mut next_state: ResMut<NextState<GameState>>,
     mut status: ResMut<LoginStatus>,
     mut login_mode: ResMut<networking::LoginMode>,
+    auth_token: Res<networking::AuthToken>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -662,6 +668,7 @@ fn login_mouse_input(
         &mut next_state,
         &mut status,
         &mut login_mode,
+        &auth_token,
         &mut commands,
         &mut exit,
     );
@@ -675,6 +682,7 @@ fn handle_mouse_click(
     next_state: &mut NextState<GameState>,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
     commands: &mut Commands,
     exit: &mut MessageWriter<AppExit>,
 ) {
@@ -687,7 +695,7 @@ fn handle_mouse_click(
         select_all_editbox(&mut ui.registry, login.password_input);
     } else {
         handle_button_click(
-            ui, login, cx, cy, focus, next_state, status, login_mode, commands, exit,
+            ui, login, cx, cy, focus, next_state, status, login_mode, auth_token, commands, exit,
         );
     }
 }
@@ -702,10 +710,11 @@ fn handle_button_click(
     next_state: &mut NextState<GameState>,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
     commands: &mut Commands,
     exit: &mut MessageWriter<AppExit>,
 ) {
-    if hit_frame(ui, login.connect_button, cx, cy) {
+    if hit_active_frame(ui, login.connect_button, cx, cy) {
         if let Some(WidgetData::Button(bd)) = ui
             .registry
             .get_mut(login.connect_button)
@@ -721,9 +730,14 @@ fn handle_button_click(
             &*login_mode,
             commands,
         );
-    } else if hit_frame(ui, login.create_account_button, cx, cy) {
+    } else if hit_active_frame(ui, login.reconnect_button, cx, cy) {
+        try_reconnect(auth_token, status, next_state, login_mode, commands);
+    } else if hit_active_frame(ui, login.create_account_button, cx, cy) {
         toggle_login_mode(login_mode, &mut ui.registry, login);
-    } else if hit_frame(ui, login.exit_button, cx, cy) {
+        status.0.clear();
+    } else if hit_active_frame(ui, login.menu_button, cx, cy) {
+        status.0 = STATUS_MENU_UNAVAILABLE.to_string();
+    } else if hit_active_frame(ui, login.exit_button, cx, cy) {
         exit.write(AppExit::Success);
     } else {
         focus.0 = None;
@@ -846,12 +860,13 @@ fn login_update_visuals(
     status: Res<LoginStatus>,
     focus: Res<LoginFocus>,
     login_mode: Res<networking::LoginMode>,
+    auth_token: Res<networking::AuthToken>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
     ui.focused_frame = focus.0;
-    sync_button_states(&mut ui.registry, login, &*login_mode);
+    sync_button_states(&mut ui.registry, login, &*login_mode, &auth_token);
     sync_status_text(&mut ui.registry, login.status_text, &status.0);
     sync_editbox_focus_visual(
         &mut ui.registry,
@@ -865,7 +880,19 @@ fn login_update_visuals(
     );
 }
 
-fn sync_button_states(reg: &mut FrameRegistry, login: &LoginUi, mode: &networking::LoginMode) {
+fn sync_button_states(
+    reg: &mut FrameRegistry,
+    login: &LoginUi,
+    mode: &networking::LoginMode,
+    auth_token: &networking::AuthToken,
+) {
+    let show_reconnect = matches!(mode, networking::LoginMode::Login)
+        && auth_token
+            .0
+            .as_deref()
+            .is_some_and(|token| !token.trim().is_empty());
+    reg.set_shown(login.connect_button, !show_reconnect);
+    reg.set_shown(login.reconnect_button, show_reconnect);
     if let Some(WidgetData::Button(btn)) = reg
         .get_mut(login.connect_button)
         .and_then(|f| f.widget_data.as_mut())
@@ -921,13 +948,39 @@ fn try_connect(
     let username = get_editbox_text(reg, login.username_input);
     let password = get_editbox_text(reg, login.password_input);
     if username.trim().is_empty() || password.trim().is_empty() {
-        status.0 = "Please fill in all fields".to_string();
+        status.0 = STATUS_FILL_FIELDS.to_string();
         return;
     }
     commands.insert_resource(networking::ServerAddr(DEFAULT_SERVER_ADDR.parse().unwrap()));
+    commands.insert_resource(networking::LoginUsername(username));
+    commands.insert_resource(networking::LoginPassword(password));
     commands.insert_resource(mode.clone());
-    status.0 = "Connecting...".to_string();
-    next_state.set(GameState::CharSelect);
+    status.0 = STATUS_CONNECTING.to_string();
+    next_state.set(GameState::Connecting);
+}
+
+fn try_reconnect(
+    auth_token: &networking::AuthToken,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    login_mode: &mut networking::LoginMode,
+    commands: &mut Commands,
+) {
+    if auth_token
+        .0
+        .as_deref()
+        .is_none_or(|token| token.trim().is_empty())
+    {
+        status.0 = STATUS_RECONNECT_UNAVAILABLE.to_string();
+        return;
+    }
+    *login_mode = networking::LoginMode::Login;
+    commands.insert_resource(networking::ServerAddr(DEFAULT_SERVER_ADDR.parse().unwrap()));
+    commands.insert_resource(networking::LoginUsername(String::new()));
+    commands.insert_resource(networking::LoginPassword(String::new()));
+    commands.insert_resource(networking::LoginMode::Login);
+    status.0 = STATUS_RECONNECTING.to_string();
+    next_state.set(GameState::Connecting);
 }
 
 fn toggle_login_mode(mode: &mut networking::LoginMode, reg: &mut FrameRegistry, login: &LoginUi) {
@@ -935,7 +988,7 @@ fn toggle_login_mode(mode: &mut networking::LoginMode, reg: &mut FrameRegistry, 
         networking::LoginMode::Login => networking::LoginMode::Register,
         networking::LoginMode::Register => networking::LoginMode::Login,
     };
-    sync_button_states(reg, login, mode);
+    sync_button_states(reg, login, mode, &networking::AuthToken(None));
 }
 
 fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, s: &str) {
@@ -1238,4 +1291,187 @@ fn hit_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
             .as_ref()
             .is_some_and(|r| mx >= r.x && mx <= r.x + r.width && my >= r.y && my <= r.y + r.height)
     })
+}
+
+fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
+    ui.registry
+        .get(frame_id)
+        .is_some_and(|frame| frame.visible && frame.shown)
+        && hit_frame(ui, frame_id, mx, my)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::SystemState;
+
+    fn login_fixture() -> (FrameRegistry, LoginUi) {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let root = create_frame(
+            &mut reg,
+            "LoginRoot",
+            None,
+            WidgetType::Frame,
+            1920.0,
+            1080.0,
+        );
+        let username_input = create_editbox(&mut reg, "UsernameInput", Some(root), 320.0, 42.0);
+        let password_input = create_editbox(&mut reg, "PasswordInput", Some(root), 320.0, 42.0);
+        let connect_button =
+            create_button(&mut reg, "ConnectButton", Some(root), 250.0, 66.0, "Login");
+        let reconnect_button = create_button(
+            &mut reg,
+            "ReconnectButton",
+            Some(root),
+            250.0,
+            66.0,
+            "Reconnect",
+        );
+        let create_account_button = create_button(
+            &mut reg,
+            "CreateAccountButton",
+            Some(root),
+            200.0,
+            32.0,
+            "Create Account",
+        );
+        let menu_button = create_button(&mut reg, "MenuButton", Some(root), 200.0, 32.0, "Menu");
+        let exit_button = create_button(&mut reg, "ExitButton", Some(root), 200.0, 32.0, "Quit");
+        let status_text = create_frame(
+            &mut reg,
+            "LoginStatus",
+            Some(root),
+            WidgetType::FontString,
+            320.0,
+            24.0,
+        );
+        (
+            reg,
+            LoginUi {
+                root,
+                username_input,
+                password_input,
+                connect_button,
+                reconnect_button,
+                create_account_button,
+                menu_button,
+                exit_button,
+                status_text,
+            },
+        )
+    }
+
+    fn set_editbox_text_for_test(reg: &mut FrameRegistry, id: u64, text: &str) {
+        let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut())
+        else {
+            panic!("expected edit box");
+        };
+        eb.text = text.to_string();
+        eb.cursor_position = eb.text.len();
+    }
+
+    #[test]
+    fn try_connect_requires_all_fields() {
+        let (reg, login) = login_fixture();
+        let mut status = LoginStatus::default();
+        let mut next_state = NextState::<GameState>::default();
+        let mut world = World::new();
+        let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+
+        {
+            let mut commands = system_state.get_mut(&mut world);
+            try_connect(
+                &reg,
+                &login,
+                &mut status,
+                &mut next_state,
+                &networking::LoginMode::Login,
+                &mut commands,
+            );
+        }
+        system_state.apply(&mut world);
+
+        assert_eq!(status.0, "Please fill in all fields");
+        assert!(matches!(next_state, NextState::Unchanged));
+        assert!(!world.contains_resource::<networking::ServerAddr>());
+    }
+
+    #[test]
+    fn try_connect_stores_credentials_and_enters_connecting_state() {
+        let (mut reg, login) = login_fixture();
+        set_editbox_text_for_test(&mut reg, login.username_input, "alice");
+        set_editbox_text_for_test(&mut reg, login.password_input, "secret");
+        let mut status = LoginStatus::default();
+        let mut next_state = NextState::<GameState>::default();
+        let mut world = World::new();
+        let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+
+        {
+            let mut commands = system_state.get_mut(&mut world);
+            try_connect(
+                &reg,
+                &login,
+                &mut status,
+                &mut next_state,
+                &networking::LoginMode::Login,
+                &mut commands,
+            );
+        }
+        system_state.apply(&mut world);
+
+        assert_eq!(status.0, "Connecting...");
+        assert!(matches!(
+            next_state,
+            NextState::Pending(GameState::Connecting)
+        ));
+        assert_eq!(
+            world.resource::<networking::ServerAddr>().0,
+            DEFAULT_SERVER_ADDR.parse().unwrap()
+        );
+        assert_eq!(world.resource::<networking::LoginUsername>().0, "alice");
+        assert_eq!(world.resource::<networking::LoginPassword>().0, "secret");
+        assert!(matches!(
+            *world.resource::<networking::LoginMode>(),
+            networking::LoginMode::Login
+        ));
+    }
+
+    #[test]
+    fn sync_button_states_shows_reconnect_only_with_saved_token_in_login_mode() {
+        let (mut reg, login) = login_fixture();
+
+        sync_button_states(
+            &mut reg,
+            &login,
+            &networking::LoginMode::Login,
+            &networking::AuthToken(Some("saved-token".to_string())),
+        );
+        assert!(
+            !reg.get(login.connect_button)
+                .expect("connect button")
+                .visible
+        );
+        assert!(
+            reg.get(login.reconnect_button)
+                .expect("reconnect button")
+                .visible
+        );
+
+        sync_button_states(
+            &mut reg,
+            &login,
+            &networking::LoginMode::Register,
+            &networking::AuthToken(Some("saved-token".to_string())),
+        );
+        assert!(
+            reg.get(login.connect_button)
+                .expect("connect button")
+                .visible
+        );
+        assert!(
+            !reg.get(login.reconnect_button)
+                .expect("reconnect button")
+                .visible
+        );
+    }
 }

@@ -44,6 +44,7 @@ pub fn load_auth_token() -> Option<String> {
 }
 
 fn save_auth_token(token: &str) {
+    let _ = std::fs::create_dir_all("data");
     if let Err(e) = std::fs::write(AUTH_TOKEN_PATH, token) {
         warn!("Failed to save auth token: {e}");
     }
@@ -70,15 +71,23 @@ fn send_login(
     password: &LoginPassword,
     senders: &mut Query<&mut MessageSender<LoginRequest>>,
 ) {
-    let request = LoginRequest {
-        token: auth_token.0.clone(),
-        username: username.0.clone(),
-        password: password.0.clone(),
-    };
+    let request = build_login_request(auth_token, username, password);
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(request.clone());
     }
     info!("Sent LoginRequest for '{}'", username.0);
+}
+
+fn build_login_request(
+    auth_token: &AuthToken,
+    username: &LoginUsername,
+    password: &LoginPassword,
+) -> LoginRequest {
+    LoginRequest {
+        token: auth_token.0.clone(),
+        username: username.0.clone(),
+        password: password.0.clone(),
+    }
 }
 
 fn send_register(
@@ -217,5 +226,36 @@ pub fn receive_enter_world_response(
                 error!("Enter world failed: {err}");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_login_request_keeps_credentials_for_password_login() {
+        let request = build_login_request(
+            &AuthToken(Some("saved-token".to_string())),
+            &LoginUsername("alice".to_string()),
+            &LoginPassword("secret".to_string()),
+        );
+
+        assert_eq!(request.token.as_deref(), Some("saved-token"));
+        assert_eq!(request.username, "alice");
+        assert_eq!(request.password, "secret");
+    }
+
+    #[test]
+    fn build_login_request_allows_token_only_login() {
+        let request = build_login_request(
+            &AuthToken(Some("saved-token".to_string())),
+            &LoginUsername(String::new()),
+            &LoginPassword(String::new()),
+        );
+
+        assert_eq!(request.token.as_deref(), Some("saved-token"));
+        assert!(request.username.is_empty());
+        assert!(request.password.is_empty());
     }
 }
