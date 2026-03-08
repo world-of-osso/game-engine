@@ -5,7 +5,7 @@ use crate::ui::widgets::button::ButtonData;
 use crate::ui::widgets::edit_box::EditBoxData;
 use crate::ui::widgets::font_string::FontStringData;
 use crate::ui::widgets::slider::StatusBarData;
-use crate::ui::widgets::texture::TextureData;
+use crate::ui::widgets::texture::{TextureData, TextureSource};
 
 /// Per-widget-type data attached to a frame.
 #[derive(Debug, Clone)]
@@ -41,12 +41,14 @@ pub enum WidgetType {
     Minimap,
 }
 
-/// Nine-slice frame rendering (solid color corners/edges/center, no texture).
+/// Nine-slice frame rendering (solid color corners/edges/center, or textured).
 #[derive(Debug, Clone)]
 pub struct NineSlice {
     pub edge_size: f32,
     pub bg_color: [f32; 4],
     pub border_color: [f32; 4],
+    /// Optional texture applied to all 9 parts with UV sub-rects.
+    pub texture: Option<TextureSource>,
 }
 
 impl Default for NineSlice {
@@ -55,6 +57,7 @@ impl Default for NineSlice {
             edge_size: 4.0,
             bg_color: [0.0, 0.0, 0.0, 0.8],
             border_color: [1.0, 1.0, 1.0, 1.0],
+            texture: None,
         }
     }
 }

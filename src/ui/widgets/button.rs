@@ -11,6 +11,7 @@ pub enum ButtonState {
 pub struct ButtonData {
     pub state: ButtonState,
     pub enabled: bool,
+    pub hovered: bool,
     pub normal_texture: Option<TextureSource>,
     pub pushed_texture: Option<TextureSource>,
     pub highlight_texture: Option<TextureSource>,
@@ -25,6 +26,7 @@ impl Default for ButtonData {
         Self {
             state: ButtonState::Normal,
             enabled: true,
+            hovered: false,
             normal_texture: None,
             pushed_texture: None,
             highlight_texture: None,

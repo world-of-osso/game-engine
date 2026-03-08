@@ -124,7 +124,7 @@ fn shadow_transform(
     screen_w: f32,
     screen_h: f32,
 ) -> Transform {
-    let mut t = super::render::text_transform(frame, screen_w, screen_h, props.justify);
+    let mut t = super::render_text::text_transform(frame, screen_w, screen_h, props.justify);
     t.translation.x += props.shadow_offset[0];
     t.translation.y -= props.shadow_offset[1];
     t.translation.z = 9.9;
@@ -177,7 +177,7 @@ fn spawn_outlines(
     let Some(WidgetData::FontString(fs)) = &frame.widget_data else {
         return;
     };
-    let base = super::render::text_transform(frame, screen_w, screen_h, fs.justify_h);
+    let base = super::render_text::text_transform(frame, screen_w, screen_h, fs.justify_h);
     let alpha = frame.effective_alpha;
 
     for &(dx, dy) in outline_offsets(fs.outline) {
