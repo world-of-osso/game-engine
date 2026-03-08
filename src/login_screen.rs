@@ -30,8 +30,9 @@ const TEX_EDITBOX_BORDER: &str = "/home/osso/Projects/wow/Interface/COMMON/Commo
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
+const FONT_WORLD_OF_OSSO_TITLE: &str = "/home/osso/Projects/wow/reference-addons.new/ClickableRaidBuffs/Media/Fonts/Cinzel/Cinzel-Bold.ttf";
 const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
-const GLUE_BUTTON_SIZE: (f32, f32) = (200.0, 30.0);
+const GLUE_BUTTON_SIZE: (f32, f32) = (200.0, 32.0);
 
 #[derive(Resource)]
 struct LoginUi {
@@ -207,7 +208,14 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
     );
     set_strata(reg, title, FrameStrata::Medium);
     set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.15, 400.0, 40.0);
-    set_font_string(reg, title, "World of Osso", 28.0, [1.0, 0.82, 0.0, 1.0]);
+    set_font_string_with_font(
+        reg,
+        title,
+        "World of Osso",
+        FONT_WORLD_OF_OSSO_TITLE,
+        28.0,
+        [1.0, 0.82, 0.0, 1.0],
+    );
     let sub = create_frame(
         reg,
         "LoginSubtitle",
@@ -288,7 +296,7 @@ fn build_login_buttons(
         reg,
         root,
         "CreateAccountButton",
-        "Don't have an account? Register",
+        "Create Account",
         AnchorPoint::Bottom,
         Some(exit),
         AnchorPoint::Top,
@@ -377,6 +385,7 @@ fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> 
         "Quit",
     );
     set_strata(reg, exit, FrameStrata::Medium);
+    set_button_font_size(reg, exit, 12.0);
     set_anchor(
         reg,
         exit,
@@ -386,7 +395,7 @@ fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> 
         -24.0,
         56.0,
     );
-    set_button_textures(reg, exit, TEX_DLG_NORMAL, TEX_DLG_PUSHED, TEX_DLG_HL);
+    set_button_textures(reg, exit, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
     exit
 }
 
@@ -410,8 +419,9 @@ fn build_action_button_anchored(
         text,
     );
     set_strata(reg, btn, FrameStrata::Medium);
+    set_button_font_size(reg, btn, 12.0);
     set_anchor(reg, btn, point, relative_to, relative_point, x_off, y_off);
-    set_button_textures(reg, btn, TEX_DLG_NORMAL, TEX_DLG_PUSHED, TEX_DLG_HL);
+    set_button_textures(reg, btn, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
     btn
 }
 
@@ -853,8 +863,8 @@ fn sync_button_states(reg: &mut FrameRegistry, login: &LoginUi, mode: &networkin
         .and_then(|f| f.widget_data.as_mut())
     {
         btn.text = match mode {
-            networking::LoginMode::Login => "Don't have an account? Register".to_string(),
-            networking::LoginMode::Register => "Already have an account? Login".to_string(),
+            networking::LoginMode::Login => "Create Account".to_string(),
+            networking::LoginMode::Register => "Back to Login".to_string(),
         };
     }
 }
@@ -1179,6 +1189,26 @@ fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, colo
     }
 }
 
+fn set_font_string_with_font(
+    reg: &mut FrameRegistry,
+    id: u64,
+    text: &str,
+    font: &str,
+    size: f32,
+    color: [f32; 4],
+) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.widget_data = Some(WidgetData::FontString(FontStringData {
+            text: text.to_string(),
+            font: font.to_string(),
+            font_size: size,
+            color,
+            justify_h: JustifyH::Center,
+            ..Default::default()
+        }));
+    }
+}
+
 fn set_font_string_left(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
@@ -1195,6 +1225,12 @@ fn set_editbox_text(reg: &mut FrameRegistry, id: u64, text: &str) {
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         eb.text = text.to_string();
         eb.cursor_position = text.len();
+    }
+}
+
+fn set_button_font_size(reg: &mut FrameRegistry, id: u64, font_size: f32) {
+    if let Some(WidgetData::Button(button)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        button.font_size = font_size;
     }
 }
 

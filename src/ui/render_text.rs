@@ -1,8 +1,10 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use bevy::text::Font;
 use bevy::text::TextFont;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use crate::ui::frame::WidgetData;
 use crate::ui::plugin::UiState;
@@ -15,6 +17,9 @@ use crate::ui::widgets::font_string::JustifyH;
 pub fn sync_ui_text(
     state: Res<UiState>,
     mut commands: Commands,
+    mut font_assets: ResMut<Assets<Font>>,
+    mut font_cache: Local<HashMap<String, Handle<Font>>>,
+    mut missing_fonts: Local<HashSet<String>>,
     mut texts: Query<(
         Entity,
         &UiText,
@@ -38,15 +43,32 @@ pub fn sync_ui_text(
             continue;
         }
         existing.insert(ui_text.0);
-        let (content, font_size, text_color, justify) = extract_text_props(frame);
-        *text = Text2d::new(content);
-        font.font_size = font_size;
-        *color = TextColor(text_color);
-        *transform = text_transform(frame, screen_w, screen_h, justify);
-        commands.entity(entity).insert(text_anchor(justify));
+        let props = extract_text_props(frame);
+        *text = Text2d::new(&props.content);
+        font.font_size = props.font_size;
+        if let Some(font_handle) = resolve_font_handle(
+            &props.font,
+            &mut font_assets,
+            &mut font_cache,
+            &mut missing_fonts,
+        ) {
+            font.font = font_handle;
+        }
+        *color = TextColor(props.color);
+        *transform = text_transform(frame, screen_w, screen_h, props.justify);
+        commands.entity(entity).insert(text_anchor(props.justify));
     }
 
-    spawn_missing_text(&state, &existing, screen_w, screen_h, &mut commands);
+    spawn_missing_text(
+        &state,
+        &existing,
+        screen_w,
+        screen_h,
+        &mut commands,
+        &mut font_assets,
+        &mut font_cache,
+        &mut missing_fonts,
+    );
 }
 
 fn spawn_missing_text(
@@ -55,21 +77,27 @@ fn spawn_missing_text(
     screen_w: f32,
     screen_h: f32,
     commands: &mut Commands,
+    font_assets: &mut Assets<Font>,
+    font_cache: &mut HashMap<String, Handle<Font>>,
+    missing_fonts: &mut HashSet<String>,
 ) {
     for frame in state.registry.frames_iter() {
         if !frame.visible || existing.contains(&frame.id) || !has_text(frame) {
             continue;
         }
-        let (content, font_size, text_color, justify) = extract_text_props(frame);
-        let transform = text_transform(frame, screen_w, screen_h, justify);
+        let props = extract_text_props(frame);
+        let transform = text_transform(frame, screen_w, screen_h, props.justify);
+        let font = resolve_font_handle(&props.font, font_assets, font_cache, missing_fonts)
+            .unwrap_or_default();
         commands.spawn((
-            Text2d::new(content),
+            Text2d::new(props.content),
             TextFont {
-                font_size,
+                font,
+                font_size: props.font_size,
                 ..default()
             },
-            TextColor(text_color),
-            text_anchor(justify),
+            TextColor(props.color),
+            text_anchor(props.justify),
             transform,
             RenderLayers::layer(UI_RENDER_LAYER),
             UiText(frame.id),
@@ -86,16 +114,25 @@ fn has_text(frame: &crate::ui::frame::Frame) -> bool {
     }
 }
 
-fn extract_text_props(frame: &crate::ui::frame::Frame) -> (String, f32, Color, JustifyH) {
+pub(crate) struct TextProps {
+    pub content: String,
+    pub font: String,
+    pub font_size: f32,
+    pub color: Color,
+    pub justify: JustifyH,
+}
+
+fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
     match &frame.widget_data {
         Some(WidgetData::FontString(fs)) => {
             let [r, g, b, a] = fs.color;
-            (
-                fs.text.clone(),
-                fs.font_size,
-                Color::srgba(r, g, b, a * frame.effective_alpha),
-                fs.justify_h,
-            )
+            TextProps {
+                content: fs.text.clone(),
+                font: fs.font.clone(),
+                font_size: fs.font_size,
+                color: Color::srgba(r, g, b, a * frame.effective_alpha),
+                justify: fs.justify_h,
+            }
         }
         Some(WidgetData::EditBox(eb)) => {
             let display = if eb.password {
@@ -103,32 +140,86 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> (String, f32, Color, J
             } else {
                 eb.text.clone()
             };
-            (
-                display,
-                14.0,
-                Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha),
-                JustifyH::Left,
-            )
+            TextProps {
+                content: display,
+                font: String::new(),
+                font_size: 14.0,
+                color: Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha),
+                justify: JustifyH::Left,
+            }
         }
         Some(WidgetData::Button(btn)) => extract_button_text(btn, frame.effective_alpha),
-        _ => (String::new(), 12.0, Color::WHITE, JustifyH::Center),
+        _ => TextProps {
+            content: String::new(),
+            font: String::new(),
+            font_size: 12.0,
+            color: Color::WHITE,
+            justify: JustifyH::Center,
+        },
     }
 }
 
 pub(crate) fn extract_button_text(
     btn: &crate::ui::widgets::button::ButtonData,
     alpha: f32,
-) -> (String, f32, Color, JustifyH) {
+) -> TextProps {
     let (r, g, b) = match btn.state {
         ButtonState::Normal => (1.0, 0.82, 0.0),
         ButtonState::Pushed => (0.8, 0.65, 0.0),
         ButtonState::Disabled => (0.5, 0.5, 0.5),
     };
-    (
-        btn.text.clone(),
-        14.0,
-        Color::srgba(r, g, b, alpha),
-        JustifyH::Center,
+    TextProps {
+        content: btn.text.clone(),
+        font: String::new(),
+        font_size: btn.font_size,
+        color: Color::srgba(r, g, b, alpha),
+        justify: JustifyH::Center,
+    }
+}
+
+pub(crate) fn resolve_font_handle(
+    font_spec: &str,
+    font_assets: &mut Assets<Font>,
+    font_cache: &mut HashMap<String, Handle<Font>>,
+    missing_fonts: &mut HashSet<String>,
+) -> Option<Handle<Font>> {
+    if !looks_like_font_path(font_spec) {
+        return None;
+    }
+    if let Some(handle) = font_cache.get(font_spec) {
+        return Some(handle.clone());
+    }
+
+    let bytes = match std::fs::read(font_spec) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            if missing_fonts.insert(font_spec.to_string()) {
+                warn!("failed to read UI font {font_spec}: {err}");
+            }
+            return None;
+        }
+    };
+    let font = match Font::try_from_bytes(bytes) {
+        Ok(font) => font,
+        Err(err) => {
+            if missing_fonts.insert(font_spec.to_string()) {
+                warn!("failed to parse UI font {font_spec}: {err}");
+            }
+            return None;
+        }
+    };
+    let handle = font_assets.add(font);
+    font_cache.insert(font_spec.to_string(), handle.clone());
+    Some(handle)
+}
+
+fn looks_like_font_path(font_spec: &str) -> bool {
+    matches!(
+        Path::new(font_spec)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase()),
+        Some(ext) if matches!(ext.as_str(), "ttf" | "otf")
     )
 }
 

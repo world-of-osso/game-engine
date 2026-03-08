@@ -17,6 +17,7 @@ pub struct ButtonData {
     pub highlight_texture: Option<TextureSource>,
     pub disabled_texture: Option<TextureSource>,
     pub text: String,
+    pub font_size: f32,
     pub pushed_text_offset: [f32; 2],
     pub highlight_locked: bool,
 }
@@ -32,6 +33,7 @@ impl Default for ButtonData {
             highlight_texture: None,
             disabled_texture: None,
             text: String::new(),
+            font_size: 14.0,
             pushed_text_offset: [0.0, 0.0],
             highlight_locked: false,
         }
