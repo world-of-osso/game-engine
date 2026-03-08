@@ -28,7 +28,7 @@ const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
 const GLUE_BUTTON_SIZE: (f32, f32) = (200.0, 32.0);
 const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 const GLUE_NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
-const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
 const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -438,7 +438,7 @@ fn build_editbox_with_label(
         Some(input),
         AnchorPoint::Top,
         0.0,
-        23.0,
+        -7.0,
     );
     set_font_string_with_font(
         reg,
