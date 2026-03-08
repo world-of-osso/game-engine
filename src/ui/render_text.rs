@@ -1,5 +1,6 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 use bevy::text::TextFont;
 use std::collections::HashSet;
 
@@ -37,6 +38,7 @@ pub fn sync_ui_text(
         font.font_size = font_size;
         *color = TextColor(text_color);
         *transform = text_transform(frame, screen_w, screen_h, justify);
+        commands.entity(entity).insert(text_anchor(justify));
     }
 
     spawn_missing_text(&state, &existing, screen_w, screen_h, &mut commands);
@@ -59,6 +61,7 @@ fn spawn_missing_text(
             Text2d::new(content),
             TextFont { font_size, ..default() },
             TextColor(text_color),
+            text_anchor(justify),
             transform,
             RenderLayers::layer(UI_RENDER_LAYER),
             UiText(frame.id),
@@ -90,7 +93,7 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> (String, f32, Color, J
     }
 }
 
-fn extract_button_text(btn: &crate::ui::widgets::button::ButtonData, alpha: f32) -> (String, f32, Color, JustifyH) {
+pub(crate) fn extract_button_text(btn: &crate::ui::widgets::button::ButtonData, alpha: f32) -> (String, f32, Color, JustifyH) {
     let (r, g, b) = match btn.state {
         ButtonState::Normal => (1.0, 0.82, 0.0),
         ButtonState::Pushed => (0.8, 0.65, 0.0),
@@ -109,11 +112,29 @@ pub fn text_transform(
     let rect = frame.layout_rect.as_ref();
     let fx = rect.map_or(0.0, |r| r.x);
     let fy = rect.map_or(0.0, |r| r.y);
+    let insets = text_insets(frame);
     let x = match justify {
-        JustifyH::Left => fx + 4.0 - screen_w * 0.5,
+        JustifyH::Left => fx + insets[0] - screen_w * 0.5,
         JustifyH::Center => fx + frame.width * 0.5 - screen_w * 0.5,
-        JustifyH::Right => fx + frame.width - 4.0 - screen_w * 0.5,
+        JustifyH::Right => fx + frame.width - insets[1] - screen_w * 0.5,
     };
     let y = screen_h * 0.5 - fy - frame.height * 0.5;
     Transform::from_xyz(x, y, 10.0)
+}
+
+fn text_anchor(justify: JustifyH) -> Anchor {
+    match justify {
+        JustifyH::Left => Anchor::CENTER_LEFT,
+        JustifyH::Center => Anchor::CENTER,
+        JustifyH::Right => Anchor::CENTER_RIGHT,
+    }
+}
+
+fn text_insets(frame: &crate::ui::frame::Frame) -> [f32; 4] {
+    if let Some(WidgetData::EditBox(eb)) = &frame.widget_data {
+        if eb.text_insets != [0.0; 4] {
+            return eb.text_insets;
+        }
+    }
+    [4.0, 4.0, 0.0, 0.0]
 }

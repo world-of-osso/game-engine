@@ -35,6 +35,7 @@ impl Plugin for UiPlugin {
         app.add_systems(
             Update,
             (
+                sync_screen_size,
                 recompute_layout,
                 crate::ui::render::sync_button_nine_slices,
                 crate::ui::render::sync_ui_quads,
@@ -160,6 +161,17 @@ fn send_spellbook_action(
 
     for mut sender in spell_senders.iter_mut() {
         sender.send::<CombatChannel>(intent.clone());
+    }
+}
+
+fn sync_screen_size(mut state: ResMut<UiState>, windows: Query<&Window, With<bevy::window::PrimaryWindow>>) {
+    let Ok(window) = windows.single() else { return };
+    let (w, h) = (window.width(), window.height());
+    if (state.registry.screen_width - w).abs() > 0.5
+        || (state.registry.screen_height - h).abs() > 0.5
+    {
+        state.registry.screen_width = w;
+        state.registry.screen_height = h;
     }
 }
 

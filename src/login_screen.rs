@@ -64,8 +64,8 @@ impl Plugin for LoginScreenPlugin {
         app.add_systems(OnExit(GameState::Login), teardown_login_ui);
         app.add_systems(
             Update,
-            (login_mouse_input, login_keyboard_input, login_hover_visuals,
-             login_update_visuals, login_fade_in)
+            (login_sync_root_size, login_mouse_input, login_keyboard_input,
+             login_hover_visuals, login_update_visuals, login_fade_in)
                 .into_configs()
                 .run_if(in_state(GameState::Login)),
         );
@@ -83,7 +83,7 @@ fn build_login_ui(
     build_login_titles(reg, root, sw, sh);
     let (server_input, username_input, password_input) = build_login_inputs(reg, root, sw, sh);
     let (connect_button, reconnect_button, create_account_button, menu_button,
-         save_checkbox, exit_button, status_text) = build_login_buttons(reg, root, sw, sh);
+         save_checkbox, exit_button, status_text) = build_login_buttons(reg, root, sw, sh, password_input);
     if let Some(addr) = server_addr {
         set_editbox_text(reg, server_input, &addr.0.to_string());
     }
@@ -105,112 +105,146 @@ fn build_login_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
 
 fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
     let title = create_frame(reg, "LoginTitle", Some(root), WidgetType::FontString, 400.0, 40.0);
+    set_strata(reg, title, FrameStrata::Medium);
     set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.15, 400.0, 40.0);
     set_font_string(reg, title, "World of Osso", 28.0, [1.0, 0.82, 0.0, 1.0]);
     let sub = create_frame(reg, "LoginSubtitle", Some(root), WidgetType::FontString, 300.0, 24.0);
+    set_strata(reg, sub, FrameStrata::Medium);
     set_layout(reg, sub, (sw - 300.0) / 2.0, sh * 0.15 + 45.0, 300.0, 24.0);
     set_font_string(reg, sub, "Game Engine", 18.0, [0.7, 0.7, 0.8, 1.0]);
 }
 
-fn build_login_inputs(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (u64, u64, u64) {
+fn build_login_inputs(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> (u64, u64, u64) {
     let panel_w = 320.0;
-    let panel_x = (sw - panel_w) / 2.0;
-    let mut y = sh * 0.35;
-    let server = build_labeled_editbox(reg, root, panel_x, &mut y, panel_w, "Server Address", "ServerInput");
+    let eb_h = 42.0;
+
+    // ServerInput: CENTER on root, y=80 (shifted up from WoW's y=50 to fit 3 fields)
+    let server = build_editbox_with_label(reg, root, panel_w, eb_h, "Server Address", "ServerInput");
+    set_strata(reg, server, FrameStrata::Medium);
+    set_anchor(reg, server, AnchorPoint::Center, Some(root), AnchorPoint::Center, 0.0, 80.0);
     set_editbox_text(reg, server, "127.0.0.1:25565");
-    let username = build_labeled_editbox(reg, root, panel_x, &mut y, panel_w, "Username", "UsernameInput");
-    let password = build_labeled_editbox(reg, root, panel_x, &mut y, panel_w, "Password", "PasswordInput");
+
+    // UsernameInput: TOP anchored to ServerInput BOTTOM, y=-30
+    let username = build_editbox_with_label(reg, root, panel_w, eb_h, "Username", "UsernameInput");
+    set_strata(reg, username, FrameStrata::Medium);
+    set_anchor(reg, username, AnchorPoint::Top, Some(server), AnchorPoint::Bottom, 0.0, -30.0);
+
+    // PasswordInput: TOP anchored to UsernameInput BOTTOM, y=-30
+    let password = build_editbox_with_label(reg, root, panel_w, eb_h, "Password", "PasswordInput");
+    set_strata(reg, password, FrameStrata::Medium);
+    set_anchor(reg, password, AnchorPoint::Top, Some(username), AnchorPoint::Bottom, 0.0, -30.0);
     set_editbox_password(reg, password);
+
     (server, username, password)
 }
 
 fn build_login_buttons(
     reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32,
+    password_input: u64,
 ) -> (u64, u64, u64, u64, u64, u64, u64) {
     let panel_w = 320.0;
-    let panel_x = (sw - panel_w) / 2.0;
-    let y = sh * 0.35 + 3.0 * 72.0 + 8.0;
-    let (connect, reconnect) = build_main_buttons(reg, root, sw, y);
-    let controls_y = y + 74.0;
-    let save_checkbox = build_save_account_checkbox(reg, root, sw, controls_y - 36.0);
-    let create_account = build_action_button(reg, root, "CreateAccountButton",
-        "Don't have an account? Register", sw, controls_y);
-    let menu = build_action_button(reg, root, "MenuButton", "Menu", sw, controls_y + 38.0);
-    let status = create_frame(reg, "LoginStatus", Some(root), WidgetType::FontString, panel_w, 24.0);
-    set_layout(reg, status, panel_x, controls_y + 76.0, panel_w, 24.0);
-    set_font_string(reg, status, "", 13.0, [0.9, 0.5, 0.5, 1.0]);
+
+    // LoginButton: TOP anchored to PasswordEditBox BOTTOM, y=-50
+    let (connect, reconnect) = build_main_buttons(reg, root, password_input);
+    // SaveCheckbox: TOP anchored to LoginButton BOTTOM, y=-10
+    let save_checkbox = build_save_account_checkbox(reg, root, connect);
+    // Bottom action cluster: anchor from the actual screen bottom so it stays visible
+    // even when the fixed 1920x1080 registry is rendered into a smaller window.
     let exit = build_exit_button(reg, root, sw, sh);
+    let create_account = build_action_button_anchored(reg, root, "CreateAccountButton",
+        "Don't have an account? Register", AnchorPoint::Bottom, Some(root), AnchorPoint::Bottom, 0.0, 54.0);
+    let menu = build_action_button_anchored(reg, root, "MenuButton",
+        "Menu", AnchorPoint::Bottom, Some(create_account), AnchorPoint::Top, 0.0, 10.0);
+    // Status text: TOP anchored to SaveCheckbox BOTTOM, y=-10
+    let status = create_frame(reg, "LoginStatus", Some(root), WidgetType::FontString, panel_w, 24.0);
+    set_strata(reg, status, FrameStrata::Medium);
+    set_anchor(reg, status, AnchorPoint::Top, Some(save_checkbox), AnchorPoint::Bottom, 0.0, -10.0);
+    set_font_string(reg, status, "", 13.0, [0.9, 0.5, 0.5, 1.0]);
     build_footer_text(reg, root, sw, sh);
     (connect, reconnect, create_account, menu, save_checkbox, exit, status)
 }
 
-fn build_main_buttons(reg: &mut FrameRegistry, root: u64, sw: f32, y: f32) -> (u64, u64) {
+fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -> (u64, u64) {
     let connect = create_button(reg, "ConnectButton", Some(root), 250.0, 66.0, "Login");
-    set_layout(reg, connect, (sw - 250.0) / 2.0, y, 250.0, 66.0);
+    set_strata(reg, connect, FrameStrata::Medium);
+    set_anchor(reg, connect, AnchorPoint::Top, Some(password_input), AnchorPoint::Bottom, 0.0, -50.0);
     set_button_textures(reg, connect, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
     let reconnect = create_button(reg, "ReconnectButton", Some(root), 250.0, 66.0, "Reconnect");
-    set_layout(reg, reconnect, (sw - 250.0) / 2.0, y, 250.0, 66.0);
+    set_strata(reg, reconnect, FrameStrata::Medium);
+    set_anchor(reg, reconnect, AnchorPoint::Top, Some(password_input), AnchorPoint::Bottom, 0.0, -50.0);
     set_button_textures(reg, reconnect, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
     hide_frame(reg, reconnect);
     (connect, reconnect)
 }
 
-fn build_exit_button(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 {
+fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> u64 {
     let exit = create_button(reg, "ExitButton", Some(root), 80.0, 28.0, "Quit");
-    set_layout(reg, exit, sw - 90.0, sh - 44.0, 80.0, 28.0);
+    set_strata(reg, exit, FrameStrata::Medium);
+    set_anchor(reg, exit, AnchorPoint::BottomRight, Some(root), AnchorPoint::BottomRight, -10.0, 16.0);
     set_button_textures(reg, exit, TEX_DLG_NORMAL, TEX_DLG_PUSHED, TEX_DLG_HL);
     exit
 }
 
-fn build_action_button(reg: &mut FrameRegistry, root: u64, name: &str, text: &str, sw: f32, y: f32) -> u64 {
-    let btn = create_button(reg, name, Some(root), 200.0, 30.0, text);
-    set_layout(reg, btn, (sw - 200.0) / 2.0, y, 200.0, 30.0);
+fn build_action_button_anchored(
+    reg: &mut FrameRegistry, root: u64, name: &str, text: &str,
+    point: AnchorPoint, relative_to: Option<u64>, relative_point: AnchorPoint,
+    x_off: f32, y_off: f32,
+) -> u64 {
+    let btn = create_button(reg, name, Some(root), 250.0, 30.0, text);
+    set_strata(reg, btn, FrameStrata::Medium);
+    set_anchor(reg, btn, point, relative_to, relative_point, x_off, y_off);
     set_button_textures(reg, btn, TEX_DLG_NORMAL, TEX_DLG_PUSHED, TEX_DLG_HL);
     btn
 }
 
-fn build_save_account_checkbox(reg: &mut FrameRegistry, root: u64, sw: f32, y: f32) -> u64 {
+fn build_save_account_checkbox(reg: &mut FrameRegistry, root: u64, login_button: u64) -> u64 {
     let btn = create_check_button(reg, "SaveAccountCheckbox", Some(root), 200.0, 30.0, false);
-    set_layout(reg, btn, (sw - 200.0) / 2.0, y, 200.0, 30.0);
+    set_strata(reg, btn, FrameStrata::Medium);
+    set_anchor(reg, btn, AnchorPoint::Top, Some(login_button), AnchorPoint::Bottom, 0.0, -10.0);
     set_bg(reg, btn, [0.12, 0.12, 0.2, 1.0]);
     btn
 }
 
-fn build_labeled_editbox(
-    reg: &mut FrameRegistry, root: u64, panel_x: f32, y: &mut f32,
-    panel_w: f32, label_text: &str, name: &str,
+/// Create an editbox with its label as a child (WoW style: label BOTTOM→editbox TOP, y=-23).
+fn build_editbox_with_label(
+    reg: &mut FrameRegistry, root: u64, w: f32, h: f32,
+    label_text: &str, name: &str,
 ) -> u64 {
-    let label = create_frame(reg, &format!("{name}Label"), Some(root), WidgetType::FontString, panel_w, 20.0);
-    set_layout(reg, label, panel_x, *y, panel_w, 20.0);
-    set_font_string_left(reg, label, label_text, 13.0, [0.8, 0.8, 0.9, 1.0]);
-    *y += 24.0;
-    let input = create_editbox(reg, name, Some(root), panel_w, 40.0);
-    set_layout(reg, input, panel_x, *y, panel_w, 40.0);
+    let input = create_editbox(reg, name, Some(root), w, h);
     set_editbox_backdrop(reg, input);
-    *y += 48.0;
+    // Label as child of editbox, BOTTOM anchored to editbox TOP with y=-23
+    let label = create_frame(reg, &format!("{name}Label"), Some(input), WidgetType::FontString, w, 20.0);
+    set_anchor(reg, label, AnchorPoint::Bottom, Some(input), AnchorPoint::Top, 0.0, 23.0);
+    set_font_string(reg, label, label_text, 14.0, [0.8, 0.8, 0.9, 1.0]);
     input
 }
 
-fn build_footer_text(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
+fn build_footer_text(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) {
     let version = create_frame(reg, "VersionText", Some(root), WidgetType::FontString, 200.0, 16.0);
-    set_layout(reg, version, 10.0, sh - 20.0, 200.0, 16.0);
-    set_font_string_left(reg, version, "game-engine v0.1.0", 11.0, [0.5, 0.5, 0.5, 1.0]);
+    set_strata(reg, version, FrameStrata::Medium);
+    set_anchor(reg, version, AnchorPoint::BottomLeft, Some(root), AnchorPoint::BottomLeft, 10.0, 8.0);
+    set_font_string_left(reg, version, "game-engine v0.1.0", 11.0, [0.7, 0.7, 0.75, 1.0]);
     let disclaimer = create_frame(reg, "DisclaimerText", Some(root), WidgetType::FontString, 400.0, 16.0);
-    set_layout(reg, disclaimer, (sw - 400.0) / 2.0, sh - 20.0, 400.0, 16.0);
-    set_font_string(reg, disclaimer, "© 2025 World of Osso. All rights reserved.", 11.0, [0.4, 0.4, 0.4, 1.0]);
+    set_strata(reg, disclaimer, FrameStrata::Medium);
+    set_anchor(reg, disclaimer, AnchorPoint::Bottom, Some(root), AnchorPoint::Bottom, 0.0, 8.0);
+    set_font_string(reg, disclaimer, "© 2025 World of Osso. All rights reserved.", 11.0, [0.65, 0.65, 0.7, 1.0]);
     let logo = create_frame(reg, "BlizzardLogo", Some(root), WidgetType::FontString, 100.0, 20.0);
-    set_layout(reg, logo, (sw - 100.0) / 2.0, sh - 40.0, 100.0, 20.0);
+    set_strata(reg, logo, FrameStrata::Medium);
+    set_anchor(reg, logo, AnchorPoint::Bottom, Some(root), AnchorPoint::Bottom, 0.0, 28.0);
     set_font_string(reg, logo, "BLIZZARD", 14.0, [0.8, 0.6, 0.0, 1.0]);
 }
 
 fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
     if let Some(frame) = reg.get_mut(id) {
         frame.nine_slice = Some(NineSlice {
-            edge_size: 8.0,
+            edge_size: 12.0,
             texture: Some(TextureSource::File(TEX_EDITBOX_BORDER.to_string())),
             bg_color: [0.06, 0.06, 0.10, 0.9],
             border_color: [0.3, 0.25, 0.15, 1.0],
         });
+        if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
+            eb.text_insets = [12.0, 5.0, 0.0, 5.0];
+        }
     }
 }
 
@@ -234,6 +268,22 @@ fn teardown_login_ui(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>, mu
         commands.remove_resource::<LoginFadeIn>();
     }
     ui.focused_frame = None;
+}
+
+fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
+    let Some(login) = login_ui.as_ref() else { return };
+    let sw = ui.registry.screen_width;
+    let sh = ui.registry.screen_height;
+    if let Some(root) = ui.registry.get_mut(login.root) {
+        if (root.width - sw).abs() > 0.5 || (root.height - sh).abs() > 0.5 {
+            root.width = sw;
+            root.height = sh;
+            if let Some(rect) = &mut root.layout_rect {
+                rect.width = sw;
+                rect.height = sh;
+            }
+        }
+    }
 }
 
 fn login_mouse_input(
@@ -363,97 +413,136 @@ fn handle_login_key(
 fn login_hover_visuals(windows: Query<&Window>, mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
     let Some(login) = login_ui.as_ref() else { return };
     let cursor = windows.iter().next().and_then(|w| w.cursor_position());
-    for &id in &[login.connect_button, login.reconnect_button, login.create_account_button,
-                 login.menu_button, login.exit_button] {
-        let hovering = cursor.is_some_and(|c| hit_frame(&ui, id, c.x, c.y));
-        set_button_hovered(&mut ui.registry, id, hovering);
-    }
+    update_button_hover(&mut ui.registry, login.connect_button, cursor);
+    update_button_hover(&mut ui.registry, login.reconnect_button, cursor);
+    update_button_hover(&mut ui.registry, login.create_account_button, cursor);
+    update_button_hover(&mut ui.registry, login.menu_button, cursor);
+    update_button_hover(&mut ui.registry, login.exit_button, cursor);
+}
+
+fn update_button_hover(reg: &mut FrameRegistry, id: u64, cursor: Option<Vec2>) {
+    let hovered = cursor.is_some_and(|c| {
+        reg.get(id).and_then(|f| f.layout_rect.as_ref()).is_some_and(|r| {
+            c.x >= r.x && c.x <= r.x + r.width && c.y >= r.y && c.y <= r.y + r.height
+        })
+    });
+    set_button_hovered(reg, id, hovered);
 }
 
 fn login_update_visuals(
-    mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>,
-    focus: Res<LoginFocus>, status: Res<LoginStatus>,
+    mut ui: ResMut<UiState>,
+    login_ui: Option<Res<LoginUi>>,
+    status: Res<LoginStatus>,
+    save_account: Res<LoginSaveAccount>,
+    login_mode: Res<networking::LoginMode>,
 ) {
     let Some(login) = login_ui.as_ref() else { return };
-    if let Some(frame) = ui.registry.get_mut(login.status_text) {
-        if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
-            fs.text.clone_from(&status.0);
-        }
+    sync_button_states(&mut ui.registry, login, &*login_mode);
+    sync_status_text(&mut ui.registry, login.status_text, &status.0);
+    sync_checkbox_text(&mut ui.registry, login.save_checkbox, save_account.0);
+}
+
+fn sync_button_states(reg: &mut FrameRegistry, login: &LoginUi, mode: &networking::LoginMode) {
+    if let Some(WidgetData::Button(btn)) = reg.get_mut(login.connect_button).and_then(|f| f.widget_data.as_mut()) {
+        btn.text = match mode {
+            networking::LoginMode::Login => "Login".to_string(),
+            networking::LoginMode::Register => "Create Account".to_string(),
+        };
     }
-    for &id in &[login.server_input, login.username_input, login.password_input] {
-        let is_focused = focus.0 == Some(id);
-        if let Some(frame) = ui.registry.get_mut(id) {
-            frame.background_color = Some(if is_focused { [0.2, 0.2, 0.35, 1.0] } else { [0.12, 0.12, 0.2, 1.0] });
-        }
+    if let Some(WidgetData::Button(btn)) = reg.get_mut(login.create_account_button).and_then(|f| f.widget_data.as_mut()) {
+        btn.text = match mode {
+            networking::LoginMode::Login => "Don't have an account? Register".to_string(),
+            networking::LoginMode::Register => "Already have an account? Login".to_string(),
+        };
+    }
+}
+
+fn sync_status_text(reg: &mut FrameRegistry, id: u64, text: &str) {
+    if let Some(WidgetData::FontString(fs)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        fs.text = text.to_string();
+    }
+}
+
+fn sync_checkbox_text(reg: &mut FrameRegistry, id: u64, checked: bool) {
+    if let Some(WidgetData::Button(btn)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        btn.text = checkbox_text(checked).to_string();
     }
 }
 
 fn login_fade_in(
-    time: Res<Time>, mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>,
-    fade: Option<ResMut<LoginFadeIn>>, mut commands: Commands,
+    time: Res<Time>,
+    mut fade: Option<ResMut<LoginFadeIn>>,
+    mut ui: ResMut<UiState>,
+    login_ui: Option<Res<LoginUi>>,
 ) {
-    let (Some(login), Some(mut fade)) = (login_ui.as_ref(), fade) else { return };
-    fade.0 += time.delta_secs();
-    let alpha = (fade.0 / FADE_IN_DURATION).min(1.0);
+    let (Some(fade), Some(login)) = (fade.as_mut(), login_ui.as_ref()) else { return };
+    fade.0 = (fade.0 + time.delta_secs()).min(FADE_IN_DURATION);
+    let alpha = if FADE_IN_DURATION <= 0.0 { 1.0 } else { fade.0 / FADE_IN_DURATION };
     ui.registry.set_alpha(login.root, alpha);
-    if alpha >= 1.0 { commands.remove_resource::<LoginFadeIn>(); }
 }
 
 fn try_connect(
-    reg: &FrameRegistry, login: &LoginUi, status: &mut LoginStatus,
-    next_state: &mut NextState<GameState>, mode: &networking::LoginMode, commands: &mut Commands,
+    reg: &FrameRegistry,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    mode: &networking::LoginMode,
+    commands: &mut Commands,
 ) {
-    let server_text = get_editbox_text(reg, login.server_input);
-    if server_text.is_empty() { status.0 = "Enter a server address".to_string(); return; }
-    let Ok(addr) = server_text.parse::<std::net::SocketAddr>() else {
-        status.0 = format!("Invalid address: {server_text}");
+    let server = get_editbox_text(reg, login.server_input);
+    let username = get_editbox_text(reg, login.username_input);
+    let password = get_editbox_text(reg, login.password_input);
+    if server.trim().is_empty() || username.trim().is_empty() || password.trim().is_empty() {
+        status.0 = "Please fill in all fields".to_string();
         return;
-    };
-    status.0 = format!("Connecting to {addr}...");
-    commands.insert_resource(networking::ServerAddr(addr));
-    commands.insert_resource(networking::LoginUsername(get_editbox_text(reg, login.username_input)));
-    commands.insert_resource(networking::LoginPassword(get_editbox_text(reg, login.password_input)));
-    commands.insert_resource(*mode);
-    next_state.set(GameState::Connecting);
+    }
+    commands.insert_resource(networking::ServerAddr(server.parse().unwrap_or_else(|_| "127.0.0.1:25565".parse().unwrap())));
+    commands.insert_resource(mode.clone());
+    status.0 = "Connecting...".to_string();
+    next_state.set(GameState::CharSelect);
 }
 
 fn toggle_login_mode(mode: &mut networking::LoginMode, reg: &mut FrameRegistry, login: &LoginUi) {
-    *mode = match *mode {
+    *mode = match mode {
         networking::LoginMode::Login => networking::LoginMode::Register,
         networking::LoginMode::Register => networking::LoginMode::Login,
     };
-    update_mode_labels(reg, login, *mode);
+    sync_button_states(reg, login, mode);
 }
 
-fn update_mode_labels(reg: &mut FrameRegistry, login: &LoginUi, mode: networking::LoginMode) {
-    let (btn_text, toggle_text) = match mode {
-        networking::LoginMode::Login => ("Login", "Don't have an account? Register"),
-        networking::LoginMode::Register => ("Register", "Already have an account? Login"),
-    };
-    if let Some(WidgetData::Button(bd)) = reg.get_mut(login.connect_button).and_then(|f| f.widget_data.as_mut()) {
-        bd.text = btn_text.to_string();
-    }
-    if let Some(WidgetData::Button(bd)) = reg.get_mut(login.create_account_button).and_then(|f| f.widget_data.as_mut()) {
-        bd.text = toggle_text.to_string();
+fn toggle_save_account(save_account: &mut LoginSaveAccount, reg: &mut FrameRegistry, id: u64) {
+    save_account.0 = !save_account.0;
+    sync_checkbox_text(reg, id, save_account.0);
+}
+
+fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, s: &str) {
+    if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        eb.text.insert_str(eb.cursor_position, s);
+        eb.cursor_position += s.len();
     }
 }
 
 fn editbox_backspace(reg: &mut FrameRegistry, id: u64) {
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if eb.cursor_position > 0 { eb.cursor_position -= 1; eb.text.remove(eb.cursor_position); }
+        if eb.cursor_position > 0 {
+            eb.cursor_position -= 1;
+            eb.text.remove(eb.cursor_position);
+        }
     }
 }
 
 fn editbox_delete(reg: &mut FrameRegistry, id: u64) {
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if eb.cursor_position < eb.text.len() { eb.text.remove(eb.cursor_position); }
+        if eb.cursor_position < eb.text.len() {
+            eb.text.remove(eb.cursor_position);
+        }
     }
 }
 
-fn editbox_move_cursor(reg: &mut FrameRegistry, id: u64, delta: i32) {
+fn editbox_move_cursor(reg: &mut FrameRegistry, id: u64, delta: isize) {
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if delta < 0 { eb.cursor_position = eb.cursor_position.saturating_sub((-delta) as usize); }
-        else { eb.cursor_position = (eb.cursor_position + delta as usize).min(eb.text.len()); }
+        let pos = eb.cursor_position as isize + delta;
+        eb.cursor_position = pos.clamp(0, eb.text.len() as isize) as usize;
     }
 }
 
@@ -469,24 +558,27 @@ fn editbox_cursor_end(reg: &mut FrameRegistry, id: u64) {
     }
 }
 
-fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
-    if !ch.chars().all(|c| !c.is_control()) { return }
-    if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if eb.max_letters.is_some_and(|max| eb.text.len() >= max as usize) { return }
-        eb.text.insert_str(eb.cursor_position, ch);
-        eb.cursor_position += ch.len();
-    }
-}
-
 fn set_editbox_password(reg: &mut FrameRegistry, id: u64) {
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         eb.password = true;
     }
 }
 
-fn create_frame(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, wt: WidgetType, w: f32, h: f32) -> u64 {
+fn checkbox_text(checked: bool) -> &'static str {
+    if checked { "[x] Save Account Name" } else { "[ ] Save Account Name" }
+}
+
+fn remove_frame_tree(reg: &mut FrameRegistry, id: u64) {
+    let children = reg.get(id).map(|f| f.children.clone()).unwrap_or_default();
+    for child in children {
+        remove_frame_tree(reg, child);
+    }
+    reg.remove_frame(id);
+}
+
+fn create_frame(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, widget: WidgetType, w: f32, h: f32) -> u64 {
     let id = reg.next_id();
-    let mut frame = Frame::new(id, Some(name.to_string()), wt);
+    let mut frame = Frame::new(id, Some(name.to_string()), widget);
     frame.parent_id = parent;
     frame.width = w;
     frame.height = h;
@@ -501,21 +593,6 @@ fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f
         frame.widget_data = Some(WidgetData::EditBox(EditBoxData::default()));
     }
     id
-}
-
-fn checkbox_text(checked: bool) -> &'static str {
-    if checked { "[x] Save account name" } else { "[ ] Save account name" }
-}
-
-fn toggle_save_account(save: &mut LoginSaveAccount, reg: &mut FrameRegistry, id: u64) {
-    save.0 = !save.0;
-    set_button_text(reg, id, checkbox_text(save.0));
-}
-
-fn set_button_text(reg: &mut FrameRegistry, id: u64, text: &str) {
-    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        bd.text = text.to_string();
-    }
 }
 
 fn create_button(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f32, h: f32, text: &str) -> u64 {
@@ -535,6 +612,21 @@ fn create_check_button(reg: &mut FrameRegistry, name: &str, parent: Option<u64>,
         frame.widget_data = Some(WidgetData::Button(data.button));
     }
     id
+}
+
+fn set_anchor(
+    reg: &mut FrameRegistry, id: u64,
+    point: AnchorPoint, relative_to: Option<u64>, relative_point: AnchorPoint,
+    x_offset: f32, y_offset: f32,
+) {
+    reg.clear_all_points(id);
+    reg.set_point(id, Anchor {
+        point,
+        relative_to,
+        relative_point,
+        x_offset,
+        y_offset,
+    }).expect("anchor must be valid");
 }
 
 fn set_layout_anchor(reg: &mut FrameRegistry, id: u64, relative_to: Option<u64>, x_offset: f32, y_offset: f32) {
@@ -626,10 +718,4 @@ fn hit_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
         f.layout_rect.as_ref()
             .is_some_and(|r| mx >= r.x && mx <= r.x + r.width && my >= r.y && my <= r.y + r.height)
     })
-}
-
-fn remove_frame_tree(reg: &mut FrameRegistry, id: u64) {
-    let children = reg.get(id).map(|f| f.children.clone()).unwrap_or_default();
-    for child in children { remove_frame_tree(reg, child); }
-    reg.remove_frame(id);
 }

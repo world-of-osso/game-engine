@@ -689,7 +689,7 @@ mod tests {
             text: "Test".into(),
             ..Default::default()
         };
-        let (_, _, color, _) = extract_button_text(&btn, 1.0);
+        let (_, _, color, _) = crate::ui::render_text::extract_button_text(&btn, 1.0);
         let Color::Srgba(srgba) = color else { panic!("expected srgba") };
         assert!(srgba.red < 0.6, "disabled should be grey");
     }
