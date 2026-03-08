@@ -15,7 +15,7 @@ use crate::camera::Player;
 use crate::equipment;
 use crate::networking;
 use crate::sound;
-use crate::terrain::{AdtManager};
+use crate::terrain::AdtManager;
 use crate::terrain_heightmap::TerrainHeightmap;
 
 pub fn sync_network_status_snapshot(

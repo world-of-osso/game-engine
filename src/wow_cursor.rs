@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use bevy::window::{CursorIcon, CursorOptions, CustomCursor, CustomCursorImage, PrimaryWindow};
 
 use crate::asset;
-use crate::networking::RemoteEntity;
 use crate::camera::{Player, WowCamera};
+use crate::networking::RemoteEntity;
 
 #[derive(Resource)]
 pub struct WowCursorAssets {
@@ -25,14 +25,20 @@ fn load_cursor_images(images: &mut Assets<Image>) -> Option<(Handle<Image>, Hand
     let default_image = match asset::blp::load_blp_gpu_image(default_path) {
         Ok(image) => image,
         Err(error) => {
-            warn!("failed to load WoW cursor {}: {error}", default_path.display());
+            warn!(
+                "failed to load WoW cursor {}: {error}",
+                default_path.display()
+            );
             return None;
         }
     };
     let hover_image = match asset::blp::load_blp_gpu_image(hover_path) {
         Ok(image) => image,
         Err(error) => {
-            warn!("failed to load WoW cursor {}: {error}", hover_path.display());
+            warn!(
+                "failed to load WoW cursor {}: {error}",
+                hover_path.display()
+            );
             return None;
         }
     };

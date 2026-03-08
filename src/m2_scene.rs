@@ -26,7 +26,9 @@ pub fn attach_equipment_to_model(
     let mut equip = equipment::Equipment::default();
     let torch = Path::new("data/models/club_1h_torch_a_01.m2");
     if torch.exists() {
-        equip.slots.insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
+        equip
+            .slots
+            .insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
     }
     commands.entity(model_entity).insert((attach_pts, equip));
 }
@@ -51,7 +53,13 @@ fn spawn_anim_and_particles(
     if !particle_emitters.is_empty() {
         let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
         particle::spawn_emitters(
-            commands, meshes, materials, images, &particle_emitters, bone_slice, model_entity,
+            commands,
+            meshes,
+            materials,
+            images,
+            &particle_emitters,
+            bone_slice,
+            model_entity,
         );
     }
     if let Some(joints) = joint_entities {
@@ -83,21 +91,47 @@ pub fn spawn_m2_model(
         return;
     };
     let asset::m2::M2Model {
-        batches, bones, sequences, bone_tracks, global_sequences, particle_emitters, attachments, ..
+        batches,
+        bones,
+        sequences,
+        bone_tracks,
+        global_sequences,
+        particle_emitters,
+        attachments,
+        ..
     } = model;
     let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(
-        commands, meshes, materials, images, inv_bp, batches, &bones, model_entity,
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        batches,
+        &bones,
+        model_entity,
     );
     spawn_anim_and_particles(
-        commands, meshes, materials, images,
-        &bones, sequences, bone_tracks, global_sequences,
-        particle_emitters, attachments, &skinning, model_entity,
+        commands,
+        meshes,
+        materials,
+        images,
+        &bones,
+        sequences,
+        bone_tracks,
+        global_sequences,
+        particle_emitters,
+        attachments,
+        &skinning,
+        model_entity,
     );
 }
 
 pub fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
-    let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("m2_model");
+    let name = m2_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("m2_model");
     commands
         .spawn((
             Name::new(name.to_owned()),
@@ -122,7 +156,10 @@ pub fn spawn_static_m2(
     transform: Transform,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) -> Option<Entity> {
-    let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("prop");
+    let name = m2_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("prop");
     let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
@@ -130,8 +167,14 @@ pub fn spawn_static_m2(
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
     if m2_spawn::spawn_m2_on_entity(
-        commands, meshes, materials, images, skinned_mesh_inverse_bindposes,
-        m2_path, root, &skin_fdids,
+        commands,
+        meshes,
+        materials,
+        images,
+        skinned_mesh_inverse_bindposes,
+        m2_path,
+        root,
+        &skin_fdids,
     ) {
         Some(root)
     } else {
@@ -152,7 +195,9 @@ pub fn attach_bone_pivots_and_player(
     let (_, joints) = skinning.as_ref()?;
     for (i, bone) in bones.iter().enumerate() {
         let p = bone.pivot;
-        commands.entity(joints[i]).insert(BonePivot(Vec3::new(p[0], p[2], -p[1])));
+        commands
+            .entity(joints[i])
+            .insert(BonePivot(Vec3::new(p[0], p[2], -p[1])));
     }
     if sequences.is_empty() {
         return None;

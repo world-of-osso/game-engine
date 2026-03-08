@@ -102,7 +102,14 @@ pub fn spawn_ground_clutter(
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     spawn_rock_clutter(commands, meshes, materials);
-    spawn_herb_clutter(commands, meshes, materials, images, inverse_bindposes, creature_display_map);
+    spawn_herb_clutter(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        creature_display_map,
+    );
 }
 
 fn spawn_rock_clutter(
