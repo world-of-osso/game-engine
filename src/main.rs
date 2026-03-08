@@ -101,6 +101,20 @@ fn main() {
 
     let mut app = App::new();
     register_plugins(&mut app);
+    configure_app_plugins(&mut app, enable_sound, server_addr, dump_tree, dump_ui_tree, screenshot);
+    app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
+    app.run();
+}
+
+/// Configure optional plugins/systems based on CLI flags.
+fn configure_app_plugins(
+    app: &mut App,
+    enable_sound: bool,
+    server_addr: Option<std::net::SocketAddr>,
+    dump_tree: bool,
+    dump_ui_tree: bool,
+    screenshot: Option<ScreenshotRequest>,
+) {
     if enable_sound {
         app.add_plugins(sound::SoundPlugin);
     }
@@ -136,8 +150,6 @@ fn main() {
         app.insert_resource(req);
         app.add_systems(Update, take_screenshot);
     }
-    app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
-    app.run();
 }
 
 fn run_headless_ui_dump_app() {
@@ -176,7 +188,16 @@ fn register_plugins(app: &mut App) {
                 ..default()
             },
         })
-        .init_resource::<NetworkStatusSnapshot>()
+        .add_systems(Startup, (setup, install_wow_cursor))
+        .add_systems(
+            Update,
+            update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
+        );
+    init_status_resources(app);
+}
+
+fn init_status_resources(app: &mut App) {
+    app.init_resource::<NetworkStatusSnapshot>()
         .init_resource::<TerrainStatusSnapshot>()
         .init_resource::<SoundStatusSnapshot>()
         .init_resource::<CurrenciesStatusSnapshot>()
@@ -190,12 +211,29 @@ fn register_plugins(app: &mut App) {
         .init_resource::<CombatLogStatusSnapshot>()
         .init_resource::<CollectionStatusSnapshot>()
         .init_resource::<ProfessionStatusSnapshot>()
-        .init_resource::<MapStatusSnapshot>()
-        .add_systems(Startup, (setup, install_wow_cursor))
-        .add_systems(
-            Update,
-            update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
-        );
+        .init_resource::<MapStatusSnapshot>();
+}
+
+/// Load WoW cursor BLP images from disk. Returns None if either fails.
+fn load_cursor_images(images: &mut Assets<Image>) -> Option<(Handle<Image>, Handle<Image>)> {
+    let default_path = Path::new("/syncthing/Sync/Projects/wow/Interface/CURSOR/Point.blp");
+    let hover_path =
+        Path::new("/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Point.blp");
+    let default_image = match asset::blp::load_blp_gpu_image(default_path) {
+        Ok(image) => image,
+        Err(error) => {
+            warn!("failed to load WoW cursor {}: {error}", default_path.display());
+            return None;
+        }
+    };
+    let hover_image = match asset::blp::load_blp_gpu_image(hover_path) {
+        Ok(image) => image,
+        Err(error) => {
+            warn!("failed to load WoW cursor {}: {error}", hover_path.display());
+            return None;
+        }
+    };
+    Some((images.add(default_image), images.add(hover_image)))
 }
 
 fn install_wow_cursor(
@@ -206,32 +244,9 @@ fn install_wow_cursor(
     let Ok(window_entity) = primary_window.single() else {
         return;
     };
-
-    let default_path = Path::new("/syncthing/Sync/Projects/wow/Interface/CURSOR/Point.blp");
-    let hover_path = Path::new("/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Point.blp");
-    let default_image = match asset::blp::load_blp_gpu_image(default_path) {
-        Ok(image) => image,
-        Err(error) => {
-            warn!(
-                "failed to load WoW cursor {}: {error}",
-                default_path.display()
-            );
-            return;
-        }
+    let Some((default_cursor, hover_cursor)) = load_cursor_images(&mut images) else {
+        return;
     };
-    let hover_image = match asset::blp::load_blp_gpu_image(hover_path) {
-        Ok(image) => image,
-        Err(error) => {
-            warn!(
-                "failed to load WoW cursor {}: {error}",
-                hover_path.display()
-            );
-            return;
-        }
-    };
-
-    let default_cursor = images.add(default_image);
-    let hover_cursor = images.add(hover_image);
     commands.insert_resource(WowCursorAssets {
         default_point: default_cursor.clone(),
         hover_point: hover_cursor,
@@ -246,12 +261,33 @@ fn install_wow_cursor(
         })));
 }
 
+/// Raycast to determine whether the cursor hovers over a remote entity.
+fn pick_desired_cursor(
+    window: &Window,
+    camera: (&Camera, &GlobalTransform),
+    remote_q: &Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+    ray_cast: &mut MeshRayCast,
+) -> Option<ActiveWowCursor> {
+    let cursor = window.cursor_position()?;
+    let (cam, cam_tf) = camera;
+    let ray = cam.viewport_to_world(cam_tf, cursor).ok()?;
+    let hover = ray_cast
+        .cast_ray(ray, &default())
+        .iter()
+        .any(|(entity, _)| remote_q.get(*entity).is_ok());
+    Some(if hover {
+        ActiveWowCursor::Hover
+    } else {
+        ActiveWowCursor::Default
+    })
+}
+
 fn update_wow_cursor_style(
     windows: Query<(&Window, &CursorOptions, Entity), With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<WowCamera>>,
     remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
     assets: Option<Res<WowCursorAssets>>,
-    mut active: Option<ResMut<ActiveWowCursor>>,
+    active: Option<ResMut<ActiveWowCursor>>,
     mut ray_cast: MeshRayCast,
     mut commands: Commands,
 ) {
@@ -262,36 +298,16 @@ fn update_wow_cursor_style(
     if !cursor_opts.visible {
         return;
     }
-    let Some(cursor) = window.cursor_position() else {
-        return;
-    };
-    let Ok((camera, camera_tf)) = cameras.single() else {
-        return;
-    };
-    let Some(ray) = camera.viewport_to_world(camera_tf, cursor).ok() else {
-        return;
-    };
-    let Some(assets) = assets else {
-        return;
-    };
-    let Some(mut active) = active else {
-        return;
-    };
+    let Ok(camera) = cameras.single() else { return };
+    let Some(assets) = assets else { return };
+    let Some(mut active) = active else { return };
 
-    let hover_remote = ray_cast
-        .cast_ray(ray, &default())
-        .iter()
-        .any(|(entity, _)| remote_q.get(*entity).is_ok());
-    let desired = if hover_remote {
-        ActiveWowCursor::Hover
-    } else {
-        ActiveWowCursor::Default
-    };
+    let desired = pick_desired_cursor(window, camera, &remote_q, &mut ray_cast)
+        .unwrap_or(ActiveWowCursor::Default);
     if *active == desired {
         return;
     }
     *active = desired;
-
     let handle = match desired {
         ActiveWowCursor::Default => assets.default_point.clone(),
         ActiveWowCursor::Hover => assets.hover_point.clone(),
@@ -363,6 +379,34 @@ fn sync_sound_status_snapshot(
     snapshot.active_sinks = sinks.iter().count();
 }
 
+/// Fill health/mana/speed from the local player entity into the snapshot.
+fn fill_local_player_stats(
+    snapshot: &mut CharacterStatsSnapshot,
+    local_player_query: &Query<
+        (
+            Option<&NetPlayer>,
+            Option<&NetHealth>,
+            Option<&NetMana>,
+            Option<&NetMovementSpeed>,
+        ),
+        With<networking::LocalPlayer>,
+    >,
+) {
+    if let Some((_, health, mana, speed)) = local_player_query.iter().next() {
+        snapshot.health_current = health.map(|v| v.current);
+        snapshot.health_max = health.map(|v| v.max);
+        snapshot.mana_current = mana.map(|v| v.current);
+        snapshot.mana_max = mana.map(|v| v.max);
+        snapshot.movement_speed = speed.map(|v| v.0);
+    } else {
+        snapshot.health_current = None;
+        snapshot.health_max = None;
+        snapshot.mana_current = None;
+        snapshot.mana_max = None;
+        snapshot.movement_speed = None;
+    }
+}
+
 fn sync_character_stats_snapshot(
     mut snapshot: ResMut<CharacterStatsSnapshot>,
     character_list: Res<networking::CharacterList>,
@@ -384,7 +428,6 @@ fn sync_character_stats_snapshot(
             .iter()
             .find(|entry| entry.character_id == character_id)
     });
-
     snapshot.name = selected_character
         .map(|entry| entry.name.clone())
         .or_else(|| {
@@ -396,20 +439,7 @@ fn sync_character_stats_snapshot(
     snapshot.race = selected_character.map(|entry| entry.race);
     snapshot.class = selected_character.map(|entry| entry.class);
     snapshot.zone_id = current_zone.zone_id;
-
-    if let Some((_, health, mana, speed)) = local_player_query.iter().next() {
-        snapshot.health_current = health.map(|value| value.current);
-        snapshot.health_max = health.map(|value| value.max);
-        snapshot.mana_current = mana.map(|value| value.current);
-        snapshot.mana_max = mana.map(|value| value.max);
-        snapshot.movement_speed = speed.map(|value| value.0);
-    } else {
-        snapshot.health_current = None;
-        snapshot.health_max = None;
-        snapshot.mana_current = None;
-        snapshot.mana_max = None;
-        snapshot.movement_speed = None;
-    }
+    fill_local_player_stats(&mut snapshot, &local_player_query);
 }
 
 fn sync_equipped_gear_status_snapshot(
@@ -438,12 +468,10 @@ fn apply_equipment_ipc_commands(
     if queue.pending.is_empty() {
         return;
     }
-
     let Some((entity, maybe_equipment)) = local_player_query.iter_mut().next() else {
         queue.pending.clear();
         return;
     };
-
     let mut pending = std::mem::take(&mut queue.pending);
     if let Some(mut equipment) = maybe_equipment {
         for command in pending.drain(..) {
@@ -451,7 +479,6 @@ fn apply_equipment_ipc_commands(
         }
         return;
     }
-
     let mut equipment = equipment::Equipment::default();
     for command in pending.drain(..) {
         apply_equipment_command(&mut equipment, command);
@@ -515,9 +542,11 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
         .get(1)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("screenshot.webp"));
+    let has_server = args.windows(2).any(|w| w[0] == "--server");
+    let frames_remaining = if has_server { 60 } else { 3 };
     Some(ScreenshotRequest {
         output,
-        frames_remaining: 3,
+        frames_remaining,
     })
 }
 
@@ -598,6 +627,63 @@ fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
     println!("Saved {} ({} bytes)", output.display(), webp_data.len());
 }
 
+/// Spawn minimal server-mode scene: dark background + camera only, no world content.
+fn setup_server_camera(commands: &mut Commands) {
+    commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
+    commands.spawn((
+        Camera3d::default(),
+        Transform::default(),
+        WowCamera::default(),
+        AmbientLight {
+            color: Color::WHITE,
+            brightness: 0.0,
+            ..default()
+        },
+    ));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_scene_for_asset(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
+    water_mats: &mut Assets<water_material::WaterMaterial>,
+    sky_mats: &mut Assets<sky::SkyMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
+    adt_manager: &mut AdtManager,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) {
+    let asset_path = parse_asset_path();
+    let is_terrain = asset_path
+        .as_ref()
+        .is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
+        || asset_path.is_none();
+    let camera = spawn_scene_environment(commands, meshes, materials, sky_mats, images, is_terrain);
+    match asset_path {
+        Some(p) if p.extension().is_some_and(|e| e == "adt") => {
+            let center = spawn_terrain(
+                commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
+                heightmap, adt_manager, camera, &p,
+            );
+            let m2_path = Path::new(DEFAULT_M2);
+            if m2_path.exists() {
+                spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path, creature_display_map);
+            }
+            if let Some(pos) = center {
+                set_player_position(commands, pos);
+            }
+        }
+        Some(p) => spawn_m2_scene(commands, meshes, materials, images, inverse_bp, &p, creature_display_map),
+        None => spawn_default_scene(
+            commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
+            heightmap, adt_manager, creature_display_map,
+        ),
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -612,92 +698,15 @@ fn setup(
     server_addr: Option<Res<networking::ServerAddr>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
 ) {
-    // Server mode: minimal scene — dark background, camera only, no world content.
     if server_addr.is_some() {
-        commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
-        commands.spawn((
-            Camera3d::default(),
-            Transform::default(),
-            WowCamera::default(),
-            AmbientLight {
-                color: Color::WHITE,
-                brightness: 0.0,
-                ..default()
-            },
-        ));
+        setup_server_camera(&mut commands);
         return;
     }
-
-    let asset_path = parse_asset_path();
-    let is_terrain = asset_path
-        .as_ref()
-        .is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
-        || asset_path.is_none();
-
-    let camera = spawn_scene_environment(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut sky_mats,
-        &mut images,
-        is_terrain,
+    spawn_scene_for_asset(
+        &mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut water_mats,
+        &mut sky_mats, &mut images, &mut inverse_bp, &mut heightmap, &mut adt_manager,
+        &creature_display_map,
     );
-
-    match asset_path {
-        Some(p) if p.extension().is_some_and(|e| e == "adt") => {
-            let center = spawn_terrain(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                &mut terrain_mats,
-                &mut water_mats,
-                &mut images,
-                &mut inverse_bp,
-                &mut heightmap,
-                &mut adt_manager,
-                camera,
-                &p,
-            );
-            let m2_path = Path::new(DEFAULT_M2);
-            if m2_path.exists() {
-                spawn_m2_model(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    &mut images,
-                    &mut inverse_bp,
-                    m2_path,
-                    &creature_display_map,
-                );
-            }
-            if let Some(pos) = center {
-                set_player_position(&mut commands, pos);
-            }
-        }
-        Some(p) => {
-            spawn_m2_scene(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                &mut images,
-                &mut inverse_bp,
-                &p,
-                &creature_display_map,
-            );
-        }
-        None => spawn_default_scene(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut terrain_mats,
-            &mut water_mats,
-            &mut images,
-            &mut inverse_bp,
-            &mut heightmap,
-            &mut adt_manager,
-            &creature_display_map,
-        ),
-    }
 }
 
 fn spawn_terrain(
@@ -714,15 +723,8 @@ fn spawn_terrain(
     adt_path: &Path,
 ) -> Option<Vec3> {
     match terrain::spawn_adt(
-        commands,
-        meshes,
-        materials,
-        terrain_mats,
-        water_mats,
-        images,
-        inverse_bp,
-        heightmap,
-        adt_path,
+        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
+        heightmap, adt_path,
     ) {
         Ok(result) => {
             commands.entity(camera).insert(result.camera);
@@ -740,7 +742,43 @@ fn spawn_terrain(
     }
 }
 
+/// Load default terrain from DEFAULT_ADT. Returns center position if successful.
+fn load_default_terrain(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
+    water_mats: &mut Assets<water_material::WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
+    adt_manager: &mut AdtManager,
+) -> Option<Vec3> {
+    let adt_path = Path::new(DEFAULT_ADT);
+    if !adt_path.exists() {
+        return None;
+    }
+    match terrain::spawn_adt(
+        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
+        heightmap, adt_path,
+    ) {
+        Ok(result) => {
+            adt_manager.map_name = result.map_name;
+            adt_manager.initial_tile = (result.tile_y, result.tile_x);
+            adt_manager
+                .loaded
+                .insert((result.tile_y, result.tile_x), result.root_entity);
+            Some(result.center)
+        }
+        Err(e) => {
+            eprintln!("ADT load error: {e}");
+            None
+        }
+    }
+}
+
 /// Default scene: terrain + HD human + chest, all together.
+#[allow(clippy::too_many_arguments)]
 fn spawn_default_scene(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -753,67 +791,24 @@ fn spawn_default_scene(
     adt_manager: &mut AdtManager,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
-    let adt_path = Path::new(DEFAULT_ADT);
-    let center = if adt_path.exists() {
-        // Load terrain but don't override camera — WowCamera will follow the player.
-        match terrain::spawn_adt(
-            commands,
-            meshes,
-            materials,
-            terrain_mats,
-            water_mats,
-            images,
-            inverse_bp,
-            heightmap,
-            adt_path,
-        ) {
-            Ok(result) => {
-                adt_manager.map_name = result.map_name;
-                adt_manager.initial_tile = (result.tile_y, result.tile_x);
-                adt_manager
-                    .loaded
-                    .insert((result.tile_y, result.tile_x), result.root_entity);
-                Some(result.center)
-            }
-            Err(e) => {
-                eprintln!("ADT load error: {e}");
-                None
-            }
-        }
-    } else {
-        None
-    };
-
+    let center = load_default_terrain(
+        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
+        heightmap, adt_manager,
+    );
     let m2_path = Path::new(DEFAULT_M2);
     if m2_path.exists() {
-        spawn_m2_model(
-            commands,
-            meshes,
-            materials,
-            images,
-            inverse_bp,
-            m2_path,
-            creature_display_map,
-        );
+        spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path, creature_display_map);
     }
-
     let chest_offset = Vec3::new(5.0, 0.0, 0.0);
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         spawn_static_m2(
-            commands,
-            meshes,
-            materials,
-            images,
-            inverse_bp,
-            chest_path,
+            commands, meshes, materials, images, inverse_bp, chest_path,
             Transform::from_translation(center.unwrap_or_default() + chest_offset)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             creature_display_map,
         );
     }
-
-    // Move player to terrain center if terrain was loaded.
     if let Some(pos) = center {
         set_player_position(commands, pos);
     }
@@ -838,33 +833,12 @@ fn spawn_m2_scene(
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
-    spawn_m2_model(
-        commands,
-        meshes,
-        materials,
-        images,
-        inverse_bindposes,
-        m2_path,
-        creature_display_map,
-    );
-    spawn_ground_clutter(
-        commands,
-        meshes,
-        materials,
-        images,
-        inverse_bindposes,
-        creature_display_map,
-    );
-
+    spawn_m2_model(commands, meshes, materials, images, inverse_bindposes, m2_path, creature_display_map);
+    spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes, creature_display_map);
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         spawn_static_m2(
-            commands,
-            meshes,
-            materials,
-            images,
-            inverse_bindposes,
-            chest_path,
+            commands, meshes, materials, images, inverse_bindposes, chest_path,
             Transform::from_xyz(5.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             creature_display_map,
@@ -900,9 +874,7 @@ fn spawn_scene_environment(
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
-
     sky::spawn_sky_dome(commands, meshes, sky_materials, images, camera);
-
     if !is_terrain {
         spawn_ground_plane(commands, meshes, materials, images);
     }
@@ -1004,14 +976,7 @@ fn spawn_ground_clutter(
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     spawn_rock_clutter(commands, meshes, materials);
-    spawn_herb_clutter(
-        commands,
-        meshes,
-        materials,
-        images,
-        inverse_bindposes,
-        creature_display_map,
-    );
+    spawn_herb_clutter(commands, meshes, materials, images, inverse_bindposes, creature_display_map);
 }
 
 fn spawn_rock_clutter(
@@ -1030,7 +995,6 @@ fn spawn_rock_clutter(
         perceptual_roughness: 0.95,
         ..default()
     });
-
     for i in 0u32..30 {
         let Some((x, z, hash1, hash2)) = scatter_position(i) else {
             continue;
@@ -1069,16 +1033,30 @@ fn spawn_herb_clutter(
             .with_rotation(Quat::from_rotation_y(yaw))
             .with_scale(Vec3::splat(0.3));
         spawn_static_m2(
-            commands,
-            meshes,
-            materials,
-            images,
-            inverse_bindposes,
-            herb_path,
-            transform,
+            commands, meshes, materials, images, inverse_bindposes, herb_path, transform,
             creature_display_map,
         );
     }
+}
+
+/// Attach equipment (attachment points + default main-hand torch) to a model entity.
+fn attach_equipment_to_model(
+    commands: &mut Commands,
+    model_entity: Entity,
+    attachments: &[asset::m2_attach::M2Attachment],
+) {
+    if attachments.is_empty() {
+        return;
+    }
+    let attach_pts = equipment::build_attachment_points(attachments);
+    let mut equip = equipment::Equipment::default();
+    let torch = Path::new("data/models/club_1h_torch_a_01.m2");
+    if torch.exists() {
+        equip
+            .slots
+            .insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
+    }
+    commands.entity(model_entity).insert((attach_pts, equip));
 }
 
 fn spawn_m2_model(
@@ -1101,40 +1079,17 @@ fn spawn_m2_model(
         }
     };
     let asset::m2::M2Model {
-        batches,
-        bones,
-        sequences,
-        bone_tracks,
-        global_sequences,
-        particle_emitters,
-        attachments,
-        ..
+        batches, bones, sequences, bone_tracks, global_sequences, particle_emitters, attachments, ..
     } = model;
-
     let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(
-        commands,
-        meshes,
-        materials,
-        images,
-        inv_bp,
-        batches,
-        &bones,
-        model_entity,
+        commands, meshes, materials, images, inv_bp, batches, &bones, model_entity,
     );
     let joint_entities =
         attach_bone_pivots_and_player(commands, &bones, &sequences, &skinning, model_entity);
     if !particle_emitters.is_empty() {
         let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
-        particle::spawn_emitters(
-            commands,
-            meshes,
-            materials,
-            images,
-            &particle_emitters,
-            bone_slice,
-            model_entity,
-        );
+        particle::spawn_emitters(commands, meshes, materials, images, &particle_emitters, bone_slice, model_entity);
     }
     if let Some(joints) = joint_entities {
         commands.insert_resource(M2AnimData {
@@ -1144,18 +1099,7 @@ fn spawn_m2_model(
             joint_entities: joints,
         });
     }
-    // Attach equipment: attachment points + default main-hand torch
-    if !attachments.is_empty() {
-        let attach_pts = equipment::build_attachment_points(&attachments);
-        let mut equip = equipment::Equipment::default();
-        let torch = Path::new("data/models/club_1h_torch_a_01.m2");
-        if torch.exists() {
-            equip
-                .slots
-                .insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
-        }
-        commands.entity(model_entity).insert((attach_pts, equip));
-    }
+    attach_equipment_to_model(commands, model_entity, &attachments);
 }
 
 fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
@@ -1198,14 +1142,8 @@ fn spawn_static_m2(
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
     if m2_spawn::spawn_m2_on_entity(
-        commands,
-        meshes,
-        materials,
-        images,
-        skinned_mesh_inverse_bindposes,
-        m2_path,
-        root,
-        &skin_fdids,
+        commands, meshes, materials, images, skinned_mesh_inverse_bindposes,
+        m2_path, root, &skin_fdids,
     ) {
         Some(root)
     } else {
