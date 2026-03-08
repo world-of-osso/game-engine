@@ -18,14 +18,21 @@ use crate::networking;
 
 const FADE_IN_DURATION: f32 = 0.75;
 
-const TEX_EDITBOX_BORDER: &str = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border.blp";
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const FONT_WORLD_OF_OSSO_TITLE: &str = "/home/osso/Projects/wow/reference-addons.new/ClickableRaidBuffs/Media/Fonts/Cinzel/Cinzel-Bold.ttf";
+const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
+const FONT_GLUE_EDITBOX: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/ARIALN.ttf";
 const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
 const GLUE_BUTTON_SIZE: (f32, f32) = (200.0, 32.0);
 const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
+const GLUE_NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
+const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.92, 0.72, 1.0];
 
 #[derive(Resource)]
 struct LoginUi {
@@ -415,14 +422,14 @@ fn build_editbox_with_label(
 ) -> u64 {
     let input = create_editbox(reg, name, Some(root), w, h);
     set_editbox_backdrop(reg, input);
-    // Label as child of editbox, BOTTOM anchored to editbox TOP with y=-23
+    // Label sits above the field, centered like WoW glue login labels.
     let label = create_frame(
         reg,
         &format!("{name}Label"),
         Some(input),
         WidgetType::FontString,
-        w,
-        20.0,
+        600.0,
+        64.0,
     );
     set_anchor(
         reg,
@@ -433,7 +440,14 @@ fn build_editbox_with_label(
         0.0,
         23.0,
     );
-    set_font_string(reg, label, label_text, 14.0, [0.8, 0.8, 0.9, 1.0]);
+    set_font_string_with_font(
+        reg,
+        label,
+        label_text,
+        FONT_GLUE_LABEL,
+        18.0,
+        GLUE_NORMAL_FONT_COLOR,
+    );
     input
 }
 
@@ -511,14 +525,67 @@ fn build_footer_text(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) {
 fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
     if let Some(frame) = reg.get_mut(id) {
         frame.nine_slice = Some(NineSlice {
-            edge_size: 12.0,
-            texture: Some(TextureSource::File(TEX_EDITBOX_BORDER.to_string())),
-            bg_color: [0.06, 0.06, 0.10, 0.9],
-            border_color: [0.3, 0.25, 0.15, 1.0],
+            edge_size: 8.0,
+            part_textures: Some(common_input_border_part_textures()),
+            bg_color: EDITBOX_BG,
+            border_color: EDITBOX_BORDER,
+            ..Default::default()
         });
         if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
+            // Match AccountLogin.xml text insets for the glue edit boxes.
             eb.text_insets = [12.0, 5.0, 0.0, 5.0];
+            eb.font = FONT_GLUE_EDITBOX.to_string();
+            eb.font_size = 16.0;
+            eb.text_color = GLUE_EDITBOX_TEXT_COLOR;
         }
+    }
+}
+
+fn common_input_border_part_textures() -> [TextureSource; 9] {
+    [
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-TL.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-T.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-TR.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-L.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-M.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-R.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-BL.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-B.blp".to_string(),
+        ),
+        TextureSource::File(
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-BR.blp".to_string(),
+        ),
+    ]
+}
+
+fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
+    let Some(frame) = reg.get_mut(id) else {
+        return;
+    };
+    let Some(nine_slice) = frame.nine_slice.as_mut() else {
+        return;
+    };
+    if focused {
+        nine_slice.bg_color = EDITBOX_FOCUSED_BG;
+        nine_slice.border_color = EDITBOX_FOCUSED_BORDER;
+    } else {
+        nine_slice.bg_color = EDITBOX_BG;
+        nine_slice.border_color = EDITBOX_BORDER;
     }
 }
 
@@ -777,13 +844,25 @@ fn login_update_visuals(
     mut ui: ResMut<UiState>,
     login_ui: Option<Res<LoginUi>>,
     status: Res<LoginStatus>,
+    focus: Res<LoginFocus>,
     login_mode: Res<networking::LoginMode>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
+    ui.focused_frame = focus.0;
     sync_button_states(&mut ui.registry, login, &*login_mode);
     sync_status_text(&mut ui.registry, login.status_text, &status.0);
+    sync_editbox_focus_visual(
+        &mut ui.registry,
+        login.username_input,
+        focus.0 == Some(login.username_input),
+    );
+    sync_editbox_focus_visual(
+        &mut ui.registry,
+        login.password_input,
+        focus.0 == Some(login.password_input),
+    );
 }
 
 fn sync_button_states(reg: &mut FrameRegistry, login: &LoginUi, mode: &networking::LoginMode) {

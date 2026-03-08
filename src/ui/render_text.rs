@@ -11,7 +11,7 @@ use crate::ui::plugin::UiState;
 use crate::ui::render::UI_RENDER_LAYER;
 use crate::ui::render::UiText;
 use crate::ui::widgets::button::ButtonState;
-use crate::ui::widgets::font_string::JustifyH;
+use crate::ui::widgets::font_string::{JustifyH, JustifyV};
 
 /// Syncs text content from the frame registry into Bevy Text2d entities.
 pub fn sync_ui_text(
@@ -55,8 +55,10 @@ pub fn sync_ui_text(
             font.font = font_handle;
         }
         *color = TextColor(props.color);
-        *transform = text_transform(frame, screen_w, screen_h, props.justify);
-        commands.entity(entity).insert(text_anchor(props.justify));
+        *transform = text_transform(frame, screen_w, screen_h, props.justify_h, props.justify_v);
+        commands
+            .entity(entity)
+            .insert(text_anchor(props.justify_h, props.justify_v));
     }
 
     spawn_missing_text(
@@ -86,7 +88,7 @@ fn spawn_missing_text(
             continue;
         }
         let props = extract_text_props(frame);
-        let transform = text_transform(frame, screen_w, screen_h, props.justify);
+        let transform = text_transform(frame, screen_w, screen_h, props.justify_h, props.justify_v);
         let font = resolve_font_handle(&props.font, font_assets, font_cache, missing_fonts)
             .unwrap_or_default();
         commands.spawn((
@@ -97,7 +99,7 @@ fn spawn_missing_text(
                 ..default()
             },
             TextColor(props.color),
-            text_anchor(props.justify),
+            text_anchor(props.justify_h, props.justify_v),
             transform,
             RenderLayers::layer(UI_RENDER_LAYER),
             UiText(frame.id),
@@ -119,7 +121,8 @@ pub(crate) struct TextProps {
     pub font: String,
     pub font_size: f32,
     pub color: Color,
-    pub justify: JustifyH,
+    pub justify_h: JustifyH,
+    pub justify_v: JustifyV,
 }
 
 fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
@@ -131,7 +134,8 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
                 font: fs.font.clone(),
                 font_size: fs.font_size,
                 color: Color::srgba(r, g, b, a * frame.effective_alpha),
-                justify: fs.justify_h,
+                justify_h: fs.justify_h,
+                justify_v: fs.justify_v,
             }
         }
         Some(WidgetData::EditBox(eb)) => {
@@ -140,12 +144,14 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
             } else {
                 eb.text.clone()
             };
+            let [r, g, b, a] = eb.text_color;
             TextProps {
                 content: display,
-                font: String::new(),
-                font_size: 14.0,
-                color: Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha),
-                justify: JustifyH::Left,
+                font: eb.font.clone(),
+                font_size: eb.font_size,
+                color: Color::srgba(r, g, b, a * frame.effective_alpha),
+                justify_h: JustifyH::Left,
+                justify_v: JustifyV::Middle,
             }
         }
         Some(WidgetData::Button(btn)) => extract_button_text(btn, frame.effective_alpha),
@@ -154,7 +160,8 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
             font: String::new(),
             font_size: 12.0,
             color: Color::WHITE,
-            justify: JustifyH::Center,
+            justify_h: JustifyH::Center,
+            justify_v: JustifyV::Middle,
         },
     }
 }
@@ -173,7 +180,8 @@ pub(crate) fn extract_button_text(
         font: String::new(),
         font_size: btn.font_size,
         color: Color::srgba(r, g, b, alpha),
-        justify: JustifyH::Center,
+        justify_h: JustifyH::Center,
+        justify_v: JustifyV::Middle,
     }
 }
 
@@ -228,26 +236,39 @@ pub fn text_transform(
     frame: &crate::ui::frame::Frame,
     screen_w: f32,
     screen_h: f32,
-    justify: JustifyH,
+    justify_h: JustifyH,
+    justify_v: JustifyV,
 ) -> Transform {
     let rect = frame.layout_rect.as_ref();
     let fx = rect.map_or(0.0, |r| r.x);
     let fy = rect.map_or(0.0, |r| r.y);
     let insets = text_insets(frame);
-    let x = match justify {
+    let x = match justify_h {
         JustifyH::Left => fx + insets[0] - screen_w * 0.5,
         JustifyH::Center => fx + frame.width * 0.5 - screen_w * 0.5,
         JustifyH::Right => fx + frame.width - insets[1] - screen_w * 0.5,
     };
-    let y = screen_h * 0.5 - fy - frame.height * 0.5;
+    let top = fy + insets[2];
+    let bottom = fy + frame.height - insets[3];
+    let y = match justify_v {
+        JustifyV::Top => screen_h * 0.5 - top,
+        JustifyV::Middle => screen_h * 0.5 - (top + bottom) * 0.5,
+        JustifyV::Bottom => screen_h * 0.5 - bottom,
+    };
     Transform::from_xyz(x, y, 10.0)
 }
 
-fn text_anchor(justify: JustifyH) -> Anchor {
-    match justify {
-        JustifyH::Left => Anchor::CENTER_LEFT,
-        JustifyH::Center => Anchor::CENTER,
-        JustifyH::Right => Anchor::CENTER_RIGHT,
+fn text_anchor(justify_h: JustifyH, justify_v: JustifyV) -> Anchor {
+    match (justify_h, justify_v) {
+        (JustifyH::Left, JustifyV::Top) => Anchor::TOP_LEFT,
+        (JustifyH::Center, JustifyV::Top) => Anchor::TOP_CENTER,
+        (JustifyH::Right, JustifyV::Top) => Anchor::TOP_RIGHT,
+        (JustifyH::Left, JustifyV::Middle) => Anchor::CENTER_LEFT,
+        (JustifyH::Center, JustifyV::Middle) => Anchor::CENTER,
+        (JustifyH::Right, JustifyV::Middle) => Anchor::CENTER_RIGHT,
+        (JustifyH::Left, JustifyV::Bottom) => Anchor::BOTTOM_LEFT,
+        (JustifyH::Center, JustifyV::Bottom) => Anchor::BOTTOM_CENTER,
+        (JustifyH::Right, JustifyV::Bottom) => Anchor::BOTTOM_RIGHT,
     }
 }
 
@@ -258,4 +279,74 @@ fn text_insets(frame: &crate::ui::frame::Frame) -> [f32; 4] {
         }
     }
     [4.0, 4.0, 0.0, 0.0]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::frame::{Frame, WidgetData, WidgetType};
+    use crate::ui::layout::LayoutRect;
+    use crate::ui::widgets::edit_box::EditBoxData;
+
+    fn make_edit_box(width: f32, height: f32, insets: [f32; 4]) -> Frame {
+        let mut frame = Frame::new(1, Some("EditBox".into()), WidgetType::EditBox);
+        frame.width = width;
+        frame.height = height;
+        frame.layout_rect = Some(LayoutRect {
+            x: 0.0,
+            y: 0.0,
+            width,
+            height,
+        });
+        frame.widget_data = Some(WidgetData::EditBox(EditBoxData {
+            text_insets: insets,
+            ..Default::default()
+        }));
+        frame
+    }
+
+    #[test]
+    fn text_transform_centers_edit_box_text_between_vertical_insets() {
+        let frame = make_edit_box(300.0, 30.0, [12.0, 5.0, 0.0, 5.0]);
+        let transform = text_transform(&frame, 800.0, 600.0, JustifyH::Left, JustifyV::Middle);
+        assert_eq!(transform.translation.x, -388.0);
+        assert_eq!(transform.translation.y, 287.5);
+    }
+
+    #[test]
+    fn text_anchor_combines_horizontal_and_vertical_justify() {
+        assert_eq!(text_anchor(JustifyH::Left, JustifyV::Top), Anchor::TOP_LEFT);
+        assert_eq!(
+            text_anchor(JustifyH::Center, JustifyV::Middle),
+            Anchor::CENTER
+        );
+        assert_eq!(
+            text_anchor(JustifyH::Right, JustifyV::Bottom),
+            Anchor::BOTTOM_RIGHT
+        );
+    }
+
+    #[test]
+    fn extract_text_props_uses_edit_box_style_fields() {
+        let mut frame = make_edit_box(300.0, 30.0, [12.0, 5.0, 0.0, 5.0]);
+        frame.effective_alpha = 0.5;
+        frame.widget_data = Some(WidgetData::EditBox(EditBoxData {
+            text: "abc".into(),
+            font: "/tmp/font.ttf".into(),
+            font_size: 16.0,
+            text_color: [0.8, 0.7, 0.6, 1.0],
+            ..Default::default()
+        }));
+        let props = extract_text_props(&frame);
+        assert_eq!(props.content, "abc");
+        assert_eq!(props.font, "/tmp/font.ttf");
+        assert_eq!(props.font_size, 16.0);
+        let Color::Srgba(srgba) = props.color else {
+            panic!("expected srgba")
+        };
+        assert!((srgba.red - 0.8).abs() < 0.001);
+        assert!((srgba.green - 0.7).abs() < 0.001);
+        assert!((srgba.blue - 0.6).abs() < 0.001);
+        assert!((srgba.alpha - 0.5).abs() < 0.001);
+    }
 }

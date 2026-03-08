@@ -671,6 +671,8 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
                 };
                 frame.nine_slice = Some(NineSlice {
                     edge_size,
+                    bg_color: [1.0, 1.0, 1.0, 1.0],
+                    border_color: [1.0, 1.0, 1.0, 1.0],
                     texture: Some(tex),
                     ..Default::default()
                 });
@@ -850,7 +852,7 @@ mod tests {
             text: "Test".into(),
             ..Default::default()
         };
-        let (_, _, color, _) = crate::ui::render_text::extract_button_text(&btn, 1.0);
+        let color = crate::ui::render_text::extract_button_text(&btn, 1.0).color;
         let Color::Srgba(srgba) = color else {
             panic!("expected srgba")
         };

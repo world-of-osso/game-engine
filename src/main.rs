@@ -220,13 +220,15 @@ fn init_status_resources(app: &mut App) {
         .insert_resource(WarbankStatusSnapshot::default());
 }
 
-/// Parse `screenshot <output> [model]` from args. Returns None if not a screenshot command.
+fn screenshot_arg_index(args: &[String]) -> Option<usize> {
+    args.iter().position(|arg| arg == "screenshot")
+}
+
+/// Parse `screenshot <output> [model]` from args. Supports flags before `screenshot`.
 fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
-    if args.first().map(|s| s.as_str()) != Some("screenshot") {
-        return None;
-    }
+    let screenshot_idx = screenshot_arg_index(args)?;
     let output = args
-        .get(1)
+        .get(screenshot_idx + 1)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("screenshot.webp"));
     let has_server = args.windows(2).any(|w| w[0] == "--server");
@@ -257,29 +259,34 @@ fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
         })
 }
 
+fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
+    let screenshot_idx = screenshot_arg_index(args);
+    let mut i = 0;
+    while i < args.len() {
+        if screenshot_idx == Some(i) {
+            i += 1;
+            if i < args.len() {
+                i += 1;
+            }
+            continue;
+        }
+        match args[i].as_str() {
+            "--server" | "--state" => {
+                i += 2;
+            }
+            arg if arg.starts_with("--") => {
+                i += 1;
+            }
+            path => return Some(PathBuf::from(path)),
+        }
+    }
+    None
+}
+
 /// Find the asset path from CLI args. Returns None when no explicit path given.
 fn parse_asset_path() -> Option<PathBuf> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let mut skip_next = false;
-    let start = if args.first().map(|s| s.as_str()) == Some("screenshot") {
-        2
-    } else {
-        0
-    };
-    args.iter()
-        .skip(start)
-        .find(|a| {
-            if skip_next {
-                skip_next = false;
-                return false;
-            }
-            if *a == "--server" {
-                skip_next = true;
-                return false;
-            }
-            !a.starts_with("--")
-        })
-        .map(PathBuf::from)
+    parse_asset_path_from_args(&args)
 }
 
 fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>>) {
@@ -299,16 +306,65 @@ fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>
 }
 
 fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
-    let Some(data) = img.data.as_ref() else {
-        eprintln!("Screenshot has no pixel data");
-        return;
+    let webp_data = match game_engine::screenshot::encode_webp(img, 15.0) {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("{err}");
+            return;
+        }
     };
-    let size = img.size();
-    let encoder = webp::Encoder::from_rgba(data, size.x, size.y);
-    let webp_data = encoder.encode(15.0);
-    std::fs::write(output, &*webp_data)
+    std::fs::write(output, &webp_data)
         .unwrap_or_else(|e| eprintln!("Failed to write {}: {e}", output.display()));
     println!("Saved {} ({} bytes)", output.display(), webp_data.len());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn screenshot_args_allow_flags_before_command() {
+        let parsed = parse_screenshot_args(&args(&[
+            "--state",
+            "login",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "--server",
+            "127.0.0.1:25565",
+        ]))
+        .expect("expected screenshot request");
+        assert_eq!(parsed.output, PathBuf::from("/tmp/codex/test.webp"));
+        assert_eq!(parsed.frames_remaining, 60);
+    }
+
+    #[test]
+    fn asset_path_skips_state_and_screenshot_output() {
+        let parsed = parse_asset_path_from_args(&args(&[
+            "--state",
+            "login",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "--server",
+            "127.0.0.1:25565",
+        ]));
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn asset_path_after_screenshot_is_preserved() {
+        let parsed = parse_asset_path_from_args(&args(&[
+            "--state",
+            "inworld",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "data/models/humanmale_hd.m2",
+        ]));
+        assert_eq!(parsed, Some(PathBuf::from("data/models/humanmale_hd.m2")));
+    }
 }
 
 /// Spawn minimal server-mode scene: dark background + camera only.

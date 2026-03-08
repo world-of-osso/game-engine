@@ -198,8 +198,13 @@ fn resolve_part_texture(
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
 ) -> (Handle<Image>, Option<Rect>) {
-    let Some(source) = &nine_slice.texture else {
-        return (Handle::default(), None);
+    let source = if let Some(part_textures) = &nine_slice.part_textures {
+        &part_textures[part as usize]
+    } else {
+        let Some(source) = &nine_slice.texture else {
+            return (Handle::default(), None);
+        };
+        source
     };
     if matches!(source, TextureSource::None) {
         return (Handle::default(), None);
@@ -217,20 +222,41 @@ fn resolve_part_texture(
 
     let uv_rect = images.as_ref().and_then(|assets| {
         let img = assets.get(&handle.handle)?;
-        let c = nine_slice.edge_size;
         let atlas_rect = handle.rect.unwrap_or(Rect {
             min: Vec2::ZERO,
             max: Vec2::new(img.width() as f32, img.height() as f32),
         });
-        let w = atlas_rect.max.x - atlas_rect.min.x;
-        let h = atlas_rect.max.y - atlas_rect.min.y;
-        let mut rect = uv_rect_for_part(part, w, h, c);
-        rect.min += atlas_rect.min;
-        rect.max += atlas_rect.min;
-        Some(rect)
+        if nine_slice.part_textures.is_some() {
+            None
+        } else if let Some(uv_rects) = &nine_slice.uv_rects {
+            Some(explicit_uv_rect_for_part(uv_rects, part, atlas_rect))
+        } else {
+            let c = nine_slice.edge_size;
+            let w = atlas_rect.max.x - atlas_rect.min.x;
+            let h = atlas_rect.max.y - atlas_rect.min.y;
+            let mut rect = uv_rect_for_part(part, w, h, c);
+            rect.min += atlas_rect.min;
+            rect.max += atlas_rect.min;
+            Some(rect)
+        }
     });
 
     (handle.handle, uv_rect)
+}
+
+fn explicit_uv_rect_for_part(uv_rects: &[[f32; 4]; 9], part: u8, atlas_rect: Rect) -> Rect {
+    let [left, right, top, bottom] = uv_rects[part as usize];
+    let size = atlas_rect.max - atlas_rect.min;
+    Rect {
+        min: Vec2::new(
+            atlas_rect.min.x + left * size.x,
+            atlas_rect.min.y + top * size.y,
+        ),
+        max: Vec2::new(
+            atlas_rect.min.x + right * size.x,
+            atlas_rect.min.y + bottom * size.y,
+        ),
+    }
 }
 
 /// Compute the UV sub-rect (in pixel coords) for each of the 9 parts.
@@ -309,9 +335,15 @@ pub(crate) fn part_geometry(
         ),
     };
 
-    // When a texture is set, use white tint so the texture shows through.
+    // Textured nine-slices still honor per-part tint so focused edit boxes can
+    // brighten their border/background while buttons opt into white explicitly.
     let color = if ns.texture.is_some() && !matches!(ns.texture, Some(TextureSource::None)) {
-        Color::srgba(1.0, 1.0, 1.0, frame.effective_alpha)
+        let [r, g, b, a] = if is_border {
+            ns.border_color
+        } else {
+            ns.bg_color
+        };
+        Color::srgba(r, g, b, a * frame.effective_alpha)
     } else {
         let [r, g, b, a] = if is_border {
             ns.border_color
@@ -386,5 +418,35 @@ mod tests {
         let br = uv_rect_for_part(8, 64.0, 64.0, 8.0);
         assert_eq!(br.min, Vec2::new(56.0, 56.0));
         assert_eq!(br.max, Vec2::new(64.0, 64.0));
+    }
+
+    #[test]
+    fn explicit_uv_rects_map_within_texture_rect() {
+        let atlas_rect = Rect {
+            min: Vec2::new(10.0, 20.0),
+            max: Vec2::new(110.0, 220.0),
+        };
+        let mut uv_rects = [[0.0, 1.0, 0.0, 1.0]; 9];
+        uv_rects[4] = [0.25, 0.75, 0.4, 0.6];
+        let rect = explicit_uv_rect_for_part(&uv_rects, 4, atlas_rect);
+        assert_eq!(rect.min, Vec2::new(35.0, 100.0));
+        assert_eq!(rect.max, Vec2::new(85.0, 140.0));
+    }
+
+    #[test]
+    fn part_textures_store_distinct_sources() {
+        let ns = NineSlice {
+            part_textures: Some(std::array::from_fn(|i| {
+                TextureSource::File(format!("part-{i}.blp"))
+            })),
+            ..Default::default()
+        };
+        let Some(part_textures) = ns.part_textures.as_ref() else {
+            panic!("expected part textures")
+        };
+        match &part_textures[4] {
+            TextureSource::File(path) => assert_eq!(path, "part-4.blp"),
+            other => panic!("unexpected texture source: {other:?}"),
+        }
     }
 }

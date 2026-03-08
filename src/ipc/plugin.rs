@@ -1251,13 +1251,10 @@ fn on_screenshot_captured(
 }
 
 fn encode_screenshot(img: &bevy::image::Image) -> Response {
-    let Some(data) = img.data.as_ref() else {
-        return Response::Error("screenshot has no pixel data".into());
-    };
-    let size = img.size();
-    let encoder = webp::Encoder::from_rgba(data, size.x, size.y);
-    let webp_data = encoder.encode(15.0);
-    Response::Screenshot(webp_data.to_vec())
+    match crate::screenshot::encode_webp(img, 15.0) {
+        Ok(webp_data) => Response::Screenshot(webp_data),
+        Err(err) => Response::Error(err),
+    }
 }
 
 #[cfg(test)]

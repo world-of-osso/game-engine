@@ -2,6 +2,9 @@
 pub struct EditBoxData {
     pub text: String,
     pub cursor_position: usize,
+    pub font: String,
+    pub font_size: f32,
+    pub text_color: [f32; 4],
     pub multi_line: bool,
     pub numeric: bool,
     pub password: bool,
@@ -19,6 +22,9 @@ impl Default for EditBoxData {
         Self {
             text: String::new(),
             cursor_position: 0,
+            font: String::new(),
+            font_size: 14.0,
+            text_color: [1.0, 0.8, 0.2, 1.0],
             multi_line: false,
             numeric: false,
             password: false,

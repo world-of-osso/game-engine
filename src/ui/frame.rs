@@ -49,6 +49,10 @@ pub struct NineSlice {
     pub border_color: [f32; 4],
     /// Optional texture applied to all 9 parts with UV sub-rects.
     pub texture: Option<TextureSource>,
+    /// Optional per-part textures in TL,T,TR,L,C,R,BL,B,BR order.
+    pub part_textures: Option<[TextureSource; 9]>,
+    /// Optional normalized UV rects per part: [left, right, top, bottom].
+    pub uv_rects: Option<[[f32; 4]; 9]>,
 }
 
 impl Default for NineSlice {
@@ -58,6 +62,8 @@ impl Default for NineSlice {
             bg_color: [0.0, 0.0, 0.0, 0.8],
             border_color: [1.0, 1.0, 1.0, 1.0],
             texture: None,
+            part_textures: None,
+            uv_rects: None,
         }
     }
 }
