@@ -23,7 +23,7 @@ impl Default for EditBoxData {
             text: String::new(),
             cursor_position: 0,
             font: String::new(),
-            font_size: 14.0,
+            font_size: 16.0,
             text_color: [1.0, 0.8, 0.2, 1.0],
             multi_line: false,
             numeric: false,

@@ -422,14 +422,14 @@ fn build_editbox_with_label(
 ) -> u64 {
     let input = create_editbox(reg, name, Some(root), w, h);
     set_editbox_backdrop(reg, input);
-    // Label sits above the field, centered like WoW glue login labels.
+    let label_font_size = 18.0_f32;
     let label = create_frame(
         reg,
         &format!("{name}Label"),
         Some(input),
         WidgetType::FontString,
-        600.0,
-        64.0,
+        w,
+        label_font_size,
     );
     set_anchor(
         reg,
@@ -438,7 +438,7 @@ fn build_editbox_with_label(
         Some(input),
         AnchorPoint::Top,
         0.0,
-        -7.0,
+        0.0,
     );
     set_font_string_with_font(
         reg,
