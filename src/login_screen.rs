@@ -3,7 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
-use game_engine::ui::frame::{Backdrop, Frame, WidgetData, WidgetType};
+use game_engine::ui::frame::{Frame, NineSlice, WidgetData, WidgetType};
 use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
@@ -24,6 +24,7 @@ const TEX_RED_HL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-But
 const TEX_DLG_NORMAL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Up.blp";
 const TEX_DLG_PUSHED: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Down.blp";
 const TEX_DLG_HL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Highlight.blp";
+const TEX_EDITBOX_BORDER: &str = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border.blp";
 
 #[derive(Resource)]
 struct LoginUi {
@@ -204,11 +205,11 @@ fn build_footer_text(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
 
 fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
     if let Some(frame) = reg.get_mut(id) {
-        frame.backdrop = Some(Backdrop {
-            bg_color: Some([0.06, 0.06, 0.10, 0.9]),
-            border_color: Some([0.3, 0.25, 0.15, 1.0]),
-            edge_size: 1.0,
-            insets: [0.0; 4],
+        frame.nine_slice = Some(NineSlice {
+            edge_size: 8.0,
+            texture: Some(TextureSource::File(TEX_EDITBOX_BORDER.to_string())),
+            bg_color: [0.06, 0.06, 0.10, 0.9],
+            border_color: [0.3, 0.25, 0.15, 1.0],
         });
     }
 }
