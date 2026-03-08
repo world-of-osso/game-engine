@@ -27,13 +27,15 @@ pub fn sync_ui_nine_slices(
 ) {
     let screen_w = state.registry.screen_width;
     let screen_h = state.registry.screen_height;
+    let z_map = build_z_map(&state);
 
     let mut existing: HashSet<(u64, u8)> = HashSet::new();
     for (entity, part) in &parts {
         if should_keep_part(&state, part) {
             existing.insert((part.0, part.1));
+            let z = z_map.get(&part.0).copied().unwrap_or(0.0);
             update_part(
-                &state, entity, part, screen_w, screen_h, &mut commands,
+                &state, entity, part, screen_w, screen_h, z, &mut commands,
                 &mut images, &mut texture_cache, &mut file_texture_cache,
                 &mut missing_textures, &mut missing_file_textures,
             );
@@ -43,10 +45,26 @@ pub fn sync_ui_nine_slices(
     }
 
     spawn_missing_parts(
-        &state, &existing, screen_w, screen_h, &mut commands,
+        &state, &existing, &z_map, screen_w, screen_h, &mut commands,
         &mut images, &mut texture_cache, &mut file_texture_cache,
         &mut missing_textures, &mut missing_file_textures,
     );
+}
+
+/// Build z-order map: frame_id → z value, matching the strata sort used by UiQuad.
+fn build_z_map(state: &UiState) -> HashMap<u64, f32> {
+    let mut frames: Vec<_> = state
+        .registry
+        .frames_iter()
+        .filter(|f| f.visible && f.width > 0.0 && f.height > 0.0)
+        .map(|f| (f.id, f.strata, f.frame_level, f.raise_order))
+        .collect();
+    frames.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)));
+    frames
+        .iter()
+        .enumerate()
+        .map(|(i, &(id, _, _, _))| (id, i as f32 * 0.001))
+        .collect()
 }
 
 fn should_keep_part(state: &UiState, part: &UiNineSlicePart) -> bool {
@@ -60,6 +78,7 @@ fn update_part(
     part: &UiNineSlicePart,
     screen_w: f32,
     screen_h: f32,
+    z: f32,
     commands: &mut Commands,
     images: &mut Option<ResMut<Assets<Image>>>,
     texture_cache: &mut HashMap<u32, Handle<Image>>,
@@ -69,7 +88,7 @@ fn update_part(
 ) {
     let Some(frame) = state.registry.get(part.0) else { return };
     let Some(nine_slice) = &frame.nine_slice else { return };
-    let (transform, size, color) = part_geometry(frame, nine_slice, part.1, screen_w, screen_h);
+    let (transform, size, color) = part_geometry(frame, nine_slice, part.1, screen_w, screen_h, z);
     let (image, tex_rect) = resolve_part_texture(
         nine_slice, part.1, images, texture_cache, file_texture_cache,
         missing_textures, missing_file_textures,
@@ -84,6 +103,7 @@ fn update_part(
 fn spawn_missing_parts(
     state: &UiState,
     existing: &HashSet<(u64, u8)>,
+    z_map: &HashMap<u64, f32>,
     screen_w: f32,
     screen_h: f32,
     commands: &mut Commands,
@@ -96,9 +116,10 @@ fn spawn_missing_parts(
     for frame in state.registry.frames_iter() {
         if !frame.visible { continue; }
         let Some(nine_slice) = &frame.nine_slice else { continue };
+        let z = z_map.get(&frame.id).copied().unwrap_or(0.0);
         for p in 0..9u8 {
             if existing.contains(&(frame.id, p)) { continue; }
-            let (transform, size, color) = part_geometry(frame, nine_slice, p, screen_w, screen_h);
+            let (transform, size, color) = part_geometry(frame, nine_slice, p, screen_w, screen_h, z);
             let (image, tex_rect) = resolve_part_texture(
                 nine_slice, p, images, texture_cache, file_texture_cache,
                 missing_textures, missing_file_textures,
@@ -178,6 +199,7 @@ pub(crate) fn part_geometry(
     part: u8,
     screen_w: f32,
     screen_h: f32,
+    z: f32,
 ) -> (Transform, Vec2, Color) {
     let e = ns.edge_size;
     let rect = frame.layout_rect.as_ref();
@@ -211,7 +233,7 @@ pub(crate) fn part_geometry(
 
     let bx = cx - screen_w * 0.5;
     let by = screen_h * 0.5 - cy;
-    (Transform::from_xyz(bx, by, 9.4), Vec2::new(w, h), color)
+    (Transform::from_xyz(bx, by, z), Vec2::new(w, h), color)
 }
 
 #[cfg(test)]

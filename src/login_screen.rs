@@ -18,9 +18,9 @@ use crate::networking;
 
 const FADE_IN_DURATION: f32 = 0.75;
 
-const TEX_RED_NORMAL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/128RedButton.BLP";
-const TEX_RED_PUSHED: &str = "/home/osso/Projects/wow/Interface/BUTTONS/128RedButtonPart2.BLP";
-const TEX_RED_HL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Highlight.blp";
+const TEX_RED_NORMAL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-Button-Up.blp";
+const TEX_RED_PUSHED: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-Button-Down.blp";
+const TEX_RED_HL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-Button-Highlight.blp";
 const TEX_DLG_NORMAL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Up.blp";
 const TEX_DLG_PUSHED: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Down.blp";
 const TEX_DLG_HL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Highlight.blp";
@@ -98,7 +98,7 @@ fn build_login_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
     let root = create_frame(reg, "LoginRoot", None, WidgetType::Frame, sw, sh);
     set_layout(reg, root, 0.0, 0.0, sw, sh);
     set_bg(reg, root, [0.05, 0.05, 0.12, 1.0]);
-    set_strata(reg, root, FrameStrata::Fullscreen);
+    set_strata(reg, root, FrameStrata::Background);
     root
 }
 

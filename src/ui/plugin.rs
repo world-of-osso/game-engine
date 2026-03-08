@@ -36,6 +36,7 @@ impl Plugin for UiPlugin {
             Update,
             (
                 recompute_layout,
+                crate::ui::render::sync_button_nine_slices,
                 crate::ui::render::sync_ui_quads,
                 crate::ui::render::sync_ui_button_highlights,
                 crate::ui::render_text::sync_ui_text,

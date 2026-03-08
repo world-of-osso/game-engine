@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 use crate::asset;
-use crate::ui::frame::WidgetData;
+use crate::ui::frame::{NineSlice, WidgetData};
 use crate::ui::plugin::UiState;
 use crate::ui::widgets::button::ButtonState;
 use crate::ui::widgets::texture::TextureSource;
@@ -120,6 +120,10 @@ fn build_sorted_frame_ids(state: &UiState) -> Vec<u64> {
 }
 
 fn is_renderable(f: &crate::ui::frame::Frame) -> bool {
+    // Frames with nine_slice are rendered by the nine-slice system, not as quads.
+    if f.nine_slice.is_some() {
+        return false;
+    }
     f.visible
         && f.width > 0.0
         && f.height > 0.0
@@ -488,6 +492,41 @@ fn despawn_stale_highlights(
     for (&frame_id, &entity) in existing {
         if !seen.contains(&frame_id) {
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+// --- Button nine-slice sync ---
+
+const BUTTON_NINE_SLICE_EDGE: f32 = 4.0;
+
+/// Converts button textures into nine-slice rendering based on current state.
+pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
+    let ids: Vec<u64> = state
+        .registry
+        .frames_iter()
+        .filter(|f| matches!(&f.widget_data, Some(WidgetData::Button(_))))
+        .map(|f| f.id)
+        .collect();
+
+    for id in ids {
+        let texture = {
+            let Some(frame) = state.registry.get(id) else { continue };
+            let Some(WidgetData::Button(btn)) = &frame.widget_data else { continue };
+            select_button_texture_source(btn).cloned()
+        };
+        let Some(frame) = state.registry.get_mut(id) else { continue };
+        match texture {
+            Some(tex) => {
+                frame.nine_slice = Some(NineSlice {
+                    edge_size: BUTTON_NINE_SLICE_EDGE,
+                    texture: Some(tex),
+                    ..Default::default()
+                });
+            }
+            None => {
+                frame.nine_slice = None;
+            }
         }
     }
 }
