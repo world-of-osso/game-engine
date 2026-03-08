@@ -125,6 +125,10 @@ pub(crate) struct TextProps {
     pub justify_v: JustifyV,
 }
 
+pub(crate) fn extract_text_props_pub(frame: &crate::ui::frame::Frame) -> TextProps {
+    extract_text_props(frame)
+}
+
 fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
     match &frame.widget_data {
         Some(WidgetData::FontString(fs)) => {
