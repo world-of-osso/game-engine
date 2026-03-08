@@ -2,12 +2,15 @@ pub mod addon_watcher;
 pub mod anchor;
 pub mod animation;
 pub mod atlas;
+pub mod automation;
+pub mod automation_script;
 pub mod dioxus_elements;
 pub mod dioxus_renderer;
 pub mod dioxus_runtime;
 pub mod event;
 pub mod frame;
 pub mod input;
+pub mod js_automation;
 pub mod layout;
 pub mod plugin;
 pub mod registry;
@@ -23,6 +26,6 @@ pub mod wasm_host;
 pub mod widgets;
 
 #[cfg(test)]
-mod render_tests;
-#[cfg(test)]
 mod panel_tests;
+#[cfg(test)]
+mod render_tests;

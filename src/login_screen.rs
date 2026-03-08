@@ -3,8 +3,9 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
+use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue};
 use game_engine::ui::frame::{Frame, NineSlice, WidgetData, WidgetType};
-use game_engine::ui::layout::resolve_frame_layout;
+use game_engine::ui::layout::{recompute_layouts, resolve_frame_layout};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
@@ -75,6 +76,7 @@ impl Plugin for LoginScreenPlugin {
                 login_sync_root_size,
                 login_mouse_input,
                 login_keyboard_input,
+                login_run_automation,
                 login_hover_visuals,
                 login_update_visuals,
                 login_fade_in,
@@ -670,7 +672,7 @@ fn login_mouse_input(
         &mut login_mode,
         &auth_token,
         &mut commands,
-        &mut exit,
+        Some(&mut exit),
     );
 }
 
@@ -684,7 +686,7 @@ fn handle_mouse_click(
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
     commands: &mut Commands,
-    exit: &mut MessageWriter<AppExit>,
+    exit: Option<&mut MessageWriter<AppExit>>,
 ) {
     let (cx, cy) = (cursor.x, cursor.y);
     if hit_frame(ui, login.username_input, cx, cy) {
@@ -712,7 +714,7 @@ fn handle_button_click(
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
     commands: &mut Commands,
-    exit: &mut MessageWriter<AppExit>,
+    exit: Option<&mut MessageWriter<AppExit>>,
 ) {
     if hit_active_frame(ui, login.connect_button, cx, cy) {
         if let Some(WidgetData::Button(bd)) = ui
@@ -738,7 +740,9 @@ fn handle_button_click(
     } else if hit_active_frame(ui, login.menu_button, cx, cy) {
         status.0 = STATUS_MENU_UNAVAILABLE.to_string();
     } else if hit_active_frame(ui, login.exit_button, cx, cy) {
-        exit.write(AppExit::Success);
+        if let Some(exit) = exit {
+            exit.write(AppExit::Success);
+        }
     } else {
         focus.0 = None;
     }
@@ -780,6 +784,127 @@ fn login_keyboard_input(
             );
         }
     }
+}
+
+fn login_run_automation(
+    mut ui: ResMut<UiState>,
+    login_ui: Option<Res<LoginUi>>,
+    mut focus: ResMut<LoginFocus>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut status: ResMut<LoginStatus>,
+    mut login_mode: ResMut<networking::LoginMode>,
+    auth_token: Res<networking::AuthToken>,
+    mut queue: ResMut<UiAutomationQueue>,
+    mut commands: Commands,
+) {
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
+    let Some(action) = queue.pop() else {
+        return;
+    };
+    if let Err(err) = run_login_automation_action(
+        &mut ui,
+        login,
+        &mut focus,
+        &mut next_state,
+        &mut status,
+        &mut login_mode,
+        &auth_token,
+        &mut commands,
+        &action,
+    ) {
+        status.0 = err;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_login_automation_action(
+    ui: &mut UiState,
+    login: &LoginUi,
+    focus: &mut LoginFocus,
+    next_state: &mut NextState<GameState>,
+    status: &mut LoginStatus,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    commands: &mut Commands,
+    action: &UiAutomationAction,
+) -> Result<(), String> {
+    match action {
+        UiAutomationAction::ClickFrame(frame_name) => {
+            click_login_frame(
+                ui, login, focus, next_state, status, login_mode, auth_token, commands, frame_name,
+            )?;
+        }
+        UiAutomationAction::TypeText(text) => {
+            let Some(focused_id) = focus.0 else {
+                return Err("automation type requires a focused edit box".to_string());
+            };
+            for ch in text.chars() {
+                insert_char_into_editbox(&mut ui.registry, focused_id, &ch.to_string());
+            }
+        }
+        UiAutomationAction::PressKey(key) => {
+            let Some(focused_id) = focus.0 else {
+                return Err("automation key press requires a focused frame".to_string());
+            };
+            handle_login_key(
+                *key,
+                focused_id,
+                ui,
+                login,
+                status,
+                next_state,
+                &*login_mode,
+                commands,
+            );
+        }
+        UiAutomationAction::WaitForState(_, _)
+        | UiAutomationAction::WaitForFrame(_, _)
+        | UiAutomationAction::DumpTree
+        | UiAutomationAction::DumpUiTree => {}
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn click_login_frame(
+    ui: &mut UiState,
+    login: &LoginUi,
+    focus: &mut LoginFocus,
+    next_state: &mut NextState<GameState>,
+    status: &mut LoginStatus,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    commands: &mut Commands,
+    frame_name: &str,
+) -> Result<(), String> {
+    recompute_layouts(&mut ui.registry);
+    let _ = login;
+    let Some(frame_id) = ui.registry.get_by_name(frame_name) else {
+        return Err(format!("unknown login frame '{frame_name}'"));
+    };
+    let Some(rect) = ui
+        .registry
+        .get(frame_id)
+        .and_then(|frame| frame.layout_rect.as_ref())
+        .cloned()
+    else {
+        return Err(format!("login frame '{frame_name}' has no layout rect"));
+    };
+    handle_mouse_click(
+        ui,
+        login,
+        Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0),
+        focus,
+        next_state,
+        status,
+        login_mode,
+        auth_token,
+        commands,
+        None,
+    );
+    Ok(())
 }
 
 fn handle_nav_key(key: KeyCode, focus: &mut LoginFocus, login: &LoginUi) -> bool {
@@ -1345,6 +1470,15 @@ mod tests {
             320.0,
             24.0,
         );
+        set_layout(&mut reg, root, 0.0, 0.0, 1920.0, 1080.0);
+        set_layout(&mut reg, username_input, 800.0, 400.0, 320.0, 42.0);
+        set_layout(&mut reg, password_input, 800.0, 460.0, 320.0, 42.0);
+        set_layout(&mut reg, connect_button, 835.0, 540.0, 250.0, 66.0);
+        set_layout(&mut reg, reconnect_button, 835.0, 540.0, 250.0, 66.0);
+        set_layout(&mut reg, create_account_button, 860.0, 630.0, 200.0, 32.0);
+        set_layout(&mut reg, menu_button, 860.0, 672.0, 200.0, 32.0);
+        set_layout(&mut reg, exit_button, 1700.0, 980.0, 200.0, 32.0);
+        set_layout(&mut reg, status_text, 800.0, 620.0, 320.0, 24.0);
         (
             reg,
             LoginUi {
@@ -1368,6 +1502,134 @@ mod tests {
         };
         eb.text = text.to_string();
         eb.cursor_position = eb.text.len();
+    }
+
+    #[test]
+    fn automation_click_focuses_username_editbox() {
+        let (reg, login) = login_fixture();
+        let mut ui = UiState {
+            registry: reg,
+            event_bus: game_engine::ui::event::EventBus::new(),
+            wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
+            focused_frame: None,
+        };
+        let mut focus = LoginFocus::default();
+        let mut next_state = NextState::<GameState>::default();
+        let mut status = LoginStatus::default();
+        let mut login_mode = networking::LoginMode::Login;
+        let auth_token = networking::AuthToken(None);
+        let mut world = World::new();
+        let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+
+        {
+            let mut commands = system_state.get_mut(&mut world);
+            run_login_automation_action(
+                &mut ui,
+                &login,
+                &mut focus,
+                &mut next_state,
+                &mut status,
+                &mut login_mode,
+                &auth_token,
+                &mut commands,
+                &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+            )
+            .expect("automation click should succeed");
+        }
+
+        assert_eq!(focus.0, Some(login.username_input));
+        assert!(matches!(next_state, NextState::Unchanged));
+    }
+
+    #[test]
+    fn automation_type_uses_login_editbox_code_path() {
+        let (reg, login) = login_fixture();
+        let mut ui = UiState {
+            registry: reg,
+            event_bus: game_engine::ui::event::EventBus::new(),
+            wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
+            focused_frame: None,
+        };
+        let mut focus = LoginFocus(Some(login.username_input));
+        let mut next_state = NextState::<GameState>::default();
+        let mut status = LoginStatus::default();
+        let mut login_mode = networking::LoginMode::Login;
+        let auth_token = networking::AuthToken(None);
+        let mut world = World::new();
+        let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+
+        {
+            let mut commands = system_state.get_mut(&mut world);
+            run_login_automation_action(
+                &mut ui,
+                &login,
+                &mut focus,
+                &mut next_state,
+                &mut status,
+                &mut login_mode,
+                &auth_token,
+                &mut commands,
+                &UiAutomationAction::TypeText("alice".to_string()),
+            )
+            .expect("automation typing should succeed");
+        }
+
+        assert_eq!(
+            get_editbox_text(&ui.registry, login.username_input),
+            "alice"
+        );
+    }
+
+    #[test]
+    fn automation_login_reaches_connecting_state() {
+        let (reg, login) = login_fixture();
+        let mut ui = UiState {
+            registry: reg,
+            event_bus: game_engine::ui::event::EventBus::new(),
+            wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
+            focused_frame: None,
+        };
+        let mut focus = LoginFocus::default();
+        let mut next_state = NextState::<GameState>::default();
+        let mut status = LoginStatus::default();
+        let mut login_mode = networking::LoginMode::Login;
+        let auth_token = networking::AuthToken(None);
+        let mut world = World::new();
+        let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+
+        {
+            let mut commands = system_state.get_mut(&mut world);
+            let actions = [
+                UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+                UiAutomationAction::TypeText("alice".to_string()),
+                UiAutomationAction::ClickFrame("PasswordInput".to_string()),
+                UiAutomationAction::TypeText("secret".to_string()),
+                UiAutomationAction::ClickFrame("ConnectButton".to_string()),
+            ];
+            for action in actions {
+                run_login_automation_action(
+                    &mut ui,
+                    &login,
+                    &mut focus,
+                    &mut next_state,
+                    &mut status,
+                    &mut login_mode,
+                    &auth_token,
+                    &mut commands,
+                    &action,
+                )
+                .expect("automation action should succeed");
+            }
+        }
+        system_state.apply(&mut world);
+
+        assert_eq!(status.0, STATUS_CONNECTING);
+        assert!(matches!(
+            next_state,
+            NextState::Pending(GameState::Connecting)
+        ));
+        assert_eq!(world.resource::<networking::LoginUsername>().0, "alice");
+        assert_eq!(world.resource::<networking::LoginPassword>().0, "secret");
     }
 
     #[test]

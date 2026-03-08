@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::f32::consts::PI;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -79,6 +80,13 @@ fn main() {
     let enable_sound = args.iter().any(|a| a == "--sound");
     let server_addr = parse_server_arg(&args);
     let initial_state = parse_state_arg(&args);
+    let startup_actions = match load_startup_automation_actions(&args) {
+        Ok(actions) => actions,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
 
     if dump_ui_tree && !dump_tree && screenshot.is_none() {
         run_headless_ui_dump_app();
@@ -96,6 +104,11 @@ fn main() {
         dump_ui_tree,
         screenshot,
     );
+    if !startup_actions.is_empty() {
+        app.insert_resource(game_engine::ui::automation::UiAutomationQueue(
+            VecDeque::from(startup_actions),
+        ));
+    }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     app.run();
 }
@@ -115,6 +128,7 @@ fn register_plugins(app: &mut App) {
         .add_plugins(game_engine::auction_house::AuctionHousePlugin)
         .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
+        .add_plugins(game_engine::ui::automation::UiAutomationPlugin)
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
@@ -166,6 +180,8 @@ fn configure_app_plugins(
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
+    app.add_systems(Update, handle_automation_dump_tree_request);
+    app.add_systems(Update, handle_automation_dump_ui_tree_request);
     app.add_systems(
         Update,
         (
@@ -257,6 +273,23 @@ fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
             "inworld" => Some(game_state::GameState::InWorld),
             _ => None,
         })
+}
+
+fn load_startup_automation_actions(
+    args: &[String],
+) -> Result<Vec<game_engine::ui::automation::UiAutomationAction>, String> {
+    let mut actions = Vec::new();
+    if let Some(script) = game_engine::ui::automation_script::parse_automation_script_arg(args) {
+        actions.extend(game_engine::ui::automation_script::load_automation_script(
+            &script.path,
+        )?);
+    }
+    if let Some(script) = game_engine::ui::js_automation::parse_js_automation_arg(args) {
+        actions.extend(game_engine::ui::js_automation::load_js_automation_script(
+            &script.path,
+        )?);
+    }
+    Ok(actions)
 }
 
 fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
@@ -364,6 +397,34 @@ mod tests {
             "data/models/humanmale_hd.m2",
         ]));
         assert_eq!(parsed, Some(PathBuf::from("data/models/humanmale_hd.m2")));
+    }
+
+    #[test]
+    fn startup_flag_loads_ui_script_path() {
+        let actions = load_startup_automation_actions(&args(&[
+            "--run-ui-script",
+            "/tmp/codex/test-ui-script.json",
+        ]));
+        assert!(actions.is_err());
+
+        let parsed = game_engine::ui::automation_script::parse_automation_script_arg(&args(&[
+            "--run-ui-script",
+            "debug/login.json",
+        ]))
+        .expect("expected UI script path");
+        assert_eq!(parsed.path, PathBuf::from("debug/login.json"));
+    }
+
+    #[test]
+    fn parse_js_automation_flag() {
+        let parsed = game_engine::ui::js_automation::parse_js_automation_arg(&args(&[
+            "--state",
+            "login",
+            "--run-js-ui-script",
+            "debug/login.js",
+        ]))
+        .expect("expected JS automation path");
+        assert_eq!(parsed.path, PathBuf::from("debug/login.js"));
     }
 }
 
@@ -752,6 +813,47 @@ fn dump_ui_tree_and_exit(
     mut dioxus_runtime: NonSendMut<game_engine::ui::dioxus_runtime::DioxusUiRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    dioxus_runtime.sync(&mut ui_state.registry);
+    action_bar::ensure_action_bars(&mut ui_state.registry);
+    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
+    println!("{tree}");
+    exit.write(AppExit::Success);
+}
+
+#[allow(clippy::type_complexity)]
+fn handle_automation_dump_tree_request(
+    request: Option<Res<game_engine::ui::automation::UiAutomationDumpTreeRequest>>,
+    tree_query: Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
+    parent_query: Query<&ChildOf>,
+    mut commands: Commands,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if request.is_none() {
+        return;
+    }
+    commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpTreeRequest>();
+    let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
+    println!("{tree}");
+    exit.write(AppExit::Success);
+}
+
+fn handle_automation_dump_ui_tree_request(
+    request: Option<Res<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>>,
+    mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
+    mut dioxus_runtime: NonSendMut<game_engine::ui::dioxus_runtime::DioxusUiRuntime>,
+    mut commands: Commands,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if request.is_none() {
+        return;
+    }
+    commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>();
     dioxus_runtime.sync(&mut ui_state.registry);
     action_bar::ensure_action_bars(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);

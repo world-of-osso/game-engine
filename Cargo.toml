@@ -24,6 +24,7 @@ lightyear = { version = "0.26", features = ["client", "netcode", "replication", 
 shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/shared" }
 dioxus-core = "0.7"
 game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
+quick-js = "0.4"
 
 [[bin]]
 name = "casc-local"
