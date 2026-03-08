@@ -20,6 +20,7 @@ use crate::networking::CharacterList;
 
 const TEX_CHAR_SELECT_BACKGROUND: &str = "data/glues/charselect/UI_CharacterSelectTEX.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
+const CHAR_SELECT_BACKGROUND_SIZE: (f32, f32) = (512.0, 256.0);
 
 /// Resource holding frame IDs for the character select UI.
 #[derive(Resource)]
@@ -33,6 +34,7 @@ struct CharSelectUi {
     create_panel: u64,
     create_name_input: u64,
     create_confirm_button: u64,
+    selected_name_text: u64,
     status_text: u64,
 }
 
@@ -81,14 +83,14 @@ fn build_char_select_ui(
     let sw = reg.screen_width;
     let sh = reg.screen_height;
 
-    let root = build_cs_background(reg, sw, sh);
-    build_cs_title(reg, root, sw, sh);
-    let char_buttons = build_character_list(reg, root, sw, sh, &char_list);
+    let (root, ui_root) = build_cs_background(reg, sw, sh);
+    let selected_name_text = build_cs_title(reg, ui_root, sw, sh);
+    let char_buttons = build_character_list(reg, ui_root, sw, sh, &char_list);
     let (enter_button, create_button, delete_button, back_button) =
-        build_cs_action_buttons(reg, root, sw, sh);
+        build_cs_action_buttons(reg, ui_root, sw, sh);
     let (create_panel, create_name_input, create_confirm_button) =
-        build_create_panel(reg, root, sw, sh);
-    let status_text = build_cs_status(reg, root, sw, sh);
+        build_create_panel(reg, ui_root, sw, sh);
+    let status_text = build_cs_status(reg, ui_root, sw, sh);
 
     commands.insert_resource(CharSelectUi {
         root,
@@ -100,75 +102,154 @@ fn build_char_select_ui(
         create_panel,
         create_name_input,
         create_confirm_button,
+        selected_name_text,
         status_text,
     });
 }
 
-fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
+fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) {
     let root = create_frame(reg, "CharSelectRoot", None, WidgetType::Frame, sw, sh);
     set_layout(reg, root, 0.0, 0.0, sw, sh);
     set_bg(reg, root, [0.01, 0.01, 0.01, 1.0]);
     set_strata(reg, root, FrameStrata::Fullscreen);
+
+    let ui = create_frame(
+        reg,
+        "CharacterSelectUI",
+        Some(root),
+        WidgetType::Frame,
+        sw,
+        sh,
+    );
+    set_layout(reg, ui, 0.0, 0.0, sw, sh);
+    set_strata(reg, ui, FrameStrata::Fullscreen);
+
+    let fade_in = create_frame(reg, "FadeInBackground", Some(ui), WidgetType::Frame, sw, sh);
+    set_layout(reg, fade_in, 0.0, 0.0, sw, sh);
+    set_bg(reg, fade_in, [0.0, 0.0, 0.0, 1.0]);
+    set_strata(reg, fade_in, FrameStrata::Fullscreen);
+    if let Some(frame) = reg.get_mut(fade_in) {
+        frame.visible = false;
+        frame.shown = false;
+    }
+
+    let map_scene = create_frame(
+        reg,
+        "CharacterSelectMapScene",
+        Some(ui),
+        WidgetType::ModelScene,
+        sw,
+        sh,
+    );
+    set_layout(reg, map_scene, 0.0, 0.0, sw, sh);
+    set_strata(reg, map_scene, FrameStrata::Fullscreen);
+    if let Some(frame) = reg.get_mut(map_scene) {
+        frame.visible = false;
+        frame.shown = false;
+    }
+
+    let model_ffx = create_frame(
+        reg,
+        "CharacterSelectModelFFX",
+        Some(ui),
+        WidgetType::Model,
+        sw,
+        sh,
+    );
+    set_layout(reg, model_ffx, 0.0, 0.0, sw, sh);
+    set_strata(reg, model_ffx, FrameStrata::Fullscreen);
+    let (bg_x, bg_y, bg_w, bg_h) = centered_cover_rect(
+        sw,
+        sh,
+        CHAR_SELECT_BACKGROUND_SIZE.0,
+        CHAR_SELECT_BACKGROUND_SIZE.1,
+    );
+
     let bg = create_texture(
         reg,
         "CharSelectBackground",
-        Some(root),
-        sw,
-        sh,
+        Some(model_ffx),
+        bg_w,
+        bg_h,
         TEX_CHAR_SELECT_BACKGROUND,
     );
-    set_layout(reg, bg, 0.0, 0.0, sw, sh);
+    set_layout(reg, bg, bg_x, bg_y, bg_w, bg_h);
+    set_strata(reg, bg, FrameStrata::Fullscreen);
     let overlay = create_frame(
         reg,
         "CharSelectBackgroundShade",
-        Some(root),
+        Some(model_ffx),
         WidgetType::Frame,
         sw,
         sh,
     );
     set_layout(reg, overlay, 0.0, 0.0, sw, sh);
     set_bg(reg, overlay, [0.0, 0.0, 0.0, 0.18]);
-    root
-}
+    set_strata(reg, overlay, FrameStrata::Fullscreen);
 
-fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
+    let logo_hoist = create_frame(reg, "LogoHoist", Some(ui), WidgetType::Frame, 1.0, 1.0);
+    set_anchor(
+        reg,
+        logo_hoist,
+        AnchorPoint::TopLeft,
+        Some(ui),
+        AnchorPoint::TopLeft,
+        3.0,
+        -17.0,
+    );
+    set_strata(reg, logo_hoist, FrameStrata::High);
+
     let logo = create_texture(
         reg,
         "CharSelectLogo",
-        Some(root),
+        Some(logo_hoist),
         256.0,
         128.0,
         TEX_GAME_LOGO,
     );
-    set_layout(reg, logo, 3.0, 15.0, 256.0, 128.0);
+    set_anchor(
+        reg,
+        logo,
+        AnchorPoint::TopLeft,
+        Some(logo_hoist),
+        AnchorPoint::TopLeft,
+        0.0,
+        -15.0,
+    );
+
+    (root, ui)
+}
+
+fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 {
     let title = create_frame(
         reg,
-        "CSTitle",
+        "CharSelectCharacterName",
         Some(root),
         WidgetType::FontString,
-        400.0,
+        520.0,
         40.0,
     );
-    set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.08, 400.0, 40.0);
+    set_layout(reg, title, (sw - 520.0) / 2.0, sh - 154.0, 520.0, 40.0);
     set_font_string(
         reg,
         title,
         "Character Selection",
-        26.0,
+        28.0,
         [1.0, 0.82, 0.0, 1.0],
     );
+    title
 }
 
 fn build_character_list(
     reg: &mut FrameRegistry,
     root: u64,
     sw: f32,
-    sh: f32,
+    _sh: f32,
     char_list: &CharacterList,
 ) -> Vec<u64> {
     let panel_w = 380.0;
-    let panel_x = (sw - panel_w) / 2.0;
-    let mut y = sh * 0.18;
+    let panel_x = sw - panel_w - 22.0;
+    let mut y = 140.0;
     let mut buttons = Vec::new();
 
     for ch in &char_list.0 {
@@ -195,40 +276,35 @@ fn build_cs_action_buttons(
     sw: f32,
     sh: f32,
 ) -> (u64, u64, u64, u64) {
-    let btn_w = 160.0;
-    let gap = 12.0;
-    let total_w = btn_w * 4.0 + gap * 3.0;
-    let start_x = (sw - total_w) / 2.0;
-    let y = sh * 0.78;
-
-    let enter = create_action_button(reg, root, "EnterWorld", "Enter World", start_x, y, btn_w);
+    let enter = create_action_button_centered(
+        reg,
+        root,
+        "EnterWorld",
+        "Enter World",
+        sw * 0.5,
+        sh - 111.0,
+        250.0,
+        66.0,
+    );
     let create = create_action_button(
         reg,
         root,
         "CreateChar",
         "Create",
-        start_x + btn_w + gap,
-        y,
-        btn_w,
+        sw - 402.0,
+        sh - 108.0,
+        110.0,
     );
     let delete = create_action_button(
         reg,
         root,
         "DeleteChar",
         "Delete",
-        start_x + (btn_w + gap) * 2.0,
-        y,
-        btn_w,
+        sw - 282.0,
+        sh - 108.0,
+        110.0,
     );
-    let back = create_action_button(
-        reg,
-        root,
-        "BackToLogin",
-        "Back",
-        start_x + (btn_w + gap) * 3.0,
-        y,
-        btn_w,
-    );
+    let back = create_action_button(reg, root, "BackToLogin", "Back", 12.0, sh - 54.0, 188.0);
     (enter, create, delete, back)
 }
 
@@ -243,6 +319,22 @@ fn create_action_button(
 ) -> u64 {
     let btn = create_button(reg, name, Some(root), w, 36.0, text);
     set_layout(reg, btn, x, y, w, 36.0);
+    set_bg(reg, btn, [0.15, 0.35, 0.6, 1.0]);
+    btn
+}
+
+fn create_action_button_centered(
+    reg: &mut FrameRegistry,
+    root: u64,
+    name: &str,
+    text: &str,
+    center_x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) -> u64 {
+    let btn = create_button(reg, name, Some(root), w, h, text);
+    set_layout(reg, btn, center_x - w * 0.5, y, w, h);
     set_bg(reg, btn, [0.15, 0.35, 0.6, 1.0]);
     btn
 }
@@ -308,7 +400,7 @@ fn build_cs_status(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 
         400.0,
         24.0,
     );
-    set_layout(reg, status, (sw - 400.0) / 2.0, sh * 0.88, 400.0, 24.0);
+    set_layout(reg, status, (sw - 400.0) / 2.0, sh - 190.0, 400.0, 24.0);
     set_font_string(reg, status, "", 13.0, [0.9, 0.5, 0.5, 1.0]);
     status
 }
@@ -513,6 +605,7 @@ fn char_select_update_visuals(
     update_char_button_highlights(&mut ui.registry, cs, &selected);
     update_create_panel_visibility(&mut ui.registry, cs, create_visible.0);
     rebuild_char_buttons_if_changed(&mut ui.registry, cs, &char_list);
+    update_selected_character_name(&mut ui.registry, cs, &selected, &char_list);
 }
 
 fn update_char_button_highlights(
@@ -552,6 +645,25 @@ fn rebuild_char_buttons_if_changed(
                 bd.text = text;
             }
         }
+    }
+}
+
+fn update_selected_character_name(
+    reg: &mut FrameRegistry,
+    cs: &CharSelectUi,
+    selected: &SelectedCharIndex,
+    char_list: &CharacterList,
+) {
+    let text = selected
+        .0
+        .and_then(|idx| char_list.0.get(idx))
+        .map(|ch| ch.name.clone())
+        .unwrap_or_else(|| "Character Selection".to_string());
+    if let Some(WidgetData::FontString(fs)) = reg
+        .get_mut(cs.selected_name_text)
+        .and_then(|f| f.widget_data.as_mut())
+    {
+        fs.text = text;
     }
 }
 
@@ -637,6 +749,15 @@ fn create_frame(
     frame.width = w;
     frame.height = h;
     frame.mouse_enabled = true;
+    frame.raise_order = id as i32;
+    if let Some(parent_id) = parent
+        && let Some(parent_frame) = reg.get(parent_id)
+    {
+        frame.frame_level = parent_frame.frame_level + 1;
+        frame.visible = parent_frame.visible && frame.shown;
+        frame.effective_alpha = parent_frame.effective_alpha * frame.alpha;
+        frame.effective_scale = parent_frame.effective_scale * frame.scale;
+    }
     reg.insert_frame(frame);
     id
 }
@@ -685,6 +806,29 @@ fn create_button(
     id
 }
 
+fn set_anchor(
+    reg: &mut FrameRegistry,
+    id: u64,
+    point: AnchorPoint,
+    relative_to: Option<u64>,
+    relative_point: AnchorPoint,
+    x_offset: f32,
+    y_offset: f32,
+) {
+    reg.clear_all_points(id);
+    reg.set_point(
+        id,
+        Anchor {
+            point,
+            relative_to,
+            relative_point,
+            x_offset,
+            y_offset,
+        },
+    )
+    .expect("anchor must be valid");
+}
+
 fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) {
     let (relative_to, x_offset, y_offset) = reg
         .get(id)
@@ -720,6 +864,13 @@ fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) 
     {
         frame.layout_rect = Some(layout_rect);
     }
+}
+
+fn centered_cover_rect(sw: f32, sh: f32, tex_w: f32, tex_h: f32) -> (f32, f32, f32, f32) {
+    let scale = (sw / tex_w).max(sh / tex_h);
+    let w = tex_w * scale;
+    let h = tex_h * scale;
+    ((sw - w) * 0.5, (sh - h) * 0.5, w, h)
 }
 
 fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {

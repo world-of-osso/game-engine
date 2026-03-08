@@ -30,6 +30,7 @@ const TEX_EDITBOX_BORDER: &str = "/home/osso/Projects/wow/Interface/COMMON/Commo
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
+const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
 
 #[derive(Resource)]
 struct LoginUi {
@@ -90,9 +91,9 @@ fn build_login_ui(
 ) {
     let reg = &mut ui.registry;
     let (sw, sh) = (reg.screen_width, reg.screen_height);
-    let root = build_login_background(reg, sw, sh);
-    build_login_titles(reg, root, sw, sh);
-    let (server_input, username_input, password_input) = build_login_inputs(reg, root, sw, sh);
+    let (root, ui_root) = build_login_background(reg, sw, sh);
+    build_login_titles(reg, ui_root, sw, sh);
+    let (server_input, username_input, password_input) = build_login_inputs(reg, ui_root, sw, sh);
     let (
         connect_button,
         reconnect_button,
@@ -101,7 +102,7 @@ fn build_login_ui(
         save_checkbox,
         exit_button,
         status_text,
-    ) = build_login_buttons(reg, root, sw, sh, password_input);
+    ) = build_login_buttons(reg, ui_root, sw, sh, password_input);
     if let Some(addr) = server_addr {
         set_editbox_text(reg, server_input, &addr.0.to_string());
     }
@@ -122,31 +123,64 @@ fn build_login_ui(
     });
 }
 
-fn build_login_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> u64 {
+fn build_login_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) {
     let root = create_frame(reg, "LoginRoot", None, WidgetType::Frame, sw, sh);
     set_layout(reg, root, 0.0, 0.0, sw, sh);
     set_bg(reg, root, [0.01, 0.01, 0.01, 1.0]);
     set_strata(reg, root, FrameStrata::Background);
+
+    let black_bg = create_frame(
+        reg,
+        "BlackLoginBackground",
+        Some(root),
+        WidgetType::Frame,
+        sw,
+        sh,
+    );
+    set_layout(reg, black_bg, 0.0, 0.0, sw, sh);
+    set_bg(reg, black_bg, [0.0, 0.0, 0.0, 1.0]);
+    set_strata(reg, black_bg, FrameStrata::Background);
+
+    let background_model = create_frame(
+        reg,
+        "LoginBackgroundModel",
+        Some(root),
+        WidgetType::Model,
+        sw,
+        sh,
+    );
+    set_layout(reg, background_model, 0.0, 0.0, sw, sh);
+    set_strata(reg, background_model, FrameStrata::Background);
+    let (bg_x, bg_y, bg_w, bg_h) =
+        centered_cover_rect(sw, sh, LOGIN_BACKGROUND_SIZE.0, LOGIN_BACKGROUND_SIZE.1);
+
     let bg = create_texture(
         reg,
         "LoginBackground",
-        Some(root),
-        sw,
-        sh,
+        Some(background_model),
+        bg_w,
+        bg_h,
         TEX_LOGIN_BACKGROUND,
     );
-    set_layout(reg, bg, 0.0, 0.0, sw, sh);
+    set_layout(reg, bg, bg_x, bg_y, bg_w, bg_h);
+    set_strata(reg, bg, FrameStrata::Background);
     let overlay = create_frame(
         reg,
         "LoginBackgroundShade",
-        Some(root),
+        Some(background_model),
         WidgetType::Frame,
         sw,
         sh,
     );
     set_layout(reg, overlay, 0.0, 0.0, sw, sh);
     set_bg(reg, overlay, [0.0, 0.0, 0.0, 0.22]);
-    root
+    set_strata(reg, overlay, FrameStrata::Background);
+
+    let ui = create_frame(reg, "LoginUI", Some(root), WidgetType::Frame, sw, sh);
+    set_layout(reg, ui, 0.0, 0.0, sw, sh);
+    set_strata(reg, ui, FrameStrata::Medium);
+
+    (root, ui)
 }
 
 fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
@@ -158,7 +192,7 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
         128.0,
         TEX_GAME_LOGO,
     );
-    set_strata(reg, logo, FrameStrata::Medium);
+    set_strata(reg, logo, FrameStrata::High);
     set_layout(reg, logo, 3.0, 7.0, 256.0, 128.0);
     let title = create_frame(
         reg,
@@ -246,8 +280,6 @@ fn build_login_buttons(
     let (connect, reconnect) = build_main_buttons(reg, root, password_input);
     // SaveCheckbox: TOP anchored to LoginButton BOTTOM, y=-10
     let save_checkbox = build_save_account_checkbox(reg, root, connect);
-    // Bottom action cluster: anchor from the actual screen bottom so it stays visible
-    // even when the fixed 1920x1080 registry is rendered into a smaller window.
     let exit = build_exit_button(reg, root, sw, sh);
     let create_account = build_action_button_anchored(
         reg,
@@ -255,10 +287,10 @@ fn build_login_buttons(
         "CreateAccountButton",
         "Don't have an account? Register",
         AnchorPoint::Bottom,
-        Some(root),
-        AnchorPoint::Bottom,
+        Some(exit),
+        AnchorPoint::Top,
         0.0,
-        54.0,
+        10.0,
     );
     let menu = build_action_button_anchored(
         reg,
@@ -341,8 +373,8 @@ fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> 
         AnchorPoint::BottomRight,
         Some(root),
         AnchorPoint::BottomRight,
-        -10.0,
-        16.0,
+        -24.0,
+        56.0,
     );
     set_button_textures(reg, exit, TEX_DLG_NORMAL, TEX_DLG_PUSHED, TEX_DLG_HL);
     exit
@@ -474,7 +506,7 @@ fn build_footer_text(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) {
         100.0,
         TEX_BLIZZARD_LOGO,
     );
-    set_strata(reg, logo, FrameStrata::Medium);
+    set_strata(reg, logo, FrameStrata::High);
     set_anchor(
         reg,
         logo,
@@ -482,7 +514,7 @@ fn build_footer_text(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) {
         Some(root),
         AnchorPoint::Bottom,
         0.0,
-        8.0,
+        40.0,
     );
 }
 
@@ -957,6 +989,15 @@ fn create_frame(
     frame.width = w;
     frame.height = h;
     frame.mouse_enabled = true;
+    frame.raise_order = id as i32;
+    if let Some(parent_id) = parent
+        && let Some(parent_frame) = reg.get(parent_id)
+    {
+        frame.frame_level = parent_frame.frame_level + 1;
+        frame.visible = parent_frame.visible && frame.shown;
+        frame.effective_alpha = parent_frame.effective_alpha * frame.alpha;
+        frame.effective_scale = parent_frame.effective_scale * frame.scale;
+    }
     reg.insert_frame(frame);
     id
 }
@@ -1088,6 +1129,13 @@ fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) 
     {
         frame.layout_rect = Some(layout_rect);
     }
+}
+
+fn centered_cover_rect(sw: f32, sh: f32, tex_w: f32, tex_h: f32) -> (f32, f32, f32, f32) {
+    let scale = (sw / tex_w).max(sh / tex_h);
+    let w = tex_w * scale;
+    let h = tex_h * scale;
+    ((sw - w) * 0.5, (sh - h) * 0.5, w, h)
 }
 
 fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {

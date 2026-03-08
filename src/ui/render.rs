@@ -431,7 +431,11 @@ fn load_file_texture(
         return None;
     }
     let assets = images.as_mut().map(|images| &mut **images)?;
-    let image = match asset::blp::load_blp_gpu_image(std::path::Path::new(path)) {
+    let image = match if should_cpu_decode_ui_texture(path) {
+        asset::blp::load_blp_to_image(std::path::Path::new(path))
+    } else {
+        asset::blp::load_blp_gpu_image(std::path::Path::new(path))
+    } {
         Ok(image) => image,
         Err(_) => {
             missing_file_textures.insert(path.to_string());
@@ -441,6 +445,10 @@ fn load_file_texture(
     let handle = assets.add(image);
     file_texture_cache.insert(path.to_string(), handle.clone());
     Some(handle)
+}
+
+fn should_cpu_decode_ui_texture(path: &str) -> bool {
+    path.ends_with("Glues-WoW-TheWarWithinLogo.blp") || path.ends_with("Glues-BlizzardLogo.blp")
 }
 
 /// Apply vertex_color tinting and effective_alpha to textured frames.

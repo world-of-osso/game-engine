@@ -9,6 +9,9 @@ use crate::sky;
 
 pub use game_engine::game_state_enum::GameState;
 
+#[derive(Resource)]
+pub struct InitialGameState(pub GameState);
+
 /// Resource tracking when we entered the Connecting state (for timeout).
 #[derive(Resource)]
 struct ConnectingStartTime(f64);
@@ -21,7 +24,10 @@ pub struct GameStatePlugin;
 impl Plugin for GameStatePlugin {
     fn build(&self, app: &mut App) {
         let has_server = app.world().get_resource::<ServerAddr>().is_some();
-        if has_server {
+        let initial_state = app.world().get_resource::<InitialGameState>().map(|s| s.0);
+        if let Some(state) = initial_state {
+            app.insert_state(state);
+        } else if has_server {
             app.init_state::<GameState>();
         } else {
             app.insert_state(GameState::InWorld);

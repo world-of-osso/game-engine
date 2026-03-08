@@ -9,7 +9,7 @@ use bevy::pbr::MaterialPlugin;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
-use bevy::window::{WindowPlugin};
+use bevy::window::WindowPlugin;
 use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
@@ -78,6 +78,7 @@ fn main() {
     let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
     let enable_sound = args.iter().any(|a| a == "--sound");
     let server_addr = parse_server_arg(&args);
+    let initial_state = parse_state_arg(&args);
 
     if dump_ui_tree && !dump_tree && screenshot.is_none() {
         run_headless_ui_dump_app();
@@ -86,7 +87,15 @@ fn main() {
 
     let mut app = App::new();
     register_plugins(&mut app);
-    configure_app_plugins(&mut app, enable_sound, server_addr, dump_tree, dump_ui_tree, screenshot);
+    configure_app_plugins(
+        &mut app,
+        enable_sound,
+        server_addr,
+        initial_state,
+        dump_tree,
+        dump_ui_tree,
+        screenshot,
+    );
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     app.run();
 }
@@ -130,8 +139,7 @@ fn register_plugins(app: &mut App) {
         .add_systems(Startup, (setup, wow_cursor::install_wow_cursor))
         .add_systems(
             Update,
-            wow_cursor::update_wow_cursor_style
-                .run_if(in_state(game_state::GameState::InWorld)),
+            wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
         );
     init_status_resources(app);
 }
@@ -140,6 +148,7 @@ fn configure_app_plugins(
     app: &mut App,
     enable_sound: bool,
     server_addr: Option<std::net::SocketAddr>,
+    initial_state: Option<game_state::GameState>,
     dump_tree: bool,
     dump_ui_tree: bool,
     screenshot: Option<ScreenshotRequest>,
@@ -149,6 +158,9 @@ fn configure_app_plugins(
     }
     if let Some(addr) = server_addr {
         app.insert_resource(networking::ServerAddr(addr));
+    }
+    if let Some(state) = initial_state {
+        app.insert_resource(game_state::InitialGameState(state));
     }
     app.add_plugins(game_state::GameStatePlugin);
     app.add_plugins(networking::NetworkPlugin);
@@ -219,7 +231,10 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
         .unwrap_or_else(|| PathBuf::from("screenshot.webp"));
     let has_server = args.windows(2).any(|w| w[0] == "--server");
     let frames_remaining = if has_server { 60 } else { 3 };
-    Some(ScreenshotRequest { output, frames_remaining })
+    Some(ScreenshotRequest {
+        output,
+        frames_remaining,
+    })
 }
 
 /// Parse `--server <addr>` from args. Returns None if not present.
@@ -229,22 +244,42 @@ fn parse_server_arg(args: &[String]) -> Option<std::net::SocketAddr> {
         .and_then(|w| w[1].parse().ok())
 }
 
+fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
+    args.windows(2)
+        .find(|w| w[0] == "--state")
+        .and_then(|w| match w[1].as_str() {
+            "login" => Some(game_state::GameState::Login),
+            "connecting" => Some(game_state::GameState::Connecting),
+            "charselect" => Some(game_state::GameState::CharSelect),
+            "loading" => Some(game_state::GameState::Loading),
+            "inworld" => Some(game_state::GameState::InWorld),
+            _ => None,
+        })
+}
+
 /// Find the asset path from CLI args. Returns None when no explicit path given.
 fn parse_asset_path() -> Option<PathBuf> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut skip_next = false;
-    let start = if args.first().map(|s| s.as_str()) == Some("screenshot") { 2 } else { 0 };
-    args.iter().skip(start).find(|a| {
-        if skip_next {
-            skip_next = false;
-            return false;
-        }
-        if *a == "--server" {
-            skip_next = true;
-            return false;
-        }
-        !a.starts_with("--")
-    }).map(PathBuf::from)
+    let start = if args.first().map(|s| s.as_str()) == Some("screenshot") {
+        2
+    } else {
+        0
+    };
+    args.iter()
+        .skip(start)
+        .find(|a| {
+            if skip_next {
+                skip_next = false;
+                return false;
+            }
+            if *a == "--server" {
+                skip_next = true;
+                return false;
+            }
+            !a.starts_with("--")
+        })
+        .map(PathBuf::from)
 }
 
 fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>>) {
@@ -283,7 +318,11 @@ fn setup_server_camera(commands: &mut Commands) {
         Camera3d::default(),
         Transform::default(),
         WowCamera::default(),
-        AmbientLight { color: Color::WHITE, brightness: 0.0, ..default() },
+        AmbientLight {
+            color: Color::WHITE,
+            brightness: 0.0,
+            ..default()
+        },
     ));
 }
 
@@ -302,25 +341,62 @@ fn spawn_scene_for_asset(
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     let asset_path = parse_asset_path();
-    let is_terrain = asset_path.as_ref().is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
+    let is_terrain = asset_path
+        .as_ref()
+        .is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
         || asset_path.is_none();
     let camera = spawn_scene_environment(commands, meshes, materials, sky_mats, images, is_terrain);
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
             let center = spawn_terrain(
-                commands, meshes, materials, terrain_mats, water_mats, images,
-                inverse_bp, heightmap, adt_manager, camera, &p,
+                commands,
+                meshes,
+                materials,
+                terrain_mats,
+                water_mats,
+                images,
+                inverse_bp,
+                heightmap,
+                adt_manager,
+                camera,
+                &p,
             );
             let m2_path = Path::new(DEFAULT_M2);
             if m2_path.exists() {
-                m2_scene::spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path, creature_display_map);
+                m2_scene::spawn_m2_model(
+                    commands,
+                    meshes,
+                    materials,
+                    images,
+                    inverse_bp,
+                    m2_path,
+                    creature_display_map,
+                );
             }
-            if let Some(pos) = center { set_player_position(commands, pos); }
+            if let Some(pos) = center {
+                set_player_position(commands, pos);
+            }
         }
-        Some(p) => spawn_m2_scene(commands, meshes, materials, images, inverse_bp, &p, creature_display_map),
+        Some(p) => spawn_m2_scene(
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            &p,
+            creature_display_map,
+        ),
         None => spawn_default_scene(
-            commands, meshes, materials, terrain_mats, water_mats, images,
-            inverse_bp, heightmap, adt_manager, creature_display_map,
+            commands,
+            meshes,
+            materials,
+            terrain_mats,
+            water_mats,
+            images,
+            inverse_bp,
+            heightmap,
+            adt_manager,
+            creature_display_map,
         ),
     }
 }
@@ -344,8 +420,16 @@ fn setup(
         return;
     }
     spawn_scene_for_asset(
-        &mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut water_mats,
-        &mut sky_mats, &mut images, &mut inverse_bp, &mut heightmap, &mut adt_manager,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut terrain_mats,
+        &mut water_mats,
+        &mut sky_mats,
+        &mut images,
+        &mut inverse_bp,
+        &mut heightmap,
+        &mut adt_manager,
         &creature_display_map,
     );
 }
@@ -363,15 +447,30 @@ fn spawn_terrain(
     camera: Entity,
     adt_path: &Path,
 ) -> Option<Vec3> {
-    match terrain::spawn_adt(commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_path) {
+    match terrain::spawn_adt(
+        commands,
+        meshes,
+        materials,
+        terrain_mats,
+        water_mats,
+        images,
+        inverse_bp,
+        heightmap,
+        adt_path,
+    ) {
         Ok(result) => {
             commands.entity(camera).insert(result.camera);
             adt_manager.map_name = result.map_name;
             adt_manager.initial_tile = (result.tile_y, result.tile_x);
-            adt_manager.loaded.insert((result.tile_y, result.tile_x), result.root_entity);
+            adt_manager
+                .loaded
+                .insert((result.tile_y, result.tile_x), result.root_entity);
             Some(result.center)
         }
-        Err(e) => { eprintln!("ADT load error: {e}"); None }
+        Err(e) => {
+            eprintln!("ADT load error: {e}");
+            None
+        }
     }
 }
 
@@ -388,15 +487,32 @@ fn load_default_terrain(
     adt_manager: &mut AdtManager,
 ) -> Option<Vec3> {
     let adt_path = Path::new(DEFAULT_ADT);
-    if !adt_path.exists() { return None; }
-    match terrain::spawn_adt(commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_path) {
+    if !adt_path.exists() {
+        return None;
+    }
+    match terrain::spawn_adt(
+        commands,
+        meshes,
+        materials,
+        terrain_mats,
+        water_mats,
+        images,
+        inverse_bp,
+        heightmap,
+        adt_path,
+    ) {
         Ok(result) => {
             adt_manager.map_name = result.map_name;
             adt_manager.initial_tile = (result.tile_y, result.tile_x);
-            adt_manager.loaded.insert((result.tile_y, result.tile_x), result.root_entity);
+            adt_manager
+                .loaded
+                .insert((result.tile_y, result.tile_x), result.root_entity);
             Some(result.center)
         }
-        Err(e) => { eprintln!("ADT load error: {e}"); None }
+        Err(e) => {
+            eprintln!("ADT load error: {e}");
+            None
+        }
     }
 }
 
@@ -415,23 +531,46 @@ fn spawn_default_scene(
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     let center = load_default_terrain(
-        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_manager,
+        commands,
+        meshes,
+        materials,
+        terrain_mats,
+        water_mats,
+        images,
+        inverse_bp,
+        heightmap,
+        adt_manager,
     );
     let m2_path = Path::new(DEFAULT_M2);
     if m2_path.exists() {
-        m2_scene::spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path, creature_display_map);
+        m2_scene::spawn_m2_model(
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            m2_path,
+            creature_display_map,
+        );
     }
     let chest_offset = Vec3::new(5.0, 0.0, 0.0);
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         m2_scene::spawn_static_m2(
-            commands, meshes, materials, images, inverse_bp, chest_path,
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            chest_path,
             Transform::from_translation(center.unwrap_or_default() + chest_offset)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             creature_display_map,
         );
     }
-    if let Some(pos) = center { set_player_position(commands, pos); }
+    if let Some(pos) = center {
+        set_player_position(commands, pos);
+    }
 }
 
 /// Find the Player entity and move it to the given position.
@@ -453,12 +592,32 @@ fn spawn_m2_scene(
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
-    m2_scene::spawn_m2_model(commands, meshes, materials, images, inverse_bindposes, m2_path, creature_display_map);
-    ground::spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes, creature_display_map);
+    m2_scene::spawn_m2_model(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        m2_path,
+        creature_display_map,
+    );
+    ground::spawn_ground_clutter(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        creature_display_map,
+    );
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         m2_scene::spawn_static_m2(
-            commands, meshes, materials, images, inverse_bindposes, chest_path,
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bindposes,
+            chest_path,
             Transform::from_xyz(5.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             creature_display_map,
@@ -479,7 +638,11 @@ fn spawn_scene_environment(
             Camera3d::default(),
             Transform::default(),
             WowCamera::default(),
-            AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() },
+            AmbientLight {
+                color: Color::WHITE,
+                brightness: 150.0,
+                ..default()
+            },
         ))
         .id();
     commands.spawn((
@@ -499,14 +662,17 @@ fn spawn_scene_environment(
 
 pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
     Image::new(
-        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         pixels,
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     )
 }
-
 
 #[allow(clippy::type_complexity)]
 fn dump_tree_and_exit(

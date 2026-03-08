@@ -79,7 +79,7 @@ src/
 ## Related
 
 - casc-extract: `../casc-extract/` — CLI to extract WoW assets (cascette-rs). Currently CDN-only, needs local CASC mode.
-- wow-ui-sim: `../wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
+- wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
 - WoWee: https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
 - cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)
