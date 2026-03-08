@@ -215,17 +215,22 @@ fn resolve_part_texture(
         return (Handle::default(), None);
     };
 
-    let uv_rect = images
-        .as_ref()
-        .and_then(|assets| assets.get(&handle))
-        .map(|img| {
-            let w = img.width() as f32;
-            let h = img.height() as f32;
-            let c = nine_slice.edge_size;
-            uv_rect_for_part(part, w, h, c)
+    let uv_rect = images.as_ref().and_then(|assets| {
+        let img = assets.get(&handle.handle)?;
+        let c = nine_slice.edge_size;
+        let atlas_rect = handle.rect.unwrap_or(Rect {
+            min: Vec2::ZERO,
+            max: Vec2::new(img.width() as f32, img.height() as f32),
         });
+        let w = atlas_rect.max.x - atlas_rect.min.x;
+        let h = atlas_rect.max.y - atlas_rect.min.y;
+        let mut rect = uv_rect_for_part(part, w, h, c);
+        rect.min += atlas_rect.min;
+        rect.max += atlas_rect.min;
+        Some(rect)
+    });
 
-    (handle, uv_rect)
+    (handle.handle, uv_rect)
 }
 
 /// Compute the UV sub-rect (in pixel coords) for each of the 9 parts.

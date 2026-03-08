@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 use crate::asset;
+use crate::ui::atlas;
 use crate::ui::frame::{NineSlice, WidgetData};
 use crate::ui::plugin::UiState;
 use crate::ui::widgets::button::ButtonState;
@@ -23,6 +24,12 @@ pub struct UiText(pub u64);
 /// Marks a highlight overlay sprite entity for a button frame.
 #[derive(Component)]
 pub struct UiButtonHighlight(pub u64);
+
+#[derive(Clone)]
+pub struct LoadedTexture {
+    pub handle: Handle<Image>,
+    pub rect: Option<Rect>,
+}
 
 /// Render layer used for all UI elements, separate from the 3D scene.
 pub const UI_RENDER_LAYER: usize = 1;
@@ -232,7 +239,7 @@ fn update_quad(
     let mut transform = frame_transform(frame, sort_idx, sw, sh);
     transform.translation.x += sprite_offset.x;
     transform.translation.y += sprite_offset.y;
-    let (color, image) = frame_visual(
+    let (color, image, rect) = frame_visual(
         frame,
         images,
         texture_cache,
@@ -246,6 +253,7 @@ fn update_quad(
             color,
             custom_size: Some(sprite_size),
             image,
+            rect,
             ..default()
         },
     ));
@@ -277,7 +285,7 @@ fn spawn_new_quads(
         let mut transform = frame_transform(frame, sort_idx, sw, sh);
         transform.translation.x += sprite_offset.x;
         transform.translation.y += sprite_offset.y;
-        let (color, image) = frame_visual(
+        let (color, image, rect) = frame_visual(
             frame,
             images,
             texture_cache,
@@ -290,6 +298,7 @@ fn spawn_new_quads(
                 color,
                 custom_size: Some(sprite_size),
                 image,
+                rect,
                 ..default()
             },
             transform,
@@ -306,12 +315,13 @@ fn frame_visual(
     file_texture_cache: &mut HashMap<String, Handle<Image>>,
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
-) -> (Color, Handle<Image>) {
+) -> (Color, Handle<Image>, Option<Rect>) {
     if let Some(WidgetData::StatusBar(sb)) = &frame.widget_data {
         let [r, g, b, a] = sb.color;
         return (
             Color::srgba(r, g, b, a * frame.effective_alpha),
             Handle::default(),
+            None,
         );
     }
     if let Some(WidgetData::Button(btn)) = &frame.widget_data {
@@ -328,7 +338,7 @@ fn frame_visual(
         }
     }
     if let Some(source) = frame_texture_source(frame)
-        && let Some(handle) = load_texture_source(
+        && let Some(texture) = load_texture_source(
             source,
             images,
             texture_cache,
@@ -338,9 +348,9 @@ fn frame_visual(
         )
     {
         // TODO: additive blend requires custom pipeline
-        return (texture_tint(frame), handle);
+        return (texture_tint(frame), texture.handle, texture.rect);
     }
-    (frame_color(frame), Handle::default())
+    (frame_color(frame), Handle::default(), None)
 }
 
 fn button_texture(
@@ -351,9 +361,9 @@ fn button_texture(
     file_texture_cache: &mut HashMap<String, Handle<Image>>,
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
-) -> Option<(Color, Handle<Image>)> {
+) -> Option<(Color, Handle<Image>, Option<Rect>)> {
     let source = select_button_texture_source(btn)?;
-    let handle = load_texture_source(
+    let texture = load_texture_source(
         source,
         images,
         texture_cache,
@@ -361,7 +371,11 @@ fn button_texture(
         missing_textures,
         missing_file_textures,
     )?;
-    Some((Color::srgba(1.0, 1.0, 1.0, effective_alpha), handle))
+    Some((
+        Color::srgba(1.0, 1.0, 1.0, effective_alpha),
+        texture.handle,
+        texture.rect,
+    ))
 }
 
 fn select_button_texture_source(
@@ -388,7 +402,7 @@ pub fn load_texture_source_pub(
     file_texture_cache: &mut HashMap<String, Handle<Image>>,
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
-) -> Option<Handle<Image>> {
+) -> Option<LoadedTexture> {
     load_texture_source(
         source,
         images,
@@ -406,16 +420,41 @@ fn load_texture_source(
     file_texture_cache: &mut HashMap<String, Handle<Image>>,
     missing_textures: &mut HashSet<u32>,
     missing_file_textures: &mut HashSet<String>,
-) -> Option<Handle<Image>> {
+) -> Option<LoadedTexture> {
     match source {
         TextureSource::FileDataId(fdid) => {
             load_texture(*fdid, images, texture_cache, missing_textures)
+                .map(|handle| LoadedTexture { handle, rect: None })
         }
         TextureSource::File(path) => {
             load_file_texture(path, images, file_texture_cache, missing_file_textures)
+                .map(|handle| LoadedTexture { handle, rect: None })
+        }
+        TextureSource::Atlas(name) => {
+            load_atlas_texture(name, images, file_texture_cache, missing_file_textures)
         }
         _ => None,
     }
+}
+
+fn load_atlas_texture(
+    name: &str,
+    images: &mut Option<ResMut<Assets<Image>>>,
+    file_texture_cache: &mut HashMap<String, Handle<Image>>,
+    missing_file_textures: &mut HashSet<String>,
+) -> Option<LoadedTexture> {
+    let region = atlas::get_region(name)?;
+    let handle = load_file_texture(
+        region.path,
+        images,
+        file_texture_cache,
+        missing_file_textures,
+    )?;
+    let rect = images
+        .as_ref()
+        .and_then(|assets| assets.get(&handle))
+        .map(|image| region.rect_pixels(image));
+    Some(LoadedTexture { handle, rect })
 }
 
 fn load_file_texture(
@@ -501,7 +540,9 @@ pub fn sync_ui_button_highlights(
     mut commands: Commands,
     mut images: Option<ResMut<Assets<Image>>>,
     highlights: Query<(Entity, &UiButtonHighlight)>,
+    mut texture_cache: Local<HashMap<u32, Handle<Image>>>,
     mut file_texture_cache: Local<HashMap<String, Handle<Image>>>,
+    mut missing_textures: Local<HashSet<u32>>,
     mut missing_file_textures: Local<HashSet<String>>,
 ) {
     let existing: HashMap<u64, Entity> = highlights.iter().map(|(e, h)| (h.0, e)).collect();
@@ -510,7 +551,7 @@ pub fn sync_ui_button_highlights(
     let sh = state.registry.screen_height;
 
     for frame in state.registry.frames_iter() {
-        let Some(path) = button_highlight_file_path(frame) else {
+        let Some(source) = button_highlight_source(frame) else {
             continue;
         };
         seen.insert(frame.id);
@@ -523,33 +564,32 @@ pub fn sync_ui_button_highlights(
             }
             continue;
         }
-        let Some(handle) = load_file_texture(
-            path,
+        let Some(texture) = load_texture_source(
+            source,
             &mut images,
+            &mut texture_cache,
             &mut file_texture_cache,
+            &mut missing_textures,
             &mut missing_file_textures,
         ) else {
             continue;
         };
-        upsert_highlight_sprite(frame, handle, sw, sh, &existing, &mut commands);
+        upsert_highlight_sprite(frame, texture, sw, sh, &existing, &mut commands);
     }
 
     despawn_stale_highlights(&existing, &seen, &mut commands);
 }
 
-fn button_highlight_file_path(frame: &crate::ui::frame::Frame) -> Option<&str> {
+fn button_highlight_source(frame: &crate::ui::frame::Frame) -> Option<&TextureSource> {
     let WidgetData::Button(btn) = frame.widget_data.as_ref()? else {
         return None;
     };
-    match btn.highlight_texture.as_ref()? {
-        TextureSource::File(p) => Some(p.as_str()),
-        _ => None,
-    }
+    btn.highlight_texture.as_ref()
 }
 
 fn upsert_highlight_sprite(
     frame: &crate::ui::frame::Frame,
-    handle: Handle<Image>,
+    texture: LoadedTexture,
     sw: f32,
     sh: f32,
     existing: &HashMap<u64, Entity>,
@@ -567,7 +607,8 @@ fn upsert_highlight_sprite(
     let sprite = Sprite {
         color,
         custom_size: Some(size),
-        image: handle,
+        image: texture.handle,
+        rect: texture.rect,
         ..default()
     };
     if let Some(&entity) = existing.get(&frame.id) {
@@ -622,8 +663,14 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
         };
         match texture {
             Some(tex) => {
+                let edge_size = match &tex {
+                    TextureSource::Atlas(name) => atlas::get_region(name)
+                        .and_then(|region| region.nine_slice_edge)
+                        .unwrap_or(BUTTON_NINE_SLICE_EDGE),
+                    _ => BUTTON_NINE_SLICE_EDGE,
+                };
                 frame.nine_slice = Some(NineSlice {
-                    edge_size: BUTTON_NINE_SLICE_EDGE,
+                    edge_size,
                     texture: Some(tex),
                     ..Default::default()
                 });

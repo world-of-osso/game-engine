@@ -18,14 +18,6 @@ use crate::networking;
 
 const FADE_IN_DURATION: f32 = 0.75;
 
-const TEX_RED_NORMAL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-Button-Up.blp";
-const TEX_RED_PUSHED: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-Button-Down.blp";
-const TEX_RED_HL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-Panel-Button-Highlight.blp";
-const TEX_DLG_NORMAL: &str = "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Up.blp";
-const TEX_DLG_PUSHED: &str =
-    "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Down.blp";
-const TEX_DLG_HL: &str =
-    "/home/osso/Projects/wow/Interface/BUTTONS/UI-DialogBox-Button-Highlight.blp";
 const TEX_EDITBOX_BORDER: &str = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border.blp";
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
@@ -358,7 +350,14 @@ fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -
         0.0,
         -50.0,
     );
-    set_button_textures(reg, connect, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
+    set_button_atlases(
+        reg,
+        connect,
+        "128-redbutton-up",
+        "128-redbutton-pressed",
+        "128-redbutton-highlight",
+    );
+    set_button_font_size(reg, connect, 22.0);
     let reconnect = create_button(reg, "ReconnectButton", Some(root), 250.0, 66.0, "Reconnect");
     set_strata(reg, reconnect, FrameStrata::Medium);
     set_anchor(
@@ -370,7 +369,14 @@ fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -
         0.0,
         -50.0,
     );
-    set_button_textures(reg, reconnect, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
+    set_button_atlases(
+        reg,
+        reconnect,
+        "128-redbutton-up",
+        "128-redbutton-pressed",
+        "128-redbutton-highlight",
+    );
+    set_button_font_size(reg, reconnect, 22.0);
     hide_frame(reg, reconnect);
     (connect, reconnect)
 }
@@ -395,7 +401,13 @@ fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> 
         -24.0,
         56.0,
     );
-    set_button_textures(reg, exit, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
+    set_button_atlases(
+        reg,
+        exit,
+        "128-redbutton-up",
+        "128-redbutton-pressed",
+        "128-redbutton-highlight",
+    );
     exit
 }
 
@@ -421,7 +433,13 @@ fn build_action_button_anchored(
     set_strata(reg, btn, FrameStrata::Medium);
     set_button_font_size(reg, btn, 12.0);
     set_anchor(reg, btn, point, relative_to, relative_point, x_off, y_off);
-    set_button_textures(reg, btn, TEX_RED_NORMAL, TEX_RED_PUSHED, TEX_RED_HL);
+    set_button_atlases(
+        reg,
+        btn,
+        "128-redbutton-up",
+        "128-redbutton-pressed",
+        "128-redbutton-highlight",
+    );
     btn
 }
 
@@ -1243,7 +1261,7 @@ fn get_editbox_text(reg: &FrameRegistry, id: u64) -> String {
         .unwrap_or_default()
 }
 
-fn set_button_textures(
+fn set_button_atlases(
     reg: &mut FrameRegistry,
     id: u64,
     normal: &str,
@@ -1251,9 +1269,10 @@ fn set_button_textures(
     highlight: &str,
 ) {
     if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        bd.normal_texture = Some(TextureSource::File(normal.to_string()));
-        bd.pushed_texture = Some(TextureSource::File(pushed.to_string()));
-        bd.highlight_texture = Some(TextureSource::File(highlight.to_string()));
+        bd.normal_texture = Some(TextureSource::Atlas(normal.to_string()));
+        bd.pushed_texture = Some(TextureSource::Atlas(pushed.to_string()));
+        bd.highlight_texture = Some(TextureSource::Atlas(highlight.to_string()));
+        bd.disabled_texture = Some(TextureSource::Atlas("128-redbutton-disable".to_string()));
     }
 }
 

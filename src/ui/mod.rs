@@ -1,6 +1,7 @@
 pub mod addon_watcher;
 pub mod anchor;
 pub mod animation;
+pub mod atlas;
 pub mod dioxus_elements;
 pub mod dioxus_renderer;
 pub mod dioxus_runtime;
