@@ -24,14 +24,17 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         let state = UiState {
-            registry: FrameRegistry::new(1920.0, 1080.0),
+            registry: FrameRegistry::new(0.0, 0.0),
             event_bus: EventBus::new(),
             wasm_host: WasmHost::new(),
             focused_frame: None,
         };
         app.insert_resource(state);
         app.insert_non_send_resource(DioxusUiRuntime::new());
-        app.add_systems(Startup, crate::ui::render::setup_ui_camera);
+        app.add_systems(
+            Startup,
+            (initialize_screen_size, crate::ui::render::setup_ui_camera).chain(),
+        );
         app.add_systems(
             Update,
             (
@@ -54,6 +57,21 @@ impl Plugin for UiPlugin {
 
 pub fn sync_dioxus_ui(mut state: ResMut<UiState>, mut runtime: NonSendMut<DioxusUiRuntime>) {
     runtime.sync(&mut state.registry);
+}
+
+pub fn sync_registry_to_primary_window(
+    registry: &mut FrameRegistry,
+    windows: &Query<&Window, With<bevy::window::PrimaryWindow>>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let (w, h) = (window.width(), window.height());
+    if (registry.screen_width - w).abs() > 0.5 || (registry.screen_height - h).abs() > 0.5 {
+        registry.screen_width = w;
+        registry.screen_height = h;
+        registry.mark_all_rects_dirty();
+    }
 }
 
 pub fn tick_spellbook_cooldowns(
@@ -168,14 +186,14 @@ fn sync_screen_size(
     mut state: ResMut<UiState>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
-    let Ok(window) = windows.single() else { return };
-    let (w, h) = (window.width(), window.height());
-    if (state.registry.screen_width - w).abs() > 0.5
-        || (state.registry.screen_height - h).abs() > 0.5
-    {
-        state.registry.screen_width = w;
-        state.registry.screen_height = h;
-    }
+    sync_registry_to_primary_window(&mut state.registry, &windows);
+}
+
+fn initialize_screen_size(
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mut state: ResMut<UiState>,
+) {
+    sync_registry_to_primary_window(&mut state.registry, &windows);
 }
 
 fn recompute_layout(mut state: ResMut<UiState>) {

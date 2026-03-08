@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
 use game_engine::ui::frame::{Frame, NineSlice, WidgetData, WidgetType};
 use game_engine::ui::layout::resolve_frame_layout;
-use game_engine::ui::plugin::UiState;
+use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::{ButtonData, ButtonState as BtnState, CheckButtonData};
@@ -31,6 +31,7 @@ const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBa
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
+const LOGIN_CONTENT_X_OFFSET: f32 = -96.0;
 
 #[derive(Resource)]
 struct LoginUi {
@@ -88,7 +89,9 @@ fn build_login_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     server_addr: Option<Res<networking::ServerAddr>>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
+    sync_registry_to_primary_window(&mut ui.registry, &windows);
     let reg = &mut ui.registry;
     let (sw, sh) = (reg.screen_width, reg.screen_height);
     let (root, ui_root) = build_login_background(reg, sw, sh);
@@ -203,7 +206,14 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
         40.0,
     );
     set_strata(reg, title, FrameStrata::Medium);
-    set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.15, 400.0, 40.0);
+    set_layout(
+        reg,
+        title,
+        (sw - 400.0) / 2.0 + LOGIN_CONTENT_X_OFFSET,
+        sh * 0.15,
+        400.0,
+        40.0,
+    );
     set_font_string(reg, title, "World of Osso", 28.0, [1.0, 0.82, 0.0, 1.0]);
     let sub = create_frame(
         reg,
@@ -214,7 +224,14 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
         24.0,
     );
     set_strata(reg, sub, FrameStrata::Medium);
-    set_layout(reg, sub, (sw - 300.0) / 2.0, sh * 0.15 + 45.0, 300.0, 24.0);
+    set_layout(
+        reg,
+        sub,
+        (sw - 300.0) / 2.0 + LOGIN_CONTENT_X_OFFSET,
+        sh * 0.15 + 45.0,
+        300.0,
+        24.0,
+    );
     set_font_string(reg, sub, "Game Engine", 18.0, [0.7, 0.7, 0.8, 1.0]);
 }
 
@@ -232,7 +249,7 @@ fn build_login_inputs(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) ->
         AnchorPoint::Center,
         Some(root),
         AnchorPoint::Center,
-        0.0,
+        LOGIN_CONTENT_X_OFFSET,
         80.0,
     );
     set_editbox_text(reg, server, "127.0.0.1:25565");

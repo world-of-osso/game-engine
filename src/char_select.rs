@@ -6,7 +6,7 @@ use lightyear::prelude::*;
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
 use game_engine::ui::frame::{Frame, WidgetData, WidgetType};
 use game_engine::ui::layout::resolve_frame_layout;
-use game_engine::ui::plugin::UiState;
+use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonData;
@@ -78,7 +78,9 @@ fn build_char_select_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     char_list: Res<CharacterList>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
+    sync_registry_to_primary_window(&mut ui.registry, &windows);
     let reg = &mut ui.registry;
     let sw = reg.screen_width;
     let sh = reg.screen_height;

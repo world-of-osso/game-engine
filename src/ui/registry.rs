@@ -38,6 +38,10 @@ impl FrameRegistry {
         }
     }
 
+    pub fn mark_all_rects_dirty(&mut self) {
+        self.rect_dirty.extend(self.frames.keys().copied());
+    }
+
     /// Allocate an ID without creating a frame (for external creation).
     pub fn next_id(&mut self) -> u64 {
         let id = self.next_id;

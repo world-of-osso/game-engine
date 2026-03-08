@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
 use game_engine::ui::frame::{Frame, WidgetData, WidgetType};
 use game_engine::ui::layout::{LayoutRect, resolve_frame_layout};
-use game_engine::ui::plugin::UiState;
+use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonData;
@@ -167,7 +167,12 @@ impl Plugin for ActionBarPlugin {
     }
 }
 
-fn build_action_bars(mut ui: ResMut<UiState>, mut commands: Commands) {
+fn build_action_bars(
+    mut ui: ResMut<UiState>,
+    mut commands: Commands,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+) {
+    sync_registry_to_primary_window(&mut ui.registry, &windows);
     let reg = &mut ui.registry;
     if reg.get_by_name("MainActionBar").is_some() {
         return;
