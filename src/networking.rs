@@ -19,8 +19,8 @@ use shared::protocol::{
 };
 
 pub use crate::networking_auth::{
-    AuthToken, CharacterList, LoginMode, LoginPassword, LoginUsername, SelectedCharacterId,
-    load_auth_token,
+    AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword, LoginUsername,
+    SelectedCharacterId, load_auth_token,
 };
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
@@ -100,6 +100,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
     app.insert_resource(AuthToken(load_auth_token()));
+    app.init_resource::<AuthUiFeedback>();
     app.init_resource::<CharacterList>();
     app.init_resource::<SelectedCharacterId>();
     app.init_resource::<LoginUsername>();

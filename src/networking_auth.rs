@@ -11,6 +11,10 @@ use crate::game_state::GameState;
 #[derive(Resource)]
 pub struct AuthToken(pub Option<String>);
 
+/// Pending auth feedback to surface when the login screen is shown again.
+#[derive(Resource, Default)]
+pub struct AuthUiFeedback(pub Option<String>);
+
 /// Character list populated by LoginResponse.
 #[derive(Resource, Default)]
 pub struct CharacterList(pub Vec<CharacterListEntry>);
@@ -109,12 +113,19 @@ fn send_register(
 pub fn receive_login_response(
     mut receivers: Query<&mut MessageReceiver<LoginResponse>>,
     mut auth_token: ResMut<AuthToken>,
+    mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
-            handle_login_response(resp, &mut auth_token, &mut char_list, &mut next_state);
+            handle_login_response(
+                resp,
+                &mut auth_token,
+                &mut auth_feedback,
+                &mut char_list,
+                &mut next_state,
+            );
         }
     }
 }
@@ -122,18 +133,21 @@ pub fn receive_login_response(
 fn handle_login_response(
     resp: LoginResponse,
     auth_token: &mut AuthToken,
+    auth_feedback: &mut AuthUiFeedback,
     char_list: &mut CharacterList,
     next_state: &mut NextState<GameState>,
 ) {
     if resp.success {
         save_auth_token(&resp.token);
         auth_token.0 = Some(resp.token);
+        auth_feedback.0 = None;
         char_list.0 = resp.characters;
         info!("Login success, {} characters", char_list.0.len());
         next_state.set(GameState::CharSelect);
     } else {
         let err = resp.error.unwrap_or_default();
         error!("Login failed: {err}");
+        auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
         next_state.set(GameState::Login);
     }
 }
@@ -180,12 +194,19 @@ pub fn receive_delete_character_response(
 pub fn receive_register_response(
     mut receivers: Query<&mut MessageReceiver<RegisterResponse>>,
     mut auth_token: ResMut<AuthToken>,
+    mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
-            handle_register_response(resp, &mut auth_token, &mut char_list, &mut next_state);
+            handle_register_response(
+                resp,
+                &mut auth_token,
+                &mut auth_feedback,
+                &mut char_list,
+                &mut next_state,
+            );
         }
     }
 }
@@ -193,19 +214,37 @@ pub fn receive_register_response(
 fn handle_register_response(
     resp: RegisterResponse,
     auth_token: &mut AuthToken,
+    auth_feedback: &mut AuthUiFeedback,
     char_list: &mut CharacterList,
     next_state: &mut NextState<GameState>,
 ) {
     if resp.success {
         save_auth_token(&resp.token);
         auth_token.0 = Some(resp.token);
+        auth_feedback.0 = None;
         char_list.0.clear();
         info!("Registration success, transitioning to CharSelect");
         next_state.set(GameState::CharSelect);
     } else {
         let err = resp.error.unwrap_or_default();
         error!("Registration failed: {err}");
+        auth_feedback.0 = Some(err);
         next_state.set(GameState::Login);
+    }
+}
+
+fn user_facing_login_error(err: &str) -> &str {
+    let normalized = err.trim().to_ascii_lowercase();
+    if normalized.contains("invalid")
+        || normalized.contains("incorrect")
+        || normalized.contains("wrong password")
+        || normalized.contains("bad password")
+        || normalized.contains("credentials")
+        || normalized.contains("password")
+    {
+        "Incorrect username or password"
+    } else {
+        "Login failed. Please try again."
     }
 }
 
@@ -257,5 +296,13 @@ mod tests {
         assert_eq!(request.token.as_deref(), Some("saved-token"));
         assert!(request.username.is_empty());
         assert!(request.password.is_empty());
+    }
+
+    #[test]
+    fn invalid_password_error_is_normalized_for_login_screen() {
+        assert_eq!(
+            user_facing_login_error("Invalid password"),
+            "Incorrect username or password"
+        );
     }
 }

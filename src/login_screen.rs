@@ -36,7 +36,6 @@ const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.92, 0.72, 1.0];
 const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
 const STATUS_CONNECTING: &str = "Connecting...";
-const STATUS_RECONNECTING: &str = "Reconnecting...";
 const STATUS_MENU_UNAVAILABLE: &str = "Menu is not implemented yet";
 const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
 
@@ -90,9 +89,12 @@ impl Plugin for LoginScreenPlugin {
 fn build_login_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
+    mut status: ResMut<LoginStatus>,
+    mut auth_feedback: ResMut<networking::AuthUiFeedback>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
+    status.0 = auth_feedback.0.take().unwrap_or_default();
     let reg = &mut ui.registry;
     let (sw, sh) = (reg.screen_width, reg.screen_height);
     let (root, ui_root) = build_login_background(reg, sw, sh);
@@ -650,6 +652,7 @@ fn login_mouse_input(
     mut status: ResMut<LoginStatus>,
     mut login_mode: ResMut<networking::LoginMode>,
     auth_token: Res<networking::AuthToken>,
+    server_addr: Option<Res<networking::ServerAddr>>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -671,6 +674,7 @@ fn login_mouse_input(
         &mut status,
         &mut login_mode,
         &auth_token,
+        server_addr.as_ref().map(|addr| addr.0),
         &mut commands,
         Some(&mut exit),
     );
@@ -685,6 +689,7 @@ fn handle_mouse_click(
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
     exit: Option<&mut MessageWriter<AppExit>>,
 ) {
@@ -697,7 +702,18 @@ fn handle_mouse_click(
         select_all_editbox(&mut ui.registry, login.password_input);
     } else {
         handle_button_click(
-            ui, login, cx, cy, focus, next_state, status, login_mode, auth_token, commands, exit,
+            ui,
+            login,
+            cx,
+            cy,
+            focus,
+            next_state,
+            status,
+            login_mode,
+            auth_token,
+            server_addr,
+            commands,
+            exit,
         );
     }
 }
@@ -713,6 +729,7 @@ fn handle_button_click(
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
     exit: Option<&mut MessageWriter<AppExit>>,
 ) {
@@ -730,10 +747,18 @@ fn handle_button_click(
             status,
             next_state,
             &*login_mode,
+            server_addr,
             commands,
         );
     } else if hit_active_frame(ui, login.reconnect_button, cx, cy) {
-        try_reconnect(auth_token, status, next_state, login_mode, commands);
+        try_reconnect(
+            auth_token,
+            status,
+            next_state,
+            login_mode,
+            server_addr,
+            commands,
+        );
     } else if hit_active_frame(ui, login.create_account_button, cx, cy) {
         toggle_login_mode(login_mode, &mut ui.registry, login);
         status.0.clear();
@@ -756,6 +781,7 @@ fn login_keyboard_input(
     mut next_state: ResMut<NextState<GameState>>,
     mut status: ResMut<LoginStatus>,
     login_mode: Res<networking::LoginMode>,
+    server_addr: Option<Res<networking::ServerAddr>>,
     mut commands: Commands,
 ) {
     let Some(login) = login_ui.as_ref() else {
@@ -780,6 +806,7 @@ fn login_keyboard_input(
                 &mut status,
                 &mut next_state,
                 &*login_mode,
+                server_addr.as_ref().map(|addr| addr.0),
                 &mut commands,
             );
         }
@@ -794,6 +821,7 @@ fn login_run_automation(
     mut status: ResMut<LoginStatus>,
     mut login_mode: ResMut<networking::LoginMode>,
     auth_token: Res<networking::AuthToken>,
+    server_addr: Option<Res<networking::ServerAddr>>,
     mut queue: ResMut<UiAutomationQueue>,
     mut commands: Commands,
 ) {
@@ -811,6 +839,7 @@ fn login_run_automation(
         &mut status,
         &mut login_mode,
         &auth_token,
+        server_addr.as_ref().map(|addr| addr.0),
         &mut commands,
         &action,
     ) {
@@ -827,13 +856,23 @@ fn run_login_automation_action(
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
     action: &UiAutomationAction,
 ) -> Result<(), String> {
     match action {
         UiAutomationAction::ClickFrame(frame_name) => {
             click_login_frame(
-                ui, login, focus, next_state, status, login_mode, auth_token, commands, frame_name,
+                ui,
+                login,
+                focus,
+                next_state,
+                status,
+                login_mode,
+                auth_token,
+                server_addr,
+                commands,
+                frame_name,
             )?;
         }
         UiAutomationAction::TypeText(text) => {
@@ -856,6 +895,7 @@ fn run_login_automation_action(
                 status,
                 next_state,
                 &*login_mode,
+                server_addr,
                 commands,
             );
         }
@@ -876,6 +916,7 @@ fn click_login_frame(
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
     frame_name: &str,
 ) -> Result<(), String> {
@@ -901,6 +942,7 @@ fn click_login_frame(
         status,
         login_mode,
         auth_token,
+        server_addr,
         commands,
         None,
     );
@@ -938,6 +980,7 @@ fn handle_login_key(
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
     mode: &networking::LoginMode,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
 ) {
     match key {
@@ -947,7 +990,15 @@ fn handle_login_key(
         KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1),
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-        KeyCode::Enter => try_connect(&ui.registry, login, status, next_state, mode, commands),
+        KeyCode::Enter => try_connect(
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            mode,
+            server_addr,
+            commands,
+        ),
         _ => {}
     }
 }
@@ -1009,15 +1060,10 @@ fn sync_button_states(
     reg: &mut FrameRegistry,
     login: &LoginUi,
     mode: &networking::LoginMode,
-    auth_token: &networking::AuthToken,
+    _auth_token: &networking::AuthToken,
 ) {
-    let show_reconnect = matches!(mode, networking::LoginMode::Login)
-        && auth_token
-            .0
-            .as_deref()
-            .is_some_and(|token| !token.trim().is_empty());
-    reg.set_shown(login.connect_button, !show_reconnect);
-    reg.set_shown(login.reconnect_button, show_reconnect);
+    reg.set_shown(login.connect_button, true);
+    reg.set_shown(login.reconnect_button, false);
     if let Some(WidgetData::Button(btn)) = reg
         .get_mut(login.connect_button)
         .and_then(|f| f.widget_data.as_mut())
@@ -1068,6 +1114,7 @@ fn try_connect(
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
     mode: &networking::LoginMode,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
 ) {
     let username = get_editbox_text(reg, login.username_input);
@@ -1076,7 +1123,9 @@ fn try_connect(
         status.0 = STATUS_FILL_FIELDS.to_string();
         return;
     }
-    commands.insert_resource(networking::ServerAddr(DEFAULT_SERVER_ADDR.parse().unwrap()));
+    commands.insert_resource(networking::ServerAddr(
+        server_addr.unwrap_or_else(|| DEFAULT_SERVER_ADDR.parse().unwrap()),
+    ));
     commands.insert_resource(networking::LoginUsername(username));
     commands.insert_resource(networking::LoginPassword(password));
     commands.insert_resource(mode.clone());
@@ -1089,6 +1138,7 @@ fn try_reconnect(
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
     login_mode: &mut networking::LoginMode,
+    server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
 ) {
     if auth_token
@@ -1100,11 +1150,13 @@ fn try_reconnect(
         return;
     }
     *login_mode = networking::LoginMode::Login;
-    commands.insert_resource(networking::ServerAddr(DEFAULT_SERVER_ADDR.parse().unwrap()));
+    commands.insert_resource(networking::ServerAddr(
+        server_addr.unwrap_or_else(|| DEFAULT_SERVER_ADDR.parse().unwrap()),
+    ));
     commands.insert_resource(networking::LoginUsername(String::new()));
     commands.insert_resource(networking::LoginPassword(String::new()));
     commands.insert_resource(networking::LoginMode::Login);
-    status.0 = STATUS_RECONNECTING.to_string();
+    status.0 = STATUS_CONNECTING.to_string();
     next_state.set(GameState::Connecting);
 }
 
@@ -1531,6 +1583,7 @@ mod tests {
                 &mut status,
                 &mut login_mode,
                 &auth_token,
+                None,
                 &mut commands,
                 &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
             )
@@ -1568,6 +1621,7 @@ mod tests {
                 &mut status,
                 &mut login_mode,
                 &auth_token,
+                None,
                 &mut commands,
                 &UiAutomationAction::TypeText("alice".to_string()),
             )
@@ -1615,6 +1669,7 @@ mod tests {
                     &mut status,
                     &mut login_mode,
                     &auth_token,
+                    None,
                     &mut commands,
                     &action,
                 )
@@ -1648,6 +1703,7 @@ mod tests {
                 &mut status,
                 &mut next_state,
                 &networking::LoginMode::Login,
+                None,
                 &mut commands,
             );
         }
@@ -1676,6 +1732,7 @@ mod tests {
                 &mut status,
                 &mut next_state,
                 &networking::LoginMode::Login,
+                None,
                 &mut commands,
             );
         }
@@ -1699,7 +1756,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_button_states_shows_reconnect_only_with_saved_token_in_login_mode() {
+    fn sync_button_states_keeps_login_button_visible_even_with_saved_token() {
         let (mut reg, login) = login_fixture();
 
         sync_button_states(
@@ -1709,12 +1766,12 @@ mod tests {
             &networking::AuthToken(Some("saved-token".to_string())),
         );
         assert!(
-            !reg.get(login.connect_button)
+            reg.get(login.connect_button)
                 .expect("connect button")
                 .visible
         );
         assert!(
-            reg.get(login.reconnect_button)
+            !reg.get(login.reconnect_button)
                 .expect("reconnect button")
                 .visible
         );
@@ -1735,5 +1792,67 @@ mod tests {
                 .expect("reconnect button")
                 .visible
         );
+    }
+
+    #[test]
+    fn build_login_ui_shows_pending_auth_error_message() {
+        let mut app = App::new();
+        app.insert_resource(UiState {
+            registry: FrameRegistry::new(0.0, 0.0),
+            event_bus: game_engine::ui::event::EventBus::new(),
+            wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
+            focused_frame: None,
+        });
+        app.init_resource::<LoginStatus>();
+        app.insert_resource(networking::AuthUiFeedback(Some(
+            "Incorrect username or password".to_string(),
+        )));
+
+        let mut window = Window::default();
+        window.resolution.set(1280.0, 720.0);
+        app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+
+        let _ = app.world_mut().run_system_cached(build_login_ui);
+
+        assert_eq!(
+            app.world().resource::<LoginStatus>().0,
+            "Incorrect username or password"
+        );
+        assert!(
+            app.world()
+                .resource::<networking::AuthUiFeedback>()
+                .0
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn try_connect_preserves_explicit_server_address() {
+        let (mut reg, login) = login_fixture();
+        set_editbox_text_for_test(&mut reg, login.username_input, "alice");
+        set_editbox_text_for_test(&mut reg, login.password_input, "secret");
+        let mut status = LoginStatus::default();
+        let mut next_state = NextState::<GameState>::default();
+        let mut world = World::new();
+        let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+        let explicit_addr = "127.0.0.1:5000"
+            .parse()
+            .expect("test server address should parse");
+
+        {
+            let mut commands = system_state.get_mut(&mut world);
+            try_connect(
+                &reg,
+                &login,
+                &mut status,
+                &mut next_state,
+                &networking::LoginMode::Login,
+                Some(explicit_addr),
+                &mut commands,
+            );
+        }
+        system_state.apply(&mut world);
+
+        assert_eq!(world.resource::<networking::ServerAddr>().0, explicit_addr);
     }
 }
