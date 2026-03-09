@@ -121,10 +121,8 @@ fn apply_attribute_text_on_button() {
     let mut registry = FrameRegistry::new(1024.0, 768.0);
     let fid = renderer.create_frame_for_tag("Button", ElementId(1), &mut registry);
     apply_attribute(
-        &mut registry,
-        fid,
-        "text",
-        &AttributeValue::Text("Click".into()),
+        &mut registry, fid, "text", &AttributeValue::Text("Click".into()),
+        &mut HashSet::new(), &mut HashSet::new(),
     );
     let frame = registry.get(fid).unwrap();
     match &frame.widget_data {
@@ -204,10 +202,8 @@ fn apply_attribute_stretch() {
     let child_fid = renderer.create_frame_for_tag("Frame", ElementId(2), &mut registry);
     wire_parent_child(&mut registry, parent_fid, child_fid);
     apply_attribute(
-        &mut registry,
-        child_fid,
-        "stretch",
-        &AttributeValue::Bool(true),
+        &mut registry, child_fid, "stretch", &AttributeValue::Bool(true),
+        &mut HashSet::new(), &mut HashSet::new(),
     );
     let child = registry.get(child_fid).unwrap();
     assert_eq!(child.anchors.len(), 2);

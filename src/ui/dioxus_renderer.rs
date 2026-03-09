@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use dioxus_core::{AttributeValue, ElementId, Template, TemplateNode, WriteMutations};
@@ -42,6 +43,8 @@ pub struct GameUiRenderer {
     /// Anchors whose relative frame couldn't be resolved by name at apply time.
     /// Resolved after all mutations are applied (cross-component name references).
     pending_anchors: Vec<(u64, String)>,
+    validated_paths: HashSet<String>,
+    missing_paths: HashSet<String>,
 }
 
 impl GameUiRenderer {
@@ -54,6 +57,8 @@ impl GameUiRenderer {
             template_child_frames: Vec::new(),
             template_anchor_nodes: Vec::new(),
             pending_anchors: Vec::new(),
+            validated_paths: HashSet::new(),
+            missing_paths: HashSet::new(),
         }
     }
 
@@ -151,18 +156,18 @@ impl GameUiRenderer {
         registry: &mut FrameRegistry,
         frame_id: u64,
         pending: &mut Vec<(u64, String)>,
+        validated_paths: &mut HashSet<String>,
+        missing_paths: &mut HashSet<String>,
     ) {
         let TemplateNode::Element { attrs, .. } = node else {
             return;
         };
         for attr in *attrs {
-            if let dioxus_core::TemplateAttribute::Static {
-                name,
-                value,
-                namespace,
-            } = attr
-            {
-                apply_static_attribute(registry, frame_id, name, *namespace, value, pending);
+            if let dioxus_core::TemplateAttribute::Static { name, value, namespace } = attr {
+                apply_static_attribute(
+                    registry, frame_id, name, *namespace, value, pending,
+                    validated_paths, missing_paths,
+                );
             }
         }
     }
@@ -203,7 +208,10 @@ impl GameUiRenderer {
         let child_fid = instantiate_element(tag, parent_frame_id, registry);
         self.created_frames.push(child_fid);
         self.template_child_frames.push((path.clone(), child_fid));
-        Self::apply_node_attributes(child, registry, child_fid, &mut self.pending_anchors);
+        Self::apply_node_attributes(
+            child, registry, child_fid, &mut self.pending_anchors,
+            &mut self.validated_paths, &mut self.missing_paths,
+        );
         self.instantiate_template_children(child, child_fid, registry, path);
     }
 
@@ -342,10 +350,9 @@ impl WriteMutations for MutationApplier<'_> {
         self.renderer.template_anchor_nodes.clear();
         if let Some(root_node) = template.roots.get(index) {
             GameUiRenderer::apply_node_attributes(
-                root_node,
-                self.registry,
-                frame_id,
+                root_node, self.registry, frame_id,
                 &mut self.renderer.pending_anchors,
+                &mut self.renderer.validated_paths, &mut self.renderer.missing_paths,
             );
             let mut path = Vec::new();
             self.renderer.instantiate_template_children(
@@ -390,7 +397,8 @@ impl WriteMutations for MutationApplier<'_> {
         let Some(fid) = self.renderer.frame_id(id) else {
             return;
         };
-        if let Some(pending) = apply_attribute(self.registry, fid, name, value) {
+        let (vp, mp) = (&mut self.renderer.validated_paths, &mut self.renderer.missing_paths);
+        if let Some(pending) = apply_attribute(self.registry, fid, name, value, vp, mp) {
             self.renderer.pending_anchors.push(pending);
         }
     }
@@ -434,6 +442,8 @@ pub(crate) fn apply_attribute(
     frame_id: u64,
     name: &str,
     value: &AttributeValue,
+    validated_paths: &mut HashSet<String>,
+    missing_paths: &mut HashSet<String>,
 ) -> Option<(u64, String)> {
     if name == "name" {
         if let Some(s) = as_text(value) {
@@ -448,8 +458,8 @@ pub(crate) fn apply_attribute(
         return None;
     };
     apply_frame_attr(frame, name, value);
-    apply_widget_text_attrs(frame, name, value);
-    apply_widget_texture_attrs(frame, name, value);
+    apply_widget_text_attrs(frame, name, value, validated_paths, missing_paths);
+    apply_widget_texture_attrs(frame, name, value, validated_paths, missing_paths);
     None
 }
 
@@ -502,11 +512,18 @@ fn apply_frame_attr(frame: &mut Frame, name: &str, value: &AttributeValue) {
     }
 }
 
-fn apply_widget_text_attrs(frame: &mut Frame, name: &str, value: &AttributeValue) {
+fn apply_widget_text_attrs(
+    frame: &mut Frame,
+    name: &str,
+    value: &AttributeValue,
+    validated_paths: &mut HashSet<String>,
+    missing_paths: &mut HashSet<String>,
+) {
     match name {
         "text" => apply_text_attr(frame, value),
         "font" => {
             if let Some(s) = as_text(value) {
+                check_path(validated_paths, missing_paths, "font", s);
                 match &mut frame.widget_data {
                     Some(WidgetData::FontString(fs)) => fs.font = s.to_string(),
                     Some(WidgetData::EditBox(eb)) => eb.font = s.to_string(),
@@ -543,6 +560,18 @@ fn apply_widget_text_attrs(frame: &mut Frame, name: &str, value: &AttributeValue
     }
 }
 
+fn check_path(validated: &mut HashSet<String>, missing: &mut HashSet<String>, label: &str, path: &str) {
+    if validated.contains(path) || missing.contains(path) {
+        return;
+    }
+    if Path::new(path).exists() {
+        validated.insert(path.to_string());
+    } else {
+        eprintln!("[UI] {label} not found: {path}");
+        missing.insert(path.to_string());
+    }
+}
+
 fn apply_font_size(frame: &mut Frame, v: f32) {
     if v <= 0.0 || v > 72.0 {
         eprintln!("[UI] font_size out of range (0..72]: {v}");
@@ -555,14 +584,18 @@ fn apply_font_size(frame: &mut Frame, v: f32) {
     }
 }
 
-fn apply_widget_texture_attrs(frame: &mut Frame, name: &str, value: &AttributeValue) {
+fn apply_widget_texture_attrs(
+    frame: &mut Frame,
+    name: &str,
+    value: &AttributeValue,
+    validated_paths: &mut HashSet<String>,
+    missing_paths: &mut HashSet<String>,
+) {
     match name {
         "texture_file" => {
             if let Some(s) = as_text(value) {
                 if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
-                    if !Path::new(s).exists() {
-                        eprintln!("[UI] texture_file not found: {s}");
-                    }
+                    check_path(validated_paths, missing_paths, "texture_file", s);
                     td.source = TextureSource::File(s.to_string());
                 }
             }
@@ -570,9 +603,8 @@ fn apply_widget_texture_attrs(frame: &mut Frame, name: &str, value: &AttributeVa
         "texture_fdid" => assign_f32(value, |v| {
             if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
                 let fdid = v as u32;
-                if !Path::new(&format!("data/textures/{fdid}.blp")).exists() {
-                    eprintln!("[UI] texture_fdid not found: {fdid}");
-                }
+                let path = format!("data/textures/{fdid}.blp");
+                check_path(validated_paths, missing_paths, "texture_fdid", &path);
                 td.source = TextureSource::FileDataId(fdid);
             }
         }),
@@ -656,14 +688,12 @@ fn apply_static_attribute(
     namespace: Option<&'static str>,
     value: &'static str,
     pending: &mut Vec<(u64, String)>,
+    validated_paths: &mut HashSet<String>,
+    missing_paths: &mut HashSet<String>,
 ) {
     let _ = namespace;
-    if let Some(p) = apply_attribute(
-        registry,
-        frame_id,
-        name,
-        &AttributeValue::Text(value.to_string()),
-    ) {
+    let attr = AttributeValue::Text(value.to_string());
+    if let Some(p) = apply_attribute(registry, frame_id, name, &attr, validated_paths, missing_paths) {
         pending.push(p);
     }
 }
