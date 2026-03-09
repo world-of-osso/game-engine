@@ -1,6 +1,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
 use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
@@ -58,6 +59,19 @@ fn load_atlas_texture(
     missing_file_textures: &mut HashSet<String>,
 ) -> Option<LoadedTexture> {
     let region = atlas::get_region(name)?;
+    if should_materialize_atlas_region(region.path) {
+        return load_materialized_atlas_region(
+            name,
+            region.path,
+            region.left,
+            region.right,
+            region.top,
+            region.bottom,
+            images,
+            file_texture_cache,
+            missing_file_textures,
+        );
+    }
     let handle = load_file_texture(
         region.path,
         images,
@@ -69,6 +83,81 @@ fn load_atlas_texture(
         .and_then(|assets| assets.get(&handle))
         .map(|image| region.rect_pixels(image));
     Some(LoadedTexture { handle, rect })
+}
+
+fn load_materialized_atlas_region(
+    name: &str,
+    path: &str,
+    left: f32,
+    right: f32,
+    top: f32,
+    bottom: f32,
+    images: &mut Option<ResMut<Assets<Image>>>,
+    file_texture_cache: &mut HashMap<String, Handle<Image>>,
+    missing_file_textures: &mut HashSet<String>,
+) -> Option<LoadedTexture> {
+    let cache_key = format!("atlas::{name}");
+    if let Some(handle) = file_texture_cache.get(&cache_key) {
+        return Some(LoadedTexture {
+            handle: handle.clone(),
+            rect: None,
+        });
+    }
+
+    let base_handle = load_file_texture(path, images, file_texture_cache, missing_file_textures)?;
+    let assets = images.as_mut().map(|images| &mut **images)?;
+    let base = assets.get(&base_handle)?;
+    let cropped = crop_image_region(base, left, right, top, bottom)?;
+    let handle = assets.add(cropped);
+    file_texture_cache.insert(cache_key, handle.clone());
+    Some(LoadedTexture { handle, rect: None })
+}
+
+fn crop_image_region(
+    image: &Image,
+    left: f32,
+    right: f32,
+    top: f32,
+    bottom: f32,
+) -> Option<Image> {
+    if image.texture_descriptor.format != TextureFormat::Rgba8UnormSrgb
+        && image.texture_descriptor.format != TextureFormat::Rgba8Unorm
+    {
+        return None;
+    }
+    let data = image.data.as_ref()?;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+    let x0 = (left * width as f32).round().clamp(0.0, width as f32) as usize;
+    let x1 = (right * width as f32).round().clamp(0.0, width as f32) as usize;
+    let y0 = (top * height as f32).round().clamp(0.0, height as f32) as usize;
+    let y1 = (bottom * height as f32).round().clamp(0.0, height as f32) as usize;
+    if x1 <= x0 || y1 <= y0 {
+        return None;
+    }
+
+    let crop_w = x1 - x0;
+    let crop_h = y1 - y0;
+    let mut out = vec![0u8; crop_w * crop_h * 4];
+    for row in 0..crop_h {
+        let src_start = ((y0 + row) * width + x0) * 4;
+        let src_end = src_start + crop_w * 4;
+        let dst_start = row * crop_w * 4;
+        let dst_end = dst_start + crop_w * 4;
+        out[dst_start..dst_end].copy_from_slice(&data[src_start..src_end]);
+    }
+
+    Some(Image::new(
+        Extent3d {
+            width: crop_w as u32,
+            height: crop_h as u32,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        out,
+        image.texture_descriptor.format,
+        RenderAssetUsages::default(),
+    ))
 }
 
 pub fn load_file_texture(
@@ -124,6 +213,13 @@ fn load_ui_file_texture(path: &str) -> Result<Image, String> {
 
 fn should_cpu_decode_ui_texture(path: &str) -> bool {
     path.ends_with("Glues-BlizzardLogo.blp")
+        || path.contains("/Interface/GLUES/CharacterSelect/")
+        || path.contains("/Interface/CharacterSelection/")
+}
+
+fn should_materialize_atlas_region(path: &str) -> bool {
+    path.contains("/Interface/GLUES/CharacterSelect/")
+        || path.contains("/Interface/CharacterSelection/")
 }
 
 pub fn load_fdid_texture(

@@ -9,7 +9,7 @@ use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
-use game_engine::ui::widgets::button::{ButtonData, ButtonState as BtnState};
+use game_engine::ui::widgets::button::ButtonData;
 use game_engine::ui::widgets::edit_box::EditBoxData;
 use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
 use game_engine::ui::widgets::texture::{TextureData, TextureSource};
@@ -18,14 +18,12 @@ use shared::protocol::{AuthChannel, CreateCharacter, DeleteCharacter, SelectChar
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
 
-const TEX_CHAR_SELECT_BACKGROUND: &str = "data/glues/charselect/UI_CharacterSelectTEX.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 const FONT_GLUE_EDITBOX: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/ARIALN.ttf";
-const CHAR_SELECT_BACKGROUND_SIZE: (f32, f32) = (512.0, 256.0);
 const REALM_NAME: &str = "World of Osso";
 const LIST_PANEL_SIZE: (f32, f32) = (386.0, 520.0);
-const LIST_ENTRY_SIZE: (f32, f32) = (342.0, 42.0);
+const LIST_ENTRY_SIZE: (f32, f32) = (347.0, 95.0);
 const MAIN_ACTION_BUTTON_SIZE: (f32, f32) = (256.0, 64.0);
 const SECONDARY_ACTION_BUTTON_HEIGHT: f32 = 42.0;
 const CREATE_ACTION_BUTTON_WIDTH: f32 = 205.0;
@@ -33,7 +31,6 @@ const DELETE_ACTION_BUTTON_WIDTH: f32 = 128.0;
 const GLUE_NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 const GLUE_SUBTITLE_COLOR: [f32; 4] = [0.92, 0.88, 0.74, 1.0];
 const GLUE_MUTED_COLOR: [f32; 4] = [0.75, 0.72, 0.65, 1.0];
-const PANEL_BG: [f32; 4] = [0.02, 0.02, 0.03, 0.88];
 const PANEL_BORDER: [f32; 4] = [0.65, 0.48, 0.16, 1.0];
 const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -43,21 +40,42 @@ const BUTTON_ATLAS_UP: &str = "128-brownbutton-up";
 const BUTTON_ATLAS_PRESSED: &str = "128-brownbutton-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "128-brownbutton-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "128-brownbutton-disable";
-const RED_BUTTON_ATLAS_UP: &str = "128-redbutton-up";
-const RED_BUTTON_ATLAS_PRESSED: &str = "128-redbutton-pressed";
-const RED_BUTTON_ATLAS_HIGHLIGHT: &str = "128-redbutton-highlight";
-const RED_BUTTON_ATLAS_DISABLED: &str = "128-redbutton-disable";
 const BIG_BUTTON_ATLAS_UP: &str = "glue-bigbutton-brown-up";
 const BIG_BUTTON_ATLAS_PRESSED: &str = "glue-bigbutton-brown-down";
 const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "glue-bigbutton-brown-highlight";
 const BIG_BUTTON_ATLAS_DISABLED: &str = "glue-bigbutton-brown-disable";
+const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-gs-tophud-left";
+const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-gs-tophud-middle";
+const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-gs-tophud-right";
+const TOP_HUD_LEFT_SELECTED_ATLAS: &str = "glues-characterselect-gs-tophud-left-selected";
+const TOP_HUD_MIDDLE_SELECTED_ATLAS: &str = "glues-characterselect-gs-tophud-middle-selected";
+const TOP_HUD_RIGHT_SELECTED_ATLAS: &str = "glues-characterselect-gs-tophud-right-selected";
+const NAME_BG_ATLAS: &str = "glues-characterselect-namebg";
+const LIST_BG_ATLAS: &str = "glues-characterselect-card-all-bg";
+const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
+const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
+const CARD_HOVER_ATLAS: &str = "glues-characterselect-card-singles-hover";
+const CARD_SELECTED_ATLAS: &str = "glues-characterselect-card-selected";
+const EMPTY_CARD_ATLAS: &str = "glues-characterselect-card-empty";
+const EMPTY_CARD_HOVER_ATLAS: &str = "glues-characterselect-card-empty-hover";
+
+#[derive(Clone, Copy)]
+struct CharacterCardFrames {
+    frame: u64,
+    hover: u64,
+    selected: u64,
+    name_text: u64,
+    info_text: u64,
+    status_text: u64,
+}
 
 /// Resource holding frame IDs for the character select UI.
 #[derive(Resource)]
 struct CharSelectUi {
     root: u64,
     list_panel: u64,
-    char_buttons: Vec<u64>,
+    char_cards: Vec<CharacterCardFrames>,
+    empty_card: Option<(u64, u64)>,
     enter_button: u64,
     create_button: u64,
     delete_button: u64,
@@ -65,6 +83,10 @@ struct CharSelectUi {
     create_panel: u64,
     create_name_input: u64,
     create_confirm_button: u64,
+    top_hud_left: u64,
+    top_hud_middle: u64,
+    top_hud_right: u64,
+    title_backdrop: u64,
     selected_name_text: u64,
     status_text: u64,
 }
@@ -118,8 +140,9 @@ fn build_char_select_ui(
     let sh = reg.screen_height;
 
     let (root, ui_root) = build_cs_background(reg, sw, sh);
-    let selected_name_text = build_cs_title(reg, ui_root, sw, sh);
-    let (list_panel, char_buttons) = build_character_list(reg, ui_root, sw, sh, &char_list);
+    let (top_hud_left, top_hud_middle, top_hud_right, title_backdrop, selected_name_text) =
+        build_cs_title(reg, ui_root, sw, sh);
+    let (list_panel, char_cards, empty_card) = build_character_list(reg, ui_root, sw, sh, &char_list);
     let (enter_button, create_button, delete_button, back_button) =
         build_cs_action_buttons(reg, ui_root, sw, sh);
     let (create_panel, create_name_input, create_confirm_button) =
@@ -129,7 +152,8 @@ fn build_char_select_ui(
     commands.insert_resource(CharSelectUi {
         root,
         list_panel,
-        char_buttons,
+        char_cards,
+        empty_card,
         enter_button,
         create_button,
         delete_button,
@@ -137,6 +161,10 @@ fn build_char_select_ui(
         create_panel,
         create_name_input,
         create_confirm_button,
+        top_hud_left,
+        top_hud_middle,
+        top_hud_right,
+        title_backdrop,
         selected_name_text,
         status_text,
     });
@@ -196,23 +224,6 @@ fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) 
     );
     set_layout(reg, model_ffx, 0.0, 0.0, sw, sh);
     set_strata(reg, model_ffx, FrameStrata::Fullscreen);
-    let (bg_x, bg_y, bg_w, bg_h) = centered_cover_rect(
-        sw,
-        sh,
-        CHAR_SELECT_BACKGROUND_SIZE.0,
-        CHAR_SELECT_BACKGROUND_SIZE.1,
-    );
-
-    let bg = create_texture(
-        reg,
-        "CharSelectBackground",
-        Some(model_ffx),
-        bg_w,
-        bg_h,
-        TEX_CHAR_SELECT_BACKGROUND,
-    );
-    set_layout(reg, bg, bg_x, bg_y, bg_w, bg_h);
-    set_strata(reg, bg, FrameStrata::Fullscreen);
     let overlay = create_frame(
         reg,
         "CharSelectBackgroundShade",
@@ -222,7 +233,7 @@ fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) 
         sh,
     );
     set_layout(reg, overlay, 0.0, 0.0, sw, sh);
-    set_bg(reg, overlay, [0.0, 0.0, 0.0, 0.18]);
+    set_bg(reg, overlay, [0.0, 0.0, 0.0, 0.28]);
     set_strata(reg, overlay, FrameStrata::Fullscreen);
 
     let logo_hoist = create_frame(reg, "LogoHoist", Some(ui), WidgetType::Frame, 1.0, 1.0);
@@ -258,25 +269,48 @@ fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) 
     (root, ui)
 }
 
-fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 {
+fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, _sh: f32) -> (u64, u64, u64, u64, u64) {
+    let center_x = sw * 0.5;
+    let top_y = 22.0;
+
+    let left = create_atlas_texture(reg, "CharSelectTopHudLeft", Some(root), 220.0, 43.0, TOP_HUD_LEFT_SELECTED_ATLAS);
+    set_layout(reg, left, center_x - 279.0, top_y, 220.0, 43.0);
+
+    let middle = create_atlas_texture(
+        reg,
+        "CharSelectTopHudMiddle",
+        Some(root),
+        118.0,
+        43.0,
+        TOP_HUD_MIDDLE_SELECTED_ATLAS,
+    );
+    set_layout(reg, middle, center_x - 59.0, top_y, 118.0, 43.0);
+
+    let right = create_atlas_texture(reg, "CharSelectTopHudRight", Some(root), 220.0, 43.0, TOP_HUD_RIGHT_SELECTED_ATLAS);
+    set_layout(reg, right, center_x + 59.0, top_y, 220.0, 43.0);
+
+    let name_bg = create_atlas_texture(reg, "CharSelectNameBg", Some(root), 194.0, 61.0, NAME_BG_ATLAS);
+    set_layout(reg, name_bg, center_x - 97.0, top_y + 21.0, 194.0, 61.0);
+
     let title = create_frame(
         reg,
         "CharSelectCharacterName",
         Some(root),
         WidgetType::FontString,
         520.0,
-        40.0,
+        36.0,
     );
-    set_layout(reg, title, (sw - 520.0) / 2.0, sh - 154.0, 520.0, 40.0);
+    set_layout(reg, title, center_x - 260.0, top_y + 28.0, 520.0, 36.0);
     set_font_string_with_font(
         reg,
         title,
         "Character Selection",
         FONT_GLUE_LABEL,
-        28.0,
+        27.0,
         GLUE_NORMAL_FONT_COLOR,
     );
-    title
+
+    (left, middle, right, name_bg, title)
 }
 
 fn build_character_list(
@@ -285,12 +319,12 @@ fn build_character_list(
     sw: f32,
     _sh: f32,
     char_list: &CharacterList,
-) -> (u64, Vec<u64>) {
+) -> (u64, Vec<CharacterCardFrames>, Option<(u64, u64)>) {
     let panel_w = LIST_PANEL_SIZE.0;
     let panel_h = LIST_PANEL_SIZE.1;
     let panel_x = sw - panel_w - 22.0;
     let panel_y = 164.0;
-    let mut buttons = Vec::new();
+    let mut cards = Vec::new();
 
     let panel = create_frame(
         reg,
@@ -301,17 +335,27 @@ fn build_character_list(
         panel_h,
     );
     set_layout(reg, panel, panel_x, panel_y, panel_w, panel_h);
-    set_panel_nine_slice(reg, panel, PANEL_BG, PANEL_BORDER, 12.0);
+    let panel_bg = create_atlas_texture(reg, "CharacterListBackdrop", Some(panel), panel_w, panel_h, LIST_BG_ATLAS);
+    set_layout(reg, panel_bg, 0.0, 0.0, panel_w, panel_h);
 
     let realm_label = create_frame(
         reg,
         "CharacterListRealmLabel",
         Some(panel),
         WidgetType::FontString,
-        panel_w - 36.0,
+        281.0,
         28.0,
     );
-    set_layout(reg, realm_label, 18.0, 18.0, panel_w - 36.0, 28.0);
+    let realm_bg = create_atlas_texture(
+        reg,
+        "CharacterListRealmBackdrop",
+        Some(panel),
+        281.0,
+        23.0,
+        LIST_REALM_BG_ATLAS,
+    );
+    set_layout(reg, realm_bg, 52.0, 16.0, 281.0, 23.0);
+    set_layout(reg, realm_label, 50.0, 14.0, 281.0, 28.0);
     set_font_string_with_font(
         reg,
         realm_label,
@@ -326,10 +370,10 @@ fn build_character_list(
         "CharacterListHelperText",
         Some(panel),
         WidgetType::FontString,
-        panel_w - 36.0,
+        panel_w - 40.0,
         18.0,
     );
-    set_layout(reg, helper_text, 18.0, 50.0, panel_w - 36.0, 18.0);
+    set_layout(reg, helper_text, 20.0, 51.0, panel_w - 40.0, 18.0);
     set_font_string_with_font(
         reg,
         helper_text,
@@ -344,41 +388,121 @@ fn build_character_list(
         "CharacterListDivider",
         Some(panel),
         WidgetType::Frame,
-        panel_w - 36.0,
+        panel_w - 40.0,
         1.0,
     );
-    set_layout(reg, divider, 18.0, 78.0, panel_w - 36.0, 1.0);
+    set_layout(reg, divider, 20.0, 80.0, panel_w - 40.0, 1.0);
     set_bg(reg, divider, [1.0, 0.9, 0.65, 0.12]);
 
-    let mut y = 96.0;
+    let mut y = 94.0;
 
     for ch in &char_list.0 {
-        let text = format!(
-            "{}   Lv{}   Race {}   Class {}",
-            ch.name, ch.level, ch.race, ch.class
-        );
-        let btn = create_button(
+        let card = build_character_card(
             reg,
-            &format!("Char_{}", ch.character_id),
-            Some(panel),
+            panel,
+            &format!("CharCard_{}", ch.character_id),
+            19.0,
+            y,
             LIST_ENTRY_SIZE.0,
             LIST_ENTRY_SIZE.1,
-            &text,
+            &ch.name,
+            &format!("Level {}   Race {}   Class {}", ch.level, ch.race, ch.class),
+            "Ready to enter world",
         );
-        set_layout(reg, btn, 22.0, y, LIST_ENTRY_SIZE.0, LIST_ENTRY_SIZE.1);
-        set_button_atlases(
-            reg,
-            btn,
-            BUTTON_ATLAS_UP,
-            BUTTON_ATLAS_PRESSED,
-            BUTTON_ATLAS_HIGHLIGHT,
-            BUTTON_ATLAS_DISABLED,
-        );
-        set_button_font_size(reg, btn, 14.0);
-        buttons.push(btn);
-        y += LIST_ENTRY_SIZE.1 + 10.0;
+        cards.push(card);
+        y += 96.0;
     }
-    (panel, buttons)
+
+    let empty_card = if char_list.0.is_empty() {
+        Some(build_empty_card(reg, panel, 19.0, 102.0))
+    } else {
+        None
+    };
+
+    (panel, cards, empty_card)
+}
+
+fn build_character_card(
+    reg: &mut FrameRegistry,
+    parent: u64,
+    name: &str,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    char_name: &str,
+    info: &str,
+    status: &str,
+) -> CharacterCardFrames {
+    let frame = create_frame(reg, name, Some(parent), WidgetType::Frame, w, h);
+    set_layout(reg, frame, x, y, w, h);
+
+    let backdrop = create_atlas_texture(reg, &format!("{name}Backdrop"), Some(frame), 310.0, 89.0, CARD_BACKDROP_ATLAS);
+    set_layout(reg, backdrop, 20.0, 3.0, 310.0, 89.0);
+
+    let hover = create_atlas_texture(reg, &format!("{name}Hover"), Some(frame), 310.0, 89.0, CARD_HOVER_ATLAS);
+    set_layout(reg, hover, 20.0, 3.0, 310.0, 89.0);
+    hide_frame(reg, hover);
+
+    let selected = create_atlas_texture(reg, &format!("{name}Selected"), Some(frame), 342.0, 122.0, CARD_SELECTED_ATLAS);
+    set_layout(reg, selected, 7.0, -11.0, 342.0, 122.0);
+    hide_frame(reg, selected);
+
+    let name_text = create_frame(reg, &format!("{name}Name"), Some(frame), WidgetType::FontString, 260.0, 24.0);
+    set_layout(reg, name_text, 40.0, 16.0, 260.0, 24.0);
+    set_font_string_left_with_font(reg, name_text, char_name, FONT_GLUE_LABEL, 24.0, GLUE_NORMAL_FONT_COLOR);
+
+    let info_text = create_frame(reg, &format!("{name}Info"), Some(frame), WidgetType::FontString, 260.0, 18.0);
+    set_layout(reg, info_text, 40.0, 43.0, 260.0, 18.0);
+    set_font_string_left_with_font(reg, info_text, info, FONT_GLUE_LABEL, 15.0, GLUE_SUBTITLE_COLOR);
+
+    let status_text = create_frame(reg, &format!("{name}Status"), Some(frame), WidgetType::FontString, 240.0, 18.0);
+    set_layout(reg, status_text, 40.0, 67.0, 240.0, 18.0);
+    set_font_string_left_with_font(reg, status_text, status, FONT_GLUE_LABEL, 14.0, GLUE_MUTED_COLOR);
+
+    CharacterCardFrames {
+        frame,
+        hover,
+        selected,
+        name_text,
+        info_text,
+        status_text,
+    }
+}
+
+fn build_empty_card(reg: &mut FrameRegistry, parent: u64, x: f32, y: f32) -> (u64, u64) {
+    let frame = create_frame(
+        reg,
+        "CharSelectEmptyCard",
+        Some(parent),
+        WidgetType::Frame,
+        LIST_ENTRY_SIZE.0,
+        LIST_ENTRY_SIZE.1,
+    );
+    set_layout(reg, frame, x, y, LIST_ENTRY_SIZE.0, LIST_ENTRY_SIZE.1);
+
+    let backdrop = create_atlas_texture(
+        reg,
+        "CharSelectEmptyCardBackdrop",
+        Some(frame),
+        316.0,
+        95.0,
+        EMPTY_CARD_ATLAS,
+    );
+    set_layout(reg, backdrop, 20.0, 0.0, 316.0, 95.0);
+
+    let hover = create_atlas_texture(
+        reg,
+        "CharSelectEmptyCardHover",
+        Some(frame),
+        316.0,
+        95.0,
+        EMPTY_CARD_HOVER_ATLAS,
+    );
+    set_layout(reg, hover, 20.0, 0.0, 316.0, 95.0);
+    hide_frame(reg, hover);
+
+    (frame, hover)
 }
 
 fn build_cs_action_buttons(
@@ -644,9 +768,9 @@ fn handle_cs_click(
 ) {
     let (mx, my) = (cursor.x, cursor.y);
     if let Some(idx) = cs
-        .char_buttons
+        .char_cards
         .iter()
-        .position(|&id| hit_active_frame(ui, id, mx, my))
+        .position(|card| hit_active_frame(ui, card.frame, mx, my))
     {
         selected.0 = Some(idx);
         focus.0 = None;
@@ -790,9 +914,9 @@ fn char_select_hover_visuals(
             })
         };
 
-        cs.char_buttons
+        cs.char_cards
             .iter()
-            .copied()
+            .map(|card| card.frame)
             .chain([
                 cs.enter_button,
                 cs.create_button,
@@ -800,12 +924,27 @@ fn char_select_hover_visuals(
                 cs.back_button,
                 cs.create_confirm_button,
             ])
+            .chain(cs.empty_card.map(|(frame, _)| frame))
             .map(|frame_id| (frame_id, hovered(frame_id)))
             .collect()
     };
 
     for (button_id, is_hovered) in hovered_states {
-        set_button_hovered(&mut ui.registry, button_id, is_hovered);
+        if cs
+            .char_cards
+            .iter()
+            .any(|card| card.frame == button_id)
+        {
+            if let Some(card) = cs.char_cards.iter().find(|card| card.frame == button_id) {
+                ui.registry.set_shown(card.hover, is_hovered);
+            }
+        } else if let Some((frame, hover)) = cs.empty_card
+            && frame == button_id
+        {
+            ui.registry.set_shown(hover, is_hovered);
+        } else {
+            set_button_hovered(&mut ui.registry, button_id, is_hovered);
+        }
     }
 }
 
@@ -821,7 +960,7 @@ fn char_select_update_visuals(
 ) {
     let Some(mut cs) = cs_ui else { return };
     rebuild_char_buttons_if_changed(&mut ui.registry, &mut cs, &char_list);
-    update_char_button_highlights(&mut ui.registry, &cs, &selected);
+    update_char_card_highlights(&mut ui.registry, &cs, &selected);
     update_create_panel_visibility(&mut ui.registry, &cs, create_visible.0);
     update_selected_character_name(&mut ui.registry, &cs, &selected, &char_list);
     update_status_text(
@@ -836,41 +975,18 @@ fn char_select_update_visuals(
         cs.create_name_input,
         focus.0 == Some(cs.create_name_input) && create_visible.0,
     );
+    update_title_backdrop(&mut ui.registry, &cs, selected.0.is_some());
     ui.focused_frame = focus.0.filter(|_| create_visible.0);
 }
 
-fn update_char_button_highlights(
+fn update_char_card_highlights(
     reg: &mut FrameRegistry,
     cs: &CharSelectUi,
     selected: &SelectedCharIndex,
 ) {
-    for (i, &btn_id) in cs.char_buttons.iter().enumerate() {
+    for (i, card) in cs.char_cards.iter().enumerate() {
         let is_selected = selected.0 == Some(i);
-        if let Some(WidgetData::Button(button)) =
-            reg.get_mut(btn_id).and_then(|f| f.widget_data.as_mut())
-        {
-            button.state = BtnState::Normal;
-            button.highlight_locked = is_selected;
-        }
-        if is_selected {
-            set_button_atlases(
-                reg,
-                btn_id,
-                RED_BUTTON_ATLAS_UP,
-                RED_BUTTON_ATLAS_PRESSED,
-                RED_BUTTON_ATLAS_HIGHLIGHT,
-                RED_BUTTON_ATLAS_DISABLED,
-            );
-        } else {
-            set_button_atlases(
-                reg,
-                btn_id,
-                BUTTON_ATLAS_UP,
-                BUTTON_ATLAS_PRESSED,
-                BUTTON_ATLAS_HIGHLIGHT,
-                BUTTON_ATLAS_DISABLED,
-            );
-        }
+        reg.set_shown(card.selected, is_selected);
     }
 }
 
@@ -883,26 +999,24 @@ fn rebuild_char_buttons_if_changed(
     cs: &mut CharSelectUi,
     char_list: &CharacterList,
 ) {
-    if cs.char_buttons.len() != char_list.0.len() {
+    if cs.char_cards.len() != char_list.0.len() {
         remove_frame_tree(reg, cs.list_panel);
-        let (list_panel, char_buttons) =
+        let (list_panel, char_cards, empty_card) =
             build_character_list(reg, cs.root, reg.screen_width, reg.screen_height, char_list);
         cs.list_panel = list_panel;
-        cs.char_buttons = char_buttons;
+        cs.char_cards = char_cards;
+        cs.empty_card = empty_card;
     }
 
-    // Update button text to match current character list.
-    for (i, &btn_id) in cs.char_buttons.iter().enumerate() {
+    for (i, card) in cs.char_cards.iter().enumerate() {
         if let Some(ch) = char_list.0.get(i) {
-            let text = format!(
-                "{}   Lv{}   Race {}   Class {}",
-                ch.name, ch.level, ch.race, ch.class
+            set_font_string_text(reg, card.name_text, &ch.name);
+            set_font_string_text(
+                reg,
+                card.info_text,
+                &format!("Level {}   Race {}   Class {}", ch.level, ch.race, ch.class),
             );
-            if let Some(WidgetData::Button(bd)) =
-                reg.get_mut(btn_id).and_then(|f| f.widget_data.as_mut())
-            {
-                bd.text = text;
-            }
+            set_font_string_text(reg, card.status_text, "Ready to enter world");
         }
     }
 }
@@ -952,6 +1066,37 @@ fn update_status_text(
     {
         fs.text = text;
     }
+}
+
+fn update_title_backdrop(reg: &mut FrameRegistry, cs: &CharSelectUi, has_selection: bool) {
+    set_texture_source(
+        reg,
+        cs.top_hud_left,
+        if has_selection {
+            TextureSource::Atlas(TOP_HUD_LEFT_SELECTED_ATLAS.to_string())
+        } else {
+            TextureSource::Atlas(TOP_HUD_LEFT_ATLAS.to_string())
+        },
+    );
+    set_texture_source(
+        reg,
+        cs.top_hud_middle,
+        if has_selection {
+            TextureSource::Atlas(TOP_HUD_MIDDLE_SELECTED_ATLAS.to_string())
+        } else {
+            TextureSource::Atlas(TOP_HUD_MIDDLE_ATLAS.to_string())
+        },
+    );
+    set_texture_source(
+        reg,
+        cs.top_hud_right,
+        if has_selection {
+            TextureSource::Atlas(TOP_HUD_RIGHT_SELECTED_ATLAS.to_string())
+        } else {
+            TextureSource::Atlas(TOP_HUD_RIGHT_ATLAS.to_string())
+        },
+    );
+    reg.set_shown(cs.title_backdrop, has_selection);
 }
 
 // --- EditBox manipulation (duplicated from login_screen, consider extracting) ---
@@ -1075,6 +1220,24 @@ fn create_texture(
     id
 }
 
+fn create_atlas_texture(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    w: f32,
+    h: f32,
+    atlas: &str,
+) -> u64 {
+    let id = create_frame(reg, name, parent, WidgetType::Texture, w, h);
+    if let Some(frame) = reg.get_mut(id) {
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Atlas(atlas.to_string()),
+            ..Default::default()
+        }));
+    }
+    id
+}
+
 fn create_button(
     reg: &mut FrameRegistry,
     name: &str,
@@ -1153,13 +1316,6 @@ fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) 
     }
 }
 
-fn centered_cover_rect(sw: f32, sh: f32, tex_w: f32, tex_h: f32) -> (f32, f32, f32, f32) {
-    let scale = (sw / tex_w).max(sh / tex_h);
-    let w = tex_w * scale;
-    let h = tex_h * scale;
-    ((sw - w) * 0.5, (sh - h) * 0.5, w, h)
-}
-
 fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {
     if let Some(frame) = reg.get_mut(id) {
         frame.background_color = Some(color);
@@ -1192,6 +1348,32 @@ fn set_font_string_with_font(
     }
 }
 
+fn set_font_string_left_with_font(
+    reg: &mut FrameRegistry,
+    id: u64,
+    text: &str,
+    font: &str,
+    size: f32,
+    color: [f32; 4],
+) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.widget_data = Some(WidgetData::FontString(FontStringData {
+            text: text.to_string(),
+            font: font.to_string(),
+            font_size: size,
+            color,
+            justify_h: JustifyH::Left,
+            ..Default::default()
+        }));
+    }
+}
+
+fn set_font_string_text(reg: &mut FrameRegistry, id: u64, text: &str) {
+    if let Some(WidgetData::FontString(fs)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        fs.text = text.to_string();
+    }
+}
+
 fn set_button_font_size(reg: &mut FrameRegistry, id: u64, font_size: f32) {
     if let Some(WidgetData::Button(button)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         button.font_size = font_size;
@@ -1201,6 +1383,12 @@ fn set_button_font_size(reg: &mut FrameRegistry, id: u64, font_size: f32) {
 fn set_button_hovered(reg: &mut FrameRegistry, id: u64, hovered: bool) {
     if let Some(WidgetData::Button(button)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         button.hovered = hovered;
+    }
+}
+
+fn set_texture_source(reg: &mut FrameRegistry, id: u64, source: TextureSource) {
+    if let Some(WidgetData::Texture(texture)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        texture.source = source;
     }
 }
 
@@ -1397,32 +1585,40 @@ mod tests {
     }
 
     #[test]
-    fn selected_character_button_switches_to_red_atlas() {
+    fn selected_character_card_shows_selected_overlay() {
         let mut reg = test_registry();
         let root = create_frame(&mut reg, "Root", None, WidgetType::Frame, 1920.0, 1080.0);
-        let button_a = create_button(&mut reg, "Char_1", Some(root), 300.0, 42.0, "Alpha");
-        let button_b = create_button(&mut reg, "Char_2", Some(root), 300.0, 42.0, "Beta");
-        set_button_atlases(
+        set_layout(&mut reg, root, 0.0, 0.0, 1920.0, 1080.0);
+        let card_a = build_character_card(
             &mut reg,
-            button_a,
-            BUTTON_ATLAS_UP,
-            BUTTON_ATLAS_PRESSED,
-            BUTTON_ATLAS_HIGHLIGHT,
-            BUTTON_ATLAS_DISABLED,
+            root,
+            "CharCard_1",
+            0.0,
+            0.0,
+            LIST_ENTRY_SIZE.0,
+            LIST_ENTRY_SIZE.1,
+            "Alpha",
+            "Level 10   Race 1   Class 1",
+            "Ready to enter world",
         );
-        set_button_atlases(
+        let card_b = build_character_card(
             &mut reg,
-            button_b,
-            BUTTON_ATLAS_UP,
-            BUTTON_ATLAS_PRESSED,
-            BUTTON_ATLAS_HIGHLIGHT,
-            BUTTON_ATLAS_DISABLED,
+            root,
+            "CharCard_2",
+            0.0,
+            96.0,
+            LIST_ENTRY_SIZE.0,
+            LIST_ENTRY_SIZE.1,
+            "Beta",
+            "Level 20   Race 2   Class 2",
+            "Ready to enter world",
         );
 
         let cs = CharSelectUi {
             root,
             list_panel: root,
-            char_buttons: vec![button_a, button_b],
+            char_cards: vec![card_a, card_b],
+            empty_card: None,
             enter_button: 0,
             create_button: 0,
             delete_button: 0,
@@ -1430,23 +1626,21 @@ mod tests {
             create_panel: 0,
             create_name_input: 0,
             create_confirm_button: 0,
+            top_hud_left: 0,
+            top_hud_middle: 0,
+            top_hud_right: 0,
+            title_backdrop: 0,
             selected_name_text: 0,
             status_text: 0,
         };
 
-        update_char_button_highlights(&mut reg, &cs, &SelectedCharIndex(Some(1)));
+        update_char_card_highlights(&mut reg, &cs, &SelectedCharIndex(Some(1)));
 
-        let WidgetData::Button(selected_button) = reg
-            .get(button_b)
-            .and_then(|f| f.widget_data.as_ref())
-            .expect("selected button widget")
-        else {
-            panic!("expected button");
-        };
-        assert!(selected_button.highlight_locked);
-        assert!(matches!(
-            &selected_button.normal_texture,
-            Some(TextureSource::Atlas(name)) if name == RED_BUTTON_ATLAS_UP
-        ));
+        assert!(
+            !reg.get(card_a.selected)
+                .expect("card a selected overlay")
+                .shown
+        );
+        assert!(reg.get(card_b.selected).expect("card b selected overlay").shown);
     }
 }
