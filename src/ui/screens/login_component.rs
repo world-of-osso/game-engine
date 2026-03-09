@@ -16,9 +16,9 @@ const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__
 
 fn login_background() -> Element {
     rsx! {
-        r#frame { name: "BlackLoginBackground", stretch: true, background_color: "0.0,0.0,0.0,1.0" }
-        texture { name: "LoginBackground", stretch: true, texture_file: TEX_LOGIN_BACKGROUND }
-        r#frame { name: "LoginBackgroundShade", stretch: true, background_color: "0.0,0.0,0.0,0.22" }
+        r#frame { name: "BlackLoginBackground", stretch: true, background_color: "0.0,0.0,0.0,1.0", strata: "BACKGROUND" }
+        texture { name: "LoginBackground", stretch: true, texture_file: TEX_LOGIN_BACKGROUND, strata: "BACKGROUND" }
+        r#frame { name: "LoginBackgroundShade", stretch: true, background_color: "0.0,0.0,0.0,0.22", strata: "BACKGROUND" }
     }
 }
 
