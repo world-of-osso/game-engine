@@ -99,9 +99,14 @@ fn login_footer() -> Element {
             strata: "MEDIUM",
             anchor { point: "BOTTOM", relative_point: "BOTTOM", y: "8" }
         }
+        fontstring { name: "BlizzardThanks", width: 120.0, height: 14.0,
+            text: "Special thanks to", font_size: 10.0,
+            font_color: "0.65,0.65,0.7,1.0", strata: "HIGH",
+            anchor { point: "BOTTOM", relative_point: "BOTTOM", y: "130" }
+        }
         texture { name: "BlizzardLogo", width: 100.0, height: 100.0,
             texture_file: TEX_BLIZZARD_LOGO, strata: "HIGH",
-            anchor { point: "BOTTOM", relative_point: "BOTTOM", y: "40" }
+            anchor { point: "TOP", relative_to: "BlizzardThanks", relative_point: "BOTTOM", y: "2" }
         }
     }
 }
