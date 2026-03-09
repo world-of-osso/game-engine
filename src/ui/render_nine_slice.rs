@@ -221,28 +221,35 @@ fn resolve_part_texture(
         return (Handle::default(), None);
     };
 
-    let uv_rect = images.as_ref().and_then(|assets| {
-        let img = assets.get(&handle.handle)?;
-        let atlas_rect = handle.rect.unwrap_or(Rect {
-            min: Vec2::ZERO,
-            max: Vec2::new(img.width() as f32, img.height() as f32),
-        });
-        if nine_slice.part_textures.is_some() {
-            None
-        } else if let Some(uv_rects) = &nine_slice.uv_rects {
-            Some(explicit_uv_rect_for_part(uv_rects, part, atlas_rect))
-        } else {
-            let c = nine_slice.edge_size;
-            let w = atlas_rect.max.x - atlas_rect.min.x;
-            let h = atlas_rect.max.y - atlas_rect.min.y;
-            let mut rect = uv_rect_for_part(part, w, h, c);
-            rect.min += atlas_rect.min;
-            rect.max += atlas_rect.min;
-            Some(rect)
-        }
-    });
-
+    let uv_rect = compute_uv_rect(nine_slice, part, &handle, images);
     (handle.handle, uv_rect)
+}
+
+fn compute_uv_rect(
+    ns: &NineSlice,
+    part: u8,
+    handle: &super::render::LoadedTexture,
+    images: &Option<ResMut<Assets<Image>>>,
+) -> Option<Rect> {
+    let assets = images.as_ref()?;
+    let img = assets.get(&handle.handle)?;
+    let atlas_rect = handle.rect.unwrap_or(Rect {
+        min: Vec2::ZERO,
+        max: Vec2::new(img.width() as f32, img.height() as f32),
+    });
+    if ns.part_textures.is_some() {
+        None
+    } else if let Some(uv_rects) = &ns.uv_rects {
+        Some(explicit_uv_rect_for_part(uv_rects, part, atlas_rect))
+    } else {
+        let uv_e = ns.uv_edge_size.unwrap_or(ns.edge_size);
+        let w = atlas_rect.max.x - atlas_rect.min.x;
+        let h = atlas_rect.max.y - atlas_rect.min.y;
+        let mut rect = uv_rect_for_part(part, w, h, uv_e, uv_e);
+        rect.min += atlas_rect.min;
+        rect.max += atlas_rect.min;
+        Some(rect)
+    }
 }
 
 fn explicit_uv_rect_for_part(uv_rects: &[[f32; 4]; 9], part: u8, atlas_rect: Rect) -> Rect {
@@ -261,17 +268,18 @@ fn explicit_uv_rect_for_part(uv_rects: &[[f32; 4]; 9], part: u8, atlas_rect: Rec
 }
 
 /// Compute the UV sub-rect (in pixel coords) for each of the 9 parts.
-fn uv_rect_for_part(part: u8, w: f32, h: f32, c: f32) -> Rect {
+/// `ch` = horizontal edge (left/right), `cv` = vertical edge (top/bottom).
+fn uv_rect_for_part(part: u8, w: f32, h: f32, ch: f32, cv: f32) -> Rect {
     let (min_x, max_x, min_y, max_y) = match part {
-        0 => (0.0, c, 0.0, c),
-        1 => (c, w - c, 0.0, c),
-        2 => (w - c, w, 0.0, c),
-        3 => (0.0, c, c, h - c),
-        4 => (c, w - c, c, h - c),
-        5 => (w - c, w, c, h - c),
-        6 => (0.0, c, h - c, h),
-        7 => (c, w - c, h - c, h),
-        _ => (w - c, w, h - c, h),
+        0 => (0.0, ch, 0.0, cv),
+        1 => (ch, w - ch, 0.0, cv),
+        2 => (w - ch, w, 0.0, cv),
+        3 => (0.0, ch, cv, h - cv),
+        4 => (ch, w - ch, cv, h - cv),
+        5 => (w - ch, w, cv, h - cv),
+        6 => (0.0, ch, h - cv, h),
+        7 => (ch, w - ch, h - cv, h),
+        _ => (w - ch, w, h - cv, h),
     };
     Rect {
         min: Vec2::new(min_x, min_y),
@@ -279,8 +287,28 @@ fn uv_rect_for_part(part: u8, w: f32, h: f32, c: f32) -> Rect {
     }
 }
 
+/// Compute the center position, size, and border flag for one nine-slice part.
+/// Returns `(cx, cy, w, h, is_border)` in WoW screen space (top-left origin).
+fn part_layout(part: u8, fx: f32, fy: f32, eh: f32, ev: f32, iw: f32, ih: f32) -> (f32, f32, f32, f32, bool) {
+    match part {
+        0 => (fx + eh * 0.5, fy + ev * 0.5, eh, ev, true),
+        1 => (fx + eh + iw * 0.5, fy + ev * 0.5, iw, ev, true),
+        2 => (fx + eh + iw + eh * 0.5, fy + ev * 0.5, eh, ev, true),
+        3 => (fx + eh * 0.5, fy + ev + ih * 0.5, eh, ih, true),
+        4 => (fx + eh + iw * 0.5, fy + ev + ih * 0.5, iw, ih, false),
+        5 => (fx + eh + iw + eh * 0.5, fy + ev + ih * 0.5, eh, ih, true),
+        6 => (fx + eh * 0.5, fy + ev + ih + ev * 0.5, eh, ev, true),
+        7 => (fx + eh + iw * 0.5, fy + ev + ih + ev * 0.5, iw, ev, true),
+        _ => (fx + eh + iw + eh * 0.5, fy + ev + ih + ev * 0.5, eh, ev, true),
+    }
+}
+
+fn part_color(ns: &NineSlice, is_border: bool, alpha: f32) -> Color {
+    let [r, g, b, a] = if is_border { ns.border_color } else { ns.bg_color };
+    Color::srgba(r, g, b, a * alpha)
+}
+
 /// Compute transform, size, color for one nine-slice part.
-/// Layout: corners are edge×edge; edges stretch; center fills interior.
 /// Parts: 0=TL, 1=T, 2=TR, 3=L, 4=Center, 5=R, 6=BL, 7=B, 8=BR
 pub(crate) fn part_geometry(
     frame: &crate::ui::frame::Frame,
@@ -290,70 +318,16 @@ pub(crate) fn part_geometry(
     screen_h: f32,
     z: f32,
 ) -> (Transform, Vec2, Color) {
-    let e = ns.edge_size;
+    let eh = ns.edge_size;
+    let ev = ns.edge_size_v.unwrap_or(eh);
     let rect = frame.layout_rect.as_ref();
     let fx = rect.map_or(0.0, |r| r.x);
     let fy = rect.map_or(0.0, |r| r.y);
-    let fw = frame.width;
-    let fh = frame.height;
-    let inner_w = (fw - e * 2.0).max(0.0);
-    let inner_h = (fh - e * 2.0).max(0.0);
+    let iw = (frame.width - eh * 2.0).max(0.0);
+    let ih = (frame.height - ev * 2.0).max(0.0);
 
-    // cx/cy in WoW screen space (top-left origin, y down)
-    let (cx, cy, w, h, is_border) = match part {
-        0 => (fx + e * 0.5, fy + e * 0.5, e, e, true),
-        1 => (fx + e + inner_w * 0.5, fy + e * 0.5, inner_w, e, true),
-        2 => (fx + e + inner_w + e * 0.5, fy + e * 0.5, e, e, true),
-        3 => (fx + e * 0.5, fy + e + inner_h * 0.5, e, inner_h, true),
-        4 => (
-            fx + e + inner_w * 0.5,
-            fy + e + inner_h * 0.5,
-            inner_w,
-            inner_h,
-            false,
-        ),
-        5 => (
-            fx + e + inner_w + e * 0.5,
-            fy + e + inner_h * 0.5,
-            e,
-            inner_h,
-            true,
-        ),
-        6 => (fx + e * 0.5, fy + e + inner_h + e * 0.5, e, e, true),
-        7 => (
-            fx + e + inner_w * 0.5,
-            fy + e + inner_h + e * 0.5,
-            inner_w,
-            e,
-            true,
-        ),
-        _ => (
-            fx + e + inner_w + e * 0.5,
-            fy + e + inner_h + e * 0.5,
-            e,
-            e,
-            true,
-        ),
-    };
-
-    // Textured nine-slices still honor per-part tint so focused edit boxes can
-    // brighten their border/background while buttons opt into white explicitly.
-    let color = if ns.texture.is_some() && !matches!(ns.texture, Some(TextureSource::None)) {
-        let [r, g, b, a] = if is_border {
-            ns.border_color
-        } else {
-            ns.bg_color
-        };
-        Color::srgba(r, g, b, a * frame.effective_alpha)
-    } else {
-        let [r, g, b, a] = if is_border {
-            ns.border_color
-        } else {
-            ns.bg_color
-        };
-        Color::srgba(r, g, b, a * frame.effective_alpha)
-    };
-
+    let (cx, cy, w, h, is_border) = part_layout(part, fx, fy, eh, ev, iw, ih);
+    let color = part_color(ns, is_border, frame.effective_alpha);
     let bx = cx - screen_w * 0.5;
     let by = screen_h * 0.5 - cy;
     (Transform::from_xyz(bx, by, z), Vec2::new(w, h), color)
@@ -408,15 +382,15 @@ mod tests {
     #[test]
     fn uv_rect_corners_and_center() {
         // 64x64 texture, 8px corners
-        let tl = uv_rect_for_part(0, 64.0, 64.0, 8.0);
+        let tl = uv_rect_for_part(0, 64.0, 64.0, 8.0, 8.0);
         assert_eq!(tl.min, Vec2::new(0.0, 0.0));
         assert_eq!(tl.max, Vec2::new(8.0, 8.0));
 
-        let center = uv_rect_for_part(4, 64.0, 64.0, 8.0);
+        let center = uv_rect_for_part(4, 64.0, 64.0, 8.0, 8.0);
         assert_eq!(center.min, Vec2::new(8.0, 8.0));
         assert_eq!(center.max, Vec2::new(56.0, 56.0));
 
-        let br = uv_rect_for_part(8, 64.0, 64.0, 8.0);
+        let br = uv_rect_for_part(8, 64.0, 64.0, 8.0, 8.0);
         assert_eq!(br.min, Vec2::new(56.0, 56.0));
         assert_eq!(br.max, Vec2::new(64.0, 64.0));
     }

@@ -45,6 +45,10 @@ pub enum WidgetType {
 #[derive(Debug, Clone)]
 pub struct NineSlice {
     pub edge_size: f32,
+    /// Vertical edge size (top/bottom). Falls back to `edge_size` when `None`.
+    pub edge_size_v: Option<f32>,
+    /// Edge size in texture pixel space for UV sampling. Falls back to `edge_size` when `None`.
+    pub uv_edge_size: Option<f32>,
     pub bg_color: [f32; 4],
     pub border_color: [f32; 4],
     /// Optional texture applied to all 9 parts with UV sub-rects.
@@ -59,6 +63,8 @@ impl Default for NineSlice {
     fn default() -> Self {
         Self {
             edge_size: 4.0,
+            edge_size_v: None,
+            uv_edge_size: None,
             bg_color: [0.0, 0.0, 0.0, 0.8],
             border_color: [1.0, 1.0, 1.0, 1.0],
             texture: None,

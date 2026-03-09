@@ -18,16 +18,18 @@ pub struct UiButtonHighlight(pub u64);
 
 const BUTTON_NINE_SLICE_EDGE: f32 = 4.0;
 
-fn button_nine_slice_edge(tex: &TextureSource, frame_w: f32, frame_h: f32) -> f32 {
+/// Returns `(edge_h, edge_v, uv_edge)` — scaled screen edges + original texture edge.
+fn button_nine_slice_edges(tex: &TextureSource, frame_w: f32, frame_h: f32) -> (f32, f32, f32) {
     let TextureSource::Atlas(name) = tex else {
-        return BUTTON_NINE_SLICE_EDGE;
+        let e = BUTTON_NINE_SLICE_EDGE;
+        return (e, e, e);
     };
     let Some(region) = atlas::get_region(name) else {
-        return BUTTON_NINE_SLICE_EDGE;
+        let e = BUTTON_NINE_SLICE_EDGE;
+        return (e, e, e);
     };
     let base = region.nine_slice_edge.unwrap_or(BUTTON_NINE_SLICE_EDGE);
-    let scale = (frame_w / region.width).min(frame_h / region.height);
-    base * scale
+    (base * frame_w / region.width, base * frame_h / region.height, base)
 }
 
 fn select_button_texture_source(btn: &ButtonData) -> Option<&TextureSource> {
@@ -61,9 +63,11 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
         };
         match texture {
             Some(tex) => {
-                let edge_size = button_nine_slice_edge(&tex, frame.width, frame.height);
+                let (eh, ev, uv_e) = button_nine_slice_edges(&tex, frame.width, frame.height);
                 frame.nine_slice = Some(NineSlice {
-                    edge_size,
+                    edge_size: eh,
+                    edge_size_v: Some(ev),
+                    uv_edge_size: Some(uv_e),
                     bg_color: [1.0, 1.0, 1.0, 1.0],
                     border_color: [1.0, 1.0, 1.0, 1.0],
                     texture: Some(tex),
