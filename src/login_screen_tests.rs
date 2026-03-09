@@ -27,7 +27,7 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
     let password_input = reg.get_by_name("PasswordInput").expect("PasswordInput");
     let connect_button = reg.get_by_name("ConnectButton").expect("ConnectButton");
-    let reconnect_button = reg.get_by_name("ReconnectButton").expect("ReconnectButton");
+    let reconnect_button = reg.get_by_name("ReconnectButton");
     let create_account_button = reg
         .get_by_name("CreateAccountButton")
         .expect("CreateAccountButton");
@@ -60,7 +60,7 @@ fn inject_layout_rects(
     username_input: u64,
     password_input: u64,
     connect_button: u64,
-    reconnect_button: u64,
+    reconnect_button: Option<u64>,
     create_account_button: u64,
     menu_button: u64,
     exit_button: u64,
@@ -78,7 +78,9 @@ fn inject_layout_rects(
     set_rect(reg, username_input, 800.0, 400.0, 320.0, 42.0);
     set_rect(reg, password_input, 800.0, 460.0, 320.0, 42.0);
     set_rect(reg, connect_button, 800.0, 522.0, 250.0, 66.0);
-    set_rect(reg, reconnect_button, 800.0, 522.0, 250.0, 66.0);
+    if let Some(reconnect_button) = reconnect_button {
+        set_rect(reg, reconnect_button, 800.0, 522.0, 250.0, 66.0);
+    }
     set_rect(reg, create_account_button, 860.0, 630.0, 200.0, 32.0);
     set_rect(reg, menu_button, 860.0, 672.0, 200.0, 32.0);
     set_rect(reg, exit_button, 1700.0, 980.0, 200.0, 32.0);
@@ -249,12 +251,12 @@ fn sync_button_states_keeps_login_button_visible_even_with_saved_token() {
     sync_button_states(&mut reg, &login, &networking::LoginMode::Login,
         &networking::AuthToken(Some("saved-token".to_string())));
     assert!(reg.get(login.connect_button).expect("connect button").visible);
-    assert!(!reg.get(login.reconnect_button).expect("reconnect button").visible);
+    assert!(login.reconnect_button.is_none());
 
     sync_button_states(&mut reg, &login, &networking::LoginMode::Register,
         &networking::AuthToken(Some("saved-token".to_string())));
     assert!(reg.get(login.connect_button).expect("connect button").visible);
-    assert!(!reg.get(login.reconnect_button).expect("reconnect button").visible);
+    assert!(login.reconnect_button.is_none());
 }
 
 #[test]

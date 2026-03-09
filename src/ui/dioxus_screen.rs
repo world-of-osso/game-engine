@@ -20,13 +20,16 @@ impl DioxusScreen {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) {
-        let mut applier = MutationApplier::new(&mut self.renderer, registry);
-        if self.initialized {
-            self.dom.render_immediate(&mut applier);
-        } else {
-            self.dom.rebuild(&mut applier);
-            self.initialized = true;
+        {
+            let mut applier = MutationApplier::new(&mut self.renderer, registry);
+            if self.initialized {
+                self.dom.render_immediate(&mut applier);
+            } else {
+                self.dom.rebuild(&mut applier);
+                self.initialized = true;
+            }
         }
+        self.renderer.resolve_pending_anchors(registry);
     }
 
     pub fn renderer(&self) -> &GameUiRenderer {

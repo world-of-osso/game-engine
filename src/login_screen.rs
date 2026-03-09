@@ -52,7 +52,7 @@ pub(crate) struct LoginUi {
     pub(crate) username_input: u64,
     pub(crate) password_input: u64,
     pub(crate) connect_button: u64,
-    pub(crate) reconnect_button: u64,
+    pub(crate) reconnect_button: Option<u64>,
     pub(crate) create_account_button: u64,
     pub(crate) menu_button: u64,
     pub(crate) exit_button: u64,
@@ -120,7 +120,7 @@ pub(crate) fn build_login_ui(
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
     let password_input = reg.get_by_name("PasswordInput").expect("PasswordInput");
     let connect_button = reg.get_by_name("ConnectButton").expect("ConnectButton");
-    let reconnect_button = reg.get_by_name("ReconnectButton").expect("ReconnectButton");
+    let reconnect_button = reg.get_by_name("ReconnectButton");
     let create_account_button = reg
         .get_by_name("CreateAccountButton")
         .expect("CreateAccountButton");
@@ -145,7 +145,7 @@ fn apply_post_setup(
     username_input: u64,
     password_input: u64,
     connect_button: u64,
-    reconnect_button: u64,
+    reconnect_button: Option<u64>,
 ) {
     let (sw, sh) = (reg.screen_width, reg.screen_height);
     if let Some(frame) = reg.get_mut(root) {
@@ -155,7 +155,9 @@ fn apply_post_setup(
     set_editbox_backdrop(reg, username_input);
     set_editbox_backdrop(reg, password_input);
     set_login_primary_button_textures(reg, connect_button);
-    set_login_primary_button_textures(reg, reconnect_button);
+    if let Some(reconnect_button) = reconnect_button {
+        set_login_primary_button_textures(reg, reconnect_button);
+    }
 }
 
 fn teardown_login_ui(
@@ -359,7 +361,9 @@ fn handle_button_click(
             bd.state = BtnState::Pushed;
         }
         try_connect(&ui.registry, login, status, next_state, &*login_mode, server_addr, commands);
-    } else if hit_active_frame(ui, login.reconnect_button, cx, cy) {
+    } else if login.reconnect_button
+        .is_some_and(|id| hit_active_frame(ui, id, cx, cy))
+    {
         try_reconnect(auth_token, status, next_state, login_mode, server_addr, commands);
     } else if hit_active_frame(ui, login.create_account_button, cx, cy) {
         toggle_login_mode(login_mode, &mut ui.registry, login);
@@ -537,9 +541,16 @@ fn login_hover_visuals(windows: Query<&Window>, mut ui: ResMut<UiState>,
 {
     let Some(login) = login_ui.as_ref() else { return };
     let cursor = windows.iter().next().and_then(|w| w.cursor_position());
-    for id in [login.connect_button, login.reconnect_button, login.create_account_button,
-        login.menu_button, login.exit_button]
-    {
+    let mut button_ids = vec![
+        login.connect_button,
+        login.create_account_button,
+        login.menu_button,
+        login.exit_button,
+    ];
+    if let Some(reconnect_button) = login.reconnect_button {
+        button_ids.push(reconnect_button);
+    }
+    for id in button_ids {
         let hovered = cursor.is_some_and(|c| ui.registry.get(id)
             .and_then(|f| f.layout_rect.as_ref())
             .is_some_and(|r| c.x >= r.x && c.x <= r.x + r.width
@@ -573,7 +584,9 @@ pub(crate) fn sync_button_states(
     _auth_token: &networking::AuthToken,
 ) {
     reg.set_shown(login.connect_button, true);
-    reg.set_shown(login.reconnect_button, false);
+    if let Some(reconnect_button) = login.reconnect_button {
+        reg.set_shown(reconnect_button, false);
+    }
     if let Some(WidgetData::Button(btn)) = reg.get_mut(login.connect_button)
         .and_then(|f| f.widget_data.as_mut())
     {

@@ -45,21 +45,23 @@ fn login_inputs() -> Element {
     }
 }
 
-fn login_main_buttons() -> Element {
+fn login_main_buttons(show_reconnect: bool) -> Element {
     rsx! {
-        button { name: "ConnectButton", width: 250.0, height: 66.0,
-            text: "Login", font_size: 16.0, strata: "MEDIUM",
-            anchor: "TOP,PasswordInput,BOTTOM,0,-50"
-        }
-        button { name: "ReconnectButton", width: 250.0, height: 66.0,
-            text: "Reconnect", font_size: 16.0, strata: "MEDIUM",
-            shown: false,
-            anchor: "TOP,PasswordInput,BOTTOM,0,-50"
+        if show_reconnect {
+            button { name: "ReconnectButton", width: 250.0, height: 66.0,
+                text: "Reconnect", font_size: 16.0, strata: "MEDIUM",
+                anchor: "TOP,PasswordInput,BOTTOM,0,-50"
+            }
+        } else {
+            button { name: "ConnectButton", width: 250.0, height: 66.0,
+                text: "Login", font_size: 16.0, strata: "MEDIUM",
+                anchor: "TOP,PasswordInput,BOTTOM,0,-50"
+            }
         }
         fontstring { name: "LoginStatus", width: 320.0, height: 24.0,
             text: "", font_size: 13.0,
             font_color: "0.9,0.5,0.5,1.0", strata: "MEDIUM",
-            anchor: "TOP,ConnectButton,BOTTOM,0,-20"
+            anchor: "TOP,PasswordInput,BOTTOM,0,-136"
         }
     }
 }
@@ -124,7 +126,7 @@ pub fn login_screen() -> Element {
                     anchor: "TOPLEFT,$parent,TOPLEFT,3,7"
                 }
                 {login_inputs()}
-                {login_main_buttons()}
+                {login_main_buttons(false)}
                 {login_action_buttons()}
                 {login_footer()}
             }
