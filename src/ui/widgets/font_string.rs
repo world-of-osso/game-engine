@@ -21,6 +21,27 @@ impl dioxus_core::IntoAttributeValue for JustifyH {
     }
 }
 
+/// RGBA color for use in Dioxus RSX attributes (font_color, background_color).
+///
+/// ```ignore
+/// fontstring { font_color: FontColor::new(0.65, 0.65, 0.7, 1.0) }
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FontColor(pub [f32; 4]);
+
+impl FontColor {
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self([r, g, b, a])
+    }
+}
+
+impl dioxus_core::IntoAttributeValue for FontColor {
+    fn into_value(self) -> dioxus_core::AttributeValue {
+        let [r, g, b, a] = self.0;
+        dioxus_core::AttributeValue::Text(format!("{r},{g},{b},{a}"))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JustifyV {
     Top,

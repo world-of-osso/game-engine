@@ -6,7 +6,7 @@ use dioxus::prelude::*;
 #[allow(unused_imports)]
 use crate::ui::dioxus_elements;
 use crate::ui::anchor::AnchorPoint;
-use crate::ui::widgets::font_string::JustifyH;
+use crate::ui::widgets::font_string::{FontColor, JustifyH};
 
 /// Shared status text injected via root context. ECS writes, component reads.
 pub type SharedStatusText = Rc<RefCell<String>>;
@@ -15,6 +15,10 @@ const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.k
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
+const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
+const COLOR_ERROR: FontColor = FontColor::new(0.9, 0.5, 0.5, 1.0);
+const COLOR_SUBTLE: FontColor = FontColor::new(0.65, 0.65, 0.7, 1.0);
+const COLOR_VERSION: FontColor = FontColor::new(0.7, 0.7, 0.75, 1.0);
 
 fn login_background() -> Element {
     rsx! {
@@ -32,7 +36,7 @@ fn login_inputs() -> Element {
             fontstring { name: "UsernameInputLabel", width: 320.0, height: 18.0,
                 text: "Username", font_size: 18.0,
                 font: FONT_GLUE_LABEL,
-                font_color: "1.0,0.82,0.0,1.0",
+                font_color: COLOR_GOLD,
                 anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Top, y: "4" }
             }
         }
@@ -42,7 +46,7 @@ fn login_inputs() -> Element {
             fontstring { name: "PasswordInputLabel", width: 320.0, height: 18.0,
                 text: "Password", font_size: 18.0,
                 font: FONT_GLUE_LABEL,
-                font_color: "1.0,0.82,0.0,1.0",
+                font_color: COLOR_GOLD,
                 anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Top, y: "4" }
             }
         }
@@ -64,7 +68,7 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
         }
         fontstring { name: "LoginStatus", width: 320.0, height: 24.0,
             text: status_text, font_size: 13.0,
-            font_color: "0.9,0.5,0.5,1.0", strata: "MEDIUM",
+            font_color: COLOR_ERROR, strata: "MEDIUM",
             anchor { point: AnchorPoint::Top, relative_to: "PasswordInput", relative_point: AnchorPoint::Bottom, y: "-136" }
         }
     }
@@ -91,20 +95,20 @@ fn login_footer() -> Element {
     rsx! {
         fontstring { name: "VersionText", width: 200.0, height: 16.0,
             text: "game-engine v0.1.0", font_size: 11.0,
-            font_color: "0.7,0.7,0.75,1.0", justify_h: JustifyH::Left,
+            font_color: COLOR_VERSION, justify_h: JustifyH::Left,
             strata: "MEDIUM",
             anchor { point: AnchorPoint::BottomLeft, relative_point: AnchorPoint::BottomLeft, x: "10", y: "8" }
         }
         fontstring { name: "DisclaimerText", width: 400.0, height: 16.0,
             text: "© 2025 World of Osso. All rights reserved.",
-            font_size: 11.0, font_color: "0.65,0.65,0.7,1.0",
+            font_size: 11.0, font_color: COLOR_SUBTLE,
             strata: "MEDIUM",
             anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "8" }
         }
         fontstring { name: "BlizzardThanks",
             text: "Special thanks to", font_size: 10.0,
             font: FONT_GLUE_LABEL,
-            font_color: "0.65,0.65,0.7,1.0", strata: "HIGH",
+            font_color: COLOR_SUBTLE, strata: "HIGH",
             anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "130" }
         }
         texture { name: "BlizzardLogo", width: 100.0, height: 100.0,
