@@ -116,7 +116,7 @@ pub fn login_screen() -> Element {
             {login_background()}
             r#frame { name: "LoginUI", strata: "MEDIUM",
                 texture { name: "LoginGameLogo", texture_file: TEX_GAME_LOGO,
-                    width: 256.0, height: 256.0, strata: "HIGH",
+                    width: 384.0, height: 256.0, strata: "HIGH",
                     anchor: "TOPLEFT,$parent,TOPLEFT,3,7"
                 }
                 {login_inputs()}
