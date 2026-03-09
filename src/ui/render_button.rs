@@ -18,6 +18,9 @@ pub struct UiButtonHighlight(pub u64);
 
 const BUTTON_NINE_SLICE_EDGE: f32 = 4.0;
 const DEFAULT_BUTTON_ATLAS: &str = "defaultbutton-nineslice-up";
+const DEFAULT_BUTTON_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
+const DEFAULT_BUTTON_PRESSED: &str = "defaultbutton-nineslice-pressed";
+const DEFAULT_BUTTON_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
 /// Returns `(edge_h, edge_v, uv_edge)` — scaled screen edges + original texture edge.
 fn button_nine_slice_edges(tex: &TextureSource, frame_w: f32, frame_h: f32) -> (f32, f32, f32) {
@@ -40,6 +43,10 @@ fn select_button_texture_source(btn: &ButtonData) -> Option<&TextureSource> {
             .as_ref()
             .or(btn.normal_texture.as_ref()),
         ButtonState::Pushed => btn.pushed_texture.as_ref().or(btn.normal_texture.as_ref()),
+        ButtonState::Normal if btn.hovered => btn
+            .highlight_texture
+            .as_ref()
+            .or(btn.normal_texture.as_ref()),
         ButtonState::Normal => btn.normal_texture.as_ref(),
     }?;
     if matches!(source, TextureSource::None) {
@@ -59,7 +66,7 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
 
     for id in ids {
         let texture = extract_button_texture(&state, id);
-        let tex = texture.unwrap_or_else(|| TextureSource::Atlas(DEFAULT_BUTTON_ATLAS.to_string()));
+        let tex = texture.unwrap_or_else(|| default_button_texture(&state, id));
         let Some(frame) = state.registry.get_mut(id) else {
             continue;
         };
@@ -74,6 +81,19 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
             ..Default::default()
         });
     }
+}
+
+fn default_button_texture(state: &UiState, id: u64) -> TextureSource {
+    let name = match state.registry.get(id).and_then(|f| f.widget_data.as_ref()) {
+        Some(WidgetData::Button(btn)) => match btn.state {
+            ButtonState::Disabled => DEFAULT_BUTTON_DISABLED,
+            ButtonState::Pushed => DEFAULT_BUTTON_PRESSED,
+            ButtonState::Normal if btn.hovered => DEFAULT_BUTTON_HIGHLIGHT,
+            ButtonState::Normal => DEFAULT_BUTTON_ATLAS,
+        },
+        _ => DEFAULT_BUTTON_ATLAS,
+    };
+    TextureSource::Atlas(name.to_string())
 }
 
 fn extract_button_texture(state: &UiState, id: u64) -> Option<TextureSource> {
