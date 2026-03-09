@@ -42,8 +42,12 @@ pub fn sync_ui_text(
             commands.entity(entity).despawn();
             continue;
         }
-        existing.insert(ui_text.0);
         let props = extract_text_props(frame);
+        if text.0 != props.content {
+            commands.entity(entity).despawn();
+            continue;
+        }
+        existing.insert(ui_text.0);
         *text = Text2d::new(&props.content);
         font.font_size = props.font_size;
         if let Some(font_handle) = resolve_font_handle(
@@ -290,7 +294,10 @@ mod tests {
     use super::*;
     use crate::ui::frame::{Frame, WidgetData, WidgetType};
     use crate::ui::layout::LayoutRect;
+    use crate::ui::plugin::{UiPlugin, UiState};
+    use crate::ui::render::UiText;
     use crate::ui::widgets::edit_box::EditBoxData;
+    use crate::ui::widgets::font_string::FontStringData;
 
     fn make_edit_box(width: f32, height: f32, insets: [f32; 4]) -> Frame {
         let mut frame = Frame::new(1, Some("EditBox".into()), WidgetType::EditBox);
@@ -352,5 +359,68 @@ mod tests {
         assert!((srgba.green - 0.7).abs() < 0.001);
         assert!((srgba.blue - 0.6).abs() < 0.001);
         assert!((srgba.alpha - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn sync_ui_text_replaces_entity_when_content_changes() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(Assets::<Font>::default());
+        app.add_plugins(UiPlugin);
+        app.update();
+
+        let frame_id = {
+            let mut ui = app.world_mut().resource_mut::<UiState>();
+            let id = ui.registry.create_frame("StatusText", None);
+            let frame = ui.registry.get_mut(id).expect("status text frame");
+            frame.width = 100.0;
+            frame.height = 20.0;
+            frame.widget_data = Some(WidgetData::FontString(FontStringData {
+                text: "First error".into(),
+                ..Default::default()
+            }));
+            id
+        };
+
+        app.update();
+        let first_entity = {
+            let mut query = app.world_mut().query::<(Entity, &UiText, &Text2d)>();
+            query
+                .iter(app.world())
+                .find(|(_, ui_text, text)| ui_text.0 == frame_id && text.0 == "First error")
+                .map(|(entity, _, _)| entity)
+                .expect("first text entity")
+        };
+
+        {
+            let mut ui = app.world_mut().resource_mut::<UiState>();
+            let frame = ui.registry.get_mut(frame_id).expect("status text frame");
+            let Some(WidgetData::FontString(fs)) = frame.widget_data.as_mut() else {
+                panic!("expected font string");
+            };
+            fs.text = "Second error".into();
+        }
+
+        app.update();
+        app.update();
+
+        let matching: Vec<_> = {
+            let mut query = app.world_mut().query::<(Entity, &UiText, &Text2d)>();
+            query
+                .iter(app.world())
+                .filter(|(_, ui_text, _)| ui_text.0 == frame_id)
+                .map(|(entity, _, text)| (entity, text.0.clone()))
+                .collect()
+        };
+        assert_eq!(
+            matching.len(),
+            1,
+            "expected one rendered text entity, got {matching:?}"
+        );
+        assert_eq!(matching[0].1, "Second error");
+        assert_ne!(
+            matching[0].0, first_entity,
+            "text entity should be replaced on content change"
+        );
     }
 }

@@ -23,7 +23,7 @@ cascette-formats = { path = "/home/osso/Repos/cascette-rs/crates/cascette-format
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
 shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/shared" }
 dioxus-core = "0.7"
-dioxus = { version = "0.7", default-features = false, features = ["macro", "signals"] }
+dioxus = { version = "0.7", default-features = false, features = ["macro", "signals", "hooks"] }
 game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }

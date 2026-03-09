@@ -113,13 +113,7 @@ fn load_materialized_atlas_region(
     Some(LoadedTexture { handle, rect: None })
 }
 
-fn crop_image_region(
-    image: &Image,
-    left: f32,
-    right: f32,
-    top: f32,
-    bottom: f32,
-) -> Option<Image> {
+fn crop_image_region(image: &Image, left: f32, right: f32, top: f32, bottom: f32) -> Option<Image> {
     if image.texture_descriptor.format != TextureFormat::Rgba8UnormSrgb
         && image.texture_descriptor.format != TextureFormat::Rgba8Unorm
     {

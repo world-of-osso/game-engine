@@ -55,7 +55,10 @@ pub fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
         return;
     }
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if eb.max_letters.is_some_and(|max| eb.text.len() >= max as usize) {
+        if eb
+            .max_letters
+            .is_some_and(|max| eb.text.len() >= max as usize)
+        {
             return;
         }
         eb.text.insert_str(eb.cursor_position, ch);
@@ -134,7 +137,13 @@ pub fn create_frame(
     id
 }
 
-pub fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f32, h: f32) -> u64 {
+pub fn create_editbox(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    w: f32,
+    h: f32,
+) -> u64 {
     let id = create_frame(reg, name, parent, WidgetType::EditBox, w, h);
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::EditBox(EditBoxData::default()));
@@ -143,7 +152,11 @@ pub fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, 
 }
 
 pub fn checkbox_text(checked: bool) -> &'static str {
-    if checked { "[x] Save account name" } else { "[ ] Save account name" }
+    if checked {
+        "[x] Save account name"
+    } else {
+        "[ ] Save account name"
+    }
 }
 
 pub fn set_button_text(reg: &mut FrameRegistry, id: u64, text: &str) {
@@ -204,13 +217,17 @@ pub fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f
         frame.layout_rect = None;
     }
     reg.clear_all_points(id);
-    reg.set_point(id, Anchor {
-        point: AnchorPoint::TopLeft,
-        relative_to,
-        relative_point: AnchorPoint::TopLeft,
-        x_offset,
-        y_offset: -y_offset,
-    }).expect("screen layout helper must create a valid anchor");
+    reg.set_point(
+        id,
+        Anchor {
+            point: AnchorPoint::TopLeft,
+            relative_to,
+            relative_point: AnchorPoint::TopLeft,
+            x_offset,
+            y_offset: -y_offset,
+        },
+    )
+    .expect("screen layout helper must create a valid anchor");
     if let Some(layout_rect) = resolve_frame_layout(reg, id)
         && let Some(frame) = reg.get_mut(id)
     {
@@ -242,7 +259,13 @@ pub fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, 
     }
 }
 
-pub fn set_font_string_left(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
+pub fn set_font_string_left(
+    reg: &mut FrameRegistry,
+    id: u64,
+    text: &str,
+    size: f32,
+    color: [f32; 4],
+) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
             text: text.to_string(),

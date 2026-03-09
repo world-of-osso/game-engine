@@ -5,22 +5,23 @@ use game_engine::ui::dioxus_screen::DioxusScreen;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
-use game_engine::ui::screens::login_component::login_screen;
+use game_engine::ui::screens::login_component::{SharedStatusText, login_screen};
 
-use crate::networking;
 use crate::game_state::GameState;
+use crate::networking;
 
-use super::{
-    LoginFocus, LoginStatus, LoginUi,
-    run_login_automation_action, sync_button_states, try_connect,
-};
 use super::helpers::get_editbox_text;
+use super::{
+    LoginFocus, LoginStatus, LoginUi, run_login_automation_action, sync_button_states, try_connect,
+};
 
 use game_engine::ui::automation::UiAutomationAction;
 
 fn login_fixture() -> (FrameRegistry, LoginUi) {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut screen = DioxusScreen::new(login_screen);
+    let shared_status: SharedStatusText = Default::default();
+    screen.provide_root_context(shared_status);
     screen.sync(&mut reg);
 
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
@@ -36,11 +37,8 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
     let status_text = reg.get_by_name("LoginStatus").expect("LoginStatus");
 
     // Inject layout rects manually so hit-testing works in unit tests.
-    inject_layout_rects(&mut reg, root, username_input, password_input,
-        connect_button, reconnect_button, create_account_button, menu_button,
-        exit_button, status_text);
-
-    (reg, LoginUi {
+    inject_layout_rects(
+        &mut reg,
         root,
         username_input,
         password_input,
@@ -50,7 +48,22 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
         menu_button,
         exit_button,
         status_text,
-    })
+    );
+
+    (
+        reg,
+        LoginUi {
+            root,
+            username_input,
+            password_input,
+            connect_button,
+            reconnect_button,
+            create_account_button,
+            menu_button,
+            exit_button,
+            status_text,
+        },
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -69,7 +82,12 @@ fn inject_layout_rects(
     use game_engine::ui::layout::LayoutRect;
     let set_rect = |reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32| {
         if let Some(f) = reg.get_mut(id) {
-            f.layout_rect = Some(LayoutRect { x, y, width: w, height: h });
+            f.layout_rect = Some(LayoutRect {
+                x,
+                y,
+                width: w,
+                height: h,
+            });
             f.width = w;
             f.height = h;
         }
@@ -88,8 +106,7 @@ fn inject_layout_rects(
 }
 
 fn set_editbox_text_for_test(reg: &mut FrameRegistry, id: u64, text: &str) {
-    let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut())
-    else {
+    let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) else {
         panic!("expected edit box");
     };
     eb.text = text.to_string();
@@ -120,8 +137,15 @@ fn automation_click_focuses_username_editbox() {
     {
         let mut commands = system_state.get_mut(&mut world);
         run_login_automation_action(
-            &mut ui, &login, &mut focus, &mut next_state, &mut status,
-            &mut login_mode, &auth_token, None, &mut commands,
+            &mut ui,
+            &login,
+            &mut focus,
+            &mut next_state,
+            &mut status,
+            &mut login_mode,
+            &auth_token,
+            None,
+            &mut commands,
             &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
         )
         .expect("automation click should succeed");
@@ -146,14 +170,24 @@ fn automation_type_uses_login_editbox_code_path() {
     {
         let mut commands = system_state.get_mut(&mut world);
         run_login_automation_action(
-            &mut ui, &login, &mut focus, &mut next_state, &mut status,
-            &mut login_mode, &auth_token, None, &mut commands,
+            &mut ui,
+            &login,
+            &mut focus,
+            &mut next_state,
+            &mut status,
+            &mut login_mode,
+            &auth_token,
+            None,
+            &mut commands,
             &UiAutomationAction::TypeText("alice".to_string()),
         )
         .expect("automation typing should succeed");
     }
 
-    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "alice");
+    assert_eq!(
+        get_editbox_text(&ui.registry, login.username_input),
+        "alice"
+    );
 }
 
 #[test]
@@ -179,8 +213,16 @@ fn automation_login_reaches_connecting_state() {
         ];
         for action in actions {
             run_login_automation_action(
-                &mut ui, &login, &mut focus, &mut next_state, &mut status,
-                &mut login_mode, &auth_token, None, &mut commands, &action,
+                &mut ui,
+                &login,
+                &mut focus,
+                &mut next_state,
+                &mut status,
+                &mut login_mode,
+                &auth_token,
+                None,
+                &mut commands,
+                &action,
             )
             .expect("automation action should succeed");
         }
@@ -188,7 +230,10 @@ fn automation_login_reaches_connecting_state() {
     system_state.apply(&mut world);
 
     assert_eq!(status.0, super::STATUS_CONNECTING);
-    assert!(matches!(next_state, NextState::Pending(GameState::Connecting)));
+    assert!(matches!(
+        next_state,
+        NextState::Pending(GameState::Connecting)
+    ));
     assert_eq!(world.resource::<networking::LoginUsername>().0, "alice");
     assert_eq!(world.resource::<networking::LoginPassword>().0, "secret");
 }
@@ -203,8 +248,15 @@ fn try_connect_requires_all_fields() {
 
     {
         let mut commands = system_state.get_mut(&mut world);
-        try_connect(&reg, &login, &mut status, &mut next_state,
-            &networking::LoginMode::Login, None, &mut commands);
+        try_connect(
+            &reg,
+            &login,
+            &mut status,
+            &mut next_state,
+            &networking::LoginMode::Login,
+            None,
+            &mut commands,
+        );
     }
     system_state.apply(&mut world);
 
@@ -225,13 +277,23 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
 
     {
         let mut commands = system_state.get_mut(&mut world);
-        try_connect(&reg, &login, &mut status, &mut next_state,
-            &networking::LoginMode::Login, None, &mut commands);
+        try_connect(
+            &reg,
+            &login,
+            &mut status,
+            &mut next_state,
+            &networking::LoginMode::Login,
+            None,
+            &mut commands,
+        );
     }
     system_state.apply(&mut world);
 
     assert_eq!(status.0, "Connecting...");
-    assert!(matches!(next_state, NextState::Pending(GameState::Connecting)));
+    assert!(matches!(
+        next_state,
+        NextState::Pending(GameState::Connecting)
+    ));
     assert_eq!(
         world.resource::<networking::ServerAddr>().0,
         super::DEFAULT_SERVER_ADDR.parse().unwrap()
@@ -248,14 +310,30 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
 fn sync_button_states_keeps_login_button_visible_even_with_saved_token() {
     let (mut reg, login) = login_fixture();
 
-    sync_button_states(&mut reg, &login, &networking::LoginMode::Login,
-        &networking::AuthToken(Some("saved-token".to_string())));
-    assert!(reg.get(login.connect_button).expect("connect button").visible);
+    sync_button_states(
+        &mut reg,
+        &login,
+        &networking::LoginMode::Login,
+        &networking::AuthToken(Some("saved-token".to_string())),
+    );
+    assert!(
+        reg.get(login.connect_button)
+            .expect("connect button")
+            .visible
+    );
     assert!(login.reconnect_button.is_none());
 
-    sync_button_states(&mut reg, &login, &networking::LoginMode::Register,
-        &networking::AuthToken(Some("saved-token".to_string())));
-    assert!(reg.get(login.connect_button).expect("connect button").visible);
+    sync_button_states(
+        &mut reg,
+        &login,
+        &networking::LoginMode::Register,
+        &networking::AuthToken(Some("saved-token".to_string())),
+    );
+    assert!(
+        reg.get(login.connect_button)
+            .expect("connect button")
+            .visible
+    );
     assert!(login.reconnect_button.is_none());
 }
 
@@ -283,7 +361,12 @@ fn build_login_ui_shows_pending_auth_error_message() {
         app.world().resource::<LoginStatus>().0,
         "Incorrect username or password"
     );
-    assert!(app.world().resource::<networking::AuthUiFeedback>().0.is_none());
+    assert!(
+        app.world()
+            .resource::<networking::AuthUiFeedback>()
+            .0
+            .is_none()
+    );
 }
 
 #[test]
@@ -295,14 +378,167 @@ fn try_connect_preserves_explicit_server_address() {
     let mut next_state = NextState::<GameState>::default();
     let mut world = World::new();
     let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
-    let explicit_addr = "127.0.0.1:5000".parse().expect("test server address should parse");
+    let explicit_addr = "127.0.0.1:5000"
+        .parse()
+        .expect("test server address should parse");
 
     {
         let mut commands = system_state.get_mut(&mut world);
-        try_connect(&reg, &login, &mut status, &mut next_state,
-            &networking::LoginMode::Login, Some(explicit_addr), &mut commands);
+        try_connect(
+            &reg,
+            &login,
+            &mut status,
+            &mut next_state,
+            &networking::LoginMode::Login,
+            Some(explicit_addr),
+            &mut commands,
+        );
     }
     system_state.apply(&mut world);
 
     assert_eq!(world.resource::<networking::ServerAddr>().0, explicit_addr);
+}
+
+#[test]
+fn login_update_visuals_updates_login_status_fontstring() {
+    let mut app = App::new();
+    app.insert_resource(UiState {
+        registry: FrameRegistry::new(0.0, 0.0),
+        event_bus: game_engine::ui::event::EventBus::new(),
+        wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
+        focused_frame: None,
+    });
+    app.init_resource::<LoginStatus>();
+    app.init_resource::<LoginFocus>();
+    app.insert_resource(networking::AuthUiFeedback::default());
+    app.insert_resource(networking::LoginMode::Login);
+    app.insert_resource(networking::AuthToken(None));
+
+    let mut window = Window::default();
+    window.resolution.set(1280.0, 720.0);
+    app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+
+    let _ = app.world_mut().run_system_cached(super::build_login_ui);
+    app.world_mut().resource_mut::<LoginStatus>().0 = "Server unavailable".to_string();
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
+
+    let ui = app.world().resource::<UiState>();
+    let login = app.world().resource::<LoginUi>();
+    let Some(WidgetData::FontString(fs)) = ui
+        .registry
+        .get(login.status_text)
+        .and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("expected LoginStatus to be a font string");
+    };
+
+    assert_eq!(fs.text, "Server unavailable");
+}
+
+#[test]
+fn login_update_visuals_does_not_duplicate_login_status_frames() {
+    let mut app = App::new();
+    app.insert_resource(UiState {
+        registry: FrameRegistry::new(0.0, 0.0),
+        event_bus: game_engine::ui::event::EventBus::new(),
+        wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
+        focused_frame: None,
+    });
+    app.init_resource::<LoginStatus>();
+    app.init_resource::<LoginFocus>();
+    app.insert_resource(networking::AuthUiFeedback::default());
+    app.insert_resource(networking::LoginMode::Login);
+    app.insert_resource(networking::AuthToken(None));
+
+    let mut window = Window::default();
+    window.resolution.set(1280.0, 720.0);
+    app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+
+    let _ = app.world_mut().run_system_cached(super::build_login_ui);
+    app.world_mut().resource_mut::<LoginStatus>().0 = "First error".to_string();
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
+    app.world_mut().resource_mut::<LoginStatus>().0 = "Second error".to_string();
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
+
+    let ui = app.world().resource::<UiState>();
+    let matching: Vec<_> = ui
+        .registry
+        .frames_iter()
+        .filter(|frame| frame.name.as_deref() == Some("LoginStatus"))
+        .collect();
+    assert_eq!(
+        matching.len(),
+        1,
+        "expected exactly one LoginStatus frame, found {}",
+        matching.len()
+    );
+}
+
+#[test]
+fn rendered_login_status_text_replaces_previous_text() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(Assets::<bevy::text::Font>::default());
+    app.add_plugins(game_engine::ui::plugin::UiPlugin);
+    app.init_resource::<LoginStatus>();
+    app.init_resource::<LoginFocus>();
+    app.insert_resource(networking::AuthUiFeedback::default());
+    app.insert_resource(networking::LoginMode::Login);
+    app.insert_resource(networking::AuthToken(None));
+
+    let mut window = Window::default();
+    window.resolution.set(1280.0, 720.0);
+    app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+
+    let _ = app.world_mut().run_system_cached(super::build_login_ui);
+    app.update();
+
+    app.world_mut().resource_mut::<LoginStatus>().0 = "First error".to_string();
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
+    app.update();
+
+    app.world_mut().resource_mut::<LoginStatus>().0 = "Second error".to_string();
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
+    app.update();
+
+    let status_text_id = app.world().resource::<LoginUi>().status_text;
+    let mut q = app.world_mut().query::<(
+        &game_engine::ui::render::UiText,
+        &Text2d,
+        Option<&game_engine::ui::render_text_fx::UiTextShadow>,
+        Option<&game_engine::ui::render_text_fx::UiTextOutline>,
+    )>();
+    let rendered: Vec<_> = q
+        .iter(app.world())
+        .filter(|(ui_text, _, shadow, outline)| {
+            ui_text.0 == status_text_id && shadow.is_none() && outline.is_none()
+        })
+        .map(|(_, text, _, _)| format!("{:?}", text))
+        .collect();
+
+    assert_eq!(
+        rendered.len(),
+        1,
+        "expected one main rendered text entity, got {rendered:?}"
+    );
+    assert!(
+        rendered[0].contains("Second error"),
+        "unexpected text payload: {}",
+        rendered[0]
+    );
+    assert!(
+        !rendered[0].contains("First errorSecond error"),
+        "text was appended instead of replaced: {}",
+        rendered[0]
+    );
 }

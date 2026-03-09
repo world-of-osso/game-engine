@@ -120,7 +120,11 @@ impl Default for WowCamera {
 
 pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
     commands
-        .spawn((Camera3d::default(), Transform::default(), WowCamera::default()))
+        .spawn((
+            Camera3d::default(),
+            Transform::default(),
+            WowCamera::default(),
+        ))
         .id()
 }
 

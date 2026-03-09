@@ -65,7 +65,9 @@ impl GameUiRenderer {
     pub fn resolve_pending_anchors(&mut self, registry: &mut FrameRegistry) {
         let pending = std::mem::take(&mut self.pending_anchors);
         for (frame_id, spec) in pending {
-            let already_has = registry.get(frame_id).is_some_and(|f| !f.anchors.is_empty());
+            let already_has = registry
+                .get(frame_id)
+                .is_some_and(|f| !f.anchors.is_empty());
             if !already_has {
                 apply_anchor_resolved(registry, frame_id, &spec);
             }
@@ -113,7 +115,12 @@ impl GameUiRenderer {
             return;
         };
         for attr in *attrs {
-            if let dioxus_core::TemplateAttribute::Static { name, value, namespace } = attr {
+            if let dioxus_core::TemplateAttribute::Static {
+                name,
+                value,
+                namespace,
+            } = attr
+            {
                 apply_static_attribute(registry, frame_id, name, *namespace, value, pending);
             }
         }
@@ -136,7 +143,12 @@ impl GameUiRenderer {
                     let child_fid = instantiate_element(tag, parent_frame_id, registry);
                     self.created_frames.push(child_fid);
                     self.template_child_frames.push((path.clone(), child_fid));
-                    Self::apply_node_attributes(child, registry, child_fid, &mut self.pending_anchors);
+                    Self::apply_node_attributes(
+                        child,
+                        registry,
+                        child_fid,
+                        &mut self.pending_anchors,
+                    );
                     self.instantiate_template_children(child, child_fid, registry, path);
                 }
                 TemplateNode::Text { text } => {
@@ -208,7 +220,10 @@ impl WriteMutations for MutationApplier<'_> {
 
     fn assign_node_id(&mut self, path: &'static [u8], id: ElementId) {
         self.renderer.ensure_slot(id);
-        let fid = self.renderer.template_child_frames.iter()
+        let fid = self
+            .renderer
+            .template_child_frames
+            .iter()
             .find(|(p, _)| p.as_slice() == path)
             .map(|(_, fid)| *fid);
         if let Some(frame_id) = fid {
@@ -237,10 +252,19 @@ impl WriteMutations for MutationApplier<'_> {
         let frame_id = self.renderer.create_frame_for_tag(tag, id, self.registry);
         self.renderer.template_child_frames.clear();
         if let Some(root_node) = template.roots.get(index) {
-            GameUiRenderer::apply_node_attributes(root_node, self.registry, frame_id, &mut self.renderer.pending_anchors);
+            GameUiRenderer::apply_node_attributes(
+                root_node,
+                self.registry,
+                frame_id,
+                &mut self.renderer.pending_anchors,
+            );
             let mut path = Vec::new();
-            self.renderer
-                .instantiate_template_children(root_node, frame_id, self.registry, &mut path);
+            self.renderer.instantiate_template_children(
+                root_node,
+                frame_id,
+                self.registry,
+                &mut path,
+            );
         }
         self.renderer.stack.push(id);
         if !self.renderer.templates.contains(&template) {
@@ -363,12 +387,16 @@ fn apply_frame_attr(frame: &mut Frame, name: &str, value: &AttributeValue) {
             }
         }
         "background_color" => {
-            if let Some(s) = as_text(value) && let Some(color) = parse_color(s) {
+            if let Some(s) = as_text(value)
+                && let Some(color) = parse_color(s)
+            {
                 frame.background_color = Some(color);
             }
         }
         "nine_slice" => {
-            if let Some(s) = as_text(value) && let Some(ns) = parse_nine_slice(s) {
+            if let Some(s) = as_text(value)
+                && let Some(ns) = parse_nine_slice(s)
+            {
                 frame.nine_slice = Some(ns);
             }
         }
@@ -395,7 +423,9 @@ fn apply_widget_text_attrs(frame: &mut Frame, name: &str, value: &AttributeValue
             _ => {}
         }),
         "font_color" => {
-            if let Some(s) = as_text(value) && let Some(color) = parse_color(s) {
+            if let Some(s) = as_text(value)
+                && let Some(color) = parse_color(s)
+            {
                 match &mut frame.widget_data {
                     Some(WidgetData::FontString(fs)) => fs.color = color,
                     Some(WidgetData::EditBox(eb)) => eb.text_color = color,
@@ -441,10 +471,18 @@ fn apply_widget_texture_attrs(frame: &mut Frame, name: &str, value: &AttributeVa
                 }
             }
         }
-        "button_atlas_up" => apply_button_texture(frame, value, |bd, src| bd.normal_texture = Some(src)),
-        "button_atlas_pressed" => apply_button_texture(frame, value, |bd, src| bd.pushed_texture = Some(src)),
-        "button_atlas_highlight" => apply_button_texture(frame, value, |bd, src| bd.highlight_texture = Some(src)),
-        "button_atlas_disabled" => apply_button_texture(frame, value, |bd, src| bd.disabled_texture = Some(src)),
+        "button_atlas_up" => {
+            apply_button_texture(frame, value, |bd, src| bd.normal_texture = Some(src))
+        }
+        "button_atlas_pressed" => {
+            apply_button_texture(frame, value, |bd, src| bd.pushed_texture = Some(src))
+        }
+        "button_atlas_highlight" => {
+            apply_button_texture(frame, value, |bd, src| bd.highlight_texture = Some(src))
+        }
+        "button_atlas_disabled" => {
+            apply_button_texture(frame, value, |bd, src| bd.disabled_texture = Some(src))
+        }
         _ => {}
     }
 }
@@ -491,7 +529,13 @@ fn apply_anchor_resolved(registry: &mut FrameRegistry, frame_id: u64, s: &str) {
     let x_offset: f32 = parts[3].trim().parse().unwrap_or(0.0);
     let y_offset: f32 = parts[4].trim().parse().unwrap_or(0.0);
     let relative_to = resolve_anchor_relative(registry, frame_id, relative_name);
-    let anchor = Anchor { point, relative_to, relative_point, x_offset, y_offset };
+    let anchor = Anchor {
+        point,
+        relative_to,
+        relative_point,
+        x_offset,
+        y_offset,
+    };
     if let Some(frame) = registry.get_mut(frame_id) {
         frame.anchors.push(anchor);
     }
@@ -527,7 +571,12 @@ fn apply_static_attribute(
     pending: &mut Vec<(u64, String)>,
 ) {
     let _ = namespace;
-    if let Some(p) = apply_attribute(registry, frame_id, name, &AttributeValue::Text(value.to_string())) {
+    if let Some(p) = apply_attribute(
+        registry,
+        frame_id,
+        name,
+        &AttributeValue::Text(value.to_string()),
+    ) {
         pending.push(p);
     }
 }
@@ -656,7 +705,12 @@ mod tests {
         renderer.nodes[1] = Some(NodeKind::Element { frame_id: fid });
         {
             let mut applier = MutationApplier::new(&mut renderer, &mut registry);
-            applier.set_attribute("strata", None, &AttributeValue::Text("DIALOG".into()), ElementId(1));
+            applier.set_attribute(
+                "strata",
+                None,
+                &AttributeValue::Text("DIALOG".into()),
+                ElementId(1),
+            );
         }
         assert_eq!(registry.get(fid).unwrap().strata, FrameStrata::Dialog);
     }
@@ -695,7 +749,12 @@ mod tests {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
         let fid = renderer.create_frame_for_tag("Button", ElementId(1), &mut registry);
-        apply_attribute(&mut registry, fid, "text", &AttributeValue::Text("Click".into()));
+        apply_attribute(
+            &mut registry,
+            fid,
+            "text",
+            &AttributeValue::Text("Click".into()),
+        );
         let frame = registry.get(fid).unwrap();
         match &frame.widget_data {
             Some(WidgetData::Button(bd)) => assert_eq!(bd.text, "Click"),
@@ -708,11 +767,18 @@ mod tests {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
         let parent_fid = renderer.create_frame_for_tag("Frame", ElementId(1), &mut registry);
-        apply_attribute(&mut registry, parent_fid, "name", &AttributeValue::Text("MyParent".into()));
+        apply_attribute(
+            &mut registry,
+            parent_fid,
+            "name",
+            &AttributeValue::Text("MyParent".into()),
+        );
         let child_fid = renderer.create_frame_for_tag("Frame", ElementId(2), &mut registry);
         wire_parent_child(&mut registry, parent_fid, child_fid);
         apply_attribute(
-            &mut registry, child_fid, "anchor",
+            &mut registry,
+            child_fid,
+            "anchor",
             &AttributeValue::Text("CENTER,$parent,CENTER,10,20".into()),
         );
         let child = registry.get(child_fid).unwrap();
@@ -725,13 +791,26 @@ mod tests {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
         let button_fid = renderer.create_frame_for_tag("Button", ElementId(1), &mut registry);
-        assert!(matches!(registry.get(button_fid).unwrap().widget_data, Some(WidgetData::Button(_))));
+        assert!(matches!(
+            registry.get(button_fid).unwrap().widget_data,
+            Some(WidgetData::Button(_))
+        ));
         let editbox_fid = renderer.create_frame_for_tag("EditBox", ElementId(2), &mut registry);
-        assert!(matches!(registry.get(editbox_fid).unwrap().widget_data, Some(WidgetData::EditBox(_))));
-        let fontstring_fid = renderer.create_frame_for_tag("FontString", ElementId(3), &mut registry);
-        assert!(matches!(registry.get(fontstring_fid).unwrap().widget_data, Some(WidgetData::FontString(_))));
+        assert!(matches!(
+            registry.get(editbox_fid).unwrap().widget_data,
+            Some(WidgetData::EditBox(_))
+        ));
+        let fontstring_fid =
+            renderer.create_frame_for_tag("FontString", ElementId(3), &mut registry);
+        assert!(matches!(
+            registry.get(fontstring_fid).unwrap().widget_data,
+            Some(WidgetData::FontString(_))
+        ));
         let texture_fid = renderer.create_frame_for_tag("Texture", ElementId(4), &mut registry);
-        assert!(matches!(registry.get(texture_fid).unwrap().widget_data, Some(WidgetData::Texture(_))));
+        assert!(matches!(
+            registry.get(texture_fid).unwrap().widget_data,
+            Some(WidgetData::Texture(_))
+        ));
         let frame_fid = renderer.create_frame_for_tag("Frame", ElementId(5), &mut registry);
         assert!(registry.get(frame_fid).unwrap().widget_data.is_none());
     }

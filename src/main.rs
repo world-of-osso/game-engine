@@ -152,10 +152,7 @@ fn register_plugins(app: &mut App) {
         })
         .add_systems(
             Startup,
-            (
-                setup_explicit_asset_scene,
-                wow_cursor::install_wow_cursor,
-            ),
+            (setup_explicit_asset_scene, wow_cursor::install_wow_cursor),
         )
         .add_systems(
             Update,
@@ -186,7 +183,10 @@ fn configure_app_plugins(
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
-    app.add_systems(OnEnter(game_state::GameState::InWorld), setup_default_world_scene);
+    app.add_systems(
+        OnEnter(game_state::GameState::InWorld),
+        setup_default_world_scene,
+    );
     app.add_systems(Update, handle_automation_dump_tree_request);
     app.add_systems(Update, handle_automation_dump_ui_tree_request);
     app.add_systems(
@@ -495,8 +495,8 @@ fn setup_world_scene(
     creature_display_map: &creature_display::CreatureDisplayMap,
     asset_path: Option<&Path>,
 ) {
-    let is_terrain =
-        asset_path.is_some_and(|p| p.extension().is_some_and(|e| e == "adt")) || asset_path.is_none();
+    let is_terrain = asset_path.is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
+        || asset_path.is_none();
     let camera = spawn_scene_environment(commands, meshes, materials, sky_mats, images, is_terrain);
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {

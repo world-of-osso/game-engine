@@ -1,14 +1,18 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use dioxus::prelude::*;
 
 #[allow(unused_imports)]
 use crate::ui::dioxus_elements;
 
-const TEX_LOGIN_BACKGROUND: &str =
-    "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
+/// Shared status text injected via root context. ECS writes, component reads.
+pub type SharedStatusText = Rc<RefCell<String>>;
+
+const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.png";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
-const FONT_GLUE_LABEL: &str =
-    "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
+const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 
 fn login_background() -> Element {
     rsx! {
@@ -45,7 +49,7 @@ fn login_inputs() -> Element {
     }
 }
 
-fn login_main_buttons(show_reconnect: bool) -> Element {
+fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
     rsx! {
         if show_reconnect {
             button { name: "ReconnectButton", width: 250.0, height: 66.0,
@@ -59,7 +63,7 @@ fn login_main_buttons(show_reconnect: bool) -> Element {
             }
         }
         fontstring { name: "LoginStatus", width: 320.0, height: 24.0,
-            text: "", font_size: 13.0,
+            text: status_text, font_size: 13.0,
             font_color: "0.9,0.5,0.5,1.0", strata: "MEDIUM",
             anchor: "TOP,PasswordInput,BOTTOM,0,-136"
         }
@@ -117,6 +121,8 @@ fn login_footer() -> Element {
 }
 
 pub fn login_screen() -> Element {
+    let status_ref: SharedStatusText = use_context();
+    let status = status_ref.borrow().clone();
     rsx! {
         r#frame { name: "LoginRoot", strata: "BACKGROUND",
             {login_background()}
@@ -126,7 +132,7 @@ pub fn login_screen() -> Element {
                     anchor: "TOPLEFT,$parent,TOPLEFT,3,7"
                 }
                 {login_inputs()}
-                {login_main_buttons(false)}
+                {login_main_buttons(false, &status)}
                 {login_action_buttons()}
                 {login_footer()}
             }

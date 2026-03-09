@@ -20,8 +20,7 @@ mod helpers;
 
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox,
-    select_all_editbox,
+    editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, select_all_editbox,
 };
 
 const FADE_IN_DURATION: f32 = 0.75;
@@ -40,10 +39,8 @@ const LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS: &str = "login-generated-regular-u
 const LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS: &str = "login-generated-regular-pressed";
 const LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS: &str = "login-generated-regular-highlight";
 const LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS: &str = "login-generated-regular-disabled";
-const LOGIN_BUTTON_GENERATED_REGULAR_RAW: &str =
-    "output/imagegen/button-dark-bronze-regular.ktx2";
-const LOGIN_BUTTON_GENERATED_KNOTWORK: &str =
-    "output/imagegen/button-carved-bronze-knotwork.ktx2";
+const LOGIN_BUTTON_GENERATED_REGULAR_RAW: &str = "output/imagegen/button-dark-bronze-regular.ktx2";
+const LOGIN_BUTTON_GENERATED_KNOTWORK: &str = "output/imagegen/button-carved-bronze-knotwork.ktx2";
 const LOGIN_BUTTON_GENERATED_WALNUT: &str = "output/imagegen/button-walnut-bronze-framed.ktx2";
 
 #[derive(Resource)]
@@ -68,7 +65,12 @@ pub(crate) struct LoginStatus(pub(crate) String);
 #[derive(Resource)]
 struct LoginFadeIn(f32);
 
-struct LoginDioxusScreen(DioxusScreen);
+use game_engine::ui::screens::login_component::SharedStatusText;
+
+struct LoginDioxusScreen {
+    screen: DioxusScreen,
+    shared_status: SharedStatusText,
+}
 // SAFETY: DioxusScreen contains Rc<Runtime> which is not Send/Sync, but login
 // systems run exclusively on the main thread so this is safe.
 unsafe impl Send for LoginDioxusScreen {}
@@ -113,6 +115,9 @@ pub(crate) fn build_login_ui(
     status.0 = auth_feedback.0.take().unwrap_or_default();
 
     let mut screen = DioxusScreen::new(login_screen);
+    let shared_status: SharedStatusText =
+        std::rc::Rc::new(std::cell::RefCell::new(status.0.clone()));
+    screen.provide_root_context(shared_status.clone());
     screen.sync(&mut ui.registry);
 
     let reg = &mut ui.registry;
@@ -128,14 +133,31 @@ pub(crate) fn build_login_ui(
     let exit_button = reg.get_by_name("ExitButton").expect("ExitButton");
     let status_text = reg.get_by_name("LoginStatus").expect("LoginStatus");
 
-    apply_post_setup(reg, root, username_input, password_input, connect_button, reconnect_button);
+    apply_post_setup(
+        reg,
+        root,
+        username_input,
+        password_input,
+        connect_button,
+        reconnect_button,
+    );
 
     reg.set_alpha(root, 0.0);
     commands.insert_resource(LoginFadeIn(0.0));
-    commands.insert_resource(LoginDioxusScreenRes(LoginDioxusScreen(screen)));
+    commands.insert_resource(LoginDioxusScreenRes(LoginDioxusScreen {
+        screen,
+        shared_status,
+    }));
     commands.insert_resource(LoginUi {
-        root, username_input, password_input, connect_button, reconnect_button,
-        create_account_button, menu_button, exit_button, status_text,
+        root,
+        username_input,
+        password_input,
+        connect_button,
+        reconnect_button,
+        create_account_button,
+        menu_button,
+        exit_button,
+        status_text,
     });
 }
 
@@ -166,7 +188,7 @@ fn teardown_login_ui(
     mut screen: Option<ResMut<LoginDioxusScreenRes>>,
 ) {
     if let Some(screen) = screen.as_mut() {
-        screen.0.0.teardown(&mut ui.registry);
+        screen.0.screen.teardown(&mut ui.registry);
     }
     commands.remove_resource::<LoginDioxusScreenRes>();
     commands.remove_resource::<LoginUi>();
@@ -209,7 +231,9 @@ fn common_input_border_part_textures() -> [TextureSource; 9] {
 
 fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
     let Some(frame) = reg.get_mut(id) else { return };
-    let Some(nine_slice) = frame.nine_slice.as_mut() else { return };
+    let Some(nine_slice) = frame.nine_slice.as_mut() else {
+        return;
+    };
     if focused {
         nine_slice.bg_color = EDITBOX_FOCUSED_BG;
         nine_slice.border_color = EDITBOX_FOCUSED_BORDER;
@@ -219,9 +243,14 @@ fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
     }
 }
 
-fn set_button_atlases(reg: &mut FrameRegistry, id: u64, normal: &str, pushed: &str,
-    highlight: &str, disabled: &str)
-{
+fn set_button_atlases(
+    reg: &mut FrameRegistry,
+    id: u64,
+    normal: &str,
+    pushed: &str,
+    highlight: &str,
+    disabled: &str,
+) {
     if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         bd.normal_texture = Some(TextureSource::Atlas(normal.to_string()));
         bd.pushed_texture = Some(TextureSource::Atlas(pushed.to_string()));
@@ -230,9 +259,14 @@ fn set_button_atlases(reg: &mut FrameRegistry, id: u64, normal: &str, pushed: &s
     }
 }
 
-fn set_button_files(reg: &mut FrameRegistry, id: u64, normal: &str, pushed: &str,
-    highlight: &str, disabled: &str)
-{
+fn set_button_files(
+    reg: &mut FrameRegistry,
+    id: u64,
+    normal: &str,
+    pushed: &str,
+    highlight: &str,
+    disabled: &str,
+) {
     if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         bd.normal_texture = Some(TextureSource::File(normal.to_string()));
         bd.pushed_texture = Some(TextureSource::File(pushed.to_string()));
@@ -250,7 +284,9 @@ fn set_button_hovered(reg: &mut FrameRegistry, id: u64, hovered: bool) {
 fn set_login_primary_button_textures(reg: &mut FrameRegistry, id: u64) {
     match selected_generated_login_button_path() {
         Some(path) => set_button_files(reg, id, path, path, path, path),
-        None => set_button_atlases(reg, id,
+        None => set_button_atlases(
+            reg,
+            id,
             LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS,
             LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS,
             LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS,
@@ -276,7 +312,9 @@ fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
 }
 
 fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
-    let Some(login) = login_ui.as_ref() else { return };
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
     let sw = ui.registry.screen_width;
     let sh = ui.registry.screen_height;
     if let Some(root) = ui.registry.get_mut(login.root) {
@@ -305,12 +343,28 @@ fn login_mouse_input(
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Some(login) = login_ui.as_ref() else { return };
-    if !buttons.just_pressed(MouseButton::Left) { return }
-    let Some(cursor) = windows.iter().next().and_then(|w| w.cursor_position()) else { return };
-    handle_mouse_click(&mut ui, login, cursor, &mut focus, &mut next_state, &mut status,
-        &mut login_mode, &auth_token, server_addr.as_ref().map(|addr| addr.0),
-        &mut commands, Some(&mut exit));
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
+    if !buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+    let Some(cursor) = windows.iter().next().and_then(|w| w.cursor_position()) else {
+        return;
+    };
+    handle_mouse_click(
+        &mut ui,
+        login,
+        cursor,
+        &mut focus,
+        &mut next_state,
+        &mut status,
+        &mut login_mode,
+        &auth_token,
+        server_addr.as_ref().map(|addr| addr.0),
+        &mut commands,
+        Some(&mut exit),
+    );
 }
 
 fn handle_mouse_click(
@@ -334,8 +388,20 @@ fn handle_mouse_click(
         focus.0 = Some(login.password_input);
         select_all_editbox(&mut ui.registry, login.password_input);
     } else {
-        handle_button_click(ui, login, cx, cy, focus, next_state, status, login_mode,
-            auth_token, server_addr, commands, exit);
+        handle_button_click(
+            ui,
+            login,
+            cx,
+            cy,
+            focus,
+            next_state,
+            status,
+            login_mode,
+            auth_token,
+            server_addr,
+            commands,
+            exit,
+        );
     }
 }
 
@@ -355,23 +421,43 @@ fn handle_button_click(
     exit: Option<&mut MessageWriter<AppExit>>,
 ) {
     if hit_active_frame(ui, login.connect_button, cx, cy) {
-        if let Some(WidgetData::Button(bd)) = ui.registry
-            .get_mut(login.connect_button).and_then(|f| f.widget_data.as_mut())
+        if let Some(WidgetData::Button(bd)) = ui
+            .registry
+            .get_mut(login.connect_button)
+            .and_then(|f| f.widget_data.as_mut())
         {
             bd.state = BtnState::Pushed;
         }
-        try_connect(&ui.registry, login, status, next_state, &*login_mode, server_addr, commands);
-    } else if login.reconnect_button
+        try_connect(
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            &*login_mode,
+            server_addr,
+            commands,
+        );
+    } else if login
+        .reconnect_button
         .is_some_and(|id| hit_active_frame(ui, id, cx, cy))
     {
-        try_reconnect(auth_token, status, next_state, login_mode, server_addr, commands);
+        try_reconnect(
+            auth_token,
+            status,
+            next_state,
+            login_mode,
+            server_addr,
+            commands,
+        );
     } else if hit_active_frame(ui, login.create_account_button, cx, cy) {
         toggle_login_mode(login_mode, &mut ui.registry, login);
         status.0.clear();
     } else if hit_active_frame(ui, login.menu_button, cx, cy) {
         status.0 = STATUS_MENU_UNAVAILABLE.to_string();
     } else if hit_active_frame(ui, login.exit_button, cx, cy) {
-        if let Some(exit) = exit { exit.write(AppExit::Success); }
+        if let Some(exit) = exit {
+            exit.write(AppExit::Success);
+        }
     } else {
         focus.0 = None;
     }
@@ -388,17 +474,31 @@ fn login_keyboard_input(
     server_addr: Option<Res<networking::ServerAddr>>,
     mut commands: Commands,
 ) {
-    let Some(login) = login_ui.as_ref() else { return };
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
     for event in key_events.read() {
-        if event.state != ButtonState::Pressed { continue }
-        if handle_nav_key(event.key_code, &mut focus, login) { continue }
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
+        if handle_nav_key(event.key_code, &mut focus, login) {
+            continue;
+        }
         let Some(focused_id) = focus.0 else { continue };
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
-            handle_login_key(event.key_code, focused_id, &mut ui, login, &mut status,
-                &mut next_state, &*login_mode, server_addr.as_ref().map(|addr| addr.0),
-                &mut commands);
+            handle_login_key(
+                event.key_code,
+                focused_id,
+                &mut ui,
+                login,
+                &mut status,
+                &mut next_state,
+                &*login_mode,
+                server_addr.as_ref().map(|addr| addr.0),
+                &mut commands,
+            );
         }
     }
 }
@@ -415,12 +515,22 @@ fn login_run_automation(
     mut queue: ResMut<UiAutomationQueue>,
     mut commands: Commands,
 ) {
-    let Some(login) = login_ui.as_ref() else { return };
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
     let Some(action) = queue.pop() else { return };
-    if let Err(err) = run_login_automation_action(&mut ui, login, &mut focus, &mut next_state,
-        &mut status, &mut login_mode, &auth_token,
-        server_addr.as_ref().map(|addr| addr.0), &mut commands, &action)
-    {
+    if let Err(err) = run_login_automation_action(
+        &mut ui,
+        login,
+        &mut focus,
+        &mut next_state,
+        &mut status,
+        &mut login_mode,
+        &auth_token,
+        server_addr.as_ref().map(|addr| addr.0),
+        &mut commands,
+        &action,
+    ) {
         status.0 = err;
     }
 }
@@ -440,8 +550,18 @@ pub(crate) fn run_login_automation_action(
 ) -> Result<(), String> {
     match action {
         UiAutomationAction::ClickFrame(frame_name) => {
-            click_login_frame(ui, login, focus, next_state, status, login_mode,
-                auth_token, server_addr, commands, frame_name)?;
+            click_login_frame(
+                ui,
+                login,
+                focus,
+                next_state,
+                status,
+                login_mode,
+                auth_token,
+                server_addr,
+                commands,
+                frame_name,
+            )?;
         }
         UiAutomationAction::TypeText(text) => {
             let Some(focused_id) = focus.0 else {
@@ -455,8 +575,17 @@ pub(crate) fn run_login_automation_action(
             let Some(focused_id) = focus.0 else {
                 return Err("automation key press requires a focused frame".to_string());
             };
-            handle_login_key(*key, focused_id, ui, login, status, next_state,
-                &*login_mode, server_addr, commands);
+            handle_login_key(
+                *key,
+                focused_id,
+                ui,
+                login,
+                status,
+                next_state,
+                &*login_mode,
+                server_addr,
+                commands,
+            );
         }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)
@@ -484,21 +613,40 @@ fn click_login_frame(
     let Some(frame_id) = ui.registry.get_by_name(frame_name) else {
         return Err(format!("unknown login frame '{frame_name}'"));
     };
-    let Some(rect) = ui.registry.get(frame_id)
-        .and_then(|frame| frame.layout_rect.as_ref()).cloned()
+    let Some(rect) = ui
+        .registry
+        .get(frame_id)
+        .and_then(|frame| frame.layout_rect.as_ref())
+        .cloned()
     else {
         return Err(format!("login frame '{frame_name}' has no layout rect"));
     };
-    handle_mouse_click(ui, login,
+    handle_mouse_click(
+        ui,
+        login,
         Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0),
-        focus, next_state, status, login_mode, auth_token, server_addr, commands, None);
+        focus,
+        next_state,
+        status,
+        login_mode,
+        auth_token,
+        server_addr,
+        commands,
+        None,
+    );
     Ok(())
 }
 
 fn handle_nav_key(key: KeyCode, focus: &mut LoginFocus, login: &LoginUi) -> bool {
     match key {
-        KeyCode::Tab => { focus.0 = Some(cycle_focus(focus.0, login)); true }
-        KeyCode::Escape => { focus.0 = None; true }
+        KeyCode::Tab => {
+            focus.0 = Some(cycle_focus(focus.0, login));
+            true
+        }
+        KeyCode::Escape => {
+            focus.0 = None;
+            true
+        }
         _ => false,
     }
 }
@@ -530,16 +678,27 @@ fn handle_login_key(
         KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1_i32),
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-        KeyCode::Enter => try_connect(&ui.registry, login, status, next_state, mode,
-            server_addr, commands),
+        KeyCode::Enter => try_connect(
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            mode,
+            server_addr,
+            commands,
+        ),
         _ => {}
     }
 }
 
-fn login_hover_visuals(windows: Query<&Window>, mut ui: ResMut<UiState>,
-    login_ui: Option<Res<LoginUi>>)
-{
-    let Some(login) = login_ui.as_ref() else { return };
+fn login_hover_visuals(
+    windows: Query<&Window>,
+    mut ui: ResMut<UiState>,
+    login_ui: Option<Res<LoginUi>>,
+) {
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
     let cursor = windows.iter().next().and_then(|w| w.cursor_position());
     let mut button_ids = vec![
         login.connect_button,
@@ -551,10 +710,14 @@ fn login_hover_visuals(windows: Query<&Window>, mut ui: ResMut<UiState>,
         button_ids.push(reconnect_button);
     }
     for id in button_ids {
-        let hovered = cursor.is_some_and(|c| ui.registry.get(id)
-            .and_then(|f| f.layout_rect.as_ref())
-            .is_some_and(|r| c.x >= r.x && c.x <= r.x + r.width
-                && c.y >= r.y && c.y <= r.y + r.height));
+        let hovered = cursor.is_some_and(|c| {
+            ui.registry
+                .get(id)
+                .and_then(|f| f.layout_rect.as_ref())
+                .is_some_and(|r| {
+                    c.x >= r.x && c.x <= r.x + r.width && c.y >= r.y && c.y <= r.y + r.height
+                })
+        });
         set_button_hovered(&mut ui.registry, id, hovered);
     }
 }
@@ -562,19 +725,36 @@ fn login_hover_visuals(windows: Query<&Window>, mut ui: ResMut<UiState>,
 fn login_update_visuals(
     mut ui: ResMut<UiState>,
     login_ui: Option<Res<LoginUi>>,
+    mut screen_res: Option<ResMut<LoginDioxusScreenRes>>,
     status: Res<LoginStatus>,
     focus: Res<LoginFocus>,
     login_mode: Res<networking::LoginMode>,
     auth_token: Res<networking::AuthToken>,
 ) {
-    let Some(login) = login_ui.as_ref() else { return };
+    let Some(login) = login_ui.as_ref() else {
+        return;
+    };
     ui.focused_frame = focus.0;
     sync_button_states(&mut ui.registry, login, &*login_mode, &auth_token);
-    sync_status_text(&mut ui.registry, login.status_text, &status.0);
-    sync_editbox_focus_visual(&mut ui.registry, login.username_input,
-        focus.0 == Some(login.username_input));
-    sync_editbox_focus_visual(&mut ui.registry, login.password_input,
-        focus.0 == Some(login.password_input));
+    if let Some(dioxus) = screen_res.as_mut() {
+        let mut shared = dioxus.0.shared_status.borrow_mut();
+        if *shared != status.0 {
+            *shared = status.0.clone();
+            drop(shared);
+            dioxus.0.screen.mark_dirty_root();
+            dioxus.0.screen.sync(&mut ui.registry);
+        }
+    }
+    sync_editbox_focus_visual(
+        &mut ui.registry,
+        login.username_input,
+        focus.0 == Some(login.username_input),
+    );
+    sync_editbox_focus_visual(
+        &mut ui.registry,
+        login.password_input,
+        focus.0 == Some(login.password_input),
+    );
 }
 
 pub(crate) fn sync_button_states(
@@ -587,7 +767,8 @@ pub(crate) fn sync_button_states(
     if let Some(reconnect_button) = login.reconnect_button {
         reg.set_shown(reconnect_button, false);
     }
-    if let Some(WidgetData::Button(btn)) = reg.get_mut(login.connect_button)
+    if let Some(WidgetData::Button(btn)) = reg
+        .get_mut(login.connect_button)
         .and_then(|f| f.widget_data.as_mut())
     {
         btn.text = match mode {
@@ -595,7 +776,8 @@ pub(crate) fn sync_button_states(
             networking::LoginMode::Register => "Create Account".to_string(),
         };
     }
-    if let Some(WidgetData::Button(btn)) = reg.get_mut(login.create_account_button)
+    if let Some(WidgetData::Button(btn)) = reg
+        .get_mut(login.create_account_button)
         .and_then(|f| f.widget_data.as_mut())
     {
         btn.text = match mode {
@@ -605,19 +787,21 @@ pub(crate) fn sync_button_states(
     }
 }
 
-fn sync_status_text(reg: &mut FrameRegistry, id: u64, text: &str) {
-    if let Some(WidgetData::FontString(fs)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut())
-    {
-        fs.text = text.to_string();
-    }
-}
-
-fn login_fade_in(time: Res<Time>, mut fade: Option<ResMut<LoginFadeIn>>,
-    mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>)
-{
-    let (Some(fade), Some(login)) = (fade.as_mut(), login_ui.as_ref()) else { return };
+fn login_fade_in(
+    time: Res<Time>,
+    mut fade: Option<ResMut<LoginFadeIn>>,
+    mut ui: ResMut<UiState>,
+    login_ui: Option<Res<LoginUi>>,
+) {
+    let (Some(fade), Some(login)) = (fade.as_mut(), login_ui.as_ref()) else {
+        return;
+    };
     fade.0 = (fade.0 + time.delta_secs()).min(FADE_IN_DURATION);
-    let alpha = if FADE_IN_DURATION <= 0.0 { 1.0 } else { fade.0 / FADE_IN_DURATION };
+    let alpha = if FADE_IN_DURATION <= 0.0 {
+        1.0
+    } else {
+        fade.0 / FADE_IN_DURATION
+    };
     ui.registry.set_alpha(login.root, alpha);
 }
 
@@ -654,7 +838,11 @@ fn try_reconnect(
     server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
 ) {
-    if auth_token.0.as_deref().is_none_or(|token| token.trim().is_empty()) {
+    if auth_token
+        .0
+        .as_deref()
+        .is_none_or(|token| token.trim().is_empty())
+    {
         status.0 = STATUS_RECONNECT_UNAVAILABLE.to_string();
         return;
     }

@@ -35,7 +35,7 @@ fn create_button(app: &mut App, name: &str, btn: ButtonData) -> u64 {
 // --- Button nine-slice tests ---
 
 #[test]
-fn button_with_texture_gets_nine_slice() {
+fn button_with_file_texture_does_not_get_nine_slice() {
     let mut app = setup_app();
     let btn = ButtonData {
         normal_texture: Some(TextureSource::File("btn.blp".into())),
@@ -46,8 +46,25 @@ fn button_with_texture_gets_nine_slice() {
     let ui = app.world().resource::<UiState>();
     let frame = ui.registry.get(id).unwrap();
     assert!(
+        frame.nine_slice.is_none(),
+        "button with a plain file texture should stay a single quad"
+    );
+}
+
+#[test]
+fn button_with_nine_slice_atlas_gets_nine_slice() {
+    let mut app = setup_app();
+    let btn = ButtonData {
+        normal_texture: Some(TextureSource::Atlas("128-brownbutton-up".into())),
+        ..Default::default()
+    };
+    let id = create_button(&mut app, "Btn", btn);
+    app.update();
+    let ui = app.world().resource::<UiState>();
+    let frame = ui.registry.get(id).unwrap();
+    assert!(
         frame.nine_slice.is_some(),
-        "button with texture should get nine_slice"
+        "button atlas regions tagged as nine-slice should get nine_slice"
     );
 }
 
@@ -65,10 +82,10 @@ fn button_without_texture_no_nine_slice() {
 }
 
 #[test]
-fn button_nine_slice_spawns_all_9_parts() {
+fn button_nine_slice_spawns_all_9_parts_for_nine_slice_atlas() {
     let mut app = setup_app();
     let btn = ButtonData {
-        normal_texture: Some(TextureSource::File("btn.blp".into())),
+        normal_texture: Some(TextureSource::Atlas("128-brownbutton-up".into())),
         ..Default::default()
     };
     let id = create_button(&mut app, "Btn9", btn);
@@ -91,12 +108,12 @@ fn button_nine_slice_spawns_all_9_parts() {
 }
 
 #[test]
-fn button_pushed_state_updates_nine_slice_texture() {
+fn button_pushed_state_updates_nine_slice_texture_for_nine_slice_atlas() {
     let mut app = setup_app();
     let btn = ButtonData {
         state: ButtonState::Normal,
-        normal_texture: Some(TextureSource::File("normal.blp".into())),
-        pushed_texture: Some(TextureSource::File("pushed.blp".into())),
+        normal_texture: Some(TextureSource::Atlas("128-brownbutton-up".into())),
+        pushed_texture: Some(TextureSource::Atlas("128-brownbutton-pressed".into())),
         ..Default::default()
     };
     let id = create_button(&mut app, "BtnPush", btn);
@@ -115,7 +132,7 @@ fn button_pushed_state_updates_nine_slice_texture() {
     let frame = ui.registry.get(id).unwrap();
     let ns = frame.nine_slice.as_ref().expect("should have nine_slice");
     assert!(
-        matches!(&ns.texture, Some(TextureSource::File(p)) if p == "pushed.blp"),
+        matches!(&ns.texture, Some(TextureSource::Atlas(name)) if name == "128-brownbutton-pressed"),
         "pushed state should use pushed texture"
     );
 }
@@ -313,11 +330,16 @@ mod dioxus_render {
         let id = ui.registry.get_by_name("DxBtn").expect("DxBtn");
         let frame = ui.registry.get(id).unwrap();
         assert_eq!(frame.widget_type, WidgetType::Button);
-        assert!(frame.nine_slice.is_some(), "dioxus button with atlas should get nine_slice");
+        assert!(
+            frame.nine_slice.is_some(),
+            "dioxus button with atlas should get nine_slice"
+        );
         match &frame.widget_data {
             Some(WidgetData::Button(bd)) => {
                 assert_eq!(bd.text, "Press");
-                assert!(matches!(&bd.normal_texture, Some(TextureSource::Atlas(s)) if s == "test-up"));
+                assert!(
+                    matches!(&bd.normal_texture, Some(TextureSource::Atlas(s)) if s == "test-up")
+                );
             }
             other => panic!("expected Button widget_data, got {:?}", other),
         }
@@ -335,7 +357,10 @@ mod dioxus_render {
         let ui = app.world().resource::<UiState>();
         let id = ui.registry.get_by_name("DxBtnPlain").expect("DxBtnPlain");
         let frame = ui.registry.get(id).unwrap();
-        assert!(frame.nine_slice.is_none(), "plain dioxus button should have no nine_slice");
+        assert!(
+            frame.nine_slice.is_none(),
+            "plain dioxus button should have no nine_slice"
+        );
     }
 
     #[test]
@@ -364,10 +389,14 @@ mod dioxus_render {
         let ui = app.world().resource::<UiState>();
         let id = ui.registry.get_by_name("DxBtnPush").unwrap();
         let frame = ui.registry.get(id).unwrap();
-        let ns = frame.nine_slice.as_ref().expect("should have nine_slice after push");
+        let ns = frame
+            .nine_slice
+            .as_ref()
+            .expect("should have nine_slice after push");
         assert!(
             matches!(&ns.texture, Some(TextureSource::Atlas(s)) if s == "pushed-atlas"),
-            "pushed state should use pushed texture, got {:?}", ns.texture
+            "pushed state should use pushed texture, got {:?}",
+            ns.texture
         );
     }
 
@@ -499,7 +528,8 @@ mod dioxus_render {
         point: crate::ui::anchor::AnchorPoint,
         rel_point: crate::ui::anchor::AnchorPoint,
         rel_to: Option<u64>,
-        ox: f32, oy: f32,
+        ox: f32,
+        oy: f32,
     ) {
         assert_eq!(frame.anchors.len(), 1);
         let a = &frame.anchors[0];
@@ -541,10 +571,24 @@ mod dioxus_render {
         assert_eq!(btn.height, 66.0);
         assert_eq!(btn.strata, crate::ui::strata::FrameStrata::Medium);
         assert_button_data(btn, "Login", 16.0);
-        assert_anchor(btn, AnchorPoint::Top, AnchorPoint::Bottom, Some(pw_id), 0.0, -50.0);
+        assert_anchor(
+            btn,
+            AnchorPoint::Top,
+            AnchorPoint::Bottom,
+            Some(pw_id),
+            0.0,
+            -50.0,
+        );
 
         let pw = ui.registry.get(pw_id).unwrap();
-        assert_anchor(pw, AnchorPoint::Center, AnchorPoint::Center, Some(parent_id), 0.0, 50.0);
+        assert_anchor(
+            pw,
+            AnchorPoint::Center,
+            AnchorPoint::Center,
+            Some(parent_id),
+            0.0,
+            50.0,
+        );
     }
 
     #[test]
@@ -580,8 +624,10 @@ mod dioxus_render {
         use crate::ui::anchor::AnchorPoint;
         assert_eq!(btn.anchors.len(), 1, "button should have 1 anchor");
         assert_eq!(
-            btn.anchors[0].relative_to, Some(pw_id),
-            "anchor should resolve to PwInput, got {:?}", btn.anchors[0].relative_to
+            btn.anchors[0].relative_to,
+            Some(pw_id),
+            "anchor should resolve to PwInput, got {:?}",
+            btn.anchors[0].relative_to
         );
         assert_eq!(btn.anchors[0].point, AnchorPoint::Top);
         assert_eq!(btn.anchors[0].relative_point, AnchorPoint::Bottom);

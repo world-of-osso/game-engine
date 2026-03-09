@@ -1,4 +1,4 @@
-use dioxus_core::{Element, VirtualDom};
+use dioxus_core::{Element, ScopeId, VirtualDom};
 
 use crate::ui::dioxus_renderer::{GameUiRenderer, MutationApplier};
 use crate::ui::registry::FrameRegistry;
@@ -34,6 +34,14 @@ impl DioxusScreen {
 
     pub fn renderer(&self) -> &GameUiRenderer {
         &self.renderer
+    }
+
+    pub fn provide_root_context<T: Clone + 'static>(&self, context: T) {
+        self.dom.provide_root_context(context);
+    }
+
+    pub fn mark_dirty_root(&mut self) {
+        self.dom.mark_dirty(ScopeId::APP);
     }
 
     pub fn teardown(&mut self, registry: &mut FrameRegistry) {

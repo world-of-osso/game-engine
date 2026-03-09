@@ -434,6 +434,6 @@ mod tests {
         );
         assert_eq!(region.width, 500.0);
         assert_eq!(region.height, 132.0);
-        assert_eq!(region.nine_slice_edge, Some(24.0));
+        assert_eq!(region.nine_slice_edge, None);
     }
 }

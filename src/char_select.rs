@@ -142,7 +142,8 @@ fn build_char_select_ui(
     let (root, ui_root) = build_cs_background(reg, sw, sh);
     let (top_hud_left, top_hud_middle, top_hud_right, title_backdrop, selected_name_text) =
         build_cs_title(reg, ui_root, sw, sh);
-    let (list_panel, char_cards, empty_card) = build_character_list(reg, ui_root, sw, sh, &char_list);
+    let (list_panel, char_cards, empty_card) =
+        build_character_list(reg, ui_root, sw, sh, &char_list);
     let (enter_button, create_button, delete_button, back_button) =
         build_cs_action_buttons(reg, ui_root, sw, sh);
     let (create_panel, create_name_input, create_confirm_button) =
@@ -269,11 +270,23 @@ fn build_cs_background(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) 
     (root, ui)
 }
 
-fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, _sh: f32) -> (u64, u64, u64, u64, u64) {
+fn build_cs_title(
+    reg: &mut FrameRegistry,
+    root: u64,
+    sw: f32,
+    _sh: f32,
+) -> (u64, u64, u64, u64, u64) {
     let center_x = sw * 0.5;
     let top_y = 22.0;
 
-    let left = create_atlas_texture(reg, "CharSelectTopHudLeft", Some(root), 220.0, 43.0, TOP_HUD_LEFT_SELECTED_ATLAS);
+    let left = create_atlas_texture(
+        reg,
+        "CharSelectTopHudLeft",
+        Some(root),
+        220.0,
+        43.0,
+        TOP_HUD_LEFT_SELECTED_ATLAS,
+    );
     set_layout(reg, left, center_x - 279.0, top_y, 220.0, 43.0);
 
     let middle = create_atlas_texture(
@@ -286,10 +299,24 @@ fn build_cs_title(reg: &mut FrameRegistry, root: u64, sw: f32, _sh: f32) -> (u64
     );
     set_layout(reg, middle, center_x - 59.0, top_y, 118.0, 43.0);
 
-    let right = create_atlas_texture(reg, "CharSelectTopHudRight", Some(root), 220.0, 43.0, TOP_HUD_RIGHT_SELECTED_ATLAS);
+    let right = create_atlas_texture(
+        reg,
+        "CharSelectTopHudRight",
+        Some(root),
+        220.0,
+        43.0,
+        TOP_HUD_RIGHT_SELECTED_ATLAS,
+    );
     set_layout(reg, right, center_x + 59.0, top_y, 220.0, 43.0);
 
-    let name_bg = create_atlas_texture(reg, "CharSelectNameBg", Some(root), 194.0, 61.0, NAME_BG_ATLAS);
+    let name_bg = create_atlas_texture(
+        reg,
+        "CharSelectNameBg",
+        Some(root),
+        194.0,
+        61.0,
+        NAME_BG_ATLAS,
+    );
     set_layout(reg, name_bg, center_x - 97.0, top_y + 21.0, 194.0, 61.0);
 
     let title = create_frame(
@@ -335,7 +362,14 @@ fn build_character_list(
         panel_h,
     );
     set_layout(reg, panel, panel_x, panel_y, panel_w, panel_h);
-    let panel_bg = create_atlas_texture(reg, "CharacterListBackdrop", Some(panel), panel_w, panel_h, LIST_BG_ATLAS);
+    let panel_bg = create_atlas_texture(
+        reg,
+        "CharacterListBackdrop",
+        Some(panel),
+        panel_w,
+        panel_h,
+        LIST_BG_ATLAS,
+    );
     set_layout(reg, panel_bg, 0.0, 0.0, panel_w, panel_h);
 
     let realm_label = create_frame(
@@ -437,28 +471,91 @@ fn build_character_card(
     let frame = create_frame(reg, name, Some(parent), WidgetType::Frame, w, h);
     set_layout(reg, frame, x, y, w, h);
 
-    let backdrop = create_atlas_texture(reg, &format!("{name}Backdrop"), Some(frame), 310.0, 89.0, CARD_BACKDROP_ATLAS);
+    let backdrop = create_atlas_texture(
+        reg,
+        &format!("{name}Backdrop"),
+        Some(frame),
+        310.0,
+        89.0,
+        CARD_BACKDROP_ATLAS,
+    );
     set_layout(reg, backdrop, 20.0, 3.0, 310.0, 89.0);
 
-    let hover = create_atlas_texture(reg, &format!("{name}Hover"), Some(frame), 310.0, 89.0, CARD_HOVER_ATLAS);
+    let hover = create_atlas_texture(
+        reg,
+        &format!("{name}Hover"),
+        Some(frame),
+        310.0,
+        89.0,
+        CARD_HOVER_ATLAS,
+    );
     set_layout(reg, hover, 20.0, 3.0, 310.0, 89.0);
     hide_frame(reg, hover);
 
-    let selected = create_atlas_texture(reg, &format!("{name}Selected"), Some(frame), 342.0, 122.0, CARD_SELECTED_ATLAS);
+    let selected = create_atlas_texture(
+        reg,
+        &format!("{name}Selected"),
+        Some(frame),
+        342.0,
+        122.0,
+        CARD_SELECTED_ATLAS,
+    );
     set_layout(reg, selected, 7.0, -11.0, 342.0, 122.0);
     hide_frame(reg, selected);
 
-    let name_text = create_frame(reg, &format!("{name}Name"), Some(frame), WidgetType::FontString, 260.0, 24.0);
+    let name_text = create_frame(
+        reg,
+        &format!("{name}Name"),
+        Some(frame),
+        WidgetType::FontString,
+        260.0,
+        24.0,
+    );
     set_layout(reg, name_text, 40.0, 16.0, 260.0, 24.0);
-    set_font_string_left_with_font(reg, name_text, char_name, FONT_GLUE_LABEL, 24.0, GLUE_NORMAL_FONT_COLOR);
+    set_font_string_left_with_font(
+        reg,
+        name_text,
+        char_name,
+        FONT_GLUE_LABEL,
+        24.0,
+        GLUE_NORMAL_FONT_COLOR,
+    );
 
-    let info_text = create_frame(reg, &format!("{name}Info"), Some(frame), WidgetType::FontString, 260.0, 18.0);
+    let info_text = create_frame(
+        reg,
+        &format!("{name}Info"),
+        Some(frame),
+        WidgetType::FontString,
+        260.0,
+        18.0,
+    );
     set_layout(reg, info_text, 40.0, 43.0, 260.0, 18.0);
-    set_font_string_left_with_font(reg, info_text, info, FONT_GLUE_LABEL, 15.0, GLUE_SUBTITLE_COLOR);
+    set_font_string_left_with_font(
+        reg,
+        info_text,
+        info,
+        FONT_GLUE_LABEL,
+        15.0,
+        GLUE_SUBTITLE_COLOR,
+    );
 
-    let status_text = create_frame(reg, &format!("{name}Status"), Some(frame), WidgetType::FontString, 240.0, 18.0);
+    let status_text = create_frame(
+        reg,
+        &format!("{name}Status"),
+        Some(frame),
+        WidgetType::FontString,
+        240.0,
+        18.0,
+    );
     set_layout(reg, status_text, 40.0, 67.0, 240.0, 18.0);
-    set_font_string_left_with_font(reg, status_text, status, FONT_GLUE_LABEL, 14.0, GLUE_MUTED_COLOR);
+    set_font_string_left_with_font(
+        reg,
+        status_text,
+        status,
+        FONT_GLUE_LABEL,
+        14.0,
+        GLUE_MUTED_COLOR,
+    );
 
     CharacterCardFrames {
         frame,
@@ -930,11 +1027,7 @@ fn char_select_hover_visuals(
     };
 
     for (button_id, is_hovered) in hovered_states {
-        if cs
-            .char_cards
-            .iter()
-            .any(|card| card.frame == button_id)
-        {
+        if cs.char_cards.iter().any(|card| card.frame == button_id) {
             if let Some(card) = cs.char_cards.iter().find(|card| card.frame == button_id) {
                 ui.registry.set_shown(card.hover, is_hovered);
             }
@@ -1387,7 +1480,8 @@ fn set_button_hovered(reg: &mut FrameRegistry, id: u64, hovered: bool) {
 }
 
 fn set_texture_source(reg: &mut FrameRegistry, id: u64, source: TextureSource) {
-    if let Some(WidgetData::Texture(texture)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+    if let Some(WidgetData::Texture(texture)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut())
+    {
         texture.source = source;
     }
 }
@@ -1641,6 +1735,10 @@ mod tests {
                 .expect("card a selected overlay")
                 .shown
         );
-        assert!(reg.get(card_b.selected).expect("card b selected overlay").shown);
+        assert!(
+            reg.get(card_b.selected)
+                .expect("card b selected overlay")
+                .shown
+        );
     }
 }
