@@ -140,6 +140,15 @@ impl GameUiRenderer {
             path.push(i as u8);
             match child {
                 TemplateNode::Element { tag, .. } => {
+                    if *tag == "Anchor" {
+                        if let Some(pending) =
+                            apply_anchor_element(child, parent_frame_id, registry)
+                        {
+                            self.pending_anchors.push(pending);
+                        }
+                        path.pop();
+                        continue;
+                    }
                     let child_fid = instantiate_element(tag, parent_frame_id, registry);
                     self.created_frames.push(child_fid);
                     self.template_child_frames.push((path.clone(), child_fid));
@@ -348,9 +357,6 @@ pub(crate) fn apply_attribute(
     if name == "stretch" {
         return apply_stretch_attr(registry, frame_id, value);
     }
-    if name == "anchor" {
-        return apply_anchor_attr(registry, frame_id, value);
-    }
     let Some(frame) = registry.get_mut(frame_id) else {
         return None;
     };
@@ -370,23 +376,6 @@ fn apply_stretch_attr(
         let _ = registry.set_all_points(frame_id, parent_id);
     }
     None
-}
-
-fn apply_anchor_attr(
-    registry: &mut FrameRegistry,
-    frame_id: u64,
-    value: &AttributeValue,
-) -> Option<(u64, String)> {
-    let Some(s) = as_text(value) else { return None };
-    let relative_name = s.split(',').nth(1).map(|s| s.trim()).unwrap_or("");
-    if relative_name == "$parent"
-        || resolve_anchor_relative(registry, frame_id, relative_name).is_some()
-    {
-        apply_anchor_resolved(registry, frame_id, s);
-        None
-    } else {
-        Some((frame_id, s.to_string()))
-    }
 }
 
 fn apply_frame_attr(frame: &mut Frame, name: &str, value: &AttributeValue) {
@@ -560,6 +549,44 @@ fn apply_anchor_resolved(registry: &mut FrameRegistry, frame_id: u64, s: &str) {
     };
     if let Some(frame) = registry.get_mut(frame_id) {
         frame.anchors.push(anchor);
+    }
+}
+
+/// Apply an `anchor {}` child element to its parent frame. Returns a pending
+/// spec if the relative frame isn't registered yet.
+fn apply_anchor_element(
+    node: &TemplateNode,
+    parent_frame_id: u64,
+    registry: &mut FrameRegistry,
+) -> Option<(u64, String)> {
+    let TemplateNode::Element { attrs, .. } = node else {
+        return None;
+    };
+    let mut point = "CENTER";
+    let mut relative_to = "$parent";
+    let mut relative_point = "CENTER";
+    let mut x = "0";
+    let mut y = "0";
+    for attr in *attrs {
+        if let dioxus_core::TemplateAttribute::Static { name, value, .. } = attr {
+            match *name {
+                "point" => point = value,
+                "relative_to" => relative_to = value,
+                "relative_point" => relative_point = value,
+                "x" => x = value,
+                "y" => y = value,
+                _ => {}
+            }
+        }
+    }
+    let spec = format!("{point},{relative_to},{relative_point},{x},{y}");
+    if relative_to == "$parent"
+        || resolve_anchor_relative(registry, parent_frame_id, relative_to).is_some()
+    {
+        apply_anchor_resolved(registry, parent_frame_id, &spec);
+        None
+    } else {
+        Some((parent_frame_id, spec))
     }
 }
 

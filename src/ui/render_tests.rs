@@ -547,11 +547,11 @@ mod dioxus_render {
                 r#frame { name: "AnchorParent", width: 800.0, height: 600.0,
                     editbox { name: "PasswordInput", width: 320.0, height: 42.0,
                         strata: "MEDIUM",
-                        anchor: "CENTER,$parent,CENTER,0,50",
+                        anchor { point: "CENTER", relative_point: "CENTER", y: "50" }
                     }
                     button { name: "ConnectButton", width: 250.0, height: 66.0,
                         text: "Login", font_size: 16.0, strata: "MEDIUM",
-                        anchor: "TOP,PasswordInput,BOTTOM,0,-50",
+                        anchor { point: "TOP", relative_to: "PasswordInput", relative_point: "BOTTOM", y: "-50" }
                     }
                 }
             }
@@ -596,13 +596,16 @@ mod dioxus_render {
         fn inputs() -> Element {
             rsx! {
                 editbox { name: "PwInput", width: 320.0, height: 42.0,
-                    anchor: "CENTER,$parent,CENTER,0,50" }
+                    anchor { point: "CENTER", relative_point: "CENTER", y: "50" }
+                }
             }
         }
         fn buttons() -> Element {
             rsx! {
                 button { name: "LoginBtn", width: 250.0, height: 66.0,
-                    text: "Login", anchor: "TOP,PwInput,BOTTOM,0,-50" }
+                    text: "Login",
+                    anchor { point: "TOP", relative_to: "PwInput", relative_point: "BOTTOM", y: "-50" }
+                }
             }
         }
         fn comp() -> Element {

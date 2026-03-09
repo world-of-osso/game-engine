@@ -32,7 +32,6 @@ macro_rules! shared_attrs {
         pub const movable: super::super::AttributeDescription = ("movable", None, false);
         pub const background_color: super::super::AttributeDescription =
             ("background_color", None, false);
-        pub const anchor: super::super::AttributeDescription = ("anchor", None, false);
         pub const stretch: super::super::AttributeDescription = ("stretch", None, false);
         pub const draw_layer: super::super::AttributeDescription = ("draw_layer", None, false);
         pub const frame_level: super::super::AttributeDescription = ("frame_level", None, false);
@@ -117,6 +116,19 @@ pub mod elements {
     define_element!(gametooltip, "GameTooltip");
     define_element!(minimap, "Minimap");
 
+    /// Anchor pseudo-element — not a frame; intercepted by the renderer to apply
+    /// anchor data to the parent frame.
+    pub mod anchor {
+        pub const TAG_NAME: &str = "Anchor";
+        pub const NAME_SPACE: Option<&str> = None;
+        pub const point: super::super::AttributeDescription = ("point", None, false);
+        pub const relative_to: super::super::AttributeDescription = ("relative_to", None, false);
+        pub const relative_point: super::super::AttributeDescription =
+            ("relative_point", None, false);
+        pub const x: super::super::AttributeDescription = ("x", None, false);
+        pub const y: super::super::AttributeDescription = ("y", None, false);
+    }
+
     /// Completions module for IDE autocompletion (referenced by RSX macro).
     #[doc(hidden)]
     pub mod completions {
@@ -141,6 +153,7 @@ pub mod elements {
             simplehtml {},
             gametooltip {},
             minimap {},
+            anchor {},
         }
     }
 }

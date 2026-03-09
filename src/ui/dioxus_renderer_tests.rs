@@ -133,28 +133,67 @@ fn apply_attribute_text_on_button() {
     }
 }
 
+fn make_anchor_node(
+    attrs: &'static [dioxus_core::TemplateAttribute],
+) -> TemplateNode {
+    TemplateNode::Element {
+        tag: "Anchor",
+        namespace: None,
+        attrs,
+        children: &[],
+    }
+}
+
+static ANCHOR_CENTER_10_20: &[dioxus_core::TemplateAttribute] = &[
+    dioxus_core::TemplateAttribute::Static { name: "point", value: "CENTER", namespace: None },
+    dioxus_core::TemplateAttribute::Static { name: "relative_point", value: "CENTER", namespace: None },
+    dioxus_core::TemplateAttribute::Static { name: "x", value: "10", namespace: None },
+    dioxus_core::TemplateAttribute::Static { name: "y", value: "20", namespace: None },
+];
+
 #[test]
-fn apply_attribute_anchor() {
+fn apply_anchor_element_resolves_parent() {
     let mut renderer = GameUiRenderer::new();
     let mut registry = FrameRegistry::new(1024.0, 768.0);
     let parent_fid = renderer.create_frame_for_tag("Frame", ElementId(1), &mut registry);
-    apply_attribute(
-        &mut registry,
-        parent_fid,
-        "name",
-        &AttributeValue::Text("MyParent".into()),
-    );
     let child_fid = renderer.create_frame_for_tag("Frame", ElementId(2), &mut registry);
     wire_parent_child(&mut registry, parent_fid, child_fid);
-    apply_attribute(
-        &mut registry,
-        child_fid,
-        "anchor",
-        &AttributeValue::Text("CENTER,$parent,CENTER,10,20".into()),
-    );
+    let node = make_anchor_node(ANCHOR_CENTER_10_20);
+    let pending = apply_anchor_element(&node, child_fid, &mut registry);
+    assert!(pending.is_none());
     let child = registry.get(child_fid).unwrap();
     assert_eq!(child.anchors.len(), 1);
+    assert_eq!(child.anchors[0].point, crate::ui::anchor::AnchorPoint::Center);
     assert_eq!(child.anchors[0].relative_to, Some(parent_fid));
+    assert_eq!(child.anchors[0].x_offset, 10.0);
+    assert_eq!(child.anchors[0].y_offset, 20.0);
+}
+
+#[test]
+fn anchor_element_does_not_create_frame() {
+    use dioxus::prelude::*;
+    #[allow(unused_imports)]
+    use crate::ui::dioxus_elements;
+
+    fn comp() -> Element {
+        rsx! {
+            r#frame { name: "Parent", width: 100.0, height: 100.0,
+                r#frame { name: "Child", width: 50.0, height: 50.0,
+                    anchor { point: "CENTER", relative_point: "CENTER" }
+                }
+            }
+        }
+    }
+    let mut dom = dioxus_core::VirtualDom::new(comp);
+    let mut registry = FrameRegistry::new(1024.0, 768.0);
+    let mut renderer = GameUiRenderer::new();
+    let mut applier = MutationApplier::new(&mut renderer, &mut registry);
+    dom.rebuild(&mut applier);
+
+    let child_id = registry.get_by_name("Child").unwrap();
+    let child = registry.get(child_id).unwrap();
+    assert_eq!(child.anchors.len(), 1);
+    assert_eq!(child.children.len(), 0, "anchor element should not create a child frame");
 }
 
 #[test]
