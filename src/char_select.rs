@@ -1529,7 +1529,7 @@ fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
             ..Default::default()
         });
         if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
-            eb.text_insets = [12.0, 5.0, 0.0, 5.0];
+            eb.text_insets = [12.0, 5.0, 8.0, 8.0];
             eb.font = FONT_GLUE_EDITBOX.to_string();
             eb.font_size = 16.0;
             eb.text_color = GLUE_NORMAL_FONT_COLOR;
