@@ -315,7 +315,10 @@ mod dioxus_render {
     fn dioxus_button_gets_nine_slice_after_update() {
         fn comp() -> Element {
             rsx! {
-                button { name: "DxBtn", width: 120.0, height: 40.0,
+                button {
+                    name: "DxBtn",
+                    width: 120.0,
+                    height: 40.0,
                     text: "Press",
                     button_atlas_up: "test-up",
                     button_atlas_pressed: "test-pressed",
@@ -349,7 +352,12 @@ mod dioxus_render {
     fn dioxus_button_without_texture_no_nine_slice() {
         fn comp() -> Element {
             rsx! {
-                button { name: "DxBtnPlain", width: 100.0, height: 30.0, text: "Plain" }
+                button {
+                    name: "DxBtnPlain",
+                    width: 100.0,
+                    height: 30.0,
+                    text: "Plain",
+                }
             }
         }
         let (mut app, _screen) = build_screen(comp);
@@ -367,7 +375,10 @@ mod dioxus_render {
     fn dioxus_button_pushed_state_updates_texture() {
         fn comp() -> Element {
             rsx! {
-                button { name: "DxBtnPush", width: 120.0, height: 40.0,
+                button {
+                    name: "DxBtnPush",
+                    width: 120.0,
+                    height: 40.0,
                     button_atlas_up: "normal-atlas",
                     button_atlas_pressed: "pushed-atlas",
                 }
@@ -404,7 +415,13 @@ mod dioxus_render {
     fn dioxus_editbox_preserves_dimensions_and_password() {
         fn comp() -> Element {
             rsx! {
-                editbox { name: "DxEdit", width: 300.0, height: 36.0, font_size: 20.0, password: true }
+                editbox {
+                    name: "DxEdit",
+                    width: 300.0,
+                    height: 36.0,
+                    font_size: 20.0,
+                    password: true,
+                }
             }
         }
         let (mut app, _screen) = build_screen(comp);
@@ -428,8 +445,12 @@ mod dioxus_render {
     fn dioxus_fontstring_text_and_font_size() {
         fn comp() -> Element {
             rsx! {
-                fontstring { name: "DxLabel", text: "Hello World",
-                    font_size: 22.0, font_color: "1.0,0.8,0.0,1.0" }
+                fontstring {
+                    name: "DxLabel",
+                    text: "Hello World",
+                    font_size: 22.0,
+                    font_color: "1.0,0.8,0.0,1.0",
+                }
             }
         }
         let (mut app, _screen) = build_screen(comp);
@@ -453,8 +474,12 @@ mod dioxus_render {
     fn dioxus_texture_file_source() {
         fn comp() -> Element {
             rsx! {
-                texture { name: "DxTex", texture_file: "textures/test.blp",
-                    width: 64.0, height: 64.0 }
+                texture {
+                    name: "DxTex",
+                    texture_file: "textures/test.blp",
+                    width: 64.0,
+                    height: 64.0,
+                }
             }
         }
         let (mut app, _screen) = build_screen(comp);
@@ -477,7 +502,12 @@ mod dioxus_render {
         fn comp() -> Element {
             rsx! {
                 r#frame { name: "DxParent", width: 400.0, height: 300.0,
-                    button { name: "DxChild", width: 100.0, height: 30.0, text: "Go" }
+                    button {
+                        name: "DxChild",
+                        width: 100.0,
+                        height: 30.0,
+                        text: "Go",
+                    }
                 }
             }
         }
@@ -496,8 +526,13 @@ mod dioxus_render {
     fn dioxus_button_font_size_flows_to_text_props() {
         fn comp() -> Element {
             rsx! {
-                button { name: "DxBtnFont", width: 120.0, height: 40.0,
-                    text: "Styled", font_size: 18.0 }
+                button {
+                    name: "DxBtnFont",
+                    width: 120.0,
+                    height: 40.0,
+                    text: "Styled",
+                    font_size: 18.0,
+                }
             }
         }
         let (mut app, _screen) = build_screen(comp);
@@ -548,13 +583,30 @@ mod dioxus_render {
         fn comp() -> Element {
             rsx! {
                 r#frame { name: "AnchorParent", width: 800.0, height: 600.0,
-                    editbox { name: "PasswordInput", width: 320.0, height: 42.0,
+                    editbox {
+                        name: "PasswordInput",
+                        width: 320.0,
+                        height: 42.0,
                         strata: crate::ui::strata::FrameStrata::Medium,
-                        anchor { point: "CENTER", relative_point: "CENTER", y: "50" }
+                        anchor {
+                            point: "CENTER",
+                            relative_point: "CENTER",
+                            y: "50",
+                        }
                     }
-                    button { name: "ConnectButton", width: 250.0, height: 66.0,
-                        text: "Login", font_size: 16.0, strata: crate::ui::strata::FrameStrata::Medium,
-                        anchor { point: "TOP", relative_to: "PasswordInput", relative_point: "BOTTOM", y: "-50" }
+                    button {
+                        name: "ConnectButton",
+                        width: 250.0,
+                        height: 66.0,
+                        text: "Login",
+                        font_size: 16.0,
+                        strata: crate::ui::strata::FrameStrata::Medium,
+                        anchor {
+                            point: "TOP",
+                            relative_to: "PasswordInput",
+                            relative_point: "BOTTOM",
+                            y: "-50",
+                        }
                     }
                 }
             }
@@ -605,9 +657,17 @@ mod dioxus_render {
         }
         fn buttons() -> Element {
             rsx! {
-                button { name: "LoginBtn", width: 250.0, height: 66.0,
+                button {
+                    name: "LoginBtn",
+                    width: 250.0,
+                    height: 66.0,
                     text: "Login",
-                    anchor { point: "TOP", relative_to: "PwInput", relative_point: "BOTTOM", y: "-50" }
+                    anchor {
+                        point: "TOP",
+                        relative_to: "PwInput",
+                        relative_point: "BOTTOM",
+                        y: "-50",
+                    }
                 }
             }
         }

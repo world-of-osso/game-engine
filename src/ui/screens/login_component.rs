@@ -28,32 +28,81 @@ const BLIZZARD_THANKS: FrameName = FrameName("BlizzardThanks");
 
 fn login_background() -> Element {
     rsx! {
-        r#frame { name: "BlackLoginBackground", stretch: true, background_color: "0.0,0.0,0.0,1.0", strata: FrameStrata::Background }
-        texture { name: "LoginBackground", stretch: true, texture_file: TEX_LOGIN_BACKGROUND, strata: FrameStrata::Background }
-        r#frame { name: "LoginBackgroundShade", stretch: true, background_color: "0.0,0.0,0.0,0.22", strata: FrameStrata::Background }
+        r#frame {
+            name: "BlackLoginBackground",
+            stretch: true,
+            background_color: "0.0,0.0,0.0,1.0",
+            strata: FrameStrata::Background,
+        }
+        texture {
+            name: "LoginBackground",
+            stretch: true,
+            texture_file: TEX_LOGIN_BACKGROUND,
+            strata: FrameStrata::Background,
+        }
+        r#frame {
+            name: "LoginBackgroundShade",
+            stretch: true,
+            background_color: "0.0,0.0,0.0,0.22",
+            strata: FrameStrata::Background,
+        }
     }
 }
 
 fn login_inputs() -> Element {
     rsx! {
-        editbox { name: USERNAME_INPUT, width: 320.0, height: 42.0,
-            font_size: 20.0, strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::Center, relative_point: AnchorPoint::Center, y: "50" }
-            fontstring { name: "UsernameInputLabel", width: 320.0, height: 18.0,
-                text: "Username", font_size: 18.0,
+        editbox {
+            name: USERNAME_INPUT,
+            width: 320.0,
+            height: 42.0,
+            font_size: 20.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+                y: "50",
+            }
+            fontstring {
+                name: "UsernameInputLabel",
+                width: 320.0,
+                height: 18.0,
+                text: "Username",
+                font_size: 18.0,
                 font: GameFont::FrizQuadrata,
                 font_color: COLOR_GOLD,
-                anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Top, y: "4" }
+                anchor {
+                    point: AnchorPoint::Bottom,
+                    relative_point: AnchorPoint::Top,
+                    y: "4",
+                }
             }
         }
-        editbox { name: PASSWORD_INPUT, width: 320.0, height: 42.0,
-            font_size: 20.0, strata: FrameStrata::Medium, password: true,
-            anchor { point: AnchorPoint::Top, relative_to: USERNAME_INPUT, relative_point: AnchorPoint::Bottom, y: "-30" }
-            fontstring { name: "PasswordInputLabel", width: 320.0, height: 18.0,
-                text: "Password", font_size: 18.0,
+        editbox {
+            name: PASSWORD_INPUT,
+            width: 320.0,
+            height: 42.0,
+            font_size: 20.0,
+            strata: FrameStrata::Medium,
+            password: true,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: USERNAME_INPUT,
+                relative_point: AnchorPoint::Bottom,
+                y: "-30",
+            }
+            fontstring {
+                name: "PasswordInputLabel",
+                width: 320.0,
+                height: 18.0,
+                text: "Password",
+                font_size: 18.0,
                 font: GameFont::FrizQuadrata,
                 font_color: COLOR_GOLD,
-                anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Top, y: "4" }
+                anchor {
+                    point: AnchorPoint::Bottom,
+                    relative_point: AnchorPoint::Top,
+                    y: "4",
+                }
             }
         }
     }
@@ -62,64 +111,158 @@ fn login_inputs() -> Element {
 fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
     rsx! {
         if show_reconnect {
-            button { name: "ReconnectButton", width: 250.0, height: 66.0,
-                text: "Reconnect", font_size: 16.0, strata: FrameStrata::Medium,
-                anchor { point: AnchorPoint::Top, relative_to: PASSWORD_INPUT, relative_point: AnchorPoint::Bottom, y: "-50" }
+            button {
+                name: "ReconnectButton",
+                width: 250.0,
+                height: 66.0,
+                text: "Reconnect",
+                font_size: 16.0,
+                strata: FrameStrata::Medium,
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_to: PASSWORD_INPUT,
+                    relative_point: AnchorPoint::Bottom,
+                    y: "-50",
+                }
             }
         } else {
-            button { name: "ConnectButton", width: 250.0, height: 66.0,
-                text: "Login", font_size: 16.0, strata: FrameStrata::Medium,
-                anchor { point: AnchorPoint::Top, relative_to: PASSWORD_INPUT, relative_point: AnchorPoint::Bottom, y: "-50" }
+            button {
+                name: "ConnectButton",
+                width: 250.0,
+                height: 66.0,
+                text: "Login",
+                font_size: 16.0,
+                strata: FrameStrata::Medium,
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_to: PASSWORD_INPUT,
+                    relative_point: AnchorPoint::Bottom,
+                    y: "-50",
+                }
             }
         }
-        fontstring { name: "LoginStatus", width: 320.0, height: 24.0,
-            text: status_text, font_size: 13.0,
-            font_color: COLOR_ERROR, strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::Top, relative_to: PASSWORD_INPUT, relative_point: AnchorPoint::Bottom, y: "-136" }
+        fontstring {
+            name: "LoginStatus",
+            width: 320.0,
+            height: 24.0,
+            text: status_text,
+            font_size: 13.0,
+            font_color: COLOR_ERROR,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: PASSWORD_INPUT,
+                relative_point: AnchorPoint::Bottom,
+                y: "-136",
+            }
         }
     }
 }
 
 fn login_action_buttons() -> Element {
     rsx! {
-        button { name: EXIT_BUTTON, width: 200.0, height: 32.0,
-            text: "Quit", font_size: 12.0, strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "-24", y: "56" }
+        button {
+            name: EXIT_BUTTON,
+            width: 200.0,
+            height: 32.0,
+            text: "Quit",
+            font_size: 12.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: "-24",
+                y: "56",
+            }
         }
-        button { name: CREATE_ACCOUNT_BUTTON, width: 200.0, height: 32.0,
-            text: "Create Account", font_size: 12.0, strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::Bottom, relative_to: EXIT_BUTTON, relative_point: AnchorPoint::Top, y: "10" }
+        button {
+            name: CREATE_ACCOUNT_BUTTON,
+            width: 200.0,
+            height: 32.0,
+            text: "Create Account",
+            font_size: 12.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_to: EXIT_BUTTON,
+                relative_point: AnchorPoint::Top,
+                y: "10",
+            }
         }
-        button { name: "MenuButton", width: 200.0, height: 32.0,
-            text: "Menu", font_size: 12.0, strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::Bottom, relative_to: CREATE_ACCOUNT_BUTTON, relative_point: AnchorPoint::Top, y: "10" }
+        button {
+            name: "MenuButton",
+            width: 200.0,
+            height: 32.0,
+            text: "Menu",
+            font_size: 12.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_to: CREATE_ACCOUNT_BUTTON,
+                relative_point: AnchorPoint::Top,
+                y: "10",
+            }
         }
     }
 }
 
 fn login_footer() -> Element {
     rsx! {
-        fontstring { name: "VersionText", width: 200.0, height: 16.0,
-            text: "game-engine v0.1.0", font_size: 11.0,
-            font_color: COLOR_VERSION, justify_h: JustifyH::Left,
+        fontstring {
+            name: "VersionText",
+            width: 200.0,
+            height: 16.0,
+            text: "game-engine v0.1.0",
+            font_size: 11.0,
+            font_color: COLOR_VERSION,
+            justify_h: JustifyH::Left,
             strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::BottomLeft, relative_point: AnchorPoint::BottomLeft, x: "10", y: "8" }
+            anchor {
+                point: AnchorPoint::BottomLeft,
+                relative_point: AnchorPoint::BottomLeft,
+                x: "10",
+                y: "8",
+            }
         }
-        fontstring { name: "DisclaimerText", width: 400.0, height: 16.0,
+        fontstring {
+            name: "DisclaimerText",
+            width: 400.0,
+            height: 16.0,
             text: "© 2025 World of Osso. All rights reserved.",
-            font_size: 11.0, font_color: COLOR_SUBTLE,
+            font_size: 11.0,
+            font_color: COLOR_SUBTLE,
             strata: FrameStrata::Medium,
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "8" }
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "8",
+            }
         }
-        fontstring { name: BLIZZARD_THANKS,
-            text: "Special thanks to", font_size: 10.0,
+        fontstring {
+            name: BLIZZARD_THANKS,
+            text: "Special thanks to",
+            font_size: 10.0,
             font: GameFont::FrizQuadrata,
-            font_color: COLOR_SUBTLE, strata: FrameStrata::High,
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "130" }
+            font_color: COLOR_SUBTLE,
+            strata: FrameStrata::High,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "130",
+            }
         }
-        texture { name: "BlizzardLogo", width: 100.0, height: 100.0,
-            texture_file: TEX_BLIZZARD_LOGO, strata: FrameStrata::High,
-            anchor { point: AnchorPoint::Top, relative_to: BLIZZARD_THANKS, relative_point: AnchorPoint::Bottom, y: "2" }
+        texture {
+            name: "BlizzardLogo",
+            width: 100.0,
+            height: 100.0,
+            texture_file: TEX_BLIZZARD_LOGO,
+            strata: FrameStrata::High,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: BLIZZARD_THANKS,
+                relative_point: AnchorPoint::Bottom,
+                y: "2",
+            }
         }
     }
 }
@@ -131,9 +274,18 @@ pub fn login_screen() -> Element {
         r#frame { name: "LoginRoot", strata: FrameStrata::Background,
             {login_background()}
             r#frame { name: "LoginUI", strata: FrameStrata::Medium,
-                texture { name: "LoginGameLogo", texture_file: TEX_GAME_LOGO,
-                    width: 384.0, height: 256.0, strata: FrameStrata::High,
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "3", y: "7" }
+                texture {
+                    name: "LoginGameLogo",
+                    texture_file: TEX_GAME_LOGO,
+                    width: 384.0,
+                    height: 256.0,
+                    strata: FrameStrata::High,
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: "3",
+                        y: "7",
+                    }
                 }
                 {login_inputs()}
                 {login_main_buttons(false, &status)}

@@ -33,7 +33,8 @@ src/
 - `cargo run --bin game-engine -- model.m2 --dump-tree` — Dump entity hierarchy
 - `LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js` — Drive the real login UI path via JS automation, wait for `CharSelect`, then dump the entity tree
 - `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
-- `./run-tests.sh` — cargo test + clippy
+- `./run-tests.sh` — cargo test + clippy + dx fmt
+- `dx fmt` — Auto-format RSX macro blocks (enforced in run-tests.sh via `dx fmt --check`)
 - Edition 2024, rust-version 1.89
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)

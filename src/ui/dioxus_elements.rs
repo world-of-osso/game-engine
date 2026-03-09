@@ -294,10 +294,20 @@ mod tests {
         fn test_component() -> Element {
             rsx! {
                 r#frame { name: "Parent", width: 800.0, height: 600.0,
-                    button { name: "MyButton", width: 200.0, height: 32.0, text: "Click me" }
+                    button {
+                        name: "MyButton",
+                        width: 200.0,
+                        height: 32.0,
+                        text: "Click me",
+                    }
                     fontstring { name: "MyLabel", text: "Hello", font_size: 14.0 }
                     texture { name: "MyTex", texture_file: "test.blp" }
-                    editbox { name: "MyInput", width: 250.0, height: 32.0, password: true }
+                    editbox {
+                        name: "MyInput",
+                        width: 250.0,
+                        height: 32.0,
+                        password: true,
+                    }
                 }
             }
         }
