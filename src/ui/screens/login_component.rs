@@ -10,7 +10,7 @@ use crate::ui::dioxus_elements;
 pub type SharedStatusText = Rc<RefCell<String>>;
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
-const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo-512.png";
+const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 
