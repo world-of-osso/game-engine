@@ -51,7 +51,7 @@ mod water_material;
 mod wow_cursor;
 
 use animation::AnimationPlugin;
-use camera::{Player, WowCamera, WowCameraPlugin};
+use camera::{Player, WowCameraPlugin};
 use terrain::{AdtManager, AdtStreamingPlugin};
 use terrain_heightmap::TerrainHeightmap;
 
@@ -150,7 +150,13 @@ fn register_plugins(app: &mut App) {
                 ..default()
             },
         })
-        .add_systems(Startup, (setup, wow_cursor::install_wow_cursor))
+        .add_systems(
+            Startup,
+            (
+                setup_explicit_asset_scene,
+                wow_cursor::install_wow_cursor,
+            ),
+        )
         .add_systems(
             Update,
             wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
@@ -180,6 +186,7 @@ fn configure_app_plugins(
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
+    app.add_systems(OnEnter(game_state::GameState::InWorld), setup_default_world_scene);
     app.add_systems(Update, handle_automation_dump_tree_request);
     app.add_systems(Update, handle_automation_dump_ui_tree_request);
     app.add_systems(
@@ -454,25 +461,27 @@ mod tests {
         .expect("expected JS automation path");
         assert_eq!(parsed.path, PathBuf::from("debug/login.js"));
     }
+
+    #[test]
+    fn startup_scene_loading_only_runs_for_explicit_assets() {
+        assert!(!should_load_explicit_scene_at_startup(false, None));
+        assert!(should_load_explicit_scene_at_startup(
+            false,
+            Some(Path::new("data/models/humanmale_hd.m2")),
+        ));
+        assert!(!should_load_explicit_scene_at_startup(
+            true,
+            Some(Path::new("data/models/humanmale_hd.m2")),
+        ));
+    }
 }
 
-/// Spawn minimal server-mode scene: dark background + camera only.
-fn setup_server_camera(commands: &mut Commands) {
-    commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
-    commands.spawn((
-        Camera3d::default(),
-        Transform::default(),
-        WowCamera::default(),
-        AmbientLight {
-            color: Color::WHITE,
-            brightness: 0.0,
-            ..default()
-        },
-    ));
+fn should_load_explicit_scene_at_startup(server_mode: bool, asset_path: Option<&Path>) -> bool {
+    !server_mode && asset_path.is_some()
 }
 
 #[allow(clippy::too_many_arguments)]
-fn spawn_scene_for_asset(
+fn setup_world_scene(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -484,12 +493,10 @@ fn spawn_scene_for_asset(
     heightmap: &mut TerrainHeightmap,
     adt_manager: &mut AdtManager,
     creature_display_map: &creature_display::CreatureDisplayMap,
+    asset_path: Option<&Path>,
 ) {
-    let asset_path = parse_asset_path();
-    let is_terrain = asset_path
-        .as_ref()
-        .is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
-        || asset_path.is_none();
+    let is_terrain =
+        asset_path.is_some_and(|p| p.extension().is_some_and(|e| e == "adt")) || asset_path.is_none();
     let camera = spawn_scene_environment(commands, meshes, materials, sky_mats, images, is_terrain);
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
@@ -528,7 +535,7 @@ fn spawn_scene_for_asset(
             materials,
             images,
             inverse_bp,
-            &p,
+            p,
             creature_display_map,
         ),
         None => spawn_default_scene(
@@ -546,7 +553,8 @@ fn spawn_scene_for_asset(
     }
 }
 
-fn setup(
+#[allow(clippy::too_many_arguments)]
+fn setup_explicit_asset_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -560,11 +568,11 @@ fn setup(
     server_addr: Option<Res<networking::ServerAddr>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
 ) {
-    if server_addr.is_some() {
-        setup_server_camera(&mut commands);
+    let asset_path = parse_asset_path();
+    if !should_load_explicit_scene_at_startup(server_addr.is_some(), asset_path.as_deref()) {
         return;
     }
-    spawn_scene_for_asset(
+    setup_world_scene(
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -576,6 +584,41 @@ fn setup(
         &mut heightmap,
         &mut adt_manager,
         &creature_display_map,
+        asset_path.as_deref(),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn setup_default_world_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain_mats: ResMut<Assets<terrain_material::TerrainMaterial>>,
+    mut water_mats: ResMut<Assets<water_material::WaterMaterial>>,
+    mut sky_mats: ResMut<Assets<sky::SkyMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut heightmap: ResMut<TerrainHeightmap>,
+    mut adt_manager: ResMut<AdtManager>,
+    server_addr: Option<Res<networking::ServerAddr>>,
+    creature_display_map: Res<creature_display::CreatureDisplayMap>,
+) {
+    if server_addr.is_some() || parse_asset_path().is_some() {
+        return;
+    }
+    setup_world_scene(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut terrain_mats,
+        &mut water_mats,
+        &mut sky_mats,
+        &mut images,
+        &mut inverse_bp,
+        &mut heightmap,
+        &mut adt_manager,
+        &creature_display_map,
+        None,
     );
 }
 
@@ -778,18 +821,12 @@ fn spawn_scene_environment(
     images: &mut Assets<Image>,
     is_terrain: bool,
 ) -> Entity {
-    let camera = commands
-        .spawn((
-            Camera3d::default(),
-            Transform::default(),
-            WowCamera::default(),
-            AmbientLight {
-                color: Color::WHITE,
-                brightness: 150.0,
-                ..default()
-            },
-        ))
-        .id();
+    let camera = camera::spawn_wow_camera(commands);
+    commands.spawn(AmbientLight {
+        color: Color::WHITE,
+        brightness: 150.0,
+        ..default()
+    });
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,

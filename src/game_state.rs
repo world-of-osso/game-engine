@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
 
-use crate::camera::WowCamera;
+use crate::camera::{self, WowCamera};
 use crate::networking::ServerAddr;
 use crate::sky;
 
@@ -78,24 +78,32 @@ fn spawn_world_environment(
     mut images: ResMut<Assets<Image>>,
     camera_q: Query<Entity, With<WowCamera>>,
 ) {
-    if let Ok(camera) = camera_q.single() {
-        commands.spawn((
-            DirectionalLight {
-                illuminance: light_consts::lux::OVERCAST_DAY,
-                shadows_enabled: true,
-                ..default()
-            },
-            Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
-        ));
-        sky::spawn_sky_dome(
-            &mut commands,
-            &mut meshes,
-            &mut sky_materials,
-            &mut images,
-            camera,
-        );
-        commands.remove_resource::<ClearColor>();
-    }
+    let camera = camera_q
+        .single()
+        .ok()
+        .unwrap_or_else(|| camera::spawn_wow_camera(&mut commands));
+    commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
+    commands.spawn(AmbientLight {
+        color: Color::WHITE,
+        brightness: 0.0,
+        ..default()
+    });
+    commands.spawn((
+        DirectionalLight {
+            illuminance: light_consts::lux::OVERCAST_DAY,
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
+    ));
+    sky::spawn_sky_dome(
+        &mut commands,
+        &mut meshes,
+        &mut sky_materials,
+        &mut images,
+        camera,
+    );
+    commands.remove_resource::<ClearColor>();
 }
 
 fn on_exit_in_world() {

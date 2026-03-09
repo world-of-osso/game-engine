@@ -118,6 +118,12 @@ impl Default for WowCamera {
     }
 }
 
+pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
+    commands
+        .spawn((Camera3d::default(), Transform::default(), WowCamera::default()))
+        .id()
+}
+
 const SENSITIVITY: f32 = 0.01;
 const WALK_SPEED: f32 = 2.5; // M2 Walk movespeed (2.5 yards/sec)
 const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
