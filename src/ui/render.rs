@@ -428,11 +428,18 @@ mod tests {
     use super::*;
     use crate::ui::plugin::UiPlugin;
 
-    #[test]
-    fn ui_camera_spawned() {
+    fn test_app() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<bevy::text::Font>();
         app.add_plugins(UiPlugin);
+        app
+    }
+
+    #[test]
+    fn ui_camera_spawned() {
+        let mut app = test_app();
         app.update();
         let mut query = app.world_mut().query_filtered::<(), With<UiCamera>>();
         assert_eq!(query.iter(app.world()).count(), 1);
@@ -440,9 +447,7 @@ mod tests {
 
     #[test]
     fn creates_quad_for_visible_frame() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(UiPlugin);
+        let mut app = test_app();
         app.update();
         {
             let mut ui = app.world_mut().resource_mut::<UiState>();
@@ -459,9 +464,7 @@ mod tests {
 
     #[test]
     fn no_quad_without_background_color() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(UiPlugin);
+        let mut app = test_app();
         app.update();
         let baseline = {
             let mut q = app.world_mut().query_filtered::<(), With<UiQuad>>();
@@ -481,9 +484,7 @@ mod tests {
 
     #[test]
     fn despawns_quad_when_hidden() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(UiPlugin);
+        let mut app = test_app();
         app.update();
         let baseline = {
             let mut q = app.world_mut().query_filtered::<(), With<UiQuad>>();
@@ -512,9 +513,7 @@ mod tests {
 
     #[test]
     fn backdrop_bg_color_renderable() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(UiPlugin);
+        let mut app = test_app();
         app.update();
         let baseline = {
             let mut q = app.world_mut().query_filtered::<(), With<UiQuad>>();

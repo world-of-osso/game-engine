@@ -343,11 +343,18 @@ mod tests {
     use super::*;
     use crate::ui::plugin::UiPlugin;
 
-    #[test]
-    fn nine_slice_spawns_9_parts() {
+    fn test_app() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<bevy::text::Font>();
         app.add_plugins(UiPlugin);
+        app
+    }
+
+    #[test]
+    fn nine_slice_spawns_9_parts() {
+        let mut app = test_app();
         app.update();
         {
             let mut ui = app.world_mut().resource_mut::<UiState>();
@@ -366,9 +373,7 @@ mod tests {
 
     #[test]
     fn frame_without_nine_slice_spawns_no_parts() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(UiPlugin);
+        let mut app = test_app();
         app.update();
         {
             let mut ui = app.world_mut().resource_mut::<UiState>();

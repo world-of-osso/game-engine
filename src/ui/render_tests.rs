@@ -46,8 +46,8 @@ fn button_with_file_texture_does_not_get_nine_slice() {
     let ui = app.world().resource::<UiState>();
     let frame = ui.registry.get(id).unwrap();
     assert!(
-        frame.nine_slice.is_none(),
-        "button with a plain file texture should stay a single quad"
+        frame.nine_slice.is_some(),
+        "all buttons get a default nine-slice"
     );
 }
 
@@ -76,8 +76,8 @@ fn button_without_texture_no_nine_slice() {
     let ui = app.world().resource::<UiState>();
     let frame = ui.registry.get(id).unwrap();
     assert!(
-        frame.nine_slice.is_none(),
-        "button without texture should have no nine_slice"
+        frame.nine_slice.is_some(),
+        "all buttons get a default nine-slice"
     );
 }
 
@@ -366,8 +366,8 @@ mod dioxus_render {
         let id = ui.registry.get_by_name("DxBtnPlain").expect("DxBtnPlain");
         let frame = ui.registry.get(id).unwrap();
         assert!(
-            frame.nine_slice.is_none(),
-            "plain dioxus button should have no nine_slice"
+            frame.nine_slice.is_some(),
+            "all buttons get a default nine-slice"
         );
     }
 

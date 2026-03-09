@@ -209,6 +209,8 @@ mod tests {
     fn plugin_adds_ui_state() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<bevy::text::Font>();
         app.add_plugins(UiPlugin);
         app.update();
         assert!(app.world().get_resource::<UiState>().is_some());
