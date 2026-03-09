@@ -77,7 +77,12 @@ fn build_z_map(state: &UiState) -> HashMap<u64, f32> {
         .filter(|f| f.visible && f.width > 0.0 && f.height > 0.0)
         .map(|f| (f.id, f.strata, f.frame_level, f.raise_order))
         .collect();
-    frames.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)));
+    frames.sort_by(|a, b| {
+        a.1.cmp(&b.1)
+            .then(a.2.cmp(&b.2))
+            .then(a.3.cmp(&b.3))
+            .then(a.0.cmp(&b.0))
+    });
     frames
         .iter()
         .enumerate()

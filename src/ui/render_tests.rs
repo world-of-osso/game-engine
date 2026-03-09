@@ -684,6 +684,25 @@ fn quad_z(world: &mut World, frame_id: u64) -> Option<f32> {
         .map(|(t, _)| t.translation.z)
 }
 
+/// Frames with equal sort keys use creation order (id) as tiebreaker,
+/// so z-ordering is deterministic regardless of HashMap iteration order.
+#[test]
+fn same_strata_uses_creation_order() {
+    use crate::ui::strata::FrameStrata;
+
+    let mut app = setup_app();
+    let first = create_colored_frame(&mut app, "First", FrameStrata::Medium);
+    let second = create_colored_frame(&mut app, "Second", FrameStrata::Medium);
+    app.update();
+
+    let z1 = quad_z(app.world_mut(), first).expect("first quad");
+    let z2 = quad_z(app.world_mut(), second).expect("second quad");
+    assert!(
+        z1 < z2,
+        "earlier-created frame (z={z1}) must render below later one (z={z2})"
+    );
+}
+
 /// Background strata frames must sort before Medium strata frames in the
 /// render z-order, so full-screen backgrounds never occlude UI elements.
 #[test]

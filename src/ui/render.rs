@@ -142,7 +142,12 @@ fn build_sorted_frame_ids(state: &UiState) -> Vec<u64> {
         .filter(|f| is_renderable(f))
         .map(|f| (f.id, f.strata, f.frame_level, f.raise_order))
         .collect();
-    frames.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3)));
+    frames.sort_by(|a, b| {
+        a.1.cmp(&b.1)
+            .then(a.2.cmp(&b.2))
+            .then(a.3.cmp(&b.3))
+            .then(a.0.cmp(&b.0))
+    });
     frames.into_iter().map(|(id, _, _, _)| id).collect()
 }
 
