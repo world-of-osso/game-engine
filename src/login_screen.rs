@@ -20,13 +20,13 @@ use crate::networking;
 const FADE_IN_DURATION: f32 = 0.75;
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
-const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
+const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.png";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
-const FONT_WORLD_OF_OSSO_TITLE: &str = "/home/osso/Projects/wow/reference-addons.new/ClickableRaidBuffs/Media/Fonts/Cinzel/Cinzel-Bold.ttf";
 const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 const FONT_GLUE_EDITBOX: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/ARIALN.ttf";
 const LOGIN_BACKGROUND_SIZE: (f32, f32) = (2048.0, 1024.0);
 const GLUE_BUTTON_SIZE: (f32, f32) = (200.0, 32.0);
+const MAIN_LOGIN_BUTTON_SIZE: (f32, f32) = (250.0, 66.0);
 const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 const GLUE_NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
@@ -38,6 +38,17 @@ const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
 const STATUS_CONNECTING: &str = "Connecting...";
 const STATUS_MENU_UNAVAILABLE: &str = "Menu is not implemented yet";
 const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
+const LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS: &str = "login-generated-regular-up";
+const LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS: &str = "login-generated-regular-pressed";
+const LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS: &str = "login-generated-regular-highlight";
+const LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS: &str = "login-generated-regular-disabled";
+const LOGIN_BUTTON_GENERATED_REGULAR_RAW: &str = "output/imagegen/button-dark-bronze-regular.ktx2";
+const LOGIN_BUTTON_GENERATED_KNOTWORK: &str = "output/imagegen/button-carved-bronze-knotwork.ktx2";
+const LOGIN_BUTTON_GENERATED_WALNUT: &str = "output/imagegen/button-walnut-bronze-framed.ktx2";
+const LOGIN_BUTTON_ATLAS_UP: &str = "128-brownbutton-up";
+const LOGIN_BUTTON_ATLAS_PRESSED: &str = "128-brownbutton-pressed";
+const LOGIN_BUTTON_ATLAS_HIGHLIGHT: &str = "128-brownbutton-highlight";
+const LOGIN_BUTTON_ATLAS_DISABLED: &str = "128-brownbutton-disable";
 
 #[derive(Resource)]
 struct LoginUi {
@@ -194,35 +205,6 @@ fn build_login_titles(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) {
     );
     set_strata(reg, logo, FrameStrata::High);
     set_layout(reg, logo, 3.0, 7.0, 256.0, 128.0);
-    let title = create_frame(
-        reg,
-        "LoginTitle",
-        Some(root),
-        WidgetType::FontString,
-        400.0,
-        40.0,
-    );
-    set_strata(reg, title, FrameStrata::Medium);
-    set_layout(reg, title, (sw - 400.0) / 2.0, sh * 0.15, 400.0, 40.0);
-    set_font_string_with_font(
-        reg,
-        title,
-        "World of Osso",
-        FONT_WORLD_OF_OSSO_TITLE,
-        28.0,
-        [1.0, 0.82, 0.0, 1.0],
-    );
-    let sub = create_frame(
-        reg,
-        "LoginSubtitle",
-        Some(root),
-        WidgetType::FontString,
-        300.0,
-        24.0,
-    );
-    set_strata(reg, sub, FrameStrata::Medium);
-    set_layout(reg, sub, (sw - 300.0) / 2.0, sh * 0.15 + 45.0, 300.0, 24.0);
-    set_font_string(reg, sub, "Game Engine", 18.0, [0.7, 0.7, 0.8, 1.0]);
 }
 
 fn build_login_inputs(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> (u64, u64) {
@@ -316,7 +298,14 @@ fn build_login_buttons(
 }
 
 fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -> (u64, u64) {
-    let connect = create_button(reg, "ConnectButton", Some(root), 250.0, 66.0, "Login");
+    let connect = create_button(
+        reg,
+        "ConnectButton",
+        Some(root),
+        MAIN_LOGIN_BUTTON_SIZE.0,
+        MAIN_LOGIN_BUTTON_SIZE.1,
+        "Login",
+    );
     set_strata(reg, connect, FrameStrata::Medium);
     set_anchor(
         reg,
@@ -327,15 +316,16 @@ fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -
         0.0,
         -50.0,
     );
-    set_button_atlases(
+    set_login_primary_button_textures(reg, connect);
+    set_button_font_size(reg, connect, 16.0);
+    let reconnect = create_button(
         reg,
-        connect,
-        "128-redbutton-up",
-        "128-redbutton-pressed",
-        "128-redbutton-highlight",
+        "ReconnectButton",
+        Some(root),
+        MAIN_LOGIN_BUTTON_SIZE.0,
+        MAIN_LOGIN_BUTTON_SIZE.1,
+        "Reconnect",
     );
-    set_button_font_size(reg, connect, 22.0);
-    let reconnect = create_button(reg, "ReconnectButton", Some(root), 250.0, 66.0, "Reconnect");
     set_strata(reg, reconnect, FrameStrata::Medium);
     set_anchor(
         reg,
@@ -346,14 +336,8 @@ fn build_main_buttons(reg: &mut FrameRegistry, root: u64, password_input: u64) -
         0.0,
         -50.0,
     );
-    set_button_atlases(
-        reg,
-        reconnect,
-        "128-redbutton-up",
-        "128-redbutton-pressed",
-        "128-redbutton-highlight",
-    );
-    set_button_font_size(reg, reconnect, 22.0);
+    set_login_primary_button_textures(reg, reconnect);
+    set_button_font_size(reg, reconnect, 16.0);
     hide_frame(reg, reconnect);
     (connect, reconnect)
 }
@@ -381,9 +365,10 @@ fn build_exit_button(reg: &mut FrameRegistry, root: u64, _sw: f32, _sh: f32) -> 
     set_button_atlases(
         reg,
         exit,
-        "128-redbutton-up",
-        "128-redbutton-pressed",
-        "128-redbutton-highlight",
+        LOGIN_BUTTON_ATLAS_UP,
+        LOGIN_BUTTON_ATLAS_PRESSED,
+        LOGIN_BUTTON_ATLAS_HIGHLIGHT,
+        LOGIN_BUTTON_ATLAS_DISABLED,
     );
     exit
 }
@@ -413,9 +398,10 @@ fn build_action_button_anchored(
     set_button_atlases(
         reg,
         btn,
-        "128-redbutton-up",
-        "128-redbutton-pressed",
-        "128-redbutton-highlight",
+        LOGIN_BUTTON_ATLAS_UP,
+        LOGIN_BUTTON_ATLAS_PRESSED,
+        LOGIN_BUTTON_ATLAS_HIGHLIGHT,
+        LOGIN_BUTTON_ATLAS_DISABLED,
     );
     btn
 }
@@ -1447,12 +1433,52 @@ fn set_button_atlases(
     normal: &str,
     pushed: &str,
     highlight: &str,
+    disabled: &str,
 ) {
     if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         bd.normal_texture = Some(TextureSource::Atlas(normal.to_string()));
         bd.pushed_texture = Some(TextureSource::Atlas(pushed.to_string()));
         bd.highlight_texture = Some(TextureSource::Atlas(highlight.to_string()));
-        bd.disabled_texture = Some(TextureSource::Atlas("128-redbutton-disable".to_string()));
+        bd.disabled_texture = Some(TextureSource::Atlas(disabled.to_string()));
+    }
+}
+
+fn set_login_primary_button_textures(reg: &mut FrameRegistry, id: u64) {
+    match selected_generated_login_button_path() {
+        Some(path) => set_button_files(reg, id, path, path, path, path),
+        None => set_button_atlases(
+            reg,
+            id,
+            LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS,
+            LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS,
+            LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS,
+            LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS,
+        ),
+    }
+}
+
+fn selected_generated_login_button_path() -> Option<&'static str> {
+    match std::env::var("LOGIN_BUTTON_VARIANT").ok().as_deref() {
+        Some("regular") => Some(LOGIN_BUTTON_GENERATED_REGULAR_RAW),
+        Some("knotwork") => Some(LOGIN_BUTTON_GENERATED_KNOTWORK),
+        Some("walnut") => Some(LOGIN_BUTTON_GENERATED_WALNUT),
+        _ => None,
+    }
+}
+
+fn set_button_files(
+    reg: &mut FrameRegistry,
+    id: u64,
+    normal: &str,
+    pushed: &str,
+    highlight: &str,
+    disabled: &str,
+) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.normal_texture = Some(TextureSource::File(normal.to_string()));
+        bd.pushed_texture = Some(TextureSource::File(pushed.to_string()));
+        bd.highlight_texture = Some(TextureSource::File(highlight.to_string()));
+        bd.disabled_texture = Some(TextureSource::File(disabled.to_string()));
     }
 }
 
@@ -1494,14 +1520,20 @@ mod tests {
         );
         let username_input = create_editbox(&mut reg, "UsernameInput", Some(root), 320.0, 42.0);
         let password_input = create_editbox(&mut reg, "PasswordInput", Some(root), 320.0, 42.0);
-        let connect_button =
-            create_button(&mut reg, "ConnectButton", Some(root), 250.0, 66.0, "Login");
+        let connect_button = create_button(
+            &mut reg,
+            "ConnectButton",
+            Some(root),
+            MAIN_LOGIN_BUTTON_SIZE.0,
+            MAIN_LOGIN_BUTTON_SIZE.1,
+            "Login",
+        );
         let reconnect_button = create_button(
             &mut reg,
             "ReconnectButton",
             Some(root),
-            250.0,
-            66.0,
+            MAIN_LOGIN_BUTTON_SIZE.0,
+            MAIN_LOGIN_BUTTON_SIZE.1,
             "Reconnect",
         );
         let create_account_button = create_button(
@@ -1525,8 +1557,22 @@ mod tests {
         set_layout(&mut reg, root, 0.0, 0.0, 1920.0, 1080.0);
         set_layout(&mut reg, username_input, 800.0, 400.0, 320.0, 42.0);
         set_layout(&mut reg, password_input, 800.0, 460.0, 320.0, 42.0);
-        set_layout(&mut reg, connect_button, 835.0, 540.0, 250.0, 66.0);
-        set_layout(&mut reg, reconnect_button, 835.0, 540.0, 250.0, 66.0);
+        set_layout(
+            &mut reg,
+            connect_button,
+            800.0,
+            522.0,
+            MAIN_LOGIN_BUTTON_SIZE.0,
+            MAIN_LOGIN_BUTTON_SIZE.1,
+        );
+        set_layout(
+            &mut reg,
+            reconnect_button,
+            800.0,
+            522.0,
+            MAIN_LOGIN_BUTTON_SIZE.0,
+            MAIN_LOGIN_BUTTON_SIZE.1,
+        );
         set_layout(&mut reg, create_account_button, 860.0, 630.0, 200.0, 32.0);
         set_layout(&mut reg, menu_button, 860.0, 672.0, 200.0, 32.0);
         set_layout(&mut reg, exit_button, 1700.0, 980.0, 200.0, 32.0);

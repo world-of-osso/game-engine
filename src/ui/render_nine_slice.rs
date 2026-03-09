@@ -5,7 +5,8 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-use super::render::{UI_RENDER_LAYER, load_texture_source_pub};
+use super::render::UI_RENDER_LAYER;
+use super::render_texture::load_texture_source_pub;
 use crate::ui::frame::NineSlice;
 use crate::ui::plugin::UiState;
 use crate::ui::widgets::texture::TextureSource;

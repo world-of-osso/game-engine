@@ -19,6 +19,7 @@ pub mod render_border;
 pub mod render_nine_slice;
 pub mod render_text;
 pub mod render_text_fx;
+pub mod render_texture;
 pub mod render_tiled;
 pub mod spellbook_data;
 pub mod strata;
