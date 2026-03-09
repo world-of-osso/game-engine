@@ -387,6 +387,10 @@ fn select_button_texture_source(
             .as_ref()
             .or(btn.normal_texture.as_ref()),
         ButtonState::Pushed => btn.pushed_texture.as_ref().or(btn.normal_texture.as_ref()),
+        ButtonState::Normal if btn.hovered => btn
+            .highlight_texture
+            .as_ref()
+            .or(btn.normal_texture.as_ref()),
         ButtonState::Normal => btn.normal_texture.as_ref(),
     }?;
     if matches!(source, TextureSource::None) {
