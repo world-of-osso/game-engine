@@ -33,6 +33,7 @@ impl DioxusScreen {
         }
         self.renderer.resolve_pending_anchors(registry);
         auto_size_fontstrings(&self.renderer, registry);
+        auto_size_editboxes(&self.renderer, registry);
     }
 
     pub fn renderer(&self) -> &GameUiRenderer {
@@ -56,6 +57,29 @@ impl DioxusScreen {
     }
 }
 
+/// Auto-size editbox frames that have height == 0 based on font size + vertical insets.
+fn auto_size_editboxes(renderer: &GameUiRenderer, registry: &mut FrameRegistry) {
+    for fid in renderer.all_frame_ids() {
+        let Some(frame) = registry.get(fid) else {
+            continue;
+        };
+        if frame.height > 0.0 {
+            continue;
+        }
+        let Some(WidgetData::EditBox(eb)) = &frame.widget_data else {
+            continue;
+        };
+        let font_size = eb.font_size;
+        let v_inset = if eb.text_insets != [0.0; 4] {
+            eb.text_insets[2] + eb.text_insets[3]
+        } else {
+            0.0
+        };
+        let frame = registry.get_mut(fid).unwrap();
+        frame.height = font_size + font_size * 0.5 + v_inset;
+    }
+}
+
 /// Auto-size fontstring frames that have width == 0 by measuring their text.
 fn auto_size_fontstrings(renderer: &GameUiRenderer, registry: &mut FrameRegistry) {
     for fid in renderer.all_frame_ids() {
@@ -69,9 +93,9 @@ fn auto_size_fontstrings(renderer: &GameUiRenderer, registry: &mut FrameRegistry
             continue;
         }
         let text = fs.text.clone();
-        let font = fs.font.clone();
+        let font = fs.font;
         let font_size = fs.font_size;
-        if let Some((w, h)) = measure_text(&text, &font, font_size) {
+        if let Some((w, h)) = measure_text(&text, font, font_size) {
             let frame = registry.get_mut(fid).unwrap();
             frame.width = w;
             frame.height = h;

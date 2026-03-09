@@ -3,24 +3,22 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::text::Font;
 use bevy::text::TextFont;
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
 
+use crate::ui::font_registry::FontRegistry;
 use crate::ui::frame::WidgetData;
 use crate::ui::plugin::UiState;
 use crate::ui::render::UI_RENDER_LAYER;
 use crate::ui::render::UiText;
 use crate::ui::render_text_fx::{UiTextOutline, UiTextShadow};
 use crate::ui::widgets::button::ButtonState;
-use crate::ui::widgets::font_string::{JustifyH, JustifyV};
+use crate::ui::widgets::font_string::{GameFont, JustifyH, JustifyV};
 
 /// Syncs text content from the frame registry into Bevy Text2d entities.
 pub fn sync_ui_text(
     state: Res<UiState>,
     mut commands: Commands,
     mut font_assets: ResMut<Assets<Font>>,
-    mut font_cache: Local<HashMap<String, Handle<Font>>>,
-    mut missing_fonts: Local<HashSet<String>>,
+    mut font_registry: ResMut<FontRegistry>,
     mut texts: Query<(
         Entity,
         &UiText,
@@ -32,7 +30,7 @@ pub fn sync_ui_text(
 ) {
     let screen_w = state.registry.screen_width;
     let screen_h = state.registry.screen_height;
-    let mut existing: HashSet<u64> = HashSet::new();
+    let mut existing: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
     for (entity, ui_text, mut text, mut font, mut color, mut transform) in texts.iter_mut() {
         let Some(frame) = state.registry.get(ui_text.0) else {
@@ -47,14 +45,7 @@ pub fn sync_ui_text(
         existing.insert(ui_text.0);
         *text = Text2d::new(&props.content);
         font.font_size = props.font_size;
-        if let Some(font_handle) = resolve_font_handle(
-            &props.font,
-            &mut font_assets,
-            &mut font_cache,
-            &mut missing_fonts,
-        ) {
-            font.font = font_handle;
-        }
+        font.font = font_registry.get(props.font, &mut font_assets);
         *color = TextColor(props.color);
         *transform = text_transform(frame, screen_w, screen_h, props.justify_h, props.justify_v);
         commands
@@ -69,20 +60,18 @@ pub fn sync_ui_text(
         screen_h,
         &mut commands,
         &mut font_assets,
-        &mut font_cache,
-        &mut missing_fonts,
+        &mut font_registry,
     );
 }
 
 fn spawn_missing_text(
     state: &UiState,
-    existing: &HashSet<u64>,
+    existing: &std::collections::HashSet<u64>,
     screen_w: f32,
     screen_h: f32,
     commands: &mut Commands,
     font_assets: &mut Assets<Font>,
-    font_cache: &mut HashMap<String, Handle<Font>>,
-    missing_fonts: &mut HashSet<String>,
+    font_registry: &mut FontRegistry,
 ) {
     for frame in state.registry.frames_iter() {
         if !frame.visible || existing.contains(&frame.id) || !has_text(frame) {
@@ -90,8 +79,7 @@ fn spawn_missing_text(
         }
         let props = extract_text_props(frame);
         let transform = text_transform(frame, screen_w, screen_h, props.justify_h, props.justify_v);
-        let font = resolve_font_handle(&props.font, font_assets, font_cache, missing_fonts)
-            .unwrap_or_default();
+        let font = font_registry.get(props.font, font_assets);
         commands.spawn((
             Text2d::new(props.content),
             TextFont {
@@ -119,7 +107,7 @@ fn has_text(frame: &crate::ui::frame::Frame) -> bool {
 
 pub(crate) struct TextProps {
     pub content: String,
-    pub font: String,
+    pub font: GameFont,
     pub font_size: f32,
     pub color: Color,
     pub justify_h: JustifyH,
@@ -136,7 +124,7 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
             let [r, g, b, a] = fs.color;
             TextProps {
                 content: fs.text.clone(),
-                font: fs.font.clone(),
+                font: fs.font,
                 font_size: fs.font_size,
                 color: Color::srgba(r, g, b, a * frame.effective_alpha),
                 justify_h: fs.justify_h,
@@ -152,7 +140,7 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
             let [r, g, b, a] = eb.text_color;
             TextProps {
                 content: display,
-                font: eb.font.clone(),
+                font: eb.font,
                 font_size: eb.font_size,
                 color: Color::srgba(r, g, b, a * frame.effective_alpha),
                 justify_h: JustifyH::Left,
@@ -162,7 +150,7 @@ fn extract_text_props(frame: &crate::ui::frame::Frame) -> TextProps {
         Some(WidgetData::Button(btn)) => extract_button_text(btn, frame.effective_alpha),
         _ => TextProps {
             content: String::new(),
-            font: String::new(),
+            font: GameFont::default(),
             font_size: 12.0,
             color: Color::WHITE,
             justify_h: JustifyH::Center,
@@ -182,7 +170,7 @@ pub(crate) fn extract_button_text(
     };
     TextProps {
         content: btn.text.clone(),
-        font: String::new(),
+        font: GameFont::default(),
         font_size: btn.font_size,
         color: Color::srgba(r, g, b, alpha),
         justify_h: JustifyH::Center,
@@ -190,51 +178,6 @@ pub(crate) fn extract_button_text(
     }
 }
 
-pub(crate) fn resolve_font_handle(
-    font_spec: &str,
-    font_assets: &mut Assets<Font>,
-    font_cache: &mut HashMap<String, Handle<Font>>,
-    missing_fonts: &mut HashSet<String>,
-) -> Option<Handle<Font>> {
-    if !looks_like_font_path(font_spec) {
-        return None;
-    }
-    if let Some(handle) = font_cache.get(font_spec) {
-        return Some(handle.clone());
-    }
-
-    let bytes = match std::fs::read(font_spec) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            if missing_fonts.insert(font_spec.to_string()) {
-                warn!("failed to read UI font {font_spec}: {err}");
-            }
-            return None;
-        }
-    };
-    let font = match Font::try_from_bytes(bytes) {
-        Ok(font) => font,
-        Err(err) => {
-            if missing_fonts.insert(font_spec.to_string()) {
-                warn!("failed to parse UI font {font_spec}: {err}");
-            }
-            return None;
-        }
-    };
-    let handle = font_assets.add(font);
-    font_cache.insert(font_spec.to_string(), handle.clone());
-    Some(handle)
-}
-
-fn looks_like_font_path(font_spec: &str) -> bool {
-    matches!(
-        Path::new(font_spec)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.to_ascii_lowercase()),
-        Some(ext) if matches!(ext.as_str(), "ttf" | "otf")
-    )
-}
 
 /// Compute the transform for a text entity. Public for use by render_text_fx.
 pub fn text_transform(
@@ -282,8 +225,10 @@ fn text_insets(frame: &crate::ui::frame::Frame) -> [f32; 4] {
         if eb.text_insets != [0.0; 4] {
             return eb.text_insets;
         }
+        let h = eb.font_size * 0.25;
+        return [h, h, 0.0, 0.0];
     }
-    [4.0, 4.0, 0.0, 0.0]
+    [0.0; 4]
 }
 
 #[cfg(test)]
@@ -337,14 +282,14 @@ mod tests {
         frame.effective_alpha = 0.5;
         frame.widget_data = Some(WidgetData::EditBox(EditBoxData {
             text: "abc".into(),
-            font: "/tmp/font.ttf".into(),
+            font: crate::ui::widgets::font_string::GameFont::ArialNarrow,
             font_size: 16.0,
             text_color: [0.8, 0.7, 0.6, 1.0],
             ..Default::default()
         }));
         let props = extract_text_props(&frame);
         assert_eq!(props.content, "abc");
-        assert_eq!(props.font, "/tmp/font.ttf");
+        assert_eq!(props.font, crate::ui::widgets::font_string::GameFont::ArialNarrow);
         assert_eq!(props.font_size, 16.0);
         let Color::Srgba(srgba) = props.color else {
             panic!("expected srgba")
