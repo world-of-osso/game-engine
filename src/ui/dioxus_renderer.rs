@@ -1,5 +1,8 @@
+use std::path::Path;
+
 use dioxus_core::{AttributeValue, ElementId, Template, TemplateNode, WriteMutations};
 
+use crate::ui::atlas;
 use crate::ui::dioxus_anchor::{
     apply_anchor_element, apply_anchor_resolved, apply_anchor_state, collect_anchor_statics,
     AnchorState,
@@ -550,18 +553,28 @@ fn apply_widget_texture_attrs(frame: &mut Frame, name: &str, value: &AttributeVa
         "texture_file" => {
             if let Some(s) = as_text(value) {
                 if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
+                    if !Path::new(s).exists() {
+                        eprintln!("[UI] texture_file not found: {s}");
+                    }
                     td.source = TextureSource::File(s.to_string());
                 }
             }
         }
         "texture_fdid" => assign_f32(value, |v| {
             if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
-                td.source = TextureSource::FileDataId(v as u32);
+                let fdid = v as u32;
+                if !Path::new(&format!("data/textures/{fdid}.blp")).exists() {
+                    eprintln!("[UI] texture_fdid not found: {fdid}");
+                }
+                td.source = TextureSource::FileDataId(fdid);
             }
         }),
         "texture_atlas" => {
             if let Some(s) = as_text(value) {
                 if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
+                    if atlas::get_region(s).is_none() {
+                        eprintln!("[UI] texture_atlas not found: {s}");
+                    }
                     td.source = TextureSource::Atlas(s.to_string());
                 }
             }
@@ -600,6 +613,9 @@ fn apply_button_texture(
 ) {
     if let Some(s) = as_text(value) {
         if let Some(WidgetData::Button(bd)) = &mut frame.widget_data {
+            if atlas::get_region(s).is_none() {
+                eprintln!("[UI] button atlas not found: {s}");
+            }
             apply(bd, TextureSource::Atlas(s.to_string()));
         }
     }
