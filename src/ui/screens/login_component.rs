@@ -99,8 +99,9 @@ fn login_footer() -> Element {
             strata: "MEDIUM",
             anchor { point: "BOTTOM", relative_point: "BOTTOM", y: "8" }
         }
-        fontstring { name: "BlizzardThanks", width: 120.0, height: 14.0,
+        fontstring { name: "BlizzardThanks",
             text: "Special thanks to", font_size: 10.0,
+            font: FONT_GLUE_LABEL,
             font_color: "0.65,0.65,0.7,1.0", strata: "HIGH",
             anchor { point: "BOTTOM", relative_point: "BOTTOM", y: "130" }
         }

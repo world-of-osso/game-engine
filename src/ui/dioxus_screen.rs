@@ -1,7 +1,9 @@
 use dioxus_core::{Element, ScopeId, VirtualDom};
 
 use crate::ui::dioxus_renderer::{GameUiRenderer, MutationApplier};
+use crate::ui::frame::WidgetData;
 use crate::ui::registry::FrameRegistry;
+use crate::ui::text_measure::measure_text;
 
 /// Generic Dioxus-to-FrameRegistry bridge. One per screen.
 pub struct DioxusScreen {
@@ -30,6 +32,7 @@ impl DioxusScreen {
             }
         }
         self.renderer.resolve_pending_anchors(registry);
+        auto_size_fontstrings(&self.renderer, registry);
     }
 
     pub fn renderer(&self) -> &GameUiRenderer {
@@ -50,5 +53,28 @@ impl DioxusScreen {
         }
         self.renderer = GameUiRenderer::new();
         self.initialized = false;
+    }
+}
+
+/// Auto-size fontstring frames that have width == 0 by measuring their text.
+fn auto_size_fontstrings(renderer: &GameUiRenderer, registry: &mut FrameRegistry) {
+    for fid in renderer.all_frame_ids() {
+        let Some(frame) = registry.get(fid) else {
+            continue;
+        };
+        let Some(WidgetData::FontString(fs)) = &frame.widget_data else {
+            continue;
+        };
+        if frame.width > 0.0 || fs.text.is_empty() {
+            continue;
+        }
+        let text = fs.text.clone();
+        let font = fs.font.clone();
+        let font_size = fs.font_size;
+        if let Some((w, h)) = measure_text(&text, &font, font_size) {
+            let frame = registry.get_mut(fid).unwrap();
+            frame.width = w;
+            frame.height = h;
+        }
     }
 }

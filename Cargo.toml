@@ -25,6 +25,7 @@ shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/sha
 dioxus-core = "0.7"
 dioxus = { version = "0.7", default-features = false, features = ["macro", "signals", "hooks"] }
 game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
+ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 ktx2-rw = "0.2.4"

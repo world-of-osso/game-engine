@@ -3658,6 +3658,7 @@ version = "0.1.0"
 name = "game-engine"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "bevy",
  "cascette-client-storage",
  "cascette-crypto",

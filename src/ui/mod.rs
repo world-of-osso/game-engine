@@ -26,6 +26,7 @@ pub mod render_tiled;
 pub mod screens;
 pub mod spellbook_data;
 pub mod strata;
+pub mod text_measure;
 pub mod wasm_host;
 pub mod widgets;
 
