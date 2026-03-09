@@ -1,3 +1,104 @@
+/// Generates a `#[derive(Resource)]` struct whose fields are `u64` widget IDs
+/// resolved by name from a `FrameRegistry`. Fields marked with `?` become `Option<u64>`.
+///
+/// Accepts either a `FrameName` constant (uses `.0` to get the `&str`) or a string literal.
+///
+/// ```ignore
+/// ui_resource! {
+///     pub(crate) LoginUi {
+///         root: "LoginRoot",
+///         username_input: USERNAME_INPUT,
+///         reconnect_button?: "ReconnectButton",
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! ui_resource {
+    // Entry point: accumulate fields via TT muncher
+    ( $vis:vis $name:ident { $($rest:tt)* } ) => {
+        $crate::ui_resource!(@accum $vis $name [] [] $($rest)*);
+    };
+
+    // Optional field: `name?: IDENT,`
+    (@accum $vis:vis $name:ident
+        [ $( ($rf:ident, $rk:tt) )* ]
+        [ $( ($of:ident, $ok:tt) )* ]
+        $field:ident ?: $key:ident, $($rest:tt)*
+    ) => {
+        $crate::ui_resource!(@accum $vis $name
+            [ $( ($rf, $rk) )* ]
+            [ $( ($of, $ok) )* ($field, $key) ]
+            $($rest)*
+        );
+    };
+
+    // Optional field: `name?: "literal",`
+    (@accum $vis:vis $name:ident
+        [ $( ($rf:ident, $rk:tt) )* ]
+        [ $( ($of:ident, $ok:tt) )* ]
+        $field:ident ?: $key:literal, $($rest:tt)*
+    ) => {
+        $crate::ui_resource!(@accum $vis $name
+            [ $( ($rf, $rk) )* ]
+            [ $( ($of, $ok) )* ($field, $key) ]
+            $($rest)*
+        );
+    };
+
+    // Required field: `name: IDENT,`
+    (@accum $vis:vis $name:ident
+        [ $( ($rf:ident, $rk:tt) )* ]
+        [ $( ($of:ident, $ok:tt) )* ]
+        $field:ident : $key:ident, $($rest:tt)*
+    ) => {
+        $crate::ui_resource!(@accum $vis $name
+            [ $( ($rf, $rk) )* ($field, $key) ]
+            [ $( ($of, $ok) )* ]
+            $($rest)*
+        );
+    };
+
+    // Required field: `name: "literal",`
+    (@accum $vis:vis $name:ident
+        [ $( ($rf:ident, $rk:tt) )* ]
+        [ $( ($of:ident, $ok:tt) )* ]
+        $field:ident : $key:literal, $($rest:tt)*
+    ) => {
+        $crate::ui_resource!(@accum $vis $name
+            [ $( ($rf, $rk) )* ($field, $key) ]
+            [ $( ($of, $ok) )* ]
+            $($rest)*
+        );
+    };
+
+    // Terminal: emit struct + impl
+    (@accum $vis:vis $name:ident
+        [ $( ($rf:ident, $rk:tt) )* ]
+        [ $( ($of:ident, $ok:tt) )* ]
+    ) => {
+        #[derive(Resource)]
+        $vis struct $name {
+            $( $vis $rf: u64, )*
+            $( $vis $of: Option<u64>, )*
+        }
+
+        impl $name {
+            $vis fn resolve(reg: &$crate::ui::registry::FrameRegistry) -> Self {
+                Self {
+                    $( $rf: reg.get_by_name($crate::ui_resource!(@key_str $rk))
+                        .expect($crate::ui_resource!(@key_str $rk)), )*
+                    $( $of: reg.get_by_name($crate::ui_resource!(@key_str $ok)), )*
+                }
+            }
+        }
+    };
+
+    // Key string: identifier (FrameName constant) → access .0
+    (@key_str $key:ident) => { $key.0 };
+    // Key string: string literal → pass through
+    (@key_str $key:literal) => { $key };
+}
+
 pub mod addon_watcher;
 pub mod anchor;
 pub mod animation;

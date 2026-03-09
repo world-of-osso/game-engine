@@ -20,10 +20,15 @@ const COLOR_ERROR: FontColor = FontColor::new(0.9, 0.5, 0.5, 1.0);
 const COLOR_SUBTLE: FontColor = FontColor::new(0.65, 0.65, 0.7, 1.0);
 const COLOR_VERSION: FontColor = FontColor::new(0.7, 0.7, 0.75, 1.0);
 
-const USERNAME_INPUT: FrameName = FrameName("UsernameInput");
-const PASSWORD_INPUT: FrameName = FrameName("PasswordInput");
-const EXIT_BUTTON: FrameName = FrameName("ExitButton");
-const CREATE_ACCOUNT_BUTTON: FrameName = FrameName("CreateAccountButton");
+pub const LOGIN_ROOT: FrameName = FrameName("LoginRoot");
+pub const USERNAME_INPUT: FrameName = FrameName("UsernameInput");
+pub const PASSWORD_INPUT: FrameName = FrameName("PasswordInput");
+pub const CONNECT_BUTTON: FrameName = FrameName("ConnectButton");
+pub const RECONNECT_BUTTON: FrameName = FrameName("ReconnectButton");
+pub const EXIT_BUTTON: FrameName = FrameName("ExitButton");
+pub const CREATE_ACCOUNT_BUTTON: FrameName = FrameName("CreateAccountButton");
+pub const MENU_BUTTON: FrameName = FrameName("MenuButton");
+pub const LOGIN_STATUS: FrameName = FrameName("LoginStatus");
 const BLIZZARD_THANKS: FrameName = FrameName("BlizzardThanks");
 
 fn login_background() -> Element {
@@ -120,7 +125,7 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
     rsx! {
         if show_reconnect {
             button {
-                name: "ReconnectButton",
+                name: RECONNECT_BUTTON,
                 width: 250.0,
                 height: 66.0,
                 text: "Reconnect",
@@ -135,7 +140,7 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
             }
         } else {
             button {
-                name: "ConnectButton",
+                name: CONNECT_BUTTON,
                 width: 250.0,
                 height: 66.0,
                 text: "Login",
@@ -150,7 +155,7 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
             }
         }
         fontstring {
-            name: "LoginStatus",
+            name: LOGIN_STATUS,
             width: 320.0,
             height: 24.0,
             text: status_text,
@@ -198,7 +203,7 @@ fn login_action_buttons() -> Element {
             }
         }
         button {
-            name: "MenuButton",
+            name: MENU_BUTTON,
             width: 200.0,
             height: 32.0,
             text: "Menu",
@@ -279,7 +284,7 @@ pub fn login_screen() -> Element {
     let status_ref: SharedStatusText = use_context();
     let status = status_ref.borrow().clone();
     rsx! {
-        r#frame { name: "LoginRoot", strata: FrameStrata::Background,
+        r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
             r#frame { name: "LoginUI", strata: FrameStrata::Medium,
                 texture {

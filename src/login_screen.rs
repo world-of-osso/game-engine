@@ -5,27 +5,32 @@ use bevy::prelude::*;
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue};
 use game_engine::ui::dioxus_screen::DioxusScreen;
 use game_engine::ui::frame::{NineSlice, WidgetData};
-use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::layout::recompute_layouts;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
-use game_engine::ui::screens::login_component::login_screen;
+use game_engine::ui::screens::login_component::{
+    CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, MENU_BUTTON,
+    PASSWORD_INPUT, RECONNECT_BUTTON, USERNAME_INPUT, login_screen,
+};
+use game_engine::ui_resource;
 use game_engine::ui::widgets::button::ButtonState as BtnState;
+use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::widgets::texture::TextureSource;
 
 use crate::game_state::GameState;
 use crate::networking;
 
-#[path = "login_screen_helpers.rs"]
-mod helpers;
 #[path = "login_screen_connect.rs"]
 mod connect;
+#[path = "login_screen_helpers.rs"]
+mod helpers;
 
-pub(crate) use connect::{sync_button_states, try_connect};
 use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
+pub(crate) use connect::{sync_button_states, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, hit_frame, insert_char_into_editbox, select_all_editbox,
+    set_button_hovered, set_login_primary_button_textures,
 };
 
 const FADE_IN_DURATION: f32 = 0.75;
@@ -39,25 +44,19 @@ pub(crate) const STATUS_CONNECTING: &str = "Connecting...";
 pub(crate) const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
 const STATUS_MENU_UNAVAILABLE: &str = "Menu is not implemented yet";
 pub(crate) const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
-const LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS: &str = "defaultbutton-nineslice-up";
-const LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS: &str = "defaultbutton-nineslice-pressed";
-const LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS: &str = "defaultbutton-nineslice-highlight";
-const LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS: &str = "defaultbutton-nineslice-disabled";
-const LOGIN_BUTTON_GENERATED_REGULAR_RAW: &str = "output/imagegen/button-dark-bronze-regular.ktx2";
-const LOGIN_BUTTON_GENERATED_KNOTWORK: &str = "output/imagegen/button-carved-bronze-knotwork.ktx2";
-const LOGIN_BUTTON_GENERATED_WALNUT: &str = "output/imagegen/button-walnut-bronze-framed.ktx2";
 
-#[derive(Resource)]
-pub(crate) struct LoginUi {
-    pub(crate) root: u64,
-    pub(crate) username_input: u64,
-    pub(crate) password_input: u64,
-    pub(crate) connect_button: u64,
-    pub(crate) reconnect_button: Option<u64>,
-    pub(crate) create_account_button: u64,
-    pub(crate) menu_button: u64,
-    pub(crate) exit_button: u64,
-    pub(crate) status_text: u64,
+ui_resource! {
+    pub(crate) LoginUi {
+        root: LOGIN_ROOT,
+        username_input: USERNAME_INPUT,
+        password_input: PASSWORD_INPUT,
+        connect_button: CONNECT_BUTTON,
+        create_account_button: CREATE_ACCOUNT_BUTTON,
+        menu_button: MENU_BUTTON,
+        exit_button: EXIT_BUTTON,
+        status_text: LOGIN_STATUS,
+        reconnect_button?: RECONNECT_BUTTON,
+    }
 }
 
 #[derive(Resource, Default)]
@@ -125,14 +124,15 @@ pub(crate) fn build_login_ui(
     let mut screen = build_login_dioxus_screen(&status);
     screen.screen.sync(&mut ui.registry);
 
-    let login = resolve_login_ui_elements(&mut ui.registry);
+    let login = LoginUi::resolve(&ui.registry);
+    apply_post_setup(&mut ui.registry, &login);
 
     if dev_server.is_some() {
         prefill_offline_credentials(&mut ui.registry, &login);
     }
 
     ui.registry.set_alpha(login.root, 0.0);
-    commands.insert_resource(LoginFadeIn(0.0));
+    commands.insert_resource(LoginFadeIn(0.1));
     commands.insert_resource(LoginDioxusScreenRes(screen));
     commands.insert_resource(login);
 }
@@ -148,51 +148,16 @@ fn build_login_dioxus_screen(status: &LoginStatus) -> LoginDioxusScreen {
     }
 }
 
-fn resolve_login_ui_elements(reg: &mut FrameRegistry) -> LoginUi {
-    let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
-    let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
-    let password_input = reg.get_by_name("PasswordInput").expect("PasswordInput");
-    let connect_button = reg.get_by_name("ConnectButton").expect("ConnectButton");
-    let reconnect_button = reg.get_by_name("ReconnectButton");
-    let create_account_button = reg
-        .get_by_name("CreateAccountButton")
-        .expect("CreateAccountButton");
-    let menu_button = reg.get_by_name("MenuButton").expect("MenuButton");
-    let exit_button = reg.get_by_name("ExitButton").expect("ExitButton");
-    let status_text = reg.get_by_name("LoginStatus").expect("LoginStatus");
-
-    apply_post_setup(reg, root, username_input, password_input, connect_button, reconnect_button);
-
-    LoginUi {
-        root,
-        username_input,
-        password_input,
-        connect_button,
-        reconnect_button,
-        create_account_button,
-        menu_button,
-        exit_button,
-        status_text,
-    }
-}
-
-fn apply_post_setup(
-    reg: &mut FrameRegistry,
-    root: u64,
-    username_input: u64,
-    password_input: u64,
-    connect_button: u64,
-    reconnect_button: Option<u64>,
-) {
+fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
     let (sw, sh) = (reg.screen_width, reg.screen_height);
-    if let Some(frame) = reg.get_mut(root) {
+    if let Some(frame) = reg.get_mut(login.root) {
         frame.width = sw;
         frame.height = sh;
     }
-    set_editbox_backdrop(reg, username_input);
-    set_editbox_backdrop(reg, password_input);
-    set_login_primary_button_textures(reg, connect_button);
-    if let Some(reconnect_button) = reconnect_button {
+    set_editbox_backdrop(reg, login.username_input);
+    set_editbox_backdrop(reg, login.password_input);
+    set_login_primary_button_textures(reg, login.connect_button);
+    if let Some(reconnect_button) = login.reconnect_button {
         set_login_primary_button_textures(reg, reconnect_button);
     }
 }
@@ -257,66 +222,6 @@ fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
     }
 }
 
-fn set_button_atlases(
-    reg: &mut FrameRegistry,
-    id: u64,
-    normal: &str,
-    pushed: &str,
-    highlight: &str,
-    disabled: &str,
-) {
-    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        bd.normal_texture = Some(TextureSource::Atlas(normal.to_string()));
-        bd.pushed_texture = Some(TextureSource::Atlas(pushed.to_string()));
-        bd.highlight_texture = Some(TextureSource::Atlas(highlight.to_string()));
-        bd.disabled_texture = Some(TextureSource::Atlas(disabled.to_string()));
-    }
-}
-
-fn set_button_files(
-    reg: &mut FrameRegistry,
-    id: u64,
-    normal: &str,
-    pushed: &str,
-    highlight: &str,
-    disabled: &str,
-) {
-    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        bd.normal_texture = Some(TextureSource::File(normal.to_string()));
-        bd.pushed_texture = Some(TextureSource::File(pushed.to_string()));
-        bd.highlight_texture = Some(TextureSource::File(highlight.to_string()));
-        bd.disabled_texture = Some(TextureSource::File(disabled.to_string()));
-    }
-}
-
-fn set_button_hovered(reg: &mut FrameRegistry, id: u64, hovered: bool) {
-    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        bd.hovered = hovered;
-    }
-}
-
-fn set_login_primary_button_textures(reg: &mut FrameRegistry, id: u64) {
-    match selected_generated_login_button_path() {
-        Some(path) => set_button_files(reg, id, path, path, path, path),
-        None => set_button_atlases(
-            reg,
-            id,
-            LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS,
-            LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS,
-            LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS,
-            LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS,
-        ),
-    }
-}
-
-fn selected_generated_login_button_path() -> Option<&'static str> {
-    match std::env::var("LOGIN_BUTTON_VARIANT").ok().as_deref() {
-        Some("regular") => Some(LOGIN_BUTTON_GENERATED_REGULAR_RAW),
-        Some("knotwork") => Some(LOGIN_BUTTON_GENERATED_KNOTWORK),
-        Some("walnut") => Some(LOGIN_BUTTON_GENERATED_WALNUT),
-        _ => None,
-    }
-}
 
 fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
     ui.registry
@@ -403,8 +308,18 @@ fn handle_mouse_click(
         select_all_editbox(&mut ui.registry, login.password_input);
     } else {
         handle_button_click(
-            ui, login, cx, cy, focus, next_state, status, login_mode, auth_token, server_addr,
-            commands, exit,
+            ui,
+            login,
+            cx,
+            cy,
+            focus,
+            next_state,
+            status,
+            login_mode,
+            auth_token,
+            server_addr,
+            commands,
+            exit,
         );
     }
 }
@@ -426,12 +341,27 @@ fn handle_button_click(
 ) {
     if hit_active_frame(ui, login.connect_button, cx, cy) {
         set_button_pushed(&mut ui.registry, login.connect_button);
-        try_connect(&ui.registry, login, status, next_state, &*login_mode, server_addr, commands);
+        try_connect(
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            &*login_mode,
+            server_addr,
+            commands,
+        );
     } else if login
         .reconnect_button
         .is_some_and(|id| hit_active_frame(ui, id, cx, cy))
     {
-        try_reconnect(auth_token, status, next_state, login_mode, server_addr, commands);
+        try_reconnect(
+            auth_token,
+            status,
+            next_state,
+            login_mode,
+            server_addr,
+            commands,
+        );
     } else if hit_active_frame(ui, login.create_account_button, cx, cy) {
         toggle_login_mode(login_mode, &mut ui.registry, login);
         status.0.clear();
@@ -478,8 +408,15 @@ fn login_keyboard_input(
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
             handle_login_key(
-                event.key_code, focused_id, &mut ui, login, &mut status, &mut next_state,
-                &*login_mode, server_addr.as_ref().map(|addr| addr.0), &mut commands,
+                event.key_code,
+                focused_id,
+                &mut ui,
+                login,
+                &mut status,
+                &mut next_state,
+                &*login_mode,
+                server_addr.as_ref().map(|addr| addr.0),
+                &mut commands,
             );
         }
     }
@@ -502,8 +439,16 @@ fn login_run_automation(
     };
     let Some(action) = queue.pop() else { return };
     if let Err(err) = run_login_automation_action(
-        &mut ui, login, &mut focus, &mut next_state, &mut status, &mut login_mode, &auth_token,
-        server_addr.as_ref().map(|addr| addr.0), &mut commands, &action,
+        &mut ui,
+        login,
+        &mut focus,
+        &mut next_state,
+        &mut status,
+        &mut login_mode,
+        &auth_token,
+        server_addr.as_ref().map(|addr| addr.0),
+        &mut commands,
+        &action,
     ) {
         status.0 = err;
     }
@@ -525,20 +470,39 @@ pub(crate) fn run_login_automation_action(
     match action {
         UiAutomationAction::ClickFrame(name) => {
             click_login_frame(
-                ui, login, focus, next_state, status, login_mode, auth_token, server_addr,
-                commands, name,
+                ui,
+                login,
+                focus,
+                next_state,
+                status,
+                login_mode,
+                auth_token,
+                server_addr,
+                commands,
+                name,
             )?;
         }
         UiAutomationAction::TypeText(text) => {
-            let focused_id = focus.0.ok_or("automation type requires a focused edit box")?;
+            let focused_id = focus
+                .0
+                .ok_or("automation type requires a focused edit box")?;
             for ch in text.chars() {
                 insert_char_into_editbox(&mut ui.registry, focused_id, &ch.to_string());
             }
         }
         UiAutomationAction::PressKey(key) => {
-            let focused_id = focus.0.ok_or("automation key press requires a focused frame")?;
+            let focused_id = focus
+                .0
+                .ok_or("automation key press requires a focused frame")?;
             handle_login_key(
-                *key, focused_id, ui, login, status, next_state, &*login_mode, server_addr,
+                *key,
+                focused_id,
+                ui,
+                login,
+                status,
+                next_state,
+                &*login_mode,
+                server_addr,
                 commands,
             );
         }
@@ -575,9 +539,17 @@ fn click_login_frame(
         .cloned()
         .ok_or_else(|| format!("login frame '{frame_name}' has no layout rect"))?;
     handle_mouse_click(
-        ui, login,
+        ui,
+        login,
         Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0),
-        focus, next_state, status, login_mode, auth_token, server_addr, commands, None,
+        focus,
+        next_state,
+        status,
+        login_mode,
+        auth_token,
+        server_addr,
+        commands,
+        None,
     );
     Ok(())
 }
@@ -624,7 +596,13 @@ fn handle_login_key(
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
         KeyCode::Enter => try_connect(
-            &ui.registry, login, status, next_state, mode, server_addr, commands,
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            mode,
+            server_addr,
+            commands,
         ),
         _ => {}
     }
@@ -676,8 +654,16 @@ fn login_update_visuals(
     ui.focused_frame = focus.0;
     sync_button_states(&mut ui.registry, login, &*login_mode, &auth_token);
     sync_dioxus_status(&mut ui.registry, screen_res.as_mut(), &status);
-    sync_editbox_focus_visual(&mut ui.registry, login.username_input, focus.0 == Some(login.username_input));
-    sync_editbox_focus_visual(&mut ui.registry, login.password_input, focus.0 == Some(login.password_input));
+    sync_editbox_focus_visual(
+        &mut ui.registry,
+        login.username_input,
+        focus.0 == Some(login.username_input),
+    );
+    sync_editbox_focus_visual(
+        &mut ui.registry,
+        login.password_input,
+        focus.0 == Some(login.password_input),
+    );
 }
 
 fn sync_dioxus_status(

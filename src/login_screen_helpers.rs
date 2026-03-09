@@ -288,6 +288,77 @@ pub fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
     }
 }
 
+// --- Button visual helpers ---
+
+const LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS: &str = "defaultbutton-nineslice-up";
+const LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS: &str = "defaultbutton-nineslice-pressed";
+const LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS: &str = "defaultbutton-nineslice-highlight";
+const LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS: &str = "defaultbutton-nineslice-disabled";
+const LOGIN_BUTTON_GENERATED_REGULAR_RAW: &str = "output/imagegen/button-dark-bronze-regular.ktx2";
+const LOGIN_BUTTON_GENERATED_KNOTWORK: &str = "output/imagegen/button-carved-bronze-knotwork.ktx2";
+const LOGIN_BUTTON_GENERATED_WALNUT: &str = "output/imagegen/button-walnut-bronze-framed.ktx2";
+
+pub fn set_button_atlases(
+    reg: &mut FrameRegistry,
+    id: u64,
+    normal: &str,
+    pushed: &str,
+    highlight: &str,
+    disabled: &str,
+) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.normal_texture = Some(TextureSource::Atlas(normal.to_string()));
+        bd.pushed_texture = Some(TextureSource::Atlas(pushed.to_string()));
+        bd.highlight_texture = Some(TextureSource::Atlas(highlight.to_string()));
+        bd.disabled_texture = Some(TextureSource::Atlas(disabled.to_string()));
+    }
+}
+
+pub fn set_button_files(
+    reg: &mut FrameRegistry,
+    id: u64,
+    normal: &str,
+    pushed: &str,
+    highlight: &str,
+    disabled: &str,
+) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.normal_texture = Some(TextureSource::File(normal.to_string()));
+        bd.pushed_texture = Some(TextureSource::File(pushed.to_string()));
+        bd.highlight_texture = Some(TextureSource::File(highlight.to_string()));
+        bd.disabled_texture = Some(TextureSource::File(disabled.to_string()));
+    }
+}
+
+pub fn set_button_hovered(reg: &mut FrameRegistry, id: u64, hovered: bool) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.hovered = hovered;
+    }
+}
+
+pub fn set_login_primary_button_textures(reg: &mut FrameRegistry, id: u64) {
+    match selected_generated_login_button_path() {
+        Some(path) => set_button_files(reg, id, path, path, path, path),
+        None => set_button_atlases(
+            reg,
+            id,
+            LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS,
+            LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS,
+            LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS,
+            LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS,
+        ),
+    }
+}
+
+fn selected_generated_login_button_path() -> Option<&'static str> {
+    match std::env::var("LOGIN_BUTTON_VARIANT").ok().as_deref() {
+        Some("regular") => Some(LOGIN_BUTTON_GENERATED_REGULAR_RAW),
+        Some("knotwork") => Some(LOGIN_BUTTON_GENERATED_KNOTWORK),
+        Some("walnut") => Some(LOGIN_BUTTON_GENERATED_WALNUT),
+        _ => None,
+    }
+}
+
 pub fn set_button_textures(
     reg: &mut FrameRegistry,
     id: u64,
