@@ -404,7 +404,7 @@ mod dioxus_render {
     fn dioxus_editbox_preserves_dimensions_and_password() {
         fn comp() -> Element {
             rsx! {
-                editbox { name: "DxEdit", width: 300.0, height: 36.0, password: true }
+                editbox { name: "DxEdit", width: 300.0, height: 36.0, font_size: 20.0, password: true }
             }
         }
         let (mut app, _screen) = build_screen(comp);
@@ -416,7 +416,10 @@ mod dioxus_render {
         assert_eq!(frame.width, 300.0);
         assert_eq!(frame.height, 36.0);
         match &frame.widget_data {
-            Some(WidgetData::EditBox(eb)) => assert!(eb.password, "password should be true"),
+            Some(WidgetData::EditBox(eb)) => {
+                assert!(eb.password, "password should be true");
+                assert_eq!(eb.font_size, 20.0, "font_size should be 20.0, got {}", eb.font_size);
+            }
             other => panic!("expected EditBox widget_data, got {:?}", other),
         }
     }
