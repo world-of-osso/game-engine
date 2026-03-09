@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.89"
 
 [dependencies]
-bevy = { version = "0.18", features = ["default", "bevy_dev_tools", "bevy_audio", "wav"] }
+bevy = { version = "0.18", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 image-blp = "1"
 peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
 tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time"] }
@@ -25,6 +25,8 @@ shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/sha
 dioxus-core = "0.7"
 game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
 quick-js = "0.4"
+image = { version = "0.25", default-features = false, features = ["png"] }
+ktx2-rw = "0.2.4"
 
 [[bin]]
 name = "casc-local"

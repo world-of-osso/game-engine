@@ -75,6 +75,150 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             tiles_vertically: false,
             nine_slice_edge: Some(16.0),
         }),
+        "128-brownbutton-up" => Some(AtlasRegion {
+            path: "data/ui/128BrownButton9Sliced.ktx2",
+            left: 0.001953,
+            right: 0.919922,
+            top: 0.509766,
+            bottom: 0.759766,
+            width: 470.0,
+            height: 128.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(16.0),
+        }),
+        "128-brownbutton-pressed" => Some(AtlasRegion {
+            path: "data/ui/128BrownButton9Sliced.ktx2",
+            left: 0.001953,
+            right: 0.919922,
+            top: 0.255859,
+            bottom: 0.505859,
+            width: 470.0,
+            height: 128.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(16.0),
+        }),
+        "128-brownbutton-disable" => Some(AtlasRegion {
+            path: "data/ui/128BrownButton9Sliced.ktx2",
+            left: 0.001953,
+            right: 0.919922,
+            top: 0.001953,
+            bottom: 0.251953,
+            width: 470.0,
+            height: 128.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(16.0),
+        }),
+        "128-brownbutton-highlight" => Some(AtlasRegion {
+            path: "data/ui/128BrownButton.ktx2",
+            left: 0.001953,
+            right: 0.863281,
+            top: 0.190918,
+            bottom: 0.253418,
+            width: 441.0,
+            height: 128.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(16.0),
+        }),
+        "glue-bigbutton-brown-up" => Some(AtlasRegion {
+            path: "data/ui/Glues-BigButton-Brown-Up.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 256.0,
+            height: 64.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: None,
+        }),
+        "glue-bigbutton-brown-down" => Some(AtlasRegion {
+            path: "data/ui/Glues-BigButton-Brown-Down.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 256.0,
+            height: 64.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: None,
+        }),
+        "glue-bigbutton-brown-highlight" => Some(AtlasRegion {
+            path: "data/ui/Glues-BigButton-Brown-Highlight.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 256.0,
+            height: 64.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: None,
+        }),
+        "glue-bigbutton-brown-disable" => Some(AtlasRegion {
+            path: "data/ui/Glues-BigButton-Brown-Up.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 256.0,
+            height: 64.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: None,
+        }),
+        "login-generated-regular-up" => Some(AtlasRegion {
+            path: "data/ui/login-button-generated-regular-normal.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 500.0,
+            height: 132.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(24.0),
+        }),
+        "login-generated-regular-pressed" => Some(AtlasRegion {
+            path: "data/ui/login-button-generated-regular-pressed.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 500.0,
+            height: 132.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(24.0),
+        }),
+        "login-generated-regular-highlight" => Some(AtlasRegion {
+            path: "data/ui/login-button-generated-regular-highlight.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 500.0,
+            height: 132.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(24.0),
+        }),
+        "login-generated-regular-disabled" => Some(AtlasRegion {
+            path: "data/ui/login-button-generated-regular-disabled.ktx2",
+            left: 0.0,
+            right: 1.0,
+            top: 0.0,
+            bottom: 1.0,
+            width: 500.0,
+            height: 132.0,
+            tiles_horizontally: false,
+            tiles_vertically: false,
+            nine_slice_edge: Some(24.0),
+        }),
         _ => None,
     }
 }
@@ -93,5 +237,35 @@ mod tests {
         assert_eq!(region.width, 470.0);
         assert_eq!(region.height, 128.0);
         assert_eq!(region.nine_slice_edge, Some(16.0));
+    }
+
+    #[test]
+    fn brown_button_up_region_exists() {
+        let region = get_region("128-brownbutton-up").expect("atlas region");
+        assert_eq!(region.path, "data/ui/128BrownButton9Sliced.ktx2");
+        assert_eq!(region.width, 470.0);
+        assert_eq!(region.height, 128.0);
+        assert_eq!(region.nine_slice_edge, Some(16.0));
+    }
+
+    #[test]
+    fn brown_glue_big_button_region_exists() {
+        let region = get_region("glue-bigbutton-brown-up").expect("atlas region");
+        assert_eq!(region.path, "data/ui/Glues-BigButton-Brown-Up.ktx2");
+        assert_eq!(region.width, 256.0);
+        assert_eq!(region.height, 64.0);
+        assert_eq!(region.nine_slice_edge, None);
+    }
+
+    #[test]
+    fn login_generated_regular_region_exists() {
+        let region = get_region("login-generated-regular-up").expect("atlas region");
+        assert_eq!(
+            region.path,
+            "data/ui/login-button-generated-regular-normal.ktx2"
+        );
+        assert_eq!(region.width, 500.0);
+        assert_eq!(region.height, 132.0);
+        assert_eq!(region.nine_slice_edge, Some(24.0));
     }
 }
