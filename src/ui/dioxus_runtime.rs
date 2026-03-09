@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use dioxus_core::{Element, Template, TemplateAttribute, TemplateNode, VNode, VirtualDom};
+use dioxus_core::{Element, Template, TemplateAttribute, TemplateNode, VNode};
 
-use crate::ui::dioxus_renderer::{GameUiRenderer, MutationApplier};
+use crate::ui::dioxus_screen::DioxusScreen;
 use crate::ui::frame::{WidgetData, WidgetType};
 use crate::ui::input::find_frame_at;
 use crate::ui::layout::LayoutRect;
@@ -41,9 +41,7 @@ pub enum SpellbookKeyInput {
 
 /// Drives a Dioxus VirtualDom and applies its mutations into the frame registry.
 pub struct DioxusUiRuntime {
-    dom: VirtualDom,
-    renderer: GameUiRenderer,
-    initialized: bool,
+    screen: DioxusScreen,
     spellbook_seeded: bool,
     active_tab_index: usize,
     page_index: usize,
@@ -60,9 +58,7 @@ pub struct DioxusUiRuntime {
 impl DioxusUiRuntime {
     pub fn new() -> Self {
         Self {
-            dom: VirtualDom::new(game_ui_root),
-            renderer: GameUiRenderer::new(),
-            initialized: false,
+            screen: DioxusScreen::new(game_ui_root),
             spellbook_seeded: false,
             active_tab_index: 2,
             page_index: 0,
@@ -78,13 +74,7 @@ impl DioxusUiRuntime {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) {
-        let mut applier = MutationApplier::new(&mut self.renderer, registry);
-        if self.initialized {
-            self.dom.render_immediate(&mut applier);
-        } else {
-            self.dom.rebuild(&mut applier);
-            self.initialized = true;
-        }
+        self.screen.sync(registry);
 
         if !self.spellbook_seeded {
             let _ = self.rebuild_spellbook(registry);

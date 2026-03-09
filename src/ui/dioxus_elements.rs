@@ -1,4 +1,154 @@
+//! Dioxus-compatible element namespace for our WoW-style UI widgets.
+//!
+//! Structure mirrors dioxus-html: element modules live in `elements` sub-module,
+//! then re-exported at the top level. The RSX macro resolves:
+//! - TAG_NAME via `dioxus_elements::elements::tag::TAG_NAME`
+//! - Attributes via `dioxus_elements::tag::attr_name.0` (name), `.1` (ns), `.2` (volatile)
+//! - Completions via `dioxus_elements::elements::completions::CompleteWithBraces::*`
+//!
+//! Element module names are single lowercase words (no underscores — the RSX
+//! parser treats underscored names as components). TAG_NAME is PascalCase
+//! so the renderer's `tag_to_widget_type()` maps them correctly.
+
+#![allow(non_upper_case_globals)]
+
 use crate::ui::frame::WidgetType;
+
+/// Attribute descriptor: (name, namespace, volatile).
+pub type AttributeDescription = (&'static str, Option<&'static str>, bool);
+
+// -- Shared attributes available on all elements --
+
+macro_rules! shared_attrs {
+    () => {
+        pub const name: super::super::AttributeDescription = ("name", None, false);
+        pub const width: super::super::AttributeDescription = ("width", None, false);
+        pub const height: super::super::AttributeDescription = ("height", None, false);
+        pub const alpha: super::super::AttributeDescription = ("alpha", None, false);
+        pub const shown: super::super::AttributeDescription = ("shown", None, false);
+        pub const strata: super::super::AttributeDescription = ("strata", None, false);
+        pub const mouse_enabled: super::super::AttributeDescription =
+            ("mouse_enabled", None, false);
+        pub const movable: super::super::AttributeDescription = ("movable", None, false);
+        pub const background_color: super::super::AttributeDescription =
+            ("background_color", None, false);
+        pub const anchor: super::super::AttributeDescription = ("anchor", None, false);
+        pub const draw_layer: super::super::AttributeDescription = ("draw_layer", None, false);
+        pub const frame_level: super::super::AttributeDescription = ("frame_level", None, false);
+        pub const nine_slice: super::super::AttributeDescription = ("nine_slice", None, false);
+    };
+}
+
+macro_rules! define_element {
+    ($mod_name:ident, $tag:expr) => {
+        pub mod $mod_name {
+            pub const TAG_NAME: &str = $tag;
+            pub const NAME_SPACE: Option<&str> = None;
+            shared_attrs!();
+        }
+    };
+    ($mod_name:ident, $tag:expr, { $($attr:ident),* $(,)? }) => {
+        pub mod $mod_name {
+            pub const TAG_NAME: &str = $tag;
+            pub const NAME_SPACE: Option<&str> = None;
+            shared_attrs!();
+            $(
+                pub const $attr: super::super::AttributeDescription =
+                    (stringify!($attr), None, false);
+            )*
+        }
+    };
+}
+
+/// Element modules. RSX element names must be single lowercase words (no
+/// underscores) because the Dioxus RSX parser reserves underscored names
+/// for components.
+pub mod elements {
+    define_element!(r#frame, "Frame");
+
+    define_element!(button, "Button", {
+        text,
+        font_size,
+        button_atlas_up,
+        button_atlas_pressed,
+        button_atlas_highlight,
+        button_atlas_disabled,
+    });
+
+    define_element!(checkbutton, "CheckButton", {
+        text,
+        font_size,
+    });
+
+    define_element!(texture, "Texture", {
+        texture_file,
+        texture_fdid,
+        texture_atlas,
+    });
+
+    define_element!(fontstring, "FontString", {
+        text,
+        font,
+        font_size,
+        font_color,
+        justify_h,
+    });
+
+    define_element!(editbox, "EditBox", {
+        text,
+        font,
+        font_size,
+        font_color,
+        password,
+    });
+
+    define_element!(line, "Line");
+    define_element!(scrollframe, "ScrollFrame");
+    define_element!(slider, "Slider");
+    define_element!(statusbar, "StatusBar");
+    define_element!(cooldown, "Cooldown");
+    define_element!(model, "Model");
+    define_element!(playermodel, "PlayerModel");
+    define_element!(modelscene, "ModelScene");
+    define_element!(colorselect, "ColorSelect");
+    define_element!(messageframe, "MessageFrame");
+    define_element!(simplehtml, "SimpleHTML");
+    define_element!(gametooltip, "GameTooltip");
+    define_element!(minimap, "Minimap");
+
+    /// Completions module for IDE autocompletion (referenced by RSX macro).
+    #[doc(hidden)]
+    pub mod completions {
+        #[allow(non_camel_case_types)]
+        pub enum CompleteWithBraces {
+            r#frame {},
+            button {},
+            checkbutton {},
+            texture {},
+            fontstring {},
+            editbox {},
+            line {},
+            scrollframe {},
+            slider {},
+            statusbar {},
+            cooldown {},
+            model {},
+            playermodel {},
+            modelscene {},
+            colorselect {},
+            messageframe {},
+            simplehtml {},
+            gametooltip {},
+            minimap {},
+        }
+    }
+}
+
+// Re-export all element modules at the top level (attributes resolve via dioxus_elements::tag::attr).
+pub use elements::*;
+
+/// Stub events module (RSX macro references dioxus_elements::events for event handlers).
+pub mod events {}
 
 /// Maps a Dioxus element tag name to our WidgetType.
 pub fn tag_to_widget_type(tag: &str) -> Option<WidgetType> {
@@ -29,6 +179,10 @@ pub fn tag_to_widget_type(tag: &str) -> Option<WidgetType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dioxus::prelude::*;
+
+    #[allow(unused_imports)]
+    use crate::ui::dioxus_elements;
 
     #[test]
     fn maps_all_pascal_case_tags() {
@@ -96,5 +250,60 @@ mod tests {
         assert_eq!(tag_to_widget_type("div"), None);
         assert_eq!(tag_to_widget_type("span"), None);
         assert_eq!(tag_to_widget_type(""), None);
+    }
+
+    #[test]
+    fn rsx_compiles_with_custom_frame() {
+        fn test_component() -> Element {
+            rsx! {
+                r#frame { name: "TestRoot", width: 100.0, height: 50.0 }
+            }
+        }
+
+        let mut dom = dioxus_core::VirtualDom::new(test_component);
+        let mut registry = crate::ui::registry::FrameRegistry::new(1024.0, 768.0);
+        let mut renderer = crate::ui::dioxus_renderer::GameUiRenderer::new();
+        let mut applier =
+            crate::ui::dioxus_renderer::MutationApplier::new(&mut renderer, &mut registry);
+        dom.rebuild(&mut applier);
+
+        let root_id = registry
+            .get_by_name("TestRoot")
+            .expect("frame named TestRoot should exist");
+        let frame = registry.get(root_id).unwrap();
+        assert!((frame.width - 100.0).abs() < f32::EPSILON);
+        assert!((frame.height - 50.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn rsx_compiles_with_nested_elements() {
+        fn test_component() -> Element {
+            rsx! {
+                r#frame { name: "Parent", width: 800.0, height: 600.0,
+                    button { name: "MyButton", width: 200.0, height: 32.0, text: "Click me" }
+                    fontstring { name: "MyLabel", text: "Hello", font_size: 14.0 }
+                    texture { name: "MyTex", texture_file: "test.blp" }
+                    editbox { name: "MyInput", width: 250.0, height: 32.0, password: true }
+                }
+            }
+        }
+
+        let mut dom = dioxus_core::VirtualDom::new(test_component);
+        let mut registry = crate::ui::registry::FrameRegistry::new(1024.0, 768.0);
+        let mut renderer = crate::ui::dioxus_renderer::GameUiRenderer::new();
+        let mut applier =
+            crate::ui::dioxus_renderer::MutationApplier::new(&mut renderer, &mut registry);
+        dom.rebuild(&mut applier);
+
+        assert!(registry.get_by_name("Parent").is_some());
+        assert!(registry.get_by_name("MyButton").is_some());
+        assert!(registry.get_by_name("MyLabel").is_some());
+        assert!(registry.get_by_name("MyTex").is_some());
+        assert!(registry.get_by_name("MyInput").is_some());
+
+        let parent_id = registry.get_by_name("Parent").unwrap();
+        let button_id = registry.get_by_name("MyButton").unwrap();
+        let button = registry.get(button_id).unwrap();
+        assert_eq!(button.parent_id, Some(parent_id));
     }
 }

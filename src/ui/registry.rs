@@ -233,6 +233,20 @@ impl FrameRegistry {
     }
 
     /// Set a frame's alpha and propagate effective_alpha down the subtree.
+    /// Set a frame's name and update the name index.
+    pub fn set_name(&mut self, id: u64, name: String) {
+        // Remove old name from index.
+        if let Some(frame) = self.frames.get(&id) {
+            if let Some(old_name) = &frame.name {
+                self.names.remove(old_name);
+            }
+        }
+        self.names.insert(name.clone(), id);
+        if let Some(frame) = self.frames.get_mut(&id) {
+            frame.name = Some(name);
+        }
+    }
+
     pub fn set_alpha(&mut self, id: u64, alpha: f32) {
         let parent_effective = self.parent_effective_alpha(id);
         if let Some(frame) = self.frames.get_mut(&id) {

@@ -1,32 +1,27 @@
 use dioxus_core::{AttributeValue, ElementId, Template, TemplateNode, WriteMutations};
 
+use crate::ui::anchor::{Anchor, AnchorPoint};
 use crate::ui::dioxus_elements::tag_to_widget_type;
-use crate::ui::frame::{Frame, WidgetType};
+use crate::ui::frame::{Frame, NineSlice, WidgetData, WidgetType};
 use crate::ui::registry::FrameRegistry;
-use crate::ui::strata::FrameStrata;
+use crate::ui::strata::{DrawLayer, FrameStrata};
+use crate::ui::widgets::button::ButtonData;
+use crate::ui::widgets::edit_box::EditBoxData;
+use crate::ui::widgets::font_string::{FontStringData, JustifyH};
+use crate::ui::widgets::texture::{TextureData, TextureSource};
 
 /// A node in the renderer's internal tree (mirrors Dioxus virtual DOM).
 #[derive(Debug)]
 enum NodeKind {
-    /// An element backed by a FrameRegistry frame.
     Element { frame_id: u64 },
-    /// A text node (FontString frame).
     Text { frame_id: u64 },
-    /// A placeholder (no frame, just reserves a slot).
     Placeholder,
 }
 
-/// Maps Dioxus ElementId to our frame system.
-///
-/// Implements WriteMutations to receive diff operations from the Dioxus
-/// virtual DOM and translate them into FrameRegistry mutations.
 #[derive(Default)]
 pub struct GameUiRenderer {
-    /// ElementId.0 (usize) -> node info
     nodes: Vec<Option<NodeKind>>,
-    /// Stack used by Dioxus mutations (push_root / append_children).
     stack: Vec<ElementId>,
-    /// Cached templates keyed by root pointer address.
     templates: Vec<Template>,
 }
 
@@ -39,7 +34,6 @@ impl GameUiRenderer {
         }
     }
 
-    /// Get the frame ID for a given Dioxus ElementId, if it maps to a frame.
     pub fn frame_id(&self, id: ElementId) -> Option<u64> {
         self.nodes.get(id.0).and_then(|n| match n {
             Some(NodeKind::Element { frame_id }) | Some(NodeKind::Text { frame_id }) => {
@@ -49,13 +43,13 @@ impl GameUiRenderer {
         })
     }
 
-    /// Apply all pending mutations to the frame registry.
-    ///
-    /// Call this after `VirtualDom::render_immediate(&mut renderer)`.
-    pub fn apply_to_registry(&mut self, _registry: &mut FrameRegistry) {
-        // Currently, mutations are applied inline during WriteMutations
-        // calls. This method exists as an extension point for batched
-        // operations (e.g., deferred parent-child wiring) in the future.
+    pub fn apply_to_registry(&mut self, _registry: &mut FrameRegistry) {}
+
+    pub fn all_frame_ids(&self) -> impl Iterator<Item = u64> + '_ {
+        self.nodes.iter().flatten().filter_map(|n| match n {
+            NodeKind::Element { frame_id } | NodeKind::Text { frame_id } => Some(*frame_id),
+            NodeKind::Placeholder => None,
+        })
     }
 
     fn ensure_slot(&mut self, id: ElementId) {
@@ -64,7 +58,7 @@ impl GameUiRenderer {
         }
     }
 
-    fn create_frame_for_tag(
+    pub(crate) fn create_frame_for_tag(
         &mut self,
         tag: &str,
         id: ElementId,
@@ -72,14 +66,14 @@ impl GameUiRenderer {
     ) -> u64 {
         let widget_type = tag_to_widget_type(tag).unwrap_or(WidgetType::Frame);
         let frame_id = registry.next_id();
-        let frame = Frame::new(frame_id, None, widget_type);
+        let mut frame = Frame::new(frame_id, None, widget_type);
+        frame.widget_data = default_widget_data(widget_type);
         registry.insert_frame(frame);
         self.ensure_slot(id);
         self.nodes[id.0] = Some(NodeKind::Element { frame_id });
         frame_id
     }
 
-    /// Walk a template node tree to find the tag at a given root index.
     fn template_root_tag(template: &Template, index: usize) -> &'static str {
         if let Some(TemplateNode::Element { tag, .. }) = template.roots.get(index) {
             tag
@@ -88,33 +82,61 @@ impl GameUiRenderer {
         }
     }
 
-    fn apply_template_root_attributes(
-        template: &Template,
-        index: usize,
-        registry: &mut FrameRegistry,
-        frame_id: u64,
-    ) {
-        let Some(TemplateNode::Element { attrs, .. }) = template.roots.get(index) else {
+    fn apply_node_attributes(node: &TemplateNode, registry: &mut FrameRegistry, frame_id: u64) {
+        let TemplateNode::Element { attrs, .. } = node else {
             return;
         };
-
         for attr in *attrs {
-            if let dioxus_core::TemplateAttribute::Static {
-                name,
-                value,
-                namespace,
-            } = attr
-            {
+            if let dioxus_core::TemplateAttribute::Static { name, value, namespace } = attr {
                 apply_static_attribute(registry, frame_id, name, *namespace, value);
+            }
+        }
+    }
+
+    fn instantiate_template_children(
+        &mut self,
+        node: &TemplateNode,
+        parent_frame_id: u64,
+        registry: &mut FrameRegistry,
+    ) {
+        let TemplateNode::Element { children, .. } = node else {
+            return;
+        };
+        for child in *children {
+            match child {
+                TemplateNode::Element { tag, .. } => {
+                    let widget_type = tag_to_widget_type(tag).unwrap_or(WidgetType::Frame);
+                    let child_fid = registry.next_id();
+                    let mut frame = Frame::new(child_fid, None, widget_type);
+                    frame.widget_data = default_widget_data(widget_type);
+                    registry.insert_frame(frame);
+                    wire_parent_child(registry, parent_frame_id, child_fid);
+                    Self::apply_node_attributes(child, registry, child_fid);
+                    self.instantiate_template_children(child, child_fid, registry);
+                }
+                TemplateNode::Text { text } => {
+                    let child_fid = registry.next_id();
+                    let mut frame = Frame::new(child_fid, None, WidgetType::FontString);
+                    frame.name = Some(text.to_string());
+                    registry.insert_frame(frame);
+                    wire_parent_child(registry, parent_frame_id, child_fid);
+                }
+                TemplateNode::Dynamic { .. } => {}
             }
         }
     }
 }
 
-/// Create frames from Dioxus mutations.
-///
-/// This requires a mutable reference to the FrameRegistry, so we use a
-/// separate struct that borrows both the renderer and registry together.
+fn default_widget_data(widget_type: WidgetType) -> Option<WidgetData> {
+    match widget_type {
+        WidgetType::Button => Some(WidgetData::Button(ButtonData::default())),
+        WidgetType::EditBox => Some(WidgetData::EditBox(EditBoxData::default())),
+        WidgetType::FontString => Some(WidgetData::FontString(FontStringData::default())),
+        WidgetType::Texture => Some(WidgetData::Texture(TextureData::default())),
+        _ => None,
+    }
+}
+
 pub struct MutationApplier<'a> {
     pub renderer: &'a mut GameUiRenderer,
     pub registry: &'a mut FrameRegistry,
@@ -132,7 +154,6 @@ impl WriteMutations for MutationApplier<'_> {
         let stack_len = self.renderer.stack.len();
         let start = stack_len.saturating_sub(m);
         let children: Vec<ElementId> = self.renderer.stack.drain(start..).collect();
-
         if let Some(pfid) = parent_fid {
             for child_eid in children {
                 if let Some(cfid) = self.renderer.frame_id(child_eid) {
@@ -164,40 +185,28 @@ impl WriteMutations for MutationApplier<'_> {
     fn load_template(&mut self, template: Template, index: usize, id: ElementId) {
         let tag = GameUiRenderer::template_root_tag(&template, index);
         let frame_id = self.renderer.create_frame_for_tag(tag, id, self.registry);
-        GameUiRenderer::apply_template_root_attributes(&template, index, self.registry, frame_id);
+        if let Some(root_node) = template.roots.get(index) {
+            GameUiRenderer::apply_node_attributes(root_node, self.registry, frame_id);
+            self.renderer
+                .instantiate_template_children(root_node, frame_id, self.registry);
+        }
         self.renderer.stack.push(id);
-
-        // Cache template if new.
         if !self.renderer.templates.contains(&template) {
             self.renderer.templates.push(template);
         }
     }
 
     fn replace_node_with(&mut self, id: ElementId, m: usize) {
-        // Remove old node's frame.
         if let Some(fid) = self.renderer.frame_id(id) {
             self.registry.remove_frame(fid);
         }
         self.renderer.nodes[id.0] = None;
-
-        // The top m nodes on the stack are the replacements — they stay.
         let _ = m;
     }
 
-    fn replace_placeholder_with_nodes(&mut self, _path: &'static [u8], _m: usize) {
-        // Placeholder replacement: the m nodes on the stack replace the
-        // placeholder at the given path. No frame to remove since
-        // placeholders don't have frames.
-    }
-
-    fn insert_nodes_after(&mut self, _id: ElementId, _m: usize) {
-        // Nodes on the stack are inserted after the given node.
-        // Parent-child wiring happens via append_children.
-    }
-
-    fn insert_nodes_before(&mut self, _id: ElementId, _m: usize) {
-        // Nodes on the stack are inserted before the given node.
-    }
+    fn replace_placeholder_with_nodes(&mut self, _path: &'static [u8], _m: usize) {}
+    fn insert_nodes_after(&mut self, _id: ElementId, _m: usize) {}
+    fn insert_nodes_before(&mut self, _id: ElementId, _m: usize) {}
 
     fn set_attribute(
         &mut self,
@@ -213,19 +222,11 @@ impl WriteMutations for MutationApplier<'_> {
     }
 
     fn set_node_text(&mut self, _value: &str, id: ElementId) {
-        // Text content update. The actual text storage will be added
-        // when FontString widget data is wired up.
         let _ = self.renderer.frame_id(id);
     }
 
-    fn create_event_listener(&mut self, _name: &'static str, _id: ElementId) {
-        // Event listener registration will be connected to EventBus
-        // in a future integration step.
-    }
-
-    fn remove_event_listener(&mut self, _name: &'static str, _id: ElementId) {
-        // Event listener removal.
-    }
+    fn create_event_listener(&mut self, _name: &'static str, _id: ElementId) {}
+    fn remove_event_listener(&mut self, _name: &'static str, _id: ElementId) {}
 
     fn remove_node(&mut self, id: ElementId) {
         if let Some(fid) = self.renderer.frame_id(id) {
@@ -241,8 +242,7 @@ impl WriteMutations for MutationApplier<'_> {
     }
 }
 
-/// Wire parent-child relationship in the registry.
-fn wire_parent_child(registry: &mut FrameRegistry, parent_id: u64, child_id: u64) {
+pub(crate) fn wire_parent_child(registry: &mut FrameRegistry, parent_id: u64, child_id: u64) {
     if let Some(child) = registry.get_mut(child_id) {
         child.parent_id = Some(parent_id);
     }
@@ -253,56 +253,200 @@ fn wire_parent_child(registry: &mut FrameRegistry, parent_id: u64, child_id: u64
     }
 }
 
-/// Apply a Dioxus attribute value to a frame property.
-fn apply_attribute(
+pub(crate) fn apply_attribute(
     registry: &mut FrameRegistry,
     frame_id: u64,
     name: &str,
     value: &AttributeValue,
 ) {
+    if name == "name" {
+        if let Some(s) = as_text(value) {
+            registry.set_name(frame_id, s.to_string());
+        }
+        return;
+    }
+    if name == "anchor" {
+        if let Some(s) = as_text(value) {
+            apply_anchor(registry, frame_id, s);
+        }
+        return;
+    }
     let Some(frame) = registry.get_mut(frame_id) else {
         return;
     };
+    apply_frame_attr(frame, name, value);
+    apply_widget_text_attrs(frame, name, value);
+    apply_widget_texture_attrs(frame, name, value);
+}
 
+fn apply_frame_attr(frame: &mut Frame, name: &str, value: &AttributeValue) {
     match name {
-        "width" => {
-            assign_f32(value, |v| frame.width = v);
-        }
-        "height" => {
-            assign_f32(value, |v| frame.height = v);
-        }
-        "alpha" => {
-            assign_f32(value, |v| frame.alpha = v);
-        }
-        "shown" => {
-            assign_bool(value, |v| frame.shown = v);
-        }
+        "width" => assign_f32(value, |v| frame.width = v),
+        "height" => assign_f32(value, |v| frame.height = v),
+        "alpha" => assign_f32(value, |v| frame.alpha = v),
+        "shown" => assign_bool(value, |v| frame.shown = v),
+        "mouse_enabled" => assign_bool(value, |v| frame.mouse_enabled = v),
+        "movable" => assign_bool(value, |v| frame.movable = v),
+        "frame_level" => assign_f32(value, |v| frame.frame_level = v as i32),
         "strata" => {
             if let Some(s) = as_text(value) {
-                frame.strata = parse_strata(s);
+                frame.strata = FrameStrata::from_str(s).unwrap_or_default();
             }
         }
-        "name" => {
+        "draw_layer" => {
             if let Some(s) = as_text(value) {
-                frame.name = Some(s.to_string());
+                frame.draw_layer = DrawLayer::from_str(s).unwrap_or_default();
             }
-        }
-        "mouse_enabled" => {
-            assign_bool(value, |v| frame.mouse_enabled = v);
-        }
-        "movable" => {
-            assign_bool(value, |v| frame.movable = v);
         }
         "background_color" => {
-            if let Some(s) = as_text(value)
-                && let Some(color) = parse_color(s)
-            {
+            if let Some(s) = as_text(value) && let Some(color) = parse_color(s) {
                 frame.background_color = Some(color);
             }
         }
-        _ => {
-            // Unknown attributes are silently ignored for forward compat.
+        "nine_slice" => {
+            if let Some(s) = as_text(value) && let Some(ns) = parse_nine_slice(s) {
+                frame.nine_slice = Some(ns);
+            }
         }
+        _ => {}
+    }
+}
+
+fn apply_widget_text_attrs(frame: &mut Frame, name: &str, value: &AttributeValue) {
+    match name {
+        "text" => apply_text_attr(frame, value),
+        "font" => {
+            if let Some(s) = as_text(value) {
+                match &mut frame.widget_data {
+                    Some(WidgetData::FontString(fs)) => fs.font = s.to_string(),
+                    Some(WidgetData::EditBox(eb)) => eb.font = s.to_string(),
+                    _ => {}
+                }
+            }
+        }
+        "font_size" => assign_f32(value, |v| match &mut frame.widget_data {
+            Some(WidgetData::FontString(fs)) => fs.font_size = v,
+            Some(WidgetData::EditBox(eb)) => eb.font_size = v,
+            Some(WidgetData::Button(bd)) => bd.font_size = v,
+            _ => {}
+        }),
+        "font_color" => {
+            if let Some(s) = as_text(value) && let Some(color) = parse_color(s) {
+                match &mut frame.widget_data {
+                    Some(WidgetData::FontString(fs)) => fs.color = color,
+                    Some(WidgetData::EditBox(eb)) => eb.text_color = color,
+                    _ => {}
+                }
+            }
+        }
+        "justify_h" => {
+            if let Some(s) = as_text(value) {
+                let jh = parse_justify_h(s);
+                if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
+                    fs.justify_h = jh;
+                }
+            }
+        }
+        "password" => assign_bool(value, |v| {
+            if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
+                eb.password = v;
+            }
+        }),
+        _ => {}
+    }
+}
+
+fn apply_widget_texture_attrs(frame: &mut Frame, name: &str, value: &AttributeValue) {
+    match name {
+        "texture_file" => {
+            if let Some(s) = as_text(value) {
+                if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
+                    td.source = TextureSource::File(s.to_string());
+                }
+            }
+        }
+        "texture_fdid" => assign_f32(value, |v| {
+            if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
+                td.source = TextureSource::FileDataId(v as u32);
+            }
+        }),
+        "texture_atlas" => {
+            if let Some(s) = as_text(value) {
+                if let Some(WidgetData::Texture(td)) = &mut frame.widget_data {
+                    td.source = TextureSource::Atlas(s.to_string());
+                }
+            }
+        }
+        "button_atlas_up" => apply_button_texture(frame, value, |bd, src| bd.normal_texture = Some(src)),
+        "button_atlas_pressed" => apply_button_texture(frame, value, |bd, src| bd.pushed_texture = Some(src)),
+        "button_atlas_highlight" => apply_button_texture(frame, value, |bd, src| bd.highlight_texture = Some(src)),
+        "button_atlas_disabled" => apply_button_texture(frame, value, |bd, src| bd.disabled_texture = Some(src)),
+        _ => {}
+    }
+}
+
+fn apply_text_attr(frame: &mut Frame, value: &AttributeValue) {
+    if let Some(s) = as_text(value) {
+        match &mut frame.widget_data {
+            Some(WidgetData::FontString(fs)) => fs.text = s.to_string(),
+            Some(WidgetData::EditBox(eb)) => eb.text = s.to_string(),
+            Some(WidgetData::Button(bd)) => bd.text = s.to_string(),
+            _ => {}
+        }
+    }
+}
+
+fn apply_button_texture(
+    frame: &mut Frame,
+    value: &AttributeValue,
+    apply: impl FnOnce(&mut ButtonData, TextureSource),
+) {
+    if let Some(s) = as_text(value) {
+        if let Some(WidgetData::Button(bd)) = &mut frame.widget_data {
+            apply(bd, TextureSource::Atlas(s.to_string()));
+        }
+    }
+}
+
+fn apply_anchor(registry: &mut FrameRegistry, frame_id: u64, s: &str) {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 5 {
+        return;
+    }
+    let point = AnchorPoint::from_str(parts[0].trim()).unwrap_or(AnchorPoint::Center);
+    let relative_name = parts[1].trim();
+    let relative_point = AnchorPoint::from_str(parts[2].trim()).unwrap_or(AnchorPoint::Center);
+    let x_offset: f32 = parts[3].trim().parse().unwrap_or(0.0);
+    let y_offset: f32 = parts[4].trim().parse().unwrap_or(0.0);
+    let relative_to = if relative_name == "$parent" {
+        registry.get(frame_id).and_then(|f| f.parent_id)
+    } else {
+        registry.get_by_name(relative_name)
+    };
+    let anchor = Anchor { point, relative_to, relative_point, x_offset, y_offset };
+    if let Some(frame) = registry.get_mut(frame_id) {
+        frame.anchors.push(anchor);
+    }
+}
+
+fn parse_nine_slice(s: &str) -> Option<NineSlice> {
+    let parts: Vec<f32> = s.split(',').filter_map(|p| p.trim().parse().ok()).collect();
+    if parts.len() != 9 {
+        return None;
+    }
+    Some(NineSlice {
+        edge_size: parts[0],
+        bg_color: [parts[1], parts[2], parts[3], parts[4]],
+        border_color: [parts[5], parts[6], parts[7], parts[8]],
+        ..Default::default()
+    })
+}
+
+fn parse_justify_h(s: &str) -> JustifyH {
+    match s {
+        "LEFT" => JustifyH::Left,
+        "RIGHT" => JustifyH::Right,
+        _ => JustifyH::Center,
     }
 }
 
@@ -313,9 +457,8 @@ fn apply_static_attribute(
     namespace: Option<&'static str>,
     value: &'static str,
 ) {
-    let attr = AttributeValue::Text(value.to_string());
     let _ = namespace;
-    apply_attribute(registry, frame_id, name, &attr);
+    apply_attribute(registry, frame_id, name, &AttributeValue::Text(value.to_string()));
 }
 
 fn as_text(value: &AttributeValue) -> Option<&str> {
@@ -355,27 +498,11 @@ fn parse_color(s: &str) -> Option<[f32; 4]> {
     if parts.len() != 4 {
         return None;
     }
-
     let mut color = [0.0; 4];
     for (i, part) in parts.into_iter().enumerate() {
         color[i] = part.parse().ok()?;
     }
     Some(color)
-}
-
-fn parse_strata(s: &str) -> FrameStrata {
-    match s {
-        "WORLD" => FrameStrata::World,
-        "BACKGROUND" => FrameStrata::Background,
-        "LOW" => FrameStrata::Low,
-        "MEDIUM" => FrameStrata::Medium,
-        "HIGH" => FrameStrata::High,
-        "DIALOG" => FrameStrata::Dialog,
-        "FULLSCREEN" => FrameStrata::Fullscreen,
-        "FULLSCREEN_DIALOG" => FrameStrata::FullscreenDialog,
-        "TOOLTIP" => FrameStrata::Tooltip,
-        _ => FrameStrata::default(),
-    }
 }
 
 #[cfg(test)]
@@ -401,10 +528,8 @@ mod tests {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
         let mut applier = MutationApplier::new(&mut renderer, &mut registry);
-
         let eid = ElementId(1);
         applier.create_text_node("Hello", eid);
-
         let fid = applier.renderer.frame_id(eid).unwrap();
         let frame = applier.registry.get(fid).unwrap();
         assert_eq!(frame.widget_type, WidgetType::FontString);
@@ -415,10 +540,8 @@ mod tests {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
         let mut applier = MutationApplier::new(&mut renderer, &mut registry);
-
         let eid = ElementId(1);
         applier.create_placeholder(eid);
-
         assert_eq!(applier.renderer.frame_id(eid), None);
     }
 
@@ -427,11 +550,9 @@ mod tests {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
         let mut applier = MutationApplier::new(&mut renderer, &mut registry);
-
         let eid = ElementId(1);
         applier.create_text_node("test", eid);
         assert!(applier.renderer.frame_id(eid).is_some());
-
         applier.remove_node(eid);
         assert_eq!(applier.renderer.frame_id(eid), None);
     }
@@ -440,19 +561,15 @@ mod tests {
     fn set_attribute_width_height() {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
-
-        // Manually create an element node.
         let fid = registry.next_id();
         registry.insert_frame(Frame::new(fid, None, WidgetType::Frame));
         renderer.ensure_slot(ElementId(1));
         renderer.nodes[1] = Some(NodeKind::Element { frame_id: fid });
-
         {
             let mut applier = MutationApplier::new(&mut renderer, &mut registry);
             applier.set_attribute("width", None, &AttributeValue::Float(200.0), ElementId(1));
             applier.set_attribute("height", None, &AttributeValue::Float(100.0), ElementId(1));
         }
-
         let frame = registry.get(fid).unwrap();
         assert!((frame.width - 200.0).abs() < f32::EPSILON);
         assert!((frame.height - 100.0).abs() < f32::EPSILON);
@@ -462,67 +579,89 @@ mod tests {
     fn set_attribute_strata() {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
-
         let fid = registry.next_id();
         registry.insert_frame(Frame::new(fid, None, WidgetType::Frame));
         renderer.ensure_slot(ElementId(1));
         renderer.nodes[1] = Some(NodeKind::Element { frame_id: fid });
-
         {
             let mut applier = MutationApplier::new(&mut renderer, &mut registry);
-            let val = AttributeValue::Text("DIALOG".into());
-            applier.set_attribute("strata", None, &val, ElementId(1));
+            applier.set_attribute("strata", None, &AttributeValue::Text("DIALOG".into()), ElementId(1));
         }
-
-        let frame = registry.get(fid).unwrap();
-        assert_eq!(frame.strata, FrameStrata::Dialog);
+        assert_eq!(registry.get(fid).unwrap().strata, FrameStrata::Dialog);
     }
 
     #[test]
     fn append_children_wires_parent_child() {
         let mut renderer = GameUiRenderer::new();
         let mut registry = FrameRegistry::new(1024.0, 768.0);
-
-        // Create parent element.
         let pfid = registry.next_id();
         registry.insert_frame(Frame::new(pfid, None, WidgetType::Frame));
         renderer.ensure_slot(ElementId(1));
         renderer.nodes[1] = Some(NodeKind::Element { frame_id: pfid });
-
-        // Create child element.
         let cfid = registry.next_id();
         registry.insert_frame(Frame::new(cfid, None, WidgetType::Button));
         renderer.ensure_slot(ElementId(2));
         renderer.nodes[2] = Some(NodeKind::Element { frame_id: cfid });
-
-        // Push child onto stack, then append to parent.
         renderer.stack.push(ElementId(2));
         {
             let mut applier = MutationApplier::new(&mut renderer, &mut registry);
             applier.append_children(ElementId(1), 1);
         }
-
-        let child = registry.get(cfid).unwrap();
-        assert_eq!(child.parent_id, Some(pfid));
-
-        let parent = registry.get(pfid).unwrap();
-        assert!(parent.children.contains(&cfid));
+        assert_eq!(registry.get(cfid).unwrap().parent_id, Some(pfid));
+        assert!(registry.get(pfid).unwrap().children.contains(&cfid));
     }
 
     #[test]
     fn parse_strata_all_variants() {
-        assert_eq!(parse_strata("WORLD"), FrameStrata::World);
-        assert_eq!(parse_strata("BACKGROUND"), FrameStrata::Background);
-        assert_eq!(parse_strata("LOW"), FrameStrata::Low);
-        assert_eq!(parse_strata("MEDIUM"), FrameStrata::Medium);
-        assert_eq!(parse_strata("HIGH"), FrameStrata::High);
-        assert_eq!(parse_strata("DIALOG"), FrameStrata::Dialog);
-        assert_eq!(parse_strata("FULLSCREEN"), FrameStrata::Fullscreen);
-        assert_eq!(
-            parse_strata("FULLSCREEN_DIALOG"),
-            FrameStrata::FullscreenDialog
+        use crate::ui::strata::FrameStrata;
+        assert_eq!(FrameStrata::from_str("WORLD"), Some(FrameStrata::World));
+        assert_eq!(FrameStrata::from_str("DIALOG"), Some(FrameStrata::Dialog));
+        assert_eq!(FrameStrata::from_str("UNKNOWN"), None);
+    }
+
+    #[test]
+    fn apply_attribute_text_on_button() {
+        let mut renderer = GameUiRenderer::new();
+        let mut registry = FrameRegistry::new(1024.0, 768.0);
+        let fid = renderer.create_frame_for_tag("Button", ElementId(1), &mut registry);
+        apply_attribute(&mut registry, fid, "text", &AttributeValue::Text("Click".into()));
+        let frame = registry.get(fid).unwrap();
+        match &frame.widget_data {
+            Some(WidgetData::Button(bd)) => assert_eq!(bd.text, "Click"),
+            other => panic!("expected Button widget_data, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn apply_attribute_anchor() {
+        let mut renderer = GameUiRenderer::new();
+        let mut registry = FrameRegistry::new(1024.0, 768.0);
+        let parent_fid = renderer.create_frame_for_tag("Frame", ElementId(1), &mut registry);
+        apply_attribute(&mut registry, parent_fid, "name", &AttributeValue::Text("MyParent".into()));
+        let child_fid = renderer.create_frame_for_tag("Frame", ElementId(2), &mut registry);
+        wire_parent_child(&mut registry, parent_fid, child_fid);
+        apply_attribute(
+            &mut registry, child_fid, "anchor",
+            &AttributeValue::Text("CENTER,$parent,CENTER,10,20".into()),
         );
-        assert_eq!(parse_strata("TOOLTIP"), FrameStrata::Tooltip);
-        assert_eq!(parse_strata("UNKNOWN"), FrameStrata::default());
+        let child = registry.get(child_fid).unwrap();
+        assert_eq!(child.anchors.len(), 1);
+        assert_eq!(child.anchors[0].relative_to, Some(parent_fid));
+    }
+
+    #[test]
+    fn create_frame_for_tag_auto_inits_widget_data() {
+        let mut renderer = GameUiRenderer::new();
+        let mut registry = FrameRegistry::new(1024.0, 768.0);
+        let button_fid = renderer.create_frame_for_tag("Button", ElementId(1), &mut registry);
+        assert!(matches!(registry.get(button_fid).unwrap().widget_data, Some(WidgetData::Button(_))));
+        let editbox_fid = renderer.create_frame_for_tag("EditBox", ElementId(2), &mut registry);
+        assert!(matches!(registry.get(editbox_fid).unwrap().widget_data, Some(WidgetData::EditBox(_))));
+        let fontstring_fid = renderer.create_frame_for_tag("FontString", ElementId(3), &mut registry);
+        assert!(matches!(registry.get(fontstring_fid).unwrap().widget_data, Some(WidgetData::FontString(_))));
+        let texture_fid = renderer.create_frame_for_tag("Texture", ElementId(4), &mut registry);
+        assert!(matches!(registry.get(texture_fid).unwrap().widget_data, Some(WidgetData::Texture(_))));
+        let frame_fid = renderer.create_frame_for_tag("Frame", ElementId(5), &mut registry);
+        assert!(registry.get(frame_fid).unwrap().widget_data.is_none());
     }
 }
