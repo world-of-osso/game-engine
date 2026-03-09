@@ -28,7 +28,7 @@ impl AtlasRegion {
 pub fn get_region(name: &str) -> Option<AtlasRegion> {
     match name.to_ascii_lowercase().as_str() {
         "128-redbutton-up" => Some(AtlasRegion {
-            path: "/home/osso/Projects/wow/Interface/BUTTONS/128RedButton9Sliced.BLP",
+            path: "data/ui/128BrownButton9Sliced.ktx2",
             left: 0.001953,
             right: 0.919922,
             top: 0.509766,
@@ -40,7 +40,7 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             nine_slice_edge: Some(16.0),
         }),
         "128-redbutton-pressed" => Some(AtlasRegion {
-            path: "/home/osso/Projects/wow/Interface/BUTTONS/128RedButton9Sliced.BLP",
+            path: "data/ui/128BrownButton9Sliced.ktx2",
             left: 0.001953,
             right: 0.919922,
             top: 0.255859,
@@ -52,7 +52,7 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             nine_slice_edge: Some(16.0),
         }),
         "128-redbutton-disable" => Some(AtlasRegion {
-            path: "/home/osso/Projects/wow/Interface/BUTTONS/128RedButton9Sliced.BLP",
+            path: "data/ui/128BrownButton9Sliced.ktx2",
             left: 0.001953,
             right: 0.919922,
             top: 0.001953,
@@ -64,54 +64,6 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             nine_slice_edge: Some(16.0),
         }),
         "128-redbutton-highlight" => Some(AtlasRegion {
-            path: "/home/osso/Projects/wow/Interface/BUTTONS/128RedButton.BLP",
-            left: 0.001953,
-            right: 0.863281,
-            top: 0.190918,
-            bottom: 0.253418,
-            width: 441.0,
-            height: 128.0,
-            tiles_horizontally: false,
-            tiles_vertically: false,
-            nine_slice_edge: Some(16.0),
-        }),
-        "128-brownbutton-up" => Some(AtlasRegion {
-            path: "data/ui/128BrownButton9Sliced.ktx2",
-            left: 0.001953,
-            right: 0.919922,
-            top: 0.509766,
-            bottom: 0.759766,
-            width: 470.0,
-            height: 128.0,
-            tiles_horizontally: false,
-            tiles_vertically: false,
-            nine_slice_edge: Some(16.0),
-        }),
-        "128-brownbutton-pressed" => Some(AtlasRegion {
-            path: "data/ui/128BrownButton9Sliced.ktx2",
-            left: 0.001953,
-            right: 0.919922,
-            top: 0.255859,
-            bottom: 0.505859,
-            width: 470.0,
-            height: 128.0,
-            tiles_horizontally: false,
-            tiles_vertically: false,
-            nine_slice_edge: Some(16.0),
-        }),
-        "128-brownbutton-disable" => Some(AtlasRegion {
-            path: "data/ui/128BrownButton9Sliced.ktx2",
-            left: 0.001953,
-            right: 0.919922,
-            top: 0.001953,
-            bottom: 0.251953,
-            width: 470.0,
-            height: 128.0,
-            tiles_horizontally: false,
-            tiles_vertically: false,
-            nine_slice_edge: Some(16.0),
-        }),
-        "128-brownbutton-highlight" => Some(AtlasRegion {
             path: "data/ui/128BrownButton.ktx2",
             left: 0.001953,
             right: 0.863281,
@@ -171,7 +123,7 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             tiles_vertically: false,
             nine_slice_edge: None,
         }),
-        "login-generated-regular-up" => Some(AtlasRegion {
+        "defaultbutton-nineslice-up" => Some(AtlasRegion {
             path: "data/ui/login-button-generated-regular-normal.ktx2",
             left: 0.0,
             right: 1.0,
@@ -183,7 +135,7 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             tiles_vertically: false,
             nine_slice_edge: Some(24.0),
         }),
-        "login-generated-regular-pressed" => Some(AtlasRegion {
+        "defaultbutton-nineslice-pressed" => Some(AtlasRegion {
             path: "data/ui/login-button-generated-regular-pressed.ktx2",
             left: 0.0,
             right: 1.0,
@@ -195,7 +147,7 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             tiles_vertically: false,
             nine_slice_edge: Some(24.0),
         }),
-        "login-generated-regular-highlight" => Some(AtlasRegion {
+        "defaultbutton-nineslice-highlight" => Some(AtlasRegion {
             path: "data/ui/login-button-generated-regular-highlight.ktx2",
             left: 0.0,
             right: 1.0,
@@ -207,7 +159,7 @@ pub fn get_region(name: &str) -> Option<AtlasRegion> {
             tiles_vertically: false,
             nine_slice_edge: Some(24.0),
         }),
-        "login-generated-regular-disabled" => Some(AtlasRegion {
+        "defaultbutton-nineslice-disabled" => Some(AtlasRegion {
             path: "data/ui/login-button-generated-regular-disabled.ktx2",
             left: 0.0,
             right: 1.0,
@@ -398,18 +350,6 @@ mod tests {
     #[test]
     fn red_button_up_region_exists() {
         let region = get_region("128-redbutton-up").expect("atlas region");
-        assert_eq!(
-            region.path,
-            "/home/osso/Projects/wow/Interface/BUTTONS/128RedButton9Sliced.BLP"
-        );
-        assert_eq!(region.width, 470.0);
-        assert_eq!(region.height, 128.0);
-        assert_eq!(region.nine_slice_edge, Some(16.0));
-    }
-
-    #[test]
-    fn brown_button_up_region_exists() {
-        let region = get_region("128-brownbutton-up").expect("atlas region");
         assert_eq!(region.path, "data/ui/128BrownButton9Sliced.ktx2");
         assert_eq!(region.width, 470.0);
         assert_eq!(region.height, 128.0);
@@ -427,7 +367,7 @@ mod tests {
 
     #[test]
     fn login_generated_regular_region_exists() {
-        let region = get_region("login-generated-regular-up").expect("atlas region");
+        let region = get_region("defaultbutton-nineslice-up").expect("atlas region");
         assert_eq!(
             region.path,
             "data/ui/login-button-generated-regular-normal.ktx2"

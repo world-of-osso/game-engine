@@ -17,6 +17,7 @@ use crate::ui::widgets::texture::TextureSource;
 pub struct UiButtonHighlight(pub u64);
 
 const BUTTON_NINE_SLICE_EDGE: f32 = 4.0;
+const DEFAULT_BUTTON_ATLAS: &str = "defaultbutton-nineslice-up";
 
 /// Returns `(edge_h, edge_v, uv_edge)` — scaled screen edges + original texture edge.
 fn button_nine_slice_edges(tex: &TextureSource, frame_w: f32, frame_h: f32) -> (f32, f32, f32) {
@@ -58,26 +59,20 @@ pub fn sync_button_nine_slices(mut state: ResMut<UiState>) {
 
     for id in ids {
         let texture = extract_button_texture(&state, id);
+        let tex = texture.unwrap_or_else(|| TextureSource::Atlas(DEFAULT_BUTTON_ATLAS.to_string()));
         let Some(frame) = state.registry.get_mut(id) else {
             continue;
         };
-        match texture {
-            Some(tex) => {
-                let (eh, ev, uv_e) = button_nine_slice_edges(&tex, frame.width, frame.height);
-                frame.nine_slice = Some(NineSlice {
-                    edge_size: eh,
-                    edge_size_v: Some(ev),
-                    uv_edge_size: Some(uv_e),
-                    bg_color: [1.0, 1.0, 1.0, 1.0],
-                    border_color: [1.0, 1.0, 1.0, 1.0],
-                    texture: Some(tex),
-                    ..Default::default()
-                });
-            }
-            None => {
-                frame.nine_slice = None;
-            }
-        }
+        let (eh, ev, uv_e) = button_nine_slice_edges(&tex, frame.width, frame.height);
+        frame.nine_slice = Some(NineSlice {
+            edge_size: eh,
+            edge_size_v: Some(ev),
+            uv_edge_size: Some(uv_e),
+            bg_color: [1.0, 1.0, 1.0, 1.0],
+            border_color: [1.0, 1.0, 1.0, 1.0],
+            texture: Some(tex),
+            ..Default::default()
+        });
     }
 }
 

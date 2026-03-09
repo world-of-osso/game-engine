@@ -55,7 +55,7 @@ fn button_with_file_texture_does_not_get_nine_slice() {
 fn button_with_nine_slice_atlas_gets_nine_slice() {
     let mut app = setup_app();
     let btn = ButtonData {
-        normal_texture: Some(TextureSource::Atlas("128-brownbutton-up".into())),
+        normal_texture: Some(TextureSource::Atlas("128-redbutton-up".into())),
         ..Default::default()
     };
     let id = create_button(&mut app, "Btn", btn);
@@ -85,7 +85,7 @@ fn button_without_texture_no_nine_slice() {
 fn button_nine_slice_spawns_all_9_parts_for_nine_slice_atlas() {
     let mut app = setup_app();
     let btn = ButtonData {
-        normal_texture: Some(TextureSource::Atlas("128-brownbutton-up".into())),
+        normal_texture: Some(TextureSource::Atlas("128-redbutton-up".into())),
         ..Default::default()
     };
     let id = create_button(&mut app, "Btn9", btn);
@@ -112,8 +112,8 @@ fn button_pushed_state_updates_nine_slice_texture_for_nine_slice_atlas() {
     let mut app = setup_app();
     let btn = ButtonData {
         state: ButtonState::Normal,
-        normal_texture: Some(TextureSource::Atlas("128-brownbutton-up".into())),
-        pushed_texture: Some(TextureSource::Atlas("128-brownbutton-pressed".into())),
+        normal_texture: Some(TextureSource::Atlas("128-redbutton-up".into())),
+        pushed_texture: Some(TextureSource::Atlas("128-redbutton-pressed".into())),
         ..Default::default()
     };
     let id = create_button(&mut app, "BtnPush", btn);
@@ -132,7 +132,7 @@ fn button_pushed_state_updates_nine_slice_texture_for_nine_slice_atlas() {
     let frame = ui.registry.get(id).unwrap();
     let ns = frame.nine_slice.as_ref().expect("should have nine_slice");
     assert!(
-        matches!(&ns.texture, Some(TextureSource::Atlas(name)) if name == "128-brownbutton-pressed"),
+        matches!(&ns.texture, Some(TextureSource::Atlas(name)) if name == "128-redbutton-pressed"),
         "pushed state should use pushed texture"
     );
 }

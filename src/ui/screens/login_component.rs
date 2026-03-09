@@ -10,7 +10,7 @@ use crate::ui::dioxus_elements;
 pub type SharedStatusText = Rc<RefCell<String>>;
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
-const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.png";
+const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo-512.png";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 
@@ -75,26 +75,14 @@ fn login_action_buttons() -> Element {
         button { name: "ExitButton", width: 200.0, height: 32.0,
             text: "Quit", font_size: 12.0, strata: "MEDIUM",
             anchor: "BOTTOMRIGHT,$parent,BOTTOMRIGHT,-24,56",
-            button_atlas_up: "128-brownbutton-up",
-            button_atlas_pressed: "128-brownbutton-pressed",
-            button_atlas_highlight: "128-brownbutton-highlight",
-            button_atlas_disabled: "128-brownbutton-disable"
         }
         button { name: "CreateAccountButton", width: 200.0, height: 32.0,
             text: "Create Account", font_size: 12.0, strata: "MEDIUM",
             anchor: "BOTTOM,ExitButton,TOP,0,10",
-            button_atlas_up: "128-brownbutton-up",
-            button_atlas_pressed: "128-brownbutton-pressed",
-            button_atlas_highlight: "128-brownbutton-highlight",
-            button_atlas_disabled: "128-brownbutton-disable"
         }
         button { name: "MenuButton", width: 200.0, height: 32.0,
             text: "Menu", font_size: 12.0, strata: "MEDIUM",
             anchor: "BOTTOM,CreateAccountButton,TOP,0,10",
-            button_atlas_up: "128-brownbutton-up",
-            button_atlas_pressed: "128-brownbutton-pressed",
-            button_atlas_highlight: "128-brownbutton-highlight",
-            button_atlas_disabled: "128-brownbutton-disable"
         }
     }
 }
@@ -128,7 +116,7 @@ pub fn login_screen() -> Element {
             {login_background()}
             r#frame { name: "LoginUI", strata: "MEDIUM",
                 texture { name: "LoginGameLogo", texture_file: TEX_GAME_LOGO,
-                    width: 256.0, height: 128.0, strata: "HIGH",
+                    width: 256.0, height: 256.0, strata: "HIGH",
                     anchor: "TOPLEFT,$parent,TOPLEFT,3,7"
                 }
                 {login_inputs()}
