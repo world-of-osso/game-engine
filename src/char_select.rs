@@ -311,14 +311,7 @@ fn build_character_list(
         panel_w - 36.0,
         28.0,
     );
-    set_layout(
-        reg,
-        realm_label,
-        panel_x + 18.0,
-        panel_y + 18.0,
-        panel_w - 36.0,
-        28.0,
-    );
+    set_layout(reg, realm_label, 18.0, 18.0, panel_w - 36.0, 28.0);
     set_font_string_with_font(
         reg,
         realm_label,
@@ -336,14 +329,7 @@ fn build_character_list(
         panel_w - 36.0,
         18.0,
     );
-    set_layout(
-        reg,
-        helper_text,
-        panel_x + 18.0,
-        panel_y + 50.0,
-        panel_w - 36.0,
-        18.0,
-    );
+    set_layout(reg, helper_text, 18.0, 50.0, panel_w - 36.0, 18.0);
     set_font_string_with_font(
         reg,
         helper_text,
@@ -361,17 +347,10 @@ fn build_character_list(
         panel_w - 36.0,
         1.0,
     );
-    set_layout(
-        reg,
-        divider,
-        panel_x + 18.0,
-        panel_y + 78.0,
-        panel_w - 36.0,
-        1.0,
-    );
+    set_layout(reg, divider, 18.0, 78.0, panel_w - 36.0, 1.0);
     set_bg(reg, divider, [1.0, 0.9, 0.65, 0.12]);
 
-    let mut y = panel_y + 96.0;
+    let mut y = 96.0;
 
     for ch in &char_list.0 {
         let text = format!(
@@ -386,14 +365,7 @@ fn build_character_list(
             LIST_ENTRY_SIZE.1,
             &text,
         );
-        set_layout(
-            reg,
-            btn,
-            panel_x + 22.0,
-            y,
-            LIST_ENTRY_SIZE.0,
-            LIST_ENTRY_SIZE.1,
-        );
+        set_layout(reg, btn, 22.0, y, LIST_ENTRY_SIZE.0, LIST_ENTRY_SIZE.1);
         set_button_atlases(
             reg,
             btn,
@@ -528,14 +500,7 @@ fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (
         panel_w,
         24.0,
     );
-    set_layout(
-        reg,
-        label,
-        panel_x + 16.0,
-        panel_y + 18.0,
-        panel_w - 32.0,
-        24.0,
-    );
+    set_layout(reg, label, 16.0, 18.0, panel_w - 32.0, 24.0);
     set_font_string_with_font(
         reg,
         label,
@@ -553,14 +518,7 @@ fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (
         panel_w - 32.0,
         18.0,
     );
-    set_layout(
-        reg,
-        subtitle,
-        panel_x + 16.0,
-        panel_y + 46.0,
-        panel_w - 32.0,
-        18.0,
-    );
+    set_layout(reg, subtitle, 16.0, 46.0, panel_w - 32.0, 18.0);
     set_font_string_with_font(
         reg,
         subtitle,
@@ -571,14 +529,7 @@ fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (
     );
 
     let name_input = create_editbox(reg, "CreateNameInput", Some(panel), panel_w - 32.0, 38.0);
-    set_layout(
-        reg,
-        name_input,
-        panel_x + 16.0,
-        panel_y + 74.0,
-        panel_w - 32.0,
-        38.0,
-    );
+    set_layout(reg, name_input, 16.0, 74.0, panel_w - 32.0, 38.0);
     set_editbox_backdrop(reg, name_input);
 
     let confirm = create_button(
@@ -592,8 +543,8 @@ fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (
     set_layout(
         reg,
         confirm,
-        panel_x + (panel_w - CREATE_ACTION_BUTTON_WIDTH) / 2.0,
-        panel_y + 118.0,
+        (panel_w - CREATE_ACTION_BUTTON_WIDTH) / 2.0,
+        118.0,
         CREATE_ACTION_BUTTON_WIDTH,
         SECONDARY_ACTION_BUTTON_HEIGHT,
     );

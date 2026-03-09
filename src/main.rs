@@ -264,15 +264,19 @@ fn parse_server_arg(args: &[String]) -> Option<std::net::SocketAddr> {
 
 fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
     args.windows(2)
-        .find(|w| w[0] == "--state")
-        .and_then(|w| match w[1].as_str() {
-            "login" => Some(game_state::GameState::Login),
-            "connecting" => Some(game_state::GameState::Connecting),
-            "charselect" => Some(game_state::GameState::CharSelect),
-            "loading" => Some(game_state::GameState::Loading),
-            "inworld" => Some(game_state::GameState::InWorld),
-            _ => None,
-        })
+        .find(|w| w[0] == "--state" || w[0] == "--screen")
+        .and_then(|w| parse_game_state_value(&w[1]))
+}
+
+fn parse_game_state_value(value: &str) -> Option<game_state::GameState> {
+    match value {
+        "login" => Some(game_state::GameState::Login),
+        "connecting" => Some(game_state::GameState::Connecting),
+        "charselect" => Some(game_state::GameState::CharSelect),
+        "loading" => Some(game_state::GameState::Loading),
+        "inworld" => Some(game_state::GameState::InWorld),
+        _ => None,
+    }
 }
 
 fn load_startup_automation_actions(
@@ -304,7 +308,7 @@ fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             continue;
         }
         match args[i].as_str() {
-            "--server" | "--state" => {
+            "--server" | "--state" | "--screen" => {
                 i += 2;
             }
             arg if arg.starts_with("--") => {
@@ -375,10 +379,34 @@ mod tests {
     }
 
     #[test]
+    fn parse_screen_alias_matches_state_parser() {
+        let parsed = parse_state_arg(&args(&["--screen", "charselect"]))
+            .expect("expected screen alias to parse");
+        assert_eq!(parsed, game_state::GameState::CharSelect);
+
+        let parsed = parse_state_arg(&args(&["--screen", "login"]))
+            .expect("expected login screen alias to parse");
+        assert_eq!(parsed, game_state::GameState::Login);
+    }
+
+    #[test]
     fn asset_path_skips_state_and_screenshot_output() {
         let parsed = parse_asset_path_from_args(&args(&[
             "--state",
             "login",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "--server",
+            "127.0.0.1:25565",
+        ]));
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn asset_path_skips_screen_alias_and_screenshot_output() {
+        let parsed = parse_asset_path_from_args(&args(&[
+            "--screen",
+            "charselect",
             "screenshot",
             "/tmp/codex/test.webp",
             "--server",
