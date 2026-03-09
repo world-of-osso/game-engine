@@ -514,12 +514,7 @@ fn apply_widget_text_attrs(frame: &mut Frame, name: &str, value: &AttributeValue
                 }
             }
         }
-        "font_size" => assign_f32(value, |v| match &mut frame.widget_data {
-            Some(WidgetData::FontString(fs)) => fs.font_size = v,
-            Some(WidgetData::EditBox(eb)) => eb.font_size = v,
-            Some(WidgetData::Button(bd)) => bd.font_size = v,
-            _ => {}
-        }),
+        "font_size" => assign_f32(value, |v| apply_font_size(frame, v)),
         "font_color" => {
             if let Some(s) = as_text(value)
                 && let Some(color) = parse_color(s)
@@ -544,6 +539,18 @@ fn apply_widget_text_attrs(frame: &mut Frame, name: &str, value: &AttributeValue
                 eb.password = v;
             }
         }),
+        _ => {}
+    }
+}
+
+fn apply_font_size(frame: &mut Frame, v: f32) {
+    if v <= 0.0 || v > 72.0 {
+        eprintln!("[UI] font_size out of range (0..72]: {v}");
+    }
+    match &mut frame.widget_data {
+        Some(WidgetData::FontString(fs)) => fs.font_size = v,
+        Some(WidgetData::EditBox(eb)) => eb.font_size = v,
+        Some(WidgetData::Button(bd)) => bd.font_size = v,
         _ => {}
     }
 }
