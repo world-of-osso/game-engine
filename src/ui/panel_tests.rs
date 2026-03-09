@@ -15,7 +15,14 @@ fn test_registry() -> FrameRegistry {
     FrameRegistry::new(1920.0, 1080.0)
 }
 
-fn create_frame(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, wt: WidgetType, w: f32, h: f32) -> u64 {
+fn create_frame(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    wt: WidgetType,
+    w: f32,
+    h: f32,
+) -> u64 {
     let id = reg.next_id();
     let mut frame = crate::ui::frame::Frame::new(id, Some(name.to_string()), wt);
     frame.parent_id = parent;
@@ -26,7 +33,14 @@ fn create_frame(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, wt: Wi
     id
 }
 
-fn create_button(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f32, h: f32, text: &str) -> u64 {
+fn create_button(
+    reg: &mut FrameRegistry,
+    name: &str,
+    parent: Option<u64>,
+    w: f32,
+    h: f32,
+    text: &str,
+) -> u64 {
     let id = create_frame(reg, name, parent, WidgetType::Button, w, h);
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::Button(ButtonData {
@@ -45,7 +59,13 @@ fn create_editbox(reg: &mut FrameRegistry, name: &str, parent: Option<u64>, w: f
     id
 }
 
-fn set_button_atlases(reg: &mut FrameRegistry, id: u64, normal: &str, pushed: &str, highlight: &str) {
+fn set_button_atlases(
+    reg: &mut FrameRegistry,
+    id: u64,
+    normal: &str,
+    pushed: &str,
+    highlight: &str,
+) {
     if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         bd.normal_texture = Some(TextureSource::Atlas(normal.to_string()));
         bd.pushed_texture = Some(TextureSource::Atlas(pushed.to_string()));
@@ -74,23 +94,43 @@ fn set_nine_slice_editbox(reg: &mut FrameRegistry, id: u64) {
 #[test]
 fn login_editbox_has_nine_slice() {
     let mut reg = test_registry();
-    let root = create_frame(&mut reg, "LoginRoot", None, WidgetType::Frame, 1920.0, 1080.0);
+    let root = create_frame(
+        &mut reg,
+        "LoginRoot",
+        None,
+        WidgetType::Frame,
+        1920.0,
+        1080.0,
+    );
     let eb = create_editbox(&mut reg, "UsernameInput", Some(root), 320.0, 42.0);
     set_nine_slice_editbox(&mut reg, eb);
 
     let frame = reg.get(eb).unwrap();
-    assert!(frame.nine_slice.is_some(), "login editbox should have nine_slice");
+    assert!(
+        frame.nine_slice.is_some(),
+        "login editbox should have nine_slice"
+    );
 }
 
 #[test]
 fn login_editbox_nine_slice_has_9_part_textures() {
     let mut reg = test_registry();
-    let root = create_frame(&mut reg, "LoginRoot", None, WidgetType::Frame, 1920.0, 1080.0);
+    let root = create_frame(
+        &mut reg,
+        "LoginRoot",
+        None,
+        WidgetType::Frame,
+        1920.0,
+        1080.0,
+    );
     let eb = create_editbox(&mut reg, "UsernameInput", Some(root), 320.0, 42.0);
     set_nine_slice_editbox(&mut reg, eb);
 
     let ns = reg.get(eb).unwrap().nine_slice.as_ref().unwrap();
-    let parts = ns.part_textures.as_ref().expect("should have per-part textures");
+    let parts = ns
+        .part_textures
+        .as_ref()
+        .expect("should have per-part textures");
     for (i, part) in parts.iter().enumerate() {
         assert!(
             !matches!(part, TextureSource::None),
@@ -140,15 +180,25 @@ fn login_editbox_has_font() {
 fn login_button_has_atlas_textures() {
     let mut reg = test_registry();
     let btn = create_button(&mut reg, "ConnectButton", None, 250.0, 66.0, "Login");
-    set_button_atlases(&mut reg, btn, "128-redbutton-up", "128-redbutton-pressed", "128-redbutton-highlight");
+    set_button_atlases(
+        &mut reg,
+        btn,
+        "128-redbutton-up",
+        "128-redbutton-pressed",
+        "128-redbutton-highlight",
+    );
 
     let frame = reg.get(btn).unwrap();
     let WidgetData::Button(bd) = frame.widget_data.as_ref().unwrap() else {
         panic!("expected button");
     };
     assert!(matches!(&bd.normal_texture, Some(TextureSource::Atlas(n)) if n == "128-redbutton-up"));
-    assert!(matches!(&bd.pushed_texture, Some(TextureSource::Atlas(n)) if n == "128-redbutton-pressed"));
-    assert!(matches!(&bd.highlight_texture, Some(TextureSource::Atlas(n)) if n == "128-redbutton-highlight"));
+    assert!(
+        matches!(&bd.pushed_texture, Some(TextureSource::Atlas(n)) if n == "128-redbutton-pressed")
+    );
+    assert!(
+        matches!(&bd.highlight_texture, Some(TextureSource::Atlas(n)) if n == "128-redbutton-highlight")
+    );
 }
 
 #[test]
@@ -179,7 +229,10 @@ fn editbox_focus_changes_nine_slice_colors() {
 
     let frame = reg.get(eb).unwrap();
     let ns = frame.nine_slice.as_ref().unwrap();
-    assert!((ns.border_color[1] - 0.92).abs() < 0.01, "focused border should be golden");
+    assert!(
+        (ns.border_color[1] - 0.92).abs() < 0.01,
+        "focused border should be golden"
+    );
 }
 
 // =============================================================================
@@ -191,8 +244,22 @@ fn editbox_focus_changes_nine_slice_colors() {
 #[ignore = "char_select panels use set_bg, need nine-slice port"]
 fn char_select_create_panel_has_nine_slice() {
     let mut reg = test_registry();
-    let root = create_frame(&mut reg, "CharSelectRoot", None, WidgetType::Frame, 1920.0, 1080.0);
-    let panel = create_frame(&mut reg, "CreatePanel", Some(root), WidgetType::Frame, 300.0, 120.0);
+    let root = create_frame(
+        &mut reg,
+        "CharSelectRoot",
+        None,
+        WidgetType::Frame,
+        1920.0,
+        1080.0,
+    );
+    let panel = create_frame(
+        &mut reg,
+        "CreatePanel",
+        Some(root),
+        WidgetType::Frame,
+        300.0,
+        120.0,
+    );
 
     // Currently: set_bg(reg, panel, [0.08, 0.08, 0.18, 0.95])
     // Expected: nine_slice with backdrop texture
@@ -208,7 +275,14 @@ fn char_select_create_panel_has_nine_slice() {
 fn char_select_action_buttons_have_textures() {
     let mut reg = test_registry();
     let root = create_frame(&mut reg, "Root", None, WidgetType::Frame, 1920.0, 1080.0);
-    let btn = create_button(&mut reg, "EnterWorld", Some(root), 250.0, 66.0, "Enter World");
+    let btn = create_button(
+        &mut reg,
+        "EnterWorld",
+        Some(root),
+        250.0,
+        66.0,
+        "Enter World",
+    );
 
     // Currently: set_bg(reg, btn, [0.15, 0.35, 0.6, 1.0])
     // Expected: atlas textures like login screen buttons
@@ -227,7 +301,14 @@ fn char_select_action_buttons_have_textures() {
 fn char_select_editbox_has_nine_slice() {
     let mut reg = test_registry();
     let root = create_frame(&mut reg, "Root", None, WidgetType::Frame, 1920.0, 1080.0);
-    let panel = create_frame(&mut reg, "CreatePanel", Some(root), WidgetType::Frame, 300.0, 120.0);
+    let panel = create_frame(
+        &mut reg,
+        "CreatePanel",
+        Some(root),
+        WidgetType::Frame,
+        300.0,
+        120.0,
+    );
     let eb = create_editbox(&mut reg, "CreateNameInput", Some(panel), 280.0, 30.0);
 
     // Currently: set_bg(reg, name_input, [0.12, 0.12, 0.2, 1.0])
@@ -261,7 +342,14 @@ fn char_select_confirm_button_has_texture() {
 fn char_select_list_buttons_have_textures() {
     let mut reg = test_registry();
     let root = create_frame(&mut reg, "Root", None, WidgetType::Frame, 1920.0, 1080.0);
-    let btn = create_button(&mut reg, "Char_1", Some(root), 380.0, 32.0, "TestChar - Lv1 R1 C1");
+    let btn = create_button(
+        &mut reg,
+        "Char_1",
+        Some(root),
+        380.0,
+        32.0,
+        "TestChar - Lv1 R1 C1",
+    );
 
     // Currently: set_bg(reg, btn, [0.12, 0.12, 0.22, 1.0])
     // Expected: textured button or nine-slice panel
@@ -283,7 +371,14 @@ fn char_select_list_buttons_have_textures() {
 fn panel_alpha_propagates_to_children() {
     let mut reg = test_registry();
     let root = create_frame(&mut reg, "Root", None, WidgetType::Frame, 1920.0, 1080.0);
-    let panel = create_frame(&mut reg, "Panel", Some(root), WidgetType::Frame, 300.0, 120.0);
+    let panel = create_frame(
+        &mut reg,
+        "Panel",
+        Some(root),
+        WidgetType::Frame,
+        300.0,
+        120.0,
+    );
     let btn = create_button(&mut reg, "Btn", Some(panel), 120.0, 30.0, "Test");
 
     reg.set_alpha(root, 0.5);
@@ -300,13 +395,23 @@ fn panel_alpha_propagates_to_children() {
 fn hiding_panel_hides_children() {
     let mut reg = test_registry();
     let root = create_frame(&mut reg, "Root", None, WidgetType::Frame, 1920.0, 1080.0);
-    let panel = create_frame(&mut reg, "Panel", Some(root), WidgetType::Frame, 300.0, 120.0);
+    let panel = create_frame(
+        &mut reg,
+        "Panel",
+        Some(root),
+        WidgetType::Frame,
+        300.0,
+        120.0,
+    );
     let btn = create_button(&mut reg, "Btn", Some(panel), 120.0, 30.0, "Test");
 
     reg.set_shown(panel, false);
 
     let btn_frame = reg.get(btn).unwrap();
-    assert!(!btn_frame.visible, "button should be hidden when panel is hidden");
+    assert!(
+        !btn_frame.visible,
+        "button should be hidden when panel is hidden"
+    );
     assert!(
         btn_frame.effective_alpha < 0.01,
         "hidden button alpha should be ~0, got {}",
@@ -326,9 +431,15 @@ fn nine_slice_edge_size_determines_corner_dimensions() {
     frame.width = 300.0;
     frame.height = 120.0;
     frame.layout_rect = Some(crate::ui::layout::LayoutRect {
-        x: 100.0, y: 200.0, width: 300.0, height: 120.0,
+        x: 100.0,
+        y: 200.0,
+        width: 300.0,
+        height: 120.0,
     });
-    let ns = NineSlice { edge_size: 12.0, ..Default::default() };
+    let ns = NineSlice {
+        edge_size: 12.0,
+        ..Default::default()
+    };
 
     // Part 0 = top-left corner → should be 12x12
     let (_, size, _) = part_geometry(&frame, &ns, 0, 1920.0, 1080.0, 0.0);
@@ -350,7 +461,10 @@ fn nine_slice_border_color_applied_to_edge_parts() {
     frame.height = 100.0;
     frame.effective_alpha = 0.8;
     frame.layout_rect = Some(crate::ui::layout::LayoutRect {
-        x: 0.0, y: 0.0, width: 200.0, height: 100.0,
+        x: 0.0,
+        y: 0.0,
+        width: 200.0,
+        height: 100.0,
     });
     let ns = NineSlice {
         edge_size: 8.0,
@@ -362,13 +476,26 @@ fn nine_slice_border_color_applied_to_edge_parts() {
 
     // Part 1 = top edge → should use border_color with alpha
     let (_, _, color) = part_geometry(&frame, &ns, 1, 1920.0, 1080.0, 0.0);
-    let bevy::color::Color::Srgba(srgba) = color else { panic!("expected srgba") };
-    assert!((srgba.green - 0.92).abs() < 0.01, "edge should use border_color green");
-    assert!((srgba.alpha - 0.8).abs() < 0.01, "edge alpha should include effective_alpha");
+    let bevy::color::Color::Srgba(srgba) = color else {
+        panic!("expected srgba")
+    };
+    assert!(
+        (srgba.green - 0.92).abs() < 0.01,
+        "edge should use border_color green"
+    );
+    assert!(
+        (srgba.alpha - 0.8).abs() < 0.01,
+        "edge alpha should include effective_alpha"
+    );
 
     // Part 4 = center → should use bg_color with alpha
     let (_, _, color) = part_geometry(&frame, &ns, 4, 1920.0, 1080.0, 0.0);
-    let bevy::color::Color::Srgba(srgba) = color else { panic!("expected srgba") };
+    let bevy::color::Color::Srgba(srgba) = color else {
+        panic!("expected srgba")
+    };
     assert!(srgba.red < 0.01, "center should use bg_color red=0");
-    assert!((srgba.alpha - 0.64).abs() < 0.01, "center alpha = bg_alpha * effective_alpha");
+    assert!(
+        (srgba.alpha - 0.64).abs() < 0.01,
+        "center alpha = bg_alpha * effective_alpha"
+    );
 }

@@ -45,7 +45,10 @@ fn button_with_texture_gets_nine_slice() {
     app.update();
     let ui = app.world().resource::<UiState>();
     let frame = ui.registry.get(id).unwrap();
-    assert!(frame.nine_slice.is_some(), "button with texture should get nine_slice");
+    assert!(
+        frame.nine_slice.is_some(),
+        "button with texture should get nine_slice"
+    );
 }
 
 #[test]
@@ -55,7 +58,10 @@ fn button_without_texture_no_nine_slice() {
     app.update();
     let ui = app.world().resource::<UiState>();
     let frame = ui.registry.get(id).unwrap();
-    assert!(frame.nine_slice.is_none(), "button without texture should have no nine_slice");
+    assert!(
+        frame.nine_slice.is_none(),
+        "button without texture should have no nine_slice"
+    );
 }
 
 #[test]
@@ -73,7 +79,12 @@ fn button_nine_slice_spawns_all_9_parts() {
         .filter(|p| p.0 == id)
         .map(|p| p.1)
         .collect();
-    assert_eq!(parts.len(), 9, "expected 9 nine-slice parts, got {}", parts.len());
+    assert_eq!(
+        parts.len(),
+        9,
+        "expected 9 nine-slice parts, got {}",
+        parts.len()
+    );
     for i in 0..9u8 {
         assert!(parts.contains(&i), "missing nine-slice part {i}");
     }
@@ -207,7 +218,11 @@ fn edit_box_alpha_applied_to_text_color() {
     let Color::Srgba(srgba) = props.color else {
         panic!("expected srgba");
     };
-    assert!((srgba.alpha - 0.4).abs() < 0.001, "alpha should be 0.4, got {}", srgba.alpha);
+    assert!(
+        (srgba.alpha - 0.4).abs() < 0.001,
+        "alpha should be 0.4, got {}",
+        srgba.alpha
+    );
 }
 
 #[test]
@@ -220,7 +235,11 @@ fn button_alpha_applied_to_text_color() {
     let Color::Srgba(srgba) = props.color else {
         panic!("expected srgba");
     };
-    assert!((srgba.alpha - 0.3).abs() < 0.001, "alpha should be 0.3, got {}", srgba.alpha);
+    assert!(
+        (srgba.alpha - 0.3).abs() < 0.001,
+        "alpha should be 0.3, got {}",
+        srgba.alpha
+    );
 }
 
 #[test]
