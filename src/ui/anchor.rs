@@ -1,3 +1,20 @@
+/// A typed frame name for use in `name:` and `relative_to:` RSX attributes.
+/// Ensures the same constant is used at both definition and reference sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FrameName(pub &'static str);
+
+impl FrameName {
+    pub fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+impl dioxus_core::IntoAttributeValue for FrameName {
+    fn into_value(self) -> dioxus_core::AttributeValue {
+        dioxus_core::AttributeValue::Text(self.0.to_string())
+    }
+}
+
 /// WoW-style anchor points for UI frame positioning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AnchorPoint {
