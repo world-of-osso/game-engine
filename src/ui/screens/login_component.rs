@@ -49,6 +49,41 @@ fn login_background() -> Element {
     }
 }
 
+fn login_input_labels() -> Element {
+    rsx! {
+        fontstring {
+            name: "UsernameInputLabel",
+            width: 320.0,
+            height: 18.0,
+            text: "Username",
+            font_size: 18.0,
+            font: GameFont::FrizQuadrata,
+            font_color: COLOR_GOLD,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_to: USERNAME_INPUT,
+                relative_point: AnchorPoint::Top,
+                y: "4",
+            }
+        }
+        fontstring {
+            name: "PasswordInputLabel",
+            width: 320.0,
+            height: 18.0,
+            text: "Password",
+            font_size: 18.0,
+            font: GameFont::FrizQuadrata,
+            font_color: COLOR_GOLD,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_to: PASSWORD_INPUT,
+                relative_point: AnchorPoint::Top,
+                y: "4",
+            }
+        }
+    }
+}
+
 fn login_inputs() -> Element {
     rsx! {
         editbox {
@@ -61,20 +96,6 @@ fn login_inputs() -> Element {
                 point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Center,
                 y: "50",
-            }
-            fontstring {
-                name: "UsernameInputLabel",
-                width: 320.0,
-                height: 18.0,
-                text: "Username",
-                font_size: 18.0,
-                font: GameFont::FrizQuadrata,
-                font_color: COLOR_GOLD,
-                anchor {
-                    point: AnchorPoint::Bottom,
-                    relative_point: AnchorPoint::Top,
-                    y: "4",
-                }
             }
         }
         editbox {
@@ -90,21 +111,8 @@ fn login_inputs() -> Element {
                 relative_point: AnchorPoint::Bottom,
                 y: "-30",
             }
-            fontstring {
-                name: "PasswordInputLabel",
-                width: 320.0,
-                height: 18.0,
-                text: "Password",
-                font_size: 18.0,
-                font: GameFont::FrizQuadrata,
-                font_color: COLOR_GOLD,
-                anchor {
-                    point: AnchorPoint::Bottom,
-                    relative_point: AnchorPoint::Top,
-                    y: "4",
-                }
-            }
         }
+        {login_input_labels()}
     }
 }
 
