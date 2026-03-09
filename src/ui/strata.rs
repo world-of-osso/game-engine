@@ -15,6 +15,20 @@ pub enum FrameStrata {
 }
 
 impl FrameStrata {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::World => "WORLD",
+            Self::Background => "BACKGROUND",
+            Self::Low => "LOW",
+            Self::Medium => "MEDIUM",
+            Self::High => "HIGH",
+            Self::Dialog => "DIALOG",
+            Self::Fullscreen => "FULLSCREEN",
+            Self::FullscreenDialog => "FULLSCREEN_DIALOG",
+            Self::Tooltip => "TOOLTIP",
+        }
+    }
+
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "WORLD" => Some(Self::World),
@@ -28,6 +42,12 @@ impl FrameStrata {
             "TOOLTIP" => Some(Self::Tooltip),
             _ => None,
         }
+    }
+}
+
+impl dioxus_core::IntoAttributeValue for FrameStrata {
+    fn into_value(self) -> dioxus_core::AttributeValue {
+        dioxus_core::AttributeValue::Text(self.as_str().to_string())
     }
 }
 
@@ -50,6 +70,16 @@ pub enum DrawLayer {
 }
 
 impl DrawLayer {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Background => "BACKGROUND",
+            Self::Border => "BORDER",
+            Self::Artwork => "ARTWORK",
+            Self::Overlay => "OVERLAY",
+            Self::Highlight => "HIGHLIGHT",
+        }
+    }
+
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "BACKGROUND" => Some(Self::Background),
@@ -59,6 +89,12 @@ impl DrawLayer {
             "HIGHLIGHT" => Some(Self::Highlight),
             _ => None,
         }
+    }
+}
+
+impl dioxus_core::IntoAttributeValue for DrawLayer {
+    fn into_value(self) -> dioxus_core::AttributeValue {
+        dioxus_core::AttributeValue::Text(self.as_str().to_string())
     }
 }
 

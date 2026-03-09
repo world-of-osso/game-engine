@@ -549,11 +549,11 @@ mod dioxus_render {
             rsx! {
                 r#frame { name: "AnchorParent", width: 800.0, height: 600.0,
                     editbox { name: "PasswordInput", width: 320.0, height: 42.0,
-                        strata: "MEDIUM",
+                        strata: crate::ui::strata::FrameStrata::Medium,
                         anchor { point: "CENTER", relative_point: "CENTER", y: "50" }
                     }
                     button { name: "ConnectButton", width: 250.0, height: 66.0,
-                        text: "Login", font_size: 16.0, strata: "MEDIUM",
+                        text: "Login", font_size: 16.0, strata: crate::ui::strata::FrameStrata::Medium,
                         anchor { point: "TOP", relative_to: "PasswordInput", relative_point: "BOTTOM", y: "-50" }
                     }
                 }
