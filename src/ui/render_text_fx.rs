@@ -45,10 +45,6 @@ pub fn sync_ui_text_shadows(
             commands.entity(entity).despawn();
             continue;
         };
-        if text.0 != props.content {
-            commands.entity(entity).despawn();
-            continue;
-        }
         existing.insert(shadow.0);
         update_shadow_entity(
             &props,
@@ -195,15 +191,14 @@ pub fn sync_ui_text_outlines(
     mut font_assets: ResMut<Assets<Font>>,
     mut font_cache: Local<HashMap<String, Handle<Font>>>,
     mut missing_fonts: Local<HashSet<String>>,
-    outlines: Query<(Entity, &UiTextOutline, &Text2d)>,
+    outlines: Query<(Entity, &UiTextOutline)>,
 ) {
     let screen_w = state.registry.screen_width;
     let screen_h = state.registry.screen_height;
 
     let mut existing: HashSet<u64> = HashSet::new();
-    for (entity, outline, text) in &outlines {
-        if has_outline_frame(&state, outline.0) && outline_text_matches(&state, outline.0, &text.0)
-        {
+    for (entity, outline) in &outlines {
+        if has_outline_frame(&state, outline.0) {
             existing.insert(outline.0);
         } else {
             commands.entity(entity).despawn();
@@ -238,16 +233,6 @@ fn has_outline(frame: &crate::ui::frame::Frame) -> bool {
         &frame.widget_data,
         Some(WidgetData::FontString(fs)) if fs.outline != Outline::None && !fs.text.is_empty()
     )
-}
-
-fn outline_text_matches(state: &UiState, id: u64, text: &str) -> bool {
-    state
-        .registry
-        .get(id)
-        .is_some_and(|frame| match &frame.widget_data {
-            Some(WidgetData::FontString(fs)) => fs.text == text,
-            _ => false,
-        })
 }
 
 fn spawn_outlines(
@@ -400,46 +385,4 @@ mod tests {
         assert_eq!(q.iter(app.world()).count(), 8);
     }
 
-    #[test]
-    fn outline_entities_replace_text_when_source_changes() {
-        let mut app = make_test_app();
-        make_font_string_frame(
-            &mut app,
-            "OutlineText",
-            FontStringData {
-                text: "Old".into(),
-                outline: FsOutline::Outline,
-                ..Default::default()
-            },
-        );
-        app.update();
-
-        {
-            let mut ui = app.world_mut().resource_mut::<UiState>();
-            let frame_id = ui
-                .registry
-                .get_by_name("OutlineText")
-                .expect("outline frame");
-            let frame = ui.registry.get_mut(frame_id).expect("outline frame");
-            let Some(WidgetData::FontString(fs)) = frame.widget_data.as_mut() else {
-                panic!("expected font string");
-            };
-            fs.text = "New".into();
-        }
-
-        app.update();
-        app.update();
-
-        let rendered: Vec<_> = {
-            let mut q = app.world_mut().query::<(&UiTextOutline, &Text2d)>();
-            q.iter(app.world())
-                .map(|(_, text)| text.0.clone())
-                .collect()
-        };
-        assert_eq!(rendered.len(), 4);
-        assert!(
-            rendered.iter().all(|text| text == "New"),
-            "outline texts were not refreshed: {rendered:?}"
-        );
-    }
 }
