@@ -988,6 +988,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_dylib"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f142f72bbbc1a61338bf6da5dc7cf6dcf223683b9d53bcd635ebff4bfeb5308f"
+dependencies = [
+ "bevy_internal",
+]
+
+[[package]]
 name = "bevy_ecs"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3660,6 +3669,7 @@ version = "0.1.0"
 dependencies = [
  "ab_glyph",
  "bevy",
+ "bevy_dylib",
  "cascette-client-storage",
  "cascette-crypto",
  "cascette-formats",
