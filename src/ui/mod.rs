@@ -17,6 +17,7 @@ pub mod plugin;
 pub mod registry;
 pub mod render;
 pub mod render_border;
+pub mod render_button;
 pub mod render_nine_slice;
 pub mod render_text;
 pub mod render_text_fx;
