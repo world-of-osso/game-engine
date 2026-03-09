@@ -5,6 +5,22 @@ pub enum JustifyH {
     Right,
 }
 
+impl JustifyH {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "LEFT",
+            Self::Center => "CENTER",
+            Self::Right => "RIGHT",
+        }
+    }
+}
+
+impl dioxus_core::IntoAttributeValue for JustifyH {
+    fn into_value(self) -> dioxus_core::AttributeValue {
+        dioxus_core::AttributeValue::Text(self.as_str().to_string())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JustifyV {
     Top,

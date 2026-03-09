@@ -28,6 +28,26 @@ impl AnchorPoint {
             _ => None,
         }
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::TopLeft => "TOPLEFT",
+            Self::Top => "TOP",
+            Self::TopRight => "TOPRIGHT",
+            Self::Left => "LEFT",
+            Self::Center => "CENTER",
+            Self::Right => "RIGHT",
+            Self::BottomLeft => "BOTTOMLEFT",
+            Self::Bottom => "BOTTOM",
+            Self::BottomRight => "BOTTOMRIGHT",
+        }
+    }
+}
+
+impl dioxus_core::IntoAttributeValue for AnchorPoint {
+    fn into_value(self) -> dioxus_core::AttributeValue {
+        dioxus_core::AttributeValue::Text(self.as_str().to_string())
+    }
 }
 
 /// A resolved anchor linking one frame's point to another frame's point with offsets.

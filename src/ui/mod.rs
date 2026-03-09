@@ -4,6 +4,7 @@ pub mod animation;
 pub mod atlas;
 pub mod automation;
 pub mod automation_script;
+mod dioxus_anchor;
 pub mod dioxus_elements;
 pub mod dioxus_renderer;
 pub mod dioxus_runtime;

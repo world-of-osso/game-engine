@@ -1,6 +1,9 @@
 use dioxus_core::{AttributeValue, ElementId, Template, TemplateNode, WriteMutations};
 
-use crate::ui::anchor::{Anchor, AnchorPoint};
+use crate::ui::dioxus_anchor::{
+    apply_anchor_element, apply_anchor_resolved, apply_anchor_state, collect_anchor_statics,
+    AnchorState,
+};
 use crate::ui::dioxus_elements::tag_to_widget_type;
 use crate::ui::frame::{Frame, NineSlice, WidgetData, WidgetType};
 use crate::ui::registry::FrameRegistry;
@@ -15,6 +18,8 @@ use crate::ui::widgets::texture::{TextureData, TextureSource};
 enum NodeKind {
     Element { frame_id: u64 },
     Text { frame_id: u64 },
+    /// Anchor pseudo-element with dynamic attrs, tracking parent frame.
+    Anchor { parent_frame_id: u64 },
     Placeholder,
 }
 
@@ -28,6 +33,9 @@ pub struct GameUiRenderer {
     /// Frame IDs for template child nodes, keyed by path bytes from the last `load_template`.
     /// Used by `assign_node_id` to map dynamic ElementIds to template children.
     template_child_frames: Vec<(Vec<u8>, u64)>,
+    /// Anchor pseudo-elements with dynamic attrs, keyed by path bytes.
+    /// Used by `assign_node_id` to create `NodeKind::Anchor` entries.
+    template_anchor_nodes: Vec<(Vec<u8>, u64, AnchorState)>,
     /// Anchors whose relative frame couldn't be resolved by name at apply time.
     /// Resolved after all mutations are applied (cross-component name references).
     pending_anchors: Vec<(u64, String)>,
@@ -41,6 +49,7 @@ impl GameUiRenderer {
             templates: Vec::new(),
             created_frames: Vec::new(),
             template_child_frames: Vec::new(),
+            template_anchor_nodes: Vec::new(),
             pending_anchors: Vec::new(),
         }
     }
@@ -72,6 +81,35 @@ impl GameUiRenderer {
                 apply_anchor_resolved(registry, frame_id, &spec);
             }
         }
+    }
+
+    /// Handle a `set_attribute` call for an anchor pseudo-element.
+    /// Returns `None` if the element is not an anchor, `Some(None)` if applied,
+    /// or `Some(Some(pending))` if the relative frame is unresolved.
+    fn try_set_anchor_attr(
+        &mut self,
+        name: &str,
+        value: &AttributeValue,
+        id: ElementId,
+        registry: &mut FrameRegistry,
+    ) -> Option<(u64, String)> {
+        let parent_frame_id = match self.nodes.get(id.0)? {
+            Some(NodeKind::Anchor { parent_frame_id }) => *parent_frame_id,
+            _ => return None,
+        };
+        let text = as_text(value)?;
+        let idx = self
+            .template_anchor_nodes
+            .iter()
+            .position(|(_, pfid, _)| *pfid == parent_frame_id)?;
+        let state = &mut self.template_anchor_nodes[idx].2;
+        state.set(name, text);
+        state.remaining_dynamic -= 1;
+        if state.remaining_dynamic == 0 {
+            let state = self.template_anchor_nodes.remove(idx).2;
+            return apply_anchor_state(&state, parent_frame_id, registry);
+        }
+        None
     }
 
     fn ensure_slot(&mut self, id: ElementId) {
@@ -126,6 +164,46 @@ impl GameUiRenderer {
         }
     }
 
+    fn handle_anchor_child(
+        &mut self,
+        child: &TemplateNode,
+        parent_frame_id: u64,
+        registry: &mut FrameRegistry,
+        path: &[u8],
+    ) {
+        let TemplateNode::Element { attrs, .. } = child else {
+            return;
+        };
+        let dynamic_count = attrs
+            .iter()
+            .filter(|a| matches!(a, dioxus_core::TemplateAttribute::Dynamic { .. }))
+            .count();
+        if dynamic_count == 0 {
+            if let Some(pending) = apply_anchor_element(child, parent_frame_id, registry) {
+                self.pending_anchors.push(pending);
+            }
+        } else {
+            let state = collect_anchor_statics(child, dynamic_count);
+            self.template_anchor_nodes
+                .push((path.to_vec(), parent_frame_id, state));
+        }
+    }
+
+    fn handle_element_child(
+        &mut self,
+        child: &TemplateNode,
+        tag: &str,
+        parent_frame_id: u64,
+        registry: &mut FrameRegistry,
+        path: &mut Vec<u8>,
+    ) {
+        let child_fid = instantiate_element(tag, parent_frame_id, registry);
+        self.created_frames.push(child_fid);
+        self.template_child_frames.push((path.clone(), child_fid));
+        Self::apply_node_attributes(child, registry, child_fid, &mut self.pending_anchors);
+        self.instantiate_template_children(child, child_fid, registry, path);
+    }
+
     fn instantiate_template_children(
         &mut self,
         node: &TemplateNode,
@@ -139,26 +217,11 @@ impl GameUiRenderer {
         for (i, child) in children.iter().enumerate() {
             path.push(i as u8);
             match child {
+                TemplateNode::Element { tag, .. } if *tag == "Anchor" => {
+                    self.handle_anchor_child(child, parent_frame_id, registry, path);
+                }
                 TemplateNode::Element { tag, .. } => {
-                    if *tag == "Anchor" {
-                        if let Some(pending) =
-                            apply_anchor_element(child, parent_frame_id, registry)
-                        {
-                            self.pending_anchors.push(pending);
-                        }
-                        path.pop();
-                        continue;
-                    }
-                    let child_fid = instantiate_element(tag, parent_frame_id, registry);
-                    self.created_frames.push(child_fid);
-                    self.template_child_frames.push((path.clone(), child_fid));
-                    Self::apply_node_attributes(
-                        child,
-                        registry,
-                        child_fid,
-                        &mut self.pending_anchors,
-                    );
-                    self.instantiate_template_children(child, child_fid, registry, path);
+                    self.handle_element_child(child, tag, parent_frame_id, registry, path);
                 }
                 TemplateNode::Text { text } => {
                     let child_fid = instantiate_text(text, parent_frame_id, registry);
@@ -189,6 +252,13 @@ fn instantiate_text(text: &str, parent_fid: u64, registry: &mut FrameRegistry) -
     registry.insert_frame(frame);
     wire_parent_child(registry, parent_fid, child_fid);
     child_fid
+}
+
+fn find_template_frame(frames: &[(Vec<u8>, u64)], path: &[u8]) -> Option<u64> {
+    frames
+        .iter()
+        .find(|(p, _)| p.as_slice() == path)
+        .map(|(_, fid)| *fid)
 }
 
 fn default_widget_data(widget_type: WidgetType) -> Option<WidgetData> {
@@ -229,14 +299,20 @@ impl WriteMutations for MutationApplier<'_> {
 
     fn assign_node_id(&mut self, path: &'static [u8], id: ElementId) {
         self.renderer.ensure_slot(id);
-        let fid = self
-            .renderer
-            .template_child_frames
-            .iter()
-            .find(|(p, _)| p.as_slice() == path)
-            .map(|(_, fid)| *fid);
-        if let Some(frame_id) = fid {
+        if let Some(frame_id) = find_template_frame(&self.renderer.template_child_frames, path) {
             self.renderer.nodes[id.0] = Some(NodeKind::Element { frame_id });
+            return;
+        }
+        if let Some(idx) = self
+            .renderer
+            .template_anchor_nodes
+            .iter()
+            .position(|(p, _, _)| p.as_slice() == path)
+        {
+            let (_, parent_frame_id, _) = &self.renderer.template_anchor_nodes[idx];
+            self.renderer.nodes[id.0] = Some(NodeKind::Anchor {
+                parent_frame_id: *parent_frame_id,
+            });
         }
     }
 
@@ -260,6 +336,7 @@ impl WriteMutations for MutationApplier<'_> {
         let tag = GameUiRenderer::template_root_tag(&template, index);
         let frame_id = self.renderer.create_frame_for_tag(tag, id, self.registry);
         self.renderer.template_child_frames.clear();
+        self.renderer.template_anchor_nodes.clear();
         if let Some(root_node) = template.roots.get(index) {
             GameUiRenderer::apply_node_attributes(
                 root_node,
@@ -300,6 +377,13 @@ impl WriteMutations for MutationApplier<'_> {
         value: &AttributeValue,
         id: ElementId,
     ) {
+        if let Some(pending) =
+            self.renderer
+                .try_set_anchor_attr(name, value, id, self.registry)
+        {
+            self.renderer.pending_anchors.push(pending);
+            return;
+        }
         let Some(fid) = self.renderer.frame_id(id) else {
             return;
         };
@@ -518,75 +602,6 @@ fn apply_button_texture(
         if let Some(WidgetData::Button(bd)) = &mut frame.widget_data {
             apply(bd, TextureSource::Atlas(s.to_string()));
         }
-    }
-}
-
-fn resolve_anchor_relative(registry: &FrameRegistry, frame_id: u64, name: &str) -> Option<u64> {
-    if name == "$parent" {
-        registry.get(frame_id).and_then(|f| f.parent_id)
-    } else {
-        registry.get_by_name(name)
-    }
-}
-
-fn apply_anchor_resolved(registry: &mut FrameRegistry, frame_id: u64, s: &str) {
-    let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() != 5 {
-        return;
-    }
-    let point = AnchorPoint::from_str(parts[0].trim()).unwrap_or(AnchorPoint::Center);
-    let relative_name = parts[1].trim();
-    let relative_point = AnchorPoint::from_str(parts[2].trim()).unwrap_or(AnchorPoint::Center);
-    let x_offset: f32 = parts[3].trim().parse().unwrap_or(0.0);
-    let y_offset: f32 = parts[4].trim().parse().unwrap_or(0.0);
-    let relative_to = resolve_anchor_relative(registry, frame_id, relative_name);
-    let anchor = Anchor {
-        point,
-        relative_to,
-        relative_point,
-        x_offset,
-        y_offset,
-    };
-    if let Some(frame) = registry.get_mut(frame_id) {
-        frame.anchors.push(anchor);
-    }
-}
-
-/// Apply an `anchor {}` child element to its parent frame. Returns a pending
-/// spec if the relative frame isn't registered yet.
-fn apply_anchor_element(
-    node: &TemplateNode,
-    parent_frame_id: u64,
-    registry: &mut FrameRegistry,
-) -> Option<(u64, String)> {
-    let TemplateNode::Element { attrs, .. } = node else {
-        return None;
-    };
-    let mut point = "CENTER";
-    let mut relative_to = "$parent";
-    let mut relative_point = "CENTER";
-    let mut x = "0";
-    let mut y = "0";
-    for attr in *attrs {
-        if let dioxus_core::TemplateAttribute::Static { name, value, .. } = attr {
-            match *name {
-                "point" => point = value,
-                "relative_to" => relative_to = value,
-                "relative_point" => relative_point = value,
-                "x" => x = value,
-                "y" => y = value,
-                _ => {}
-            }
-        }
-    }
-    let spec = format!("{point},{relative_to},{relative_point},{x},{y}");
-    if relative_to == "$parent"
-        || resolve_anchor_relative(registry, parent_frame_id, relative_to).is_some()
-    {
-        apply_anchor_resolved(registry, parent_frame_id, &spec);
-        None
-    } else {
-        Some((parent_frame_id, spec))
     }
 }
 
