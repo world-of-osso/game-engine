@@ -33,6 +33,7 @@ macro_rules! shared_attrs {
         pub const background_color: super::super::AttributeDescription =
             ("background_color", None, false);
         pub const anchor: super::super::AttributeDescription = ("anchor", None, false);
+        pub const stretch: super::super::AttributeDescription = ("stretch", None, false);
         pub const draw_layer: super::super::AttributeDescription = ("draw_layer", None, false);
         pub const frame_level: super::super::AttributeDescription = ("frame_level", None, false);
         pub const nine_slice: super::super::AttributeDescription = ("nine_slice", None, false);

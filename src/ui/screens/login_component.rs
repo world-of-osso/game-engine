@@ -9,17 +9,17 @@ use crate::ui::dioxus_elements;
 /// Shared status text injected via root context. ECS writes, component reads.
 pub type SharedStatusText = Rc<RefCell<String>>;
 
-const TEX_LOGIN_BACKGROUND: &str = "data/glues/login/UI_MainMenu_WarWithin_LowBandwidth.blp";
+const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
 const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 
 fn login_background() -> Element {
     rsx! {
-        r#frame { name: "BlackLoginBackground", background_color: "0.0,0.0,0.0,1.0" }
-        r#frame { name: "LoginBackgroundModel",
-            texture { name: "LoginBackground", texture_file: TEX_LOGIN_BACKGROUND }
-            r#frame { name: "LoginBackgroundShade", background_color: "0.0,0.0,0.0,0.22" }
+        r#frame { name: "BlackLoginBackground", stretch: true, background_color: "0.0,0.0,0.0,1.0" }
+        r#frame { name: "LoginBackgroundModel", stretch: true,
+            texture { name: "LoginBackground", stretch: true, texture_file: TEX_LOGIN_BACKGROUND }
+            r#frame { name: "LoginBackgroundShade", stretch: true, background_color: "0.0,0.0,0.0,0.22" }
         }
     }
 }
