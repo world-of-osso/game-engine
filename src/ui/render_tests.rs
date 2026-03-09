@@ -660,3 +660,45 @@ mod dioxus_render {
         assert!(ui.registry.get_by_name("TearLabel").is_none());
     }
 }
+
+fn create_colored_frame(
+    app: &mut App,
+    name: &str,
+    strata: crate::ui::strata::FrameStrata,
+) -> u64 {
+    let mut ui = app.world_mut().resource_mut::<UiState>();
+    let id = ui.registry.create_frame(name, None);
+    let frame = ui.registry.get_mut(id).unwrap();
+    frame.width = 200.0;
+    frame.height = 40.0;
+    frame.background_color = Some([1.0, 1.0, 1.0, 1.0]);
+    frame.strata = strata;
+    id
+}
+
+fn quad_z(world: &mut World, frame_id: u64) -> Option<f32> {
+    world
+        .query::<(&Transform, &crate::ui::render::UiQuad)>()
+        .iter(world)
+        .find(|(_, q)| q.0 == frame_id)
+        .map(|(t, _)| t.translation.z)
+}
+
+/// Background strata frames must sort before Medium strata frames in the
+/// render z-order, so full-screen backgrounds never occlude UI elements.
+#[test]
+fn background_strata_sorts_below_medium() {
+    use crate::ui::strata::FrameStrata;
+
+    let mut app = setup_app();
+    let bg_id = create_colored_frame(&mut app, "Bg", FrameStrata::Background);
+    let fg_id = create_colored_frame(&mut app, "Fg", FrameStrata::Medium);
+    app.update();
+
+    let bg_z = quad_z(app.world_mut(), bg_id).expect("background quad should exist");
+    let fg_z = quad_z(app.world_mut(), fg_id).expect("foreground quad should exist");
+    assert!(
+        bg_z < fg_z,
+        "Background strata (z={bg_z}) must render below Medium strata (z={fg_z})"
+    );
+}
