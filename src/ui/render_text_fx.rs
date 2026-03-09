@@ -4,11 +4,12 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::text::Font;
 use bevy::text::TextFont;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
+use crate::ui::font_registry::FontRegistry;
 use crate::ui::frame::WidgetData;
 use crate::ui::plugin::UiState;
-use crate::ui::widgets::font_string::{JustifyH, JustifyV, Outline};
+use crate::ui::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 
 use super::render::{UI_RENDER_LAYER, UiText};
 
@@ -25,8 +26,7 @@ pub fn sync_ui_text_shadows(
     state: Res<UiState>,
     mut commands: Commands,
     mut font_assets: ResMut<Assets<Font>>,
-    mut font_cache: Local<HashMap<String, Handle<Font>>>,
-    mut missing_fonts: Local<HashSet<String>>,
+    mut font_registry: ResMut<FontRegistry>,
     mut shadows: Query<(
         Entity,
         &UiTextShadow,
@@ -52,8 +52,7 @@ pub fn sync_ui_text_shadows(
             &mut font,
             &mut color,
             &mut font_assets,
-            &mut font_cache,
-            &mut missing_fonts,
+            &mut font_registry,
         );
         let _ = (&mut transform, screen_w, screen_h); // transform set at spawn
     }
@@ -65,8 +64,7 @@ pub fn sync_ui_text_shadows(
         screen_h,
         &mut commands,
         &mut font_assets,
-        &mut font_cache,
-        &mut missing_fonts,
+        &mut font_registry,
     );
 }
 
@@ -77,8 +75,7 @@ fn spawn_missing_shadows(
     screen_h: f32,
     commands: &mut Commands,
     font_assets: &mut Assets<Font>,
-    font_cache: &mut HashMap<String, Handle<Font>>,
-    missing_fonts: &mut HashSet<String>,
+    font_registry: &mut FontRegistry,
 ) {
     for frame in state.registry.frames_iter() {
         if existing.contains(&frame.id) {
@@ -89,13 +86,7 @@ fn spawn_missing_shadows(
         };
         let transform = shadow_transform(frame, &props, screen_w, screen_h);
         let [r, g, b, a] = props.shadow_color;
-        let font = super::render_text::resolve_font_handle(
-            &props.font,
-            font_assets,
-            font_cache,
-            missing_fonts,
-        )
-        .unwrap_or_default();
+        let font = font_registry.get(props.font, font_assets);
         commands.spawn((
             Text2d::new(props.content),
             TextFont {
@@ -114,7 +105,7 @@ fn spawn_missing_shadows(
 
 struct ShadowProps {
     content: String,
-    font: String,
+    font: GameFont,
     font_size: f32,
     shadow_color: [f32; 4],
     shadow_offset: [f32; 2],
@@ -136,7 +127,7 @@ fn extract_shadow(frame: Option<&crate::ui::frame::Frame>) -> Option<ShadowProps
     let shadow_color = fs.shadow_color?;
     Some(ShadowProps {
         content: fs.text.clone(),
-        font: fs.font.clone(),
+        font: fs.font,
         font_size: fs.font_size,
         shadow_color,
         shadow_offset: fs.shadow_offset,
@@ -151,16 +142,11 @@ fn update_shadow_entity(
     font: &mut TextFont,
     color: &mut TextColor,
     font_assets: &mut Assets<Font>,
-    font_cache: &mut HashMap<String, Handle<Font>>,
-    missing_fonts: &mut HashSet<String>,
+    font_registry: &mut FontRegistry,
 ) {
     *text = Text2d::new(&props.content);
     font.font_size = props.font_size;
-    if let Some(font_handle) =
-        super::render_text::resolve_font_handle(&props.font, font_assets, font_cache, missing_fonts)
-    {
-        font.font = font_handle;
-    }
+    font.font = font_registry.get(props.font, font_assets);
     let [r, g, b, a] = props.shadow_color;
     *color = TextColor(Color::srgba(r, g, b, a));
 }
@@ -189,8 +175,7 @@ pub fn sync_ui_text_outlines(
     state: Res<UiState>,
     mut commands: Commands,
     mut font_assets: ResMut<Assets<Font>>,
-    mut font_cache: Local<HashMap<String, Handle<Font>>>,
-    mut missing_fonts: Local<HashSet<String>>,
+    mut font_registry: ResMut<FontRegistry>,
     outlines: Query<(Entity, &UiTextOutline)>,
 ) {
     let screen_w = state.registry.screen_width;
@@ -215,8 +200,7 @@ pub fn sync_ui_text_outlines(
             screen_h,
             &mut commands,
             &mut font_assets,
-            &mut font_cache,
-            &mut missing_fonts,
+            &mut font_registry,
         );
     }
 }
@@ -241,8 +225,7 @@ fn spawn_outlines(
     screen_h: f32,
     commands: &mut Commands,
     font_assets: &mut Assets<Font>,
-    font_cache: &mut HashMap<String, Handle<Font>>,
-    missing_fonts: &mut HashSet<String>,
+    font_registry: &mut FontRegistry,
 ) {
     let Some(WidgetData::FontString(fs)) = &frame.widget_data else {
         return;
@@ -250,9 +233,7 @@ fn spawn_outlines(
     let base =
         super::render_text::text_transform(frame, screen_w, screen_h, fs.justify_h, fs.justify_v);
     let alpha = frame.effective_alpha;
-    let font =
-        super::render_text::resolve_font_handle(&fs.font, font_assets, font_cache, missing_fonts)
-            .unwrap_or_default();
+    let font = font_registry.get(fs.font, font_assets);
 
     for &(dx, dy) in outline_offsets(fs.outline) {
         let mut transform = base;

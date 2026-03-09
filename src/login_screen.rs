@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue};
 use game_engine::ui::dioxus_screen::DioxusScreen;
 use game_engine::ui::frame::{NineSlice, WidgetData};
+use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::layout::recompute_layouts;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
@@ -29,7 +30,6 @@ use helpers::{
 
 const FADE_IN_DURATION: f32 = 0.75;
 pub(crate) const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
-const FONT_GLUE_EDITBOX: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/ARIALN.ttf";
 const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
 const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -222,7 +222,7 @@ fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
         });
         if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
             eb.text_insets = [12.0, 5.0, 8.0, 8.0];
-            eb.font = FONT_GLUE_EDITBOX.to_string();
+            eb.font = GameFont::ArialNarrow;
             eb.text_color = GLUE_EDITBOX_TEXT_COLOR;
         }
     }

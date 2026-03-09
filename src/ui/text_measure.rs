@@ -3,22 +3,24 @@ use std::sync::Mutex;
 
 use ab_glyph::{Font, FontVec, PxScale, ScaleFont};
 
+use crate::ui::widgets::font_string::GameFont;
+
 static CACHE: Mutex<Option<TextMeasureCache>> = Mutex::new(None);
 
 struct TextMeasureCache {
-    fonts: HashMap<String, FontVec>,
-    sizes: HashMap<(String, String, u32), (f32, f32)>,
+    fonts: HashMap<GameFont, FontVec>,
+    sizes: HashMap<(String, GameFont, u32), (f32, f32)>,
 }
 
-/// Measure text dimensions (width, height) for a given font path and pixel size.
+/// Measure text dimensions (width, height) for a given font and pixel size.
 /// Results are cached permanently — same (text, font, size) triple always returns
 /// the cached value.
-pub fn measure_text(text: &str, font_path: &str, font_size: f32) -> Option<(f32, f32)> {
+pub fn measure_text(text: &str, font: GameFont, font_size: f32) -> Option<(f32, f32)> {
     if text.is_empty() {
         return Some((0.0, 0.0));
     }
     let size_key = font_size.to_bits();
-    let cache_key = (text.to_string(), font_path.to_string(), size_key);
+    let cache_key = (text.to_string(), font, size_key);
 
     let mut guard = CACHE.lock().ok()?;
     let cache = guard.get_or_insert_with(|| TextMeasureCache {
@@ -30,19 +32,19 @@ pub fn measure_text(text: &str, font_path: &str, font_size: f32) -> Option<(f32,
         return Some(size);
     }
 
-    let font = load_or_get_font(cache, font_path)?;
-    let result = compute_size(font, text, font_size);
+    let font_data = load_or_get_font(cache, font)?;
+    let result = compute_size(font_data, text, font_size);
     cache.sizes.insert(cache_key, result);
     Some(result)
 }
 
-fn load_or_get_font<'a>(cache: &'a mut TextMeasureCache, path: &str) -> Option<&'a FontVec> {
-    if !cache.fonts.contains_key(path) {
-        let bytes = std::fs::read(path).ok()?;
-        let font = FontVec::try_from_vec(bytes).ok()?;
-        cache.fonts.insert(path.to_string(), font);
+fn load_or_get_font(cache: &mut TextMeasureCache, font: GameFont) -> Option<&FontVec> {
+    if !cache.fonts.contains_key(&font) {
+        let bytes = std::fs::read(font.path()).ok()?;
+        let fv = FontVec::try_from_vec(bytes).ok()?;
+        cache.fonts.insert(font, fv);
     }
-    cache.fonts.get(path)
+    cache.fonts.get(&font)
 }
 
 fn compute_size(font: &FontVec, text: &str, font_size: f32) -> (f32, f32) {
@@ -65,45 +67,38 @@ fn compute_size(font: &FontVec, text: &str, font_size: f32) -> (f32, f32) {
 mod tests {
     use super::*;
 
-    const TEST_FONT: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
-
     #[test]
     fn empty_text_returns_zero() {
-        let (w, h) = measure_text("", TEST_FONT, 12.0).unwrap();
+        let (w, h) = measure_text("", GameFont::FrizQuadrata, 12.0).unwrap();
         assert_eq!(w, 0.0);
         assert_eq!(h, 0.0);
     }
 
     #[test]
     fn measure_returns_positive_dimensions() {
-        let (w, h) = measure_text("Hello", TEST_FONT, 16.0).unwrap();
+        let (w, h) = measure_text("Hello", GameFont::FrizQuadrata, 16.0).unwrap();
         assert!(w > 0.0, "width should be positive, got {w}");
         assert!(h > 0.0, "height should be positive, got {h}");
     }
 
     #[test]
     fn longer_text_is_wider() {
-        let (w1, _) = measure_text("Hi", TEST_FONT, 14.0).unwrap();
-        let (w2, _) = measure_text("Hello World", TEST_FONT, 14.0).unwrap();
+        let (w1, _) = measure_text("Hi", GameFont::FrizQuadrata, 14.0).unwrap();
+        let (w2, _) = measure_text("Hello World", GameFont::FrizQuadrata, 14.0).unwrap();
         assert!(w2 > w1, "longer text should be wider: {w2} vs {w1}");
     }
 
     #[test]
     fn larger_font_is_taller() {
-        let (_, h1) = measure_text("A", TEST_FONT, 10.0).unwrap();
-        let (_, h2) = measure_text("A", TEST_FONT, 20.0).unwrap();
+        let (_, h1) = measure_text("A", GameFont::FrizQuadrata, 10.0).unwrap();
+        let (_, h2) = measure_text("A", GameFont::FrizQuadrata, 20.0).unwrap();
         assert!(h2 > h1, "larger font should be taller: {h2} vs {h1}");
     }
 
     #[test]
     fn cached_result_matches_fresh() {
-        let first = measure_text("Cache", TEST_FONT, 12.0).unwrap();
-        let second = measure_text("Cache", TEST_FONT, 12.0).unwrap();
+        let first = measure_text("Cache", GameFont::FrizQuadrata, 12.0).unwrap();
+        let second = measure_text("Cache", GameFont::FrizQuadrata, 12.0).unwrap();
         assert_eq!(first, second);
-    }
-
-    #[test]
-    fn missing_font_returns_none() {
-        assert!(measure_text("x", "/nonexistent/font.ttf", 12.0).is_none());
     }
 }

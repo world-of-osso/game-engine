@@ -10,6 +10,7 @@ pub mod dioxus_renderer;
 pub mod dioxus_runtime;
 pub mod dioxus_screen;
 pub mod event;
+pub mod font_registry;
 pub mod frame;
 pub mod input;
 pub mod js_automation;

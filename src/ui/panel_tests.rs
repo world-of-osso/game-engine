@@ -9,6 +9,7 @@ use crate::ui::frame::{NineSlice, WidgetData, WidgetType};
 use crate::ui::registry::FrameRegistry;
 use crate::ui::widgets::button::ButtonData;
 use crate::ui::widgets::edit_box::EditBoxData;
+use crate::ui::widgets::font_string::GameFont;
 use crate::ui::widgets::texture::TextureSource;
 
 fn test_registry() -> FrameRegistry {
@@ -164,7 +165,7 @@ fn login_editbox_has_font() {
     if let Some(frame) = reg.get_mut(eb)
         && let Some(WidgetData::EditBox(eb_data)) = &mut frame.widget_data
     {
-        eb_data.font = "fonts/ARIALN.ttf".to_string();
+        eb_data.font = GameFont::ArialNarrow;
         eb_data.font_size = 16.0;
     }
 
@@ -172,7 +173,7 @@ fn login_editbox_has_font() {
     let WidgetData::EditBox(eb_data) = frame.widget_data.as_ref().unwrap() else {
         panic!("expected editbox");
     };
-    assert_eq!(eb_data.font, "fonts/ARIALN.ttf");
+    assert_eq!(eb_data.font, GameFont::ArialNarrow);
     assert_eq!(eb_data.font_size, 16.0);
 }
 

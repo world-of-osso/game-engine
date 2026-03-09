@@ -2,7 +2,7 @@
 pub struct EditBoxData {
     pub text: String,
     pub cursor_position: usize,
-    pub font: String,
+    pub font: crate::ui::widgets::font_string::GameFont,
     pub font_size: f32,
     pub text_color: [f32; 4],
     pub multi_line: bool,
@@ -22,7 +22,7 @@ impl Default for EditBoxData {
         Self {
             text: String::new(),
             cursor_position: 0,
-            font: String::new(),
+            font: crate::ui::widgets::font_string::GameFont::default(),
             font_size: 16.0,
             text_color: [1.0, 0.8, 0.2, 1.0],
             multi_line: false,

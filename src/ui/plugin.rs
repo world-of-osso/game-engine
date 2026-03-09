@@ -30,6 +30,7 @@ impl Plugin for UiPlugin {
             focused_frame: None,
         };
         app.insert_resource(state);
+        app.init_resource::<crate::ui::font_registry::FontRegistry>();
         app.insert_non_send_resource(DioxusUiRuntime::new());
         app.add_systems(
             Startup,

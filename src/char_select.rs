@@ -11,7 +11,7 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonData;
 use game_engine::ui::widgets::edit_box::EditBoxData;
-use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
+use game_engine::ui::widgets::font_string::{FontStringData, GameFont, JustifyH};
 use game_engine::ui::widgets::texture::{TextureData, TextureSource};
 use shared::protocol::{AuthChannel, CreateCharacter, DeleteCharacter, SelectCharacter};
 
@@ -19,8 +19,6 @@ use crate::game_state::GameState;
 use crate::networking::CharacterList;
 
 const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
-const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
-const FONT_GLUE_EDITBOX: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/ARIALN.ttf";
 const REALM_NAME: &str = "World of Osso";
 const LIST_PANEL_SIZE: (f32, f32) = (386.0, 520.0);
 const LIST_ENTRY_SIZE: (f32, f32) = (347.0, 95.0);
@@ -332,7 +330,7 @@ fn build_cs_title(
         reg,
         title,
         "Character Selection",
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         27.0,
         GLUE_NORMAL_FONT_COLOR,
     );
@@ -394,7 +392,7 @@ fn build_character_list(
         reg,
         realm_label,
         REALM_NAME,
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         20.0,
         GLUE_NORMAL_FONT_COLOR,
     );
@@ -412,7 +410,7 @@ fn build_character_list(
         reg,
         helper_text,
         "Select a character to enter the world",
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         13.0,
         GLUE_MUTED_COLOR,
     );
@@ -516,7 +514,7 @@ fn build_character_card(
         reg,
         name_text,
         char_name,
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         24.0,
         GLUE_NORMAL_FONT_COLOR,
     );
@@ -534,7 +532,7 @@ fn build_character_card(
         reg,
         info_text,
         info,
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         15.0,
         GLUE_SUBTITLE_COLOR,
     );
@@ -552,7 +550,7 @@ fn build_character_card(
         reg,
         status_text,
         status,
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         14.0,
         GLUE_MUTED_COLOR,
     );
@@ -726,7 +724,7 @@ fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (
         reg,
         label,
         "Create New Character",
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         18.0,
         GLUE_NORMAL_FONT_COLOR,
     );
@@ -744,7 +742,7 @@ fn build_create_panel(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> (
         reg,
         subtitle,
         "Enter a name for your new adventurer",
-        FONT_GLUE_LABEL,
+        GameFont::FrizQuadrata,
         12.0,
         GLUE_MUTED_COLOR,
     );
@@ -792,7 +790,7 @@ fn build_cs_status(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 
         24.0,
     );
     set_layout(reg, status, (sw - 720.0) / 2.0, sh - 188.0, 720.0, 24.0);
-    set_font_string_with_font(reg, status, "", FONT_GLUE_LABEL, 13.0, GLUE_SUBTITLE_COLOR);
+    set_font_string_with_font(reg, status, "", GameFont::FrizQuadrata, 13.0, GLUE_SUBTITLE_COLOR);
     status
 }
 
@@ -1425,14 +1423,14 @@ fn set_font_string_with_font(
     reg: &mut FrameRegistry,
     id: u64,
     text: &str,
-    font: &str,
+    font: GameFont,
     size: f32,
     color: [f32; 4],
 ) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
             text: text.to_string(),
-            font: font.to_string(),
+            font,
             font_size: size,
             color,
             justify_h: JustifyH::Center,
@@ -1445,14 +1443,14 @@ fn set_font_string_left_with_font(
     reg: &mut FrameRegistry,
     id: u64,
     text: &str,
-    font: &str,
+    font: GameFont,
     size: f32,
     color: [f32; 4],
 ) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
             text: text.to_string(),
-            font: font.to_string(),
+            font,
             font_size: size,
             color,
             justify_h: JustifyH::Left,
@@ -1530,7 +1528,7 @@ fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
         });
         if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
             eb.text_insets = [12.0, 5.0, 8.0, 8.0];
-            eb.font = FONT_GLUE_EDITBOX.to_string();
+            eb.font = GameFont::ArialNarrow;
             eb.font_size = 16.0;
             eb.text_color = GLUE_NORMAL_FONT_COLOR;
         }

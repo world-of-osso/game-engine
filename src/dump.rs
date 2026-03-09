@@ -170,7 +170,7 @@ fn format_widget_extra(f: &Frame) -> String {
     match &f.widget_data {
         Some(WidgetData::FontString(fs)) => {
             let text = truncate(&fs.text, 40);
-            let font = if fs.font.is_empty() { "" } else { &fs.font };
+            let font = format!("{:?}", fs.font);
             format!(" text=\"{text}\" font=\"{font}\" size={:.0}", fs.font_size)
         }
         Some(WidgetData::EditBox(eb)) => {

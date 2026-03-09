@@ -7,7 +7,7 @@ use crate::ui::render_nine_slice::UiNineSlicePart;
 use crate::ui::render_text::extract_button_text;
 use crate::ui::widgets::button::{ButtonData, ButtonState};
 use crate::ui::widgets::edit_box::EditBoxData;
-use crate::ui::widgets::font_string::FontStringData;
+use crate::ui::widgets::font_string::{FontStringData, GameFont};
 use crate::ui::widgets::texture::TextureSource;
 
 fn setup_app() -> App {
@@ -167,12 +167,12 @@ fn edit_box_font_flows_to_text_props() {
     frame.effective_alpha = 1.0;
     frame.widget_data = Some(WidgetData::EditBox(EditBoxData {
         text: "hello".into(),
-        font: "data/fonts/custom.ttf".into(),
+        font: GameFont::ArialNarrow,
         font_size: 18.0,
         ..Default::default()
     }));
     let props = crate::ui::render_text::extract_text_props_pub(&frame);
-    assert_eq!(props.font, "data/fonts/custom.ttf");
+    assert_eq!(props.font, GameFont::ArialNarrow);
     assert_eq!(props.font_size, 18.0);
     assert_eq!(props.content, "hello");
 }
@@ -198,12 +198,12 @@ fn font_string_font_flows_to_text_props() {
     frame.effective_alpha = 1.0;
     frame.widget_data = Some(WidgetData::FontString(FontStringData {
         text: "Title".into(),
-        font: "data/fonts/friz.ttf".into(),
+        font: GameFont::FrizQuadrata,
         font_size: 24.0,
         ..Default::default()
     }));
     let props = crate::ui::render_text::extract_text_props_pub(&frame);
-    assert_eq!(props.font, "data/fonts/friz.ttf");
+    assert_eq!(props.font, GameFont::FrizQuadrata);
     assert_eq!(props.font_size, 24.0);
     assert_eq!(props.content, "Title");
 }

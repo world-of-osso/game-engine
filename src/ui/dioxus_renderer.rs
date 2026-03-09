@@ -14,7 +14,7 @@ use crate::ui::registry::FrameRegistry;
 use crate::ui::strata::{DrawLayer, FrameStrata};
 use crate::ui::widgets::button::ButtonData;
 use crate::ui::widgets::edit_box::EditBoxData;
-use crate::ui::widgets::font_string::{FontStringData, JustifyH};
+use crate::ui::widgets::font_string::{FontStringData, GameFont, JustifyH};
 use crate::ui::widgets::texture::{TextureData, TextureSource};
 
 /// A node in the renderer's internal tree (mirrors Dioxus virtual DOM).
@@ -516,17 +516,17 @@ fn apply_widget_text_attrs(
     frame: &mut Frame,
     name: &str,
     value: &AttributeValue,
-    validated_paths: &mut HashSet<String>,
-    missing_paths: &mut HashSet<String>,
+    _validated_paths: &mut HashSet<String>,
+    _missing_paths: &mut HashSet<String>,
 ) {
     match name {
         "text" => apply_text_attr(frame, value),
         "font" => {
             if let Some(s) = as_text(value) {
-                check_path(validated_paths, missing_paths, "font", s);
+                let game_font = GameFont::from_attr(s);
                 match &mut frame.widget_data {
-                    Some(WidgetData::FontString(fs)) => fs.font = s.to_string(),
-                    Some(WidgetData::EditBox(eb)) => eb.font = s.to_string(),
+                    Some(WidgetData::FontString(fs)) => fs.font = game_font,
+                    Some(WidgetData::EditBox(eb)) => eb.font = game_font,
                     _ => {}
                 }
             }

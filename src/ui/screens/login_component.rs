@@ -7,7 +7,7 @@ use dioxus::prelude::*;
 use crate::ui::dioxus_elements;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::{FontColor, JustifyH};
+use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 /// Shared status text injected via root context. ECS writes, component reads.
 pub type SharedStatusText = Rc<RefCell<String>>;
@@ -15,7 +15,6 @@ pub type SharedStatusText = Rc<RefCell<String>>;
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
-const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF";
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_ERROR: FontColor = FontColor::new(0.9, 0.5, 0.5, 1.0);
 const COLOR_SUBTLE: FontColor = FontColor::new(0.65, 0.65, 0.7, 1.0);
@@ -36,7 +35,7 @@ fn login_inputs() -> Element {
             anchor { point: AnchorPoint::Center, relative_point: AnchorPoint::Center, y: "50" }
             fontstring { name: "UsernameInputLabel", width: 320.0, height: 18.0,
                 text: "Username", font_size: 18.0,
-                font: FONT_GLUE_LABEL,
+                font: GameFont::FrizQuadrata,
                 font_color: COLOR_GOLD,
                 anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Top, y: "4" }
             }
@@ -46,7 +45,7 @@ fn login_inputs() -> Element {
             anchor { point: AnchorPoint::Top, relative_to: "UsernameInput", relative_point: AnchorPoint::Bottom, y: "-30" }
             fontstring { name: "PasswordInputLabel", width: 320.0, height: 18.0,
                 text: "Password", font_size: 18.0,
-                font: FONT_GLUE_LABEL,
+                font: GameFont::FrizQuadrata,
                 font_color: COLOR_GOLD,
                 anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Top, y: "4" }
             }
@@ -108,7 +107,7 @@ fn login_footer() -> Element {
         }
         fontstring { name: "BlizzardThanks",
             text: "Special thanks to", font_size: 10.0,
-            font: FONT_GLUE_LABEL,
+            font: GameFont::FrizQuadrata,
             font_color: COLOR_SUBTLE, strata: FrameStrata::High,
             anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "130" }
         }
