@@ -17,10 +17,8 @@ const FONT_GLUE_LABEL: &str = "/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__
 fn login_background() -> Element {
     rsx! {
         r#frame { name: "BlackLoginBackground", stretch: true, background_color: "0.0,0.0,0.0,1.0" }
-        r#frame { name: "LoginBackgroundModel", stretch: true,
-            texture { name: "LoginBackground", stretch: true, texture_file: TEX_LOGIN_BACKGROUND }
-            r#frame { name: "LoginBackgroundShade", stretch: true, background_color: "0.0,0.0,0.0,0.22" }
-        }
+        texture { name: "LoginBackground", stretch: true, texture_file: TEX_LOGIN_BACKGROUND }
+        r#frame { name: "LoginBackgroundShade", stretch: true, background_color: "0.0,0.0,0.0,0.22" }
     }
 }
 
@@ -33,7 +31,7 @@ fn login_inputs() -> Element {
                 text: "Username", font_size: 18.0,
                 font: FONT_GLUE_LABEL,
                 font_color: "1.0,0.82,0.0,1.0",
-                anchor: "BOTTOM,$parent,TOP,0,0"
+                anchor: "BOTTOM,$parent,TOP,0,4"
             }
         }
         editbox { name: "PasswordInput", width: 320.0, height: 42.0,
@@ -43,7 +41,7 @@ fn login_inputs() -> Element {
                 text: "Password", font_size: 18.0,
                 font: FONT_GLUE_LABEL,
                 font_color: "1.0,0.82,0.0,1.0",
-                anchor: "BOTTOM,$parent,TOP,0,0"
+                anchor: "BOTTOM,$parent,TOP,0,4"
             }
         }
     }

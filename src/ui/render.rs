@@ -146,14 +146,22 @@ fn build_sorted_frame_ids(state: &UiState) -> Vec<u64> {
     frames.into_iter().map(|(id, _, _, _)| id).collect()
 }
 
+/// Effective size: layout_rect if available, else explicit width/height.
+fn effective_size(f: &crate::ui::frame::Frame) -> (f32, f32) {
+    f.layout_rect
+        .as_ref()
+        .map(|r| (r.width, r.height))
+        .unwrap_or((f.width, f.height))
+}
+
 fn is_renderable(f: &crate::ui::frame::Frame) -> bool {
-    // Frames with nine_slice are rendered by the nine-slice system, not as quads.
     if f.nine_slice.is_some() {
         return false;
     }
+    let (w, h) = effective_size(f);
     f.visible
-        && f.width > 0.0
-        && f.height > 0.0
+        && w > 0.0
+        && h > 0.0
         && (f.background_color.is_some()
             || frame_texture_source(f).is_some()
             || frame_has_button_texture(f)
@@ -179,11 +187,9 @@ fn frame_texture_source(f: &crate::ui::frame::Frame) -> Option<&TextureSource> {
 }
 
 fn frame_transform(f: &crate::ui::frame::Frame, sort_idx: usize, sw: f32, sh: f32) -> Transform {
-    let bx = f
-        .width
-        .mul_add(0.5, f.layout_rect.as_ref().map_or(0.0, |r| r.x))
-        - sw * 0.5;
-    let by = sh * 0.5 - f.layout_rect.as_ref().map_or(0.0, |r| r.y) - f.height * 0.5;
+    let (w, h) = effective_size(f);
+    let bx = w.mul_add(0.5, f.layout_rect.as_ref().map_or(0.0, |r| r.x)) - sw * 0.5;
+    let by = sh * 0.5 - f.layout_rect.as_ref().map_or(0.0, |r| r.y) - h * 0.5;
     Transform::from_xyz(bx, by, sort_idx as f32 * 0.001)
 }
 
@@ -202,14 +208,15 @@ fn frame_color(f: &crate::ui::frame::Frame) -> Color {
 /// frame width and the filled width.  All other frames use their full size
 /// with no offset.
 pub(crate) fn frame_sprite_params(f: &crate::ui::frame::Frame) -> (Vec2, Vec2) {
+    let (w, h) = effective_size(f);
     if let Some(WidgetData::StatusBar(sb)) = &f.widget_data {
         let fill =
             ((sb.value - sb.min) / (sb.max - sb.min).max(f64::EPSILON)).clamp(0.0, 1.0) as f32;
-        let filled_w = f.width * fill;
-        let offset_x = (filled_w - f.width) * 0.5;
-        (Vec2::new(filled_w, f.height), Vec2::new(offset_x, 0.0))
+        let filled_w = w * fill;
+        let offset_x = (filled_w - w) * 0.5;
+        (Vec2::new(filled_w, h), Vec2::new(offset_x, 0.0))
     } else {
-        (Vec2::new(f.width, f.height), Vec2::ZERO)
+        (Vec2::new(w, h), Vec2::ZERO)
     }
 }
 
