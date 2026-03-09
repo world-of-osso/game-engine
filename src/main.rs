@@ -164,7 +164,7 @@ fn register_plugins(app: &mut App) {
 fn configure_app_plugins(
     app: &mut App,
     enable_sound: bool,
-    server_addr: Option<std::net::SocketAddr>,
+    server_addr: Option<(std::net::SocketAddr, bool)>,
     initial_state: Option<game_state::GameState>,
     dump_tree: bool,
     dump_ui_tree: bool,
@@ -173,8 +173,11 @@ fn configure_app_plugins(
     if enable_sound {
         app.add_plugins(sound::SoundPlugin);
     }
-    if let Some(addr) = server_addr {
+    if let Some((addr, dev)) = server_addr {
         app.insert_resource(networking::ServerAddr(addr));
+        if dev {
+            app.insert_resource(login_screen::DevServer);
+        }
     }
     if let Some(state) = initial_state {
         app.insert_resource(game_state::InitialGameState(state));
@@ -262,11 +265,15 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     })
 }
 
-/// Parse `--server <addr>` from args. Returns None if not present.
-fn parse_server_arg(args: &[String]) -> Option<std::net::SocketAddr> {
-    args.windows(2)
-        .find(|w| w[0] == "--server")
-        .and_then(|w| w[1].parse().ok())
+/// Parse `--server <addr>` from args. `--server dev` resolves to the default address.
+/// Returns `(addr, is_dev)` or None if not present.
+fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)> {
+    let w = args.windows(2).find(|w| w[0] == "--server")?;
+    if w[1] == "dev" {
+        Some(("127.0.0.1:5000".parse().unwrap(), true))
+    } else {
+        w[1].parse().ok().map(|addr| (addr, false))
+    }
 }
 
 fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
