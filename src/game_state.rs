@@ -119,6 +119,7 @@ fn check_connection_status(
     time: Res<Time>,
     start_time: Option<Res<ConnectingStartTime>>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut auth_feedback: ResMut<crate::networking::AuthUiFeedback>,
 ) {
     // Connection established — on_connected sends LoginRequest,
     // receive_login_response will transition to CharSelect.
@@ -129,6 +130,7 @@ fn check_connection_status(
         let elapsed = time.elapsed_secs_f64() - start.0;
         if elapsed >= CONNECT_TIMEOUT_SECS {
             warn!("Connection timed out after {CONNECT_TIMEOUT_SECS}s, returning to Login");
+            auth_feedback.0 = Some("Connection timed out".to_string());
             next_state.set(GameState::Login);
         }
     }
