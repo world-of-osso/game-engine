@@ -460,6 +460,10 @@ pub fn sync_ui_button_highlights(
 }
 
 fn button_highlight_source(frame: &crate::ui::frame::Frame) -> Option<&TextureSource> {
+    // Nine-slice buttons handle their own visual states; skip the flat highlight overlay.
+    if frame.nine_slice.is_some() {
+        return None;
+    }
     let WidgetData::Button(btn) = frame.widget_data.as_ref()? else {
         return None;
     };
