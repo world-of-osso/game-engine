@@ -419,10 +419,10 @@ mod tests {
     fn config_from_ron_parses_overrides() {
         let ron = r#"(
             slot_defaults: {
-                MainHand: (translation: [1.0, 2.0, 3.0], rotation_deg: [0.0, 90.0, 0.0], scale: [1.0, 1.0, 1.0]),
+                MainHand: (translation: (1.0, 2.0, 3.0), rotation_deg: (0.0, 90.0, 0.0), scale: (1.0, 1.0, 1.0)),
             },
             item_overrides: {
-                "club_1h_torch_a_01": (translation: [0.5, 0.0, 0.0], rotation_deg: [0.0, 0.0, 180.0], scale: [1.0, 1.0, 1.0]),
+                "club_1h_torch_a_01": (translation: (0.5, 0.0, 0.0), rotation_deg: (0.0, 0.0, 180.0), scale: (1.0, 1.0, 1.0)),
             },
         )"#;
         let parsed: EquipmentTransformConfig = ron::de::from_str(ron).unwrap();

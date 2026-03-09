@@ -155,7 +155,10 @@ mod tests {
         // Without ServerAddr, the plugin should insert InWorld directly.
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<bevy::text::Font>();
         app.add_plugins(bevy::state::app::StatesPlugin);
+        app.add_plugins(game_engine::ui::plugin::UiPlugin);
         // No ServerAddr inserted — standalone mode.
         app.add_plugins(GameStatePlugin);
         app.update();
