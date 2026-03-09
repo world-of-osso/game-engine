@@ -470,7 +470,7 @@ fn apply_stretch_attr(
 ) -> Option<(u64, String)> {
     if matches!(value, AttributeValue::Bool(true)) {
         let parent_id = registry.get(frame_id).and_then(|f| f.parent_id);
-        let _ = registry.set_all_points(frame_id, parent_id);
+        let _ = registry.stretch_to_fill(frame_id, parent_id);
     }
     None
 }

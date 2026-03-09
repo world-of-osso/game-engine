@@ -204,7 +204,7 @@ impl FrameRegistry {
         self.mark_rect_dirty(id);
     }
 
-    pub fn set_all_points(
+    pub fn stretch_to_fill(
         &mut self,
         id: u64,
         relative_to: Option<u64>,
@@ -663,12 +663,12 @@ mod tests {
     }
 
     #[test]
-    fn set_all_points_creates_stretch_anchors() {
+    fn stretch_to_fill_creates_stretch_anchors() {
         let mut reg = FrameRegistry::new(1024.0, 768.0);
         let target = reg.create_frame("Target", None);
         let child = reg.create_frame("Child", None);
 
-        reg.set_all_points(child, Some(target)).unwrap();
+        reg.stretch_to_fill(child, Some(target)).unwrap();
 
         let frame = reg.get(child).unwrap();
         assert_eq!(frame.anchors.len(), 2);
