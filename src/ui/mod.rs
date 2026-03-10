@@ -106,8 +106,14 @@ pub mod atlas;
 pub mod automation;
 pub mod automation_script;
 mod dioxus_anchor;
+pub mod dioxus_attrs;
 pub mod dioxus_elements;
+pub(crate) mod dioxus_hotreload_diff;
+#[cfg(test)]
+mod dioxus_hotreload_diff_tests;
 pub mod dioxus_renderer;
+mod dioxus_renderer_anchor;
+mod dioxus_renderer_tree;
 pub mod dioxus_runtime;
 pub mod dioxus_screen;
 pub mod event;

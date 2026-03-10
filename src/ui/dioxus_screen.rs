@@ -1,4 +1,7 @@
+use std::sync::mpsc;
+
 use dioxus_core::{Element, ScopeId, VirtualDom};
+use dioxus_devtools::DevserverMsg;
 
 use crate::ui::dioxus_renderer::{GameUiRenderer, MutationApplier};
 use crate::ui::frame::WidgetData;
@@ -10,18 +13,29 @@ pub struct DioxusScreen {
     dom: VirtualDom,
     renderer: GameUiRenderer,
     initialized: bool,
+    hot_reload_rx: mpsc::Receiver<DevserverMsg>,
 }
 
 impl DioxusScreen {
     pub fn new(component: fn() -> Element) -> Self {
+        let (tx, rx) = mpsc::channel();
+        dioxus_devtools::connect(move |msg| {
+            let _ = tx.send(msg);
+        });
         Self {
             dom: VirtualDom::new(component),
             renderer: GameUiRenderer::new(),
             initialized: false,
+            hot_reload_rx: rx,
         }
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) {
+        while let Ok(msg) = self.hot_reload_rx.try_recv() {
+            if let DevserverMsg::HotReload(hr_msg) = msg {
+                self.apply_hotreload(hr_msg, registry);
+            }
+        }
         {
             let mut applier = MutationApplier::new(&mut self.renderer, registry);
             if self.initialized {
@@ -46,6 +60,31 @@ impl DioxusScreen {
 
     pub fn mark_dirty_root(&mut self) {
         self.dom.mark_dirty(ScopeId::APP);
+    }
+
+    /// Apply hotreload: diff each template against existing frames.
+    fn apply_hotreload(
+        &mut self,
+        hr_msg: dioxus_devtools::HotReloadMsg,
+        registry: &mut FrameRegistry,
+    ) {
+        for hr_template in &hr_msg.templates {
+            if let Some((existing_roots, fid_map)) = self.renderer.templates_by_key.get(&hr_template.key) {
+                let existing_roots = *existing_roots;
+                let fid_map = fid_map.clone();
+                self.renderer.diff_template(
+                    hr_template.template.roots,
+                    existing_roots,
+                    &fid_map,
+                    &hr_template.template.dynamic_attributes,
+                    registry,
+                );
+                self.renderer
+                    .templates_by_key
+                    .entry(hr_template.key.clone())
+                    .and_modify(|(roots, _fids)| *roots = hr_template.template.roots);
+            }
+        }
     }
 
     pub fn teardown(&mut self, registry: &mut FrameRegistry) {
@@ -102,3 +141,4 @@ fn auto_size_fontstrings(renderer: &GameUiRenderer, registry: &mut FrameRegistry
         }
     }
 }
+

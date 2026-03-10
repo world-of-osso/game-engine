@@ -171,7 +171,7 @@ pub fn tag_to_widget_type(tag: &str) -> Option<WidgetType> {
         "Button" | "button" => Some(WidgetType::Button),
         "CheckButton" => Some(WidgetType::CheckButton),
         "Texture" | "texture" => Some(WidgetType::Texture),
-        "FontString" | "label" => Some(WidgetType::FontString),
+        "FontString" | "fontstring" | "label" => Some(WidgetType::FontString),
         "Line" | "line" => Some(WidgetType::Line),
         "EditBox" | "editbox" => Some(WidgetType::EditBox),
         "ScrollFrame" => Some(WidgetType::ScrollFrame),
@@ -253,6 +253,7 @@ mod tests {
         assert_eq!(tag_to_widget_type("frame"), Some(WidgetType::Frame));
         assert_eq!(tag_to_widget_type("button"), Some(WidgetType::Button));
         assert_eq!(tag_to_widget_type("texture"), Some(WidgetType::Texture));
+        assert_eq!(tag_to_widget_type("fontstring"), Some(WidgetType::FontString));
         assert_eq!(tag_to_widget_type("label"), Some(WidgetType::FontString));
         assert_eq!(tag_to_widget_type("line"), Some(WidgetType::Line));
         assert_eq!(tag_to_widget_type("editbox"), Some(WidgetType::EditBox));

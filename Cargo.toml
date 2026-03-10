@@ -23,8 +23,10 @@ cascette-crypto = { path = "/home/osso/Repos/cascette-rs/crates/cascette-crypto"
 cascette-formats = { path = "/home/osso/Repos/cascette-rs/crates/cascette-formats" }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
 shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/shared" }
-dioxus-core = "0.7"
-dioxus = { version = "0.7", default-features = false, features = ["macro", "signals", "hooks"] }
+dioxus-core = { path = "/home/osso/Repos/dioxus/packages/core" }
+dioxus = { path = "/home/osso/Repos/dioxus/packages/dioxus", default-features = false, features = ["macro", "signals", "hooks"] }
+dioxus-devtools = { path = "/home/osso/Repos/dioxus/packages/devtools" }
+dioxus-cli-config = { path = "/home/osso/Repos/dioxus/packages/cli-config" }
 game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
 ab_glyph = "0.2"
 quick-js = "0.4"
@@ -41,3 +43,10 @@ dev = ["bevy_dylib"]
 # Optimize deps in debug builds (Bevy is unusably slow at opt-level 0)
 [profile.dev.package."*"]
 opt-level = 2
+
+# dioxus-core uses static_items_merged() to choose pointer vs structural
+# template comparison. At opt-level 2, statics merge → pointer comparison →
+# hotreloaded templates always mismatch → full tree replacement instead of diff.
+# Force opt-level 0 so it falls back to structural (value) comparison.
+[profile.dev.package.dioxus-core]
+opt-level = 0

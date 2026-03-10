@@ -87,6 +87,15 @@ impl FrameRegistry {
         }
     }
 
+    /// Remove a frame and its entire subtree.
+    pub fn remove_frame_tree(&mut self, id: u64) {
+        let children = self.get(id).map(|f| f.children.clone()).unwrap_or_default();
+        for child_id in children {
+            self.remove_frame_tree(child_id);
+        }
+        self.remove_frame(id);
+    }
+
     /// Create a new frame, inheriting effective properties from parent.
     pub fn create_frame(&mut self, name: &str, parent_id: Option<u64>) -> u64 {
         let id = self.next_id;
@@ -298,6 +307,18 @@ impl FrameRegistry {
         for child_id in children {
             self.propagate_scale(child_id);
         }
+    }
+
+    /// Return ordered child frame IDs for a given frame.
+    pub fn children_of(&self, id: u64) -> Vec<u64> {
+        self.frames
+            .get(&id)
+            .map(|f| f.children.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn parent_of(&self, id: u64) -> Option<u64> {
+        self.frames.get(&id)?.parent_id
     }
 
     // --- helpers ---
