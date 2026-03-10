@@ -62,6 +62,10 @@ ui_resource! {
 #[derive(Resource, Default)]
 pub(crate) struct LoginFocus(pub(crate) Option<u64>);
 
+/// Tracks which button is currently pressed (mouse-down) for visual feedback.
+#[derive(Resource, Default)]
+struct LoginPressedButton(Option<u64>);
+
 #[derive(Resource, Default)]
 pub(crate) struct LoginStatus(pub(crate) String);
 
@@ -91,6 +95,7 @@ impl Plugin for LoginScreenPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LoginFocus>();
         app.init_resource::<LoginStatus>();
+        app.init_resource::<LoginPressedButton>();
         app.add_systems(OnEnter(GameState::Login), build_login_ui);
         app.add_systems(OnExit(GameState::Login), teardown_login_ui);
         app.add_systems(
@@ -261,66 +266,90 @@ fn login_mouse_input(
     server_addr: Option<Res<networking::ServerAddr>>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
+    mut pressed: ResMut<LoginPressedButton>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
-    if !buttons.just_pressed(MouseButton::Left) {
-        return;
+    let cursor = windows.iter().next().and_then(|w| w.cursor_position());
+
+    if buttons.just_pressed(MouseButton::Left) {
+        if let Some(cursor) = cursor {
+            handle_mouse_press(&mut ui, login, cursor, &mut focus, &mut pressed);
+        }
     }
-    let Some(cursor) = windows.iter().next().and_then(|w| w.cursor_position()) else {
-        return;
-    };
-    handle_mouse_click(
-        &mut ui,
-        login,
-        cursor,
-        &mut focus,
-        &mut next_state,
-        &mut status,
-        &mut login_mode,
-        &auth_token,
-        server_addr.as_ref().map(|addr| addr.0),
-        &mut commands,
-        Some(&mut exit),
-    );
+
+    if buttons.just_released(MouseButton::Left) {
+        let released_id = pressed.0.take();
+        if let Some(id) = released_id {
+            reset_button_state(&mut ui.registry, id);
+        }
+        if let (Some(id), Some(cursor)) = (released_id, cursor) {
+            if hit_active_frame(&ui, id, cursor.x, cursor.y) {
+                handle_button_click(
+                    &mut ui,
+                    login,
+                    cursor.x,
+                    cursor.y,
+                    &mut focus,
+                    &mut next_state,
+                    &mut status,
+                    &mut login_mode,
+                    &auth_token,
+                    server_addr.as_ref().map(|addr| addr.0),
+                    &mut commands,
+                    Some(&mut exit),
+                );
+            }
+        }
+    }
 }
 
-fn handle_mouse_click(
+fn handle_mouse_press(
     ui: &mut UiState,
     login: &LoginUi,
     cursor: Vec2,
     focus: &mut LoginFocus,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
-    commands: &mut Commands,
-    exit: Option<&mut MessageWriter<AppExit>>,
+    pressed: &mut LoginPressedButton,
 ) {
     let (cx, cy) = (cursor.x, cursor.y);
     if hit_frame(ui, login.username_input, cx, cy) {
         focus.0 = Some(login.username_input);
         select_all_editbox(&mut ui.registry, login.username_input);
-    } else if hit_frame(ui, login.password_input, cx, cy) {
+        return;
+    }
+    if hit_frame(ui, login.password_input, cx, cy) {
         focus.0 = Some(login.password_input);
         select_all_editbox(&mut ui.registry, login.password_input);
-    } else {
-        handle_button_click(
-            ui,
-            login,
-            cx,
-            cy,
-            focus,
-            next_state,
-            status,
-            login_mode,
-            auth_token,
-            server_addr,
-            commands,
-            exit,
-        );
+        return;
+    }
+    let button_ids = button_ids(login);
+    for id in button_ids {
+        if hit_active_frame(ui, id, cx, cy) {
+            set_button_pushed(&mut ui.registry, id);
+            pressed.0 = Some(id);
+            return;
+        }
+    }
+    focus.0 = None;
+}
+
+fn button_ids(login: &LoginUi) -> Vec<u64> {
+    let mut ids = vec![
+        login.connect_button,
+        login.create_account_button,
+        login.menu_button,
+        login.exit_button,
+    ];
+    if let Some(id) = login.reconnect_button {
+        ids.push(id);
+    }
+    ids
+}
+
+fn reset_button_state(reg: &mut FrameRegistry, id: u64) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.state = BtnState::Normal;
     }
 }
 
@@ -340,7 +369,6 @@ fn handle_button_click(
     exit: Option<&mut MessageWriter<AppExit>>,
 ) {
     if hit_active_frame(ui, login.connect_button, cx, cy) {
-        set_button_pushed(&mut ui.registry, login.connect_button);
         try_connect(
             &ui.registry,
             login,
@@ -538,19 +566,27 @@ fn click_login_frame(
         .and_then(|frame| frame.layout_rect.as_ref())
         .cloned()
         .ok_or_else(|| format!("login frame '{frame_name}' has no layout rect"))?;
-    handle_mouse_click(
-        ui,
-        login,
-        Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0),
-        focus,
-        next_state,
-        status,
-        login_mode,
-        auth_token,
-        server_addr,
-        commands,
-        None,
-    );
+    let cursor = Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
+    let mut pressed = LoginPressedButton::default();
+    handle_mouse_press(ui, login, cursor, focus, &mut pressed);
+    if let Some(id) = pressed.0.take() {
+        reset_button_state(&mut ui.registry, id);
+        let (cx, cy) = (cursor.x, cursor.y);
+        handle_button_click(
+            ui,
+            login,
+            cx,
+            cy,
+            focus,
+            next_state,
+            status,
+            login_mode,
+            auth_token,
+            server_addr,
+            commands,
+            None,
+        );
+    }
     Ok(())
 }
 
@@ -672,13 +708,15 @@ fn sync_dioxus_status(
     status: &LoginStatus,
 ) {
     let Some(dioxus) = screen_res else { return };
-    let mut shared = dioxus.0.shared_status.borrow_mut();
-    if *shared != status.0 {
-        *shared = status.0.clone();
-        drop(shared);
-        dioxus.0.screen.mark_dirty_root();
-        dioxus.0.screen.sync(reg);
+    {
+        let mut shared = dioxus.0.shared_status.borrow_mut();
+        if *shared != status.0 {
+            *shared = status.0.clone();
+            drop(shared);
+            dioxus.0.screen.mark_dirty_root();
+        }
     }
+    dioxus.0.screen.sync(reg);
 }
 
 fn login_fade_in(
