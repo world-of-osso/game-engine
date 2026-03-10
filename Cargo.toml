@@ -28,6 +28,7 @@ dioxus = { path = "/home/osso/Repos/dioxus/packages/dioxus", default-features = 
 dioxus-devtools = { path = "/home/osso/Repos/dioxus/packages/devtools" }
 dioxus-cli-config = { path = "/home/osso/Repos/dioxus/packages/cli-config" }
 game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
+ui-toolkit = { path = "/syncthing/Sync/Projects/world-of-osso/ui-toolkit" }
 ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }

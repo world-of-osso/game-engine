@@ -99,47 +99,40 @@ macro_rules! ui_resource {
     (@key_str $key:literal) => { $key };
 }
 
+// Re-exported from ui-toolkit
+pub use ui_toolkit::anchor;
+pub use ui_toolkit::animation;
+pub use ui_toolkit::atlas;
+pub use ui_toolkit::dioxus_attrs;
+pub use ui_toolkit::dioxus_elements;
+pub use ui_toolkit::dioxus_renderer;
+pub use ui_toolkit::dioxus_screen;
+pub use ui_toolkit::event;
+pub use ui_toolkit::font_registry;
+pub use ui_toolkit::frame;
+pub use ui_toolkit::input;
+pub use ui_toolkit::layout;
+pub use ui_toolkit::plugin;
+pub use ui_toolkit::registry;
+pub use ui_toolkit::render;
+pub use ui_toolkit::render_border;
+pub use ui_toolkit::render_button;
+pub use ui_toolkit::render_nine_slice;
+pub use ui_toolkit::render_text;
+pub use ui_toolkit::render_text_fx;
+pub use ui_toolkit::render_texture;
+pub use ui_toolkit::render_tiled;
+pub use ui_toolkit::strata;
+pub use ui_toolkit::text_measure;
+pub use ui_toolkit::widgets;
+
+// Game-specific modules (stay in game-engine)
 pub mod addon_watcher;
-pub mod anchor;
-pub mod animation;
-pub mod atlas;
 pub mod automation;
 pub mod automation_script;
-mod dioxus_anchor;
-pub mod dioxus_attrs;
-pub mod dioxus_elements;
-pub(crate) mod dioxus_hotreload_diff;
-#[cfg(test)]
-mod dioxus_hotreload_diff_tests;
-pub mod dioxus_renderer;
-mod dioxus_renderer_anchor;
-mod dioxus_renderer_tree;
 pub mod dioxus_runtime;
-pub mod dioxus_screen;
-pub mod event;
-pub mod font_registry;
-pub mod frame;
-pub mod input;
 pub mod js_automation;
-pub mod layout;
-pub mod plugin;
-pub mod registry;
-pub mod render;
-pub mod render_border;
-pub mod render_button;
-pub mod render_nine_slice;
-pub mod render_text;
-pub mod render_text_fx;
-pub mod render_texture;
-pub mod render_tiled;
 pub mod screens;
 pub mod spellbook_data;
-pub mod strata;
-pub mod text_measure;
+pub mod game_plugin;
 pub mod wasm_host;
-pub mod widgets;
-
-#[cfg(test)]
-mod panel_tests;
-#[cfg(test)]
-mod render_tests;

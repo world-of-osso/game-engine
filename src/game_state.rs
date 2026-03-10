@@ -49,10 +49,10 @@ impl Plugin for GameStatePlugin {
         app.add_systems(
             Update,
             (
-                game_engine::ui::plugin::sync_dioxus_ui,
-                game_engine::ui::plugin::tick_spellbook_cooldowns,
-                game_engine::ui::plugin::handle_spellbook_pointer,
-                game_engine::ui::plugin::handle_spellbook_keyboard,
+                game_engine::ui::game_plugin::sync_dioxus_ui,
+                game_engine::ui::game_plugin::tick_spellbook_cooldowns,
+                game_engine::ui::game_plugin::handle_spellbook_pointer,
+                game_engine::ui::game_plugin::handle_spellbook_keyboard,
             )
                 .chain()
                 .run_if(in_state(GameState::InWorld)),

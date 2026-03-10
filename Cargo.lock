@@ -3703,6 +3703,7 @@ dependencies = [
  "serde_json",
  "shared",
  "tokio",
+ "ui-toolkit",
  "webp",
 ]
 
@@ -8350,6 +8351,21 @@ name = "typewit"
 version = "1.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8c1ae7cc0fdb8b842d65d127cb981574b0d2b249b74d1c7a2986863dc134f71"
+
+[[package]]
+name = "ui-toolkit"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "bevy",
+ "dioxus",
+ "dioxus-cli-config",
+ "dioxus-core",
+ "dioxus-devtools",
+ "image 0.25.9",
+ "image-blp",
+ "serde",
+]
 
 [[package]]
 name = "unicode-bidi"
