@@ -76,12 +76,16 @@ fn build_ktx2(mips: &[Vec<u8>], width: u32, height: u32) -> Result<Ktx2Texture, 
 
 fn write_ktx2(texture: Ktx2Texture, input_path: &str, output_path: &str) -> Result<(), String> {
     let mut texture = texture;
-    texture.set_metadata("OriginalFormat", b"PNG").map_err(|e| format!("metadata: {e}"))?;
+    texture
+        .set_metadata("OriginalFormat", b"PNG")
+        .map_err(|e| format!("metadata: {e}"))?;
     texture
         .set_metadata("SourceFile", input_path.as_bytes())
         .map_err(|e| format!("metadata: {e}"))?;
 
-    let bytes = texture.write_to_memory().map_err(|e| format!("Failed to encode KTX2: {e}"))?;
+    let bytes = texture
+        .write_to_memory()
+        .map_err(|e| format!("Failed to encode KTX2: {e}"))?;
 
     if let Some(parent) = Path::new(output_path).parent()
         && !parent.as_os_str().is_empty()

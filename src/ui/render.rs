@@ -422,7 +422,6 @@ pub fn texture_tint(frame: &crate::ui::frame::Frame) -> Color {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -294,7 +294,15 @@ fn uv_rect_for_part(part: u8, w: f32, h: f32, ch: f32, cv: f32) -> Rect {
 
 /// Compute the center position, size, and border flag for one nine-slice part.
 /// Returns `(cx, cy, w, h, is_border)` in WoW screen space (top-left origin).
-fn part_layout(part: u8, fx: f32, fy: f32, eh: f32, ev: f32, iw: f32, ih: f32) -> (f32, f32, f32, f32, bool) {
+fn part_layout(
+    part: u8,
+    fx: f32,
+    fy: f32,
+    eh: f32,
+    ev: f32,
+    iw: f32,
+    ih: f32,
+) -> (f32, f32, f32, f32, bool) {
     match part {
         0 => (fx + eh * 0.5, fy + ev * 0.5, eh, ev, true),
         1 => (fx + eh + iw * 0.5, fy + ev * 0.5, iw, ev, true),
@@ -304,12 +312,22 @@ fn part_layout(part: u8, fx: f32, fy: f32, eh: f32, ev: f32, iw: f32, ih: f32) -
         5 => (fx + eh + iw + eh * 0.5, fy + ev + ih * 0.5, eh, ih, true),
         6 => (fx + eh * 0.5, fy + ev + ih + ev * 0.5, eh, ev, true),
         7 => (fx + eh + iw * 0.5, fy + ev + ih + ev * 0.5, iw, ev, true),
-        _ => (fx + eh + iw + eh * 0.5, fy + ev + ih + ev * 0.5, eh, ev, true),
+        _ => (
+            fx + eh + iw + eh * 0.5,
+            fy + ev + ih + ev * 0.5,
+            eh,
+            ev,
+            true,
+        ),
     }
 }
 
 fn part_color(ns: &NineSlice, is_border: bool, alpha: f32) -> Color {
-    let [r, g, b, a] = if is_border { ns.border_color } else { ns.bg_color };
+    let [r, g, b, a] = if is_border {
+        ns.border_color
+    } else {
+        ns.bg_color
+    };
     Color::srgba(r, g, b, a * alpha)
 }
 

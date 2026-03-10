@@ -365,5 +365,4 @@ mod tests {
         let mut q = app.world_mut().query_filtered::<(), With<UiTextOutline>>();
         assert_eq!(q.iter(app.world()).count(), 8);
     }
-
 }

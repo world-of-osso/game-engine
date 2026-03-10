@@ -15,12 +15,10 @@ impl FontRegistry {
         if let Some(handle) = self.cache.get(&font) {
             return handle.clone();
         }
-        let bytes = std::fs::read(font.path()).unwrap_or_else(|e| {
-            panic!("failed to read font {:?} at {}: {}", font, font.path(), e)
-        });
-        let f = Font::try_from_bytes(bytes).unwrap_or_else(|e| {
-            panic!("failed to parse font {:?}: {}", font, e)
-        });
+        let bytes = std::fs::read(font.path())
+            .unwrap_or_else(|e| panic!("failed to read font {:?} at {}: {}", font, font.path(), e));
+        let f = Font::try_from_bytes(bytes)
+            .unwrap_or_else(|e| panic!("failed to parse font {:?}: {}", font, e));
         let handle = font_assets.add(f);
         self.cache.insert(font, handle.clone());
         handle

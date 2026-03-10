@@ -33,7 +33,11 @@ fn button_nine_slice_edges(tex: &TextureSource, frame_w: f32, frame_h: f32) -> (
         return (e, e, e);
     };
     let base = region.nine_slice_edge.unwrap_or(BUTTON_NINE_SLICE_EDGE);
-    (base * frame_w / region.width, base * frame_h / region.height, base)
+    (
+        base * frame_w / region.width,
+        base * frame_h / region.height,
+        base,
+    )
 }
 
 fn select_button_texture_source(btn: &ButtonData) -> Option<&TextureSource> {

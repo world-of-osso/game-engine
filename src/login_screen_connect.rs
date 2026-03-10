@@ -1,13 +1,15 @@
 use bevy::prelude::*;
 
-use game_engine::ui::frame::WidgetData;
 use game_engine::ui::registry::FrameRegistry;
 
 use crate::game_state::GameState;
 use crate::networking;
 
 use super::helpers::{get_editbox_text, set_editbox_text};
-use super::{LoginStatus, LoginUi, STATUS_CONNECTING, STATUS_FILL_FIELDS, STATUS_RECONNECT_UNAVAILABLE, DEFAULT_SERVER_ADDR};
+use super::{
+    DEFAULT_SERVER_ADDR, LoginStatus, LoginUi, STATUS_CONNECTING, STATUS_FILL_FIELDS,
+    STATUS_RECONNECT_UNAVAILABLE,
+};
 
 pub fn prefill_offline_credentials(reg: &mut FrameRegistry, login: &LoginUi) {
     set_editbox_text(reg, login.username_input, "admin");
@@ -87,23 +89,5 @@ pub fn sync_button_states(
     reg.set_shown(login.connect_button, true);
     if let Some(reconnect_button) = login.reconnect_button {
         reg.set_shown(reconnect_button, false);
-    }
-    if let Some(WidgetData::Button(btn)) = reg
-        .get_mut(login.connect_button)
-        .and_then(|f| f.widget_data.as_mut())
-    {
-        btn.text = match mode {
-            networking::LoginMode::Login => "Login".to_string(),
-            networking::LoginMode::Register => "Create Account".to_string(),
-        };
-    }
-    if let Some(WidgetData::Button(btn)) = reg
-        .get_mut(login.create_account_button)
-        .and_then(|f| f.widget_data.as_mut())
-    {
-        btn.text = match mode {
-            networking::LoginMode::Login => "Create Account".to_string(),
-            networking::LoginMode::Register => "Back to Login".to_string(),
-        };
     }
 }

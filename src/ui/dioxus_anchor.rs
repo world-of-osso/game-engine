@@ -102,10 +102,7 @@ pub(crate) fn apply_anchor_element(
 }
 
 /// Collect static attrs from an anchor template node, leaving defaults for dynamic attrs.
-pub(crate) fn collect_anchor_statics(
-    node: &TemplateNode,
-    dynamic_count: usize,
-) -> AnchorState {
+pub(crate) fn collect_anchor_statics(node: &TemplateNode, dynamic_count: usize) -> AnchorState {
     let TemplateNode::Element { attrs, .. } = node else {
         return AnchorState::new(dynamic_count);
     };

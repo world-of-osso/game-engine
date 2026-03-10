@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use dioxus::prelude::*;
 
+use crate::ui::anchor::{AnchorPoint, FrameName};
 #[allow(unused_imports)]
 use crate::ui::dioxus_elements;
-use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
@@ -126,7 +126,7 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
         if show_reconnect {
             button {
                 name: RECONNECT_BUTTON,
-                width: 250.0,
+                width: 500.0,
                 height: 66.0,
                 text: "Reconnect",
                 font_size: 16.0,

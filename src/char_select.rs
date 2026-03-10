@@ -790,7 +790,14 @@ fn build_cs_status(reg: &mut FrameRegistry, root: u64, sw: f32, sh: f32) -> u64 
         24.0,
     );
     set_layout(reg, status, (sw - 720.0) / 2.0, sh - 188.0, 720.0, 24.0);
-    set_font_string_with_font(reg, status, "", GameFont::FrizQuadrata, 13.0, GLUE_SUBTITLE_COLOR);
+    set_font_string_with_font(
+        reg,
+        status,
+        "",
+        GameFont::FrizQuadrata,
+        13.0,
+        GLUE_SUBTITLE_COLOR,
+    );
     status
 }
 

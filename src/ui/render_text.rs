@@ -19,14 +19,17 @@ pub fn sync_ui_text(
     mut commands: Commands,
     mut font_assets: ResMut<Assets<Font>>,
     mut font_registry: ResMut<FontRegistry>,
-    mut texts: Query<(
-        Entity,
-        &UiText,
-        &mut Text2d,
-        &mut TextFont,
-        &mut TextColor,
-        &mut Transform,
-    ), (Without<UiTextShadow>, Without<UiTextOutline>)>,
+    mut texts: Query<
+        (
+            Entity,
+            &UiText,
+            &mut Text2d,
+            &mut TextFont,
+            &mut TextColor,
+            &mut Transform,
+        ),
+        (Without<UiTextShadow>, Without<UiTextOutline>),
+    >,
 ) {
     let screen_w = state.registry.screen_width;
     let screen_h = state.registry.screen_height;
@@ -178,7 +181,6 @@ pub(crate) fn extract_button_text(
     }
 }
 
-
 /// Compute the transform for a text entity. Public for use by render_text_fx.
 pub fn text_transform(
     frame: &crate::ui::frame::Frame,
@@ -289,7 +291,10 @@ mod tests {
         }));
         let props = extract_text_props(&frame);
         assert_eq!(props.content, "abc");
-        assert_eq!(props.font, crate::ui::widgets::font_string::GameFont::ArialNarrow);
+        assert_eq!(
+            props.font,
+            crate::ui::widgets::font_string::GameFont::ArialNarrow
+        );
         assert_eq!(props.font_size, 16.0);
         let Color::Srgba(srgba) = props.color else {
             panic!("expected srgba")
@@ -299,5 +304,4 @@ mod tests {
         assert!((srgba.blue - 0.6).abs() < 0.001);
         assert!((srgba.alpha - 0.5).abs() < 0.001);
     }
-
 }

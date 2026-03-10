@@ -435,7 +435,11 @@ mod dioxus_render {
         match &frame.widget_data {
             Some(WidgetData::EditBox(eb)) => {
                 assert!(eb.password, "password should be true");
-                assert_eq!(eb.font_size, 20.0, "font_size should be 20.0, got {}", eb.font_size);
+                assert_eq!(
+                    eb.font_size, 20.0,
+                    "font_size should be 20.0, got {}",
+                    eb.font_size
+                );
             }
             other => panic!("expected EditBox widget_data, got {:?}", other),
         }
@@ -727,11 +731,7 @@ mod dioxus_render {
     }
 }
 
-fn create_colored_frame(
-    app: &mut App,
-    name: &str,
-    strata: crate::ui::strata::FrameStrata,
-) -> u64 {
+fn create_colored_frame(app: &mut App, name: &str, strata: crate::ui::strata::FrameStrata) -> u64 {
     let mut ui = app.world_mut().resource_mut::<UiState>();
     let id = ui.registry.create_frame(name, None);
     let frame = ui.registry.get_mut(id).unwrap();

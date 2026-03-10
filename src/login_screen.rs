@@ -12,10 +12,10 @@ use game_engine::ui::screens::login_component::{
     CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, MENU_BUTTON,
     PASSWORD_INPUT, RECONNECT_BUTTON, USERNAME_INPUT, login_screen,
 };
-use game_engine::ui_resource;
 use game_engine::ui::widgets::button::ButtonState as BtnState;
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::widgets::texture::TextureSource;
+use game_engine::ui_resource;
 
 use crate::game_state::GameState;
 use crate::networking;
@@ -226,7 +226,6 @@ fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
         nine_slice.border_color = EDITBOX_BORDER;
     }
 }
-
 
 fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
     ui.registry
