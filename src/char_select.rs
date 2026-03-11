@@ -385,17 +385,50 @@ fn char_select_keyboard_input(
     mut ui: ResMut<UiState>,
     focus: Res<CharSelectFocus>,
     cs_ui: Option<Res<CharSelectUi>>,
+    mut selected: ResMut<SelectedCharIndex>,
+    char_list: Res<CharacterList>,
     mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
+    mut senders: Query<&mut MessageSender<SelectCharacter>>,
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
-    let Some(focused_id) = focus.0 else { return };
     for event in key_events.read() {
         if event.state != ButtonState::Pressed { continue; }
+        if handle_selection_key(event.key_code, &mut selected, &char_list, &mut senders) {
+            continue;
+        }
+        let Some(focused_id) = focus.0 else { continue };
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
             handle_cs_key(event.key_code, focused_id, &mut ui, cs, &mut create_senders);
         }
+    }
+}
+
+fn handle_selection_key(
+    key: KeyCode,
+    selected: &mut SelectedCharIndex,
+    char_list: &CharacterList,
+    senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+) -> bool {
+    let count = char_list.0.len();
+    if count == 0 { return false; }
+    match key {
+        KeyCode::ArrowUp => {
+            let idx = selected.0.unwrap_or(0);
+            selected.0 = Some(if idx == 0 { count - 1 } else { idx - 1 });
+            true
+        }
+        KeyCode::ArrowDown => {
+            let idx = selected.0.unwrap_or(count.wrapping_sub(1));
+            selected.0 = Some(if idx + 1 >= count { 0 } else { idx + 1 });
+            true
+        }
+        KeyCode::Enter if selected.0.is_some() => {
+            try_enter_world(selected, char_list, senders);
+            true
+        }
+        _ => false,
     }
 }
 

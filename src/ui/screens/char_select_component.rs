@@ -91,7 +91,6 @@ pub const SELECTED_NAME_TEXT: FrameName = FrameName("CharSelectCharacterName");
 
 // --- Constants ---
 
-const TEX_GAME_LOGO: &str = "data/glues/common/Glues-WoW-TheWarWithinLogo.blp";
 const REALM_NAME: &str = "World of Osso";
 
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
@@ -113,6 +112,9 @@ const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-gs-tophud-right";
 const TOP_HUD_LEFT_SELECTED: &str = "glues-characterselect-gs-tophud-left-selected";
 const TOP_HUD_MIDDLE_SELECTED: &str = "glues-characterselect-gs-tophud-middle-selected";
 const TOP_HUD_RIGHT_SELECTED: &str = "glues-characterselect-gs-tophud-right-selected";
+// Vertex color tints for grayscale HUD textures (WoW tints these at runtime)
+const HUD_TINT_UNSELECTED: &str = "0.45,0.55,0.7,1.0";
+const HUD_TINT_SELECTED: &str = "0.7,0.6,0.5,1.0";
 const NAME_BG_ATLAS: &str = "glues-characterselect-namebg";
 const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
@@ -150,29 +152,18 @@ fn cs_background() -> Element {
 }
 
 fn cs_logo() -> Element {
-    rsx! {
-        texture {
-            name: "CharSelectLogo",
-            width: 256.0, height: 128.0,
-            texture_file: TEX_GAME_LOGO,
-            strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "3", y: "-32",
-            }
-        }
-    }
+    Vec::new()
 }
 
 // --- Top HUD banner (3 atlas pieces) ---
 
-fn cs_hud_left(atlas: &str) -> Element {
+fn cs_hud_left(atlas: &str, tint: &str) -> Element {
     rsx! {
         texture {
             name: "CharSelectTopHudLeft",
             width: 220.0, height: 43.0,
             texture_atlas: atlas,
+            vertex_color: tint,
             anchor {
                 point: AnchorPoint::TopRight, relative_point: AnchorPoint::Top,
                 x: "-59", y: "-22",
@@ -181,12 +172,13 @@ fn cs_hud_left(atlas: &str) -> Element {
     }
 }
 
-fn cs_hud_middle(atlas: &str) -> Element {
+fn cs_hud_middle(atlas: &str, tint: &str) -> Element {
     rsx! {
         texture {
             name: "CharSelectTopHudMiddle",
             width: 118.0, height: 43.0,
             texture_atlas: atlas,
+            vertex_color: tint,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::Top,
                 x: "-59", y: "-22",
@@ -195,12 +187,13 @@ fn cs_hud_middle(atlas: &str) -> Element {
     }
 }
 
-fn cs_hud_right(atlas: &str) -> Element {
+fn cs_hud_right(atlas: &str, tint: &str) -> Element {
     rsx! {
         texture {
             name: "CharSelectTopHudRight",
             width: 220.0, height: 43.0,
             texture_atlas: atlas,
+            vertex_color: tint,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::Top,
                 x: "59", y: "-22",
@@ -210,12 +203,12 @@ fn cs_hud_right(atlas: &str) -> Element {
 }
 
 fn cs_top_hud(has_selection: bool) -> Element {
-    let (l, m, r) = if has_selection {
-        (TOP_HUD_LEFT_SELECTED, TOP_HUD_MIDDLE_SELECTED, TOP_HUD_RIGHT_SELECTED)
+    let (l, m, r, tint) = if has_selection {
+        (TOP_HUD_LEFT_SELECTED, TOP_HUD_MIDDLE_SELECTED, TOP_HUD_RIGHT_SELECTED, HUD_TINT_SELECTED)
     } else {
-        (TOP_HUD_LEFT_ATLAS, TOP_HUD_MIDDLE_ATLAS, TOP_HUD_RIGHT_ATLAS)
+        (TOP_HUD_LEFT_ATLAS, TOP_HUD_MIDDLE_ATLAS, TOP_HUD_RIGHT_ATLAS, HUD_TINT_UNSELECTED)
     };
-    [cs_hud_left(l), cs_hud_middle(m), cs_hud_right(r)]
+    [cs_hud_left(l, tint), cs_hud_middle(m, tint), cs_hud_right(r, tint)]
         .into_iter()
         .flatten()
         .collect()
@@ -642,7 +635,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
     let has_selection = state.selected_index.is_some();
 
     rsx! {
-        r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Fullscreen,
+        r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Background,
             {cs_background()}
             {cs_logo()}
             {cs_top_hud(has_selection)}
