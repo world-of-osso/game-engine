@@ -40,7 +40,7 @@ pub struct AttachmentPoints {
 /// Marker for spawned equipment entities so we can track/despawn them.
 #[derive(Component)]
 pub struct EquipmentItem {
-    pub slot: EquipmentSlot,
+    pub _slot: EquipmentSlot,
 }
 
 #[derive(Debug, Clone)]
@@ -354,7 +354,7 @@ fn spawn_equipment_slot(
     let item_root = commands
         .spawn((
             Name::new(format!("equip_{name}")),
-            EquipmentItem { slot },
+            EquipmentItem { _slot: slot },
             transform,
             Visibility::default(),
         ))

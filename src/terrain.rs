@@ -24,8 +24,8 @@ pub struct AdtTerrain;
 /// Marker component tagging all entities belonging to a specific ADT tile.
 #[derive(Component, Clone)]
 pub struct AdtTile {
-    pub tile_x: u32,
-    pub tile_y: u32,
+    pub _tile_x: u32,
+    pub _tile_y: u32,
 }
 
 /// LOD level for doodad/WMO placements on a tile.
@@ -137,7 +137,7 @@ pub fn spawn_adt(
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
     let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
-    let tile = AdtTile { tile_x, tile_y };
+    let tile = AdtTile { _tile_x: tile_x, _tile_y: tile_y };
     let adt_data = load_and_parse_adt(adt_path)?;
 
     let root = spawn_adt_entities(
@@ -212,11 +212,11 @@ fn spawn_adt_entities(
 fn spawn_from_parsed(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    _materials: &mut Assets<StandardMaterial>,
     terrain_materials: &mut Assets<TerrainMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    _inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     adt_path: &Path,
     adt_data: &adt::AdtData,
     tex_data: Option<&adt::AdtTexData>,
@@ -248,8 +248,8 @@ fn spawn_parsed_tile(
     parsed: &ParsedTile,
 ) -> (Entity, Vec<Entity>) {
     let tile = AdtTile {
-        tile_x: parsed.tile_x,
-        tile_y: parsed.tile_y,
+        _tile_x: parsed.tile_x,
+        _tile_y: parsed.tile_y,
     };
     let root = spawn_from_parsed(
         commands,

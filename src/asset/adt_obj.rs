@@ -1,6 +1,7 @@
 use super::adt::ChunkIter;
 
 /// Placement data for an M2 doodad from the MDDF chunk.
+#[allow(dead_code)]
 pub struct DoodadPlacement {
     /// Index into MMID offset table, or FileDataID if flag 0x40 set.
     pub name_id: u32,
@@ -19,6 +20,7 @@ pub struct DoodadPlacement {
 }
 
 /// Placement data for a WMO from the MODF chunk.
+#[allow(dead_code)]
 pub struct WmoPlacement {
     pub name_id: u32,
     pub unique_id: u32,

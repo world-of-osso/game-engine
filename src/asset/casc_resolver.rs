@@ -28,15 +28,6 @@ pub fn ensure_texture(fdid: u32) -> Option<PathBuf> {
     ensure_file(fdid, "data/textures", "blp")
 }
 
-/// Ensure an M2 model exists at `data/models/{fdid}.m2`.
-pub fn ensure_model(fdid: u32) -> Option<PathBuf> {
-    ensure_file(fdid, "data/models", "m2")
-}
-
-/// Ensure a terrain file exists at `data/terrain/{fdid}.adt`.
-pub fn ensure_terrain(fdid: u32) -> Option<PathBuf> {
-    ensure_file(fdid, "data/terrain", "adt")
-}
 
 /// Check if `{dir}/{fdid}.{ext}` exists; if not, extract from CASC.
 fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {

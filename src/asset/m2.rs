@@ -36,6 +36,7 @@ pub struct M2RenderBatch {
     pub blend_mode: u16,
 }
 
+#[allow(dead_code)]
 pub struct M2Model {
     pub batches: Vec<M2RenderBatch>,
     pub bones: Vec<super::m2_anim::M2Bone>,

@@ -42,7 +42,6 @@ fn spawn_anim_and_particles(
     bones: &[M2Bone],
     sequences: Vec<M2AnimSequence>,
     bone_tracks: Vec<BoneAnimTracks>,
-    global_sequences: Vec<u32>,
     particle_emitters: Vec<M2ParticleEmitter>,
     attachments: Vec<asset::m2_attach::M2Attachment>,
     skinning: &m2_spawn::SkinningResult,
@@ -50,27 +49,43 @@ fn spawn_anim_and_particles(
 ) {
     let joint_entities =
         attach_bone_pivots_and_player(commands, bones, &sequences, skinning, model_entity);
-    if !particle_emitters.is_empty() {
-        let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
-        particle::spawn_emitters(
-            commands,
-            meshes,
-            materials,
-            images,
-            &particle_emitters,
-            bone_slice,
-            model_entity,
-        );
-    }
+    spawn_particle_emitters(commands, meshes, materials, images, &particle_emitters, skinning, model_entity);
     if let Some(joints) = joint_entities {
         commands.insert_resource(M2AnimData {
             sequences,
             bone_tracks,
-            global_sequences,
             joint_entities: joints,
         });
     }
     attach_equipment_to_model(commands, model_entity, &attachments);
+}
+
+fn spawn_particle_emitters(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    particle_emitters: &[M2ParticleEmitter],
+    skinning: &m2_spawn::SkinningResult,
+    model_entity: Entity,
+) {
+    if particle_emitters.is_empty() {
+        return;
+    }
+    let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
+    particle::spawn_emitters(commands, meshes, materials, images, particle_emitters, bone_slice, model_entity);
+}
+
+fn load_m2_model(
+    m2_path: &Path,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) -> Option<asset::m2::M2Model> {
+    let skin_fdids = creature_display_map
+        .resolve_skin_fdids_for_model_path(m2_path)
+        .unwrap_or([0, 0, 0]);
+    asset::m2::load_m2(m2_path, &skin_fdids).map_err(|e| {
+        eprintln!("Failed to load M2 {}: {e}", m2_path.display());
+    }).ok()
 }
 
 pub fn spawn_m2_model(
@@ -82,48 +97,15 @@ pub fn spawn_m2_model(
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
-    let skin_fdids = creature_display_map
-        .resolve_skin_fdids_for_model_path(m2_path)
-        .unwrap_or([0, 0, 0]);
-    let Ok(model) = asset::m2::load_m2(m2_path, &skin_fdids).map_err(|e| {
-        eprintln!("Failed to load M2 {}: {e}", m2_path.display());
-    }) else {
-        return;
-    };
-    let asset::m2::M2Model {
-        batches,
-        bones,
-        sequences,
-        bone_tracks,
-        global_sequences,
-        particle_emitters,
-        attachments,
-        ..
-    } = model;
+    let Some(model) = load_m2_model(m2_path, creature_display_map) else { return };
+    let asset::m2::M2Model { batches, bones, sequences, bone_tracks, particle_emitters, attachments, .. } = model;
     let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(
-        commands,
-        meshes,
-        materials,
-        images,
-        inv_bp,
-        batches,
-        &bones,
-        model_entity,
+        commands, meshes, materials, images, inv_bp, batches, &bones, model_entity,
     );
     spawn_anim_and_particles(
-        commands,
-        meshes,
-        materials,
-        images,
-        &bones,
-        sequences,
-        bone_tracks,
-        global_sequences,
-        particle_emitters,
-        attachments,
-        &skinning,
-        model_entity,
+        commands, meshes, materials, images,
+        &bones, sequences, bone_tracks, particle_emitters, attachments, &skinning, model_entity,
     );
 }
 
@@ -156,10 +138,7 @@ pub fn spawn_static_m2(
     transform: Transform,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) -> Option<Entity> {
-    let name = m2_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("prop");
+    let name = m2_path.file_stem().and_then(|s| s.to_str()).unwrap_or("prop");
     let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
@@ -167,14 +146,8 @@ pub fn spawn_static_m2(
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
     if m2_spawn::spawn_m2_on_entity(
-        commands,
-        meshes,
-        materials,
-        images,
-        skinned_mesh_inverse_bindposes,
-        m2_path,
-        root,
-        &skin_fdids,
+        commands, meshes, materials, images, skinned_mesh_inverse_bindposes,
+        m2_path, root, &skin_fdids,
     ) {
         Some(root)
     } else {

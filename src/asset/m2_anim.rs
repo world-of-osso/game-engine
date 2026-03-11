@@ -110,9 +110,8 @@ pub fn parse_bones(md20: &[u8]) -> Result<Vec<M2Bone>, String> {
     parse_bones_at(md20, offset, count)
 }
 
-/// Verify bone parent chain: all parent_bone_id values are either -1 (root) or
-/// a valid index less than the total bone count (parent-first ordering expected
-/// by WoW M2 files but not strictly enforced here).
+/// Verify that all parent_bone_id values are -1 or a valid index.
+#[allow(dead_code)]
 pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
     for (i, bone) in bones.iter().enumerate() {
         if bone.parent_bone_id >= 0 {
@@ -128,6 +127,8 @@ pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
     Ok(())
 }
 
+
+#[allow(dead_code)]
 pub struct M2AnimSequence {
     pub id: u16,
     pub variation_id: u16,
@@ -211,6 +212,7 @@ pub fn parse_global_sequences(md20: &[u8]) -> Result<Vec<u32>, String> {
 
 /// A single animation track: keyframes for one transform component of one bone.
 /// `sequences[i]` holds the keyframe data for animation sequence `i`.
+#[allow(dead_code)]
 pub struct AnimTrack<T> {
     pub interpolation_type: u16,
     pub global_sequence: i16,
@@ -434,43 +436,36 @@ pub fn evaluate_rotation_track(
     Some(slerp(&q0, &q1, t))
 }
 
+fn normalize_quat(q: [f32; 4]) -> [f32; 4] {
+    let len = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]).sqrt();
+    [q[0] / len, q[1] / len, q[2] / len, q[3] / len]
+}
+
+fn slerp_linear(a: &[f32; 4], b: &[f32; 4], t: f32) -> [f32; 4] {
+    normalize_quat([
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+        a[3] + (b[3] - a[3]) * t,
+    ])
+}
+
 fn slerp(a: &[f32; 4], b: &[f32; 4], t: f32) -> [f32; 4] {
     let mut dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
-
     // If dot is negative, negate one quaternion to take shortest path
     let mut b = *b;
     if dot < 0.0 {
         b = [-b[0], -b[1], -b[2], -b[3]];
         dot = -dot;
     }
-
     // If very close, use linear interpolation to avoid division by zero
     if dot > 0.9995 {
-        let result = [
-            a[0] + (b[0] - a[0]) * t,
-            a[1] + (b[1] - a[1]) * t,
-            a[2] + (b[2] - a[2]) * t,
-            a[3] + (b[3] - a[3]) * t,
-        ];
-        // Normalize
-        let len = (result[0] * result[0]
-            + result[1] * result[1]
-            + result[2] * result[2]
-            + result[3] * result[3])
-            .sqrt();
-        return [
-            result[0] / len,
-            result[1] / len,
-            result[2] / len,
-            result[3] / len,
-        ];
+        return slerp_linear(a, &b, t);
     }
-
     let theta = dot.acos();
     let sin_theta = theta.sin();
     let s0 = ((1.0 - t) * theta).sin() / sin_theta;
     let s1 = (t * theta).sin() / sin_theta;
-
     [
         a[0] * s0 + b[0] * s1,
         a[1] * s0 + b[1] * s1,
@@ -573,14 +568,10 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => {
-                println!("Skipping: {m2_path} not found");
-                return;
-            }
+            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
-
         assert!(!bones.is_empty(), "humanmale should have bones, got 0");
         println!("humanmale: {} bones", bones.len());
         assert!(validate_bone_hierarchy(&bones).is_ok());
@@ -595,10 +586,7 @@ mod tests {
         let m2_path = "data/models/humanmale_hd.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => {
-                println!("Skipping: {m2_path} not found");
-                return;
-            }
+            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
@@ -613,25 +601,14 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => {
-                println!("Skipping: {m2_path} not found");
-                return;
-            }
+            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
         };
         let md20 = extract_md20(&data);
         let sequences = parse_sequences(md20).unwrap();
-
-        assert!(
-            sequences.len() >= 100,
-            "Expected 100+ sequences, got {}",
-            sequences.len()
-        );
-
+        assert!(sequences.len() >= 100, "Expected 100+ sequences, got {}", sequences.len());
         let stand = sequences.iter().find(|s| s.id == 0);
         assert!(stand.is_some(), "Stand animation (id=0) not found");
-        let stand = stand.unwrap();
-        assert!(stand.duration > 0, "Stand should have non-zero duration");
-
+        assert!(stand.unwrap().duration > 0, "Stand should have non-zero duration");
         let walk = sequences.iter().find(|s| s.id == 4);
         assert!(walk.is_some(), "Walk animation (id=4) not found");
     }
@@ -641,10 +618,7 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => {
-                println!("Skipping: {m2_path} not found");
-                return;
-            }
+            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
         };
         let md20 = extract_md20(&data);
         let global_seqs = parse_global_sequences(md20).unwrap();
@@ -654,61 +628,30 @@ mod tests {
         }
     }
 
+    fn count_bones_with_stand_keyframes(tracks: &[BoneAnimTracks], stand_idx: usize) -> usize {
+        tracks.iter().filter(|t| {
+            t.translation.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
+                || t.rotation.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
+                || t.scale.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
+        }).count()
+    }
+
     #[test]
     fn parse_humanmale_bone_animations() {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => {
-                println!("Skipping: {m2_path} not found");
-                return;
-            }
+            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
         let tracks = parse_bone_animations(md20).unwrap();
-
-        assert_eq!(
-            tracks.len(),
-            bones.len(),
-            "Should have one track set per bone"
-        );
-
-        // Find the Stand animation index (id=0)
+        assert_eq!(tracks.len(), bones.len(), "Should have one track set per bone");
         let sequences = parse_sequences(md20).unwrap();
-        let stand_idx = sequences
-            .iter()
-            .position(|s| s.id == 0)
-            .expect("Stand not found");
-
-        // At least some bones should have keyframes for Stand
-        let bones_with_stand_keyframes = tracks
-            .iter()
-            .filter(|t| {
-                t.translation
-                    .sequences
-                    .get(stand_idx)
-                    .map_or(false, |(ts, _)| !ts.is_empty())
-                    || t.rotation
-                        .sequences
-                        .get(stand_idx)
-                        .map_or(false, |(ts, _)| !ts.is_empty())
-                    || t.scale
-                        .sequences
-                        .get(stand_idx)
-                        .map_or(false, |(ts, _)| !ts.is_empty())
-            })
-            .count();
-
-        println!(
-            "humanmale: {}/{} bones have Stand keyframes",
-            bones_with_stand_keyframes,
-            bones.len()
-        );
-        assert!(
-            bones_with_stand_keyframes > 0,
-            "At least some bones should have Stand animation data"
-        );
+        let stand_idx = sequences.iter().position(|s| s.id == 0).expect("Stand not found");
+        let with_keyframes = count_bones_with_stand_keyframes(&tracks, stand_idx);
+        println!("humanmale: {}/{} bones have Stand keyframes", with_keyframes, bones.len());
+        assert!(with_keyframes > 0, "At least some bones should have Stand animation data");
     }
 
     #[test]

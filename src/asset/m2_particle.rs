@@ -7,6 +7,7 @@
 
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct M2ParticleEmitter {
     pub flags: u32,
     /// Position in WoW coordinates (relative to bone).

@@ -41,6 +41,7 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
 
 // ── types ───────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 pub struct WmoRootData {
     pub n_groups: u32,
     pub materials: Vec<WmoMaterialDef>,
@@ -50,12 +51,14 @@ pub struct WmoRootData {
 }
 
 /// A portal polygon (doorway/opening between groups).
+#[allow(dead_code)]
 pub struct WmoPortal {
     pub vertices: Vec<[f32; 3]>,
     pub normal: [f32; 3],
 }
 
 /// A portal reference linking a group to a portal and destination group.
+#[allow(dead_code)]
 pub struct WmoPortalRef {
     pub portal_index: u16,
     pub group_index: u16,
@@ -63,12 +66,14 @@ pub struct WmoPortalRef {
 }
 
 /// Per-group info from MOGI chunk: flags and bounding box.
+#[allow(dead_code)]
 pub struct WmoGroupInfo {
     pub flags: u32,
     pub bbox_min: [f32; 3],
     pub bbox_max: [f32; 3],
 }
 
+#[allow(dead_code)]
 pub struct WmoMaterialDef {
     pub texture_fdid: u32,
     pub flags: u32,

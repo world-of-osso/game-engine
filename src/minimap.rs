@@ -48,11 +48,6 @@ pub struct MinimapCoords;
 #[derive(Component)]
 pub struct MinimapZoneName;
 
-/// Marker for entity dots.
-#[derive(Component)]
-pub struct MinimapDot {
-    pub is_player: bool,
-}
 
 pub struct MinimapPlugin;
 

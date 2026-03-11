@@ -83,7 +83,7 @@ pub fn toggle_login_mode(
 pub fn sync_button_states(
     reg: &mut FrameRegistry,
     login: &LoginUi,
-    mode: &networking::LoginMode,
+    _mode: &networking::LoginMode,
     _auth_token: &networking::AuthToken,
 ) {
     reg.set_shown(login.connect_button, true);
