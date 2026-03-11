@@ -86,7 +86,10 @@ fn login_input_labels() -> Element {
             }
         }
     };
-    [username_label, password_label].into_iter().flatten().collect()
+    [username_label, password_label]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 fn login_inputs() -> Element {
@@ -215,11 +218,12 @@ fn login_create_and_menu_buttons() -> Element {
             height: 32.0,
             onclick: "create_account",
             text: "Create Account",
+            hidden: true,
             font_size: 12.0,
             strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Bottom,
-                relative_to: EXIT_BUTTON,
+                relative_to: MENU_BUTTON,
                 relative_point: AnchorPoint::Top,
                 y: "10",
             }
@@ -234,7 +238,7 @@ fn login_create_and_menu_buttons() -> Element {
             strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Bottom,
-                relative_to: CREATE_ACCOUNT_BUTTON,
+                relative_to: EXIT_BUTTON,
                 relative_point: AnchorPoint::Top,
                 y: "10",
             }
@@ -243,7 +247,10 @@ fn login_create_and_menu_buttons() -> Element {
 }
 
 fn login_action_buttons() -> Element {
-    [login_exit_button(), login_create_and_menu_buttons()].into_iter().flatten().collect()
+    [login_exit_button(), login_create_and_menu_buttons()]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 fn login_footer_text() -> Element {
@@ -313,11 +320,17 @@ fn login_footer_blizzard() -> Element {
 }
 
 fn login_footer() -> Element {
-    [login_footer_text(), login_footer_blizzard()].into_iter().flatten().collect()
+    [login_footer_text(), login_footer_blizzard()]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 pub fn login_screen(ctx: &ScreenContext) -> Element {
-    let status = ctx.get::<SharedStatusText>().map(|s| s.as_str()).unwrap_or("");
+    let status = ctx
+        .get::<SharedStatusText>()
+        .map(|s| s.as_str())
+        .unwrap_or("");
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
