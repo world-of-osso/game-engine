@@ -317,6 +317,8 @@ pub fn login_screen(ctx: &ScreenContext) -> Element {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
             r#frame { name: "LoginUI", strata: FrameStrata::Medium,
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+                anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "0", y: "0" }
                 texture {
                     name: "LoginGameLogo",
                     texture_file: TEX_GAME_LOGO,

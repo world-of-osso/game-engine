@@ -56,17 +56,38 @@ fn gpu_image_from_dxtn(
         .images
         .first()
         .ok_or_else(|| "BLP DXT has no mipmap level 0".to_string())?;
+    let (w, h) = dxtn_actual_dimensions(width, height, data.content.len(), format);
     Ok(Image::new(
-        Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
+        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
         TextureDimension::D2,
         data.content.clone(),
         format,
         RenderAssetUsages::default(),
     ))
+}
+
+/// Some BLPs have truncated mipmaps — header says 128×128 but mip0 data
+/// only fits a smaller resolution. Infer actual dimensions from data size.
+fn dxtn_actual_dimensions(w: u32, h: u32, data_len: usize, format: TextureFormat) -> (u32, u32) {
+    let block_bytes = match format {
+        TextureFormat::Bc1RgbaUnormSrgb => 8,
+        _ => 16, // BC2, BC3
+    };
+    let expected = dxtn_size(w, h, block_bytes);
+    if data_len >= expected { return (w, h); }
+    let (mut mw, mut mh) = (w, h);
+    while mw > 4 && mh > 4 {
+        mw /= 2;
+        mh /= 2;
+        if data_len >= dxtn_size(mw, mh, block_bytes) { return (mw, mh); }
+    }
+    (4.max(mw), 4.max(mh))
+}
+
+fn dxtn_size(w: u32, h: u32, block_bytes: usize) -> usize {
+    let bw = ((w + 3) / 4) as usize;
+    let bh = ((h + 3) / 4) as usize;
+    bw * bh * block_bytes
 }
 
 /// Load a BLP file and return raw RGBA pixels + dimensions.

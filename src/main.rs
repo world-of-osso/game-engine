@@ -149,9 +149,25 @@ fn register_bevy_plugins(app: &mut App) {
 
 fn register_plugins(app: &mut App) {
     register_bevy_plugins(app);
+    app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(GameBlpLoader)));
     app.add_systems(Startup, (setup_explicit_asset_scene, wow_cursor::install_wow_cursor))
         .add_systems(Update, wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)));
     init_status_resources(app);
+}
+
+struct GameBlpLoader;
+
+impl ui_toolkit::render_texture::BlpLoader for GameBlpLoader {
+    fn load_blp_to_image(&self, path: &std::path::Path) -> Result<bevy::image::Image, String> {
+        game_engine::asset::blp::load_blp_to_image(path)
+    }
+    fn load_blp_gpu_image(&self, path: &std::path::Path) -> Result<bevy::image::Image, String> {
+        game_engine::asset::blp::load_blp_gpu_image(path)
+    }
+    fn ensure_texture(&self, fdid: u32) -> Option<PathBuf> {
+        let path = PathBuf::from(format!("data/textures/{fdid}.blp"));
+        if path.exists() { Some(path) } else { None }
+    }
 }
 
 fn configure_server_resources(
