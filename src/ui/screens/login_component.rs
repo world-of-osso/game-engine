@@ -51,45 +51,34 @@ fn login_background() -> Element {
     }
 }
 
+fn input_label(name: FrameName, text: &'static str, relative_to: FrameName) -> Element {
+    rsx! {
+        fontstring {
+            name: name,
+            width: 320.0,
+            height: 18.0,
+            text: text,
+            font_size: 18.0,
+            font: GameFont::FrizQuadrata,
+            font_color: COLOR_GOLD,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_to: relative_to,
+                relative_point: AnchorPoint::Top,
+                y: "4",
+            }
+        }
+    }
+}
+
 fn login_input_labels() -> Element {
-    let username_label = rsx! {
-        fontstring {
-            name: "UsernameInputLabel",
-            width: 320.0,
-            height: 18.0,
-            text: "Username",
-            font_size: 18.0,
-            font: GameFont::FrizQuadrata,
-            font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: USERNAME_INPUT,
-                relative_point: AnchorPoint::Top,
-                y: "4",
-            }
-        }
-    };
-    let password_label = rsx! {
-        fontstring {
-            name: "PasswordInputLabel",
-            width: 320.0,
-            height: 18.0,
-            text: "Password",
-            font_size: 18.0,
-            font: GameFont::FrizQuadrata,
-            font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: PASSWORD_INPUT,
-                relative_point: AnchorPoint::Top,
-                y: "4",
-            }
-        }
-    };
-    [username_label, password_label]
-        .into_iter()
-        .flatten()
-        .collect()
+    [
+        input_label(FrameName("UsernameInputLabel"), "Username", USERNAME_INPUT),
+        input_label(FrameName("PasswordInputLabel"), "Password", PASSWORD_INPUT),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 fn login_inputs() -> Element {
@@ -190,27 +179,7 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
     }
 }
 
-fn login_exit_button() -> Element {
-    rsx! {
-        button {
-            name: EXIT_BUTTON,
-            width: 200.0,
-            height: 32.0,
-            onclick: "exit",
-            text: "Quit",
-            font_size: 12.0,
-            strata: FrameStrata::Medium,
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-24",
-                y: "56",
-            }
-        }
-    }
-}
-
-fn login_create_and_menu_buttons() -> Element {
+fn action_button_items() -> Element {
     rsx! {
         button {
             name: CREATE_ACCOUNT_BUTTON,
@@ -220,13 +189,6 @@ fn login_create_and_menu_buttons() -> Element {
             text: "Create Account",
             hidden: true,
             font_size: 12.0,
-            strata: FrameStrata::Medium,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: MENU_BUTTON,
-                relative_point: AnchorPoint::Top,
-                y: "10",
-            }
         }
         button {
             name: MENU_BUTTON,
@@ -235,22 +197,38 @@ fn login_create_and_menu_buttons() -> Element {
             onclick: "menu",
             text: "Menu",
             font_size: 12.0,
-            strata: FrameStrata::Medium,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: EXIT_BUTTON,
-                relative_point: AnchorPoint::Top,
-                y: "10",
-            }
+        }
+        button {
+            name: EXIT_BUTTON,
+            width: 200.0,
+            height: 32.0,
+            onclick: "exit",
+            text: "Quit",
+            font_size: 12.0,
         }
     }
 }
 
 fn login_action_buttons() -> Element {
-    [login_exit_button(), login_create_and_menu_buttons()]
-        .into_iter()
-        .flatten()
-        .collect()
+    rsx! {
+        r#frame {
+            name: "ActionButtons",
+            width: 200.0,
+            height: 140.0,
+            layout: "flex-col",
+            justify: "end",
+            align: "center",
+            gap: 10.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: "-24",
+                y: "56",
+            }
+            {action_button_items()}
+        }
+    }
 }
 
 fn login_footer_text() -> Element {
