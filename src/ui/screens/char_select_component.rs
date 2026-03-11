@@ -109,7 +109,7 @@ const BIG_BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-tophud-left-bg";
 const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-tophud-middle-bg";
 const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-tophud-right-bg";
-const NAME_BG_ATLAS: &str = "glues-characterselect-namebg";
+const NAME_BG_ATLAS: &str = "custom-nameplate-bg";
 const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
 const CARD_SELECTED_ATLAS: &str = "glues-characterselect-card-selected";
@@ -190,7 +190,7 @@ fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
     rsx! {
         texture {
             name: "CharSelectNameBg",
-            width: 194.0, height: 61.0,
+            width: 300.0, height: 60.0,
             texture_atlas: NAME_BG_ATLAS,
             hidden: hide_name_bg,
             anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-80" }
