@@ -1,5 +1,7 @@
 # game-engine
 
+> **CLAUDE.md is a symlink to AGENTS.md.** Edit AGENTS.md directly; git tracks AGENTS.md.
+
 Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and eventually the full game world. Standalone renderer with its own Bevy UI/debug tooling.
 
 ## Structure
@@ -44,6 +46,15 @@ src/
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
+
+## UI Screens (rsx! + Screen pattern)
+
+- Screens use `ui_toolkit::screen::Screen` with `rsx!` macro for declarative UI (see `login_component.rs`, `char_select_component.rs`)
+- Dynamic data injected via `ScreenContext` — call `screen.context_mut().insert(state)` then `screen.mark_dirty()` + `screen.sync(registry)`
+- **Known debt: manual sync.** ECS systems must manually call `mark_dirty()` + `sync()` gated by `Res::is_changed()`. This should be automatic — Screen should detect context changes and sync itself via a Bevy system, like React's render cycle. Fix in ui-toolkit, not by documenting the workaround.
+- The `rsx!` macro expects `FrameName` (has `.0` field) for `name:` attrs. For dynamic names, use a `DynName(String)` wrapper.
+- `!bool_expr` doesn't work inside `rsx!` — pre-compute negations as `let hide = !visible;` before the macro call.
+- Post-setup (editbox backdrops, nine-slice textures) happens after first `screen.sync()` since RSX attrs don't cover all frame properties yet.
 
 ## Data Assets
 
