@@ -55,7 +55,7 @@ fn input_label(name: FrameName, text: &'static str, relative_to: FrameName) -> E
     rsx! {
         fontstring {
             name: name,
-            width: 320.0,
+            width: "fill",
             height: 18.0,
             text: text,
             font_size: 18.0,
@@ -83,33 +83,40 @@ fn login_input_labels() -> Element {
 
 fn login_inputs() -> Element {
     rsx! {
-        editbox {
-            name: USERNAME_INPUT,
+        r#frame {
+            name: "LoginInputContainer",
             width: 320.0,
-            height: 42.0,
-            font_size: 20.0,
-            strata: FrameStrata::Medium,
+            height: 200.0,
             anchor {
                 point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Center,
                 y: "50",
             }
-        }
-        editbox {
-            name: PASSWORD_INPUT,
-            width: 320.0,
-            height: 42.0,
-            font_size: 20.0,
-            strata: FrameStrata::Medium,
-            password: true,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: USERNAME_INPUT,
-                relative_point: AnchorPoint::Bottom,
-                y: "-30",
+            editbox {
+                name: USERNAME_INPUT,
+                width: "fill",
+                height: 42.0,
+                font_size: 20.0,
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_point: AnchorPoint::Top,
+                }
             }
+            editbox {
+                name: PASSWORD_INPUT,
+                width: "fill",
+                height: 42.0,
+                font_size: 20.0,
+                password: true,
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_to: USERNAME_INPUT,
+                    relative_point: AnchorPoint::Bottom,
+                    y: "-30",
+                }
+            }
+            {login_input_labels()}
         }
-        {login_input_labels()}
     }
 }
 
@@ -122,7 +129,6 @@ fn login_reconnect_button() -> Element {
             onclick: "reconnect",
             text: "Reconnect",
             font_size: 16.0,
-            strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: PASSWORD_INPUT,
@@ -142,7 +148,6 @@ fn login_connect_button_and_status(status_text: &str) -> Element {
             onclick: "connect",
             text: "Login",
             font_size: 16.0,
-            strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: PASSWORD_INPUT,
@@ -159,7 +164,6 @@ fn login_connect_button_and_status(status_text: &str) -> Element {
             text: status_text,
             font_size: 13.0,
             font_color: COLOR_ERROR,
-            strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: PASSWORD_INPUT,
@@ -183,7 +187,7 @@ fn action_button_items() -> Element {
     rsx! {
         button {
             name: CREATE_ACCOUNT_BUTTON,
-            width: 200.0,
+            width: "fill",
             height: 32.0,
             onclick: "create_account",
             text: "Create Account",
@@ -192,7 +196,7 @@ fn action_button_items() -> Element {
         }
         button {
             name: MENU_BUTTON,
-            width: 200.0,
+            width: "fill",
             height: 32.0,
             onclick: "menu",
             text: "Menu",
@@ -200,7 +204,7 @@ fn action_button_items() -> Element {
         }
         button {
             name: EXIT_BUTTON,
-            width: 200.0,
+            width: "fill",
             height: 32.0,
             onclick: "exit",
             text: "Quit",
@@ -219,7 +223,6 @@ fn login_action_buttons() -> Element {
             justify: "end",
             align: "center",
             gap: 10.0,
-            strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::BottomRight,
                 relative_point: AnchorPoint::BottomRight,
@@ -241,7 +244,6 @@ fn login_footer_text() -> Element {
             font_size: 11.0,
             font_color: COLOR_VERSION,
             justify_h: JustifyH::Left,
-            strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::BottomLeft,
                 relative_point: AnchorPoint::BottomLeft,
@@ -256,7 +258,6 @@ fn login_footer_text() -> Element {
             text: "© 2025 World of Osso. All rights reserved.",
             font_size: 11.0,
             font_color: COLOR_SUBTLE,
-            strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Bottom,
                 relative_point: AnchorPoint::Bottom,
@@ -312,8 +313,7 @@ pub fn login_screen(ctx: &ScreenContext) -> Element {
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
-            r#frame { name: "LoginUI", strata: FrameStrata::Medium,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            r#frame { name: "LoginUI",                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
                 anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "0", y: "0" }
                 texture {
                     name: "LoginGameLogo",

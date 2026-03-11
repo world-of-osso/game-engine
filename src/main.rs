@@ -219,7 +219,7 @@ fn configure_app_plugins(
     app.add_systems(Update, handle_automation_dump_tree_request);
     app.add_systems(Update, handle_automation_dump_ui_tree_request);
     add_status_sync_systems(app);
-    if dump_tree { app.insert_resource(DumpTreeFlag); app.add_systems(PostStartup, dump_tree_and_exit); }
+    if dump_tree { app.insert_resource(DumpTreeFlag); app.add_systems(Update, dump_tree_and_exit); }
     if dump_ui_tree { app.insert_resource(DumpUiTreeFlag); app.add_systems(PostStartup, dump_ui_tree_and_exit); }
     if let Some(req) = screenshot { app.insert_resource(req); app.add_systems(Update, take_screenshot); }
 }
@@ -371,11 +371,14 @@ pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
 
 #[allow(clippy::type_complexity)]
 fn dump_tree_and_exit(
-    tree_query: Query<(Entity, Option<&Name>, Option<&Children>, Option<&Visibility>, &Transform)>,
-    parent_query: Query<&ChildOf>,
+    mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
+    mut spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
+    if ui_state.registry.frames_iter().count() == 0 { return; }
+    if let Some(ref mut rt) = spellbook_runtime { rt.sync(&mut ui_state.registry); }
+    game_engine::ui::layout::recompute_layouts(&mut ui_state.registry);
+    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
     exit.write(AppExit::Success);
 }

@@ -4,7 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::Screen;
 use ui_toolkit::widget_def::WidgetChild;
 
-use crate::ui::frame::{WidgetData, WidgetType};
+use crate::ui::frame::{Dimension, WidgetData, WidgetType};
 use crate::ui::input::find_frame_at;
 use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
@@ -413,8 +413,8 @@ impl SpellbookUiRuntime {
         let strata = parent_strata(registry, parent_id);
         if let Some(frame) = registry.get_mut(id) {
             frame.widget_type = WidgetType::Frame;
-            frame.width = rect[2];
-            frame.height = rect[3];
+            frame.width = Dimension::Fixed(rect[2]);
+            frame.height = Dimension::Fixed(rect[3]);
             frame.background_color = Some(color);
             frame.strata = strata;
             frame.raise_order = self.next_raise_order;
@@ -442,8 +442,8 @@ impl SpellbookUiRuntime {
         let strata = parent_strata(registry, parent_id);
         if let Some(frame) = registry.get_mut(id) {
             frame.widget_type = WidgetType::FontString;
-            frame.width = rect[2];
-            frame.height = rect[3];
+            frame.width = Dimension::Fixed(rect[2]);
+            frame.height = Dimension::Fixed(rect[3]);
             frame.strata = strata;
             frame.layout_rect = Some(LayoutRect { x: abs_x, y: abs_y, width: rect[2], height: rect[3] });
             frame.raise_order = self.next_raise_order;
@@ -470,8 +470,8 @@ impl SpellbookUiRuntime {
         let strata = parent_strata(registry, parent_id);
         if let Some(frame) = registry.get_mut(id) {
             frame.widget_type = WidgetType::Texture;
-            frame.width = rect[2];
-            frame.height = rect[3];
+            frame.width = Dimension::Fixed(rect[2]);
+            frame.height = Dimension::Fixed(rect[3]);
             frame.strata = strata;
             frame.layout_rect = Some(LayoutRect { x: abs_x, y: abs_y, width: rect[2], height: rect[3] });
             frame.raise_order = self.next_raise_order;
@@ -550,8 +550,8 @@ fn root_frame_id(registry: &FrameRegistry) -> Option<u64> {
     registry.frames_iter()
         .find(|frame| {
             frame.parent_id.is_none()
-                && (frame.width - SPELLBOOK_ROOT_SIZE.0).abs() < f32::EPSILON
-                && (frame.height - SPELLBOOK_ROOT_SIZE.1).abs() < f32::EPSILON
+                && (frame.width.value() - SPELLBOOK_ROOT_SIZE.0).abs() < f32::EPSILON
+                && (frame.height.value() - SPELLBOOK_ROOT_SIZE.1).abs() < f32::EPSILON
         })
         .map(|frame| frame.id)
 }
@@ -577,8 +577,8 @@ mod tests {
         runtime.sync(&mut registry);
         let root_id = root_frame_id(&registry).expect("spellbook root frame exists");
         let root = registry.get(root_id).expect("spellbook root is present");
-        assert_eq!(root.width, 620.0);
-        assert_eq!(root.height, 720.0);
+        assert_eq!(root.width, Dimension::Fixed(620.0));
+        assert_eq!(root.height, Dimension::Fixed(720.0));
         assert_eq!(root.strata, crate::ui::strata::FrameStrata::Dialog);
         assert_eq!(root.background_color, Some([0.16, 0.12, 0.08, 0.96]));
         let sample_spell_id = registry.get_by_name("SpellBookSpellName1")

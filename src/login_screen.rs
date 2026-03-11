@@ -141,6 +141,13 @@ pub(crate) fn build_login_ui(
 fn build_login_screen(status: &LoginStatus) -> Screen {
     let mut screen = Screen::new(|ctx| login_screen(ctx));
     screen.context_mut().insert::<SharedStatusText>(status.0.clone());
+
+    let watch_dirs = vec![
+        std::path::PathBuf::from("src/ui/screens"),
+    ];
+    let rx = ui_toolkit::hotreload::watcher::start_watcher(watch_dirs);
+    screen.set_hot_reload_rx(rx);
+
     screen
 }
 

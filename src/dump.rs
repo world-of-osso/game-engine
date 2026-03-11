@@ -142,7 +142,7 @@ fn format_ui_frame(f: &Frame) -> String {
     let name = f.name.as_deref().unwrap_or("(anon)");
     let wtype = format!("{:?}", f.widget_type);
     let vis = if f.visible { "visible" } else { "hidden" };
-    let size = format!("{:.0}x{:.0}", f.width, f.height);
+    let size = format_size_info(f);
     let strata = format!("{:?}:{}", f.strata, f.frame_level);
     let pos = format_position_info(f);
     let alpha = format!(" alpha={:.2}", f.effective_alpha);
@@ -151,10 +151,14 @@ fn format_ui_frame(f: &Frame) -> String {
     format!("{name} [{wtype}] {size} {vis} {strata}{pos}{alpha}{scale}{extra}")
 }
 
+fn format_size_info(f: &Frame) -> String {
+    format!("{:.0}x{:.0}", f.resolved_width(), f.resolved_height())
+}
+
 fn format_position_info(f: &Frame) -> String {
     f.layout_rect.as_ref().map_or_else(
         || " no-layout".to_string(),
-        |r| format!(" x={:.0} y={:.0}", r.x, r.y),
+        |r| format!(" @{:.0},{:.0}", r.x, r.y),
     )
 }
 

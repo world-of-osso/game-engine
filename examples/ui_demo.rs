@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
+use game_engine::ui::frame::Dimension;
 use game_engine::ui::plugin::{UiPlugin, UiState};
 use game_engine::ui::strata::FrameStrata;
 
@@ -53,8 +54,8 @@ fn setup_health_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
     // Health bar background (dark red, top-left corner)
     let bg_id = reg.create_frame("HealthBarBG", None);
     if let Some(f) = reg.get_mut(bg_id) {
-        f.width = 300.0;
-        f.height = 30.0;
+        f.width = Dimension::Fixed(300.0);
+        f.height = Dimension::Fixed(30.0);
         f.background_color = Some([0.2, 0.0, 0.0, 0.8]);
         f.anchors.push(Anchor {
             point: AnchorPoint::TopLeft,
@@ -68,8 +69,8 @@ fn setup_health_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
     // Health bar fill (green, fills 75% of background)
     let fill_id = reg.create_frame("HealthBarFill", Some(bg_id));
     if let Some(f) = reg.get_mut(fill_id) {
-        f.width = 225.0; // 75% of 300
-        f.height = 30.0;
+        f.width = Dimension::Fixed(225.0); // 75% of 300
+        f.height = Dimension::Fixed(30.0);
         f.background_color = Some([0.0, 0.8, 0.0, 1.0]);
         f.anchors.push(Anchor {
             point: AnchorPoint::Left,
@@ -84,8 +85,8 @@ fn setup_health_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
 fn setup_tooltip(reg: &mut game_engine::ui::registry::FrameRegistry) {
     let tooltip_id = reg.create_frame("Tooltip", None);
     if let Some(f) = reg.get_mut(tooltip_id) {
-        f.width = 200.0;
-        f.height = 80.0;
+        f.width = Dimension::Fixed(200.0);
+        f.height = Dimension::Fixed(80.0);
         f.strata = FrameStrata::Tooltip;
         f.background_color = Some([0.1, 0.1, 0.1, 0.9]);
         f.anchors.push(Anchor {
@@ -101,8 +102,8 @@ fn setup_tooltip(reg: &mut game_engine::ui::registry::FrameRegistry) {
 fn setup_action_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
     let bar_id = reg.create_frame("ActionBar", None);
     if let Some(f) = reg.get_mut(bar_id) {
-        f.width = 500.0;
-        f.height = 50.0;
+        f.width = Dimension::Fixed(500.0);
+        f.height = Dimension::Fixed(50.0);
         f.background_color = Some([0.15, 0.15, 0.15, 0.85]);
         f.anchors.push(Anchor {
             point: AnchorPoint::Bottom,

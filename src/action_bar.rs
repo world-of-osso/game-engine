@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
-use game_engine::ui::frame::{Frame, WidgetData, WidgetType};
+use game_engine::ui::frame::{Dimension, Frame, WidgetData, WidgetType};
 use game_engine::ui::layout::{LayoutRect, resolve_frame_layout};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
@@ -814,8 +814,8 @@ fn create_frame(
     let id = reg.next_id();
     let mut frame = Frame::new(id, Some(name.to_string()), wt);
     frame.parent_id = parent;
-    frame.width = w;
-    frame.height = h;
+    frame.width = Dimension::Fixed(w);
+    frame.height = Dimension::Fixed(h);
     frame.mouse_enabled = false;
     reg.insert_frame(frame);
     id
@@ -875,8 +875,8 @@ fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) 
         .unwrap_or((None, x, y));
 
     if let Some(frame) = reg.get_mut(id) {
-        frame.width = w;
-        frame.height = h;
+        frame.width = Dimension::Fixed(w);
+        frame.height = Dimension::Fixed(h);
         frame.layout_rect = None;
     }
 
