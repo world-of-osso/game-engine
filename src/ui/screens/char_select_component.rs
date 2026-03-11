@@ -106,15 +106,9 @@ const BIG_BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BIG_BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
-const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-gs-tophud-left";
-const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-gs-tophud-middle";
-const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-gs-tophud-right";
-const TOP_HUD_LEFT_SELECTED: &str = "glues-characterselect-gs-tophud-left-selected";
-const TOP_HUD_MIDDLE_SELECTED: &str = "glues-characterselect-gs-tophud-middle-selected";
-const TOP_HUD_RIGHT_SELECTED: &str = "glues-characterselect-gs-tophud-right-selected";
-// Vertex color tints for grayscale HUD textures (WoW tints these at runtime)
-const HUD_TINT_UNSELECTED: &str = "0.45,0.55,0.7,1.0";
-const HUD_TINT_SELECTED: &str = "0.7,0.6,0.5,1.0";
+const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-tophud-left-bg";
+const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-tophud-middle-bg";
+const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-tophud-right-bg";
 const NAME_BG_ATLAS: &str = "glues-characterselect-namebg";
 const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
@@ -145,7 +139,7 @@ fn cs_background() -> Element {
         r#frame {
             name: "CharSelectBackground",
             stretch: true,
-            background_color: "0.01,0.01,0.01,1.0",
+            background_color: "0,0,0,0",
             strata: FrameStrata::Background,
         }
     }
@@ -157,61 +151,36 @@ fn cs_logo() -> Element {
 
 // --- Top HUD banner (3 atlas pieces) ---
 
-fn cs_hud_left(atlas: &str, tint: &str) -> Element {
+fn cs_top_hud() -> Element {
     rsx! {
         texture {
             name: "CharSelectTopHudLeft",
-            width: 220.0, height: 43.0,
-            texture_atlas: atlas,
-            vertex_color: tint,
+            width: 212.0, height: 51.0,
+            texture_atlas: TOP_HUD_LEFT_ATLAS,
             anchor {
                 point: AnchorPoint::TopRight, relative_point: AnchorPoint::Top,
-                x: "-59", y: "-22",
+                x: "-15", y: "-22",
             }
         }
-    }
-}
-
-fn cs_hud_middle(atlas: &str, tint: &str) -> Element {
-    rsx! {
         texture {
             name: "CharSelectTopHudMiddle",
-            width: 118.0, height: 43.0,
-            texture_atlas: atlas,
-            vertex_color: tint,
+            width: 30.0, height: 51.0,
+            texture_atlas: TOP_HUD_MIDDLE_ATLAS,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::Top,
-                x: "-59", y: "-22",
+                x: "-15", y: "-22",
             }
         }
-    }
-}
-
-fn cs_hud_right(atlas: &str, tint: &str) -> Element {
-    rsx! {
         texture {
             name: "CharSelectTopHudRight",
-            width: 220.0, height: 43.0,
-            texture_atlas: atlas,
-            vertex_color: tint,
+            width: 212.0, height: 51.0,
+            texture_atlas: TOP_HUD_RIGHT_ATLAS,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::Top,
-                x: "59", y: "-22",
+                x: "15", y: "-22",
             }
         }
     }
-}
-
-fn cs_top_hud(has_selection: bool) -> Element {
-    let (l, m, r, tint) = if has_selection {
-        (TOP_HUD_LEFT_SELECTED, TOP_HUD_MIDDLE_SELECTED, TOP_HUD_RIGHT_SELECTED, HUD_TINT_SELECTED)
-    } else {
-        (TOP_HUD_LEFT_ATLAS, TOP_HUD_MIDDLE_ATLAS, TOP_HUD_RIGHT_ATLAS, HUD_TINT_UNSELECTED)
-    };
-    [cs_hud_left(l, tint), cs_hud_middle(m, tint), cs_hud_right(r, tint)]
-        .into_iter()
-        .flatten()
-        .collect()
 }
 
 // --- Name area (below top HUD) ---
@@ -224,7 +193,7 @@ fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
             width: 194.0, height: 61.0,
             texture_atlas: NAME_BG_ATLAS,
             hidden: hide_name_bg,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-43" }
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-80" }
         }
         fontstring {
             name: SELECTED_NAME_TEXT,
@@ -232,7 +201,7 @@ fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
             text: selected_name,
             font: GameFont::FrizQuadrata, font_size: 27.0,
             font_color: COLOR_GOLD,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-50" }
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-90" }
         }
     }
 }
@@ -423,12 +392,16 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
         .enumerate()
         .flat_map(|(i, ch)| character_card(i, ch, selected == Some(i)))
         .collect();
-    let empty = if characters.is_empty() { empty_card() } else { Vec::new() };
+    let empty = if characters.is_empty() {
+        empty_card()
+    } else {
+        Vec::new()
+    };
     rsx! {
         r#frame {
             name: "CharacterListCards",
             width: 347.0, height: 420.0,
-            layout: "flex-col", gap: 1.0,
+            layout: "flex-col", gap: 2.0,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
                 x: "19", y: "-94",
@@ -440,10 +413,14 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
 }
 
 fn cs_character_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Element {
-    let chrome = [list_backdrop(), list_realm_header(), list_helper_and_divider()]
-        .into_iter()
-        .flatten()
-        .collect::<Element>();
+    let chrome = [
+        list_backdrop(),
+        list_realm_header(),
+        list_helper_and_divider(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Element>();
     rsx! {
         r#frame {
             name: CHAR_LIST_PANEL,
@@ -536,10 +513,15 @@ fn back_button() -> Element {
 }
 
 fn cs_action_buttons() -> Element {
-    [enter_world_button(), create_char_button(), delete_char_button(), back_button()]
-        .into_iter()
-        .flatten()
-        .collect()
+    [
+        enter_world_button(),
+        create_char_button(),
+        delete_char_button(),
+        back_button(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 // --- Create character panel ---
@@ -638,7 +620,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
         r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Background,
             {cs_background()}
             {cs_logo()}
-            {cs_top_hud(has_selection)}
+            {cs_top_hud()}
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
             {cs_action_buttons()}
