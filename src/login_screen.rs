@@ -358,8 +358,14 @@ fn handle_button_click(
     commands: &mut Commands,
     exit: Option<&mut MessageWriter<AppExit>>,
 ) {
-    if hit_active_frame(ui, login.connect_button, cx, cy) {
-        try_connect(
+    let clicked_id = button_ids(login)
+        .into_iter()
+        .find(|&id| hit_active_frame(ui, id, cx, cy));
+    let action = clicked_id
+        .and_then(|id| ui.registry.get(id))
+        .and_then(|f| f.onclick.clone());
+    match action.as_deref() {
+        Some("connect") => try_connect(
             &ui.registry,
             login,
             status,
@@ -367,30 +373,26 @@ fn handle_button_click(
             &*login_mode,
             server_addr,
             commands,
-        );
-    } else if login
-        .reconnect_button
-        .is_some_and(|id| hit_active_frame(ui, id, cx, cy))
-    {
-        try_reconnect(
+        ),
+        Some("reconnect") => try_reconnect(
             auth_token,
             status,
             next_state,
             login_mode,
             server_addr,
             commands,
-        );
-    } else if hit_active_frame(ui, login.create_account_button, cx, cy) {
-        toggle_login_mode(login_mode, &mut ui.registry, login);
-        status.0.clear();
-    } else if hit_active_frame(ui, login.menu_button, cx, cy) {
-        status.0 = STATUS_MENU_UNAVAILABLE.to_string();
-    } else if hit_active_frame(ui, login.exit_button, cx, cy) {
-        if let Some(exit) = exit {
-            exit.write(AppExit::Success);
+        ),
+        Some("create_account") => {
+            toggle_login_mode(login_mode, &mut ui.registry, login);
+            status.0.clear();
         }
-    } else {
-        focus.0 = None;
+        Some("menu") => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
+        Some("exit") => {
+            if let Some(exit) = exit {
+                exit.write(AppExit::Success);
+            }
+        }
+        _ => { focus.0 = None; }
     }
 }
 
@@ -536,7 +538,7 @@ pub(crate) fn run_login_automation_action(
 fn click_login_frame(
     ui: &mut UiState,
     login: &LoginUi,
-    focus: &mut LoginFocus,
+    _focus: &mut LoginFocus,
     next_state: &mut NextState<GameState>,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
@@ -550,32 +552,37 @@ fn click_login_frame(
         .registry
         .get_by_name(frame_name)
         .ok_or_else(|| format!("unknown login frame '{frame_name}'"))?;
-    let rect = ui
+    let action = ui
         .registry
         .get(frame_id)
-        .and_then(|frame| frame.layout_rect.as_ref())
-        .cloned()
-        .ok_or_else(|| format!("login frame '{frame_name}' has no layout rect"))?;
-    let cursor = Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
-    let mut pressed = LoginPressedButton::default();
-    handle_mouse_press(ui, login, cursor, focus, &mut pressed);
-    if let Some(id) = pressed.0.take() {
-        reset_button_state(&mut ui.registry, id);
-        let (cx, cy) = (cursor.x, cursor.y);
-        handle_button_click(
-            ui,
+        .and_then(|f| f.onclick.clone());
+    match action.as_deref() {
+        Some("connect") => try_connect(
+            &ui.registry,
             login,
-            cx,
-            cy,
-            focus,
-            next_state,
             status,
-            login_mode,
-            auth_token,
+            next_state,
+            &*login_mode,
             server_addr,
             commands,
-            None,
-        );
+        ),
+        Some("reconnect") => try_reconnect(
+            auth_token,
+            status,
+            next_state,
+            login_mode,
+            server_addr,
+            commands,
+        ),
+        Some("create_account") => {
+            toggle_login_mode(login_mode, &mut ui.registry, login);
+            status.0.clear();
+        }
+        Some("menu") => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
+        Some("exit") => {}
+        _ => {
+            return Err(format!("login frame '{frame_name}' has no onclick action"));
+        }
     }
     Ok(())
 }
