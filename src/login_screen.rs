@@ -154,6 +154,15 @@ pub(crate) fn build_login_ui(
         prefill_offline_credentials(&mut ui.registry, &login);
     }
 
+    // Auto-focus: password if username is pre-filled, otherwise username
+    let username_text = helpers::get_editbox_text(&ui.registry, login.username_input);
+    let auto_focus = if username_text.is_empty() {
+        login.username_input
+    } else {
+        login.password_input
+    };
+    commands.insert_resource(LoginFocus(Some(auto_focus)));
+
     ui.registry.set_alpha(login.root, 0.0);
     commands.insert_resource(LoginFadeIn(0.1));
     commands.insert_resource(LoginScreenResWrap(res));
