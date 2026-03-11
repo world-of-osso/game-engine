@@ -17,11 +17,11 @@ use super::{
 
 use game_engine::ui::automation::UiAutomationAction;
 
-fn build_login_screen_for_test() -> Screen {
-    let mut screen = Screen::new(|ctx| login_screen(ctx));
-    let shared_status: SharedStatusText = Default::default();
-    screen.context_mut().insert::<SharedStatusText>(shared_status);
-    screen
+fn build_login_screen_for_test() -> (Screen, ui_toolkit::screen::SharedContext) {
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert::<SharedStatusText>(Default::default());
+    let screen = Screen::new(|ctx| login_screen(ctx));
+    (screen, shared)
 }
 
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
@@ -51,8 +51,8 @@ fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
 
 fn login_fixture() -> (FrameRegistry, LoginUi) {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
-    let mut screen = build_login_screen_for_test();
-    screen.sync(&mut reg);
+    let (mut screen, shared) = build_login_screen_for_test();
+    screen.sync(&shared, &mut reg);
 
     let login = resolve_login_ui(&reg);
 

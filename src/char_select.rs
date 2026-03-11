@@ -8,8 +8,8 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CREATE_CONFIRM_BUTTON,
-    CREATE_NAME_INPUT, CREATE_PANEL, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT,
-    STATUS_TEXT, CharDisplayEntry, CharSelectState, char_select_screen,
+    CREATE_NAME_INPUT, CREATE_PANEL, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
+    SELECTED_NAME_TEXT, STATUS_TEXT, CharDisplayEntry, CharSelectState, char_select_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::widgets::texture::TextureSource;
@@ -61,7 +61,10 @@ struct CreatePanelVisible(bool);
 #[derive(Resource, Default)]
 struct CharSelectFocus(Option<u64>);
 
-struct CharSelectScreenRes(Screen);
+struct CharSelectScreenRes {
+    screen: Screen,
+    shared: ui_toolkit::screen::SharedContext,
+}
 unsafe impl Send for CharSelectScreenRes {}
 unsafe impl Sync for CharSelectScreenRes {}
 
@@ -126,9 +129,10 @@ fn build_char_select_ui(
     let initial_selected = char_list.0.first().map(|_| 0);
     let state = build_char_select_state(&char_list, initial_selected);
 
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(state);
     let mut screen = Screen::new(|ctx| char_select_screen(ctx));
-    screen.context_mut().insert(state);
-    screen.sync(&mut ui.registry);
+    screen.sync(&shared, &mut ui.registry);
 
     let cs = CharSelectUi::resolve(&ui.registry);
     apply_post_setup(&mut ui.registry, &cs);
@@ -136,7 +140,7 @@ fn build_char_select_ui(
     commands.insert_resource(SelectedCharIndex(initial_selected));
     commands.insert_resource(CreatePanelVisible(false));
     commands.insert_resource(CharSelectFocus(None));
-    commands.insert_resource(CharSelectScreenWrap(CharSelectScreenRes(screen)));
+    commands.insert_resource(CharSelectScreenWrap(CharSelectScreenRes { screen, shared }));
     commands.insert_resource(cs);
 }
 
@@ -187,8 +191,8 @@ fn teardown_char_select_ui(
     mut screen: Option<ResMut<CharSelectScreenWrap>>,
     mut commands: Commands,
 ) {
-    if let Some(screen) = screen.as_mut() {
-        screen.0 .0.teardown(&mut ui.registry);
+    if let Some(res) = screen.as_mut() {
+        res.0.screen.teardown(&mut ui.registry);
     }
     commands.remove_resource::<CharSelectScreenWrap>();
     commands.remove_resource::<CharSelectUi>();
@@ -239,23 +243,20 @@ fn dispatch_onclick(
     reg: &FrameRegistry,
     cs: &CharSelectUi,
 ) {
-    if let Some(idx_str) = action.strip_prefix("select_char:") {
-        if let Ok(idx) = idx_str.parse::<usize>() {
+    match CharSelectAction::parse(action) {
+        Some(CharSelectAction::SelectChar(idx)) => {
             selected.0 = Some(idx);
             focus.0 = None;
         }
-    } else {
-        match action {
-            "enter_world" => try_enter_world(selected, char_list, senders),
-            "create_toggle" => toggle_create_panel(create_visible, focus, cs),
-            "delete_char" => try_delete_character(selected, char_list, del_senders),
-            "back" => next_state.set(GameState::Login),
-            "create_confirm" => {
-                try_create_character(reg, cs, create_senders);
-                focus.0 = Some(cs.create_name_input);
-            }
-            _ => { focus.0 = None; }
+        Some(CharSelectAction::EnterWorld) => try_enter_world(selected, char_list, senders),
+        Some(CharSelectAction::CreateToggle) => toggle_create_panel(create_visible, focus, cs),
+        Some(CharSelectAction::DeleteChar) => try_delete_character(selected, char_list, del_senders),
+        Some(CharSelectAction::Back) => next_state.set(GameState::Login),
+        Some(CharSelectAction::CreateConfirm) => {
+            try_create_character(reg, cs, create_senders);
+            focus.0 = Some(cs.create_name_input);
         }
+        None => { focus.0 = None; }
     }
 }
 
@@ -434,13 +435,10 @@ fn char_select_update_visuals(
     mut screen_res: Option<ResMut<CharSelectScreenWrap>>,
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
-    let needs_sync = selected.is_changed() || create_visible.is_changed() || char_list.is_changed();
-    if needs_sync {
-        sync_screen_state(
-            &mut screen_res, &mut ui.registry, &char_list,
-            &selected, &create_visible,
-        );
-    }
+    sync_screen_state(
+        &mut screen_res, &mut ui.registry, &char_list,
+        &selected, &create_visible,
+    );
     sync_editbox_focus_visual(
         &mut ui.registry, cs.create_name_input,
         focus.0 == Some(cs.create_name_input) && create_visible.0,
@@ -456,11 +454,10 @@ fn sync_screen_state(
     create_visible: &CreatePanelVisible,
 ) {
     let Some(res) = screen_res.as_mut() else { return };
-    let screen = &mut res.0 .0;
+    let inner = &mut res.0;
     let new_state = build_char_select_state_full(char_list, selected.0, create_visible.0);
-    screen.context_mut().insert(new_state);
-    screen.mark_dirty();
-    screen.sync(reg);
+    inner.shared.insert(new_state);
+    inner.screen.sync(&inner.shared, reg);
 }
 
 fn build_char_select_state_full(
@@ -533,9 +530,10 @@ mod tests {
     fn screen_builds_with_empty_char_list() {
         let mut reg = test_registry();
         let state = CharSelectState::default();
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(state);
         let mut screen = Screen::new(|ctx| char_select_screen(ctx));
-        screen.context_mut().insert(state);
-        screen.sync(&mut reg);
+        screen.sync(&shared, &mut reg);
         assert!(reg.get_by_name("CharSelectRoot").is_some());
         assert!(reg.get_by_name("EnterWorld").is_some());
         assert!(reg.get_by_name("BackToLogin").is_some());
@@ -555,9 +553,10 @@ mod tests {
             selected_index: Some(0),
             ..Default::default()
         };
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(state);
         let mut screen = Screen::new(|ctx| char_select_screen(ctx));
-        screen.context_mut().insert(state);
-        screen.sync(&mut reg);
+        screen.sync(&shared, &mut reg);
         assert!(reg.get_by_name("CharCard_0").is_some());
         assert!(reg.get_by_name("CharCard_0Name").is_some());
     }
@@ -566,9 +565,10 @@ mod tests {
     fn create_panel_hidden_by_default() {
         let mut reg = test_registry();
         let state = CharSelectState::default();
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(state);
         let mut screen = Screen::new(|ctx| char_select_screen(ctx));
-        screen.context_mut().insert(state);
-        screen.sync(&mut reg);
+        screen.sync(&shared, &mut reg);
         let panel_id = reg.get_by_name("CreatePanel").unwrap();
         let panel = reg.get(panel_id).unwrap();
         assert!(panel.hidden);

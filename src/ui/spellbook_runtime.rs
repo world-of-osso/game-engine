@@ -42,6 +42,7 @@ pub enum SpellbookKeyInput {
 
 /// Drives a Screen and applies its mutations into the frame registry.
 pub struct SpellbookUiRuntime {
+    shared_ctx: ui_toolkit::screen::SharedContext,
     screen: Screen,
     spellbook_seeded: bool,
     active_tab_index: usize,
@@ -59,6 +60,7 @@ pub struct SpellbookUiRuntime {
 impl SpellbookUiRuntime {
     pub fn new() -> Self {
         Self {
+            shared_ctx: ui_toolkit::screen::SharedContext::new(),
             screen: Screen::new(game_ui_root),
             spellbook_seeded: false,
             active_tab_index: 2,
@@ -75,7 +77,7 @@ impl SpellbookUiRuntime {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) {
-        self.screen.sync(registry);
+        self.screen.sync(&self.shared_ctx, registry);
 
         if !self.spellbook_seeded {
             let _ = self.rebuild_spellbook(registry);
@@ -493,7 +495,7 @@ impl SpellbookUiRuntime {
     }
 }
 
-fn game_ui_root(_ctx: &ui_toolkit::screen::ScreenContext) -> Vec<WidgetChild> {
+fn game_ui_root(_ctx: &ui_toolkit::screen::SharedContext) -> Vec<WidgetChild> {
     rsx! {
         frame {
             name: "SpellBookRoot",

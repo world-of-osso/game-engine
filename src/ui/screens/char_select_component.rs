@@ -1,10 +1,51 @@
+use std::fmt;
+
 use ui_toolkit::rsx;
-use ui_toolkit::screen::ScreenContext;
+use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CharSelectAction {
+    SelectChar(usize),
+    EnterWorld,
+    CreateToggle,
+    DeleteChar,
+    Back,
+    CreateConfirm,
+}
+
+impl fmt::Display for CharSelectAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SelectChar(i) => write!(f, "select_char:{i}"),
+            Self::EnterWorld => f.write_str("enter_world"),
+            Self::CreateToggle => f.write_str("create_toggle"),
+            Self::DeleteChar => f.write_str("delete_char"),
+            Self::Back => f.write_str("back"),
+            Self::CreateConfirm => f.write_str("create_confirm"),
+        }
+    }
+}
+
+impl CharSelectAction {
+    pub fn parse(s: &str) -> Option<Self> {
+        if let Some(idx_str) = s.strip_prefix("select_char:") {
+            return idx_str.parse().ok().map(Self::SelectChar);
+        }
+        match s {
+            "enter_world" => Some(Self::EnterWorld),
+            "create_toggle" => Some(Self::CreateToggle),
+            "delete_char" => Some(Self::DeleteChar),
+            "back" => Some(Self::Back),
+            "create_confirm" => Some(Self::CreateConfirm),
+            _ => None,
+        }
+    }
+}
 
 // --- Context types ---
 
@@ -286,7 +327,7 @@ fn card_status_label(index: usize, status: &str) -> Element {
 
 fn character_card(index: usize, ch: &CharDisplayEntry, is_selected: bool) -> Element {
     let frame_name = dyn_name(card_frame_name(index));
-    let onclick = format!("select_char:{index}");
+    let onclick = CharSelectAction::SelectChar(index);
     let texts = [
         card_name_label(index, &ch.name),
         card_info_label(index, &ch.info),
@@ -314,7 +355,7 @@ fn empty_card() -> Element {
         r#frame {
             name: "CharSelectEmptyCard",
             width: 347.0, height: 95.0,
-            onclick: "create_toggle",
+            onclick: CharSelectAction::CreateToggle,
             texture {
                 name: "CharSelectEmptyCardBackdrop",
                 width: 316.0, height: 95.0,
@@ -440,7 +481,7 @@ fn enter_world_button() -> Element {
             name: ENTER_WORLD_BUTTON,
             width: 256.0, height: 64.0,
             text: "Enter World", font_size: 18.0,
-            onclick: "enter_world",
+            onclick: CharSelectAction::EnterWorld,
             button_atlas_up: BIG_BUTTON_ATLAS_UP,
             button_atlas_pressed: BIG_BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BIG_BUTTON_ATLAS_HIGHLIGHT,
@@ -456,7 +497,7 @@ fn create_char_button() -> Element {
             name: CREATE_CHAR_BUTTON,
             width: 205.0, height: 42.0,
             text: "Create New Character", font_size: 14.0,
-            onclick: "create_toggle",
+            onclick: CharSelectAction::CreateToggle,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
@@ -476,7 +517,7 @@ fn delete_char_button() -> Element {
             name: DELETE_CHAR_BUTTON,
             width: 128.0, height: 42.0,
             text: "Delete", font_size: 14.0,
-            onclick: "delete_char",
+            onclick: CharSelectAction::DeleteChar,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
@@ -496,7 +537,7 @@ fn back_button() -> Element {
             name: BACK_BUTTON,
             width: 188.0, height: 42.0,
             text: "Back", font_size: 14.0,
-            onclick: "back",
+            onclick: CharSelectAction::Back,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
@@ -560,7 +601,7 @@ fn create_panel_input() -> Element {
             name: CREATE_CONFIRM_BUTTON,
             width: 205.0, height: 42.0,
             text: "Create Character", font_size: 14.0,
-            onclick: "create_confirm",
+            onclick: CharSelectAction::CreateConfirm,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
@@ -602,10 +643,10 @@ fn cs_status(text: &str) -> Element {
 
 // --- Main screen ---
 
-pub fn char_select_screen(ctx: &ScreenContext) -> Element {
+pub fn char_select_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<CharSelectState>()
-        .expect("CharSelectState must be in ScreenContext");
+        .expect("CharSelectState must be in SharedContext");
     let has_selection = state.selected_index.is_some();
 
     rsx! {

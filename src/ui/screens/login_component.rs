@@ -1,12 +1,48 @@
+use std::fmt;
+
 use ui_toolkit::rsx;
-use ui_toolkit::screen::ScreenContext;
+use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
-/// Shared status text stored in ScreenContext. ECS writes, component reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginAction {
+    Connect,
+    Reconnect,
+    CreateAccount,
+    Menu,
+    Exit,
+}
+
+impl fmt::Display for LoginAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Connect => f.write_str("connect"),
+            Self::Reconnect => f.write_str("reconnect"),
+            Self::CreateAccount => f.write_str("create_account"),
+            Self::Menu => f.write_str("menu"),
+            Self::Exit => f.write_str("exit"),
+        }
+    }
+}
+
+impl LoginAction {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "connect" => Some(Self::Connect),
+            "reconnect" => Some(Self::Reconnect),
+            "create_account" => Some(Self::CreateAccount),
+            "menu" => Some(Self::Menu),
+            "exit" => Some(Self::Exit),
+            _ => None,
+        }
+    }
+}
+
+/// Shared status text stored in SharedContext. ECS writes, component reads.
 pub type SharedStatusText = String;
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
@@ -126,7 +162,7 @@ fn login_reconnect_button() -> Element {
             name: RECONNECT_BUTTON,
             width: 500.0,
             height: 66.0,
-            onclick: "reconnect",
+            onclick: LoginAction::Reconnect,
             text: "Reconnect",
             font_size: 16.0,
             anchor {
@@ -145,7 +181,7 @@ fn login_connect_button_and_status(status_text: &str) -> Element {
             name: CONNECT_BUTTON,
             width: 250.0,
             height: 66.0,
-            onclick: "connect",
+            onclick: LoginAction::Connect,
             text: "Login",
             font_size: 16.0,
             anchor {
@@ -189,7 +225,7 @@ fn action_button_items() -> Element {
             name: CREATE_ACCOUNT_BUTTON,
             width: "fill",
             height: 32.0,
-            onclick: "create_account",
+            onclick: LoginAction::CreateAccount,
             text: "Create Account",
             hidden: true,
             font_size: 12.0,
@@ -198,7 +234,7 @@ fn action_button_items() -> Element {
             name: MENU_BUTTON,
             width: "fill",
             height: 32.0,
-            onclick: "menu",
+            onclick: LoginAction::Menu,
             text: "Menu",
             font_size: 12.0,
         }
@@ -206,7 +242,7 @@ fn action_button_items() -> Element {
             name: EXIT_BUTTON,
             width: "fill",
             height: 32.0,
-            onclick: "exit",
+            onclick: LoginAction::Exit,
             text: "Quit",
             font_size: 12.0,
         }
@@ -305,7 +341,7 @@ fn login_footer() -> Element {
         .collect()
 }
 
-pub fn login_screen(ctx: &ScreenContext) -> Element {
+pub fn login_screen(ctx: &SharedContext) -> Element {
     let status = ctx
         .get::<SharedStatusText>()
         .map(|s| s.as_str())

@@ -50,8 +50,8 @@ src/
 ## UI Screens (rsx! + Screen pattern)
 
 - Screens use `ui_toolkit::screen::Screen` with `rsx!` macro for declarative UI (see `login_component.rs`, `char_select_component.rs`)
-- Dynamic data injected via `ScreenContext` — call `screen.context_mut().insert(state)` then `screen.mark_dirty()` + `screen.sync(registry)`
-- **Known debt: manual sync.** ECS systems must manually call `mark_dirty()` + `sync()` gated by `Res::is_changed()`. This should be automatic — Screen should detect context changes and sync itself via a Bevy system, like React's render cycle. Fix in ui-toolkit, not by documenting the workaround.
+- Dynamic data injected via `SharedContext` with generation-based dependency tracking. Call `shared.insert(state)` then `screen.sync(&shared, registry)` — Screen auto-detects which types its `build_fn` read and only rebuilds when those types' generations advance. No manual `mark_dirty()` needed.
+- Multiple Screens can share one `SharedContext`. Changing a value only rebuilds Screens that read that type (partial rebuild).
 - The `rsx!` macro expects `FrameName` (has `.0` field) for `name:` attrs. For dynamic names, use a `DynName(String)` wrapper.
 - `!bool_expr` doesn't work inside `rsx!` — pre-compute negations as `let hide = !visible;` before the macro call.
 - Post-setup (editbox backdrops, nine-slice textures) happens after first `screen.sync()` since RSX attrs don't cover all frame properties yet.

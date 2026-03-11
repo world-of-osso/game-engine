@@ -10,8 +10,8 @@ use game_engine::ui::registry::FrameRegistry;
 use ui_toolkit::screen::Screen;
 
 use game_engine::ui::screens::login_component::{
-    CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, MENU_BUTTON,
-    PASSWORD_INPUT, RECONNECT_BUTTON, SharedStatusText, USERNAME_INPUT, login_screen,
+    CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, LoginAction,
+    MENU_BUTTON, PASSWORD_INPUT, RECONNECT_BUTTON, SharedStatusText, USERNAME_INPUT, login_screen,
 };
 use game_engine::ui::widgets::button::ButtonState as BtnState;
 use game_engine::ui::widgets::font_string::GameFont;
@@ -76,7 +76,10 @@ pub(crate) struct DevServer;
 #[derive(Resource)]
 struct LoginFadeIn(f32);
 
-struct LoginScreenRes(Screen);
+struct LoginScreenRes {
+    screen: Screen,
+    shared: ui_toolkit::screen::SharedContext,
+}
 // SAFETY: Screen contains non-Send/Sync types (Box<dyn Fn> + mpsc::Receiver + Any), but
 // login systems run exclusively on the main thread so this is safe.
 unsafe impl Send for LoginScreenRes {}
@@ -122,8 +125,8 @@ pub(crate) fn build_login_ui(
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     status.0 = auth_feedback.0.take().unwrap_or_default();
 
-    let mut screen = build_login_screen(&status);
-    screen.sync(&mut ui.registry);
+    let mut res = build_login_screen(&status);
+    res.screen.sync(&res.shared, &mut ui.registry);
 
     let login = LoginUi::resolve(&ui.registry);
     apply_post_setup(&mut ui.registry, &login);
@@ -134,21 +137,22 @@ pub(crate) fn build_login_ui(
 
     ui.registry.set_alpha(login.root, 0.0);
     commands.insert_resource(LoginFadeIn(0.1));
-    commands.insert_resource(LoginScreenResWrap(LoginScreenRes(screen)));
+    commands.insert_resource(LoginScreenResWrap(res));
     commands.insert_resource(login);
 }
 
-fn build_login_screen(status: &LoginStatus) -> Screen {
-    let mut screen = Screen::new(|ctx| login_screen(ctx));
-    screen.context_mut().insert::<SharedStatusText>(status.0.clone());
+fn build_login_screen(status: &LoginStatus) -> LoginScreenRes {
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert::<SharedStatusText>(status.0.clone());
 
+    let mut screen = Screen::new(|ctx| login_screen(ctx));
     let watch_dirs = vec![
         std::path::PathBuf::from("src/ui/screens"),
     ];
     let rx = ui_toolkit::hotreload::watcher::start_watcher(watch_dirs);
     screen.set_hot_reload_rx(rx);
 
-    screen
+    LoginScreenRes { screen, shared }
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
@@ -170,8 +174,8 @@ fn teardown_login_ui(
     mut commands: Commands,
     mut screen: Option<ResMut<LoginScreenResWrap>>,
 ) {
-    if let Some(screen) = screen.as_mut() {
-        screen.0.0.teardown(&mut ui.registry);
+    if let Some(res) = screen.as_mut() {
+        res.0.screen.teardown(&mut ui.registry);
     }
     commands.remove_resource::<LoginScreenResWrap>();
     commands.remove_resource::<LoginUi>();
@@ -368,8 +372,8 @@ fn handle_button_click(
     let action = clicked_id
         .and_then(|id| ui.registry.get(id))
         .and_then(|f| f.onclick.clone());
-    match action.as_deref() {
-        Some("connect") => try_connect(
+    match action.as_deref().and_then(LoginAction::parse) {
+        Some(LoginAction::Connect) => try_connect(
             &ui.registry,
             login,
             status,
@@ -378,7 +382,7 @@ fn handle_button_click(
             server_addr,
             commands,
         ),
-        Some("reconnect") => try_reconnect(
+        Some(LoginAction::Reconnect) => try_reconnect(
             auth_token,
             status,
             next_state,
@@ -386,17 +390,17 @@ fn handle_button_click(
             server_addr,
             commands,
         ),
-        Some("create_account") => {
+        Some(LoginAction::CreateAccount) => {
             toggle_login_mode(login_mode, &mut ui.registry, login);
             status.0.clear();
         }
-        Some("menu") => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
-        Some("exit") => {
+        Some(LoginAction::Menu) => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
+        Some(LoginAction::Exit) => {
             if let Some(exit) = exit {
                 exit.write(AppExit::Success);
             }
         }
-        _ => { focus.0 = None; }
+        None => { focus.0 = None; }
     }
 }
 
@@ -558,8 +562,8 @@ fn click_login_frame(
         .ok_or_else(|| format!("unknown login frame '{frame_name}'"))?;
     let action = ui.registry.click_frame(frame_id);
     focus.0 = ui.registry.focused_frame;
-    match action.as_deref() {
-        Some("connect") => try_connect(
+    match action.as_deref().and_then(LoginAction::parse) {
+        Some(LoginAction::Connect) => try_connect(
             &ui.registry,
             login,
             status,
@@ -568,7 +572,7 @@ fn click_login_frame(
             server_addr,
             commands,
         ),
-        Some("reconnect") => try_reconnect(
+        Some(LoginAction::Reconnect) => try_reconnect(
             auth_token,
             status,
             next_state,
@@ -576,12 +580,12 @@ fn click_login_frame(
             server_addr,
             commands,
         ),
-        Some("create_account") => {
+        Some(LoginAction::CreateAccount) => {
             toggle_login_mode(login_mode, &mut ui.registry, login);
             status.0.clear();
         }
-        Some("menu") => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
-        Some("exit") => {}
+        Some(LoginAction::Menu) => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
+        Some(LoginAction::Exit) => {}
         None if ui.registry.focused_frame == Some(frame_id) => {}
         _ => {
             return Err(format!("login frame '{frame_name}' has no onclick action"));
@@ -708,13 +712,9 @@ fn sync_login_status(
     status: &LoginStatus,
 ) {
     let Some(res) = screen_res else { return };
-    let screen = &mut res.0.0;
-    let current = screen.context_mut().get::<SharedStatusText>().cloned().unwrap_or_default();
-    if current != status.0 {
-        screen.context_mut().insert::<SharedStatusText>(status.0.clone());
-        screen.mark_dirty();
-    }
-    screen.sync(reg);
+    let inner = &mut res.0;
+    inner.shared.insert::<SharedStatusText>(status.0.clone());
+    inner.screen.sync(&inner.shared, reg);
 }
 
 fn login_fade_in(
