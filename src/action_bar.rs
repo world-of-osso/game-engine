@@ -210,50 +210,32 @@ pub fn ensure_action_bars(reg: &mut FrameRegistry) {
     }
 }
 
-fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
-    let sw = reg.screen_width;
-    let sh = reg.screen_height;
-    let defaults = BarLayout::defaults(sw, sh);
-
+fn create_bar_roots(reg: &mut FrameRegistry) -> (u64, u64, u64) {
     let main_root = create_frame(reg, "MainActionBar", None, WidgetType::Frame, 1.0, 1.0);
     let right_root = create_frame(reg, "MultiBarRight", None, WidgetType::Frame, 1.0, 1.0);
     let left_root = create_frame(reg, "MultiBarLeft", None, WidgetType::Frame, 1.0, 1.0);
-
     set_bg(reg, main_root, BAR_BG);
     set_bg(reg, right_root, BAR_BG);
     set_bg(reg, left_root, BAR_BG);
     set_strata(reg, main_root, FrameStrata::Dialog);
     set_strata(reg, right_root, FrameStrata::Dialog);
     set_strata(reg, left_root, FrameStrata::Dialog);
+    (main_root, right_root, left_root)
+}
 
+fn create_bar_slots(
+    reg: &mut FrameRegistry,
+    main_root: u64,
+    right_root: u64,
+    left_root: u64,
+) -> ([u64; SLOT_COUNT], [u64; SLOT_COUNT], [u64; SLOT_COUNT]) {
     let mut main_slots = [0; SLOT_COUNT];
     let mut right_slots = [0; SLOT_COUNT];
     let mut left_slots = [0; SLOT_COUNT];
     for i in 0..SLOT_COUNT {
-        let main = create_button(
-            reg,
-            &format!("ActionButton{}", i + 1),
-            Some(main_root),
-            SLOT_W,
-            SLOT_H,
-            slot_label(i),
-        );
-        let right = create_button(
-            reg,
-            &format!("MultiBarRightButton{}", i + 1),
-            Some(right_root),
-            SLOT_W,
-            SLOT_H,
-            "",
-        );
-        let left = create_button(
-            reg,
-            &format!("MultiBarLeftButton{}", i + 1),
-            Some(left_root),
-            SLOT_W,
-            SLOT_H,
-            "",
-        );
+        let main = create_button(reg, &format!("ActionButton{}", i + 1), Some(main_root), SLOT_W, SLOT_H, slot_label(i));
+        let right = create_button(reg, &format!("MultiBarRightButton{}", i + 1), Some(right_root), SLOT_W, SLOT_H, "");
+        let left = create_button(reg, &format!("MultiBarLeftButton{}", i + 1), Some(left_root), SLOT_W, SLOT_H, "");
         set_bg(reg, main, SLOT_BG);
         set_bg(reg, right, SLOT_BG);
         set_bg(reg, left, SLOT_BG);
@@ -261,101 +243,56 @@ fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
         right_slots[i] = right;
         left_slots[i] = left;
     }
+    (main_slots, right_slots, left_slots)
+}
 
-    let main_label = create_frame(
-        reg,
-        "MainActionBarMoverLabel",
-        Some(main_root),
-        WidgetType::FontString,
-        220.0,
-        16.0,
-    );
-    let right_label = create_frame(
-        reg,
-        "MultiBarRightMoverLabel",
-        Some(right_root),
-        WidgetType::FontString,
-        220.0,
-        16.0,
-    );
-    let left_label = create_frame(
-        reg,
-        "MultiBarLeftMoverLabel",
-        Some(left_root),
-        WidgetType::FontString,
-        220.0,
-        16.0,
-    );
+fn create_bar_labels(reg: &mut FrameRegistry, main_root: u64, right_root: u64, left_root: u64) -> (u64, u64, u64) {
+    let main_label = create_frame(reg, "MainActionBarMoverLabel", Some(main_root), WidgetType::FontString, 220.0, 16.0);
+    let right_label = create_frame(reg, "MultiBarRightMoverLabel", Some(right_root), WidgetType::FontString, 220.0, 16.0);
+    let left_label = create_frame(reg, "MultiBarLeftMoverLabel", Some(left_root), WidgetType::FontString, 220.0, 16.0);
     set_font_string_left(reg, main_label, "Main Action Bar", 13.0, MOVER_LABEL_TEXT);
     set_font_string_left(reg, right_label, "Right Action Bar", 13.0, MOVER_LABEL_TEXT);
     set_font_string_left(reg, left_label, "Left Action Bar", 13.0, MOVER_LABEL_TEXT);
+    (main_label, right_label, left_label)
+}
 
-    let guide_v = create_frame(
-        reg,
-        "ActionBarGuideVertical",
-        None,
-        WidgetType::Frame,
-        2.0,
-        sh,
-    );
-    let guide_h = create_frame(
-        reg,
-        "ActionBarGuideHorizontal",
-        None,
-        WidgetType::Frame,
-        sw,
-        2.0,
-    );
+fn create_guides(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) {
+    let guide_v = create_frame(reg, "ActionBarGuideVertical", None, WidgetType::Frame, 2.0, sh);
+    let guide_h = create_frame(reg, "ActionBarGuideHorizontal", None, WidgetType::Frame, sw, 2.0);
     set_bg(reg, guide_v, GUIDE_COLOR);
     set_bg(reg, guide_h, GUIDE_COLOR);
     set_strata(reg, guide_v, FrameStrata::Tooltip);
     set_strata(reg, guide_h, FrameStrata::Tooltip);
-    reg.set_shown(guide_v, false);
-    reg.set_shown(guide_h, false);
+    reg.set_hidden(guide_v, true);
+    reg.set_hidden(guide_h, true);
+    (guide_v, guide_h)
+}
 
-    let edit_banner = create_frame(
-        reg,
-        "ActionBarEditBanner",
-        None,
-        WidgetType::Frame,
-        760.0,
-        34.0,
-    );
+fn create_edit_banner_frames(reg: &mut FrameRegistry, sw: f32) -> (u64, u64) {
+    let edit_banner = create_frame(reg, "ActionBarEditBanner", None, WidgetType::Frame, 760.0, 34.0);
     set_layout(reg, edit_banner, (sw - 760.0) * 0.5, 24.0, 760.0, 34.0);
     set_bg(reg, edit_banner, EDIT_BANNER_BG);
     set_strata(reg, edit_banner, FrameStrata::Tooltip);
-
-    let edit_banner_text = create_frame(
-        reg,
-        "ActionBarEditBannerText",
-        Some(edit_banner),
-        WidgetType::FontString,
-        760.0,
-        34.0,
-    );
+    let edit_banner_text = create_frame(reg, "ActionBarEditBannerText", Some(edit_banner), WidgetType::FontString, 760.0, 34.0);
     set_layout(reg, edit_banner_text, 0.0, 0.0, 760.0, 34.0);
-    set_font_string(
-        reg,
-        edit_banner_text,
-        "Action Bar Edit Mode",
-        15.0,
-        EDIT_BANNER_TEXT,
-    );
+    set_font_string(reg, edit_banner_text, "Action Bar Edit Mode", 15.0, EDIT_BANNER_TEXT);
+    (edit_banner, edit_banner_text)
+}
 
+fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
+    let sw = reg.screen_width;
+    let sh = reg.screen_height;
+    let defaults = BarLayout::defaults(sw, sh);
+    let (main_root, right_root, left_root) = create_bar_roots(reg);
+    let (main_slots, right_slots, left_slots) = create_bar_slots(reg, main_root, right_root, left_root);
+    let (main_label, right_label, left_label) = create_bar_labels(reg, main_root, right_root, left_root);
+    let (guide_v, guide_h) = create_guides(reg, sw, sh);
+    let (edit_banner, edit_banner_text) = create_edit_banner_frames(reg, sw);
     let bars = ActionBarsUi {
-        main_root,
-        right_root,
-        left_root,
-        main_slots,
-        right_slots,
-        left_slots,
-        main_label,
-        right_label,
-        left_label,
-        guide_v,
-        guide_h,
-        edit_banner,
-        edit_banner_text,
+        main_root, right_root, left_root,
+        main_slots, right_slots, left_slots,
+        main_label, right_label, left_label,
+        guide_v, guide_h, edit_banner, edit_banner_text,
         layout: defaults,
         flashes: [0.0; SLOT_COUNT],
     };
@@ -368,37 +305,85 @@ fn teardown_action_bars(
     bars: Option<Res<ActionBarsUi>>,
     mut commands: Commands,
 ) {
-    let Some(bars) = bars else { return };
-    let reg = &mut ui.registry;
-    remove_frame_tree(reg, bars.main_root);
-    remove_frame_tree(reg, bars.right_root);
-    remove_frame_tree(reg, bars.left_root);
-    remove_frame_tree(reg, bars.guide_v);
-    remove_frame_tree(reg, bars.guide_h);
-    remove_frame_tree(reg, bars.edit_banner);
-    commands.remove_resource::<ActionBarsUi>();
-    commands.remove_resource::<ActionBarEditState>();
+    if let Some(bars) = bars {
+        for id in [
+            bars.main_root,
+            bars.right_root,
+            bars.left_root,
+            bars.guide_v,
+            bars.guide_h,
+            bars.edit_banner,
+        ] {
+            ui.registry.remove_frame_tree(id);
+        }
+        commands.remove_resource::<ActionBarsUi>();
+        commands.remove_resource::<ActionBarEditState>();
+    }
 }
 
 fn toggle_edit_mode(
     keys: Res<ButtonInput<KeyCode>>,
     mut ui: ResMut<UiState>,
-    bars: Option<Res<ActionBarsUi>>,
+    mut bars: Option<ResMut<ActionBarsUi>>,
     mut edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    let (Some(bars), Some(edit)) = (bars, edit.as_mut()) else {
-        return;
-    };
     if !keys.just_pressed(KeyCode::F10) {
         return;
     }
+    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else {
+        return;
+    };
     edit.enabled = !edit.enabled;
-    edit.dragging = None;
     if !edit.enabled {
+        edit.dragging = None;
         edit.hovered = None;
+        save_profiles(edit);
     }
-    apply_edit_visuals(&mut ui.registry, &bars, &edit);
-    update_edit_banner(&mut ui.registry, &bars, &edit);
+    apply_edit_visuals(&mut ui.registry, bars, edit);
+    update_edit_banner(&mut ui.registry, bars, edit);
+}
+
+fn handle_profile_cycle(
+    keys: &ButtonInput<KeyCode>,
+    bars: &mut ActionBarsUi,
+    edit: &mut ActionBarEditState,
+    reg: &mut FrameRegistry,
+) -> bool {
+    let mut changed = false;
+    if keys.just_pressed(KeyCode::PageUp) {
+        edit.active_profile = if edit.active_profile == 0 { edit.profile_names.len().saturating_sub(1) } else { edit.active_profile - 1 };
+        let fallback = BarLayout::defaults(reg.screen_width, reg.screen_height);
+        bars.layout = edit.profiles.get(active_profile_name(edit)).copied().unwrap_or(fallback);
+        changed = true;
+    } else if keys.just_pressed(KeyCode::PageDown) {
+        edit.active_profile = (edit.active_profile + 1) % edit.profile_names.len();
+        let fallback = BarLayout::defaults(reg.screen_width, reg.screen_height);
+        bars.layout = edit.profiles.get(active_profile_name(edit)).copied().unwrap_or(fallback);
+        changed = true;
+    } else if keys.just_pressed(KeyCode::KeyR) {
+        bars.layout = BarLayout::defaults(reg.screen_width, reg.screen_height);
+        changed = true;
+    } else if keys.just_pressed(KeyCode::KeyC) {
+        let target = (edit.active_profile + 1) % edit.profile_names.len();
+        let target_name = edit.profile_names[target].clone();
+        edit.profiles.insert(target_name, bars.layout);
+        edit.active_profile = target;
+    }
+    changed
+}
+
+fn handle_bar_tune(keys: &ButtonInput<KeyCode>, bars: &mut ActionBarsUi, edit: &mut ActionBarEditState) -> bool {
+    let Some(hovered) = edit.hovered else { return false };
+    let mut settings = bars.layout.get(hovered);
+    let mut tuned = false;
+    if keys.just_pressed(KeyCode::Minus) { settings.scale = (settings.scale - 0.1).clamp(0.6, 1.8); tuned = true; }
+    if keys.just_pressed(KeyCode::Equal) { settings.scale = (settings.scale + 0.1).clamp(0.6, 1.8); tuned = true; }
+    if hovered == BarId::Main {
+        if keys.just_pressed(KeyCode::BracketLeft) { settings.columns = settings.columns.saturating_sub(1).max(1); tuned = true; }
+        if keys.just_pressed(KeyCode::BracketRight) { settings.columns = settings.columns.saturating_add(1).min(SLOT_COUNT as u8); tuned = true; }
+    }
+    if tuned { bars.layout.set(hovered, settings); }
+    tuned
 }
 
 fn edit_mode_controls(
@@ -407,83 +392,15 @@ fn edit_mode_controls(
     mut bars: Option<ResMut<ActionBarsUi>>,
     mut edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else {
-        return;
-    };
-    if !edit.enabled {
-        return;
-    }
+    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else { return };
+    if !edit.enabled { return }
 
-    let mut changed_layout = false;
-    let mut changed_mode = false;
+    let changed_mode = keys.just_pressed(KeyCode::KeyL);
+    if changed_mode { edit.locked = !edit.locked; if edit.locked { edit.dragging = None; } }
 
-    if keys.just_pressed(KeyCode::KeyL) {
-        edit.locked = !edit.locked;
-        if edit.locked {
-            edit.dragging = None;
-        }
-        changed_mode = true;
-    }
-
-    if keys.just_pressed(KeyCode::PageUp) {
-        edit.active_profile = if edit.active_profile == 0 {
-            edit.profile_names.len().saturating_sub(1)
-        } else {
-            edit.active_profile - 1
-        };
-        let profile = active_profile_name(edit).to_string();
-        let fallback = BarLayout::defaults(ui.registry.screen_width, ui.registry.screen_height);
-        bars.layout = edit.profiles.get(&profile).copied().unwrap_or(fallback);
-        changed_layout = true;
-    } else if keys.just_pressed(KeyCode::PageDown) {
-        edit.active_profile = (edit.active_profile + 1) % edit.profile_names.len();
-        let profile = active_profile_name(edit).to_string();
-        let fallback = BarLayout::defaults(ui.registry.screen_width, ui.registry.screen_height);
-        bars.layout = edit.profiles.get(&profile).copied().unwrap_or(fallback);
-        changed_layout = true;
-    }
-
-    if keys.just_pressed(KeyCode::KeyR) {
-        bars.layout = BarLayout::defaults(ui.registry.screen_width, ui.registry.screen_height);
-        changed_layout = true;
-    }
-
-    if keys.just_pressed(KeyCode::KeyC) {
-        let target = (edit.active_profile + 1) % edit.profile_names.len();
-        let target_name = edit.profile_names[target].clone();
-        edit.profiles.insert(target_name, bars.layout);
-        edit.active_profile = target;
-        changed_mode = true;
-    }
-
-    if let Some(hovered) = edit.hovered {
-        let mut settings = bars.layout.get(hovered);
-        let mut tuned = false;
-
-        if keys.just_pressed(KeyCode::Minus) {
-            settings.scale = (settings.scale - 0.1).clamp(0.6, 1.8);
-            tuned = true;
-        }
-        if keys.just_pressed(KeyCode::Equal) {
-            settings.scale = (settings.scale + 0.1).clamp(0.6, 1.8);
-            tuned = true;
-        }
-        if hovered == BarId::Main {
-            if keys.just_pressed(KeyCode::BracketLeft) {
-                settings.columns = settings.columns.saturating_sub(1).max(1);
-                tuned = true;
-            }
-            if keys.just_pressed(KeyCode::BracketRight) {
-                settings.columns = settings.columns.saturating_add(1).min(SLOT_COUNT as u8);
-                tuned = true;
-            }
-        }
-
-        if tuned {
-            bars.layout.set(hovered, settings);
-            changed_layout = true;
-        }
-    }
+    let changed_layout_profile = handle_profile_cycle(&keys, bars, edit, &mut ui.registry);
+    let changed_layout_tune = handle_bar_tune(&keys, bars, edit);
+    let changed_layout = changed_layout_profile || changed_layout_tune;
 
     if changed_layout {
         let profile = active_profile_name(edit).to_string();
@@ -491,10 +408,63 @@ fn edit_mode_controls(
         apply_layout(&mut ui.registry, bars, bars.layout);
         save_profiles(edit);
     }
-
     if changed_layout || changed_mode {
         apply_edit_visuals(&mut ui.registry, bars, edit);
         update_edit_banner(&mut ui.registry, bars, edit);
+    }
+}
+
+fn handle_drag_press(
+    mouse: &ButtonInput<MouseButton>,
+    cursor: Vec2,
+    bars: &ActionBarsUi,
+    edit: &mut ActionBarEditState,
+    reg: &FrameRegistry,
+) {
+    if mouse.just_pressed(MouseButton::Left)
+        && !edit.locked
+        && let Some(bar) = edit.hovered
+        && let Some(rect) = root_rect(reg, bars, bar)
+    {
+        edit.dragging = Some(DragState { bar, grab_offset: cursor - Vec2::new(rect.x, rect.y) });
+    }
+}
+
+fn handle_drag_move(
+    mouse: &ButtonInput<MouseButton>,
+    cursor: Vec2,
+    bars: &mut ActionBarsUi,
+    edit: &mut ActionBarEditState,
+    reg: &mut FrameRegistry,
+) {
+    if mouse.pressed(MouseButton::Left)
+        && !edit.locked
+        && let Some(drag) = edit.dragging
+        && let Some((w, h)) = bar_pixel_size(bars.layout, drag.bar)
+    {
+        let unclamped = cursor - drag.grab_offset;
+        let mut settings = bars.layout.get(drag.bar);
+        settings.x = unclamped.x.clamp(0.0, (reg.screen_width - w).max(0.0));
+        settings.y = unclamped.y.clamp(0.0, (reg.screen_height - h).max(0.0));
+        let (snapped, guide_x, guide_y) = snap_settings(drag.bar, settings, bars.layout, reg.screen_width, reg.screen_height);
+        bars.layout.set(drag.bar, snapped);
+        apply_layout(reg, bars, bars.layout);
+        apply_guides(reg, bars, guide_x, guide_y);
+        let profile = active_profile_name(edit).to_string();
+        edit.profiles.insert(profile, bars.layout);
+        update_edit_banner(reg, bars, edit);
+    }
+}
+
+fn handle_drag_release(
+    mouse: &ButtonInput<MouseButton>,
+    bars: &ActionBarsUi,
+    edit: &mut ActionBarEditState,
+    reg: &mut FrameRegistry,
+) {
+    if mouse.just_released(MouseButton::Left) {
+        if edit.dragging.take().is_some() { save_profiles(edit); }
+        apply_guides(reg, bars, None, None);
     }
 }
 
@@ -505,71 +475,15 @@ fn drag_action_bars(
     mut bars: Option<ResMut<ActionBarsUi>>,
     mut edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else {
-        return;
-    };
-    if !edit.enabled {
-        return;
-    }
-
-    let Some(window) = windows.iter().next() else {
-        return;
-    };
-    let Some(cursor) = window.cursor_position() else {
-        return;
-    };
+    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else { return };
+    if !edit.enabled { return }
+    let Some(window) = windows.iter().next() else { return };
+    let Some(cursor) = window.cursor_position() else { return };
     let cursor = Vec2::new(cursor.x, cursor.y);
-
     edit.hovered = hit_bar(&ui.registry, bars, cursor);
-
-    if mouse.just_pressed(MouseButton::Left)
-        && !edit.locked
-        && let Some(bar) = edit.hovered
-        && let Some(rect) = root_rect(&ui.registry, bars, bar)
-    {
-        edit.dragging = Some(DragState {
-            bar,
-            grab_offset: cursor - Vec2::new(rect.x, rect.y),
-        });
-    }
-
-    if mouse.pressed(MouseButton::Left)
-        && !edit.locked
-        && let Some(drag) = edit.dragging
-        && let Some((w, h)) = bar_pixel_size(bars.layout, drag.bar)
-    {
-        let unclamped = cursor - drag.grab_offset;
-        let mut settings = bars.layout.get(drag.bar);
-        settings.x = unclamped
-            .x
-            .clamp(0.0, (ui.registry.screen_width - w).max(0.0));
-        settings.y = unclamped
-            .y
-            .clamp(0.0, (ui.registry.screen_height - h).max(0.0));
-
-        let (snapped, guide_x, guide_y) = snap_settings(
-            drag.bar,
-            settings,
-            bars.layout,
-            ui.registry.screen_width,
-            ui.registry.screen_height,
-        );
-        bars.layout.set(drag.bar, snapped);
-        apply_layout(&mut ui.registry, bars, bars.layout);
-        apply_guides(&mut ui.registry, bars, guide_x, guide_y);
-
-        let profile = active_profile_name(edit).to_string();
-        edit.profiles.insert(profile, bars.layout);
-        update_edit_banner(&mut ui.registry, bars, edit);
-    }
-
-    if mouse.just_released(MouseButton::Left) {
-        if edit.dragging.take().is_some() {
-            save_profiles(edit);
-        }
-        apply_guides(&mut ui.registry, bars, None, None);
-    }
-
+    handle_drag_press(&mouse, cursor, bars, edit, &ui.registry);
+    handle_drag_move(&mouse, cursor, bars, edit, &mut ui.registry);
+    handle_drag_release(&mouse, bars, edit, &mut ui.registry);
     apply_edit_visuals(&mut ui.registry, bars, edit);
 }
 
@@ -593,12 +507,34 @@ fn update_action_bar_slot_flash(
         if bars.flashes[i] > 0.0 {
             bars.flashes[i] = (bars.flashes[i] - dt).max(0.0);
         }
-        let color = if bars.flashes[i] > 0.0 {
-            SLOT_FLASH_BG
-        } else {
-            SLOT_BG
-        };
+        let color = if bars.flashes[i] > 0.0 { SLOT_FLASH_BG } else { SLOT_BG };
         set_bg(&mut ui.registry, bars.main_slots[i], color);
+    }
+}
+
+fn collect_snap_candidates(
+    dragging: BarId,
+    out: &BarSettings,
+    layout: BarLayout,
+    sw: f32,
+    sh: f32,
+    best_x: &mut Option<(f32, f32)>,
+    best_y: &mut Option<(f32, f32)>,
+) {
+    let w_h = bar_pixel_size(layout_with(layout, dragging, *out), dragging);
+    let Some((w, h)) = w_h else { return };
+    consider_snap(best_x, out.x, sw * 0.5 - w * 0.5, sw * 0.5);
+    consider_snap(best_y, out.y, sh * 0.5 - h * 0.5, sh * 0.5);
+    for bar in [BarId::Main, BarId::Right, BarId::Left] {
+        if bar == dragging { continue; }
+        let other = layout.get(bar);
+        let Some((ow, oh)) = bar_pixel_size(layout, bar) else { continue };
+        consider_snap(best_x, out.x, other.x, other.x);
+        consider_snap(best_x, out.x, other.x + ow - w, other.x + ow);
+        consider_snap(best_x, out.x, other.x + ow * 0.5 - w * 0.5, other.x + ow * 0.5);
+        consider_snap(best_y, out.y, other.y, other.y);
+        consider_snap(best_y, out.y, other.y + oh - h, other.y + oh);
+        consider_snap(best_y, out.y, other.y + oh * 0.5 - h * 0.5, other.y + oh * 0.5);
     }
 }
 
@@ -610,63 +546,16 @@ fn snap_settings(
     sh: f32,
 ) -> (BarSettings, Option<f32>, Option<f32>) {
     let mut out = input;
-    let Some((w, h)) = bar_pixel_size(layout_with(layout, dragging, input), dragging) else {
+    if bar_pixel_size(layout_with(layout, dragging, input), dragging).is_none() {
         return (out, None, None);
-    };
+    }
     let mut best_x: Option<(f32, f32)> = None;
     let mut best_y: Option<(f32, f32)> = None;
-
-    // Screen center snap.
-    let center_x = sw * 0.5;
-    let center_y = sh * 0.5;
-    let x_snap = center_x - w * 0.5;
-    let y_snap = center_y - h * 0.5;
-    consider_snap(&mut best_x, out.x, x_snap, center_x);
-    consider_snap(&mut best_y, out.y, y_snap, center_y);
-
-    for bar in [BarId::Main, BarId::Right, BarId::Left] {
-        if bar == dragging {
-            continue;
-        }
-        let other = layout.get(bar);
-        let Some((ow, oh)) = bar_pixel_size(layout, bar) else {
-            continue;
-        };
-
-        consider_snap(&mut best_x, out.x, other.x, other.x); // left-left
-        consider_snap(&mut best_x, out.x, other.x + ow - w, other.x + ow); // right-right
-        consider_snap(
-            &mut best_x,
-            out.x,
-            other.x + ow * 0.5 - w * 0.5,
-            other.x + ow * 0.5,
-        ); // center-center
-
-        consider_snap(&mut best_y, out.y, other.y, other.y); // top-top
-        consider_snap(&mut best_y, out.y, other.y + oh - h, other.y + oh); // bottom-bottom
-        consider_snap(
-            &mut best_y,
-            out.y,
-            other.y + oh * 0.5 - h * 0.5,
-            other.y + oh * 0.5,
-        ); // center-center
-    }
-
+    collect_snap_candidates(dragging, &out, layout, sw, sh, &mut best_x, &mut best_y);
     let mut guide_x = None;
     let mut guide_y = None;
-    if let Some((pos, guide)) = best_x
-        && (out.x - pos).abs() <= SNAP_DISTANCE
-    {
-        out.x = pos;
-        guide_x = Some(guide);
-    }
-    if let Some((pos, guide)) = best_y
-        && (out.y - pos).abs() <= SNAP_DISTANCE
-    {
-        out.y = pos;
-        guide_y = Some(guide);
-    }
-
+    if let Some((pos, guide)) = best_x && (out.x - pos).abs() <= SNAP_DISTANCE { out.x = pos; guide_x = Some(guide); }
+    if let Some((pos, guide)) = best_y && (out.y - pos).abs() <= SNAP_DISTANCE { out.y = pos; guide_y = Some(guide); }
     (out, guide_x, guide_y)
 }
 
@@ -689,44 +578,23 @@ fn consider_snap(best: &mut Option<(f32, f32)>, current: f32, snap_pos: f32, gui
 fn apply_guides(reg: &mut FrameRegistry, bars: &ActionBarsUi, x: Option<f32>, y: Option<f32>) {
     if let Some(gx) = x {
         set_layout(reg, bars.guide_v, gx - 1.0, 0.0, 2.0, reg.screen_height);
-        reg.set_shown(bars.guide_v, true);
+        reg.set_hidden(bars.guide_v, false);
     } else {
-        reg.set_shown(bars.guide_v, false);
+        reg.set_hidden(bars.guide_v, true);
     }
 
     if let Some(gy) = y {
         set_layout(reg, bars.guide_h, 0.0, gy - 1.0, reg.screen_width, 2.0);
-        reg.set_shown(bars.guide_h, true);
+        reg.set_hidden(bars.guide_h, false);
     } else {
-        reg.set_shown(bars.guide_h, false);
+        reg.set_hidden(bars.guide_h, true);
     }
 }
 
 fn apply_layout(reg: &mut FrameRegistry, bars: &ActionBarsUi, layout: BarLayout) {
-    apply_bar_layout(
-        reg,
-        bars.main_root,
-        &bars.main_slots,
-        bars.main_label,
-        layout.main,
-        BarId::Main,
-    );
-    apply_bar_layout(
-        reg,
-        bars.right_root,
-        &bars.right_slots,
-        bars.right_label,
-        layout.right,
-        BarId::Right,
-    );
-    apply_bar_layout(
-        reg,
-        bars.left_root,
-        &bars.left_slots,
-        bars.left_label,
-        layout.left,
-        BarId::Left,
-    );
+    apply_bar_layout(reg, bars.main_root, &bars.main_slots, bars.main_label, layout.main, BarId::Main);
+    apply_bar_layout(reg, bars.right_root, &bars.right_slots, bars.right_label, layout.right, BarId::Right);
+    apply_bar_layout(reg, bars.left_root, &bars.left_slots, bars.left_label, layout.left, BarId::Left);
 }
 
 fn apply_bar_layout(
@@ -738,16 +606,10 @@ fn apply_bar_layout(
     bar: BarId,
 ) {
     let scale = settings.scale.clamp(0.6, 1.8);
-    let columns = if bar == BarId::Main {
-        settings.columns.clamp(1, SLOT_COUNT as u8) as usize
-    } else {
-        1
-    };
+    let columns = if bar == BarId::Main { settings.columns.clamp(1, SLOT_COUNT as u8) as usize } else { 1 };
     let rows = SLOT_COUNT.div_ceil(columns);
     let size = bar_size(columns, rows, scale);
-
     set_layout(reg, root, settings.x, settings.y, size.x, size.y);
-
     let slot_w = SLOT_W * scale;
     let slot_h = SLOT_H * scale;
     let gap = SLOT_GAP * scale;
@@ -756,16 +618,8 @@ fn apply_bar_layout(
     for (i, slot) in slots.iter().copied().enumerate() {
         let col = i % columns;
         let row = i / columns;
-        set_layout(
-            reg,
-            slot,
-            pad_x + col as f32 * (slot_w + gap),
-            pad_y + row as f32 * (slot_h + gap),
-            slot_w,
-            slot_h,
-        );
+        set_layout(reg, slot, pad_x + col as f32 * (slot_w + gap), pad_y + row as f32 * (slot_h + gap), slot_w, slot_h);
     }
-
     set_layout(reg, label, 8.0, 4.0, size.x - 16.0, 16.0);
     let label_text = match bar {
         BarId::Main => format!("Main Action Bar ({columns}x{rows})"),
@@ -785,11 +639,7 @@ fn bar_size(columns: usize, rows: usize, scale: f32) -> Vec2 {
 
 fn bar_pixel_size(layout: BarLayout, bar: BarId) -> Option<(f32, f32)> {
     let settings = layout.get(bar);
-    let cols = if bar == BarId::Main {
-        settings.columns.clamp(1, SLOT_COUNT as u8) as usize
-    } else {
-        1
-    };
+    let cols = if bar == BarId::Main { settings.columns.clamp(1, SLOT_COUNT as u8) as usize } else { 1 };
     let rows = SLOT_COUNT.div_ceil(cols);
     let size = bar_size(cols, rows, settings.scale.clamp(0.6, 1.8));
     Some((size.x, size.y))
@@ -821,12 +671,12 @@ fn root_rect(reg: &FrameRegistry, bars: &ActionBarsUi, bar: BarId) -> Option<Lay
 fn apply_edit_visuals(reg: &mut FrameRegistry, bars: &ActionBarsUi, edit: &ActionBarEditState) {
     let labels = [bars.main_label, bars.right_label, bars.left_label];
     for id in labels {
-        reg.set_shown(id, edit.enabled);
+        reg.set_hidden(id, !edit.enabled);
     }
-    reg.set_shown(bars.edit_banner, edit.enabled);
+    reg.set_hidden(bars.edit_banner, !edit.enabled);
     if !edit.enabled {
-        reg.set_shown(bars.guide_v, false);
-        reg.set_shown(bars.guide_h, false);
+        reg.set_hidden(bars.guide_v, true);
+        reg.set_hidden(bars.guide_h, true);
     }
 
     for (bar, root) in [
@@ -1059,61 +909,5 @@ fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {
 fn set_strata(reg: &mut FrameRegistry, id: u64, strata: FrameStrata) {
     if let Some(frame) = reg.get_mut(id) {
         frame.strata = strata;
-    }
-}
-
-fn remove_frame_tree(reg: &mut FrameRegistry, id: u64) {
-    let children = reg.get(id).map(|f| f.children.clone()).unwrap_or_default();
-    for child in children {
-        remove_frame_tree(reg, child);
-    }
-    reg.remove_frame(id);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn slot_key_mapping_matches_main_bar_order() {
-        assert_eq!(slot_key(0), KeyCode::Digit1);
-        assert_eq!(slot_key(9), KeyCode::Digit0);
-        assert_eq!(slot_key(10), KeyCode::Minus);
-        assert_eq!(slot_key(11), KeyCode::Equal);
-    }
-
-    #[test]
-    fn slot_labels_match_wow_hotkey_row() {
-        assert_eq!(slot_label(0), "1");
-        assert_eq!(slot_label(9), "0");
-        assert_eq!(slot_label(10), "-");
-        assert_eq!(slot_label(11), "=");
-    }
-
-    #[test]
-    fn main_bar_respects_column_count() {
-        let layout = BarLayout {
-            main: BarSettings {
-                x: 0.0,
-                y: 0.0,
-                scale: 1.0,
-                columns: 6,
-            },
-            right: BarSettings {
-                x: 0.0,
-                y: 0.0,
-                scale: 1.0,
-                columns: 1,
-            },
-            left: BarSettings {
-                x: 0.0,
-                y: 0.0,
-                scale: 1.0,
-                columns: 1,
-            },
-        };
-        let (w, h) = bar_pixel_size(layout, BarId::Main).expect("main size");
-        assert!(w > 0.0);
-        assert!(h > SLOT_H);
     }
 }

@@ -84,21 +84,6 @@ src/
 - When re-transitioning mid-blend (e.g. quick direction changes), preserve blend progress so the outgoing pose weight is continuous. Resetting to 0 causes visible pops.
 - WoW animation IDs: Stand=0, Walk=4, Run=5, ShuffleLeft=11, ShuffleRight=12, WalkBackwards=13, JumpStart=37, Jump=38, JumpEnd=39
 
-## Dioxus (0.7)
-
-This project uses Dioxus as a declarative UI layer bridged to the Bevy ECS via `DioxusScreen`.
-
-**Key concepts:**
-- Components are functions returning `Element`, decorated with `#[component]` for props
-- **Signals** (`use_signal(|| initial)`) are the reactive primitive — `.read()` subscribes, `.write()` triggers re-render
-- Props use `ReadSignal<T>` (read-only) or `Signal<T>` (mutable). Dioxus auto-converts `T` → `ReadSignal<T>`
-- `VirtualDom::new(app)` for no-props root, `VirtualDom::new_with_props(app, props)` for props
-- `dom.rebuild(&mut applier)` for initial render, `dom.render_immediate(&mut applier)` for subsequent re-renders
-- Components re-render automatically when observed signals change — this is the whole point, don't bypass it with imperative hacks
-- `with_root_context` / `provide_root_context` inject shared state into the component tree
-
-**Anti-pattern in this codebase:** Several places create components with hardcoded values then imperatively patch widget data every frame via ECS systems (e.g. `sync_status_text`). The correct approach is to pass state as props or signals so the component tree is the source of truth.
-
 ## Related
 
 - casc-extract: `../casc-extract/` — CLI to extract WoW assets (cascette-rs). Currently CDN-only, needs local CASC mode.

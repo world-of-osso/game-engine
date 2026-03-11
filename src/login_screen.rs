@@ -221,7 +221,7 @@ fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
 fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
     ui.registry
         .get(frame_id)
-        .is_some_and(|frame| frame.visible && frame.shown)
+        .is_some_and(|frame| frame.visible && !frame.hidden)
         && hit_frame(ui, frame_id, mx, my)
 }
 

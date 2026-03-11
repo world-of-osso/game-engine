@@ -86,8 +86,8 @@ pub fn sync_button_states(
     _mode: &networking::LoginMode,
     _auth_token: &networking::AuthToken,
 ) {
-    reg.set_shown(login.connect_button, true);
+    reg.set_hidden(login.connect_button, false);
     if let Some(reconnect_button) = login.reconnect_button {
-        reg.set_shown(reconnect_button, false);
+        reg.set_hidden(reconnect_button, true);
     }
 }
