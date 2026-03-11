@@ -3,7 +3,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
-use super::adt::{ChunkIter, CHUNK_SIZE};
+use super::adt::{CHUNK_SIZE, ChunkIter};
 use super::m2::wow_to_bevy;
 
 // ── _tex0.adt types ───────────────────────────────────────────────────────────
@@ -61,28 +61,45 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
 
 // ── MCAL RLE decompression ────────────────────────────────────────────────────
 
-fn rle_fill(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: usize) -> Result<(), String> {
+fn rle_fill(
+    out: &mut Vec<u8>,
+    src: &[u8],
+    i: &mut usize,
+    count: usize,
+    limit: usize,
+) -> Result<(), String> {
     if *i >= src.len() {
         return Err("MCAL RLE fill: missing value byte".to_string());
     }
     let value = src[*i];
     *i += 1;
     for _ in 0..count {
-        if out.len() < limit { out.push(value); }
+        if out.len() < limit {
+            out.push(value);
+        }
     }
     Ok(())
 }
 
-fn rle_copy(out: &mut Vec<u8>, src: &[u8], i: &mut usize, count: usize, limit: usize) -> Result<(), String> {
+fn rle_copy(
+    out: &mut Vec<u8>,
+    src: &[u8],
+    i: &mut usize,
+    count: usize,
+    limit: usize,
+) -> Result<(), String> {
     let end = *i + count;
     if end > src.len() {
         return Err(format!(
             "MCAL RLE copy: need {count} bytes at {:#x} but only {} remain",
-            *i, src.len() - *i
+            *i,
+            src.len() - *i
         ));
     }
     for &b in &src[*i..end] {
-        if out.len() < limit { out.push(b); }
+        if out.len() < limit {
+            out.push(b);
+        }
     }
     *i = end;
     Ok(())
@@ -94,14 +111,21 @@ fn decompress_mcal_rle(src: &[u8]) -> Result<Vec<u8>, String> {
     let mut i = 0;
     while out.len() < EXPECTED {
         if i >= src.len() {
-            return Err(format!("MCAL RLE underrun: only {} of {} bytes produced", out.len(), EXPECTED));
+            return Err(format!(
+                "MCAL RLE underrun: only {} of {} bytes produced",
+                out.len(),
+                EXPECTED
+            ));
         }
         let header = src[i];
         i += 1;
         let fill = (header & 0x80) != 0;
         let count = (header & 0x7f) as usize;
-        if fill { rle_fill(&mut out, src, &mut i, count, EXPECTED)?; }
-        else { rle_copy(&mut out, src, &mut i, count, EXPECTED)?; }
+        if fill {
+            rle_fill(&mut out, src, &mut i, count, EXPECTED)?;
+        } else {
+            rle_copy(&mut out, src, &mut i, count, EXPECTED)?;
+        }
     }
     Ok(out)
 }
@@ -111,7 +135,12 @@ fn decompress_mcal_rle(src: &[u8]) -> Result<Vec<u8>, String> {
 const MCLY_FLAG_USE_ALPHA_MAP: u32 = 0x100;
 const MCLY_FLAG_ALPHA_COMPRESSED: u32 = 0x200;
 
-fn read_layer_alpha_map(flags: u32, offset_in_mcal: usize, mcal: &[u8], layer_idx: usize) -> Result<Option<Vec<u8>>, String> {
+fn read_layer_alpha_map(
+    flags: u32,
+    offset_in_mcal: usize,
+    mcal: &[u8],
+    layer_idx: usize,
+) -> Result<Option<Vec<u8>>, String> {
     if (flags & MCLY_FLAG_USE_ALPHA_MAP) == 0 {
         return Ok(None);
     }
@@ -139,7 +168,11 @@ fn build_texture_layers(mcly: &[u8], mcal: &[u8]) -> Result<Vec<TextureLayer>, S
         let flags = read_u32(mcly, base + 0x04)?;
         let offset_in_mcal = read_u32(mcly, base + 0x08)? as usize;
         let alpha_map = read_layer_alpha_map(flags, offset_in_mcal, mcal, i)?;
-        layers.push(TextureLayer { texture_index, _flags: flags, alpha_map });
+        layers.push(TextureLayer {
+            texture_index,
+            _flags: flags,
+            alpha_map,
+        });
     }
     Ok(layers)
 }
@@ -157,7 +190,9 @@ fn parse_tex0_mcnk(payload: &[u8]) -> Result<ChunkTexLayers, String> {
     }
     let mcly = mcly_payload.unwrap_or(&[]);
     let mcal = mcal_payload.unwrap_or(&[]);
-    Ok(ChunkTexLayers { layers: build_texture_layers(mcly, mcal)? })
+    Ok(ChunkTexLayers {
+        layers: build_texture_layers(mcly, mcal)?,
+    })
 }
 
 /// Parse a `_tex0.adt` split file and return texture FDIDs and per-chunk layer data.
@@ -170,7 +205,9 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
             b"DIDM" => {
                 let count = payload.len() / 4;
                 texture_fdids.reserve(count);
-                for i in 0..count { texture_fdids.push(read_u32(payload, i * 4)?); }
+                for i in 0..count {
+                    texture_fdids.push(read_u32(payload, i * 4)?);
+                }
             }
             b"KNCM" => chunk_layers.push(parse_tex0_mcnk(payload)?),
             _ => {}
@@ -179,7 +216,10 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
     if chunk_layers.is_empty() {
         return Err("No KNCM chunks found in _tex0.adt file".to_string());
     }
-    Ok(AdtTexData { texture_fdids, chunk_layers })
+    Ok(AdtTexData {
+        texture_fdids,
+        chunk_layers,
+    })
 }
 
 // ── MH2O water types ────────────────────────────────────────────────────────
@@ -208,7 +248,12 @@ pub struct AdtWaterData {
 
 // ── MH2O parsing ────────────────────────────────────────────────────────────
 
-fn read_exists_bitmask(payload: &[u8], offset: usize, width: u8, height: u8) -> Result<[u8; 8], String> {
+fn read_exists_bitmask(
+    payload: &[u8],
+    offset: usize,
+    width: u8,
+    height: u8,
+) -> Result<[u8; 8], String> {
     let mut exists = [0u8; 8];
     if offset == 0 {
         let mask = (1u16.wrapping_shl(width as u32) - 1) as u8;
@@ -219,27 +264,43 @@ fn read_exists_bitmask(payload: &[u8], offset: usize, width: u8, height: u8) -> 
     }
     let h = height as usize;
     if offset + h > payload.len() {
-        return Err(format!("MH2O exists bitmask out of bounds: offset {offset:#x}, need {h} bytes"));
+        return Err(format!(
+            "MH2O exists bitmask out of bounds: offset {offset:#x}, need {h} bytes"
+        ));
     }
     exists[..h].copy_from_slice(&payload[offset..offset + h]);
     Ok(exists)
 }
 
-fn read_vertex_heights(payload: &[u8], offset: usize, width: u8, height: u8) -> Result<Vec<f32>, String> {
-    if offset == 0 { return Ok(Vec::new()); }
+fn read_vertex_heights(
+    payload: &[u8],
+    offset: usize,
+    width: u8,
+    height: u8,
+) -> Result<Vec<f32>, String> {
+    if offset == 0 {
+        return Ok(Vec::new());
+    }
     let count = (width as usize + 1) * (height as usize + 1);
     let byte_len = count * 4;
     if offset + byte_len > payload.len() {
-        return Err(format!("MH2O vertex data out of bounds: offset {offset:#x}, need {byte_len} bytes"));
+        return Err(format!(
+            "MH2O vertex data out of bounds: offset {offset:#x}, need {byte_len} bytes"
+        ));
     }
     let mut heights = Vec::with_capacity(count);
-    for i in 0..count { heights.push(read_f32(payload, offset + i * 4)?); }
+    for i in 0..count {
+        heights.push(read_f32(payload, offset + i * 4)?);
+    }
     Ok(heights)
 }
 
 fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, String> {
     if off + 24 > payload.len() {
-        return Err(format!("SLiquidInstance out of bounds at {off:#x} (payload len {:#x})", payload.len()));
+        return Err(format!(
+            "SLiquidInstance out of bounds at {off:#x} (payload len {:#x})",
+            payload.len()
+        ));
     }
     let liquid_type = read_u16(payload, off)?;
     let liquid_object = read_u16(payload, off + 2)?;
@@ -253,20 +314,37 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
     let offset_vertex = read_u32(payload, off + 20)? as usize;
     let exists = read_exists_bitmask(payload, offset_exists, width, height)?;
     let vertex_heights = read_vertex_heights(payload, offset_vertex, width, height)?;
-    Ok(WaterLayer { liquid_type, liquid_object, min_height, max_height, x_offset, y_offset, width, height, exists, vertex_heights })
+    Ok(WaterLayer {
+        liquid_type,
+        liquid_object,
+        min_height,
+        max_height,
+        x_offset,
+        y_offset,
+        width,
+        height,
+        exists,
+        vertex_heights,
+    })
 }
 
 pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
     const HEADER_SIZE: usize = 256 * 12;
     if payload.len() < HEADER_SIZE {
-        return Err(format!("MH2O payload too small: {} bytes (need {HEADER_SIZE})", payload.len()));
+        return Err(format!(
+            "MH2O payload too small: {} bytes (need {HEADER_SIZE})",
+            payload.len()
+        ));
     }
     let mut chunks = Vec::with_capacity(256);
     for i in 0..256 {
         let entry_off = i * 12;
         let offset_info = read_u32(payload, entry_off)? as usize;
         let layer_count = read_u32(payload, entry_off + 4)?;
-        if layer_count == 0 { chunks.push(ChunkWater { layers: Vec::new() }); continue; }
+        if layer_count == 0 {
+            chunks.push(ChunkWater { layers: Vec::new() });
+            continue;
+        }
         let mut layers = Vec::with_capacity(layer_count as usize);
         for li in 0..layer_count as usize {
             layers.push(parse_liquid_instance(payload, offset_info + li * 24)?);
@@ -281,19 +359,32 @@ pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
 const WATER_STEP: f32 = CHUNK_SIZE / 8.0;
 
 fn quad_exists(layer: &WaterLayer, row: usize, col: usize) -> bool {
-    if row >= 8 || col >= 8 { return false; }
+    if row >= 8 || col >= 8 {
+        return false;
+    }
     (layer.exists[row] >> col) & 1 != 0
 }
 
 fn water_height(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
-    if layer.vertex_heights.is_empty() { return layer.min_height; }
+    if layer.vertex_heights.is_empty() {
+        return layer.min_height;
+    }
     let w = layer.width as usize + 1;
-    layer.vertex_heights.get(vert_row * w + vert_col).copied().unwrap_or(layer.min_height)
+    layer
+        .vertex_heights
+        .get(vert_row * w + vert_col)
+        .copied()
+        .unwrap_or(layer.min_height)
 }
 
 fn emit_water_quad(
-    chunk_pos: [f32; 3], layer: &WaterLayer, row: usize, col: usize,
-    positions: &mut Vec<[f32; 3]>, normals: &mut Vec<[f32; 3]>, uvs: &mut Vec<[f32; 2]>,
+    chunk_pos: [f32; 3],
+    layer: &WaterLayer,
+    row: usize,
+    col: usize,
+    positions: &mut Vec<[f32; 3]>,
+    normals: &mut Vec<[f32; 3]>,
+    uvs: &mut Vec<[f32; 2]>,
 ) {
     let abs_row = layer.y_offset as usize + row;
     let abs_col = layer.x_offset as usize + col;
@@ -321,10 +412,27 @@ fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometr
     let mut indices = Vec::with_capacity(max_quads * 6);
     for row in 0..h {
         for col in 0..w {
-            if !quad_exists(layer, row, col) { continue; }
+            if !quad_exists(layer, row, col) {
+                continue;
+            }
             let base_idx = positions.len() as u32;
-            emit_water_quad(chunk_pos, layer, row, col, &mut positions, &mut normals, &mut uvs);
-            indices.extend_from_slice(&[base_idx, base_idx+1, base_idx+2, base_idx+2, base_idx+1, base_idx+3]);
+            emit_water_quad(
+                chunk_pos,
+                layer,
+                row,
+                col,
+                &mut positions,
+                &mut normals,
+                &mut uvs,
+            );
+            indices.extend_from_slice(&[
+                base_idx,
+                base_idx + 1,
+                base_idx + 2,
+                base_idx + 2,
+                base_idx + 1,
+                base_idx + 3,
+            ]);
         }
     }
     (positions, normals, uvs, indices)
@@ -332,7 +440,10 @@ fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometr
 
 pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
     let (positions, normals, uvs, indices) = build_water_geometry(chunk_pos, layer);
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);

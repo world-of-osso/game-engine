@@ -398,7 +398,10 @@ fn compute_effective_distance(
         adjusted
     } else if cam.collided {
         let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
-        let recovered = cam_tf.translation.distance(eye_target).lerp(cam.distance, recovery_t);
+        let recovered = cam_tf
+            .translation
+            .distance(eye_target)
+            .lerp(cam.distance, recovery_t);
         if (recovered - cam.distance).abs() < 0.05 {
             cam.collided = false;
         }
@@ -432,8 +435,15 @@ fn camera_follow(
     let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
     let orbit_dir = rotation * Vec3::NEG_Z;
     let excluded = build_collision_excluded_set(player_entity, &children_q, &sky_q);
-    let effective_distance =
-        compute_effective_distance(&mut cam, &cam_tf, eye_target, orbit_dir, &mut ray_cast, excluded, dt);
+    let effective_distance = compute_effective_distance(
+        &mut cam,
+        &cam_tf,
+        eye_target,
+        orbit_dir,
+        &mut ray_cast,
+        excluded,
+        dt,
+    );
     let mut pos = eye_target - orbit_dir * effective_distance;
     let cam_ground = terrain
         .as_ref()

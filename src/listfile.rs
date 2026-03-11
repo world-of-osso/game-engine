@@ -28,6 +28,11 @@ fn get() -> &'static Listfile {
     )
 }
 
+/// Force-load the listfile eagerly (avoids blocking the main thread later).
+pub fn preload() {
+    let _ = get();
+}
+
 /// Look up a WoW internal path by FileDataID.
 pub fn lookup_fdid(fdid: u32) -> Option<&'static str> {
     get().by_fdid.get(&fdid).map(|s| s.as_str())

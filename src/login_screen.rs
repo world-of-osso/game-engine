@@ -11,7 +11,8 @@ use ui_toolkit::screen::Screen;
 
 use game_engine::ui::screens::login_component::{
     CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, LoginAction,
-    MENU_BUTTON, PASSWORD_INPUT, RECONNECT_BUTTON, SharedStatusText, USERNAME_INPUT, login_screen,
+    MENU_BUTTON, PASSWORD_INPUT, RECONNECT_BUTTON, SharedConnecting, SharedStatusText,
+    USERNAME_INPUT, login_screen,
 };
 use game_engine::ui::widgets::button::ButtonState as BtnState;
 use game_engine::ui::widgets::font_string::GameFont;
@@ -24,13 +25,13 @@ use crate::networking;
 #[path = "login_screen_connect.rs"]
 mod connect;
 
+use crate::login_screen_helpers as helpers;
 use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
-use crate::login_screen_helpers as helpers;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, hit_frame, insert_char_into_editbox,
-    set_button_hovered, set_login_primary_button_textures,
+    editbox_move_cursor, hit_frame, insert_char_into_editbox, set_button_hovered,
+    set_login_primary_button_textures,
 };
 
 const FADE_IN_DURATION: f32 = 0.75;
@@ -172,11 +173,10 @@ pub(crate) fn build_login_ui(
 fn build_login_screen(status: &LoginStatus) -> LoginScreenRes {
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert::<SharedStatusText>(status.0.clone());
+    shared.insert::<SharedConnecting>(false);
 
     let mut screen = Screen::new(login_screen);
-    let watch_dirs = vec![
-        std::path::PathBuf::from("src/ui/screens"),
-    ];
+    let watch_dirs = vec![std::path::PathBuf::from("src/ui/screens")];
     let rx = ui_toolkit::hotreload::watcher::start_watcher(watch_dirs);
     screen.set_hot_reload_rx(rx);
 
@@ -324,7 +324,15 @@ fn login_mouse_input(
                 auth_token: &cp.auth_token,
                 server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
             };
-            handle_button_click(&mut lp.ui, login, cursor, &mut lp.focus, &mut params, &mut cp.commands, Some(&mut exit));
+            handle_button_click(
+                &mut lp.ui,
+                login,
+                cursor,
+                &mut lp.focus,
+                &mut params,
+                &mut cp.commands,
+                Some(&mut exit),
+            );
         }
     }
 }
@@ -403,20 +411,37 @@ fn dispatch_login_action(
 ) {
     match action.and_then(LoginAction::parse) {
         Some(LoginAction::Connect) => try_connect(
-            &ui.registry, login, params.status, params.next_state,
-            params.login_mode, params.server_addr, commands,
+            &ui.registry,
+            login,
+            params.status,
+            params.next_state,
+            params.login_mode,
+            params.server_addr,
+            commands,
         ),
         Some(LoginAction::Reconnect) => try_reconnect(
-            params.auth_token, params.status, params.next_state,
-            params.login_mode, params.server_addr, commands,
+            params.auth_token,
+            params.status,
+            params.next_state,
+            params.login_mode,
+            params.server_addr,
+            commands,
         ),
         Some(LoginAction::CreateAccount) => {
             toggle_login_mode(params.login_mode, &mut ui.registry, login);
             params.status.0.clear();
         }
-        Some(LoginAction::Menu) => { params.status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
-        Some(LoginAction::Exit) => { if let Some(exit) = exit { exit.write(AppExit::Success); } }
-        None => { focus.0 = None; }
+        Some(LoginAction::Menu) => {
+            params.status.0 = STATUS_MENU_UNAVAILABLE.to_string();
+        }
+        Some(LoginAction::Exit) => {
+            if let Some(exit) = exit {
+                exit.write(AppExit::Success);
+            }
+        }
+        None => {
+            focus.0 = None;
+        }
     }
 }
 
@@ -454,7 +479,13 @@ fn login_keyboard_input(
                 mode: &cp.login_mode,
                 server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
             };
-            handle_login_key(event.key_code, focused_id, &mut ui, key_params, &mut cp.commands);
+            handle_login_key(
+                event.key_code,
+                focused_id,
+                &mut ui,
+                key_params,
+                &mut cp.commands,
+            );
         }
     }
 }
@@ -585,7 +616,9 @@ fn click_login_frame(
             toggle_login_mode(login_mode, &mut ui.registry, login);
             status.0.clear();
         }
-        Some(LoginAction::Menu) => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
+        Some(LoginAction::Menu) => {
+            status.0 = STATUS_MENU_UNAVAILABLE.to_string();
+        }
         Some(LoginAction::Exit) => {}
         None if ui.registry.focused_frame == Some(frame_id) => {}
         _ => {
@@ -626,8 +659,20 @@ struct LoginKeyParams<'a> {
     server_addr: Option<std::net::SocketAddr>,
 }
 
-fn handle_login_key(key: KeyCode, focused_id: u64, ui: &mut UiState, p: LoginKeyParams<'_>, commands: &mut Commands) {
-    let LoginKeyParams { login, status, next_state, mode, server_addr } = p;
+fn handle_login_key(
+    key: KeyCode,
+    focused_id: u64,
+    ui: &mut UiState,
+    p: LoginKeyParams<'_>,
+    commands: &mut Commands,
+) {
+    let LoginKeyParams {
+        login,
+        status,
+        next_state,
+        mode,
+        server_addr,
+    } = p;
     match key {
         KeyCode::Backspace => editbox_backspace(&mut ui.registry, focused_id),
         KeyCode::Delete => editbox_delete(&mut ui.registry, focused_id),
@@ -635,7 +680,15 @@ fn handle_login_key(key: KeyCode, focused_id: u64, ui: &mut UiState, p: LoginKey
         KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1_i32),
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-        KeyCode::Enter => try_connect(&ui.registry, login, status, next_state, mode, server_addr, commands),
+        KeyCode::Enter => try_connect(
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            mode,
+            server_addr,
+            commands,
+        ),
         _ => {}
     }
 }
@@ -684,7 +737,7 @@ fn login_update_visuals(
         return;
     };
     ui.focused_frame = focus.0;
-    sync_button_states(&mut ui.registry, login, &login_mode, &auth_token);
+    sync_button_states(&mut ui.registry, login, &login_mode, &auth_token, &status);
     sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
     sync_editbox_focus_visual(
         &mut ui.registry,
@@ -705,7 +758,9 @@ fn sync_login_status(
 ) {
     let Some(res) = screen_res else { return };
     let inner = &mut res.0;
+    let connecting = status.0 == STATUS_CONNECTING;
     inner.shared.insert::<SharedStatusText>(status.0.clone());
+    inner.shared.insert::<SharedConnecting>(connecting);
     inner.screen.sync(&inner.shared, reg);
 }
 

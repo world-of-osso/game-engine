@@ -260,8 +260,15 @@ fn automation_login_reaches_connecting_state() {
             UiAutomationAction::ClickFrame("ConnectButton".to_string()),
         ];
         run_login_actions(
-            &mut ui, &login, &mut focus, &mut next_state, &mut status,
-            &mut login_mode, &auth_token, &mut commands, &actions,
+            &mut ui,
+            &login,
+            &mut focus,
+            &mut next_state,
+            &mut status,
+            &mut login_mode,
+            &auth_token,
+            &mut commands,
+            &actions,
         );
     }
     system_state.apply(&mut world);
@@ -312,8 +319,13 @@ fn run_try_connect_with_credentials(
     {
         let mut commands = system_state.get_mut(&mut world);
         try_connect(
-            reg, login, status, next_state,
-            &networking::LoginMode::Login, server_addr, &mut commands,
+            reg,
+            login,
+            status,
+            next_state,
+            &networking::LoginMode::Login,
+            server_addr,
+            &mut commands,
         );
     }
     system_state.apply(&mut world);
@@ -331,7 +343,10 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
     let world = run_try_connect_with_credentials(&reg, &login, &mut status, &mut next_state, None);
 
     assert_eq!(status.0, "Connecting...");
-    assert!(matches!(next_state, NextState::Pending(GameState::Connecting)));
+    assert!(matches!(
+        next_state,
+        NextState::Pending(GameState::Connecting)
+    ));
     assert_eq!(
         world.resource::<networking::ServerAddr>().0,
         super::DEFAULT_SERVER_ADDR.parse().unwrap()
@@ -353,6 +368,7 @@ fn sync_button_states_keeps_login_button_visible_even_with_saved_token() {
         &login,
         &networking::LoginMode::Login,
         &networking::AuthToken(Some("saved-token".to_string())),
+        &LoginStatus::default(),
     );
     assert!(
         reg.get(login.connect_button)
@@ -366,6 +382,7 @@ fn sync_button_states_keeps_login_button_visible_even_with_saved_token() {
         &login,
         &networking::LoginMode::Register,
         &networking::AuthToken(Some("saved-token".to_string())),
+        &LoginStatus::default(),
     );
     assert!(
         reg.get(login.connect_button)
@@ -418,7 +435,11 @@ fn try_connect_preserves_explicit_server_address() {
         .expect("test server address should parse");
 
     let world = run_try_connect_with_credentials(
-        &reg, &login, &mut status, &mut next_state, Some(explicit_addr),
+        &reg,
+        &login,
+        &mut status,
+        &mut next_state,
+        Some(explicit_addr),
     );
 
     assert_eq!(world.resource::<networking::ServerAddr>().0, explicit_addr);
@@ -478,12 +499,19 @@ fn login_update_visuals_does_not_duplicate_login_status_frames() {
     let _ = app.world_mut().run_system_cached(super::build_login_ui);
 
     app.world_mut().resource_mut::<LoginStatus>().0 = "First error".to_string();
-    let _ = app.world_mut().run_system_cached(super::login_update_visuals);
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
     app.world_mut().resource_mut::<LoginStatus>().0 = "Second error".to_string();
-    let _ = app.world_mut().run_system_cached(super::login_update_visuals);
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
 
     let count = count_login_status_frames(&app);
-    assert_eq!(count, 1, "expected exactly one LoginStatus frame, found {count}");
+    assert_eq!(
+        count, 1,
+        "expected exactly one LoginStatus frame, found {count}"
+    );
 }
 
 fn make_login_app_with_plugins() -> App {
@@ -504,7 +532,9 @@ fn make_login_app_with_plugins() -> App {
 
 fn run_login_visuals_cycle(app: &mut App, status_text: &str) {
     app.world_mut().resource_mut::<LoginStatus>().0 = status_text.to_string();
-    let _ = app.world_mut().run_system_cached(super::login_update_visuals);
+    let _ = app
+        .world_mut()
+        .run_system_cached(super::login_update_visuals);
     app.update();
 }
 

@@ -28,7 +28,6 @@ pub fn ensure_texture(fdid: u32) -> Option<PathBuf> {
     ensure_file(fdid, "data/textures", "blp")
 }
 
-
 /// Check if `{dir}/{fdid}.{ext}` exists; if not, extract from CASC.
 fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
     let path = PathBuf::from(dir).join(format!("{fdid}.{ext}"));
@@ -38,8 +37,22 @@ fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
     extract_fdid(fdid, dir).ok()
 }
 
+/// Ensure a CASC asset exists at the requested output path.
+pub fn ensure_file_at_path(fdid: u32, out_path: &Path) -> Option<PathBuf> {
+    if out_path.exists() {
+        return Some(out_path.to_path_buf());
+    }
+    extract_fdid_to_path(fdid, &out_path).ok()
+}
+
 /// Extract a single FDID from CASC into the given output directory.
 fn extract_fdid(fdid: u32, output_dir: &str) -> Result<PathBuf, String> {
+    let filename = resolve_filename(fdid);
+    let out_path = Path::new(output_dir).join(&filename);
+    extract_fdid_to_path(fdid, &out_path)
+}
+
+fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
     let casc = get_casc()?;
     let encoding_key = casc
         .install
@@ -50,14 +63,13 @@ fn extract_fdid(fdid: u32, output_dir: &str) -> Result<PathBuf, String> {
     let data = run_async(casc.install.read_file_by_encoding_key(&encoding_key))
         .map_err(|e| format!("CASC read {fdid}: {e}"))?;
 
-    let dir = Path::new(output_dir);
-    std::fs::create_dir_all(dir).map_err(|e| format!("mkdir {output_dir}: {e}"))?;
-
-    let filename = resolve_filename(fdid);
-    let out_path = dir.join(&filename);
-    std::fs::write(&out_path, &data).map_err(|e| format!("write {}: {e}", out_path.display()))?;
+    let parent = out_path
+        .parent()
+        .ok_or_else(|| format!("missing parent for {}", out_path.display()))?;
+    std::fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+    std::fs::write(out_path, &data).map_err(|e| format!("write {}: {e}", out_path.display()))?;
     eprintln!("CASC: extracted FDID {fdid} -> {}", out_path.display());
-    Ok(out_path)
+    Ok(out_path.to_path_buf())
 }
 
 /// Get or initialize the CASC state. Returns Err if CASC is unavailable.

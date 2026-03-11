@@ -198,7 +198,12 @@ fn combat_event_to_log_entry(msg: &CombatEvent) -> CombatLogEntry {
         CombatEventType::MeleeDamage => (
             CombatLogEventKind::Damage,
             Some(msg.damage.round() as i32),
-            format!("{} hit {} for {}", msg.attacker, msg.target, msg.damage.round() as i32),
+            format!(
+                "{} hit {} for {}",
+                msg.attacker,
+                msg.target,
+                msg.damage.round() as i32
+            ),
         ),
         CombatEventType::Death => (
             CombatLogEventKind::Death,
@@ -234,10 +239,7 @@ pub(crate) fn receive_combat_events(
     }
 }
 
-pub(crate) fn append_combat_entry(
-    snapshot: &mut CombatLogStatusSnapshot,
-    entry: CombatLogEntry,
-) {
+pub(crate) fn append_combat_entry(snapshot: &mut CombatLogStatusSnapshot, entry: CombatLogEntry) {
     snapshot.entries.push(entry);
     if snapshot.entries.len() > MAX_COMBAT_LOG {
         let overflow = snapshot.entries.len() - MAX_COMBAT_LOG;

@@ -12,8 +12,8 @@ fn create_watcher(
     watch_path: &Path,
     tx: mpsc::Sender<PathBuf>,
 ) -> Result<notify::RecommendedWatcher, String> {
-    let mut watcher = notify::recommended_watcher(
-        move |event: Result<notify::Event, notify::Error>| {
+    let mut watcher =
+        notify::recommended_watcher(move |event: Result<notify::Event, notify::Error>| {
             let Ok(event) = event else { return };
             for changed_path in event.paths {
                 if is_wasm_path(&changed_path) {
@@ -21,20 +21,25 @@ fn create_watcher(
                     let _ = tx.send(changed_path);
                 }
             }
-        },
-    )
-    .map_err(|e| format!("failed to create addon watcher: {e}"))?;
+        })
+        .map_err(|e| format!("failed to create addon watcher: {e}"))?;
     watcher
         .watch(watch_path, RecursiveMode::NonRecursive)
         .map_err(|e| format!("failed to watch {}: {e}", watch_path.display()))?;
     Ok(watcher)
 }
 
-fn run_watcher_thread(watch_path: PathBuf, tx: mpsc::Sender<PathBuf>, ready: SyncSender<Result<(), String>>) {
+fn run_watcher_thread(
+    watch_path: PathBuf,
+    tx: mpsc::Sender<PathBuf>,
+    ready: SyncSender<Result<(), String>>,
+) {
     match create_watcher(&watch_path, tx) {
         Ok(_watcher) => {
             let _ = ready.send(Ok(()));
-            loop { thread::park(); }
+            loop {
+                thread::park();
+            }
         }
         Err(err) => {
             warn!("addon watcher failed: {err}");
@@ -47,7 +52,10 @@ fn run_watcher_thread(watch_path: PathBuf, tx: mpsc::Sender<PathBuf>, ready: Syn
 /// Returns a receiver that gets notified of changed file paths.
 pub fn start_addon_watcher(path: &Path) -> Result<Receiver<PathBuf>, String> {
     if !path.is_dir() {
-        return Err(format!("addon directory does not exist: {}", path.display()));
+        return Err(format!(
+            "addon directory does not exist: {}",
+            path.display()
+        ));
     }
 
     let watch_path = path.to_path_buf();
@@ -59,7 +67,9 @@ pub fn start_addon_watcher(path: &Path) -> Result<Receiver<PathBuf>, String> {
         .spawn(move || run_watcher_thread(watch_path, tx, ready_tx))
         .map_err(|e| format!("failed to spawn addon watcher thread: {e}"))?;
 
-    ready_rx.recv().map_err(|e| format!("addon watcher init failed: {e}"))??;
+    ready_rx
+        .recv()
+        .map_err(|e| format!("addon watcher init failed: {e}"))??;
     info!("addon watcher started: {}", path.display());
     Ok(rx)
 }

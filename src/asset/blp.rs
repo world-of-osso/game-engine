@@ -58,7 +58,11 @@ fn gpu_image_from_dxtn(
         .ok_or_else(|| "BLP DXT has no mipmap level 0".to_string())?;
     let (w, h) = dxtn_actual_dimensions(width, height, data.content.len(), format);
     Ok(Image::new(
-        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data.content.clone(),
         format,
@@ -74,12 +78,16 @@ fn dxtn_actual_dimensions(w: u32, h: u32, data_len: usize, format: TextureFormat
         _ => 16, // BC2, BC3
     };
     let expected = dxtn_size(w, h, block_bytes);
-    if data_len >= expected { return (w, h); }
+    if data_len >= expected {
+        return (w, h);
+    }
     let (mut mw, mut mh) = (w, h);
     while mw > 4 && mh > 4 {
         mw /= 2;
         mh /= 2;
-        if data_len >= dxtn_size(mw, mh, block_bytes) { return (mw, mh); }
+        if data_len >= dxtn_size(mw, mh, block_bytes) {
+            return (mw, mh);
+        }
     }
     (4.max(mw), 4.max(mh))
 }

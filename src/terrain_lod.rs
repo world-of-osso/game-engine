@@ -54,7 +54,11 @@ fn find_lod_swaps(adt_manager: &AdtManager, cy: u32, cx: u32) -> Vec<((u32, u32)
         .iter()
         .filter_map(|(&key, &current_lod)| {
             let desired = tile_lod_for_distance(key.0, key.1, cy, cx);
-            if desired != current_lod { Some((key, desired)) } else { None }
+            if desired != current_lod {
+                Some((key, desired))
+            } else {
+                None
+            }
         })
         .collect()
 }
@@ -90,7 +94,10 @@ pub(crate) fn despawn_tile_doodad_entities(
 }
 
 /// Load the appropriate obj file based on LOD level.
-pub(crate) fn load_obj_for_lod(adt_path: &std::path::Path, lod: DoodadLod) -> Option<adt_obj::AdtObjData> {
+pub(crate) fn load_obj_for_lod(
+    adt_path: &std::path::Path,
+    lod: DoodadLod,
+) -> Option<adt_obj::AdtObjData> {
     match lod {
         DoodadLod::Full => terrain_objects::load_obj0(adt_path),
         DoodadLod::Lod1 => terrain_objects::load_obj1(adt_path),
@@ -99,10 +106,19 @@ pub(crate) fn load_obj_for_lod(adt_path: &std::path::Path, lod: DoodadLod) -> Op
 }
 
 /// Load and spawn doodads/WMOs for a given LOD level.
-fn spawn_lod_doodads(refs: &mut LodSpawnRefs, adt_path: &std::path::Path, lod: DoodadLod) -> Vec<Entity> {
+fn spawn_lod_doodads(
+    refs: &mut LodSpawnRefs,
+    adt_path: &std::path::Path,
+    lod: DoodadLod,
+) -> Vec<Entity> {
     match load_obj_for_lod(adt_path, lod) {
         Some(ref obj) => terrain_objects::spawn_obj_entities(
-            refs.commands, refs.meshes, refs.materials, refs.images, refs.inverse_bp, obj,
+            refs.commands,
+            refs.meshes,
+            refs.materials,
+            refs.images,
+            refs.inverse_bp,
+            obj,
         ),
         None => Vec::new(),
     }

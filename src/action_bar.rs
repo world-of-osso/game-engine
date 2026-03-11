@@ -233,9 +233,30 @@ fn create_bar_slots(
     let mut right_slots = [0; SLOT_COUNT];
     let mut left_slots = [0; SLOT_COUNT];
     for i in 0..SLOT_COUNT {
-        let main = create_button(reg, &format!("ActionButton{}", i + 1), Some(main_root), SLOT_W, SLOT_H, slot_label(i));
-        let right = create_button(reg, &format!("MultiBarRightButton{}", i + 1), Some(right_root), SLOT_W, SLOT_H, "");
-        let left = create_button(reg, &format!("MultiBarLeftButton{}", i + 1), Some(left_root), SLOT_W, SLOT_H, "");
+        let main = create_button(
+            reg,
+            &format!("ActionButton{}", i + 1),
+            Some(main_root),
+            SLOT_W,
+            SLOT_H,
+            slot_label(i),
+        );
+        let right = create_button(
+            reg,
+            &format!("MultiBarRightButton{}", i + 1),
+            Some(right_root),
+            SLOT_W,
+            SLOT_H,
+            "",
+        );
+        let left = create_button(
+            reg,
+            &format!("MultiBarLeftButton{}", i + 1),
+            Some(left_root),
+            SLOT_W,
+            SLOT_H,
+            "",
+        );
         set_bg(reg, main, SLOT_BG);
         set_bg(reg, right, SLOT_BG);
         set_bg(reg, left, SLOT_BG);
@@ -246,10 +267,36 @@ fn create_bar_slots(
     (main_slots, right_slots, left_slots)
 }
 
-fn create_bar_labels(reg: &mut FrameRegistry, main_root: u64, right_root: u64, left_root: u64) -> (u64, u64, u64) {
-    let main_label = create_frame(reg, "MainActionBarMoverLabel", Some(main_root), WidgetType::FontString, 220.0, 16.0);
-    let right_label = create_frame(reg, "MultiBarRightMoverLabel", Some(right_root), WidgetType::FontString, 220.0, 16.0);
-    let left_label = create_frame(reg, "MultiBarLeftMoverLabel", Some(left_root), WidgetType::FontString, 220.0, 16.0);
+fn create_bar_labels(
+    reg: &mut FrameRegistry,
+    main_root: u64,
+    right_root: u64,
+    left_root: u64,
+) -> (u64, u64, u64) {
+    let main_label = create_frame(
+        reg,
+        "MainActionBarMoverLabel",
+        Some(main_root),
+        WidgetType::FontString,
+        220.0,
+        16.0,
+    );
+    let right_label = create_frame(
+        reg,
+        "MultiBarRightMoverLabel",
+        Some(right_root),
+        WidgetType::FontString,
+        220.0,
+        16.0,
+    );
+    let left_label = create_frame(
+        reg,
+        "MultiBarLeftMoverLabel",
+        Some(left_root),
+        WidgetType::FontString,
+        220.0,
+        16.0,
+    );
     set_font_string_left(reg, main_label, "Main Action Bar", 13.0, MOVER_LABEL_TEXT);
     set_font_string_left(reg, right_label, "Right Action Bar", 13.0, MOVER_LABEL_TEXT);
     set_font_string_left(reg, left_label, "Left Action Bar", 13.0, MOVER_LABEL_TEXT);
@@ -257,8 +304,22 @@ fn create_bar_labels(reg: &mut FrameRegistry, main_root: u64, right_root: u64, l
 }
 
 fn create_guides(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) {
-    let guide_v = create_frame(reg, "ActionBarGuideVertical", None, WidgetType::Frame, 2.0, sh);
-    let guide_h = create_frame(reg, "ActionBarGuideHorizontal", None, WidgetType::Frame, sw, 2.0);
+    let guide_v = create_frame(
+        reg,
+        "ActionBarGuideVertical",
+        None,
+        WidgetType::Frame,
+        2.0,
+        sh,
+    );
+    let guide_h = create_frame(
+        reg,
+        "ActionBarGuideHorizontal",
+        None,
+        WidgetType::Frame,
+        sw,
+        2.0,
+    );
     set_bg(reg, guide_v, GUIDE_COLOR);
     set_bg(reg, guide_h, GUIDE_COLOR);
     set_strata(reg, guide_v, FrameStrata::Tooltip);
@@ -269,13 +330,33 @@ fn create_guides(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) {
 }
 
 fn create_edit_banner_frames(reg: &mut FrameRegistry, sw: f32) -> (u64, u64) {
-    let edit_banner = create_frame(reg, "ActionBarEditBanner", None, WidgetType::Frame, 760.0, 34.0);
+    let edit_banner = create_frame(
+        reg,
+        "ActionBarEditBanner",
+        None,
+        WidgetType::Frame,
+        760.0,
+        34.0,
+    );
     set_layout(reg, edit_banner, (sw - 760.0) * 0.5, 24.0, 760.0, 34.0);
     set_bg(reg, edit_banner, EDIT_BANNER_BG);
     set_strata(reg, edit_banner, FrameStrata::Tooltip);
-    let edit_banner_text = create_frame(reg, "ActionBarEditBannerText", Some(edit_banner), WidgetType::FontString, 760.0, 34.0);
+    let edit_banner_text = create_frame(
+        reg,
+        "ActionBarEditBannerText",
+        Some(edit_banner),
+        WidgetType::FontString,
+        760.0,
+        34.0,
+    );
     set_layout(reg, edit_banner_text, 0.0, 0.0, 760.0, 34.0);
-    set_font_string(reg, edit_banner_text, "Action Bar Edit Mode", 15.0, EDIT_BANNER_TEXT);
+    set_font_string(
+        reg,
+        edit_banner_text,
+        "Action Bar Edit Mode",
+        15.0,
+        EDIT_BANNER_TEXT,
+    );
     (edit_banner, edit_banner_text)
 }
 
@@ -284,15 +365,26 @@ fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
     let sh = reg.screen_height;
     let defaults = BarLayout::defaults(sw, sh);
     let (main_root, right_root, left_root) = create_bar_roots(reg);
-    let (main_slots, right_slots, left_slots) = create_bar_slots(reg, main_root, right_root, left_root);
-    let (main_label, right_label, left_label) = create_bar_labels(reg, main_root, right_root, left_root);
+    let (main_slots, right_slots, left_slots) =
+        create_bar_slots(reg, main_root, right_root, left_root);
+    let (main_label, right_label, left_label) =
+        create_bar_labels(reg, main_root, right_root, left_root);
     let (guide_v, guide_h) = create_guides(reg, sw, sh);
     let (edit_banner, edit_banner_text) = create_edit_banner_frames(reg, sw);
     let bars = ActionBarsUi {
-        main_root, right_root, left_root,
-        main_slots, right_slots, left_slots,
-        main_label, right_label, left_label,
-        guide_v, guide_h, edit_banner, edit_banner_text,
+        main_root,
+        right_root,
+        left_root,
+        main_slots,
+        right_slots,
+        left_slots,
+        main_label,
+        right_label,
+        left_label,
+        guide_v,
+        guide_h,
+        edit_banner,
+        edit_banner_text,
         layout: defaults,
         flashes: [0.0; SLOT_COUNT],
     };
@@ -351,14 +443,26 @@ fn handle_profile_cycle(
 ) -> bool {
     let mut changed = false;
     if keys.just_pressed(KeyCode::PageUp) {
-        edit.active_profile = if edit.active_profile == 0 { edit.profile_names.len().saturating_sub(1) } else { edit.active_profile - 1 };
+        edit.active_profile = if edit.active_profile == 0 {
+            edit.profile_names.len().saturating_sub(1)
+        } else {
+            edit.active_profile - 1
+        };
         let fallback = BarLayout::defaults(reg.screen_width, reg.screen_height);
-        bars.layout = edit.profiles.get(active_profile_name(edit)).copied().unwrap_or(fallback);
+        bars.layout = edit
+            .profiles
+            .get(active_profile_name(edit))
+            .copied()
+            .unwrap_or(fallback);
         changed = true;
     } else if keys.just_pressed(KeyCode::PageDown) {
         edit.active_profile = (edit.active_profile + 1) % edit.profile_names.len();
         let fallback = BarLayout::defaults(reg.screen_width, reg.screen_height);
-        bars.layout = edit.profiles.get(active_profile_name(edit)).copied().unwrap_or(fallback);
+        bars.layout = edit
+            .profiles
+            .get(active_profile_name(edit))
+            .copied()
+            .unwrap_or(fallback);
         changed = true;
     } else if keys.just_pressed(KeyCode::KeyR) {
         bars.layout = BarLayout::defaults(reg.screen_width, reg.screen_height);
@@ -372,17 +476,37 @@ fn handle_profile_cycle(
     changed
 }
 
-fn handle_bar_tune(keys: &ButtonInput<KeyCode>, bars: &mut ActionBarsUi, edit: &mut ActionBarEditState) -> bool {
-    let Some(hovered) = edit.hovered else { return false };
+fn handle_bar_tune(
+    keys: &ButtonInput<KeyCode>,
+    bars: &mut ActionBarsUi,
+    edit: &mut ActionBarEditState,
+) -> bool {
+    let Some(hovered) = edit.hovered else {
+        return false;
+    };
     let mut settings = bars.layout.get(hovered);
     let mut tuned = false;
-    if keys.just_pressed(KeyCode::Minus) { settings.scale = (settings.scale - 0.1).clamp(0.6, 1.8); tuned = true; }
-    if keys.just_pressed(KeyCode::Equal) { settings.scale = (settings.scale + 0.1).clamp(0.6, 1.8); tuned = true; }
-    if hovered == BarId::Main {
-        if keys.just_pressed(KeyCode::BracketLeft) { settings.columns = settings.columns.saturating_sub(1).max(1); tuned = true; }
-        if keys.just_pressed(KeyCode::BracketRight) { settings.columns = settings.columns.saturating_add(1).min(SLOT_COUNT as u8); tuned = true; }
+    if keys.just_pressed(KeyCode::Minus) {
+        settings.scale = (settings.scale - 0.1).clamp(0.6, 1.8);
+        tuned = true;
     }
-    if tuned { bars.layout.set(hovered, settings); }
+    if keys.just_pressed(KeyCode::Equal) {
+        settings.scale = (settings.scale + 0.1).clamp(0.6, 1.8);
+        tuned = true;
+    }
+    if hovered == BarId::Main {
+        if keys.just_pressed(KeyCode::BracketLeft) {
+            settings.columns = settings.columns.saturating_sub(1).max(1);
+            tuned = true;
+        }
+        if keys.just_pressed(KeyCode::BracketRight) {
+            settings.columns = settings.columns.saturating_add(1).min(SLOT_COUNT as u8);
+            tuned = true;
+        }
+    }
+    if tuned {
+        bars.layout.set(hovered, settings);
+    }
     tuned
 }
 
@@ -392,11 +516,20 @@ fn edit_mode_controls(
     mut bars: Option<ResMut<ActionBarsUi>>,
     mut edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else { return };
-    if !edit.enabled { return }
+    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else {
+        return;
+    };
+    if !edit.enabled {
+        return;
+    }
 
     let changed_mode = keys.just_pressed(KeyCode::KeyL);
-    if changed_mode { edit.locked = !edit.locked; if edit.locked { edit.dragging = None; } }
+    if changed_mode {
+        edit.locked = !edit.locked;
+        if edit.locked {
+            edit.dragging = None;
+        }
+    }
 
     let changed_layout_profile = handle_profile_cycle(&keys, bars, edit, &mut ui.registry);
     let changed_layout_tune = handle_bar_tune(&keys, bars, edit);
@@ -426,7 +559,10 @@ fn handle_drag_press(
         && let Some(bar) = edit.hovered
         && let Some(rect) = root_rect(reg, bars, bar)
     {
-        edit.dragging = Some(DragState { bar, grab_offset: cursor - Vec2::new(rect.x, rect.y) });
+        edit.dragging = Some(DragState {
+            bar,
+            grab_offset: cursor - Vec2::new(rect.x, rect.y),
+        });
     }
 }
 
@@ -446,7 +582,13 @@ fn handle_drag_move(
         let mut settings = bars.layout.get(drag.bar);
         settings.x = unclamped.x.clamp(0.0, (reg.screen_width - w).max(0.0));
         settings.y = unclamped.y.clamp(0.0, (reg.screen_height - h).max(0.0));
-        let (snapped, guide_x, guide_y) = snap_settings(drag.bar, settings, bars.layout, reg.screen_width, reg.screen_height);
+        let (snapped, guide_x, guide_y) = snap_settings(
+            drag.bar,
+            settings,
+            bars.layout,
+            reg.screen_width,
+            reg.screen_height,
+        );
         bars.layout.set(drag.bar, snapped);
         apply_layout(reg, bars, bars.layout);
         apply_guides(reg, bars, guide_x, guide_y);
@@ -463,7 +605,9 @@ fn handle_drag_release(
     reg: &mut FrameRegistry,
 ) {
     if mouse.just_released(MouseButton::Left) {
-        if edit.dragging.take().is_some() { save_profiles(edit); }
+        if edit.dragging.take().is_some() {
+            save_profiles(edit);
+        }
         apply_guides(reg, bars, None, None);
     }
 }
@@ -475,10 +619,18 @@ fn drag_action_bars(
     mut bars: Option<ResMut<ActionBarsUi>>,
     mut edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else { return };
-    if !edit.enabled { return }
-    let Some(window) = windows.iter().next() else { return };
-    let Some(cursor) = window.cursor_position() else { return };
+    let (Some(bars), Some(edit)) = (bars.as_mut(), edit.as_mut()) else {
+        return;
+    };
+    if !edit.enabled {
+        return;
+    }
+    let Some(window) = windows.iter().next() else {
+        return;
+    };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
     let cursor = Vec2::new(cursor.x, cursor.y);
     edit.hovered = hit_bar(&ui.registry, bars, cursor);
     handle_drag_press(&mouse, cursor, bars, edit, &ui.registry);
@@ -507,7 +659,11 @@ fn update_action_bar_slot_flash(
         if bars.flashes[i] > 0.0 {
             bars.flashes[i] = (bars.flashes[i] - dt).max(0.0);
         }
-        let color = if bars.flashes[i] > 0.0 { SLOT_FLASH_BG } else { SLOT_BG };
+        let color = if bars.flashes[i] > 0.0 {
+            SLOT_FLASH_BG
+        } else {
+            SLOT_BG
+        };
         set_bg(&mut ui.registry, bars.main_slots[i], color);
     }
 }
@@ -526,15 +682,29 @@ fn collect_snap_candidates(
     consider_snap(best_x, out.x, sw * 0.5 - w * 0.5, sw * 0.5);
     consider_snap(best_y, out.y, sh * 0.5 - h * 0.5, sh * 0.5);
     for bar in [BarId::Main, BarId::Right, BarId::Left] {
-        if bar == dragging { continue; }
+        if bar == dragging {
+            continue;
+        }
         let other = layout.get(bar);
-        let Some((ow, oh)) = bar_pixel_size(layout, bar) else { continue };
+        let Some((ow, oh)) = bar_pixel_size(layout, bar) else {
+            continue;
+        };
         consider_snap(best_x, out.x, other.x, other.x);
         consider_snap(best_x, out.x, other.x + ow - w, other.x + ow);
-        consider_snap(best_x, out.x, other.x + ow * 0.5 - w * 0.5, other.x + ow * 0.5);
+        consider_snap(
+            best_x,
+            out.x,
+            other.x + ow * 0.5 - w * 0.5,
+            other.x + ow * 0.5,
+        );
         consider_snap(best_y, out.y, other.y, other.y);
         consider_snap(best_y, out.y, other.y + oh - h, other.y + oh);
-        consider_snap(best_y, out.y, other.y + oh * 0.5 - h * 0.5, other.y + oh * 0.5);
+        consider_snap(
+            best_y,
+            out.y,
+            other.y + oh * 0.5 - h * 0.5,
+            other.y + oh * 0.5,
+        );
     }
 }
 
@@ -554,8 +724,18 @@ fn snap_settings(
     collect_snap_candidates(dragging, &out, layout, sw, sh, &mut best_x, &mut best_y);
     let mut guide_x = None;
     let mut guide_y = None;
-    if let Some((pos, guide)) = best_x && (out.x - pos).abs() <= SNAP_DISTANCE { out.x = pos; guide_x = Some(guide); }
-    if let Some((pos, guide)) = best_y && (out.y - pos).abs() <= SNAP_DISTANCE { out.y = pos; guide_y = Some(guide); }
+    if let Some((pos, guide)) = best_x
+        && (out.x - pos).abs() <= SNAP_DISTANCE
+    {
+        out.x = pos;
+        guide_x = Some(guide);
+    }
+    if let Some((pos, guide)) = best_y
+        && (out.y - pos).abs() <= SNAP_DISTANCE
+    {
+        out.y = pos;
+        guide_y = Some(guide);
+    }
     (out, guide_x, guide_y)
 }
 
@@ -592,9 +772,30 @@ fn apply_guides(reg: &mut FrameRegistry, bars: &ActionBarsUi, x: Option<f32>, y:
 }
 
 fn apply_layout(reg: &mut FrameRegistry, bars: &ActionBarsUi, layout: BarLayout) {
-    apply_bar_layout(reg, bars.main_root, &bars.main_slots, bars.main_label, layout.main, BarId::Main);
-    apply_bar_layout(reg, bars.right_root, &bars.right_slots, bars.right_label, layout.right, BarId::Right);
-    apply_bar_layout(reg, bars.left_root, &bars.left_slots, bars.left_label, layout.left, BarId::Left);
+    apply_bar_layout(
+        reg,
+        bars.main_root,
+        &bars.main_slots,
+        bars.main_label,
+        layout.main,
+        BarId::Main,
+    );
+    apply_bar_layout(
+        reg,
+        bars.right_root,
+        &bars.right_slots,
+        bars.right_label,
+        layout.right,
+        BarId::Right,
+    );
+    apply_bar_layout(
+        reg,
+        bars.left_root,
+        &bars.left_slots,
+        bars.left_label,
+        layout.left,
+        BarId::Left,
+    );
 }
 
 fn apply_bar_layout(
@@ -606,7 +807,11 @@ fn apply_bar_layout(
     bar: BarId,
 ) {
     let scale = settings.scale.clamp(0.6, 1.8);
-    let columns = if bar == BarId::Main { settings.columns.clamp(1, SLOT_COUNT as u8) as usize } else { 1 };
+    let columns = if bar == BarId::Main {
+        settings.columns.clamp(1, SLOT_COUNT as u8) as usize
+    } else {
+        1
+    };
     let rows = SLOT_COUNT.div_ceil(columns);
     let size = bar_size(columns, rows, scale);
     set_layout(reg, root, settings.x, settings.y, size.x, size.y);
@@ -618,7 +823,14 @@ fn apply_bar_layout(
     for (i, slot) in slots.iter().copied().enumerate() {
         let col = i % columns;
         let row = i / columns;
-        set_layout(reg, slot, pad_x + col as f32 * (slot_w + gap), pad_y + row as f32 * (slot_h + gap), slot_w, slot_h);
+        set_layout(
+            reg,
+            slot,
+            pad_x + col as f32 * (slot_w + gap),
+            pad_y + row as f32 * (slot_h + gap),
+            slot_w,
+            slot_h,
+        );
     }
     set_layout(reg, label, 8.0, 4.0, size.x - 16.0, 16.0);
     let label_text = match bar {
@@ -639,7 +851,11 @@ fn bar_size(columns: usize, rows: usize, scale: f32) -> Vec2 {
 
 fn bar_pixel_size(layout: BarLayout, bar: BarId) -> Option<(f32, f32)> {
     let settings = layout.get(bar);
-    let cols = if bar == BarId::Main { settings.columns.clamp(1, SLOT_COUNT as u8) as usize } else { 1 };
+    let cols = if bar == BarId::Main {
+        settings.columns.clamp(1, SLOT_COUNT as u8) as usize
+    } else {
+        1
+    };
     let rows = SLOT_COUNT.div_ceil(cols);
     let size = bar_size(cols, rows, settings.scale.clamp(0.6, 1.8));
     Some((size.x, size.y))

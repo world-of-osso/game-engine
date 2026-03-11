@@ -23,6 +23,7 @@ mod animation;
 mod asset;
 mod camera;
 mod char_select;
+mod char_select_scene;
 mod creature_display;
 mod equipment;
 mod game_state;
@@ -94,7 +95,10 @@ fn run_app(
 ) {
     let mut startup_actions = match load_startup_automation_actions(args) {
         Ok(a) => a,
-        Err(err) => { eprintln!("{err}"); std::process::exit(1); }
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
     };
     let mut server_addr = parse_server_arg(args);
     let mut initial_state = parse_state_arg(args);
@@ -123,6 +127,7 @@ fn run_app(
         ));
     }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
+    game_engine::listfile::preload();
     app.run();
 }
 
@@ -171,15 +176,26 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(particle::ParticlePlugin)
         .add_plugins(equipment::EquipmentPlugin)
         .add_plugins(FpsOverlayPlugin {
-            config: FpsOverlayConfig { refresh_interval: Duration::from_millis(500), ..default() },
+            config: FpsOverlayConfig {
+                refresh_interval: Duration::from_millis(500),
+                ..default()
+            },
         });
 }
 
 fn register_plugins(app: &mut App) {
     register_bevy_plugins(app);
-    app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(GameBlpLoader)));
-    app.add_systems(Startup, (setup_explicit_asset_scene, wow_cursor::install_wow_cursor))
-        .add_systems(Update, wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)));
+    app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
+        GameBlpLoader,
+    )));
+    app.add_systems(
+        Startup,
+        (setup_explicit_asset_scene, wow_cursor::install_wow_cursor),
+    )
+    .add_systems(
+        Update,
+        wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
+    );
     init_status_resources(app);
 }
 
@@ -204,10 +220,14 @@ fn configure_server_resources(
     server_addr: Option<(std::net::SocketAddr, bool)>,
     initial_state: Option<game_state::GameState>,
 ) {
-    if enable_sound { app.add_plugins(sound::SoundPlugin); }
+    if enable_sound {
+        app.add_plugins(sound::SoundPlugin);
+    }
     if let Some((addr, dev)) = server_addr {
         app.insert_resource(networking::ServerAddr(addr));
-        if dev { app.insert_resource(login_screen::DevServer); }
+        if dev {
+            app.insert_resource(login_screen::DevServer);
+        }
     }
     if let Some(state) = initial_state {
         app.insert_resource(game_state::InitialGameState(state));
@@ -225,7 +245,8 @@ fn add_status_sync_systems(app: &mut App) {
             status_sync::apply_equipment_ipc_commands,
             status_sync::sync_equipped_gear_status_snapshot,
             status_sync::sync_map_status_snapshot,
-        ).run_if(in_state(game_state::GameState::InWorld)),
+        )
+            .run_if(in_state(game_state::GameState::InWorld)),
     );
 }
 
@@ -243,13 +264,26 @@ fn configure_app_plugins(
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
-    app.add_systems(OnEnter(game_state::GameState::InWorld), setup_default_world_scene);
+    app.add_plugins(char_select_scene::CharSelectScenePlugin);
+    app.add_systems(
+        OnEnter(game_state::GameState::InWorld),
+        setup_default_world_scene,
+    );
     app.add_systems(Update, handle_automation_dump_tree_request);
     app.add_systems(Update, handle_automation_dump_ui_tree_request);
     add_status_sync_systems(app);
-    if dump_tree { app.insert_resource(DumpTreeFlag); app.add_systems(Update, dump_tree_and_exit); }
-    if dump_ui_tree { app.insert_resource(DumpUiTreeFlag); app.add_systems(PostStartup, dump_ui_tree_and_exit); }
-    if let Some(req) = screenshot { app.insert_resource(req); app.add_systems(Update, take_screenshot); }
+    if dump_tree {
+        app.insert_resource(DumpTreeFlag);
+        app.add_systems(Update, dump_tree_and_exit);
+    }
+    if dump_ui_tree {
+        app.insert_resource(DumpUiTreeFlag);
+        app.add_systems(PostStartup, dump_ui_tree_and_exit);
+    }
+    if let Some(req) = screenshot {
+        app.insert_resource(req);
+        app.add_systems(Update, take_screenshot);
+    }
 }
 
 fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
@@ -299,22 +333,39 @@ fn screenshot_arg_index(args: &[String]) -> Option<usize> {
 
 fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     let screenshot_idx = screenshot_arg_index(args)?;
-    let output = args.get(screenshot_idx + 1).map(PathBuf::from)
+    let output = args
+        .get(screenshot_idx + 1)
+        .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("screenshot.webp"));
     let has_server = args.windows(2).any(|w| w[0] == "--server");
-    let has_state = args.windows(2).any(|w| w[0] == "--state" || w[0] == "--screen");
-    let frames = if has_server { 60 } else if has_state { 10 } else { 3 };
-    Some(ScreenshotRequest { output, frames_remaining: frames })
+    let has_state = args
+        .windows(2)
+        .any(|w| w[0] == "--state" || w[0] == "--screen");
+    let frames = if has_server {
+        60
+    } else if has_state {
+        10
+    } else {
+        3
+    };
+    Some(ScreenshotRequest {
+        output,
+        frames_remaining: frames,
+    })
 }
 
 fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)> {
     let w = args.windows(2).find(|w| w[0] == "--server")?;
-    if w[1] == "dev" { Some(("127.0.0.1:5000".parse().unwrap(), true)) }
-    else { w[1].parse().ok().map(|addr| (addr, false)) }
+    if w[1] == "dev" {
+        Some(("127.0.0.1:5000".parse().unwrap(), true))
+    } else {
+        w[1].parse().ok().map(|addr| (addr, false))
+    }
 }
 
 fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
-    args.windows(2).find(|w| w[0] == "--state" || w[0] == "--screen")
+    args.windows(2)
+        .find(|w| w[0] == "--state" || w[0] == "--screen")
         .and_then(|w| parse_game_state_value(&w[1]))
 }
 
@@ -334,10 +385,14 @@ fn load_startup_automation_actions(
 ) -> Result<Vec<game_engine::ui::automation::UiAutomationAction>, String> {
     let mut actions = Vec::new();
     if let Some(script) = game_engine::ui::automation_script::parse_automation_script_arg(args) {
-        actions.extend(game_engine::ui::automation_script::load_automation_script(&script.path)?);
+        actions.extend(game_engine::ui::automation_script::load_automation_script(
+            &script.path,
+        )?);
     }
     if let Some(script) = game_engine::ui::js_automation::parse_js_automation_arg(args) {
-        actions.extend(game_engine::ui::js_automation::load_js_automation_script(&script.path)?);
+        actions.extend(game_engine::ui::js_automation::load_js_automation_script(
+            &script.path,
+        )?);
     }
     Ok(actions)
 }
@@ -351,8 +406,12 @@ fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             continue;
         }
         match args[i].as_str() {
-            "--server" | "--state" | "--screen" => { i += 2; }
-            arg if arg.starts_with("--") => { i += 1; }
+            "--server" | "--state" | "--screen" => {
+                i += 2;
+            }
+            arg if arg.starts_with("--") => {
+                i += 1;
+            }
             path => return Some(PathBuf::from(path)),
         }
     }
@@ -364,9 +423,20 @@ pub(crate) fn parse_asset_path() -> Option<PathBuf> {
     parse_asset_path_from_args(&args)
 }
 
-fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>>) {
+fn take_screenshot(
+    mut commands: Commands,
+    req: Option<ResMut<ScreenshotRequest>>,
+    automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
+) {
     let Some(mut req) = req else { return };
-    if req.frames_remaining > 0 { req.frames_remaining -= 1; return; }
+    // Wait for automation queue to drain before capturing
+    if automation_queue.is_some_and(|q| !q.0.is_empty()) {
+        return;
+    }
+    if req.frames_remaining > 0 {
+        req.frames_remaining -= 1;
+        return;
+    }
     commands.remove_resource::<ScreenshotRequest>();
     let output = req.output.clone();
     commands.spawn(Screenshot::primary_window()).observe(
@@ -380,7 +450,10 @@ fn take_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>
 fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
     let webp_data = match game_engine::screenshot::encode_webp(img, 15.0) {
         Ok(data) => data,
-        Err(err) => { eprintln!("{err}"); return; }
+        Err(err) => {
+            eprintln!("{err}");
+            return;
+        }
     };
     std::fs::write(output, &webp_data)
         .unwrap_or_else(|e| eprintln!("Failed to write {}: {e}", output.display()));
@@ -389,7 +462,11 @@ fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
 
 pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
     Image::new(
-        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         pixels,
         TextureFormat::Rgba8UnormSrgb,
@@ -400,11 +477,22 @@ pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
 #[allow(clippy::type_complexity)]
 fn dump_tree_and_exit(
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+    mut spellbook_runtime: Option<
+        NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
+    >,
+    automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if ui_state.registry.frames_iter().count() == 0 { return; }
-    if let Some(ref mut rt) = spellbook_runtime { rt.sync(&mut ui_state.registry); }
+    // Wait for automation queue to drain before dumping
+    if automation_queue.is_some_and(|q| !q.0.is_empty()) {
+        return;
+    }
+    if ui_state.registry.frames_iter().count() == 0 {
+        return;
+    }
+    if let Some(ref mut rt) = spellbook_runtime {
+        rt.sync(&mut ui_state.registry);
+    }
     game_engine::ui::layout::recompute_layouts(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
@@ -413,10 +501,14 @@ fn dump_tree_and_exit(
 
 fn dump_ui_tree_and_exit(
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+    mut spellbook_runtime: Option<
+        NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
+    >,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if let Some(ref mut rt) = spellbook_runtime { rt.sync(&mut ui_state.registry); }
+    if let Some(ref mut rt) = spellbook_runtime {
+        rt.sync(&mut ui_state.registry);
+    }
     action_bar::ensure_action_bars(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
@@ -432,12 +524,20 @@ fn headless_dump_ui_tree_immediate(ui_state: ResMut<game_engine::ui::plugin::UiS
 #[allow(clippy::type_complexity)]
 fn handle_automation_dump_tree_request(
     request: Option<Res<game_engine::ui::automation::UiAutomationDumpTreeRequest>>,
-    tree_query: Query<(Entity, Option<&Name>, Option<&Children>, Option<&Visibility>, &Transform)>,
+    tree_query: Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
     parent_query: Query<&ChildOf>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if request.is_none() { return; }
+    if request.is_none() {
+        return;
+    }
     commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpTreeRequest>();
     let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
     println!("{tree}");
@@ -447,13 +547,19 @@ fn handle_automation_dump_tree_request(
 fn handle_automation_dump_ui_tree_request(
     request: Option<Res<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>>,
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+    mut spellbook_runtime: Option<
+        NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
+    >,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if request.is_none() { return; }
+    if request.is_none() {
+        return;
+    }
     commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>();
-    if let Some(ref mut rt) = spellbook_runtime { rt.sync(&mut ui_state.registry); }
+    if let Some(ref mut rt) = spellbook_runtime {
+        rt.sync(&mut ui_state.registry);
+    }
     action_bar::ensure_action_bars(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
@@ -472,15 +578,22 @@ mod tests {
     #[test]
     fn screenshot_args_allow_flags_before_command() {
         let parsed = parse_screenshot_args(&args(&[
-            "--state", "login", "screenshot", "/tmp/codex/test.webp", "--server", "127.0.0.1:25565",
-        ])).expect("expected screenshot request");
+            "--state",
+            "login",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "--server",
+            "127.0.0.1:25565",
+        ]))
+        .expect("expected screenshot request");
         assert_eq!(parsed.output, PathBuf::from("/tmp/codex/test.webp"));
         assert_eq!(parsed.frames_remaining, 60);
     }
 
     #[test]
     fn parse_screen_alias_matches_state_parser() {
-        let parsed = parse_state_arg(&args(&["--screen", "charselect"])).expect("expected screen alias");
+        let parsed =
+            parse_state_arg(&args(&["--screen", "charselect"])).expect("expected screen alias");
         assert_eq!(parsed, game_state::GameState::CharSelect);
         let parsed = parse_state_arg(&args(&["--screen", "login"])).expect("expected login");
         assert_eq!(parsed, game_state::GameState::Login);
@@ -489,7 +602,12 @@ mod tests {
     #[test]
     fn asset_path_skips_state_and_screenshot_output() {
         let parsed = parse_asset_path_from_args(&args(&[
-            "--state", "login", "screenshot", "/tmp/codex/test.webp", "--server", "127.0.0.1:25565",
+            "--state",
+            "login",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "--server",
+            "127.0.0.1:25565",
         ]));
         assert_eq!(parsed, None);
     }
@@ -497,7 +615,12 @@ mod tests {
     #[test]
     fn asset_path_skips_screen_alias_and_screenshot_output() {
         let parsed = parse_asset_path_from_args(&args(&[
-            "--screen", "charselect", "screenshot", "/tmp/codex/test.webp", "--server", "127.0.0.1:25565",
+            "--screen",
+            "charselect",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "--server",
+            "127.0.0.1:25565",
         ]));
         assert_eq!(parsed, None);
     }
@@ -505,35 +628,54 @@ mod tests {
     #[test]
     fn asset_path_after_screenshot_is_preserved() {
         let parsed = parse_asset_path_from_args(&args(&[
-            "--state", "inworld", "screenshot", "/tmp/codex/test.webp", "data/models/humanmale_hd.m2",
+            "--state",
+            "inworld",
+            "screenshot",
+            "/tmp/codex/test.webp",
+            "data/models/humanmale_hd.m2",
         ]));
         assert_eq!(parsed, Some(PathBuf::from("data/models/humanmale_hd.m2")));
     }
 
     #[test]
     fn startup_flag_loads_ui_script_path() {
-        let actions = load_startup_automation_actions(&args(&["--run-ui-script", "/tmp/codex/test-ui-script.json"]));
+        let actions = load_startup_automation_actions(&args(&[
+            "--run-ui-script",
+            "/tmp/codex/test-ui-script.json",
+        ]));
         assert!(actions.is_err());
         let parsed = game_engine::ui::automation_script::parse_automation_script_arg(&args(&[
-            "--run-ui-script", "debug/login.json",
-        ])).expect("expected UI script path");
+            "--run-ui-script",
+            "debug/login.json",
+        ]))
+        .expect("expected UI script path");
         assert_eq!(parsed.path, PathBuf::from("debug/login.json"));
     }
 
     #[test]
     fn parse_js_automation_flag() {
         let parsed = game_engine::ui::js_automation::parse_js_automation_arg(&args(&[
-            "--state", "login", "--run-js-ui-script", "debug/login.js",
-        ])).expect("expected JS automation path");
+            "--state",
+            "login",
+            "--run-js-ui-script",
+            "debug/login.js",
+        ]))
+        .expect("expected JS automation path");
         assert_eq!(parsed.path, PathBuf::from("debug/login.js"));
     }
 
     #[test]
     fn startup_scene_loading_only_runs_for_explicit_assets() {
-        use std::path::Path;
         use crate::scene_setup::should_load_explicit_scene_at_startup;
+        use std::path::Path;
         assert!(!should_load_explicit_scene_at_startup(false, None));
-        assert!(should_load_explicit_scene_at_startup(false, Some(Path::new("data/models/humanmale_hd.m2"))));
-        assert!(!should_load_explicit_scene_at_startup(true, Some(Path::new("data/models/humanmale_hd.m2"))));
+        assert!(should_load_explicit_scene_at_startup(
+            false,
+            Some(Path::new("data/models/humanmale_hd.m2"))
+        ));
+        assert!(!should_load_explicit_scene_at_startup(
+            true,
+            Some(Path::new("data/models/humanmale_hd.m2"))
+        ));
     }
 }

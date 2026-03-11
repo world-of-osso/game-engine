@@ -1,5 +1,5 @@
-pub mod plugin;
 pub(crate) mod format;
+pub mod plugin;
 
 pub use plugin::IpcPlugin;
 

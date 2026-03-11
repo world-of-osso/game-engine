@@ -1,8 +1,11 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
+pub use super::adt_tex::{
+    AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0,
+    parse_mh2o,
+};
 use super::m2::wow_to_bevy;
-pub use super::adt_tex::{AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0, parse_mh2o};
 
 pub(crate) const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
 
@@ -166,9 +169,19 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     }
     let index_x = read_u32(payload, 0x04)?;
     let index_y = read_u32(payload, 0x08)?;
-    let pos = [read_f32(payload, 0x68)?, read_f32(payload, 0x6c)?, read_f32(payload, 0x70)?];
+    let pos = [
+        read_f32(payload, 0x68)?,
+        read_f32(payload, 0x6c)?,
+        read_f32(payload, 0x70)?,
+    ];
     let (heights, normals) = parse_mcnk_subchunks(&payload[128..])?;
-    Ok(McnkData { index_x, index_y, pos, heights, normals })
+    Ok(McnkData {
+        index_x,
+        index_y,
+        pos,
+        heights,
+        normals,
+    })
 }
 
 /// Scan sub-chunks after the MCNK 128-byte header for TVCM and RNCM.
@@ -182,7 +195,9 @@ fn parse_mcnk_subchunks(sub: &[u8]) -> Result<([f32; MCVT_COUNT], [[f32; 3]; MCV
             b"RNCM" => normals = Some(parse_mcnr(payload)?),
             _ => {}
         }
-        if heights.is_some() && normals.is_some() { break; }
+        if heights.is_some() && normals.is_some() {
+            break;
+        }
     }
     let heights = heights.ok_or("MCNK missing TVCM sub-chunk")?;
     let normals = normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
@@ -202,14 +217,22 @@ pub(crate) fn vertex_index(grid_row: usize, col: usize) -> usize {
 }
 
 /// Compute Bevy-space world position for one vertex in the 145-element grid.
-fn vertex_position(grid_row: usize, col: usize, pos: [f32; 3], heights: &[f32; MCVT_COUNT]) -> [f32; 3] {
+fn vertex_position(
+    grid_row: usize,
+    col: usize,
+    pos: [f32; 3],
+    heights: &[f32; MCVT_COUNT],
+) -> [f32; 3] {
     let idx = vertex_index(grid_row, col);
     let r = (grid_row / 2) as f32;
     let c = col as f32;
     let (wx, wy) = if grid_row.is_multiple_of(2) {
         (pos[1] - c * UNIT_SIZE, pos[0] - r * UNIT_SIZE)
     } else {
-        (pos[1] - c * UNIT_SIZE - HALF_UNIT, pos[0] - r * UNIT_SIZE - HALF_UNIT)
+        (
+            pos[1] - c * UNIT_SIZE - HALF_UNIT,
+            pos[0] - r * UNIT_SIZE - HALF_UNIT,
+        )
     };
     wow_to_bevy(wx, wy, pos[2] + heights[idx])
 }
@@ -223,13 +246,20 @@ fn build_mcnk_geometry(chunk: &McnkData) -> McnkGeometry {
     for i in 0..MCVT_COUNT {
         let pair = i / 17;
         let rem = i % 17;
-        let (grid_row, col) = if rem < 9 { (pair * 2, rem) } else { (pair * 2 + 1, rem - 9) };
+        let (grid_row, col) = if rem < 9 {
+            (pair * 2, rem)
+        } else {
+            (pair * 2 + 1, rem - 9)
+        };
         positions.push(vertex_position(grid_row, col, chunk.pos, &chunk.heights));
         normals_out.push(chunk.normals[i]);
         let uv = if grid_row.is_multiple_of(2) {
             [col as f32 / 8.0, (grid_row / 2) as f32 / 8.0]
         } else {
-            [(col as f32 + 0.5) / 8.0, ((grid_row / 2) as f32 + 0.5) / 8.0]
+            [
+                (col as f32 + 0.5) / 8.0,
+                ((grid_row / 2) as f32 + 0.5) / 8.0,
+            ]
         };
         uvs.push(uv);
     }
@@ -257,7 +287,10 @@ fn build_mcnk_indices() -> Vec<u32> {
 
 fn build_mcnk_mesh(chunk: &McnkData) -> Mesh {
     let (positions, normals, uvs, indices) = build_mcnk_geometry(chunk);
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -268,22 +301,28 @@ fn build_mcnk_mesh(chunk: &McnkData) -> Mesh {
 // ── top-level parser ──────────────────────────────────────────────────────────
 
 fn build_height_grids(parsed: &[McnkData]) -> Vec<ChunkHeightGrid> {
-    parsed.iter().map(|d| ChunkHeightGrid {
-        index_x: d.index_x,
-        index_y: d.index_y,
-        origin_x: d.pos[1],
-        origin_z: -d.pos[0],
-        base_y: d.pos[2],
-        heights: d.heights,
-    }).collect()
+    parsed
+        .iter()
+        .map(|d| ChunkHeightGrid {
+            index_x: d.index_x,
+            index_y: d.index_y,
+            origin_x: d.pos[1],
+            origin_z: -d.pos[0],
+            base_y: d.pos[2],
+            heights: d.heights,
+        })
+        .collect()
 }
 
 fn build_chunks(parsed: &[McnkData]) -> Vec<McnkMesh> {
-    parsed.iter().map(|d| McnkMesh {
-        mesh: build_mcnk_mesh(d),
-        index_x: d.index_x,
-        index_y: d.index_y,
-    }).collect()
+    parsed
+        .iter()
+        .map(|d| McnkMesh {
+            mesh: build_mcnk_mesh(d),
+            index_x: d.index_x,
+            index_y: d.index_y,
+        })
+        .collect()
 }
 
 fn center_surface_position(chunks: &[McnkData]) -> [f32; 3] {
@@ -323,7 +362,13 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     let height_grids = build_height_grids(&parsed);
     let chunks = build_chunks(&parsed);
     let water = mh2o_payload.map(parse_mh2o).transpose()?;
-    Ok(AdtData { chunks, height_grids, center_surface, chunk_positions, water })
+    Ok(AdtData {
+        chunks,
+        height_grids,
+        center_surface,
+        chunk_positions,
+        water,
+    })
 }
 
 #[cfg(test)]
@@ -352,8 +397,16 @@ mod tests {
         let normals = parse_mcnr(&payload).unwrap();
         let n = normals[0];
         let expected_xz = 90.0 / 127.0;
-        assert!((n[0] - expected_xz).abs() < 0.01, "X should be ~{expected_xz}, got {}", n[0]);
-        assert!((n[1] - expected_xz).abs() < 0.01, "Y should be ~{expected_xz}, got {}", n[1]);
+        assert!(
+            (n[0] - expected_xz).abs() < 0.01,
+            "X should be ~{expected_xz}, got {}",
+            n[0]
+        );
+        assert!(
+            (n[1] - expected_xz).abs() < 0.01,
+            "Y should be ~{expected_xz}, got {}",
+            n[1]
+        );
         assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
     }
 }

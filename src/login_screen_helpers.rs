@@ -77,7 +77,6 @@ pub fn get_editbox_text(reg: &FrameRegistry, id: u64) -> String {
         .unwrap_or_default()
 }
 
-
 // --- Frame helpers ---
 
 pub fn hit_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
@@ -169,4 +168,3 @@ fn selected_generated_login_button_path() -> Option<&'static str> {
         _ => None,
     }
 }
-

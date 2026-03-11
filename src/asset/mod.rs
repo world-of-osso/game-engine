@@ -1,6 +1,6 @@
 pub mod adt;
-pub mod adt_tex;
 pub mod adt_obj;
+pub mod adt_tex;
 pub mod blp;
 pub mod casc_resolver;
 pub mod m2;

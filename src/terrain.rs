@@ -121,7 +121,6 @@ struct SpawnRefs<'a, 'w, 's> {
     inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
 
-
 /// Result of spawning an ADT: camera and ground position for placing models.
 pub struct AdtSpawnResult {
     pub camera: Transform,
@@ -149,16 +148,32 @@ pub fn spawn_adt(
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
     let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
-    let tile = AdtTile { _tile_x: tile_x, _tile_y: tile_y };
+    let tile = AdtTile {
+        _tile_x: tile_x,
+        _tile_y: tile_y,
+    };
     let adt_data = load_and_parse_adt(adt_path)?;
     let tex_data = load_tex0(adt_path);
     let obj_data = terrain_objects::load_obj0(adt_path);
 
-    let mut refs = SpawnRefs { commands, meshes, materials, terrain_materials, water_materials, images, inverse_bp };
+    let mut refs = SpawnRefs {
+        commands,
+        meshes,
+        materials,
+        terrain_materials,
+        water_materials,
+        images,
+        inverse_bp,
+    };
     let root = spawn_terrain_chunks(&mut refs, adt_path, &adt_data, tex_data.as_ref(), &tile);
     if let Some(ref obj) = obj_data {
         terrain_objects::spawn_obj_entities(
-            refs.commands, refs.meshes, refs.materials, refs.images, refs.inverse_bp, obj,
+            refs.commands,
+            refs.meshes,
+            refs.materials,
+            refs.images,
+            refs.inverse_bp,
+            obj,
         );
     }
 
@@ -166,7 +181,14 @@ pub fn spawn_adt(
     log_adt_spawn(&adt_data, adt_path);
 
     let (camera, center) = compute_spawn_result(&adt_data);
-    Ok(AdtSpawnResult { camera, center, root_entity: root, tile_y, tile_x, map_name })
+    Ok(AdtSpawnResult {
+        camera,
+        center,
+        root_entity: root,
+        tile_y,
+        tile_x,
+        map_name,
+    })
 }
 
 /// Load and parse an ADT file from disk.
@@ -187,22 +209,43 @@ fn spawn_terrain_chunks(
     let ground_images =
         tex_data.map(|td| terrain_material::load_ground_images(refs.images, td, adt_path));
     let chunk_materials = terrain_material::build_terrain_materials(
-        refs.terrain_materials, refs.images, tex_data, ground_images.as_deref(),
+        refs.terrain_materials,
+        refs.images,
+        tex_data,
+        ground_images.as_deref(),
     );
     let root = spawn_chunk_entities(refs.commands, refs.meshes, &chunk_materials, adt_data, tile);
-    spawn_water(refs.commands, refs.meshes, refs.water_materials, refs.images, adt_data);
+    spawn_water(
+        refs.commands,
+        refs.meshes,
+        refs.water_materials,
+        refs.images,
+        adt_data,
+    );
     root
 }
 
 /// Spawn entities from a fully-parsed tile (async receive path).
 fn spawn_parsed_tile(refs: &mut SpawnRefs, parsed: &ParsedTile) -> (Entity, Vec<Entity>) {
-    let tile = AdtTile { _tile_x: parsed.tile_x, _tile_y: parsed.tile_y };
+    let tile = AdtTile {
+        _tile_x: parsed.tile_x,
+        _tile_y: parsed.tile_y,
+    };
     let root = spawn_terrain_chunks(
-        refs, &parsed.adt_path, &parsed.adt_data, parsed.tex_data.as_ref(), &tile,
+        refs,
+        &parsed.adt_path,
+        &parsed.adt_data,
+        parsed.tex_data.as_ref(),
+        &tile,
     );
     let doodad_entities = if let Some(ref obj_data) = parsed.obj_data {
         terrain_objects::spawn_obj_entities(
-            refs.commands, refs.meshes, refs.materials, refs.images, refs.inverse_bp, obj_data,
+            refs.commands,
+            refs.meshes,
+            refs.materials,
+            refs.images,
+            refs.inverse_bp,
+            obj_data,
         )
     } else {
         Vec::new()
@@ -414,7 +457,11 @@ fn handle_tile_result(
         TileLoadResult::Success(parsed) => {
             handle_tile_success(refs, adt_manager, heightmap, parsed);
         }
-        TileLoadResult::Failed { tile_y, tile_x, error } => {
+        TileLoadResult::Failed {
+            tile_y,
+            tile_x,
+            error,
+        } => {
             adt_manager.pending.remove(&(tile_y, tile_x));
             adt_manager.failed.insert((tile_y, tile_x));
             eprintln!("Cannot load ADT tile ({tile_y}, {tile_x}): {error}");
@@ -434,7 +481,9 @@ fn handle_tile_success(
     heightmap.insert_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data);
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);
-    adt_manager.tile_doodad_entities.insert(key, doodad_entities);
+    adt_manager
+        .tile_doodad_entities
+        .insert(key, doodad_entities);
     log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
 }
 
@@ -540,7 +589,11 @@ fn parse_tile_background(
     let adt_data = match load_and_parse_adt(&adt_path) {
         Ok(d) => d,
         Err(e) => {
-            return TileLoadResult::Failed { tile_y, tile_x, error: e };
+            return TileLoadResult::Failed {
+                tile_y,
+                tile_x,
+                error: e,
+            };
         }
     };
     let tex_data = load_tex0(&adt_path);

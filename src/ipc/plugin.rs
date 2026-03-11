@@ -25,9 +25,8 @@ use shared::protocol::{
 };
 
 use super::format::{
-    build_inventory_entries, format_bags_status, format_inventory_list,
-    format_inventory_search, format_inventory_whereis, format_map_position, format_map_target,
-    inventory_search_snapshot,
+    build_inventory_entries, format_bags_status, format_inventory_list, format_inventory_search,
+    format_inventory_whereis, format_map_position, format_map_target, inventory_search_snapshot,
 };
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
@@ -211,13 +210,15 @@ fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
             let _ = cmd.respond.send(Response::Pong);
         }
         Request::Screenshot => {
-            scene.commands
+            scene
+                .commands
                 .spawn(Screenshot::primary_window())
                 .insert(ScreenshotReply(cmd.respond.clone()))
                 .observe(on_screenshot_captured);
         }
         Request::DumpTree { filter } => {
-            let tree = crate::dump::build_tree(&scene.tree_query, &scene.parent_query, filter.as_deref());
+            let tree =
+                crate::dump::build_tree(&scene.tree_query, &scene.parent_query, filter.as_deref());
             let _ = cmd.respond.send(Response::Tree(tree));
         }
         Request::DumpUiTree { filter } => {
@@ -239,21 +240,29 @@ fn dispatch_inventory_request(
     let warbank = &ctx.warbank_status.entries;
     match &cmd.request {
         Request::BagsStatus => {
-            let _ = cmd.respond.send(Response::Text(format_bags_status(auction_house.inventory.as_ref())));
+            let _ = cmd.respond.send(Response::Text(format_bags_status(
+                auction_house.inventory.as_ref(),
+            )));
         }
         Request::ItemInfo { query } => {
             dispatch_item_info(cmd, auction_house, query.item_id);
         }
         Request::InventoryList => {
-            let entries = build_inventory_entries(auction_house.inventory.as_ref(), guild_vault, warbank);
-            let _ = cmd.respond.send(Response::Text(format_inventory_list(&entries)));
+            let entries =
+                build_inventory_entries(auction_house.inventory.as_ref(), guild_vault, warbank);
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_inventory_list(&entries)));
         }
         Request::InventorySearch { text } => {
             dispatch_inventory_search(cmd, auction_house, guild_vault, warbank, text);
         }
         Request::InventoryWhereis { item_id } => {
-            let entries = build_inventory_entries(auction_house.inventory.as_ref(), guild_vault, warbank);
-            let _ = cmd.respond.send(Response::Text(format_inventory_whereis(&entries, *item_id)));
+            let entries =
+                build_inventory_entries(auction_house.inventory.as_ref(), guild_vault, warbank);
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_inventory_whereis(&entries, *item_id)));
         }
         _ => return false,
     }
@@ -269,19 +278,29 @@ fn dispatch_inventory_search(
 ) {
     let entries = build_inventory_entries(auction_house.inventory.as_ref(), guild_vault, warbank);
     let snapshot = inventory_search_snapshot(&entries, text);
-    let _ = cmd.respond.send(Response::Text(format_inventory_search(&snapshot, text)));
+    let _ = cmd
+        .respond
+        .send(Response::Text(format_inventory_search(&snapshot, text)));
 }
 
 fn dispatch_item_info(cmd: &Command, auction_house: &AuctionHouseState, item_id: u32) {
     match lookup_item_info(item_id) {
         Ok(Some(item)) => {
-            let appearance_known = auction_house.inventory.as_ref().is_some_and(|inv| {
-                inv.items.iter().any(|entry| entry.item_id == item.item_id)
-            });
-            let _ = cmd.respond.send(Response::Text(super::format::format_item_info(&item, appearance_known)));
+            let appearance_known = auction_house
+                .inventory
+                .as_ref()
+                .is_some_and(|inv| inv.items.iter().any(|entry| entry.item_id == item.item_id));
+            let _ = cmd
+                .respond
+                .send(Response::Text(super::format::format_item_info(
+                    &item,
+                    appearance_known,
+                )));
         }
         Ok(None) => {
-            let _ = cmd.respond.send(Response::Error(format!("item {item_id} not found")));
+            let _ = cmd
+                .respond
+                .send(Response::Error(format!("item {item_id} not found")));
         }
         Err(error) => {
             let _ = cmd.respond.send(Response::Error(error));
@@ -297,16 +316,33 @@ fn dispatch_combat_request(
 ) -> bool {
     match &cmd.request {
         Request::SpellCast { spell, target } => {
-            handle_spell_cast(cmd, spell.clone(), target.clone(), ctx.current_target, ctx.connected, &mut sender_params.spell_cast_senders);
+            handle_spell_cast(
+                cmd,
+                spell.clone(),
+                target.clone(),
+                ctx.current_target,
+                ctx.connected,
+                &mut sender_params.spell_cast_senders,
+            );
         }
         Request::SpellStop => {
             handle_spell_stop(cmd, ctx.connected, &mut sender_params.spell_stop_senders);
         }
         Request::GroupInvite { name } => {
-            handle_group_invite(cmd, name.clone(), ctx.connected, &mut sender_params.group_invite_senders);
+            handle_group_invite(
+                cmd,
+                name.clone(),
+                ctx.connected,
+                &mut sender_params.group_invite_senders,
+            );
         }
         Request::GroupUninvite { name } => {
-            handle_group_uninvite(cmd, name.clone(), ctx.connected, &mut sender_params.group_uninvite_senders);
+            handle_group_uninvite(
+                cmd,
+                name.clone(),
+                ctx.connected,
+                &mut sender_params.group_uninvite_senders,
+            );
         }
         _ => return false,
     }
@@ -321,26 +357,49 @@ fn dispatch_map_and_equipment_request(
 ) {
     match cmd.request {
         Request::MapPosition => {
-            let _ = cmd.respond.send(Response::Text(format_map_position(ctx.map_status)));
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_map_position(ctx.map_status)));
         }
         Request::MapTarget => {
-            let _ = cmd.respond.send(Response::Text(format_map_target(ctx.map_status, ctx.current_target, tree_query)));
+            let _ = cmd.respond.send(Response::Text(format_map_target(
+                ctx.map_status,
+                ctx.current_target,
+                tree_query,
+            )));
         }
         Request::MapWaypointAdd { x, y } => {
             ctx.map_status.waypoint = Some(Waypoint { x, y });
-            let _ = cmd.respond.send(Response::Text(format_map_position(ctx.map_status)));
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_map_position(ctx.map_status)));
         }
         Request::MapWaypointClear => {
             ctx.map_status.waypoint = None;
-            let _ = cmd.respond.send(Response::Text(format_map_position(ctx.map_status)));
+            let _ = cmd
+                .respond
+                .send(Response::Text(format_map_position(ctx.map_status)));
         }
         Request::EquipmentSet { slot, model_path } => {
-            sender_params.equipment_control.pending.push(EquipmentControlCommand::Set { slot: slot.clone(), model_path: model_path.clone() });
-            let _ = cmd.respond.send(Response::Text(format!("equipment set queued slot={slot} model={model_path}")));
+            sender_params
+                .equipment_control
+                .pending
+                .push(EquipmentControlCommand::Set {
+                    slot: slot.clone(),
+                    model_path: model_path.clone(),
+                });
+            let _ = cmd.respond.send(Response::Text(format!(
+                "equipment set queued slot={slot} model={model_path}"
+            )));
         }
         Request::EquipmentClear { slot } => {
-            sender_params.equipment_control.pending.push(EquipmentControlCommand::Clear { slot: slot.clone() });
-            let _ = cmd.respond.send(Response::Text(format!("equipment clear queued slot={slot}")));
+            sender_params
+                .equipment_control
+                .pending
+                .push(EquipmentControlCommand::Clear { slot: slot.clone() });
+            let _ = cmd.respond.send(Response::Text(format!(
+                "equipment clear queued slot={slot}"
+            )));
         }
         _ => {}
     }
@@ -355,23 +414,43 @@ fn handle_spell_cast(
     senders: &mut Query<&mut MessageSender<SpellCastIntent>>,
 ) {
     if !connected {
-        let _ = cmd.respond.send(Response::Error("spell cast is unavailable: not connected".into()));
+        let _ = cmd.respond.send(Response::Error(
+            "spell cast is unavailable: not connected".into(),
+        ));
         return;
     }
     let target_bits = match super::format::resolve_spell_target(target.as_deref(), current_target) {
         Ok(bits) => bits,
-        Err(error) => { let _ = cmd.respond.send(Response::Error(error)); return; }
+        Err(error) => {
+            let _ = cmd.respond.send(Response::Error(error));
+            return;
+        }
     };
     let (spell_id, spell_token) = match super::format::resolve_spell_identifier(&spell) {
         Ok(value) => value,
-        Err(error) => { let _ = cmd.respond.send(Response::Error(error)); return; }
+        Err(error) => {
+            let _ = cmd.respond.send(Response::Error(error));
+            return;
+        }
     };
-    let intent = SpellCastIntent { spell_id, spell: spell_token, target_entity: target_bits };
+    let intent = SpellCastIntent {
+        spell_id,
+        spell: spell_token,
+        target_entity: target_bits,
+    };
     if send_combat_message(senders, intent.clone()) {
-        let target_text = intent.target_entity.map(|b| b.to_string()).unwrap_or_else(|| "-".into());
-        let _ = cmd.respond.send(Response::Text(format!("spell cast submitted spell={} target={target_text}", intent.spell)));
+        let target_text = intent
+            .target_entity
+            .map(|b| b.to_string())
+            .unwrap_or_else(|| "-".into());
+        let _ = cmd.respond.send(Response::Text(format!(
+            "spell cast submitted spell={} target={target_text}",
+            intent.spell
+        )));
     } else {
-        let _ = cmd.respond.send(Response::Error("spell cast is unavailable: not connected".into()));
+        let _ = cmd.respond.send(Response::Error(
+            "spell cast is unavailable: not connected".into(),
+        ));
     }
 }
 
@@ -381,13 +460,19 @@ fn handle_spell_stop(
     senders: &mut Query<&mut MessageSender<StopSpellCast>>,
 ) {
     if !connected {
-        let _ = cmd.respond.send(Response::Error("spell stop is unavailable: not connected".into()));
+        let _ = cmd.respond.send(Response::Error(
+            "spell stop is unavailable: not connected".into(),
+        ));
         return;
     }
     if send_combat_message(senders, StopSpellCast) {
-        let _ = cmd.respond.send(Response::Text("spell stop submitted".into()));
+        let _ = cmd
+            .respond
+            .send(Response::Text("spell stop submitted".into()));
     } else {
-        let _ = cmd.respond.send(Response::Error("spell stop is unavailable: not connected".into()));
+        let _ = cmd.respond.send(Response::Error(
+            "spell stop is unavailable: not connected".into(),
+        ));
     }
 }
 
@@ -398,11 +483,17 @@ fn handle_group_invite(
     senders: &mut Query<&mut MessageSender<GroupInviteIntent>>,
 ) {
     if !connected {
-        let _ = cmd.respond.send(Response::Error("group invite is unavailable: not connected".into()));
+        let _ = cmd.respond.send(Response::Error(
+            "group invite is unavailable: not connected".into(),
+        ));
     } else if send_combat_message(senders, GroupInviteIntent { name: name.clone() }) {
-        let _ = cmd.respond.send(Response::Text(format!("group invite submitted for {name}")));
+        let _ = cmd
+            .respond
+            .send(Response::Text(format!("group invite submitted for {name}")));
     } else {
-        let _ = cmd.respond.send(Response::Error("group invite sender unavailable".into()));
+        let _ = cmd
+            .respond
+            .send(Response::Error("group invite sender unavailable".into()));
     }
 }
 
@@ -413,11 +504,17 @@ fn handle_group_uninvite(
     senders: &mut Query<&mut MessageSender<GroupUninviteIntent>>,
 ) {
     if !connected {
-        let _ = cmd.respond.send(Response::Error("group uninvite is unavailable: not connected".into()));
+        let _ = cmd.respond.send(Response::Error(
+            "group uninvite is unavailable: not connected".into(),
+        ));
     } else if send_combat_message(senders, GroupUninviteIntent { name: name.clone() }) {
-        let _ = cmd.respond.send(Response::Text(format!("group uninvite submitted for {name}")));
+        let _ = cmd.respond.send(Response::Text(format!(
+            "group uninvite submitted for {name}"
+        )));
     } else {
-        let _ = cmd.respond.send(Response::Error("group uninvite sender unavailable".into()));
+        let _ = cmd
+            .respond
+            .send(Response::Error("group uninvite sender unavailable".into()));
     }
 }
 
@@ -440,7 +537,9 @@ fn on_screenshot_captured(
     mut commands: Commands,
 ) {
     let entity = trigger.event_target();
-    let Ok(reply) = query.get(entity) else { return; };
+    let Ok(reply) = query.get(entity) else {
+        return;
+    };
     let response = encode_screenshot(&trigger.image);
     let _ = reply.0.send(response);
     commands.entity(entity).despawn();

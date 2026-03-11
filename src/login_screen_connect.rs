@@ -5,6 +5,9 @@ use game_engine::ui::registry::FrameRegistry;
 use crate::game_state::GameState;
 use crate::networking;
 
+use game_engine::ui::frame::WidgetData;
+use game_engine::ui::widgets::button::ButtonState as BtnState;
+
 use super::helpers::{get_editbox_text, set_editbox_text};
 use super::{
     DEFAULT_SERVER_ADDR, LoginStatus, LoginUi, STATUS_CONNECTING, STATUS_FILL_FIELDS,
@@ -25,6 +28,9 @@ pub fn try_connect(
     server_addr: Option<std::net::SocketAddr>,
     commands: &mut Commands,
 ) {
+    if status.0 == STATUS_CONNECTING {
+        return;
+    }
     let username = get_editbox_text(reg, login.username_input);
     let password = get_editbox_text(reg, login.password_input);
     if username.trim().is_empty() || password.trim().is_empty() {
@@ -77,7 +83,13 @@ pub fn toggle_login_mode(
         networking::LoginMode::Login => networking::LoginMode::Register,
         networking::LoginMode::Register => networking::LoginMode::Login,
     };
-    sync_button_states(reg, login, mode, &networking::AuthToken(None));
+    sync_button_states(
+        reg,
+        login,
+        mode,
+        &networking::AuthToken(None),
+        &super::LoginStatus::default(),
+    );
 }
 
 pub fn sync_button_states(
@@ -85,9 +97,21 @@ pub fn sync_button_states(
     login: &LoginUi,
     _mode: &networking::LoginMode,
     _auth_token: &networking::AuthToken,
+    status: &LoginStatus,
 ) {
     reg.set_hidden(login.connect_button, false);
     if let Some(reconnect_button) = login.reconnect_button {
         reg.set_hidden(reconnect_button, true);
+    }
+    let connecting = status.0 == STATUS_CONNECTING;
+    if let Some(WidgetData::Button(bd)) = reg
+        .get_mut(login.connect_button)
+        .and_then(|f| f.widget_data.as_mut())
+    {
+        if connecting {
+            bd.state = BtnState::Disabled;
+        } else if bd.state == BtnState::Disabled {
+            bd.state = BtnState::Normal;
+        }
     }
 }

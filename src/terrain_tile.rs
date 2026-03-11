@@ -67,9 +67,7 @@ pub(crate) fn resolve_tile_path(
 /// Parse map name and tile coordinates from an ADT filename.
 ///
 /// Supports both `mapname_Y_X.adt` and FDID-based `778027.adt` (via listfile reverse lookup).
-pub(crate) fn parse_tile_coords_from_path(
-    adt_path: &Path,
-) -> Result<(String, u32, u32), String> {
+pub(crate) fn parse_tile_coords_from_path(adt_path: &Path) -> Result<(String, u32, u32), String> {
     let stem = adt_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -127,7 +125,11 @@ pub(crate) fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<Pa
     let companion_wow = format!("{wow_stem}{suffix}.adt");
     let companion_fdid = game_engine::listfile::lookup_path(&companion_wow)?;
     let companion_path = adt_path.with_file_name(format!("{companion_fdid}.adt"));
-    if companion_path.exists() { Some(companion_path) } else { None }
+    if companion_path.exists() {
+        Some(companion_path)
+    } else {
+        None
+    }
 }
 
 /// Try to load the companion _tex0.adt file.

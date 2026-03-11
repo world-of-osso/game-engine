@@ -9,8 +9,8 @@ use lightyear::prelude::*;
 use shared::components::{
     ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation,
 };
-pub use shared::protocol::ChatType;
 use shared::protocol::ChatMessage;
+pub use shared::protocol::ChatType;
 
 pub use crate::networking_auth::{
     AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword, LoginUsername,
@@ -237,7 +237,10 @@ fn on_connected(
 }
 
 /// Convert local MovementState + CharacterFacing into a world-space direction vector.
-pub(crate) fn movement_to_direction(movement: &MovementState, facing: &CharacterFacing) -> [f32; 3] {
+pub(crate) fn movement_to_direction(
+    movement: &MovementState,
+    facing: &CharacterFacing,
+) -> [f32; 3] {
     let forward = [facing.yaw.sin(), 0.0, facing.yaw.cos()];
     let right = [-forward[2], 0.0, forward[0]];
 
@@ -378,10 +381,20 @@ fn spawn_replicated_npc(
         images: &mut npc_assets.images,
         inverse_bindposes: &mut npc_assets.inv_bp,
     };
-    let m2_loaded =
-        try_spawn_npc_model(&mut commands, &mut assets, entity, model_display, display_map.as_deref());
+    let m2_loaded = try_spawn_npc_model(
+        &mut commands,
+        &mut assets,
+        entity,
+        model_display,
+        display_map.as_deref(),
+    );
     if !m2_loaded {
-        spawn_npc_capsule(&mut commands, &mut npc_assets.meshes, &mut npc_assets.materials, entity);
+        spawn_npc_capsule(
+            &mut commands,
+            &mut npc_assets.meshes,
+            &mut npc_assets.materials,
+            entity,
+        );
     }
     debug!(
         "Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})",
@@ -437,7 +450,10 @@ struct RotationTarget {
     yaw: f32,
 }
 
-type SyncTransformFilter = (With<RemoteEntity>, Or<(Changed<NetPosition>, Changed<NetRotation>)>);
+type SyncTransformFilter = (
+    With<RemoteEntity>,
+    Or<(Changed<NetPosition>, Changed<NetRotation>)>,
+);
 type SyncTransformQuery<'w, 's> = Query<
     'w,
     's,

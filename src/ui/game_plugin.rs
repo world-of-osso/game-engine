@@ -3,8 +3,8 @@ use bevy::{input::ButtonState, input::keyboard::KeyboardInput};
 use lightyear::prelude::MessageSender;
 
 use crate::targeting::CurrentTarget;
-use crate::ui::spellbook_runtime::{SpellbookUiRuntime, SpellbookAction, SpellbookKeyInput};
 use crate::ui::plugin::UiState;
+use crate::ui::spellbook_runtime::{SpellbookAction, SpellbookKeyInput, SpellbookUiRuntime};
 use shared::protocol::{CombatChannel, SpellCastIntent};
 
 pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<SpellbookUiRuntime>>) {

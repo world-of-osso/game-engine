@@ -29,8 +29,7 @@ fn forward_at_zero_yaw() {
 
 #[test]
 fn forward_at_90_degrees() {
-    let dir =
-        movement_to_direction(&make_state(MoveDirection::Forward), &make_facing(FRAC_PI_2));
+    let dir = movement_to_direction(&make_state(MoveDirection::Forward), &make_facing(FRAC_PI_2));
     // yaw=π/2: forward = [sin(π/2), 0, cos(π/2)] = [1, 0, 0]
     assert!((dir[0] - 1.0).abs() < 1e-6);
     assert!((dir[2]).abs() < 1e-6);

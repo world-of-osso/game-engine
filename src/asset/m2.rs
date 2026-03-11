@@ -170,7 +170,11 @@ fn parse_one_vertex(md20: &[u8], i: usize, base: usize) -> Result<M2Vertex, Stri
         .get(base + 16..base + 20)
         .ok_or_else(|| format!("Vertex {i} bone_indices out of bounds at {base:#x}"))?;
     Ok(M2Vertex {
-        position: [read_f32(md20, base)?, read_f32(md20, base + 4)?, read_f32(md20, base + 8)?],
+        position: [
+            read_f32(md20, base)?,
+            read_f32(md20, base + 4)?,
+            read_f32(md20, base + 8)?,
+        ],
         bone_weights: bw.try_into().unwrap(),
         bone_indices: bi.try_into().unwrap(),
         normal: [
@@ -396,15 +400,30 @@ fn hd_body_overlays() -> Vec<TextureOverlay> {
     let (x, y) = UNDERWEAR_HD_POS;
     vec![
         // Face texture composited onto body atlas right half (FACE_UPPER region)
-        TextureOverlay { fdid: HD_FACE_FDID, x: 512, y: 0, scale: OverlayScale::None },
-        TextureOverlay { fdid: UNDERWEAR_HD_FDID, x, y, scale: OverlayScale::None },
+        TextureOverlay {
+            fdid: HD_FACE_FDID,
+            x: 512,
+            y: 0,
+            scale: OverlayScale::None,
+        },
+        TextureOverlay {
+            fdid: UNDERWEAR_HD_FDID,
+            x,
+            y,
+            scale: OverlayScale::None,
+        },
     ]
 }
 
 fn sd_body_overlays() -> Vec<TextureOverlay> {
     let (x, y) = UNDERWEAR_SD_POS;
     vec![
-        TextureOverlay { fdid: UNDERWEAR_SD_FDID, x, y, scale: OverlayScale::None },
+        TextureOverlay {
+            fdid: UNDERWEAR_SD_FDID,
+            x,
+            y,
+            scale: OverlayScale::None,
+        },
         TextureOverlay {
             fdid: SCALP_UPPER_FDID,
             x: SCALP_UPPER_REGION.0,
@@ -437,7 +456,11 @@ fn body_skin_overlays(
     if ty != 1 {
         return Vec::new();
     }
-    if is_hd { hd_body_overlays() } else { sd_body_overlays() }
+    if is_hd {
+        hd_body_overlays()
+    } else {
+        sd_body_overlays()
+    }
 }
 
 /// batch.texture_id -> textureLookup -> textures[].type -> TXID[]. Type!=0 uses defaults.
@@ -745,12 +768,23 @@ fn build_batched_model(
         }
         let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
         let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(
-            unit, tex.tex_lookup, tex.tex_types, tex.txid, is_hd, tex.skin_fdids,
+            unit,
+            tex.tex_lookup,
+            tex.tex_types,
+            tex.txid,
+            is_hd,
+            tex.skin_fdids,
         );
         let mat = materials.get(unit.render_flags_index as usize);
         let render_flags = mat.map(|m| m.flags).unwrap_or(0);
         let blend_mode = mat.map(|m| m.blend_mode).unwrap_or(0);
-        batches.push(M2RenderBatch { mesh, texture_fdid, overlays, render_flags, blend_mode });
+        batches.push(M2RenderBatch {
+            mesh,
+            texture_fdid,
+            overlays,
+            render_flags,
+            blend_mode,
+        });
     }
     Ok(batches)
 }
@@ -802,12 +836,24 @@ fn build_render_batches(
     let tex_lookup = parse_texture_lookup(md20)?;
     let materials = parse_materials(md20)?;
     let skin = load_skin_data(path, &chunks.sfid);
-    let tex = TextureTables { tex_lookup: &tex_lookup, tex_types: &tex_types, txid, skin_fdids };
+    let tex = TextureTables {
+        tex_lookup: &tex_lookup,
+        tex_types: &tex_types,
+        txid,
+        skin_fdids,
+    };
     if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        build_batched_model(&vertices, skin, &materials, &tex, has_bones, chunks.skid.is_some())
+        build_batched_model(
+            &vertices,
+            skin,
+            &materials,
+            &tex,
+            has_bones,
+            chunks.skid.is_some(),
+        )
     } else {
         build_fallback_batch(&vertices, skin, &tex_types, txid)
     }

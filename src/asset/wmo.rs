@@ -110,15 +110,26 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         apply_root_chunk(
-            tag, payload,
-            &mut n_groups, &mut materials, &mut portals,
-            &mut mopt_raw, &mut portal_refs, &mut group_infos,
+            tag,
+            payload,
+            &mut n_groups,
+            &mut materials,
+            &mut portals,
+            &mut mopt_raw,
+            &mut portal_refs,
+            &mut group_infos,
             &mut portal_vertices,
         )?;
     }
 
     resolve_portal_vertices(&mut portals, &mopt_raw, &portal_vertices);
-    Ok(WmoRootData { n_groups, materials, portals, portal_refs, group_infos })
+    Ok(WmoRootData {
+        n_groups,
+        materials,
+        portals,
+        portal_refs,
+        group_infos,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -454,7 +465,10 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
     let (positions, normals, uvs) = extract_batch_vertices(raw, vmin, vmax, vert_count);
     let indices = extract_batch_indices(raw, batch);
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -473,7 +487,10 @@ fn extract_batch_vertices(
         .map(|v| wow_to_bevy(v[0], v[1], v[2]))
         .collect();
     let normals = if raw.normals.len() > vmax {
-        raw.normals[vmin..=vmax].iter().map(|n| wow_to_bevy(n[0], n[1], n[2])).collect()
+        raw.normals[vmin..=vmax]
+            .iter()
+            .map(|n| wow_to_bevy(n[0], n[1], n[2]))
+            .collect()
     } else {
         vec![[0.0, 1.0, 0.0]; vert_count]
     };

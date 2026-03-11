@@ -98,7 +98,15 @@ fn build_sky_dome_mesh(radius: f32, lon_segments: u32, lat_segments: u32) -> Mes
     for lat in 0..=lat_segments {
         let v = lat as f32 / lat_segments as f32;
         let theta = std::f32::consts::PI * (0.55 - v * 0.55);
-        push_ring(&mut positions, &mut normals, &mut uvs, radius, lon_segments, v, theta);
+        push_ring(
+            &mut positions,
+            &mut normals,
+            &mut uvs,
+            radius,
+            lon_segments,
+            v,
+            theta,
+        );
     }
     let indices = build_dome_indices(lon_segments, lat_segments);
     let mut mesh = Mesh::new(
@@ -121,7 +129,9 @@ pub fn spawn_sky_dome(
     camera_entity: Entity,
 ) {
     let mesh = build_sky_dome_mesh(900.0, 32, 16);
-    let material = sky_materials.add(SkyMaterial { uniforms: SkyUniforms::default() });
+    let material = sky_materials.add(SkyMaterial {
+        uniforms: SkyUniforms::default(),
+    });
     let dome = commands
         .spawn((
             Name::new("sky_dome"),
@@ -143,12 +153,14 @@ pub fn spawn_sky_dome(
     let cubemap = build_sky_cubemap(&default_colors);
     let cubemap_handle = images.add(cubemap);
     commands.insert_resource(SkyEnvMapHandle(cubemap_handle.clone()));
-    commands.entity(camera_entity).insert(GeneratedEnvironmentMapLight {
-        environment_map: cubemap_handle,
-        intensity: 300.0,
-        rotation: Quat::IDENTITY,
-        affects_lightmapped_mesh_diffuse: true,
-    });
+    commands
+        .entity(camera_entity)
+        .insert(GeneratedEnvironmentMapLight {
+            environment_map: cubemap_handle,
+            intensity: 300.0,
+            rotation: Quat::IDENTITY,
+            affects_lightmapped_mesh_diffuse: true,
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +297,11 @@ fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
         fill_cubemap_face(&mut data[offset..offset + face_pixels * 8], face, colors);
     }
     let mut image = Image::new(
-        Extent3d { width: ENV_MAP_SIZE, height: ENV_MAP_SIZE, depth_or_array_layers: 6 },
+        Extent3d {
+            width: ENV_MAP_SIZE,
+            height: ENV_MAP_SIZE,
+            depth_or_array_layers: 6,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba16Float,
@@ -334,7 +350,11 @@ fn sample_sky_gradient(colors: &SkyColorSet, elev: f32) -> LinearRgba {
     } else if normalized < 0.5 {
         (colors.sky_band2, colors.sky_band1, (normalized - 0.3) / 0.2)
     } else if normalized < 0.7 {
-        (colors.sky_band1, colors.sky_middle, (normalized - 0.5) / 0.2)
+        (
+            colors.sky_band1,
+            colors.sky_middle,
+            (normalized - 0.5) / 0.2,
+        )
     } else {
         (colors.sky_middle, colors.sky_top, (normalized - 0.7) / 0.3)
     };
@@ -385,7 +405,10 @@ fn spawn_time_display(mut commands: Commands) {
         TimeDisplay,
         Visibility::Hidden,
         Text::new("12:00"),
-        TextFont { font_size: 20.0, ..default() },
+        TextFont {
+            font_size: 20.0,
+            ..default()
+        },
         TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
@@ -426,12 +449,18 @@ fn update_time_display(game_time: Res<GameTime>, mut query: Query<&mut Text, Wit
 fn time_speed_controls(keys: Res<ButtonInput<KeyCode>>, mut game_time: ResMut<GameTime>) {
     if keys.just_pressed(KeyCode::BracketRight) {
         game_time.speed = match game_time.speed as u32 {
-            0 => 1.0, 1 => 10.0, 10 => 60.0, _ => 0.0,
+            0 => 1.0,
+            1 => 10.0,
+            10 => 60.0,
+            _ => 0.0,
         };
     }
     if keys.just_pressed(KeyCode::BracketLeft) {
         game_time.speed = match game_time.speed as u32 {
-            0 => 60.0, 60 => 10.0, 10 => 1.0, _ => 0.0,
+            0 => 60.0,
+            60 => 10.0,
+            10 => 1.0,
+            _ => 0.0,
         };
     }
 }
@@ -443,19 +472,53 @@ fn time_speed_controls(keys: Res<ButtonInput<KeyCode>>, mut game_time: ResMut<Ga
 pub struct SkyPlugin;
 
 fn register_inworld_systems(app: &mut App) {
-    app.add_systems(Update, advance_game_time.run_if(in_state(GameState::InWorld)))
-        .add_systems(Update, update_sky_colors.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-        .add_systems(Update, update_sun_direction.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-        .add_systems(Update, update_fog.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-        .add_systems(Update, update_sky_env_map.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-        .add_systems(Update, update_time_display.after(advance_game_time).run_if(in_state(GameState::InWorld)))
-        .add_systems(Update, time_speed_controls.run_if(in_state(GameState::InWorld)));
+    app.add_systems(
+        Update,
+        advance_game_time.run_if(in_state(GameState::InWorld)),
+    )
+    .add_systems(
+        Update,
+        update_sky_colors
+            .after(advance_game_time)
+            .run_if(in_state(GameState::InWorld)),
+    )
+    .add_systems(
+        Update,
+        update_sun_direction
+            .after(advance_game_time)
+            .run_if(in_state(GameState::InWorld)),
+    )
+    .add_systems(
+        Update,
+        update_fog
+            .after(advance_game_time)
+            .run_if(in_state(GameState::InWorld)),
+    )
+    .add_systems(
+        Update,
+        update_sky_env_map
+            .after(advance_game_time)
+            .run_if(in_state(GameState::InWorld)),
+    )
+    .add_systems(
+        Update,
+        update_time_display
+            .after(advance_game_time)
+            .run_if(in_state(GameState::InWorld)),
+    )
+    .add_systems(
+        Update,
+        time_speed_controls.run_if(in_state(GameState::InWorld)),
+    );
 }
 
 impl Plugin for SkyPlugin {
     fn build(&self, app: &mut App) {
         let keyframes = load_light_data("data/LightData.ron", 12);
-        info!("Loaded {} sky keyframes for LightParamID 12", keyframes.len());
+        info!(
+            "Loaded {} sky keyframes for LightParamID 12",
+            keyframes.len()
+        );
         app.add_plugins(MaterialPlugin::<SkyMaterial>::default())
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))

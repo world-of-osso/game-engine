@@ -49,7 +49,6 @@ pub struct MinimapCoords;
 #[derive(Component)]
 pub struct MinimapZoneName;
 
-
 pub struct MinimapPlugin;
 
 /// Marker for all minimap HUD nodes, used to toggle visibility by game state.
@@ -118,7 +117,9 @@ fn rotate_minimap(
 fn spawn_minimap_display(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let blank = create_blank_image(MINIMAP_DISPLAY_SIZE, MINIMAP_DISPLAY_SIZE);
     let handle = images.add(blank);
-    commands.insert_resource(MinimapComposite { handle: handle.clone() });
+    commands.insert_resource(MinimapComposite {
+        handle: handle.clone(),
+    });
 
     commands.spawn((
         MinimapDisplay,
@@ -187,8 +188,11 @@ fn generate_tile_textures(
         if minimap.generated.contains(&(ty, tx)) {
             continue;
         }
-        let image = try_load_minimap_blp(tx, ty)
-            .or_else(|| heightmap.tile_chunks(ty, tx).map(|chunks| render_tile_image(chunks, MINIMAP_TILE_SIZE as usize)));
+        let image = try_load_minimap_blp(tx, ty).or_else(|| {
+            heightmap
+                .tile_chunks(ty, tx)
+                .map(|chunks| render_tile_image(chunks, MINIMAP_TILE_SIZE as usize))
+        });
         if let Some(image) = image {
             let handle = images.add(image);
             minimap.tile_images.insert((ty, tx), handle);
@@ -214,8 +218,12 @@ fn update_minimap_composite(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Ok(player_tf) = player_q.single() else { return };
-    let Some(composite_res) = composite_res else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let Some(composite_res) = composite_res else {
+        return;
+    };
 
     let bx = player_tf.translation.x;
     let bz = player_tf.translation.z;
@@ -225,7 +233,15 @@ fn update_minimap_composite(
     let tile_px = MINIMAP_TILE_SIZE as usize;
     let mut composite = build_dark_composite(comp_size);
 
-    blit_tiles(&mut composite, comp_size, tile_px, player_row, player_col, &minimap, &images);
+    blit_tiles(
+        &mut composite,
+        comp_size,
+        tile_px,
+        player_row,
+        player_col,
+        &minimap,
+        &images,
+    );
 
     let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
     let display = crop_with_circle(&composite, comp_size, px_x, px_y, MINIMAP_DISPLAY_SIZE);
@@ -253,9 +269,15 @@ fn blit_tiles(
                 continue;
             }
             let key = (row as u32, col as u32);
-            let Some(handle) = minimap.tile_images.get(&key) else { continue };
-            let Some(tile_img) = images.get(handle) else { continue };
-            let Some(tile_data) = tile_img.data.as_ref() else { continue };
+            let Some(handle) = minimap.tile_images.get(&key) else {
+                continue;
+            };
+            let Some(tile_img) = images.get(handle) else {
+                continue;
+            };
+            let Some(tile_data) = tile_img.data.as_ref() else {
+                continue;
+            };
             let off_x = dx as usize * tile_px;
             let off_y = dy as usize * tile_px;
             blit_image(composite, comp_size, tile_data, tile_px, off_x, off_y);
@@ -264,7 +286,13 @@ fn blit_tiles(
 }
 
 /// Compute the player's pixel position within the 3x3 composite image.
-fn player_pixel_in_composite(bx: f32, bz: f32, row: u32, col: u32, comp_size: usize) -> (usize, usize) {
+fn player_pixel_in_composite(
+    bx: f32,
+    bz: f32,
+    row: u32,
+    col: u32,
+    comp_size: usize,
+) -> (usize, usize) {
     let tile_size = crate::asset::adt::CHUNK_SIZE * 16.0;
     let center = 32.0 * tile_size;
     let frow = (center - bx) / tile_size;
@@ -284,7 +312,10 @@ fn spawn_zone_name(mut commands: Commands) {
         MinimapHud,
         Visibility::Hidden,
         Text::new("Elwynn Forest"),
-        TextFont { font_size: 16.0, ..default() },
+        TextFont {
+            font_size: 16.0,
+            ..default()
+        },
         TextColor(Color::srgba(1.0, 0.82, 0.0, 1.0)),
         Node {
             position_type: PositionType::Absolute,
@@ -303,7 +334,10 @@ fn spawn_coord_text(mut commands: Commands) {
         MinimapHud,
         Visibility::Hidden,
         Text::new("0, 0"),
-        TextFont { font_size: 14.0, ..default() },
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
         TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
@@ -334,7 +368,9 @@ fn update_zone_name(
     mut text_q: Query<&mut Text, With<MinimapZoneName>>,
 ) {
     let Some(zone) = zone else { return };
-    if !zone.is_changed() { return; }
+    if !zone.is_changed() {
+        return;
+    }
     let name = zone_id_to_name(zone.zone_id);
     for mut text in &mut text_q {
         **text = name.to_string();
@@ -374,10 +410,18 @@ fn draw_entity_dots(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Ok(player_tf) = player_q.single() else { return };
-    let Some(composite_res) = composite_res else { return };
-    let Some(img) = images.get_mut(&composite_res.handle) else { return };
-    let Some(data) = img.data.as_mut() else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let Some(composite_res) = composite_res else {
+        return;
+    };
+    let Some(img) = images.get_mut(&composite_res.handle) else {
+        return;
+    };
+    let Some(data) = img.data.as_mut() else {
+        return;
+    };
 
     let ds = MINIMAP_DISPLAY_SIZE as usize;
     let center = ds as f32 / 2.0;
@@ -392,7 +436,11 @@ fn draw_entity_dots(
         if ((px - center).powi(2) + (py - center).powi(2)).sqrt() > center - 3.0 {
             continue;
         }
-        let color = if npc.is_some() { [255, 200, 0, 255] } else { [0, 255, 0, 255] };
+        let color = if npc.is_some() {
+            [255, 200, 0, 255]
+        } else {
+            [0, 255, 0, 255]
+        };
         draw_dot(data, ds, px as i32, py as i32, &color);
     }
 }
@@ -444,7 +492,9 @@ mod tests {
 
     #[test]
     fn triangle_outside() {
-        assert!(!point_in_triangle(0.0, 0.0, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0));
+        assert!(!point_in_triangle(
+            0.0, 0.0, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0
+        ));
     }
 
     #[test]

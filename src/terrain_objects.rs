@@ -112,7 +112,12 @@ fn try_spawn_doodad(
         .id();
     if !m2_spawn::spawn_m2_on_entity(
         commands,
-        &mut m2_spawn::SpawnAssets { meshes, materials, images, inverse_bindposes: inverse_bp },
+        &mut m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            images,
+            inverse_bindposes: inverse_bp,
+        },
         &m2_path,
         entity,
         &[0, 0, 0],
@@ -170,7 +175,11 @@ fn spawn_wmos(
 ) {
     let mut spawned = 0u32;
     for placement in &obj_data.wmos {
-        let mut assets = WmoAssets { meshes, materials, images };
+        let mut assets = WmoAssets {
+            meshes,
+            materials,
+            images,
+        };
         if let Some(e) = try_spawn_wmo(commands, &mut assets, placement) {
             entities.push(e);
             spawned += 1;
@@ -195,9 +204,20 @@ fn try_spawn_wmo(
     let portal_graph = build_portal_graph(&root);
     let root_entity = spawn_wmo_root_entity(commands, root_fdid, transform, portal_graph);
 
-    let group_count = spawn_wmo_groups(commands, assets, &root, &group_fdids, root_fdid, root_entity);
+    let group_count = spawn_wmo_groups(
+        commands,
+        assets,
+        &root,
+        &group_fdids,
+        root_fdid,
+        root_entity,
+    );
     log_wmo_spawn(root_fdid, group_count, &root, &transform);
-    if group_count > 0 { Some(root_entity) } else { None }
+    if group_count > 0 {
+        Some(root_entity)
+    } else {
+        None
+    }
 }
 
 fn spawn_wmo_root_entity(

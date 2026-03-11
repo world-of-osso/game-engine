@@ -127,7 +127,6 @@ pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
     Ok(())
 }
 
-
 #[allow(dead_code)]
 pub struct M2AnimSequence {
     pub id: u16,
@@ -568,7 +567,10 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
@@ -586,7 +588,10 @@ mod tests {
         let m2_path = "data/models/humanmale_hd.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
@@ -601,14 +606,24 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let sequences = parse_sequences(md20).unwrap();
-        assert!(sequences.len() >= 100, "Expected 100+ sequences, got {}", sequences.len());
+        assert!(
+            sequences.len() >= 100,
+            "Expected 100+ sequences, got {}",
+            sequences.len()
+        );
         let stand = sequences.iter().find(|s| s.id == 0);
         assert!(stand.is_some(), "Stand animation (id=0) not found");
-        assert!(stand.unwrap().duration > 0, "Stand should have non-zero duration");
+        assert!(
+            stand.unwrap().duration > 0,
+            "Stand should have non-zero duration"
+        );
         let walk = sequences.iter().find(|s| s.id == 4);
         assert!(walk.is_some(), "Walk animation (id=4) not found");
     }
@@ -618,7 +633,10 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let global_seqs = parse_global_sequences(md20).unwrap();
@@ -629,11 +647,23 @@ mod tests {
     }
 
     fn count_bones_with_stand_keyframes(tracks: &[BoneAnimTracks], stand_idx: usize) -> usize {
-        tracks.iter().filter(|t| {
-            t.translation.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
-                || t.rotation.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
-                || t.scale.sequences.get(stand_idx).map_or(false, |(ts, _)| !ts.is_empty())
-        }).count()
+        tracks
+            .iter()
+            .filter(|t| {
+                t.translation
+                    .sequences
+                    .get(stand_idx)
+                    .map_or(false, |(ts, _)| !ts.is_empty())
+                    || t.rotation
+                        .sequences
+                        .get(stand_idx)
+                        .map_or(false, |(ts, _)| !ts.is_empty())
+                    || t.scale
+                        .sequences
+                        .get(stand_idx)
+                        .map_or(false, |(ts, _)| !ts.is_empty())
+            })
+            .count()
     }
 
     #[test]
@@ -641,17 +671,34 @@ mod tests {
         let m2_path = "data/models/humanmale.m2";
         let data = match std::fs::read(m2_path) {
             Ok(d) => d,
-            Err(_) => { println!("Skipping: {m2_path} not found"); return; }
+            Err(_) => {
+                println!("Skipping: {m2_path} not found");
+                return;
+            }
         };
         let md20 = extract_md20(&data);
         let bones = parse_bones(md20).unwrap();
         let tracks = parse_bone_animations(md20).unwrap();
-        assert_eq!(tracks.len(), bones.len(), "Should have one track set per bone");
+        assert_eq!(
+            tracks.len(),
+            bones.len(),
+            "Should have one track set per bone"
+        );
         let sequences = parse_sequences(md20).unwrap();
-        let stand_idx = sequences.iter().position(|s| s.id == 0).expect("Stand not found");
+        let stand_idx = sequences
+            .iter()
+            .position(|s| s.id == 0)
+            .expect("Stand not found");
         let with_keyframes = count_bones_with_stand_keyframes(&tracks, stand_idx);
-        println!("humanmale: {}/{} bones have Stand keyframes", with_keyframes, bones.len());
-        assert!(with_keyframes > 0, "At least some bones should have Stand animation data");
+        println!(
+            "humanmale: {}/{} bones have Stand keyframes",
+            with_keyframes,
+            bones.len()
+        );
+        assert!(
+            with_keyframes > 0,
+            "At least some bones should have Stand animation data"
+        );
     }
 
     #[test]

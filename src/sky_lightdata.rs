@@ -136,7 +136,10 @@ fn parse_csv_fallback_light_row(
 fn load_light_data_csv_fallback(path: &str, param_id: u32) -> Vec<LightDataRow> {
     let contents = match std::fs::read_to_string(path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("Failed to read fallback {path}: {e}"); return Vec::new(); }
+        Err(e) => {
+            eprintln!("Failed to read fallback {path}: {e}");
+            return Vec::new();
+        }
     };
     let mut lines = contents.lines();
     let header = match lines.next() {
@@ -209,7 +212,11 @@ fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow,
     for i in 0..rows.len() {
         let next = (i + 1) % rows.len();
         let t0 = rows[i].time;
-        let t1 = if next == 0 { rows[next].time + 2880.0 } else { rows[next].time };
+        let t1 = if next == 0 {
+            rows[next].time + 2880.0
+        } else {
+            rows[next].time
+        };
         let m_adj = if next == 0 && m < t0 { m + 2880.0 } else { m };
         if m_adj >= t0 && m_adj <= t1 {
             let span = t1 - t0;
@@ -220,7 +227,11 @@ fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow,
     let last = &rows[rows.len() - 1];
     let first = &rows[0];
     let span = (first.time + 2880.0) - last.time;
-    let t = if span > 0.0 { (m + 2880.0 - last.time) / span } else { 0.0 };
+    let t = if span > 0.0 {
+        (m + 2880.0 - last.time) / span
+    } else {
+        0.0
+    };
     (last, first, t)
 }
 

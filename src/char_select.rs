@@ -8,12 +8,13 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CREATE_CONFIRM_BUTTON,
-    CREATE_NAME_INPUT, CREATE_PANEL, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
-    SELECTED_NAME_TEXT, STATUS_TEXT, CharDisplayEntry, CharSelectState, char_select_screen,
+    CREATE_NAME_INPUT, CREATE_PANEL, CharDisplayEntry, CharSelectAction, CharSelectState,
+    DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::widgets::texture::TextureSource;
 use game_engine::ui_resource;
+use shared::components::CharacterAppearance;
 use shared::protocol::{AuthChannel, CreateCharacter, DeleteCharacter, SelectCharacter};
 use ui_toolkit::screen::Screen;
 
@@ -23,8 +24,7 @@ use crate::networking::CharacterList;
 use crate::login_screen_helpers as helpers;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox,
-    set_button_hovered,
+    editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, set_button_hovered,
 };
 
 const REALM_NAME: &str = "World of Osso";
@@ -51,7 +51,7 @@ ui_resource! {
 }
 
 #[derive(Resource, Default)]
-struct SelectedCharIndex(Option<usize>);
+pub(crate) struct SelectedCharIndex(pub(crate) Option<usize>);
 
 #[derive(Resource, Default)]
 struct CreatePanelVisible(bool);
@@ -157,7 +157,9 @@ fn set_list_panel_backdrop(reg: &mut FrameRegistry, id: u64) {
         frame.nine_slice = Some(NineSlice {
             edge_size: 12.0,
             uv_edge_size: Some(12.0),
-            texture: Some(TextureSource::Atlas("glues-characterselect-card-all-bg".to_string())),
+            texture: Some(TextureSource::Atlas(
+                "glues-characterselect-card-all-bg".to_string(),
+            )),
             bg_color: [1.0, 1.0, 1.0, 1.0],
             border_color: [1.0, 1.0, 1.0, 1.0],
             ..Default::default()
@@ -232,10 +234,21 @@ fn char_select_mouse_input(
     if !buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = cursor_pos(&windows) else { return };
+    let Some(cursor) = cursor_pos(&windows) else {
+        return;
+    };
     handle_cs_click(
-        cs, &ui, cursor, &mut selected, &mut focus, &mut create_visible,
-        &mut senders, &mut del_senders, &mut create_senders, &char_list, &mut next_state,
+        cs,
+        &ui,
+        cursor,
+        &mut selected,
+        &mut focus,
+        &mut create_visible,
+        &mut senders,
+        &mut del_senders,
+        &mut create_senders,
+        &char_list,
+        &mut next_state,
     );
 }
 
@@ -264,13 +277,17 @@ fn dispatch_onclick(
         }
         Some(CharSelectAction::EnterWorld) => try_enter_world(selected, char_list, senders),
         Some(CharSelectAction::CreateToggle) => toggle_create_panel(create_visible, focus, cs),
-        Some(CharSelectAction::DeleteChar) => try_delete_character(selected, char_list, del_senders),
+        Some(CharSelectAction::DeleteChar) => {
+            try_delete_character(selected, char_list, del_senders)
+        }
         Some(CharSelectAction::Back) => next_state.set(GameState::Login),
         Some(CharSelectAction::CreateConfirm) => {
             try_create_character(reg, cs, create_senders);
             focus.0 = Some(cs.create_name_input);
         }
-        None => { focus.0 = None; }
+        None => {
+            focus.0 = None;
+        }
     }
 }
 
@@ -307,9 +324,17 @@ fn handle_cs_click(
     let action = find_clicked_action(ui, mx, my);
     if let Some(action) = action {
         dispatch_onclick(
-            &action, selected, focus, create_visible,
-            senders, del_senders, create_senders, char_list, next_state,
-            &ui.registry, cs,
+            &action,
+            selected,
+            focus,
+            create_visible,
+            senders,
+            del_senders,
+            create_senders,
+            char_list,
+            next_state,
+            &ui.registry,
+            cs,
         );
     } else {
         focus.0 = None;
@@ -342,8 +367,12 @@ fn try_enter_world(
     senders: &mut Query<&mut MessageSender<SelectCharacter>>,
 ) {
     let Some(idx) = selected.0 else { return };
-    let Some(ch) = char_list.0.get(idx) else { return };
-    let msg = SelectCharacter { character_id: ch.character_id };
+    let Some(ch) = char_list.0.get(idx) else {
+        return;
+    };
+    let msg = SelectCharacter {
+        character_id: ch.character_id,
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
     }
@@ -356,8 +385,12 @@ fn try_delete_character(
     senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
 ) {
     let Some(idx) = selected.0 else { return };
-    let Some(ch) = char_list.0.get(idx) else { return };
-    let msg = DeleteCharacter { character_id: ch.character_id };
+    let Some(ch) = char_list.0.get(idx) else {
+        return;
+    };
+    let msg = DeleteCharacter {
+        character_id: ch.character_id,
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
     }
@@ -370,12 +403,23 @@ fn try_create_character(
     senders: &mut Query<&mut MessageSender<CreateCharacter>>,
 ) {
     let name = get_editbox_text(reg, cs.create_name_input);
-    if name.is_empty() { return; }
-    let msg = CreateCharacter { name: name.clone(), race: 1, class: 1 };
+    if name.is_empty() {
+        return;
+    }
+    let msg = CreateCharacter {
+        name: name.clone(),
+        race: 1,
+        class: 1,
+        appearance: default_create_character_appearance(),
+    };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
     }
     info!("Requested create character '{name}'");
+}
+
+fn default_create_character_appearance() -> CharacterAppearance {
+    CharacterAppearance::default()
 }
 
 // --- Keyboard ---
@@ -392,7 +436,9 @@ fn char_select_keyboard_input(
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
     for event in key_events.read() {
-        if event.state != ButtonState::Pressed { continue; }
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
         if handle_selection_key(event.key_code, &mut selected, &char_list, &mut senders) {
             continue;
         }
@@ -412,7 +458,9 @@ fn handle_selection_key(
     senders: &mut Query<&mut MessageSender<SelectCharacter>>,
 ) -> bool {
     let count = char_list.0.len();
-    if count == 0 { return false; }
+    if count == 0 {
+        return false;
+    }
     match key {
         KeyCode::ArrowUp => {
             let idx = selected.0.unwrap_or(0);
@@ -461,8 +509,11 @@ fn char_select_hover_visuals(
     let Some(cs) = cs_ui.as_ref() else { return };
     let cursor = cursor_pos(&windows);
     let button_ids = [
-        cs.enter_button, cs.create_button, cs.delete_button,
-        cs.back_button, cs.create_confirm_button,
+        cs.enter_button,
+        cs.create_button,
+        cs.delete_button,
+        cs.back_button,
+        cs.create_confirm_button,
     ];
     for id in button_ids {
         let hovered = cursor.is_some_and(|c| hit_active_frame(&ui, id, c.x, c.y));
@@ -483,11 +534,15 @@ fn char_select_update_visuals(
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
     sync_screen_state(
-        &mut screen_res, &mut ui.registry, &char_list,
-        &selected, &create_visible,
+        &mut screen_res,
+        &mut ui.registry,
+        &char_list,
+        &selected,
+        &create_visible,
     );
     sync_editbox_focus_visual(
-        &mut ui.registry, cs.create_name_input,
+        &mut ui.registry,
+        cs.create_name_input,
         focus.0 == Some(cs.create_name_input) && create_visible.0,
     );
     ui.focused_frame = focus.0.filter(|_| create_visible.0);
@@ -500,7 +555,9 @@ fn sync_screen_state(
     selected: &SelectedCharIndex,
     create_visible: &CreatePanelVisible,
 ) {
-    let Some(res) = screen_res.as_mut() else { return };
+    let Some(res) = screen_res.as_mut() else {
+        return;
+    };
     let inner = &mut res.0;
     let new_state = build_char_select_state_full(char_list, selected.0, create_visible.0);
     inner.shared.insert(new_state);
@@ -526,7 +583,13 @@ fn build_char_select_state_full(
         .map(|ch| ch.name.clone())
         .unwrap_or_else(|| "Character Selection".to_string());
     let status_text = compute_status_text(&char_list.0, selected, create_visible);
-    CharSelectState { characters, selected_index: selected, create_panel_visible: create_visible, selected_name, status_text }
+    CharSelectState {
+        characters,
+        selected_index: selected,
+        create_panel_visible: create_visible,
+        selected_name,
+        status_text,
+    }
 }
 
 fn compute_status_text(
@@ -537,7 +600,10 @@ fn compute_status_text(
     if create_visible {
         "Choose a name and create a new character".to_string()
     } else if let Some(ch) = selected.and_then(|idx| chars.get(idx)) {
-        format!("Realm: {}    Level {}    Race {}    Class {}", REALM_NAME, ch.level, ch.race, ch.class)
+        format!(
+            "Realm: {}    Level {}    Race {}    Class {}",
+            REALM_NAME, ch.level, ch.race, ch.class
+        )
     } else if chars.is_empty() {
         "No characters available on this realm".to_string()
     } else {
@@ -547,7 +613,9 @@ fn compute_status_text(
 
 fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
     let Some(frame) = reg.get_mut(id) else { return };
-    let Some(nine_slice) = frame.nine_slice.as_mut() else { return };
+    let Some(nine_slice) = frame.nine_slice.as_mut() else {
+        return;
+    };
     if focused {
         nine_slice.bg_color = EDITBOX_FOCUSED_BG;
         nine_slice.border_color = EDITBOX_FOCUSED_BORDER;
@@ -590,13 +658,11 @@ mod tests {
     fn screen_builds_with_characters() {
         let mut reg = test_registry();
         let state = CharSelectState {
-            characters: vec![
-                CharDisplayEntry {
-                    name: "TestChar".to_string(),
-                    info: "Level 60   Race 1   Class 1".to_string(),
-                    status: "Ready".to_string(),
-                },
-            ],
+            characters: vec![CharDisplayEntry {
+                name: "TestChar".to_string(),
+                info: "Level 60   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
             selected_index: Some(0),
             ..Default::default()
         };

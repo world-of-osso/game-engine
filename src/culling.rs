@@ -6,7 +6,12 @@ use bevy::prelude::*;
 use crate::game_state_enum::GameState;
 
 type DoodadFilter = (With<Doodad>, Without<TerrainChunk>, Without<Camera3d>);
-type WmoFilter = (With<Wmo>, Without<Doodad>, Without<TerrainChunk>, Without<Camera3d>);
+type WmoFilter = (
+    With<Wmo>,
+    Without<Doodad>,
+    Without<TerrainChunk>,
+    Without<Camera3d>,
+);
 
 /// Marker for terrain chunk entities. Stores precomputed world center for distance checks.
 #[derive(Component)]

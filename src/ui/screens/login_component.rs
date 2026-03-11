@@ -45,6 +45,9 @@ impl LoginAction {
 /// Shared status text stored in SharedContext. ECS writes, component reads.
 pub type SharedStatusText = String;
 
+/// Whether a login request is in flight. Disables the connect button.
+pub type SharedConnecting = bool;
+
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 const TEX_BLIZZARD_LOGO: &str = "data/glues/mainmenu/Glues-BlizzardLogo.blp";
@@ -175,7 +178,7 @@ fn login_reconnect_button() -> Element {
     }
 }
 
-fn login_connect_button_and_status(status_text: &str) -> Element {
+fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Element {
     let connect = rsx! {
         button {
             name: CONNECT_BUTTON,
@@ -184,6 +187,7 @@ fn login_connect_button_and_status(status_text: &str) -> Element {
             onclick: LoginAction::Connect,
             text: "Login",
             font_size: 16.0,
+            disabled: connecting,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: PASSWORD_INPUT,
@@ -211,11 +215,11 @@ fn login_connect_button_and_status(status_text: &str) -> Element {
     [connect, status].into_iter().flatten().collect()
 }
 
-fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
+fn login_main_buttons(show_reconnect: bool, status_text: &str, connecting: bool) -> Element {
     if show_reconnect {
         login_reconnect_button()
     } else {
-        login_connect_button_and_status(status_text)
+        login_connect_button_and_status(status_text, connecting)
     }
 }
 
@@ -346,6 +350,7 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
         .get::<SharedStatusText>()
         .map(|s| s.as_str())
         .unwrap_or("");
+    let connecting = ctx.get::<SharedConnecting>().copied().unwrap_or(false);
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
@@ -365,7 +370,7 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
                     }
                 }
                 {login_inputs()}
-                {login_main_buttons(false, status)}
+                {login_main_buttons(false, status, connecting)}
                 {login_action_buttons()}
                 {login_footer()}
             }

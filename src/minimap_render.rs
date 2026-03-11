@@ -10,7 +10,11 @@ use crate::asset::adt::ChunkHeightGrid;
 pub fn create_blank_image(w: u32, h: u32) -> Image {
     let data = vec![0u8; (w * h * 4) as usize];
     Image::new(
-        Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -41,7 +45,11 @@ pub fn create_border_image(size: usize) -> Image {
     }
 
     Image::new(
-        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size as u32,
+            height: size as u32,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -67,7 +75,11 @@ pub fn create_arrow_image() -> Image {
     }
 
     Image::new(
-        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size as u32,
+            height: size as u32,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -78,10 +90,14 @@ pub fn create_arrow_image() -> Image {
 /// Check if point (px, py) is inside triangle defined by three vertices.
 #[allow(clippy::too_many_arguments)]
 pub fn point_in_triangle(
-    px: f32, py: f32,
-    x1: f32, y1: f32,
-    x2: f32, y2: f32,
-    x3: f32, y3: f32,
+    px: f32,
+    py: f32,
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    y2: f32,
+    x3: f32,
+    y3: f32,
 ) -> bool {
     let d1 = (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
     let d2 = (px - x3) * (y2 - y3) - (x2 - x3) * (py - y3);
@@ -105,19 +121,33 @@ pub fn build_dark_composite(comp_size: usize) -> Vec<u8> {
 }
 
 /// Copy one tile image (src_w x src_w RGBA) into the composite at (off_x, off_y).
-pub fn blit_image(dst: &mut [u8], dst_w: usize, src: &[u8], src_w: usize, off_x: usize, off_y: usize) {
+pub fn blit_image(
+    dst: &mut [u8],
+    dst_w: usize,
+    src: &[u8],
+    src_w: usize,
+    off_x: usize,
+    off_y: usize,
+) {
     for y in 0..src_w {
         let si_start = y * src_w * 4;
         let di_start = ((off_y + y) * dst_w + off_x) * 4;
         let row_bytes = src_w * 4;
         if si_start + row_bytes <= src.len() && di_start + row_bytes <= dst.len() {
-            dst[di_start..di_start + row_bytes].copy_from_slice(&src[si_start..si_start + row_bytes]);
+            dst[di_start..di_start + row_bytes]
+                .copy_from_slice(&src[si_start..si_start + row_bytes]);
         }
     }
 }
 
 /// Crop a display_size window centered on (cx, cy) and apply a circular alpha mask.
-pub fn crop_with_circle(composite: &[u8], comp_size: usize, cx: usize, cy: usize, display_size: u32) -> Vec<u8> {
+pub fn crop_with_circle(
+    composite: &[u8],
+    comp_size: usize,
+    cx: usize,
+    cy: usize,
+    display_size: u32,
+) -> Vec<u8> {
     let ds = display_size as usize;
     let radius = ds as f32 / 2.0;
     let mut out = vec![0u8; ds * ds * 4];
@@ -163,10 +193,7 @@ pub fn draw_dot(data: &mut [u8], size: usize, cx: i32, cy: i32, color: &[u8; 4])
 }
 
 /// Render a 256x256 RGBA image for one terrain tile from heightmap data.
-pub fn render_tile_image(
-    chunks: &[Option<ChunkHeightGrid>],
-    size: usize,
-) -> Image {
+pub fn render_tile_image(chunks: &[Option<ChunkHeightGrid>], size: usize) -> Image {
     let mut data = vec![0u8; size * size * 4];
     let (min_h, max_h) = find_height_range(chunks);
     let range = (max_h - min_h).max(1.0);
@@ -174,7 +201,11 @@ pub fn render_tile_image(
         fill_chunk_pixels(&mut data, size, chunk, min_h, range);
     }
     Image::new(
-        Extent3d { width: size as u32, height: size as u32, depth_or_array_layers: 1 },
+        Extent3d {
+            width: size as u32,
+            height: size as u32,
+            depth_or_array_layers: 1,
+        },
         TextureDimension::D2,
         data,
         TextureFormat::Rgba8UnormSrgb,
@@ -183,7 +214,13 @@ pub fn render_tile_image(
 }
 
 /// Fill pixels for a single chunk within the tile image buffer.
-fn fill_chunk_pixels(data: &mut [u8], size: usize, chunk: &ChunkHeightGrid, min_h: f32, range: f32) {
+fn fill_chunk_pixels(
+    data: &mut [u8],
+    size: usize,
+    chunk: &ChunkHeightGrid,
+    min_h: f32,
+    range: f32,
+) {
     let cx = chunk.index_x as usize;
     let cy = chunk.index_y as usize;
     let ppc = size / 16;
@@ -212,10 +249,18 @@ fn fill_chunk_pixels(data: &mut [u8], size: usize, chunk: &ChunkHeightGrid, min_
 pub fn height_to_color(t: f32) -> (u8, u8, u8) {
     if t < 0.4 {
         let s = t / 0.4;
-        ((30.0 + s * 50.0) as u8, (80.0 + s * 80.0) as u8, (20.0 + s * 30.0) as u8)
+        (
+            (30.0 + s * 50.0) as u8,
+            (80.0 + s * 80.0) as u8,
+            (20.0 + s * 30.0) as u8,
+        )
     } else {
         let s = (t - 0.4) / 0.6;
-        ((80.0 + s * 80.0) as u8, (160.0 - s * 80.0) as u8, (50.0 - s * 20.0) as u8)
+        (
+            (80.0 + s * 80.0) as u8,
+            (160.0 - s * 80.0) as u8,
+            (50.0 - s * 20.0) as u8,
+        )
     }
 }
 
@@ -229,5 +274,9 @@ pub fn find_height_range(chunks: &[Option<ChunkHeightGrid>]) -> (f32, f32) {
             max_h = max_h.max(h);
         }
     }
-    if min_h > max_h { (0.0, 1.0) } else { (min_h, max_h) }
+    if min_h > max_h {
+        (0.0, 1.0)
+    } else {
+        (min_h, max_h)
+    }
 }

@@ -45,21 +45,54 @@ pub fn setup_world_scene(
     match asset_path {
         Some(p) if p.extension().is_some_and(|e| e == "adt") => {
             let center = spawn_terrain(
-                commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
-                heightmap, adt_manager, camera, p,
+                commands,
+                meshes,
+                materials,
+                terrain_mats,
+                water_mats,
+                images,
+                inverse_bp,
+                heightmap,
+                adt_manager,
+                camera,
+                p,
             );
             let m2_path = Path::new(DEFAULT_M2);
             if m2_path.exists() {
                 m2_scene::spawn_m2_model(
-                    commands, meshes, materials, images, inverse_bp, m2_path, creature_display_map,
+                    commands,
+                    meshes,
+                    materials,
+                    images,
+                    inverse_bp,
+                    m2_path,
+                    creature_display_map,
                 );
             }
-            if let Some(pos) = center { set_player_position(commands, pos); }
+            if let Some(pos) = center {
+                set_player_position(commands, pos);
+            }
         }
-        Some(p) => spawn_m2_scene(commands, meshes, materials, images, inverse_bp, p, creature_display_map),
+        Some(p) => spawn_m2_scene(
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            p,
+            creature_display_map,
+        ),
         None => spawn_default_scene(
-            commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp,
-            heightmap, adt_manager, creature_display_map,
+            commands,
+            meshes,
+            materials,
+            terrain_mats,
+            water_mats,
+            images,
+            inverse_bp,
+            heightmap,
+            adt_manager,
+            creature_display_map,
         ),
     }
 }
@@ -84,9 +117,18 @@ pub fn setup_explicit_asset_scene(
         return;
     }
     setup_world_scene(
-        &mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut water_mats,
-        &mut sky_mats, &mut images, &mut inverse_bp, &mut heightmap, &mut adt_manager,
-        &creature_display_map, asset_path.as_deref(),
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut terrain_mats,
+        &mut water_mats,
+        &mut sky_mats,
+        &mut images,
+        &mut inverse_bp,
+        &mut heightmap,
+        &mut adt_manager,
+        &creature_display_map,
+        asset_path.as_deref(),
     );
 }
 
@@ -109,9 +151,18 @@ pub fn setup_default_world_scene(
         return;
     }
     setup_world_scene(
-        &mut commands, &mut meshes, &mut materials, &mut terrain_mats, &mut water_mats,
-        &mut sky_mats, &mut images, &mut inverse_bp, &mut heightmap, &mut adt_manager,
-        &creature_display_map, None,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut terrain_mats,
+        &mut water_mats,
+        &mut sky_mats,
+        &mut images,
+        &mut inverse_bp,
+        &mut heightmap,
+        &mut adt_manager,
+        &creature_display_map,
+        None,
     );
 }
 
@@ -130,16 +181,29 @@ fn spawn_terrain(
     adt_path: &Path,
 ) -> Option<Vec3> {
     match terrain::spawn_adt(
-        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_path,
+        commands,
+        meshes,
+        materials,
+        terrain_mats,
+        water_mats,
+        images,
+        inverse_bp,
+        heightmap,
+        adt_path,
     ) {
         Ok(result) => {
             commands.entity(camera).insert(result.camera);
             adt_manager.map_name = result.map_name;
             adt_manager.initial_tile = (result.tile_y, result.tile_x);
-            adt_manager.loaded.insert((result.tile_y, result.tile_x), result.root_entity);
+            adt_manager
+                .loaded
+                .insert((result.tile_y, result.tile_x), result.root_entity);
             Some(result.center)
         }
-        Err(e) => { eprintln!("ADT load error: {e}"); None }
+        Err(e) => {
+            eprintln!("ADT load error: {e}");
+            None
+        }
     }
 }
 
@@ -156,17 +220,32 @@ fn load_default_terrain(
     adt_manager: &mut AdtManager,
 ) -> Option<Vec3> {
     let adt_path = Path::new(DEFAULT_ADT);
-    if !adt_path.exists() { return None; }
+    if !adt_path.exists() {
+        return None;
+    }
     match terrain::spawn_adt(
-        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_path,
+        commands,
+        meshes,
+        materials,
+        terrain_mats,
+        water_mats,
+        images,
+        inverse_bp,
+        heightmap,
+        adt_path,
     ) {
         Ok(result) => {
             adt_manager.map_name = result.map_name;
             adt_manager.initial_tile = (result.tile_y, result.tile_x);
-            adt_manager.loaded.insert((result.tile_y, result.tile_x), result.root_entity);
+            adt_manager
+                .loaded
+                .insert((result.tile_y, result.tile_x), result.root_entity);
             Some(result.center)
         }
-        Err(e) => { eprintln!("ADT load error: {e}"); None }
+        Err(e) => {
+            eprintln!("ADT load error: {e}");
+            None
+        }
     }
 }
 
@@ -184,23 +263,46 @@ fn spawn_default_scene(
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
     let center = load_default_terrain(
-        commands, meshes, materials, terrain_mats, water_mats, images, inverse_bp, heightmap, adt_manager,
+        commands,
+        meshes,
+        materials,
+        terrain_mats,
+        water_mats,
+        images,
+        inverse_bp,
+        heightmap,
+        adt_manager,
     );
     let m2_path = Path::new(DEFAULT_M2);
     if m2_path.exists() {
-        m2_scene::spawn_m2_model(commands, meshes, materials, images, inverse_bp, m2_path, creature_display_map);
+        m2_scene::spawn_m2_model(
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            m2_path,
+            creature_display_map,
+        );
     }
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         let offset = Vec3::new(5.0, 0.0, 0.0);
         m2_scene::spawn_static_m2(
-            commands, meshes, materials, images, inverse_bp, chest_path,
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bp,
+            chest_path,
             Transform::from_translation(center.unwrap_or_default() + offset)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             creature_display_map,
         );
     }
-    if let Some(pos) = center { set_player_position(commands, pos); }
+    if let Some(pos) = center {
+        set_player_position(commands, pos);
+    }
 }
 
 pub fn set_player_position(commands: &mut Commands, pos: Vec3) {
@@ -221,13 +323,34 @@ fn spawn_m2_scene(
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) {
-    m2_scene::spawn_m2_model(commands, meshes, materials, images, inverse_bindposes, m2_path, creature_display_map);
-    ground::spawn_ground_clutter(commands, meshes, materials, images, inverse_bindposes, creature_display_map);
+    m2_scene::spawn_m2_model(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        m2_path,
+        creature_display_map,
+    );
+    ground::spawn_ground_clutter(
+        commands,
+        meshes,
+        materials,
+        images,
+        inverse_bindposes,
+        creature_display_map,
+    );
     let chest_path = Path::new("data/models/chest01.m2");
     if chest_path.exists() {
         m2_scene::spawn_static_m2(
-            commands, meshes, materials, images, inverse_bindposes, chest_path,
-            Transform::from_xyz(5.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
+            commands,
+            meshes,
+            materials,
+            images,
+            inverse_bindposes,
+            chest_path,
+            Transform::from_xyz(5.0, 0.0, 0.0)
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             creature_display_map,
         );
     }
@@ -242,9 +365,17 @@ pub fn spawn_scene_environment(
     is_terrain: bool,
 ) -> Entity {
     let camera = crate::camera::spawn_wow_camera(commands);
-    commands.spawn(AmbientLight { color: Color::WHITE, brightness: 150.0, ..default() });
+    commands.spawn(AmbientLight {
+        color: Color::WHITE,
+        brightness: 150.0,
+        ..default()
+    });
     commands.spawn((
-        DirectionalLight { illuminance: light_consts::lux::OVERCAST_DAY, shadows_enabled: true, ..default() },
+        DirectionalLight {
+            illuminance: light_consts::lux::OVERCAST_DAY,
+            shadows_enabled: true,
+            ..default()
+        },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
     sky::spawn_sky_dome(commands, meshes, sky_materials, images, camera);
