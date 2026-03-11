@@ -110,7 +110,6 @@ fn login_inputs() -> Element {
             font_size: 20.0,
             strata: FrameStrata::Medium,
             password: true,
-            hidden: true,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: USERNAME_INPUT,
@@ -118,6 +117,7 @@ fn login_inputs() -> Element {
                 y: "-30",
             }
         }
+        {login_input_labels()}
     }
 }
 

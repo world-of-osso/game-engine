@@ -274,7 +274,9 @@ fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     let output = args.get(screenshot_idx + 1).map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("screenshot.webp"));
     let has_server = args.windows(2).any(|w| w[0] == "--server");
-    Some(ScreenshotRequest { output, frames_remaining: if has_server { 60 } else { 3 } })
+    let has_state = args.windows(2).any(|w| w[0] == "--state" || w[0] == "--screen");
+    let frames = if has_server { 60 } else if has_state { 10 } else { 3 };
+    Some(ScreenshotRequest { output, frames_remaining: frames })
 }
 
 fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)> {
