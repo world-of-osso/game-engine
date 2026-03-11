@@ -13,7 +13,7 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontStringData, JustifyH, JustifyV};
 use crate::ui::widgets::texture::{TextureData, TextureSource};
 
-const SPELLBOOK_ROOT_NAME: &str = "DioxusSpellBookRoot";
+const SPELLBOOK_ROOT_NAME: &str = "SpellBookRoot";
 const SPELLBOOK_ROOT_SIZE: (f32, f32) = (620.0, 720.0);
 const SPELLS_PER_PAGE: usize = 14;
 const FALLBACK_COOLDOWN_SECONDS: f32 = 8.0;
@@ -41,7 +41,7 @@ pub enum SpellbookKeyInput {
 }
 
 /// Drives a Screen and applies its mutations into the frame registry.
-pub struct DioxusUiRuntime {
+pub struct SpellbookUiRuntime {
     screen: Screen,
     spellbook_seeded: bool,
     active_tab_index: usize,
@@ -56,7 +56,7 @@ pub struct DioxusUiRuntime {
     next_raise_order: i32,
 }
 
-impl DioxusUiRuntime {
+impl SpellbookUiRuntime {
     pub fn new() -> Self {
         Self {
             screen: Screen::new(game_ui_root),
@@ -248,18 +248,18 @@ impl DioxusUiRuntime {
     }
 
     fn create_header_frames(&mut self, registry: &mut FrameRegistry, root_id: u64) {
-        self.create_label(registry, "DioxusSpellBookTitle", root_id,
+        self.create_label(registry, "SpellBookTitle", root_id,
             "Spellbook", [0.98, 0.92, 0.74, 1.0], [34.0, 16.0, 588.0, 40.0], 28.0, JustifyH::Left);
-        self.create_label(registry, "DioxusSpellBookSubtitle", root_id,
+        self.create_label(registry, "SpellBookSubtitle", root_id,
             "Paladin data mirrored from wow-ui-sim", [0.80, 0.74, 0.58, 0.96],
             [18.0, 60.0, 588.0, 24.0], 16.0, JustifyH::Left);
-        self.create_panel(registry, "DioxusSpellBookTabs", root_id,
+        self.create_panel(registry, "SpellBookTabs", root_id,
             [0.20, 0.16, 0.11, 0.94], [20.0, 96.0, 160.0, 600.0]);
-        self.create_panel(registry, "DioxusSpellBookSpells", root_id,
+        self.create_panel(registry, "SpellBookSpells", root_id,
             [0.10, 0.08, 0.05, 0.95], [196.0, 96.0, 404.0, 600.0]);
         let search_text = format!("Search: {}",
             if self.search_query.is_empty() { "(type to filter)" } else { &self.search_query });
-        self.create_label(registry, "DioxusSpellBookSearch", root_id,
+        self.create_label(registry, "SpellBookSearch", root_id,
             &search_text, [0.78, 0.72, 0.58, 1.0], [214.0, 684.0, 368.0, 18.0], 12.0, JustifyH::Left);
     }
 
@@ -288,14 +288,14 @@ impl DioxusUiRuntime {
         is_hover: bool,
         is_pressed: bool,
     ) {
-        let panel_id = self.create_panel(registry, &format!("DioxusSpellBookTabPanel{}", index + 1),
+        let panel_id = self.create_panel(registry, &format!("SpellBookTabPanel{}", index + 1),
             root_id, tab_color(is_active, is_hover, is_pressed), [28.0, tab_y, 144.0, 42.0]);
         self.click_targets.insert(panel_id, target);
-        let name_id = self.create_label(registry, &format!("DioxusSpellBookTabLabel{}", index + 1),
+        let name_id = self.create_label(registry, &format!("SpellBookTabLabel{}", index + 1),
             root_id, tab.name, [0.95, 0.88, 0.68, 1.0],
             [36.0, tab_y + 9.0, 98.0, 22.0], 14.0, JustifyH::Left);
         self.click_targets.insert(name_id, target);
-        let count_id = self.create_label(registry, &format!("DioxusSpellBookTabCount{}", index + 1),
+        let count_id = self.create_label(registry, &format!("SpellBookTabCount{}", index + 1),
             root_id, &tab.spells.len().to_string(), [0.76, 0.70, 0.56, 1.0],
             [138.0, tab_y + 9.0, 24.0, 22.0], 12.0, JustifyH::Right);
         self.click_targets.insert(count_id, target);
@@ -303,7 +303,7 @@ impl DioxusUiRuntime {
 
     fn create_spell_list_frames(&mut self, registry: &mut FrameRegistry, root_id: u64) {
         let active_tab = SPELLBOOK_TABS.get(self.active_tab_index).unwrap_or(&SPELLBOOK_TABS[0]);
-        self.create_label(registry, "DioxusSpellBookActiveHeader", root_id,
+        self.create_label(registry, "SpellBookActiveHeader", root_id,
             &format!("{} Spells", active_tab.name), [0.98, 0.90, 0.70, 1.0],
             [216.0, 112.0, 240.0, 26.0], 18.0, JustifyH::Left);
         let filtered = self.filtered_spells(active_tab);
@@ -311,7 +311,7 @@ impl DioxusUiRuntime {
         if self.page_index >= total_pages { self.page_index = total_pages.saturating_sub(1); }
         let page_start = self.page_index * SPELLS_PER_PAGE;
         let page_end = (page_start + SPELLS_PER_PAGE).min(filtered.len());
-        self.create_label(registry, "DioxusSpellBookPageInfo", root_id,
+        self.create_label(registry, "SpellBookPageInfo", root_id,
             &format!("Page {}/{}", self.page_index + 1, total_pages), [0.78, 0.72, 0.58, 1.0],
             [470.0, 114.0, 112.0, 22.0], 12.0, JustifyH::Right);
         let mut row_y = 148.0;
@@ -333,17 +333,17 @@ impl DioxusUiRuntime {
         let is_hover = self.hovered_target == Some(target);
         let is_pressed = self.pressed_target == Some(target);
         let cooldown = self.cooldowns.get(&spell.id).copied().unwrap_or(0.0);
-        let row_id = self.create_panel(registry, &format!("DioxusSpellBookSpellRow{}", index + 1),
+        let row_id = self.create_panel(registry, &format!("SpellBookSpellRow{}", index + 1),
             root_id, spell_row_color(index, is_hover, is_pressed), [208.0, row_y, 380.0, 28.0]);
         self.click_targets.insert(row_id, target);
-        let icon_id = self.create_spell_icon(registry, &format!("DioxusSpellBookSpellIcon{}", index + 1),
+        let icon_id = self.create_spell_icon(registry, &format!("SpellBookSpellIcon{}", index + 1),
             root_id, spell, [214.0, row_y + 4.0, 20.0, 20.0]);
         self.click_targets.insert(icon_id, target);
-        let name_id = self.create_label(registry, &format!("DioxusSpellBookSpellName{}", index + 1),
+        let name_id = self.create_label(registry, &format!("SpellBookSpellName{}", index + 1),
             root_id, spell.name, [0.96, 0.90, 0.78, 1.0],
             [242.0, row_y + 6.0, 262.0, 20.0], 13.0, JustifyH::Left);
         self.click_targets.insert(name_id, target);
-        let spell_id_id = self.create_label(registry, &format!("DioxusSpellBookSpellId{}", index + 1),
+        let spell_id_id = self.create_label(registry, &format!("SpellBookSpellId{}", index + 1),
             root_id, &spell.id.to_string(), [0.74, 0.68, 0.54, 1.0],
             [512.0, row_y + 6.0, 70.0, 20.0], 12.0, JustifyH::Right);
         self.click_targets.insert(spell_id_id, target);
@@ -361,16 +361,16 @@ impl DioxusUiRuntime {
         cooldown: f32,
     ) {
         if spell.passive {
-            let badge_id = self.create_label(registry, &format!("DioxusSpellBookSpellPassive{}", index + 1),
+            let badge_id = self.create_label(registry, &format!("SpellBookSpellPassive{}", index + 1),
                 root_id, "Passive", [0.68, 0.62, 0.48, 1.0],
                 [438.0, row_y + 6.0, 64.0, 20.0], 11.0, JustifyH::Right);
             self.click_targets.insert(badge_id, target);
         }
         if cooldown > 0.0 {
-            let overlay_id = self.create_panel(registry, &format!("DioxusSpellBookSpellCooldownOverlay{}", index + 1),
+            let overlay_id = self.create_panel(registry, &format!("SpellBookSpellCooldownOverlay{}", index + 1),
                 root_id, [0.02, 0.02, 0.02, 0.70], [214.0, row_y + 4.0, 20.0, 20.0]);
             self.click_targets.insert(overlay_id, target);
-            let text_id = self.create_label(registry, &format!("DioxusSpellBookSpellCooldown{}", index + 1),
+            let text_id = self.create_label(registry, &format!("SpellBookSpellCooldown{}", index + 1),
                 root_id, &format!("{cooldown:.1}"), [1.0, 0.94, 0.70, 1.0],
                 [206.0, row_y + 6.0, 36.0, 16.0], 10.0, JustifyH::Center);
             self.click_targets.insert(text_id, target);
@@ -496,7 +496,7 @@ impl DioxusUiRuntime {
 fn game_ui_root(_ctx: &ui_toolkit::screen::ScreenContext) -> Vec<WidgetChild> {
     rsx! {
         frame {
-            name: "DioxusSpellBookRoot",
+            name: "SpellBookRoot",
             width: 620.0,
             height: 720.0,
             background_color: "0.16,0.12,0.08,0.96",
@@ -572,7 +572,7 @@ mod tests {
 
     #[test]
     fn sync_builds_frames_from_virtual_dom() {
-        let mut runtime = DioxusUiRuntime::new();
+        let mut runtime = SpellbookUiRuntime::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         runtime.sync(&mut registry);
         let root_id = root_frame_id(&registry).expect("spellbook root frame exists");
@@ -581,7 +581,7 @@ mod tests {
         assert_eq!(root.height, 720.0);
         assert_eq!(root.strata, crate::ui::strata::FrameStrata::Dialog);
         assert_eq!(root.background_color, Some([0.16, 0.12, 0.08, 0.96]));
-        let sample_spell_id = registry.get_by_name("DioxusSpellBookSpellName1")
+        let sample_spell_id = registry.get_by_name("SpellBookSpellName1")
             .expect("spell row label exists");
         let sample_spell = get_fontstring_text(&registry, sample_spell_id)
             .expect("spell row is a text label");
@@ -590,16 +590,16 @@ mod tests {
 
     #[test]
     fn clicking_tab_rebuilds_active_spell_list() {
-        let mut runtime = DioxusUiRuntime::new();
+        let mut runtime = SpellbookUiRuntime::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         runtime.sync(&mut registry);
-        let holy_tab = registry.get_by_name("DioxusSpellBookTabPanel4")
+        let holy_tab = registry.get_by_name("SpellBookTabPanel4")
             .expect("holy tab panel exists");
         let rect = registry.get(holy_tab)
             .and_then(|f| f.layout_rect.clone())
             .expect("holy tab rect exists");
         let _ = runtime.handle_click(&mut registry, rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
-        let sample_spell_id = registry.get_by_name("DioxusSpellBookSpellName1")
+        let sample_spell_id = registry.get_by_name("SpellBookSpellName1")
             .expect("spell row label exists");
         let sample_spell = get_fontstring_text(&registry, sample_spell_id)
             .expect("spell row is a text label");
@@ -608,10 +608,10 @@ mod tests {
 
     #[test]
     fn clicking_spell_returns_cast_action() {
-        let mut runtime = DioxusUiRuntime::new();
+        let mut runtime = SpellbookUiRuntime::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         runtime.sync(&mut registry);
-        let spell_name = registry.get_by_name("DioxusSpellBookSpellName1")
+        let spell_name = registry.get_by_name("SpellBookSpellName1")
             .expect("first spell name exists");
         let rect = registry.get(spell_name)
             .and_then(|f| f.layout_rect.clone())
@@ -624,14 +624,14 @@ mod tests {
 
     #[test]
     fn keyboard_search_filters_spell_rows() {
-        let mut runtime = DioxusUiRuntime::new();
+        let mut runtime = SpellbookUiRuntime::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         runtime.sync(&mut registry);
         runtime.has_keyboard_focus = true;
         let _ = runtime.handle_key_input(&mut registry, SpellbookKeyInput::Character('e'));
         let _ = runtime.handle_key_input(&mut registry, SpellbookKeyInput::Character('y'));
         let _ = runtime.handle_key_input(&mut registry, SpellbookKeyInput::Character('e'));
-        let sample_spell_id = registry.get_by_name("DioxusSpellBookSpellName1")
+        let sample_spell_id = registry.get_by_name("SpellBookSpellName1")
             .expect("spell row label exists");
         let sample_spell = get_fontstring_text(&registry, sample_spell_id)
             .expect("spell row is a text label");
@@ -641,24 +641,24 @@ mod tests {
     #[test]
     fn casting_spell_adds_cooldown_overlay() {
         let (mut runtime, mut registry) = setup_with_cast();
-        let cooldown_id = registry.get_by_name("DioxusSpellBookSpellCooldown1")
+        let cooldown_id = registry.get_by_name("SpellBookSpellCooldown1")
             .expect("cooldown text should be present");
         let initial_text = get_fontstring_text(&registry, cooldown_id)
             .expect("cooldown should be fontstring");
         assert_eq!(initial_text, "15.0");
         runtime.advance_cooldowns(&mut registry, 1.0);
-        let cooldown_id = registry.get_by_name("DioxusSpellBookSpellCooldown1")
+        let cooldown_id = registry.get_by_name("SpellBookSpellCooldown1")
             .expect("cooldown text should still be present");
         let next_text = get_fontstring_text(&registry, cooldown_id)
             .expect("cooldown should be fontstring");
         assert_eq!(next_text, "14.0");
     }
 
-    fn setup_with_cast() -> (DioxusUiRuntime, FrameRegistry) {
-        let mut runtime = DioxusUiRuntime::new();
+    fn setup_with_cast() -> (SpellbookUiRuntime, FrameRegistry) {
+        let mut runtime = SpellbookUiRuntime::new();
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         runtime.sync(&mut registry);
-        let spell_name = registry.get_by_name("DioxusSpellBookSpellName1")
+        let spell_name = registry.get_by_name("SpellBookSpellName1")
             .expect("first spell name exists");
         let rect = registry.get(spell_name)
             .and_then(|f| f.layout_rect.clone())

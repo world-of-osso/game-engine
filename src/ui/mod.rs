@@ -127,7 +127,7 @@ pub use ui_toolkit::widgets;
 pub mod addon_watcher;
 pub mod automation;
 pub mod automation_script;
-pub mod dioxus_runtime;
+pub mod spellbook_runtime;
 pub mod js_automation;
 pub mod screens;
 pub mod spellbook_data;

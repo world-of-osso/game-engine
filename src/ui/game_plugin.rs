@@ -3,11 +3,11 @@ use bevy::{input::ButtonState, input::keyboard::KeyboardInput};
 use lightyear::prelude::MessageSender;
 
 use crate::targeting::CurrentTarget;
-use crate::ui::dioxus_runtime::{DioxusUiRuntime, SpellbookAction, SpellbookKeyInput};
+use crate::ui::spellbook_runtime::{SpellbookUiRuntime, SpellbookAction, SpellbookKeyInput};
 use crate::ui::plugin::UiState;
 use shared::protocol::{CombatChannel, SpellCastIntent};
 
-pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<DioxusUiRuntime>>) {
+pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<SpellbookUiRuntime>>) {
     if let Some(mut runtime) = runtime {
         runtime.sync(&mut state.registry);
     }
@@ -16,7 +16,7 @@ pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<Dio
 pub fn tick_spellbook_cooldowns(
     time: Option<Res<Time>>,
     mut state: ResMut<UiState>,
-    runtime: Option<NonSendMut<DioxusUiRuntime>>,
+    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
 ) {
     let (Some(time), Some(mut runtime)) = (time, runtime) else {
         return;
@@ -28,7 +28,7 @@ pub fn handle_spellbook_pointer(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     mut state: ResMut<UiState>,
-    runtime: Option<NonSendMut<DioxusUiRuntime>>,
+    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
     current_target: Option<Res<CurrentTarget>>,
     mut spell_senders: Query<&mut MessageSender<SpellCastIntent>>,
 ) {
@@ -60,7 +60,7 @@ pub fn handle_spellbook_pointer(
 pub fn handle_spellbook_keyboard(
     mut key_events: Option<MessageReader<KeyboardInput>>,
     mut state: ResMut<UiState>,
-    runtime: Option<NonSendMut<DioxusUiRuntime>>,
+    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
 ) {
     let Some(mut runtime) = runtime else { return };
     if !runtime.has_focus() {

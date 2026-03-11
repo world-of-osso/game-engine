@@ -380,10 +380,10 @@ fn dump_tree_and_exit(
 
 fn dump_ui_tree_and_exit(
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut dioxus_runtime: Option<NonSendMut<game_engine::ui::dioxus_runtime::DioxusUiRuntime>>,
+    mut spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if let Some(ref mut rt) = dioxus_runtime { rt.sync(&mut ui_state.registry); }
+    if let Some(ref mut rt) = spellbook_runtime { rt.sync(&mut ui_state.registry); }
     action_bar::ensure_action_bars(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
@@ -414,13 +414,13 @@ fn handle_automation_dump_tree_request(
 fn handle_automation_dump_ui_tree_request(
     request: Option<Res<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>>,
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut dioxus_runtime: Option<NonSendMut<game_engine::ui::dioxus_runtime::DioxusUiRuntime>>,
+    mut spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
 ) {
     if request.is_none() { return; }
     commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>();
-    if let Some(ref mut rt) = dioxus_runtime { rt.sync(&mut ui_state.registry); }
+    if let Some(ref mut rt) = spellbook_runtime { rt.sync(&mut ui_state.registry); }
     action_bar::ensure_action_bars(&mut ui_state.registry);
     let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
