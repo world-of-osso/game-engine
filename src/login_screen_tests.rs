@@ -1,7 +1,7 @@
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 
-use game_engine::ui::frame::WidgetData;
+use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
@@ -94,8 +94,8 @@ fn inject_layout_rects(
                 width: w,
                 height: h,
             });
-            f.width = w;
-            f.height = h;
+            f.width = Dimension::Fixed(w);
+            f.height = Dimension::Fixed(h);
         }
     };
     set_rect(reg, root, 0.0, 0.0, 1920.0, 1080.0);
@@ -163,6 +163,27 @@ fn automation_click_focuses_username_editbox() {
 
     assert_eq!(focus.0, Some(login.username_input));
     assert!(matches!(next_state, NextState::Unchanged));
+}
+
+fn editbox_nine_slice(reg: &FrameRegistry, id: u64) -> &NineSlice {
+    reg.get(id)
+        .and_then(|frame| frame.nine_slice.as_ref())
+        .expect("expected editbox nine-slice")
+}
+
+#[test]
+fn login_editboxes_use_a_darkened_fill_multiplier() {
+    let (mut reg, login) = login_fixture();
+    super::apply_post_setup(&mut reg, &login);
+
+    let username = editbox_nine_slice(&reg, login.username_input);
+    let password = editbox_nine_slice(&reg, login.password_input);
+
+    assert_eq!(username.bg_color, password.bg_color);
+    assert!(
+        username.bg_color[..3].iter().all(|channel| *channel < 1.0),
+        "login editbox fill should darken the backdrop art instead of multiplying it by pure white"
+    );
 }
 
 #[test]

@@ -3,7 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue};
-use game_engine::ui::frame::{NineSlice, WidgetData};
+use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::layout::recompute_layouts;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
@@ -30,16 +30,16 @@ use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, hit_frame, insert_char_into_editbox, select_all_editbox,
+    editbox_move_cursor, hit_frame, insert_char_into_editbox,
     set_button_hovered, set_login_primary_button_textures,
 };
 
 const FADE_IN_DURATION: f32 = 0.75;
 pub(crate) const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
 const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
-const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const EDITBOX_BG: [f32; 4] = [0.22, 0.16, 0.11, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 0.95, 0.85, 1.0];
+const EDITBOX_FOCUSED_BG: [f32; 4] = [0.32, 0.24, 0.16, 1.0];
 const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.78, 0.0, 1.0];
 pub(crate) const STATUS_CONNECTING: &str = "Connecting...";
 pub(crate) const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
@@ -147,8 +147,8 @@ fn build_login_screen(status: &LoginStatus) -> Screen {
 fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
     let (sw, sh) = (reg.screen_width, reg.screen_height);
     if let Some(frame) = reg.get_mut(login.root) {
-        frame.width = sw;
-        frame.height = sh;
+        frame.width = Dimension::Fixed(sw);
+        frame.height = Dimension::Fixed(sh);
     }
     set_editbox_backdrop(reg, login.username_input);
     set_editbox_backdrop(reg, login.password_input);
@@ -232,9 +232,9 @@ fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>)
     let sw = ui.registry.screen_width;
     let sh = ui.registry.screen_height;
     if let Some(root) = ui.registry.get_mut(login.root) {
-        if (root.width - sw).abs() > 0.5 || (root.height - sh).abs() > 0.5 {
-            root.width = sw;
-            root.height = sh;
+        if (root.width.value() - sw).abs() > 0.5 || (root.height.value() - sh).abs() > 0.5 {
+            root.width = Dimension::Fixed(sw);
+            root.height = Dimension::Fixed(sh);
             if let Some(rect) = &mut root.layout_rect {
                 rect.width = sw;
                 rect.height = sh;
@@ -303,15 +303,12 @@ fn handle_mouse_press(
     pressed: &mut LoginPressedButton,
 ) {
     let (cx, cy) = (cursor.x, cursor.y);
-    if hit_frame(ui, login.username_input, cx, cy) {
-        focus.0 = Some(login.username_input);
-        select_all_editbox(&mut ui.registry, login.username_input);
-        return;
-    }
-    if hit_frame(ui, login.password_input, cx, cy) {
-        focus.0 = Some(login.password_input);
-        select_all_editbox(&mut ui.registry, login.password_input);
-        return;
+    for &id in &[login.username_input, login.password_input] {
+        if hit_frame(ui, id, cx, cy) {
+            ui.registry.click_frame(id);
+            focus.0 = ui.registry.focused_frame;
+            return;
+        }
     }
     let button_ids = button_ids(login);
     for id in button_ids {
@@ -538,7 +535,7 @@ pub(crate) fn run_login_automation_action(
 fn click_login_frame(
     ui: &mut UiState,
     login: &LoginUi,
-    _focus: &mut LoginFocus,
+    focus: &mut LoginFocus,
     next_state: &mut NextState<GameState>,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
@@ -552,10 +549,8 @@ fn click_login_frame(
         .registry
         .get_by_name(frame_name)
         .ok_or_else(|| format!("unknown login frame '{frame_name}'"))?;
-    let action = ui
-        .registry
-        .get(frame_id)
-        .and_then(|f| f.onclick.clone());
+    let action = ui.registry.click_frame(frame_id);
+    focus.0 = ui.registry.focused_frame;
     match action.as_deref() {
         Some("connect") => try_connect(
             &ui.registry,
@@ -580,6 +575,7 @@ fn click_login_frame(
         }
         Some("menu") => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
         Some("exit") => {}
+        None if ui.registry.focused_frame == Some(frame_id) => {}
         _ => {
             return Err(format!("login frame '{frame_name}' has no onclick action"));
         }
