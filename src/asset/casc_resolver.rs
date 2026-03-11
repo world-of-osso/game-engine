@@ -120,10 +120,10 @@ fn resolve_extension(fdid: u32, listfile: &Path) -> String {
     if let Ok(content) = std::fs::read_to_string(listfile) {
         let prefix = format!("{fdid};");
         for line in content.lines() {
-            if let Some(path) = line.strip_prefix(&prefix) {
-                if let Some(ext) = path.rsplit('.').next() {
-                    return ext.to_lowercase();
-                }
+            if let Some(path) = line.strip_prefix(&prefix)
+                && let Some(ext) = path.rsplit('.').next()
+            {
+                return ext.to_lowercase();
             }
         }
     }

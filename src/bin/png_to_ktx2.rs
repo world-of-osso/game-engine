@@ -20,14 +20,14 @@ fn box_filter_mip(src: &[u8], src_w: u32, src_h: u32) -> Vec<u8> {
                     let px = (src_x + dx).min(src_w - 1);
                     let py = (src_y + dy).min(src_h - 1);
                     let offset = ((py * src_w + px) * 4) as usize;
-                    for c in 0..4 {
-                        rgba[c] += src[offset + c] as u32;
+                    for (c, v) in rgba.iter_mut().enumerate() {
+                        *v += src[offset + c] as u32;
                     }
                 }
             }
 
-            for c in 0..4 {
-                dst.push((rgba[c] / 4) as u8);
+            for v in rgba {
+                dst.push((v / 4) as u8);
             }
         }
     }

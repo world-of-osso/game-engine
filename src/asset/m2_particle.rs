@@ -65,9 +65,9 @@ fn read_color_values(md20: &[u8], emitter: &[u8], off: usize) -> [[f32; 3]; 3] {
     let mut colors = [[0.0f32; 3]; 3];
     let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
     let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
-    for i in 0..count.min(3) {
+    for (i, color) in colors.iter_mut().enumerate().take(count.min(3)) {
         let o = base + i * 12;
-        colors[i] = [
+        *color = [
             read_f32(md20, o).unwrap_or(0.0),
             read_f32(md20, o + 4).unwrap_or(0.0),
             read_f32(md20, o + 8).unwrap_or(0.0),
@@ -81,8 +81,8 @@ fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
     let mut opacities = [1.0f32; 3];
     let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
     let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
-    for i in 0..count.min(3) {
-        opacities[i] = read_u16(md20, base + i * 2)
+    for (i, opacity) in opacities.iter_mut().enumerate().take(count.min(3)) {
+        *opacity = read_u16(md20, base + i * 2)
             .map(|v| v as f32 / 32767.0)
             .unwrap_or(1.0);
     }
@@ -94,9 +94,9 @@ fn read_scale_values(md20: &[u8], emitter: &[u8], off: usize) -> [[f32; 2]; 3] {
     let mut scales = [[1.0f32; 2]; 3];
     let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
     let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
-    for i in 0..count.min(3) {
+    for (i, scale) in scales.iter_mut().enumerate().take(count.min(3)) {
         let o = base + i * 8;
-        scales[i] = [
+        *scale = [
             read_f32(md20, o).unwrap_or(1.0),
             read_f32(md20, o + 4).unwrap_or(1.0),
         ];

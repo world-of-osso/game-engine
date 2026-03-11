@@ -35,10 +35,10 @@ fn lookup_item_info_in_reader<R: BufRead>(
 ) -> Result<Option<ItemStaticInfo>, String> {
     for line in reader.lines() {
         let line = line.map_err(|e| format!("failed to read item db line: {e}"))?;
-        if let Some(item) = parse_item_line(&line) {
-            if item.item_id == item_id {
-                return Ok(Some(item));
-            }
+        if let Some(item) = parse_item_line(&line)
+            && item.item_id == item_id
+        {
+            return Ok(Some(item));
         }
     }
     Ok(None)

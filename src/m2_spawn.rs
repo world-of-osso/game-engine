@@ -5,14 +5,19 @@ use bevy::prelude::*;
 
 use crate::asset;
 
+/// Grouped asset params for M2 spawning.
+pub struct SpawnAssets<'a> {
+    pub meshes: &'a mut Assets<Mesh>,
+    pub materials: &'a mut Assets<StandardMaterial>,
+    pub images: &'a mut Assets<Image>,
+    pub inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
+}
+
 /// Attach M2 model meshes as children of an existing entity.
 /// Returns true if the model was loaded and attached successfully.
 pub fn spawn_m2_on_entity(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    assets: &mut SpawnAssets<'_>,
     m2_path: &Path,
     entity: Entity,
     skin_fdids: &[u32; 3],
@@ -24,16 +29,7 @@ pub fn spawn_m2_on_entity(
             return false;
         }
     };
-    attach_m2_batches(
-        commands,
-        meshes,
-        materials,
-        images,
-        inverse_bindposes,
-        model.batches,
-        &model.bones,
-        entity,
-    );
+    attach_m2_batches(commands, assets, model.batches, &model.bones, entity);
     true
 }
 
@@ -44,18 +40,15 @@ pub type SkinningResult = Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entit
 /// Returns the skinning data for optional animation setup.
 pub fn attach_m2_batches(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    assets: &mut SpawnAssets<'_>,
     batches: Vec<asset::m2::M2RenderBatch>,
     bones: &[asset::m2_anim::M2Bone],
     root: Entity,
 ) -> SkinningResult {
-    let skinning = spawn_skeleton(commands, inverse_bindposes, bones, root);
+    let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
-        let mat = load_batch_material(&batch, i, images, materials);
-        spawn_skinned_mesh(commands, meshes, mat, batch.mesh, root, &skinning);
+        let mat = load_batch_material(&batch, i, assets.images, assets.materials);
+        spawn_skinned_mesh(commands, assets.meshes, mat, batch.mesh, root, &skinning);
     }
     skinning
 }
@@ -166,7 +159,7 @@ pub fn m2_material(
     let alpha_mode = match batch.blend_mode {
         1 => AlphaMode::Mask(0.5),
         2 | 3 | 7 => AlphaMode::Blend,
-        4 | 5 | 6 => AlphaMode::Add,
+        4..=6 => AlphaMode::Add,
         _ => AlphaMode::Opaque,
     };
     StandardMaterial {
@@ -195,7 +188,7 @@ fn load_composited_texture(
 }
 
 fn composite_overlay(
-    pixels: &mut Vec<u8>,
+    pixels: &mut [u8],
     base_width: u32,
     ov: &asset::m2::TextureOverlay,
     texture_dir: &Path,

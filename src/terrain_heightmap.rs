@@ -54,7 +54,7 @@ impl TerrainHeightmap {
 fn chunk_height_at(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
     let local_x = g.origin_x - bx;
     let local_z = bz - g.origin_z;
-    if local_x < 0.0 || local_x >= CHUNK_SIZE || local_z < 0.0 || local_z >= CHUNK_SIZE {
+    if !(0.0..CHUNK_SIZE).contains(&local_x) || !(0.0..CHUNK_SIZE).contains(&local_z) {
         return None;
     }
     let col = (local_x / UNIT_SIZE).floor() as usize;
@@ -88,23 +88,15 @@ fn interpolate_quad_height(g: &ChunkHeightGrid, row: usize, col: usize, fx: f32,
     } else {
         (bl, tl, 0.0, 1.0, 0.0, 0.0)
     };
-    barycentric_height(fx, fz, ax, az, ha, bxx, bz, hb, 0.5, 0.5, center)
+    barycentric_height(fx, fz, [ax, az, ha], [bxx, bz, hb], [0.5, 0.5, center])
 }
 
 /// Barycentric interpolation of height at (px, pz) within triangle (A, B, C).
-fn barycentric_height(
-    px: f32,
-    pz: f32,
-    ax: f32,
-    az: f32,
-    ha: f32,
-    bx: f32,
-    bz: f32,
-    hb: f32,
-    cx: f32,
-    cz: f32,
-    hc: f32,
-) -> f32 {
+/// Each vertex is `[x, z, height]`.
+fn barycentric_height(px: f32, pz: f32, a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> f32 {
+    let [ax, az, ha] = a;
+    let [bx, bz, hb] = b;
+    let [cx, cz, hc] = c;
     let det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
     if det.abs() < 1e-10 {
         return (ha + hb + hc) / 3.0;

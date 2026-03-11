@@ -63,6 +63,7 @@ fn click_to_target(
 }
 
 /// On Tab, cycle through nearby RemoteEntity sorted by distance from local player.
+#[allow(clippy::type_complexity)]
 fn tab_target(
     keys: Res<ButtonInput<KeyCode>>,
     player_q: Query<&Transform, With<Player>>,
@@ -80,6 +81,7 @@ fn tab_target(
 }
 
 /// Sort remote entities by distance from player, return entity list.
+#[allow(clippy::type_complexity)]
 fn sorted_targets_by_distance(
     player_tf: &Transform,
     remote_q: &Query<(Entity, &Transform), (With<RemoteEntity>, Without<Player>)>,

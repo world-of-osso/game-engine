@@ -143,6 +143,30 @@ fn resolve_bone_position(
         .unwrap_or_else(|| emitter_gtf.translation())
 }
 
+fn build_particle(em: &M2ParticleEmitter, seed: u32) -> Particle {
+    let spread = compute_velocity_spread(em, seed);
+    let speed = em.emission_speed * (1.0 + em.speed_variation * hash_float(seed, 3));
+    Particle {
+        velocity: Vec3::new(spread.x, speed, spread.y),
+        gravity: em.gravity,
+        age: 0.0,
+        max_age: em.lifespan,
+        colors: [
+            color_to_vec3(em.colors[0]),
+            color_to_vec3(em.colors[1]),
+            color_to_vec3(em.colors[2]),
+        ],
+        opacity: em.opacity,
+        scales: [
+            em.scales[0][0].max(0.05),
+            em.scales[1][0].max(0.05),
+            em.scales[2][0].max(0.05),
+        ],
+        mid_point: em.mid_point,
+        atlas_uv: select_atlas_uv(em, seed),
+    }
+}
+
 fn spawn_particle(
     commands: &mut Commands,
     em: &M2ParticleEmitter,
@@ -150,41 +174,15 @@ fn spawn_particle(
     mesh: &Handle<Mesh>,
     material: &Handle<StandardMaterial>,
 ) {
-    // Random-ish velocity spread using simple deterministic hash
     let seed = (pos.x * 1000.0 + pos.z * 7919.0) as u32;
-    let spread = compute_velocity_spread(em, seed);
-
-    let speed = em.emission_speed * (1.0 + em.speed_variation * hash_float(seed, 3));
-    let velocity = Vec3::new(spread.x, speed, spread.y);
-
-    let colors = [
-        color_to_vec3(em.colors[0]),
-        color_to_vec3(em.colors[1]),
-        color_to_vec3(em.colors[2]),
-    ];
-    let scales = [
-        em.scales[0][0].max(0.05),
-        em.scales[1][0].max(0.05),
-        em.scales[2][0].max(0.05),
-    ];
-    let atlas_uv = select_atlas_uv(em, seed);
-
+    let particle = build_particle(em, seed);
+    let scale = Vec3::splat(particle.scales[0]);
     commands.spawn((
         Name::new("Particle"),
         Mesh3d(mesh.clone()),
         MeshMaterial3d(material.clone()),
-        Transform::from_translation(pos).with_scale(Vec3::splat(scales[0])),
-        Particle {
-            velocity,
-            gravity: em.gravity,
-            age: 0.0,
-            max_age: em.lifespan,
-            colors,
-            opacity: em.opacity,
-            scales,
-            mid_point: em.mid_point,
-            atlas_uv,
-        },
+        Transform::from_translation(pos).with_scale(scale),
+        particle,
     ));
 }
 
@@ -311,7 +309,7 @@ fn emitter_material(
     let texture = load_emitter_texture(em, images);
     let start_color = color_to_vec3(em.colors[0]);
     let alpha_mode = match em.blend_type {
-        4 | 5 | 6 => AlphaMode::Add,
+        4..=6 => AlphaMode::Add,
         2 | 3 | 7 => AlphaMode::Blend,
         1 => AlphaMode::Mask(0.5),
         _ => AlphaMode::Blend,

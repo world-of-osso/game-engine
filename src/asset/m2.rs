@@ -92,6 +92,14 @@ struct M2Chunks<'a> {
     sfid: Vec<u32>,
 }
 
+/// Grouped texture lookup tables passed to batched model building.
+struct TextureTables<'a> {
+    tex_lookup: &'a [u16],
+    tex_types: &'a [u32],
+    txid: &'a [u32],
+    skin_fdids: &'a [u32; 3],
+}
+
 /// Read a little-endian u32 from a byte slice at the given offset.
 pub(crate) fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     let bytes: [u8; 4] = data
@@ -154,6 +162,26 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     })
 }
 
+fn parse_one_vertex(md20: &[u8], i: usize, base: usize) -> Result<M2Vertex, String> {
+    let bw = md20
+        .get(base + 12..base + 16)
+        .ok_or_else(|| format!("Vertex {i} bone_weights out of bounds at {base:#x}"))?;
+    let bi = md20
+        .get(base + 16..base + 20)
+        .ok_or_else(|| format!("Vertex {i} bone_indices out of bounds at {base:#x}"))?;
+    Ok(M2Vertex {
+        position: [read_f32(md20, base)?, read_f32(md20, base + 4)?, read_f32(md20, base + 8)?],
+        bone_weights: bw.try_into().unwrap(),
+        bone_indices: bi.try_into().unwrap(),
+        normal: [
+            read_f32(md20, base + 20)?,
+            read_f32(md20, base + 24)?,
+            read_f32(md20, base + 28)?,
+        ],
+        tex_coords: [read_f32(md20, base + 32)?, read_f32(md20, base + 36)?],
+    })
+}
+
 /// Parse the vertex array from the MD20 blob (M2Array at offset 0x3C).
 fn parse_vertices(md20: &[u8]) -> Result<Vec<M2Vertex>, String> {
     if md20.len() < 0x44 {
@@ -161,36 +189,13 @@ fn parse_vertices(md20: &[u8]) -> Result<Vec<M2Vertex>, String> {
     }
     let count = read_u32(md20, 0x3C)? as usize;
     let offset = read_u32(md20, 0x40)? as usize;
-
     let mut vertices = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * 48;
         if base + 48 > md20.len() {
             return Err(format!("Vertex {i} out of bounds at offset {base:#x}"));
         }
-        let bw_slice = md20
-            .get(base + 12..base + 16)
-            .ok_or_else(|| format!("Vertex {i} bone_weights out of bounds at {base:#x}"))?;
-        let bone_weights: [u8; 4] = bw_slice.try_into().unwrap();
-        let bi_slice = md20
-            .get(base + 16..base + 20)
-            .ok_or_else(|| format!("Vertex {i} bone_indices out of bounds at {base:#x}"))?;
-        let bone_indices: [u8; 4] = bi_slice.try_into().unwrap();
-        vertices.push(M2Vertex {
-            position: [
-                read_f32(md20, base)?,
-                read_f32(md20, base + 4)?,
-                read_f32(md20, base + 8)?,
-            ],
-            bone_weights,
-            bone_indices,
-            normal: [
-                read_f32(md20, base + 20)?,
-                read_f32(md20, base + 24)?,
-                read_f32(md20, base + 28)?,
-            ],
-            tex_coords: [read_f32(md20, base + 32)?, read_f32(md20, base + 36)?],
-        });
+        vertices.push(parse_one_vertex(md20, i, base)?);
     }
     Ok(vertices)
 }
@@ -387,6 +392,34 @@ const SCALP_UPPER_REGION: (u32, u32) = (0, 320); // FACE_UPPER
 const SCALP_LOWER_FDID: u32 = 119383; // faciallowerhair00_00, 128x64 → 2x = 256x128
 const SCALP_LOWER_REGION: (u32, u32) = (0, 384); // FACE_LOWER
 
+fn hd_body_overlays() -> Vec<TextureOverlay> {
+    let (x, y) = UNDERWEAR_HD_POS;
+    vec![
+        // Face texture composited onto body atlas right half (FACE_UPPER region)
+        TextureOverlay { fdid: HD_FACE_FDID, x: 512, y: 0, scale: OverlayScale::None },
+        TextureOverlay { fdid: UNDERWEAR_HD_FDID, x, y, scale: OverlayScale::None },
+    ]
+}
+
+fn sd_body_overlays() -> Vec<TextureOverlay> {
+    let (x, y) = UNDERWEAR_SD_POS;
+    vec![
+        TextureOverlay { fdid: UNDERWEAR_SD_FDID, x, y, scale: OverlayScale::None },
+        TextureOverlay {
+            fdid: SCALP_UPPER_FDID,
+            x: SCALP_UPPER_REGION.0,
+            y: SCALP_UPPER_REGION.1,
+            scale: OverlayScale::Uniform2x,
+        },
+        TextureOverlay {
+            fdid: SCALP_LOWER_FDID,
+            x: SCALP_LOWER_REGION.0,
+            y: SCALP_LOWER_REGION.1,
+            scale: OverlayScale::Uniform2x,
+        },
+    ]
+}
+
 /// Return body skin overlays: underwear + scalp hair textures.
 /// HD models have separate face geometry with dedicated textures, so scalp overlays
 /// are only composited for legacy models (which bake scalp into the body texture).
@@ -404,45 +437,7 @@ fn body_skin_overlays(
     if ty != 1 {
         return Vec::new();
     }
-    if is_hd {
-        let (x, y) = UNDERWEAR_HD_POS;
-        return vec![
-            // Face texture composited onto body atlas right half (FACE_UPPER region)
-            TextureOverlay {
-                fdid: HD_FACE_FDID,
-                x: 512,
-                y: 0,
-                scale: OverlayScale::None,
-            },
-            TextureOverlay {
-                fdid: UNDERWEAR_HD_FDID,
-                x,
-                y,
-                scale: OverlayScale::None,
-            },
-        ];
-    }
-    let (x, y) = UNDERWEAR_SD_POS;
-    vec![
-        TextureOverlay {
-            fdid: UNDERWEAR_SD_FDID,
-            x,
-            y,
-            scale: OverlayScale::None,
-        },
-        TextureOverlay {
-            fdid: SCALP_UPPER_FDID,
-            x: SCALP_UPPER_REGION.0,
-            y: SCALP_UPPER_REGION.1,
-            scale: OverlayScale::Uniform2x,
-        },
-        TextureOverlay {
-            fdid: SCALP_LOWER_FDID,
-            x: SCALP_LOWER_REGION.0,
-            y: SCALP_LOWER_REGION.1,
-            scale: OverlayScale::Uniform2x,
-        },
-    ]
+    if is_hd { hd_body_overlays() } else { sd_body_overlays() }
 }
 
 /// batch.texture_id -> textureLookup -> textures[].type -> TXID[]. Type!=0 uses defaults.
@@ -731,12 +726,9 @@ fn build_batched_model(
     vertices: &[M2Vertex],
     skin: &SkinData,
     materials: &[M2Material],
-    tex_lookup: &[u16],
-    tex_types: &[u32],
-    txid: &[u32],
+    tex: &TextureTables<'_>,
     has_bones: bool,
     is_hd: bool,
-    skin_fdids: &[u32; 3],
 ) -> Result<Vec<M2RenderBatch>, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
@@ -752,18 +744,13 @@ fn build_batched_model(
             continue;
         }
         let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
-        let (texture_fdid, overlays) =
-            resolve_batch_fdid_and_overlays(unit, tex_lookup, tex_types, txid, is_hd, skin_fdids);
+        let (texture_fdid, overlays) = resolve_batch_fdid_and_overlays(
+            unit, tex.tex_lookup, tex.tex_types, tex.txid, is_hd, tex.skin_fdids,
+        );
         let mat = materials.get(unit.render_flags_index as usize);
         let render_flags = mat.map(|m| m.flags).unwrap_or(0);
         let blend_mode = mat.map(|m| m.blend_mode).unwrap_or(0);
-        batches.push(M2RenderBatch {
-            mesh,
-            texture_fdid,
-            overlays,
-            render_flags,
-            blend_mode,
-        });
+        batches.push(M2RenderBatch { mesh, texture_fdid, overlays, render_flags, blend_mode });
     }
     Ok(batches)
 }
@@ -781,6 +768,26 @@ fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
     load_anim_from_md20(chunks.md20)
 }
 
+fn build_fallback_batch(
+    vertices: &[M2Vertex],
+    skin: Option<SkinData>,
+    tex_types: &[u32],
+    txid: &[u32],
+) -> Result<Vec<M2RenderBatch>, String> {
+    let indices = match skin {
+        Some(s) => resolve_indices(&s.lookup, &s.indices),
+        None => (0..vertices.len() as u16).collect(),
+    };
+    let fdid = first_hardcoded_texture(tex_types, txid);
+    Ok(vec![M2RenderBatch {
+        mesh: build_mesh(vertices, indices),
+        texture_fdid: fdid,
+        overlays: Vec::new(),
+        render_flags: 0,
+        blend_mode: 0,
+    }])
+}
+
 /// Build render batches from parsed M2 data (mesh geometry + textures).
 fn build_render_batches(
     md20: &[u8],
@@ -795,34 +802,14 @@ fn build_render_batches(
     let tex_lookup = parse_texture_lookup(md20)?;
     let materials = parse_materials(md20)?;
     let skin = load_skin_data(path, &chunks.sfid);
+    let tex = TextureTables { tex_lookup: &tex_lookup, tex_types: &tex_types, txid, skin_fdids };
     if let Some(ref skin) = skin
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        build_batched_model(
-            &vertices,
-            skin,
-            &materials,
-            &tex_lookup,
-            &tex_types,
-            txid,
-            has_bones,
-            chunks.skid.is_some(),
-            skin_fdids,
-        )
+        build_batched_model(&vertices, skin, &materials, &tex, has_bones, chunks.skid.is_some())
     } else {
-        let indices = match skin {
-            Some(s) => resolve_indices(&s.lookup, &s.indices),
-            None => (0..vertices.len() as u16).collect(),
-        };
-        let fdid = first_hardcoded_texture(&tex_types, txid);
-        Ok(vec![M2RenderBatch {
-            mesh: build_mesh(&vertices, indices),
-            texture_fdid: fdid,
-            overlays: Vec::new(),
-            render_flags: 0,
-            blend_mode: 0,
-        }])
+        build_fallback_batch(&vertices, skin, &tex_types, txid)
     }
 }
 

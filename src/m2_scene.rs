@@ -101,7 +101,11 @@ pub fn spawn_m2_model(
     let asset::m2::M2Model { batches, bones, sequences, bone_tracks, particle_emitters, attachments, .. } = model;
     let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(
-        commands, meshes, materials, images, inv_bp, batches, &bones, model_entity,
+        commands,
+        &mut m2_spawn::SpawnAssets { meshes, materials, images, inverse_bindposes: inv_bp },
+        batches,
+        &bones,
+        model_entity,
     );
     spawn_anim_and_particles(
         commands, meshes, materials, images,
@@ -128,6 +132,7 @@ pub fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
 }
 
 /// Spawn a static (non-player) M2 model as a scene prop.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_static_m2(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -146,8 +151,11 @@ pub fn spawn_static_m2(
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
     if m2_spawn::spawn_m2_on_entity(
-        commands, meshes, materials, images, skinned_mesh_inverse_bindposes,
-        m2_path, root, &skin_fdids,
+        commands,
+        &mut m2_spawn::SpawnAssets { meshes, materials, images, inverse_bindposes: skinned_mesh_inverse_bindposes },
+        m2_path,
+        root,
+        &skin_fdids,
     ) {
         Some(root)
     } else {

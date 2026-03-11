@@ -57,6 +57,30 @@ pub struct SpellbookUiRuntime {
     next_raise_order: i32,
 }
 
+struct TabRowParams<'a> {
+    index: usize,
+    tab: &'a crate::ui::spellbook_data::SpellbookTab,
+    target: HitTarget,
+    tab_y: f32,
+    is_active: bool,
+    is_hover: bool,
+    is_pressed: bool,
+}
+
+struct SpellRowExtrasParams<'a> {
+    index: usize,
+    spell: &'a SpellbookSpell,
+    row_y: f32,
+    target: HitTarget,
+    cooldown: f32,
+}
+
+impl Default for SpellbookUiRuntime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpellbookUiRuntime {
     pub fn new() -> Self {
         Self {
@@ -269,11 +293,16 @@ impl SpellbookUiRuntime {
         let mut tab_y = 116.0;
         for (index, tab) in SPELLBOOK_TABS.iter().enumerate() {
             let target = HitTarget::Tab(index);
-            let is_active = index == self.active_tab_index;
-            let is_hover = self.hovered_target == Some(target);
-            let is_pressed = self.pressed_target == Some(target);
-            self.create_tab_row(registry, root_id, index, tab, target, tab_y,
-                is_active, is_hover, is_pressed);
+            let params = TabRowParams {
+                index,
+                tab,
+                target,
+                tab_y,
+                is_active: index == self.active_tab_index,
+                is_hover: self.hovered_target == Some(target),
+                is_pressed: self.pressed_target == Some(target),
+            };
+            self.create_tab_row(registry, root_id, params);
             tab_y += 50.0;
         }
     }
@@ -282,14 +311,9 @@ impl SpellbookUiRuntime {
         &mut self,
         registry: &mut FrameRegistry,
         root_id: u64,
-        index: usize,
-        tab: &crate::ui::spellbook_data::SpellbookTab,
-        target: HitTarget,
-        tab_y: f32,
-        is_active: bool,
-        is_hover: bool,
-        is_pressed: bool,
+        params: TabRowParams<'_>,
     ) {
+        let TabRowParams { index, tab, target, tab_y, is_active, is_hover, is_pressed } = params;
         let panel_id = self.create_panel(registry, &format!("SpellBookTabPanel{}", index + 1),
             root_id, tab_color(is_active, is_hover, is_pressed), [28.0, tab_y, 144.0, 42.0]);
         self.click_targets.insert(panel_id, target);
@@ -349,19 +373,17 @@ impl SpellbookUiRuntime {
             root_id, &spell.id.to_string(), [0.74, 0.68, 0.54, 1.0],
             [512.0, row_y + 6.0, 70.0, 20.0], 12.0, JustifyH::Right);
         self.click_targets.insert(spell_id_id, target);
-        self.create_spell_row_extras(registry, root_id, index, spell, row_y, target, cooldown);
+        let extras = SpellRowExtrasParams { index, spell, row_y, target, cooldown };
+        self.create_spell_row_extras(registry, root_id, extras);
     }
 
     fn create_spell_row_extras(
         &mut self,
         registry: &mut FrameRegistry,
         root_id: u64,
-        index: usize,
-        spell: &SpellbookSpell,
-        row_y: f32,
-        target: HitTarget,
-        cooldown: f32,
+        params: SpellRowExtrasParams<'_>,
     ) {
+        let SpellRowExtrasParams { index, spell, row_y, target, cooldown } = params;
         if spell.passive {
             let badge_id = self.create_label(registry, &format!("SpellBookSpellPassive{}", index + 1),
                 root_id, "Passive", [0.68, 0.62, 0.48, 1.0],

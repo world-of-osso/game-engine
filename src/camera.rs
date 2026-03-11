@@ -294,7 +294,7 @@ fn player_movement(
         return;
     };
 
-    let (direction, anim_dir) = compute_movement_input(&keys, &mouse_buttons, &facing);
+    let (direction, anim_dir) = compute_movement_input(&keys, &mouse_buttons, facing);
     movement.direction = anim_dir;
 
     if keys.just_pressed(KeyCode::KeyZ) {
@@ -357,6 +357,58 @@ fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>
     }
 }
 
+/// Build the set of entities excluded from camera collision (player + children + sky).
+fn build_collision_excluded_set(
+    player_entity: Entity,
+    children_q: &Query<&Children>,
+    sky_q: &Query<Entity, With<SkyDome>>,
+) -> HashSet<Entity> {
+    let mut excluded = HashSet::new();
+    excluded.insert(player_entity);
+    collect_descendants(player_entity, children_q, &mut excluded);
+    for e in sky_q.iter() {
+        excluded.insert(e);
+    }
+    excluded
+}
+
+/// Compute effective camera distance accounting for mesh collision and recovery.
+fn compute_effective_distance(
+    cam: &mut WowCamera,
+    cam_tf: &Transform,
+    eye_target: Vec3,
+    orbit_dir: Vec3,
+    ray_cast: &mut MeshRayCast,
+    excluded: HashSet<Entity>,
+    dt: f32,
+) -> f32 {
+    let intended_pos = eye_target - orbit_dir * cam.distance;
+    let ray_dir = (intended_pos - eye_target).normalize_or_zero();
+    if ray_dir.length_squared() == 0.0 {
+        return cam.distance;
+    }
+    let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
+    let filter = |entity: Entity| !excluded.contains(&entity);
+    let settings = MeshRayCastSettings::default().with_filter(&filter);
+    let hits = ray_cast.cast_ray(ray, &settings);
+    let closest_hit = hits.first().map(|(_, hit)| hit.distance);
+    let adjusted = collision_adjusted_distance(cam.distance, closest_hit);
+    if adjusted < cam.distance {
+        cam.collided = true;
+        adjusted
+    } else if cam.collided {
+        let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
+        let recovered = cam_tf.translation.distance(eye_target).lerp(cam.distance, recovery_t);
+        if (recovered - cam.distance).abs() < 0.05 {
+            cam.collided = false;
+        }
+        recovered
+    } else {
+        cam.distance
+    }
+}
+
+#[allow(clippy::type_complexity)]
 fn camera_follow(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
@@ -372,69 +424,22 @@ fn camera_follow(
     let Ok((mut cam, mut cam_tf)) = camera_q.single_mut() else {
         return;
     };
-
     let dt = time.delta_secs();
-
-    // Smooth zoom: lerp actual distance toward target
     let zoom_t = (cam.zoom_speed * dt).min(1.0);
     cam.distance = cam.distance.lerp(cam.target_distance, zoom_t);
-
-    // Smooth follow: lerp camera focus toward player position
     let follow_t = (cam.follow_speed * dt).min(1.0);
     let eye_target = player_tf.translation + Vec3::Y * EYE_HEIGHT;
-
-    // Orbit offset from yaw/pitch
     let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
     let orbit_dir = rotation * Vec3::NEG_Z;
-    let intended_pos = eye_target - orbit_dir * cam.distance;
-
-    // Collision: raycast from player eye to intended camera position
-    let ray_dir = (intended_pos - eye_target).normalize_or_zero();
-    let effective_distance = if ray_dir.length_squared() > 0.0 {
-        let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
-        // Exclude player model (+ children), sky dome from collision
-        let mut excluded = HashSet::new();
-        excluded.insert(player_entity);
-        collect_descendants(player_entity, &children_q, &mut excluded);
-        for e in sky_q.iter() {
-            excluded.insert(e);
-        }
-        let filter = |entity: Entity| !excluded.contains(&entity);
-        let settings = MeshRayCastSettings::default().with_filter(&filter);
-        let hits = ray_cast.cast_ray(ray, &settings);
-        let closest_hit = hits.first().map(|(_, hit)| hit.distance);
-        let adjusted = collision_adjusted_distance(cam.distance, closest_hit);
-        if adjusted < cam.distance {
-            cam.collided = true;
-            adjusted // snap in immediately
-        } else if cam.collided {
-            // Collision cleared — lerp back out smoothly
-            let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
-            let recovered = cam_tf
-                .translation
-                .distance(eye_target)
-                .lerp(cam.distance, recovery_t);
-            if (recovered - cam.distance).abs() < 0.05 {
-                cam.collided = false;
-            }
-            recovered
-        } else {
-            cam.distance
-        }
-    } else {
-        cam.distance
-    };
-
+    let excluded = build_collision_excluded_set(player_entity, &children_q, &sky_q);
+    let effective_distance =
+        compute_effective_distance(&mut cam, &cam_tf, eye_target, orbit_dir, &mut ray_cast, excluded, dt);
     let mut pos = eye_target - orbit_dir * effective_distance;
-
-    // Clamp camera above terrain
     let cam_ground = terrain
         .as_ref()
         .and_then(|t| t.height_at(pos.x, pos.z))
         .unwrap_or(GROUND_Y);
     pos.y = pos.y.max(cam_ground + 0.5);
-
-    // Smooth follow for final position
     cam_tf.translation = cam_tf.translation.lerp(pos, follow_t);
     cam_tf.look_at(eye_target, Vec3::Y);
 }

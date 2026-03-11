@@ -23,11 +23,10 @@ use crate::networking;
 
 #[path = "login_screen_connect.rs"]
 mod connect;
-#[path = "login_screen_helpers.rs"]
-mod helpers;
 
 use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
+use crate::login_screen_helpers as helpers;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, hit_frame, insert_char_into_editbox,
@@ -45,6 +44,26 @@ pub(crate) const STATUS_CONNECTING: &str = "Connecting...";
 pub(crate) const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
 const STATUS_MENU_UNAVAILABLE: &str = "Menu is not implemented yet";
 pub(crate) const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
+
+/// Grouped UI state params used by mouse/keyboard input systems.
+#[derive(bevy::ecs::system::SystemParam)]
+struct LoginUiParams<'w> {
+    ui: ResMut<'w, UiState>,
+    login_ui: Option<Res<'w, LoginUi>>,
+    focus: ResMut<'w, LoginFocus>,
+    pressed: ResMut<'w, LoginPressedButton>,
+}
+
+/// Grouped system params for login connect/automation actions.
+#[derive(bevy::ecs::system::SystemParam)]
+struct LoginConnectParams<'w, 's> {
+    next_state: ResMut<'w, NextState<GameState>>,
+    status: ResMut<'w, LoginStatus>,
+    login_mode: ResMut<'w, networking::LoginMode>,
+    auth_token: Res<'w, networking::AuthToken>,
+    server_addr: Option<Res<'w, networking::ServerAddr>>,
+    commands: Commands<'w, 's>,
+}
 
 ui_resource! {
     pub(crate) LoginUi {
@@ -145,7 +164,7 @@ fn build_login_screen(status: &LoginStatus) -> LoginScreenRes {
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert::<SharedStatusText>(status.0.clone());
 
-    let mut screen = Screen::new(|ctx| login_screen(ctx));
+    let mut screen = Screen::new(login_screen);
     let watch_dirs = vec![
         std::path::PathBuf::from("src/ui/screens"),
     ];
@@ -236,20 +255,29 @@ fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
         && hit_frame(ui, frame_id, mx, my)
 }
 
+/// Shared connect/action parameters passed to button click and key handlers.
+struct ConnectParams<'a> {
+    next_state: &'a mut NextState<GameState>,
+    status: &'a mut LoginStatus,
+    login_mode: &'a mut networking::LoginMode,
+    auth_token: &'a networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
+}
+
 fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
     let sw = ui.registry.screen_width;
     let sh = ui.registry.screen_height;
-    if let Some(root) = ui.registry.get_mut(login.root) {
-        if (root.width.value() - sw).abs() > 0.5 || (root.height.value() - sh).abs() > 0.5 {
-            root.width = Dimension::Fixed(sw);
-            root.height = Dimension::Fixed(sh);
-            if let Some(rect) = &mut root.layout_rect {
-                rect.width = sw;
-                rect.height = sh;
-            }
+    if let Some(root) = ui.registry.get_mut(login.root)
+        && ((root.width.value() - sw).abs() > 0.5 || (root.height.value() - sh).abs() > 0.5)
+    {
+        root.width = Dimension::Fixed(sw);
+        root.height = Dimension::Fixed(sh);
+        if let Some(rect) = &mut root.layout_rect {
+            rect.width = sw;
+            rect.height = sh;
         }
     }
 }
@@ -257,51 +285,37 @@ fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>)
 fn login_mouse_input(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
-    mut ui: ResMut<UiState>,
-    login_ui: Option<Res<LoginUi>>,
-    mut focus: ResMut<LoginFocus>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut status: ResMut<LoginStatus>,
-    mut login_mode: ResMut<networking::LoginMode>,
-    auth_token: Res<networking::AuthToken>,
-    server_addr: Option<Res<networking::ServerAddr>>,
-    mut commands: Commands,
+    mut lp: LoginUiParams,
+    mut cp: LoginConnectParams,
     mut exit: MessageWriter<AppExit>,
-    mut pressed: ResMut<LoginPressedButton>,
 ) {
-    let Some(login) = login_ui.as_ref() else {
+    let Some(login) = lp.login_ui.as_ref() else {
         return;
     };
     let cursor = windows.iter().next().and_then(|w| w.cursor_position());
 
-    if buttons.just_pressed(MouseButton::Left) {
-        if let Some(cursor) = cursor {
-            handle_mouse_press(&mut ui, login, cursor, &mut focus, &mut pressed);
-        }
+    if buttons.just_pressed(MouseButton::Left)
+        && let Some(cursor) = cursor
+    {
+        handle_mouse_press(&mut lp.ui, login, cursor, &mut lp.focus, &mut lp.pressed);
     }
 
     if buttons.just_released(MouseButton::Left) {
-        let released_id = pressed.0.take();
+        let released_id = lp.pressed.0.take();
         if let Some(id) = released_id {
-            reset_button_state(&mut ui.registry, id);
+            reset_button_state(&mut lp.ui.registry, id);
         }
-        if let (Some(id), Some(cursor)) = (released_id, cursor) {
-            if hit_active_frame(&ui, id, cursor.x, cursor.y) {
-                handle_button_click(
-                    &mut ui,
-                    login,
-                    cursor.x,
-                    cursor.y,
-                    &mut focus,
-                    &mut next_state,
-                    &mut status,
-                    &mut login_mode,
-                    &auth_token,
-                    server_addr.as_ref().map(|addr| addr.0),
-                    &mut commands,
-                    Some(&mut exit),
-                );
-            }
+        if let (Some(id), Some(cursor)) = (released_id, cursor)
+            && hit_active_frame(&lp.ui, id, cursor.x, cursor.y)
+        {
+            let mut params = ConnectParams {
+                next_state: &mut cp.next_state,
+                status: &mut cp.status,
+                login_mode: &mut cp.login_mode,
+                auth_token: &cp.auth_token,
+                server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+            };
+            handle_button_click(&mut lp.ui, login, cursor, &mut lp.focus, &mut params, &mut cp.commands, Some(&mut exit));
         }
     }
 }
@@ -351,55 +365,48 @@ fn reset_button_state(reg: &mut FrameRegistry, id: u64) {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn handle_button_click(
     ui: &mut UiState,
     login: &LoginUi,
-    cx: f32,
-    cy: f32,
+    cursor: Vec2,
     focus: &mut LoginFocus,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
+    params: &mut ConnectParams<'_>,
     commands: &mut Commands,
     exit: Option<&mut MessageWriter<AppExit>>,
 ) {
     let clicked_id = button_ids(login)
         .into_iter()
-        .find(|&id| hit_active_frame(ui, id, cx, cy));
+        .find(|&id| hit_active_frame(ui, id, cursor.x, cursor.y));
     let action = clicked_id
         .and_then(|id| ui.registry.get(id))
         .and_then(|f| f.onclick.clone());
-    match action.as_deref().and_then(LoginAction::parse) {
+    dispatch_login_action(ui, login, focus, params, commands, exit, action.as_deref());
+}
+
+fn dispatch_login_action(
+    ui: &mut UiState,
+    login: &LoginUi,
+    focus: &mut LoginFocus,
+    params: &mut ConnectParams<'_>,
+    commands: &mut Commands,
+    exit: Option<&mut MessageWriter<AppExit>>,
+    action: Option<&str>,
+) {
+    match action.and_then(LoginAction::parse) {
         Some(LoginAction::Connect) => try_connect(
-            &ui.registry,
-            login,
-            status,
-            next_state,
-            &*login_mode,
-            server_addr,
-            commands,
+            &ui.registry, login, params.status, params.next_state,
+            params.login_mode, params.server_addr, commands,
         ),
         Some(LoginAction::Reconnect) => try_reconnect(
-            auth_token,
-            status,
-            next_state,
-            login_mode,
-            server_addr,
-            commands,
+            params.auth_token, params.status, params.next_state,
+            params.login_mode, params.server_addr, commands,
         ),
         Some(LoginAction::CreateAccount) => {
-            toggle_login_mode(login_mode, &mut ui.registry, login);
-            status.0.clear();
+            toggle_login_mode(params.login_mode, &mut ui.registry, login);
+            params.status.0.clear();
         }
-        Some(LoginAction::Menu) => { status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
-        Some(LoginAction::Exit) => {
-            if let Some(exit) = exit {
-                exit.write(AppExit::Success);
-            }
-        }
+        Some(LoginAction::Menu) => { params.status.0 = STATUS_MENU_UNAVAILABLE.to_string(); }
+        Some(LoginAction::Exit) => { if let Some(exit) = exit { exit.write(AppExit::Success); } }
         None => { focus.0 = None; }
     }
 }
@@ -415,11 +422,7 @@ fn login_keyboard_input(
     mut ui: ResMut<UiState>,
     mut focus: ResMut<LoginFocus>,
     login_ui: Option<Res<LoginUi>>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut status: ResMut<LoginStatus>,
-    login_mode: Res<networking::LoginMode>,
-    server_addr: Option<Res<networking::ServerAddr>>,
-    mut commands: Commands,
+    mut cp: LoginConnectParams,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
@@ -435,17 +438,14 @@ fn login_keyboard_input(
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
-            handle_login_key(
-                event.key_code,
-                focused_id,
-                &mut ui,
+            let key_params = LoginKeyParams {
                 login,
-                &mut status,
-                &mut next_state,
-                &*login_mode,
-                server_addr.as_ref().map(|addr| addr.0),
-                &mut commands,
-            );
+                status: &mut cp.status,
+                next_state: &mut cp.next_state,
+                mode: &cp.login_mode,
+                server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+            };
+            handle_login_key(event.key_code, focused_id, &mut ui, key_params, &mut cp.commands);
         }
     }
 }
@@ -454,13 +454,8 @@ fn login_run_automation(
     mut ui: ResMut<UiState>,
     login_ui: Option<Res<LoginUi>>,
     mut focus: ResMut<LoginFocus>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut status: ResMut<LoginStatus>,
-    mut login_mode: ResMut<networking::LoginMode>,
-    auth_token: Res<networking::AuthToken>,
-    server_addr: Option<Res<networking::ServerAddr>>,
+    mut cp: LoginConnectParams,
     mut queue: ResMut<UiAutomationQueue>,
-    mut commands: Commands,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
@@ -470,15 +465,15 @@ fn login_run_automation(
         &mut ui,
         login,
         &mut focus,
-        &mut next_state,
-        &mut status,
-        &mut login_mode,
-        &auth_token,
-        server_addr.as_ref().map(|addr| addr.0),
-        &mut commands,
+        &mut cp.next_state,
+        &mut cp.status,
+        &mut cp.login_mode,
+        &cp.auth_token,
+        cp.server_addr.as_ref().map(|addr| addr.0),
+        &mut cp.commands,
         &action,
     ) {
-        status.0 = err;
+        cp.status.0 = err;
     }
 }
 
@@ -522,17 +517,14 @@ pub(crate) fn run_login_automation_action(
             let focused_id = focus
                 .0
                 .ok_or("automation key press requires a focused frame")?;
-            handle_login_key(
-                *key,
-                focused_id,
-                ui,
+            let key_params = LoginKeyParams {
                 login,
                 status,
                 next_state,
-                &*login_mode,
+                mode: login_mode,
                 server_addr,
-                commands,
-            );
+            };
+            handle_login_key(*key, focused_id, ui, key_params, commands);
         }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)
@@ -568,7 +560,7 @@ fn click_login_frame(
             login,
             status,
             next_state,
-            &*login_mode,
+            login_mode,
             server_addr,
             commands,
         ),
@@ -617,17 +609,16 @@ fn cycle_focus(current: Option<u64>, login: &LoginUi) -> u64 {
     fields[idx]
 }
 
-fn handle_login_key(
-    key: KeyCode,
-    focused_id: u64,
-    ui: &mut UiState,
-    login: &LoginUi,
-    status: &mut LoginStatus,
-    next_state: &mut NextState<GameState>,
-    mode: &networking::LoginMode,
+struct LoginKeyParams<'a> {
+    login: &'a LoginUi,
+    status: &'a mut LoginStatus,
+    next_state: &'a mut NextState<GameState>,
+    mode: &'a networking::LoginMode,
     server_addr: Option<std::net::SocketAddr>,
-    commands: &mut Commands,
-) {
+}
+
+fn handle_login_key(key: KeyCode, focused_id: u64, ui: &mut UiState, p: LoginKeyParams<'_>, commands: &mut Commands) {
+    let LoginKeyParams { login, status, next_state, mode, server_addr } = p;
     match key {
         KeyCode::Backspace => editbox_backspace(&mut ui.registry, focused_id),
         KeyCode::Delete => editbox_delete(&mut ui.registry, focused_id),
@@ -635,15 +626,7 @@ fn handle_login_key(
         KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1_i32),
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-        KeyCode::Enter => try_connect(
-            &ui.registry,
-            login,
-            status,
-            next_state,
-            mode,
-            server_addr,
-            commands,
-        ),
+        KeyCode::Enter => try_connect(&ui.registry, login, status, next_state, mode, server_addr, commands),
         _ => {}
     }
 }
@@ -692,7 +675,7 @@ fn login_update_visuals(
         return;
     };
     ui.focused_frame = focus.0;
-    sync_button_states(&mut ui.registry, login, &*login_mode, &auth_token);
+    sync_button_states(&mut ui.registry, login, &login_mode, &auth_token);
     sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
     sync_editbox_focus_visual(
         &mut ui.registry,

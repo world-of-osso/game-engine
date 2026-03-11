@@ -5,6 +5,9 @@ use bevy::prelude::*;
 
 use crate::game_state_enum::GameState;
 
+type DoodadFilter = (With<Doodad>, Without<TerrainChunk>, Without<Camera3d>);
+type WmoFilter = (With<Wmo>, Without<Doodad>, Without<TerrainChunk>, Without<Camera3d>);
+
 /// Marker for terrain chunk entities. Stores precomputed world center for distance checks.
 #[derive(Component)]
 pub struct TerrainChunk {
@@ -79,19 +82,8 @@ fn distance_cull_system(
     mut last_pos: ResMut<LastCullPosition>,
     camera_q: Query<&Transform, With<Camera3d>>,
     mut chunks: Query<(&TerrainChunk, &mut Visibility)>,
-    mut doodads: Query<
-        (&Transform, &mut Visibility),
-        (With<Doodad>, Without<TerrainChunk>, Without<Camera3d>),
-    >,
-    mut wmos: Query<
-        (&Transform, &mut Visibility),
-        (
-            With<Wmo>,
-            Without<Doodad>,
-            Without<TerrainChunk>,
-            Without<Camera3d>,
-        ),
-    >,
+    mut doodads: Query<(&Transform, &mut Visibility), DoodadFilter>,
+    mut wmos: Query<(&Transform, &mut Visibility), WmoFilter>,
 ) {
     let Ok(cam) = camera_q.single() else { return };
     let cam_pos = cam.translation;

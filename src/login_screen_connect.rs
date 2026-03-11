@@ -36,7 +36,7 @@ pub fn try_connect(
     ));
     commands.insert_resource(networking::LoginUsername(username));
     commands.insert_resource(networking::LoginPassword(password));
-    commands.insert_resource(mode.clone());
+    commands.insert_resource(*mode);
     status.0 = STATUS_CONNECTING.to_string();
     next_state.set(GameState::Connecting);
 }

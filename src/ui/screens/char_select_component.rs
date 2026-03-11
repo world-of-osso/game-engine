@@ -98,14 +98,14 @@ const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
 const COLOR_MUTED: FontColor = FontColor::new(0.75, 0.72, 0.65, 1.0);
 
-const BUTTON_ATLAS_UP: &str = "128-redbutton-up";
-const BUTTON_ATLAS_PRESSED: &str = "128-redbutton-pressed";
-const BUTTON_ATLAS_HIGHLIGHT: &str = "128-redbutton-highlight";
-const BUTTON_ATLAS_DISABLED: &str = "128-redbutton-disable";
-const BIG_BUTTON_ATLAS_UP: &str = "glue-bigbutton-brown-up";
-const BIG_BUTTON_ATLAS_PRESSED: &str = "glue-bigbutton-brown-down";
-const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "glue-bigbutton-brown-highlight";
-const BIG_BUTTON_ATLAS_DISABLED: &str = "glue-bigbutton-brown-disable";
+const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
+const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
+const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
+const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
+const BIG_BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
+const BIG_BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
+const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
+const BIG_BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
 const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-gs-tophud-left";
 const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-gs-tophud-middle";
@@ -114,7 +114,6 @@ const TOP_HUD_LEFT_SELECTED: &str = "glues-characterselect-gs-tophud-left-select
 const TOP_HUD_MIDDLE_SELECTED: &str = "glues-characterselect-gs-tophud-middle-selected";
 const TOP_HUD_RIGHT_SELECTED: &str = "glues-characterselect-gs-tophud-right-selected";
 const NAME_BG_ATLAS: &str = "glues-characterselect-namebg";
-const LIST_BG_ATLAS: &str = "glues-characterselect-card-all-bg";
 const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
 const CARD_SELECTED_ATLAS: &str = "glues-characterselect-card-selected";
@@ -372,14 +371,7 @@ fn empty_card() -> Element {
 // --- Character list panel ---
 
 fn list_backdrop() -> Element {
-    rsx! {
-        texture {
-            name: "CharacterListBackdrop",
-            width: 386.0, height: 520.0,
-            texture_atlas: LIST_BG_ATLAS,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-        }
-    }
+    Vec::new()
 }
 
 fn list_realm_header() -> Element {

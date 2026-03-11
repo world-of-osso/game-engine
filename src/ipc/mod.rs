@@ -1,4 +1,5 @@
 pub mod plugin;
+pub(crate) mod format;
 
 pub use plugin::IpcPlugin;
 
@@ -181,10 +182,8 @@ pub fn cleanup_stale_sockets() {
         return;
     };
     for entry in paths.flatten() {
-        if let Some(stale) = extract_pid_and_check(&entry) {
-            if stale {
-                let _ = std::fs::remove_file(&entry);
-            }
+        if extract_pid_and_check(&entry) == Some(true) {
+            let _ = std::fs::remove_file(&entry);
         }
     }
 }

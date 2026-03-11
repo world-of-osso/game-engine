@@ -5,4 +5,4 @@ ui.click("PasswordInput");
 ui.type(env.LOGIN_PASS);
 ui.click("ConnectButton");
 ui.waitForState("CharSelect", 10.0);
-ui.dumpTree();
+ui.dumpUiTree();

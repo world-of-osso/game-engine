@@ -112,10 +112,7 @@ fn try_spawn_doodad(
         .id();
     if !m2_spawn::spawn_m2_on_entity(
         commands,
-        meshes,
-        materials,
-        images,
-        inverse_bp,
+        &mut m2_spawn::SpawnAssets { meshes, materials, images, inverse_bindposes: inverse_bp },
         &m2_path,
         entity,
         &[0, 0, 0],
@@ -156,6 +153,12 @@ fn doodad_rotation(rot: [f32; 3]) -> Quat {
 
 // ── WMO spawning ────────────────────────────────────────────────────────────
 
+struct WmoAssets<'a> {
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+    images: &'a mut Assets<Image>,
+}
+
 /// Spawn WMOs from placement data.
 fn spawn_wmos(
     commands: &mut Commands,
@@ -167,7 +170,8 @@ fn spawn_wmos(
 ) {
     let mut spawned = 0u32;
     for placement in &obj_data.wmos {
-        if let Some(e) = try_spawn_wmo(commands, meshes, materials, images, placement) {
+        let mut assets = WmoAssets { meshes, materials, images };
+        if let Some(e) = try_spawn_wmo(commands, &mut assets, placement) {
             entities.push(e);
             spawned += 1;
         }
@@ -178,9 +182,7 @@ fn spawn_wmos(
 /// Try to spawn a single WMO. Returns root entity if successful.
 fn try_spawn_wmo(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
+    assets: &mut WmoAssets<'_>,
     placement: &adt_obj::WmoPlacement,
 ) -> Option<Entity> {
     let root_fdid = resolve_wmo_fdid(placement)?;
@@ -191,7 +193,20 @@ fn try_spawn_wmo(
     let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
     let transform = wmo_transform(placement);
     let portal_graph = build_portal_graph(&root);
-    let root_entity = commands
+    let root_entity = spawn_wmo_root_entity(commands, root_fdid, transform, portal_graph);
+
+    let group_count = spawn_wmo_groups(commands, assets, &root, &group_fdids, root_fdid, root_entity);
+    log_wmo_spawn(root_fdid, group_count, &root, &transform);
+    if group_count > 0 { Some(root_entity) } else { None }
+}
+
+fn spawn_wmo_root_entity(
+    commands: &mut Commands,
+    root_fdid: u32,
+    transform: Transform,
+    portal_graph: game_engine::culling::WmoPortalGraph,
+) -> Entity {
+    commands
         .spawn((
             Name::new(format!("wmo_{root_fdid}")),
             transform,
@@ -199,32 +214,13 @@ fn try_spawn_wmo(
             game_engine::culling::Wmo,
             portal_graph,
         ))
-        .id();
-
-    let group_count = spawn_wmo_groups(
-        commands,
-        meshes,
-        materials,
-        images,
-        &root,
-        &group_fdids,
-        root_fdid,
-        root_entity,
-    );
-    log_wmo_spawn(root_fdid, group_count, &root, &transform);
-    if group_count > 0 {
-        Some(root_entity)
-    } else {
-        None
-    }
+        .id()
 }
 
 /// Spawn all WMO groups as children. Returns count of successfully spawned groups.
 fn spawn_wmo_groups(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
+    assets: &mut WmoAssets<'_>,
     root: &wmo::WmoRootData,
     group_fdids: &[Option<u32>],
     root_fdid: u32,
@@ -233,15 +229,7 @@ fn spawn_wmo_groups(
     let mut count = 0u32;
     for (i, group_fdid) in group_fdids.iter().enumerate() {
         let Some(fdid) = group_fdid else { continue };
-        if spawn_wmo_group(
-            commands,
-            meshes,
-            materials,
-            images,
-            root,
-            *fdid,
-            root_entity,
-        ) {
+        if spawn_wmo_group(commands, assets, root, *fdid, root_entity) {
             count += 1;
         } else {
             eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
@@ -334,9 +322,7 @@ fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
 /// Parse and spawn one WMO group file as children of the root entity.
 fn spawn_wmo_group(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
+    assets: &mut WmoAssets<'_>,
     root: &wmo::WmoRootData,
     group_fdid: u32,
     root_entity: Entity,
@@ -350,10 +336,10 @@ fn spawn_wmo_group(
     };
 
     for batch in group.batches {
-        let mat = wmo_batch_material(materials, images, root, batch.material_index);
+        let mat = wmo_batch_material(assets.materials, assets.images, root, batch.material_index);
         let child = commands
             .spawn((
-                Mesh3d(meshes.add(batch.mesh)),
+                Mesh3d(assets.meshes.add(batch.mesh)),
                 MeshMaterial3d(mat),
                 Transform::default(),
                 Visibility::default(),

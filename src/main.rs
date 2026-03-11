@@ -29,12 +29,15 @@ mod game_state;
 mod ground;
 mod health_bar;
 mod login_screen;
+mod login_screen_helpers;
 mod m2_scene;
 pub mod m2_spawn;
 mod minimap;
+mod minimap_render;
 mod nameplate;
 mod networking;
 mod networking_auth;
+mod networking_messages;
 mod particle;
 mod scene_setup;
 mod sky;
@@ -45,8 +48,10 @@ mod status_sync;
 mod target;
 mod terrain;
 mod terrain_heightmap;
+mod terrain_lod;
 mod terrain_material;
 mod terrain_objects;
+mod terrain_tile;
 mod water_material;
 mod wow_cursor;
 
@@ -87,17 +92,27 @@ fn run_app(
     dump_ui_tree: bool,
     screenshot: Option<ScreenshotRequest>,
 ) {
-    let startup_actions = match load_startup_automation_actions(args) {
+    let mut startup_actions = match load_startup_automation_actions(args) {
         Ok(a) => a,
         Err(err) => { eprintln!("{err}"); std::process::exit(1); }
     };
+    let mut server_addr = parse_server_arg(args);
+    let mut initial_state = parse_state_arg(args);
+    // --screen charselect: auto-login with admin/admin on localhost
+    if initial_state == Some(game_state::GameState::CharSelect) && startup_actions.is_empty() {
+        if server_addr.is_none() {
+            server_addr = Some(("127.0.0.1:5000".parse().unwrap(), false));
+        }
+        initial_state = Some(game_state::GameState::Login);
+        startup_actions = charselect_auto_login_actions();
+    }
     let mut app = App::new();
     register_plugins(&mut app);
     configure_app_plugins(
         &mut app,
         args.iter().any(|a| a == "--sound"),
-        parse_server_arg(args),
-        parse_state_arg(args),
+        server_addr,
+        initial_state,
         dump_tree,
         dump_ui_tree,
         screenshot,
@@ -109,6 +124,19 @@ fn run_app(
     }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     app.run();
+}
+
+fn charselect_auto_login_actions() -> Vec<game_engine::ui::automation::UiAutomationAction> {
+    use game_engine::ui::automation::UiAutomationAction;
+    vec![
+        UiAutomationAction::WaitForFrame("UsernameInput".to_string(), 5.0),
+        UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+        UiAutomationAction::TypeText("admin".to_string()),
+        UiAutomationAction::ClickFrame("PasswordInput".to_string()),
+        UiAutomationAction::TypeText("admin".to_string()),
+        UiAutomationAction::ClickFrame("ConnectButton".to_string()),
+        UiAutomationAction::WaitForState(game_state::GameState::CharSelect, 10.0),
+    ]
 }
 
 fn default_plugins() -> bevy::app::PluginGroupBuilder {

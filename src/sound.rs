@@ -225,6 +225,7 @@ fn maintain_music_playback(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn attach_footstep_tracker(
     mut commands: Commands,
     query: Query<
@@ -444,11 +445,11 @@ fn crossfade_loop_ends(samples: &mut [i16]) {
     // Collect start values first to avoid borrow conflict
     let start_vals: Vec<f32> = samples[..fade_len].iter().map(|&s| s as f32).collect();
 
-    for i in 0..fade_len {
+    let end_start = samples.len() - fade_len;
+    for (i, &start_val) in start_vals.iter().enumerate() {
         let t = i as f32 / fade_len as f32;
-        let end_idx = samples.len() - fade_len + i;
-        let end_val = samples[end_idx] as f32;
-        samples[end_idx] = (end_val * (1.0 - t) + start_vals[i] * t) as i16;
+        let end_val = samples[end_start + i] as f32;
+        samples[end_start + i] = (end_val * (1.0 - t) + start_val * t) as i16;
     }
 }
 

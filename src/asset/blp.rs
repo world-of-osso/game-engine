@@ -85,8 +85,8 @@ fn dxtn_actual_dimensions(w: u32, h: u32, data_len: usize, format: TextureFormat
 }
 
 fn dxtn_size(w: u32, h: u32, block_bytes: usize) -> usize {
-    let bw = ((w + 3) / 4) as usize;
-    let bh = ((h + 3) / 4) as usize;
+    let bw = w.div_ceil(4) as usize;
+    let bh = h.div_ceil(4) as usize;
     bw * bh * block_bytes
 }
 

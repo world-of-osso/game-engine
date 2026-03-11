@@ -363,10 +363,7 @@ fn spawn_equipment_slot(
 
     if !m2_spawn::spawn_m2_on_entity(
         commands,
-        meshes,
-        materials,
-        images,
-        inv_bp,
+        &mut m2_spawn::SpawnAssets { meshes, materials, images, inverse_bindposes: inv_bp },
         m2_path,
         item_root,
         &[0, 0, 0],

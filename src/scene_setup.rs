@@ -115,6 +115,7 @@ pub fn setup_default_world_scene(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_terrain(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -142,6 +143,7 @@ fn spawn_terrain(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn load_default_terrain(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,

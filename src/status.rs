@@ -29,7 +29,7 @@ impl Default for NetworkStatusSnapshot {
     }
 }
 
-#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct TerrainStatusSnapshot {
     pub map_name: String,
     pub initial_tile: (u32, u32),
@@ -39,21 +39,6 @@ pub struct TerrainStatusSnapshot {
     pub failed_tiles: usize,
     pub server_requested_tiles: usize,
     pub heightmap_tiles: usize,
-}
-
-impl Default for TerrainStatusSnapshot {
-    fn default() -> Self {
-        Self {
-            map_name: String::new(),
-            initial_tile: (0, 0),
-            load_radius: 0,
-            loaded_tiles: 0,
-            pending_tiles: 0,
-            failed_tiles: 0,
-            server_requested_tiles: 0,
-            heightmap_tiles: 0,
-        }
-    }
 }
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -106,7 +91,7 @@ pub struct ReputationsStatusSnapshot {
     pub entries: Vec<ReputationEntry>,
 }
 
-#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub name: Option<String>,
     pub level: Option<u16>,
@@ -118,23 +103,6 @@ pub struct CharacterStatsSnapshot {
     pub mana_max: Option<f32>,
     pub movement_speed: Option<f32>,
     pub zone_id: u32,
-}
-
-impl Default for CharacterStatsSnapshot {
-    fn default() -> Self {
-        Self {
-            name: None,
-            level: None,
-            race: None,
-            class: None,
-            health_current: None,
-            health_max: None,
-            mana_current: None,
-            mana_max: None,
-            movement_speed: None,
-            zone_id: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

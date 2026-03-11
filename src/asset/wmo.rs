@@ -89,64 +89,69 @@ pub struct WmoGroupBatch {
     pub material_index: u16,
 }
 
+/// Type alias for the return value of `parse_mopt`: portals and their vertex ranges.
+type PortalsAndRanges = (Vec<WmoPortal>, Vec<(u16, u16)>);
+
+/// Type alias for extracted batch vertex attributes: positions, normals, uvs.
+type BatchVertexAttribs = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
+
 // ── root file parsing ───────────────────────────────────────────────────────
 
 /// Parse a WMO root file and return header info + materials.
 pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     let mut n_groups = 0u32;
     let mut materials = Vec::new();
-
     let mut portals = Vec::new();
     let mut portal_refs = Vec::new();
     let mut group_infos = Vec::new();
     let mut portal_vertices: Vec<[f32; 3]> = Vec::new();
-    let mut mopt_raw: Vec<(u16, u16)> = Vec::new(); // (start_vertex, count) per portal
+    let mut mopt_raw: Vec<(u16, u16)> = Vec::new();
 
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
-        match tag {
-            b"DHOM" => {
-                // MOHD: 64-byte header
-                if payload.len() < 64 {
-                    return Err(format!("MOHD too small: {} bytes", payload.len()));
-                }
-                n_groups = read_u32(payload, 4)?;
-            }
-            b"TMOM" => {
-                // MOMT: 64 bytes per material
-                materials = parse_momt(payload)?;
-            }
-            b"VPOM" => {
-                // MOPV: portal vertices (array of [f32;3])
-                portal_vertices = parse_vec3_array(payload)?;
-            }
-            b"TPOM" => {
-                // MOPT: portal definitions
-                let (p, raw) = parse_mopt(payload)?;
-                portals = p;
-                mopt_raw = raw;
-            }
-            b"RPOM" => {
-                // MOPR: portal references
-                portal_refs = parse_mopr(payload)?;
-            }
-            b"IGOM" => {
-                // MOGI: group info (flags + bounding boxes)
-                group_infos = parse_mogi(payload)?;
-            }
-            _ => {}
-        }
+        apply_root_chunk(
+            tag, payload,
+            &mut n_groups, &mut materials, &mut portals,
+            &mut mopt_raw, &mut portal_refs, &mut group_infos,
+            &mut portal_vertices,
+        )?;
     }
 
     resolve_portal_vertices(&mut portals, &mopt_raw, &portal_vertices);
+    Ok(WmoRootData { n_groups, materials, portals, portal_refs, group_infos })
+}
 
-    Ok(WmoRootData {
-        n_groups,
-        materials,
-        portals,
-        portal_refs,
-        group_infos,
-    })
+#[allow(clippy::too_many_arguments)]
+fn apply_root_chunk(
+    tag: &[u8],
+    payload: &[u8],
+    n_groups: &mut u32,
+    materials: &mut Vec<WmoMaterialDef>,
+    portals: &mut Vec<WmoPortal>,
+    mopt_raw: &mut Vec<(u16, u16)>,
+    portal_refs: &mut Vec<WmoPortalRef>,
+    group_infos: &mut Vec<WmoGroupInfo>,
+    portal_vertices: &mut Vec<[f32; 3]>,
+) -> Result<(), String> {
+    match tag {
+        b"DHOM" => {
+            if payload.len() < 64 {
+                return Err(format!("MOHD too small: {} bytes", payload.len()));
+            }
+            *n_groups = read_u32(payload, 4)?;
+        }
+        b"TMOM" => *materials = parse_momt(payload)?,
+        b"VPOM" => *portal_vertices = parse_vec3_array(payload)?,
+        b"TPOM" => {
+            let (p, raw) = parse_mopt(payload)?;
+            *portals = p;
+            *mopt_raw = raw;
+        }
+        b"RPOM" => *portal_refs = parse_mopr(payload)?,
+        b"IGOM" => *group_infos = parse_mogi(payload)?,
+        _ => {}
+    }
+    Ok(())
 }
 
 /// Parse MOMT chunk: 64 bytes per material entry.
@@ -168,7 +173,7 @@ fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
 }
 
 /// Parse MOPT chunk: 20 bytes per portal. Returns portals (with empty vertices) and vertex ranges.
-fn parse_mopt(data: &[u8]) -> Result<(Vec<WmoPortal>, Vec<(u16, u16)>), String> {
+fn parse_mopt(data: &[u8]) -> Result<PortalsAndRanges, String> {
     let count = data.len() / 20;
     let mut portals = Vec::with_capacity(count);
     let mut ranges = Vec::with_capacity(count);
@@ -446,15 +451,29 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
     let vmax = (batch.max_index as usize).min(raw.vertices.len().saturating_sub(1));
     let vert_count = vmax - vmin + 1;
 
+    let (positions, normals, uvs) = extract_batch_vertices(raw, vmin, vmax, vert_count);
+    let indices = extract_batch_indices(raw, batch);
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_indices(Indices::U32(indices));
+    mesh
+}
+
+fn extract_batch_vertices(
+    raw: &RawGroupData,
+    vmin: usize,
+    vmax: usize,
+    vert_count: usize,
+) -> BatchVertexAttribs {
     let positions: Vec<[f32; 3]> = raw.vertices[vmin..=vmax]
         .iter()
         .map(|v| wow_to_bevy(v[0], v[1], v[2]))
         .collect();
     let normals = if raw.normals.len() > vmax {
-        raw.normals[vmin..=vmax]
-            .iter()
-            .map(|n| wow_to_bevy(n[0], n[1], n[2]))
-            .collect()
+        raw.normals[vmin..=vmax].iter().map(|n| wow_to_bevy(n[0], n[1], n[2])).collect()
     } else {
         vec![[0.0, 1.0, 0.0]; vert_count]
     };
@@ -463,23 +482,16 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
     } else {
         vec![[0.0, 0.0]; vert_count]
     };
+    (positions, normals, uvs)
+}
 
+fn extract_batch_indices(raw: &RawGroupData, batch: &RawBatch) -> Vec<u32> {
     let idx_start = batch.start_index as usize;
     let idx_end = (idx_start + batch.count as usize).min(raw.indices.len());
-    let indices: Vec<u32> = raw.indices[idx_start..idx_end]
+    raw.indices[idx_start..idx_end]
         .iter()
         .map(|&i| (i - batch.min_index) as u32)
-        .collect();
-
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    );
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.insert_indices(Indices::U32(indices));
-    mesh
+        .collect()
 }
 
 fn convert_normals(src: &[[f32; 3]], expected: usize) -> Vec<[f32; 3]> {

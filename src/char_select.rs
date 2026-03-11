@@ -20,9 +20,7 @@ use ui_toolkit::screen::Screen;
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
 
-#[path = "login_screen_helpers.rs"]
-mod helpers;
-
+use crate::login_screen_helpers as helpers;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox,
@@ -131,7 +129,7 @@ fn build_char_select_ui(
 
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state);
-    let mut screen = Screen::new(|ctx| char_select_screen(ctx));
+    let mut screen = Screen::new(char_select_screen);
     screen.sync(&shared, &mut ui.registry);
 
     let cs = CharSelectUi::resolve(&ui.registry);
@@ -150,7 +148,21 @@ fn apply_post_setup(reg: &mut FrameRegistry, cs: &CharSelectUi) {
         frame.width = Dimension::Fixed(sw);
         frame.height = Dimension::Fixed(sh);
     }
+    set_list_panel_backdrop(reg, cs.list_panel);
     set_editbox_backdrop(reg, cs.create_name_input);
+}
+
+fn set_list_panel_backdrop(reg: &mut FrameRegistry, id: u64) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.nine_slice = Some(NineSlice {
+            edge_size: 12.0,
+            uv_edge_size: Some(12.0),
+            texture: Some(TextureSource::Atlas("glues-characterselect-card-all-bg".to_string())),
+            bg_color: [1.0, 1.0, 1.0, 1.0],
+            border_color: [1.0, 1.0, 1.0, 1.0],
+            ..Default::default()
+        });
+    }
 }
 
 fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
@@ -201,6 +213,7 @@ fn teardown_char_select_ui(
 
 // --- Input Handling ---
 
+#[allow(clippy::too_many_arguments)]
 fn char_select_mouse_input(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
@@ -230,6 +243,7 @@ fn cursor_pos(windows: &Query<&Window>) -> Option<Vec2> {
     windows.iter().next().and_then(|w| w.cursor_position())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn dispatch_onclick(
     action: &str,
     selected: &mut SelectedCharIndex,
@@ -532,7 +546,7 @@ mod tests {
         let state = CharSelectState::default();
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(state);
-        let mut screen = Screen::new(|ctx| char_select_screen(ctx));
+        let mut screen = Screen::new(char_select_screen);
         screen.sync(&shared, &mut reg);
         assert!(reg.get_by_name("CharSelectRoot").is_some());
         assert!(reg.get_by_name("EnterWorld").is_some());
@@ -555,7 +569,7 @@ mod tests {
         };
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(state);
-        let mut screen = Screen::new(|ctx| char_select_screen(ctx));
+        let mut screen = Screen::new(char_select_screen);
         screen.sync(&shared, &mut reg);
         assert!(reg.get_by_name("CharCard_0").is_some());
         assert!(reg.get_by_name("CharCard_0Name").is_some());
@@ -567,7 +581,7 @@ mod tests {
         let state = CharSelectState::default();
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(state);
-        let mut screen = Screen::new(|ctx| char_select_screen(ctx));
+        let mut screen = Screen::new(char_select_screen);
         screen.sync(&shared, &mut reg);
         let panel_id = reg.get_by_name("CreatePanel").unwrap();
         let panel = reg.get(panel_id).unwrap();

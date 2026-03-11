@@ -211,8 +211,9 @@ pub struct AdtWaterData {
 fn read_exists_bitmask(payload: &[u8], offset: usize, width: u8, height: u8) -> Result<[u8; 8], String> {
     let mut exists = [0u8; 8];
     if offset == 0 {
-        for row in 0..height as usize {
-            exists[row] = (1u16.wrapping_shl(width as u32) - 1) as u8;
+        let mask = (1u16.wrapping_shl(width as u32) - 1) as u8;
+        for slot in exists.iter_mut().take(height as usize) {
+            *slot = mask;
         }
         return Ok(exists);
     }
@@ -220,7 +221,7 @@ fn read_exists_bitmask(payload: &[u8], offset: usize, width: u8, height: u8) -> 
     if offset + h > payload.len() {
         return Err(format!("MH2O exists bitmask out of bounds: offset {offset:#x}, need {h} bytes"));
     }
-    for row in 0..h { exists[row] = payload[offset + row]; }
+    exists[..h].copy_from_slice(&payload[offset..offset + h]);
     Ok(exists)
 }
 
@@ -308,7 +309,9 @@ fn emit_water_quad(
     }
 }
 
-fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>) {
+type WaterGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
+
+fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometry {
     let w = layer.width as usize;
     let h = layer.height as usize;
     let max_quads = w * h;

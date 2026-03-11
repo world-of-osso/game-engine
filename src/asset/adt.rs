@@ -5,6 +5,9 @@ use super::m2::wow_to_bevy;
 pub use super::adt_tex::{AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0, parse_mh2o};
 
 pub(crate) const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
+
+type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
+type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
 pub(crate) const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0; // distance between outer vertices
 const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
 
@@ -213,7 +216,7 @@ fn vertex_position(grid_row: usize, col: usize, pos: [f32; 3], heights: &[f32; M
 
 // ── mesh building ─────────────────────────────────────────────────────────────
 
-fn build_mcnk_geometry(chunk: &McnkData) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>) {
+fn build_mcnk_geometry(chunk: &McnkData) -> McnkGeometry {
     let mut positions = Vec::with_capacity(MCVT_COUNT);
     let mut normals_out = Vec::with_capacity(MCVT_COUNT);
     let mut uvs = Vec::with_capacity(MCVT_COUNT);
@@ -291,7 +294,7 @@ fn center_surface_position(chunks: &[McnkData]) -> [f32; 3] {
     vertex_position(9, 4, center_chunk.pos, &center_chunk.heights)
 }
 
-fn collect_adt_chunks(data: &[u8]) -> Result<(Vec<&[u8]>, Option<&[u8]>), String> {
+fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
     let mut mcnks = Vec::with_capacity(256);
     let mut mh2o = None;
     for chunk in ChunkIter::new(data) {
@@ -319,7 +322,7 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed);
     let chunks = build_chunks(&parsed);
-    let water = mh2o_payload.map(|p| parse_mh2o(p)).transpose()?;
+    let water = mh2o_payload.map(parse_mh2o).transpose()?;
     Ok(AdtData { chunks, height_grids, center_surface, chunk_positions, water })
 }
 

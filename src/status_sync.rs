@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
@@ -18,17 +19,39 @@ use crate::sound;
 use crate::terrain::AdtManager;
 use crate::terrain_heightmap::TerrainHeightmap;
 
+type LocalPlayerComponents = (
+    Option<&'static NetPlayer>,
+    Option<&'static NetHealth>,
+    Option<&'static NetMana>,
+    Option<&'static NetMovementSpeed>,
+);
+
+#[derive(SystemParam)]
+pub(crate) struct NetworkStatusParams<'w, 's> {
+    server_addr: Option<Res<'w, networking::ServerAddr>>,
+    game_state: Option<Res<'w, State<crate::game_state::GameState>>>,
+    local_client_id: Option<Res<'w, networking::LocalClientId>>,
+    current_zone: Res<'w, networking::CurrentZone>,
+    chat_log: Res<'w, networking::ChatLog>,
+    connected_query: Query<'w, 's, (), With<Connected>>,
+    remote_query: Query<'w, 's, (), With<networking::RemoteEntity>>,
+    local_player_query: Query<'w, 's, (), With<networking::LocalPlayer>>,
+}
+
 pub fn sync_network_status_snapshot(
     mut snapshot: ResMut<NetworkStatusSnapshot>,
-    server_addr: Option<Res<networking::ServerAddr>>,
-    game_state: Option<Res<State<crate::game_state::GameState>>>,
-    local_client_id: Option<Res<networking::LocalClientId>>,
-    current_zone: Res<networking::CurrentZone>,
-    chat_log: Res<networking::ChatLog>,
-    connected_query: Query<(), With<Connected>>,
-    remote_query: Query<(), With<networking::RemoteEntity>>,
-    local_player_query: Query<(), With<networking::LocalPlayer>>,
+    params: NetworkStatusParams,
 ) {
+    let NetworkStatusParams {
+        server_addr,
+        game_state,
+        local_client_id,
+        current_zone,
+        chat_log,
+        connected_query,
+        remote_query,
+        local_player_query,
+    } = params;
     snapshot.server_addr = server_addr.map(|addr| addr.0.to_string());
     snapshot.game_state = game_state
         .map(|state| format!("{:?}", state.get()))
@@ -79,15 +102,7 @@ pub fn sync_sound_status_snapshot(
 /// Fill health/mana/speed from the local player entity into the snapshot.
 fn fill_local_player_stats(
     snapshot: &mut CharacterStatsSnapshot,
-    local_player_query: &Query<
-        (
-            Option<&NetPlayer>,
-            Option<&NetHealth>,
-            Option<&NetMana>,
-            Option<&NetMovementSpeed>,
-        ),
-        With<networking::LocalPlayer>,
-    >,
+    local_player_query: &Query<LocalPlayerComponents, With<networking::LocalPlayer>>,
 ) {
     if let Some((_, health, mana, speed)) = local_player_query.iter().next() {
         snapshot.health_current = health.map(|v| v.current);
@@ -109,15 +124,7 @@ pub fn sync_character_stats_snapshot(
     character_list: Res<networking::CharacterList>,
     selected_character_id: Res<networking::SelectedCharacterId>,
     current_zone: Res<networking::CurrentZone>,
-    local_player_query: Query<
-        (
-            Option<&NetPlayer>,
-            Option<&NetHealth>,
-            Option<&NetMana>,
-            Option<&NetMovementSpeed>,
-        ),
-        With<networking::LocalPlayer>,
-    >,
+    local_player_query: Query<LocalPlayerComponents, With<networking::LocalPlayer>>,
 ) {
     let selected_character = selected_character_id.0.and_then(|character_id| {
         character_list
