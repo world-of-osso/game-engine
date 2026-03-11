@@ -22,14 +22,6 @@ impl GameFont {
     }
 }
 
-impl dioxus_core::IntoAttributeValue for GameFont {
-    fn into_value(self) -> dioxus_core::AttributeValue {
-        dioxus_core::AttributeValue::Text(match self {
-            Self::FrizQuadrata => "FrizQuadrata".to_string(),
-            Self::ArialNarrow => "ArialNarrow".to_string(),
-        })
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JustifyH {
@@ -48,13 +40,8 @@ impl JustifyH {
     }
 }
 
-impl dioxus_core::IntoAttributeValue for JustifyH {
-    fn into_value(self) -> dioxus_core::AttributeValue {
-        dioxus_core::AttributeValue::Text(self.as_str().to_string())
-    }
-}
 
-/// RGBA color for use in Dioxus RSX attributes (font_color, background_color).
+/// RGBA color for RSX attributes (font_color, background_color).
 ///
 /// ```ignore
 /// fontstring { font_color: FontColor::new(0.65, 0.65, 0.7, 1.0) }
@@ -68,12 +55,6 @@ impl FontColor {
     }
 }
 
-impl dioxus_core::IntoAttributeValue for FontColor {
-    fn into_value(self) -> dioxus_core::AttributeValue {
-        let [r, g, b, a] = self.0;
-        dioxus_core::AttributeValue::Text(format!("{r},{g},{b},{a}"))
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JustifyV {

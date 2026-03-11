@@ -1,16 +1,13 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use dioxus::prelude::*;
+use ui_toolkit::rsx;
+use ui_toolkit::screen::ScreenContext;
+use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
-#[allow(unused_imports)]
-use crate::ui::dioxus_elements;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
-/// Shared status text injected via root context. ECS writes, component reads.
-pub type SharedStatusText = Rc<RefCell<String>>;
+/// Shared status text stored in ScreenContext. ECS writes, component reads.
+pub type SharedStatusText = String;
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
@@ -55,7 +52,7 @@ fn login_background() -> Element {
 }
 
 fn login_input_labels() -> Element {
-    rsx! {
+    let username_label = rsx! {
         fontstring {
             name: "UsernameInputLabel",
             width: 320.0,
@@ -71,6 +68,8 @@ fn login_input_labels() -> Element {
                 y: "4",
             }
         }
+    };
+    let password_label = rsx! {
         fontstring {
             name: "PasswordInputLabel",
             width: 320.0,
@@ -86,7 +85,8 @@ fn login_input_labels() -> Element {
                 y: "4",
             }
         }
-    }
+    };
+    [username_label, password_label].into_iter().flatten().collect()
 }
 
 fn login_inputs() -> Element {
@@ -121,39 +121,43 @@ fn login_inputs() -> Element {
     }
 }
 
-fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
+fn login_reconnect_button() -> Element {
     rsx! {
-        if show_reconnect {
-            button {
-                name: RECONNECT_BUTTON,
-                width: 500.0,
-                height: 66.0,
-                text: "Reconnect",
-                font_size: 16.0,
-                strata: FrameStrata::Medium,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_to: PASSWORD_INPUT,
-                    relative_point: AnchorPoint::Bottom,
-                    y: "-50",
-                }
-            }
-        } else {
-            button {
-                name: CONNECT_BUTTON,
-                width: 250.0,
-                height: 66.0,
-                text: "Login",
-                font_size: 16.0,
-                strata: FrameStrata::Medium,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_to: PASSWORD_INPUT,
-                    relative_point: AnchorPoint::Bottom,
-                    y: "-50",
-                }
+        button {
+            name: RECONNECT_BUTTON,
+            width: 500.0,
+            height: 66.0,
+            text: "Reconnect",
+            font_size: 16.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: PASSWORD_INPUT,
+                relative_point: AnchorPoint::Bottom,
+                y: "-50",
             }
         }
+    }
+}
+
+fn login_connect_button_and_status(status_text: &str) -> Element {
+    let connect = rsx! {
+        button {
+            name: CONNECT_BUTTON,
+            width: 250.0,
+            height: 66.0,
+            text: "Login",
+            font_size: 16.0,
+            strata: FrameStrata::Medium,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: PASSWORD_INPUT,
+                relative_point: AnchorPoint::Bottom,
+                y: "-50",
+            }
+        }
+    };
+    let status = rsx! {
         fontstring {
             name: LOGIN_STATUS,
             width: 320.0,
@@ -169,10 +173,19 @@ fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
                 y: "-136",
             }
         }
+    };
+    [connect, status].into_iter().flatten().collect()
+}
+
+fn login_main_buttons(show_reconnect: bool, status_text: &str) -> Element {
+    if show_reconnect {
+        login_reconnect_button()
+    } else {
+        login_connect_button_and_status(status_text)
     }
 }
 
-fn login_action_buttons() -> Element {
+fn login_exit_button() -> Element {
     rsx! {
         button {
             name: EXIT_BUTTON,
@@ -188,6 +201,11 @@ fn login_action_buttons() -> Element {
                 y: "56",
             }
         }
+    }
+}
+
+fn login_create_and_menu_buttons() -> Element {
+    rsx! {
         button {
             name: CREATE_ACCOUNT_BUTTON,
             width: 200.0,
@@ -219,7 +237,11 @@ fn login_action_buttons() -> Element {
     }
 }
 
-fn login_footer() -> Element {
+fn login_action_buttons() -> Element {
+    [login_exit_button(), login_create_and_menu_buttons()].into_iter().flatten().collect()
+}
+
+fn login_footer_text() -> Element {
     rsx! {
         fontstring {
             name: "VersionText",
@@ -251,6 +273,11 @@ fn login_footer() -> Element {
                 y: "8",
             }
         }
+    }
+}
+
+fn login_footer_blizzard() -> Element {
+    rsx! {
         fontstring {
             name: BLIZZARD_THANKS,
             text: "Special thanks to",
@@ -280,9 +307,12 @@ fn login_footer() -> Element {
     }
 }
 
-pub fn login_screen() -> Element {
-    let status_ref: SharedStatusText = use_context();
-    let status = status_ref.borrow().clone();
+fn login_footer() -> Element {
+    [login_footer_text(), login_footer_blizzard()].into_iter().flatten().collect()
+}
+
+pub fn login_screen(ctx: &ScreenContext) -> Element {
+    let status = ctx.get::<SharedStatusText>().map(|s| s.as_str()).unwrap_or("");
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
@@ -301,7 +331,7 @@ pub fn login_screen() -> Element {
                     }
                 }
                 {login_inputs()}
-                {login_main_buttons(false, &status)}
+                {login_main_buttons(false, status)}
                 {login_action_buttons()}
                 {login_footer()}
             }

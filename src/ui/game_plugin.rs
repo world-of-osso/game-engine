@@ -7,16 +7,18 @@ use crate::ui::dioxus_runtime::{DioxusUiRuntime, SpellbookAction, SpellbookKeyIn
 use crate::ui::plugin::UiState;
 use shared::protocol::{CombatChannel, SpellCastIntent};
 
-pub fn sync_dioxus_ui(mut state: ResMut<UiState>, mut runtime: NonSendMut<DioxusUiRuntime>) {
-    runtime.sync(&mut state.registry);
+pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<DioxusUiRuntime>>) {
+    if let Some(mut runtime) = runtime {
+        runtime.sync(&mut state.registry);
+    }
 }
 
 pub fn tick_spellbook_cooldowns(
     time: Option<Res<Time>>,
     mut state: ResMut<UiState>,
-    mut runtime: NonSendMut<DioxusUiRuntime>,
+    runtime: Option<NonSendMut<DioxusUiRuntime>>,
 ) {
-    let Some(time) = time else {
+    let (Some(time), Some(mut runtime)) = (time, runtime) else {
         return;
     };
     runtime.advance_cooldowns(&mut state.registry, time.delta_secs());
@@ -26,11 +28,11 @@ pub fn handle_spellbook_pointer(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     mut state: ResMut<UiState>,
-    mut runtime: NonSendMut<DioxusUiRuntime>,
+    runtime: Option<NonSendMut<DioxusUiRuntime>>,
     current_target: Option<Res<CurrentTarget>>,
     mut spell_senders: Query<&mut MessageSender<SpellCastIntent>>,
 ) {
-    let Ok(window) = windows.single() else {
+    let (Ok(window), Some(mut runtime)) = (windows.single(), runtime) else {
         return;
     };
     let Some(cursor) = window.cursor_position() else {
@@ -58,8 +60,9 @@ pub fn handle_spellbook_pointer(
 pub fn handle_spellbook_keyboard(
     mut key_events: Option<MessageReader<KeyboardInput>>,
     mut state: ResMut<UiState>,
-    mut runtime: NonSendMut<DioxusUiRuntime>,
+    runtime: Option<NonSendMut<DioxusUiRuntime>>,
 ) {
+    let Some(mut runtime) = runtime else { return };
     if !runtime.has_focus() {
         return;
     }

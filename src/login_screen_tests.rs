@@ -1,10 +1,10 @@
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 
-use game_engine::ui::dioxus_screen::DioxusScreen;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::login_component::{SharedStatusText, login_screen};
 
 use crate::game_state::GameState;
@@ -17,13 +17,14 @@ use super::{
 
 use game_engine::ui::automation::UiAutomationAction;
 
-fn login_fixture() -> (FrameRegistry, LoginUi) {
-    let mut reg = FrameRegistry::new(1920.0, 1080.0);
-    let mut screen = DioxusScreen::new(login_screen);
+fn build_login_screen_for_test() -> Screen {
+    let mut screen = Screen::new(|ctx| login_screen(ctx));
     let shared_status: SharedStatusText = Default::default();
-    screen.provide_root_context(shared_status);
-    screen.sync(&mut reg);
+    screen.context_mut().insert::<SharedStatusText>(shared_status);
+    screen
+}
 
+fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
     let password_input = reg.get_by_name("PasswordInput").expect("PasswordInput");
@@ -35,10 +36,7 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
     let menu_button = reg.get_by_name("MenuButton").expect("MenuButton");
     let exit_button = reg.get_by_name("ExitButton").expect("ExitButton");
     let status_text = reg.get_by_name("LoginStatus").expect("LoginStatus");
-
-    // Inject layout rects manually so hit-testing works in unit tests.
-    inject_layout_rects(
-        &mut reg,
+    LoginUi {
         root,
         username_input,
         password_input,
@@ -48,22 +46,30 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
         menu_button,
         exit_button,
         status_text,
+    }
+}
+
+fn login_fixture() -> (FrameRegistry, LoginUi) {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen = build_login_screen_for_test();
+    screen.sync(&mut reg);
+
+    let login = resolve_login_ui(&reg);
+
+    inject_layout_rects(
+        &mut reg,
+        login.root,
+        login.username_input,
+        login.password_input,
+        login.connect_button,
+        login.reconnect_button,
+        login.create_account_button,
+        login.menu_button,
+        login.exit_button,
+        login.status_text,
     );
 
-    (
-        reg,
-        LoginUi {
-            root,
-            username_input,
-            password_input,
-            connect_button,
-            reconnect_button,
-            create_account_button,
-            menu_button,
-            exit_button,
-            status_text,
-        },
-    )
+    (reg, login)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -117,9 +123,14 @@ fn make_ui_state(reg: FrameRegistry) -> UiState {
     UiState {
         registry: reg,
         event_bus: game_engine::ui::event::EventBus::new(),
-        wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
         focused_frame: None,
     }
+}
+
+fn make_world_with_commands() -> (World, SystemState<Commands<'static, 'static>>) {
+    let mut world = World::new();
+    let system_state = SystemState::new(&mut world);
+    (world, system_state)
 }
 
 #[test]
@@ -131,8 +142,7 @@ fn automation_click_focuses_username_editbox() {
     let mut status = LoginStatus::default();
     let mut login_mode = networking::LoginMode::Login;
     let auth_token = networking::AuthToken(None);
-    let mut world = World::new();
-    let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+    let (mut world, mut system_state) = make_world_with_commands();
 
     {
         let mut commands = system_state.get_mut(&mut world);
@@ -164,8 +174,7 @@ fn automation_type_uses_login_editbox_code_path() {
     let mut status = LoginStatus::default();
     let mut login_mode = networking::LoginMode::Login;
     let auth_token = networking::AuthToken(None);
-    let mut world = World::new();
-    let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+    let (mut world, mut system_state) = make_world_with_commands();
 
     {
         let mut commands = system_state.get_mut(&mut world);
@@ -190,6 +199,25 @@ fn automation_type_uses_login_editbox_code_path() {
     );
 }
 
+fn run_login_actions(
+    ui: &mut UiState,
+    login: &LoginUi,
+    focus: &mut LoginFocus,
+    next_state: &mut NextState<GameState>,
+    status: &mut LoginStatus,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    commands: &mut Commands,
+    actions: &[UiAutomationAction],
+) {
+    for action in actions {
+        run_login_automation_action(
+            ui, login, focus, next_state, status, login_mode, auth_token, None, commands, action,
+        )
+        .expect("automation action should succeed");
+    }
+}
+
 #[test]
 fn automation_login_reaches_connecting_state() {
     let (reg, login) = login_fixture();
@@ -199,8 +227,7 @@ fn automation_login_reaches_connecting_state() {
     let mut status = LoginStatus::default();
     let mut login_mode = networking::LoginMode::Login;
     let auth_token = networking::AuthToken(None);
-    let mut world = World::new();
-    let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+    let (mut world, mut system_state) = make_world_with_commands();
 
     {
         let mut commands = system_state.get_mut(&mut world);
@@ -211,21 +238,10 @@ fn automation_login_reaches_connecting_state() {
             UiAutomationAction::TypeText("secret".to_string()),
             UiAutomationAction::ClickFrame("ConnectButton".to_string()),
         ];
-        for action in actions {
-            run_login_automation_action(
-                &mut ui,
-                &login,
-                &mut focus,
-                &mut next_state,
-                &mut status,
-                &mut login_mode,
-                &auth_token,
-                None,
-                &mut commands,
-                &action,
-            )
-            .expect("automation action should succeed");
-        }
+        run_login_actions(
+            &mut ui, &login, &mut focus, &mut next_state, &mut status,
+            &mut login_mode, &auth_token, &mut commands, &actions,
+        );
     }
     system_state.apply(&mut world);
 
@@ -243,8 +259,7 @@ fn try_connect_requires_all_fields() {
     let (reg, login) = login_fixture();
     let mut status = LoginStatus::default();
     let mut next_state = NextState::<GameState>::default();
-    let mut world = World::new();
-    let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
+    let (mut world, mut system_state) = make_world_with_commands();
 
     {
         let mut commands = system_state.get_mut(&mut world);
@@ -265,6 +280,25 @@ fn try_connect_requires_all_fields() {
     assert!(!world.contains_resource::<networking::ServerAddr>());
 }
 
+fn run_try_connect_with_credentials(
+    reg: &FrameRegistry,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    server_addr: Option<std::net::SocketAddr>,
+) -> World {
+    let (mut world, mut system_state) = make_world_with_commands();
+    {
+        let mut commands = system_state.get_mut(&mut world);
+        try_connect(
+            reg, login, status, next_state,
+            &networking::LoginMode::Login, server_addr, &mut commands,
+        );
+    }
+    system_state.apply(&mut world);
+    world
+}
+
 #[test]
 fn try_connect_stores_credentials_and_enters_connecting_state() {
     let (mut reg, login) = login_fixture();
@@ -272,28 +306,11 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
     set_editbox_text_for_test(&mut reg, login.password_input, "secret");
     let mut status = LoginStatus::default();
     let mut next_state = NextState::<GameState>::default();
-    let mut world = World::new();
-    let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
 
-    {
-        let mut commands = system_state.get_mut(&mut world);
-        try_connect(
-            &reg,
-            &login,
-            &mut status,
-            &mut next_state,
-            &networking::LoginMode::Login,
-            None,
-            &mut commands,
-        );
-    }
-    system_state.apply(&mut world);
+    let world = run_try_connect_with_credentials(&reg, &login, &mut status, &mut next_state, None);
 
     assert_eq!(status.0, "Connecting...");
-    assert!(matches!(
-        next_state,
-        NextState::Pending(GameState::Connecting)
-    ));
+    assert!(matches!(next_state, NextState::Pending(GameState::Connecting)));
     assert_eq!(
         world.resource::<networking::ServerAddr>().0,
         super::DEFAULT_SERVER_ADDR.parse().unwrap()
@@ -343,7 +360,6 @@ fn build_login_ui_shows_pending_auth_error_message() {
     app.insert_resource(UiState {
         registry: FrameRegistry::new(0.0, 0.0),
         event_bus: game_engine::ui::event::EventBus::new(),
-        wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
         focused_frame: None,
     });
     app.init_resource::<LoginStatus>();
@@ -376,36 +392,22 @@ fn try_connect_preserves_explicit_server_address() {
     set_editbox_text_for_test(&mut reg, login.password_input, "secret");
     let mut status = LoginStatus::default();
     let mut next_state = NextState::<GameState>::default();
-    let mut world = World::new();
-    let mut system_state: SystemState<Commands> = SystemState::new(&mut world);
     let explicit_addr = "127.0.0.1:5000"
         .parse()
         .expect("test server address should parse");
 
-    {
-        let mut commands = system_state.get_mut(&mut world);
-        try_connect(
-            &reg,
-            &login,
-            &mut status,
-            &mut next_state,
-            &networking::LoginMode::Login,
-            Some(explicit_addr),
-            &mut commands,
-        );
-    }
-    system_state.apply(&mut world);
+    let world = run_try_connect_with_credentials(
+        &reg, &login, &mut status, &mut next_state, Some(explicit_addr),
+    );
 
     assert_eq!(world.resource::<networking::ServerAddr>().0, explicit_addr);
 }
 
-#[test]
-fn login_update_visuals_updates_login_status_fontstring() {
+fn make_login_app() -> App {
     let mut app = App::new();
     app.insert_resource(UiState {
         registry: FrameRegistry::new(0.0, 0.0),
         event_bus: game_engine::ui::event::EventBus::new(),
-        wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
         focused_frame: None,
     });
     app.init_resource::<LoginStatus>();
@@ -413,11 +415,15 @@ fn login_update_visuals_updates_login_status_fontstring() {
     app.insert_resource(networking::AuthUiFeedback::default());
     app.insert_resource(networking::LoginMode::Login);
     app.insert_resource(networking::AuthToken(None));
-
     let mut window = Window::default();
     window.resolution.set(1280.0, 720.0);
     app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+    app
+}
 
+#[test]
+fn login_update_visuals_updates_login_status_fontstring() {
+    let mut app = make_login_app();
     let _ = app.world_mut().run_system_cached(super::build_login_ui);
     app.world_mut().resource_mut::<LoginStatus>().0 = "Server unavailable".to_string();
     let _ = app
@@ -437,51 +443,29 @@ fn login_update_visuals_updates_login_status_fontstring() {
     assert_eq!(fs.text, "Server unavailable");
 }
 
-#[test]
-fn login_update_visuals_does_not_duplicate_login_status_frames() {
-    let mut app = App::new();
-    app.insert_resource(UiState {
-        registry: FrameRegistry::new(0.0, 0.0),
-        event_bus: game_engine::ui::event::EventBus::new(),
-        wasm_host: game_engine::ui::wasm_host::WasmHost::new(),
-        focused_frame: None,
-    });
-    app.init_resource::<LoginStatus>();
-    app.init_resource::<LoginFocus>();
-    app.insert_resource(networking::AuthUiFeedback::default());
-    app.insert_resource(networking::LoginMode::Login);
-    app.insert_resource(networking::AuthToken(None));
-
-    let mut window = Window::default();
-    window.resolution.set(1280.0, 720.0);
-    app.world_mut().spawn((window, bevy::window::PrimaryWindow));
-
-    let _ = app.world_mut().run_system_cached(super::build_login_ui);
-    app.world_mut().resource_mut::<LoginStatus>().0 = "First error".to_string();
-    let _ = app
-        .world_mut()
-        .run_system_cached(super::login_update_visuals);
-    app.world_mut().resource_mut::<LoginStatus>().0 = "Second error".to_string();
-    let _ = app
-        .world_mut()
-        .run_system_cached(super::login_update_visuals);
-
+fn count_login_status_frames(app: &App) -> usize {
     let ui = app.world().resource::<UiState>();
-    let matching: Vec<_> = ui
-        .registry
+    ui.registry
         .frames_iter()
         .filter(|frame| frame.name.as_deref() == Some("LoginStatus"))
-        .collect();
-    assert_eq!(
-        matching.len(),
-        1,
-        "expected exactly one LoginStatus frame, found {}",
-        matching.len()
-    );
+        .count()
 }
 
 #[test]
-fn rendered_login_status_text_replaces_previous_text() {
+fn login_update_visuals_does_not_duplicate_login_status_frames() {
+    let mut app = make_login_app();
+    let _ = app.world_mut().run_system_cached(super::build_login_ui);
+
+    app.world_mut().resource_mut::<LoginStatus>().0 = "First error".to_string();
+    let _ = app.world_mut().run_system_cached(super::login_update_visuals);
+    app.world_mut().resource_mut::<LoginStatus>().0 = "Second error".to_string();
+    let _ = app.world_mut().run_system_cached(super::login_update_visuals);
+
+    let count = count_login_status_frames(&app);
+    assert_eq!(count, 1, "expected exactly one LoginStatus frame, found {count}");
+}
+
+fn make_login_app_with_plugins() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.insert_resource(Assets::<bevy::text::Font>::default());
@@ -491,40 +475,45 @@ fn rendered_login_status_text_replaces_previous_text() {
     app.insert_resource(networking::AuthUiFeedback::default());
     app.insert_resource(networking::LoginMode::Login);
     app.insert_resource(networking::AuthToken(None));
-
     let mut window = Window::default();
     window.resolution.set(1280.0, 720.0);
     app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+    app
+}
 
-    let _ = app.world_mut().run_system_cached(super::build_login_ui);
+fn run_login_visuals_cycle(app: &mut App, status_text: &str) {
+    app.world_mut().resource_mut::<LoginStatus>().0 = status_text.to_string();
+    let _ = app.world_mut().run_system_cached(super::login_update_visuals);
     app.update();
+}
 
-    app.world_mut().resource_mut::<LoginStatus>().0 = "First error".to_string();
-    let _ = app
-        .world_mut()
-        .run_system_cached(super::login_update_visuals);
-    app.update();
-
-    app.world_mut().resource_mut::<LoginStatus>().0 = "Second error".to_string();
-    let _ = app
-        .world_mut()
-        .run_system_cached(super::login_update_visuals);
-    app.update();
-
-    let status_text_id = app.world().resource::<LoginUi>().status_text;
+fn collect_main_text_entities(app: &mut App, status_text_id: u64) -> Vec<String> {
     let mut q = app.world_mut().query::<(
         &game_engine::ui::render::UiText,
         &Text2d,
         Option<&game_engine::ui::render_text_fx::UiTextShadow>,
         Option<&game_engine::ui::render_text_fx::UiTextOutline>,
     )>();
-    let rendered: Vec<_> = q
-        .iter(app.world())
+    q.iter(app.world())
         .filter(|(ui_text, _, shadow, outline)| {
             ui_text.0 == status_text_id && shadow.is_none() && outline.is_none()
         })
-        .map(|(_, text, _, _)| format!("{:?}", text))
-        .collect();
+        .map(|(_, text, _, _)| format!("{text:?}"))
+        .collect()
+}
+
+#[test]
+fn rendered_login_status_text_replaces_previous_text() {
+    let mut app = make_login_app_with_plugins();
+
+    let _ = app.world_mut().run_system_cached(super::build_login_ui);
+    app.update();
+
+    run_login_visuals_cycle(&mut app, "First error");
+    run_login_visuals_cycle(&mut app, "Second error");
+
+    let status_text_id = app.world().resource::<LoginUi>().status_text;
+    let rendered = collect_main_text_entities(&mut app, status_text_id);
 
     assert_eq!(
         rendered.len(),

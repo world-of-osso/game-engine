@@ -103,10 +103,6 @@ macro_rules! ui_resource {
 pub use ui_toolkit::anchor;
 pub use ui_toolkit::animation;
 pub use ui_toolkit::atlas;
-pub use ui_toolkit::dioxus_attrs;
-pub use ui_toolkit::dioxus_elements;
-pub use ui_toolkit::dioxus_renderer;
-pub use ui_toolkit::dioxus_screen;
 pub use ui_toolkit::event;
 pub use ui_toolkit::font_registry;
 pub use ui_toolkit::frame;
@@ -115,6 +111,7 @@ pub use ui_toolkit::layout;
 pub use ui_toolkit::plugin;
 pub use ui_toolkit::registry;
 pub use ui_toolkit::render;
+pub use ui_toolkit::screen;
 pub use ui_toolkit::render_border;
 pub use ui_toolkit::render_button;
 pub use ui_toolkit::render_nine_slice;

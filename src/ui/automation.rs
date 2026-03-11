@@ -76,6 +76,60 @@ impl Plugin for UiAutomationPlugin {
     }
 }
 
+fn handle_wait_for_state(
+    time: &Time,
+    target: GameState,
+    timeout_secs: f32,
+    state: &State<GameState>,
+    queue: &mut UiAutomationQueue,
+    runner: &mut UiAutomationRunner,
+) {
+    runner.completed = false;
+    if *state.get() == target {
+        queue.pop();
+        runner.waiting = None;
+        return;
+    }
+    let started_at = ensure_wait_state(
+        runner,
+        UiAutomationWait::State { target, timeout_secs, started_at: time.elapsed_secs() },
+    );
+    if time.elapsed_secs() - started_at > timeout_secs {
+        runner.last_error = Some(format!(
+            "timed out waiting for state {:?} after {:.2}s", target, timeout_secs
+        ));
+        queue.pop();
+        runner.waiting = None;
+    }
+}
+
+fn handle_wait_for_frame(
+    time: &Time,
+    name: String,
+    timeout_secs: f32,
+    ui: &UiState,
+    queue: &mut UiAutomationQueue,
+    runner: &mut UiAutomationRunner,
+) {
+    runner.completed = false;
+    if ui.registry.get_by_name(&name).is_some() {
+        queue.pop();
+        runner.waiting = None;
+        return;
+    }
+    let started_at = ensure_wait_state(
+        runner,
+        UiAutomationWait::Frame { name: name.clone(), timeout_secs, started_at: time.elapsed_secs() },
+    );
+    if time.elapsed_secs() - started_at > timeout_secs {
+        runner.last_error = Some(format!(
+            "timed out waiting for frame '{}' after {:.2}s", name, timeout_secs
+        ));
+        queue.pop();
+        runner.waiting = None;
+    }
+}
+
 fn process_automation_waits(
     time: Res<Time>,
     ui: Res<UiState>,
@@ -88,55 +142,12 @@ fn process_automation_waits(
         runner.waiting = None;
         return;
     };
-
     match action {
         UiAutomationAction::WaitForState(target, timeout_secs) => {
-            runner.completed = false;
-            if *state.get() == target {
-                queue.pop();
-                runner.waiting = None;
-                return;
-            }
-            let started_at = ensure_wait_state(
-                &mut runner,
-                UiAutomationWait::State {
-                    target,
-                    timeout_secs,
-                    started_at: time.elapsed_secs(),
-                },
-            );
-            if time.elapsed_secs() - started_at > timeout_secs {
-                runner.last_error = Some(format!(
-                    "timed out waiting for state {:?} after {:.2}s",
-                    target, timeout_secs
-                ));
-                queue.pop();
-                runner.waiting = None;
-            }
+            handle_wait_for_state(&time, target, timeout_secs, &state, &mut queue, &mut runner);
         }
         UiAutomationAction::WaitForFrame(name, timeout_secs) => {
-            runner.completed = false;
-            if ui.registry.get_by_name(&name).is_some() {
-                queue.pop();
-                runner.waiting = None;
-                return;
-            }
-            let started_at = ensure_wait_state(
-                &mut runner,
-                UiAutomationWait::Frame {
-                    name: name.clone(),
-                    timeout_secs,
-                    started_at: time.elapsed_secs(),
-                },
-            );
-            if time.elapsed_secs() - started_at > timeout_secs {
-                runner.last_error = Some(format!(
-                    "timed out waiting for frame '{}' after {:.2}s",
-                    name, timeout_secs
-                ));
-                queue.pop();
-                runner.waiting = None;
-            }
+            handle_wait_for_frame(&time, name, timeout_secs, &ui, &mut queue, &mut runner);
         }
         _ => {}
     }
@@ -150,11 +161,7 @@ fn ensure_wait_state(runner: &mut UiAutomationRunner, wait: UiAutomationWait) ->
                 timeout_secs: current_timeout,
                 started_at,
             }),
-            UiAutomationWait::State {
-                target,
-                timeout_secs,
-                ..
-            },
+            UiAutomationWait::State { target, timeout_secs, .. },
         ) if current_target == target
             && (*current_timeout - *timeout_secs).abs() < f32::EPSILON =>
         {
@@ -166,9 +173,7 @@ fn ensure_wait_state(runner: &mut UiAutomationRunner, wait: UiAutomationWait) ->
                 timeout_secs: current_timeout,
                 started_at,
             }),
-            UiAutomationWait::Frame {
-                name, timeout_secs, ..
-            },
+            UiAutomationWait::Frame { name, timeout_secs, .. },
         ) if current_name == name && (*current_timeout - *timeout_secs).abs() < f32::EPSILON => {
             *started_at
         }
@@ -210,7 +215,20 @@ fn process_automation_dump_requests(
 mod tests {
     use super::*;
     use crate::ui::event::EventBus;
-    use crate::ui::wasm_host::WasmHost;
+
+    fn make_automation_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.add_plugins(UiAutomationPlugin);
+        app.insert_resource(UiState {
+            registry: crate::ui::registry::FrameRegistry::new(1920.0, 1080.0),
+            event_bus: EventBus::new(),
+            focused_frame: None,
+        });
+        app.init_state::<GameState>();
+        app
+    }
 
     #[test]
     fn queue_preserves_action_order() {
@@ -231,17 +249,7 @@ mod tests {
 
     #[test]
     fn wait_for_state_blocks_until_target_state() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(bevy::state::app::StatesPlugin);
-        app.add_plugins(UiAutomationPlugin);
-        app.insert_resource(UiState {
-            registry: crate::ui::registry::FrameRegistry::new(1920.0, 1080.0),
-            event_bus: EventBus::new(),
-            wasm_host: WasmHost::new(),
-            focused_frame: None,
-        });
-        app.init_state::<GameState>();
+        let mut app = make_automation_app();
         app.world_mut()
             .resource_mut::<UiAutomationQueue>()
             .push(UiAutomationAction::WaitForState(GameState::CharSelect, 1.0));
@@ -249,49 +257,26 @@ mod tests {
         app.update();
         assert!(matches!(
             app.world().resource::<UiAutomationRunner>().waiting,
-            Some(UiAutomationWait::State {
-                target: GameState::CharSelect,
-                ..
-            })
+            Some(UiAutomationWait::State { target: GameState::CharSelect, .. })
         ));
 
-        app.world_mut()
-            .resource_mut::<NextState<GameState>>()
-            .set(GameState::CharSelect);
+        app.world_mut().resource_mut::<NextState<GameState>>().set(GameState::CharSelect);
         app.update();
         app.update();
 
         assert!(app.world().resource::<UiAutomationQueue>().is_empty());
-        assert!(
-            app.world()
-                .resource::<UiAutomationRunner>()
-                .waiting
-                .is_none()
-        );
+        assert!(app.world().resource::<UiAutomationRunner>().waiting.is_none());
     }
 
     #[test]
     fn dump_tree_action_sets_request_resource() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(bevy::state::app::StatesPlugin);
-        app.add_plugins(UiAutomationPlugin);
-        app.insert_resource(UiState {
-            registry: crate::ui::registry::FrameRegistry::new(1920.0, 1080.0),
-            event_bus: EventBus::new(),
-            wasm_host: WasmHost::new(),
-            focused_frame: None,
-        });
-        app.init_state::<GameState>();
+        let mut app = make_automation_app();
         app.world_mut()
             .resource_mut::<UiAutomationQueue>()
             .push(UiAutomationAction::DumpTree);
 
         app.update();
 
-        assert!(
-            app.world()
-                .contains_resource::<UiAutomationDumpTreeRequest>()
-        );
+        assert!(app.world().contains_resource::<UiAutomationDumpTreeRequest>());
     }
 }

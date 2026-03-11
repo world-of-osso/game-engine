@@ -3,14 +3,15 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue};
-use game_engine::ui::dioxus_screen::DioxusScreen;
 use game_engine::ui::frame::{NineSlice, WidgetData};
 use game_engine::ui::layout::recompute_layouts;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+use ui_toolkit::screen::Screen;
+
 use game_engine::ui::screens::login_component::{
     CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, MENU_BUTTON,
-    PASSWORD_INPUT, RECONNECT_BUTTON, USERNAME_INPUT, login_screen,
+    PASSWORD_INPUT, RECONNECT_BUTTON, SharedStatusText, USERNAME_INPUT, login_screen,
 };
 use game_engine::ui::widgets::button::ButtonState as BtnState;
 use game_engine::ui::widgets::font_string::GameFont;
@@ -75,19 +76,14 @@ pub(crate) struct DevServer;
 #[derive(Resource)]
 struct LoginFadeIn(f32);
 
-use game_engine::ui::screens::login_component::SharedStatusText;
-
-struct LoginDioxusScreen {
-    screen: DioxusScreen,
-    shared_status: SharedStatusText,
-}
-// SAFETY: DioxusScreen contains Rc<Runtime> which is not Send/Sync, but login
-// systems run exclusively on the main thread so this is safe.
-unsafe impl Send for LoginDioxusScreen {}
-unsafe impl Sync for LoginDioxusScreen {}
+struct LoginScreenRes(Screen);
+// SAFETY: Screen contains non-Send/Sync types (Box<dyn Fn> + mpsc::Receiver + Any), but
+// login systems run exclusively on the main thread so this is safe.
+unsafe impl Send for LoginScreenRes {}
+unsafe impl Sync for LoginScreenRes {}
 
 #[derive(Resource)]
-struct LoginDioxusScreenRes(LoginDioxusScreen);
+struct LoginScreenResWrap(LoginScreenRes);
 
 pub struct LoginScreenPlugin;
 
@@ -126,8 +122,8 @@ pub(crate) fn build_login_ui(
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     status.0 = auth_feedback.0.take().unwrap_or_default();
 
-    let mut screen = build_login_dioxus_screen(&status);
-    screen.screen.sync(&mut ui.registry);
+    let mut screen = build_login_screen(&status);
+    screen.sync(&mut ui.registry);
 
     let login = LoginUi::resolve(&ui.registry);
     apply_post_setup(&mut ui.registry, &login);
@@ -138,19 +134,14 @@ pub(crate) fn build_login_ui(
 
     ui.registry.set_alpha(login.root, 0.0);
     commands.insert_resource(LoginFadeIn(0.1));
-    commands.insert_resource(LoginDioxusScreenRes(screen));
+    commands.insert_resource(LoginScreenResWrap(LoginScreenRes(screen)));
     commands.insert_resource(login);
 }
 
-fn build_login_dioxus_screen(status: &LoginStatus) -> LoginDioxusScreen {
-    let screen = DioxusScreen::new(login_screen);
-    let shared_status: SharedStatusText =
-        std::rc::Rc::new(std::cell::RefCell::new(status.0.clone()));
-    screen.provide_root_context(shared_status.clone());
-    LoginDioxusScreen {
-        screen,
-        shared_status,
-    }
+fn build_login_screen(status: &LoginStatus) -> Screen {
+    let mut screen = Screen::new(|ctx| login_screen(ctx));
+    screen.context_mut().insert::<SharedStatusText>(status.0.clone());
+    screen
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
@@ -170,12 +161,12 @@ fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
 fn teardown_login_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
-    mut screen: Option<ResMut<LoginDioxusScreenRes>>,
+    mut screen: Option<ResMut<LoginScreenResWrap>>,
 ) {
     if let Some(screen) = screen.as_mut() {
-        screen.0.screen.teardown(&mut ui.registry);
+        screen.0.0.teardown(&mut ui.registry);
     }
-    commands.remove_resource::<LoginDioxusScreenRes>();
+    commands.remove_resource::<LoginScreenResWrap>();
     commands.remove_resource::<LoginUi>();
     commands.remove_resource::<LoginFadeIn>();
     ui.focused_frame = None;
@@ -677,7 +668,7 @@ fn login_hover_visuals(
 fn login_update_visuals(
     mut ui: ResMut<UiState>,
     login_ui: Option<Res<LoginUi>>,
-    mut screen_res: Option<ResMut<LoginDioxusScreenRes>>,
+    mut screen_res: Option<ResMut<LoginScreenResWrap>>,
     status: Res<LoginStatus>,
     focus: Res<LoginFocus>,
     login_mode: Res<networking::LoginMode>,
@@ -688,7 +679,7 @@ fn login_update_visuals(
     };
     ui.focused_frame = focus.0;
     sync_button_states(&mut ui.registry, login, &*login_mode, &auth_token);
-    sync_dioxus_status(&mut ui.registry, screen_res.as_mut(), &status);
+    sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
     sync_editbox_focus_visual(
         &mut ui.registry,
         login.username_input,
@@ -701,21 +692,19 @@ fn login_update_visuals(
     );
 }
 
-fn sync_dioxus_status(
+fn sync_login_status(
     reg: &mut FrameRegistry,
-    screen_res: Option<&mut ResMut<LoginDioxusScreenRes>>,
+    screen_res: Option<&mut ResMut<LoginScreenResWrap>>,
     status: &LoginStatus,
 ) {
-    let Some(dioxus) = screen_res else { return };
-    {
-        let mut shared = dioxus.0.shared_status.borrow_mut();
-        if *shared != status.0 {
-            *shared = status.0.clone();
-            drop(shared);
-            dioxus.0.screen.mark_dirty_root();
-        }
+    let Some(res) = screen_res else { return };
+    let screen = &mut res.0.0;
+    let current = screen.context_mut().get::<SharedStatusText>().cloned().unwrap_or_default();
+    if current != status.0 {
+        screen.context_mut().insert::<SharedStatusText>(status.0.clone());
+        screen.mark_dirty();
     }
-    dioxus.0.screen.sync(reg);
+    screen.sync(reg);
 }
 
 fn login_fade_in(

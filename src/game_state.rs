@@ -49,7 +49,7 @@ impl Plugin for GameStatePlugin {
         app.add_systems(
             Update,
             (
-                game_engine::ui::game_plugin::sync_dioxus_ui,
+                game_engine::ui::game_plugin::sync_screen_ui,
                 game_engine::ui::game_plugin::tick_spellbook_cooldowns,
                 game_engine::ui::game_plugin::handle_spellbook_pointer,
                 game_engine::ui::game_plugin::handle_spellbook_keyboard,
