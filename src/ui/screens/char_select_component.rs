@@ -303,6 +303,7 @@ fn character_card(index: usize, ch: &CharDisplayEntry, is_selected: bool) -> Ele
             name: frame_name,
             width: 347.0, height: 95.0,
             onclick: onclick,
+            border: "1px solid 0.45,0.38,0.22,0.8",
             {card_textures(index, is_selected)}
             {texts}
         }
@@ -401,7 +402,7 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
         r#frame {
             name: "CharacterListCards",
             width: 347.0, height: 420.0,
-            layout: "flex-col", gap: 2.0,
+            layout: "flex-col", gap: 10.0,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
                 x: "19", y: "-94",

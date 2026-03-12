@@ -63,6 +63,7 @@ src/
 - `data/textures/` — BLP textures named by FDID (e.g. `120191.blp`)
 - `data/models/` — M2 models and .skin files
 - `data/terrain/` — ADT terrain files
+- `data/casc/root.bin` + `encoding.bin` — CASC resolution tables (~250MB, from `casc-extract init`). **Never delete — expensive to regenerate.**
 - WoW install: `/syncthing/World of Warcraft/` — full install synced from Windows (CASC at `Data/`, retail at `_retail_/`)
 - **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `doc/casc-extraction.md`.
 
@@ -97,7 +98,8 @@ src/
 
 ## Related
 
-- casc-extract: `../casc-extract/` — CLI to extract WoW assets (cascette-rs). Currently CDN-only, needs local CASC mode.
+- casc_resolver: `src/asset/casc_resolver.rs` — Extracts assets from local WoW CASC storage via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
+- casc-extract: `https://github.com/Osso/casc-extract` — CLI to regenerate `data/casc/` files from Blizzard CDN. Clone to /tmp, point deps at `~/Repos/cascette-rs`, run `cargo run -- init`.
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
 - WoWee: https://github.com/gtker/wow_messages — Rust WoW protocol/format crates

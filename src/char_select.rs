@@ -53,6 +53,10 @@ ui_resource! {
 #[derive(Resource, Default)]
 pub(crate) struct SelectedCharIndex(pub(crate) Option<usize>);
 
+/// CLI-provided character name to pre-select on the char select screen.
+#[derive(Resource)]
+pub(crate) struct PreselectedCharName(pub(crate) String);
+
 #[derive(Resource, Default)]
 struct CreatePanelVisible(bool);
 
@@ -121,10 +125,19 @@ fn build_char_select_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     char_list: Res<CharacterList>,
+    preselected: Option<Res<PreselectedCharName>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let initial_selected = char_list.0.first().map(|_| 0);
+    let initial_selected = preselected
+        .as_ref()
+        .and_then(|p| {
+            char_list
+                .0
+                .iter()
+                .position(|ch| ch.name.eq_ignore_ascii_case(&p.0))
+        })
+        .or_else(|| char_list.0.first().map(|_| 0));
     let state = build_char_select_state(&char_list, initial_selected);
 
     let mut shared = ui_toolkit::screen::SharedContext::new();

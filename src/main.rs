@@ -87,12 +87,13 @@ fn main() {
     run_app(&args, dump_tree, dump_ui_tree, screenshot);
 }
 
-fn run_app(
-    args: &[String],
-    dump_tree: bool,
-    dump_ui_tree: bool,
-    screenshot: Option<ScreenshotRequest>,
-) {
+struct ParsedArgs {
+    startup_actions: Vec<game_engine::ui::automation::UiAutomationAction>,
+    server_addr: Option<(std::net::SocketAddr, bool)>,
+    initial_state: Option<game_state::GameState>,
+}
+
+fn parse_run_args(args: &[String]) -> ParsedArgs {
     let mut startup_actions = match load_startup_automation_actions(args) {
         Ok(a) => a,
         Err(err) => {
@@ -110,25 +111,41 @@ fn run_app(
         initial_state = Some(game_state::GameState::Login);
         startup_actions = charselect_auto_login_actions();
     }
+    ParsedArgs { startup_actions, server_addr, initial_state }
+}
+
+fn run_app(
+    args: &[String],
+    dump_tree: bool,
+    dump_ui_tree: bool,
+    screenshot: Option<ScreenshotRequest>,
+) {
+    let parsed = parse_run_args(args);
     let mut app = App::new();
     register_plugins(&mut app);
     configure_app_plugins(
-        &mut app,
-        args.iter().any(|a| a == "--sound"),
-        server_addr,
-        initial_state,
-        dump_tree,
-        dump_ui_tree,
-        screenshot,
+        &mut app, args.iter().any(|a| a == "--sound"),
+        parsed.server_addr, parsed.initial_state, dump_tree, dump_ui_tree, screenshot,
     );
+    insert_startup_resources(&mut app, args, parsed.startup_actions);
+    app.run();
+}
+
+fn insert_startup_resources(
+    app: &mut App,
+    args: &[String],
+    startup_actions: Vec<game_engine::ui::automation::UiAutomationAction>,
+) {
     if !startup_actions.is_empty() {
         app.insert_resource(game_engine::ui::automation::UiAutomationQueue(
             VecDeque::from(startup_actions),
         ));
     }
+    if let Some(name) = parse_char_arg(args) {
+        app.insert_resource(char_select::PreselectedCharName(name));
+    }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     game_engine::listfile::preload();
-    app.run();
 }
 
 fn charselect_auto_login_actions() -> Vec<game_engine::ui::automation::UiAutomationAction> {
@@ -369,6 +386,12 @@ fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
         .and_then(|w| parse_game_state_value(&w[1]))
 }
 
+fn parse_char_arg(args: &[String]) -> Option<String> {
+    args.windows(2)
+        .find(|w| w[0] == "--char")
+        .map(|w| w[1].clone())
+}
+
 fn parse_game_state_value(value: &str) -> Option<game_state::GameState> {
     match value {
         "login" => Some(game_state::GameState::Login),
@@ -406,7 +429,7 @@ fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             continue;
         }
         match args[i].as_str() {
-            "--server" | "--state" | "--screen" => {
+            "--server" | "--state" | "--screen" | "--char" => {
                 i += 2;
             }
             arg if arg.starts_with("--") => {

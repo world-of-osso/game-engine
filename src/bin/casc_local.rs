@@ -1,8 +1,5 @@
 //! Extract files from local WoW CASC storage by FileDataID.
 //!
-//! Uses the cached root+encoding files from casc-extract init,
-//! combined with the local CASC archives from the WoW installation.
-//!
 //! Usage:
 //!   cargo run --bin casc-local -- <fdid> [fdid2 ...] [-o output_dir]
 
@@ -10,7 +7,8 @@ use cascette_client_storage::Installation;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
-const CACHE_DIR: &str = "/home/osso/.cache/casc-extract";
+const CACHE_DIR: &str = "/home/osso/.cache/casc-resolver";
+const LISTFILE_PATH: &str = "data/community-listfile.csv";
 
 #[tokio::main]
 async fn main() {
@@ -21,11 +19,12 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let install = open_installation().await;
-    load_resolution_files(&install);
+    let data_root = PathBuf::from(WOW_PATH).join("Data");
+    let build_key = read_active_build_key(&data_root);
+    let install = open_and_initialize(&data_root).await;
+    load_cached_resolution(&install, &build_key);
 
-    let mut ok = 0u32;
-    let mut fail = 0u32;
+    let (mut ok, mut fail) = (0u32, 0u32);
     for fdid in &fdids {
         match extract_fdid(&install, *fdid, &output_dir).await {
             Ok(path) => {
@@ -62,61 +61,53 @@ fn parse_args(args: &[String]) -> (Vec<u32>, PathBuf) {
     (fdids, output_dir)
 }
 
-async fn open_installation() -> Installation {
-    let data_root = PathBuf::from(WOW_PATH).join("Data");
+async fn open_and_initialize(data_root: &Path) -> Installation {
     eprintln!("Opening local CASC: {}", data_root.display());
-
-    let install = Installation::open(data_root).expect("failed to open CASC installation");
+    let install =
+        Installation::open(data_root.to_path_buf()).expect("failed to open CASC installation");
     install.initialize().await.expect("failed to initialize");
-
-    let stats = install.stats().await;
-    eprintln!(
-        "  {} index entries, {} archives ({} bytes)",
-        stats.index_entries, stats.archive_files, stats.archive_size,
-    );
     install
 }
 
-fn load_resolution_files(install: &Installation) {
-    let build_id = find_build_id();
-    let cache = PathBuf::from(CACHE_DIR).join(format!("wow-{build_id}"));
-
-    let root_path = cache.join("root.bin");
-    let encoding_path = cache.join("encoding.bin");
-
-    load_root(install, &root_path);
-    load_encoding(install, &encoding_path);
-}
-
-fn find_build_id() -> String {
-    let id_file = PathBuf::from(CACHE_DIR).join("build-id.txt");
-    std::fs::read_to_string(&id_file)
-        .unwrap_or_else(|_| {
-            panic!(
-                "Missing {}, run `casc-extract init` first",
-                id_file.display()
-            )
-        })
-        .trim()
-        .to_string()
-}
-
-fn load_root(install: &Installation, path: &Path) {
-    let data = std::fs::read(path)
-        .unwrap_or_else(|_| panic!("Missing {}, run `casc-extract init`", path.display()));
+fn load_cached_resolution(install: &Installation, build_key: &str) {
+    let cache = PathBuf::from(CACHE_DIR).join(build_key);
+    let root_data = std::fs::read(cache.join("root.bin"))
+        .unwrap_or_else(|_| panic!("Missing root.bin, run `casc-init` first"));
     install
-        .load_root_file(&data)
-        .expect("failed to load root file");
-    eprintln!("Loaded root file ({} bytes)", data.len());
+        .load_root_file(&root_data)
+        .expect("failed to load root");
+    eprintln!("Loaded root ({:.1} MB)", root_data.len() as f64 / 1e6);
+
+    let enc_data = std::fs::read(cache.join("encoding.bin"))
+        .unwrap_or_else(|_| panic!("Missing encoding.bin, run `casc-init` first"));
+    install
+        .load_encoding_file(&enc_data)
+        .expect("failed to load encoding");
+    eprintln!("Loaded encoding ({:.1} MB)", enc_data.len() as f64 / 1e6);
 }
 
-fn load_encoding(install: &Installation, path: &Path) {
-    let data = std::fs::read(path)
-        .unwrap_or_else(|_| panic!("Missing {}, run `casc-extract init`", path.display()));
-    install
-        .load_encoding_file(&data)
-        .expect("failed to load encoding file");
-    eprintln!("Loaded encoding file ({} bytes)", data.len());
+fn read_active_build_key(data_root: &Path) -> String {
+    let info_path = data_root.parent().unwrap().join(".build.info");
+    let content = std::fs::read_to_string(&info_path).expect("read .build.info");
+    let mut lines = content.lines();
+    let header = lines.next().expect("empty .build.info");
+    let cols: Vec<&str> = header.split('|').collect();
+    let key_idx = cols
+        .iter()
+        .position(|c| c.starts_with("Build Key"))
+        .expect("no Build Key column");
+    let prod_idx = cols.iter().position(|c| c.starts_with("Product"));
+
+    for line in lines {
+        let vals: Vec<&str> = line.split('|').collect();
+        let is_wow = prod_idx
+            .and_then(|i| vals.get(i))
+            .is_some_and(|p| *p == "wow");
+        if is_wow {
+            return vals[key_idx].to_string();
+        }
+    }
+    panic!("no wow product in .build.info");
 }
 
 async fn extract_fdid(
@@ -126,16 +117,14 @@ async fn extract_fdid(
 ) -> Result<PathBuf, String> {
     let filename = resolve_filename(fdid);
     let out_path = output_dir.join(&filename);
-
     if out_path.exists() {
         return Ok(out_path);
     }
 
-    // Full chain: FDID → ContentKey → EncodingKey → local archive
     let encoding_key = install
         .resolver()
         .resolve_fdid_to_encoding(fdid)
-        .ok_or_else(|| format!("FDID {fdid} not found in root/encoding files"))?;
+        .ok_or_else(|| format!("FDID {fdid} not found in root/encoding"))?;
 
     let data = install
         .read_file_by_encoding_key(&encoding_key)
@@ -147,16 +136,13 @@ async fn extract_fdid(
     Ok(out_path)
 }
 
-/// Resolve FDID to a filename. Uses FDID-based naming for consistency
-/// with game-engine's `data/models/{fdid}.m2` convention.
 fn resolve_filename(fdid: u32) -> String {
-    let listfile_path = PathBuf::from(CACHE_DIR).join("listfile.csv");
-    let ext = resolve_extension(fdid, &listfile_path);
+    let ext = resolve_extension(fdid, Path::new(LISTFILE_PATH));
     format!("{fdid}.{ext}")
 }
 
-fn resolve_extension(fdid: u32, listfile_path: &Path) -> String {
-    if let Ok(content) = std::fs::read_to_string(listfile_path) {
+fn resolve_extension(fdid: u32, listfile: &Path) -> String {
+    if let Ok(content) = std::fs::read_to_string(listfile) {
         let prefix = format!("{fdid};");
         for line in content.lines() {
             if let Some(path) = line.strip_prefix(&prefix)
