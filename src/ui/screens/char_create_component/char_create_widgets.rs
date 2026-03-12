@@ -499,62 +499,16 @@ fn build_dropdown_choices(
         .collect()
 }
 
-fn dropdown_popup_container(
-    field: AppearanceField,
-    choices: Element,
-    height: f32,
-    hidden: bool,
-) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("Dropdown_{}", field.as_str())),
-            width: 280.0,
-            height,
-            hidden,
-            strata: FrameStrata::Dialog,
-            background_color: "0.05,0.05,0.05,0.95",
-            border: "1px solid 0.4,0.35,0.2,0.8",
-            layout: "flex-row-wrap",
-            gap: 2.0,
-            padding: 4.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                y: "-2",
-            }
-            {choices}
-        }
-    }
-}
-
-fn dropdown_popup(
-    field: AppearanceField,
-    swatches: &[Option<[u8; 3]>],
-    selected_idx: u8,
-    open: bool,
-) -> Element {
-    let choices = build_dropdown_choices(field, swatches, selected_idx);
-    let rows = (swatches.len() as f32 / 11.0).ceil().max(1.0);
-    let height = rows * 18.0 + 8.0;
-    dropdown_popup_container(field, choices, height, !open)
-}
-
 pub(super) fn customization_row(
     label: &str,
     value: u8,
     swatches: &[Option<[u8; 3]>],
-    open: bool,
     field: AppearanceField,
 ) -> Element {
     let current_swatch = swatches.get(value as usize).copied().flatten();
     let center = match current_swatch {
         Some(color) => swatch_texture(field, color),
         None => appearance_row_value(field, value),
-    };
-    let popup = if swatches.is_empty() {
-        Element::default()
-    } else {
-        dropdown_popup(field, swatches, value, open)
     };
     rsx! {
         r#frame {
@@ -565,7 +519,37 @@ pub(super) fn customization_row(
             {stepper_dec_button(field)}
             {center}
             {stepper_inc_button(field)}
-            {popup}
+        }
+    }
+}
+
+pub(super) fn dropdown_panel(
+    field: AppearanceField,
+    swatches: &[Option<[u8; 3]>],
+    selected_idx: u8,
+    y_offset: f32,
+) -> Element {
+    let choices = build_dropdown_choices(field, swatches, selected_idx);
+    let rows = (swatches.len() as f32 / 11.0).ceil().max(1.0);
+    let height = rows * 18.0 + 8.0;
+    let y_str = format!("{y_offset}");
+    rsx! {
+        r#frame {
+            name: dyn_name(format!("Dropdown_{}", field.as_str())),
+            width: 280.0,
+            height,
+            strata: FrameStrata::Dialog,
+            background_color: "0.05,0.05,0.05,0.95",
+            border: "1px solid 0.4,0.35,0.2,0.8",
+            layout: "flex-row-wrap",
+            gap: 2.0,
+            padding: 4.0,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                y: y_str,
+            }
+            {choices}
         }
     }
 }

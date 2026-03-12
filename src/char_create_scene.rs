@@ -20,6 +20,7 @@ use crate::m2_spawn::GeosetMesh;
 use crate::scene_setup::DEFAULT_M2;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, OptionType};
+use game_engine::outfit_data::{OutfitData, OutfitResult};
 use shared::components::CharacterAppearance;
 
 #[derive(Component)]
@@ -41,6 +42,8 @@ struct DisplayedModels {
     models: Vec<(u8, Entity)>,
     /// Last-applied appearance (to detect changes).
     last_appearance: Option<CharacterAppearance>,
+    /// Last-applied class (to detect outfit changes).
+    last_class: Option<u8>,
 }
 
 #[derive(Component)]
@@ -258,6 +261,7 @@ fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
     displayed.models.clear();
     displayed.race = None;
     displayed.last_appearance = None;
+    displayed.last_class = None;
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -342,6 +346,7 @@ fn sync_appearance(
     state: Option<Res<CharCreateState>>,
     cust_db: Res<CustomizationDb>,
     char_tex: Res<CharTextureData>,
+    outfit_data: Res<OutfitData>,
     mut displayed: ResMut<DisplayedModels>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -351,12 +356,14 @@ fn sync_appearance(
 ) {
     let Some(state) = state else { return };
     let appearance = state.appearance;
-    if displayed.last_appearance.as_ref() == Some(&appearance)
-        && displayed.race == Some(state.selected_race)
-    {
+    let class_changed = displayed.last_class != Some(state.selected_class);
+    let appearance_changed = displayed.last_appearance.as_ref() != Some(&appearance);
+    let race_changed = displayed.race != Some(state.selected_race);
+    if !appearance_changed && !class_changed && !race_changed {
         return;
     }
     displayed.last_appearance = Some(appearance);
+    displayed.last_class = Some(state.selected_class);
 
     let active_entity = displayed
         .models
@@ -364,23 +371,38 @@ fn sync_appearance(
         .find(|(sex, _)| *sex == state.selected_sex)
         .map(|(_, e)| *e);
     let Some(root) = active_entity else { return };
+    let outfit = outfit_data.resolve_outfit(
+        state.selected_race,
+        state.selected_class,
+        state.selected_sex,
+    );
 
     apply_body_texture(
         &state,
         &cust_db,
         &char_tex,
+        &outfit,
         root,
         &mut images,
         &mut materials,
         &material_query,
     );
-    apply_geoset_visibility(&state, &cust_db, root, &geoset_query, &mut visibility_query);
+    apply_geoset_visibility(
+        &state,
+        &cust_db,
+        &outfit,
+        root,
+        &geoset_query,
+        &mut visibility_query,
+    );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_body_texture(
     state: &CharCreateState,
     cust_db: &CustomizationDb,
     char_tex: &CharTextureData,
+    outfit: &OutfitResult,
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
@@ -393,7 +415,11 @@ fn apply_body_texture(
     let Some(layout_id) = cust_db.layout_id(state.selected_race, state.selected_sex) else {
         return;
     };
-    let Some((pixels, w, h)) = char_tex.composite(&all_materials, layout_id) else {
+    let Some((pixels, w, h)) = char_tex.composite_with_items(
+        &all_materials,
+        &outfit.item_textures,
+        layout_id,
+    ) else {
         return;
     };
     let img = crate::rgba_image(pixels, w, h);
@@ -432,6 +458,7 @@ fn collect_appearance_materials(
 fn apply_geoset_visibility(
     state: &CharCreateState,
     cust_db: &CustomizationDb,
+    outfit: &OutfitResult,
     root: Entity,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
@@ -448,7 +475,11 @@ fn apply_geoset_visibility(
         }
     }
 
-    // Collect geoset types that have active selections
+    for &(group_index, value) in &outfit.geoset_overrides {
+        active_geosets.retain(|(group, _)| *group != group_index);
+        active_geosets.push((group_index, value));
+    }
+
     let active_types: Vec<u16> = active_geosets.iter().map(|(t, _)| *t).collect();
 
     for (entity, geoset_mesh, child_of) in geoset_query.iter() {
@@ -457,7 +488,6 @@ fn apply_geoset_visibility(
         }
         let group = geoset_mesh.0 / 100;
         let variant = geoset_mesh.0 % 100;
-        // Only control geosets in groups that have active selections
         if !active_types.contains(&group) {
             continue;
         }
@@ -484,4 +514,5 @@ fn teardown_scene(
     }
     displayed.race = None;
     displayed.models.clear();
+    displayed.last_class = None;
 }

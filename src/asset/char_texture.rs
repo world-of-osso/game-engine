@@ -89,6 +89,54 @@ impl CharTextureData {
         let (w, h) = (layout.width, layout.height);
         let mut pixels = vec![0u8; (w * h * 4) as usize];
 
+        self.composite_materials_into(&mut pixels, w, materials, layout_id);
+
+        Some((pixels, w, h))
+    }
+
+    /// Composite with both customization materials and item overlay textures.
+    /// `item_textures`: (ComponentSection, FDID) pairs from outfit resolution.
+    /// ComponentSection maps to SectionType in CharComponentTextureSections:
+    ///   0=ArmUpper, 1=ArmLower, 2=Hand, 3=TorsoUpper, 4=TorsoLower, 5=LegUpper, 6=LegLower, 7=Foot
+    pub fn composite_with_items(
+        &self,
+        materials: &[(u16, u32)],
+        item_textures: &[(u8, u32)],
+        layout_id: u32,
+    ) -> Option<(Vec<u8>, u32, u32)> {
+        let layout = self.layouts.get(&layout_id)?;
+        let (w, h) = (layout.width, layout.height);
+        let mut pixels = vec![0u8; (w * h * 4) as usize];
+
+        self.composite_materials_into(&mut pixels, w, materials, layout_id);
+
+        let item_layer = TextureLayer {
+            layer: 0,
+            blend_mode: 0,
+            section_bitmask: 0,
+            target_id: 0,
+            layout_id,
+        };
+        for &(component_section, fdid) in item_textures {
+            let Some((tex_pixels, tex_w, tex_h)) = load_texture_rgba(fdid) else {
+                continue;
+            };
+            let Some(section) = self.sections.get(&(layout_id, component_section as u32)) else {
+                continue;
+            };
+            blit_section(&mut pixels, w, &tex_pixels, tex_w, tex_h, section, &item_layer);
+        }
+
+        Some((pixels, w, h))
+    }
+
+    fn composite_materials_into(
+        &self,
+        pixels: &mut [u8],
+        canvas_w: u32,
+        materials: &[(u16, u32)],
+        layout_id: u32,
+    ) {
         // Group materials by target ID for lookup
         let mat_by_target: HashMap<u16, u32> = materials.iter().copied().collect();
 
@@ -108,10 +156,8 @@ impl CharTextureData {
             let Some((tex_pixels, tex_w, tex_h)) = texture_rgba else {
                 continue;
             };
-            self.blit_layer(&mut pixels, w, &tex_pixels, tex_w, tex_h, layer, layout_id);
+            self.blit_layer(pixels, canvas_w, &tex_pixels, tex_w, tex_h, layer, layout_id);
         }
-
-        Some((pixels, w, h))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -127,7 +173,10 @@ impl CharTextureData {
     ) {
         if layer.section_bitmask == -1 {
             // Full texture: blit at (0,0), scaled to fill
-            blit_scaled(pixels, canvas_w, tex, tex_w, tex_h, 0, 0, canvas_w, layer);
+            let canvas_h = pixels.len() as u32 / (canvas_w * 4);
+            blit_scaled(
+                pixels, canvas_w, canvas_h, tex, tex_w, tex_h, 0, 0, canvas_w, canvas_h, layer,
+            );
             return;
         }
         // Blit into each matching section
@@ -143,7 +192,7 @@ impl CharTextureData {
     }
 }
 
-fn load_texture_rgba(fdid: u32) -> Option<(Vec<u8>, u32, u32)> {
+pub(crate) fn load_texture_rgba(fdid: u32) -> Option<(Vec<u8>, u32, u32)> {
     let path = casc_resolver::ensure_texture(fdid)
         .unwrap_or_else(|| Path::new("data/textures").join(format!("{fdid}.blp")));
     blp::load_blp_rgba(&path).ok()
@@ -179,19 +228,23 @@ fn blit_section(
 fn blit_scaled(
     pixels: &mut [u8],
     canvas_w: u32,
+    canvas_h: u32,
     tex: &[u8],
     tex_w: u32,
     tex_h: u32,
     dx: u32,
     dy: u32,
     target_w: u32,
+    target_h: u32,
     layer: &TextureLayer,
 ) {
     let is_alpha_blend = layer.blend_mode == 15;
-    for row in 0..tex_h {
-        for col in 0..tex_w {
-            let si = ((row * tex_w + col) * 4) as usize;
-            let px = dx + col * target_w / tex_w;
+    for row in 0..target_h.min(canvas_h - dy) {
+        for col in 0..target_w.min(canvas_w - dx) {
+            let sx = (col * tex_w / target_w).min(tex_w - 1);
+            let sy = (row * tex_h / target_h).min(tex_h - 1);
+            let si = ((sy * tex_w + sx) * 4) as usize;
+            let px = dx + col;
             let py = dy + row;
             let di = ((py * canvas_w + px) * 4) as usize;
             if di + 3 >= pixels.len() || si + 3 >= tex.len() {
@@ -254,32 +307,52 @@ fn read_csv(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>), String> {
 }
 
 fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
+    let mut out = Vec::new();
+    let mut cur = String::new();
     let mut in_quotes = false;
-    let mut chars = line.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if in_quotes {
-            if ch == '"' {
-                if chars.peek() == Some(&'"') {
-                    chars.next();
-                    current.push('"');
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '"' => {
+                if in_quotes && i + 1 < chars.len() && chars[i + 1] == '"' {
+                    cur.push('"');
+                    i += 1;
                 } else {
-                    in_quotes = false;
+                    in_quotes = !in_quotes;
                 }
-            } else {
-                current.push(ch);
             }
-        } else if ch == '"' {
-            in_quotes = true;
-        } else if ch == ',' {
-            fields.push(std::mem::take(&mut current));
-        } else {
-            current.push(ch);
+            ',' if !in_quotes => {
+                out.push(cur.trim().to_string());
+                cur.clear();
+            }
+            c => cur.push(c),
         }
+        i += 1;
     }
-    fields.push(current);
-    fields
+    out.push(cur.trim().to_string());
+    out
+}
+
+fn col(headers: &[String], name: &str) -> Result<usize, String> {
+    headers
+        .iter()
+        .position(|h| h == name)
+        .ok_or_else(|| format!("missing column {name}"))
+}
+
+fn field_u32(row: &[String], idx: usize) -> u32 {
+    row.get(idx)
+        .and_then(|s| {
+            s.parse::<u32>()
+                .ok()
+                .or_else(|| s.parse::<i32>().ok().map(|v| v as u32))
+        })
+        .unwrap_or(0)
+}
+
+fn field_i64(row: &[String], idx: usize) -> i64 {
+    row.get(idx).and_then(|s| s.parse().ok()).unwrap_or(0)
 }
 
 fn parse_texture_layers(path: &Path) -> Result<Vec<TextureLayer>, String> {
@@ -289,16 +362,18 @@ fn parse_texture_layers(path: &Path) -> Result<Vec<TextureLayer>, String> {
     let mask_col = col(&h, "TextureSectionTypeBitMask")?;
     let target_col = col(&h, "ChrModelTextureTargetID_0")?;
     let layout_col = col(&h, "CharComponentTextureLayoutsID")?;
-    Ok(rows
-        .iter()
-        .map(|r| TextureLayer {
-            layer: field_u32(r, layer_col),
-            blend_mode: field_u32(r, blend_col),
-            section_bitmask: field_i64(r, mask_col),
-            target_id: field_u32(r, target_col) as u16,
-            layout_id: field_u32(r, layout_col),
-        })
-        .collect())
+
+    let mut out = Vec::new();
+    for row in &rows {
+        out.push(TextureLayer {
+            layer: field_u32(row, layer_col),
+            blend_mode: field_u32(row, blend_col),
+            section_bitmask: field_i64(row, mask_col),
+            target_id: field_u32(row, target_col) as u16,
+            layout_id: field_u32(row, layout_col),
+        });
+    }
+    Ok(out)
 }
 
 fn parse_texture_sections(path: &Path) -> Result<HashMap<(u32, u32), TextureSection>, String> {
@@ -309,19 +384,20 @@ fn parse_texture_sections(path: &Path) -> Result<HashMap<(u32, u32), TextureSect
     let y_col = col(&h, "Y")?;
     let w_col = col(&h, "Width")?;
     let h_col = col(&h, "Height")?;
-    Ok(rows
-        .iter()
-        .map(|r| {
-            let key = (field_u32(r, layout_col), field_u32(r, section_col));
-            let val = TextureSection {
-                x: field_u32(r, x_col),
-                y: field_u32(r, y_col),
-                width: field_u32(r, w_col),
-                height: field_u32(r, h_col),
-            };
-            (key, val)
-        })
-        .collect())
+
+    let mut out = HashMap::new();
+    for row in &rows {
+        out.insert(
+            (field_u32(row, layout_col), field_u32(row, section_col)),
+            TextureSection {
+                x: field_u32(row, x_col),
+                y: field_u32(row, y_col),
+                width: field_u32(row, w_col),
+                height: field_u32(row, h_col),
+            },
+        );
+    }
+    Ok(out)
 }
 
 fn parse_texture_layouts(path: &Path) -> Result<HashMap<u32, TextureLayout>, String> {
@@ -329,39 +405,16 @@ fn parse_texture_layouts(path: &Path) -> Result<HashMap<u32, TextureLayout>, Str
     let id_col = col(&h, "ID")?;
     let w_col = col(&h, "Width")?;
     let h_col = col(&h, "Height")?;
-    Ok(rows
-        .iter()
-        .map(|r| {
-            (
-                field_u32(r, id_col),
-                TextureLayout {
-                    width: field_u32(r, w_col),
-                    height: field_u32(r, h_col),
-                },
-            )
-        })
-        .collect())
-}
 
-fn col(headers: &[String], name: &str) -> Result<usize, String> {
-    headers
-        .iter()
-        .position(|h| h == name)
-        .ok_or_else(|| format!("Column '{name}' not found"))
-}
-
-fn field_u32(row: &[String], col: usize) -> u32 {
-    row.get(col)
-        .and_then(|s| {
-            s.parse::<u32>()
-                .ok()
-                .or_else(|| s.parse::<i32>().ok().map(|v| v as u32))
-        })
-        .unwrap_or(0)
-}
-
-fn field_i64(row: &[String], col: usize) -> i64 {
-    row.get(col)
-        .and_then(|s| s.parse::<i64>().ok())
-        .unwrap_or(0)
+    let mut out = HashMap::new();
+    for row in &rows {
+        out.insert(
+            field_u32(row, id_col),
+            TextureLayout {
+                width: field_u32(row, w_col),
+                height: field_u32(row, h_col),
+            },
+        );
+    }
+    Ok(out)
 }

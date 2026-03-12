@@ -7,7 +7,7 @@ use cascette_client_storage::Installation;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
-const CACHE_DIR: &str = "/home/osso/.cache/casc-resolver";
+const CACHE_DIR: &str = "data/casc";
 const LISTFILE_PATH: &str = "data/community-listfile.csv";
 
 #[tokio::main]
@@ -69,8 +69,8 @@ async fn open_and_initialize(data_root: &Path) -> Installation {
     install
 }
 
-fn load_cached_resolution(install: &Installation, build_key: &str) {
-    let cache = PathBuf::from(CACHE_DIR).join(build_key);
+fn load_cached_resolution(install: &Installation, _build_key: &str) {
+    let cache = PathBuf::from(CACHE_DIR);
     let root_data = std::fs::read(cache.join("root.bin"))
         .unwrap_or_else(|_| panic!("Missing root.bin, run `casc-init` first"));
     install

@@ -348,6 +348,7 @@ fn is_local_player_entity(player_name: &str, selected: Option<&SelectedCharacter
 }
 
 /// Retroactively tag the local player when SelectedCharacterId arrives after replication.
+#[allow(clippy::type_complexity)]
 fn tag_local_player(
     mut commands: Commands,
     selected: Option<Res<SelectedCharacterId>>,

@@ -11,7 +11,7 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 use char_create_widgets::{
-    bottom_buttons, class_button, create_confirm_button, customization_row, error_label,
+    bottom_buttons, class_button, create_confirm_button, customization_row, dropdown_panel, error_label,
     faction_column, name_input_field, race_buttons_for_faction,
 };
 
@@ -250,7 +250,27 @@ fn class_grid(state: &CharCreateUiState) -> Element {
     }
 }
 
+fn customize_rows(state: &CharCreateUiState) -> Element {
+    rsx! {
+        {customization_row("Skin Color", state.skin_color, &state.skin_color_swatches, AppearanceField::SkinColor)}
+        {customization_row("Face", state.face, &[], AppearanceField::Face)}
+        {customization_row("Hair Style", state.hair_style, &[], AppearanceField::HairStyle)}
+        {customization_row("Hair Color", state.hair_color, &state.hair_color_swatches, AppearanceField::HairColor)}
+        {customization_row("Facial Style", state.facial_style, &[], AppearanceField::FacialStyle)}
+    }
+}
+
 fn customize_panel(state: &CharCreateUiState) -> Element {
+    // row_height(32) + gap(8) = 40 per row; label(24) + first gap(8) = 32 offset
+    let dropdown = match state.open_dropdown {
+        Some(AppearanceField::SkinColor) => {
+            dropdown_panel(AppearanceField::SkinColor, &state.skin_color_swatches, state.skin_color, -112.0)
+        }
+        Some(AppearanceField::HairColor) => {
+            dropdown_panel(AppearanceField::HairColor, &state.hair_color_swatches, state.hair_color, -232.0)
+        }
+        _ => Element::default(),
+    };
     rsx! {
         r#frame {
             name: "CustomizePanel",
@@ -273,44 +293,9 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
                 font_size: 16.0,
                 font_color: COLOR_GOLD,
             }
-            {
-                customization_row(
-                    "Skin Color",
-                    state.skin_color,
-                    &state.skin_color_swatches,
-                    state.open_dropdown == Some(AppearanceField::SkinColor),
-                    AppearanceField::SkinColor,
-                )
-            }
-            {customization_row("Face", state.face, &[], false, AppearanceField::Face)}
-            {
-                customization_row(
-                    "Hair Style",
-                    state.hair_style,
-                    &[],
-                    false,
-                    AppearanceField::HairStyle,
-                )
-            }
-            {
-                customization_row(
-                    "Hair Color",
-                    state.hair_color,
-                    &state.hair_color_swatches,
-                    state.open_dropdown == Some(AppearanceField::HairColor),
-                    AppearanceField::HairColor,
-                )
-            }
-            {
-                customization_row(
-                    "Facial Style",
-                    state.facial_style,
-                    &[],
-                    false,
-                    AppearanceField::FacialStyle,
-                )
-            }
+            {customize_rows(state)}
         }
+        {dropdown}
     }
 }
 

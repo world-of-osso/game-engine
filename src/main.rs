@@ -190,6 +190,7 @@ fn insert_startup_resources(
     app.insert_resource(game_engine::asset::char_texture::CharTextureData::load(
         Path::new("data"),
     ));
+    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new("data")));
     let warband = warband_scene::WarbandScenes::load();
     if let Some(first) = warband.scenes.first() {
         app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });

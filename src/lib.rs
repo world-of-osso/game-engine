@@ -9,6 +9,7 @@ pub mod ipc;
 pub mod item_info;
 pub mod listfile;
 pub mod mail;
+pub mod outfit_data;
 pub mod scene_tree;
 pub mod screenshot;
 pub mod status;
