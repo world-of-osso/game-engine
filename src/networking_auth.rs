@@ -19,9 +19,14 @@ pub struct AuthUiFeedback(pub Option<String>);
 #[derive(Resource, Default)]
 pub struct CharacterList(pub Vec<CharacterListEntry>);
 
-/// Entity bits of the selected character, set on EnterWorldResponse.
+/// Info about the selected character, set when entering the world.
 #[derive(Resource, Default)]
-pub struct SelectedCharacterId(pub Option<u64>);
+pub struct SelectedCharacterId {
+    /// DB character_id (for looking up stats from CharacterList).
+    pub character_id: Option<u64>,
+    /// Character name (for matching against replicated NetPlayer entities).
+    pub character_name: Option<String>,
+}
 
 /// Username captured from the login screen.
 #[derive(Resource, Default)]
@@ -248,17 +253,18 @@ fn user_facing_login_error(err: &str) -> &str {
     }
 }
 
-/// Handle EnterWorldResponse: store player entity bits and transition to Loading.
+/// Handle EnterWorldResponse: store selected character info and transition to Loading.
 pub fn receive_enter_world_response(
     mut receivers: Query<&mut MessageReceiver<EnterWorldResponse>>,
     mut selected: ResMut<SelectedCharacterId>,
+    char_list: Res<CharacterList>,
+    char_idx: Res<crate::char_select::SelectedCharIndex>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             if resp.success {
-                selected.0 = resp.player_entity;
-                info!("Entering world, player entity: {:?}", resp.player_entity);
+                apply_enter_world(&mut selected, &char_list, &char_idx);
                 next_state.set(GameState::Loading);
             } else {
                 let err = resp.error.unwrap_or_default();
@@ -266,6 +272,18 @@ pub fn receive_enter_world_response(
             }
         }
     }
+}
+
+fn apply_enter_world(
+    selected: &mut SelectedCharacterId,
+    char_list: &CharacterList,
+    char_idx: &crate::char_select::SelectedCharIndex,
+) {
+    if let Some(entry) = char_idx.0.and_then(|i| char_list.0.get(i)) {
+        selected.character_id = Some(entry.character_id);
+        selected.character_name = Some(entry.name.clone());
+    }
+    info!("Entering world as {:?}", selected.character_name);
 }
 
 #[cfg(test)]

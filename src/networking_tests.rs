@@ -223,36 +223,32 @@ fn chat_log_caps_at_max() {
     assert_eq!(log.messages[99].0, "player100");
 }
 
-fn test_entity() -> Entity {
-    let mut world = World::new();
-    world.spawn_empty().id()
+fn selected_with_name(name: &str) -> SelectedCharacterId {
+    SelectedCharacterId {
+        character_id: Some(1),
+        character_name: Some(name.to_string()),
+    }
 }
 
 #[test]
 fn is_local_player_entity_matches_selected() {
-    let entity = test_entity();
-    let selected = SelectedCharacterId(Some(entity.to_bits()));
-    assert!(is_local_player_entity(entity, Some(&selected)));
+    let selected = selected_with_name("Theron");
+    assert!(is_local_player_entity("Theron", Some(&selected)));
 }
 
 #[test]
 fn is_local_player_entity_rejects_different() {
-    let mut world = World::new();
-    let entity = world.spawn_empty().id();
-    let other = world.spawn_empty().id();
-    let selected = SelectedCharacterId(Some(other.to_bits()));
-    assert!(!is_local_player_entity(entity, Some(&selected)));
+    let selected = selected_with_name("Theron");
+    assert!(!is_local_player_entity("OtherPlayer", Some(&selected)));
 }
 
 #[test]
 fn is_local_player_entity_none_without_resource() {
-    let entity = test_entity();
-    assert!(!is_local_player_entity(entity, None));
+    assert!(!is_local_player_entity("Theron", None));
 }
 
 #[test]
 fn is_local_player_entity_none_when_not_selected() {
-    let entity = test_entity();
-    let selected = SelectedCharacterId(None);
-    assert!(!is_local_player_entity(entity, Some(&selected)));
+    let selected = SelectedCharacterId::default();
+    assert!(!is_local_player_entity("Theron", Some(&selected)));
 }

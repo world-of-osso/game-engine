@@ -126,7 +126,7 @@ pub fn sync_character_stats_snapshot(
     current_zone: Res<networking::CurrentZone>,
     local_player_query: Query<LocalPlayerComponents, With<networking::LocalPlayer>>,
 ) {
-    let selected_character = selected_character_id.0.and_then(|character_id| {
+    let selected_character = selected_character_id.character_id.and_then(|character_id| {
         character_list
             .0
             .iter()

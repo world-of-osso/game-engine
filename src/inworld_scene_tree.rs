@@ -1,0 +1,95 @@
+//! Scene tree construction for the in-world networked scene.
+
+use bevy::prelude::*;
+use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
+use lightyear::prelude::Replicated;
+use shared::components::{ModelDisplay, Npc, Player as NetPlayer};
+
+use crate::networking::LocalPlayer;
+
+pub struct InWorldSceneTreePlugin;
+
+impl Plugin for InWorldSceneTreePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            build_inworld_scene_tree
+                .run_if(in_state(crate::game_state::GameState::InWorld)),
+        );
+    }
+}
+
+fn build_inworld_scene_tree(
+    mut commands: Commands,
+    players: Query<(Entity, &NetPlayer), With<Replicated>>,
+    npcs: Query<(Entity, &Npc, Option<&ModelDisplay>), With<Replicated>>,
+    camera: Query<Entity, With<Camera3d>>,
+    local_player: Query<Entity, With<LocalPlayer>>,
+) {
+    if players.is_empty() && npcs.is_empty() {
+        return;
+    }
+    let mut children = Vec::new();
+    collect_player_nodes(&players, &local_player, &mut children);
+    collect_npc_nodes(&npcs, &mut children);
+    collect_camera_nodes(&camera, &mut children);
+
+    commands.insert_resource(SceneTree {
+        root: SceneNode {
+            label: "InWorldScene".into(),
+            entity: None,
+            props: NodeProps::Scene,
+            children,
+        },
+    });
+}
+
+fn collect_player_nodes(
+    players: &Query<(Entity, &NetPlayer), With<Replicated>>,
+    local_player: &Query<Entity, With<LocalPlayer>>,
+    children: &mut Vec<SceneNode>,
+) {
+    for (entity, player) in players.iter() {
+        let is_local = local_player.get(entity).is_ok();
+        children.push(SceneNode {
+            label: "Player".into(),
+            entity: Some(entity),
+            props: NodeProps::Player {
+                name: player.name.clone(),
+                is_local,
+            },
+            children: vec![],
+        });
+    }
+}
+
+fn collect_npc_nodes(
+    npcs: &Query<(Entity, &Npc, Option<&ModelDisplay>), With<Replicated>>,
+    children: &mut Vec<SceneNode>,
+) {
+    for (entity, npc, display) in npcs.iter() {
+        children.push(SceneNode {
+            label: "Npc".into(),
+            entity: Some(entity),
+            props: NodeProps::Npc {
+                name: format!("template_{}", npc.template_id),
+                display_id: display.map(|d| d.display_id),
+            },
+            children: vec![],
+        });
+    }
+}
+
+fn collect_camera_nodes(
+    camera: &Query<Entity, With<Camera3d>>,
+    children: &mut Vec<SceneNode>,
+) {
+    for entity in camera.iter() {
+        children.push(SceneNode {
+            label: "Camera".into(),
+            entity: Some(entity),
+            props: NodeProps::Camera { fov: 60.0 },
+            children: vec![],
+        });
+    }
+}

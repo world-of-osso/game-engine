@@ -82,6 +82,7 @@ impl Plugin for NetworkPlugin {
         register_net_resources(app);
         register_net_systems(app);
         register_net_observers(app);
+        app.add_plugins(crate::inworld_scene_tree::InWorldSceneTreePlugin);
     }
 }
 
@@ -130,6 +131,12 @@ fn register_gameplay_net_systems(app: &mut App) {
         )
             .run_if(in_state(GameState::InWorld)),
     );
+    register_inworld_sync_systems(app);
+}
+
+fn register_inworld_sync_systems(app: &mut App) {
+    use crate::game_state::GameState;
+    use crate::networking_messages as msg;
     app.add_systems(
         Update,
         (
@@ -141,6 +148,7 @@ fn register_gameplay_net_systems(app: &mut App) {
             msg::receive_load_terrain,
             sync_replicated_transforms,
             interpolate_remote_entities,
+            tag_local_player,
         )
             .run_if(in_state(GameState::InWorld)),
     );
@@ -190,7 +198,13 @@ fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
         private_key: [0; 32], // matches server default
         protocol_id: 0,       // matches server default
     };
-    let netcode = match NetcodeClient::new(auth, NetcodeConfig::default()) {
+    let netcode = match NetcodeClient::new(
+        auth,
+        NetcodeConfig {
+            client_timeout_secs: 60,
+            ..NetcodeConfig::default()
+        },
+    ) {
         Ok(nc) => nc,
         Err(e) => {
             error!("Failed to create netcode client: {e}");
@@ -209,7 +223,7 @@ fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
     info!("Connecting to server at {}...", server_addr.0);
 }
 
-fn on_link_established(trigger: On<Add, LinkOf>, mut commands: Commands) {
+fn on_link_established(trigger: On<Add, Connected>, mut commands: Commands) {
     commands
         .entity(trigger.entity)
         .insert(ReplicationReceiver::default());
@@ -280,7 +294,7 @@ fn spawn_replicated_player(
     let Ok((pos, player, rotation)) = query.get(entity) else {
         return;
     };
-    let is_local = is_local_player_entity(entity, selected.as_deref());
+    let is_local = is_local_player_entity(&player.name, selected.as_deref());
     info!(
         "Spawning replicated player '{}' (local={is_local}) at ({:.1}, {:.1}, {:.1})",
         player.name, pos.x, pos.y, pos.z
@@ -326,11 +340,33 @@ fn build_player_capsule(
     (capsule, material)
 }
 
-/// Check if a replicated entity matches our selected character's player_entity bits.
-fn is_local_player_entity(entity: Entity, selected: Option<&SelectedCharacterId>) -> bool {
+/// Check if a replicated player is our local character by matching name.
+fn is_local_player_entity(player_name: &str, selected: Option<&SelectedCharacterId>) -> bool {
     let Some(sel) = selected else { return false };
-    let Some(bits) = sel.0 else { return false };
-    entity.to_bits() == bits
+    let Some(ref name) = sel.character_name else { return false };
+    name == player_name
+}
+
+/// Retroactively tag the local player when SelectedCharacterId arrives after replication.
+fn tag_local_player(
+    mut commands: Commands,
+    selected: Option<Res<SelectedCharacterId>>,
+    players: Query<(Entity, &NetPlayer), (With<Replicated>, Without<LocalPlayer>)>,
+) {
+    let Some(sel) = selected else { return };
+    let Some(ref name) = sel.character_name else { return };
+    for (entity, player) in players.iter() {
+        if player.name == *name {
+            info!("Tagging local player '{}'", name);
+            commands.entity(entity).insert((
+                LocalPlayer,
+                Player,
+                MovementState::default(),
+                CharacterFacing::default(),
+                crate::collision::CharacterPhysics::default(),
+            ));
+        }
+    }
 }
 
 type NpcReplicatedQuery<'w, 's> = Query<

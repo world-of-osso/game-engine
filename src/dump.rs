@@ -274,39 +274,42 @@ fn emit_scene_node(
 }
 
 fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String {
-    let pos = node
-        .entity
-        .and_then(|e| transforms.get(e).ok())
-        .map(|t| {
-            format!(
-                " @ ({:.1}, {:.1}, {:.1})",
-                t.translation.x, t.translation.y, t.translation.z
-            )
-        })
-        .unwrap_or_default();
+    let pos = format_node_position(node, transforms);
     match &node.props {
         NodeProps::Scene => node.label.clone(),
-        NodeProps::Character {
-            model,
-            race,
-            gender,
-        } => {
-            format!(
-                "{} \"{}\" race={} gender={}{}",
-                node.label, model, race, gender, pos
-            )
+        NodeProps::Character { model, race, gender } => {
+            format!("{} \"{}\" race={} gender={}{}", node.label, model, race, gender, pos)
         }
-        NodeProps::Background { model } => {
-            format!("{} \"{}\"{}", node.label, model, pos)
-        }
-        NodeProps::Ground => format!("{}{}", node.label, pos),
+        NodeProps::Background { model } => format!("{} \"{}\"{}", node.label, model, pos),
+        NodeProps::Ground | NodeProps::Terrain => format!("{}{}", node.label, pos),
         NodeProps::Camera { fov } => format!("{} fov={}{}", node.label, fov, pos),
-        NodeProps::Light { kind, intensity } => {
-            format!("{} {}={}", node.label, kind, intensity)
-        }
-        NodeProps::EquipmentSlot { model, .. } => match model {
-            Some(m) => format!("{} \"{}\"", node.label, m),
-            None => format!("{} (empty)", node.label),
-        },
+        NodeProps::Light { kind, intensity } => format!("{} {}={}", node.label, kind, intensity),
+        NodeProps::EquipmentSlot { model, .. } => format_equipment_slot(node, model),
+        NodeProps::Player { name, is_local } => format_player_node(node, name, *is_local, &pos),
+        NodeProps::Npc { name, display_id } => format_npc_node(node, name, *display_id, &pos),
     }
+}
+
+fn format_node_position(node: &SceneNode, transforms: &Query<&Transform>) -> String {
+    node.entity
+        .and_then(|e| transforms.get(e).ok())
+        .map(|t| format!(" @ ({:.1}, {:.1}, {:.1})", t.translation.x, t.translation.y, t.translation.z))
+        .unwrap_or_default()
+}
+
+fn format_equipment_slot(node: &SceneNode, model: &Option<String>) -> String {
+    match model {
+        Some(m) => format!("{} \"{}\"", node.label, m),
+        None => format!("{} (empty)", node.label),
+    }
+}
+
+fn format_player_node(node: &SceneNode, name: &str, is_local: bool, pos: &str) -> String {
+    let tag = if is_local { " (local)" } else { "" };
+    format!("{} \"{}\"{}{}", node.label, name, tag, pos)
+}
+
+fn format_npc_node(node: &SceneNode, name: &str, display_id: Option<u32>, pos: &str) -> String {
+    let disp = display_id.map(|d| format!(" display={d}")).unwrap_or_default();
+    format!("{} \"{}\"{}{}", node.label, name, disp, pos)
 }

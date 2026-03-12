@@ -35,4 +35,13 @@ pub enum NodeProps {
         slot: String,
         model: Option<String>,
     },
+    Player {
+        name: String,
+        is_local: bool,
+    },
+    Npc {
+        name: String,
+        display_id: Option<u32>,
+    },
+    Terrain,
 }

@@ -34,6 +34,8 @@ mod char_select;
 mod char_select_scene;
 mod char_select_scene_tree;
 mod character_models;
+mod cli_args;
+mod inworld_scene_tree;
 mod collision;
 mod creature_display;
 mod equipment;
@@ -71,6 +73,7 @@ mod wow_cursor;
 
 use animation::AnimationPlugin;
 use camera::WowCameraPlugin;
+use cli_args::*;
 use collision::CollisionPlugin;
 use scene_setup::{setup_default_world_scene, setup_explicit_asset_scene};
 use terrain::AdtStreamingPlugin;
@@ -89,6 +92,10 @@ struct ScreenshotRequest {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        print_help();
+        std::process::exit(0);
+    }
     if args.iter().any(|a| a == "--version") {
         println!("game-engine {}", env!("CARGO_PKG_VERSION"));
         std::process::exit(0);
@@ -383,108 +390,6 @@ fn init_status_resources(app: &mut App) {
         .insert_resource(WarbankStatusSnapshot::default());
 }
 
-fn screenshot_arg_index(args: &[String]) -> Option<usize> {
-    args.iter().position(|arg| arg == "screenshot")
-}
-
-fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
-    let screenshot_idx = screenshot_arg_index(args)?;
-    let output = args
-        .get(screenshot_idx + 1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("screenshot.webp"));
-    let has_server = args.windows(2).any(|w| w[0] == "--server");
-    let has_state = args
-        .windows(2)
-        .any(|w| w[0] == "--state" || w[0] == "--screen");
-    let frames = if has_server {
-        60
-    } else if has_state {
-        10
-    } else {
-        3
-    };
-    Some(ScreenshotRequest {
-        output,
-        frames_remaining: frames,
-    })
-}
-
-fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)> {
-    let w = args.windows(2).find(|w| w[0] == "--server")?;
-    if w[1] == "dev" {
-        Some(("127.0.0.1:5000".parse().unwrap(), true))
-    } else {
-        w[1].parse().ok().map(|addr| (addr, false))
-    }
-}
-
-fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
-    args.windows(2)
-        .find(|w| w[0] == "--state" || w[0] == "--screen")
-        .and_then(|w| parse_game_state_value(&w[1]))
-}
-
-fn parse_char_arg(args: &[String]) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == "--char")
-        .map(|w| w[1].clone())
-}
-
-fn parse_game_state_value(value: &str) -> Option<game_state::GameState> {
-    match value {
-        "login" => Some(game_state::GameState::Login),
-        "connecting" => Some(game_state::GameState::Connecting),
-        "charselect" => Some(game_state::GameState::CharSelect),
-        "charcreate" => Some(game_state::GameState::CharCreate),
-        "loading" => Some(game_state::GameState::Loading),
-        "inworld" => Some(game_state::GameState::InWorld),
-        _ => None,
-    }
-}
-
-fn load_startup_automation_actions(
-    args: &[String],
-) -> Result<Vec<game_engine::ui::automation::UiAutomationAction>, String> {
-    let mut actions = Vec::new();
-    if let Some(script) = game_engine::ui::automation_script::parse_automation_script_arg(args) {
-        actions.extend(game_engine::ui::automation_script::load_automation_script(
-            &script.path,
-        )?);
-    }
-    if let Some(script) = game_engine::ui::js_automation::parse_js_automation_arg(args) {
-        actions.extend(game_engine::ui::js_automation::load_js_automation_script(
-            &script.path,
-        )?);
-    }
-    Ok(actions)
-}
-
-fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
-    let screenshot_idx = screenshot_arg_index(args);
-    let mut i = 0;
-    while i < args.len() {
-        if screenshot_idx == Some(i) {
-            i += 2;
-            continue;
-        }
-        match args[i].as_str() {
-            "--server" | "--state" | "--screen" | "--char" => {
-                i += 2;
-            }
-            arg if arg.starts_with("--") => {
-                i += 1;
-            }
-            path => return Some(PathBuf::from(path)),
-        }
-    }
-    None
-}
-
-pub(crate) fn parse_asset_path() -> Option<PathBuf> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    parse_asset_path_from_args(&args)
-}
 
 fn take_screenshot(
     mut commands: Commands,
