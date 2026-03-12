@@ -8,6 +8,8 @@ use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
+use super::campsite_component::{campsite_grid, campsite_tab};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CharSelectAction {
     SelectChar(usize),
@@ -88,16 +90,11 @@ pub struct CampsiteEntry {
     pub name: String,
 }
 
+#[derive(Default)]
 pub struct CampsiteState {
     pub scenes: Vec<CampsiteEntry>,
     pub panel_visible: bool,
     pub selected_id: Option<u32>,
-}
-
-impl Default for CampsiteState {
-    fn default() -> Self {
-        Self { scenes: Vec::new(), panel_visible: false, selected_id: None }
-    }
 }
 
 // --- Frame names ---
@@ -180,29 +177,38 @@ fn cs_top_hud() -> Element {
     rsx! {
         texture {
             name: "CharSelectTopHudLeft",
-            width: 212.0, height: 51.0,
+            width: 212.0,
+            height: 51.0,
             texture_atlas: TOP_HUD_LEFT_ATLAS,
             anchor {
-                point: AnchorPoint::TopRight, relative_point: AnchorPoint::Top,
-                x: "-15", y: "-22",
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::Top,
+                x: "-15",
+                y: "-22",
             }
         }
         texture {
             name: "CharSelectTopHudMiddle",
-            width: 30.0, height: 51.0,
+            width: 30.0,
+            height: 51.0,
             texture_atlas: TOP_HUD_MIDDLE_ATLAS,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::Top,
-                x: "-15", y: "-22",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::Top,
+                x: "-15",
+                y: "-22",
             }
         }
         texture {
             name: "CharSelectTopHudRight",
-            width: 212.0, height: 51.0,
+            width: 212.0,
+            height: 51.0,
             texture_atlas: TOP_HUD_RIGHT_ATLAS,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::Top,
-                x: "15", y: "-22",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::Top,
+                x: "15",
+                y: "-22",
             }
         }
     }
@@ -215,18 +221,29 @@ fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
     rsx! {
         texture {
             name: "CharSelectNameBg",
-            width: 300.0, height: 60.0,
+            width: 300.0,
+            height: 60.0,
             texture_atlas: NAME_BG_ATLAS,
             hidden: hide_name_bg,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-80" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-80",
+            }
         }
         fontstring {
             name: SELECTED_NAME_TEXT,
-            width: 520.0, height: 36.0,
+            width: 520.0,
+            height: 36.0,
             text: selected_name,
-            font: GameFont::FrizQuadrata, font_size: 27.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 27.0,
             font_color: COLOR_GOLD,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-90" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-90",
+            }
         }
     }
 }
@@ -240,21 +257,27 @@ fn card_textures(index: usize, is_selected: bool) -> Element {
     rsx! {
         texture {
             name: backdrop_name,
-            width: 310.0, height: 89.0,
+            width: 310.0,
+            height: 89.0,
             texture_atlas: CARD_BACKDROP_ATLAS,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "20", y: "-3",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "20",
+                y: "-3",
             }
         }
         texture {
             name: sel_name,
-            width: 342.0, height: 122.0,
+            width: 342.0,
+            height: 122.0,
             texture_atlas: CARD_SELECTED_ATLAS,
             hidden: hide_selected,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "7", y: "11",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "7",
+                y: "11",
             }
         }
     }
@@ -265,13 +288,18 @@ fn card_name_label(index: usize, name: &str) -> Element {
     rsx! {
         fontstring {
             name: label_name,
-            width: 260.0, height: 24.0,
+            width: 260.0,
+            height: 24.0,
             text: name,
-            font: GameFont::FrizQuadrata, font_size: 24.0,
-            font_color: COLOR_GOLD, justify_h: JustifyH::Left,
+            font: GameFont::FrizQuadrata,
+            font_size: 24.0,
+            font_color: COLOR_GOLD,
+            justify_h: JustifyH::Left,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "40", y: "-16",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "40",
+                y: "-16",
             }
         }
     }
@@ -282,13 +310,18 @@ fn card_info_label(index: usize, info: &str) -> Element {
     rsx! {
         fontstring {
             name: label_name,
-            width: 260.0, height: 18.0,
+            width: 260.0,
+            height: 18.0,
             text: info,
-            font: GameFont::FrizQuadrata, font_size: 15.0,
-            font_color: COLOR_SUBTITLE, justify_h: JustifyH::Left,
+            font: GameFont::FrizQuadrata,
+            font_size: 15.0,
+            font_color: COLOR_SUBTITLE,
+            justify_h: JustifyH::Left,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "40", y: "-43",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "40",
+                y: "-43",
             }
         }
     }
@@ -299,13 +332,18 @@ fn card_status_label(index: usize, status: &str) -> Element {
     rsx! {
         fontstring {
             name: label_name,
-            width: 240.0, height: 18.0,
+            width: 240.0,
+            height: 18.0,
             text: status,
-            font: GameFont::FrizQuadrata, font_size: 14.0,
-            font_color: COLOR_MUTED, justify_h: JustifyH::Left,
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
+            font_color: COLOR_MUTED,
+            justify_h: JustifyH::Left,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "40", y: "-67",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "40",
+                y: "-67",
             }
         }
     }
@@ -326,8 +364,9 @@ fn character_card(index: usize, ch: &CharDisplayEntry, is_selected: bool) -> Ele
     rsx! {
         r#frame {
             name: frame_name,
-            width: 347.0, height: 95.0,
-            onclick: onclick,
+            width: 347.0,
+            height: 95.0,
+            onclick,
             border: "1px solid 0.45,0.38,0.22,0.8",
             {card_textures(index, is_selected)}
             {texts}
@@ -341,14 +380,17 @@ fn empty_card() -> Element {
     rsx! {
         r#frame {
             name: "CharSelectEmptyCard",
-            width: 347.0, height: 95.0,
+            width: 347.0,
+            height: 95.0,
             onclick: CharSelectAction::CreateToggle,
             texture {
                 name: "CharSelectEmptyCardBackdrop",
-                width: 316.0, height: 95.0,
+                width: 316.0,
+                height: 95.0,
                 texture_atlas: EMPTY_CARD_ATLAS,
                 anchor {
-                    point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
                     x: "20",
                 }
             }
@@ -366,22 +408,29 @@ fn list_realm_header() -> Element {
     rsx! {
         texture {
             name: "CharacterListRealmBackdrop",
-            width: 281.0, height: 23.0,
+            width: 281.0,
+            height: 23.0,
             texture_atlas: LIST_REALM_BG_ATLAS,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "52", y: "-16",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "52",
+                y: "-16",
             }
         }
         fontstring {
             name: "CharacterListRealmLabel",
-            width: 281.0, height: 28.0,
+            width: 281.0,
+            height: 28.0,
             text: REALM_NAME,
-            font: GameFont::FrizQuadrata, font_size: 20.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 20.0,
             font_color: COLOR_GOLD,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "50", y: "-14",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "50",
+                y: "-14",
             }
         }
     }
@@ -391,22 +440,29 @@ fn list_helper_and_divider() -> Element {
     rsx! {
         fontstring {
             name: "CharacterListHelperText",
-            width: 346.0, height: 18.0,
+            width: 346.0,
+            height: 18.0,
             text: "Select a character to enter the world",
-            font: GameFont::FrizQuadrata, font_size: 13.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 13.0,
             font_color: COLOR_MUTED,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "20", y: "-51",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "20",
+                y: "-51",
             }
         }
         r#frame {
             name: "CharacterListDivider",
-            width: 346.0, height: 1.0,
+            width: 346.0,
+            height: 1.0,
             background_color: "1.0,0.9,0.65,0.12",
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "20", y: "-80",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "20",
+                y: "-80",
             }
         }
     }
@@ -426,11 +482,15 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
     rsx! {
         r#frame {
             name: "CharacterListCards",
-            width: 347.0, height: 420.0,
-            layout: "flex-col", gap: 10.0,
+            width: 347.0,
+            height: 420.0,
+            layout: "flex-col",
+            gap: 10.0,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "19", y: "-94",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "19",
+                y: "-94",
             }
             {cards}
             {empty}
@@ -448,12 +508,12 @@ fn cs_character_list(characters: &[CharDisplayEntry], selected: Option<usize>) -
     .flatten()
     .collect::<Element>();
     rsx! {
-        r#frame {
-            name: CHAR_LIST_PANEL,
-            width: 386.0, height: 520.0,
+        r#frame { name: CHAR_LIST_PANEL, width: 386.0, height: 520.0,
             anchor {
-                point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight,
-                x: "-22", y: "-164",
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "-22",
+                y: "-164",
             }
             {chrome}
             {card_list(characters, selected)}
@@ -467,14 +527,20 @@ fn enter_world_button() -> Element {
     rsx! {
         button {
             name: ENTER_WORLD_BUTTON,
-            width: 256.0, height: 64.0,
-            text: "Enter World", font_size: 18.0,
+            width: 256.0,
+            height: 64.0,
+            text: "Enter World",
+            font_size: 18.0,
             onclick: CharSelectAction::EnterWorld,
             button_atlas_up: BIG_BUTTON_ATLAS_UP,
             button_atlas_pressed: BIG_BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BIG_BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BIG_BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "111" }
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "111",
+            }
         }
     }
 }
@@ -483,17 +549,21 @@ fn create_char_button() -> Element {
     rsx! {
         button {
             name: CREATE_CHAR_BUTTON,
-            width: 205.0, height: 42.0,
-            text: "Create New Character", font_size: 14.0,
+            width: 205.0,
+            height: 42.0,
+            text: "Create New Character",
+            font_size: 14.0,
             onclick: CharSelectAction::CreateToggle,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
-                point: AnchorPoint::BottomLeft, relative_to: CHAR_LIST_PANEL,
+                point: AnchorPoint::BottomLeft,
+                relative_to: CHAR_LIST_PANEL,
                 relative_point: AnchorPoint::BottomLeft,
-                x: "18", y: "64",
+                x: "18",
+                y: "64",
             }
         }
     }
@@ -503,17 +573,21 @@ fn delete_char_button() -> Element {
     rsx! {
         button {
             name: DELETE_CHAR_BUTTON,
-            width: 128.0, height: 42.0,
-            text: "Delete", font_size: 14.0,
+            width: 128.0,
+            height: 42.0,
+            text: "Delete",
+            font_size: 14.0,
             onclick: CharSelectAction::DeleteChar,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
-                point: AnchorPoint::BottomRight, relative_to: CHAR_LIST_PANEL,
+                point: AnchorPoint::BottomRight,
+                relative_to: CHAR_LIST_PANEL,
                 relative_point: AnchorPoint::BottomRight,
-                x: "-18", y: "64",
+                x: "-18",
+                y: "64",
             }
         }
     }
@@ -523,16 +597,20 @@ fn back_button() -> Element {
     rsx! {
         button {
             name: BACK_BUTTON,
-            width: 188.0, height: 42.0,
-            text: "Back", font_size: 14.0,
+            width: 188.0,
+            height: 42.0,
+            text: "Back",
+            font_size: 14.0,
             onclick: CharSelectAction::Back,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
-                point: AnchorPoint::BottomLeft, relative_point: AnchorPoint::BottomLeft,
-                x: "12", y: "60",
+                point: AnchorPoint::BottomLeft,
+                relative_point: AnchorPoint::BottomLeft,
+                x: "12",
+                y: "60",
             }
         }
     }
@@ -556,24 +634,32 @@ fn create_panel_labels() -> Element {
     rsx! {
         fontstring {
             name: "CreateNameLabel",
-            width: 300.0, height: 24.0,
+            width: 300.0,
+            height: 24.0,
             text: "Create New Character",
-            font: GameFont::FrizQuadrata, font_size: 18.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 18.0,
             font_color: COLOR_GOLD,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "16", y: "-18",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "16",
+                y: "-18",
             }
         }
         fontstring {
             name: "CreateNameSubtitle",
-            width: 300.0, height: 18.0,
+            width: 300.0,
+            height: 18.0,
             text: "Enter a name for your new adventurer",
-            font: GameFont::FrizQuadrata, font_size: 12.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 12.0,
             font_color: COLOR_MUTED,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "16", y: "-46",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "16",
+                y: "-46",
             }
         }
     }
@@ -583,23 +669,32 @@ fn create_panel_input() -> Element {
     rsx! {
         editbox {
             name: CREATE_NAME_INPUT,
-            width: 300.0, height: 38.0,
+            width: 300.0,
+            height: 38.0,
             font_size: 16.0,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "16", y: "-74",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "16",
+                y: "-74",
             }
         }
         button {
             name: CREATE_CONFIRM_BUTTON,
-            width: 205.0, height: 42.0,
-            text: "Create Character", font_size: 14.0,
+            width: 205.0,
+            height: 42.0,
+            text: "Create Character",
+            font_size: 14.0,
             onclick: CharSelectAction::CreateConfirm,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-118" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-118",
+            }
         }
     }
 }
@@ -609,10 +704,15 @@ fn cs_create_panel(visible: bool) -> Element {
     rsx! {
         r#frame {
             name: CREATE_PANEL,
-            width: 332.0, height: 164.0,
+            width: 332.0,
+            height: 164.0,
             hidden: hide,
             nine_slice: "12.0,0.03,0.03,0.04,0.94,0.65,0.48,0.16,1.0",
-            anchor { point: AnchorPoint::Center, relative_point: AnchorPoint::Center, y: "-40" }
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+                y: "-40",
+            }
             {create_panel_labels()}
             {create_panel_input()}
         }
@@ -625,77 +725,17 @@ fn cs_status(text: &str) -> Element {
     rsx! {
         fontstring {
             name: STATUS_TEXT,
-            width: 720.0, height: 24.0,
-            text: text,
-            font: GameFont::FrizQuadrata, font_size: 13.0,
+            width: 720.0,
+            height: 24.0,
+            text,
+            font: GameFont::FrizQuadrata,
+            font_size: 13.0,
             font_color: COLOR_SUBTITLE,
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "188" }
-        }
-    }
-}
-
-// --- Campsite selector ---
-
-fn campsite_button() -> Element {
-    rsx! {
-        button {
-            name: "CampsiteButton",
-            width: 148.0, height: 36.0,
-            text: "Campsite", font_size: 13.0,
-            onclick: CharSelectAction::CampsiteToggle,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "12", y: "-22",
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "188",
             }
-        }
-    }
-}
-
-fn campsite_scene_button(entry: &CampsiteEntry, is_selected: bool) -> Element {
-    let name = dyn_name(format!("CampsiteScene_{}", entry.id));
-    let color = if is_selected { COLOR_GOLD } else { COLOR_SUBTITLE };
-    rsx! {
-        r#frame {
-            name: name,
-            width: 220.0, height: 30.0,
-            onclick: CharSelectAction::SelectCampsite(entry.id),
-            fontstring {
-                name: dyn_name(format!("CampsiteLabel_{}", entry.id)),
-                width: 200.0, height: 24.0,
-                text: entry.name.clone(),
-                font: GameFont::FrizQuadrata, font_size: 14.0,
-                font_color: color, justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::Left, relative_point: AnchorPoint::Left,
-                    x: "8",
-                }
-            }
-        }
-    }
-}
-
-fn campsite_panel(state: &CampsiteState) -> Element {
-    let hide = !state.panel_visible;
-    let items: Element = state.scenes.iter()
-        .flat_map(|e| campsite_scene_button(e, state.selected_id == Some(e.id)))
-        .collect();
-    let height = (state.scenes.len() as f32 * 34.0 + 16.0).max(50.0);
-    rsx! {
-        r#frame {
-            name: "CampsitePanel",
-            width: 240.0, height: height,
-            hidden: hide,
-            nine_slice: "12.0,0.03,0.03,0.04,0.94,0.65,0.48,0.16,1.0",
-            layout: "flex-col", gap: 4.0,
-            anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "12", y: "-62",
-            }
-            {items}
         }
     }
 }
@@ -710,8 +750,10 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
     let has_selection = state.selected_index.is_some();
 
     let campsite_ui: Element = if let Some(cs) = &campsite {
-        [campsite_button(), campsite_panel(cs)]
-            .into_iter().flatten().collect()
+        [campsite_tab(cs.panel_visible), campsite_grid(cs)]
+            .into_iter()
+            .flatten()
+            .collect()
     } else {
         Vec::new()
     };

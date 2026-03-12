@@ -9,8 +9,8 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CREATE_CONFIRM_BUTTON,
     CREATE_NAME_INPUT, CREATE_PANEL, CampsiteEntry, CampsiteState, CharDisplayEntry,
-    CharSelectAction, CharSelectState, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
-    SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen,
+    CharSelectAction, CharSelectState, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT,
+    STATUS_TEXT, char_select_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::widgets::texture::TextureSource;
@@ -259,9 +259,19 @@ fn char_select_mouse_input(
         return;
     };
     handle_cs_click(
-        cs, &ui, cursor, &mut selected, &mut focus, &mut create_visible,
-        &mut campsite_visible, &mut senders, &mut del_senders, &mut create_senders,
-        &char_list, &mut next_state, selected_scene,
+        cs,
+        &ui,
+        cursor,
+        &mut selected,
+        &mut focus,
+        &mut create_visible,
+        &mut campsite_visible,
+        &mut senders,
+        &mut del_senders,
+        &mut create_senders,
+        &char_list,
+        &mut next_state,
+        selected_scene,
     );
 }
 
@@ -309,7 +319,9 @@ fn dispatch_onclick(
             }
             campsite_visible.0 = false;
         }
-        None => { focus.0 = None; }
+        None => {
+            focus.0 = None;
+        }
     }
 }
 
@@ -337,9 +349,19 @@ fn handle_cs_click(
     let action = find_clicked_action(ui, mx, my);
     if let Some(action) = action {
         dispatch_onclick(
-            &action, selected, focus, create_visible, campsite_visible,
-            senders, del_senders, create_senders, char_list, next_state,
-            &ui.registry, cs, selected_scene,
+            &action,
+            selected,
+            focus,
+            create_visible,
+            campsite_visible,
+            senders,
+            del_senders,
+            create_senders,
+            char_list,
+            next_state,
+            &ui.registry,
+            cs,
+            selected_scene,
         );
     } else {
         focus.0 = None;
@@ -429,6 +451,7 @@ fn default_create_character_appearance() -> CharacterAppearance {
 
 // --- Keyboard ---
 
+#[allow(clippy::too_many_arguments)]
 fn char_select_keyboard_input(
     mut key_events: MessageReader<KeyboardInput>,
     mut ui: ResMut<UiState>,
@@ -528,6 +551,7 @@ fn char_select_hover_visuals(
 
 // --- Visual Updates ---
 
+#[allow(clippy::too_many_arguments)]
 fn char_select_update_visuals(
     mut ui: ResMut<UiState>,
     cs_ui: Option<Res<CharSelectUi>>,
@@ -569,7 +593,9 @@ fn sync_screen_state(
     let inner = &mut res.0;
     let new_state = build_char_select_state_full(char_list, selected.0, create_visible.0);
     inner.shared.insert(new_state);
-    inner.shared.insert(build_campsite_state(campsite_visible.0));
+    inner
+        .shared
+        .insert(build_campsite_state(campsite_visible.0));
     inner.screen.sync(&inner.shared, reg);
 }
 
@@ -645,9 +671,14 @@ fn build_campsite_state(panel_visible: bool) -> CampsiteState {
     let warband = crate::warband_scene::WarbandScenes::load();
     let selected_id = warband.scenes.first().map(|s| s.id);
     CampsiteState {
-        scenes: warband.scenes.iter().map(|s| CampsiteEntry {
-            id: s.id, name: s.name.clone(),
-        }).collect(),
+        scenes: warband
+            .scenes
+            .iter()
+            .map(|s| CampsiteEntry {
+                id: s.id,
+                name: s.name.clone(),
+            })
+            .collect(),
         panel_visible,
         selected_id,
     }

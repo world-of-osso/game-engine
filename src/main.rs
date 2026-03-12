@@ -53,11 +53,11 @@ mod status_sync;
 mod target;
 mod terrain;
 mod terrain_heightmap;
-mod warband_scene;
 mod terrain_lod;
 mod terrain_material;
 mod terrain_objects;
 mod terrain_tile;
+mod warband_scene;
 mod water_material;
 mod wow_cursor;
 
@@ -119,7 +119,11 @@ fn parse_run_args(args: &[String]) -> ParsedArgs {
         initial_state = Some(game_state::GameState::Login);
         startup_actions = charselect_auto_login_actions();
     }
-    ParsedArgs { startup_actions, server_addr, initial_state }
+    ParsedArgs {
+        startup_actions,
+        server_addr,
+        initial_state,
+    }
 }
 
 fn run_app(
@@ -133,8 +137,14 @@ fn run_app(
     let mut app = App::new();
     register_plugins(&mut app);
     configure_app_plugins(
-        &mut app, args.iter().any(|a| a == "--sound"),
-        parsed.server_addr, parsed.initial_state, dump_tree, dump_ui_tree, dump_scene, screenshot,
+        &mut app,
+        args.iter().any(|a| a == "--sound"),
+        parsed.server_addr,
+        parsed.initial_state,
+        dump_tree,
+        dump_ui_tree,
+        dump_scene,
+        screenshot,
     );
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     app.run();
@@ -281,6 +291,7 @@ fn add_status_sync_systems(app: &mut App) {
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn configure_app_plugins(
     app: &mut App,
     enable_sound: bool,

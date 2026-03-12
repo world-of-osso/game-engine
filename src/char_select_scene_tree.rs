@@ -19,6 +19,7 @@ pub struct CharSelectTerrain;
 pub struct ActiveWarbandSceneId(pub Option<u32>);
 
 /// Spawn warband scene terrain from ADT tiles extracted via CASC.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_warband_terrain(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -32,8 +33,15 @@ pub fn spawn_warband_terrain(
     let adt_path = warband_scene::ensure_warband_terrain(scene)?;
     let mut heightmap = TerrainHeightmap::default();
     let result = terrain::spawn_adt(
-        commands, meshes, materials, terrain_materials,
-        water_materials, images, inv_bp, &mut heightmap, &adt_path,
+        commands,
+        meshes,
+        materials,
+        terrain_materials,
+        water_materials,
+        images,
+        inv_bp,
+        &mut heightmap,
+        &adt_path,
     )
     .ok()?;
     commands
@@ -47,7 +55,9 @@ pub fn background_scene_node(entity: Entity, label: &str) -> SceneNode {
     SceneNode {
         label: "Background".into(),
         entity: Some(entity),
-        props: NodeProps::Background { model: label.to_string() },
+        props: NodeProps::Background {
+            model: label.to_string(),
+        },
         children: vec![],
     }
 }
@@ -70,18 +80,28 @@ pub fn character_scene_node(
     SceneNode {
         label: "Character".into(),
         entity: Some(entity),
-        props: NodeProps::Character { model, race, gender },
+        props: NodeProps::Character {
+            model,
+            race,
+            gender,
+        },
         children: vec![
             SceneNode {
                 label: "Slot:Head".into(),
                 entity: None,
-                props: NodeProps::EquipmentSlot { slot: "Head".into(), model: None },
+                props: NodeProps::EquipmentSlot {
+                    slot: "Head".into(),
+                    model: None,
+                },
                 children: vec![],
             },
             SceneNode {
                 label: "Slot:MainHand".into(),
                 entity: None,
-                props: NodeProps::EquipmentSlot { slot: "MainHand".into(), model: None },
+                props: NodeProps::EquipmentSlot {
+                    slot: "MainHand".into(),
+                    model: None,
+                },
                 children: vec![],
             },
         ],
@@ -104,13 +124,19 @@ pub fn light_scene_nodes(
         SceneNode {
             label: "AmbientLight".into(),
             entity: Some(ambient),
-            props: NodeProps::Light { kind: "ambient".into(), intensity: 80.0 },
+            props: NodeProps::Light {
+                kind: "ambient".into(),
+                intensity: 80.0,
+            },
             children: vec![],
         },
         SceneNode {
             label: "DirectionalLight".into(),
             entity: Some(directional),
-            props: NodeProps::Light { kind: "directional".into(), intensity: 8000.0 },
+            props: NodeProps::Light {
+                kind: "directional".into(),
+                intensity: 8000.0,
+            },
             children: vec![],
         },
     ]

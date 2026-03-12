@@ -63,7 +63,11 @@ impl Plugin for CharSelectScenePlugin {
         app.add_systems(OnEnter(GameState::CharSelect), setup_char_select_scene);
         app.add_systems(
             Update,
-            (sync_char_select_model, sync_warband_scene_switch, char_select_orbit_camera)
+            (
+                sync_char_select_model,
+                sync_warband_scene_switch,
+                char_select_orbit_camera,
+            )
                 .run_if(in_state(GameState::CharSelect)),
         );
         app.add_systems(OnExit(GameState::CharSelect), teardown_char_select_scene);
@@ -81,8 +85,18 @@ fn camera_params(scene: Option<&crate::warband_scene::WarbandSceneEntry>) -> (Ve
 fn orbit_from_eye_focus(eye: Vec3, focus: Vec3) -> CharSelectOrbit {
     let offset = eye - focus;
     let distance = offset.length();
-    let base_pitch = if distance > 0.0 { (offset.y / distance).asin() } else { 0.0 };
-    CharSelectOrbit { yaw: 0.0, pitch: 0.0, focus, distance, base_pitch }
+    let base_pitch = if distance > 0.0 {
+        (offset.y / distance).asin()
+    } else {
+        0.0
+    };
+    CharSelectOrbit {
+        yaw: 0.0,
+        pitch: 0.0,
+        focus,
+        distance,
+        base_pitch,
+    }
 }
 
 fn spawn_char_select_camera(
@@ -118,8 +132,10 @@ fn char_select_orbit_camera(
         return;
     }
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw = (orbit.yaw - delta.x * ORBIT_SENSITIVITY).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
-        orbit.pitch = (orbit.pitch + delta.y * ORBIT_SENSITIVITY).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        orbit.yaw =
+            (orbit.yaw - delta.x * ORBIT_SENSITIVITY).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
+        orbit.pitch = (orbit.pitch + delta.y * ORBIT_SENSITIVITY)
+            .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
 
         let pitch = orbit.base_pitch + orbit.pitch;
         let eye = orbit.focus
@@ -175,11 +191,19 @@ fn spawn_char_select_model(
     char_transform: Transform,
 ) -> Option<Entity> {
     let entity = m2_scene::spawn_static_m2(
-        commands, meshes, materials, images, inv_bp,
-        m2_path, char_transform, creature_display_map,
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        m2_path,
+        char_transform,
+        creature_display_map,
     );
     if let Some(e) = entity {
-        commands.entity(e).insert((CharSelectScene, CharSelectModelRoot));
+        commands
+            .entity(e)
+            .insert((CharSelectScene, CharSelectModelRoot));
         Some(e)
     } else {
         None
@@ -205,9 +229,10 @@ fn resolve_char_transform(
     warband: &Option<Res<WarbandScenes>>,
     selected_scene: &Option<Res<SelectedWarbandScene>>,
 ) -> Transform {
-    warband.as_ref()
+    warband
+        .as_ref()
         .zip(selected_scene.as_ref())
-        .map(|(w, sel)| character_transform(&w, sel.scene_id))
+        .map(|(w, sel)| character_transform(w, sel.scene_id))
         .unwrap_or_else(default_char_transform)
 }
 
@@ -280,11 +305,13 @@ fn find_scene_entry<'a>(
     warband: &'a Option<Res<WarbandScenes>>,
     selected: &Option<Res<SelectedWarbandScene>>,
 ) -> Option<&'a crate::warband_scene::WarbandSceneEntry> {
-    warband.as_ref()
+    warband
+        .as_ref()
         .zip(selected.as_ref())
         .and_then(|(w, sel)| w.scenes.iter().find(|s| s.id == sel.scene_id))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_background(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -296,15 +323,24 @@ fn spawn_background(
     scene: Option<&crate::warband_scene::WarbandSceneEntry>,
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
-    if let Some(s) = scene {
-        if let Some(e) = scene_tree::spawn_warband_terrain(
-            commands, meshes, materials, terrain_materials,
-            water_materials, images, inv_bp, s,
-        ) {
-            active.0 = Some(s.id);
-            let (ty, tx) = s.tile_coords();
-            return scene_tree::background_scene_node(e, &format!("terrain:{}_{ty}_{tx}", s.map_name()));
-        }
+    if let Some(s) = scene
+        && let Some(e) = scene_tree::spawn_warband_terrain(
+            commands,
+            meshes,
+            materials,
+            terrain_materials,
+            water_materials,
+            images,
+            inv_bp,
+            s,
+        )
+    {
+        active.0 = Some(s.id);
+        let (ty, tx) = s.tile_coords();
+        return scene_tree::background_scene_node(
+            e,
+            &format!("terrain:{}_{ty}_{tx}", s.map_name()),
+        );
     }
     let ground = spawn_tagged_ground(commands, meshes, materials, images);
     scene_tree::ground_scene_node(ground)
@@ -331,22 +367,43 @@ fn setup_char_select_scene(
     let camera_entity = spawn_char_select_camera(&mut commands, scene_entry);
     let (ambient, dir) = spawn_char_select_lighting(&mut commands);
     let bg_node = spawn_background(
-        &mut commands, &mut meshes, &mut materials, &mut terrain_materials,
-        &mut water_materials, &mut images, &mut inv_bp, scene_entry, &mut active_scene,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut terrain_materials,
+        &mut water_materials,
+        &mut images,
+        &mut inv_bp,
+        scene_entry,
+        &mut active_scene,
     );
     let char_tf = resolve_char_transform(&warband, &selected_scene);
     let result = spawn_selected_model(
-        &mut commands, &mut meshes, &mut materials, &mut images,
-        &mut inv_bp, &creature_display_map, &char_list, selected.0, char_tf,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut images,
+        &mut inv_bp,
+        &creature_display_map,
+        &char_list,
+        selected.0,
+        char_tf,
     );
     let mut children = vec![bg_node];
     if let Some((_, entity)) = &result {
         let (race, gender, model) = char_info_strings(&char_list, selected.0);
-        children.push(scene_tree::character_scene_node(*entity, model, race, gender));
+        children.push(scene_tree::character_scene_node(
+            *entity, model, race, gender,
+        ));
     }
     displayed.0 = result.map(|(id, _)| id);
     let fov = scene_entry.map(|s| s.fov).unwrap_or(45.0);
-    children.extend(scene_tree::light_scene_nodes(camera_entity, fov, ambient, dir));
+    children.extend(scene_tree::light_scene_nodes(
+        camera_entity,
+        fov,
+        ambient,
+        dir,
+    ));
     commands.insert_resource(scene_tree::build_scene_tree(children));
 }
 
@@ -374,8 +431,15 @@ fn sync_char_select_model(
     }
     let char_tf = resolve_char_transform(&warband, &selected_scene);
     displayed.0 = spawn_selected_model(
-        &mut commands, &mut meshes, &mut materials, &mut images,
-        &mut inv_bp, &creature_display_map, &char_list, selected.0, char_tf,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut images,
+        &mut inv_bp,
+        &creature_display_map,
+        &char_list,
+        selected.0,
+        char_tf,
     )
     .map(|(id, _)| id);
 }
@@ -397,8 +461,14 @@ fn spawn_selected_model(
         return None;
     }
     let model_entity = spawn_char_select_model(
-        commands, meshes, materials, images, inv_bp,
-        &model_path, creature_display_map, char_transform,
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        &model_path,
+        creature_display_map,
+        char_transform,
     )?;
     let char_id = selected_scene_character_id(char_list, selected)?;
     Some((char_id, model_entity))
@@ -406,7 +476,10 @@ fn spawn_selected_model(
 
 fn update_camera_for_scene(
     scene: &crate::warband_scene::WarbandSceneEntry,
-    camera_query: &mut Query<(&mut Transform, &mut CharSelectOrbit, &mut Projection), With<CharSelectScene>>,
+    camera_query: &mut Query<
+        (&mut Transform, &mut CharSelectOrbit, &mut Projection),
+        With<CharSelectScene>,
+    >,
 ) {
     let (eye, focus, fov) = camera_params(Some(scene));
     let orbit = orbit_from_eye_focus(eye, focus);
@@ -432,7 +505,10 @@ fn sync_warband_scene_switch(
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
     terrain_query: Query<Entity, With<CharSelectTerrain>>,
-    mut camera_query: Query<(&mut Transform, &mut CharSelectOrbit, &mut Projection), With<CharSelectScene>>,
+    mut camera_query: Query<
+        (&mut Transform, &mut CharSelectOrbit, &mut Projection),
+        With<CharSelectScene>,
+    >,
 ) {
     let Some(warband) = warband else { return };
     let Some(sel) = selected_scene else { return };
@@ -446,8 +522,14 @@ fn sync_warband_scene_switch(
         commands.entity(entity).despawn();
     }
     let _ = scene_tree::spawn_warband_terrain(
-        &mut commands, &mut meshes, &mut materials, &mut terrain_materials,
-        &mut water_materials, &mut images, &mut inv_bp, scene,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut terrain_materials,
+        &mut water_materials,
+        &mut images,
+        &mut inv_bp,
+        scene,
     );
     update_camera_for_scene(scene, &mut camera_query);
     active_scene.0 = Some(sel.scene_id);
@@ -490,7 +572,6 @@ fn char_info_strings(
         .unwrap_or_else(|| "unknown".into());
     (race, gender, model)
 }
-
 
 #[cfg(test)]
 mod tests {

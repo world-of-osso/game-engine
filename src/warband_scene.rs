@@ -13,6 +13,7 @@ use crate::terrain::bevy_to_tile_coords;
 pub struct WarbandSceneEntry {
     pub id: u32,
     pub name: String,
+    #[allow(dead_code)]
     pub description: String,
     /// WoW world position [X, Y, Z] for the camera.
     pub position: [f32; 3],
@@ -44,10 +45,7 @@ impl WarbandScenes {
     pub fn load() -> Self {
         let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
         let placements = load_placements(Path::new("data/WarbandScenePlacement.csv"));
-        Self {
-            scenes,
-            placements,
-        }
+        Self { scenes, placements }
     }
 
     /// Get the first character placement for a given scene (slot 0).
@@ -121,9 +119,8 @@ fn ensure_adt_tile(map_name: &str, tile_y: u32, tile_x: u32) -> Option<PathBuf> 
 
     // Also extract _tex0 and _obj0 companions
     for suffix in &["_tex0", "_obj0"] {
-        let companion_wow = format!(
-            "world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}{suffix}.adt"
-        );
+        let companion_wow =
+            format!("world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}{suffix}.adt");
         let companion_local = PathBuf::from(format!(
             "data/terrain/{map_name}_{tile_y}_{tile_x}{suffix}.adt"
         ));
@@ -246,7 +243,10 @@ mod tests {
             "Should parse at least one warband scene"
         );
         // Adventurer's Rest should be present (ID=1, Flags=8 → 8 & 7 = 0)
-        let rest = scenes.iter().find(|s| s.id == 1).expect("Adventurer's Rest");
+        let rest = scenes
+            .iter()
+            .find(|s| s.id == 1)
+            .expect("Adventurer's Rest");
         assert_eq!(rest.name, "Adventurer's Rest");
         assert_eq!(rest.map_id, 2703);
         assert!((rest.fov - 65.0).abs() < 0.1);
