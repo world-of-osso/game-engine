@@ -22,8 +22,12 @@ mod action_bar;
 mod animation;
 mod asset;
 mod camera;
+mod char_create;
+mod char_create_scene;
 mod char_select;
 mod char_select_scene;
+mod char_select_scene_tree;
+mod character_models;
 mod creature_display;
 mod equipment;
 mod game_state;
@@ -49,6 +53,7 @@ mod status_sync;
 mod target;
 mod terrain;
 mod terrain_heightmap;
+mod warband_scene;
 mod terrain_lod;
 mod terrain_material;
 mod terrain_objects;
@@ -149,6 +154,11 @@ fn insert_startup_resources(
         app.insert_resource(char_select::PreselectedCharName(name));
     }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
+    let warband = warband_scene::WarbandScenes::load();
+    if let Some(first) = warband.scenes.first() {
+        app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });
+    }
+    app.insert_resource(warband);
     game_engine::listfile::preload();
 }
 
@@ -287,6 +297,8 @@ fn configure_app_plugins(
     app.add_plugins(login_screen::LoginScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
+    app.add_plugins(char_create::CharCreatePlugin);
+    app.add_plugins(char_create_scene::CharCreateScenePlugin);
     app.add_systems(
         OnEnter(game_state::GameState::InWorld),
         setup_default_world_scene,
@@ -406,6 +418,7 @@ fn parse_game_state_value(value: &str) -> Option<game_state::GameState> {
         "login" => Some(game_state::GameState::Login),
         "connecting" => Some(game_state::GameState::Connecting),
         "charselect" => Some(game_state::GameState::CharSelect),
+        "charcreate" => Some(game_state::GameState::CharCreate),
         "loading" => Some(game_state::GameState::Loading),
         "inworld" => Some(game_state::GameState::InWorld),
         _ => None,
@@ -466,8 +479,11 @@ fn take_screenshot(
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
         return;
     }
-    // If a JS UI script is driving login, wait until we leave Login state
-    if *state.get() == crate::game_state::GameState::Login {
+    // When using --screen charselect or login scripts, wait until scene is ready
+    if matches!(
+        *state.get(),
+        crate::game_state::GameState::Login | crate::game_state::GameState::Connecting
+    ) {
         return;
     }
     if req.frames_remaining > 0 {

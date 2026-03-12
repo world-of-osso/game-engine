@@ -16,6 +16,8 @@ pub enum CharSelectAction {
     DeleteChar,
     Back,
     CreateConfirm,
+    CampsiteToggle,
+    SelectCampsite(u32),
 }
 
 impl fmt::Display for CharSelectAction {
@@ -27,6 +29,8 @@ impl fmt::Display for CharSelectAction {
             Self::DeleteChar => f.write_str("delete_char"),
             Self::Back => f.write_str("back"),
             Self::CreateConfirm => f.write_str("create_confirm"),
+            Self::CampsiteToggle => f.write_str("campsite_toggle"),
+            Self::SelectCampsite(id) => write!(f, "select_campsite:{id}"),
         }
     }
 }
@@ -36,12 +40,16 @@ impl CharSelectAction {
         if let Some(idx_str) = s.strip_prefix("select_char:") {
             return idx_str.parse().ok().map(Self::SelectChar);
         }
+        if let Some(id_str) = s.strip_prefix("select_campsite:") {
+            return id_str.parse().ok().map(Self::SelectCampsite);
+        }
         match s {
             "enter_world" => Some(Self::EnterWorld),
             "create_toggle" => Some(Self::CreateToggle),
             "delete_char" => Some(Self::DeleteChar),
             "back" => Some(Self::Back),
             "create_confirm" => Some(Self::CreateConfirm),
+            "campsite_toggle" => Some(Self::CampsiteToggle),
             _ => None,
         }
     }
@@ -73,6 +81,23 @@ pub struct CharDisplayEntry {
     pub name: String,
     pub info: String,
     pub status: String,
+}
+
+pub struct CampsiteEntry {
+    pub id: u32,
+    pub name: String,
+}
+
+pub struct CampsiteState {
+    pub scenes: Vec<CampsiteEntry>,
+    pub panel_visible: bool,
+    pub selected_id: Option<u32>,
+}
+
+impl Default for CampsiteState {
+    fn default() -> Self {
+        Self { scenes: Vec::new(), panel_visible: false, selected_id: None }
+    }
 }
 
 // --- Frame names ---
@@ -609,13 +634,87 @@ fn cs_status(text: &str) -> Element {
     }
 }
 
+// --- Campsite selector ---
+
+fn campsite_button() -> Element {
+    rsx! {
+        button {
+            name: "CampsiteButton",
+            width: 148.0, height: 36.0,
+            text: "Campsite", font_size: 13.0,
+            onclick: CharSelectAction::CampsiteToggle,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            anchor {
+                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
+                x: "12", y: "-22",
+            }
+        }
+    }
+}
+
+fn campsite_scene_button(entry: &CampsiteEntry, is_selected: bool) -> Element {
+    let name = dyn_name(format!("CampsiteScene_{}", entry.id));
+    let color = if is_selected { COLOR_GOLD } else { COLOR_SUBTITLE };
+    rsx! {
+        r#frame {
+            name: name,
+            width: 220.0, height: 30.0,
+            onclick: CharSelectAction::SelectCampsite(entry.id),
+            fontstring {
+                name: dyn_name(format!("CampsiteLabel_{}", entry.id)),
+                width: 200.0, height: 24.0,
+                text: entry.name.clone(),
+                font: GameFont::FrizQuadrata, font_size: 14.0,
+                font_color: color, justify_h: JustifyH::Left,
+                anchor {
+                    point: AnchorPoint::Left, relative_point: AnchorPoint::Left,
+                    x: "8",
+                }
+            }
+        }
+    }
+}
+
+fn campsite_panel(state: &CampsiteState) -> Element {
+    let hide = !state.panel_visible;
+    let items: Element = state.scenes.iter()
+        .flat_map(|e| campsite_scene_button(e, state.selected_id == Some(e.id)))
+        .collect();
+    let height = (state.scenes.len() as f32 * 34.0 + 16.0).max(50.0);
+    rsx! {
+        r#frame {
+            name: "CampsitePanel",
+            width: 240.0, height: height,
+            hidden: hide,
+            nine_slice: "12.0,0.03,0.03,0.04,0.94,0.65,0.48,0.16,1.0",
+            layout: "flex-col", gap: 4.0,
+            anchor {
+                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
+                x: "12", y: "-62",
+            }
+            {items}
+        }
+    }
+}
+
 // --- Main screen ---
 
 pub fn char_select_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<CharSelectState>()
         .expect("CharSelectState must be in SharedContext");
+    let campsite = ctx.get::<CampsiteState>();
     let has_selection = state.selected_index.is_some();
+
+    let campsite_ui: Element = if let Some(cs) = &campsite {
+        [campsite_button(), campsite_panel(cs)]
+            .into_iter().flatten().collect()
+    } else {
+        Vec::new()
+    };
 
     rsx! {
         r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Background,
@@ -627,6 +726,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
             {cs_action_buttons()}
             {cs_create_panel(state.create_panel_visible)}
             {cs_status(&state.status_text)}
+            {campsite_ui}
         }
     }
 }

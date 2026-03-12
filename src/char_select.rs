@@ -8,8 +8,9 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CREATE_CONFIRM_BUTTON,
-    CREATE_NAME_INPUT, CREATE_PANEL, CharDisplayEntry, CharSelectAction, CharSelectState,
-    DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen,
+    CREATE_NAME_INPUT, CREATE_PANEL, CampsiteEntry, CampsiteState, CharDisplayEntry,
+    CharSelectAction, CharSelectState, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
+    SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui::widgets::texture::TextureSource;
@@ -59,6 +60,9 @@ pub(crate) struct PreselectedCharName(pub(crate) String);
 
 #[derive(Resource, Default)]
 struct CreatePanelVisible(bool);
+
+#[derive(Resource, Default)]
+struct CampsitePanelVisible(bool);
 
 #[derive(Resource, Default)]
 struct CharSelectFocus(Option<u64>);
@@ -142,6 +146,7 @@ fn build_char_select_ui(
 
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state);
+    shared.insert(build_campsite_state(false));
     let mut screen = Screen::new(char_select_screen);
     screen.sync(&shared, &mut ui.registry);
 
@@ -150,6 +155,7 @@ fn build_char_select_ui(
 
     commands.insert_resource(SelectedCharIndex(initial_selected));
     commands.insert_resource(CreatePanelVisible(false));
+    commands.insert_resource(CampsitePanelVisible(false));
     commands.insert_resource(CharSelectFocus(None));
     commands.insert_resource(CharSelectScreenWrap(CharSelectScreenRes { screen, shared }));
     commands.insert_resource(cs);
@@ -237,11 +243,13 @@ fn char_select_mouse_input(
     mut selected: ResMut<SelectedCharIndex>,
     mut focus: ResMut<CharSelectFocus>,
     mut create_visible: ResMut<CreatePanelVisible>,
+    mut campsite_visible: ResMut<CampsitePanelVisible>,
     mut senders: Query<&mut MessageSender<SelectCharacter>>,
     mut del_senders: Query<&mut MessageSender<DeleteCharacter>>,
     mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
     char_list: Res<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
+    selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
     if !buttons.just_pressed(MouseButton::Left) {
@@ -251,17 +259,9 @@ fn char_select_mouse_input(
         return;
     };
     handle_cs_click(
-        cs,
-        &ui,
-        cursor,
-        &mut selected,
-        &mut focus,
-        &mut create_visible,
-        &mut senders,
-        &mut del_senders,
-        &mut create_senders,
-        &char_list,
-        &mut next_state,
+        cs, &ui, cursor, &mut selected, &mut focus, &mut create_visible,
+        &mut campsite_visible, &mut senders, &mut del_senders, &mut create_senders,
+        &char_list, &mut next_state, selected_scene,
     );
 }
 
@@ -274,7 +274,8 @@ fn dispatch_onclick(
     action: &str,
     selected: &mut SelectedCharIndex,
     focus: &mut CharSelectFocus,
-    create_visible: &mut CreatePanelVisible,
+    _create_visible: &mut CreatePanelVisible,
+    campsite_visible: &mut CampsitePanelVisible,
     senders: &mut Query<&mut MessageSender<SelectCharacter>>,
     del_senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
     create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
@@ -282,6 +283,7 @@ fn dispatch_onclick(
     next_state: &mut NextState<GameState>,
     reg: &FrameRegistry,
     cs: &CharSelectUi,
+    mut selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
 ) {
     match CharSelectAction::parse(action) {
         Some(CharSelectAction::SelectChar(idx)) => {
@@ -289,7 +291,7 @@ fn dispatch_onclick(
             focus.0 = None;
         }
         Some(CharSelectAction::EnterWorld) => try_enter_world(selected, char_list, senders),
-        Some(CharSelectAction::CreateToggle) => toggle_create_panel(create_visible, focus, cs),
+        Some(CharSelectAction::CreateToggle) => next_state.set(GameState::CharCreate),
         Some(CharSelectAction::DeleteChar) => {
             try_delete_character(selected, char_list, del_senders)
         }
@@ -298,19 +300,17 @@ fn dispatch_onclick(
             try_create_character(reg, cs, create_senders);
             focus.0 = Some(cs.create_name_input);
         }
-        None => {
-            focus.0 = None;
+        Some(CharSelectAction::CampsiteToggle) => {
+            campsite_visible.0 = !campsite_visible.0;
         }
+        Some(CharSelectAction::SelectCampsite(id)) => {
+            if let Some(ref mut sel) = selected_scene {
+                sel.scene_id = id;
+            }
+            campsite_visible.0 = false;
+        }
+        None => { focus.0 = None; }
     }
-}
-
-fn toggle_create_panel(
-    create_visible: &mut CreatePanelVisible,
-    focus: &mut CharSelectFocus,
-    cs: &CharSelectUi,
-) {
-    create_visible.0 = !create_visible.0;
-    focus.0 = create_visible.0.then_some(cs.create_name_input);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -321,33 +321,25 @@ fn handle_cs_click(
     selected: &mut SelectedCharIndex,
     focus: &mut CharSelectFocus,
     create_visible: &mut CreatePanelVisible,
+    campsite_visible: &mut CampsitePanelVisible,
     senders: &mut Query<&mut MessageSender<SelectCharacter>>,
     del_senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
     create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
     char_list: &CharacterList,
     next_state: &mut NextState<GameState>,
+    selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
 ) {
     let (mx, my) = (cursor.x, cursor.y);
-
     if hit_active_frame(ui, cs.create_name_input, mx, my) {
         focus.0 = Some(cs.create_name_input);
         return;
     }
-
     let action = find_clicked_action(ui, mx, my);
     if let Some(action) = action {
         dispatch_onclick(
-            &action,
-            selected,
-            focus,
-            create_visible,
-            senders,
-            del_senders,
-            create_senders,
-            char_list,
-            next_state,
-            &ui.registry,
-            cs,
+            &action, selected, focus, create_visible, campsite_visible,
+            senders, del_senders, create_senders, char_list, next_state,
+            &ui.registry, cs, selected_scene,
         );
     } else {
         focus.0 = None;
@@ -541,6 +533,7 @@ fn char_select_update_visuals(
     cs_ui: Option<Res<CharSelectUi>>,
     selected: Res<SelectedCharIndex>,
     create_visible: Res<CreatePanelVisible>,
+    campsite_visible: Res<CampsitePanelVisible>,
     focus: Res<CharSelectFocus>,
     char_list: Res<CharacterList>,
     mut screen_res: Option<ResMut<CharSelectScreenWrap>>,
@@ -552,6 +545,7 @@ fn char_select_update_visuals(
         &char_list,
         &selected,
         &create_visible,
+        &campsite_visible,
     );
     sync_editbox_focus_visual(
         &mut ui.registry,
@@ -567,6 +561,7 @@ fn sync_screen_state(
     char_list: &CharacterList,
     selected: &SelectedCharIndex,
     create_visible: &CreatePanelVisible,
+    campsite_visible: &CampsitePanelVisible,
 ) {
     let Some(res) = screen_res.as_mut() else {
         return;
@@ -574,6 +569,7 @@ fn sync_screen_state(
     let inner = &mut res.0;
     let new_state = build_char_select_state_full(char_list, selected.0, create_visible.0);
     inner.shared.insert(new_state);
+    inner.shared.insert(build_campsite_state(campsite_visible.0));
     inner.screen.sync(&inner.shared, reg);
 }
 
@@ -643,6 +639,18 @@ fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
         .get(frame_id)
         .is_some_and(|frame| frame.visible && !frame.hidden)
         && hit_frame(ui, frame_id, mx, my)
+}
+
+fn build_campsite_state(panel_visible: bool) -> CampsiteState {
+    let warband = crate::warband_scene::WarbandScenes::load();
+    let selected_id = warband.scenes.first().map(|s| s.id);
+    CampsiteState {
+        scenes: warband.scenes.iter().map(|s| CampsiteEntry {
+            id: s.id, name: s.name.clone(),
+        }).collect(),
+        panel_visible,
+        selected_id,
+    }
 }
 
 #[cfg(test)]
