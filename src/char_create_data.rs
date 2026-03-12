@@ -13,6 +13,8 @@ pub struct RaceInfo {
     pub short_name: &'static str,
     pub faction: Faction,
     pub available_classes: &'static [u8],
+    /// Path to the race icon BLP file.
+    pub icon_file: &'static str,
 }
 
 pub struct ClassInfo {
@@ -23,77 +25,188 @@ pub struct ClassInfo {
     pub icon_file: &'static str,
 }
 
-// Classic/TBC race→class availability
+// Modern retail race→class availability
 pub static RACES: &[RaceInfo] = &[
+    // Alliance classics
     RaceInfo {
         id: 1,
         name: "Human",
         short_name: "Hu",
         faction: Faction::Alliance,
-        available_classes: &[1, 2, 3, 4, 5, 8, 9],
-    },
-    RaceInfo {
-        id: 2,
-        name: "Orc",
-        short_name: "Or",
-        faction: Faction::Horde,
-        available_classes: &[1, 3, 4, 7, 8, 9],
+        available_classes: &[1, 2, 3, 4, 5, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Human_Male.blp",
     },
     RaceInfo {
         id: 3,
         name: "Dwarf",
         short_name: "Dw",
         faction: Faction::Alliance,
-        available_classes: &[1, 2, 3, 4, 5],
+        available_classes: &[1, 2, 3, 4, 5, 6],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Dwarf_Male.blp",
     },
     RaceInfo {
         id: 4,
         name: "Night Elf",
         short_name: "NE",
         faction: Faction::Alliance,
-        available_classes: &[1, 3, 4, 5, 11],
-    },
-    RaceInfo {
-        id: 5,
-        name: "Undead",
-        short_name: "Ud",
-        faction: Faction::Horde,
-        available_classes: &[1, 4, 5, 8, 9],
-    },
-    RaceInfo {
-        id: 6,
-        name: "Tauren",
-        short_name: "Ta",
-        faction: Faction::Horde,
-        available_classes: &[1, 3, 7, 11],
+        available_classes: &[1, 3, 4, 5, 6, 11],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Nightelf_Male.blp",
     },
     RaceInfo {
         id: 7,
         name: "Gnome",
         short_name: "Gn",
         faction: Faction::Alliance,
-        available_classes: &[1, 4, 8, 9],
-    },
-    RaceInfo {
-        id: 8,
-        name: "Troll",
-        short_name: "Tr",
-        faction: Faction::Horde,
-        available_classes: &[1, 3, 4, 5, 7, 8],
-    },
-    RaceInfo {
-        id: 10,
-        name: "Blood Elf",
-        short_name: "BE",
-        faction: Faction::Horde,
-        available_classes: &[2, 3, 4, 5, 8, 9],
+        available_classes: &[1, 4, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Gnome_Male.blp",
     },
     RaceInfo {
         id: 11,
         name: "Draenei",
         short_name: "Dr",
         faction: Faction::Alliance,
-        available_classes: &[1, 2, 3, 5, 7, 8],
+        available_classes: &[1, 2, 3, 5, 6, 7, 8],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Draenei_Male.blp",
+    },
+    // Alliance allied
+    RaceInfo {
+        id: 22,
+        name: "Worgen",
+        short_name: "Wo",
+        faction: Faction::Alliance,
+        available_classes: &[1, 3, 4, 5, 6, 8, 9, 11],
+        icon_file: "",
+    },
+    RaceInfo {
+        id: 29,
+        name: "Void Elf",
+        short_name: "VE",
+        faction: Faction::Alliance,
+        available_classes: &[1, 3, 4, 5, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_VoidElf.blp",
+    },
+    RaceInfo {
+        id: 30,
+        name: "Lightforged Draenei",
+        short_name: "LF",
+        faction: Faction::Alliance,
+        available_classes: &[1, 2, 3, 5, 6, 8],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_LightforgedDraenei.blp",
+    },
+    RaceInfo {
+        id: 34,
+        name: "Dark Iron Dwarf",
+        short_name: "DI",
+        faction: Faction::Alliance,
+        available_classes: &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_DarkIronDwarf.blp",
+    },
+    RaceInfo {
+        id: 37,
+        name: "Mechagnome",
+        short_name: "Me",
+        faction: Faction::Alliance,
+        available_classes: &[1, 3, 4, 5, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_Mechagnome.blp",
+    },
+    // Horde classics
+    RaceInfo {
+        id: 2,
+        name: "Orc",
+        short_name: "Or",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 6, 7, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Orc_Male.blp",
+    },
+    RaceInfo {
+        id: 5,
+        name: "Undead",
+        short_name: "Ud",
+        faction: Faction::Horde,
+        available_classes: &[1, 4, 5, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Undead_Male.blp",
+    },
+    RaceInfo {
+        id: 6,
+        name: "Tauren",
+        short_name: "Ta",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 6, 7, 11],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Tauren_Male.blp",
+    },
+    RaceInfo {
+        id: 8,
+        name: "Troll",
+        short_name: "Tr",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 5, 6, 7, 8],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Troll_Male.blp",
+    },
+    RaceInfo {
+        id: 10,
+        name: "Blood Elf",
+        short_name: "BE",
+        faction: Faction::Horde,
+        available_classes: &[2, 3, 4, 5, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Bloodelf_Male.blp",
+    },
+    // Horde allied
+    RaceInfo {
+        id: 9,
+        name: "Goblin",
+        short_name: "Go",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 5, 6, 7, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/achievement_Goblinhead.blp",
+    },
+    RaceInfo {
+        id: 27,
+        name: "Nightborne",
+        short_name: "Nb",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 5, 6, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_Nightborne.blp",
+    },
+    RaceInfo {
+        id: 28,
+        name: "Highmountain Tauren",
+        short_name: "HM",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 5, 6, 7, 11],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_HighmountainTauren.blp",
+    },
+    RaceInfo {
+        id: 31,
+        name: "Zandalari Troll",
+        short_name: "ZT",
+        faction: Faction::Horde,
+        available_classes: &[1, 2, 3, 4, 5, 6, 7, 8, 11],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_ZandalariTroll.blp",
+    },
+    RaceInfo {
+        id: 35,
+        name: "Vulpera",
+        short_name: "Vu",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 5, 7, 8, 9],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_Vulpera.blp",
+    },
+    RaceInfo {
+        id: 36,
+        name: "Mag'har Orc",
+        short_name: "MO",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 5, 6, 7, 8],
+        icon_file: "",
+    },
+    // Neutral
+    RaceInfo {
+        id: 25,
+        name: "Pandaren",
+        short_name: "Pa",
+        faction: Faction::Alliance,
+        available_classes: &[1, 3, 4, 5, 7, 8],
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Pandaren_Female.blp",
     },
 ];
 
@@ -127,6 +240,12 @@ pub static CLASSES: &[ClassInfo] = &[
         name: "Priest",
         color: Color::srgb(1.0, 1.0, 1.0),
         icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Priest.blp",
+    },
+    ClassInfo {
+        id: 6,
+        name: "Death Knight",
+        color: Color::srgb(0.77, 0.12, 0.23),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_DeathKnight.blp",
     },
     ClassInfo {
         id: 7,
@@ -214,6 +333,8 @@ mod tests {
         assert!(race_can_be_class(6, 11));
         // Blood Elf cannot be Warrior
         assert!(!race_can_be_class(10, 1));
+        // Human can be Death Knight
+        assert!(race_can_be_class(1, 6));
     }
 
     #[test]

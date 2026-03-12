@@ -142,18 +142,24 @@ fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::Pat
 /// Convert WoW doodad placement to a Bevy Transform.
 fn doodad_transform(d: &adt_obj::DoodadPlacement) -> Transform {
     let pos = placement_to_bevy(d.position);
-    let rotation = doodad_rotation(d.rotation);
+    let rotation = placement_rotation(d.rotation);
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
         .with_scale(Vec3::splat(d.scale))
 }
 
-/// Convert WoW Euler rotation (degrees around Y, X, Z) to a Bevy quaternion.
-fn doodad_rotation(rot: [f32; 3]) -> Quat {
-    let rx = rot[0].to_radians();
-    let ry = rot[1].to_radians();
-    let rz = rot[2].to_radians();
-    Quat::from_euler(EulerRot::YXZ, ry, rx, rz)
+/// Convert WoW MDDF/MODF Euler rotation (degrees) to a Bevy quaternion.
+///
+/// WoW stores rotation as [X, Y, Z] degrees. In an OpenGL Y-up viewer
+/// (worldofwhatever) this becomes Ry(Y-90) * Rz(-X) * Rx(Z). Our Bevy
+/// coordinate system has Z flipped relative to that (wow_to_bevy produces
+/// Z = -(ZP - raw_z)), so Y and X rotation angles are negated:
+/// Ry(90-Y) * Rz(-X) * Rx(-Z).
+fn placement_rotation(rot: [f32; 3]) -> Quat {
+    let rx = (-rot[2]).to_radians();
+    let ry = (90.0 - rot[1]).to_radians();
+    let rz = (-rot[0]).to_radians();
+    Quat::from_euler(EulerRot::YZX, ry, rz, rx)
 }
 
 // ── WMO spawning ────────────────────────────────────────────────────────────
@@ -429,7 +435,7 @@ pub fn placement_to_bevy(raw: [f32; 3]) -> [f32; 3] {
 /// Convert WMO placement to a Bevy Transform.
 fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
     let pos = placement_to_bevy(w.position);
-    let rotation = doodad_rotation(w.rotation);
+    let rotation = placement_rotation(w.rotation);
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
         .with_scale(Vec3::splat(w.scale))

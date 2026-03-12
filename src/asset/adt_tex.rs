@@ -120,7 +120,7 @@ fn decompress_mcal_rle(src: &[u8]) -> Result<Vec<u8>, String> {
         let header = src[i];
         i += 1;
         let fill = (header & 0x80) != 0;
-        let count = (header & 0x7f) as usize;
+        let count = (header & 0x7f) as usize + 1;
         if fill {
             rle_fill(&mut out, src, &mut i, count, EXPECTED)?;
         } else {
@@ -147,14 +147,22 @@ fn read_layer_alpha_map(
     let raw = &mcal[offset_in_mcal..];
     let data = if (flags & MCLY_FLAG_ALPHA_COMPRESSED) != 0 {
         decompress_mcal_rle(raw)?
-    } else {
-        if raw.len() < 4096 {
-            return Err(format!(
-                "MCAL uncompressed layer {layer_idx}: need 4096 bytes but only {} remain at offset {offset_in_mcal:#x}",
-                raw.len()
-            ));
-        }
+    } else if raw.len() >= 4096 {
         raw[..4096].to_vec()
+    } else if raw.len() >= 2048 {
+        // 4-bit packed alpha: each byte contains two 4-bit values, scaled to 0–255.
+        let mut out = vec![0u8; 4096];
+        for i in 0..2048 {
+            let v = raw[i];
+            out[i * 2] = (v & 0x0F) * 17;
+            out[i * 2 + 1] = (v >> 4) * 17;
+        }
+        out
+    } else {
+        return Err(format!(
+            "MCAL uncompressed layer {layer_idx}: need ≥2048 bytes but only {} remain at offset {offset_in_mcal:#x}",
+            raw.len()
+        ));
     };
     Ok(Some(data))
 }
