@@ -121,8 +121,12 @@ fn load_cached_resolution_files(install: &Installation, cache: &Path) -> Result<
     let root_path = cache.join("root.bin");
     let enc_path = cache.join("encoding.bin");
 
-    let root_data = std::fs::read(&root_path)
-        .map_err(|e| format!("{}: {e} (run `casc-init` binary first)", root_path.display()))?;
+    let root_data = std::fs::read(&root_path).map_err(|e| {
+        format!(
+            "{}: {e} (run `casc-init` binary first)",
+            root_path.display()
+        )
+    })?;
     install
         .load_root_file(&root_data)
         .map_err(|e| format!("load root: {e}"))?;

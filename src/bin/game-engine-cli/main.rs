@@ -10,12 +10,15 @@ use peercred_ipc::Client;
 
 use requests::{
     auction_request, collection_request, combat_request, equipment_request, group_request,
-    inventory_request, item_request, mail_request, map_request, profession_request,
-    quest_request, reputation_request, spell_request, status_request,
+    inventory_request, item_request, mail_request, map_request, profession_request, quest_request,
+    reputation_request, spell_request, status_request,
 };
 
 #[derive(Parser)]
-#[command(name = "game-engine-cli", about = "Control a running game-engine instance")]
+#[command(
+    name = "game-engine-cli",
+    about = "Control a running game-engine instance"
+)]
 struct Cli {
     /// Unix socket path (auto-discovered if omitted)
     #[arg(short, long)]
@@ -426,7 +429,10 @@ fn handle_ping(socket: &PathBuf, json: bool) -> Result<(), String> {
         return print_json(&resp);
     }
     match resp {
-        Response::Pong => { println!("pong"); Ok(()) }
+        Response::Pong => {
+            println!("pong");
+            Ok(())
+        }
         other => Err(format!("unexpected response: {other:?}")),
     }
 }
@@ -434,9 +440,14 @@ fn handle_ping(socket: &PathBuf, json: bool) -> Result<(), String> {
 fn handle_dump_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> Result<(), String> {
     let resp: Response =
         Client::call(socket, &Request::DumpTree { filter }).map_err(|e| format!("{e}"))?;
-    if json { return print_json(&resp); }
+    if json {
+        return print_json(&resp);
+    }
     match resp {
-        Response::Tree(tree) => { println!("{tree}"); Ok(()) }
+        Response::Tree(tree) => {
+            println!("{tree}");
+            Ok(())
+        }
         Response::Error(msg) => Err(msg),
         other => Err(format!("unexpected response: {other:?}")),
     }
@@ -445,9 +456,14 @@ fn handle_dump_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> Res
 fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> Result<(), String> {
     let resp: Response =
         Client::call(socket, &Request::DumpUiTree { filter }).map_err(|e| format!("{e}"))?;
-    if json { return print_json(&resp); }
+    if json {
+        return print_json(&resp);
+    }
     match resp {
-        Response::Tree(tree) => { println!("{tree}"); Ok(()) }
+        Response::Tree(tree) => {
+            println!("{tree}");
+            Ok(())
+        }
         Response::Error(msg) => Err(msg),
         other => Err(format!("unexpected response: {other:?}")),
     }
@@ -456,9 +472,14 @@ fn handle_dump_ui_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> 
 fn handle_dump_scene(socket: &PathBuf, filter: Option<String>, json: bool) -> Result<(), String> {
     let resp: Response =
         Client::call(socket, &Request::DumpScene { filter }).map_err(|e| format!("{e}"))?;
-    if json { return print_json(&resp); }
+    if json {
+        return print_json(&resp);
+    }
     match resp {
-        Response::Tree(tree) => { println!("{tree}"); Ok(()) }
+        Response::Tree(tree) => {
+            println!("{tree}");
+            Ok(())
+        }
         Response::Error(msg) => Err(msg),
         other => Err(format!("unexpected response: {other:?}")),
     }

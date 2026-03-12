@@ -93,10 +93,7 @@ fn spawn_skeleton(
             commands
                 .spawn((
                     Transform::IDENTITY,
-                    Name::new(asset::m2_bone_names::bone_display_name(
-                        bone.key_bone_id,
-                        i,
-                    )),
+                    Name::new(asset::m2_bone_names::bone_display_name(bone.key_bone_id, i)),
                 ))
                 .id()
         })

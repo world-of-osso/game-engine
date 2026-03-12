@@ -93,16 +93,16 @@ fn login_background() -> Element {
 fn input_label(name: FrameName, text: &'static str, relative_to: FrameName) -> Element {
     rsx! {
         fontstring {
-            name: name,
+            name,
             width: "fill",
             height: 18.0,
-            text: text,
+            text,
             font_size: 18.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_GOLD,
             anchor {
                 point: AnchorPoint::Bottom,
-                relative_to: relative_to,
+                relative_to,
                 relative_point: AnchorPoint::Top,
                 y: "4",
             }
@@ -122,10 +122,7 @@ fn login_input_labels() -> Element {
 
 fn login_inputs() -> Element {
     rsx! {
-        r#frame {
-            name: "LoginInputContainer",
-            width: 320.0,
-            height: 200.0,
+        r#frame { name: "LoginInputContainer", width: 320.0, height: 200.0,
             anchor {
                 point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Center,
@@ -136,10 +133,7 @@ fn login_inputs() -> Element {
                 width: "fill",
                 height: 42.0,
                 font_size: 20.0,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                }
+                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
             }
             editbox {
                 name: PASSWORD_INPUT,
@@ -354,8 +348,19 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
-            r#frame { name: "LoginUI",                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
-                anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "0", y: "0" }
+            r#frame { name: "LoginUI",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "0",
+                    y: "0",
+                }
+                anchor {
+                    point: AnchorPoint::BottomRight,
+                    relative_point: AnchorPoint::BottomRight,
+                    x: "0",
+                    y: "0",
+                }
                 texture {
                     name: "LoginGameLogo",
                     texture_file: TEX_GAME_LOGO,

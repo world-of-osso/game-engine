@@ -21,8 +21,7 @@ impl<'a> FrameBuilder<'a> {
         rect: [f32; 4],
     ) -> u64 {
         let id = self.registry.create_frame(name, Some(parent_id));
-        let (abs_x, abs_y) =
-            parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
+        let (abs_x, abs_y) = parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
         let strata = parent_strata(self.registry, parent_id);
         if let Some(frame) = self.registry.get_mut(id) {
             frame.widget_type = WidgetType::Frame;
@@ -56,8 +55,7 @@ impl<'a> FrameBuilder<'a> {
         justify_h: JustifyH,
     ) -> u64 {
         let id = self.registry.create_frame(name, Some(parent_id));
-        let (abs_x, abs_y) =
-            parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
+        let (abs_x, abs_y) = parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
         let strata = parent_strata(self.registry, parent_id);
         if let Some(frame) = self.registry.get_mut(id) {
             frame.widget_type = WidgetType::FontString;
@@ -93,8 +91,7 @@ impl<'a> FrameBuilder<'a> {
         rect: [f32; 4],
     ) -> u64 {
         let id = self.registry.create_frame(name, Some(parent_id));
-        let (abs_x, abs_y) =
-            parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
+        let (abs_x, abs_y) = parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
         let strata = parent_strata(self.registry, parent_id);
         if let Some(frame) = self.registry.get_mut(id) {
             frame.widget_type = WidgetType::Texture;
@@ -170,11 +167,7 @@ pub fn create_header_title(builder: &mut FrameBuilder<'_>, root_id: u64) {
     );
 }
 
-pub fn create_header_search(
-    builder: &mut FrameBuilder<'_>,
-    root_id: u64,
-    search_text: &str,
-) {
+pub fn create_header_search(builder: &mut FrameBuilder<'_>, root_id: u64, search_text: &str) {
     builder.create_label(
         "SpellBookSearch",
         root_id,
@@ -268,8 +261,13 @@ pub fn create_tab_row(
         params.is_hover,
         params.is_pressed,
     );
-    let name_id =
-        create_tab_name_label(builder, root_id, params.index, params.tab.name, params.tab_y);
+    let name_id = create_tab_name_label(
+        builder,
+        root_id,
+        params.index,
+        params.tab.name,
+        params.tab_y,
+    );
     let count_id = create_tab_count_label(
         builder,
         root_id,

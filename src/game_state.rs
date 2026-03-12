@@ -48,8 +48,14 @@ fn register_state_transitions(app: &mut App, has_server: bool) {
         app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
     }
     app.add_systems(OnExit(GameState::InWorld), on_exit_in_world);
-    app.add_systems(Update, check_connection_status.run_if(in_state(GameState::Connecting)));
-    app.add_systems(Update, check_loading_complete.run_if(in_state(GameState::Loading)));
+    app.add_systems(
+        Update,
+        check_connection_status.run_if(in_state(GameState::Connecting)),
+    );
+    app.add_systems(
+        Update,
+        check_loading_complete.run_if(in_state(GameState::Loading)),
+    );
 }
 
 fn register_in_world_systems(app: &mut App) {

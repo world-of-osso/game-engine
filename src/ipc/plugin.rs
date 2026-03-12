@@ -381,7 +381,12 @@ fn dispatch_map_and_equipment_request(
         Request::MapWaypointClear => handle_waypoint_clear(cmd, ctx.map_status),
         Request::EquipmentSet { .. } => {
             if let Request::EquipmentSet { slot, model_path } = cmd.request {
-                handle_equipment_set(cmd.respond, &mut sender_params.equipment_control, slot, model_path);
+                handle_equipment_set(
+                    cmd.respond,
+                    &mut sender_params.equipment_control,
+                    slot,
+                    model_path,
+                );
             }
         }
         Request::EquipmentClear { .. } => {
@@ -413,10 +418,12 @@ fn handle_equipment_set(
     slot: String,
     model_path: String,
 ) {
-    equipment_control.pending.push(EquipmentControlCommand::Set {
-        slot: slot.clone(),
-        model_path: model_path.clone(),
-    });
+    equipment_control
+        .pending
+        .push(EquipmentControlCommand::Set {
+            slot: slot.clone(),
+            model_path: model_path.clone(),
+        });
     let _ = respond.send(Response::Text(format!(
         "equipment set queued slot={slot} model={model_path}"
     )));
@@ -455,7 +462,11 @@ fn resolve_spell_cast_intent(
             return None;
         }
     };
-    Some(SpellCastIntent { spell_id, spell: spell_token, target_entity: target_bits })
+    Some(SpellCastIntent {
+        spell_id,
+        spell: spell_token,
+        target_entity: target_bits,
+    })
 }
 
 fn handle_spell_cast(

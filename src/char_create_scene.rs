@@ -76,7 +76,13 @@ fn spawn_camera(commands: &mut Commands) -> Entity {
             CharCreateScene,
             Camera3d::default(),
             Transform::from_translation(eye).looking_at(focus, Vec3::Y),
-            CharCreateOrbit { yaw: 0.0, pitch: 0.0, focus, distance, base_pitch },
+            CharCreateOrbit {
+                yaw: 0.0,
+                pitch: 0.0,
+                focus,
+                distance,
+                base_pitch,
+            },
         ))
         .id()
 }
@@ -188,10 +194,20 @@ fn spawn_race_model(
 ) -> Option<Entity> {
     let model_path = resolve_model_path(race, sex)?;
     let entity = m2_scene::spawn_static_m2(
-        commands, meshes, materials, images, inv_bp, &model_path,
-        model_transform(), creature_display_map,
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        &model_path,
+        model_transform(),
+        creature_display_map,
     )?;
-    let vis = if visible { Visibility::Inherited } else { Visibility::Hidden };
+    let vis = if visible {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
     commands
         .entity(entity)
         .insert((CharCreateScene, CharCreateModelRoot, ModelSex(sex), vis));
@@ -213,8 +229,15 @@ fn spawn_race_pair(
     let mut models = Vec::new();
     for sex in [0u8, 1] {
         if let Some(e) = spawn_race_model(
-            commands, meshes, materials, images, inv_bp,
-            creature_display_map, race, sex, sex == active_sex,
+            commands,
+            meshes,
+            materials,
+            images,
+            inv_bp,
+            creature_display_map,
+            race,
+            sex,
+            sex == active_sex,
         ) {
             models.push((sex, e));
         }
@@ -244,8 +267,14 @@ fn setup_scene(
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
     let models = spawn_race_pair(
-        &mut commands, &mut meshes, &mut materials, &mut images,
-        &mut inv_bp, &creature_display_map, 1, 0,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut images,
+        &mut inv_bp,
+        &creature_display_map,
+        1,
+        0,
     );
     displayed.race = Some(1);
     displayed.active_sex = 0;
@@ -273,9 +302,14 @@ fn sync_model(
     if race_changed {
         despawn_models(&mut commands, &mut displayed);
         let models = spawn_race_pair(
-            &mut commands, &mut meshes, &mut materials, &mut images,
-            &mut inv_bp, &creature_display_map,
-            state.selected_race, state.selected_sex,
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &mut images,
+            &mut inv_bp,
+            &creature_display_map,
+            state.selected_race,
+            state.selected_sex,
         );
         displayed.race = Some(state.selected_race);
         displayed.active_sex = state.selected_sex;
@@ -286,10 +320,7 @@ fn sync_model(
     }
 }
 
-fn update_visibility(
-    model_vis: &mut Query<(&ModelSex, &mut Visibility)>,
-    active_sex: u8,
-) {
+fn update_visibility(model_vis: &mut Query<(&ModelSex, &mut Visibility)>, active_sex: u8) {
     for (sex, mut vis) in model_vis.iter_mut() {
         *vis = if sex.0 == active_sex {
             Visibility::Inherited

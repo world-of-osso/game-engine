@@ -1,6 +1,6 @@
 pub mod asset;
-pub mod char_create_data;
 pub mod auction_house;
+pub mod char_create_data;
 pub mod culling;
 pub mod dump;
 pub mod game_state_enum;
