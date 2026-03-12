@@ -1,4 +1,5 @@
 pub mod asset;
+pub mod char_create_data;
 pub mod auction_house;
 pub mod culling;
 pub mod dump;

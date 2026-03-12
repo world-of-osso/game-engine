@@ -7,6 +7,7 @@ pub enum GameState {
     Login,
     Connecting,
     CharSelect,
+    CharCreate,
     Loading,
     InWorld,
 }

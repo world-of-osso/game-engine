@@ -25,39 +25,45 @@ impl Plugin for GameStatePlugin {
     fn build(&self, app: &mut App) {
         let has_server = app.world().get_resource::<ServerAddr>().is_some();
         let initial_state = app.world().get_resource::<InitialGameState>().map(|s| s.0);
-        if let Some(state) = initial_state {
-            app.insert_state(state);
-        } else if has_server {
-            app.init_state::<GameState>();
-        } else {
-            app.insert_state(GameState::InWorld);
-        }
-        app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
-        app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
-        if has_server {
-            app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
-        }
-        app.add_systems(OnExit(GameState::InWorld), on_exit_in_world);
-        app.add_systems(
-            Update,
-            check_connection_status.run_if(in_state(GameState::Connecting)),
-        );
-        app.add_systems(
-            Update,
-            check_loading_complete.run_if(in_state(GameState::Loading)),
-        );
-        app.add_systems(
-            Update,
-            (
-                game_engine::ui::game_plugin::sync_screen_ui,
-                game_engine::ui::game_plugin::tick_spellbook_cooldowns,
-                game_engine::ui::game_plugin::handle_spellbook_pointer,
-                game_engine::ui::game_plugin::handle_spellbook_keyboard,
-            )
-                .chain()
-                .run_if(in_state(GameState::InWorld)),
-        );
+        init_state(app, has_server, initial_state);
+        register_state_transitions(app, has_server);
+        register_in_world_systems(app);
     }
+}
+
+fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>) {
+    if let Some(state) = initial_state {
+        app.insert_state(state);
+    } else if has_server {
+        app.init_state::<GameState>();
+    } else {
+        app.insert_state(GameState::InWorld);
+    }
+}
+
+fn register_state_transitions(app: &mut App, has_server: bool) {
+    app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
+    app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
+    if has_server {
+        app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
+    }
+    app.add_systems(OnExit(GameState::InWorld), on_exit_in_world);
+    app.add_systems(Update, check_connection_status.run_if(in_state(GameState::Connecting)));
+    app.add_systems(Update, check_loading_complete.run_if(in_state(GameState::Loading)));
+}
+
+fn register_in_world_systems(app: &mut App) {
+    app.add_systems(
+        Update,
+        (
+            game_engine::ui::game_plugin::sync_screen_ui,
+            game_engine::ui::game_plugin::tick_spellbook_cooldowns,
+            game_engine::ui::game_plugin::handle_spellbook_pointer,
+            game_engine::ui::game_plugin::handle_spellbook_keyboard,
+        )
+            .chain()
+            .run_if(in_state(GameState::InWorld)),
+    );
 }
 
 fn on_enter_connecting(mut commands: Commands, time: Res<Time>) {
@@ -179,6 +185,7 @@ mod tests {
             GameState::Login,
             GameState::Connecting,
             GameState::CharSelect,
+            GameState::CharCreate,
             GameState::Loading,
             GameState::InWorld,
         ];
@@ -190,7 +197,7 @@ mod tests {
         // Verify the expected transition sequence ordering.
         assert_eq!(states[0], GameState::Login);
         assert_eq!(states[1], GameState::Connecting);
-        assert_eq!(states[3], GameState::Loading);
-        assert_eq!(states[4], GameState::InWorld);
+        assert_eq!(states[4], GameState::Loading);
+        assert_eq!(states[5], GameState::InWorld);
     }
 }
