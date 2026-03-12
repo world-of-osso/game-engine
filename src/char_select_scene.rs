@@ -3,8 +3,10 @@
 //! Spawns camera, lighting, ground, and the selected character's M2 model.
 //! All entities are tagged with [`CharSelectScene`] for bulk despawn on exit.
 
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_PI_8, PI};
 use std::path::{Path, PathBuf};
+
+use bevy::input::mouse::AccumulatedMouseMotion;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -23,6 +25,25 @@ use crate::scene_setup::DEFAULT_M2;
 #[derive(Component)]
 pub struct CharSelectScene;
 
+/// Orbit state for the char-select camera (click-drag to rotate around character).
+#[derive(Component)]
+struct CharSelectOrbit {
+    /// Current yaw offset in radians (horizontal rotation).
+    yaw: f32,
+    /// Current pitch offset in radians (vertical rotation).
+    pitch: f32,
+    /// Point the camera orbits around.
+    focus: Vec3,
+    /// Distance from the focus point.
+    distance: f32,
+    /// Base pitch (the initial vertical angle).
+    base_pitch: f32,
+}
+
+const ORBIT_SENSITIVITY: f32 = 0.003;
+const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8; // ±22.5°
+const ORBIT_PITCH_LIMIT: f32 = 0.15; // ±~8.6°
+
 /// Marker for the currently displayed character model root.
 #[derive(Component)]
 struct CharSelectModelRoot;
@@ -39,22 +60,64 @@ impl Plugin for CharSelectScenePlugin {
         app.add_systems(OnEnter(GameState::CharSelect), setup_char_select_scene);
         app.add_systems(
             Update,
-            sync_char_select_model.run_if(in_state(GameState::CharSelect)),
+            (sync_char_select_model, char_select_orbit_camera)
+                .run_if(in_state(GameState::CharSelect)),
         );
         app.add_systems(OnExit(GameState::CharSelect), teardown_char_select_scene);
     }
 }
 
-/// Camera settings for the char select scene: fixed angle, no player control.
+/// Camera settings for the char select scene: fixed position with slight orbit.
 fn spawn_char_select_camera(commands: &mut Commands) -> Entity {
+    let focus = Vec3::new(0.0, 1.0, 0.0);
+    let eye = Vec3::new(0.0, 1.8, 6.0);
+    let offset = eye - focus;
+    let distance = offset.length();
+    let base_pitch = (offset.y / distance).asin();
+
     commands
         .spawn((
             Name::new("CharSelectCamera"),
             CharSelectScene,
             Camera3d::default(),
-            Transform::from_xyz(0.0, 1.8, 6.0).looking_at(Vec3::new(0.0, 1.0, 0.0), Vec3::Y),
+            Transform::from_translation(eye).looking_at(focus, Vec3::Y),
+            CharSelectOrbit {
+                yaw: 0.0,
+                pitch: 0.0,
+                focus,
+                distance,
+                base_pitch,
+            },
         ))
         .id()
+}
+
+fn char_select_orbit_camera(
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    motion: Res<AccumulatedMouseMotion>,
+    mut query: Query<(&mut CharSelectOrbit, &mut Transform)>,
+) {
+    if !mouse_buttons.pressed(MouseButton::Left) {
+        return;
+    }
+    let delta = motion.delta;
+    if delta == Vec2::ZERO {
+        return;
+    }
+    for (mut orbit, mut transform) in &mut query {
+        orbit.yaw = (orbit.yaw - delta.x * ORBIT_SENSITIVITY).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
+        orbit.pitch = (orbit.pitch + delta.y * ORBIT_SENSITIVITY).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+
+        let pitch = orbit.base_pitch + orbit.pitch;
+        let eye = orbit.focus
+            + Vec3::new(
+                orbit.yaw.sin() * pitch.cos(),
+                pitch.sin(),
+                orbit.yaw.cos() * pitch.cos(),
+            ) * orbit.distance;
+
+        *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+    }
 }
 
 fn spawn_char_select_lighting(commands: &mut Commands) {
