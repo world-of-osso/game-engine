@@ -9,7 +9,7 @@ Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and e
 ```
 src/
 ├── main.rs          # Bevy App: camera, lights, ground plane, M2/ADT dispatch
-├── lib.rs           # Re-exports dump + ipc
+├── lib.rs           # Re-exports dump + ipc + scene_tree
 ├── terrain.rs       # ADT terrain spawning (spawn_adt, camera positioning)
 ├── asset/
 │   ├── mod.rs       # Re-exports blp + m2 + adt modules
@@ -19,7 +19,8 @@ src/
 ├── ipc/
 │   ├── mod.rs       # Unix socket IPC server (peercred-ipc)
 │   └── plugin.rs    # Bevy plugin bridging IPC commands to ECS
-└── dump.rs          # Entity hierarchy dump for dump-tree IPC command
+├── scene_tree.rs    # SceneTree resource: semantic scene nodes (Character, Camera, Lights, etc.)
+└── dump.rs          # Entity hierarchy dump + scene tree formatting
 ```
 
 ## Dependencies
@@ -32,9 +33,11 @@ src/
 - `cargo run --bin game-engine -- [model.m2]` — Launch 3D scene with M2 model
 - `cargo run --bin game-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
 - `cargo run --bin game-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
-- `cargo run --bin game-engine -- model.m2 --dump-tree` — Dump entity hierarchy
+- `cargo run --bin game-engine -- model.m2 --dump-tree` — Dump entity hierarchy (named bones, meshes)
+- `cargo run --bin game-engine -- --screen charselect --dump-scene --server 127.0.0.1:5000` — Dump semantic scene tree (Character, Background, Camera, Lights, equipment slots)
 - `LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js` — Drive the real login UI path via JS automation, wait for `CharSelect`, then dump the entity tree
 - `cargo run --bin game-engine-cli -- --socket /tmp/game-engine-<pid>.sock <command>` — IPC CLI for running instance
+  - `dump-scene` — Dump semantic scene tree (high-level: character, background, camera, lights)
   - `dump-ui-tree` — Dump UI frame registry (names, anchors, positions, widget data)
   - `dump-tree` — Dump Bevy entity hierarchy
   - `ping` — Check if instance is alive
