@@ -48,7 +48,7 @@ pub fn attach_m2_batches(
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
         let mat = load_batch_material(&batch, i, assets.images, assets.materials);
-        spawn_skinned_mesh(commands, assets.meshes, mat, batch.mesh, root, &skinning);
+        spawn_skinned_mesh(commands, assets.meshes, mat, batch.mesh, root, &skinning, i);
     }
     skinning
 }
@@ -60,8 +60,13 @@ fn spawn_skinned_mesh(
     mesh: Mesh,
     parent: Entity,
     skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    batch_index: usize,
 ) {
-    let mut cmd = commands.spawn((Mesh3d(meshes.add(mesh)), MeshMaterial3d(material)));
+    let mut cmd = commands.spawn((
+        Mesh3d(meshes.add(mesh)),
+        MeshMaterial3d(material),
+        Name::new(format!("Mesh[{batch_index}]")),
+    ));
     cmd.set_parent_in_place(parent);
     if let Some((inv_bp, joints)) = skinning {
         cmd.insert(SkinnedMesh {
@@ -83,7 +88,18 @@ fn spawn_skeleton(
     }
     let joint_entities: Vec<Entity> = bones
         .iter()
-        .map(|_| commands.spawn(Transform::IDENTITY).id())
+        .enumerate()
+        .map(|(i, bone)| {
+            commands
+                .spawn((
+                    Transform::IDENTITY,
+                    Name::new(asset::m2_bone_names::bone_display_name(
+                        bone.key_bone_id,
+                        i,
+                    )),
+                ))
+                .id()
+        })
         .collect();
     for (i, bone) in bones.iter().enumerate() {
         let parent = if bone.parent_bone_id >= 0 {

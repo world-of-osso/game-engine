@@ -14,12 +14,21 @@ use shared::protocol::CharacterListEntry;
 
 use crate::asset;
 use crate::char_select::SelectedCharIndex;
+use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
+
+/// TWW char select background — Worldsoul portal (parallax layered M2).
+const BACKGROUND_M2_FDID: u32 = 5932799;
+const BACKGROUND_SKIN_FDID: u32 = 5948687;
+
+/// Marker for the background environment model.
+#[derive(Component)]
+struct CharSelectBackground;
 
 /// Marker component for all entities belonging to the char-select 3D scene.
 #[derive(Component)]
@@ -67,8 +76,10 @@ impl Plugin for CharSelectScenePlugin {
     }
 }
 
-/// Camera settings for the char select scene: fixed position with slight orbit.
+/// Camera settings for the char select scene.
+/// Background M2 layers sit at Z ≈ -10; character stands at Z ≈ -4.
 fn spawn_char_select_camera(commands: &mut Commands) -> Entity {
+    // Character stands at origin, background M2 wall at Z ≈ -10.
     let focus = Vec3::new(0.0, 1.0, 0.0);
     let eye = Vec3::new(0.0, 1.8, 6.0);
     let offset = eye - focus;
@@ -120,27 +131,34 @@ fn char_select_orbit_camera(
     }
 }
 
-fn spawn_char_select_lighting(commands: &mut Commands) {
+fn spawn_char_select_lighting(commands: &mut Commands) -> (Entity, Entity) {
     // Warm ambient for campfire mood
-    commands.spawn((
-        CharSelectScene,
-        AmbientLight {
-            color: Color::srgb(1.0, 0.95, 0.85),
-            brightness: 80.0,
-            ..default()
-        },
-    ));
+    let ambient = commands
+        .spawn((
+            Name::new("AmbientLight"),
+            CharSelectScene,
+            AmbientLight {
+                color: Color::srgb(1.0, 0.95, 0.85),
+                brightness: 80.0,
+                ..default()
+            },
+        ))
+        .id();
     // Key light from upper-left
-    commands.spawn((
-        CharSelectScene,
-        DirectionalLight {
-            illuminance: 8000.0,
-            shadows_enabled: true,
-            color: Color::srgb(1.0, 0.92, 0.8),
-            ..default()
-        },
-        Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
-    ));
+    let directional = commands
+        .spawn((
+            Name::new("DirectionalLight"),
+            CharSelectScene,
+            DirectionalLight {
+                illuminance: 8000.0,
+                shadows_enabled: true,
+                color: Color::srgb(1.0, 0.92, 0.8),
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
+        ))
+        .id();
+    (ambient, directional)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -152,7 +170,7 @@ fn spawn_char_select_model(
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
-) -> bool {
+) -> Option<Entity> {
     // Spawn as static (no Player component, no movement controls)
     let entity = m2_scene::spawn_static_m2(
         commands,
@@ -169,9 +187,9 @@ fn spawn_char_select_model(
         commands
             .entity(e)
             .insert((CharSelectScene, CharSelectModelRoot));
-        true
+        Some(e)
     } else {
-        false
+        None
     }
 }
 
@@ -246,6 +264,70 @@ fn ensure_named_model_asset(wow_path: &str) -> Option<PathBuf> {
     asset::casc_resolver::ensure_file_at_path(fdid, &out_path)
 }
 
+fn ensure_background_m2() -> Option<PathBuf> {
+    let m2_path = Path::new("data/models").join(format!("{BACKGROUND_M2_FDID}.m2"));
+    let skin_path = Path::new("data/models").join(format!("{BACKGROUND_SKIN_FDID}.skin"));
+    asset::casc_resolver::ensure_file_at_path(BACKGROUND_M2_FDID, &m2_path)?;
+    let _ = asset::casc_resolver::ensure_file_at_path(BACKGROUND_SKIN_FDID, &skin_path);
+    Some(m2_path)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_background_model(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) -> Option<Entity> {
+    let Some(bg_path) = ensure_background_m2() else {
+        return None;
+    };
+    // Snapshot material count before spawning to patch new ones after.
+    let mat_ids_before: Vec<_> = materials.ids().collect();
+    let entity = m2_scene::spawn_static_m2(
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        &bg_path,
+        // Layers at Y ≈ -10. rotation_x(PI/2) maps Y→Z, placing wall at Z ≈ -10.
+        // Translate +Z to bring wall to Z ≈ -2 (behind character at Z=0).
+        // Scale 4x to fill viewport width.
+        Transform::from_translation(Vec3::new(0.0, 1.0, 8.0))
+            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(3.5)),
+        creature_display_map,
+    );
+    let Some(e) = entity else {
+        return None;
+    };
+    // Ensure all background materials are double-sided (rotated plane normals).
+    patch_new_materials(&mat_ids_before, materials);
+    commands
+        .entity(e)
+        .insert((CharSelectScene, CharSelectBackground));
+    Some(e)
+}
+
+
+fn patch_new_materials(
+    before: &[AssetId<StandardMaterial>],
+    materials: &mut Assets<StandardMaterial>,
+) {
+    for id in materials.ids().collect::<Vec<_>>() {
+        if before.contains(&id) {
+            continue;
+        }
+        if let Some(mat) = materials.get_mut(id) {
+            mat.cull_mode = None;
+            mat.double_sided = true;
+        }
+    }
+}
+
 fn fallback_model_path() -> Option<PathBuf> {
     let default_path = PathBuf::from(DEFAULT_M2);
     default_path.exists().then_some(default_path)
@@ -266,7 +348,7 @@ fn spawn_tagged_ground(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
-) {
+) -> Entity {
     let grass_path = asset::casc_resolver::ensure_texture(187126)
         .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
     let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
@@ -286,11 +368,14 @@ fn spawn_tagged_ground(
     });
     let mut mesh = Plane3d::default().mesh().size(30.0, 30.0).build();
     ground::scale_mesh_uvs(&mut mesh, 6.0);
-    commands.spawn((
-        CharSelectScene,
-        Mesh3d(meshes.add(mesh)),
-        MeshMaterial3d(material),
-    ));
+    commands
+        .spawn((
+            Name::new("Ground"),
+            CharSelectScene,
+            Mesh3d(meshes.add(mesh)),
+            MeshMaterial3d(material),
+        ))
+        .id()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -305,10 +390,40 @@ fn setup_char_select_scene(
     selected: Res<SelectedCharIndex>,
     mut displayed: ResMut<DisplayedCharacterId>,
 ) {
-    spawn_char_select_camera(&mut commands);
-    spawn_char_select_lighting(&mut commands);
-    spawn_tagged_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    displayed.0 = spawn_selected_model(
+    let camera_entity = spawn_char_select_camera(&mut commands);
+    let (ambient_entity, dir_entity) = spawn_char_select_lighting(&mut commands);
+    let bg_entity = spawn_background_model(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut images,
+        &mut inv_bp,
+        &creature_display_map,
+    );
+
+    let mut scene_children = Vec::new();
+
+    if let Some(bg_e) = bg_entity {
+        scene_children.push(SceneNode {
+            label: "Background".into(),
+            entity: Some(bg_e),
+            props: NodeProps::Background {
+                model: format!("{BACKGROUND_M2_FDID}.m2"),
+            },
+            children: vec![],
+        });
+    } else {
+        let ground_entity =
+            spawn_tagged_ground(&mut commands, &mut meshes, &mut materials, &mut images);
+        scene_children.push(SceneNode {
+            label: "Ground".into(),
+            entity: Some(ground_entity),
+            props: NodeProps::Ground,
+            children: vec![],
+        });
+    }
+
+    let result = spawn_selected_model(
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -318,6 +433,74 @@ fn setup_char_select_scene(
         &char_list,
         selected.0,
     );
+
+    if let Some((_, model_entity)) = &result {
+        let (race_str, gender_str, model_str) = char_info_strings(&char_list, selected.0);
+        scene_children.push(SceneNode {
+            label: "Character".into(),
+            entity: Some(*model_entity),
+            props: NodeProps::Character {
+                model: model_str,
+                race: race_str,
+                gender: gender_str,
+            },
+            children: vec![
+                SceneNode {
+                    label: "Slot:Head".into(),
+                    entity: None,
+                    props: NodeProps::EquipmentSlot {
+                        slot: "Head".into(),
+                        model: None,
+                    },
+                    children: vec![],
+                },
+                SceneNode {
+                    label: "Slot:MainHand".into(),
+                    entity: None,
+                    props: NodeProps::EquipmentSlot {
+                        slot: "MainHand".into(),
+                        model: None,
+                    },
+                    children: vec![],
+                },
+            ],
+        });
+    }
+    displayed.0 = result.map(|(id, _)| id);
+
+    scene_children.push(SceneNode {
+        label: "Camera".into(),
+        entity: Some(camera_entity),
+        props: NodeProps::Camera { fov: 45.0 },
+        children: vec![],
+    });
+    scene_children.push(SceneNode {
+        label: "AmbientLight".into(),
+        entity: Some(ambient_entity),
+        props: NodeProps::Light {
+            kind: "ambient".into(),
+            intensity: 80.0,
+        },
+        children: vec![],
+    });
+    scene_children.push(SceneNode {
+        label: "DirectionalLight".into(),
+        entity: Some(dir_entity),
+        props: NodeProps::Light {
+            kind: "directional".into(),
+            intensity: 8000.0,
+        },
+        children: vec![],
+    });
+
+    commands.insert_resource(SceneTree {
+        root: SceneNode {
+            label: "CharSelectScene".into(),
+            entity: None,
+            props: NodeProps::Scene,
+            children: scene_children,
+        },
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -349,7 +532,8 @@ fn sync_char_select_model(
         &creature_display_map,
         &char_list,
         selected.0,
-    );
+    )
+    .map(|(id, _)| id);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -362,12 +546,12 @@ fn spawn_selected_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     char_list: &CharacterList,
     selected: Option<usize>,
-) -> Option<u64> {
+) -> Option<(u64, Entity)> {
     let model_path = resolve_char_select_model_path(char_list, selected)?;
     if !model_path.exists() {
         return None;
     }
-    if spawn_char_select_model(
+    let model_entity = spawn_char_select_model(
         commands,
         meshes,
         materials,
@@ -375,11 +559,9 @@ fn spawn_selected_model(
         inv_bp,
         &model_path,
         creature_display_map,
-    ) {
-        selected_scene_character_id(char_list, selected)
-    } else {
-        None
-    }
+    )?;
+    let char_id = selected_scene_character_id(char_list, selected)?;
+    Some((char_id, model_entity))
 }
 
 fn teardown_char_select_scene(
@@ -391,6 +573,48 @@ fn teardown_char_select_scene(
         commands.entity(entity).despawn();
     }
     displayed.0 = None;
+    commands.remove_resource::<SceneTree>();
+}
+
+fn char_info_strings(
+    char_list: &CharacterList,
+    selected: Option<usize>,
+) -> (String, String, String) {
+    let character = selected_scene_character(char_list, selected);
+    let race = character
+        .map(|c| race_name(c.race))
+        .unwrap_or_else(|| "Unknown".into());
+    let gender = character
+        .map(|c| {
+            if c.appearance.sex == 0 {
+                "Male"
+            } else {
+                "Female"
+            }
+        })
+        .unwrap_or("Unknown")
+        .to_string();
+    let model = resolve_char_select_model_path(char_list, selected)
+        .and_then(|p| p.file_name().map(|f| f.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "unknown".into());
+    (race, gender, model)
+}
+
+fn race_name(race: u8) -> String {
+    match race {
+        1 => "Human",
+        2 => "Orc",
+        3 => "Dwarf",
+        4 => "NightElf",
+        5 => "Undead",
+        6 => "Tauren",
+        7 => "Gnome",
+        8 => "Troll",
+        10 => "BloodElf",
+        11 => "Draenei",
+        _ => "Unknown",
+    }
+    .to_string()
 }
 
 #[cfg(test)]

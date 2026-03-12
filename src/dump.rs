@@ -247,3 +247,66 @@ fn truncate(s: &str, max: usize) -> String {
         format!("{}…", &s[..max])
     }
 }
+
+// --- Scene tree ---
+
+use crate::scene_tree::{NodeProps, SceneNode, SceneTree};
+
+/// Build a formatted scene tree string.
+pub fn build_scene_tree(tree: &SceneTree, transforms: &Query<&Transform>) -> String {
+    let mut lines = Vec::new();
+    emit_scene_node(&tree.root, 0, transforms, &mut lines);
+    lines.join("\n")
+}
+
+fn emit_scene_node(
+    node: &SceneNode,
+    depth: usize,
+    transforms: &Query<&Transform>,
+    lines: &mut Vec<String>,
+) {
+    let indent = "  ".repeat(depth);
+    let line = format_scene_node(node, transforms);
+    lines.push(format!("{indent}{line}"));
+    for child in &node.children {
+        emit_scene_node(child, depth + 1, transforms, lines);
+    }
+}
+
+fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String {
+    let pos = node
+        .entity
+        .and_then(|e| transforms.get(e).ok())
+        .map(|t| {
+            format!(
+                " @ ({:.1}, {:.1}, {:.1})",
+                t.translation.x, t.translation.y, t.translation.z
+            )
+        })
+        .unwrap_or_default();
+    match &node.props {
+        NodeProps::Scene => node.label.clone(),
+        NodeProps::Character {
+            model,
+            race,
+            gender,
+        } => {
+            format!(
+                "{} \"{}\" race={} gender={}{}",
+                node.label, model, race, gender, pos
+            )
+        }
+        NodeProps::Background { model } => {
+            format!("{} \"{}\"{}", node.label, model, pos)
+        }
+        NodeProps::Ground => format!("{}{}", node.label, pos),
+        NodeProps::Camera { fov } => format!("{} fov={}{}", node.label, fov, pos),
+        NodeProps::Light { kind, intensity } => {
+            format!("{} {}={}", node.label, kind, intensity)
+        }
+        NodeProps::EquipmentSlot { model, .. } => match model {
+            Some(m) => format!("{} \"{}\"", node.label, m),
+            None => format!("{} (empty)", node.label),
+        },
+    }
+}

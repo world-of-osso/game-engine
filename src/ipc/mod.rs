@@ -146,6 +146,9 @@ pub enum Request {
         y: f32,
     },
     MapWaypointClear,
+    DumpScene {
+        filter: Option<String>,
+    },
 }
 
 /// IPC response from engine to CLI.

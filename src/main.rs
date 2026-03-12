@@ -66,6 +66,8 @@ struct DumpTreeFlag;
 #[derive(Resource)]
 struct DumpUiTreeFlag;
 #[derive(Resource)]
+struct DumpSceneFlag;
+#[derive(Resource)]
 struct ScreenshotRequest {
     output: PathBuf,
     frames_remaining: u32,
@@ -79,12 +81,13 @@ fn main() {
     }
     let dump_tree = args.iter().any(|a| a == "--dump-tree");
     let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
+    let dump_scene = args.iter().any(|a| a == "--dump-scene");
     let screenshot = parse_screenshot_args(&args);
     if dump_ui_tree && !dump_tree && screenshot.is_none() {
         run_headless_ui_dump_app(parse_state_arg(&args));
         return;
     }
-    run_app(&args, dump_tree, dump_ui_tree, screenshot);
+    run_app(&args, dump_tree, dump_ui_tree, dump_scene, screenshot);
 }
 
 struct ParsedArgs {
@@ -118,6 +121,7 @@ fn run_app(
     args: &[String],
     dump_tree: bool,
     dump_ui_tree: bool,
+    dump_scene: bool,
     screenshot: Option<ScreenshotRequest>,
 ) {
     let parsed = parse_run_args(args);
@@ -125,7 +129,7 @@ fn run_app(
     register_plugins(&mut app);
     configure_app_plugins(
         &mut app, args.iter().any(|a| a == "--sound"),
-        parsed.server_addr, parsed.initial_state, dump_tree, dump_ui_tree, screenshot,
+        parsed.server_addr, parsed.initial_state, dump_tree, dump_ui_tree, dump_scene, screenshot,
     );
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     app.run();
@@ -274,6 +278,7 @@ fn configure_app_plugins(
     initial_state: Option<game_state::GameState>,
     dump_tree: bool,
     dump_ui_tree: bool,
+    dump_scene: bool,
     screenshot: Option<ScreenshotRequest>,
 ) {
     configure_server_resources(app, enable_sound, server_addr, initial_state);
@@ -296,6 +301,10 @@ fn configure_app_plugins(
     if dump_ui_tree {
         app.insert_resource(DumpUiTreeFlag);
         app.add_systems(PostStartup, dump_ui_tree_and_exit);
+    }
+    if dump_scene {
+        app.insert_resource(DumpSceneFlag);
+        app.add_systems(Update, dump_scene_and_exit);
     }
     if let Some(req) = screenshot {
         app.insert_resource(req);
@@ -450,10 +459,15 @@ fn take_screenshot(
     mut commands: Commands,
     req: Option<ResMut<ScreenshotRequest>>,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
+    state: Res<State<crate::game_state::GameState>>,
 ) {
     let Some(mut req) = req else { return };
     // Wait for automation queue to drain before capturing
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
+        return;
+    }
+    // If a JS UI script is driving login, wait until we leave Login state
+    if *state.get() == crate::game_state::GameState::Login {
         return;
     }
     if req.frames_remaining > 0 {
@@ -499,10 +513,14 @@ pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
 
 #[allow(clippy::type_complexity)]
 fn dump_tree_and_exit(
-    mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut spellbook_runtime: Option<
-        NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
-    >,
+    tree_query: Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
+    parent_query: Query<&ChildOf>,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -510,15 +528,26 @@ fn dump_tree_and_exit(
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
         return;
     }
-    if ui_state.registry.frames_iter().count() == 0 {
+    let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
+    if tree.trim().is_empty() {
         return;
     }
-    if let Some(ref mut rt) = spellbook_runtime {
-        rt.sync(&mut ui_state.registry);
-    }
-    game_engine::ui::layout::recompute_layouts(&mut ui_state.registry);
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
     println!("{tree}");
+    exit.write(AppExit::Success);
+}
+
+fn dump_scene_and_exit(
+    tree: Option<Res<game_engine::scene_tree::SceneTree>>,
+    transforms: Query<&Transform>,
+    automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if automation_queue.is_some_and(|q| !q.0.is_empty()) {
+        return;
+    }
+    let Some(tree) = tree else { return };
+    let text = game_engine::dump::build_scene_tree(&tree, &transforms);
+    println!("{text}");
     exit.write(AppExit::Success);
 }
 

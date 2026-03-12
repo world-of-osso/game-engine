@@ -131,5 +131,6 @@ pub mod game_plugin;
 pub mod js_automation;
 pub mod screens;
 pub mod spellbook_data;
+pub mod spellbook_frames;
 pub mod spellbook_runtime;
 pub mod wasm_host;

@@ -103,6 +103,8 @@ struct SceneParams<'w, 's> {
     tree_query: TreeQuery<'w, 's>,
     parent_query: Query<'w, 's, &'static ChildOf>,
     ui_state: Res<'w, UiState>,
+    scene_tree: Option<Res<'w, crate::scene_tree::SceneTree>>,
+    transform_query: Query<'w, 's, &'static Transform>,
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -224,6 +226,13 @@ fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
         Request::DumpUiTree { filter } => {
             let tree = crate::dump::build_ui_tree(&scene.ui_state.registry, filter.as_deref());
             let _ = cmd.respond.send(Response::Tree(tree));
+        }
+        Request::DumpScene { filter: _ } => {
+            let text = match &scene.scene_tree {
+                Some(tree) => crate::dump::build_scene_tree(tree, &scene.transform_query),
+                None => "(no scene tree)".into(),
+            };
+            let _ = cmd.respond.send(Response::Tree(text));
         }
         _ => return false,
     }
@@ -368,41 +377,85 @@ fn dispatch_map_and_equipment_request(
                 tree_query,
             )));
         }
-        Request::MapWaypointAdd { x, y } => {
-            ctx.map_status.waypoint = Some(Waypoint { x, y });
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_map_position(ctx.map_status)));
+        Request::MapWaypointAdd { x, y } => handle_waypoint_add(cmd, ctx.map_status, x, y),
+        Request::MapWaypointClear => handle_waypoint_clear(cmd, ctx.map_status),
+        Request::EquipmentSet { .. } => {
+            if let Request::EquipmentSet { slot, model_path } = cmd.request {
+                handle_equipment_set(cmd.respond, &mut sender_params.equipment_control, slot, model_path);
+            }
         }
-        Request::MapWaypointClear => {
-            ctx.map_status.waypoint = None;
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_map_position(ctx.map_status)));
-        }
-        Request::EquipmentSet { slot, model_path } => {
-            sender_params
-                .equipment_control
-                .pending
-                .push(EquipmentControlCommand::Set {
-                    slot: slot.clone(),
-                    model_path: model_path.clone(),
-                });
-            let _ = cmd.respond.send(Response::Text(format!(
-                "equipment set queued slot={slot} model={model_path}"
-            )));
-        }
-        Request::EquipmentClear { slot } => {
-            sender_params
-                .equipment_control
-                .pending
-                .push(EquipmentControlCommand::Clear { slot: slot.clone() });
-            let _ = cmd.respond.send(Response::Text(format!(
-                "equipment clear queued slot={slot}"
-            )));
+        Request::EquipmentClear { .. } => {
+            if let Request::EquipmentClear { slot } = cmd.request {
+                handle_equipment_clear(cmd.respond, &mut sender_params.equipment_control, slot);
+            }
         }
         _ => {}
     }
+}
+
+fn handle_waypoint_add(cmd: Command, map_status: &mut MapStatusSnapshot, x: f32, y: f32) {
+    map_status.waypoint = Some(Waypoint { x, y });
+    let _ = cmd
+        .respond
+        .send(Response::Text(format_map_position(map_status)));
+}
+
+fn handle_waypoint_clear(cmd: Command, map_status: &mut MapStatusSnapshot) {
+    map_status.waypoint = None;
+    let _ = cmd
+        .respond
+        .send(Response::Text(format_map_position(map_status)));
+}
+
+fn handle_equipment_set(
+    respond: std::sync::mpsc::Sender<Response>,
+    equipment_control: &mut EquipmentControlQueue,
+    slot: String,
+    model_path: String,
+) {
+    equipment_control.pending.push(EquipmentControlCommand::Set {
+        slot: slot.clone(),
+        model_path: model_path.clone(),
+    });
+    let _ = respond.send(Response::Text(format!(
+        "equipment set queued slot={slot} model={model_path}"
+    )));
+}
+
+fn handle_equipment_clear(
+    respond: std::sync::mpsc::Sender<Response>,
+    equipment_control: &mut EquipmentControlQueue,
+    slot: String,
+) {
+    equipment_control
+        .pending
+        .push(EquipmentControlCommand::Clear { slot: slot.clone() });
+    let _ = respond.send(Response::Text(format!(
+        "equipment clear queued slot={slot}"
+    )));
+}
+
+fn resolve_spell_cast_intent(
+    cmd: &Command,
+    spell: &str,
+    target: Option<&str>,
+    current_target: &CurrentTarget,
+) -> Option<SpellCastIntent> {
+    let target_bits = match super::format::resolve_spell_target(target, current_target) {
+        Ok(bits) => bits,
+        Err(error) => {
+            let _ = cmd.respond.send(Response::Error(error));
+            return None;
+        }
+    };
+    let (spell_id, spell_token) = match super::format::resolve_spell_identifier(spell) {
+        Ok(value) => value,
+        Err(error) => {
+            let _ = cmd.respond.send(Response::Error(error));
+            return None;
+        }
+    };
+    Some(SpellCastIntent { spell_id, spell: spell_token, target_entity: target_bits })
 }
 
 fn handle_spell_cast(
@@ -419,24 +472,9 @@ fn handle_spell_cast(
         ));
         return;
     }
-    let target_bits = match super::format::resolve_spell_target(target.as_deref(), current_target) {
-        Ok(bits) => bits,
-        Err(error) => {
-            let _ = cmd.respond.send(Response::Error(error));
-            return;
-        }
-    };
-    let (spell_id, spell_token) = match super::format::resolve_spell_identifier(&spell) {
-        Ok(value) => value,
-        Err(error) => {
-            let _ = cmd.respond.send(Response::Error(error));
-            return;
-        }
-    };
-    let intent = SpellCastIntent {
-        spell_id,
-        spell: spell_token,
-        target_entity: target_bits,
+    let Some(intent) = resolve_spell_cast_intent(cmd, &spell, target.as_deref(), current_target)
+    else {
+        return;
     };
     if send_combat_message(senders, intent.clone()) {
         let target_text = intent

@@ -4,6 +4,7 @@ pub mod adt_tex;
 pub mod blp;
 pub mod casc_resolver;
 pub mod m2;
+pub mod m2_bone_names;
 pub mod m2_anim;
 pub mod m2_attach;
 pub mod m2_particle;
