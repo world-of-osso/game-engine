@@ -11,8 +11,8 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 use char_create_widgets::{
-    appearance_row, bottom_buttons, class_button, color_swatch_row, create_confirm_button,
-    error_label, faction_column, name_input_field, race_buttons_for_faction,
+    bottom_buttons, class_button, create_confirm_button, customization_row, error_label,
+    faction_column, name_input_field, race_buttons_for_faction,
 };
 
 // --- Actions ---
@@ -26,6 +26,8 @@ pub enum CharCreateAction {
     Back,
     AppearanceInc(AppearanceField),
     AppearanceDec(AppearanceField),
+    ToggleDropdown(AppearanceField),
+    SelectChoice(AppearanceField, u8),
     CreateConfirm,
 }
 
@@ -60,6 +62,10 @@ impl fmt::Display for CharCreateAction {
             Self::Back => f.write_str("back"),
             Self::AppearanceInc(field) => write!(f, "appearance_inc:{}", field.as_str()),
             Self::AppearanceDec(field) => write!(f, "appearance_dec:{}", field.as_str()),
+            Self::ToggleDropdown(field) => write!(f, "toggle_dropdown:{}", field.as_str()),
+            Self::SelectChoice(field, idx) => {
+                write!(f, "select_choice:{}:{idx}", field.as_str())
+            }
             Self::CreateConfirm => f.write_str("create_confirm"),
         }
     }
@@ -90,6 +96,15 @@ impl CharCreateAction {
         if let Some(field) = s.strip_prefix("appearance_dec:") {
             return parse_field(field).map(Self::AppearanceDec);
         }
+        if let Some(field) = s.strip_prefix("toggle_dropdown:") {
+            return parse_field(field).map(Self::ToggleDropdown);
+        }
+        if let Some(rest) = s.strip_prefix("select_choice:") {
+            let mut parts = rest.splitn(2, ':');
+            let field = parts.next().and_then(parse_field)?;
+            let idx = parts.next().and_then(|s| s.parse().ok())?;
+            return Some(Self::SelectChoice(field, idx));
+        }
         match s {
             "toggle_sex" => Some(Self::ToggleSex),
             "next_mode" => Some(Self::NextMode),
@@ -118,8 +133,9 @@ pub struct CharCreateUiState {
     pub hair_style: u8,
     pub hair_color: u8,
     pub facial_style: u8,
-    pub skin_color_swatch: Option<[u8; 3]>,
-    pub hair_color_swatch: Option<[u8; 3]>,
+    pub skin_color_swatches: Vec<Option<[u8; 3]>>,
+    pub hair_color_swatches: Vec<Option<[u8; 3]>>,
+    pub open_dropdown: Option<AppearanceField>,
     pub name: String,
     pub error_text: Option<String>,
     /// (class_id, class_name, icon_file, available_for_race)
@@ -144,8 +160,9 @@ impl Default for CharCreateUiState {
             hair_style: 0,
             hair_color: 0,
             facial_style: 0,
-            skin_color_swatch: None,
-            hair_color_swatch: None,
+            skin_color_swatches: Vec::new(),
+            hair_color_swatches: Vec::new(),
+            open_dropdown: None,
             name: String::new(),
             error_text: None,
             class_availability,
@@ -256,11 +273,43 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
                 font_size: 16.0,
                 font_color: COLOR_GOLD,
             }
-            {color_swatch_row("Skin Color", state.skin_color, state.skin_color_swatch, AppearanceField::SkinColor)}
-            {appearance_row("Face", state.face, AppearanceField::Face)}
-            {appearance_row("Hair Style", state.hair_style, AppearanceField::HairStyle)}
-            {color_swatch_row("Hair Color", state.hair_color, state.hair_color_swatch, AppearanceField::HairColor)}
-            {appearance_row("Facial Style", state.facial_style, AppearanceField::FacialStyle)}
+            {
+                customization_row(
+                    "Skin Color",
+                    state.skin_color,
+                    &state.skin_color_swatches,
+                    state.open_dropdown == Some(AppearanceField::SkinColor),
+                    AppearanceField::SkinColor,
+                )
+            }
+            {customization_row("Face", state.face, &[], false, AppearanceField::Face)}
+            {
+                customization_row(
+                    "Hair Style",
+                    state.hair_style,
+                    &[],
+                    false,
+                    AppearanceField::HairStyle,
+                )
+            }
+            {
+                customization_row(
+                    "Hair Color",
+                    state.hair_color,
+                    &state.hair_color_swatches,
+                    state.open_dropdown == Some(AppearanceField::HairColor),
+                    AppearanceField::HairColor,
+                )
+            }
+            {
+                customization_row(
+                    "Facial Style",
+                    state.facial_style,
+                    &[],
+                    false,
+                    AppearanceField::FacialStyle,
+                )
+            }
         }
     }
 }
@@ -359,6 +408,8 @@ mod tests {
             CharCreateAction::Back,
             CharCreateAction::AppearanceInc(AppearanceField::HairStyle),
             CharCreateAction::AppearanceDec(AppearanceField::Face),
+            CharCreateAction::ToggleDropdown(AppearanceField::SkinColor),
+            CharCreateAction::SelectChoice(AppearanceField::HairColor, 5),
             CharCreateAction::CreateConfirm,
         ];
         for action in &actions {

@@ -16,6 +16,10 @@ pub fn apply(
     if !actions.is_empty() {
         return;
     }
+    // CharCreate can run standalone without a server — skip auto-login if no server is set.
+    if server_addr.is_none() && target == Some(GameState::CharCreate) {
+        return;
+    }
     if server_addr.is_none() {
         *server_addr = Some(("127.0.0.1:5000".parse().unwrap(), false));
     }

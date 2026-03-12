@@ -152,6 +152,18 @@ impl CustomizationDb {
         self.get_choice(race, sex, opt_type, index)?.swatch_color
     }
 
+    pub fn all_swatch_colors(
+        &self,
+        race: u8,
+        sex: u8,
+        opt_type: OptionType,
+    ) -> Vec<Option<[u8; 3]>> {
+        self.options_for(race, sex)
+            .and_then(|opts| opts.iter().find(|o| o.option_type == opt_type))
+            .map(|o| o.choices.iter().map(|c| c.swatch_color).collect())
+            .unwrap_or_default()
+    }
+
     pub fn layout_id(&self, race: u8, sex: u8) -> Option<u32> {
         let model_id = race_sex_to_chr_model_id(race, sex)?;
         self.layout_by_model.get(&model_id).copied()

@@ -52,6 +52,7 @@ pub(crate) struct CharCreateState {
     pub(crate) appearance: CharacterAppearance,
     pub(crate) mode: CharCreateMode,
     pub(crate) error_text: Option<String>,
+    pub(crate) open_dropdown: Option<AppearanceField>,
 }
 
 impl Default for CharCreateState {
@@ -63,6 +64,7 @@ impl Default for CharCreateState {
             appearance: CharacterAppearance::default(),
             mode: CharCreateMode::RaceClass,
             error_text: None,
+            open_dropdown: None,
         }
     }
 }
@@ -229,6 +231,7 @@ fn char_create_mouse_input(
         );
     } else {
         focus.0 = None;
+        state.open_dropdown = None;
     }
 }
 
@@ -273,8 +276,16 @@ fn dispatch_action(
         CharCreateAction::ToggleSex => apply_sex_toggle(state),
         CharCreateAction::NextMode => state.mode = CharCreateMode::Customize,
         CharCreateAction::Back => handle_back(state, next_state),
-        CharCreateAction::AppearanceInc(f) => adjust_appearance(state, f, 1, cust_db),
-        CharCreateAction::AppearanceDec(f) => adjust_appearance(state, f, -1, cust_db),
+        CharCreateAction::AppearanceInc(f) => {
+            adjust_appearance(state, f, 1, cust_db);
+            state.open_dropdown = None;
+        }
+        CharCreateAction::AppearanceDec(f) => {
+            adjust_appearance(state, f, -1, cust_db);
+            state.open_dropdown = None;
+        }
+        CharCreateAction::ToggleDropdown(f) => toggle_dropdown(state, f),
+        CharCreateAction::SelectChoice(f, idx) => select_choice(state, f, idx),
         CharCreateAction::CreateConfirm => {
             send_create_request(state, reg, cc, create_senders);
             if let Some(id) = cc.name_input {
@@ -342,6 +353,26 @@ fn adjust_appearance(
     } else {
         *val - 1
     };
+}
+
+fn toggle_dropdown(state: &mut CharCreateState, field: AppearanceField) {
+    if state.open_dropdown == Some(field) {
+        state.open_dropdown = None;
+    } else {
+        state.open_dropdown = Some(field);
+    }
+}
+
+fn select_choice(state: &mut CharCreateState, field: AppearanceField, idx: u8) {
+    let val = match field {
+        AppearanceField::SkinColor => &mut state.appearance.skin_color,
+        AppearanceField::Face => &mut state.appearance.face,
+        AppearanceField::HairStyle => &mut state.appearance.hair_style,
+        AppearanceField::HairColor => &mut state.appearance.hair_color,
+        AppearanceField::FacialStyle => &mut state.appearance.facial_style,
+    };
+    *val = idx;
+    state.open_dropdown = None;
 }
 
 fn send_create_request(
@@ -484,44 +515,31 @@ fn sync_screen_state(
     inner.screen.sync(&inner.shared, reg);
 }
 
-fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCreateUiState {
-    let class_availability: Vec<_> = CLASSES
+fn build_class_availability(race: u8) -> Vec<(u8, &'static str, &'static str, bool)> {
+    CLASSES
         .iter()
-        .map(|c| {
-            (
-                c.id,
-                c.name,
-                c.icon_file,
-                race_can_be_class(state.selected_race, c.id),
-            )
-        })
-        .collect();
+        .map(|c| (c.id, c.name, c.icon_file, race_can_be_class(race, c.id)))
+        .collect()
+}
+
+fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCreateUiState {
     let (race, sex) = (state.selected_race, state.selected_sex);
     CharCreateUiState {
         mode: state.mode,
-        selected_race: state.selected_race,
+        selected_race: race,
         selected_class: state.selected_class,
-        selected_sex: state.selected_sex,
+        selected_sex: sex,
         skin_color: state.appearance.skin_color,
         face: state.appearance.face,
         hair_style: state.appearance.hair_style,
         hair_color: state.appearance.hair_color,
         facial_style: state.appearance.facial_style,
-        skin_color_swatch: cust_db.swatch_color(
-            race,
-            sex,
-            OptionType::SkinColor,
-            state.appearance.skin_color,
-        ),
-        hair_color_swatch: cust_db.swatch_color(
-            race,
-            sex,
-            OptionType::HairColor,
-            state.appearance.hair_color,
-        ),
+        skin_color_swatches: cust_db.all_swatch_colors(race, sex, OptionType::SkinColor),
+        hair_color_swatches: cust_db.all_swatch_colors(race, sex, OptionType::HairColor),
+        open_dropdown: state.open_dropdown,
         name: String::new(),
         error_text: state.error_text.clone(),
-        class_availability,
+        class_availability: build_class_availability(race),
     }
 }
 

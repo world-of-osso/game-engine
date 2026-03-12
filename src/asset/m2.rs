@@ -493,9 +493,10 @@ fn load_anim_from_md20(md20: &[u8]) -> SkelData {
 }
 
 fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
-    if chunks.skid.is_some() {
+    if let Some(skel_fdid) = chunks.skid {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let skel_path = path.with_file_name(format!("{stem}.skel"));
+        super::casc_resolver::ensure_file_at_path(skel_fdid, &skel_path);
         match load_skel_data(&skel_path) {
             Ok(s) => return s,
             Err(e) => eprintln!("Failed to load .skel: {e}"),

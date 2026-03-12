@@ -2,6 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
+use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 use super::{
@@ -259,45 +260,65 @@ pub(super) fn class_button(
 
 // --- Appearance row helpers ---
 
-pub(super) fn appearance_dec_button(field: AppearanceField) -> Element {
+fn stepper_dec_button(field: AppearanceField) -> Element {
     rsx! {
-        button {
+        r#frame {
             name: dyn_name(format!("AppDec_{}", field.as_str())),
-            width: 32.0,
-            height: 28.0,
-            text: "<",
-            font_size: 14.0,
+            width: 26.0,
+            height: 25.0,
             onclick: CharCreateAction::AppearanceDec(field),
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
                 x: "-70",
             }
+            texture {
+                name: dyn_name(format!("AppDecBg_{}", field.as_str())),
+                width: 26.0,
+                height: 25.0,
+                texture_atlas: "common-dropdown-c-button",
+            }
+            texture {
+                name: dyn_name(format!("AppDecIcon_{}", field.as_str())),
+                width: 17.0,
+                height: 17.0,
+                texture_atlas: "common-dropdown-icon-back",
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                }
+            }
         }
     }
 }
 
-pub(super) fn appearance_inc_button(field: AppearanceField) -> Element {
+fn stepper_inc_button(field: AppearanceField) -> Element {
     rsx! {
-        button {
+        r#frame {
             name: dyn_name(format!("AppInc_{}", field.as_str())),
-            width: 32.0,
-            height: 28.0,
-            text: ">",
-            font_size: 14.0,
+            width: 26.0,
+            height: 25.0,
             onclick: CharCreateAction::AppearanceInc(field),
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
                 x: "-10",
+            }
+            texture {
+                name: dyn_name(format!("AppIncBg_{}", field.as_str())),
+                width: 26.0,
+                height: 25.0,
+                texture_atlas: "common-dropdown-c-button",
+            }
+            texture {
+                name: dyn_name(format!("AppIncIcon_{}", field.as_str())),
+                width: 17.0,
+                height: 17.0,
+                texture_atlas: "common-dropdown-icon-next",
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                }
             }
         }
     }
@@ -343,39 +364,197 @@ fn appearance_row_value(field: AppearanceField, value: u8) -> Element {
     }
 }
 
-fn appearance_swatch(field: AppearanceField, color: [u8; 3]) -> Element {
-    let bg = format!(
+fn rgb_to_vertex_color(color: [u8; 3]) -> String {
+    format!(
         "{},{},{},1.0",
         color[0] as f32 / 255.0,
         color[1] as f32 / 255.0,
         color[2] as f32 / 255.0
-    );
+    )
+}
+
+fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
+    let vc = rgb_to_vertex_color(color);
     rsx! {
         r#frame {
-            name: dyn_name(format!("AppSwatch_{}", field.as_str())),
-            width: 26.0,
+            name: dyn_name(format!("AppSwatchArea_{}", field.as_str())),
+            width: 42.0,
             height: 20.0,
-            background_color: bg,
-            border: "1px solid 0.6,0.5,0.3,0.8",
+            onclick: CharCreateAction::ToggleDropdown(field),
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
-                x: "-42",
+                x: "-38",
+            }
+            texture {
+                name: dyn_name(format!("AppSwatch_{}", field.as_str())),
+                width: 42.0,
+                height: 10.0,
+                texture_atlas: "charactercreate-customize-palette",
+                vertex_color: vc,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                }
+            }
+            texture {
+                name: dyn_name(format!("AppSwatchSel_{}", field.as_str())),
+                width: 51.0,
+                height: 20.0,
+                texture_atlas: "charactercreate-customize-palette-selected",
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                }
             }
         }
     }
 }
 
-pub(super) fn color_swatch_row(
+fn dropdown_color_choice(
+    field: AppearanceField,
+    i: usize,
+    color: [u8; 3],
+    selected: bool,
+) -> Element {
+    let vc = rgb_to_vertex_color(color);
+    let sel_hidden = !selected;
+    let idx = i as u8;
+    rsx! {
+        r#frame {
+            name: dyn_name(format!("DropChoice_{}_{i}", field.as_str())),
+            width: 22.0,
+            height: 14.0,
+            onclick: CharCreateAction::SelectChoice(field, idx),
+            texture {
+                name: dyn_name(format!("DropSwatch_{}_{i}", field.as_str())),
+                width: 20.0,
+                height: 10.0,
+                texture_atlas: "charactercreate-customize-palette",
+                vertex_color: vc,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                }
+            }
+            texture {
+                name: dyn_name(format!("DropSel_{}_{i}", field.as_str())),
+                width: 24.0,
+                height: 14.0,
+                hidden: sel_hidden,
+                texture_atlas: "charactercreate-customize-palette-selected",
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                }
+            }
+        }
+    }
+}
+
+fn dropdown_number_choice(field: AppearanceField, i: usize, selected: bool) -> Element {
+    let idx = i as u8;
+    let val_text = format!("{}", idx + 1);
+    let color = if selected {
+        COLOR_SELECTED
+    } else {
+        COLOR_WHITE
+    };
+    rsx! {
+        r#frame {
+            name: dyn_name(format!("DropChoice_{}_{i}", field.as_str())),
+            width: 28.0,
+            height: 22.0,
+            onclick: CharCreateAction::SelectChoice(field, idx),
+            background_color: "0.15,0.12,0.08,0.9",
+            border: "1px solid 0.4,0.35,0.2,0.6",
+            fontstring {
+                name: dyn_name(format!("DropVal_{}_{i}", field.as_str())),
+                width: 28.0,
+                height: 22.0,
+                text: val_text,
+                font: GameFont::FrizQuadrata,
+                font_size: 11.0,
+                font_color: color,
+            }
+        }
+    }
+}
+
+fn build_dropdown_choices(
+    field: AppearanceField,
+    swatches: &[Option<[u8; 3]>],
+    selected: u8,
+) -> Element {
+    swatches
+        .iter()
+        .enumerate()
+        .flat_map(|(i, swatch)| {
+            let is_sel = i as u8 == selected;
+            match swatch {
+                Some(c) => dropdown_color_choice(field, i, *c, is_sel),
+                None => dropdown_number_choice(field, i, is_sel),
+            }
+        })
+        .collect()
+}
+
+fn dropdown_popup_container(
+    field: AppearanceField,
+    choices: Element,
+    height: f32,
+    hidden: bool,
+) -> Element {
+    rsx! {
+        r#frame {
+            name: dyn_name(format!("Dropdown_{}", field.as_str())),
+            width: 280.0,
+            height,
+            hidden,
+            strata: FrameStrata::Dialog,
+            background_color: "0.05,0.05,0.05,0.95",
+            border: "1px solid 0.4,0.35,0.2,0.8",
+            layout: "flex-row-wrap",
+            gap: 2.0,
+            padding: 4.0,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::BottomLeft,
+                y: "-2",
+            }
+            {choices}
+        }
+    }
+}
+
+fn dropdown_popup(
+    field: AppearanceField,
+    swatches: &[Option<[u8; 3]>],
+    selected_idx: u8,
+    open: bool,
+) -> Element {
+    let choices = build_dropdown_choices(field, swatches, selected_idx);
+    let rows = (swatches.len() as f32 / 11.0).ceil().max(1.0);
+    let height = rows * 18.0 + 8.0;
+    dropdown_popup_container(field, choices, height, !open)
+}
+
+pub(super) fn customization_row(
     label: &str,
     value: u8,
-    swatch_color: Option<[u8; 3]>,
+    swatches: &[Option<[u8; 3]>],
+    open: bool,
     field: AppearanceField,
 ) -> Element {
-    let center = if let Some(color) = swatch_color {
-        appearance_swatch(field, color)
+    let current_swatch = swatches.get(value as usize).copied().flatten();
+    let center = match current_swatch {
+        Some(color) => swatch_texture(field, color),
+        None => appearance_row_value(field, value),
+    };
+    let popup = if swatches.is_empty() {
+        Element::default()
     } else {
-        appearance_row_value(field, value)
+        dropdown_popup(field, swatches, value, open)
     };
     rsx! {
         r#frame {
@@ -383,23 +562,10 @@ pub(super) fn color_swatch_row(
             width: 280.0,
             height: 32.0,
             {appearance_row_label(field, label)}
-            {appearance_dec_button(field)}
+            {stepper_dec_button(field)}
             {center}
-            {appearance_inc_button(field)}
-        }
-    }
-}
-
-pub(super) fn appearance_row(label: &str, value: u8, field: AppearanceField) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("Appearance_{}", field.as_str())),
-            width: 280.0,
-            height: 32.0,
-            {appearance_row_label(field, label)}
-            {appearance_dec_button(field)}
-            {appearance_row_value(field, value)}
-            {appearance_inc_button(field)}
+            {stepper_inc_button(field)}
+            {popup}
         }
     }
 }
