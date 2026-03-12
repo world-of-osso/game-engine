@@ -47,6 +47,7 @@ src/
 - `./run-tests.sh` — cargo test + clippy + dx fmt
 - `dx fmt` — Auto-format RSX macro blocks (enforced in run-tests.sh via `dx fmt --check`)
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
+- Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
 - Edition 2024, rust-version 1.89
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
