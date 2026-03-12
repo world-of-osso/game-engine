@@ -1,6 +1,6 @@
 //! 3D scene behind the character creation screen.
 //!
-//! Reuses the same orbit camera, lighting, and ground as char select.
+//! Preloads both sex models for the selected race so toggling sex is instant.
 
 use std::f32::consts::{FRAC_PI_8, PI};
 use std::path::PathBuf;
@@ -24,8 +24,18 @@ struct CharCreateScene;
 #[derive(Component)]
 struct CharCreateModelRoot;
 
-#[derive(Resource, Default, PartialEq, Eq)]
-struct DisplayedRaceSex(Option<(u8, u8)>);
+/// Tracks which sex variant this model entity represents.
+#[derive(Component)]
+struct ModelSex(u8);
+
+/// Tracks the currently displayed race and active sex, plus both model entities.
+#[derive(Resource, Default)]
+struct DisplayedModels {
+    race: Option<u8>,
+    active_sex: u8,
+    /// (sex, entity) pairs for spawned models.
+    models: Vec<(u8, Entity)>,
+}
 
 #[derive(Component)]
 struct CharCreateOrbit {
@@ -44,7 +54,7 @@ pub struct CharCreateScenePlugin;
 
 impl Plugin for CharCreateScenePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DisplayedRaceSex>();
+        app.init_resource::<DisplayedModels>();
         app.add_systems(OnEnter(GameState::CharCreate), setup_scene);
         app.add_systems(
             Update,
@@ -150,46 +160,9 @@ fn spawn_ground(
     ));
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    mut displayed: ResMut<DisplayedRaceSex>,
-) {
-    spawn_camera(&mut commands);
-    spawn_lighting(&mut commands);
-    spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    spawn_race_model(
-        &mut commands, &mut meshes, &mut materials, &mut images,
-        &mut inv_bp, &creature_display_map, 1, 0,
-    );
-    displayed.0 = Some((1, 0));
-}
-
-#[allow(clippy::too_many_arguments)]
-fn spawn_race_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    race: u8,
-    sex: u8,
-) -> Option<Entity> {
-    let model_path = resolve_model_path(race, sex)?;
-    let entity = m2_scene::spawn_static_m2(
-        commands, meshes, materials, images, inv_bp, &model_path,
-        Transform::from_xyz(0.0, 0.0, 0.0)
-            .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
-        creature_display_map,
-    )?;
-    commands.entity(entity).insert((CharCreateScene, CharCreateModelRoot));
-    Some(entity)
+fn model_transform() -> Transform {
+    Transform::from_xyz(0.0, 0.0, 0.0)
+        .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
 }
 
 fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
@@ -202,6 +175,84 @@ fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
 }
 
 #[allow(clippy::too_many_arguments)]
+fn spawn_race_model(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    race: u8,
+    sex: u8,
+    visible: bool,
+) -> Option<Entity> {
+    let model_path = resolve_model_path(race, sex)?;
+    let entity = m2_scene::spawn_static_m2(
+        commands, meshes, materials, images, inv_bp, &model_path,
+        model_transform(), creature_display_map,
+    )?;
+    let vis = if visible { Visibility::Inherited } else { Visibility::Hidden };
+    commands
+        .entity(entity)
+        .insert((CharCreateScene, CharCreateModelRoot, ModelSex(sex), vis));
+    Some(entity)
+}
+
+/// Spawn both sex models for a race, returning the entities.
+#[allow(clippy::too_many_arguments)]
+fn spawn_race_pair(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    race: u8,
+    active_sex: u8,
+) -> Vec<(u8, Entity)> {
+    let mut models = Vec::new();
+    for sex in [0u8, 1] {
+        if let Some(e) = spawn_race_model(
+            commands, meshes, materials, images, inv_bp,
+            creature_display_map, race, sex, sex == active_sex,
+        ) {
+            models.push((sex, e));
+        }
+    }
+    models
+}
+
+fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
+    for &(_, entity) in &displayed.models {
+        commands.entity(entity).despawn();
+    }
+    displayed.models.clear();
+    displayed.race = None;
+}
+
+#[allow(clippy::too_many_arguments)]
+fn setup_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    mut displayed: ResMut<DisplayedModels>,
+) {
+    spawn_camera(&mut commands);
+    spawn_lighting(&mut commands);
+    spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
+    let models = spawn_race_pair(
+        &mut commands, &mut meshes, &mut materials, &mut images,
+        &mut inv_bp, &creature_display_map, 1, 0,
+    );
+    displayed.race = Some(1);
+    displayed.active_sex = 0;
+    displayed.models = models;
+}
+
+#[allow(clippy::too_many_arguments)]
 fn sync_model(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -210,31 +261,52 @@ fn sync_model(
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     state: Option<Res<CharCreateState>>,
-    current_model: Query<Entity, With<CharCreateModelRoot>>,
-    mut displayed: ResMut<DisplayedRaceSex>,
+    mut model_vis: Query<(&ModelSex, &mut Visibility)>,
+    mut displayed: ResMut<DisplayedModels>,
 ) {
     let Some(state) = state else { return };
-    let desired = Some((state.selected_race, state.selected_sex));
-    if displayed.0 == desired {
+    let race_changed = displayed.race != Some(state.selected_race);
+    let sex_changed = displayed.active_sex != state.selected_sex;
+    if !race_changed && !sex_changed {
         return;
     }
-    for entity in current_model.iter() {
-        commands.entity(entity).despawn();
+    if race_changed {
+        despawn_models(&mut commands, &mut displayed);
+        let models = spawn_race_pair(
+            &mut commands, &mut meshes, &mut materials, &mut images,
+            &mut inv_bp, &creature_display_map,
+            state.selected_race, state.selected_sex,
+        );
+        displayed.race = Some(state.selected_race);
+        displayed.active_sex = state.selected_sex;
+        displayed.models = models;
+    } else {
+        update_visibility(&mut model_vis, state.selected_sex);
+        displayed.active_sex = state.selected_sex;
     }
-    spawn_race_model(
-        &mut commands, &mut meshes, &mut materials, &mut images,
-        &mut inv_bp, &creature_display_map, state.selected_race, state.selected_sex,
-    );
-    displayed.0 = desired;
+}
+
+fn update_visibility(
+    model_vis: &mut Query<(&ModelSex, &mut Visibility)>,
+    active_sex: u8,
+) {
+    for (sex, mut vis) in model_vis.iter_mut() {
+        *vis = if sex.0 == active_sex {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
 }
 
 fn teardown_scene(
     mut commands: Commands,
     query: Query<Entity, With<CharCreateScene>>,
-    mut displayed: ResMut<DisplayedRaceSex>,
+    mut displayed: ResMut<DisplayedModels>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
-    displayed.0 = None;
+    displayed.race = None;
+    displayed.models.clear();
 }
