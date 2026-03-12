@@ -111,8 +111,8 @@ pub struct CharCreateUiState {
     pub facial_style: u8,
     pub name: String,
     pub error_text: Option<String>,
-    /// (class_id, class_name, available_for_race)
-    pub class_availability: Vec<(u8, &'static str, bool)>,
+    /// (class_id, class_name, icon_file, available_for_race)
+    pub class_availability: Vec<(u8, &'static str, &'static str, bool)>,
 }
 
 impl Default for CharCreateUiState {
@@ -121,7 +121,7 @@ impl Default for CharCreateUiState {
         let race = 1;
         let class_availability: Vec<_> = CLASSES
             .iter()
-            .map(|c| (c.id, c.name, race_can_be_class(race, c.id)))
+            .map(|c| (c.id, c.name, c.icon_file, race_can_be_class(race, c.id)))
             .collect();
         Self {
             mode: CharCreateMode::RaceClass,
@@ -171,28 +171,35 @@ fn dyn_name(s: String) -> DynName {
 
 // --- Race grid ---
 
-fn race_button(race_id: u8, name: &str, is_selected: bool) -> Element {
-    let fname = dyn_name(format!("Race_{race_id}"));
+fn race_button(race_id: u8, short_name: &str, name: &str, is_selected: bool) -> Element {
     let color = if is_selected { COLOR_SELECTED } else { COLOR_SUBTITLE };
     let border = if is_selected {
         "2px solid 1.0,0.82,0.0,1.0"
     } else {
         "1px solid 0.45,0.38,0.22,0.6"
     };
+    let bg = if is_selected { "0.2,0.16,0.08,0.9" } else { "0.1,0.08,0.05,0.7" };
     rsx! {
         r#frame {
-            name: fname,
-            width: 140.0, height: 36.0,
+            name: dyn_name(format!("Race_{race_id}")),
+            width: 52.0, height: 60.0,
             onclick: CharCreateAction::SelectRace(race_id),
-            border: border,
-            background_color: "0.1,0.08,0.05,0.7",
+            border: border, background_color: bg,
+            fontstring {
+                name: dyn_name(format!("Race_{race_id}_Short")),
+                width: 44.0, height: 24.0,
+                text: short_name,
+                font: GameFont::FrizQuadrata, font_size: 16.0,
+                font_color: color,
+                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-4" }
+            }
             fontstring {
                 name: dyn_name(format!("Race_{race_id}_Label")),
-                width: 130.0, height: 28.0,
+                width: 50.0, height: 16.0,
                 text: name,
-                font: GameFont::FrizQuadrata, font_size: 14.0,
+                font: GameFont::FrizQuadrata, font_size: 9.0,
                 font_color: color,
-                anchor { point: AnchorPoint::Center, relative_point: AnchorPoint::Center }
+                anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "4" }
             }
         }
     }
@@ -214,7 +221,7 @@ fn faction_column(label: &str, col_name: &str, x_offset: &str, races: Element) -
         r#frame {
             name: dyn_name(format!("{col_name}Races")),
             width: 150.0, height: 400.0,
-            layout: "flex-col", gap: 6.0,
+            layout: "flex-row-wrap", gap: 6.0,
             anchor {
                 point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
                 x: x_offset, y: "-30",
@@ -229,12 +236,12 @@ fn race_grid(selected_race: u8) -> Element {
     let alliance: Element = RACES
         .iter()
         .filter(|r| r.faction == Faction::Alliance)
-        .flat_map(|r| race_button(r.id, r.name, r.id == selected_race))
+        .flat_map(|r| race_button(r.id, r.short_name, r.name, r.id == selected_race))
         .collect();
     let horde: Element = RACES
         .iter()
         .filter(|r| r.faction == Faction::Horde)
-        .flat_map(|r| race_button(r.id, r.name, r.id == selected_race))
+        .flat_map(|r| race_button(r.id, r.short_name, r.name, r.id == selected_race))
         .collect();
     rsx! {
         r#frame {
@@ -252,7 +259,7 @@ fn race_grid(selected_race: u8) -> Element {
 
 // --- Class grid ---
 
-fn class_button(class_id: u8, name: &str, is_selected: bool, available: bool) -> Element {
+fn class_button_style(is_selected: bool, available: bool) -> (FontColor, &'static str, &'static str) {
     let color = if !available {
         COLOR_DISABLED
     } else if is_selected {
@@ -265,25 +272,38 @@ fn class_button(class_id: u8, name: &str, is_selected: bool, available: bool) ->
     } else {
         "1px solid 0.45,0.38,0.22,0.4"
     };
+    let bg = if is_selected && available { "0.2,0.16,0.08,0.9" } else { "0.1,0.08,0.05,0.7" };
+    (color, border, bg)
+}
+
+fn class_button(class_id: u8, name: &str, icon: &str, is_selected: bool, available: bool) -> Element {
+    let (color, border, bg) = class_button_style(is_selected, available);
     let onclick = if available {
         CharCreateAction::SelectClass(class_id).to_string()
     } else {
         String::new()
     };
+    let alpha = if available { "1.0" } else { "0.3" };
     rsx! {
         r#frame {
             name: dyn_name(format!("Class_{class_id}")),
-            width: 160.0, height: 32.0,
+            width: 52.0, height: 60.0,
             onclick: onclick,
-            border: border,
-            background_color: "0.1,0.08,0.05,0.7",
+            border: border, background_color: bg,
+            texture {
+                name: dyn_name(format!("Class_{class_id}_Icon")),
+                width: 36.0, height: 36.0,
+                texture_file: icon,
+                alpha: alpha,
+                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-2" }
+            }
             fontstring {
                 name: dyn_name(format!("Class_{class_id}_Label")),
-                width: 150.0, height: 24.0,
+                width: 50.0, height: 16.0,
                 text: name,
-                font: GameFont::FrizQuadrata, font_size: 13.0,
+                font: GameFont::FrizQuadrata, font_size: 9.0,
                 font_color: color,
-                anchor { point: AnchorPoint::Center, relative_point: AnchorPoint::Center }
+                anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "2" }
             }
         }
     }
@@ -293,15 +313,15 @@ fn class_grid(state: &CharCreateUiState) -> Element {
     let classes: Element = state
         .class_availability
         .iter()
-        .flat_map(|&(id, name, avail)| {
-            class_button(id, name, id == state.selected_class, avail)
+        .flat_map(|&(id, name, icon, avail)| {
+            class_button(id, name, icon, id == state.selected_class, avail)
         })
         .collect();
     rsx! {
         r#frame {
             name: "ClassGrid",
             width: 180.0, height: 500.0,
-            layout: "flex-col", gap: 6.0,
+            layout: "flex-row-wrap", gap: 6.0,
             anchor {
                 point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight,
                 x: "-20", y: "-80",

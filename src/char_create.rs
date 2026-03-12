@@ -468,7 +468,7 @@ fn sync_screen_state(
 fn build_ui_state(state: &CharCreateState) -> CharCreateUiState {
     let class_availability: Vec<_> = CLASSES
         .iter()
-        .map(|c| (c.id, c.name, race_can_be_class(state.selected_race, c.id)))
+        .map(|c| (c.id, c.name, c.icon_file, race_can_be_class(state.selected_race, c.id)))
         .collect();
     CharCreateUiState {
         mode: state.mode,
