@@ -77,6 +77,10 @@ unsafe impl Sync for CharSelectScreenRes {}
 #[derive(Resource)]
 struct CharSelectScreenWrap(CharSelectScreenRes);
 
+/// Marker resource: skip CharSelect UI and enter world immediately with first/preselected char.
+#[derive(Resource)]
+pub struct AutoEnterWorld;
+
 pub struct CharSelectPlugin;
 
 impl Plugin for CharSelectPlugin {
@@ -93,6 +97,7 @@ impl Plugin for CharSelectPlugin {
                 char_select_keyboard_input,
                 char_select_hover_visuals,
                 char_select_update_visuals,
+                auto_enter_world,
             )
                 .into_configs()
                 .run_if(in_state(GameState::CharSelect)),
@@ -684,6 +689,20 @@ fn build_campsite_state(panel_visible: bool) -> CampsiteState {
     }
 }
 
+fn auto_enter_world(
+    auto: Option<Res<AutoEnterWorld>>,
+    selected: Res<SelectedCharIndex>,
+    char_list: Res<crate::networking_auth::CharacterList>,
+    mut senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut commands: Commands,
+) {
+    if auto.is_none() {
+        return;
+    }
+    try_enter_world(&selected, &char_list, &mut senders);
+    commands.remove_resource::<AutoEnterWorld>();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -693,14 +712,16 @@ mod tests {
         FrameRegistry::new(1920.0, 1080.0)
     }
 
-    #[test]
-    fn screen_builds_with_empty_char_list() {
+    fn build_screen(state: CharSelectState) -> FrameRegistry {
         let mut reg = test_registry();
-        let state = CharSelectState::default();
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(state);
-        let mut screen = Screen::new(char_select_screen);
-        screen.sync(&shared, &mut reg);
+        Screen::new(char_select_screen).sync(&shared, &mut reg);
+        reg
+    }
+    #[test]
+    fn screen_builds_with_empty_char_list() {
+        let reg = build_screen(CharSelectState::default());
         assert!(reg.get_by_name("CharSelectRoot").is_some());
         assert!(reg.get_by_name("EnterWorld").is_some());
         assert!(reg.get_by_name("BackToLogin").is_some());
@@ -708,8 +729,7 @@ mod tests {
 
     #[test]
     fn screen_builds_with_characters() {
-        let mut reg = test_registry();
-        let state = CharSelectState {
+        let reg = build_screen(CharSelectState {
             characters: vec![CharDisplayEntry {
                 name: "TestChar".to_string(),
                 info: "Level 60   Race 1   Class 1".to_string(),
@@ -717,25 +737,18 @@ mod tests {
             }],
             selected_index: Some(0),
             ..Default::default()
-        };
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(state);
-        let mut screen = Screen::new(char_select_screen);
-        screen.sync(&shared, &mut reg);
+        });
         assert!(reg.get_by_name("CharCard_0").is_some());
         assert!(reg.get_by_name("CharCard_0Name").is_some());
     }
 
     #[test]
     fn create_panel_hidden_by_default() {
-        let mut reg = test_registry();
-        let state = CharSelectState::default();
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(state);
-        let mut screen = Screen::new(char_select_screen);
-        screen.sync(&shared, &mut reg);
-        let panel_id = reg.get_by_name("CreatePanel").unwrap();
-        let panel = reg.get(panel_id).unwrap();
-        assert!(panel.hidden);
+        let reg = build_screen(CharSelectState::default());
+        assert!(
+            reg.get(reg.get_by_name("CreatePanel").unwrap())
+                .unwrap()
+                .hidden
+        );
     }
 }

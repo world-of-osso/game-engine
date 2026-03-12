@@ -11,8 +11,8 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 use char_create_widgets::{
-    appearance_row, bottom_buttons, class_button, create_confirm_button, error_label,
-    faction_column, name_input_field, race_buttons_for_faction,
+    appearance_row, bottom_buttons, class_button, color_swatch_row, create_confirm_button,
+    error_label, faction_column, name_input_field, race_buttons_for_faction,
 };
 
 // --- Actions ---
@@ -118,6 +118,8 @@ pub struct CharCreateUiState {
     pub hair_style: u8,
     pub hair_color: u8,
     pub facial_style: u8,
+    pub skin_color_swatch: Option<[u8; 3]>,
+    pub hair_color_swatch: Option<[u8; 3]>,
     pub name: String,
     pub error_text: Option<String>,
     /// (class_id, class_name, icon_file, available_for_race)
@@ -142,6 +144,8 @@ impl Default for CharCreateUiState {
             hair_style: 0,
             hair_color: 0,
             facial_style: 0,
+            skin_color_swatch: None,
+            hair_color_swatch: None,
             name: String::new(),
             error_text: None,
             class_availability,
@@ -252,10 +256,10 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
                 font_size: 16.0,
                 font_color: COLOR_GOLD,
             }
-            {appearance_row("Skin Color", state.skin_color, AppearanceField::SkinColor)}
+            {color_swatch_row("Skin Color", state.skin_color, state.skin_color_swatch, AppearanceField::SkinColor)}
             {appearance_row("Face", state.face, AppearanceField::Face)}
             {appearance_row("Hair Style", state.hair_style, AppearanceField::HairStyle)}
-            {appearance_row("Hair Color", state.hair_color, AppearanceField::HairColor)}
+            {color_swatch_row("Hair Color", state.hair_color, state.hair_color_swatch, AppearanceField::HairColor)}
             {appearance_row("Facial Style", state.facial_style, AppearanceField::FacialStyle)}
         }
     }

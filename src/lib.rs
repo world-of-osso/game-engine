@@ -2,6 +2,7 @@ pub mod asset;
 pub mod auction_house;
 pub mod char_create_data;
 pub mod culling;
+pub mod customization_data;
 pub mod dump;
 pub mod game_state_enum;
 pub mod ipc;

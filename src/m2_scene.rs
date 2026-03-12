@@ -118,6 +118,28 @@ pub fn spawn_m2_model(
     let Some(model) = load_m2_model(m2_path, creature_display_map) else {
         return;
     };
+    let model_entity = spawn_player_root(commands, m2_path);
+    attach_m2_model_parts(
+        commands,
+        meshes,
+        materials,
+        images,
+        inv_bp,
+        model,
+        model_entity,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn attach_m2_model_parts(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    model: asset::m2::M2Model,
+    model_entity: Entity,
+) {
     let asset::m2::M2Model {
         batches,
         bones,
@@ -127,7 +149,6 @@ pub fn spawn_m2_model(
         attachments,
         ..
     } = model;
-    let model_entity = spawn_player_root(commands, m2_path);
     let skinning = m2_spawn::attach_m2_batches(
         commands,
         &mut m2_spawn::SpawnAssets {
@@ -166,6 +187,7 @@ pub fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
             Player,
             MovementState::default(),
             CharacterFacing::default(),
+            crate::collision::CharacterPhysics::default(),
             Transform::from_xyz(0.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             Visibility::default(),

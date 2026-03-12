@@ -343,6 +343,53 @@ fn appearance_row_value(field: AppearanceField, value: u8) -> Element {
     }
 }
 
+fn appearance_swatch(field: AppearanceField, color: [u8; 3]) -> Element {
+    let bg = format!(
+        "{},{},{},1.0",
+        color[0] as f32 / 255.0,
+        color[1] as f32 / 255.0,
+        color[2] as f32 / 255.0
+    );
+    rsx! {
+        r#frame {
+            name: dyn_name(format!("AppSwatch_{}", field.as_str())),
+            width: 26.0,
+            height: 20.0,
+            background_color: bg,
+            border: "1px solid 0.6,0.5,0.3,0.8",
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-42",
+            }
+        }
+    }
+}
+
+pub(super) fn color_swatch_row(
+    label: &str,
+    value: u8,
+    swatch_color: Option<[u8; 3]>,
+    field: AppearanceField,
+) -> Element {
+    let center = if let Some(color) = swatch_color {
+        appearance_swatch(field, color)
+    } else {
+        appearance_row_value(field, value)
+    };
+    rsx! {
+        r#frame {
+            name: dyn_name(format!("Appearance_{}", field.as_str())),
+            width: 280.0,
+            height: 32.0,
+            {appearance_row_label(field, label)}
+            {appearance_dec_button(field)}
+            {center}
+            {appearance_inc_button(field)}
+        }
+    }
+}
+
 pub(super) fn appearance_row(label: &str, value: u8, field: AppearanceField) -> Element {
     rsx! {
         r#frame {

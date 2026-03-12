@@ -108,6 +108,7 @@ pub fn point_in_triangle(
 }
 
 /// Build a dark-background composite buffer (comp_size x comp_size RGBA).
+#[allow(dead_code)]
 pub fn build_dark_composite(comp_size: usize) -> Vec<u8> {
     let mut composite = vec![0u8; comp_size * comp_size * 4];
     for i in 0..(comp_size * comp_size) {

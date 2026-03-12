@@ -5,8 +5,8 @@ use bevy::prelude::*;
 
 use crate::game_state::GameState;
 use crate::minimap_render::{
-    blit_image, build_dark_composite, create_arrow_image, create_blank_image, create_border_image,
-    crop_with_circle, draw_dot, render_tile_image,
+    blit_image, create_arrow_image, create_blank_image, create_border_image, crop_with_circle,
+    draw_dot, render_tile_image,
 };
 use crate::terrain_heightmap::TerrainHeightmap;
 
@@ -21,6 +21,30 @@ pub struct MinimapState {
     pub tile_images: HashMap<(u32, u32), Handle<Image>>,
     /// Track which tiles we have already generated images for.
     generated: HashSet<(u32, u32)>,
+}
+
+/// Tracks last minimap pixel position to skip recomposite when unchanged.
+#[derive(Resource)]
+struct LastMinimapPixel {
+    px_x: usize,
+    px_y: usize,
+    tile_row: u32,
+    tile_col: u32,
+    tile_generation: usize,
+    composite_buf: Vec<u8>,
+}
+
+impl Default for LastMinimapPixel {
+    fn default() -> Self {
+        Self {
+            px_x: usize::MAX,
+            px_y: usize::MAX,
+            tile_row: u32::MAX,
+            tile_col: u32::MAX,
+            tile_generation: 0,
+            composite_buf: Vec::new(),
+        }
+    }
 }
 
 /// Holds the composite image handle displayed on screen.
@@ -57,37 +81,42 @@ pub struct MinimapHud;
 
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
-        let in_world = in_state(GameState::InWorld);
         app.init_resource::<MinimapState>()
-            .add_systems(
-                Startup,
-                (
-                    spawn_minimap_display,
-                    spawn_minimap_border,
-                    spawn_minimap_arrow,
-                    spawn_zone_name,
-                    spawn_coord_text,
-                ),
-            )
-            .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
-            .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
-            .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
-            .add_systems(
-                Update,
-                update_minimap_composite
-                    .after(generate_tile_textures)
-                    .run_if(in_world.clone()),
-            )
-            .add_systems(
-                Update,
-                draw_entity_dots
-                    .after(update_minimap_composite)
-                    .run_if(in_world.clone()),
-            )
-            .add_systems(Update, update_coord_text.run_if(in_world.clone()))
-            .add_systems(Update, update_zone_name.run_if(in_world.clone()))
-            .add_systems(Update, rotate_minimap.run_if(in_world));
+            .init_resource::<LastMinimapPixel>();
+        register_minimap_systems(app);
     }
+}
+
+fn register_minimap_systems(app: &mut App) {
+    let in_world = in_state(GameState::InWorld);
+    app.add_systems(
+        Startup,
+        (
+            spawn_minimap_display,
+            spawn_minimap_border,
+            spawn_minimap_arrow,
+            spawn_zone_name,
+            spawn_coord_text,
+        ),
+    )
+    .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
+    .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
+    .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
+    .add_systems(
+        Update,
+        update_minimap_composite
+            .after(generate_tile_textures)
+            .run_if(in_world.clone()),
+    )
+    .add_systems(
+        Update,
+        draw_entity_dots
+            .after(update_minimap_composite)
+            .run_if(in_world.clone()),
+    )
+    .add_systems(Update, update_coord_text.run_if(in_world.clone()))
+    .add_systems(Update, update_zone_name.run_if(in_world.clone()))
+    .add_systems(Update, rotate_minimap.run_if(in_world));
 }
 
 fn show_minimap_hud(mut query: Query<&mut Visibility, With<MinimapHud>>) {
@@ -212,11 +241,13 @@ fn try_load_minimap_blp(tile_x: u32, tile_y: u32) -> Option<Image> {
 }
 
 /// Composite tile images centered on the player, crop and apply circular mask.
+/// Skips recomposite when the player's pixel position and tile set haven't changed.
 fn update_minimap_composite(
     player_q: Query<&Transform, With<crate::camera::Player>>,
     minimap: Res<MinimapState>,
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
+    mut last: ResMut<LastMinimapPixel>,
 ) {
     let Ok(player_tf) = player_q.single() else {
         return;
@@ -228,27 +259,70 @@ fn update_minimap_composite(
     let bx = player_tf.translation.x;
     let bz = player_tf.translation.z;
     let (player_row, player_col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
-
     let comp_size = MINIMAP_COMPOSITE_SIZE as usize;
-    let tile_px = MINIMAP_TILE_SIZE as usize;
-    let mut composite = build_dark_composite(comp_size);
+    let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
 
+    let tile_gen = minimap.generated.len();
+    if px_x == last.px_x
+        && px_y == last.px_y
+        && player_row == last.tile_row
+        && player_col == last.tile_col
+        && tile_gen == last.tile_generation
+    {
+        return;
+    }
+
+    recomposite(
+        &minimap, &images, &mut last, player_row, player_col, comp_size, px_x, px_y,
+    );
+    last.px_x = px_x;
+    last.px_y = px_y;
+    last.tile_row = player_row;
+    last.tile_col = player_col;
+    last.tile_generation = tile_gen;
+
+    if let Some(img) = images.get_mut(&composite_res.handle) {
+        img.data = Some(crop_with_circle(
+            &last.composite_buf,
+            comp_size,
+            px_x,
+            px_y,
+            MINIMAP_DISPLAY_SIZE,
+        ));
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recomposite(
+    minimap: &MinimapState,
+    images: &Assets<Image>,
+    last: &mut LastMinimapPixel,
+    player_row: u32,
+    player_col: u32,
+    comp_size: usize,
+    _px_x: usize,
+    _px_y: usize,
+) {
+    let tile_px = MINIMAP_TILE_SIZE as usize;
+    let needed = comp_size * comp_size * 4;
+    last.composite_buf.resize(needed, 0);
+    // Fill dark background
+    for i in 0..(comp_size * comp_size) {
+        let off = i * 4;
+        last.composite_buf[off] = 20;
+        last.composite_buf[off + 1] = 20;
+        last.composite_buf[off + 2] = 20;
+        last.composite_buf[off + 3] = 255;
+    }
     blit_tiles(
-        &mut composite,
+        &mut last.composite_buf,
         comp_size,
         tile_px,
         player_row,
         player_col,
-        &minimap,
-        &images,
+        minimap,
+        images,
     );
-
-    let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
-    let display = crop_with_circle(&composite, comp_size, px_x, px_y, MINIMAP_DISPLAY_SIZE);
-
-    if let Some(img) = images.get_mut(&composite_res.handle) {
-        img.data = Some(display);
-    }
 }
 
 /// Blit all 3x3 tile images into the composite buffer.

@@ -108,12 +108,30 @@ pub fn load_ground_images(
         .texture_fdids
         .iter()
         .map(|&spec_fdid| {
-            let diffuse_fdid = spec_fdid - 1;
+            let diffuse_fdid = resolve_diffuse_fdid(spec_fdid);
             let blp_path = crate::asset::casc_resolver::ensure_texture(diffuse_fdid)
                 .unwrap_or_else(|| tex_dir.join(format!("{diffuse_fdid}.blp")));
             load_blp_as_terrain_image(images, &blp_path, diffuse_fdid)
         })
         .collect()
+}
+
+/// Resolve specular FDID to its diffuse counterpart via listfile path lookup.
+/// MDID stores specular FDIDs (e.g. `foo_s.blp`); the diffuse is `foo.blp`
+/// which can have a completely different FDID. Falls back to spec_fdid - 1.
+fn resolve_diffuse_fdid(spec_fdid: u32) -> u32 {
+    if let Some(spec_path) = game_engine::listfile::lookup_fdid(spec_fdid) {
+        let diffuse_path = spec_path
+            .strip_suffix("_s.blp")
+            .or_else(|| spec_path.strip_suffix("_S.blp"))
+            .map(|base| format!("{base}.blp"));
+        if let Some(dp) = diffuse_path
+            && let Some(fdid) = game_engine::listfile::lookup_path(&dp)
+        {
+            return fdid;
+        }
+    }
+    spec_fdid - 1
 }
 
 fn load_blp_as_terrain_image(

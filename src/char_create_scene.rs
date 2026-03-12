@@ -16,7 +16,11 @@ use crate::creature_display;
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_scene;
+use crate::m2_spawn::GeosetMesh;
 use crate::scene_setup::DEFAULT_M2;
+use game_engine::asset::char_texture::CharTextureData;
+use game_engine::customization_data::{CustomizationDb, OptionType};
+use shared::components::CharacterAppearance;
 
 #[derive(Component)]
 struct CharCreateScene;
@@ -35,6 +39,8 @@ struct DisplayedModels {
     active_sex: u8,
     /// (sex, entity) pairs for spawned models.
     models: Vec<(u8, Entity)>,
+    /// Last-applied appearance (to detect changes).
+    last_appearance: Option<CharacterAppearance>,
 }
 
 #[derive(Component)]
@@ -58,7 +64,7 @@ impl Plugin for CharCreateScenePlugin {
         app.add_systems(OnEnter(GameState::CharCreate), setup_scene);
         app.add_systems(
             Update,
-            (sync_model, orbit_camera).run_if(in_state(GameState::CharCreate)),
+            (sync_model, sync_appearance, orbit_camera).run_if(in_state(GameState::CharCreate)),
         );
         app.add_systems(OnExit(GameState::CharCreate), teardown_scene);
     }
@@ -251,6 +257,7 @@ fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
     }
     displayed.models.clear();
     displayed.race = None;
+    displayed.last_appearance = None;
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -327,6 +334,143 @@ fn update_visibility(model_vis: &mut Query<(&ModelSex, &mut Visibility)>, active
         } else {
             Visibility::Hidden
         };
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sync_appearance(
+    state: Option<Res<CharCreateState>>,
+    cust_db: Res<CustomizationDb>,
+    char_tex: Res<CharTextureData>,
+    mut displayed: ResMut<DisplayedModels>,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
+    mut visibility_query: Query<&mut Visibility>,
+    material_query: Query<(Entity, &MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+) {
+    let Some(state) = state else { return };
+    let appearance = state.appearance;
+    if displayed.last_appearance.as_ref() == Some(&appearance)
+        && displayed.race == Some(state.selected_race)
+    {
+        return;
+    }
+    displayed.last_appearance = Some(appearance);
+
+    let active_entity = displayed
+        .models
+        .iter()
+        .find(|(sex, _)| *sex == state.selected_sex)
+        .map(|(_, e)| *e);
+    let Some(root) = active_entity else { return };
+
+    apply_body_texture(
+        &state,
+        &cust_db,
+        &char_tex,
+        root,
+        &mut images,
+        &mut materials,
+        &material_query,
+    );
+    apply_geoset_visibility(&state, &cust_db, root, &geoset_query, &mut visibility_query);
+}
+
+fn apply_body_texture(
+    state: &CharCreateState,
+    cust_db: &CustomizationDb,
+    char_tex: &CharTextureData,
+    root: Entity,
+    images: &mut Assets<Image>,
+    materials: &mut Assets<StandardMaterial>,
+    material_query: &Query<(Entity, &MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+) {
+    let all_materials = collect_appearance_materials(state, cust_db);
+    if all_materials.is_empty() {
+        return;
+    }
+    let Some(layout_id) = cust_db.layout_id(state.selected_race, state.selected_sex) else {
+        return;
+    };
+    let Some((pixels, w, h)) = char_tex.composite(&all_materials, layout_id) else {
+        return;
+    };
+    let img = crate::rgba_image(pixels, w, h);
+    let img_handle = images.add(img);
+    for (_, mat_handle, child_of) in material_query.iter() {
+        if child_of.parent() != root {
+            continue;
+        }
+        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+            mat.base_color_texture = Some(img_handle.clone());
+        }
+    }
+}
+
+fn collect_appearance_materials(
+    state: &CharCreateState,
+    cust_db: &CustomizationDb,
+) -> Vec<(u16, u32)> {
+    let (race, sex) = (state.selected_race, state.selected_sex);
+    let fields = [
+        (OptionType::SkinColor, state.appearance.skin_color),
+        (OptionType::Face, state.appearance.face),
+        (OptionType::HairStyle, state.appearance.hair_style),
+        (OptionType::HairColor, state.appearance.hair_color),
+        (OptionType::FacialHair, state.appearance.facial_style),
+    ];
+    let mut all = Vec::new();
+    for (opt_type, index) in fields {
+        if let Some(choice) = cust_db.get_choice(race, sex, opt_type, index) {
+            all.extend_from_slice(&choice.materials);
+        }
+    }
+    all
+}
+
+fn apply_geoset_visibility(
+    state: &CharCreateState,
+    cust_db: &CustomizationDb,
+    root: Entity,
+    geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
+    visibility_query: &mut Query<&mut Visibility>,
+) {
+    let (race, sex) = (state.selected_race, state.selected_sex);
+    let mut active_geosets: Vec<(u16, u16)> = Vec::new();
+    let fields = [
+        (OptionType::HairStyle, state.appearance.hair_style),
+        (OptionType::FacialHair, state.appearance.facial_style),
+    ];
+    for (opt_type, index) in fields {
+        if let Some(choice) = cust_db.get_choice(race, sex, opt_type, index) {
+            active_geosets.extend_from_slice(&choice.geosets);
+        }
+    }
+
+    // Collect geoset types that have active selections
+    let active_types: Vec<u16> = active_geosets.iter().map(|(t, _)| *t).collect();
+
+    for (entity, geoset_mesh, child_of) in geoset_query.iter() {
+        if child_of.parent() != root {
+            continue;
+        }
+        let group = geoset_mesh.0 / 100;
+        let variant = geoset_mesh.0 % 100;
+        // Only control geosets in groups that have active selections
+        if !active_types.contains(&group) {
+            continue;
+        }
+        let visible = active_geosets
+            .iter()
+            .any(|(t, id)| *t == group && *id == variant);
+        if let Ok(mut vis) = visibility_query.get_mut(entity) {
+            *vis = if visible {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
+        }
     }
 }
 

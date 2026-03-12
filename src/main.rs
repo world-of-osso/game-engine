@@ -1,14 +1,20 @@
-use std::collections::VecDeque;
-use std::path::PathBuf;
-use std::time::Duration;
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
-use bevy::asset::RenderAssetUsages;
-use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
-use bevy::pbr::MaterialPlugin;
-use bevy::prelude::*;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
-use bevy::window::WindowPlugin;
+use bevy::{
+    asset::RenderAssetUsages,
+    dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
+    pbr::MaterialPlugin,
+    prelude::*,
+    render::{
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+        view::screenshot::{Screenshot, ScreenshotCaptured},
+    },
+    window::WindowPlugin,
+};
 use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
@@ -28,6 +34,7 @@ mod char_select;
 mod char_select_scene;
 mod char_select_scene_tree;
 mod character_models;
+mod collision;
 mod creature_display;
 mod equipment;
 mod game_state;
@@ -45,6 +52,7 @@ mod networking_auth;
 mod networking_messages;
 mod particle;
 mod scene_setup;
+mod screen_auto_login;
 mod sky;
 mod sky_lightdata;
 mod sky_material;
@@ -63,6 +71,7 @@ mod wow_cursor;
 
 use animation::AnimationPlugin;
 use camera::WowCameraPlugin;
+use collision::CollisionPlugin;
 use scene_setup::{setup_default_world_scene, setup_explicit_asset_scene};
 use terrain::AdtStreamingPlugin;
 
@@ -99,6 +108,7 @@ struct ParsedArgs {
     startup_actions: Vec<game_engine::ui::automation::UiAutomationAction>,
     server_addr: Option<(std::net::SocketAddr, bool)>,
     initial_state: Option<game_state::GameState>,
+    auto_enter_world: bool,
 }
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
@@ -111,18 +121,18 @@ fn parse_run_args(args: &[String]) -> ParsedArgs {
     };
     let mut server_addr = parse_server_arg(args);
     let mut initial_state = parse_state_arg(args);
-    // --screen charselect: auto-login with admin/admin on localhost
-    if initial_state == Some(game_state::GameState::CharSelect) && startup_actions.is_empty() {
-        if server_addr.is_none() {
-            server_addr = Some(("127.0.0.1:5000".parse().unwrap(), false));
-        }
-        initial_state = Some(game_state::GameState::Login);
-        startup_actions = charselect_auto_login_actions();
-    }
+    let mut auto_enter_world = false;
+    screen_auto_login::apply(
+        &mut startup_actions,
+        &mut server_addr,
+        &mut initial_state,
+        &mut auto_enter_world,
+    );
     ParsedArgs {
         startup_actions,
         server_addr,
         initial_state,
+        auto_enter_world,
     }
 }
 
@@ -147,6 +157,9 @@ fn run_app(
         screenshot,
     );
     insert_startup_resources(&mut app, args, parsed.startup_actions);
+    if parsed.auto_enter_world {
+        app.insert_resource(char_select::AutoEnterWorld);
+    }
     app.run();
 }
 
@@ -164,25 +177,18 @@ fn insert_startup_resources(
         app.insert_resource(char_select::PreselectedCharName(name));
     }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
+    app.insert_resource(game_engine::customization_data::CustomizationDb::load(
+        Path::new("data"),
+    ));
+    app.insert_resource(game_engine::asset::char_texture::CharTextureData::load(
+        Path::new("data"),
+    ));
     let warband = warband_scene::WarbandScenes::load();
     if let Some(first) = warband.scenes.first() {
         app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });
     }
     app.insert_resource(warband);
     game_engine::listfile::preload();
-}
-
-fn charselect_auto_login_actions() -> Vec<game_engine::ui::automation::UiAutomationAction> {
-    use game_engine::ui::automation::UiAutomationAction;
-    vec![
-        UiAutomationAction::WaitForFrame("UsernameInput".to_string(), 5.0),
-        UiAutomationAction::ClickFrame("UsernameInput".to_string()),
-        UiAutomationAction::TypeText("admin".to_string()),
-        UiAutomationAction::ClickFrame("PasswordInput".to_string()),
-        UiAutomationAction::TypeText("admin".to_string()),
-        UiAutomationAction::ClickFrame("ConnectButton".to_string()),
-        UiAutomationAction::WaitForState(game_state::GameState::CharSelect, 10.0),
-    ]
 }
 
 fn default_plugins() -> bevy::app::PluginGroupBuilder {
@@ -204,6 +210,7 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(IpcPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
+        .add_plugins(CollisionPlugin)
         .add_plugins(game_engine::culling::CullingPlugin)
         .add_plugins(AdtStreamingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
@@ -563,18 +570,46 @@ fn dump_tree_and_exit(
     exit.write(AppExit::Success);
 }
 
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn dump_scene_and_exit(
     tree: Option<Res<game_engine::scene_tree::SceneTree>>,
     transforms: Query<&Transform>,
+    tree_query: Query<(
+        Entity,
+        Option<&Name>,
+        Option<&Children>,
+        Option<&Visibility>,
+        &Transform,
+    )>,
+    parent_query: Query<&ChildOf>,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
+    state: Res<State<game_state::GameState>>,
+    time: Res<Time>,
+    mut entered_at: Local<Option<f64>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
         return;
     }
-    let Some(tree) = tree else { return };
-    let text = game_engine::dump::build_scene_tree(&tree, &transforms);
-    println!("{text}");
+    if *state.get() != game_state::GameState::InWorld {
+        return;
+    }
+    if let Some(tree) = tree {
+        println!(
+            "{}",
+            game_engine::dump::build_scene_tree(&tree, &transforms)
+        );
+        exit.write(AppExit::Success);
+        return;
+    }
+    let now = time.elapsed_secs_f64();
+    if now - *entered_at.get_or_insert(now) < 5.0 {
+        return;
+    }
+    println!(
+        "{}",
+        game_engine::dump::build_tree(&tree_query, &parent_query, None)
+    );
     exit.write(AppExit::Success);
 }
 
@@ -679,29 +714,18 @@ mod tests {
     }
 
     #[test]
-    fn asset_path_skips_state_and_screenshot_output() {
-        let parsed = parse_asset_path_from_args(&args(&[
-            "--state",
-            "login",
-            "screenshot",
-            "/tmp/codex/test.webp",
-            "--server",
-            "127.0.0.1:25565",
-        ]));
-        assert_eq!(parsed, None);
-    }
-
-    #[test]
-    fn asset_path_skips_screen_alias_and_screenshot_output() {
-        let parsed = parse_asset_path_from_args(&args(&[
-            "--screen",
-            "charselect",
-            "screenshot",
-            "/tmp/codex/test.webp",
-            "--server",
-            "127.0.0.1:25565",
-        ]));
-        assert_eq!(parsed, None);
+    fn asset_path_skips_flags_and_screenshot_output() {
+        for flag in ["--state", "--screen"] {
+            let parsed = parse_asset_path_from_args(&args(&[
+                flag,
+                "login",
+                "screenshot",
+                "/tmp/codex/test.webp",
+                "--server",
+                "127.0.0.1:25565",
+            ]));
+            assert_eq!(parsed, None, "flag {flag} should not produce asset path");
+        }
     }
 
     #[test]

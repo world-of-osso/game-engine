@@ -120,7 +120,7 @@ fn decompress_mcal_rle(src: &[u8]) -> Result<Vec<u8>, String> {
         let header = src[i];
         i += 1;
         let fill = (header & 0x80) != 0;
-        let count = (header & 0x7f) as usize + 1;
+        let count = (header & 0x7f) as usize;
         if fill {
             rle_fill(&mut out, src, &mut i, count, EXPECTED)?;
         } else {

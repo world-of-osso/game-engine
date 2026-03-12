@@ -179,6 +179,7 @@ fn color_to_vec4(c: Color) -> Vec4 {
     Vec4::new(lin.red, lin.green, lin.blue, 1.0)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_sky_colors(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
@@ -187,7 +188,12 @@ fn update_sky_colors(
     mut dir_lights: Query<&mut DirectionalLight>,
     mut ambient_q: Query<&mut AmbientLight>,
     mut water_materials: ResMut<Assets<crate::water_material::WaterMaterial>>,
+    mut last_minutes: Local<f32>,
 ) {
+    if (game_time.minutes - *last_minutes).abs() < 0.01 {
+        return;
+    }
+    *last_minutes = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
     update_sky_dome_material(&sky_dome_q, &mut sky_materials, &colors);
     sync_lights(&mut dir_lights, &mut ambient_q, &colors);
@@ -249,7 +255,12 @@ fn sun_rotation(minutes: f32) -> Quat {
 fn update_sun_direction(
     game_time: Res<GameTime>,
     mut dir_lights: Query<(&mut Transform, &mut DirectionalLight)>,
+    mut last_minutes: Local<f32>,
 ) {
+    if (game_time.minutes - *last_minutes).abs() < 0.01 {
+        return;
+    }
+    *last_minutes = game_time.minutes;
     let elev = sun_elevation(game_time.minutes);
     let rotation = sun_rotation(game_time.minutes);
     let intensity = if elev > 0.0 {
@@ -271,7 +282,12 @@ fn update_fog(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
     mut fog_q: Query<&mut DistanceFog>,
+    mut last_minutes: Local<f32>,
 ) {
+    if (game_time.minutes - *last_minutes).abs() < 0.01 {
+        return;
+    }
+    *last_minutes = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
     for mut fog in fog_q.iter_mut() {
         fog.color = colors.sky_smog;
@@ -439,7 +455,15 @@ fn format_game_clock(total: f32) -> String {
     format!("{hours:02}:{mins:02}")
 }
 
-fn update_time_display(game_time: Res<GameTime>, mut query: Query<&mut Text, With<TimeDisplay>>) {
+fn update_time_display(
+    game_time: Res<GameTime>,
+    mut query: Query<&mut Text, With<TimeDisplay>>,
+    mut last_minutes: Local<f32>,
+) {
+    if (game_time.minutes - *last_minutes).abs() < 0.5 {
+        return;
+    }
+    *last_minutes = game_time.minutes;
     let clock = format_game_clock(game_time.minutes);
     for mut text in &mut query {
         **text = clock.clone();
@@ -472,43 +496,39 @@ fn time_speed_controls(keys: Res<ButtonInput<KeyCode>>, mut game_time: ResMut<Ga
 pub struct SkyPlugin;
 
 fn register_inworld_systems(app: &mut App) {
+    let iw = in_state(GameState::InWorld);
+    app.add_systems(Update, advance_game_time.run_if(iw.clone()));
+    register_sky_visual_systems(app);
+    app.add_systems(Update, time_speed_controls.run_if(iw));
+}
+
+fn register_sky_visual_systems(app: &mut App) {
+    let iw = in_state(GameState::InWorld);
     app.add_systems(
-        Update,
-        advance_game_time.run_if(in_state(GameState::InWorld)),
-    )
-    .add_systems(
         Update,
         update_sky_colors
             .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld)),
+            .run_if(iw.clone()),
     )
     .add_systems(
         Update,
         update_sun_direction
             .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld)),
+            .run_if(iw.clone()),
     )
     .add_systems(
         Update,
-        update_fog
-            .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld)),
+        update_fog.after(advance_game_time).run_if(iw.clone()),
     )
     .add_systems(
         Update,
         update_sky_env_map
             .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld)),
+            .run_if(iw.clone()),
     )
     .add_systems(
         Update,
-        update_time_display
-            .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld)),
-    )
-    .add_systems(
-        Update,
-        time_speed_controls.run_if(in_state(GameState::InWorld)),
+        update_time_display.after(advance_game_time).run_if(iw),
     );
 }
 

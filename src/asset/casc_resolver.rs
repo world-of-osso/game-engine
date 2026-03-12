@@ -41,6 +41,11 @@ pub fn ensure_texture(fdid: u32) -> Option<PathBuf> {
     ensure_file(fdid, "data/textures", "blp")
 }
 
+/// Ensure an M2 model exists at `data/models/{fdid}.m2`.
+pub fn ensure_model(fdid: u32) -> Option<PathBuf> {
+    ensure_file(fdid, "data/models", "m2")
+}
+
 fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
     let path = PathBuf::from(dir).join(format!("{fdid}.{ext}"));
     if path.exists() {

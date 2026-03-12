@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::time::Duration;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -287,7 +286,7 @@ fn spawn_replicated_player(
         player.name, pos.x, pos.y, pos.z
     );
     let position = Vec3::new(pos.x, pos.y, pos.z);
-    let yaw = rotation.map_or(0.0, |r| r.y);
+    let yaw = rotation.map_or(std::f32::consts::PI, |r| r.y);
     let (capsule, material) = build_player_capsule(&mut meshes, &mut materials, is_local);
     let mut ecmds = commands.entity(entity);
     ecmds.insert((
@@ -304,6 +303,7 @@ fn spawn_replicated_player(
             Player,
             MovementState::default(),
             CharacterFacing::default(),
+            crate::collision::CharacterPhysics::default(),
         ));
     }
 }
@@ -365,16 +365,7 @@ fn spawn_replicated_npc(
     let Ok((pos, npc, rotation, model_display)) = query.get(entity) else {
         return;
     };
-    let position = Vec3::new(pos.x, pos.y, pos.z);
-    let yaw = rotation.map_or(0.0, |r| r.y);
-    let transform = Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw));
-    commands.entity(entity).insert((
-        transform,
-        Visibility::default(),
-        RemoteEntity,
-        InterpolationTarget { target: position },
-        RotationTarget { yaw },
-    ));
+    insert_npc_transform(&mut commands, entity, pos, rotation);
     let mut assets = crate::m2_spawn::SpawnAssets {
         meshes: &mut npc_assets.meshes,
         materials: &mut npc_assets.materials,
@@ -402,6 +393,24 @@ fn spawn_replicated_npc(
     );
 }
 
+fn insert_npc_transform(
+    commands: &mut Commands,
+    entity: Entity,
+    pos: &NetPosition,
+    rotation: Option<&NetRotation>,
+) {
+    let position = Vec3::new(pos.x, pos.y, pos.z);
+    let yaw = rotation.map_or(0.0, |r| r.y);
+    let transform = Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw));
+    commands.entity(entity).insert((
+        transform,
+        Visibility::default(),
+        RemoteEntity,
+        InterpolationTarget { target: position },
+        RotationTarget { yaw },
+    ));
+}
+
 /// Try to resolve display_id → FDID → M2 file and attach meshes. Returns true on success.
 fn try_spawn_npc_model(
     commands: &mut Commands,
@@ -419,12 +428,10 @@ fn try_spawn_npc_model(
     let skin_fdids = display_map
         .and_then(|dm| dm.get_skin_fdids(display_id))
         .unwrap_or([0, 0, 0]);
-    let m2_path_str = format!("data/models/{fdid}.m2");
-    let m2_path = Path::new(&m2_path_str);
-    if !m2_path.exists() {
+    let Some(m2_path) = crate::asset::casc_resolver::ensure_model(fdid) else {
         return false;
-    }
-    crate::m2_spawn::spawn_m2_on_entity(commands, assets, m2_path, entity, &skin_fdids)
+    };
+    crate::m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, entity, &skin_fdids)
 }
 
 /// Attach a capsule mesh as fallback for NPCs without M2 models.

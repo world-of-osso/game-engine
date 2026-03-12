@@ -4,6 +4,7 @@ use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
 
+use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -46,11 +47,7 @@ pub enum MoveDirection {
     Right,
 }
 
-/// Total jump duration in seconds (up + down).
-const JUMP_DURATION: f32 = 0.8;
-/// Peak height of jump arc in world units.
-const JUMP_HEIGHT: f32 = 2.5;
-/// Base Y position (ground level) for the player.
+/// Base Y position (ground level) for the player (when no terrain is loaded).
 const GROUND_Y: f32 = 0.0;
 
 /// Signals current movement direction, run/walk toggle, and jump state.
@@ -59,8 +56,6 @@ pub struct MovementState {
     pub direction: MoveDirection,
     pub running: bool,
     pub jumping: bool,
-    /// Elapsed time into the jump arc (seconds).
-    pub jump_elapsed: f32,
 }
 
 impl Default for MovementState {
@@ -69,7 +64,6 @@ impl Default for MovementState {
             direction: MoveDirection::None,
             running: true, // WoW defaults to running
             jumping: false,
-            jump_elapsed: 0.0,
         }
     }
 }
@@ -82,7 +76,9 @@ pub struct CharacterFacing {
 
 impl Default for CharacterFacing {
     fn default() -> Self {
-        Self { yaw: 0.0 }
+        Self {
+            yaw: std::f32::consts::PI,
+        }
     }
 }
 
@@ -266,31 +262,22 @@ fn compute_movement_input(
     (direction, anim_dir)
 }
 
-/// Update jump arc height or land when duration expires.
-fn update_jump_arc(
-    movement: &mut MovementState,
-    transform: &mut Transform,
-    dt: f32,
-    ground_y: f32,
-) {
-    movement.jump_elapsed += dt;
-    if movement.jump_elapsed >= JUMP_DURATION {
-        transform.translation.y = ground_y;
-        movement.jumping = false;
-    } else {
-        let t = movement.jump_elapsed / JUMP_DURATION;
-        transform.translation.y = ground_y + JUMP_HEIGHT * 4.0 * t * (1.0 - t);
-    }
-}
-
 fn player_movement(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     terrain: Option<Res<TerrainHeightmap>>,
-    mut player_q: Query<(&mut Transform, &mut MovementState, &CharacterFacing), With<Player>>,
+    mut player_q: Query<
+        (
+            &mut Transform,
+            &mut MovementState,
+            &CharacterFacing,
+            &mut CharacterPhysics,
+        ),
+        With<Player>,
+    >,
 ) {
-    let Ok((mut transform, mut movement, facing)) = player_q.single_mut() else {
+    let Ok((mut transform, mut movement, facing, mut physics)) = player_q.single_mut() else {
         return;
     };
 
@@ -301,33 +288,52 @@ fn player_movement(
         movement.running = !movement.running;
     }
 
-    if keys.just_pressed(KeyCode::Space) && !movement.jumping {
-        movement.jumping = true;
-        movement.jump_elapsed = 0.0;
-    }
-
     let speed = if movement.running {
         RUN_SPEED
     } else {
         WALK_SPEED
     };
-    if direction.length_squared() > 0.0 {
-        let dir = direction.normalize();
-        transform.translation += dir * speed * time.delta_secs();
-    }
-
-    let ground_y = terrain
-        .as_ref()
-        .and_then(|t| t.height_at(transform.translation.x, transform.translation.z))
-        .unwrap_or(GROUND_Y);
-
-    if movement.jumping {
-        update_jump_arc(&mut movement, &mut transform, time.delta_secs(), ground_y);
-    } else {
-        transform.translation.y = ground_y;
-    }
+    apply_horizontal_movement(
+        &mut transform,
+        &mut movement,
+        &mut physics,
+        &keys,
+        direction,
+        speed,
+        time.delta_secs(),
+        terrain.as_deref(),
+    );
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_horizontal_movement(
+    transform: &mut Transform,
+    movement: &mut MovementState,
+    physics: &mut CharacterPhysics,
+    keys: &ButtonInput<KeyCode>,
+    direction: Vec3,
+    speed: f32,
+    dt: f32,
+    terrain: Option<&TerrainHeightmap>,
+) {
+    if direction.length_squared() > 0.0 {
+        let dir = direction.normalize();
+        let proposed = transform.translation + dir * speed * dt;
+        transform.translation = match terrain {
+            Some(t) => collision::validate_movement_slope(transform.translation, proposed, t),
+            None => proposed,
+        };
+    }
+
+    if keys.just_pressed(KeyCode::Space) && physics.grounded && !movement.jumping {
+        movement.jumping = true;
+        physics.vertical_velocity = collision::JUMP_IMPULSE;
+    }
+    if physics.grounded && movement.jumping && physics.vertical_velocity <= 0.0 {
+        movement.jumping = false;
+    }
 }
 
 fn cursor_grab(

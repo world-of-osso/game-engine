@@ -5,6 +5,10 @@ use bevy::prelude::*;
 
 use crate::asset;
 
+/// Component tagging a mesh entity with its M2 geoset mesh_part_id.
+#[derive(Component)]
+pub struct GeosetMesh(pub u16);
+
 /// Grouped asset params for M2 spawning.
 pub struct SpawnAssets<'a> {
     pub meshes: &'a mut Assets<Mesh>,
@@ -47,12 +51,24 @@ pub fn attach_m2_batches(
 ) -> SkinningResult {
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
+        let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
         let mat = load_batch_material(&batch, i, assets.images, assets.materials);
-        spawn_skinned_mesh(commands, assets.meshes, mat, batch.mesh, root, &skinning, i);
+        spawn_skinned_mesh(
+            commands,
+            assets.meshes,
+            mat,
+            batch.mesh,
+            root,
+            &skinning,
+            i,
+            batch.mesh_part_id,
+            visible,
+        );
     }
     skinning
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_skinned_mesh(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -61,11 +77,20 @@ fn spawn_skinned_mesh(
     parent: Entity,
     skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
     batch_index: usize,
+    mesh_part_id: u16,
+    visible: bool,
 ) {
+    let vis = if visible {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
         Name::new(format!("Mesh[{batch_index}]")),
+        GeosetMesh(mesh_part_id),
+        vis,
     ));
     cmd.set_parent_in_place(parent);
     if let Some((inv_bp, joints)) = skinning {

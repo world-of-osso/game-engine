@@ -19,10 +19,8 @@ use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
 use crate::login_screen_helpers as helpers;
-use game_engine::char_create_data::{
-    CLASSES, first_available_class, max_faces, max_facial_styles, max_hair_colors, max_hair_styles,
-    max_skin_colors, race_can_be_class,
-};
+use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
+use game_engine::customization_data::{CustomizationDb, OptionType};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, set_button_hovered,
@@ -198,6 +196,7 @@ fn char_create_mouse_input(
     mut focus: ResMut<CharCreateFocus>,
     mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
     mut next_state: ResMut<NextState<GameState>>,
+    cust_db: Res<CustomizationDb>,
 ) {
     let Some(cc) = cc_ui.as_ref() else { return };
     if !buttons.just_pressed(MouseButton::Left) {
@@ -226,6 +225,7 @@ fn char_create_mouse_input(
             &mut next_state,
             &ui.registry,
             cc,
+            &cust_db,
         );
     } else {
         focus.0 = None;
@@ -261,6 +261,7 @@ fn dispatch_action(
     next_state: &mut NextState<GameState>,
     reg: &FrameRegistry,
     cc: &CharCreateUi,
+    cust_db: &CustomizationDb,
 ) {
     let Some(action) = CharCreateAction::parse(action_str) else {
         focus.0 = None;
@@ -272,8 +273,8 @@ fn dispatch_action(
         CharCreateAction::ToggleSex => apply_sex_toggle(state),
         CharCreateAction::NextMode => state.mode = CharCreateMode::Customize,
         CharCreateAction::Back => handle_back(state, next_state),
-        CharCreateAction::AppearanceInc(f) => adjust_appearance(state, f, 1),
-        CharCreateAction::AppearanceDec(f) => adjust_appearance(state, f, -1),
+        CharCreateAction::AppearanceInc(f) => adjust_appearance(state, f, 1, cust_db),
+        CharCreateAction::AppearanceDec(f) => adjust_appearance(state, f, -1, cust_db),
         CharCreateAction::CreateConfirm => {
             send_create_request(state, reg, cc, create_senders);
             if let Some(id) = cc.name_input {
@@ -309,23 +310,27 @@ fn handle_back(state: &mut CharCreateState, next_state: &mut NextState<GameState
     }
 }
 
-fn adjust_appearance(state: &mut CharCreateState, field: AppearanceField, delta: i8) {
+fn adjust_appearance(
+    state: &mut CharCreateState,
+    field: AppearanceField,
+    delta: i8,
+    db: &CustomizationDb,
+) {
     let (race, sex) = (state.selected_race, state.selected_sex);
-    let (val, max) = match field {
-        AppearanceField::SkinColor => {
-            (&mut state.appearance.skin_color, max_skin_colors(race, sex))
-        }
-        AppearanceField::Face => (&mut state.appearance.face, max_faces(race, sex)),
-        AppearanceField::HairStyle => {
-            (&mut state.appearance.hair_style, max_hair_styles(race, sex))
-        }
-        AppearanceField::HairColor => {
-            (&mut state.appearance.hair_color, max_hair_colors(race, sex))
-        }
-        AppearanceField::FacialStyle => (
-            &mut state.appearance.facial_style,
-            max_facial_styles(race, sex),
-        ),
+    let opt_type = match field {
+        AppearanceField::SkinColor => OptionType::SkinColor,
+        AppearanceField::Face => OptionType::Face,
+        AppearanceField::HairStyle => OptionType::HairStyle,
+        AppearanceField::HairColor => OptionType::HairColor,
+        AppearanceField::FacialStyle => OptionType::FacialHair,
+    };
+    let max = db.choice_count(race, sex, opt_type);
+    let val = match field {
+        AppearanceField::SkinColor => &mut state.appearance.skin_color,
+        AppearanceField::Face => &mut state.appearance.face,
+        AppearanceField::HairStyle => &mut state.appearance.hair_style,
+        AppearanceField::HairColor => &mut state.appearance.hair_color,
+        AppearanceField::FacialStyle => &mut state.appearance.facial_style,
     };
     if max == 0 {
         return;
@@ -449,10 +454,11 @@ fn char_create_update_visuals(
     state: Option<Res<CharCreateState>>,
     focus: Res<CharCreateFocus>,
     mut screen_res: Option<ResMut<CharCreateScreenWrap>>,
+    cust_db: Res<CustomizationDb>,
 ) {
     let Some(cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_ref() else { return };
-    sync_screen_state(&mut screen_res, &mut ui.registry, state);
+    sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db);
     if let Some(id) = cc.name_input {
         sync_editbox_focus(
             &mut ui.registry,
@@ -467,17 +473,18 @@ fn sync_screen_state(
     screen_res: &mut Option<ResMut<CharCreateScreenWrap>>,
     reg: &mut FrameRegistry,
     state: &CharCreateState,
+    cust_db: &CustomizationDb,
 ) {
     let Some(res) = screen_res.as_mut() else {
         return;
     };
     let inner = &mut res.0;
-    let new_state = build_ui_state(state);
+    let new_state = build_ui_state(state, cust_db);
     inner.shared.insert(new_state);
     inner.screen.sync(&inner.shared, reg);
 }
 
-fn build_ui_state(state: &CharCreateState) -> CharCreateUiState {
+fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCreateUiState {
     let class_availability: Vec<_> = CLASSES
         .iter()
         .map(|c| {
@@ -489,6 +496,7 @@ fn build_ui_state(state: &CharCreateState) -> CharCreateUiState {
             )
         })
         .collect();
+    let (race, sex) = (state.selected_race, state.selected_sex);
     CharCreateUiState {
         mode: state.mode,
         selected_race: state.selected_race,
@@ -499,6 +507,18 @@ fn build_ui_state(state: &CharCreateState) -> CharCreateUiState {
         hair_style: state.appearance.hair_style,
         hair_color: state.appearance.hair_color,
         facial_style: state.appearance.facial_style,
+        skin_color_swatch: cust_db.swatch_color(
+            race,
+            sex,
+            OptionType::SkinColor,
+            state.appearance.skin_color,
+        ),
+        hair_color_swatch: cust_db.swatch_color(
+            race,
+            sex,
+            OptionType::HairColor,
+            state.appearance.hair_color,
+        ),
         name: String::new(),
         error_text: state.error_text.clone(),
         class_availability,

@@ -255,7 +255,7 @@ fn spawn_wmo_groups(
     let mut count = 0u32;
     for (i, group_fdid) in group_fdids.iter().enumerate() {
         let Some(fdid) = group_fdid else { continue };
-        if spawn_wmo_group(commands, assets, root, *fdid, root_entity) {
+        if spawn_wmo_group(commands, assets, root, *fdid, root_entity, i as u16) {
             count += 1;
         } else {
             eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
@@ -346,12 +346,14 @@ fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
 }
 
 /// Parse and spawn one WMO group file as children of the root entity.
+/// Creates a group entity with `WmoGroup` for portal culling, then parents batches under it.
 fn spawn_wmo_group(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
     root: &wmo::WmoRootData,
     group_fdid: u32,
     root_entity: Entity,
+    group_index: u16,
 ) -> bool {
     let group_path = format!("data/models/{group_fdid}.wmo");
     let Ok(data) = std::fs::read(&group_path) else {
@@ -360,6 +362,17 @@ fn spawn_wmo_group(
     let Ok(group) = wmo::load_wmo_group(&data) else {
         return false;
     };
+
+    let bbox = group_bbox(root, group_index);
+    let group_entity = commands
+        .spawn((
+            Name::new(format!("wmo_group_{group_index}")),
+            Transform::default(),
+            Visibility::default(),
+            bbox,
+        ))
+        .id();
+    commands.entity(root_entity).add_child(group_entity);
 
     for batch in group.batches {
         let mat = wmo_batch_material(assets.materials, assets.images, root, batch.material_index);
@@ -371,9 +384,32 @@ fn spawn_wmo_group(
                 Visibility::default(),
             ))
             .id();
-        commands.entity(root_entity).add_child(child);
+        commands.entity(group_entity).add_child(child);
     }
     true
+}
+
+/// Build a `WmoGroup` component from MOGI bounding box data.
+fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling::WmoGroup {
+    use crate::asset::m2::wow_to_bevy;
+    let (bbox_min, bbox_max) = root
+        .group_infos
+        .get(group_index as usize)
+        .map(|info| {
+            let min = wow_to_bevy(info.bbox_min[0], info.bbox_min[1], info.bbox_min[2]);
+            let max = wow_to_bevy(info.bbox_max[0], info.bbox_max[1], info.bbox_max[2]);
+            // wow_to_bevy can flip min/max, so re-sort per axis
+            (
+                Vec3::new(min[0].min(max[0]), min[1].min(max[1]), min[2].min(max[2])),
+                Vec3::new(min[0].max(max[0]), min[1].max(max[1]), min[2].max(max[2])),
+            )
+        })
+        .unwrap_or((Vec3::splat(f32::MIN), Vec3::splat(f32::MAX)));
+    game_engine::culling::WmoGroup {
+        group_index,
+        bbox_min,
+        bbox_max,
+    }
 }
 
 /// Build a Bevy material for a WMO batch.
