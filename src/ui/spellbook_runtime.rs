@@ -9,10 +9,9 @@ use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
 use crate::ui::spellbook_data::{SPELLBOOK_TABS, SpellbookSpell};
 use crate::ui::spellbook_frames::{
-    FrameBuilder, SpellRowExtrasParams, TabRowParams, create_header_panels,
-    create_header_search, create_header_title, create_spell_cooldown_frames,
-    create_spell_list_header, create_spell_passive_badge, create_spell_row_base,
-    create_tab_row, spell_row_color,
+    FrameBuilder, SpellRowExtrasParams, TabRowParams, create_header_panels, create_header_search,
+    create_header_title, create_spell_cooldown_frames, create_spell_list_header,
+    create_spell_passive_badge, create_spell_row_base, create_tab_row, spell_row_color,
 };
 
 const SPELLBOOK_ROOT_NAME: &str = "SpellBookRoot";
@@ -384,7 +383,7 @@ impl SpellbookUiRuntime {
         let mut builder = self.make_builder(registry);
         let (row_id, icon_id, name_id, spell_id_id) =
             create_spell_row_base(&mut builder, root_id, index, spell, row_y, color);
-        drop(builder);
+        let _ = builder;
         self.click_targets.insert(row_id, target);
         self.click_targets.insert(icon_id, target);
         self.click_targets.insert(name_id, target);
@@ -410,7 +409,7 @@ impl SpellbookUiRuntime {
             let mut builder = self.make_builder(registry);
             let badge_id =
                 create_spell_passive_badge(&mut builder, root_id, params.index, params.row_y);
-            drop(builder);
+            let _ = builder;
             self.click_targets.insert(badge_id, target);
         }
         if params.cooldown > 0.0 {
@@ -422,7 +421,7 @@ impl SpellbookUiRuntime {
                 params.row_y,
                 params.cooldown,
             );
-            drop(builder);
+            let _ = builder;
             self.click_targets.insert(overlay_id, target);
             self.click_targets.insert(text_id, target);
         }

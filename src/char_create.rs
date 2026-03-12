@@ -7,9 +7,9 @@ use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
-    AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, ERROR_TEXT,
-    CharCreateAction, CharCreateMode, CharCreateUiState, NEXT_BUTTON, SEX_TOGGLE_BUTTON,
-    char_create_screen,
+    AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT,
+    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON,
+    SEX_TOGGLE_BUTTON, char_create_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui_resource;
@@ -17,12 +17,12 @@ use shared::components::CharacterAppearance;
 use shared::protocol::{AuthChannel, CreateCharacter, CreateCharacterResponse};
 use ui_toolkit::screen::Screen;
 
-use game_engine::char_create_data::{
-    CLASSES, first_available_class, max_facial_styles, max_faces, max_hair_colors, max_hair_styles,
-    max_skin_colors, race_can_be_class,
-};
 use crate::game_state::GameState;
 use crate::login_screen_helpers as helpers;
+use game_engine::char_create_data::{
+    CLASSES, first_available_class, max_faces, max_facial_styles, max_hair_colors, max_hair_styles,
+    max_skin_colors, race_can_be_class,
+};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, set_button_hovered,
@@ -208,7 +208,10 @@ fn char_create_mouse_input(
     };
     let (mx, my) = (cursor.x, cursor.y);
 
-    if let Some(id) = cc.name_input.filter(|&id| hit_active_frame(&ui, id, mx, my)) {
+    if let Some(id) = cc
+        .name_input
+        .filter(|&id| hit_active_frame(&ui, id, mx, my))
+    {
         focus.0 = Some(id);
         return;
     }
@@ -309,11 +312,20 @@ fn handle_back(state: &mut CharCreateState, next_state: &mut NextState<GameState
 fn adjust_appearance(state: &mut CharCreateState, field: AppearanceField, delta: i8) {
     let (race, sex) = (state.selected_race, state.selected_sex);
     let (val, max) = match field {
-        AppearanceField::SkinColor => (&mut state.appearance.skin_color, max_skin_colors(race, sex)),
+        AppearanceField::SkinColor => {
+            (&mut state.appearance.skin_color, max_skin_colors(race, sex))
+        }
         AppearanceField::Face => (&mut state.appearance.face, max_faces(race, sex)),
-        AppearanceField::HairStyle => (&mut state.appearance.hair_style, max_hair_styles(race, sex)),
-        AppearanceField::HairColor => (&mut state.appearance.hair_color, max_hair_colors(race, sex)),
-        AppearanceField::FacialStyle => (&mut state.appearance.facial_style, max_facial_styles(race, sex)),
+        AppearanceField::HairStyle => {
+            (&mut state.appearance.hair_style, max_hair_styles(race, sex))
+        }
+        AppearanceField::HairColor => {
+            (&mut state.appearance.hair_color, max_hair_colors(race, sex))
+        }
+        AppearanceField::FacialStyle => (
+            &mut state.appearance.facial_style,
+            max_facial_styles(race, sex),
+        ),
     };
     if max == 0 {
         return;
@@ -468,7 +480,14 @@ fn sync_screen_state(
 fn build_ui_state(state: &CharCreateState) -> CharCreateUiState {
     let class_availability: Vec<_> = CLASSES
         .iter()
-        .map(|c| (c.id, c.name, c.icon_file, race_can_be_class(state.selected_race, c.id)))
+        .map(|c| {
+            (
+                c.id,
+                c.name,
+                c.icon_file,
+                race_can_be_class(state.selected_race, c.id),
+            )
+        })
         .collect();
     CharCreateUiState {
         mode: state.mode,

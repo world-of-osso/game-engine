@@ -25,28 +25,133 @@ pub struct ClassInfo {
 
 // Classic/TBC race→class availability
 pub static RACES: &[RaceInfo] = &[
-    RaceInfo { id: 1,  name: "Human",     short_name: "Hu", faction: Faction::Alliance, available_classes: &[1, 2, 3, 4, 5, 8, 9] },
-    RaceInfo { id: 2,  name: "Orc",       short_name: "Or", faction: Faction::Horde,    available_classes: &[1, 3, 4, 7, 8, 9] },
-    RaceInfo { id: 3,  name: "Dwarf",     short_name: "Dw", faction: Faction::Alliance, available_classes: &[1, 2, 3, 4, 5] },
-    RaceInfo { id: 4,  name: "Night Elf", short_name: "NE", faction: Faction::Alliance, available_classes: &[1, 3, 4, 5, 11] },
-    RaceInfo { id: 5,  name: "Undead",    short_name: "Ud", faction: Faction::Horde,    available_classes: &[1, 4, 5, 8, 9] },
-    RaceInfo { id: 6,  name: "Tauren",    short_name: "Ta", faction: Faction::Horde,    available_classes: &[1, 3, 7, 11] },
-    RaceInfo { id: 7,  name: "Gnome",     short_name: "Gn", faction: Faction::Alliance, available_classes: &[1, 4, 8, 9] },
-    RaceInfo { id: 8,  name: "Troll",     short_name: "Tr", faction: Faction::Horde,    available_classes: &[1, 3, 4, 5, 7, 8] },
-    RaceInfo { id: 10, name: "Blood Elf", short_name: "BE", faction: Faction::Horde,    available_classes: &[2, 3, 4, 5, 8, 9] },
-    RaceInfo { id: 11, name: "Draenei",   short_name: "Dr", faction: Faction::Alliance, available_classes: &[1, 2, 3, 5, 7, 8] },
+    RaceInfo {
+        id: 1,
+        name: "Human",
+        short_name: "Hu",
+        faction: Faction::Alliance,
+        available_classes: &[1, 2, 3, 4, 5, 8, 9],
+    },
+    RaceInfo {
+        id: 2,
+        name: "Orc",
+        short_name: "Or",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 7, 8, 9],
+    },
+    RaceInfo {
+        id: 3,
+        name: "Dwarf",
+        short_name: "Dw",
+        faction: Faction::Alliance,
+        available_classes: &[1, 2, 3, 4, 5],
+    },
+    RaceInfo {
+        id: 4,
+        name: "Night Elf",
+        short_name: "NE",
+        faction: Faction::Alliance,
+        available_classes: &[1, 3, 4, 5, 11],
+    },
+    RaceInfo {
+        id: 5,
+        name: "Undead",
+        short_name: "Ud",
+        faction: Faction::Horde,
+        available_classes: &[1, 4, 5, 8, 9],
+    },
+    RaceInfo {
+        id: 6,
+        name: "Tauren",
+        short_name: "Ta",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 7, 11],
+    },
+    RaceInfo {
+        id: 7,
+        name: "Gnome",
+        short_name: "Gn",
+        faction: Faction::Alliance,
+        available_classes: &[1, 4, 8, 9],
+    },
+    RaceInfo {
+        id: 8,
+        name: "Troll",
+        short_name: "Tr",
+        faction: Faction::Horde,
+        available_classes: &[1, 3, 4, 5, 7, 8],
+    },
+    RaceInfo {
+        id: 10,
+        name: "Blood Elf",
+        short_name: "BE",
+        faction: Faction::Horde,
+        available_classes: &[2, 3, 4, 5, 8, 9],
+    },
+    RaceInfo {
+        id: 11,
+        name: "Draenei",
+        short_name: "Dr",
+        faction: Faction::Alliance,
+        available_classes: &[1, 2, 3, 5, 7, 8],
+    },
 ];
 
 pub static CLASSES: &[ClassInfo] = &[
-    ClassInfo { id: 1,  name: "Warrior", color: Color::srgb(0.78, 0.61, 0.43), icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Warrior.blp" },
-    ClassInfo { id: 2,  name: "Paladin", color: Color::srgb(0.96, 0.55, 0.73), icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Paladin.blp" },
-    ClassInfo { id: 3,  name: "Hunter",  color: Color::srgb(0.67, 0.83, 0.45), icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Hunter.blp" },
-    ClassInfo { id: 4,  name: "Rogue",   color: Color::srgb(1.0, 0.96, 0.41),  icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Rogue.blp" },
-    ClassInfo { id: 5,  name: "Priest",  color: Color::srgb(1.0, 1.0, 1.0),    icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Priest.blp" },
-    ClassInfo { id: 7,  name: "Shaman",  color: Color::srgb(0.0, 0.44, 0.87),  icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Shaman.blp" },
-    ClassInfo { id: 8,  name: "Mage",    color: Color::srgb(0.25, 0.78, 0.92), icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Mage.blp" },
-    ClassInfo { id: 9,  name: "Warlock", color: Color::srgb(0.53, 0.53, 0.93), icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Warlock.blp" },
-    ClassInfo { id: 11, name: "Druid",   color: Color::srgb(1.0, 0.49, 0.04),  icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Druid.blp" },
+    ClassInfo {
+        id: 1,
+        name: "Warrior",
+        color: Color::srgb(0.78, 0.61, 0.43),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Warrior.blp",
+    },
+    ClassInfo {
+        id: 2,
+        name: "Paladin",
+        color: Color::srgb(0.96, 0.55, 0.73),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Paladin.blp",
+    },
+    ClassInfo {
+        id: 3,
+        name: "Hunter",
+        color: Color::srgb(0.67, 0.83, 0.45),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Hunter.blp",
+    },
+    ClassInfo {
+        id: 4,
+        name: "Rogue",
+        color: Color::srgb(1.0, 0.96, 0.41),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Rogue.blp",
+    },
+    ClassInfo {
+        id: 5,
+        name: "Priest",
+        color: Color::srgb(1.0, 1.0, 1.0),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Priest.blp",
+    },
+    ClassInfo {
+        id: 7,
+        name: "Shaman",
+        color: Color::srgb(0.0, 0.44, 0.87),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Shaman.blp",
+    },
+    ClassInfo {
+        id: 8,
+        name: "Mage",
+        color: Color::srgb(0.25, 0.78, 0.92),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Mage.blp",
+    },
+    ClassInfo {
+        id: 9,
+        name: "Warlock",
+        color: Color::srgb(0.53, 0.53, 0.93),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Warlock.blp",
+    },
+    ClassInfo {
+        id: 11,
+        name: "Druid",
+        color: Color::srgb(1.0, 0.49, 0.04),
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Druid.blp",
+    },
 ];
 
 pub fn race_by_id(id: u8) -> Option<&'static RaceInfo> {
@@ -69,11 +174,21 @@ pub fn first_available_class(race_id: u8) -> u8 {
 }
 
 /// Appearance limits per race/sex. Reasonable defaults for classic models.
-pub fn max_skin_colors(_race: u8, _sex: u8) -> u8 { 10 }
-pub fn max_faces(_race: u8, _sex: u8) -> u8 { 8 }
-pub fn max_hair_styles(_race: u8, _sex: u8) -> u8 { 12 }
-pub fn max_hair_colors(_race: u8, _sex: u8) -> u8 { 10 }
-pub fn max_facial_styles(_race: u8, _sex: u8) -> u8 { 6 }
+pub fn max_skin_colors(_race: u8, _sex: u8) -> u8 {
+    10
+}
+pub fn max_faces(_race: u8, _sex: u8) -> u8 {
+    8
+}
+pub fn max_hair_styles(_race: u8, _sex: u8) -> u8 {
+    12
+}
+pub fn max_hair_colors(_race: u8, _sex: u8) -> u8 {
+    10
+}
+pub fn max_facial_styles(_race: u8, _sex: u8) -> u8 {
+    6
+}
 
 #[cfg(test)]
 mod tests {
@@ -82,7 +197,11 @@ mod tests {
     #[test]
     fn all_races_have_at_least_one_class() {
         for race in RACES {
-            assert!(!race.available_classes.is_empty(), "{} has no classes", race.name);
+            assert!(
+                !race.available_classes.is_empty(),
+                "{} has no classes",
+                race.name
+            );
         }
     }
 

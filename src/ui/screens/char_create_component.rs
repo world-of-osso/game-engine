@@ -172,34 +172,56 @@ fn dyn_name(s: String) -> DynName {
 // --- Race grid ---
 
 fn race_button(race_id: u8, short_name: &str, name: &str, is_selected: bool) -> Element {
-    let color = if is_selected { COLOR_SELECTED } else { COLOR_SUBTITLE };
+    let color = if is_selected {
+        COLOR_SELECTED
+    } else {
+        COLOR_SUBTITLE
+    };
     let border = if is_selected {
         "2px solid 1.0,0.82,0.0,1.0"
     } else {
         "1px solid 0.45,0.38,0.22,0.6"
     };
-    let bg = if is_selected { "0.2,0.16,0.08,0.9" } else { "0.1,0.08,0.05,0.7" };
+    let bg = if is_selected {
+        "0.2,0.16,0.08,0.9"
+    } else {
+        "0.1,0.08,0.05,0.7"
+    };
     rsx! {
         r#frame {
             name: dyn_name(format!("Race_{race_id}")),
-            width: 52.0, height: 60.0,
+            width: 52.0,
+            height: 60.0,
             onclick: CharCreateAction::SelectRace(race_id),
-            border: border, background_color: bg,
+            border,
+            background_color: bg,
             fontstring {
                 name: dyn_name(format!("Race_{race_id}_Short")),
-                width: 44.0, height: 24.0,
+                width: 44.0,
+                height: 24.0,
                 text: short_name,
-                font: GameFont::FrizQuadrata, font_size: 16.0,
+                font: GameFont::FrizQuadrata,
+                font_size: 16.0,
                 font_color: color,
-                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-4" }
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_point: AnchorPoint::Top,
+                    y: "-4",
+                }
             }
             fontstring {
                 name: dyn_name(format!("Race_{race_id}_Label")),
-                width: 50.0, height: 16.0,
+                width: 50.0,
+                height: 16.0,
                 text: name,
-                font: GameFont::FrizQuadrata, font_size: 9.0,
+                font: GameFont::FrizQuadrata,
+                font_size: 9.0,
                 font_color: color,
-                anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "4" }
+                anchor {
+                    point: AnchorPoint::Bottom,
+                    relative_point: AnchorPoint::Bottom,
+                    y: "4",
+                }
             }
         }
     }
@@ -209,22 +231,30 @@ fn faction_column(label: &str, col_name: &str, x_offset: &str, races: Element) -
     rsx! {
         fontstring {
             name: dyn_name(format!("{col_name}Label")),
-            width: 140.0, height: 24.0,
+            width: 140.0,
+            height: 24.0,
             text: label,
-            font: GameFont::FrizQuadrata, font_size: 16.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 16.0,
             font_color: COLOR_GOLD,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: x_offset, y: "-4",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: x_offset,
+                y: "-4",
             }
         }
         r#frame {
             name: dyn_name(format!("{col_name}Races")),
-            width: 150.0, height: 400.0,
-            layout: "flex-row-wrap", gap: 6.0,
+            width: 150.0,
+            height: 400.0,
+            layout: "flex-row-wrap",
+            gap: 6.0,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: x_offset, y: "-30",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: x_offset,
+                y: "-30",
             }
             {races}
         }
@@ -244,12 +274,12 @@ fn race_grid(selected_race: u8) -> Element {
         .flat_map(|r| race_button(r.id, r.short_name, r.name, r.id == selected_race))
         .collect();
     rsx! {
-        r#frame {
-            name: "RaceGrid",
-            width: 320.0, height: 500.0,
+        r#frame { name: "RaceGrid", width: 320.0, height: 500.0,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "20", y: "-80",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "20",
+                y: "-80",
             }
             {faction_column("Alliance", "Alliance", "5", alliance)}
             {faction_column("Horde", "Horde", "165", horde)}
@@ -259,7 +289,10 @@ fn race_grid(selected_race: u8) -> Element {
 
 // --- Class grid ---
 
-fn class_button_style(is_selected: bool, available: bool) -> (FontColor, &'static str, &'static str) {
+fn class_button_style(
+    is_selected: bool,
+    available: bool,
+) -> (FontColor, &'static str, &'static str) {
     let color = if !available {
         COLOR_DISABLED
     } else if is_selected {
@@ -272,11 +305,21 @@ fn class_button_style(is_selected: bool, available: bool) -> (FontColor, &'stati
     } else {
         "1px solid 0.45,0.38,0.22,0.4"
     };
-    let bg = if is_selected && available { "0.2,0.16,0.08,0.9" } else { "0.1,0.08,0.05,0.7" };
+    let bg = if is_selected && available {
+        "0.2,0.16,0.08,0.9"
+    } else {
+        "0.1,0.08,0.05,0.7"
+    };
     (color, border, bg)
 }
 
-fn class_button(class_id: u8, name: &str, icon: &str, is_selected: bool, available: bool) -> Element {
+fn class_button(
+    class_id: u8,
+    name: &str,
+    icon: &str,
+    is_selected: bool,
+    available: bool,
+) -> Element {
     let (color, border, bg) = class_button_style(is_selected, available);
     let onclick = if available {
         CharCreateAction::SelectClass(class_id).to_string()
@@ -287,23 +330,36 @@ fn class_button(class_id: u8, name: &str, icon: &str, is_selected: bool, availab
     rsx! {
         r#frame {
             name: dyn_name(format!("Class_{class_id}")),
-            width: 52.0, height: 60.0,
-            onclick: onclick,
-            border: border, background_color: bg,
+            width: 52.0,
+            height: 60.0,
+            onclick,
+            border,
+            background_color: bg,
             texture {
                 name: dyn_name(format!("Class_{class_id}_Icon")),
-                width: 36.0, height: 36.0,
+                width: 36.0,
+                height: 36.0,
                 texture_file: icon,
-                alpha: alpha,
-                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-2" }
+                alpha,
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_point: AnchorPoint::Top,
+                    y: "-2",
+                }
             }
             fontstring {
                 name: dyn_name(format!("Class_{class_id}_Label")),
-                width: 50.0, height: 16.0,
+                width: 50.0,
+                height: 16.0,
                 text: name,
-                font: GameFont::FrizQuadrata, font_size: 9.0,
+                font: GameFont::FrizQuadrata,
+                font_size: 9.0,
                 font_color: color,
-                anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "2" }
+                anchor {
+                    point: AnchorPoint::Bottom,
+                    relative_point: AnchorPoint::Bottom,
+                    y: "2",
+                }
             }
         }
     }
@@ -320,17 +376,23 @@ fn class_grid(state: &CharCreateUiState) -> Element {
     rsx! {
         r#frame {
             name: "ClassGrid",
-            width: 180.0, height: 500.0,
-            layout: "flex-row-wrap", gap: 6.0,
+            width: 180.0,
+            height: 500.0,
+            layout: "flex-row-wrap",
+            gap: 6.0,
             anchor {
-                point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight,
-                x: "-20", y: "-80",
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "-20",
+                y: "-80",
             }
             fontstring {
                 name: "ClassLabel",
-                width: 160.0, height: 24.0,
+                width: 160.0,
+                height: 24.0,
                 text: "Class",
-                font: GameFont::FrizQuadrata, font_size: 16.0,
+                font: GameFont::FrizQuadrata,
+                font_size: 16.0,
                 font_color: COLOR_GOLD,
             }
             {classes}
@@ -344,14 +406,20 @@ fn appearance_dec_button(field: AppearanceField) -> Element {
     rsx! {
         button {
             name: dyn_name(format!("AppDec_{}", field_str(field))),
-            width: 32.0, height: 28.0,
-            text: "<", font_size: 14.0,
+            width: 32.0,
+            height: 28.0,
+            text: "<",
+            font_size: 14.0,
             onclick: CharCreateAction::AppearanceDec(field),
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-70" }
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-70",
+            }
         }
     }
 }
@@ -360,14 +428,20 @@ fn appearance_inc_button(field: AppearanceField) -> Element {
     rsx! {
         button {
             name: dyn_name(format!("AppInc_{}", field_str(field))),
-            width: 32.0, height: 28.0,
-            text: ">", font_size: 14.0,
+            width: 32.0,
+            height: 28.0,
+            text: ">",
+            font_size: 14.0,
             onclick: CharCreateAction::AppearanceInc(field),
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-10" }
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-10",
+            }
         }
     }
 }
@@ -377,23 +451,37 @@ fn appearance_row(label: &str, value: u8, field: AppearanceField) -> Element {
     rsx! {
         r#frame {
             name: dyn_name(format!("Appearance_{}", field_str(field))),
-            width: 280.0, height: 32.0,
+            width: 280.0,
+            height: 32.0,
             fontstring {
                 name: dyn_name(format!("AppLabel_{}", field_str(field))),
-                width: 120.0, height: 24.0,
+                width: 120.0,
+                height: 24.0,
                 text: label,
-                font: GameFont::FrizQuadrata, font_size: 13.0,
-                font_color: COLOR_SUBTITLE, justify_h: JustifyH::Left,
-                anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "10" }
+                font: GameFont::FrizQuadrata,
+                font_size: 13.0,
+                font_color: COLOR_SUBTITLE,
+                justify_h: JustifyH::Left,
+                anchor {
+                    point: AnchorPoint::Left,
+                    relative_point: AnchorPoint::Left,
+                    x: "10",
+                }
             }
             {appearance_dec_button(field)}
             fontstring {
                 name: dyn_name(format!("AppVal_{}", field_str(field))),
-                width: 30.0, height: 24.0,
+                width: 30.0,
+                height: 24.0,
                 text: val_text,
-                font: GameFont::FrizQuadrata, font_size: 13.0,
+                font: GameFont::FrizQuadrata,
+                font_size: 13.0,
                 font_color: COLOR_WHITE,
-                anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-40" }
+                anchor {
+                    point: AnchorPoint::Right,
+                    relative_point: AnchorPoint::Right,
+                    x: "-40",
+                }
             }
             {appearance_inc_button(field)}
         }
@@ -404,17 +492,23 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
     rsx! {
         r#frame {
             name: "CustomizePanel",
-            width: 300.0, height: 500.0,
-            layout: "flex-col", gap: 8.0,
+            width: 300.0,
+            height: 500.0,
+            layout: "flex-col",
+            gap: 8.0,
             anchor {
-                point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft,
-                x: "20", y: "-80",
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "20",
+                y: "-80",
             }
             fontstring {
                 name: "CustomizeLabel",
-                width: 280.0, height: 24.0,
+                width: 280.0,
+                height: 24.0,
                 text: "Customize Appearance",
-                font: GameFont::FrizQuadrata, font_size: 16.0,
+                font: GameFont::FrizQuadrata,
+                font_size: 16.0,
                 font_color: COLOR_GOLD,
             }
             {appearance_row("Skin Color", state.skin_color, AppearanceField::SkinColor)}
@@ -432,17 +526,24 @@ fn name_input_field() -> Element {
     rsx! {
         fontstring {
             name: "NameLabel",
-            width: 300.0, height: 24.0,
+            width: 300.0,
+            height: 24.0,
             text: "Character Name",
-            font: GameFont::FrizQuadrata, font_size: 14.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
             font_color: COLOR_GOLD,
             anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
         }
         editbox {
             name: CREATE_NAME_INPUT,
-            width: 300.0, height: 38.0,
+            width: 300.0,
+            height: 38.0,
             font_size: 16.0,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-28" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-28",
+            }
         }
     }
 }
@@ -453,12 +554,18 @@ fn error_label(error_text: Option<&str>) -> Element {
     rsx! {
         fontstring {
             name: ERROR_TEXT,
-            width: 300.0, height: 20.0,
-            text: text,
+            width: 300.0,
+            height: 20.0,
+            text,
             hidden: error_hidden,
-            font: GameFont::FrizQuadrata, font_size: 12.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 12.0,
             font_color: FontColor::new(1.0, 0.2, 0.2, 1.0),
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-70" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-70",
+            }
         }
     }
 }
@@ -467,24 +574,32 @@ fn create_confirm_button() -> Element {
     rsx! {
         button {
             name: CREATE_BUTTON,
-            width: 205.0, height: 42.0,
-            text: "Create Character", font_size: 14.0,
+            width: 205.0,
+            height: 42.0,
+            text: "Create Character",
+            font_size: 14.0,
             onclick: CharCreateAction::CreateConfirm,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-90" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-90",
+            }
         }
     }
 }
 
 fn name_and_create(state: &CharCreateUiState) -> Element {
     rsx! {
-        r#frame {
-            name: "NamePanel",
-            width: 400.0, height: 120.0,
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "140" }
+        r#frame { name: "NamePanel", width: 400.0, height: 120.0,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "140",
+            }
             {name_input_field()}
             {error_label(state.error_text.as_deref())}
             {create_confirm_button()}
@@ -498,16 +613,20 @@ fn back_button() -> Element {
     rsx! {
         button {
             name: BACK_BUTTON,
-            width: 188.0, height: 42.0,
-            text: "Back", font_size: 14.0,
+            width: 188.0,
+            height: 42.0,
+            text: "Back",
+            font_size: 14.0,
             onclick: CharCreateAction::Back,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
-                point: AnchorPoint::BottomLeft, relative_point: AnchorPoint::BottomLeft,
-                x: "12", y: "60",
+                point: AnchorPoint::BottomLeft,
+                relative_point: AnchorPoint::BottomLeft,
+                x: "12",
+                y: "60",
             }
         }
     }
@@ -517,17 +636,21 @@ fn next_button(hidden: bool) -> Element {
     rsx! {
         button {
             name: NEXT_BUTTON,
-            width: 188.0, height: 42.0,
-            text: "Next", font_size: 14.0,
-            hidden: hidden,
+            width: 188.0,
+            height: 42.0,
+            text: "Next",
+            font_size: 14.0,
+            hidden,
             onclick: CharCreateAction::NextMode,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             anchor {
-                point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight,
-                x: "-12", y: "60",
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: "-12",
+                y: "60",
             }
         }
     }
@@ -537,14 +660,20 @@ fn sex_toggle_button() -> Element {
     rsx! {
         button {
             name: SEX_TOGGLE_BUTTON,
-            width: 140.0, height: 42.0,
-            text: "Toggle Sex", font_size: 14.0,
+            width: 140.0,
+            height: 42.0,
+            text: "Toggle Sex",
+            font_size: 14.0,
             onclick: CharCreateAction::ToggleSex,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, y: "60" }
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "60",
+            }
         }
     }
 }
@@ -561,18 +690,32 @@ fn bottom_buttons(mode: CharCreateMode) -> Element {
 
 fn title_area(state: &CharCreateUiState) -> Element {
     use crate::char_create_data::{class_by_id, race_by_id};
-    let race_name = race_by_id(state.selected_race).map(|r| r.name).unwrap_or("Unknown");
-    let class_name = class_by_id(state.selected_class).map(|c| c.name).unwrap_or("Unknown");
-    let sex_str = if state.selected_sex == 0 { "Male" } else { "Female" };
+    let race_name = race_by_id(state.selected_race)
+        .map(|r| r.name)
+        .unwrap_or("Unknown");
+    let class_name = class_by_id(state.selected_class)
+        .map(|c| c.name)
+        .unwrap_or("Unknown");
+    let sex_str = if state.selected_sex == 0 {
+        "Male"
+    } else {
+        "Female"
+    };
     let title = format!("{sex_str} {race_name} {class_name}");
     rsx! {
         fontstring {
             name: "CharCreateTitle",
-            width: 520.0, height: 36.0,
+            width: 520.0,
+            height: 36.0,
             text: title,
-            font: GameFont::FrizQuadrata, font_size: 24.0,
+            font: GameFont::FrizQuadrata,
+            font_size: 24.0,
             font_color: COLOR_GOLD,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-30" }
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-30",
+            }
         }
     }
 }

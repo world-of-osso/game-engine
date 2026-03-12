@@ -14,22 +14,48 @@ use crate::{
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
     let request = match command {
         MailCmd::Status => Request::MailStatus,
-        MailCmd::List { character, include_deleted } => Request::MailList {
-            query: ListMailQuery { character, include_deleted },
+        MailCmd::List {
+            character,
+            include_deleted,
+        } => Request::MailList {
+            query: ListMailQuery {
+                character,
+                include_deleted,
+            },
         },
-        MailCmd::Read { mail_id } => Request::MailRead { read: ReadMail { mail_id } },
-        MailCmd::Send { to, from, subject, body, money } => Request::MailSend {
-            mail: SendMail { to, from, subject, body, money },
+        MailCmd::Read { mail_id } => Request::MailRead {
+            read: ReadMail { mail_id },
         },
-        MailCmd::Claim { mail_id } => Request::MailClaim { claim: ClaimMail { mail_id } },
-        MailCmd::Delete { mail_id } => Request::MailDelete { delete: DeleteMail { mail_id } },
+        MailCmd::Send {
+            to,
+            from,
+            subject,
+            body,
+            money,
+        } => Request::MailSend {
+            mail: SendMail {
+                to,
+                from,
+                subject,
+                body,
+                money,
+            },
+        },
+        MailCmd::Claim { mail_id } => Request::MailClaim {
+            claim: ClaimMail { mail_id },
+        },
+        MailCmd::Delete { mail_id } => Request::MailDelete {
+            delete: DeleteMail { mail_id },
+        },
     };
     Ok(request)
 }
 
 pub fn item_request(command: ItemCmd) -> Result<Request, String> {
     let request = match command {
-        ItemCmd::Info { item_id } => Request::ItemInfo { query: ItemInfoQuery { item_id } },
+        ItemCmd::Info { item_id } => Request::ItemInfo {
+            query: ItemInfoQuery { item_id },
+        },
     };
     Ok(request)
 }
@@ -129,7 +155,9 @@ pub fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
     match value.to_ascii_lowercase().as_str() {
         "mainhand" | "main-hand" | "main" | "mh" => Ok("mainhand"),
         "offhand" | "off-hand" | "off" | "oh" => Ok("offhand"),
-        _ => Err(format!("invalid slot '{value}', expected mainhand or offhand")),
+        _ => Err(format!(
+            "invalid slot '{value}', expected mainhand or offhand"
+        )),
     }
 }
 
@@ -149,6 +177,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     Ok(request)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn auction_browse_request(
     text: String,
     page: u32,
@@ -196,28 +225,44 @@ pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
     match command {
         AuctionCmd::Open => Ok(Request::AuctionOpen),
         AuctionCmd::Status => Ok(Request::AuctionStatus),
-        AuctionCmd::Browse { text, page, page_size, min_level, max_level, quality, sort, dir } => {
-            auction_browse_request(text, page, page_size, min_level, max_level, quality, sort, dir)
-        }
+        AuctionCmd::Browse {
+            text,
+            page,
+            page_size,
+            min_level,
+            max_level,
+            quality,
+            sort,
+            dir,
+        } => auction_browse_request(
+            text, page, page_size, min_level, max_level, quality, sort, dir,
+        ),
         AuctionCmd::Owned => Ok(Request::AuctionOwned),
         AuctionCmd::Bids => Ok(Request::AuctionBids),
         AuctionCmd::Inventory => Ok(Request::AuctionInventory),
         AuctionCmd::Mailbox => Ok(Request::AuctionMailbox),
-        AuctionCmd::ClaimMail { mail_id } => {
-            Ok(Request::AuctionClaimMail { claim: ClaimAuctionMail { mail_id } })
-        }
-        AuctionCmd::Create { item_guid, stack, bid, buyout, duration } => {
-            auction_create_request(item_guid, stack, bid, buyout, duration)
-        }
-        AuctionCmd::Bid { id, amount } => {
-            Ok(Request::AuctionBid { bid: PlaceBid { auction_id: id, amount } })
-        }
-        AuctionCmd::Buyout { id } => {
-            Ok(Request::AuctionBuyout { buyout: BuyoutAuction { auction_id: id } })
-        }
-        AuctionCmd::Cancel { id } => {
-            Ok(Request::AuctionCancel { cancel: CancelAuction { auction_id: id } })
-        }
+        AuctionCmd::ClaimMail { mail_id } => Ok(Request::AuctionClaimMail {
+            claim: ClaimAuctionMail { mail_id },
+        }),
+        AuctionCmd::Create {
+            item_guid,
+            stack,
+            bid,
+            buyout,
+            duration,
+        } => auction_create_request(item_guid, stack, bid, buyout, duration),
+        AuctionCmd::Bid { id, amount } => Ok(Request::AuctionBid {
+            bid: PlaceBid {
+                auction_id: id,
+                amount,
+            },
+        }),
+        AuctionCmd::Buyout { id } => Ok(Request::AuctionBuyout {
+            buyout: BuyoutAuction { auction_id: id },
+        }),
+        AuctionCmd::Cancel { id } => Ok(Request::AuctionCancel {
+            cancel: CancelAuction { auction_id: id },
+        }),
     }
 }
 
