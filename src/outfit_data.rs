@@ -11,6 +11,8 @@ pub struct OutfitResult {
     /// (ComponentSection, texture FDID) pairs for body texture compositing.
     pub item_textures: Vec<(u8, u32)>,
     /// (geoset_group_index, value) overrides from equipped items.
+    /// Currently unused because ItemDisplayInfo::GeosetGroup_* is not a raw M2
+    /// geoset group id; it needs item-slot-aware mapping first.
     pub geoset_overrides: Vec<(u16, u16)>,
     /// (ModelResourcesID, M2 FDID) for items with 3D models (weapons, shoulders, helm).
     pub model_fdids: Vec<(u32, u32)>,
@@ -239,23 +241,11 @@ fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolv
     let model_res_0_col = col(&h, "ModelResourcesID_0")?;
     let model_res_1_col = col(&h, "ModelResourcesID_1")?;
 
-    let geoset_cols: Vec<_> = (0..6)
-        .map(|i| col(&h, &format!("GeosetGroup_{i}")))
-        .collect::<Result<_, _>>()?;
-
     let mut map = HashMap::new();
     for row in &rows {
         let id = field_u32(row, id_col);
         if id == 0 {
             continue;
-        }
-
-        let mut geoset_overrides = Vec::new();
-        for (group_index, &geoset_col) in geoset_cols.iter().enumerate() {
-            let value = field_u32(row, geoset_col) as u16;
-            if value != 0 {
-                geoset_overrides.push((group_index as u16, value));
-            }
         }
 
         let mut model_resource_ids = Vec::new();
@@ -272,7 +262,7 @@ fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolv
             id,
             DisplayInfoResolved {
                 item_textures: Vec::new(),
-                geoset_overrides,
+                geoset_overrides: Vec::new(),
                 model_resource_ids,
             },
         );
@@ -428,8 +418,12 @@ mod tests {
         let result = data.resolve_outfit(1, 1, 0);
         assert!(data.loaded.get().is_some());
         assert!(
-            !result.item_textures.is_empty() || !result.geoset_overrides.is_empty(),
+            !result.item_textures.is_empty() || !result.model_fdids.is_empty(),
             "expected starter outfit data for human warrior male"
+        );
+        assert!(
+            result.geoset_overrides.is_empty(),
+            "raw ItemDisplayInfo geoset columns should not be applied directly"
         );
     }
 }

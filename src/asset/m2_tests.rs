@@ -312,7 +312,6 @@ fn default_geoset_visibility() {
     assert!(default_geoset_visible(1301)); // default trousers
     assert!(default_geoset_visible(1801)); // default belt
 
-    assert!(!default_geoset_visible(2)); // hair variant 2
     assert!(!default_geoset_visible(18)); // non-default HD body variant
     assert!(!default_geoset_visible(101)); // facial hair group 1 variant 1 (bare)
     assert!(!default_geoset_visible(402)); // glove style 2

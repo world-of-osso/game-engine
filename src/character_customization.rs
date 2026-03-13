@@ -60,7 +60,7 @@ fn apply_body_texture(
     selection: CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
-    outfit: &game_engine::outfit_data::OutfitResult,
+    _outfit: &game_engine::outfit_data::OutfitResult,
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
@@ -79,23 +79,25 @@ fn apply_body_texture(
     let Some(layout_id) = customization_db.layout_id(selection.race, selection.sex) else {
         return;
     };
-    let Some((pixels, w, h)) =
-        char_tex.composite_with_items(&all_materials, &outfit.item_textures, layout_id)
-    else {
+    let Some(composited) = char_tex.composite_model_textures(&all_materials, &[], layout_id) else {
         return;
     };
-    let img = crate::rgba_image(pixels, w, h);
-    let img_handle = images.add(img);
+    let (body_pixels, body_w, body_h) = composited.body;
+    let body_handle = images.add(crate::rgba_image(body_pixels, body_w, body_h));
     for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
         }
-        let uses_customization_texture = matches!(batch_texture_type.map(|t| t.0), Some(1 | 6));
-        if !uses_customization_texture {
+        let replacement = match batch_texture_type.map(|t| t.0) {
+            Some(1) => Some(body_handle.clone()),
+            Some(6) => Some(body_handle.clone()),
+            _ => None,
+        };
+        let Some(replacement) = replacement else {
             continue;
-        }
+        };
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
-            mat.base_color_texture = Some(img_handle.clone());
+            mat.base_color_texture = Some(replacement);
         }
     }
 }
@@ -168,9 +170,18 @@ fn apply_geoset_visibility(
         if !active_types.contains(&group) {
             continue;
         }
-        let visible = active_geosets
-            .iter()
-            .any(|(t, id)| *t == group && *id == variant);
+        let visible = if group == 0 {
+            let selected_variant = active_geosets
+                .iter()
+                .find(|(t, _)| *t == 0)
+                .map(|(_, id)| *id)
+                .unwrap_or(0);
+            group_zero_visible(geoset_mesh.0, selected_variant)
+        } else {
+            active_geosets
+                .iter()
+                .any(|(t, id)| *t == group && *id == variant)
+        };
         if let Ok(mut vis) = visibility_query.get_mut(entity) {
             *vis = if visible {
                 Visibility::Inherited
@@ -179,6 +190,10 @@ fn apply_geoset_visibility(
             };
         }
     }
+}
+
+fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
+    matches!(mesh_part_id, 0 | 1 | 16 | 17 | 27..=33) || mesh_part_id == selected_variant
 }
 
 fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
@@ -192,5 +207,23 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
             return true;
         }
         current = parent;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::group_zero_visible;
+
+    #[test]
+    fn hairstyle_group_zero_keeps_base_body_segments_visible() {
+        assert!(group_zero_visible(0, 2));
+        assert!(group_zero_visible(1, 2));
+        assert!(group_zero_visible(2, 2));
+        assert!(group_zero_visible(16, 2));
+        assert!(group_zero_visible(17, 2));
+        assert!(group_zero_visible(28, 2));
+
+        assert!(!group_zero_visible(5, 2));
+        assert!(!group_zero_visible(18, 2));
     }
 }

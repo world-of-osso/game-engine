@@ -37,6 +37,12 @@ struct TextureLayout {
     height: u32,
 }
 
+#[derive(Debug, Clone)]
+pub struct CompositedModelTextures {
+    pub body: (Vec<u8>, u32, u32),
+    pub head: Option<(Vec<u8>, u32, u32)>,
+}
+
 /// Loaded compositor data (parsed once at startup).
 #[derive(Resource, Default, Debug)]
 pub struct CharTextureData {
@@ -94,16 +100,19 @@ impl CharTextureData {
         Some((pixels, w, h))
     }
 
-    /// Composite with both customization materials and item overlay textures.
+    /// Composite with both customization materials and item overlay textures,
+    /// then convert the result back into the body/head texture sizes the M2
+    /// batches actually expect at runtime.
+    ///
     /// `item_textures`: (ComponentSection, FDID) pairs from outfit resolution.
     /// ComponentSection maps to SectionType in CharComponentTextureSections:
     ///   0=ArmUpper, 1=ArmLower, 2=Hand, 3=TorsoUpper, 4=TorsoLower, 5=LegUpper, 6=LegLower, 7=Foot
-    pub fn composite_with_items(
+    pub fn composite_model_textures(
         &self,
         materials: &[(u16, u32)],
         item_textures: &[(u8, u32)],
         layout_id: u32,
-    ) -> Option<(Vec<u8>, u32, u32)> {
+    ) -> Option<CompositedModelTextures> {
         let layout = self.layouts.get(&layout_id)?;
         let (w, h) = (layout.width, layout.height);
         let mut pixels = vec![0u8; (w * h * 4) as usize];
@@ -135,7 +144,7 @@ impl CharTextureData {
             );
         }
 
-        Some((pixels, w, h))
+        Some(self.runtime_textures_from_layout(pixels, layout_id, w, h))
     }
 
     fn composite_materials_into(
@@ -218,6 +227,48 @@ impl CharTextureData {
             return self.sections.get(&(layout_id, 10)).copied();
         }
         None
+    }
+
+    fn runtime_textures_from_layout(
+        &self,
+        pixels: Vec<u8>,
+        layout_id: u32,
+        width: u32,
+        height: u32,
+    ) -> CompositedModelTextures {
+        // Modern HD body layouts are authored on a 2x canvas (2048x1024), but
+        // the runtime body/head textures consumed by the M2 batches are the
+        // half-scale body atlas (1024x512) plus a standalone head atlas cut
+        // from section 9 (512x512).
+        if width == 2048 && height == 1024 {
+            let (body_pixels, body_w, body_h) =
+                scale_to(&pixels, width, height, width / 2, height / 2);
+            let head = self
+                .sections
+                .get(&(layout_id, 9))
+                .map(|section| scaled_section(*section, 2))
+                .map(|section| {
+                    let head_pixels = crop_rgba(
+                        &body_pixels,
+                        body_w,
+                        body_h,
+                        section.x,
+                        section.y,
+                        section.width,
+                        section.height,
+                    );
+                    (head_pixels, section.width, section.height)
+                });
+            return CompositedModelTextures {
+                body: (body_pixels, body_w, body_h),
+                head,
+            };
+        }
+
+        CompositedModelTextures {
+            body: (pixels, width, height),
+            head: None,
+        }
     }
 }
 
@@ -307,6 +358,34 @@ fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_src_alpha: 
     }
 }
 
+fn scaled_section(section: TextureSection, divisor: u32) -> TextureSection {
+    TextureSection {
+        x: section.x / divisor,
+        y: section.y / divisor,
+        width: section.width / divisor,
+        height: section.height / divisor,
+    }
+}
+
+fn crop_rgba(src: &[u8], src_w: u32, src_h: u32, x: u32, y: u32, w: u32, h: u32) -> Vec<u8> {
+    let mut out = vec![0u8; (w * h * 4) as usize];
+    for row in 0..h {
+        for col in 0..w {
+            let sx = x + col;
+            let sy = y + row;
+            if sx >= src_w || sy >= src_h {
+                continue;
+            }
+            let si = ((sy * src_w + sx) * 4) as usize;
+            let di = ((row * w + col) * 4) as usize;
+            if si + 3 < src.len() && di + 3 < out.len() {
+                out[di..di + 4].copy_from_slice(&src[si..si + 4]);
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,6 +445,44 @@ mod tests {
         assert_eq!(&pixels[0..8], &[0, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(&pixels[8..16], &[255, 0, 0, 255, 255, 0, 0, 255]);
         assert_eq!(&pixels[24..32], &[255, 0, 0, 255, 255, 0, 0, 255]);
+    }
+
+    #[test]
+    fn hd_layout_is_converted_to_runtime_body_and_head_textures() {
+        let mut sections = HashMap::new();
+        sections.insert(
+            (103, 9),
+            TextureSection {
+                x: 1024,
+                y: 0,
+                width: 1024,
+                height: 1024,
+            },
+        );
+        let data = CharTextureData {
+            layers: Vec::new(),
+            sections,
+            layouts: HashMap::new(),
+        };
+        let mut pixels = vec![0u8; (2048 * 1024 * 4) as usize];
+        for y in 0..1024u32 {
+            for x in 0..2048u32 {
+                let idx = ((y * 2048 + x) * 4) as usize;
+                if x < 1024 {
+                    pixels[idx..idx + 4].copy_from_slice(&[10, 20, 30, 255]);
+                } else {
+                    pixels[idx..idx + 4].copy_from_slice(&[40, 50, 60, 255]);
+                }
+            }
+        }
+
+        let composed = data.runtime_textures_from_layout(pixels, 103, 2048, 1024);
+
+        assert_eq!((composed.body.1, composed.body.2), (1024, 512));
+        assert_eq!(&composed.body.0[0..4], &[10, 20, 30, 255]);
+        let head = composed.head.expect("expected HD head atlas");
+        assert_eq!((head.1, head.2), (512, 512));
+        assert_eq!(&head.0[0..4], &[40, 50, 60, 255]);
     }
 }
 
