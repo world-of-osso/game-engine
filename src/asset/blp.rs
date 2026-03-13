@@ -4,11 +4,11 @@ use bevy::asset::RenderAssetUsages;
 use bevy::image::Image;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use image_blp::convert::blp_to_image;
-use image_blp::parser::load_blp;
+use image_blp::parser::load_blp_from_buf;
 use image_blp::types::BlpContent;
 
 pub fn load_blp_to_image(path: &Path) -> Result<Image, String> {
-    let blp = load_blp(path).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    let blp = load_blp(path)?;
     let blp_img = blp_to_image(&blp, 0).map_err(|e| format!("Failed to convert BLP: {e}"))?;
     let rgba = blp_img.to_rgba8();
     let width = rgba.width();
@@ -33,7 +33,7 @@ pub fn load_blp_to_image(path: &Path) -> Result<Image, String> {
 /// Falls back to RGBA8 decompression for JPEG/Raw BLPs.
 /// This skips CPU-side DXT decompression entirely for DXT BLPs.
 pub fn load_blp_gpu_image(path: &Path) -> Result<Image, String> {
-    let blp = load_blp(path).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    let blp = load_blp(path)?;
     let (w, h) = (blp.header.width, blp.header.height);
     match &blp.content {
         BlpContent::Dxt1(dxtn) => gpu_image_from_dxtn(dxtn, w, h, TextureFormat::Bc1RgbaUnormSrgb),
@@ -100,7 +100,7 @@ fn dxtn_size(w: u32, h: u32, block_bytes: usize) -> usize {
 
 /// Load a BLP file and return raw RGBA pixels + dimensions.
 pub fn load_blp_rgba(path: &Path) -> Result<(Vec<u8>, u32, u32), String> {
-    let blp = load_blp(path).map_err(|e| format!("Failed to load BLP: {e}"))?;
+    let blp = load_blp(path)?;
     let blp_img = blp_to_image(&blp, 0).map_err(|e| format!("Failed to convert BLP: {e}"))?;
     let rgba = blp_img.to_rgba8();
     let w = rgba.width();
@@ -108,6 +108,24 @@ pub fn load_blp_rgba(path: &Path) -> Result<(Vec<u8>, u32, u32), String> {
     let mut pixels = rgba.into_raw();
     fix_1bit_alpha(&mut pixels);
     Ok((pixels, w, h))
+}
+
+fn load_blp(path: &Path) -> Result<image_blp::types::BlpImage, String> {
+    let mut bytes = std::fs::read(path).map_err(|e| format!("Failed to read BLP: {e}"))?;
+    strip_mipmaps(&mut bytes);
+    load_blp_from_buf(&bytes).map_err(|e| format!("Failed to load BLP: {e}"))
+}
+
+fn strip_mipmaps(bytes: &mut [u8]) {
+    if bytes.starts_with(b"BLP2") {
+        if let Some(has_mipmaps) = bytes.get_mut(11) {
+            *has_mipmaps = 0;
+        }
+        return;
+    }
+    if (bytes.starts_with(b"BLP0") || bytes.starts_with(b"BLP1")) && bytes.len() >= 28 {
+        bytes[24..28].copy_from_slice(&0u32.to_le_bytes());
+    }
 }
 
 /// Scale RGBA pixels by 2x using nearest-neighbor.

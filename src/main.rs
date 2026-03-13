@@ -91,6 +91,7 @@ struct ScreenshotRequest {
 }
 
 fn main() {
+    ensure_asset_root();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         print_help();
@@ -123,6 +124,14 @@ fn main() {
         screenshot,
         initial_state,
     );
+}
+
+fn ensure_asset_root() {
+    if std::env::var_os("BEVY_ASSET_ROOT").is_none() {
+        unsafe {
+            std::env::set_var("BEVY_ASSET_ROOT", env!("CARGO_MANIFEST_DIR"));
+        }
+    }
 }
 
 struct ParsedArgs {

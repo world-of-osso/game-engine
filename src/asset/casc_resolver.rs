@@ -13,7 +13,6 @@ use tokio::runtime::Handle as TokioHandle;
 
 const WOW_DATA_PATH: &str = "/syncthing/World of Warcraft/Data";
 const CASC_DATA_DIR: &str = "data/casc";
-const LISTFILE_PATH: &str = "data/community-listfile.csv";
 
 static CASC: OnceLock<Option<CascState>> = OnceLock::new();
 
@@ -147,22 +146,15 @@ fn load_cached_resolution_files(install: &Installation, cache: &Path) -> Result<
 
 /// Resolve FDID to a filename using the local community listfile.
 fn resolve_filename(fdid: u32) -> String {
-    let ext = resolve_extension(fdid, Path::new(LISTFILE_PATH));
+    let ext = resolve_extension(fdid);
     format!("{fdid}.{ext}")
 }
 
-fn resolve_extension(fdid: u32, listfile: &Path) -> String {
-    if let Ok(content) = std::fs::read_to_string(listfile) {
-        let prefix = format!("{fdid};");
-        for line in content.lines() {
-            if let Some(path) = line.strip_prefix(&prefix)
-                && let Some(ext) = path.rsplit('.').next()
-            {
-                return ext.to_lowercase();
-            }
-        }
-    }
-    "dat".to_string()
+fn resolve_extension(fdid: u32) -> String {
+    game_engine::listfile::lookup_fdid(fdid)
+        .and_then(|path| Path::new(path).extension().and_then(|ext| ext.to_str()))
+        .map(|ext: &str| ext.to_ascii_lowercase())
+        .unwrap_or_else(|| "dat".to_string())
 }
 
 fn run_async<F: std::future::Future>(fut: F) -> F::Output {
