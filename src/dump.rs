@@ -158,7 +158,7 @@ fn format_size_info(f: &Frame) -> String {
 fn format_position_info(f: &Frame) -> String {
     f.layout_rect.as_ref().map_or_else(
         || " no-layout".to_string(),
-        |r| format!(" @{:.0},{:.0}", r.x, r.y),
+        |r| format!(" @{:.0},{:.0} {:.0}x{:.0}", r.x, r.y, r.width, r.height),
     )
 }
 
