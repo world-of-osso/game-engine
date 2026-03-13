@@ -115,7 +115,6 @@ fn spawn_world_environment(
         &mut images,
         camera,
     );
-    commands.remove_resource::<ClearColor>();
 }
 
 fn on_exit_in_world() {
