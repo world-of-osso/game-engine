@@ -9,7 +9,7 @@ use super::{
     AppearanceField, BACK_BUTTON, BUTTON_ATLAS_DISABLED, BUTTON_ATLAS_HIGHLIGHT,
     BUTTON_ATLAS_PRESSED, BUTTON_ATLAS_UP, COLOR_DISABLED, COLOR_GOLD, COLOR_SELECTED,
     COLOR_SUBTITLE, COLOR_WHITE, CREATE_BUTTON, CREATE_NAME_INPUT, CharCreateAction,
-    CharCreateMode, DynName, ERROR_TEXT, NEXT_BUTTON, SEX_TOGGLE_BUTTON,
+    CharCreateMode, DynName, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON, SEX_TOGGLE_BUTTON,
 };
 
 pub(super) fn dyn_name(s: String) -> DynName {
@@ -739,6 +739,30 @@ pub(super) fn sex_toggle_button() -> Element {
             anchor {
                 point: AnchorPoint::Bottom,
                 relative_point: AnchorPoint::Bottom,
+                x: "-96",
+                y: "60",
+            }
+        }
+    }
+}
+
+pub(super) fn randomize_button() -> Element {
+    rsx! {
+        button {
+            name: RANDOMIZE_BUTTON,
+            width: 140.0,
+            height: 42.0,
+            text: "Randomize",
+            font_size: 14.0,
+            onclick: CharCreateAction::Randomize,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                x: "96",
                 y: "60",
             }
         }
@@ -747,8 +771,13 @@ pub(super) fn sex_toggle_button() -> Element {
 
 pub(super) fn bottom_buttons(mode: CharCreateMode) -> Element {
     let hide_next = mode != CharCreateMode::RaceClass;
-    [back_button(), next_button(hide_next), sex_toggle_button()]
-        .into_iter()
-        .flatten()
-        .collect()
+    [
+        back_button(),
+        next_button(hide_next),
+        sex_toggle_button(),
+        randomize_button(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }

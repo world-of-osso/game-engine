@@ -2,6 +2,7 @@ use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 use lightyear::prelude::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
@@ -9,7 +10,7 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
     AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT,
-    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON,
+    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON,
     SEX_TOGGLE_BUTTON, char_create_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
@@ -39,6 +40,7 @@ ui_resource! {
         back_button: BACK_BUTTON,
         next_button ?: NEXT_BUTTON,
         sex_toggle ?: SEX_TOGGLE_BUTTON,
+        randomize_button ?: RANDOMIZE_BUTTON,
         create_button ?: CREATE_BUTTON,
         name_input ?: CREATE_NAME_INPUT,
         error_text ?: ERROR_TEXT,
@@ -114,10 +116,11 @@ fn build_char_create_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     startup_mode: Option<Res<StartupCharCreateMode>>,
+    cust_db: Res<CustomizationDb>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let initial_state = initial_char_create_state(startup_mode.as_deref().copied());
+    let initial_state = initial_char_create_state(startup_mode.as_deref().copied(), &cust_db);
     let ui_state = CharCreateUiState {
         mode: initial_state.mode,
         selected_race: initial_state.selected_race,
@@ -145,12 +148,75 @@ fn build_char_create_ui(
     commands.remove_resource::<StartupCharCreateMode>();
 }
 
-fn initial_char_create_state(startup_mode: Option<StartupCharCreateMode>) -> CharCreateState {
+fn initial_char_create_state(
+    startup_mode: Option<StartupCharCreateMode>,
+    db: &CustomizationDb,
+) -> CharCreateState {
     let mut state = CharCreateState::default();
     if let Some(mode) = startup_mode {
         state.mode = mode.0;
     }
+    randomize_appearance(&mut state, db);
     state
+}
+
+fn fresh_random_seed() -> u64 {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_nanos() as u64,
+        Err(_) => 0x9e37_79b9_7f4a_7c15,
+    }
+}
+
+fn mix_seed(seed: u64) -> u64 {
+    let mut z = seed.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    z ^ (z >> 31)
+}
+
+fn pick_random_choice(seed: &mut u64, count: u8) -> u8 {
+    if count == 0 {
+        return 0;
+    }
+    *seed = mix_seed(*seed);
+    (*seed % count as u64) as u8
+}
+
+fn randomize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
+    randomize_appearance_with_seed(state, db, fresh_random_seed());
+}
+
+fn randomize_appearance_with_seed(state: &mut CharCreateState, db: &CustomizationDb, seed: u64) {
+    let (race, sex, class) = (
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+    );
+    let mut seed = seed ^ ((race as u64) << 40) ^ ((sex as u64) << 32) ^ ((class as u64) << 24);
+
+    state.appearance = CharacterAppearance {
+        sex,
+        skin_color: pick_random_choice(
+            &mut seed,
+            db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
+        ),
+        face: pick_random_choice(
+            &mut seed,
+            db.choice_count_for_class(race, sex, class, OptionType::Face),
+        ),
+        hair_style: pick_random_choice(
+            &mut seed,
+            db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
+        ),
+        hair_color: pick_random_choice(
+            &mut seed,
+            db.choice_count_for_class(race, sex, class, OptionType::HairColor),
+        ),
+        facial_style: pick_random_choice(
+            &mut seed,
+            db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
+        ),
+    };
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, cc: &CharCreateUi) {
@@ -298,9 +364,10 @@ fn dispatch_action(
         return;
     };
     match action {
-        CharCreateAction::SelectRace(id) => apply_race_change(state, id),
-        CharCreateAction::SelectClass(id) => apply_class_change(state, id),
-        CharCreateAction::ToggleSex => apply_sex_toggle(state),
+        CharCreateAction::SelectRace(id) => apply_race_change(state, id, cust_db),
+        CharCreateAction::SelectClass(id) => apply_class_change(state, id, cust_db),
+        CharCreateAction::ToggleSex => apply_sex_toggle(state, cust_db),
+        CharCreateAction::Randomize => apply_randomize(state, cust_db),
         CharCreateAction::NextMode => state.mode = CharCreateMode::Customize,
         CharCreateAction::Back => handle_back(state, next_state),
         CharCreateAction::AppearanceInc(f) => {
@@ -324,22 +391,54 @@ fn dispatch_action(
     normalize_appearance(state, cust_db);
 }
 
-fn apply_race_change(state: &mut CharCreateState, race_id: u8) {
+fn apply_race_change(state: &mut CharCreateState, race_id: u8, db: &CustomizationDb) {
+    apply_race_change_with_seed(state, race_id, db, fresh_random_seed());
+}
+
+fn apply_race_change_with_seed(
+    state: &mut CharCreateState,
+    race_id: u8,
+    db: &CustomizationDb,
+    seed: u64,
+) {
     state.selected_race = race_id;
     if !race_can_be_class(race_id, state.selected_class) {
         state.selected_class = first_available_class(race_id);
     }
+    randomize_appearance_with_seed(state, db, seed);
 }
 
-fn apply_class_change(state: &mut CharCreateState, class_id: u8) {
+fn apply_class_change(state: &mut CharCreateState, class_id: u8, db: &CustomizationDb) {
+    apply_class_change_with_seed(state, class_id, db, fresh_random_seed());
+}
+
+fn apply_class_change_with_seed(
+    state: &mut CharCreateState,
+    class_id: u8,
+    db: &CustomizationDb,
+    seed: u64,
+) {
     if race_can_be_class(state.selected_race, class_id) {
         state.selected_class = class_id;
+        randomize_appearance_with_seed(state, db, seed);
     }
 }
 
-fn apply_sex_toggle(state: &mut CharCreateState) {
+fn apply_sex_toggle(state: &mut CharCreateState, db: &CustomizationDb) {
+    apply_sex_toggle_with_seed(state, db, fresh_random_seed());
+}
+
+fn apply_sex_toggle_with_seed(state: &mut CharCreateState, db: &CustomizationDb, seed: u64) {
     state.selected_sex = if state.selected_sex == 0 { 1 } else { 0 };
-    state.appearance.sex = state.selected_sex;
+    randomize_appearance_with_seed(state, db, seed);
+}
+
+fn apply_randomize(state: &mut CharCreateState, db: &CustomizationDb) {
+    apply_randomize_with_seed(state, db, fresh_random_seed());
+}
+
+fn apply_randomize_with_seed(state: &mut CharCreateState, db: &CustomizationDb, seed: u64) {
+    randomize_appearance_with_seed(state, db, seed);
 }
 
 fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
@@ -654,6 +753,7 @@ fn char_create_hover_visuals(
         Some(cc.back_button),
         cc.next_button,
         cc.sex_toggle,
+        cc.randomize_button,
         cc.create_button,
     ]
     .into_iter()
@@ -785,17 +885,92 @@ fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn startup_mode_can_open_customize_directly() {
+        let db = CustomizationDb::load(Path::new("data"));
         let state =
-            initial_char_create_state(Some(StartupCharCreateMode(CharCreateMode::Customize)));
+            initial_char_create_state(Some(StartupCharCreateMode(CharCreateMode::Customize)), &db);
         assert_eq!(state.mode, CharCreateMode::Customize);
     }
 
     #[test]
     fn default_startup_mode_stays_on_race_class() {
-        let state = initial_char_create_state(None);
+        let db = CustomizationDb::load(Path::new("data"));
+        let state = initial_char_create_state(None, &db);
         assert_eq!(state.mode, CharCreateMode::RaceClass);
+    }
+
+    #[test]
+    fn randomized_appearance_stays_within_valid_choice_ranges() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let mut state = CharCreateState {
+            selected_race: 1,
+            selected_class: 1,
+            selected_sex: 0,
+            ..Default::default()
+        };
+
+        randomize_appearance_with_seed(&mut state, &db, 0x1234_5678_9abc_def0);
+
+        assert_eq!(state.appearance.sex, 0);
+        assert!(
+            state.appearance.skin_color < db.choice_count_for_class(1, 0, 1, OptionType::SkinColor)
+        );
+        assert!(state.appearance.face < db.choice_count_for_class(1, 0, 1, OptionType::Face));
+        assert!(
+            state.appearance.hair_style < db.choice_count_for_class(1, 0, 1, OptionType::HairStyle)
+        );
+        assert!(
+            state.appearance.hair_color < db.choice_count_for_class(1, 0, 1, OptionType::HairColor)
+        );
+        assert!(
+            state.appearance.facial_style
+                < db.choice_count_for_class(1, 0, 1, OptionType::FacialHair)
+        );
+    }
+
+    #[test]
+    fn race_class_and_sex_changes_re_randomize_appearance() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let mut state = CharCreateState::default();
+
+        apply_race_change_with_seed(&mut state, 10, &db, 1);
+        assert_eq!(state.selected_race, 10);
+        assert_ne!(state.appearance, CharacterAppearance::default());
+
+        let race_appearance = state.appearance;
+        apply_class_change_with_seed(&mut state, 3, &db, 2);
+        assert_eq!(state.selected_class, 3);
+        assert_ne!(state.appearance, race_appearance);
+
+        let class_appearance = state.appearance;
+        apply_sex_toggle_with_seed(&mut state, &db, 3);
+        assert_eq!(state.selected_sex, 1);
+        assert_eq!(state.appearance.sex, 1);
+        assert_ne!(state.appearance, class_appearance);
+    }
+
+    #[test]
+    fn explicit_randomize_re_rolls_appearance_without_changing_selection() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let mut state = CharCreateState {
+            selected_race: 10,
+            selected_class: 3,
+            selected_sex: 1,
+            ..Default::default()
+        };
+
+        randomize_appearance_with_seed(&mut state, &db, 11);
+        let original = state.appearance;
+
+        apply_randomize_with_seed(&mut state, &db, 12);
+
+        assert_eq!(state.selected_race, 10);
+        assert_eq!(state.selected_class, 3);
+        assert_eq!(state.selected_sex, 1);
+        assert_eq!(state.appearance.sex, 1);
+        assert_ne!(state.appearance, original);
     }
 }

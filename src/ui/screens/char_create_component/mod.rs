@@ -22,6 +22,7 @@ pub enum CharCreateAction {
     SelectRace(u8),
     SelectClass(u8),
     ToggleSex,
+    Randomize,
     NextMode,
     Back,
     AppearanceInc(AppearanceField),
@@ -58,6 +59,7 @@ impl fmt::Display for CharCreateAction {
             Self::SelectRace(id) => write!(f, "select_race:{id}"),
             Self::SelectClass(id) => write!(f, "select_class:{id}"),
             Self::ToggleSex => f.write_str("toggle_sex"),
+            Self::Randomize => f.write_str("randomize"),
             Self::NextMode => f.write_str("next_mode"),
             Self::Back => f.write_str("back"),
             Self::AppearanceInc(field) => write!(f, "appearance_inc:{}", field.as_str()),
@@ -107,6 +109,7 @@ impl CharCreateAction {
         }
         match s {
             "toggle_sex" => Some(Self::ToggleSex),
+            "randomize" => Some(Self::Randomize),
             "next_mode" => Some(Self::NextMode),
             "back" => Some(Self::Back),
             "create_confirm" => Some(Self::CreateConfirm),
@@ -184,6 +187,7 @@ pub const CREATE_BUTTON: FrameName = FrameName("CharCreateButton");
 pub const BACK_BUTTON: FrameName = FrameName("CharCreateBack");
 pub const NEXT_BUTTON: FrameName = FrameName("CharCreateNext");
 pub const SEX_TOGGLE_BUTTON: FrameName = FrameName("CharCreateSexToggle");
+pub const RANDOMIZE_BUTTON: FrameName = FrameName("CharCreateRandomize");
 pub const ERROR_TEXT: FrameName = FrameName("CharCreateError");
 
 // --- Shared constants (used by widgets submodule) ---
@@ -447,6 +451,7 @@ mod tests {
             CharCreateAction::SelectRace(2),
             CharCreateAction::SelectClass(5),
             CharCreateAction::ToggleSex,
+            CharCreateAction::Randomize,
             CharCreateAction::NextMode,
             CharCreateAction::Back,
             CharCreateAction::AppearanceInc(AppearanceField::HairStyle),
@@ -468,6 +473,7 @@ mod tests {
         let reg = build_screen(CharCreateUiState::default());
         assert!(reg.get_by_name("CharCreateRoot").is_some());
         assert!(reg.get_by_name("CharCreateBack").is_some());
+        assert!(reg.get_by_name("CharCreateRandomize").is_some());
     }
 
     #[test]
@@ -477,6 +483,7 @@ mod tests {
         let reg = build_screen(state);
         assert!(reg.get_by_name("CustomizePanel").is_some());
         assert!(reg.get_by_name("CharCreateNameInput").is_some());
+        assert!(reg.get_by_name("CharCreateRandomize").is_some());
     }
 
     #[test]
