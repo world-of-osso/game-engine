@@ -260,7 +260,6 @@ fn insert_startup_resources(
         app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });
     }
     app.insert_resource(warband);
-    game_engine::listfile::preload();
 }
 
 fn default_plugins() -> bevy::app::PluginGroupBuilder {

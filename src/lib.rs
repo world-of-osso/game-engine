@@ -1,3 +1,5 @@
+extern crate self as game_engine;
+
 pub mod asset;
 pub mod auction_house;
 pub mod char_create_data;
