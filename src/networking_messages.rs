@@ -64,6 +64,7 @@ pub(crate) fn receive_load_terrain(
                 );
                 adt_manager.map_name = msg.map_name;
                 adt_manager.initial_tile = key;
+                adt_manager.server_requested.insert(key);
             } else if adt_manager.loaded.contains_key(&key)
                 || adt_manager.pending.contains(&key)
                 || adt_manager.failed.contains(&key)

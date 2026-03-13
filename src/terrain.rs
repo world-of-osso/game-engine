@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, mpsc};
 
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -418,12 +418,14 @@ fn adt_streaming_system(
     if adt_manager.map_name.is_empty() {
         return;
     }
-    let Ok(player_tf) = player_q.single() else {
-        return;
-    };
 
-    let (center_y, center_x) =
-        bevy_to_tile_coords(player_tf.translation.x, player_tf.translation.z);
+    // Use player position if available, otherwise fall back to the initial tile center
+    // so terrain starts loading before the player entity is tagged.
+    let (center_y, center_x) = if let Ok(player_tf) = player_q.single() {
+        bevy_to_tile_coords(player_tf.translation.x, player_tf.translation.z)
+    } else {
+        adt_manager.initial_tile
+    };
     let desired = compute_desired_tiles(center_y, center_x, adt_manager.load_radius);
 
     unload_distant_tiles(&mut commands, &mut adt_manager, &mut heightmap, &desired);

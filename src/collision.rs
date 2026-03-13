@@ -46,14 +46,14 @@ fn update_grounded(
     terrain: Option<Res<TerrainHeightmap>>,
     mut query: Query<(&Transform, &mut CharacterPhysics), With<Player>>,
 ) {
-    let Some(terrain) = terrain.as_ref() else {
-        return;
-    };
     for (tf, mut physics) in query.iter_mut() {
-        let ground = terrain.height_at(tf.translation.x, tf.translation.z);
+        let ground = terrain
+            .as_ref()
+            .and_then(|t| t.height_at(tf.translation.x, tf.translation.z));
         physics.grounded = match ground {
             Some(h) => (tf.translation.y - h).abs() < GROUND_SNAP_THRESHOLD,
-            None => false,
+            // No terrain data yet — treat as grounded to prevent falling through the world.
+            None => true,
         };
     }
 }
@@ -68,8 +68,13 @@ fn apply_gravity_and_ground_snap(
     for (mut tf, mut physics) in query.iter_mut() {
         let ground_y = terrain
             .as_ref()
-            .and_then(|t| t.height_at(tf.translation.x, tf.translation.z))
-            .unwrap_or(0.0);
+            .and_then(|t| t.height_at(tf.translation.x, tf.translation.z));
+
+        // No terrain loaded yet — freeze vertical position to prevent falling through the world.
+        let Some(ground_y) = ground_y else {
+            physics.vertical_velocity = 0.0;
+            continue;
+        };
 
         if physics.grounded && physics.vertical_velocity <= 0.0 {
             tf.translation.y = ground_y;
