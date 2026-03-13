@@ -185,19 +185,12 @@ fn char_select_orbit_camera(
     }
 }
 
-fn spawn_char_select_lighting(commands: &mut Commands) -> (Entity, Entity) {
-    // Warm ambient for campfire mood
-    let ambient = commands
-        .spawn((
-            Name::new("AmbientLight"),
-            CharSelectScene,
-            AmbientLight {
-                color: Color::srgb(1.0, 0.95, 0.85),
-                brightness: 80.0,
-                ..default()
-            },
-        ))
-        .id();
+fn spawn_char_select_lighting(commands: &mut Commands) -> Entity {
+    commands.insert_resource(GlobalAmbientLight {
+        color: Color::srgb(1.0, 0.95, 0.85),
+        brightness: 80.0,
+        ..default()
+    });
     // Key light from upper-left
     let directional = commands
         .spawn((
@@ -212,7 +205,7 @@ fn spawn_char_select_lighting(commands: &mut Commands) -> (Entity, Entity) {
             Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
         ))
         .id();
-    (ambient, directional)
+    directional
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -443,7 +436,7 @@ fn setup_char_select_scene(
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
     let camera_entity =
         spawn_char_select_camera(&mut commands, scene_entry, placement.as_ref(), presentation);
-    let (ambient, dir) = spawn_char_select_lighting(&mut commands);
+    let dir = spawn_char_select_lighting(&mut commands);
     let bg_node = spawn_background(
         &mut commands,
         &mut meshes,
@@ -476,12 +469,7 @@ fn setup_char_select_scene(
     }
     displayed.0 = result.map(|(id, _)| id);
     let fov = camera_params(scene_entry, placement.as_ref(), presentation).2;
-    children.extend(scene_tree::light_scene_nodes(
-        camera_entity,
-        fov,
-        ambient,
-        dir,
-    ));
+    children.extend(scene_tree::light_scene_nodes(camera_entity, fov, None, dir));
     commands.insert_resource(scene_tree::build_scene_tree(children));
 }
 

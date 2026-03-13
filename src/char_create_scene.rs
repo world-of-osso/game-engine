@@ -121,15 +121,11 @@ fn orbit_camera(
 }
 
 fn spawn_lighting(commands: &mut Commands) {
-    commands.spawn((
-        Name::new("AmbientLight"),
-        CharCreateScene,
-        AmbientLight {
-            color: Color::srgb(1.0, 0.95, 0.85),
-            brightness: 80.0,
-            ..default()
-        },
-    ));
+    commands.insert_resource(GlobalAmbientLight {
+        color: Color::srgb(1.0, 0.95, 0.85),
+        brightness: 80.0,
+        ..default()
+    });
     commands.spawn((
         Name::new("DirectionalLight"),
         CharCreateScene,

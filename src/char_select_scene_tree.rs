@@ -111,7 +111,7 @@ pub fn character_scene_node(
 pub fn light_scene_nodes(
     camera: Entity,
     fov: f32,
-    ambient: Entity,
+    ambient: Option<Entity>,
     directional: Entity,
 ) -> Vec<SceneNode> {
     vec![
@@ -123,7 +123,7 @@ pub fn light_scene_nodes(
         },
         SceneNode {
             label: "AmbientLight".into(),
-            entity: Some(ambient),
+            entity: ambient,
             props: NodeProps::Light {
                 kind: "ambient".into(),
                 intensity: 80.0,
