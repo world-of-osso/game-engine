@@ -65,6 +65,7 @@ fn read_i32(data: &[u8], off: usize) -> Result<i32, String> {
     Ok(i32::from_le_bytes(bytes))
 }
 
+#[derive(Clone)]
 pub struct M2Bone {
     pub key_bone_id: i32,
     pub flags: u32,
@@ -128,6 +129,7 @@ pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct M2AnimSequence {
     pub id: u16,
     pub variation_id: u16,
@@ -212,6 +214,7 @@ pub fn parse_global_sequences(md20: &[u8]) -> Result<Vec<u32>, String> {
 /// A single animation track: keyframes for one transform component of one bone.
 /// `sequences[i]` holds the keyframe data for animation sequence `i`.
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct AnimTrack<T> {
     pub interpolation_type: u16,
     pub global_sequence: i16,
@@ -220,6 +223,7 @@ pub struct AnimTrack<T> {
 }
 
 /// All animation tracks for one bone.
+#[derive(Clone)]
 pub struct BoneAnimTracks {
     pub translation: AnimTrack<[f32; 3]>,
     pub rotation: AnimTrack<[i16; 4]>,

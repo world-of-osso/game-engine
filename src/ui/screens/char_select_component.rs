@@ -17,7 +17,6 @@ pub enum CharSelectAction {
     CreateToggle,
     DeleteChar,
     Back,
-    CreateConfirm,
     CampsiteToggle,
     SelectCampsite(u32),
 }
@@ -30,7 +29,6 @@ impl fmt::Display for CharSelectAction {
             Self::CreateToggle => f.write_str("create_toggle"),
             Self::DeleteChar => f.write_str("delete_char"),
             Self::Back => f.write_str("back"),
-            Self::CreateConfirm => f.write_str("create_confirm"),
             Self::CampsiteToggle => f.write_str("campsite_toggle"),
             Self::SelectCampsite(id) => write!(f, "select_campsite:{id}"),
         }
@@ -50,7 +48,6 @@ impl CharSelectAction {
             "create_toggle" => Some(Self::CreateToggle),
             "delete_char" => Some(Self::DeleteChar),
             "back" => Some(Self::Back),
-            "create_confirm" => Some(Self::CreateConfirm),
             "campsite_toggle" => Some(Self::CampsiteToggle),
             _ => None,
         }
@@ -62,7 +59,6 @@ impl CharSelectAction {
 pub struct CharSelectState {
     pub characters: Vec<CharDisplayEntry>,
     pub selected_index: Option<usize>,
-    pub create_panel_visible: bool,
     pub selected_name: String,
     pub status_text: String,
 }
@@ -72,7 +68,6 @@ impl Default for CharSelectState {
         Self {
             characters: Vec::new(),
             selected_index: None,
-            create_panel_visible: false,
             selected_name: "Character Selection".to_string(),
             status_text: String::new(),
         }
@@ -105,9 +100,6 @@ pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");
 pub const DELETE_CHAR_BUTTON: FrameName = FrameName("DeleteChar");
 pub const BACK_BUTTON: FrameName = FrameName("BackToLogin");
-pub const CREATE_PANEL: FrameName = FrameName("CreatePanel");
-pub const CREATE_NAME_INPUT: FrameName = FrameName("CreateNameInput");
-pub const CREATE_CONFIRM_BUTTON: FrameName = FrameName("CreateConfirm");
 pub const STATUS_TEXT: FrameName = FrameName("CSStatus");
 pub const SELECTED_NAME_TEXT: FrameName = FrameName("CharSelectCharacterName");
 
@@ -628,97 +620,6 @@ fn cs_action_buttons() -> Element {
     .collect()
 }
 
-// --- Create character panel ---
-
-fn create_panel_labels() -> Element {
-    rsx! {
-        fontstring {
-            name: "CreateNameLabel",
-            width: 300.0,
-            height: 24.0,
-            text: "Create New Character",
-            font: GameFont::FrizQuadrata,
-            font_size: 18.0,
-            font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "16",
-                y: "-18",
-            }
-        }
-        fontstring {
-            name: "CreateNameSubtitle",
-            width: 300.0,
-            height: 18.0,
-            text: "Enter a name for your new adventurer",
-            font: GameFont::FrizQuadrata,
-            font_size: 12.0,
-            font_color: COLOR_MUTED,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "16",
-                y: "-46",
-            }
-        }
-    }
-}
-
-fn create_panel_input() -> Element {
-    rsx! {
-        editbox {
-            name: CREATE_NAME_INPUT,
-            width: 300.0,
-            height: 38.0,
-            font_size: 16.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "16",
-                y: "-74",
-            }
-        }
-        button {
-            name: CREATE_CONFIRM_BUTTON,
-            width: 205.0,
-            height: 42.0,
-            text: "Create Character",
-            font_size: 14.0,
-            onclick: CharSelectAction::CreateConfirm,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-118",
-            }
-        }
-    }
-}
-
-fn cs_create_panel(visible: bool) -> Element {
-    let hide = !visible;
-    rsx! {
-        r#frame {
-            name: CREATE_PANEL,
-            width: 332.0,
-            height: 164.0,
-            hidden: hide,
-            nine_slice: "12.0,0.03,0.03,0.04,0.94,0.65,0.48,0.16,1.0",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                y: "-40",
-            }
-            {create_panel_labels()}
-            {create_panel_input()}
-        }
-    }
-}
-
 // --- Status text ---
 
 fn cs_status(text: &str) -> Element {
@@ -766,7 +667,6 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
             {cs_action_buttons()}
-            {cs_create_panel(state.create_panel_visible)}
             {cs_status(&state.status_text)}
             {campsite_ui}
         }

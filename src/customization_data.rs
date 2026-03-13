@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc, OnceLock};
 
 use bevy::prelude::*;
 
@@ -79,8 +80,20 @@ pub struct CustomizationChoice {
     pub materials: Vec<(u16, u32)>,
     /// (GeosetType, GeosetID)
     pub geosets: Vec<(u16, u16)>,
+    sample_swatch: bool,
     /// Representative RGB color sampled from the primary texture (center pixel).
-    pub swatch_color: Option<[u8; 3]>,
+    swatch_color_cache: Arc<OnceLock<Option<[u8; 3]>>>,
+}
+
+impl CustomizationChoice {
+    fn swatch_color(&self) -> Option<[u8; 3]> {
+        if !self.sample_swatch {
+            return None;
+        }
+        *self
+            .swatch_color_cache
+            .get_or_init(|| sample_swatch_color(&self.materials))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -212,7 +225,7 @@ impl CustomizationDb {
         opt_type: OptionType,
         index: u8,
     ) -> Option<[u8; 3]> {
-        self.get_choice(race, sex, opt_type, index)?.swatch_color
+        self.get_choice(race, sex, opt_type, index)?.swatch_color()
     }
 
     pub fn choice_name(&self, race: u8, sex: u8, opt_type: OptionType, index: u8) -> Option<&str> {
@@ -246,7 +259,12 @@ impl CustomizationDb {
     ) -> Vec<Option<[u8; 3]>> {
         self.options_for(race, sex)
             .and_then(|opts| opts.iter().find(|o| o.option_type == opt_type))
-            .map(|o| o.choices.iter().map(|c| c.swatch_color).collect())
+            .map(|o| {
+                o.choices
+                    .iter()
+                    .map(CustomizationChoice::swatch_color)
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -328,11 +346,6 @@ fn resolve_option_choices(
         .iter()
         .map(|ch| {
             let (materials, geosets) = resolve_choice_elements(ch.id, indexed, raw);
-            let swatch_color = if sample_swatch {
-                sample_swatch_color(&materials)
-            } else {
-                None
-            };
             (
                 ch.order_index,
                 CustomizationChoice {
@@ -340,7 +353,8 @@ fn resolve_option_choices(
                     requirement_id: ch.requirement_id,
                     materials,
                     geosets,
-                    swatch_color,
+                    sample_swatch,
+                    swatch_color_cache: Arc::new(OnceLock::new()),
                 },
             )
         })

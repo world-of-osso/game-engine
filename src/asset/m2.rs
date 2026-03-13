@@ -1,6 +1,9 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
+use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use super::m2_texture;
 #[cfg(test)]
@@ -12,13 +15,14 @@ pub fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
 }
 
 /// How to scale a texture overlay before blitting.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OverlayScale {
     None,
     Uniform2x,
 }
 
 /// A region overlay to composite onto the base texture.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TextureOverlay {
     pub fdid: u32,
     pub x: u32,
@@ -26,6 +30,7 @@ pub struct TextureOverlay {
     pub scale: OverlayScale,
 }
 
+#[derive(Clone)]
 pub struct M2RenderBatch {
     pub mesh: Mesh,
     pub texture_fdid: Option<u32>,
@@ -37,6 +42,7 @@ pub struct M2RenderBatch {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct M2Model {
     pub batches: Vec<M2RenderBatch>,
     pub bones: Vec<super::m2_anim::M2Bone>,
@@ -47,6 +53,15 @@ pub struct M2Model {
     pub attachments: Vec<super::m2_attach::M2Attachment>,
     pub attachment_lookup: Vec<i16>,
 }
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ModelCacheKey {
+    path: PathBuf,
+    skin_fdids: [u32; 3],
+}
+
+static M2_MODEL_CACHE: OnceLock<Mutex<HashMap<ModelCacheKey, Result<M2Model, String>>>> =
+    OnceLock::new();
 
 struct M2Vertex {
     position: [f32; 3],
@@ -643,8 +658,7 @@ fn build_render_batches(
     }
 }
 
-/// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
-pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
     let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
     let chunks = parse_chunks(&data)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
@@ -672,6 +686,21 @@ pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
         attachments,
         attachment_lookup,
     })
+}
+
+/// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
+pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+    let key = ModelCacheKey {
+        path: path.to_path_buf(),
+        skin_fdids: *skin_fdids,
+    };
+    let cache = M2_MODEL_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
+        return cached;
+    }
+    let loaded = load_m2_uncached(path, skin_fdids);
+    cache.lock().unwrap().insert(key, loaded.clone());
+    loaded
 }
 
 #[cfg(test)]

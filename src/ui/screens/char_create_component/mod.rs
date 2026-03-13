@@ -147,7 +147,7 @@ pub struct CharCreateUiState {
 
 impl Default for CharCreateUiState {
     fn default() -> Self {
-        use crate::char_create_data::{race_can_be_class, CLASSES};
+        use crate::char_create_data::{CLASSES, race_can_be_class};
         let race = 1;
         let class_availability: Vec<_> = CLASSES
             .iter()

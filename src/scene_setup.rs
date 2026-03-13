@@ -336,7 +336,7 @@ pub fn spawn_scene_environment(
     is_terrain: bool,
 ) -> Entity {
     let camera = crate::camera::spawn_wow_camera(commands);
-    commands.spawn(AmbientLight {
+    commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 150.0,
         ..default()

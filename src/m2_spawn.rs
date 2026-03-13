@@ -1,9 +1,20 @@
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::prelude::*;
 
 use crate::asset;
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct TextureCacheKey {
+    base_path: PathBuf,
+    overlays: Vec<asset::m2::TextureOverlay>,
+}
+
+static COMPOSITED_TEXTURE_CACHE: OnceLock<
+    Mutex<std::collections::HashMap<TextureCacheKey, Result<Image, String>>>,
+> = OnceLock::new();
 
 /// Component tagging a mesh entity with its M2 geoset mesh_part_id.
 #[derive(Component)]
@@ -177,7 +188,9 @@ fn try_load_textured_material(
     if !blp_path.exists() {
         return None;
     }
-    let image = load_composited_texture(blp_path, &batch.overlays, texture_dir)?;
+    let image = load_composited_texture(blp_path, &batch.overlays, texture_dir)
+        .map_err(|e| eprintln!("{e}"))
+        .ok()?;
     Some(materials.add(m2_material(Some(images.add(image)), None, batch)))
 }
 
@@ -215,14 +228,24 @@ fn load_composited_texture(
     base_path: &Path,
     overlays: &[asset::m2::TextureOverlay],
     texture_dir: &Path,
-) -> Option<Image> {
+) -> Result<Image, String> {
+    let key = TextureCacheKey {
+        base_path: base_path.to_path_buf(),
+        overlays: overlays.to_vec(),
+    };
+    let cache =
+        COMPOSITED_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
+    if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
+        return cached;
+    }
     let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
-        .map_err(|e| eprintln!("Failed to load BLP {}: {e}", base_path.display()))
-        .ok()?;
+        .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?;
     for ov in overlays {
         composite_overlay(&mut pixels, w, ov, texture_dir);
     }
-    Some(crate::rgba_image(pixels, w, h))
+    let image = crate::rgba_image(pixels, w, h);
+    cache.lock().unwrap().insert(key, Ok(image.clone()));
+    Ok(image)
 }
 
 fn composite_overlay(

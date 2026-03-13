@@ -95,7 +95,7 @@ fn spawn_world_environment(
         .ok()
         .unwrap_or_else(|| camera::spawn_wow_camera(&mut commands));
     commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
-    commands.spawn(AmbientLight {
+    commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 0.0,
         ..default()

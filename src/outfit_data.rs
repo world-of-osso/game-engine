@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use bevy::prelude::*;
 
@@ -21,9 +23,8 @@ struct DisplayInfoResolved {
     model_resource_ids: Vec<u32>,
 }
 
-/// Parsed outfit lookup data loaded once at startup.
-#[derive(Resource, Debug, Default)]
-pub struct OutfitData {
+#[derive(Debug, Default)]
+struct LoadedOutfitData {
     /// (race, class, sex) -> starter item ids
     outfits: HashMap<(u8, u8, u8), Vec<u32>>,
     /// ItemID -> ItemAppearanceID (first match / lowest order encountered)
@@ -38,26 +39,37 @@ pub struct OutfitData {
     model_to_fdid: HashMap<u32, u32>,
 }
 
+/// Parsed outfit lookup data loaded lazily on first use.
+#[derive(Resource, Debug, Default)]
+pub struct OutfitData {
+    data_dir: PathBuf,
+    loaded: OnceLock<Result<LoadedOutfitData, String>>,
+}
+
 impl OutfitData {
     pub fn load(data_dir: &Path) -> Self {
-        match Self::try_load(data_dir) {
-            Ok(d) => {
-                info!(
-                    "OutfitData loaded: {} outfits, {} item appearances, {} display infos",
-                    d.outfits.len(),
-                    d.item_to_appearance.len(),
-                    d.display_info.len()
-                );
-                d
-            }
-            Err(e) => {
-                warn!("Failed to load outfit data: {e}");
-                Self::default()
-            }
+        Self {
+            data_dir: data_dir.to_path_buf(),
+            loaded: OnceLock::new(),
         }
     }
 
-    fn try_load(data_dir: &Path) -> Result<Self, String> {
+    fn loaded(&self) -> Option<&LoadedOutfitData> {
+        match self
+            .loaded
+            .get_or_init(|| match Self::try_load(&self.data_dir) {
+                Ok(data) => Ok(data),
+                Err(err) => {
+                    warn!("Failed to load outfit data: {err}");
+                    Err(err)
+                }
+            }) {
+            Ok(data) => Some(data),
+            Err(_) => None,
+        }
+    }
+
+    fn try_load(data_dir: &Path) -> Result<LoadedOutfitData, String> {
         let outfits = parse_char_start_outfits(&data_dir.join("CharStartOutfit.csv"))?;
         let item_to_appearance =
             parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
@@ -85,18 +97,28 @@ impl OutfitData {
             }
         }
 
-        Ok(Self {
+        let data = LoadedOutfitData {
             outfits,
             item_to_appearance,
             appearance_to_display,
             display_info,
             material_to_texture,
             model_to_fdid,
-        })
+        };
+        info!(
+            "OutfitData loaded: {} outfits, {} item appearances, {} display infos",
+            data.outfits.len(),
+            data.item_to_appearance.len(),
+            data.display_info.len()
+        );
+        Ok(data)
     }
 
     pub fn resolve_outfit(&self, race: u8, class: u8, sex: u8) -> OutfitResult {
-        let Some(item_ids) = self.outfits.get(&(race, class, sex)) else {
+        let Some(data) = self.loaded() else {
+            return OutfitResult::default();
+        };
+        let Some(item_ids) = data.outfits.get(&(race, class, sex)) else {
             return OutfitResult::default();
         };
 
@@ -106,13 +128,13 @@ impl OutfitData {
         let mut seen_models = HashSet::new();
 
         for &item_id in item_ids {
-            let Some(&appearance_id) = self.item_to_appearance.get(&item_id) else {
+            let Some(&appearance_id) = data.item_to_appearance.get(&item_id) else {
                 continue;
             };
-            let Some(&display_id) = self.appearance_to_display.get(&appearance_id) else {
+            let Some(&display_id) = data.appearance_to_display.get(&appearance_id) else {
                 continue;
             };
-            let Some(display) = self.display_info.get(&display_id) else {
+            let Some(display) = data.display_info.get(&display_id) else {
                 continue;
             };
 
@@ -129,7 +151,7 @@ impl OutfitData {
             }
 
             for &model_resource_id in &display.model_resource_ids {
-                let Some(&model_fdid) = self.model_to_fdid.get(&model_resource_id) else {
+                let Some(&model_fdid) = data.model_to_fdid.get(&model_resource_id) else {
                     continue;
                 };
                 if seen_models.insert((model_resource_id, model_fdid)) {
@@ -142,7 +164,9 @@ impl OutfitData {
     }
 
     pub fn material_texture_count(&self) -> usize {
-        self.material_to_texture.len()
+        self.loaded()
+            .map(|data| data.material_to_texture.len())
+            .unwrap_or(0)
     }
 }
 
@@ -390,4 +414,22 @@ fn field_u32(row: &[String], col: usize) -> u32 {
                 .or_else(|| s.parse::<i32>().ok().map(|v| v as u32))
         })
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_outfit_data_lazily() {
+        let data = OutfitData::load(Path::new("data"));
+        assert!(data.loaded.get().is_none());
+
+        let result = data.resolve_outfit(1, 1, 0);
+        assert!(data.loaded.get().is_some());
+        assert!(
+            !result.item_textures.is_empty() || !result.geoset_overrides.is_empty(),
+            "expected starter outfit data for human warrior male"
+        );
+    }
 }

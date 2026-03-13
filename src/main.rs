@@ -787,10 +787,7 @@ mod tests {
 
     #[test]
     fn resolved_initial_state_keeps_parsed_connecting_when_cli_state_is_absent() {
-        let resolved = resolve_initial_state(
-            Some(game_state::GameState::Connecting),
-            None,
-        );
+        let resolved = resolve_initial_state(Some(game_state::GameState::Connecting), None);
 
         assert_eq!(resolved, Some(game_state::GameState::Connecting));
     }
