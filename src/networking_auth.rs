@@ -164,21 +164,62 @@ fn handle_login_response(
         auth_feedback.0 = None;
         char_list.0 = resp.characters;
         info!("Login success, {} characters", char_list.0.len());
-        let selected_idx =
-            resolve_selected_char_index(&char_list.0, preselected.map(|name| name.0.as_str()));
-        selected_char_idx.0 = selected_idx;
-        if auto_enter_world.is_some()
-            && try_auto_enter_world(selected_idx, &char_list.0, select_senders)
-        {
+        let action = decide_login_success_action(
+            &char_list.0,
+            preselected.map(|name| name.0.as_str()),
+            auto_enter_world.is_some(),
+        );
+        selected_char_idx.0 = action.selected_idx;
+        if let Some(character_id) = action.enter_world_character_id {
+            send_enter_world(character_id, select_senders);
             commands.remove_resource::<crate::char_select::AutoEnterWorld>();
-        } else {
-            next_state.set(GameState::CharSelect);
+        }
+        if let Some(state) = action.next_state {
+            next_state.set(state);
         }
     } else {
         let err = resp.error.unwrap_or_default();
         error!("Login failed: {err}");
         auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
         next_state.set(GameState::Login);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LoginSuccessAction {
+    selected_idx: Option<usize>,
+    enter_world_character_id: Option<u64>,
+    next_state: Option<GameState>,
+}
+
+fn decide_login_success_action(
+    characters: &[CharacterListEntry],
+    preselected_name: Option<&str>,
+    auto_enter_world: bool,
+) -> LoginSuccessAction {
+    let selected_idx = resolve_selected_char_index(characters, preselected_name);
+    let enter_world_character_id = auto_enter_world
+        .then(|| selected_idx.and_then(|idx| characters.get(idx).map(|ch| ch.character_id)))
+        .flatten();
+    let next_state = if enter_world_character_id.is_some() {
+        None
+    } else {
+        Some(GameState::CharSelect)
+    };
+    LoginSuccessAction {
+        selected_idx,
+        enter_world_character_id,
+        next_state,
+    }
+}
+
+fn send_enter_world(
+    character_id: u64,
+    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+) {
+    let msg = SelectCharacter { character_id };
+    for mut sender in select_senders.iter_mut() {
+        sender.send::<AuthChannel>(msg.clone());
     }
 }
 
@@ -289,24 +330,6 @@ fn resolve_selected_char_index(
                 .position(|ch| ch.name.eq_ignore_ascii_case(name))
         })
         .or_else(|| characters.first().map(|_| 0))
-}
-
-fn try_auto_enter_world(
-    selected_idx: Option<usize>,
-    characters: &[CharacterListEntry],
-    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
-) -> bool {
-    let Some(character) = selected_idx.and_then(|idx| characters.get(idx)) else {
-        return false;
-    };
-    let msg = SelectCharacter {
-        character_id: character.character_id,
-    };
-    for mut sender in select_senders.iter_mut() {
-        sender.send::<AuthChannel>(msg.clone());
-    }
-    info!("Auto-enter requested for '{}'", character.name);
-    true
 }
 
 /// Handle EnterWorldResponse: store selected character info and transition to Loading.
@@ -420,5 +443,59 @@ mod tests {
             Some(0)
         );
         assert_eq!(resolve_selected_char_index(&chars, None), Some(0));
+    }
+
+    #[test]
+    fn login_success_auto_enter_skips_charselect_when_character_exists() {
+        let chars = vec![CharacterListEntry {
+            character_id: 7,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+        }];
+
+        assert_eq!(
+            decide_login_success_action(&chars, None, true),
+            LoginSuccessAction {
+                selected_idx: Some(0),
+                enter_world_character_id: Some(7),
+                next_state: None,
+            }
+        );
+    }
+
+    #[test]
+    fn login_success_without_auto_enter_still_goes_to_charselect() {
+        let chars = vec![CharacterListEntry {
+            character_id: 7,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+        }];
+
+        assert_eq!(
+            decide_login_success_action(&chars, None, false),
+            LoginSuccessAction {
+                selected_idx: Some(0),
+                enter_world_character_id: None,
+                next_state: Some(GameState::CharSelect),
+            }
+        );
+    }
+
+    #[test]
+    fn login_success_auto_enter_falls_back_to_charselect_when_list_is_empty() {
+        assert_eq!(
+            decide_login_success_action(&[], None, true),
+            LoginSuccessAction {
+                selected_idx: None,
+                enter_world_character_id: None,
+                next_state: Some(GameState::CharSelect),
+            }
+        );
     }
 }
