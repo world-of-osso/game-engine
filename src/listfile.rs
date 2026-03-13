@@ -41,6 +41,10 @@ impl Listfile {
                 CachedListfile::default()
             }
         };
+        eprintln!(
+            "Loaded local listfile cache: {} entries",
+            local.by_fdid.len()
+        );
         Self {
             community_path,
             local_cache_path,
@@ -67,9 +71,7 @@ impl Listfile {
         if let Some(path) = self.local.lock().unwrap().by_fdid.get(&fdid).copied() {
             return Some(path);
         }
-        let path = self.community().by_fdid.get(&fdid).copied()?;
-        self.remember(fdid, path);
-        Some(path)
+        self.community().by_fdid.get(&fdid).copied()
     }
 
     fn lookup_path(&self, path: &str) -> Option<u32> {
@@ -194,6 +196,26 @@ mod tests {
             Some("world/maps/test/test_1_2.adt")
         );
 
+        let _ = std::fs::remove_file(local);
+    }
+
+    #[test]
+    fn lookup_fdid_does_not_persist_broad_reverse_scans() {
+        let test_dir = Path::new("target/test-artifacts/listfile");
+        std::fs::create_dir_all(test_dir).unwrap();
+        let community = test_dir.join("community-fdid-only.csv");
+        let local = test_dir.join("local-cache-fdid-only.csv");
+        let _ = std::fs::remove_file(&local);
+        std::fs::write(&community, "456;creature/test/test.m2\n").unwrap();
+
+        let listfile = Listfile::new(community.clone(), local.clone());
+        assert_eq!(listfile.lookup_fdid(456), Some("creature/test/test.m2"));
+        assert!(
+            !local.exists(),
+            "reverse lookups should not grow the local cache"
+        );
+
+        let _ = std::fs::remove_file(community);
         let _ = std::fs::remove_file(local);
     }
 }
