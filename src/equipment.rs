@@ -213,27 +213,23 @@ pub fn sync_equipment(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     transforms: Res<EquipmentTransforms>,
-    anim_data: Option<Res<M2AnimData>>,
     mut query: Query<(
         Entity,
         &Equipment,
         &AttachmentPoints,
+        &M2AnimData,
         &mut RenderedEquipment,
     )>,
     existing_items: Query<(), With<EquipmentItem>>,
     mut warned: Local<HashSet<String>>,
 ) {
-    for (owner, equipment, attach_points, mut rendered) in &mut query {
+    for (owner, equipment, attach_points, anim_data, mut rendered) in &mut query {
         sync_removed_slots(
             &mut commands,
             &equipment.slots,
             &mut rendered,
             &existing_items,
         );
-
-        let Some(anim_data) = anim_data.as_ref() else {
-            continue;
-        };
 
         for (&slot, path) in &equipment.slots {
             if path.as_os_str().is_empty() {

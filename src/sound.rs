@@ -244,23 +244,25 @@ fn attach_footstep_tracker(
 
 fn footstep_trigger(
     mut commands: Commands,
-    anim_data: Option<Res<crate::animation::M2AnimData>>,
     sound_assets: Option<Res<SoundAssets>>,
     settings: Res<SoundSettings>,
     mut player_q: Query<
-        (&crate::animation::M2AnimPlayer, &mut FootstepTracker),
+        (
+            &crate::animation::M2AnimPlayer,
+            &crate::animation::M2AnimData,
+            &mut FootstepTracker,
+        ),
         With<crate::camera::Player>,
     >,
 ) {
     if settings.muted {
         return;
     }
-    let Some(anim_data) = anim_data else { return };
     let Some(sound_assets) = sound_assets else {
         return;
     };
 
-    for (anim_player, mut tracker) in &mut player_q {
+    for (anim_player, anim_data, mut tracker) in &mut player_q {
         let seq = &anim_data.sequences[anim_player.current_seq_idx];
 
         if !is_movement_anim(seq.id) {

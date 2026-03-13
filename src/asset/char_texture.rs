@@ -188,6 +188,10 @@ impl CharTextureData {
         layout_id: u32,
     ) {
         if layer.section_bitmask == -1 {
+            if let Some(section) = self.full_texture_section(layer, layout_id) {
+                blit_section(pixels, canvas_w, tex, tex_w, tex_h, &section, layer);
+                return;
+            }
             // Full texture: blit at (0,0), scaled to fill
             let canvas_h = pixels.len() as u32 / (canvas_w * 4);
             blit_scaled(
@@ -205,6 +209,15 @@ impl CharTextureData {
             };
             blit_section(pixels, canvas_w, tex, tex_w, tex_h, section, layer);
         }
+    }
+
+    fn full_texture_section(&self, layer: &TextureLayer, layout_id: u32) -> Option<TextureSection> {
+        // HD/modern hair color layers use target 10 with a standalone head atlas.
+        // That atlas belongs in section 10, not stretched across the full body canvas.
+        if layer.target_id == 10 {
+            return self.sections.get(&(layout_id, 10)).copied();
+        }
+        None
     }
 }
 
@@ -297,6 +310,7 @@ fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_src_alpha: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn blend_mode_1_respects_partial_alpha() {
@@ -316,6 +330,42 @@ mod tests {
         blend_pixel(&mut dst, 0, &src, 0, uses_source_alpha(0));
 
         assert_eq!(dst, [200, 40, 20, 255]);
+    }
+
+    #[test]
+    fn full_head_atlas_layers_do_not_stretch_across_body_canvas() {
+        let mut sections = HashMap::new();
+        sections.insert(
+            (2, 10),
+            TextureSection {
+                x: 2,
+                y: 0,
+                width: 2,
+                height: 2,
+            },
+        );
+        let data = CharTextureData {
+            layers: Vec::new(),
+            sections,
+            layouts: HashMap::new(),
+        };
+        let layer = TextureLayer {
+            layer: 0,
+            blend_mode: 0,
+            section_bitmask: -1,
+            target_id: 10,
+            layout_id: 2,
+        };
+        let tex = vec![
+            255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255,
+        ];
+        let mut pixels = vec![0u8; 4 * 2 * 4];
+
+        data.blit_layer(&mut pixels, 4, &tex, 2, 2, &layer, 2);
+
+        assert_eq!(&pixels[0..8], &[0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(&pixels[8..16], &[255, 0, 0, 255, 255, 0, 0, 255]);
+        assert_eq!(&pixels[24..32], &[255, 0, 0, 255, 255, 0, 0, 255]);
     }
 }
 

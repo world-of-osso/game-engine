@@ -349,9 +349,15 @@ fn sync_appearance(
     mut displayed: ResMut<DisplayedModels>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    parent_query: Query<&ChildOf>,
     geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
-    material_query: Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    material_query: Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&crate::m2_spawn::BatchTextureType>,
+        &ChildOf,
+    )>,
 ) {
     let Some(state) = state else { return };
     let appearance = state.appearance;
@@ -383,6 +389,7 @@ fn sync_appearance(
         root,
         &mut images,
         &mut materials,
+        &parent_query,
         &geoset_query,
         &mut visibility_query,
         &material_query,

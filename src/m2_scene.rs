@@ -18,17 +18,20 @@ pub fn attach_equipment_to_model(
     commands: &mut Commands,
     model_entity: Entity,
     attachments: &[asset::m2_attach::M2Attachment],
+    default_main_hand_torch: bool,
 ) {
     if attachments.is_empty() {
         return;
     }
     let attach_pts = equipment::build_attachment_points(attachments);
     let mut equip = equipment::Equipment::default();
-    let torch = Path::new("data/models/club_1h_torch_a_01.m2");
-    if torch.exists() {
-        equip
-            .slots
-            .insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
+    if default_main_hand_torch {
+        let torch = Path::new("data/models/club_1h_torch_a_01.m2");
+        if torch.exists() {
+            equip
+                .slots
+                .insert(equipment::EquipmentSlot::MainHand, torch.to_path_buf());
+        }
     }
     commands.entity(model_entity).insert((attach_pts, equip));
 }
@@ -46,6 +49,7 @@ fn spawn_anim_and_particles(
     attachments: Vec<asset::m2_attach::M2Attachment>,
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,
+    default_main_hand_torch: bool,
 ) {
     let joint_entities =
         attach_bone_pivots_and_player(commands, bones, &sequences, skinning, model_entity);
@@ -59,13 +63,18 @@ fn spawn_anim_and_particles(
         model_entity,
     );
     if let Some(joints) = joint_entities {
-        commands.insert_resource(M2AnimData {
+        commands.entity(model_entity).insert(M2AnimData {
             sequences,
             bone_tracks,
             joint_entities: joints,
         });
     }
-    attach_equipment_to_model(commands, model_entity, &attachments);
+    attach_equipment_to_model(
+        commands,
+        model_entity,
+        &attachments,
+        default_main_hand_torch,
+    );
 }
 
 fn spawn_particle_emitters(
@@ -127,7 +136,28 @@ pub fn spawn_m2_model(
         inv_bp,
         model,
         model_entity,
+        true,
     );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_full_m2_on_entity(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    entity: Entity,
+) -> bool {
+    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
+        return false;
+    };
+    attach_m2_model_parts(
+        commands, meshes, materials, images, inv_bp, model, entity, false,
+    );
+    true
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -139,6 +169,7 @@ fn attach_m2_model_parts(
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     model: asset::m2::M2Model,
     model_entity: Entity,
+    default_main_hand_torch: bool,
 ) {
     let asset::m2::M2Model {
         batches,
@@ -173,6 +204,7 @@ fn attach_m2_model_parts(
         attachments,
         &skinning,
         model_entity,
+        default_main_hand_torch,
     );
 }
 
@@ -214,6 +246,16 @@ pub fn spawn_static_m2(
     let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
+    // Keep the visual skeleton/meshes under an identity child so Bevy skinning
+    // computes world_from_local from the actor root only once.
+    let model_root = commands
+        .spawn((
+            Name::new(format!("{name}ModelRoot")),
+            Transform::IDENTITY,
+            Visibility::default(),
+        ))
+        .id();
+    commands.entity(model_root).insert(ChildOf(root));
     let skin_fdids = creature_display_map
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
@@ -226,7 +268,7 @@ pub fn spawn_static_m2(
             inverse_bindposes: skinned_mesh_inverse_bindposes,
         },
         m2_path,
-        root,
+        model_root,
         &skin_fdids,
     ) {
         Some(root)

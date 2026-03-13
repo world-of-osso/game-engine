@@ -5,7 +5,7 @@ use game_engine::customization_data::{CustomizationDb, OptionType};
 use game_engine::outfit_data::OutfitData;
 use shared::components::CharacterAppearance;
 
-use crate::m2_spawn::GeosetMesh;
+use crate::m2_spawn::{BatchTextureType, GeosetMesh};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CharacterCustomizationSelection {
@@ -23,9 +23,15 @@ pub(crate) fn apply_character_customization(
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
+    parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
-    material_query: &Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    material_query: &Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&BatchTextureType>,
+        &ChildOf,
+    )>,
 ) {
     let outfit = outfit_data.resolve_outfit(selection.race, selection.class, selection.sex);
     apply_body_texture(
@@ -36,6 +42,7 @@ pub(crate) fn apply_character_customization(
         root,
         images,
         materials,
+        parent_query,
         material_query,
     );
     apply_geoset_visibility(
@@ -43,6 +50,7 @@ pub(crate) fn apply_character_customization(
         customization_db,
         &outfit,
         root,
+        parent_query,
         geoset_query,
         visibility_query,
     );
@@ -56,7 +64,13 @@ fn apply_body_texture(
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
-    material_query: &Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    parent_query: &Query<&ChildOf>,
+    material_query: &Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&BatchTextureType>,
+        &ChildOf,
+    )>,
 ) {
     let all_materials = collect_appearance_materials(selection, customization_db);
     if all_materials.is_empty() {
@@ -72,8 +86,12 @@ fn apply_body_texture(
     };
     let img = crate::rgba_image(pixels, w, h);
     let img_handle = images.add(img);
-    for (mat_handle, child_of) in material_query.iter() {
-        if child_of.parent() != root {
+    for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
+        if !is_descendant_of(entity, root, parent_query) {
+            continue;
+        }
+        let uses_customization_texture = matches!(batch_texture_type.map(|t| t.0), Some(1 | 6));
+        if !uses_customization_texture {
             continue;
         }
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
@@ -113,6 +131,7 @@ fn apply_geoset_visibility(
     customization_db: &CustomizationDb,
     outfit: &game_engine::outfit_data::OutfitResult,
     root: Entity,
+    parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
 ) {
@@ -141,7 +160,7 @@ fn apply_geoset_visibility(
     let active_types: Vec<u16> = active_geosets.iter().map(|(t, _)| *t).collect();
 
     for (entity, geoset_mesh, child_of) in geoset_query.iter() {
-        if child_of.parent() != root {
+        if child_of.parent() != root && !is_descendant_of(entity, root, parent_query) {
             continue;
         }
         let group = geoset_mesh.0 / 100;
@@ -159,5 +178,19 @@ fn apply_geoset_visibility(
                 Visibility::Hidden
             };
         }
+    }
+}
+
+fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
+    let mut current = entity;
+    loop {
+        let Ok(child_of) = parent_query.get(current) else {
+            return false;
+        };
+        let parent = child_of.parent();
+        if parent == root {
+            return true;
+        }
+        current = parent;
     }
 }

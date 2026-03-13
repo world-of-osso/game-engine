@@ -34,6 +34,7 @@ pub struct TextureOverlay {
 pub struct M2RenderBatch {
     pub mesh: Mesh,
     pub texture_fdid: Option<u32>,
+    pub texture_type: Option<u32>,
     pub overlays: Vec<TextureOverlay>,
     pub render_flags: u16,
     pub blend_mode: u16,
@@ -544,7 +545,7 @@ pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
     let group = mesh_part_id / 100;
     let variant = mesh_part_id % 100;
     match group {
-        0 => matches!(mesh_part_id, 0 | 1 | 5),
+        0 => matches!(mesh_part_id, 0 | 1 | 5 | 16 | 17 | 27..=33),
         1..=3 => variant == 2,
         7 => matches!(variant, 1 | 2),
         32 => variant >= 1,
@@ -572,11 +573,13 @@ fn build_one_batch(
     }
     let sub = &skin.submeshes[sub_idx];
     let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
+    let texture_type = m2_texture::batch_texture_type(unit, tex.tex_lookup, tex.tex_types);
     let (texture_fdid, overlays) = m2_texture::resolve_batch_fdid_and_overlays(unit, tex, is_hd);
     let mat = materials.get(unit.render_flags_index as usize);
     Ok(M2RenderBatch {
         mesh,
         texture_fdid,
+        texture_type,
         overlays,
         render_flags: mat.map(|m| m.flags).unwrap_or(0),
         blend_mode: mat.map(|m| m.blend_mode).unwrap_or(0),
@@ -615,6 +618,7 @@ fn build_fallback_batch(
     Ok(vec![M2RenderBatch {
         mesh: build_mesh(vertices, indices),
         texture_fdid: fdid,
+        texture_type: None,
         overlays: Vec::new(),
         render_flags: 0,
         blend_mode: 0,

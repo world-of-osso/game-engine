@@ -5,7 +5,7 @@ use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 use lightyear::prelude::Replicated;
 use shared::components::{ModelDisplay, Npc, Player as NetPlayer};
 
-use crate::networking::LocalPlayer;
+use crate::networking::{LocalPlayer, ReplicatedVisualEntity};
 
 pub struct InWorldSceneTreePlugin;
 
@@ -20,7 +20,7 @@ impl Plugin for InWorldSceneTreePlugin {
 
 fn build_inworld_scene_tree(
     mut commands: Commands,
-    players: Query<(Entity, &NetPlayer), With<Replicated>>,
+    players: Query<(Entity, &NetPlayer), With<ReplicatedVisualEntity>>,
     npcs: Query<(Entity, &Npc, Option<&ModelDisplay>), With<Replicated>>,
     camera: Query<Entity, With<Camera3d>>,
     local_player: Query<Entity, With<LocalPlayer>>,
@@ -44,7 +44,7 @@ fn build_inworld_scene_tree(
 }
 
 fn collect_player_nodes(
-    players: &Query<(Entity, &NetPlayer), With<Replicated>>,
+    players: &Query<(Entity, &NetPlayer), With<ReplicatedVisualEntity>>,
     local_player: &Query<Entity, With<LocalPlayer>>,
     children: &mut Vec<SceneNode>,
 ) {

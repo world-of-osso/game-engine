@@ -9,8 +9,8 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct BonePivot(pub Vec3);
 
-/// All animation data for the loaded M2 model.
-#[derive(Resource)]
+/// All animation data for a single animated M2 model root.
+#[derive(Component)]
 pub struct M2AnimData {
     pub sequences: Vec<M2AnimSequence>,
     pub bone_tracks: Vec<BoneAnimTracks>,
@@ -102,18 +102,16 @@ fn is_jump_anim(id: u16) -> bool {
     matches!(id, ANIM_JUMP_START | ANIM_JUMP | ANIM_JUMP_END)
 }
 
-fn switch_animation(
-    anim_data: Option<Res<M2AnimData>>,
-    mut players: Query<(&mut M2AnimPlayer, &mut MovementState)>,
-) {
-    let Some(data) = anim_data else { return };
-    for (mut player, mut movement) in &mut players {
+fn switch_animation(mut players: Query<(&mut M2AnimPlayer, Option<&MovementState>, &M2AnimData)>) {
+    for (mut player, movement, data) in &mut players {
         let current_id = data.sequences.get(player.current_seq_idx).map(|s| s.id);
         let in_jump = current_id.is_some_and(is_jump_anim);
+        let default_movement = MovementState::default();
+        let movement = movement.unwrap_or(&default_movement);
 
         // Jump state machine: enter on jumping flag, stay until JumpEnd finishes
         if movement.jumping || in_jump {
-            switch_jump(&mut player, &mut movement, current_id, &data.sequences);
+            switch_jump(&mut player, movement, current_id, &data.sequences);
             continue;
         }
 
@@ -135,7 +133,7 @@ const JUMP_BLEND_MS: f32 = 80.0;
 /// Handle jump state machine: JumpStart (once) → Jump (loop) → JumpEnd (once) → done.
 fn switch_jump(
     player: &mut M2AnimPlayer,
-    movement: &mut MovementState,
+    movement: &MovementState,
     current_id: Option<u16>,
     sequences: &[M2AnimSequence],
 ) {
@@ -181,14 +179,9 @@ fn anim_finished(player: &M2AnimPlayer, sequences: &[M2AnimSequence]) -> bool {
         .is_some_and(|seq| player.time_ms >= seq.duration as f32)
 }
 
-fn tick_animation(
-    time: Res<Time>,
-    anim_data: Option<Res<M2AnimData>>,
-    mut players: Query<&mut M2AnimPlayer>,
-) {
-    let Some(data) = anim_data else { return };
+fn tick_animation(time: Res<Time>, mut players: Query<(&mut M2AnimPlayer, &M2AnimData)>) {
     let delta_ms = time.delta_secs() * 1000.0;
-    for mut player in &mut players {
+    for (mut player, data) in &mut players {
         let Some(seq) = data.sequences.get(player.current_seq_idx) else {
             continue;
         };
@@ -221,16 +214,11 @@ fn tick_animation(
     }
 }
 
-fn apply_animation(
-    anim_data: Option<Res<M2AnimData>>,
-    players: Query<&M2AnimPlayer>,
-    mut bone_query: Query<(&mut Transform, &BonePivot)>,
+fn apply_animation_to_model(
+    player: &M2AnimPlayer,
+    data: &M2AnimData,
+    bone_query: &mut Query<(&mut Transform, &BonePivot)>,
 ) {
-    let Some(data) = anim_data else { return };
-    let Some(player) = players.iter().next() else {
-        return;
-    };
-
     for (bone_idx, joint_entity) in data.joint_entities.iter().enumerate() {
         let Some(tracks) = data.bone_tracks.get(bone_idx) else {
             continue;
@@ -254,6 +242,15 @@ fn apply_animation(
         };
 
         apply_bone_transform(pivot.0, trans, rot, scl, &mut transform);
+    }
+}
+
+fn apply_animation(
+    players: Query<(&M2AnimPlayer, &M2AnimData)>,
+    mut bone_query: Query<(&mut Transform, &BonePivot)>,
+) {
+    for (player, data) in &players {
+        apply_animation_to_model(player, data, &mut bone_query);
     }
 }
 
@@ -302,5 +299,96 @@ impl Plugin for AnimationPlugin {
                 .chain()
                 .run_if(in_state(GameState::InWorld)),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::asset::m2_anim::AnimTrack;
+
+    fn single_key_vec3_track(value: [f32; 3]) -> AnimTrack<[f32; 3]> {
+        AnimTrack {
+            interpolation_type: 0,
+            global_sequence: -1,
+            sequences: vec![(vec![0], vec![value])],
+        }
+    }
+
+    fn single_key_rot_track() -> AnimTrack<[i16; 4]> {
+        AnimTrack {
+            interpolation_type: 0,
+            global_sequence: -1,
+            sequences: vec![(vec![0], vec![[0, 0, 0, i16::MAX]])],
+        }
+    }
+
+    fn stationary_bone(translation: [f32; 3]) -> BoneAnimTracks {
+        BoneAnimTracks {
+            translation: single_key_vec3_track(translation),
+            rotation: single_key_rot_track(),
+            scale: single_key_vec3_track([1.0, 1.0, 1.0]),
+        }
+    }
+
+    fn stand_sequence() -> M2AnimSequence {
+        M2AnimSequence {
+            id: 0,
+            variation_id: 0,
+            duration: 1000,
+            movespeed: 0.0,
+            flags: 0,
+            blend_time: 0,
+            next_animation: -1,
+        }
+    }
+
+    #[test]
+    fn apply_animation_updates_each_model_with_its_own_data() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, apply_animation);
+
+        let joint_a = app
+            .world_mut()
+            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
+            .id();
+        let joint_b = app
+            .world_mut()
+            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
+            .id();
+
+        let player_a = M2AnimPlayer {
+            current_seq_idx: 0,
+            time_ms: 0.0,
+            looping: true,
+            transition: None,
+        };
+        let player_b = M2AnimPlayer {
+            current_seq_idx: 0,
+            time_ms: 0.0,
+            looping: true,
+            transition: None,
+        };
+        let data_a = M2AnimData {
+            sequences: vec![stand_sequence()],
+            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+            joint_entities: vec![joint_a],
+        };
+        let data_b = M2AnimData {
+            sequences: vec![stand_sequence()],
+            bone_tracks: vec![stationary_bone([4.0, 5.0, 6.0])],
+            joint_entities: vec![joint_b],
+        };
+
+        app.world_mut().spawn((player_a, data_a));
+        app.world_mut().spawn((player_b, data_b));
+
+        app.update();
+
+        let transform_a = app.world().get::<Transform>(joint_a).unwrap();
+        let transform_b = app.world().get::<Transform>(joint_b).unwrap();
+        assert_eq!(transform_a.translation, Vec3::new(1.0, 3.0, -2.0));
+        assert_eq!(transform_b.translation, Vec3::new(4.0, 6.0, -5.0));
     }
 }

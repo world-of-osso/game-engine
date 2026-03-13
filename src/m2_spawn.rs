@@ -20,6 +20,10 @@ static COMPOSITED_TEXTURE_CACHE: OnceLock<
 #[derive(Component)]
 pub struct GeosetMesh(pub u16);
 
+/// Component tagging a mesh entity with the resolved M2 texture type.
+#[derive(Component)]
+pub struct BatchTextureType(pub u32);
+
 /// Grouped asset params for M2 spawning.
 pub struct SpawnAssets<'a> {
     pub meshes: &'a mut Assets<Mesh>,
@@ -68,11 +72,10 @@ pub fn attach_m2_batches(
             commands,
             assets.meshes,
             mat,
-            batch.mesh,
+            batch,
             root,
             &skinning,
             i,
-            batch.mesh_part_id,
             visible,
         );
     }
@@ -84,13 +87,18 @@ fn spawn_skinned_mesh(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     material: Handle<StandardMaterial>,
-    mesh: Mesh,
+    batch: asset::m2::M2RenderBatch,
     parent: Entity,
     skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
     batch_index: usize,
-    mesh_part_id: u16,
     visible: bool,
 ) {
+    let asset::m2::M2RenderBatch {
+        mesh,
+        texture_type,
+        mesh_part_id,
+        ..
+    } = batch;
     let vis = if visible {
         Visibility::Inherited
     } else {
@@ -103,6 +111,9 @@ fn spawn_skinned_mesh(
         GeosetMesh(mesh_part_id),
         vis,
     ));
+    if let Some(texture_type) = texture_type {
+        cmd.insert(BatchTextureType(texture_type));
+    }
     cmd.set_parent_in_place(parent);
     if let Some((inv_bp, joints)) = skinning {
         cmd.insert(SkinnedMesh {

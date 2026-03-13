@@ -38,6 +38,8 @@ pub struct CharSelectScene;
 struct CharSelectOrbit {
     /// Current yaw offset in radians (horizontal rotation).
     yaw: f32,
+    /// Starting yaw from focus to eye in radians.
+    base_yaw: f32,
     /// Current pitch offset in radians (vertical rotation).
     pitch: f32,
     /// Point the camera orbits around.
@@ -140,6 +142,7 @@ fn camera_params(
 fn orbit_from_eye_focus(eye: Vec3, focus: Vec3) -> CharSelectOrbit {
     let offset = eye - focus;
     let distance = offset.length();
+    let base_yaw = offset.x.atan2(offset.z);
     let base_pitch = if distance > 0.0 {
         (offset.y / distance).asin()
     } else {
@@ -147,11 +150,23 @@ fn orbit_from_eye_focus(eye: Vec3, focus: Vec3) -> CharSelectOrbit {
     };
     CharSelectOrbit {
         yaw: 0.0,
+        base_yaw,
         pitch: 0.0,
         focus,
         distance,
         base_pitch,
     }
+}
+
+fn orbit_eye(orbit: &CharSelectOrbit) -> Vec3 {
+    let yaw = orbit.base_yaw + orbit.yaw;
+    let pitch = orbit.base_pitch + orbit.pitch;
+    orbit.focus
+        + Vec3::new(
+            yaw.sin() * pitch.cos(),
+            pitch.sin(),
+            yaw.cos() * pitch.cos(),
+        ) * orbit.distance
 }
 
 fn spawn_char_select_camera(
@@ -193,15 +208,7 @@ fn char_select_orbit_camera(
             (orbit.yaw - delta.x * ORBIT_SENSITIVITY).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
         orbit.pitch = (orbit.pitch + delta.y * ORBIT_SENSITIVITY)
             .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
-
-        let pitch = orbit.base_pitch + orbit.pitch;
-        let eye = orbit.focus
-            + Vec3::new(
-                orbit.yaw.sin() * pitch.cos(),
-                pitch.sin(),
-                orbit.yaw.cos() * pitch.cos(),
-            ) * orbit.distance;
-
+        let eye = orbit_eye(&orbit);
         *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
     }
 }
@@ -260,20 +267,32 @@ fn spawn_char_select_model(
     }
 }
 
+fn single_character_rotation(
+    scene: &crate::warband_scene::WarbandSceneEntry,
+    placement: &crate::warband_scene::WarbandScenePlacement,
+    presentation: ModelPresentation,
+) -> Quat {
+    let (eye, _, _) = camera_params(Some(scene), Some(placement), presentation);
+    let to_camera = eye - placement.bevy_position();
+    let horizontal = Vec3::new(to_camera.x, 0.0, to_camera.z).normalize_or_zero();
+    if horizontal == Vec3::ZERO {
+        placement.bevy_rotation()
+    } else {
+        Quat::from_rotation_arc(Vec3::X, horizontal)
+    }
+}
+
 fn character_transform(
-    warband: &WarbandScenes,
-    scene_id: u32,
+    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    placement: Option<&crate::warband_scene::WarbandScenePlacement>,
     presentation: ModelPresentation,
 ) -> Transform {
-    let placement = warband
-        .scenes
-        .iter()
-        .find(|scene| scene.id == scene_id)
-        .and_then(|scene| selected_scene_placement(warband, scene))
-        .or_else(|| warband.first_placement(scene_id).cloned());
     if let Some(placement) = placement {
+        let rotation = scene
+            .map(|scene| single_character_rotation(scene, placement, presentation))
+            .unwrap_or_else(|| placement.bevy_rotation());
         Transform::from_translation(placement.bevy_position())
-            .with_rotation(placement.bevy_rotation())
+            .with_rotation(rotation)
             .with_scale(Vec3::splat(presentation.customize_scale.max(0.01)))
     } else {
         Transform::from_xyz(0.0, 0.0, 0.0)
@@ -314,11 +333,16 @@ fn resolve_char_transform(
     selected_scene: &Option<Res<SelectedWarbandScene>>,
     presentation: ModelPresentation,
 ) -> Transform {
-    warband
+    let scene = find_scene_entry(warband, selected_scene);
+    let placement = warband
         .as_ref()
-        .zip(selected_scene.as_ref())
-        .map(|(w, sel)| character_transform(w, sel.scene_id, presentation))
-        .unwrap_or_else(default_char_transform)
+        .zip(scene)
+        .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
+    if scene.is_some() || placement.is_some() {
+        character_transform(scene, placement.as_ref(), presentation)
+    } else {
+        default_char_transform()
+    }
 }
 
 fn selected_scene_character(
@@ -552,9 +576,15 @@ fn sync_selected_character_appearance(
     selected: Res<SelectedCharIndex>,
     mut displayed_appearance: ResMut<DisplayedCharacterAppearance>,
     root_query: Query<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>,
+    parent_query: Query<&ChildOf>,
     geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
-    material_query: Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    material_query: Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&crate::m2_spawn::BatchTextureType>,
+        &ChildOf,
+    )>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -590,6 +620,7 @@ fn sync_selected_character_appearance(
         root,
         &mut images,
         &mut materials,
+        &parent_query,
         &geoset_query,
         &mut visibility_query,
         &material_query,
@@ -854,10 +885,11 @@ mod tests {
             .find(|scene| scene.id == 1)
             .expect("Adventurer's Rest");
         let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let rotation = single_character_rotation(scene, &placement, ModelPresentation::default());
         let (eye, _, _) =
             camera_params(Some(scene), Some(&placement), ModelPresentation::default());
         let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
-        let facing = placement.bevy_rotation() * Vec3::X;
+        let facing = rotation * Vec3::X;
         let angle = facing.angle_between(to_camera).to_degrees();
 
         assert!(
@@ -885,5 +917,42 @@ mod tests {
         let (eye, focus, _) = camera_params(Some(scene), Some(&placement), human_presentation);
 
         assert!(eye.distance(focus) < default_eye.distance(default_focus));
+    }
+
+    #[test]
+    fn orbit_from_eye_focus_preserves_initial_yaw() {
+        let eye = Vec3::new(4.0, 3.0, -2.0);
+        let focus = Vec3::new(1.5, 1.0, 0.5);
+
+        let orbit = orbit_from_eye_focus(eye, focus);
+
+        assert!(
+            orbit_eye(&orbit).distance(eye) < 1e-5,
+            "reconstructed orbit eye should match the authored eye position"
+        );
+    }
+
+    #[test]
+    fn focused_placement_rotation_faces_camera_tightly() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let rotation = single_character_rotation(scene, &placement, ModelPresentation::default());
+        let (eye, _, _) =
+            camera_params(Some(scene), Some(&placement), ModelPresentation::default());
+        let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
+        let to_camera = Vec3::new(to_camera.x, 0.0, to_camera.z).normalize_or_zero();
+        let facing = rotation * Vec3::X;
+        let facing = Vec3::new(facing.x, 0.0, facing.z).normalize_or_zero();
+        let angle = facing.angle_between(to_camera).to_degrees();
+
+        assert!(
+            angle < 1.0,
+            "single-character rotation should face the camera horizontally, got {angle:.2} degrees"
+        );
     }
 }
