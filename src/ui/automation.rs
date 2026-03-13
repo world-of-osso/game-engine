@@ -17,6 +17,15 @@ pub enum UiAutomationAction {
     DumpUiTree,
 }
 
+impl UiAutomationAction {
+    pub fn is_input_action(&self) -> bool {
+        matches!(
+            self,
+            Self::ClickFrame(_) | Self::TypeText(_) | Self::PressKey(_)
+        )
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct UiAutomationQueue(pub VecDeque<UiAutomationAction>);
 

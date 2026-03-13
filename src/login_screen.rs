@@ -2,7 +2,7 @@ use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
-use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue};
+use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::layout::recompute_layouts;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -496,12 +496,18 @@ fn login_run_automation(
     mut focus: ResMut<LoginFocus>,
     mut cp: LoginConnectParams,
     mut queue: ResMut<UiAutomationQueue>,
+    mut runner: ResMut<UiAutomationRunner>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
-    let Some(action) = queue.pop() else { return };
-    if let Err(err) = run_login_automation_action(
+    let Some(action) = queue.peek().cloned() else {
+        return;
+    };
+    if !action.is_input_action() {
+        return;
+    }
+    let result = run_login_automation_action(
         &mut ui,
         login,
         &mut focus,
@@ -512,7 +518,10 @@ fn login_run_automation(
         cp.server_addr.as_ref().map(|addr| addr.0),
         &mut cp.commands,
         &action,
-    ) {
+    );
+    queue.pop();
+    if let Err(err) = result {
+        runner.last_error = Some(err.clone());
         cp.status.0 = err;
     }
 }

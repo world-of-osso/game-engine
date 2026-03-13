@@ -3,6 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 use lightyear::prelude::*;
 
+use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
@@ -93,6 +94,7 @@ impl Plugin for CharCreatePlugin {
             (
                 char_create_mouse_input,
                 char_create_keyboard_input,
+                char_create_run_automation,
                 char_create_hover_visuals,
                 char_create_update_visuals,
                 handle_create_response,
@@ -440,17 +442,135 @@ fn char_create_keyboard_input(
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
-            match event.key_code {
-                KeyCode::Backspace => editbox_backspace(&mut ui.registry, focused_id),
-                KeyCode::Delete => editbox_delete(&mut ui.registry, focused_id),
-                KeyCode::ArrowLeft => editbox_move_cursor(&mut ui.registry, focused_id, -1),
-                KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1),
-                KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
-                KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-                _ => {}
-            }
+            handle_char_create_key(event.key_code, focused_id, &mut ui);
         }
     }
+}
+
+fn handle_char_create_key(key: KeyCode, focused_id: u64, ui: &mut UiState) {
+    match key {
+        KeyCode::Backspace => editbox_backspace(&mut ui.registry, focused_id),
+        KeyCode::Delete => editbox_delete(&mut ui.registry, focused_id),
+        KeyCode::ArrowLeft => editbox_move_cursor(&mut ui.registry, focused_id, -1),
+        KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1),
+        KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
+        KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
+        _ => {}
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn char_create_run_automation(
+    mut ui: ResMut<UiState>,
+    cc_ui: Option<Res<CharCreateUi>>,
+    mut state: ResMut<CharCreateState>,
+    mut focus: ResMut<CharCreateFocus>,
+    mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
+    mut next_state: ResMut<NextState<GameState>>,
+    cust_db: Res<CustomizationDb>,
+    mut queue: ResMut<UiAutomationQueue>,
+    mut runner: ResMut<UiAutomationRunner>,
+) {
+    let Some(cc) = cc_ui.as_ref() else { return };
+    let Some(action) = queue.peek().cloned() else {
+        return;
+    };
+    if !action.is_input_action() {
+        return;
+    }
+    let result = run_char_create_automation_action(
+        &mut ui,
+        cc,
+        &mut state,
+        &mut focus,
+        &mut create_senders,
+        &mut next_state,
+        &cust_db,
+        &action,
+    );
+    queue.pop();
+    if let Err(err) = result {
+        runner.last_error = Some(err.clone());
+        error!("UI automation failed in CharCreate: {err}");
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_char_create_automation_action(
+    ui: &mut UiState,
+    cc: &CharCreateUi,
+    state: &mut CharCreateState,
+    focus: &mut CharCreateFocus,
+    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    next_state: &mut NextState<GameState>,
+    cust_db: &CustomizationDb,
+    action: &UiAutomationAction,
+) -> Result<(), String> {
+    match action {
+        UiAutomationAction::ClickFrame(name) => click_char_create_frame(
+            ui,
+            cc,
+            state,
+            focus,
+            create_senders,
+            next_state,
+            cust_db,
+            name,
+        )?,
+        UiAutomationAction::TypeText(text) => {
+            let focused_id = focus
+                .0
+                .ok_or("automation type requires a focused edit box")?;
+            for ch in text.chars() {
+                insert_char_into_editbox(&mut ui.registry, focused_id, &ch.to_string());
+            }
+        }
+        UiAutomationAction::PressKey(key) => {
+            let focused_id = focus
+                .0
+                .ok_or("automation key press requires a focused frame")?;
+            handle_char_create_key(*key, focused_id, ui);
+        }
+        UiAutomationAction::WaitForState(_, _)
+        | UiAutomationAction::WaitForFrame(_, _)
+        | UiAutomationAction::DumpTree
+        | UiAutomationAction::DumpUiTree => {}
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn click_char_create_frame(
+    ui: &mut UiState,
+    cc: &CharCreateUi,
+    state: &mut CharCreateState,
+    focus: &mut CharCreateFocus,
+    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    next_state: &mut NextState<GameState>,
+    cust_db: &CustomizationDb,
+    frame_name: &str,
+) -> Result<(), String> {
+    let frame_id = ui
+        .registry
+        .get_by_name(frame_name)
+        .ok_or_else(|| format!("unknown char create frame '{frame_name}'"))?;
+    if cc.name_input == Some(frame_id) {
+        focus.0 = Some(frame_id);
+        return Ok(());
+    }
+    let action = walk_up_for_onclick(&ui.registry, frame_id)
+        .ok_or_else(|| format!("char create frame '{frame_name}' has no onclick action"))?;
+    dispatch_action(
+        &action,
+        state,
+        focus,
+        create_senders,
+        next_state,
+        &ui.registry,
+        cc,
+        cust_db,
+    );
+    Ok(())
 }
 
 // --- Hover ---

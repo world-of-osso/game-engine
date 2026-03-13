@@ -3,6 +3,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 use lightyear::prelude::*;
 
+use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
@@ -95,6 +96,7 @@ impl Plugin for CharSelectPlugin {
             (
                 char_select_mouse_input,
                 char_select_keyboard_input,
+                char_select_run_automation,
                 char_select_hover_visuals,
                 char_select_update_visuals,
                 auto_enter_world,
@@ -532,6 +534,153 @@ fn handle_cs_key(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn char_select_run_automation(
+    mut ui: ResMut<UiState>,
+    cs_ui: Option<Res<CharSelectUi>>,
+    mut selected: ResMut<SelectedCharIndex>,
+    mut focus: ResMut<CharSelectFocus>,
+    mut create_visible: ResMut<CreatePanelVisible>,
+    mut campsite_visible: ResMut<CampsitePanelVisible>,
+    mut senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut del_senders: Query<&mut MessageSender<DeleteCharacter>>,
+    mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
+    char_list: Res<CharacterList>,
+    mut next_state: ResMut<NextState<GameState>>,
+    selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    mut queue: ResMut<UiAutomationQueue>,
+    mut runner: ResMut<UiAutomationRunner>,
+) {
+    let Some(cs) = cs_ui.as_ref() else { return };
+    let Some(action) = queue.peek().cloned() else {
+        return;
+    };
+    if !action.is_input_action() {
+        return;
+    }
+    let result = run_char_select_automation_action(
+        &mut ui,
+        cs,
+        &mut selected,
+        &mut focus,
+        &mut create_visible,
+        &mut campsite_visible,
+        &mut senders,
+        &mut del_senders,
+        &mut create_senders,
+        &char_list,
+        &mut next_state,
+        selected_scene,
+        &action,
+    );
+    queue.pop();
+    if let Err(err) = result {
+        runner.last_error = Some(err.clone());
+        error!("UI automation failed in CharSelect: {err}");
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_char_select_automation_action(
+    ui: &mut UiState,
+    cs: &CharSelectUi,
+    selected: &mut SelectedCharIndex,
+    focus: &mut CharSelectFocus,
+    create_visible: &mut CreatePanelVisible,
+    campsite_visible: &mut CampsitePanelVisible,
+    senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    del_senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
+    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    char_list: &CharacterList,
+    next_state: &mut NextState<GameState>,
+    selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    action: &UiAutomationAction,
+) -> Result<(), String> {
+    match action {
+        UiAutomationAction::ClickFrame(name) => click_char_select_frame(
+            ui,
+            cs,
+            selected,
+            focus,
+            create_visible,
+            campsite_visible,
+            senders,
+            del_senders,
+            create_senders,
+            char_list,
+            next_state,
+            selected_scene,
+            name,
+        )?,
+        UiAutomationAction::TypeText(text) => {
+            let focused_id = focus
+                .0
+                .ok_or("automation type requires a focused edit box")?;
+            for ch in text.chars() {
+                insert_char_into_editbox(&mut ui.registry, focused_id, &ch.to_string());
+            }
+        }
+        UiAutomationAction::PressKey(key) => {
+            if handle_selection_key(*key, selected, char_list, senders) {
+                return Ok(());
+            }
+            let focused_id = focus
+                .0
+                .ok_or("automation key press requires a focused frame")?;
+            handle_cs_key(*key, focused_id, ui, cs, create_senders);
+        }
+        UiAutomationAction::WaitForState(_, _)
+        | UiAutomationAction::WaitForFrame(_, _)
+        | UiAutomationAction::DumpTree
+        | UiAutomationAction::DumpUiTree => {}
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn click_char_select_frame(
+    ui: &mut UiState,
+    cs: &CharSelectUi,
+    selected: &mut SelectedCharIndex,
+    focus: &mut CharSelectFocus,
+    create_visible: &mut CreatePanelVisible,
+    campsite_visible: &mut CampsitePanelVisible,
+    senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    del_senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
+    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    char_list: &CharacterList,
+    next_state: &mut NextState<GameState>,
+    selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    frame_name: &str,
+) -> Result<(), String> {
+    let frame_id = ui
+        .registry
+        .get_by_name(frame_name)
+        .ok_or_else(|| format!("unknown char select frame '{frame_name}'"))?;
+    if frame_id == cs.create_name_input {
+        focus.0 = Some(frame_id);
+        return Ok(());
+    }
+    let action = walk_up_for_onclick(&ui.registry, frame_id)
+        .ok_or_else(|| format!("char select frame '{frame_name}' has no onclick action"))?;
+    dispatch_onclick(
+        &action,
+        selected,
+        focus,
+        create_visible,
+        campsite_visible,
+        senders,
+        del_senders,
+        create_senders,
+        char_list,
+        next_state,
+        &ui.registry,
+        cs,
+        selected_scene,
+    );
+    Ok(())
+}
+
 // --- Hover ---
 
 fn char_select_hover_visuals(
@@ -706,6 +855,15 @@ fn auto_enter_world(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
+
+    use bevy::input::ButtonInput;
+    use bevy::input::keyboard::KeyboardInput;
+    use bevy::window::PrimaryWindow;
+    use shared::protocol::CharacterListEntry;
+
+    use game_engine::ui::automation::{UiAutomationAction, UiAutomationPlugin, UiAutomationQueue};
+    use game_engine::ui::event::EventBus;
     use game_engine::ui::registry::FrameRegistry;
 
     fn test_registry() -> FrameRegistry {
@@ -749,6 +907,50 @@ mod tests {
             reg.get(reg.get_by_name("CreatePanel").unwrap())
                 .unwrap()
                 .hidden
+        );
+    }
+
+    #[test]
+    fn automation_click_create_char_transitions_to_char_create() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.add_plugins(UiAutomationPlugin);
+        app.add_plugins(CharSelectPlugin);
+        app.add_message::<KeyboardInput>();
+        app.insert_resource(UiState {
+            registry: FrameRegistry::new(0.0, 0.0),
+            event_bus: EventBus::new(),
+            focused_frame: None,
+        });
+        app.insert_resource(ButtonInput::<MouseButton>::default());
+        app.insert_resource(CharacterList(vec![CharacterListEntry {
+            character_id: 1,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: CharacterAppearance::default(),
+        }]));
+        app.insert_state(GameState::CharSelect);
+        app.insert_resource(UiAutomationQueue(VecDeque::from([
+            UiAutomationAction::ClickFrame("CreateChar".to_string()),
+        ])));
+
+        let mut window = Window::default();
+        window.resolution.set(1280.0, 720.0);
+        app.world_mut().spawn((window, PrimaryWindow));
+
+        app.update();
+        app.update();
+
+        assert_eq!(
+            *app.world().resource::<State<GameState>>().get(),
+            GameState::CharCreate
+        );
+        assert!(
+            app.world().resource::<UiAutomationQueue>().is_empty(),
+            "expected CreateChar click to be consumed by CharSelect automation"
         );
     }
 }
