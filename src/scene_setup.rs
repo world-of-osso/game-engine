@@ -285,21 +285,6 @@ fn spawn_default_scene(
             creature_display_map,
         );
     }
-    let chest_path = Path::new("data/models/chest01.m2");
-    if chest_path.exists() {
-        let offset = Vec3::new(5.0, 0.0, 0.0);
-        m2_scene::spawn_static_m2(
-            commands,
-            meshes,
-            materials,
-            images,
-            inverse_bp,
-            chest_path,
-            Transform::from_translation(center.unwrap_or_default() + offset)
-                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
-            creature_display_map,
-        );
-    }
     if let Some(pos) = center {
         set_player_position(commands, pos);
     }
@@ -340,20 +325,6 @@ fn spawn_m2_scene(
         inverse_bindposes,
         creature_display_map,
     );
-    let chest_path = Path::new("data/models/chest01.m2");
-    if chest_path.exists() {
-        m2_scene::spawn_static_m2(
-            commands,
-            meshes,
-            materials,
-            images,
-            inverse_bindposes,
-            chest_path,
-            Transform::from_xyz(5.0, 0.0, 0.0)
-                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
-            creature_display_map,
-        );
-    }
 }
 
 pub fn spawn_scene_environment(
