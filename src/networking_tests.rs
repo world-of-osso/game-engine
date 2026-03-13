@@ -152,7 +152,7 @@ fn sync_updates_interpolation_target() {
     app.update();
 
     let interp = app.world().get::<InterpolationTarget>(entity).unwrap();
-    assert_eq!(interp.target, Vec3::new(10.0, 20.0, 30.0));
+    assert_eq!(interp.target, Vec3::new(10.0, 30.0, -20.0));
 }
 
 #[test]
@@ -251,4 +251,15 @@ fn is_local_player_entity_none_without_resource() {
 fn is_local_player_entity_none_when_not_selected() {
     let selected = SelectedCharacterId::default();
     assert!(!is_local_player_entity("Theron", Some(&selected)));
+}
+
+#[test]
+fn net_position_to_bevy_swaps_height_and_forward_axes() {
+    let pos = NetPosition {
+        x: -8949.0,
+        y: 132.0,
+        z: 83.0,
+    };
+
+    assert_eq!(net_position_to_bevy(&pos), Vec3::new(-8949.0, 83.0, -132.0));
 }

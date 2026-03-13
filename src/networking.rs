@@ -299,7 +299,7 @@ fn spawn_replicated_player(
         "Spawning replicated player '{}' (local={is_local}) at ({:.1}, {:.1}, {:.1})",
         player.name, pos.x, pos.y, pos.z
     );
-    let position = Vec3::new(pos.x, pos.y, pos.z);
+    let position = net_position_to_bevy(pos);
     let yaw = rotation.map_or(std::f32::consts::PI, |r| r.y);
     let (capsule, material) = build_player_capsule(&mut meshes, &mut materials, is_local);
     let mut ecmds = commands.entity(entity);
@@ -338,6 +338,11 @@ fn build_player_capsule(
         ..default()
     });
     (capsule, material)
+}
+
+fn net_position_to_bevy(pos: &NetPosition) -> Vec3 {
+    let [x, y, z] = crate::asset::m2::wow_to_bevy(pos.x, pos.y, pos.z);
+    Vec3::new(x, y, z)
 }
 
 /// Check if a replicated player is our local character by matching name.
@@ -440,7 +445,7 @@ fn insert_npc_transform(
     pos: &NetPosition,
     rotation: Option<&NetRotation>,
 ) {
-    let position = Vec3::new(pos.x, pos.y, pos.z);
+    let position = net_position_to_bevy(pos);
     let yaw = rotation.map_or(0.0, |r| r.y);
     let transform = Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw));
     commands.entity(entity).insert((
@@ -517,7 +522,7 @@ type SyncTransformQuery<'w, 's> = Query<
 /// When server sends a new position/rotation, update interpolation targets.
 fn sync_replicated_transforms(mut query: SyncTransformQuery) {
     for (pos, mut interp, rotation, rot_target) in query.iter_mut() {
-        interp.target = Vec3::new(pos.x, pos.y, pos.z);
+        interp.target = net_position_to_bevy(pos);
         if let (Some(rot), Some(mut target)) = (rotation, rot_target) {
             target.yaw = rot.y;
         }
