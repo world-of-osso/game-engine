@@ -605,4 +605,106 @@ mod tests {
         assert_eq!(img.width(), 256);
         assert_eq!(img.height(), 256);
     }
+
+    // --- Frame creation and layout tests ---
+
+    #[test]
+    fn minimap_rect_positions_top_right() {
+        let rect = minimap_rect(1920.0);
+        let ds = MINIMAP_DISPLAY_SIZE as f32;
+        assert_eq!(rect.x, 1920.0 - ds - 10.0);
+        assert_eq!(rect.y, 10.0);
+        assert_eq!(rect.width, ds);
+        assert_eq!(rect.height, ds);
+    }
+
+    #[test]
+    fn arrow_rect_centered_in_minimap() {
+        let rect = arrow_rect(1920.0);
+        let mm = minimap_rect(1920.0);
+        let arrow_center_x = rect.x + rect.width / 2.0;
+        let mm_center_x = mm.x + mm.width / 2.0;
+        assert!((arrow_center_x - mm_center_x).abs() < 1.0);
+        let arrow_center_y = rect.y + rect.height / 2.0;
+        let mm_center_y = mm.y + mm.height / 2.0;
+        assert!((arrow_center_y - mm_center_y).abs() < 1.0);
+    }
+
+    #[test]
+    fn create_texture_frame_sets_dynamic_source() {
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        let handle = Handle::default();
+        let rect = LayoutRect { x: 100.0, y: 50.0, width: 200.0, height: 200.0 };
+        let id = create_texture_frame(&mut registry, "Test", handle, rect, 5);
+        let frame = registry.get(id).unwrap();
+        assert_eq!(frame.widget_type, WidgetType::Texture);
+        assert!(frame.hidden);
+        assert!(!frame.visible);
+        assert_eq!(frame.frame_level, 5);
+        assert!(matches!(
+            frame.widget_data,
+            Some(WidgetData::Texture(TextureData { source: TextureSource::Dynamic(_), .. }))
+        ));
+    }
+
+    #[test]
+    fn create_text_frame_sets_fontstring() {
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        let rect = LayoutRect { x: 100.0, y: 50.0, width: 200.0, height: 20.0 };
+        let id = create_text_frame(&mut registry, "Lbl", "Hello", 14.0, [1.0, 0.0, 0.0, 1.0], rect);
+        let frame = registry.get(id).unwrap();
+        assert_eq!(frame.widget_type, WidgetType::FontString);
+        assert!(frame.hidden);
+        let Some(WidgetData::FontString(fs)) = &frame.widget_data else { panic!("expected FontString") };
+        assert_eq!(fs.text, "Hello");
+        assert_eq!(fs.font_size, 14.0);
+        assert_eq!(fs.color, [1.0, 0.0, 0.0, 1.0]);
+    }
+
+    // --- Composite update logic tests ---
+
+    #[test]
+    fn composite_needs_update_detects_pixel_change() {
+        let last = LastMinimapPixel::default();
+        assert!(composite_needs_update(&last, 100, 100, 32, 48, 1));
+    }
+
+    #[test]
+    fn composite_needs_update_same_state_returns_false() {
+        let last = LastMinimapPixel {
+            px_x: 100, px_y: 200, tile_row: 32, tile_col: 48, tile_generation: 5,
+            composite_buf: Vec::new(),
+        };
+        assert!(!composite_needs_update(&last, 100, 200, 32, 48, 5));
+    }
+
+    #[test]
+    fn composite_needs_update_tile_generation_change() {
+        let last = LastMinimapPixel {
+            px_x: 100, px_y: 200, tile_row: 32, tile_col: 48, tile_generation: 5,
+            composite_buf: Vec::new(),
+        };
+        assert!(composite_needs_update(&last, 100, 200, 32, 48, 6));
+    }
+
+    #[test]
+    fn fill_dark_background_fills_rgba() {
+        let mut buf = vec![0u8; 4 * 4 * 4]; // 4x4
+        fill_dark_background(&mut buf, 4);
+        // Check first pixel
+        assert_eq!(&buf[0..4], &[20, 20, 20, 255]);
+        // Check last pixel
+        assert_eq!(&buf[60..64], &[20, 20, 20, 255]);
+    }
+
+    #[test]
+    fn zone_id_to_name_known() {
+        assert_eq!(zone_id_to_name(12), "Elwynn Forest");
+        assert_eq!(zone_id_to_name(1519), "Stormwind City");
+    }
+
+    #[test]
+    fn zone_id_to_name_unknown() {
+        assert_eq!(zone_id_to_name(99999), "Unknown");
+    }
 }
