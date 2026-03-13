@@ -2,12 +2,13 @@ use game_engine::ui::automation::UiAutomationAction;
 
 use crate::game_state::GameState;
 
-/// For `--screen charselect/charcreate/inworld`: auto-login with admin/admin, then navigate.
+/// For `--screen charselect/charcreate/inworld`: reach CharSelect, then navigate.
 pub fn apply(
     actions: &mut Vec<UiAutomationAction>,
     server_addr: &mut Option<(std::net::SocketAddr, bool)>,
     initial_state: &mut Option<GameState>,
     auto_enter: &mut bool,
+    has_saved_auth_token: bool,
 ) {
     let target = match *initial_state {
         Some(GameState::CharSelect | GameState::CharCreate | GameState::InWorld) => *initial_state,
@@ -23,14 +24,26 @@ pub fn apply(
     if server_addr.is_none() {
         *server_addr = Some(("127.0.0.1:5000".parse().unwrap(), false));
     }
-    *initial_state = Some(GameState::Login);
-    *actions = auto_login_actions();
+    if has_saved_auth_token {
+        *initial_state = Some(GameState::Connecting);
+        *actions = saved_token_actions();
+    } else {
+        *initial_state = Some(GameState::Login);
+        *actions = auto_login_actions();
+    }
     if target == Some(GameState::CharCreate) {
         actions.push(UiAutomationAction::ClickFrame("CreateChar".to_string()));
         actions.push(UiAutomationAction::WaitForState(GameState::CharCreate, 5.0));
     } else if target == Some(GameState::InWorld) {
         *auto_enter = true;
     }
+}
+
+fn saved_token_actions() -> Vec<UiAutomationAction> {
+    vec![UiAutomationAction::WaitForState(
+        GameState::CharSelect,
+        10.0,
+    )]
 }
 
 fn auto_login_actions() -> Vec<UiAutomationAction> {
@@ -43,4 +56,65 @@ fn auto_login_actions() -> Vec<UiAutomationAction> {
         UiAutomationAction::ClickFrame("ConnectButton".to_string()),
         UiAutomationAction::WaitForState(GameState::CharSelect, 10.0),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn socket() -> std::net::SocketAddr {
+        "127.0.0.1:5000".parse().expect("test socket should parse")
+    }
+
+    #[test]
+    fn saved_token_uses_connecting_state_for_charselect_screen() {
+        let mut actions = Vec::new();
+        let mut server_addr = Some((socket(), false));
+        let mut initial_state = Some(GameState::CharSelect);
+        let mut auto_enter = false;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            true,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Connecting));
+        assert_eq!(
+            actions,
+            vec![UiAutomationAction::WaitForState(
+                GameState::CharSelect,
+                10.0
+            )]
+        );
+        assert!(!auto_enter);
+    }
+
+    #[test]
+    fn saved_token_charcreate_still_waits_for_charselect_before_clicking_create() {
+        let mut actions = Vec::new();
+        let mut server_addr = Some((socket(), false));
+        let mut initial_state = Some(GameState::CharCreate);
+        let mut auto_enter = false;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            true,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Connecting));
+        assert_eq!(
+            actions,
+            vec![
+                UiAutomationAction::WaitForState(GameState::CharSelect, 10.0),
+                UiAutomationAction::ClickFrame("CreateChar".to_string()),
+                UiAutomationAction::WaitForState(GameState::CharCreate, 5.0),
+            ]
+        );
+    }
 }

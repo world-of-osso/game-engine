@@ -35,13 +35,13 @@ mod char_select_scene;
 mod char_select_scene_tree;
 mod character_models;
 mod cli_args;
-mod inworld_scene_tree;
 mod collision;
 mod creature_display;
 mod equipment;
 mod game_state;
 mod ground;
 mod health_bar;
+mod inworld_scene_tree;
 mod login_screen;
 mod login_screen_helpers;
 mod m2_scene;
@@ -119,6 +119,10 @@ struct ParsedArgs {
 }
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
+    parse_run_args_with_saved_token(args, networking::load_auth_token().is_some())
+}
+
+fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) -> ParsedArgs {
     let mut startup_actions = match load_startup_automation_actions(args) {
         Ok(a) => a,
         Err(err) => {
@@ -134,7 +138,15 @@ fn parse_run_args(args: &[String]) -> ParsedArgs {
         &mut server_addr,
         &mut initial_state,
         &mut auto_enter_world,
+        has_saved_auth_token,
     );
+    if startup_actions.is_empty()
+        && server_addr.is_some()
+        && initial_state.is_none()
+        && has_saved_auth_token
+    {
+        initial_state = Some(game_state::GameState::Connecting);
+    }
     ParsedArgs {
         startup_actions,
         server_addr,
@@ -190,7 +202,9 @@ fn insert_startup_resources(
     app.insert_resource(game_engine::asset::char_texture::CharTextureData::load(
         Path::new("data"),
     ));
-    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new("data")));
+    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new(
+        "data",
+    )));
     let warband = warband_scene::WarbandScenes::load();
     if let Some(first) = warband.scenes.first() {
         app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });
@@ -391,7 +405,6 @@ fn init_status_resources(app: &mut App) {
         .insert_resource(WarbankStatusSnapshot::default());
 }
 
-
 fn take_screenshot(
     mut commands: Commands,
     req: Option<ResMut<ScreenshotRequest>>,
@@ -589,7 +602,6 @@ fn handle_automation_dump_ui_tree_request(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scene_setup::should_load_explicit_scene_at_startup;
 
     fn args(items: &[&str]) -> Vec<String> {
         items.iter().map(|item| item.to_string()).collect()
@@ -671,6 +683,28 @@ mod tests {
         ]))
         .expect("expected JS automation path");
         assert_eq!(parsed.path, PathBuf::from("debug/login.js"));
+    }
+
+    #[test]
+    fn parse_run_args_starts_connecting_when_saved_token_exists() {
+        let parsed = parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true);
+
+        assert_eq!(
+            parsed.initial_state,
+            Some(game_state::GameState::Connecting)
+        );
+        assert!(parsed.startup_actions.is_empty());
+    }
+
+    #[test]
+    fn parse_run_args_keeps_explicit_login_screen_with_saved_token() {
+        let parsed = parse_run_args_with_saved_token(
+            &args(&["--server", "127.0.0.1:25565", "--screen", "login"]),
+            true,
+        );
+
+        assert_eq!(parsed.initial_state, Some(game_state::GameState::Login));
+        assert!(parsed.startup_actions.is_empty());
     }
 
     #[test]
