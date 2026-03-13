@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use crate::game_state;
 use crate::ScreenshotRequest;
+use crate::game_state;
 
 pub fn screenshot_arg_index(args: &[String]) -> Option<usize> {
     args.iter().position(|arg| arg == "screenshot")

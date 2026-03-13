@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::customization_data::{CustomizationDb, ModelPresentation};
 use shared::protocol::CharacterListEntry;
 
 use crate::asset;
@@ -45,6 +46,8 @@ struct CharSelectOrbit {
 const ORBIT_SENSITIVITY: f32 = 0.003;
 const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8; // ±22.5°
 const ORBIT_PITCH_LIMIT: f32 = 0.15; // ±~8.6°
+const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
+const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 
 /// Marker for the currently displayed character model root.
 #[derive(Component)]
@@ -74,9 +77,40 @@ impl Plugin for CharSelectScenePlugin {
     }
 }
 
-fn camera_params(scene: Option<&crate::warband_scene::WarbandSceneEntry>) -> (Vec3, Vec3, f32) {
+fn single_character_focus(
+    scene: &crate::warband_scene::WarbandSceneEntry,
+    placement: &crate::warband_scene::WarbandScenePlacement,
+) -> Vec3 {
+    let scene_focus = scene.bevy_look_at();
+    let char_pos = placement.bevy_position();
+    Vec3::new(char_pos.x, scene_focus.y, char_pos.z)
+}
+
+fn camera_params(
+    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    presentation: ModelPresentation,
+) -> (Vec3, Vec3, f32) {
     if let Some(s) = scene {
-        (s.bevy_position(), s.bevy_look_at(), s.fov)
+        let scene_eye = s.bevy_position();
+        let scene_focus = s.bevy_look_at();
+        let scene_offset = scene_eye - scene_focus;
+        let focus = placement
+            .map(|placement| single_character_focus(s, placement))
+            .unwrap_or(scene_focus);
+        let eye = if placement.is_some() {
+            let distance = (SOLO_CHARACTER_CAMERA_DISTANCE + presentation.camera_distance_offset)
+                .clamp(3.5, scene_offset.length());
+            focus + scene_offset.normalize_or_zero() * distance
+        } else {
+            scene_eye
+        };
+        let fov = if placement.is_some() {
+            s.fov.min(SOLO_CHARACTER_MAX_FOV_DEGREES)
+        } else {
+            s.fov
+        };
+        (eye, focus, fov)
     } else {
         (Vec3::new(0.0, 1.8, 6.0), Vec3::new(0.0, 1.0, 0.0), 45.0)
     }
@@ -102,8 +136,10 @@ fn orbit_from_eye_focus(eye: Vec3, focus: Vec3) -> CharSelectOrbit {
 fn spawn_char_select_camera(
     commands: &mut Commands,
     scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    presentation: ModelPresentation,
 ) -> Entity {
-    let (eye, focus, fov) = camera_params(scene);
+    let (eye, focus, fov) = camera_params(scene, placement, presentation);
     commands
         .spawn((
             Name::new("CharSelectCamera"),
@@ -215,8 +251,8 @@ fn character_transform(warband: &WarbandScenes, scene_id: u32) -> Transform {
         .scenes
         .iter()
         .find(|scene| scene.id == scene_id)
-        .and_then(|scene| warband.focused_placement(scene))
-        .or_else(|| warband.first_placement(scene_id));
+        .and_then(|scene| selected_scene_placement(warband, scene))
+        .or_else(|| warband.first_placement(scene_id).cloned());
     if let Some(placement) = placement {
         Transform::from_translation(placement.bevy_position())
             .with_rotation(placement.bevy_rotation())
@@ -229,6 +265,16 @@ fn character_transform(warband: &WarbandScenes, scene_id: u32) -> Transform {
 fn default_char_transform() -> Transform {
     Transform::from_xyz(0.0, 0.0, 0.0)
         .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
+}
+
+fn selected_scene_placement<'a>(
+    warband: &'a WarbandScenes,
+    scene: &crate::warband_scene::WarbandSceneEntry,
+) -> Option<crate::warband_scene::WarbandScenePlacement> {
+    warband
+        .solo_character_placement(scene)
+        .or_else(|| warband.first_character_placement(scene.id).cloned())
+        .or_else(|| warband.first_placement(scene.id).cloned())
 }
 
 fn resolve_char_transform(
@@ -370,7 +416,11 @@ fn setup_char_select_scene(
     selected_scene: Option<Res<SelectedWarbandScene>>,
 ) {
     let scene_entry = find_scene_entry(&warband, &selected_scene);
-    let camera_entity = spawn_char_select_camera(&mut commands, scene_entry);
+    let placement = warband
+        .as_ref()
+        .zip(scene_entry)
+        .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
+    let camera_entity = spawn_char_select_camera(&mut commands, scene_entry, placement.as_ref());
     let (ambient, dir) = spawn_char_select_lighting(&mut commands);
     let bg_node = spawn_background(
         &mut commands,
@@ -482,12 +532,13 @@ fn spawn_selected_model(
 
 fn update_camera_for_scene(
     scene: &crate::warband_scene::WarbandSceneEntry,
+    placement: Option<&crate::warband_scene::WarbandScenePlacement>,
     camera_query: &mut Query<
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
         With<CharSelectScene>,
     >,
 ) {
-    let (eye, focus, fov) = camera_params(Some(scene));
+    let (eye, focus, fov) = camera_params(Some(scene), placement);
     let orbit = orbit_from_eye_focus(eye, focus);
     for (mut tf, mut orb, mut proj) in camera_query.iter_mut() {
         *tf = Transform::from_translation(eye).looking_at(focus, Vec3::Y);
@@ -524,6 +575,7 @@ fn sync_warband_scene_switch(
     let Some(scene) = warband.scenes.iter().find(|s| s.id == sel.scene_id) else {
         return;
     };
+    let placement = selected_scene_placement(&warband, scene);
     for entity in terrain_query.iter() {
         commands.entity(entity).despawn();
     }
@@ -537,7 +589,7 @@ fn sync_warband_scene_switch(
         &mut inv_bp,
         scene,
     );
-    update_camera_for_scene(scene, &mut camera_query);
+    update_camera_for_scene(scene, placement.as_ref(), &mut camera_query);
     active_scene.0 = Some(sel.scene_id);
 }
 
@@ -640,5 +692,67 @@ mod tests {
             Some("character/bloodelf/male/bloodelfmale_hd.m2")
         );
         assert_eq!(race_model_wow_path(99, 0), None);
+    }
+
+    #[test]
+    fn camera_params_center_focused_placement_horizontally() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let (eye, focus, _) = camera_params(Some(scene), Some(&placement));
+        let forward = (focus - eye).normalize();
+        let right = forward.cross(Vec3::Y).normalize();
+        let rel = placement.bevy_position() - eye;
+
+        assert!(
+            rel.dot(right).abs() < 0.001,
+            "focused placement should sit on the camera centerline"
+        );
+    }
+
+    #[test]
+    fn camera_params_use_tighter_single_character_framing() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let (scene_eye, scene_focus, scene_fov) = camera_params(Some(scene), None);
+        let (eye, focus, fov) = camera_params(Some(scene), Some(&placement));
+
+        assert!(
+            eye.distance(focus) < scene_eye.distance(scene_focus),
+            "single-character framing should move the camera closer than the raw warband overview"
+        );
+        assert!(
+            fov < scene_fov,
+            "single-character framing should narrow the FOV from the warband overview"
+        );
+    }
+
+    #[test]
+    fn focused_placement_rotation_faces_camera_reasonably() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let (eye, _, _) = camera_params(Some(scene), Some(&placement));
+        let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
+        let facing = placement.bevy_rotation() * Vec3::X;
+        let angle = facing.angle_between(to_camera).to_degrees();
+
+        assert!(
+            angle < 25.0,
+            "focused placement should face mostly toward the camera, got {angle:.2} degrees"
+        );
     }
 }

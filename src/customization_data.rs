@@ -83,6 +83,22 @@ pub struct CustomizationOption {
 pub struct CustomizationDb {
     options_by_model: HashMap<u32, Vec<CustomizationOption>>,
     pub layout_by_model: HashMap<u32, u32>,
+    presentation_by_model: HashMap<u32, ModelPresentation>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ModelPresentation {
+    pub customize_scale: f32,
+    pub camera_distance_offset: f32,
+}
+
+impl Default for ModelPresentation {
+    fn default() -> Self {
+        Self {
+            customize_scale: 1.0,
+            camera_distance_offset: 0.0,
+        }
+    }
 }
 
 impl CustomizationDb {
@@ -107,6 +123,13 @@ impl CustomizationDb {
         let mut db = CustomizationDb::default();
         for cm in &raw.chr_models {
             db.layout_by_model.insert(cm.id, cm.layout_id);
+            db.presentation_by_model.insert(
+                cm.id,
+                ModelPresentation {
+                    customize_scale: cm.customize_scale,
+                    camera_distance_offset: cm.camera_distance_offset,
+                },
+            );
         }
         let indexed = IndexedData::build(&raw);
         for (model_id, opts) in &indexed.opts_by_model {
@@ -167,6 +190,16 @@ impl CustomizationDb {
     pub fn layout_id(&self, race: u8, sex: u8) -> Option<u32> {
         let model_id = race_sex_to_chr_model_id(race, sex)?;
         self.layout_by_model.get(&model_id).copied()
+    }
+
+    pub fn presentation_for(&self, race: u8, sex: u8) -> ModelPresentation {
+        let Some(model_id) = race_sex_to_chr_model_id(race, sex) else {
+            return ModelPresentation::default();
+        };
+        self.presentation_by_model
+            .get(&model_id)
+            .copied()
+            .unwrap_or_default()
     }
 }
 
@@ -323,6 +356,8 @@ impl RawData {
 struct RawChrModel {
     id: u32,
     layout_id: u32,
+    customize_scale: f32,
+    camera_distance_offset: f32,
 }
 struct RawOption {
     id: u32,
@@ -410,15 +445,25 @@ fn field_str(row: &[String], col: usize) -> String {
     row.get(col).cloned().unwrap_or_default()
 }
 
+fn field_f32(row: &[String], col: usize) -> f32 {
+    row.get(col)
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(0.0)
+}
+
 fn parse_chr_models(path: &Path) -> Result<Vec<RawChrModel>, String> {
     let (h, rows) = read_csv(path)?;
     let id = col_idx(&h, "ID")?;
     let layout = col_idx(&h, "CharComponentTextureLayoutID")?;
+    let customize_scale = col_idx(&h, "CustomizeScale")?;
+    let camera_distance_offset = col_idx(&h, "CameraDistanceOffset")?;
     Ok(rows
         .iter()
         .map(|r| RawChrModel {
             id: field_u32(r, id),
             layout_id: field_u32(r, layout),
+            customize_scale: field_f32(r, customize_scale),
+            camera_distance_offset: field_f32(r, camera_distance_offset),
         })
         .collect())
 }
@@ -548,5 +593,14 @@ mod tests {
             !choice.materials.is_empty(),
             "Skin should have materials: {choice:?}"
         );
+    }
+
+    #[test]
+    fn human_male_presentation_matches_chr_model_csv() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let presentation = db.presentation_for(1, 0);
+
+        assert!((presentation.customize_scale - 1.1).abs() < 0.001);
+        assert!((presentation.camera_distance_offset - (-0.34)).abs() < 0.001);
     }
 }

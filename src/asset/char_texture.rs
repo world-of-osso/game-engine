@@ -124,7 +124,15 @@ impl CharTextureData {
             let Some(section) = self.sections.get(&(layout_id, component_section as u32)) else {
                 continue;
             };
-            blit_section(&mut pixels, w, &tex_pixels, tex_w, tex_h, section, &item_layer);
+            blit_section(
+                &mut pixels,
+                w,
+                &tex_pixels,
+                tex_w,
+                tex_h,
+                section,
+                &item_layer,
+            );
         }
 
         Some((pixels, w, h))
@@ -156,7 +164,15 @@ impl CharTextureData {
             let Some((tex_pixels, tex_w, tex_h)) = texture_rgba else {
                 continue;
             };
-            self.blit_layer(pixels, canvas_w, &tex_pixels, tex_w, tex_h, layer, layout_id);
+            self.blit_layer(
+                pixels,
+                canvas_w,
+                &tex_pixels,
+                tex_w,
+                tex_h,
+                layer,
+                layout_id,
+            );
         }
     }
 

@@ -11,8 +11,8 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 use char_create_widgets::{
-    bottom_buttons, class_button, create_confirm_button, customization_row, dropdown_panel, error_label,
-    faction_column, name_input_field, race_buttons_for_faction,
+    bottom_buttons, class_button, create_confirm_button, customization_row, dropdown_panel,
+    error_label, faction_column, name_input_field, race_buttons_for_faction,
 };
 
 // --- Actions ---
@@ -263,12 +263,18 @@ fn customize_rows(state: &CharCreateUiState) -> Element {
 fn customize_panel(state: &CharCreateUiState) -> Element {
     // row_height(32) + gap(8) = 40 per row; label(24) + first gap(8) = 32 offset
     let dropdown = match state.open_dropdown {
-        Some(AppearanceField::SkinColor) => {
-            dropdown_panel(AppearanceField::SkinColor, &state.skin_color_swatches, state.skin_color, -112.0)
-        }
-        Some(AppearanceField::HairColor) => {
-            dropdown_panel(AppearanceField::HairColor, &state.hair_color_swatches, state.hair_color, -232.0)
-        }
+        Some(AppearanceField::SkinColor) => dropdown_panel(
+            AppearanceField::SkinColor,
+            &state.skin_color_swatches,
+            state.skin_color,
+            -112.0,
+        ),
+        Some(AppearanceField::HairColor) => dropdown_panel(
+            AppearanceField::HairColor,
+            &state.hair_color_swatches,
+            state.hair_color,
+            -232.0,
+        ),
         _ => Element::default(),
     };
     rsx! {

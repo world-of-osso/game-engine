@@ -343,7 +343,9 @@ fn build_player_capsule(
 /// Check if a replicated player is our local character by matching name.
 fn is_local_player_entity(player_name: &str, selected: Option<&SelectedCharacterId>) -> bool {
     let Some(sel) = selected else { return false };
-    let Some(ref name) = sel.character_name else { return false };
+    let Some(ref name) = sel.character_name else {
+        return false;
+    };
     name == player_name
 }
 
@@ -355,7 +357,9 @@ fn tag_local_player(
     players: Query<(Entity, &NetPlayer), (With<Replicated>, Without<LocalPlayer>)>,
 ) {
     let Some(sel) = selected else { return };
-    let Some(ref name) = sel.character_name else { return };
+    let Some(ref name) = sel.character_name else {
+        return;
+    };
     for (entity, player) in players.iter() {
         if player.name == *name {
             info!("Tagging local player '{}'", name);

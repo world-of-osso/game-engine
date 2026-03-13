@@ -1,5 +1,6 @@
 //! WarbandScene DB2 data: camera positions + character placements for char select backgrounds.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
@@ -26,7 +27,9 @@ pub struct WarbandSceneEntry {
 /// Character placement slot within a warband scene.
 #[derive(Debug, Clone)]
 pub struct WarbandScenePlacement {
+    pub id: u32,
     pub scene_id: u32,
+    pub slot_type: u32,
     /// WoW world position [X, Y, Z].
     pub position: [f32; 3],
     /// Rotation in degrees.
@@ -34,18 +37,36 @@ pub struct WarbandScenePlacement {
     pub slot_id: u32,
 }
 
+/// Optional authored overrides for a placement in alternate warband layouts.
+#[derive(Debug, Clone)]
+pub struct WarbandScenePlacementOption {
+    pub placement_id: u32,
+    pub layout_key: u32,
+    pub position: [f32; 3],
+    pub orientation: f32,
+    #[allow(dead_code)]
+    pub scale: f32,
+}
+
 /// Bevy resource holding all parsed warband scenes.
 #[derive(Resource)]
 pub struct WarbandScenes {
     pub scenes: Vec<WarbandSceneEntry>,
     pub placements: Vec<WarbandScenePlacement>,
+    pub placement_options: Vec<WarbandScenePlacementOption>,
 }
 
 impl WarbandScenes {
     pub fn load() -> Self {
         let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
         let placements = load_placements(Path::new("data/WarbandScenePlacement.csv"));
-        Self { scenes, placements }
+        let placement_options =
+            load_placement_options(Path::new("data/WarbandScenePlacementOption.csv"));
+        Self {
+            scenes,
+            placements,
+            placement_options,
+        }
     }
 
     /// Get the first character placement for a given scene (slot 0).
@@ -56,21 +77,100 @@ impl WarbandScenes {
             .min_by_key(|p| p.slot_id)
     }
 
-    /// Pick the placement intended for a single "hero" character render.
-    ///
-    /// Warband scenes define multiple slots around the campsite. Since the engine currently
-    /// renders one selected character instead of the full warband, use the placement nearest
-    /// the scene's look-at point so the model stays in the camera's focal area.
-    pub fn focused_placement(&self, scene: &WarbandSceneEntry) -> Option<&WarbandScenePlacement> {
-        let focus = scene.bevy_look_at();
+    pub fn first_character_placement(&self, scene_id: u32) -> Option<&WarbandScenePlacement> {
         self.placements
             .iter()
-            .filter(|p| p.scene_id == scene.id)
-            .min_by(|a, b| {
-                let da = a.bevy_position().distance_squared(focus);
-                let db = b.bevy_position().distance_squared(focus);
-                da.total_cmp(&db)
+            .filter(|p| p.scene_id == scene_id && p.is_character_slot())
+            .min_by_key(|p| p.slot_id)
+    }
+
+    /// Pick the authored placement to use when only one character is rendered.
+    ///
+    /// Retail char select renders the full warband and uses native map-scene placement logic.
+    /// This client currently renders a single selected character only, so prefer the first
+    /// authored character slot and the most compact authored placement-option layout.
+    pub fn solo_character_placement(
+        &self,
+        scene: &WarbandSceneEntry,
+    ) -> Option<WarbandScenePlacement> {
+        let placement = self.first_character_placement(scene.id)?.clone();
+        let Some(layout_key) = self.compact_character_layout_key(scene) else {
+            return Some(placement);
+        };
+        Some(self.resolve_placement_layout(&placement, layout_key))
+    }
+
+    fn compact_character_layout_key(&self, scene: &WarbandSceneEntry) -> Option<u32> {
+        let character_placements: Vec<_> = self
+            .placements
+            .iter()
+            .filter(|placement| placement.scene_id == scene.id && placement.is_character_slot())
+            .collect();
+        if character_placements.is_empty() {
+            return None;
+        }
+
+        let layout_keys: BTreeSet<_> = self
+            .placement_options
+            .iter()
+            .filter(|option| {
+                character_placements
+                    .iter()
+                    .any(|placement| placement.id == option.placement_id)
             })
+            .map(|option| option.layout_key)
+            .collect();
+        if layout_keys.is_empty() {
+            return None;
+        }
+
+        layout_keys.into_iter().min_by(|a, b| {
+            let da = self.layout_camera_distance_score(scene, &character_placements, *a);
+            let db = self.layout_camera_distance_score(scene, &character_placements, *b);
+            da.total_cmp(&db)
+        })
+    }
+
+    fn layout_camera_distance_score(
+        &self,
+        scene: &WarbandSceneEntry,
+        placements: &[&WarbandScenePlacement],
+        layout_key: u32,
+    ) -> f32 {
+        let camera = scene.position;
+        placements
+            .iter()
+            .map(|placement| {
+                let authored = self
+                    .placement_options
+                    .iter()
+                    .find(|option| {
+                        option.placement_id == placement.id && option.layout_key == layout_key
+                    })
+                    .map(|option| option.position)
+                    .unwrap_or(placement.position);
+                squared_distance(camera, authored)
+            })
+            .sum()
+    }
+
+    fn resolve_placement_layout(
+        &self,
+        placement: &WarbandScenePlacement,
+        layout_key: u32,
+    ) -> WarbandScenePlacement {
+        let Some(option) = self
+            .placement_options
+            .iter()
+            .find(|option| option.placement_id == placement.id && option.layout_key == layout_key)
+        else {
+            return placement.clone();
+        };
+
+        let mut resolved = placement.clone();
+        resolved.position = option.position;
+        resolved.rotation = option.orientation;
+        resolved
     }
 }
 
@@ -110,6 +210,10 @@ impl WarbandSceneEntry {
 }
 
 impl WarbandScenePlacement {
+    pub fn is_character_slot(&self) -> bool {
+        self.slot_type == 0
+    }
+
     /// Convert the WoW placement position to Bevy coordinates.
     pub fn bevy_position(&self) -> Vec3 {
         let [bx, by, bz] = wow_to_bevy(self.position[1], self.position[0], self.position[2]);
@@ -118,7 +222,8 @@ impl WarbandScenePlacement {
 
     /// Rotation as Bevy quaternion (WoW degrees around Y axis).
     pub fn bevy_rotation(&self) -> Quat {
-        Quat::from_rotation_y(self.rotation.to_radians())
+        // Character M2s need the same base-facing correction used elsewhere in the renderer.
+        Quat::from_rotation_y(self.rotation.to_radians() - std::f32::consts::FRAC_PI_2)
     }
 }
 
@@ -223,7 +328,9 @@ fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> {
         return None;
     }
     Some(WarbandScenePlacement {
+        id: fields[3].parse().ok()?,
         scene_id: fields[4].parse().ok()?,
+        slot_type: fields[5].parse().ok()?,
         position: [
             fields[0].parse().ok()?,
             fields[1].parse().ok()?,
@@ -232,6 +339,42 @@ fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> {
         rotation: fields[6].parse().ok()?,
         slot_id: fields[11].parse().ok()?,
     })
+}
+
+fn load_placement_options(path: &Path) -> Vec<WarbandScenePlacementOption> {
+    let Ok(data) = std::fs::read_to_string(path) else {
+        eprintln!("WarbandScenePlacementOption.csv not found at {}", path.display());
+        return Vec::new();
+    };
+    data.lines()
+        .skip(1)
+        .filter_map(parse_placement_option_line)
+        .collect()
+}
+
+fn parse_placement_option_line(line: &str) -> Option<WarbandScenePlacementOption> {
+    let fields: Vec<&str> = line.split(',').collect();
+    if fields.len() < 8 {
+        return None;
+    }
+    Some(WarbandScenePlacementOption {
+        placement_id: fields[1].parse().ok()?,
+        layout_key: fields[2].parse().ok()?,
+        position: [
+            fields[3].parse().ok()?,
+            fields[4].parse().ok()?,
+            fields[5].parse().ok()?,
+        ],
+        orientation: fields[6].parse().ok()?,
+        scale: fields[7].parse().ok()?,
+    })
+}
+
+fn squared_distance(a: [f32; 3], b: [f32; 3]) -> f32 {
+    let dx = a[0] - b[0];
+    let dy = a[1] - b[1];
+    let dz = a[2] - b[2];
+    dx * dx + dy * dy + dz * dz
 }
 
 /// Parse a CSV line respecting quoted fields.
@@ -313,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn focused_placement_prefers_slot_nearest_scene_focus() {
+    fn solo_character_placement_prefers_first_character_slot() {
         let warband = WarbandScenes::load();
         let rest = warband
             .scenes
@@ -321,12 +464,17 @@ mod tests {
             .find(|s| s.id == 1)
             .expect("Adventurer's Rest");
         let placement = warband
-            .focused_placement(rest)
+            .solo_character_placement(rest)
             .expect("expected at least one placement");
 
         assert_eq!(
-            placement.slot_id, 1,
-            "single-character rendering should use the placement nearest the scene focus"
+            placement.slot_id, 0,
+            "single-character rendering should start from the first authored character slot"
+        );
+        assert!(
+            (placement.position[0] - (-2982.4099)).abs() < 0.01
+                && (placement.position[1] - 458.5210).abs() < 0.01,
+            "single-character rendering should use the compact authored placement option"
         );
     }
 
@@ -337,6 +485,15 @@ mod tests {
         // Scene 1 should have placements
         let scene1: Vec<_> = placements.iter().filter(|p| p.scene_id == 1).collect();
         assert!(!scene1.is_empty());
+    }
+
+    #[test]
+    fn parse_warband_placement_options_csv() {
+        let options = load_placement_options(Path::new("data/WarbandScenePlacementOption.csv"));
+        assert!(!options.is_empty());
+        assert!(options.iter().any(|option| {
+            option.placement_id == 1 && option.layout_key == 4 && option.orientation == 108.0
+        }));
     }
 
     #[test]

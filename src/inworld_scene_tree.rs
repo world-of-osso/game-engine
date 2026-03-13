@@ -13,8 +13,7 @@ impl Plugin for InWorldSceneTreePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            build_inworld_scene_tree
-                .run_if(in_state(crate::game_state::GameState::InWorld)),
+            build_inworld_scene_tree.run_if(in_state(crate::game_state::GameState::InWorld)),
         );
     }
 }
@@ -80,10 +79,7 @@ fn collect_npc_nodes(
     }
 }
 
-fn collect_camera_nodes(
-    camera: &Query<Entity, With<Camera3d>>,
-    children: &mut Vec<SceneNode>,
-) {
+fn collect_camera_nodes(camera: &Query<Entity, With<Camera3d>>, children: &mut Vec<SceneNode>) {
     for entity in camera.iter() {
         children.push(SceneNode {
             label: "Camera".into(),

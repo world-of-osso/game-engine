@@ -59,7 +59,8 @@ impl OutfitData {
 
     fn try_load(data_dir: &Path) -> Result<Self, String> {
         let outfits = parse_char_start_outfits(&data_dir.join("CharStartOutfit.csv"))?;
-        let item_to_appearance = parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
+        let item_to_appearance =
+            parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
         let appearance_to_display = parse_item_appearance(&data_dir.join("ItemAppearance.csv"))?;
         let base_display_info = parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
         let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
@@ -234,7 +235,10 @@ fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolv
         }
 
         let mut model_resource_ids = Vec::new();
-        for model_resource_id in [field_u32(row, model_res_0_col), field_u32(row, model_res_1_col)] {
+        for model_resource_id in [
+            field_u32(row, model_res_0_col),
+            field_u32(row, model_res_1_col),
+        ] {
             if model_resource_id != 0 && !model_resource_ids.contains(&model_resource_id) {
                 model_resource_ids.push(model_resource_id);
             }
@@ -300,12 +304,16 @@ fn parse_texture_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
 
         fallback.entry(material_resource_id).or_insert(file_data_id);
         if usage_type == 0 {
-            preferred.entry(material_resource_id).or_insert(file_data_id);
+            preferred
+                .entry(material_resource_id)
+                .or_insert(file_data_id);
         }
     }
 
     for (material_resource_id, file_data_id) in fallback {
-        preferred.entry(material_resource_id).or_insert(file_data_id);
+        preferred
+            .entry(material_resource_id)
+            .or_insert(file_data_id);
     }
 
     Ok(preferred)

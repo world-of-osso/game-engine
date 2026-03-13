@@ -415,11 +415,9 @@ fn apply_body_texture(
     let Some(layout_id) = cust_db.layout_id(state.selected_race, state.selected_sex) else {
         return;
     };
-    let Some((pixels, w, h)) = char_tex.composite_with_items(
-        &all_materials,
-        &outfit.item_textures,
-        layout_id,
-    ) else {
+    let Some((pixels, w, h)) =
+        char_tex.composite_with_items(&all_materials, &outfit.item_textures, layout_id)
+    else {
         return;
     };
     let img = crate::rgba_image(pixels, w, h);
