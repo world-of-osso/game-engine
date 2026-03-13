@@ -10,6 +10,7 @@ use crate::asset::adt::{self};
 use crate::asset::adt_obj;
 use crate::game_state::GameState;
 use crate::terrain_heightmap::TerrainHeightmap;
+use crate::terrain_heightmap::sample_chunk_height;
 use crate::terrain_lod::{despawn_tile_doodad_entities, doodad_lod_swap_system, load_obj_for_lod};
 use crate::terrain_material::{self, TerrainMaterial};
 use crate::terrain_objects;
@@ -180,7 +181,7 @@ pub fn spawn_adt(
     heightmap.insert_tile(tile_y, tile_x, &adt_data);
     log_adt_spawn(&adt_data, adt_path);
 
-    let (camera, center) = compute_spawn_result(&adt_data);
+    let (camera, center) = compute_spawn_result(&adt_data, obj_data.as_ref());
     Ok(AdtSpawnResult {
         camera,
         center,
@@ -322,34 +323,253 @@ fn spawn_chunk_entities(
     root
 }
 
-fn compute_spawn_result(adt_data: &adt::AdtData) -> (Transform, Vec3) {
-    let center: Vec3 = adt_data.center_surface.into();
-    let target = first_water_position(adt_data).unwrap_or(center);
-    let eye = target + Vec3::new(30.0, 20.0, 30.0);
-    let camera = Transform::from_translation(eye).looking_at(target, Vec3::Y);
-    (camera, center)
+fn compute_spawn_result(
+    adt_data: &adt::AdtData,
+    obj_data: Option<&adt_obj::AdtObjData>,
+) -> (Transform, Vec3) {
+    let spawn = choose_safe_spawn_position(adt_data, obj_data)
+        .unwrap_or_else(|| adt_data.center_surface.into());
+    let focus = spawn + Vec3::Y * 1.8;
+    let eye = focus + Vec3::new(0.0, 28.0, 18.0);
+    let camera = Transform::from_translation(eye).looking_at(focus, Vec3::Y);
+    (camera, spawn)
 }
 
-/// Find the Bevy-space center of the first water chunk (for camera positioning).
-fn first_water_position(adt_data: &adt::AdtData) -> Option<Vec3> {
-    use crate::asset::adt::CHUNK_SIZE;
-    use crate::asset::m2::wow_to_bevy;
-    let water = adt_data.water.as_ref()?;
-    for (i, cw) in water.chunks.iter().enumerate() {
-        if let Some(layer) = cw.layers.first() {
-            if layer.width == 0 || layer.height == 0 {
-                continue;
-            }
-            let pos = adt_data.chunk_positions[i];
-            let center_col = layer.x_offset as f32 + layer.width as f32 / 2.0;
-            let center_row = layer.y_offset as f32 + layer.height as f32 / 2.0;
-            let wx = pos[1] - center_col * CHUNK_SIZE / 8.0;
-            let wy = pos[0] - center_row * CHUNK_SIZE / 8.0;
-            let [bx, by, bz] = wow_to_bevy(wx, wy, layer.min_height);
-            return Some(Vec3::new(bx, by, bz));
+fn choose_safe_spawn_position(
+    adt_data: &adt::AdtData,
+    obj_data: Option<&adt_obj::AdtObjData>,
+) -> Option<Vec3> {
+    let tile_center = Vec2::new(adt_data.center_surface[0], adt_data.center_surface[2]);
+    adt_data
+        .height_grids
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !chunk_has_water(adt_data, *i))
+        .filter_map(|(_, grid)| {
+            let center = chunk_center_position(grid)?;
+            let relief = spawn_patch_relief(grid, center)?;
+            let dist = Vec2::new(center.x, center.z).distance(tile_center) / adt::CHUNK_SIZE;
+            let occupancy_penalty = spawn_occupancy_penalty(center, obj_data);
+            Some((spawn_score(relief, dist, occupancy_penalty), center))
+        })
+        .min_by(|(score_a, _), (score_b, _)| score_a.total_cmp(score_b))
+        .map(|(_, center)| center)
+}
+
+fn chunk_has_water(adt_data: &adt::AdtData, index: usize) -> bool {
+    adt_data
+        .water
+        .as_ref()
+        .and_then(|water| water.chunks.get(index))
+        .is_some_and(|chunk| {
+            chunk
+                .layers
+                .iter()
+                .any(|layer| layer.width > 0 && layer.height > 0)
+        })
+}
+
+fn chunk_center_position(grid: &adt::ChunkHeightGrid) -> Option<Vec3> {
+    let x = grid.origin_x - adt::CHUNK_SIZE / 2.0;
+    let z = grid.origin_z + adt::CHUNK_SIZE / 2.0;
+    let y = sample_chunk_height(grid, x, z)?;
+    Some(Vec3::new(x, y, z))
+}
+
+fn spawn_patch_relief(grid: &adt::ChunkHeightGrid, center: Vec3) -> Option<f32> {
+    let sample_radius = adt::UNIT_SIZE;
+    let mut min_height = f32::INFINITY;
+    let mut max_height = f32::NEG_INFINITY;
+    let mut sampled = 0usize;
+    for (dx, dz) in [
+        (0.0, 0.0),
+        (-sample_radius, 0.0),
+        (sample_radius, 0.0),
+        (0.0, -sample_radius),
+        (0.0, sample_radius),
+    ] {
+        let height = sample_chunk_height(grid, center.x + dx, center.z + dz)?;
+        min_height = min_height.min(height);
+        max_height = max_height.max(height);
+        sampled += 1;
+    }
+    (sampled > 0).then_some(max_height - min_height)
+}
+
+fn spawn_occupancy_penalty(center: Vec3, obj_data: Option<&adt_obj::AdtObjData>) -> f32 {
+    let Some(obj_data) = obj_data else {
+        return 0.0;
+    };
+    let candidate = Vec2::new(center.x, center.z);
+    let mut penalty = 0.0;
+
+    for wmo in &obj_data.wmos {
+        let distance = candidate.distance(world_position_2d(wmo.position));
+        if distance < adt::CHUNK_SIZE * 0.75 {
+            penalty += 1_000.0;
         }
     }
-    None
+
+    let doodads_nearby = obj_data
+        .doodads
+        .iter()
+        .filter(|doodad| {
+            candidate.distance(world_position_2d(doodad.position)) < adt::UNIT_SIZE * 3.0
+        })
+        .count() as f32;
+    penalty + doodads_nearby.min(12.0)
+}
+
+fn world_position_2d(wow_position: [f32; 3]) -> Vec2 {
+    let [x, _, z] =
+        crate::asset::m2::wow_to_bevy(wow_position[0], wow_position[1], wow_position[2]);
+    Vec2::new(x, z)
+}
+
+fn spawn_score(relief: f32, dist_from_center_chunks: f32, occupancy_penalty: f32) -> f32 {
+    relief * 10.0 + dist_from_center_chunks + occupancy_penalty
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flat_grid(
+        index_x: u32,
+        index_y: u32,
+        origin_x: f32,
+        origin_z: f32,
+        height: f32,
+    ) -> adt::ChunkHeightGrid {
+        adt::ChunkHeightGrid {
+            index_x,
+            index_y,
+            origin_x,
+            origin_z,
+            base_y: height,
+            heights: [0.0; 145],
+        }
+    }
+
+    fn rough_grid(
+        index_x: u32,
+        index_y: u32,
+        origin_x: f32,
+        origin_z: f32,
+        base_y: f32,
+        peak_delta: f32,
+    ) -> adt::ChunkHeightGrid {
+        let mut heights = [0.0; 145];
+        heights[adt::vertex_index(8, 4)] = peak_delta;
+        heights[adt::vertex_index(8, 5)] = peak_delta;
+        heights[adt::vertex_index(9, 4)] = peak_delta;
+        heights[adt::vertex_index(10, 4)] = peak_delta;
+        heights[adt::vertex_index(10, 5)] = peak_delta;
+        adt::ChunkHeightGrid {
+            index_x,
+            index_y,
+            origin_x,
+            origin_z,
+            base_y,
+            heights,
+        }
+    }
+
+    fn empty_adt(height_grids: Vec<adt::ChunkHeightGrid>) -> adt::AdtData {
+        adt::AdtData {
+            chunks: Vec::new(),
+            height_grids,
+            center_surface: [0.0, 0.0, 0.0],
+            chunk_positions: Vec::new(),
+            water: None,
+            water_error: None,
+        }
+    }
+
+    #[test]
+    fn choose_safe_spawn_position_prefers_flat_chunk_over_rough_center() {
+        let adt = empty_adt(vec![
+            rough_grid(8, 8, 0.0, 0.0, 40.0, 24.0),
+            flat_grid(8, 7, 0.0, -adt::CHUNK_SIZE, 12.0),
+        ]);
+
+        let spawn = choose_safe_spawn_position(&adt, None).expect("spawn position");
+
+        assert!(
+            spawn.z < 0.0,
+            "expected flatter chunk north of center to win"
+        );
+        assert!((spawn.y - 12.0).abs() < 0.01, "expected flat chunk height");
+    }
+
+    #[test]
+    fn choose_safe_spawn_position_skips_water_chunks() {
+        let mut adt = empty_adt(vec![
+            flat_grid(8, 8, 0.0, 0.0, 8.0),
+            flat_grid(8, 7, 0.0, -adt::CHUNK_SIZE, 12.0),
+        ]);
+        adt.water = Some(crate::asset::adt_tex::AdtWaterData {
+            chunks: (0..256)
+                .map(|i| crate::asset::adt_tex::ChunkWater {
+                    layers: if i == 0 {
+                        vec![crate::asset::adt_tex::WaterLayer {
+                            liquid_type: 0,
+                            liquid_object: 0,
+                            min_height: 0.0,
+                            max_height: 0.0,
+                            x_offset: 0,
+                            y_offset: 0,
+                            width: 8,
+                            height: 8,
+                            exists: [0; 8],
+                            vertex_heights: Vec::new(),
+                        }]
+                    } else {
+                        Vec::new()
+                    },
+                })
+                .collect(),
+        });
+
+        let spawn = choose_safe_spawn_position(&adt, None).expect("spawn position");
+
+        assert!(spawn.z < 0.0, "expected non-water chunk to win");
+        assert!((spawn.y - 12.0).abs() < 0.01, "expected dry chunk height");
+    }
+
+    #[test]
+    fn choose_safe_spawn_position_avoids_nearby_wmo_chunk() {
+        let adt = empty_adt(vec![
+            flat_grid(8, 8, 0.0, 0.0, 8.0),
+            flat_grid(8, 7, 0.0, -adt::CHUNK_SIZE, 12.0),
+        ]);
+        let obj_data = adt_obj::AdtObjData {
+            doodads: Vec::new(),
+            wmos: vec![adt_obj::WmoPlacement {
+                name_id: 0,
+                unique_id: 0,
+                position: [-adt::CHUNK_SIZE / 2.0, -adt::CHUNK_SIZE / 2.0, 0.0],
+                rotation: [0.0, 0.0, 0.0],
+                flags: 0,
+                doodad_set: 0,
+                name_set: 0,
+                scale: 1.0,
+                fdid: None,
+                path: None,
+            }],
+        };
+
+        let spawn = choose_safe_spawn_position(&adt, Some(&obj_data)).expect("spawn position");
+
+        assert!(
+            spawn.z < 0.0,
+            "expected spawn to move away from occupied center chunk"
+        );
+        assert!(
+            (spawn.y - 12.0).abs() < 0.01,
+            "expected alternate flat chunk height"
+        );
+    }
 }
 
 // ── water spawning ──────────────────────────────────────────────────────────

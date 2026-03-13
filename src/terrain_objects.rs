@@ -6,7 +6,6 @@ use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
-use crate::asset::adt::CHUNK_SIZE;
 use crate::asset::{adt_obj, blp, wmo};
 use crate::m2_spawn;
 
@@ -150,14 +149,15 @@ fn doodad_transform(d: &adt_obj::DoodadPlacement) -> Transform {
 
 /// Convert WoW MDDF/MODF Euler rotation (degrees) to a Bevy quaternion.
 ///
-/// WoW stores rotation as [X, Y, Z] degrees. In an OpenGL Y-up viewer
-/// (worldofwhatever) this becomes Ry(Y-90) * Rz(-X) * Rx(Z). Our Bevy
-/// coordinate system has Z flipped relative to that (wow_to_bevy produces
-/// Z = -(ZP - raw_z)), so Y and X rotation angles are negated:
-/// Ry(90-Y) * Rz(-X) * Rx(-Z).
+/// WoW stores rotation as [X, Y, Z] degrees. The reference ADT viewer
+/// (`worldofwhatever`) applies these directly in the already-swizzled
+/// render basis as:
+///   Ry(Y - 90) * Rz(-X) * Rx(Z)
+/// Our placements and mesh vertices are converted into that same basis
+/// via `placement_to_bevy`/`wow_to_bevy`, so the same composition applies.
 fn placement_rotation(rot: [f32; 3]) -> Quat {
-    let rx = (-rot[2]).to_radians();
-    let ry = (90.0 - rot[1]).to_radians();
+    let rx = rot[2].to_radians();
+    let ry = (rot[1] - 90.0).to_radians();
     let rz = (-rot[0]).to_radians();
     Quat::from_euler(EulerRot::YZX, ry, rz, rx)
 }
@@ -375,7 +375,13 @@ fn spawn_wmo_group(
     commands.entity(root_entity).add_child(group_entity);
 
     for batch in group.batches {
-        let mat = wmo_batch_material(assets.materials, assets.images, root, batch.material_index);
+        let mat = wmo_batch_material(
+            assets.materials,
+            assets.images,
+            root,
+            batch.material_index,
+            batch.has_vertex_color,
+        );
         let child = commands
             .spawn((
                 Mesh3d(assets.meshes.add(batch.mesh)),
@@ -418,10 +424,12 @@ fn wmo_batch_material(
     images: &mut Assets<Image>,
     root: &wmo::WmoRootData,
     material_index: u16,
+    has_vertex_color: bool,
 ) -> Handle<StandardMaterial> {
     let mat_def = root.materials.get(material_index as usize);
     let texture_fdid = mat_def.map(|m| m.texture_fdid).unwrap_or(0);
     let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
+    let flags = mat_def.map(|m| m.flags).unwrap_or(0);
 
     if texture_fdid > 0 {
         let blp_path =
@@ -429,18 +437,34 @@ fn wmo_batch_material(
                 std::path::PathBuf::from(format!("data/textures/{texture_fdid}.blp"))
             });
         if let Ok(image) = blp::load_blp_gpu_image(&blp_path) {
-            return materials.add(wmo_standard_material(Some(images.add(image)), blend_mode));
+            return materials.add(wmo_standard_material(
+                Some(images.add(image)),
+                blend_mode,
+                flags,
+                has_vertex_color,
+            ));
         }
     }
-    materials.add(wmo_standard_material(None, blend_mode))
+    materials.add(wmo_standard_material(
+        None,
+        blend_mode,
+        flags,
+        has_vertex_color,
+    ))
 }
 
-fn wmo_standard_material(texture: Option<Handle<Image>>, blend_mode: u32) -> StandardMaterial {
+fn wmo_standard_material(
+    texture: Option<Handle<Image>>,
+    blend_mode: u32,
+    flags: u32,
+    has_vertex_color: bool,
+) -> StandardMaterial {
     let alpha_mode = match blend_mode {
-        1 => AlphaMode::Mask(0.5),
         2 | 3 => AlphaMode::Blend,
+        _ if texture.is_some() => AlphaMode::Mask(0.5),
         _ => AlphaMode::Opaque,
     };
+    let double_sided = (flags & 0x04) != 0;
     StandardMaterial {
         base_color: if texture.is_none() {
             Color::srgb(0.6, 0.6, 0.6)
@@ -449,8 +473,13 @@ fn wmo_standard_material(texture: Option<Handle<Image>>, blend_mode: u32) -> Sta
         },
         base_color_texture: texture,
         perceptual_roughness: 0.8,
-        double_sided: true,
-        cull_mode: None,
+        unlit: has_vertex_color,
+        double_sided,
+        cull_mode: if double_sided {
+            None
+        } else {
+            Some(bevy::render::render_resource::Face::Back)
+        },
         alpha_mode,
         ..default()
     }
@@ -461,11 +490,7 @@ fn wmo_standard_material(texture: Option<Handle<Image>>, blend_mode: u32) -> Sta
 /// Convert MODF/MDDF placement position to Bevy-space.
 pub fn placement_to_bevy(raw: [f32; 3]) -> [f32; 3] {
     use crate::asset::m2::wow_to_bevy;
-    const MAP_OFFSET: f32 = 32.0 * CHUNK_SIZE * 16.0;
-    let wx = MAP_OFFSET - raw[0];
-    let wy = MAP_OFFSET - raw[2];
-    let wz = raw[1];
-    wow_to_bevy(wx, wy, wz)
+    wow_to_bevy(raw[0], raw[1], raw[2])
 }
 
 /// Convert WMO placement to a Bevy Transform.
@@ -475,4 +500,43 @@ fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
         .with_scale(Vec3::splat(w.scale))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn placement_rotation_matches_reference_viewer_formula() {
+        let rot = [17.0, 123.0, -31.0];
+        let actual = placement_rotation(rot);
+        let expected = Quat::from_euler(
+            EulerRot::YZX,
+            (rot[1] - 90.0).to_radians(),
+            (-rot[0]).to_radians(),
+            rot[2].to_radians(),
+        );
+
+        let probe = Vec3::new(0.3, -0.4, 0.8);
+        let actual_vec = actual * probe;
+        let expected_vec = expected * probe;
+        assert!(
+            actual_vec.abs_diff_eq(expected_vec, 1e-5),
+            "rotation mismatch: actual={actual_vec:?} expected={expected_vec:?}"
+        );
+    }
+
+    #[test]
+    fn placement_to_bevy_matches_reference_viewer_position_basis() {
+        let raw = [17012.4, 83.1, 8220.7];
+        let actual = placement_to_bevy(raw);
+        let expected = crate::asset::m2::wow_to_bevy(raw[0], raw[1], raw[2]);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn wmo_vertex_colored_materials_are_unlit() {
+        let material = wmo_standard_material(None, 0, 0, true);
+        assert!(material.unlit);
+    }
 }

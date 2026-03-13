@@ -2,8 +2,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::adt_tex::{
-    build_water_mesh, load_adt_tex0, parse_mh2o, AdtTexData, AdtWaterData, ChunkTexLayers,
-    TextureLayer,
+    AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0,
+    parse_mh2o,
 };
 use super::m2::wow_to_bevy;
 
@@ -159,7 +159,7 @@ fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
 struct McnkData {
     index_x: u32,
     index_y: u32,
-    pos: [f32; 3], // WoW world-space corner position
+    pos: [f32; 3], // WoW world-space corner position stored as [Y, X, Z]
     heights: [f32; MCVT_COUNT],
     normals: [[f32; 3]; MCVT_COUNT],
 }
@@ -171,9 +171,11 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     }
     let index_x = read_u32(payload, 0x04)?;
     let index_y = read_u32(payload, 0x08)?;
+    // Despite older notes claiming [Y, X, Z], live ADTs in our test data decode
+    // correctly only when the first two floats are swapped into [Y, X, Z] here.
     let pos = [
-        read_f32(payload, 0x68)?,
         read_f32(payload, 0x6c)?,
+        read_f32(payload, 0x68)?,
         read_f32(payload, 0x70)?,
     ];
     let (heights, normals) = parse_mcnk_subchunks(&payload[128..])?;
@@ -385,6 +387,13 @@ mod tests {
     use super::*;
     use std::iter;
 
+    fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
+        let center = 32.0 * CHUNK_SIZE * 16.0;
+        let row = ((center + bz) / (CHUNK_SIZE * 16.0)).floor() as i32;
+        let col = ((center - bx) / (CHUNK_SIZE * 16.0)).floor() as i32;
+        (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
+    }
+
     fn wrap_chunk(tag: [u8; 4], payload: Vec<u8>) -> Vec<u8> {
         let mut out = Vec::with_capacity(8 + payload.len());
         out.extend_from_slice(&tag);
@@ -417,6 +426,20 @@ mod tests {
         layer[15] = 8; // height
         layer[20..24].copy_from_slice(&((HEADER_SIZE + 1) as u32).to_le_bytes());
         payload
+    }
+
+    #[test]
+    fn parsed_tile_center_maps_back_to_named_adt_tile() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt = load_adt(&data).expect("expected ADT to parse");
+        let center = adt.center_surface;
+
+        assert_eq!(
+            bevy_to_tile_coords(center[0], center[2]),
+            (32, 48),
+            "parsed terrain coordinates should map back to the ADT filename tile"
+        );
     }
 
     fn minimal_adt_with_mh2o(mh2o_payload: Vec<u8>) -> Vec<u8> {

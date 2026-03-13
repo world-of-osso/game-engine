@@ -87,6 +87,7 @@ pub struct WmoGroupData {
 pub struct WmoGroupBatch {
     pub mesh: Mesh,
     pub material_index: u16,
+    pub has_vertex_color: bool,
 }
 
 /// Type alias for the return value of `parse_mopt`: portals and their vertex ranges.
@@ -300,6 +301,7 @@ struct RawGroupData {
     vertices: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     uvs: Vec<[f32; 2]>,
+    colors: Vec<[f32; 4]>,
     indices: Vec<u16>,
     batches: Vec<RawBatch>,
 }
@@ -312,11 +314,12 @@ struct RawBatch {
     material_id: u16,
 }
 
-/// Parse MOVT, MOVI, MONR, MOTV, MOBA sub-chunks from MOGP payload.
+/// Parse MOVT, MOVI, MONR, MOTV, MOCV, MOBA sub-chunks from MOGP payload.
 fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
+    let mut colors = Vec::new();
     let mut indices = Vec::new();
     let mut batches = Vec::new();
 
@@ -326,6 +329,7 @@ fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
             b"TVOM" => vertices = parse_vec3_array(payload)?,
             b"RNOM" => normals = parse_vec3_array(payload)?,
             b"VTOM" => uvs = parse_vec2_array(payload)?,
+            b"VCOM" => colors = parse_mocv(payload),
             b"IVOM" => indices = parse_u16_array(payload),
             b"ABOM" => batches = parse_moba(payload)?,
             _ => {}
@@ -343,6 +347,7 @@ fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         vertices,
         normals,
         uvs,
+        colors,
         indices,
         batches,
     })
@@ -381,6 +386,20 @@ fn parse_u16_array(data: &[u8]) -> Vec<u16> {
         .collect()
 }
 
+/// Parse MOCV vertex colors stored as BGRA bytes.
+fn parse_mocv(data: &[u8]) -> Vec<[f32; 4]> {
+    data.chunks_exact(4)
+        .map(|c| {
+            [
+                c[2] as f32 / 255.0,
+                c[1] as f32 / 255.0,
+                c[0] as f32 / 255.0,
+                c[3] as f32 / 255.0,
+            ]
+        })
+        .collect()
+}
+
 /// Parse MOBA chunk: 24 bytes per render batch.
 fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
     let count = data.len() / 24;
@@ -413,12 +432,14 @@ fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
 
 /// Build Bevy meshes from raw group data, one mesh per render batch.
 fn build_group_batches(raw: &RawGroupData) -> Result<WmoGroupData, String> {
+    let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     if raw.batches.is_empty() {
         let mesh = build_whole_group_mesh(raw);
         return Ok(WmoGroupData {
             batches: vec![WmoGroupBatch {
                 mesh,
                 material_index: 0,
+                has_vertex_color: whole_group_has_vertex_color,
             }],
         });
     }
@@ -429,6 +450,7 @@ fn build_group_batches(raw: &RawGroupData) -> Result<WmoGroupData, String> {
         out.push(WmoGroupBatch {
             mesh,
             material_index: batch.material_id,
+            has_vertex_color: raw.colors.len() > batch.max_index as usize,
         });
     }
     Ok(WmoGroupData { batches: out })
@@ -443,6 +465,7 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
         .collect();
     let normals = convert_normals(&raw.normals, positions.len());
     let uvs = convert_uvs(&raw.uvs, positions.len());
+    let colors = convert_colors(&raw.colors, positions.len());
     let indices: Vec<u32> = raw.indices.iter().map(|&i| i as u32).collect();
 
     let mut mesh = Mesh::new(
@@ -452,6 +475,9 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    if let Some(colors) = colors {
+        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    }
     mesh.insert_indices(Indices::U32(indices));
     mesh
 }
@@ -464,6 +490,7 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
 
     let (positions, normals, uvs) = extract_batch_vertices(raw, vmin, vmax, vert_count);
     let indices = extract_batch_indices(raw, batch);
+    let colors = extract_batch_colors(raw, vmin, vmax);
 
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -472,6 +499,9 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    if let Some(colors) = colors {
+        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    }
     mesh.insert_indices(Indices::U32(indices));
     mesh
 }
@@ -511,6 +541,14 @@ fn extract_batch_indices(raw: &RawGroupData, batch: &RawBatch) -> Vec<u32> {
         .collect()
 }
 
+fn extract_batch_colors(raw: &RawGroupData, vmin: usize, vmax: usize) -> Option<Vec<[f32; 4]>> {
+    if raw.colors.len() > vmax {
+        Some(raw.colors[vmin..=vmax].to_vec())
+    } else {
+        None
+    }
+}
+
 fn convert_normals(src: &[[f32; 3]], expected: usize) -> Vec<[f32; 3]> {
     if src.len() == expected {
         src.iter().map(|n| wow_to_bevy(n[0], n[1], n[2])).collect()
@@ -525,6 +563,10 @@ fn convert_uvs(src: &[[f32; 2]], expected: usize) -> Vec<[f32; 2]> {
     } else {
         vec![[0.0, 0.0]; expected]
     }
+}
+
+fn convert_colors(src: &[[f32; 4]], expected: usize) -> Option<Vec<[f32; 4]>> {
+    (src.len() == expected).then(|| src.to_vec())
 }
 
 #[cfg(test)]
@@ -550,72 +592,139 @@ mod tests {
     }
 
     #[test]
-    fn debug_bridge_vertex_coords() {
-        let data = std::fs::read("data/models/108122.wmo").expect("missing bridge group");
-        let mogp = find_mogp(&data).unwrap();
-        let sub = &mogp[MOGP_HEADER_SIZE..];
-        let raw = parse_group_subchunks(sub).unwrap();
-        eprintln!(
-            "Bridge group: {} verts, {} indices",
-            raw.vertices.len(),
-            raw.indices.len()
-        );
-        for (i, v) in raw.vertices.iter().take(5).enumerate() {
-            eprintln!("  raw vert {i}: [{:.1}, {:.1}, {:.1}]", v[0], v[1], v[2]);
-        }
-        let min = raw.vertices.iter().fold([f32::MAX; 3], |mut m, v| {
-            m[0] = m[0].min(v[0]);
-            m[1] = m[1].min(v[1]);
-            m[2] = m[2].min(v[2]);
-            m
-        });
-        let max = raw.vertices.iter().fold([f32::MIN; 3], |mut m, v| {
-            m[0] = m[0].max(v[0]);
-            m[1] = m[1].max(v[1]);
-            m[2] = m[2].max(v[2]);
-            m
-        });
-        eprintln!(
-            "  bounds min: [{:.1}, {:.1}, {:.1}]",
-            min[0], min[1], min[2]
-        );
-        eprintln!(
-            "  bounds max: [{:.1}, {:.1}, {:.1}]",
-            max[0], max[1], max[2]
+    fn parse_mocv_bgra_to_rgba() {
+        let colors = parse_mocv(&[0x11, 0x22, 0x33, 0x44]);
+        assert_eq!(colors.len(), 1);
+        assert_eq!(
+            colors[0],
+            [
+                0x33 as f32 / 255.0,
+                0x22 as f32 / 255.0,
+                0x11 as f32 / 255.0,
+                0x44 as f32 / 255.0,
+            ]
         );
     }
 
     #[test]
-    fn parse_elwynn_bridge_root() {
-        let data = std::fs::read("data/models/108121.wmo")
-            .expect("missing test asset: elwynnwidebridge root");
-        let root = load_wmo_root(&data).unwrap();
-        assert!(root.n_groups > 0, "should have at least one group");
-        eprintln!(
-            "elwynnwidebridge: {} groups, {} materials",
-            root.n_groups,
-            root.materials.len(),
-        );
-        for (i, m) in root.materials.iter().enumerate() {
-            eprintln!(
-                "  mat {i}: texture_fdid={} flags={:#x} blend={}",
-                m.texture_fdid, m.flags, m.blend_mode
+    fn abbey_group_batch_mesh_indices_stay_in_bounds() {
+        for fdid in 107075..=107087 {
+            let path = format!("data/models/{fdid}.wmo");
+            let data =
+                std::fs::read(&path).unwrap_or_else(|_| panic!("missing test asset: {path}"));
+            let group = load_wmo_group(&data).unwrap_or_else(|e| panic!("{path}: {e}"));
+
+            for (batch_idx, batch) in group.batches.iter().enumerate() {
+                let vertex_count = batch.mesh.count_vertices();
+                let Some(indices) = batch.mesh.indices() else {
+                    panic!("{path} batch {batch_idx}: missing index buffer");
+                };
+
+                match indices {
+                    Indices::U16(values) => {
+                        let offending = values
+                            .iter()
+                            .copied()
+                            .find(|&index| index as usize >= vertex_count);
+                        assert!(
+                            offending.is_none(),
+                            "{path} batch {batch_idx}: index {:?} out of bounds for {vertex_count} vertices",
+                            offending
+                        );
+                    }
+                    Indices::U32(values) => {
+                        let offending = values
+                            .iter()
+                            .copied()
+                            .find(|&index| index as usize >= vertex_count);
+                        assert!(
+                            offending.is_none(),
+                            "{path} batch {batch_idx}: index {:?} out of bounds for {vertex_count} vertices",
+                            offending
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn abbey_group_batches_preserve_source_triangles() {
+        for fdid in 107075..=107087 {
+            let path = format!("data/models/{fdid}.wmo");
+            let data =
+                std::fs::read(&path).unwrap_or_else(|_| panic!("missing test asset: {path}"));
+            let mogp = find_mogp(&data).unwrap_or_else(|e| panic!("{path}: {e}"));
+            let raw = parse_group_subchunks(&mogp[MOGP_HEADER_SIZE..])
+                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            let group = load_wmo_group(&data).unwrap_or_else(|e| panic!("{path}: {e}"));
+
+            let mut expected = Vec::new();
+            for batch in &raw.batches {
+                let start = batch.start_index as usize;
+                let end = start + batch.count as usize;
+                for tri in raw.indices[start..end].chunks_exact(3) {
+                    let mut packed = Vec::with_capacity(9);
+                    for &index in tri {
+                        let pos = raw.vertices[index as usize];
+                        let pos = wow_to_bevy(pos[0], pos[1], pos[2]);
+                        packed.extend(pos.into_iter().map(f32::to_bits));
+                    }
+                    expected.push(packed);
+                }
+            }
+            expected.sort_unstable();
+
+            let mut actual = Vec::new();
+            for (batch_idx, batch) in group.batches.iter().enumerate() {
+                let positions = match batch.mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+                    Some(bevy::mesh::VertexAttributeValues::Float32x3(values)) => values,
+                    _ => panic!("{path} batch {batch_idx}: missing positions"),
+                };
+                let indices = match batch.mesh.indices() {
+                    Some(Indices::U16(values)) => {
+                        values.iter().map(|&i| i as u32).collect::<Vec<_>>()
+                    }
+                    Some(Indices::U32(values)) => values.clone(),
+                    None => panic!("{path} batch {batch_idx}: missing index buffer"),
+                };
+
+                for tri in indices.chunks_exact(3) {
+                    let mut packed = Vec::with_capacity(9);
+                    for &index in tri {
+                        let pos = positions[index as usize];
+                        packed.extend(pos.into_iter().map(f32::to_bits));
+                    }
+                    actual.push(packed);
+                }
+            }
+            actual.sort_unstable();
+
+            assert_eq!(
+                actual, expected,
+                "{path}: reconstructed triangles differ from source"
             );
         }
     }
 
     #[test]
-    fn parse_elwynn_bridge_group() {
-        let data = std::fs::read("data/models/108122.wmo")
-            .expect("missing test asset: elwynnwidebridge group 0");
-        let group = load_wmo_group(&data).unwrap();
-        assert!(!group.batches.is_empty(), "should have at least one batch");
-        eprintln!("elwynnwidebridge group 0: {} batches", group.batches.len());
-        for (i, b) in group.batches.iter().enumerate() {
-            let vc = b.mesh.count_vertices();
-            eprintln!(
-                "  batch {i}: material_index={} vertices={vc}",
-                b.material_index
+    fn abbey_groups_with_mocv_expose_mesh_vertex_colors() {
+        for fdid in [107076u32, 107077, 107081, 107084, 107085, 107087] {
+            let path = format!("data/models/{fdid}.wmo");
+            let data =
+                std::fs::read(&path).unwrap_or_else(|_| panic!("missing test asset: {path}"));
+            let group = load_wmo_group(&data).unwrap_or_else(|e| panic!("{path}: {e}"));
+
+            assert!(
+                group.batches.iter().any(|batch| matches!(
+                    batch.mesh.attribute(Mesh::ATTRIBUTE_COLOR),
+                    Some(bevy::mesh::VertexAttributeValues::Float32x4(_))
+                )),
+                "{path}: expected at least one batch with vertex colors"
+            );
+            assert!(
+                group.batches.iter().any(|batch| batch.has_vertex_color),
+                "{path}: expected at least one batch flagged as vertex-colored"
             );
         }
     }

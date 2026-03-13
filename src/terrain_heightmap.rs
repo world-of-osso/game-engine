@@ -46,12 +46,12 @@ impl TerrainHeightmap {
         self.tiles
             .values()
             .flat_map(|grids| grids.iter().flatten())
-            .find_map(|g| chunk_height_at(g, bx, bz))
+            .find_map(|g| sample_chunk_height(g, bx, bz))
     }
 }
 
 /// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
-fn chunk_height_at(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
+pub(crate) fn sample_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
     let local_x = g.origin_x - bx;
     let local_z = bz - g.origin_z;
     if !(0.0..CHUNK_SIZE).contains(&local_x) || !(0.0..CHUNK_SIZE).contains(&local_z) {
@@ -105,4 +105,28 @@ fn barycentric_height(px: f32, pz: f32, a: [f32; 3], b: [f32; 3], c: [f32; 3]) -
     let wb = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / det;
     let wc = 1.0 - wa - wb;
     wa * ha + wb * hb + wc * hc
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn client_heightmap_covers_server_default_spawn() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt = adt::load_adt(&data).expect("expected ADT to parse");
+        let mut heightmap = TerrainHeightmap::default();
+        heightmap.insert_tile(32, 48, &adt);
+
+        let [bx, expected_y, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+        let terrain_y = heightmap
+            .height_at(bx, bz)
+            .expect("server default spawn should land on loaded client terrain");
+
+        assert!(
+            (terrain_y - expected_y).abs() < 10.0,
+            "expected terrain near saved spawn height, got terrain_y={terrain_y} expected_y={expected_y}"
+        );
+    }
 }
