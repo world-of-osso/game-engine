@@ -6,13 +6,13 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
-use game_engine::ui::frame::{Dimension, Frame, WidgetData, WidgetType};
+use game_engine::ui::frame::{Dimension, WidgetData};
 use game_engine::ui::layout::{LayoutRect, resolve_frame_layout};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
-use game_engine::ui::strata::FrameStrata;
-use game_engine::ui::widgets::button::ButtonData;
+use game_engine::ui::screens::inworld_hud_component;
 use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
+use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game_state::GameState;
 
@@ -32,10 +32,8 @@ const BAR_LOCKED_BG: [f32; 4] = [0.13, 0.10, 0.08, 0.92];
 const SLOT_BG: [f32; 4] = [0.15, 0.12, 0.08, 0.95];
 const SLOT_FLASH_BG: [f32; 4] = [0.85, 0.66, 0.18, 1.0];
 
-const EDIT_BANNER_BG: [f32; 4] = [0.03, 0.04, 0.06, 0.9];
 const EDIT_BANNER_TEXT: [f32; 4] = [1.0, 0.86, 0.25, 1.0];
 const MOVER_LABEL_TEXT: [f32; 4] = [1.0, 0.9, 0.45, 1.0];
-const GUIDE_COLOR: [f32; 4] = [0.95, 0.78, 0.25, 0.95];
 
 const PROFILE_PATH: &str = "data/ui/action_bar_profiles.ron";
 const PROFILE_DEFAULTS: [&str; 3] = ["Default", "Healing", "PvP"];
@@ -72,22 +70,26 @@ impl BarLayout {
     fn defaults(sw: f32, sh: f32) -> Self {
         let main = bar_size(12, 1, 1.0);
         let side = bar_size(1, 12, 1.0);
-        let right_y = sh - side.y - 180.0;
+        // Match wow-ui-sim's mainline edit-mode defaults closely enough to
+        // produce the familiar HUD silhouette instead of the old placeholder layout.
+        let main_bottom_offset = 45.0;
+        let right_center_offset_y = 77.0;
+        let right_y = (sh - side.y) * 0.5 + right_center_offset_y;
         Self {
             main: BarSettings {
                 x: (sw - main.x) * 0.5,
-                y: sh - main.y - 24.0,
+                y: sh - main.y - main_bottom_offset,
                 scale: 1.0,
                 columns: 12,
             },
             right: BarSettings {
-                x: sw - side.x - 16.0,
+                x: sw - side.x - 5.0,
                 y: right_y,
                 scale: 1.0,
                 columns: 1,
             },
             left: BarSettings {
-                x: sw - side.x * 2.0 - 24.0,
+                x: sw - side.x * 2.0 - 10.0,
                 y: right_y,
                 scale: 1.0,
                 columns: 1,
@@ -210,167 +212,39 @@ pub fn ensure_action_bars(reg: &mut FrameRegistry) {
     }
 }
 
-fn create_bar_roots(reg: &mut FrameRegistry) -> (u64, u64, u64) {
-    let main_root = create_frame(reg, "MainActionBar", None, WidgetType::Frame, 1.0, 1.0);
-    let right_root = create_frame(reg, "MultiBarRight", None, WidgetType::Frame, 1.0, 1.0);
-    let left_root = create_frame(reg, "MultiBarLeft", None, WidgetType::Frame, 1.0, 1.0);
-    set_bg(reg, main_root, BAR_BG);
-    set_bg(reg, right_root, BAR_BG);
-    set_bg(reg, left_root, BAR_BG);
-    set_strata(reg, main_root, FrameStrata::Dialog);
-    set_strata(reg, right_root, FrameStrata::Dialog);
-    set_strata(reg, left_root, FrameStrata::Dialog);
-    (main_root, right_root, left_root)
+fn mount_action_bar_screen(reg: &mut FrameRegistry) {
+    let shared = SharedContext::new();
+    let mut screen = Screen::new(inworld_hud_component::action_bar_screen);
+    screen.sync(&shared, reg);
 }
 
-fn create_bar_slots(
-    reg: &mut FrameRegistry,
-    main_root: u64,
-    right_root: u64,
-    left_root: u64,
-) -> ([u64; SLOT_COUNT], [u64; SLOT_COUNT], [u64; SLOT_COUNT]) {
-    let mut main_slots = [0; SLOT_COUNT];
-    let mut right_slots = [0; SLOT_COUNT];
-    let mut left_slots = [0; SLOT_COUNT];
-    for i in 0..SLOT_COUNT {
-        let main = create_button(
-            reg,
-            &format!("ActionButton{}", i + 1),
-            Some(main_root),
-            SLOT_W,
-            SLOT_H,
-            slot_label(i),
-        );
-        let right = create_button(
-            reg,
-            &format!("MultiBarRightButton{}", i + 1),
-            Some(right_root),
-            SLOT_W,
-            SLOT_H,
-            "",
-        );
-        let left = create_button(
-            reg,
-            &format!("MultiBarLeftButton{}", i + 1),
-            Some(left_root),
-            SLOT_W,
-            SLOT_H,
-            "",
-        );
-        set_bg(reg, main, SLOT_BG);
-        set_bg(reg, right, SLOT_BG);
-        set_bg(reg, left, SLOT_BG);
-        main_slots[i] = main;
-        right_slots[i] = right;
-        left_slots[i] = left;
-    }
-    (main_slots, right_slots, left_slots)
+fn resolve_frame_id(reg: &FrameRegistry, name: &str) -> u64 {
+    reg.get_by_name(name)
+        .unwrap_or_else(|| panic!("missing frame {name}"))
 }
 
-fn create_bar_labels(
-    reg: &mut FrameRegistry,
-    main_root: u64,
-    right_root: u64,
-    left_root: u64,
-) -> (u64, u64, u64) {
-    let main_label = create_frame(
-        reg,
-        "MainActionBarMoverLabel",
-        Some(main_root),
-        WidgetType::FontString,
-        220.0,
-        16.0,
-    );
-    let right_label = create_frame(
-        reg,
-        "MultiBarRightMoverLabel",
-        Some(right_root),
-        WidgetType::FontString,
-        220.0,
-        16.0,
-    );
-    let left_label = create_frame(
-        reg,
-        "MultiBarLeftMoverLabel",
-        Some(left_root),
-        WidgetType::FontString,
-        220.0,
-        16.0,
-    );
-    set_font_string_left(reg, main_label, "Main Action Bar", 13.0, MOVER_LABEL_TEXT);
-    set_font_string_left(reg, right_label, "Right Action Bar", 13.0, MOVER_LABEL_TEXT);
-    set_font_string_left(reg, left_label, "Left Action Bar", 13.0, MOVER_LABEL_TEXT);
-    (main_label, right_label, left_label)
-}
-
-fn create_guides(reg: &mut FrameRegistry, sw: f32, sh: f32) -> (u64, u64) {
-    let guide_v = create_frame(
-        reg,
-        "ActionBarGuideVertical",
-        None,
-        WidgetType::Frame,
-        2.0,
-        sh,
-    );
-    let guide_h = create_frame(
-        reg,
-        "ActionBarGuideHorizontal",
-        None,
-        WidgetType::Frame,
-        sw,
-        2.0,
-    );
-    set_bg(reg, guide_v, GUIDE_COLOR);
-    set_bg(reg, guide_h, GUIDE_COLOR);
-    set_strata(reg, guide_v, FrameStrata::Tooltip);
-    set_strata(reg, guide_h, FrameStrata::Tooltip);
-    reg.set_hidden(guide_v, true);
-    reg.set_hidden(guide_h, true);
-    (guide_v, guide_h)
-}
-
-fn create_edit_banner_frames(reg: &mut FrameRegistry, sw: f32) -> (u64, u64) {
-    let edit_banner = create_frame(
-        reg,
-        "ActionBarEditBanner",
-        None,
-        WidgetType::Frame,
-        760.0,
-        34.0,
-    );
-    set_layout(reg, edit_banner, (sw - 760.0) * 0.5, 24.0, 760.0, 34.0);
-    set_bg(reg, edit_banner, EDIT_BANNER_BG);
-    set_strata(reg, edit_banner, FrameStrata::Tooltip);
-    let edit_banner_text = create_frame(
-        reg,
-        "ActionBarEditBannerText",
-        Some(edit_banner),
-        WidgetType::FontString,
-        760.0,
-        34.0,
-    );
-    set_layout(reg, edit_banner_text, 0.0, 0.0, 760.0, 34.0);
-    set_font_string(
-        reg,
-        edit_banner_text,
-        "Action Bar Edit Mode",
-        15.0,
-        EDIT_BANNER_TEXT,
-    );
-    (edit_banner, edit_banner_text)
+fn resolve_slot_ids(reg: &FrameRegistry, prefix: &str) -> [u64; SLOT_COUNT] {
+    std::array::from_fn(|index| resolve_frame_id(reg, &format!("{prefix}{}", index + 1)))
 }
 
 fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
     let sw = reg.screen_width;
     let sh = reg.screen_height;
     let defaults = BarLayout::defaults(sw, sh);
-    let (main_root, right_root, left_root) = create_bar_roots(reg);
-    let (main_slots, right_slots, left_slots) =
-        create_bar_slots(reg, main_root, right_root, left_root);
-    let (main_label, right_label, left_label) =
-        create_bar_labels(reg, main_root, right_root, left_root);
-    let (guide_v, guide_h) = create_guides(reg, sw, sh);
-    let (edit_banner, edit_banner_text) = create_edit_banner_frames(reg, sw);
+    mount_action_bar_screen(reg);
+    let main_root = resolve_frame_id(reg, "MainActionBar");
+    let right_root = resolve_frame_id(reg, "MultiBarRight");
+    let left_root = resolve_frame_id(reg, "MultiBarLeft");
+    let main_slots = resolve_slot_ids(reg, "ActionButton");
+    let right_slots = resolve_slot_ids(reg, "MultiBarRightButton");
+    let left_slots = resolve_slot_ids(reg, "MultiBarLeftButton");
+    let main_label = resolve_frame_id(reg, "MainActionBarMoverLabel");
+    let right_label = resolve_frame_id(reg, "MultiBarRightMoverLabel");
+    let left_label = resolve_frame_id(reg, "MultiBarLeftMoverLabel");
+    let guide_v = resolve_frame_id(reg, "ActionBarGuideVertical");
+    let guide_h = resolve_frame_id(reg, "ActionBarGuideHorizontal");
+    let edit_banner = resolve_frame_id(reg, "ActionBarEditBanner");
+    let edit_banner_text = resolve_frame_id(reg, "ActionBarEditBannerText");
     let bars = ActionBarsUi {
         main_root,
         right_root,
@@ -388,6 +262,8 @@ fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
         layout: defaults,
         flashes: [0.0; SLOT_COUNT],
     };
+    set_layout(reg, edit_banner, (sw - 760.0) * 0.5, 24.0, 760.0, 34.0);
+    set_layout(reg, edit_banner_text, 0.0, 0.0, 760.0, 34.0);
     apply_layout(reg, &bars, defaults);
     bars
 }
@@ -1002,59 +878,6 @@ fn slot_key(index: usize) -> KeyCode {
     }
 }
 
-fn slot_label(index: usize) -> &'static str {
-    match index {
-        0 => "1",
-        1 => "2",
-        2 => "3",
-        3 => "4",
-        4 => "5",
-        5 => "6",
-        6 => "7",
-        7 => "8",
-        8 => "9",
-        9 => "0",
-        10 => "-",
-        _ => "=",
-    }
-}
-
-fn create_frame(
-    reg: &mut FrameRegistry,
-    name: &str,
-    parent: Option<u64>,
-    wt: WidgetType,
-    w: f32,
-    h: f32,
-) -> u64 {
-    let id = reg.next_id();
-    let mut frame = Frame::new(id, Some(name.to_string()), wt);
-    frame.parent_id = parent;
-    frame.width = Dimension::Fixed(w);
-    frame.height = Dimension::Fixed(h);
-    frame.mouse_enabled = false;
-    reg.insert_frame(frame);
-    id
-}
-
-fn create_button(
-    reg: &mut FrameRegistry,
-    name: &str,
-    parent: Option<u64>,
-    w: f32,
-    h: f32,
-    text: &str,
-) -> u64 {
-    let id = create_frame(reg, name, parent, WidgetType::Button, w, h);
-    if let Some(frame) = reg.get_mut(id) {
-        frame.widget_data = Some(WidgetData::Button(ButtonData {
-            text: text.to_string(),
-            ..Default::default()
-        }));
-    }
-    id
-}
-
 fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
@@ -1083,11 +906,7 @@ fn set_layout(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) 
     let (relative_to, x_offset, y_offset) = reg
         .get(id)
         .and_then(|frame| frame.parent_id)
-        .and_then(|parent_id| {
-            reg.get(parent_id)
-                .and_then(|parent| parent.layout_rect.as_ref())
-                .map(|rect| (Some(parent_id), x - rect.x, y - rect.y))
-        })
+        .map(|parent_id| (Some(parent_id), x, y))
         .unwrap_or((None, x, y));
 
     if let Some(frame) = reg.get_mut(id) {
@@ -1122,8 +941,50 @@ fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {
     }
 }
 
-fn set_strata(reg: &mut FrameRegistry, id: u64, strata: FrameStrata) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.strata = strata;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ui_toolkit::screen::{Screen, SharedContext};
+
+    #[test]
+    fn action_bar_screen_builds_all_bar_roots_and_slots() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let shared = SharedContext::new();
+        let mut screen = Screen::new(inworld_hud_component::action_bar_screen);
+
+        screen.sync(&shared, &mut registry);
+
+        assert!(registry.get_by_name("MainActionBar").is_some());
+        assert!(registry.get_by_name("MultiBarRight").is_some());
+        assert!(registry.get_by_name("MultiBarLeft").is_some());
+        assert!(registry.get_by_name("ActionBarEditBanner").is_some());
+        assert!(registry.get_by_name("ActionButton1").is_some());
+        assert!(registry.get_by_name("ActionButton12").is_some());
+        assert!(registry.get_by_name("MultiBarRightButton12").is_some());
+        assert!(registry.get_by_name("MultiBarLeftButton12").is_some());
+    }
+
+    #[test]
+    fn apply_layout_keeps_slot_positions_relative_to_bar_root() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut bars = create_action_bars(&mut registry);
+        let layout = BarLayout::defaults(registry.screen_width, registry.screen_height);
+        bars.layout = layout;
+
+        apply_layout(&mut registry, &bars, layout);
+
+        let root = registry
+            .get(bars.main_root)
+            .and_then(|frame| frame.layout_rect.clone())
+            .expect("main action bar rect");
+        let slot = registry
+            .get(bars.main_slots[0])
+            .and_then(|frame| frame.layout_rect.clone())
+            .expect("first action button rect");
+
+        assert!(slot.x > root.x);
+        assert!(slot.y > root.y);
+        assert!((root.x - (registry.screen_width - root.width) * 0.5).abs() < 1.0);
+        assert!(root.y > registry.screen_height * 0.8);
     }
 }

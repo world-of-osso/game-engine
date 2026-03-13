@@ -2,12 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use bevy::prelude::*;
-use ui_toolkit::frame::{Dimension, WidgetData, WidgetType};
-use ui_toolkit::layout::LayoutRect;
-use ui_toolkit::plugin::UiState;
+use ui_toolkit::frame::WidgetData;
+use ui_toolkit::plugin::{UiState, sync_registry_to_primary_window};
 use ui_toolkit::registry::FrameRegistry;
-use ui_toolkit::strata::FrameStrata;
-use ui_toolkit::widgets::font_string::{FontStringData, JustifyH};
+use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
 use crate::game_state::GameState;
@@ -16,6 +14,7 @@ use crate::minimap_render::{
     draw_dot, render_tile_image,
 };
 use crate::terrain_heightmap::TerrainHeightmap;
+use game_engine::ui::screens::inworld_hud_component;
 
 const MINIMAP_TILE_SIZE: u32 = 256;
 const MINIMAP_DISPLAY_SIZE: u32 = 200;
@@ -63,6 +62,8 @@ pub struct MinimapComposite {
 /// Frame IDs for the minimap UI toolkit frames.
 #[derive(Resource)]
 struct MinimapFrames {
+    cluster: u64,
+    header: u64,
     display: u64,
     border: u64,
     arrow: u64,
@@ -103,76 +104,17 @@ fn register_minimap_systems(app: &mut App) {
         .add_systems(Update, rotate_minimap.run_if(in_world));
 }
 
-fn create_texture_frame(
-    registry: &mut FrameRegistry,
-    name: &str,
-    handle: Handle<Image>,
-    rect: LayoutRect,
-    level: i32,
-) -> u64 {
-    let id = registry.create_frame(name, None);
+fn resolve_frame_id(registry: &FrameRegistry, name: &str) -> u64 {
+    registry
+        .get_by_name(name)
+        .unwrap_or_else(|| panic!("missing frame {name}"))
+}
+
+fn set_initial_visibility(registry: &mut FrameRegistry, id: u64) {
     if let Some(frame) = registry.get_mut(id) {
-        frame.widget_type = WidgetType::Texture;
-        frame.width = Dimension::Fixed(rect.width);
-        frame.height = Dimension::Fixed(rect.height);
-        frame.strata = FrameStrata::High;
-        frame.frame_level = level;
         frame.hidden = true;
         frame.visible = false;
         frame.effective_alpha = 0.0;
-        frame.widget_data = Some(WidgetData::Texture(TextureData {
-            source: TextureSource::Dynamic(handle),
-            ..TextureData::default()
-        }));
-        frame.layout_rect = Some(rect);
-    }
-    id
-}
-
-fn create_text_frame(
-    registry: &mut FrameRegistry,
-    name: &str,
-    text: &str,
-    font_size: f32,
-    color: [f32; 4],
-    rect: LayoutRect,
-) -> u64 {
-    let id = registry.create_frame(name, None);
-    if let Some(frame) = registry.get_mut(id) {
-        frame.widget_type = WidgetType::FontString;
-        frame.width = Dimension::Fixed(rect.width);
-        frame.height = Dimension::Fixed(rect.height);
-        frame.strata = FrameStrata::High;
-        frame.frame_level = 10;
-        frame.hidden = true;
-        frame.visible = false;
-        frame.effective_alpha = 0.0;
-        frame.widget_data = Some(WidgetData::FontString(FontStringData {
-            text: text.to_string(),
-            font_size,
-            color,
-            justify_h: JustifyH::Right,
-            ..FontStringData::default()
-        }));
-        frame.layout_rect = Some(rect);
-    }
-    id
-}
-
-fn minimap_rect(screen_w: f32) -> LayoutRect {
-    let ds = MINIMAP_DISPLAY_SIZE as f32;
-    LayoutRect { x: screen_w - ds - 10.0, y: 10.0, width: ds, height: ds }
-}
-
-fn arrow_rect(screen_w: f32) -> LayoutRect {
-    let ds = MINIMAP_DISPLAY_SIZE as f32;
-    let arrow_size = 16.0;
-    let offset = ds / 2.0 - arrow_size / 2.0;
-    LayoutRect {
-        x: screen_w - ds - 10.0 + offset,
-        y: 10.0 + offset,
-        width: arrow_size,
-        height: arrow_size,
     }
 }
 
@@ -181,25 +123,73 @@ fn create_minimap_frames(
     mut commands: Commands,
     mut ui: ResMut<UiState>,
     mut images: ResMut<Assets<Image>>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
-    let ds = MINIMAP_DISPLAY_SIZE as f32;
-    let screen_w = ui.registry.screen_width;
-    let composite_handle = images.add(create_blank_image(MINIMAP_DISPLAY_SIZE, MINIMAP_DISPLAY_SIZE));
+    sync_registry_to_primary_window(&mut ui.registry, &windows);
+    let composite_handle = images.add(create_blank_image(
+        MINIMAP_DISPLAY_SIZE,
+        MINIMAP_DISPLAY_SIZE,
+    ));
     let border_handle = images.add(create_border_image(MINIMAP_DISPLAY_SIZE as usize));
     let arrow_handle = images.add(create_arrow_image());
+    let shared = SharedContext::new();
+    let mut screen = Screen::new(inworld_hud_component::minimap_screen);
+    screen.sync(&shared, &mut ui.registry);
 
-    let display = create_texture_frame(&mut ui.registry, "MinimapDisplay", composite_handle.clone(), minimap_rect(screen_w), 0);
-    let border = create_texture_frame(&mut ui.registry, "MinimapBorder", border_handle, minimap_rect(screen_w), 10);
-    let arrow = create_texture_frame(&mut ui.registry, "MinimapArrow", arrow_handle, arrow_rect(screen_w), 11);
-    let zone_name = create_text_frame(&mut ui.registry, "MinimapZoneName", "Elwynn Forest", 16.0, [1.0, 0.82, 0.0, 1.0], LayoutRect { x: screen_w - ds - 10.0, y: 215.0, width: ds, height: 20.0 });
-    let coords = create_text_frame(&mut ui.registry, "MinimapCoords", "0, 0", 14.0, [1.0, 1.0, 1.0, 1.0], LayoutRect { x: screen_w - ds - 10.0, y: 235.0, width: ds, height: 18.0 });
+    let cluster = resolve_frame_id(&ui.registry, "MinimapCluster");
+    let header = resolve_frame_id(&ui.registry, "MinimapHeader");
+    let display = resolve_frame_id(&ui.registry, "MinimapDisplay");
+    let border = resolve_frame_id(&ui.registry, "MinimapBorder");
+    let arrow = resolve_frame_id(&ui.registry, "MinimapArrow");
+    let zone_name = resolve_frame_id(&ui.registry, "MinimapZoneName");
+    let coords = resolve_frame_id(&ui.registry, "MinimapCoords");
 
-    commands.insert_resource(MinimapComposite { handle: composite_handle });
-    commands.insert_resource(MinimapFrames { display, border, arrow, zone_name, coords });
+    if let Some(frame) = ui.registry.get_mut(display) {
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Dynamic(composite_handle.clone()),
+            ..TextureData::default()
+        }));
+    }
+    if let Some(frame) = ui.registry.get_mut(border) {
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Dynamic(border_handle),
+            ..TextureData::default()
+        }));
+    }
+    if let Some(frame) = ui.registry.get_mut(arrow) {
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Dynamic(arrow_handle),
+            ..TextureData::default()
+        }));
+    }
+    for id in [cluster, header, display, border, arrow, zone_name, coords] {
+        set_initial_visibility(&mut ui.registry, id);
+    }
+
+    commands.insert_resource(MinimapComposite {
+        handle: composite_handle,
+    });
+    commands.insert_resource(MinimapFrames {
+        cluster,
+        header,
+        display,
+        border,
+        arrow,
+        zone_name,
+        coords,
+    });
 }
 
 fn set_hud_visibility(ui: &mut UiState, frames: &MinimapFrames, visible: bool) {
-    for &fid in &[frames.display, frames.border, frames.arrow, frames.zone_name, frames.coords] {
+    for &fid in &[
+        frames.cluster,
+        frames.header,
+        frames.display,
+        frames.border,
+        frames.arrow,
+        frames.zone_name,
+        frames.coords,
+    ] {
         if let Some(frame) = ui.registry.get_mut(fid) {
             frame.hidden = !visible;
             frame.visible = visible;
@@ -276,41 +266,79 @@ fn update_minimap_composite(
     mut images: ResMut<Assets<Image>>,
     mut last: ResMut<LastMinimapPixel>,
 ) {
-    let Ok(player_tf) = player_q.single() else { return };
-    let Some(composite_res) = composite_res else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let Some(composite_res) = composite_res else {
+        return;
+    };
     let bx = player_tf.translation.x;
     let bz = player_tf.translation.z;
     let (player_row, player_col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
     let comp_size = MINIMAP_COMPOSITE_SIZE as usize;
     let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
 
-    if !composite_needs_update(&last, px_x, px_y, player_row, player_col, minimap.generated.len()) {
+    if !composite_needs_update(
+        &last,
+        px_x,
+        px_y,
+        player_row,
+        player_col,
+        minimap.generated.len(),
+    ) {
         return;
     }
 
-    recomposite(&minimap, &images, &mut last, player_row, player_col, comp_size);
+    recomposite(
+        &minimap, &images, &mut last, player_row, player_col, comp_size,
+    );
     last.px_x = px_x;
     last.px_y = px_y;
     last.tile_row = player_row;
     last.tile_col = player_col;
     last.tile_generation = minimap.generated.len();
 
-    apply_circular_crop(&composite_res, &mut images, &last.composite_buf, comp_size, px_x, px_y);
+    apply_circular_crop(
+        &composite_res,
+        &mut images,
+        &last.composite_buf,
+        comp_size,
+        px_x,
+        px_y,
+    );
 }
 
 fn composite_needs_update(
-    last: &LastMinimapPixel, px_x: usize, px_y: usize, row: u32, col: u32, tile_gen: usize,
+    last: &LastMinimapPixel,
+    px_x: usize,
+    px_y: usize,
+    row: u32,
+    col: u32,
+    tile_gen: usize,
 ) -> bool {
-    px_x != last.px_x || px_y != last.px_y || row != last.tile_row
-        || col != last.tile_col || tile_gen != last.tile_generation
+    px_x != last.px_x
+        || px_y != last.px_y
+        || row != last.tile_row
+        || col != last.tile_col
+        || tile_gen != last.tile_generation
 }
 
 fn apply_circular_crop(
-    composite_res: &MinimapComposite, images: &mut Assets<Image>,
-    buf: &[u8], comp_size: usize, px_x: usize, px_y: usize,
+    composite_res: &MinimapComposite,
+    images: &mut Assets<Image>,
+    buf: &[u8],
+    comp_size: usize,
+    px_x: usize,
+    px_y: usize,
 ) {
     if let Some(img) = images.get_mut(&composite_res.handle) {
-        img.data = Some(crop_with_circle(buf, comp_size, px_x, px_y, MINIMAP_DISPLAY_SIZE));
+        img.data = Some(crop_with_circle(
+            buf,
+            comp_size,
+            px_x,
+            px_y,
+            MINIMAP_DISPLAY_SIZE,
+        ));
     }
 }
 
@@ -327,8 +355,13 @@ fn recomposite(
     last.composite_buf.resize(needed, 0);
     fill_dark_background(&mut last.composite_buf, comp_size);
     blit_tiles(
-        &mut last.composite_buf, comp_size, tile_px,
-        player_row, player_col, minimap, images,
+        &mut last.composite_buf,
+        comp_size,
+        tile_px,
+        player_row,
+        player_col,
+        minimap,
+        images,
     );
 }
 
@@ -360,29 +393,48 @@ fn blit_tiles(
                 continue;
             }
             blit_single_tile(
-                composite, comp_size, tile_px,
+                composite,
+                comp_size,
+                tile_px,
                 (row as u32, col as u32),
-                dx as usize * tile_px, dy as usize * tile_px,
-                minimap, images,
+                dx as usize * tile_px,
+                dy as usize * tile_px,
+                minimap,
+                images,
             );
         }
     }
 }
 
 fn blit_single_tile(
-    composite: &mut [u8], comp_size: usize, tile_px: usize,
-    key: (u32, u32), off_x: usize, off_y: usize,
-    minimap: &MinimapState, images: &Assets<Image>,
+    composite: &mut [u8],
+    comp_size: usize,
+    tile_px: usize,
+    key: (u32, u32),
+    off_x: usize,
+    off_y: usize,
+    minimap: &MinimapState,
+    images: &Assets<Image>,
 ) {
-    let Some(handle) = minimap.tile_images.get(&key) else { return };
-    let Some(tile_img) = images.get(handle) else { return };
-    let Some(tile_data) = tile_img.data.as_ref() else { return };
+    let Some(handle) = minimap.tile_images.get(&key) else {
+        return;
+    };
+    let Some(tile_img) = images.get(handle) else {
+        return;
+    };
+    let Some(tile_data) = tile_img.data.as_ref() else {
+        return;
+    };
     blit_image(composite, comp_size, tile_data, tile_px, off_x, off_y);
 }
 
 /// Compute the player's pixel position within the 3x3 composite image.
 fn player_pixel_in_composite(
-    bx: f32, bz: f32, row: u32, col: u32, comp_size: usize,
+    bx: f32,
+    bz: f32,
+    row: u32,
+    col: u32,
+    comp_size: usize,
 ) -> (usize, usize) {
     let tile_size = crate::asset::adt::CHUNK_SIZE * 16.0;
     let center = 32.0 * tile_size;
@@ -403,7 +455,9 @@ fn update_zone_name(
     frames: Option<Res<MinimapFrames>>,
 ) {
     let Some(zone) = zone else { return };
-    if !zone.is_changed() { return }
+    if !zone.is_changed() {
+        return;
+    }
     let Some(frames) = frames else { return };
     let name = zone_id_to_name(zone.zone_id);
     if let Some(frame) = ui.registry.get_mut(frames.zone_name) {
@@ -461,23 +515,44 @@ fn draw_entity_dots(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Ok(player_tf) = player_q.single() else { return };
-    let Some(composite_res) = composite_res else { return };
-    let Some(img) = images.get_mut(&composite_res.handle) else { return };
-    let Some(data) = img.data.as_mut() else { return };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let Some(composite_res) = composite_res else {
+        return;
+    };
+    let Some(img) = images.get_mut(&composite_res.handle) else {
+        return;
+    };
+    let Some(data) = img.data.as_mut() else {
+        return;
+    };
 
     let ds = MINIMAP_DISPLAY_SIZE as usize;
     let center = ds as f32 / 2.0;
     let yards_per_pixel = crate::asset::adt::CHUNK_SIZE * 16.0 / MINIMAP_TILE_SIZE as f32;
 
     for (tf, npc) in &remote_q {
-        draw_entity_dot(data, ds, center, yards_per_pixel, player_tf, tf, npc.is_some());
+        draw_entity_dot(
+            data,
+            ds,
+            center,
+            yards_per_pixel,
+            player_tf,
+            tf,
+            npc.is_some(),
+        );
     }
 }
 
 fn draw_entity_dot(
-    data: &mut [u8], ds: usize, center: f32, yards_per_pixel: f32,
-    player_tf: &Transform, entity_tf: &Transform, is_npc: bool,
+    data: &mut [u8],
+    ds: usize,
+    center: f32,
+    yards_per_pixel: f32,
+    player_tf: &Transform,
+    entity_tf: &Transform,
+    is_npc: bool,
 ) {
     let dx = entity_tf.translation.x - player_tf.translation.x;
     let dz = entity_tf.translation.z - player_tf.translation.z;
@@ -486,7 +561,11 @@ fn draw_entity_dot(
     if ((px - center).powi(2) + (py - center).powi(2)).sqrt() > center - 3.0 {
         return;
     }
-    let color = if is_npc { [255, 200, 0, 255] } else { [0, 255, 0, 255] };
+    let color = if is_npc {
+        [255, 200, 0, 255]
+    } else {
+        [0, 255, 0, 255]
+    };
     draw_dot(data, ds, px as i32, py as i32, &color);
 }
 
@@ -498,6 +577,23 @@ mod tests {
         create_arrow_image, create_border_image, crop_with_circle, draw_dot, find_height_range,
         height_to_color, point_in_triangle, render_tile_image,
     };
+    use ui_toolkit::screen::{Screen, SharedContext};
+
+    #[test]
+    fn minimap_screen_builds_expected_hud_frames() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let shared = SharedContext::new();
+        let mut screen = Screen::new(inworld_hud_component::minimap_screen);
+
+        screen.sync(&shared, &mut registry);
+
+        assert!(registry.get_by_name("MinimapCluster").is_some());
+        assert!(registry.get_by_name("MinimapDisplay").is_some());
+        assert!(registry.get_by_name("MinimapBorder").is_some());
+        assert!(registry.get_by_name("MinimapArrow").is_some());
+        assert!(registry.get_by_name("MinimapZoneName").is_some());
+        assert!(registry.get_by_name("MinimapCoords").is_some());
+    }
 
     #[test]
     fn height_color_low() {
@@ -606,61 +702,6 @@ mod tests {
         assert_eq!(img.height(), 256);
     }
 
-    // --- Frame creation and layout tests ---
-
-    #[test]
-    fn minimap_rect_positions_top_right() {
-        let rect = minimap_rect(1920.0);
-        let ds = MINIMAP_DISPLAY_SIZE as f32;
-        assert_eq!(rect.x, 1920.0 - ds - 10.0);
-        assert_eq!(rect.y, 10.0);
-        assert_eq!(rect.width, ds);
-        assert_eq!(rect.height, ds);
-    }
-
-    #[test]
-    fn arrow_rect_centered_in_minimap() {
-        let rect = arrow_rect(1920.0);
-        let mm = minimap_rect(1920.0);
-        let arrow_center_x = rect.x + rect.width / 2.0;
-        let mm_center_x = mm.x + mm.width / 2.0;
-        assert!((arrow_center_x - mm_center_x).abs() < 1.0);
-        let arrow_center_y = rect.y + rect.height / 2.0;
-        let mm_center_y = mm.y + mm.height / 2.0;
-        assert!((arrow_center_y - mm_center_y).abs() < 1.0);
-    }
-
-    #[test]
-    fn create_texture_frame_sets_dynamic_source() {
-        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
-        let handle = Handle::default();
-        let rect = LayoutRect { x: 100.0, y: 50.0, width: 200.0, height: 200.0 };
-        let id = create_texture_frame(&mut registry, "Test", handle, rect, 5);
-        let frame = registry.get(id).unwrap();
-        assert_eq!(frame.widget_type, WidgetType::Texture);
-        assert!(frame.hidden);
-        assert!(!frame.visible);
-        assert_eq!(frame.frame_level, 5);
-        assert!(matches!(
-            frame.widget_data,
-            Some(WidgetData::Texture(TextureData { source: TextureSource::Dynamic(_), .. }))
-        ));
-    }
-
-    #[test]
-    fn create_text_frame_sets_fontstring() {
-        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
-        let rect = LayoutRect { x: 100.0, y: 50.0, width: 200.0, height: 20.0 };
-        let id = create_text_frame(&mut registry, "Lbl", "Hello", 14.0, [1.0, 0.0, 0.0, 1.0], rect);
-        let frame = registry.get(id).unwrap();
-        assert_eq!(frame.widget_type, WidgetType::FontString);
-        assert!(frame.hidden);
-        let Some(WidgetData::FontString(fs)) = &frame.widget_data else { panic!("expected FontString") };
-        assert_eq!(fs.text, "Hello");
-        assert_eq!(fs.font_size, 14.0);
-        assert_eq!(fs.color, [1.0, 0.0, 0.0, 1.0]);
-    }
-
     // --- Composite update logic tests ---
 
     #[test]
@@ -672,7 +713,11 @@ mod tests {
     #[test]
     fn composite_needs_update_same_state_returns_false() {
         let last = LastMinimapPixel {
-            px_x: 100, px_y: 200, tile_row: 32, tile_col: 48, tile_generation: 5,
+            px_x: 100,
+            px_y: 200,
+            tile_row: 32,
+            tile_col: 48,
+            tile_generation: 5,
             composite_buf: Vec::new(),
         };
         assert!(!composite_needs_update(&last, 100, 200, 32, 48, 5));
@@ -681,7 +726,11 @@ mod tests {
     #[test]
     fn composite_needs_update_tile_generation_change() {
         let last = LastMinimapPixel {
-            px_x: 100, px_y: 200, tile_row: 32, tile_col: 48, tile_generation: 5,
+            px_x: 100,
+            px_y: 200,
+            tile_row: 32,
+            tile_col: 48,
+            tile_generation: 5,
             composite_buf: Vec::new(),
         };
         assert!(composite_needs_update(&last, 100, 200, 32, 48, 6));
