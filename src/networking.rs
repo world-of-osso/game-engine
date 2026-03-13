@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -12,12 +13,17 @@ use shared::protocol::ChatMessage;
 pub use shared::protocol::ChatType;
 
 pub use crate::networking_auth::{
-    load_auth_token, AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword,
-    LoginUsername, SelectedCharacterId,
+    AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword, LoginUsername,
+    SelectedCharacterId, load_auth_token,
 };
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
+use crate::character_customization::CharacterCustomizationSelection;
+use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display::CreatureDisplayMap;
+use game_engine::asset::char_texture::CharTextureData;
+use game_engine::customization_data::CustomizationDb;
+use game_engine::outfit_data::OutfitData;
 use game_engine::status::{
     CollectionStatusSnapshot, CombatLogStatusSnapshot, GroupStatusSnapshot, MapStatusSnapshot,
     ProfessionStatusSnapshot, QuestLogStatusSnapshot,
@@ -40,6 +46,12 @@ pub struct LocalClientId(pub u64);
 struct InterpolationTarget {
     target: Vec3,
 }
+
+#[derive(Component)]
+pub(crate) struct ReplicatedVisualEntity;
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct AppliedPlayerAppearance(CharacterCustomizationSelection);
 
 /// Maximum number of messages stored in the chat log.
 pub(crate) const MAX_CHAT_LOG: usize = 100;
@@ -150,6 +162,7 @@ fn register_inworld_sync_systems(app: &mut App) {
             msg::receive_collection_snapshot,
             msg::receive_profession_snapshot,
             sync_replicated_transforms,
+            sync_replicated_player_customization,
             interpolate_remote_entities,
             tag_local_player,
         )
@@ -266,6 +279,7 @@ fn on_connected(
 }
 
 /// Convert local MovementState + CharacterFacing into a world-space direction vector.
+/// Returns direction in Bevy coordinates (X-right, Y-up, Z-back).
 pub(crate) fn movement_to_direction(
     movement: &MovementState,
     facing: &CharacterFacing,
@@ -303,6 +317,9 @@ fn spawn_replicated_player(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<CreatureDisplayMap>,
     query: Query<(&NetPosition, &NetPlayer, Option<&NetRotation>), With<Replicated>>,
     selected: Option<Res<SelectedCharacterId>>,
 ) {
@@ -317,24 +334,33 @@ fn spawn_replicated_player(
     );
     let position = net_position_to_bevy(pos);
     let yaw = rotation.map_or(std::f32::consts::PI, |r| r.y);
-    let (capsule, material) = build_player_capsule(&mut meshes, &mut materials, is_local);
-    let mut ecmds = commands.entity(entity);
-    ecmds.insert((
-        Mesh3d(capsule),
-        MeshMaterial3d(material),
+    commands.entity(entity).insert((
         Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
+        Visibility::default(),
+        ReplicatedVisualEntity,
         RemoteEntity,
         InterpolationTarget { target: position },
         RotationTarget { yaw },
     ));
-    if is_local {
-        ecmds.insert((
-            LocalPlayer,
-            Player,
-            MovementState::default(),
-            CharacterFacing::default(),
-            crate::collision::CharacterPhysics::default(),
-        ));
+    let model_spawned = if let Some(model_path) = resolve_player_model_path(player) {
+        crate::m2_scene::spawn_full_m2_on_entity(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &mut images,
+            &mut inv_bp,
+            &model_path,
+            &creature_display_map,
+            entity,
+        )
+    } else {
+        false
+    };
+    if !model_spawned {
+        let (capsule, material) = build_player_capsule(&mut meshes, &mut materials, is_local);
+        commands
+            .entity(entity)
+            .insert((Mesh3d(capsule), MeshMaterial3d(material)));
     }
 }
 
@@ -357,8 +383,68 @@ fn build_player_capsule(
 }
 
 fn net_position_to_bevy(pos: &NetPosition) -> Vec3 {
-    let [x, y, z] = crate::asset::m2::wow_to_bevy(pos.x, pos.y, pos.z);
-    Vec3::new(x, y, z)
+    // Server already stores positions in Bevy space — no conversion needed.
+    Vec3::new(pos.x, pos.y, pos.z)
+}
+
+fn net_player_customization_selection(player: &NetPlayer) -> CharacterCustomizationSelection {
+    CharacterCustomizationSelection {
+        race: player.race,
+        class: player.class,
+        sex: player.appearance.sex,
+        appearance: player.appearance,
+    }
+}
+
+fn resolve_player_model_path(player: &NetPlayer) -> Option<PathBuf> {
+    race_model_wow_path(player.race, player.appearance.sex).and_then(ensure_named_model_bundle)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sync_replicated_player_customization(
+    mut commands: Commands,
+    customization_db: Res<CustomizationDb>,
+    char_tex: Res<CharTextureData>,
+    outfit_data: Res<OutfitData>,
+    player_query: Query<
+        (
+            Entity,
+            &NetPlayer,
+            Option<&AppliedPlayerAppearance>,
+            Option<&Children>,
+        ),
+        With<ReplicatedVisualEntity>,
+    >,
+    geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
+    mut visibility_query: Query<&mut Visibility>,
+    material_query: Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, player, applied, children) in &player_query {
+        let selection = net_player_customization_selection(player);
+        if applied.is_some_and(|applied| applied.0 == selection) {
+            continue;
+        }
+        if children.is_none_or(|children| children.is_empty()) {
+            continue;
+        }
+        crate::character_customization::apply_character_customization(
+            selection,
+            &customization_db,
+            &char_tex,
+            &outfit_data,
+            entity,
+            &mut images,
+            &mut materials,
+            &geoset_query,
+            &mut visibility_query,
+            &material_query,
+        );
+        commands
+            .entity(entity)
+            .insert(AppliedPlayerAppearance(selection));
+    }
 }
 
 /// Check if a replicated player is our local character by matching name.
@@ -370,28 +456,73 @@ fn is_local_player_entity(player_name: &str, selected: Option<&SelectedCharacter
     name == player_name
 }
 
+fn choose_local_player_entity<'a>(
+    selected_name: &str,
+    players: impl Iterator<Item = (Entity, &'a NetPlayer)>,
+) -> (Option<Entity>, usize) {
+    let mut matches = Vec::new();
+    for (entity, player) in players {
+        if player.name == selected_name {
+            matches.push(entity);
+        }
+    }
+    matches.sort_by_key(|entity| entity.to_bits());
+    (matches.last().copied(), matches.len())
+}
+
 /// Retroactively tag the local player when SelectedCharacterId arrives after replication.
 #[allow(clippy::type_complexity)]
 fn tag_local_player(
     mut commands: Commands,
     selected: Option<Res<SelectedCharacterId>>,
-    players: Query<(Entity, &NetPlayer), (With<Replicated>, Without<LocalPlayer>)>,
+    players: Query<(Entity, &NetPlayer, Has<LocalPlayer>), With<Replicated>>,
 ) {
     let Some(sel) = selected else { return };
     let Some(ref name) = sel.character_name else {
         return;
     };
-    for (entity, player) in players.iter() {
-        if player.name == *name {
-            info!("Tagging local player '{}'", name);
-            commands.entity(entity).insert((
-                LocalPlayer,
-                Player,
-                MovementState::default(),
-                CharacterFacing::default(),
-                crate::collision::CharacterPhysics::default(),
-            ));
-        }
+    if players.iter().any(|(_, p, local)| local && p.name == *name) {
+        return;
+    }
+    let (chosen, match_count) =
+        choose_local_player_entity(name, players.iter().map(|(e, p, _)| (e, p)));
+    if match_count > 1 {
+        warn!(
+            "Found {match_count} replicated players named '{}'; choosing newest entity as local",
+            name
+        );
+    }
+    for (entity, player, is_local) in players.iter() {
+        apply_local_player_tag(&mut commands, entity, player, is_local, chosen, name);
+    }
+}
+
+fn apply_local_player_tag(
+    commands: &mut Commands,
+    entity: Entity,
+    player: &NetPlayer,
+    is_local: bool,
+    chosen: Option<Entity>,
+    name: &str,
+) {
+    let should_be_local = Some(entity) == chosen && player.name == name;
+    if should_be_local && !is_local {
+        info!("Tagging local player '{}' on entity {:?}", name, entity);
+        commands.entity(entity).insert((
+            LocalPlayer,
+            Player,
+            MovementState::default(),
+            CharacterFacing::default(),
+            crate::collision::CharacterPhysics::default(),
+        ));
+    } else if !should_be_local && is_local {
+        commands.entity(entity).remove::<(
+            LocalPlayer,
+            Player,
+            MovementState,
+            CharacterFacing,
+            crate::collision::CharacterPhysics,
+        )>();
     }
 }
 
@@ -570,14 +701,22 @@ fn interpolate_remote_entities(
 /// When a replicated entity loses its Replicated marker (remote disconnect), despawn it.
 fn cleanup_disconnected_player(
     trigger: On<Remove, Replicated>,
-    query: Query<Entity, With<RemoteEntity>>,
+    query: Query<Entity, With<ReplicatedVisualEntity>>,
     mut commands: Commands,
 ) {
     let entity = trigger.entity;
     if query.get(entity).is_ok() {
         info!("Remote entity disconnected, despawning {entity:?}");
-        commands.entity(entity).despawn();
+        queue_despawn_if_exists(&mut commands, entity);
     }
+}
+
+fn queue_despawn_if_exists(commands: &mut Commands, entity: Entity) {
+    commands.queue(move |world: &mut World| {
+        if let Ok(entity_mut) = world.get_entity_mut(entity) {
+            entity_mut.despawn();
+        }
+    });
 }
 
 fn rand_client_id() -> u64 {

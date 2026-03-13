@@ -1,5 +1,8 @@
 use super::*;
+use bevy::ecs::system::RunSystemOnce;
 use std::f32::consts::{FRAC_PI_2, PI};
+
+use shared::components::CharacterAppearance;
 
 fn make_state(direction: MoveDirection) -> MovementState {
     MovementState {
@@ -152,7 +155,8 @@ fn sync_updates_interpolation_target() {
     app.update();
 
     let interp = app.world().get::<InterpolationTarget>(entity).unwrap();
-    assert_eq!(interp.target, Vec3::new(10.0, 30.0, -20.0));
+    // Server sends Bevy-space positions — no conversion.
+    assert_eq!(interp.target, Vec3::new(10.0, 20.0, 30.0));
 }
 
 #[test]
@@ -254,14 +258,105 @@ fn is_local_player_entity_none_when_not_selected() {
 }
 
 #[test]
-fn net_position_to_bevy_swaps_height_and_forward_axes() {
-    let pos = NetPosition {
-        x: -8949.0,
-        y: 132.0,
-        z: 83.0,
+fn choose_local_player_entity_prefers_newest_matching_entity() {
+    let older = Entity::from_bits(10);
+    let newer = Entity::from_bits(20);
+    let other = Entity::from_bits(30);
+    let theron = NetPlayer {
+        name: "Theron".into(),
+        race: 1,
+        class: 1,
+        appearance: CharacterAppearance::default(),
+    };
+    let other_player = NetPlayer {
+        name: "Other".into(),
+        race: 1,
+        class: 1,
+        appearance: CharacterAppearance::default(),
     };
 
-    assert_eq!(net_position_to_bevy(&pos), Vec3::new(-8949.0, 83.0, -132.0));
+    let (chosen, matches) = choose_local_player_entity(
+        "Theron",
+        [(older, &theron), (other, &other_player), (newer, &theron)].into_iter(),
+    );
+
+    assert_eq!(matches, 2);
+    assert_eq!(chosen, Some(newer));
+}
+
+#[test]
+fn choose_local_player_entity_returns_none_when_name_missing() {
+    let player = NetPlayer {
+        name: "Other".into(),
+        race: 1,
+        class: 1,
+        appearance: CharacterAppearance::default(),
+    };
+
+    let (chosen, matches) =
+        choose_local_player_entity("Theron", [(Entity::from_bits(1), &player)].into_iter());
+
+    assert_eq!(matches, 0);
+    assert_eq!(chosen, None);
+}
+
+#[test]
+fn net_position_to_bevy_passes_through_unchanged() {
+    // Server already sends Bevy-space coordinates.
+    let pos = NetPosition {
+        x: -8949.0,
+        y: 83.0,
+        z: 132.0,
+    };
+
+    assert_eq!(net_position_to_bevy(&pos), Vec3::new(-8949.0, 83.0, 132.0));
+}
+
+#[test]
+fn net_player_customization_selection_uses_player_race_class_and_appearance() {
+    let player = NetPlayer {
+        name: "Theron".into(),
+        race: 10,
+        class: 8,
+        appearance: CharacterAppearance {
+            sex: 1,
+            skin_color: 2,
+            face: 3,
+            hair_style: 4,
+            hair_color: 5,
+            facial_style: 6,
+        },
+    };
+
+    let selection = net_player_customization_selection(&player);
+
+    assert_eq!(selection.race, 10);
+    assert_eq!(selection.class, 8);
+    assert_eq!(selection.sex, 1);
+    assert_eq!(selection.appearance, player.appearance);
+}
+
+#[test]
+fn resolve_player_model_path_uses_player_race_and_sex() {
+    let player = NetPlayer {
+        name: "Theron".into(),
+        race: 10,
+        class: 8,
+        appearance: CharacterAppearance {
+            sex: 1,
+            ..Default::default()
+        },
+    };
+
+    let path = resolve_player_model_path(&player).expect("player model path should resolve");
+
+    assert!(
+        path.to_string_lossy()
+            .to_ascii_lowercase()
+            .contains("bloodelffemale"),
+        "expected bloodelf female model path, got {}",
+        path.display()
+    );
 }
 
 #[test]
@@ -269,4 +364,37 @@ fn terrain_messages_are_processed_before_inworld_transition() {
     assert!(terrain_messages_allowed_in_state(
         crate::game_state::GameState::CharSelect
     ));
+}
+
+#[test]
+fn queue_despawn_if_exists_removes_live_entity() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let entity = app.world_mut().spawn_empty().id();
+
+    let _ = app
+        .world_mut()
+        .run_system_once(move |mut commands: Commands| {
+            queue_despawn_if_exists(&mut commands, entity);
+        });
+    app.update();
+
+    assert!(app.world().get_entity(entity).is_err());
+}
+
+#[test]
+fn queue_despawn_if_exists_ignores_missing_entity() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let entity = app.world_mut().spawn_empty().id();
+    app.world_mut().entity_mut(entity).despawn();
+
+    let _ = app
+        .world_mut()
+        .run_system_once(move |mut commands: Commands| {
+            queue_despawn_if_exists(&mut commands, entity);
+        });
+    app.update();
+
+    assert!(app.world().get_entity(entity).is_err());
 }
