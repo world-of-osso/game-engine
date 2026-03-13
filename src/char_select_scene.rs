@@ -246,7 +246,11 @@ fn spawn_char_select_model(
     }
 }
 
-fn character_transform(warband: &WarbandScenes, scene_id: u32) -> Transform {
+fn character_transform(
+    warband: &WarbandScenes,
+    scene_id: u32,
+    presentation: ModelPresentation,
+) -> Transform {
     let placement = warband
         .scenes
         .iter()
@@ -256,15 +260,27 @@ fn character_transform(warband: &WarbandScenes, scene_id: u32) -> Transform {
     if let Some(placement) = placement {
         Transform::from_translation(placement.bevy_position())
             .with_rotation(placement.bevy_rotation())
+            .with_scale(Vec3::splat(presentation.customize_scale.max(0.01)))
     } else {
         Transform::from_xyz(0.0, 0.0, 0.0)
             .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(presentation.customize_scale.max(0.01)))
     }
 }
 
 fn default_char_transform() -> Transform {
     Transform::from_xyz(0.0, 0.0, 0.0)
         .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
+}
+
+fn selected_character_presentation(
+    customization_db: &CustomizationDb,
+    char_list: &CharacterList,
+    selected: Option<usize>,
+) -> ModelPresentation {
+    selected_scene_character(char_list, selected)
+        .map(|character| customization_db.presentation_for(character.race, character.appearance.sex))
+        .unwrap_or_default()
 }
 
 fn selected_scene_placement<'a>(
@@ -280,11 +296,12 @@ fn selected_scene_placement<'a>(
 fn resolve_char_transform(
     warband: &Option<Res<WarbandScenes>>,
     selected_scene: &Option<Res<SelectedWarbandScene>>,
+    presentation: ModelPresentation,
 ) -> Transform {
     warband
         .as_ref()
         .zip(selected_scene.as_ref())
-        .map(|(w, sel)| character_transform(w, sel.scene_id))
+        .map(|(w, sel)| character_transform(w, sel.scene_id, presentation))
         .unwrap_or_else(default_char_transform)
 }
 
@@ -408,6 +425,7 @@ fn setup_char_select_scene(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    customization_db: Res<CustomizationDb>,
     char_list: Res<CharacterList>,
     selected: Res<SelectedCharIndex>,
     mut displayed: ResMut<DisplayedCharacterId>,
@@ -420,7 +438,13 @@ fn setup_char_select_scene(
         .as_ref()
         .zip(scene_entry)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
-    let camera_entity = spawn_char_select_camera(&mut commands, scene_entry, placement.as_ref());
+    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
+    let camera_entity = spawn_char_select_camera(
+        &mut commands,
+        scene_entry,
+        placement.as_ref(),
+        presentation,
+    );
     let (ambient, dir) = spawn_char_select_lighting(&mut commands);
     let bg_node = spawn_background(
         &mut commands,
@@ -433,7 +457,7 @@ fn setup_char_select_scene(
         scene_entry,
         &mut active_scene,
     );
-    let char_tf = resolve_char_transform(&warband, &selected_scene);
+    let char_tf = resolve_char_transform(&warband, &selected_scene, presentation);
     let result = spawn_selected_model(
         &mut commands,
         &mut meshes,
@@ -453,7 +477,7 @@ fn setup_char_select_scene(
         ));
     }
     displayed.0 = result.map(|(id, _)| id);
-    let fov = scene_entry.map(|s| s.fov).unwrap_or(45.0);
+    let fov = camera_params(scene_entry, placement.as_ref(), presentation).2;
     children.extend(scene_tree::light_scene_nodes(
         camera_entity,
         fov,
@@ -471,12 +495,17 @@ fn sync_char_select_model(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    customization_db: Res<CustomizationDb>,
     char_list: Res<CharacterList>,
     selected: Res<SelectedCharIndex>,
     current_model: Query<Entity, With<CharSelectModelRoot>>,
     mut displayed: ResMut<DisplayedCharacterId>,
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
+    mut camera_query: Query<
+        (&mut Transform, &mut CharSelectOrbit, &mut Projection),
+        With<CharSelectScene>,
+    >,
 ) {
     let desired = selected_scene_character_id(&char_list, selected.0);
     if displayed.0 == desired {
@@ -485,7 +514,8 @@ fn sync_char_select_model(
     for entity in current_model.iter() {
         commands.entity(entity).despawn();
     }
-    let char_tf = resolve_char_transform(&warband, &selected_scene);
+    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
+    let char_tf = resolve_char_transform(&warband, &selected_scene, presentation);
     displayed.0 = spawn_selected_model(
         &mut commands,
         &mut meshes,
@@ -498,6 +528,12 @@ fn sync_char_select_model(
         char_tf,
     )
     .map(|(id, _)| id);
+    if let Some(scene) = find_scene_entry(&warband, &selected_scene) {
+        let placement = warband
+            .as_ref()
+            .and_then(|warband| selected_scene_placement(warband, scene));
+        update_camera_for_scene(scene, placement.as_ref(), presentation, &mut camera_query);
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -533,12 +569,13 @@ fn spawn_selected_model(
 fn update_camera_for_scene(
     scene: &crate::warband_scene::WarbandSceneEntry,
     placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    presentation: ModelPresentation,
     camera_query: &mut Query<
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
         With<CharSelectScene>,
     >,
 ) {
-    let (eye, focus, fov) = camera_params(Some(scene), placement);
+    let (eye, focus, fov) = camera_params(Some(scene), placement, presentation);
     let orbit = orbit_from_eye_focus(eye, focus);
     for (mut tf, mut orb, mut proj) in camera_query.iter_mut() {
         *tf = Transform::from_translation(eye).looking_at(focus, Vec3::Y);
@@ -559,6 +596,9 @@ fn sync_warband_scene_switch(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     mut active_scene: ResMut<ActiveWarbandSceneId>,
+    customization_db: Res<CustomizationDb>,
+    char_list: Res<CharacterList>,
+    selected: Res<SelectedCharIndex>,
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
     terrain_query: Query<Entity, With<CharSelectTerrain>>,
@@ -576,6 +616,7 @@ fn sync_warband_scene_switch(
         return;
     };
     let placement = selected_scene_placement(&warband, scene);
+    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
     for entity in terrain_query.iter() {
         commands.entity(entity).despawn();
     }
@@ -589,7 +630,7 @@ fn sync_warband_scene_switch(
         &mut inv_bp,
         scene,
     );
-    update_camera_for_scene(scene, placement.as_ref(), &mut camera_query);
+    update_camera_for_scene(scene, placement.as_ref(), presentation, &mut camera_query);
     active_scene.0 = Some(sel.scene_id);
 }
 
@@ -703,7 +744,8 @@ mod tests {
             .find(|scene| scene.id == 1)
             .expect("Adventurer's Rest");
         let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let (eye, focus, _) = camera_params(Some(scene), Some(&placement));
+        let (eye, focus, _) =
+            camera_params(Some(scene), Some(&placement), ModelPresentation::default());
         let forward = (focus - eye).normalize();
         let right = forward.cross(Vec3::Y).normalize();
         let rel = placement.bevy_position() - eye;
@@ -723,8 +765,9 @@ mod tests {
             .find(|scene| scene.id == 1)
             .expect("Adventurer's Rest");
         let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let (scene_eye, scene_focus, scene_fov) = camera_params(Some(scene), None);
-        let (eye, focus, fov) = camera_params(Some(scene), Some(&placement));
+        let presentation = ModelPresentation::default();
+        let (scene_eye, scene_focus, scene_fov) = camera_params(Some(scene), None, presentation);
+        let (eye, focus, fov) = camera_params(Some(scene), Some(&placement), presentation);
 
         assert!(
             eye.distance(focus) < scene_eye.distance(scene_focus),
@@ -745,7 +788,8 @@ mod tests {
             .find(|scene| scene.id == 1)
             .expect("Adventurer's Rest");
         let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let (eye, _, _) = camera_params(Some(scene), Some(&placement));
+        let (eye, _, _) =
+            camera_params(Some(scene), Some(&placement), ModelPresentation::default());
         let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
         let facing = placement.bevy_rotation() * Vec3::X;
         let angle = facing.angle_between(to_camera).to_degrees();
@@ -754,5 +798,26 @@ mod tests {
             angle < 25.0,
             "focused placement should face mostly toward the camera, got {angle:.2} degrees"
         );
+    }
+
+    #[test]
+    fn camera_params_apply_model_distance_offset() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let default_presentation = ModelPresentation::default();
+        let human_presentation = ModelPresentation {
+            customize_scale: 1.1,
+            camera_distance_offset: -0.34,
+        };
+        let (default_eye, default_focus, _) =
+            camera_params(Some(scene), Some(&placement), default_presentation);
+        let (eye, focus, _) = camera_params(Some(scene), Some(&placement), human_presentation);
+
+        assert!(eye.distance(focus) < default_eye.distance(default_focus));
     }
 }
