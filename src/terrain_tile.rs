@@ -30,12 +30,13 @@ pub(crate) const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
 /// Convert a Bevy world position to WoW ADT tile coordinates.
 ///
 /// Returns (row, col) matching the ADT filename convention: `map_{row}_{col}.adt`.
-/// WoW MCNK stores position as [Y, X, Z]; Bevy maps: bx=wow_x, bz=-wow_y.
-/// ADT filename row = f(wow_x) = f(bx), col = f(wow_y) = f(-bz).
+/// WoW world positions use X/Y on the horizontal plane and Z for height.
+/// ADT filename row comes from world Y, and column comes from world X.
+/// In Bevy world space that means row = f(-bz) and col = f(bx).
 pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
     let center = 32.0 * TILE_SIZE;
-    let row = ((center - bx) / TILE_SIZE).floor() as i32;
-    let col = ((center + bz) / TILE_SIZE).floor() as i32;
+    let row = ((center + bz) / TILE_SIZE).floor() as i32;
+    let col = ((center - bx) / TILE_SIZE).floor() as i32;
     (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
 }
 
@@ -149,5 +150,17 @@ pub(crate) fn load_tex0(adt_path: &Path) -> Option<adt::AdtTexData> {
             eprintln!("Failed to parse _tex0: {e}");
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bevy_coords_for_known_elwynn_position_map_to_existing_tile() {
+        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+
+        assert_eq!(bevy_to_tile_coords(bx, bz), (32, 48));
     }
 }

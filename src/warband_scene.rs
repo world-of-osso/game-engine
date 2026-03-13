@@ -183,13 +183,13 @@ pub struct SelectedWarbandScene {
 impl WarbandSceneEntry {
     /// Convert the WoW camera position to Bevy coordinates.
     pub fn bevy_position(&self) -> Vec3 {
-        let [bx, by, bz] = wow_to_bevy(self.position[1], self.position[0], self.position[2]);
+        let [bx, by, bz] = wow_to_bevy(self.position[0], self.position[1], self.position[2]);
         Vec3::new(bx, by, bz)
     }
 
     /// Convert the WoW look-at position to Bevy coordinates.
     pub fn bevy_look_at(&self) -> Vec3 {
-        let [bx, by, bz] = wow_to_bevy(self.look_at[1], self.look_at[0], self.look_at[2]);
+        let [bx, by, bz] = wow_to_bevy(self.look_at[0], self.look_at[1], self.look_at[2]);
         Vec3::new(bx, by, bz)
     }
 
@@ -216,7 +216,7 @@ impl WarbandScenePlacement {
 
     /// Convert the WoW placement position to Bevy coordinates.
     pub fn bevy_position(&self) -> Vec3 {
-        let [bx, by, bz] = wow_to_bevy(self.position[1], self.position[0], self.position[2]);
+        let [bx, by, bz] = wow_to_bevy(self.position[0], self.position[1], self.position[2]);
         Vec3::new(bx, by, bz)
     }
 
