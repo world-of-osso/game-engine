@@ -133,6 +133,9 @@ pub struct CharCreateUiState {
     pub hair_style: u8,
     pub hair_color: u8,
     pub facial_style: u8,
+    pub face_label: String,
+    pub hair_style_label: String,
+    pub facial_style_label: String,
     pub skin_color_swatches: Vec<Option<[u8; 3]>>,
     pub hair_color_swatches: Vec<Option<[u8; 3]>>,
     pub open_dropdown: Option<AppearanceField>,
@@ -160,6 +163,9 @@ impl Default for CharCreateUiState {
             hair_style: 0,
             hair_color: 0,
             facial_style: 0,
+            face_label: String::new(),
+            hair_style_label: String::new(),
+            facial_style_label: String::new(),
             skin_color_swatches: Vec::new(),
             hair_color_swatches: Vec::new(),
             open_dropdown: None,
@@ -252,11 +258,11 @@ fn class_grid(state: &CharCreateUiState) -> Element {
 
 fn customize_rows(state: &CharCreateUiState) -> Element {
     rsx! {
-        {customization_row("Skin Color", state.skin_color, &state.skin_color_swatches, AppearanceField::SkinColor)}
-        {customization_row("Face", state.face, &[], AppearanceField::Face)}
-        {customization_row("Hair Style", state.hair_style, &[], AppearanceField::HairStyle)}
-        {customization_row("Hair Color", state.hair_color, &state.hair_color_swatches, AppearanceField::HairColor)}
-        {customization_row("Facial Style", state.facial_style, &[], AppearanceField::FacialStyle)}
+        {customization_row("Skin Color", state.skin_color, "", &state.skin_color_swatches, AppearanceField::SkinColor)}
+        {customization_row("Face", state.face, &state.face_label, &[], AppearanceField::Face)}
+        {customization_row("Hair Style", state.hair_style, &state.hair_style_label, &[], AppearanceField::HairStyle)}
+        {customization_row("Hair Color", state.hair_color, "", &state.hair_color_swatches, AppearanceField::HairColor)}
+        {customization_row("Facial Style", state.facial_style, &state.facial_style_label, &[], AppearanceField::FacialStyle)}
     }
 }
 
@@ -388,7 +394,7 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::frame::Dimension;
+    use crate::ui::frame::{Dimension, WidgetData};
     use crate::ui::layout::{recompute_layouts, resolve_frame_layout};
 
     fn rect_for_name(
@@ -421,6 +427,18 @@ mod tests {
         reg.mark_all_rects_dirty();
         recompute_layouts(&mut reg);
         reg
+    }
+
+    fn font_text(reg: &crate::ui::registry::FrameRegistry, name: &str) -> String {
+        let id = reg
+            .get_by_name(name)
+            .unwrap_or_else(|| panic!("{name} frame should exist"));
+        reg.get(id)
+            .and_then(|frame| match &frame.widget_data {
+                Some(WidgetData::FontString(data)) => Some(data.text.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("{name} should be a fontstring"))
     }
 
     #[test]
@@ -459,6 +477,37 @@ mod tests {
         let reg = build_screen(state);
         assert!(reg.get_by_name("CustomizePanel").is_some());
         assert!(reg.get_by_name("CharCreateNameInput").is_some());
+    }
+
+    #[test]
+    fn customize_mode_shows_create_error_text() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.error_text = Some("Name already exists".to_string());
+
+        let reg = build_screen(state);
+        let error = reg
+            .get_by_name(ERROR_TEXT.0)
+            .and_then(|id| reg.get(id))
+            .expect("CharCreateError should exist");
+
+        assert!(!error.hidden, "expected create error label to be visible");
+        assert_eq!(font_text(&reg, ERROR_TEXT.0), "Name already exists");
+    }
+
+    #[test]
+    fn customize_mode_shows_choice_names_for_non_color_options() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.face_label = "Calm".to_string();
+        state.hair_style_label = "Bald".to_string();
+        state.facial_style_label = "Goatee".to_string();
+
+        let reg = build_screen(state);
+
+        assert_eq!(font_text(&reg, "AppVal_face"), "Calm");
+        assert_eq!(font_text(&reg, "AppVal_hair_style"), "Bald");
+        assert_eq!(font_text(&reg, "AppVal_facial"), "Goatee");
     }
 
     #[test]
