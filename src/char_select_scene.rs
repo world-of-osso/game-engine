@@ -279,7 +279,9 @@ fn selected_character_presentation(
     selected: Option<usize>,
 ) -> ModelPresentation {
     selected_scene_character(char_list, selected)
-        .map(|character| customization_db.presentation_for(character.race, character.appearance.sex))
+        .map(|character| {
+            customization_db.presentation_for(character.race, character.appearance.sex)
+        })
         .unwrap_or_default()
 }
 
@@ -439,12 +441,8 @@ fn setup_char_select_scene(
         .zip(scene_entry)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
-    let camera_entity = spawn_char_select_camera(
-        &mut commands,
-        scene_entry,
-        placement.as_ref(),
-        presentation,
-    );
+    let camera_entity =
+        spawn_char_select_camera(&mut commands, scene_entry, placement.as_ref(), presentation);
     let (ambient, dir) = spawn_char_select_lighting(&mut commands);
     let bg_node = spawn_background(
         &mut commands,

@@ -343,7 +343,10 @@ fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> {
 
 fn load_placement_options(path: &Path) -> Vec<WarbandScenePlacementOption> {
     let Ok(data) = std::fs::read_to_string(path) else {
-        eprintln!("WarbandScenePlacementOption.csv not found at {}", path.display());
+        eprintln!(
+            "WarbandScenePlacementOption.csv not found at {}",
+            path.display()
+        );
         return Vec::new();
     };
     data.lines()
@@ -452,7 +455,10 @@ mod tests {
             .expect("Adventurer's Rest");
         let pos = rest.bevy_position();
 
-        assert_eq!(crate::terrain::bevy_to_tile_coords(pos.x, pos.z), rest.tile_coords());
+        assert_eq!(
+            crate::terrain::bevy_to_tile_coords(pos.x, pos.z),
+            rest.tile_coords()
+        );
     }
 
     #[test]
