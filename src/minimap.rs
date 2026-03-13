@@ -2,6 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use bevy::prelude::*;
+use ui_toolkit::frame::{Dimension, WidgetData, WidgetType};
+use ui_toolkit::layout::LayoutRect;
+use ui_toolkit::plugin::UiState;
+use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::strata::FrameStrata;
+use ui_toolkit::widgets::font_string::{FontStringData, JustifyH};
+use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
 use crate::game_state::GameState;
 use crate::minimap_render::{
@@ -53,31 +60,17 @@ pub struct MinimapComposite {
     pub handle: Handle<Image>,
 }
 
-/// Marker for the minimap UI node.
-#[derive(Component)]
-pub struct MinimapDisplay;
-
-/// Marker for player arrow.
-#[derive(Component)]
-pub struct MinimapArrow;
-
-/// Marker for minimap border ring overlay.
-#[derive(Component)]
-pub struct MinimapBorder;
-
-/// Marker for minimap coordinate text.
-#[derive(Component)]
-pub struct MinimapCoords;
-
-/// Marker for zone name text above coordinates.
-#[derive(Component)]
-pub struct MinimapZoneName;
+/// Frame IDs for the minimap UI toolkit frames.
+#[derive(Resource)]
+struct MinimapFrames {
+    display: u64,
+    border: u64,
+    arrow: u64,
+    zone_name: u64,
+    coords: u64,
+}
 
 pub struct MinimapPlugin;
-
-/// Marker for all minimap HUD nodes, used to toggle visibility by game state.
-#[derive(Component)]
-pub struct MinimapHud;
 
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
@@ -89,122 +82,157 @@ impl Plugin for MinimapPlugin {
 
 fn register_minimap_systems(app: &mut App) {
     let in_world = in_state(GameState::InWorld);
-    app.add_systems(
-        Startup,
-        (
-            spawn_minimap_display,
-            spawn_minimap_border,
-            spawn_minimap_arrow,
-            spawn_zone_name,
-            spawn_coord_text,
-        ),
-    )
-    .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
-    .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
-    .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
-    .add_systems(
-        Update,
-        update_minimap_composite
-            .after(generate_tile_textures)
-            .run_if(in_world.clone()),
-    )
-    .add_systems(
-        Update,
-        draw_entity_dots
-            .after(update_minimap_composite)
-            .run_if(in_world.clone()),
-    )
-    .add_systems(Update, update_coord_text.run_if(in_world.clone()))
-    .add_systems(Update, update_zone_name.run_if(in_world.clone()))
-    .add_systems(Update, rotate_minimap.run_if(in_world));
+    app.add_systems(Startup, create_minimap_frames)
+        .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
+        .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
+        .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
+        .add_systems(
+            Update,
+            update_minimap_composite
+                .after(generate_tile_textures)
+                .run_if(in_world.clone()),
+        )
+        .add_systems(
+            Update,
+            draw_entity_dots
+                .after(update_minimap_composite)
+                .run_if(in_world.clone()),
+        )
+        .add_systems(Update, update_coord_text.run_if(in_world.clone()))
+        .add_systems(Update, update_zone_name.run_if(in_world.clone()))
+        .add_systems(Update, rotate_minimap.run_if(in_world));
 }
 
-fn show_minimap_hud(mut query: Query<&mut Visibility, With<MinimapHud>>) {
-    for mut vis in &mut query {
-        *vis = Visibility::Visible;
+fn create_texture_frame(
+    registry: &mut FrameRegistry,
+    name: &str,
+    handle: Handle<Image>,
+    rect: LayoutRect,
+    level: i32,
+) -> u64 {
+    let id = registry.create_frame(name, None);
+    if let Some(frame) = registry.get_mut(id) {
+        frame.widget_type = WidgetType::Texture;
+        frame.width = Dimension::Fixed(rect.width);
+        frame.height = Dimension::Fixed(rect.height);
+        frame.strata = FrameStrata::High;
+        frame.frame_level = level;
+        frame.hidden = true;
+        frame.visible = false;
+        frame.effective_alpha = 0.0;
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Dynamic(handle),
+            ..TextureData::default()
+        }));
+        frame.layout_rect = Some(rect);
+    }
+    id
+}
+
+fn create_text_frame(
+    registry: &mut FrameRegistry,
+    name: &str,
+    text: &str,
+    font_size: f32,
+    color: [f32; 4],
+    rect: LayoutRect,
+) -> u64 {
+    let id = registry.create_frame(name, None);
+    if let Some(frame) = registry.get_mut(id) {
+        frame.widget_type = WidgetType::FontString;
+        frame.width = Dimension::Fixed(rect.width);
+        frame.height = Dimension::Fixed(rect.height);
+        frame.strata = FrameStrata::High;
+        frame.frame_level = 10;
+        frame.hidden = true;
+        frame.visible = false;
+        frame.effective_alpha = 0.0;
+        frame.widget_data = Some(WidgetData::FontString(FontStringData {
+            text: text.to_string(),
+            font_size,
+            color,
+            justify_h: JustifyH::Right,
+            ..FontStringData::default()
+        }));
+        frame.layout_rect = Some(rect);
+    }
+    id
+}
+
+fn minimap_rect(screen_w: f32) -> LayoutRect {
+    let ds = MINIMAP_DISPLAY_SIZE as f32;
+    LayoutRect { x: screen_w - ds - 10.0, y: 10.0, width: ds, height: ds }
+}
+
+fn arrow_rect(screen_w: f32) -> LayoutRect {
+    let ds = MINIMAP_DISPLAY_SIZE as f32;
+    let arrow_size = 16.0;
+    let offset = ds / 2.0 - arrow_size / 2.0;
+    LayoutRect {
+        x: screen_w - ds - 10.0 + offset,
+        y: 10.0 + offset,
+        width: arrow_size,
+        height: arrow_size,
     }
 }
 
-fn hide_minimap_hud(mut query: Query<&mut Visibility, With<MinimapHud>>) {
-    for mut vis in &mut query {
-        *vis = Visibility::Hidden;
+/// Create minimap frames in the UI toolkit registry.
+fn create_minimap_frames(
+    mut commands: Commands,
+    mut ui: ResMut<UiState>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let ds = MINIMAP_DISPLAY_SIZE as f32;
+    let screen_w = ui.registry.screen_width;
+    let composite_handle = images.add(create_blank_image(MINIMAP_DISPLAY_SIZE, MINIMAP_DISPLAY_SIZE));
+    let border_handle = images.add(create_border_image(MINIMAP_DISPLAY_SIZE as usize));
+    let arrow_handle = images.add(create_arrow_image());
+
+    let display = create_texture_frame(&mut ui.registry, "MinimapDisplay", composite_handle.clone(), minimap_rect(screen_w), 0);
+    let border = create_texture_frame(&mut ui.registry, "MinimapBorder", border_handle, minimap_rect(screen_w), 10);
+    let arrow = create_texture_frame(&mut ui.registry, "MinimapArrow", arrow_handle, arrow_rect(screen_w), 11);
+    let zone_name = create_text_frame(&mut ui.registry, "MinimapZoneName", "Elwynn Forest", 16.0, [1.0, 0.82, 0.0, 1.0], LayoutRect { x: screen_w - ds - 10.0, y: 215.0, width: ds, height: 20.0 });
+    let coords = create_text_frame(&mut ui.registry, "MinimapCoords", "0, 0", 14.0, [1.0, 1.0, 1.0, 1.0], LayoutRect { x: screen_w - ds - 10.0, y: 235.0, width: ds, height: 18.0 });
+
+    commands.insert_resource(MinimapComposite { handle: composite_handle });
+    commands.insert_resource(MinimapFrames { display, border, arrow, zone_name, coords });
+}
+
+fn set_hud_visibility(ui: &mut UiState, frames: &MinimapFrames, visible: bool) {
+    for &fid in &[frames.display, frames.border, frames.arrow, frames.zone_name, frames.coords] {
+        if let Some(frame) = ui.registry.get_mut(fid) {
+            frame.hidden = !visible;
+            frame.visible = visible;
+            frame.effective_alpha = if visible { frame.alpha } else { 0.0 };
+        }
+    }
+}
+
+fn show_minimap_hud(mut ui: ResMut<UiState>, frames: Option<Res<MinimapFrames>>) {
+    if let Some(frames) = frames {
+        set_hud_visibility(&mut ui, &frames, true);
+    }
+}
+
+fn hide_minimap_hud(mut ui: ResMut<UiState>, frames: Option<Res<MinimapFrames>>) {
+    if let Some(frames) = frames {
+        set_hud_visibility(&mut ui, &frames, false);
     }
 }
 
 /// Rotate minimap image by camera yaw (WoW-style rotating minimap).
 fn rotate_minimap(
     camera_q: Query<&crate::camera::WowCamera>,
-    mut minimap_q: Query<&mut Transform, With<MinimapDisplay>>,
+    mut ui: ResMut<UiState>,
+    frames: Option<Res<MinimapFrames>>,
 ) {
     let Ok(cam) = camera_q.single() else { return };
-    for mut tf in &mut minimap_q {
-        tf.rotation = Quat::from_rotation_z(-cam.yaw);
+    let Some(frames) = frames else { return };
+    if let Some(frame) = ui.registry.get_mut(frames.display) {
+        if let Some(WidgetData::Texture(tex)) = &mut frame.widget_data {
+            tex.rotation = -cam.yaw;
+        }
     }
-}
-
-/// Spawn the minimap UI node in the top-right corner.
-fn spawn_minimap_display(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let blank = create_blank_image(MINIMAP_DISPLAY_SIZE, MINIMAP_DISPLAY_SIZE);
-    let handle = images.add(blank);
-    commands.insert_resource(MinimapComposite {
-        handle: handle.clone(),
-    });
-
-    commands.spawn((
-        MinimapDisplay,
-        MinimapHud,
-        Visibility::Hidden,
-        ImageNode::new(handle),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            right: Val::Px(10.0),
-            width: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
-            height: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
-            ..default()
-        },
-    ));
-}
-
-/// Spawn the minimap border ring overlay on top of the minimap.
-fn spawn_minimap_border(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let handle = images.add(create_border_image(MINIMAP_DISPLAY_SIZE as usize));
-    commands.spawn((
-        MinimapBorder,
-        MinimapHud,
-        Visibility::Hidden,
-        ImageNode::new(handle),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            right: Val::Px(10.0),
-            width: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
-            height: Val::Px(MINIMAP_DISPLAY_SIZE as f32),
-            ..default()
-        },
-        ZIndex(10),
-    ));
-}
-
-/// Spawn a small arrow indicator at the center of the minimap.
-fn spawn_minimap_arrow(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let handle = images.add(create_arrow_image());
-    let half = MINIMAP_DISPLAY_SIZE as f32 / 2.0;
-    let arrow_half = 8.0;
-    commands.spawn((
-        MinimapArrow,
-        MinimapHud,
-        Visibility::Hidden,
-        ImageNode::new(handle),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0 + half - arrow_half),
-            right: Val::Px(10.0 + half - arrow_half),
-            width: Val::Px(16.0),
-            height: Val::Px(16.0),
-            ..default()
-        },
-    ));
 }
 
 /// Generate minimap tile textures for newly loaded terrain tiles.
@@ -241,7 +269,6 @@ fn try_load_minimap_blp(tile_x: u32, tile_y: u32) -> Option<Image> {
 }
 
 /// Composite tile images centered on the player, crop and apply circular mask.
-/// Skips recomposite when the player's pixel position and tile set haven't changed.
 fn update_minimap_composite(
     player_q: Query<&Transform, With<crate::camera::Player>>,
     minimap: Res<MinimapState>,
@@ -249,50 +276,44 @@ fn update_minimap_composite(
     mut images: ResMut<Assets<Image>>,
     mut last: ResMut<LastMinimapPixel>,
 ) {
-    let Ok(player_tf) = player_q.single() else {
-        return;
-    };
-    let Some(composite_res) = composite_res else {
-        return;
-    };
-
+    let Ok(player_tf) = player_q.single() else { return };
+    let Some(composite_res) = composite_res else { return };
     let bx = player_tf.translation.x;
     let bz = player_tf.translation.z;
     let (player_row, player_col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
     let comp_size = MINIMAP_COMPOSITE_SIZE as usize;
     let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
 
-    let tile_gen = minimap.generated.len();
-    if px_x == last.px_x
-        && px_y == last.px_y
-        && player_row == last.tile_row
-        && player_col == last.tile_col
-        && tile_gen == last.tile_generation
-    {
+    if !composite_needs_update(&last, px_x, px_y, player_row, player_col, minimap.generated.len()) {
         return;
     }
 
-    recomposite(
-        &minimap, &images, &mut last, player_row, player_col, comp_size, px_x, px_y,
-    );
+    recomposite(&minimap, &images, &mut last, player_row, player_col, comp_size);
     last.px_x = px_x;
     last.px_y = px_y;
     last.tile_row = player_row;
     last.tile_col = player_col;
-    last.tile_generation = tile_gen;
+    last.tile_generation = minimap.generated.len();
 
+    apply_circular_crop(&composite_res, &mut images, &last.composite_buf, comp_size, px_x, px_y);
+}
+
+fn composite_needs_update(
+    last: &LastMinimapPixel, px_x: usize, px_y: usize, row: u32, col: u32, tile_gen: usize,
+) -> bool {
+    px_x != last.px_x || px_y != last.px_y || row != last.tile_row
+        || col != last.tile_col || tile_gen != last.tile_generation
+}
+
+fn apply_circular_crop(
+    composite_res: &MinimapComposite, images: &mut Assets<Image>,
+    buf: &[u8], comp_size: usize, px_x: usize, px_y: usize,
+) {
     if let Some(img) = images.get_mut(&composite_res.handle) {
-        img.data = Some(crop_with_circle(
-            &last.composite_buf,
-            comp_size,
-            px_x,
-            px_y,
-            MINIMAP_DISPLAY_SIZE,
-        ));
+        img.data = Some(crop_with_circle(buf, comp_size, px_x, px_y, MINIMAP_DISPLAY_SIZE));
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn recomposite(
     minimap: &MinimapState,
     images: &Assets<Image>,
@@ -300,29 +321,25 @@ fn recomposite(
     player_row: u32,
     player_col: u32,
     comp_size: usize,
-    _px_x: usize,
-    _px_y: usize,
 ) {
     let tile_px = MINIMAP_TILE_SIZE as usize;
     let needed = comp_size * comp_size * 4;
     last.composite_buf.resize(needed, 0);
-    // Fill dark background
+    fill_dark_background(&mut last.composite_buf, comp_size);
+    blit_tiles(
+        &mut last.composite_buf, comp_size, tile_px,
+        player_row, player_col, minimap, images,
+    );
+}
+
+fn fill_dark_background(buf: &mut [u8], comp_size: usize) {
     for i in 0..(comp_size * comp_size) {
         let off = i * 4;
-        last.composite_buf[off] = 20;
-        last.composite_buf[off + 1] = 20;
-        last.composite_buf[off + 2] = 20;
-        last.composite_buf[off + 3] = 255;
+        buf[off] = 20;
+        buf[off + 1] = 20;
+        buf[off + 2] = 20;
+        buf[off + 3] = 255;
     }
-    blit_tiles(
-        &mut last.composite_buf,
-        comp_size,
-        tile_px,
-        player_row,
-        player_col,
-        minimap,
-        images,
-    );
 }
 
 /// Blit all 3x3 tile images into the composite buffer.
@@ -342,30 +359,30 @@ fn blit_tiles(
             if row < 0 || col < 0 {
                 continue;
             }
-            let key = (row as u32, col as u32);
-            let Some(handle) = minimap.tile_images.get(&key) else {
-                continue;
-            };
-            let Some(tile_img) = images.get(handle) else {
-                continue;
-            };
-            let Some(tile_data) = tile_img.data.as_ref() else {
-                continue;
-            };
-            let off_x = dx as usize * tile_px;
-            let off_y = dy as usize * tile_px;
-            blit_image(composite, comp_size, tile_data, tile_px, off_x, off_y);
+            blit_single_tile(
+                composite, comp_size, tile_px,
+                (row as u32, col as u32),
+                dx as usize * tile_px, dy as usize * tile_px,
+                minimap, images,
+            );
         }
     }
 }
 
+fn blit_single_tile(
+    composite: &mut [u8], comp_size: usize, tile_px: usize,
+    key: (u32, u32), off_x: usize, off_y: usize,
+    minimap: &MinimapState, images: &Assets<Image>,
+) {
+    let Some(handle) = minimap.tile_images.get(&key) else { return };
+    let Some(tile_img) = images.get(handle) else { return };
+    let Some(tile_data) = tile_img.data.as_ref() else { return };
+    blit_image(composite, comp_size, tile_data, tile_px, off_x, off_y);
+}
+
 /// Compute the player's pixel position within the 3x3 composite image.
 fn player_pixel_in_composite(
-    bx: f32,
-    bz: f32,
-    row: u32,
-    col: u32,
-    comp_size: usize,
+    bx: f32, bz: f32, row: u32, col: u32, comp_size: usize,
 ) -> (usize, usize) {
     let tile_size = crate::asset::adt::CHUNK_SIZE * 16.0;
     let center = 32.0 * tile_size;
@@ -379,75 +396,35 @@ fn player_pixel_in_composite(
     (px_x.min(comp_size - 1), px_y.min(comp_size - 1))
 }
 
-/// Spawn zone name text below the minimap.
-fn spawn_zone_name(mut commands: Commands) {
-    commands.spawn((
-        MinimapZoneName,
-        MinimapHud,
-        Visibility::Hidden,
-        Text::new("Elwynn Forest"),
-        TextFont {
-            font_size: 16.0,
-            ..default()
-        },
-        TextColor(Color::srgba(1.0, 0.82, 0.0, 1.0)),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(215.0),
-            right: Val::Px(10.0),
-            width: Val::Px(200.0),
-            ..default()
-        },
-    ));
-}
-
-/// Spawn coordinate text below the minimap.
-fn spawn_coord_text(mut commands: Commands) {
-    commands.spawn((
-        MinimapCoords,
-        MinimapHud,
-        Visibility::Hidden,
-        Text::new("0, 0"),
-        TextFont {
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::WHITE),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(235.0),
-            right: Val::Px(10.0),
-            width: Val::Px(200.0),
-            ..default()
-        },
-    ));
+/// Update zone name text when the current zone changes.
+fn update_zone_name(
+    zone: Option<Res<crate::networking::CurrentZone>>,
+    mut ui: ResMut<UiState>,
+    frames: Option<Res<MinimapFrames>>,
+) {
+    let Some(zone) = zone else { return };
+    if !zone.is_changed() { return }
+    let Some(frames) = frames else { return };
+    let name = zone_id_to_name(zone.zone_id);
+    if let Some(frame) = ui.registry.get_mut(frames.zone_name) {
+        if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
+            fs.text = name.to_string();
+        }
+    }
 }
 
 /// Update coordinate text with the player's current position.
 fn update_coord_text(
     player_q: Query<&Transform, With<crate::camera::Player>>,
-    mut text_q: Query<&mut Text, With<MinimapCoords>>,
+    mut ui: ResMut<UiState>,
+    frames: Option<Res<MinimapFrames>>,
 ) {
     let Ok(tf) = player_q.single() else { return };
-    let x = tf.translation.x;
-    let z = tf.translation.z;
-    for mut text in &mut text_q {
-        **text = format!("{x:.0}, {z:.0}");
-    }
-}
-
-/// Update the zone name text when the current zone changes.
-fn update_zone_name(
-    zone: Option<Res<crate::networking::CurrentZone>>,
-    mut text_q: Query<&mut Text, With<MinimapZoneName>>,
-) {
-    let Some(zone) = zone else { return };
-    if !zone.is_changed() {
-        return;
-    }
-    let name = zone_id_to_name(zone.zone_id);
-    for mut text in &mut text_q {
-        **text = name.to_string();
+    let Some(frames) = frames else { return };
+    if let Some(frame) = ui.registry.get_mut(frames.coords) {
+        if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
+            fs.text = format!("{:.0}, {:.0}", tf.translation.x, tf.translation.z);
+        }
     }
 }
 
@@ -484,39 +461,33 @@ fn draw_entity_dots(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let Ok(player_tf) = player_q.single() else {
-        return;
-    };
-    let Some(composite_res) = composite_res else {
-        return;
-    };
-    let Some(img) = images.get_mut(&composite_res.handle) else {
-        return;
-    };
-    let Some(data) = img.data.as_mut() else {
-        return;
-    };
+    let Ok(player_tf) = player_q.single() else { return };
+    let Some(composite_res) = composite_res else { return };
+    let Some(img) = images.get_mut(&composite_res.handle) else { return };
+    let Some(data) = img.data.as_mut() else { return };
 
     let ds = MINIMAP_DISPLAY_SIZE as usize;
     let center = ds as f32 / 2.0;
-    let tile_size = crate::asset::adt::CHUNK_SIZE * 16.0;
-    let yards_per_pixel = tile_size / MINIMAP_TILE_SIZE as f32;
+    let yards_per_pixel = crate::asset::adt::CHUNK_SIZE * 16.0 / MINIMAP_TILE_SIZE as f32;
 
     for (tf, npc) in &remote_q {
-        let dx = tf.translation.x - player_tf.translation.x;
-        let dz = tf.translation.z - player_tf.translation.z;
-        let px = center + dz / yards_per_pixel;
-        let py = center - dx / yards_per_pixel;
-        if ((px - center).powi(2) + (py - center).powi(2)).sqrt() > center - 3.0 {
-            continue;
-        }
-        let color = if npc.is_some() {
-            [255, 200, 0, 255]
-        } else {
-            [0, 255, 0, 255]
-        };
-        draw_dot(data, ds, px as i32, py as i32, &color);
+        draw_entity_dot(data, ds, center, yards_per_pixel, player_tf, tf, npc.is_some());
     }
+}
+
+fn draw_entity_dot(
+    data: &mut [u8], ds: usize, center: f32, yards_per_pixel: f32,
+    player_tf: &Transform, entity_tf: &Transform, is_npc: bool,
+) {
+    let dx = entity_tf.translation.x - player_tf.translation.x;
+    let dz = entity_tf.translation.z - player_tf.translation.z;
+    let px = center + dz / yards_per_pixel;
+    let py = center - dx / yards_per_pixel;
+    if ((px - center).powi(2) + (py - center).powi(2)).sqrt() > center - 3.0 {
+        return;
+    }
+    let color = if is_npc { [255, 200, 0, 255] } else { [0, 255, 0, 255] };
+    draw_dot(data, ds, px as i32, py as i32, &color);
 }
 
 #[cfg(test)]
