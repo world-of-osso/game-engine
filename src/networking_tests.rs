@@ -263,3 +263,10 @@ fn net_position_to_bevy_swaps_height_and_forward_axes() {
 
     assert_eq!(net_position_to_bevy(&pos), Vec3::new(-8949.0, 83.0, -132.0));
 }
+
+#[test]
+fn terrain_messages_are_processed_before_inworld_transition() {
+    assert!(terrain_messages_allowed_in_state(
+        crate::game_state::GameState::CharSelect
+    ));
+}

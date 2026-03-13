@@ -12,8 +12,8 @@ use shared::protocol::ChatMessage;
 pub use shared::protocol::ChatType;
 
 pub use crate::networking_auth::{
-    AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword, LoginUsername,
-    SelectedCharacterId, load_auth_token,
+    load_auth_token, AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword,
+    LoginUsername, SelectedCharacterId,
 };
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
@@ -139,19 +139,35 @@ fn register_inworld_sync_systems(app: &mut App) {
     use crate::networking_messages as msg;
     app.add_systems(
         Update,
+        msg::receive_load_terrain.run_if(should_receive_load_terrain),
+    );
+    app.add_systems(
+        Update,
         (
             msg::receive_group_command_response,
             msg::receive_combat_log_snapshot,
             msg::receive_combat_events,
             msg::receive_collection_snapshot,
             msg::receive_profession_snapshot,
-            msg::receive_load_terrain,
             sync_replicated_transforms,
             interpolate_remote_entities,
             tag_local_player,
         )
             .run_if(in_state(GameState::InWorld)),
     );
+}
+
+fn terrain_messages_allowed_in_state(state: crate::game_state::GameState) -> bool {
+    matches!(
+        state,
+        crate::game_state::GameState::CharSelect
+            | crate::game_state::GameState::Loading
+            | crate::game_state::GameState::InWorld
+    )
+}
+
+fn should_receive_load_terrain(state: Res<State<crate::game_state::GameState>>) -> bool {
+    terrain_messages_allowed_in_state(*state.get())
 }
 
 fn register_auth_net_systems(app: &mut App) {
