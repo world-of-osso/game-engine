@@ -733,18 +733,20 @@ fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCre
             .unwrap_or_default()
             .to_string(),
         hair_style_label: cust_db
-            .choice_name(
+            .choice_name_for_class(
                 race,
                 sex,
+                state.selected_class,
                 OptionType::HairStyle,
                 state.appearance.hair_style,
             )
             .unwrap_or_default()
             .to_string(),
         facial_style_label: cust_db
-            .choice_name(
+            .choice_name_for_class(
                 race,
                 sex,
+                state.selected_class,
                 OptionType::FacialHair,
                 state.appearance.facial_style,
             )

@@ -382,17 +382,21 @@ fn appearance_row_label(field: AppearanceField, label: &str) -> Element {
     }
 }
 
-fn appearance_row_value(field: AppearanceField, value: u8) -> Element {
-    let val_text = format!("{}", value + 1);
+fn appearance_row_value(field: AppearanceField, value: u8, label: &str) -> Element {
+    let val_text = if label.is_empty() {
+        format!("{}", value + 1)
+    } else {
+        label.to_string()
+    };
     let x = swatch_gap_center_x();
     rsx! {
         fontstring {
             name: dyn_name(format!("AppVal_{}", field.as_str())),
-            width: 30.0,
+            width: APPEARANCE_SWATCH_PREVIEW_WIDTH,
             height: 24.0,
             text: val_text,
             font: GameFont::FrizQuadrata,
-            font_size: 13.0,
+            font_size: 12.0,
             font_color: COLOR_WHITE,
             anchor {
                 point: AnchorPoint::Center,
@@ -546,13 +550,14 @@ fn build_dropdown_choices(
 pub(super) fn customization_row(
     label: &str,
     value: u8,
+    value_label: &str,
     swatches: &[Option<[u8; 3]>],
     field: AppearanceField,
 ) -> Element {
     let current_swatch = swatches.get(value as usize).copied().flatten();
     let center = match current_swatch {
         Some(color) => swatch_texture(field, color),
-        None => appearance_row_value(field, value),
+        None => appearance_row_value(field, value, value_label),
     };
     rsx! {
         r#frame {
