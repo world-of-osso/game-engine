@@ -104,11 +104,25 @@ fn main() {
     let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
     let dump_scene = args.iter().any(|a| a == "--dump-scene");
     let screenshot = parse_screenshot_args(&args);
+    let initial_state = match parse_state_arg(&args) {
+        Ok(state) => state,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
     if dump_ui_tree && !dump_tree && screenshot.is_none() {
-        run_headless_ui_dump_app(parse_state_arg(&args));
+        run_headless_ui_dump_app(initial_state);
         return;
     }
-    run_app(&args, dump_tree, dump_ui_tree, dump_scene, screenshot);
+    run_app(
+        &args,
+        dump_tree,
+        dump_ui_tree,
+        dump_scene,
+        screenshot,
+        initial_state,
+    );
 }
 
 struct ParsedArgs {
@@ -131,7 +145,13 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
         }
     };
     let mut server_addr = parse_server_arg(args);
-    let mut initial_state = parse_state_arg(args);
+    let mut initial_state = match parse_state_arg(args) {
+        Ok(state) => state,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
     let mut auto_enter_world = false;
     screen_auto_login::apply(
         &mut startup_actions,
@@ -161,8 +181,10 @@ fn run_app(
     dump_ui_tree: bool,
     dump_scene: bool,
     screenshot: Option<ScreenshotRequest>,
+    initial_state: Option<game_state::GameState>,
 ) {
-    let parsed = parse_run_args(args);
+    let mut parsed = parse_run_args(args);
+    parsed.initial_state = initial_state;
     let mut app = App::new();
     register_plugins(&mut app);
     configure_app_plugins(
@@ -624,11 +646,32 @@ mod tests {
 
     #[test]
     fn parse_screen_alias_matches_state_parser() {
-        let parsed =
-            parse_state_arg(&args(&["--screen", "charselect"])).expect("expected screen alias");
+        let parsed = parse_state_arg(&args(&["--screen", "charselect"]))
+            .expect("expected valid parse")
+            .expect("expected screen alias");
         assert_eq!(parsed, game_state::GameState::CharSelect);
-        let parsed = parse_state_arg(&args(&["--screen", "login"])).expect("expected login");
+
+        let parsed = parse_state_arg(&args(&["--screen", "login"]))
+            .expect("expected valid parse")
+            .expect("expected login");
         assert_eq!(parsed, game_state::GameState::Login);
+    }
+
+    #[test]
+    fn parse_screen_rejects_non_screen_states() {
+        let err = parse_state_arg(&args(&["--screen", "connecting"]))
+            .expect_err("connecting should be rejected for --screen");
+        assert_eq!(
+            err,
+            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, inworld"
+        );
+    }
+
+    #[test]
+    fn parse_screen_requires_value() {
+        let err =
+            parse_state_arg(&args(&["--screen"])).expect_err("missing --screen value should fail");
+        assert_eq!(err, "missing value for --screen");
     }
 
     #[test]

@@ -1,9 +1,11 @@
 //! Command-line argument parsing for game-engine.
 
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::ScreenshotRequest;
 use crate::game_state;
+use game_engine::game_state_enum::ScreenArg;
 
 pub fn screenshot_arg_index(args: &[String]) -> Option<usize> {
     args.iter().position(|arg| arg == "screenshot")
@@ -41,10 +43,21 @@ pub fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)>
     }
 }
 
-pub fn parse_state_arg(args: &[String]) -> Option<game_state::GameState> {
-    args.windows(2)
-        .find(|w| w[0] == "--state" || w[0] == "--screen")
-        .and_then(|w| parse_game_state_value(&w[1]))
+pub fn parse_state_arg(args: &[String]) -> Result<Option<game_state::GameState>, String> {
+    let Some((flag, value)) = find_flag_value(args, &["--state", "--screen"])? else {
+        return Ok(None);
+    };
+
+    match flag {
+        "--state" => game_state::GameState::from_str(value)
+            .map(Some)
+            .map_err(|err| format!("invalid --state value '{value}': {err}")),
+        "--screen" => ScreenArg::from_str(value)
+            .map(game_state::GameState::from)
+            .map(Some)
+            .map_err(|err| format!("invalid --screen value '{value}': {err}")),
+        _ => unreachable!("unexpected flag matched: {flag}"),
+    }
 }
 
 pub fn parse_char_arg(args: &[String]) -> Option<String> {
@@ -71,16 +84,24 @@ pub fn print_help() {
     println!("  --help, -h          Show this help");
 }
 
-pub fn parse_game_state_value(value: &str) -> Option<game_state::GameState> {
-    match value {
-        "login" => Some(game_state::GameState::Login),
-        "connecting" => Some(game_state::GameState::Connecting),
-        "charselect" => Some(game_state::GameState::CharSelect),
-        "charcreate" => Some(game_state::GameState::CharCreate),
-        "loading" => Some(game_state::GameState::Loading),
-        "inworld" => Some(game_state::GameState::InWorld),
-        _ => None,
+fn find_flag_value<'a>(
+    args: &'a [String],
+    flags: &[&str],
+) -> Result<Option<(&'a str, &'a str)>, String> {
+    for i in 0..args.len() {
+        let arg = args[i].as_str();
+        if flags.contains(&arg) {
+            let Some(value) = args.get(i + 1).map(String::as_str) else {
+                return Err(format!("missing value for {arg}"));
+            };
+            if value.starts_with("--") {
+                return Err(format!("missing value for {arg}"));
+            }
+            return Ok(Some((arg, value)));
+        }
     }
+
+    Ok(None)
 }
 
 pub fn load_startup_automation_actions(
