@@ -1,16 +1,16 @@
-use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
+use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 use lightyear::prelude::*;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
-use game_engine::ui::plugin::{sync_registry_to_primary_window, UiState};
+use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
-    char_create_screen, AppearanceField, CharCreateAction, CharCreateMode, CharCreateUiState,
-    BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, ERROR_TEXT, NEXT_BUTTON,
-    SEX_TOGGLE_BUTTON,
+    AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT,
+    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON,
+    SEX_TOGGLE_BUTTON, char_create_screen,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui_resource;
@@ -20,7 +20,7 @@ use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
 use crate::login_screen_helpers as helpers;
-use game_engine::char_create_data::{first_available_class, race_can_be_class, CLASSES};
+use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
@@ -320,6 +320,8 @@ fn dispatch_action(
             }
         }
     }
+
+    normalize_appearance(state, cust_db);
 }
 
 fn apply_race_change(state: &mut CharCreateState, race_id: u8) {
@@ -340,6 +342,43 @@ fn apply_sex_toggle(state: &mut CharCreateState) {
     state.appearance.sex = state.selected_sex;
 }
 
+fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
+    let (race, sex, class) = (
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+    );
+
+    clamp_appearance_field(
+        &mut state.appearance.skin_color,
+        db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
+    );
+    clamp_appearance_field(
+        &mut state.appearance.face,
+        db.choice_count_for_class(race, sex, class, OptionType::Face),
+    );
+    clamp_appearance_field(
+        &mut state.appearance.hair_style,
+        db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
+    );
+    clamp_appearance_field(
+        &mut state.appearance.hair_color,
+        db.choice_count_for_class(race, sex, class, OptionType::HairColor),
+    );
+    clamp_appearance_field(
+        &mut state.appearance.facial_style,
+        db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
+    );
+}
+
+fn clamp_appearance_field(value: &mut u8, count: u8) {
+    if count == 0 {
+        *value = 0;
+    } else if *value >= count {
+        *value = count - 1;
+    }
+}
+
 fn handle_back(state: &mut CharCreateState, next_state: &mut NextState<GameState>) {
     if state.mode == CharCreateMode::Customize {
         state.mode = CharCreateMode::RaceClass;
@@ -354,7 +393,11 @@ fn adjust_appearance(
     delta: i8,
     db: &CustomizationDb,
 ) {
-    let (race, sex) = (state.selected_race, state.selected_sex);
+    let (race, sex, class) = (
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+    );
     let opt_type = match field {
         AppearanceField::SkinColor => OptionType::SkinColor,
         AppearanceField::Face => OptionType::Face,
@@ -362,7 +405,7 @@ fn adjust_appearance(
         AppearanceField::HairColor => OptionType::HairColor,
         AppearanceField::FacialStyle => OptionType::FacialHair,
     };
-    let max = db.choice_count(race, sex, opt_type);
+    let max = db.choice_count_for_class(race, sex, class, opt_type);
     let val = match field {
         AppearanceField::SkinColor => &mut state.appearance.skin_color,
         AppearanceField::Face => &mut state.appearance.face,
@@ -374,11 +417,7 @@ fn adjust_appearance(
         return;
     }
     *val = if delta > 0 {
-        if *val + 1 >= max {
-            0
-        } else {
-            *val + 1
-        }
+        if *val + 1 >= max { 0 } else { *val + 1 }
     } else if *val == 0 {
         max - 1
     } else {
@@ -683,6 +722,34 @@ fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCre
         hair_style: state.appearance.hair_style,
         hair_color: state.appearance.hair_color,
         facial_style: state.appearance.facial_style,
+        face_label: cust_db
+            .choice_name_for_class(
+                race,
+                sex,
+                state.selected_class,
+                OptionType::Face,
+                state.appearance.face,
+            )
+            .unwrap_or_default()
+            .to_string(),
+        hair_style_label: cust_db
+            .choice_name(
+                race,
+                sex,
+                OptionType::HairStyle,
+                state.appearance.hair_style,
+            )
+            .unwrap_or_default()
+            .to_string(),
+        facial_style_label: cust_db
+            .choice_name(
+                race,
+                sex,
+                OptionType::FacialHair,
+                state.appearance.facial_style,
+            )
+            .unwrap_or_default()
+            .to_string(),
         skin_color_swatches: cust_db.all_swatch_colors(race, sex, OptionType::SkinColor),
         hair_color_swatches: cust_db.all_swatch_colors(race, sex, OptionType::HairColor),
         open_dropdown: state.open_dropdown,

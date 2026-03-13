@@ -65,6 +65,8 @@ impl OptionType {
 
 #[derive(Debug, Clone)]
 pub struct CustomizationChoice {
+    pub display_name: String,
+    pub requirement_id: u32,
     /// (ChrModelTextureTargetID, resolved FDID)
     pub materials: Vec<(u16, u32)>,
     /// (GeosetType, GeosetID)
@@ -151,6 +153,19 @@ impl CustomizationDb {
             .unwrap_or(0)
     }
 
+    pub fn choice_count_for_class(&self, race: u8, sex: u8, class: u8, opt_type: OptionType) -> u8 {
+        self.options_for(race, sex)
+            .and_then(|opts| opts.iter().find(|o| o.option_type == opt_type))
+            .map(|o| {
+                o.choices
+                    .iter()
+                    .filter(|choice| choice_visible_for_class(race, class, opt_type, choice))
+                    .count()
+                    .min(255) as u8
+            })
+            .unwrap_or(0)
+    }
+
     pub fn get_choice(
         &self,
         race: u8,
@@ -165,6 +180,23 @@ impl CustomizationDb {
             .get(index as usize)
     }
 
+    pub fn get_choice_for_class(
+        &self,
+        race: u8,
+        sex: u8,
+        class: u8,
+        opt_type: OptionType,
+        index: u8,
+    ) -> Option<&CustomizationChoice> {
+        self.options_for(race, sex)?
+            .iter()
+            .find(|o| o.option_type == opt_type)?
+            .choices
+            .iter()
+            .filter(|choice| choice_visible_for_class(race, class, opt_type, choice))
+            .nth(index as usize)
+    }
+
     pub fn swatch_color(
         &self,
         race: u8,
@@ -173,6 +205,29 @@ impl CustomizationDb {
         index: u8,
     ) -> Option<[u8; 3]> {
         self.get_choice(race, sex, opt_type, index)?.swatch_color
+    }
+
+    pub fn choice_name(&self, race: u8, sex: u8, opt_type: OptionType, index: u8) -> Option<&str> {
+        let name = self
+            .get_choice(race, sex, opt_type, index)?
+            .display_name
+            .as_str();
+        (!name.is_empty()).then_some(name)
+    }
+
+    pub fn choice_name_for_class(
+        &self,
+        race: u8,
+        sex: u8,
+        class: u8,
+        opt_type: OptionType,
+        index: u8,
+    ) -> Option<&str> {
+        let name = self
+            .get_choice_for_class(race, sex, class, opt_type, index)?
+            .display_name
+            .as_str();
+        (!name.is_empty()).then_some(name)
     }
 
     pub fn all_swatch_colors(
@@ -273,6 +328,8 @@ fn resolve_option_choices(
             (
                 ch.order_index,
                 CustomizationChoice {
+                    display_name: ch.name.clone(),
+                    requirement_id: ch.requirement_id,
                     materials,
                     geosets,
                     swatch_color,
@@ -296,6 +353,25 @@ fn sample_swatch_color(materials: &[(u16, u32)]) -> Option<[u8; 3]> {
         Some([rgba[idx], rgba[idx + 1], rgba[idx + 2]])
     } else {
         None
+    }
+}
+
+fn choice_visible_for_class(
+    race: u8,
+    class: u8,
+    opt_type: OptionType,
+    choice: &CustomizationChoice,
+) -> bool {
+    if opt_type != OptionType::Face {
+        return true;
+    }
+
+    match (race, class, choice.requirement_id) {
+        (4 | 10, 12, 146) => true,
+        (4 | 10, 12, 142 | 144) => false,
+        (4 | 10, _, 142) => true,
+        (4 | 10, _, 144 | 146) => false,
+        _ => true,
     }
 }
 
@@ -367,6 +443,8 @@ struct RawOption {
 struct RawChoice {
     id: u32,
     option_id: u32,
+    name: String,
+    requirement_id: u32,
     order_index: u32,
 }
 struct RawElement {
@@ -485,14 +563,18 @@ fn parse_options(path: &Path) -> Result<Vec<RawOption>, String> {
 
 fn parse_choices(path: &Path) -> Result<Vec<RawChoice>, String> {
     let (h, rows) = read_csv(path)?;
+    let name = col_idx(&h, "Name_lang")?;
     let id = col_idx(&h, "ID")?;
     let opt = col_idx(&h, "ChrCustomizationOptionID")?;
+    let requirement = col_idx(&h, "ChrCustomizationReqID")?;
     let order = col_idx(&h, "OrderIndex")?;
     Ok(rows
         .iter()
         .map(|r| RawChoice {
+            name: field_str(r, name),
             id: field_u32(r, id),
             option_id: field_u32(r, opt),
+            requirement_id: field_u32(r, requirement),
             order_index: field_u32(r, order),
         })
         .collect())
@@ -592,6 +674,36 @@ mod tests {
         assert!(
             !choice.materials.is_empty(),
             "Skin should have materials: {choice:?}"
+        );
+    }
+
+    #[test]
+    fn human_male_hair_style_has_display_name() {
+        let db = CustomizationDb::load(Path::new("data"));
+
+        assert_eq!(db.choice_name(1, 0, OptionType::HairStyle, 0), Some("Bald"));
+    }
+
+    #[test]
+    fn blood_elf_face_choices_are_filtered_by_class() {
+        let db = CustomizationDb::load(Path::new("data"));
+
+        let warrior_faces = db.choice_count_for_class(10, 0, 1, OptionType::Face);
+        let demon_hunter_faces = db.choice_count_for_class(10, 0, 12, OptionType::Face);
+
+        assert_eq!(warrior_faces, 10);
+        assert_eq!(demon_hunter_faces, 6);
+        assert_eq!(
+            db.get_choice_for_class(10, 0, 1, OptionType::Face, 0)
+                .unwrap()
+                .requirement_id,
+            142
+        );
+        assert_eq!(
+            db.get_choice_for_class(10, 0, 12, OptionType::Face, 0)
+                .unwrap()
+                .requirement_id,
+            146
         );
     }
 

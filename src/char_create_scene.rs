@@ -436,7 +436,11 @@ fn collect_appearance_materials(
     state: &CharCreateState,
     cust_db: &CustomizationDb,
 ) -> Vec<(u16, u32)> {
-    let (race, sex) = (state.selected_race, state.selected_sex);
+    let (race, sex, class) = (
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+    );
     let fields = [
         (OptionType::SkinColor, state.appearance.skin_color),
         (OptionType::Face, state.appearance.face),
@@ -446,7 +450,7 @@ fn collect_appearance_materials(
     ];
     let mut all = Vec::new();
     for (opt_type, index) in fields {
-        if let Some(choice) = cust_db.get_choice(race, sex, opt_type, index) {
+        if let Some(choice) = cust_db.get_choice_for_class(race, sex, class, opt_type, index) {
             all.extend_from_slice(&choice.materials);
         }
     }
@@ -461,14 +465,18 @@ fn apply_geoset_visibility(
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
 ) {
-    let (race, sex) = (state.selected_race, state.selected_sex);
+    let (race, sex, class) = (
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+    );
     let mut active_geosets: Vec<(u16, u16)> = Vec::new();
     let fields = [
         (OptionType::HairStyle, state.appearance.hair_style),
         (OptionType::FacialHair, state.appearance.facial_style),
     ];
     for (opt_type, index) in fields {
-        if let Some(choice) = cust_db.get_choice(race, sex, opt_type, index) {
+        if let Some(choice) = cust_db.get_choice_for_class(race, sex, class, opt_type, index) {
             active_geosets.extend_from_slice(&choice.geosets);
         }
     }
@@ -513,4 +521,42 @@ fn teardown_scene(
     displayed.race = None;
     displayed.models.clear();
     displayed.last_class = None;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn non_demon_hunter_face_uses_non_dh_materials() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let state = CharCreateState {
+            selected_race: 10,
+            selected_class: 1,
+            selected_sex: 0,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 0,
+                face: 0,
+                hair_style: 0,
+                hair_color: 0,
+                facial_style: 0,
+            },
+            ..Default::default()
+        };
+
+        let expected_face = db
+            .get_choice_for_class(10, 0, 1, OptionType::Face, 0)
+            .unwrap();
+        let all_materials = collect_appearance_materials(&state, &db);
+
+        assert_eq!(expected_face.requirement_id, 142);
+        assert!(
+            expected_face
+                .materials
+                .iter()
+                .all(|material| all_materials.contains(material))
+        );
+    }
 }
