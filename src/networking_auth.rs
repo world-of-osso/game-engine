@@ -3,6 +3,7 @@ use lightyear::prelude::*;
 use shared::protocol::{
     AuthChannel, CharacterListEntry, CreateCharacterResponse, DeleteCharacterResponse,
     EnterWorldResponse, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
+    SelectCharacter,
 };
 
 use crate::game_state::GameState;
@@ -120,7 +121,12 @@ pub fn receive_login_response(
     mut auth_token: ResMut<AuthToken>,
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
+    auto_enter_world: Option<Res<crate::char_select::AutoEnterWorld>>,
+    preselected: Option<Res<crate::char_select::PreselectedCharName>>,
+    mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
+    mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
@@ -129,7 +135,12 @@ pub fn receive_login_response(
                 &mut auth_token,
                 &mut auth_feedback,
                 &mut char_list,
+                auto_enter_world.as_ref(),
+                preselected.as_ref(),
+                &mut selected_char_idx,
+                &mut select_senders,
                 &mut next_state,
+                &mut commands,
             );
         }
     }
@@ -140,7 +151,12 @@ fn handle_login_response(
     auth_token: &mut AuthToken,
     auth_feedback: &mut AuthUiFeedback,
     char_list: &mut CharacterList,
+    auto_enter_world: Option<&Res<crate::char_select::AutoEnterWorld>>,
+    preselected: Option<&Res<crate::char_select::PreselectedCharName>>,
+    selected_char_idx: &mut crate::char_select::SelectedCharIndex,
+    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
     next_state: &mut NextState<GameState>,
+    commands: &mut Commands,
 ) {
     if resp.success {
         save_auth_token(&resp.token);
@@ -148,7 +164,16 @@ fn handle_login_response(
         auth_feedback.0 = None;
         char_list.0 = resp.characters;
         info!("Login success, {} characters", char_list.0.len());
-        next_state.set(GameState::CharSelect);
+        let selected_idx =
+            resolve_selected_char_index(&char_list.0, preselected.map(|name| name.0.as_str()));
+        selected_char_idx.0 = selected_idx;
+        if auto_enter_world.is_some()
+            && try_auto_enter_world(selected_idx, &char_list.0, select_senders)
+        {
+            commands.remove_resource::<crate::char_select::AutoEnterWorld>();
+        } else {
+            next_state.set(GameState::CharSelect);
+        }
     } else {
         let err = resp.error.unwrap_or_default();
         error!("Login failed: {err}");
@@ -253,6 +278,37 @@ fn user_facing_login_error(err: &str) -> &str {
     }
 }
 
+fn resolve_selected_char_index(
+    characters: &[CharacterListEntry],
+    preselected_name: Option<&str>,
+) -> Option<usize> {
+    preselected_name
+        .and_then(|name| {
+            characters
+                .iter()
+                .position(|ch| ch.name.eq_ignore_ascii_case(name))
+        })
+        .or_else(|| characters.first().map(|_| 0))
+}
+
+fn try_auto_enter_world(
+    selected_idx: Option<usize>,
+    characters: &[CharacterListEntry],
+    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+) -> bool {
+    let Some(character) = selected_idx.and_then(|idx| characters.get(idx)) else {
+        return false;
+    };
+    let msg = SelectCharacter {
+        character_id: character.character_id,
+    };
+    for mut sender in select_senders.iter_mut() {
+        sender.send::<AuthChannel>(msg.clone());
+    }
+    info!("Auto-enter requested for '{}'", character.name);
+    true
+}
+
 /// Handle EnterWorldResponse: store selected character info and transition to Loading.
 pub fn receive_enter_world_response(
     mut receivers: Query<&mut MessageReceiver<EnterWorldResponse>>,
@@ -322,5 +378,47 @@ mod tests {
             user_facing_login_error("Invalid password"),
             "Incorrect username or password"
         );
+    }
+
+    #[test]
+    fn resolve_selected_char_index_prefers_named_character() {
+        let chars = vec![
+            CharacterListEntry {
+                character_id: 1,
+                name: "Elara".to_string(),
+                level: 1,
+                race: 1,
+                class: 1,
+                appearance: shared::components::CharacterAppearance::default(),
+            },
+            CharacterListEntry {
+                character_id: 2,
+                name: "Borin".to_string(),
+                level: 1,
+                race: 1,
+                class: 1,
+                appearance: shared::components::CharacterAppearance::default(),
+            },
+        ];
+
+        assert_eq!(resolve_selected_char_index(&chars, Some("borin")), Some(1));
+    }
+
+    #[test]
+    fn resolve_selected_char_index_falls_back_to_first_character() {
+        let chars = vec![CharacterListEntry {
+            character_id: 7,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+        }];
+
+        assert_eq!(
+            resolve_selected_char_index(&chars, Some("missing")),
+            Some(0)
+        );
+        assert_eq!(resolve_selected_char_index(&chars, None), Some(0));
     }
 }
