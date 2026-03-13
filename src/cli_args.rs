@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use crate::ScreenshotRequest;
 use crate::game_state;
+use crate::ScreenshotRequest;
 use game_engine::game_state_enum::ScreenArg;
 
 pub fn screenshot_arg_index(args: &[String]) -> Option<usize> {
@@ -60,6 +60,16 @@ pub fn parse_state_arg(args: &[String]) -> Result<Option<game_state::GameState>,
     }
 }
 
+pub fn parse_screen_arg(args: &[String]) -> Result<Option<ScreenArg>, String> {
+    let Some((flag, value)) = find_flag_value(args, &["--screen"])? else {
+        return Ok(None);
+    };
+    debug_assert_eq!(flag, "--screen");
+    ScreenArg::from_str(value)
+        .map(Some)
+        .map_err(|err| format!("invalid --screen value '{value}': {err}"))
+}
+
 pub fn parse_char_arg(args: &[String]) -> Option<String> {
     args.windows(2)
         .find(|w| w[0] == "--char")
@@ -72,7 +82,9 @@ pub fn print_help() {
     println!("USAGE: game-engine [OPTIONS] [model.m2 | terrain.adt]");
     println!();
     println!("OPTIONS:");
-    println!("  --screen <SCREEN>   Start at screen: login, charselect, charcreate, inworld");
+    println!(
+        "  --screen <SCREEN>   Start at screen: login, charselect, charcreate, charcreate-customize, inworld"
+    );
     println!("  --server <ADDR>     Game server address (default: 127.0.0.1:5000)");
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");

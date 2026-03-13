@@ -184,7 +184,7 @@ fn run_app(
     initial_state: Option<game_state::GameState>,
 ) {
     let mut parsed = parse_run_args(args);
-    parsed.initial_state = initial_state;
+    parsed.initial_state = resolve_initial_state(parsed.initial_state, initial_state);
     let mut app = App::new();
     register_plugins(&mut app);
     configure_app_plugins(
@@ -204,6 +204,13 @@ fn run_app(
     app.run();
 }
 
+fn resolve_initial_state(
+    parsed_initial_state: Option<game_state::GameState>,
+    cli_initial_state: Option<game_state::GameState>,
+) -> Option<game_state::GameState> {
+    cli_initial_state.or(parsed_initial_state)
+}
+
 fn insert_startup_resources(
     app: &mut App,
     args: &[String],
@@ -216,6 +223,18 @@ fn insert_startup_resources(
     }
     if let Some(name) = parse_char_arg(args) {
         app.insert_resource(char_select::PreselectedCharName(name));
+    }
+    match parse_screen_arg(args) {
+        Ok(Some(game_engine::game_state_enum::ScreenArg::CharCreateCustomize)) => {
+            app.insert_resource(char_create::StartupCharCreateMode(
+                game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
+            ));
+        }
+        Ok(_) => {}
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
     }
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     app.insert_resource(game_engine::customization_data::CustomizationDb::load(
@@ -655,6 +674,11 @@ mod tests {
             .expect("expected valid parse")
             .expect("expected login");
         assert_eq!(parsed, game_state::GameState::Login);
+
+        let parsed = parse_state_arg(&args(&["--screen", "charcreate-customize"]))
+            .expect("expected valid parse")
+            .expect("expected charcreate customize");
+        assert_eq!(parsed, game_state::GameState::CharCreate);
     }
 
     #[test]
@@ -663,7 +687,18 @@ mod tests {
             .expect_err("connecting should be rejected for --screen");
         assert_eq!(
             err,
-            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, inworld"
+            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, charcreate-customize, inworld"
+        );
+    }
+
+    #[test]
+    fn parse_screen_arg_preserves_charcreate_customize_variant() {
+        let parsed = parse_screen_arg(&args(&["--screen", "charcreate-customize"]))
+            .expect("expected valid parse")
+            .expect("expected screen alias");
+        assert_eq!(
+            parsed,
+            game_engine::game_state_enum::ScreenArg::CharCreateCustomize
         );
     }
 
@@ -748,6 +783,26 @@ mod tests {
 
         assert_eq!(parsed.initial_state, Some(game_state::GameState::Login));
         assert!(parsed.startup_actions.is_empty());
+    }
+
+    #[test]
+    fn resolved_initial_state_keeps_parsed_connecting_when_cli_state_is_absent() {
+        let resolved = resolve_initial_state(
+            Some(game_state::GameState::Connecting),
+            None,
+        );
+
+        assert_eq!(resolved, Some(game_state::GameState::Connecting));
+    }
+
+    #[test]
+    fn resolved_initial_state_prefers_explicit_cli_state() {
+        let resolved = resolve_initial_state(
+            Some(game_state::GameState::Connecting),
+            Some(game_state::GameState::Login),
+        );
+
+        assert_eq!(resolved, Some(game_state::GameState::Login));
     }
 
     #[test]

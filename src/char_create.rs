@@ -1,16 +1,16 @@
-use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::input::ButtonState;
 use bevy::prelude::*;
 use lightyear::prelude::*;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
-use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
+use game_engine::ui::plugin::{sync_registry_to_primary_window, UiState};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
-    AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT,
-    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON,
-    SEX_TOGGLE_BUTTON, char_create_screen,
+    char_create_screen, AppearanceField, CharCreateAction, CharCreateMode, CharCreateUiState,
+    BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, ERROR_TEXT, NEXT_BUTTON,
+    SEX_TOGGLE_BUTTON,
 };
 use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui_resource;
@@ -20,7 +20,7 @@ use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
 use crate::login_screen_helpers as helpers;
-use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
+use game_engine::char_create_data::{first_available_class, race_can_be_class, CLASSES};
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
@@ -73,6 +73,9 @@ impl Default for CharCreateState {
 #[derive(Resource, Default)]
 struct CharCreateFocus(Option<u64>);
 
+#[derive(Resource, Clone, Copy)]
+pub(crate) struct StartupCharCreateMode(pub(crate) CharCreateMode);
+
 struct CharCreateScreenRes {
     screen: Screen,
     shared: ui_toolkit::screen::SharedContext,
@@ -110,10 +113,23 @@ impl Plugin for CharCreatePlugin {
 fn build_char_create_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
+    startup_mode: Option<Res<StartupCharCreateMode>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let ui_state = CharCreateUiState::default();
+    let initial_state = initial_char_create_state(startup_mode.as_deref().copied());
+    let ui_state = CharCreateUiState {
+        mode: initial_state.mode,
+        selected_race: initial_state.selected_race,
+        selected_class: initial_state.selected_class,
+        selected_sex: initial_state.selected_sex,
+        skin_color: initial_state.appearance.skin_color,
+        face: initial_state.appearance.face,
+        hair_style: initial_state.appearance.hair_style,
+        hair_color: initial_state.appearance.hair_color,
+        facial_style: initial_state.appearance.facial_style,
+        ..CharCreateUiState::default()
+    };
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(ui_state);
     let mut screen = Screen::new(char_create_screen);
@@ -122,10 +138,19 @@ fn build_char_create_ui(
     let cc = CharCreateUi::resolve(&ui.registry);
     apply_post_setup(&mut ui.registry, &cc);
 
-    commands.init_resource::<CharCreateState>();
+    commands.insert_resource(initial_state);
     commands.init_resource::<CharCreateFocus>();
     commands.insert_resource(CharCreateScreenWrap(CharCreateScreenRes { screen, shared }));
     commands.insert_resource(cc);
+    commands.remove_resource::<StartupCharCreateMode>();
+}
+
+fn initial_char_create_state(startup_mode: Option<StartupCharCreateMode>) -> CharCreateState {
+    let mut state = CharCreateState::default();
+    if let Some(mode) = startup_mode {
+        state.mode = mode.0;
+    }
+    state
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, cc: &CharCreateUi) {
@@ -349,7 +374,11 @@ fn adjust_appearance(
         return;
     }
     *val = if delta > 0 {
-        if *val + 1 >= max { 0 } else { *val + 1 }
+        if *val + 1 >= max {
+            0
+        } else {
+            *val + 1
+        }
     } else if *val == 0 {
         max - 1
     } else {
@@ -682,4 +711,22 @@ fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
         .get(frame_id)
         .is_some_and(|frame| frame.visible && !frame.hidden)
         && hit_frame(ui, frame_id, mx, my)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn startup_mode_can_open_customize_directly() {
+        let state =
+            initial_char_create_state(Some(StartupCharCreateMode(CharCreateMode::Customize)));
+        assert_eq!(state.mode, CharCreateMode::Customize);
+    }
+
+    #[test]
+    fn default_startup_mode_stays_on_race_class() {
+        let state = initial_char_create_state(None);
+        assert_eq!(state.mode, CharCreateMode::RaceClass);
+    }
 }

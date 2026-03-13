@@ -6,14 +6,50 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 use super::{
-    AppearanceField, BACK_BUTTON, BUTTON_ATLAS_DISABLED, BUTTON_ATLAS_HIGHLIGHT,
-    BUTTON_ATLAS_PRESSED, BUTTON_ATLAS_UP, COLOR_DISABLED, COLOR_GOLD, COLOR_SELECTED,
-    COLOR_SUBTITLE, COLOR_WHITE, CREATE_BUTTON, CREATE_NAME_INPUT, CharCreateAction,
-    CharCreateMode, DynName, ERROR_TEXT, NEXT_BUTTON, SEX_TOGGLE_BUTTON,
+    AppearanceField, CharCreateAction, CharCreateMode, DynName, BACK_BUTTON, BUTTON_ATLAS_DISABLED,
+    BUTTON_ATLAS_HIGHLIGHT, BUTTON_ATLAS_PRESSED, BUTTON_ATLAS_UP, COLOR_DISABLED, COLOR_GOLD,
+    COLOR_SELECTED, COLOR_SUBTITLE, COLOR_WHITE, CREATE_BUTTON, CREATE_NAME_INPUT, ERROR_TEXT,
+    NEXT_BUTTON, SEX_TOGGLE_BUTTON,
 };
 
 pub(super) fn dyn_name(s: String) -> DynName {
     DynName(s)
+}
+
+const APPEARANCE_STEPPER_WIDTH: f32 = 26.0;
+const APPEARANCE_DEC_RIGHT_INSET: f32 = 120.0;
+const APPEARANCE_INC_RIGHT_INSET: f32 = 10.0;
+const APPEARANCE_SWATCH_PREVIEW_WIDTH: f32 = 84.0;
+const APPEARANCE_SWATCH_PREVIEW_HEIGHT: f32 = 20.0;
+const APPEARANCE_SWATCH_PREVIEW_AREA_HEIGHT: f32 = 40.0;
+const APPEARANCE_SWATCH_PREVIEW_SELECTION_WIDTH: f32 = 102.0;
+const APPEARANCE_SWATCH_PREVIEW_SELECTION_HEIGHT: f32 = 40.0;
+const APPEARANCE_SWATCH_DROPDOWN_WIDTH: f32 = 40.0;
+const APPEARANCE_SWATCH_DROPDOWN_HEIGHT: f32 = 20.0;
+const APPEARANCE_SWATCH_DROPDOWN_CHOICE_WIDTH: f32 = 44.0;
+const APPEARANCE_SWATCH_DROPDOWN_CHOICE_HEIGHT: f32 = 28.0;
+const APPEARANCE_SWATCH_DROPDOWN_SELECTION_WIDTH: f32 = 48.0;
+const APPEARANCE_SWATCH_DROPDOWN_SELECTION_HEIGHT: f32 = 28.0;
+const APPEARANCE_NUMBER_DROPDOWN_CHOICE_WIDTH: f32 = 28.0;
+const APPEARANCE_NUMBER_DROPDOWN_CHOICE_HEIGHT: f32 = 22.0;
+const APPEARANCE_DROPDOWN_WIDTH: f32 = 280.0;
+const APPEARANCE_DROPDOWN_GAP: f32 = 2.0;
+const APPEARANCE_DROPDOWN_PADDING: f32 = 4.0;
+const SWATCH_SELECTION_PREVIEW_OFFSET_X: f32 = -8.0;
+const SWATCH_SELECTION_DROPDOWN_OFFSET_X: f32 = -4.0;
+
+fn right_inset_x(inset: f32) -> String {
+    format!("-{inset}")
+}
+
+fn x_offset(x: f32) -> String {
+    format!("{x}")
+}
+
+fn swatch_gap_center_x() -> String {
+    let inset =
+        (APPEARANCE_DEC_RIGHT_INSET + APPEARANCE_INC_RIGHT_INSET + APPEARANCE_STEPPER_WIDTH) * 0.5;
+    right_inset_x(inset)
 }
 
 // --- Race grid ---
@@ -261,20 +297,21 @@ pub(super) fn class_button(
 // --- Appearance row helpers ---
 
 fn stepper_dec_button(field: AppearanceField) -> Element {
+    let x = right_inset_x(APPEARANCE_DEC_RIGHT_INSET);
     rsx! {
         r#frame {
             name: dyn_name(format!("AppDec_{}", field.as_str())),
-            width: 26.0,
+            width: APPEARANCE_STEPPER_WIDTH,
             height: 25.0,
             onclick: CharCreateAction::AppearanceDec(field),
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
-                x: "-70",
+                x,
             }
             texture {
                 name: dyn_name(format!("AppDecBg_{}", field.as_str())),
-                width: 26.0,
+                width: APPEARANCE_STEPPER_WIDTH,
                 height: 25.0,
                 texture_atlas: "common-dropdown-c-button",
             }
@@ -293,20 +330,21 @@ fn stepper_dec_button(field: AppearanceField) -> Element {
 }
 
 fn stepper_inc_button(field: AppearanceField) -> Element {
+    let x = right_inset_x(APPEARANCE_INC_RIGHT_INSET);
     rsx! {
         r#frame {
             name: dyn_name(format!("AppInc_{}", field.as_str())),
-            width: 26.0,
+            width: APPEARANCE_STEPPER_WIDTH,
             height: 25.0,
             onclick: CharCreateAction::AppearanceInc(field),
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
-                x: "-10",
+                x,
             }
             texture {
                 name: dyn_name(format!("AppIncBg_{}", field.as_str())),
-                width: 26.0,
+                width: APPEARANCE_STEPPER_WIDTH,
                 height: 25.0,
                 texture_atlas: "common-dropdown-c-button",
             }
@@ -346,6 +384,7 @@ fn appearance_row_label(field: AppearanceField, label: &str) -> Element {
 
 fn appearance_row_value(field: AppearanceField, value: u8) -> Element {
     let val_text = format!("{}", value + 1);
+    let x = swatch_gap_center_x();
     rsx! {
         fontstring {
             name: dyn_name(format!("AppVal_{}", field.as_str())),
@@ -356,9 +395,9 @@ fn appearance_row_value(field: AppearanceField, value: u8) -> Element {
             font_size: 13.0,
             font_color: COLOR_WHITE,
             anchor {
-                point: AnchorPoint::Right,
+                point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Right,
-                x: "-40",
+                x,
             }
         }
     }
@@ -375,21 +414,23 @@ fn rgb_to_vertex_color(color: [u8; 3]) -> String {
 
 fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
     let vc = rgb_to_vertex_color(color);
+    let x = swatch_gap_center_x();
+    let selection_x = x_offset(SWATCH_SELECTION_PREVIEW_OFFSET_X);
     rsx! {
         r#frame {
             name: dyn_name(format!("AppSwatchArea_{}", field.as_str())),
-            width: 42.0,
-            height: 20.0,
+            width: APPEARANCE_SWATCH_PREVIEW_WIDTH,
+            height: APPEARANCE_SWATCH_PREVIEW_AREA_HEIGHT,
             onclick: CharCreateAction::ToggleDropdown(field),
             anchor {
-                point: AnchorPoint::Right,
+                point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Right,
-                x: "-38",
+                x,
             }
             texture {
                 name: dyn_name(format!("AppSwatch_{}", field.as_str())),
-                width: 42.0,
-                height: 10.0,
+                width: APPEARANCE_SWATCH_PREVIEW_WIDTH,
+                height: APPEARANCE_SWATCH_PREVIEW_HEIGHT,
                 texture_atlas: "charactercreate-customize-palette",
                 vertex_color: vc,
                 anchor {
@@ -399,12 +440,13 @@ fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
             }
             texture {
                 name: dyn_name(format!("AppSwatchSel_{}", field.as_str())),
-                width: 51.0,
-                height: 20.0,
+                width: APPEARANCE_SWATCH_PREVIEW_SELECTION_WIDTH,
+                height: APPEARANCE_SWATCH_PREVIEW_SELECTION_HEIGHT,
                 texture_atlas: "charactercreate-customize-palette-selected",
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
+                    x: selection_x,
                 }
             }
         }
@@ -420,16 +462,17 @@ fn dropdown_color_choice(
     let vc = rgb_to_vertex_color(color);
     let sel_hidden = !selected;
     let idx = i as u8;
+    let selection_x = x_offset(SWATCH_SELECTION_DROPDOWN_OFFSET_X);
     rsx! {
         r#frame {
             name: dyn_name(format!("DropChoice_{}_{i}", field.as_str())),
-            width: 22.0,
-            height: 14.0,
+            width: APPEARANCE_SWATCH_DROPDOWN_CHOICE_WIDTH,
+            height: APPEARANCE_SWATCH_DROPDOWN_CHOICE_HEIGHT,
             onclick: CharCreateAction::SelectChoice(field, idx),
             texture {
                 name: dyn_name(format!("DropSwatch_{}_{i}", field.as_str())),
-                width: 20.0,
-                height: 10.0,
+                width: APPEARANCE_SWATCH_DROPDOWN_WIDTH,
+                height: APPEARANCE_SWATCH_DROPDOWN_HEIGHT,
                 texture_atlas: "charactercreate-customize-palette",
                 vertex_color: vc,
                 anchor {
@@ -439,13 +482,14 @@ fn dropdown_color_choice(
             }
             texture {
                 name: dyn_name(format!("DropSel_{}_{i}", field.as_str())),
-                width: 24.0,
-                height: 14.0,
+                width: APPEARANCE_SWATCH_DROPDOWN_SELECTION_WIDTH,
+                height: APPEARANCE_SWATCH_DROPDOWN_SELECTION_HEIGHT,
                 hidden: sel_hidden,
                 texture_atlas: "charactercreate-customize-palette-selected",
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
+                    x: selection_x,
                 }
             }
         }
@@ -463,15 +507,15 @@ fn dropdown_number_choice(field: AppearanceField, i: usize, selected: bool) -> E
     rsx! {
         r#frame {
             name: dyn_name(format!("DropChoice_{}_{i}", field.as_str())),
-            width: 28.0,
-            height: 22.0,
+            width: APPEARANCE_NUMBER_DROPDOWN_CHOICE_WIDTH,
+            height: APPEARANCE_NUMBER_DROPDOWN_CHOICE_HEIGHT,
             onclick: CharCreateAction::SelectChoice(field, idx),
             background_color: "0.15,0.12,0.08,0.9",
             border: "1px solid 0.4,0.35,0.2,0.6",
             fontstring {
                 name: dyn_name(format!("DropVal_{}_{i}", field.as_str())),
-                width: 28.0,
-                height: 22.0,
+                width: APPEARANCE_NUMBER_DROPDOWN_CHOICE_WIDTH,
+                height: APPEARANCE_NUMBER_DROPDOWN_CHOICE_HEIGHT,
                 text: val_text,
                 font: GameFont::FrizQuadrata,
                 font_size: 11.0,
@@ -514,7 +558,7 @@ pub(super) fn customization_row(
         r#frame {
             name: dyn_name(format!("Appearance_{}", field.as_str())),
             width: 280.0,
-            height: 32.0,
+            height: 44.0,
             {appearance_row_label(field, label)}
             {stepper_dec_button(field)}
             {center}
@@ -530,23 +574,22 @@ pub(super) fn dropdown_panel(
     y_offset: f32,
 ) -> Element {
     let choices = build_dropdown_choices(field, swatches, selected_idx);
-    let rows = (swatches.len() as f32 / 11.0).ceil().max(1.0);
-    let height = rows * 18.0 + 8.0;
     let y_str = format!("{y_offset}");
     rsx! {
         r#frame {
             name: dyn_name(format!("Dropdown_{}", field.as_str())),
-            width: 280.0,
-            height,
+            width: APPEARANCE_DROPDOWN_WIDTH,
+            height: 0.0,
             strata: FrameStrata::Dialog,
-            background_color: "0.05,0.05,0.05,0.95",
+            background_color: "0.05,0.05,0.05,1.0",
             border: "1px solid 0.4,0.35,0.2,0.8",
             layout: "flex-row-wrap",
-            gap: 2.0,
-            padding: 4.0,
+            gap: APPEARANCE_DROPDOWN_GAP,
+            padding: APPEARANCE_DROPDOWN_PADDING,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
+                x: "20",
                 y: y_str,
             }
             {choices}
@@ -620,7 +663,7 @@ pub(super) fn create_confirm_button() -> Element {
             anchor {
                 point: AnchorPoint::Top,
                 relative_point: AnchorPoint::Top,
-                y: "-90",
+                y: "-96",
             }
         }
     }

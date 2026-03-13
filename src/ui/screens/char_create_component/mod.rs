@@ -144,7 +144,7 @@ pub struct CharCreateUiState {
 
 impl Default for CharCreateUiState {
     fn default() -> Self {
-        use crate::char_create_data::{CLASSES, race_can_be_class};
+        use crate::char_create_data::{race_can_be_class, CLASSES};
         let race = 1;
         let class_availability: Vec<_> = CLASSES
             .iter()
@@ -261,19 +261,19 @@ fn customize_rows(state: &CharCreateUiState) -> Element {
 }
 
 fn customize_panel(state: &CharCreateUiState) -> Element {
-    // row_height(32) + gap(8) = 40 per row; label(24) + first gap(8) = 32 offset
+    // row_height(44) + gap(8) = 52 per row; dropdowns should open below the active row.
     let dropdown = match state.open_dropdown {
         Some(AppearanceField::SkinColor) => dropdown_panel(
             AppearanceField::SkinColor,
             &state.skin_color_swatches,
             state.skin_color,
-            -112.0,
+            -156.0,
         ),
         Some(AppearanceField::HairColor) => dropdown_panel(
             AppearanceField::HairColor,
             &state.hair_color_swatches,
             state.hair_color,
-            -232.0,
+            -312.0,
         ),
         _ => Element::default(),
     };
@@ -388,6 +388,40 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::frame::Dimension;
+    use crate::ui::layout::{recompute_layouts, resolve_frame_layout};
+
+    fn rect_for_name(
+        reg: &crate::ui::registry::FrameRegistry,
+        name: &str,
+    ) -> crate::ui::layout::LayoutRect {
+        let id = reg
+            .get_by_name(name)
+            .unwrap_or_else(|| panic!("{name} frame should exist"));
+        reg.get(id)
+            .and_then(|frame| frame.layout_rect.clone())
+            .or_else(|| resolve_frame_layout(reg, id))
+            .unwrap_or_else(|| panic!("{name} should have a layout rect"))
+    }
+
+    fn build_screen(state: CharCreateUiState) -> crate::ui::registry::FrameRegistry {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(state);
+        let mut reg = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
+        screen.sync(&shared, &mut reg);
+        let root = reg
+            .get_by_name(CHAR_CREATE_ROOT.0)
+            .expect("CharCreateRoot should exist");
+        let (screen_width, screen_height) = (reg.screen_width, reg.screen_height);
+        if let Some(frame) = reg.get_mut(root) {
+            frame.width = Dimension::Fixed(screen_width);
+            frame.height = Dimension::Fixed(screen_height);
+        }
+        reg.mark_all_rects_dirty();
+        recompute_layouts(&mut reg);
+        reg
+    }
 
     #[test]
     fn action_roundtrip() {
@@ -413,12 +447,7 @@ mod tests {
 
     #[test]
     fn screen_builds_with_default_state() {
-        let state = CharCreateUiState::default();
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(state);
-        let mut reg = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
-        screen.sync(&shared, &mut reg);
+        let reg = build_screen(CharCreateUiState::default());
         assert!(reg.get_by_name("CharCreateRoot").is_some());
         assert!(reg.get_by_name("CharCreateBack").is_some());
     }
@@ -427,12 +456,223 @@ mod tests {
     fn customize_mode_shows_appearance_options() {
         let mut state = CharCreateUiState::default();
         state.mode = CharCreateMode::Customize;
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(state);
-        let mut reg = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
-        screen.sync(&shared, &mut reg);
+        let reg = build_screen(state);
         assert!(reg.get_by_name("CustomizePanel").is_some());
         assert!(reg.get_by_name("CharCreateNameInput").is_some());
+    }
+
+    #[test]
+    fn dropdown_panel_background_is_fully_opaque() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = Some(AppearanceField::SkinColor);
+        state.skin_color_swatches = vec![Some([64, 32, 16])];
+
+        let reg = build_screen(state);
+        let dropdown = reg
+            .get_by_name("Dropdown_skin")
+            .and_then(|id| reg.get(id))
+            .expect("Dropdown_skin frame should exist");
+        let bg = dropdown
+            .background_color
+            .expect("Dropdown_skin should have a background color");
+
+        assert!(
+            (bg[3] - 1.0).abs() < f32::EPSILON,
+            "expected opaque dropdown bg, got {bg:?}"
+        );
+    }
+
+    #[test]
+    fn swatch_preview_is_centered_between_stepper_buttons() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.skin_color_swatches = vec![Some([64, 32, 16])];
+
+        let reg = build_screen(state);
+        let dec = rect_for_name(&reg, "AppDec_skin");
+        let swatch = rect_for_name(&reg, "AppSwatchArea_skin");
+        let inc = rect_for_name(&reg, "AppInc_skin");
+
+        let button_gap_center = ((dec.x + dec.width) + inc.x) * 0.5;
+        let swatch_center = swatch.x + swatch.width * 0.5;
+
+        assert!(
+            (swatch_center - button_gap_center).abs() < 0.01,
+            "expected swatch center {swatch_center} to match button gap center {button_gap_center}"
+        );
+    }
+
+    #[test]
+    fn swatch_selection_overlay_is_shifted_left_to_match_palette_art() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.skin_color_swatches = vec![Some([64, 32, 16])];
+
+        let reg = build_screen(state);
+        let swatch = rect_for_name(&reg, "AppSwatch_skin");
+        let selection = rect_for_name(&reg, "AppSwatchSel_skin");
+        let swatch_center = swatch.x + swatch.width * 0.5;
+        let selection_center = selection.x + selection.width * 0.5;
+
+        assert!(
+            (selection_center - (swatch_center - 8.0)).abs() < 0.01,
+            "expected selection center {selection_center} to be 8px left of swatch center {swatch_center}"
+        );
+    }
+
+    #[test]
+    fn skin_dropdown_positions_match_expected_layout() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = Some(AppearanceField::SkinColor);
+        state.skin_color_swatches =
+            vec![Some([64, 32, 16]), Some([96, 48, 24]), Some([128, 64, 32])];
+        state.skin_color = 1;
+
+        let reg = build_screen(state);
+
+        let dropdown = rect_for_name(&reg, "Dropdown_skin");
+        assert_eq!(dropdown.x, 20.0);
+        assert_eq!(dropdown.y, 156.0);
+        assert_eq!(dropdown.width, 280.0);
+        assert_eq!(dropdown.height, 36.0);
+
+        let choice0 = rect_for_name(&reg, "DropChoice_skin_0");
+        let choice1 = rect_for_name(&reg, "DropChoice_skin_1");
+        let choice2 = rect_for_name(&reg, "DropChoice_skin_2");
+        assert_eq!(
+            (choice0.x, choice0.y, choice0.width, choice0.height),
+            (24.0, 160.0, 44.0, 28.0)
+        );
+        assert_eq!(
+            (choice1.x, choice1.y, choice1.width, choice1.height),
+            (70.0, 160.0, 44.0, 28.0)
+        );
+        assert_eq!(
+            (choice2.x, choice2.y, choice2.width, choice2.height),
+            (116.0, 160.0, 44.0, 28.0)
+        );
+
+        let swatch1 = rect_for_name(&reg, "DropSwatch_skin_1");
+        let selection1 = rect_for_name(&reg, "DropSel_skin_1");
+        assert_eq!(
+            (swatch1.x, swatch1.y, swatch1.width, swatch1.height),
+            (72.0, 164.0, 40.0, 20.0)
+        );
+        assert_eq!(
+            (
+                selection1.x,
+                selection1.y,
+                selection1.width,
+                selection1.height
+            ),
+            (64.0, 160.0, 48.0, 28.0)
+        );
+    }
+
+    #[test]
+    fn dropdown_children_inherit_dialog_strata() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = Some(AppearanceField::SkinColor);
+        state.skin_color_swatches = vec![Some([64, 32, 16])];
+
+        let reg = build_screen(state);
+        let dropdown = reg
+            .get_by_name("Dropdown_skin")
+            .and_then(|id| reg.get(id))
+            .expect("Dropdown_skin should exist");
+        let choice = reg
+            .get_by_name("DropChoice_skin_0")
+            .and_then(|id| reg.get(id))
+            .expect("DropChoice_skin_0 should exist");
+        let swatch = reg
+            .get_by_name("DropSwatch_skin_0")
+            .and_then(|id| reg.get(id))
+            .expect("DropSwatch_skin_0 should exist");
+
+        assert_eq!(dropdown.strata, crate::ui::strata::FrameStrata::Dialog);
+        assert_eq!(choice.strata, crate::ui::strata::FrameStrata::Dialog);
+        assert_eq!(swatch.strata, crate::ui::strata::FrameStrata::Dialog);
+    }
+
+    #[test]
+    fn dropdown_background_expands_to_cover_all_swatch_choices() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = Some(AppearanceField::SkinColor);
+        state.skin_color_swatches = (0..40)
+            .map(|i| Some([(20 + i) as u8, (40 + i) as u8, (60 + i) as u8]))
+            .collect();
+
+        let reg = build_screen(state);
+        let dropdown = rect_for_name(&reg, "Dropdown_skin");
+        let last_choice = rect_for_name(&reg, "DropChoice_skin_39");
+
+        assert!(
+            last_choice.y + last_choice.height <= dropdown.y + dropdown.height,
+            "expected dropdown to cover all choices, got dropdown={dropdown:?} last_choice={last_choice:?}"
+        );
+    }
+
+    #[test]
+    fn skin_dropdown_opens_below_its_label_row() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = Some(AppearanceField::SkinColor);
+        state.skin_color_swatches = vec![Some([64, 32, 16])];
+
+        let reg = build_screen(state);
+        let label = rect_for_name(&reg, "AppLabel_skin");
+        let dropdown = rect_for_name(&reg, "Dropdown_skin");
+
+        assert!(
+            dropdown.y >= label.y + label.height,
+            "expected dropdown below label row, got label={label:?} dropdown={dropdown:?}"
+        );
+    }
+
+    #[test]
+    fn hair_dropdown_aligns_with_customize_panel_and_opens_below_row() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = Some(AppearanceField::HairColor);
+        state.hair_color_swatches = vec![Some([64, 32, 16]), Some([96, 48, 24])];
+
+        let reg = build_screen(state);
+        let panel = rect_for_name(&reg, "CustomizePanel");
+        let label = rect_for_name(&reg, "AppLabel_hair_color");
+        let dropdown = rect_for_name(&reg, "Dropdown_hair_color");
+
+        assert_eq!(dropdown.x, panel.x);
+        assert!(
+            dropdown.y >= label.y + label.height,
+            "expected hair dropdown below label row, got label={label:?} dropdown={dropdown:?}"
+        );
+    }
+
+    #[test]
+    fn name_panel_controls_stack_with_spacing() {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+
+        let reg = build_screen(state);
+        let name_label = rect_for_name(&reg, "NameLabel");
+        let name_input = rect_for_name(&reg, "CharCreateNameInput");
+        let create_button = rect_for_name(&reg, "CharCreateButton");
+
+        assert!(
+            name_input.y >= name_label.y + name_label.height,
+            "expected name input below label, got label={name_label:?} input={name_input:?}"
+        );
+        assert!(
+            create_button.y >= name_input.y + name_input.height,
+            "expected create button below input, got input={name_input:?} button={create_button:?}"
+        );
+        assert!(
+            create_button.y > name_input.y + name_input.height,
+            "expected visible gap between input and create button, got input={name_input:?} button={create_button:?}"
+        );
     }
 }

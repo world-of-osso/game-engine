@@ -56,11 +56,18 @@ pub enum ScreenArg {
     Login,
     CharSelect,
     CharCreate,
+    CharCreateCustomize,
     InWorld,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 4] = ["login", "charselect", "charcreate", "inworld"];
+    pub const CLI_VALUES: [&str; 5] = [
+        "login",
+        "charselect",
+        "charcreate",
+        "charcreate-customize",
+        "inworld",
+    ];
 }
 
 impl From<ScreenArg> for GameState {
@@ -68,7 +75,7 @@ impl From<ScreenArg> for GameState {
         match value {
             ScreenArg::Login => Self::Login,
             ScreenArg::CharSelect => Self::CharSelect,
-            ScreenArg::CharCreate => Self::CharCreate,
+            ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::InWorld => Self::InWorld,
         }
     }
@@ -82,6 +89,7 @@ impl FromStr for ScreenArg {
             "login" => Ok(Self::Login),
             "charselect" => Ok(Self::CharSelect),
             "charcreate" => Ok(Self::CharCreate),
+            "charcreate-customize" => Ok(Self::CharCreateCustomize),
             "inworld" => Ok(Self::InWorld),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }

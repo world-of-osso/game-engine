@@ -225,7 +225,7 @@ fn blit_section(
 ) {
     // Scale texture to section dimensions
     let (scaled, sw, sh) = scale_to(tex, tex_w, tex_h, section.width, section.height);
-    let is_alpha_blend = layer.blend_mode == 15;
+    let use_src_alpha = uses_source_alpha(layer.blend_mode);
     for row in 0..sh.min(section.height) {
         for col in 0..sw.min(section.width) {
             let si = ((row * sw + col) * 4) as usize;
@@ -235,7 +235,7 @@ fn blit_section(
             if di + 3 >= pixels.len() || si + 3 >= scaled.len() {
                 continue;
             }
-            blend_pixel(pixels, di, &scaled, si, is_alpha_blend);
+            blend_pixel(pixels, di, &scaled, si, use_src_alpha);
         }
     }
 }
@@ -254,7 +254,7 @@ fn blit_scaled(
     target_h: u32,
     layer: &TextureLayer,
 ) {
-    let is_alpha_blend = layer.blend_mode == 15;
+    let use_src_alpha = uses_source_alpha(layer.blend_mode);
     for row in 0..target_h.min(canvas_h - dy) {
         for col in 0..target_w.min(canvas_w - dx) {
             let sx = (col * tex_w / target_w).min(tex_w - 1);
@@ -266,17 +266,21 @@ fn blit_scaled(
             if di + 3 >= pixels.len() || si + 3 >= tex.len() {
                 continue;
             }
-            blend_pixel(pixels, di, tex, si, is_alpha_blend);
+            blend_pixel(pixels, di, tex, si, use_src_alpha);
         }
     }
 }
 
-fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, alpha_blend: bool) {
+fn uses_source_alpha(blend_mode: u32) -> bool {
+    matches!(blend_mode, 1 | 15)
+}
+
+fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_src_alpha: bool) {
     let alpha = src[si + 3] as u16;
     if alpha == 0 {
         return;
     }
-    if !alpha_blend || alpha == 255 {
+    if !use_src_alpha || alpha == 255 {
         dst[di] = src[si];
         dst[di + 1] = src[si + 1];
         dst[di + 2] = src[si + 2];
@@ -287,6 +291,31 @@ fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, alpha_blend: bo
         dst[di + 1] = ((alpha * src[si + 1] as u16 + inv * dst[di + 1] as u16) / 255) as u8;
         dst[di + 2] = ((alpha * src[si + 2] as u16 + inv * dst[di + 2] as u16) / 255) as u8;
         dst[di + 3] = dst[di + 3].max(src[si + 3]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blend_mode_1_respects_partial_alpha() {
+        let mut dst = [100, 120, 140, 255];
+        let src = [200, 40, 20, 64];
+
+        blend_pixel(&mut dst, 0, &src, 0, uses_source_alpha(1));
+
+        assert_eq!(dst, [125, 99, 109, 255]);
+    }
+
+    #[test]
+    fn opaque_modes_still_copy_nonzero_alpha_pixels() {
+        let mut dst = [100, 120, 140, 255];
+        let src = [200, 40, 20, 64];
+
+        blend_pixel(&mut dst, 0, &src, 0, uses_source_alpha(0));
+
+        assert_eq!(dst, [200, 40, 20, 255]);
     }
 }
 
