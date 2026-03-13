@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::asset::casc_resolver;
 use crate::asset::m2::wow_to_bevy;
-use crate::terrain::bevy_to_tile_coords;
+use crate::terrain_tile::TILE_SIZE;
 
 /// A single warband scene entry (parsed from WarbandScene.csv).
 #[derive(Debug, Clone)]
@@ -55,6 +55,23 @@ impl WarbandScenes {
             .filter(|p| p.scene_id == scene_id)
             .min_by_key(|p| p.slot_id)
     }
+
+    /// Pick the placement intended for a single "hero" character render.
+    ///
+    /// Warband scenes define multiple slots around the campsite. Since the engine currently
+    /// renders one selected character instead of the full warband, use the placement nearest
+    /// the scene's look-at point so the model stays in the camera's focal area.
+    pub fn focused_placement(&self, scene: &WarbandSceneEntry) -> Option<&WarbandScenePlacement> {
+        let focus = scene.bevy_look_at();
+        self.placements
+            .iter()
+            .filter(|p| p.scene_id == scene.id)
+            .min_by(|a, b| {
+                let da = a.bevy_position().distance_squared(focus);
+                let db = b.bevy_position().distance_squared(focus);
+                da.total_cmp(&db)
+            })
+    }
 }
 
 /// Currently selected warband scene for the char select background.
@@ -66,20 +83,24 @@ pub struct SelectedWarbandScene {
 impl WarbandSceneEntry {
     /// Convert the WoW camera position to Bevy coordinates.
     pub fn bevy_position(&self) -> Vec3 {
-        let [bx, by, bz] = wow_to_bevy(self.position[0], self.position[1], self.position[2]);
+        let [bx, by, bz] = wow_to_bevy(self.position[1], self.position[0], self.position[2]);
         Vec3::new(bx, by, bz)
     }
 
     /// Convert the WoW look-at position to Bevy coordinates.
     pub fn bevy_look_at(&self) -> Vec3 {
-        let [bx, by, bz] = wow_to_bevy(self.look_at[0], self.look_at[1], self.look_at[2]);
+        let [bx, by, bz] = wow_to_bevy(self.look_at[1], self.look_at[0], self.look_at[2]);
         Vec3::new(bx, by, bz)
     }
 
     /// Compute the ADT tile coordinates for this scene's camera position.
     pub fn tile_coords(&self) -> (u32, u32) {
-        let pos = self.bevy_position();
-        bevy_to_tile_coords(pos.x, pos.z)
+        // WarbandScene camera positions use standard WoW world axes for transforms,
+        // but ADT filenames still map tile row from world Y and tile column from world X.
+        let center = 32.0 * TILE_SIZE;
+        let row = ((center - self.position[1]) / TILE_SIZE).floor() as i32;
+        let col = ((center - self.position[0]) / TILE_SIZE).floor() as i32;
+        (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
     }
 
     /// Map name for listfile lookup (warband maps use numeric names).
@@ -91,7 +112,7 @@ impl WarbandSceneEntry {
 impl WarbandScenePlacement {
     /// Convert the WoW placement position to Bevy coordinates.
     pub fn bevy_position(&self) -> Vec3 {
-        let [bx, by, bz] = wow_to_bevy(self.position[0], self.position[1], self.position[2]);
+        let [bx, by, bz] = wow_to_bevy(self.position[1], self.position[0], self.position[2]);
         Vec3::new(bx, by, bz)
     }
 
@@ -254,6 +275,59 @@ mod tests {
         assert!(scenes.iter().all(|s| s.id < 99));
         // Randomize entry (ID=29, Flags=25 → 25 & 7 = 1) should be filtered
         assert!(!scenes.iter().any(|s| s.id == 29));
+    }
+
+    #[test]
+    fn warband_scene_tile_coords_match_existing_tiles() {
+        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
+        let rest = scenes
+            .iter()
+            .find(|s| s.id == 1)
+            .expect("Adventurer's Rest");
+        let (tile_y, tile_x) = rest.tile_coords();
+
+        assert_eq!(
+            (tile_y, tile_x),
+            (31, 37),
+            "Adventurer's Rest should resolve to the existing warband terrain tile"
+        );
+
+        let map_name = rest.map_name();
+        let adt_path = format!("world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}.adt");
+        assert!(
+            game_engine::listfile::lookup_path(&adt_path).is_some(),
+            "expected listfile entry for {adt_path}"
+        );
+    }
+
+    #[test]
+    fn warband_scene_bevy_position_maps_back_to_loaded_tile() {
+        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
+        let rest = scenes
+            .iter()
+            .find(|s| s.id == 1)
+            .expect("Adventurer's Rest");
+        let pos = rest.bevy_position();
+
+        assert_eq!(crate::terrain::bevy_to_tile_coords(pos.x, pos.z), rest.tile_coords());
+    }
+
+    #[test]
+    fn focused_placement_prefers_slot_nearest_scene_focus() {
+        let warband = WarbandScenes::load();
+        let rest = warband
+            .scenes
+            .iter()
+            .find(|s| s.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = warband
+            .focused_placement(rest)
+            .expect("expected at least one placement");
+
+        assert_eq!(
+            placement.slot_id, 1,
+            "single-character rendering should use the placement nearest the scene focus"
+        );
     }
 
     #[test]

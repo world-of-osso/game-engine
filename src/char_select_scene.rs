@@ -211,7 +211,13 @@ fn spawn_char_select_model(
 }
 
 fn character_transform(warband: &WarbandScenes, scene_id: u32) -> Transform {
-    if let Some(placement) = warband.first_placement(scene_id) {
+    let placement = warband
+        .scenes
+        .iter()
+        .find(|scene| scene.id == scene_id)
+        .and_then(|scene| warband.focused_placement(scene))
+        .or_else(|| warband.first_placement(scene_id));
+    if let Some(placement) = placement {
         Transform::from_translation(placement.bevy_position())
             .with_rotation(placement.bevy_rotation())
     } else {

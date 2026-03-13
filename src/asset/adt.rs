@@ -361,7 +361,16 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed);
     let chunks = build_chunks(&parsed);
-    let water = mh2o_payload.map(parse_mh2o).transpose()?;
+    let water = match mh2o_payload {
+        Some(payload) => match parse_mh2o(payload) {
+            Ok(water) => Some(water),
+            Err(err) => {
+                eprintln!("Ignoring MH2O parse error: {err}");
+                None
+            }
+        },
+        None => None,
+    };
     Ok(AdtData {
         chunks,
         height_grids,
@@ -374,6 +383,48 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::iter;
+
+    fn wrap_chunk(tag: [u8; 4], payload: Vec<u8>) -> Vec<u8> {
+        let mut out = Vec::with_capacity(8 + payload.len());
+        out.extend_from_slice(&tag);
+        out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        out.extend_from_slice(&payload);
+        out
+    }
+
+    fn minimal_mcnk_payload() -> Vec<u8> {
+        let mut payload = vec![0u8; 128];
+        payload[0x04..0x08].copy_from_slice(&0u32.to_le_bytes());
+        payload[0x08..0x0c].copy_from_slice(&0u32.to_le_bytes());
+        payload[0x68..0x6c].copy_from_slice(&0.0f32.to_le_bytes());
+        payload[0x6c..0x70].copy_from_slice(&0.0f32.to_le_bytes());
+        payload[0x70..0x74].copy_from_slice(&0.0f32.to_le_bytes());
+
+        let heights = vec![0u8; MCVT_COUNT * 4];
+        payload.extend(wrap_chunk(*b"TVCM", heights));
+        payload
+    }
+
+    fn malformed_mh2o_payload() -> Vec<u8> {
+        const HEADER_SIZE: usize = 256 * 12;
+        let mut payload = vec![0u8; HEADER_SIZE + 24];
+        payload[0..4].copy_from_slice(&(HEADER_SIZE as u32).to_le_bytes());
+        payload[4..8].copy_from_slice(&1u32.to_le_bytes());
+
+        let layer = &mut payload[HEADER_SIZE..HEADER_SIZE + 24];
+        layer[14] = 8; // width
+        layer[15] = 8; // height
+        layer[20..24].copy_from_slice(&((HEADER_SIZE + 1) as u32).to_le_bytes());
+        payload
+    }
+
+    fn minimal_adt_with_mh2o(mh2o_payload: Vec<u8>) -> Vec<u8> {
+        iter::empty()
+            .chain(wrap_chunk(*b"KNCM", minimal_mcnk_payload()))
+            .chain(wrap_chunk(*b"O2HM", mh2o_payload))
+            .collect()
+    }
 
     #[test]
     fn mcnr_normal_swizzle() {
@@ -408,5 +459,17 @@ mod tests {
             n[1]
         );
         assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
+    }
+
+    #[test]
+    fn load_adt_ignores_malformed_mh2o() {
+        let data = minimal_adt_with_mh2o(malformed_mh2o_payload());
+        let adt = load_adt(&data).expect("terrain should still load when MH2O is malformed");
+
+        assert_eq!(adt.chunks.len(), 1);
+        assert!(
+            adt.water.is_none(),
+            "malformed MH2O should be ignored instead of aborting terrain load"
+        );
     }
 }
