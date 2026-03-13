@@ -48,6 +48,10 @@ pub enum OptionType {
     HairStyle,
     HairColor,
     FacialHair,
+    Horns,
+    Blindfold,
+    EyeStyle,
+    Eyesight,
 }
 
 impl OptionType {
@@ -58,6 +62,10 @@ impl OptionType {
             "Hair Style" => Some(Self::HairStyle),
             "Hair Color" => Some(Self::HairColor),
             "Beard" | "Facial Hair" | "Mustache" | "Sideburns" => Some(Self::FacialHair),
+            "Horns" => Some(Self::Horns),
+            "Blindfold" => Some(Self::Blindfold),
+            "Eye Style" => Some(Self::EyeStyle),
+            "Eyesight" => Some(Self::Eyesight),
             _ => None,
         }
     }
@@ -362,15 +370,24 @@ fn choice_visible_for_class(
     opt_type: OptionType,
     choice: &CustomizationChoice,
 ) -> bool {
-    if opt_type != OptionType::Face {
-        return true;
+    if !option_visible_for_class(race, class, opt_type) {
+        return false;
     }
 
-    match (race, class, choice.requirement_id) {
-        (4 | 10, 12, 146) => true,
-        (4 | 10, 12, 142 | 144) => false,
-        (4 | 10, _, 142) => true,
-        (4 | 10, _, 144 | 146) => false,
+    match (opt_type, race, class, choice.requirement_id) {
+        (OptionType::Face, 4 | 10, 12, 146) => true,
+        (OptionType::Face, 4 | 10, 12, 142 | 144) => false,
+        (OptionType::Face, 4 | 10, _, 142) => true,
+        (OptionType::Face, 4 | 10, _, 144 | 146) => false,
+        _ => true,
+    }
+}
+
+fn option_visible_for_class(race: u8, class: u8, opt_type: OptionType) -> bool {
+    match opt_type {
+        OptionType::Horns | OptionType::Blindfold | OptionType::EyeStyle | OptionType::Eyesight => {
+            matches!(race, 4 | 10) && class == 12
+        }
         _ => true,
     }
 }
@@ -704,6 +721,38 @@ mod tests {
                 .unwrap()
                 .requirement_id,
             146
+        );
+    }
+
+    #[test]
+    fn blood_elf_blindfold_choices_are_demon_hunter_only() {
+        let db = CustomizationDb::load(Path::new("data"));
+
+        assert_eq!(
+            db.choice_count_for_class(10, 0, 1, OptionType::Blindfold),
+            0
+        );
+        assert_eq!(
+            db.choice_count_for_class(10, 0, 12, OptionType::Blindfold),
+            12
+        );
+    }
+
+    #[test]
+    fn blood_elf_horns_and_eyesight_are_demon_hunter_only() {
+        let db = CustomizationDb::load(Path::new("data"));
+
+        assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::Horns), 0);
+        assert_eq!(db.choice_count_for_class(10, 0, 12, OptionType::Horns), 7);
+        assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::Eyesight), 0);
+        assert_eq!(
+            db.choice_count_for_class(10, 0, 12, OptionType::Eyesight),
+            4
+        );
+        assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::EyeStyle), 0);
+        assert_eq!(
+            db.choice_count_for_class(10, 0, 12, OptionType::EyeStyle),
+            3
         );
     }
 
