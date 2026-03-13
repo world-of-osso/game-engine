@@ -34,6 +34,7 @@ mod char_select;
 mod char_select_scene;
 mod char_select_scene_tree;
 mod character_models;
+mod character_customization;
 mod cli_args;
 mod collision;
 mod creature_display;

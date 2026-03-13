@@ -11,6 +11,9 @@ use bevy::prelude::*;
 
 use crate::asset;
 use crate::char_create::CharCreateState;
+use crate::character_customization::{
+    CharacterCustomizationSelection, apply_character_customization,
+};
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
 use crate::game_state::GameState;
@@ -19,8 +22,8 @@ use crate::m2_scene;
 use crate::m2_spawn::GeosetMesh;
 use crate::scene_setup::DEFAULT_M2;
 use game_engine::asset::char_texture::CharTextureData;
-use game_engine::customization_data::{CustomizationDb, OptionType};
-use game_engine::outfit_data::{OutfitData, OutfitResult};
+use game_engine::customization_data::CustomizationDb;
+use game_engine::outfit_data::OutfitData;
 use shared::components::CharacterAppearance;
 
 #[derive(Component)]
@@ -348,7 +351,7 @@ fn sync_appearance(
     mut materials: ResMut<Assets<StandardMaterial>>,
     geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
-    material_query: Query<(Entity, &MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    material_query: Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
 ) {
     let Some(state) = state else { return };
     let appearance = state.appearance;
@@ -367,143 +370,23 @@ fn sync_appearance(
         .find(|(sex, _)| *sex == state.selected_sex)
         .map(|(_, e)| *e);
     let Some(root) = active_entity else { return };
-    let outfit = outfit_data.resolve_outfit(
-        state.selected_race,
-        state.selected_class,
-        state.selected_sex,
-    );
-
-    apply_body_texture(
-        &state,
+    apply_character_customization(
+        CharacterCustomizationSelection {
+            race: state.selected_race,
+            class: state.selected_class,
+            sex: state.selected_sex,
+            appearance,
+        },
         &cust_db,
         &char_tex,
-        &outfit,
+        &outfit_data,
         root,
         &mut images,
         &mut materials,
-        &material_query,
-    );
-    apply_geoset_visibility(
-        &state,
-        &cust_db,
-        &outfit,
-        root,
         &geoset_query,
         &mut visibility_query,
+        &material_query,
     );
-}
-
-#[allow(clippy::too_many_arguments)]
-fn apply_body_texture(
-    state: &CharCreateState,
-    cust_db: &CustomizationDb,
-    char_tex: &CharTextureData,
-    outfit: &OutfitResult,
-    root: Entity,
-    images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
-    material_query: &Query<(Entity, &MeshMaterial3d<StandardMaterial>, &ChildOf)>,
-) {
-    let all_materials = collect_appearance_materials(state, cust_db);
-    if all_materials.is_empty() {
-        return;
-    }
-    let Some(layout_id) = cust_db.layout_id(state.selected_race, state.selected_sex) else {
-        return;
-    };
-    let Some((pixels, w, h)) =
-        char_tex.composite_with_items(&all_materials, &outfit.item_textures, layout_id)
-    else {
-        return;
-    };
-    let img = crate::rgba_image(pixels, w, h);
-    let img_handle = images.add(img);
-    for (_, mat_handle, child_of) in material_query.iter() {
-        if child_of.parent() != root {
-            continue;
-        }
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
-            mat.base_color_texture = Some(img_handle.clone());
-        }
-    }
-}
-
-fn collect_appearance_materials(
-    state: &CharCreateState,
-    cust_db: &CustomizationDb,
-) -> Vec<(u16, u32)> {
-    let (race, sex, class) = (
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-    );
-    let fields = [
-        (OptionType::SkinColor, state.appearance.skin_color),
-        (OptionType::Face, state.appearance.face),
-        (OptionType::HairStyle, state.appearance.hair_style),
-        (OptionType::HairColor, state.appearance.hair_color),
-        (OptionType::FacialHair, state.appearance.facial_style),
-    ];
-    let mut all = Vec::new();
-    for (opt_type, index) in fields {
-        if let Some(choice) = cust_db.get_choice_for_class(race, sex, class, opt_type, index) {
-            all.extend_from_slice(&choice.materials);
-        }
-    }
-    all
-}
-
-fn apply_geoset_visibility(
-    state: &CharCreateState,
-    cust_db: &CustomizationDb,
-    outfit: &OutfitResult,
-    root: Entity,
-    geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
-    visibility_query: &mut Query<&mut Visibility>,
-) {
-    let (race, sex, class) = (
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-    );
-    let mut active_geosets: Vec<(u16, u16)> = Vec::new();
-    let fields = [
-        (OptionType::HairStyle, state.appearance.hair_style),
-        (OptionType::FacialHair, state.appearance.facial_style),
-    ];
-    for (opt_type, index) in fields {
-        if let Some(choice) = cust_db.get_choice_for_class(race, sex, class, opt_type, index) {
-            active_geosets.extend_from_slice(&choice.geosets);
-        }
-    }
-
-    for &(group_index, value) in &outfit.geoset_overrides {
-        active_geosets.retain(|(group, _)| *group != group_index);
-        active_geosets.push((group_index, value));
-    }
-
-    let active_types: Vec<u16> = active_geosets.iter().map(|(t, _)| *t).collect();
-
-    for (entity, geoset_mesh, child_of) in geoset_query.iter() {
-        if child_of.parent() != root {
-            continue;
-        }
-        let group = geoset_mesh.0 / 100;
-        let variant = geoset_mesh.0 % 100;
-        if !active_types.contains(&group) {
-            continue;
-        }
-        let visible = active_geosets
-            .iter()
-            .any(|(t, id)| *t == group && *id == variant);
-        if let Ok(mut vis) = visibility_query.get_mut(entity) {
-            *vis = if visible {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            };
-        }
-    }
 }
 
 fn teardown_scene(
@@ -523,6 +406,11 @@ fn teardown_scene(
 mod tests {
     use super::*;
     use std::path::Path;
+
+    use crate::character_customization::{
+        CharacterCustomizationSelection, collect_appearance_materials,
+    };
+    use game_engine::customization_data::OptionType;
 
     #[test]
     fn non_demon_hunter_face_uses_non_dh_materials() {
@@ -545,7 +433,15 @@ mod tests {
         let expected_face = db
             .get_choice_for_class(10, 0, 1, OptionType::Face, 0)
             .unwrap();
-        let all_materials = collect_appearance_materials(&state, &db);
+        let all_materials = collect_appearance_materials(
+            CharacterCustomizationSelection {
+                race: state.selected_race,
+                class: state.selected_class,
+                sex: state.selected_sex,
+                appearance: state.appearance,
+            },
+            &db,
+        );
 
         assert_eq!(expected_face.requirement_id, 142);
         assert!(

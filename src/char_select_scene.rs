@@ -9,12 +9,17 @@ use std::path::{Path, PathBuf};
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, ModelPresentation};
+use game_engine::outfit_data::OutfitData;
 use shared::protocol::CharacterListEntry;
 
 use crate::asset;
 use crate::char_select::SelectedCharIndex;
 use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain};
+use crate::character_customization::{
+    CharacterCustomizationSelection, apply_character_customization,
+};
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::ground;
@@ -53,21 +58,37 @@ const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 #[derive(Component)]
 struct CharSelectModelRoot;
 
+#[derive(Component)]
+struct CharSelectModelCharacter(u64);
+
 /// Tracks which character is currently displayed as a 3D model.
 #[derive(Resource, Default)]
 struct DisplayedCharacterId(Option<u64>);
+
+#[derive(Resource, Default)]
+struct DisplayedCharacterAppearance(Option<AppliedCharacterAppearance>);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct AppliedCharacterAppearance {
+    character_id: u64,
+    race: u8,
+    class: u8,
+    appearance: shared::components::CharacterAppearance,
+}
 
 pub struct CharSelectScenePlugin;
 
 impl Plugin for CharSelectScenePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DisplayedCharacterId>();
+        app.init_resource::<DisplayedCharacterAppearance>();
         app.init_resource::<ActiveWarbandSceneId>();
         app.add_systems(OnEnter(GameState::CharSelect), setup_char_select_scene);
         app.add_systems(
             Update,
             (
                 sync_char_select_model,
+                sync_selected_character_appearance,
                 sync_warband_scene_switch,
                 char_select_orbit_camera,
             )
@@ -523,6 +544,60 @@ fn sync_char_select_model(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn sync_selected_character_appearance(
+    customization_db: Res<CustomizationDb>,
+    char_tex: Res<CharTextureData>,
+    outfit_data: Res<OutfitData>,
+    char_list: Res<CharacterList>,
+    selected: Res<SelectedCharIndex>,
+    mut displayed_appearance: ResMut<DisplayedCharacterAppearance>,
+    root_query: Query<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>,
+    geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
+    mut visibility_query: Query<&mut Visibility>,
+    material_query: Query<(&MeshMaterial3d<StandardMaterial>, &ChildOf)>,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Some(character) = selected_scene_character(&char_list, selected.0) else {
+        displayed_appearance.0 = None;
+        return;
+    };
+    let Ok((root, root_character)) = root_query.single() else {
+        return;
+    };
+    if root_character.0 != character.character_id {
+        return;
+    }
+    let desired = AppliedCharacterAppearance {
+        character_id: character.character_id,
+        race: character.race,
+        class: character.class,
+        appearance: character.appearance,
+    };
+    if displayed_appearance.0 == Some(desired) {
+        return;
+    }
+    apply_character_customization(
+        CharacterCustomizationSelection {
+            race: character.race,
+            class: character.class,
+            sex: character.appearance.sex,
+            appearance: character.appearance,
+        },
+        &customization_db,
+        &char_tex,
+        &outfit_data,
+        root,
+        &mut images,
+        &mut materials,
+        &geoset_query,
+        &mut visibility_query,
+        &material_query,
+    );
+    displayed_appearance.0 = Some(desired);
+}
+
+#[allow(clippy::too_many_arguments)]
 fn spawn_selected_model(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -549,6 +624,9 @@ fn spawn_selected_model(
         char_transform,
     )?;
     let char_id = selected_scene_character_id(char_list, selected)?;
+    commands
+        .entity(model_entity)
+        .insert(CharSelectModelCharacter(char_id));
     Some((char_id, model_entity))
 }
 
@@ -624,12 +702,14 @@ fn teardown_char_select_scene(
     mut commands: Commands,
     query: Query<Entity, With<CharSelectScene>>,
     mut displayed: ResMut<DisplayedCharacterId>,
+    mut displayed_appearance: ResMut<DisplayedCharacterAppearance>,
     mut active_scene: ResMut<ActiveWarbandSceneId>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
     displayed.0 = None;
+    displayed_appearance.0 = None;
     active_scene.0 = None;
     commands.remove_resource::<game_engine::scene_tree::SceneTree>();
 }
