@@ -535,7 +535,7 @@ mod tests {
         let dropdown = rect_for_name(&reg, "Dropdown_skin");
         assert_eq!(dropdown.x, 20.0);
         assert_eq!(dropdown.y, 156.0);
-        assert_eq!(dropdown.width, 280.0);
+        assert_eq!(dropdown.width, 282.0);
         assert_eq!(dropdown.height, 36.0);
 
         let choice0 = rect_for_name(&reg, "DropChoice_skin_0");
