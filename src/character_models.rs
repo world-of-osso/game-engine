@@ -77,10 +77,36 @@ pub fn ensure_named_model_bundle(wow_model_path: &str) -> Option<PathBuf> {
     Some(model_path)
 }
 
+pub fn known_wow_path_for_local_model(model_path: &Path) -> Option<&'static str> {
+    let file_name = model_path.file_name()?.to_str()?.to_ascii_lowercase();
+    for race in 1u8..=37 {
+        for sex in 0u8..=1 {
+            let Some(wow_path) = race_model_wow_path(race, sex) else {
+                continue;
+            };
+            let Some(candidate) = Path::new(wow_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+            else {
+                continue;
+            };
+            if candidate.eq_ignore_ascii_case(&file_name) {
+                return Some(wow_path);
+            }
+        }
+    }
+    None
+}
+
 fn ensure_named_model_asset(wow_path: &str) -> Option<PathBuf> {
     let file_name = Path::new(wow_path).file_name()?;
     let out_path = Path::new("data/models").join(file_name);
-    let fdid = game_engine::listfile::lookup_path(wow_path)?;
+    let fdid =
+        crate::creature_display::cached_named_model_fdid_for_wow_path(wow_path).or_else(|| {
+            let fdid = game_engine::listfile::lookup_path(wow_path)?;
+            crate::creature_display::remember_named_model_fdid_for_wow_path(wow_path, fdid);
+            Some(fdid)
+        })?;
     asset::casc_resolver::ensure_file_at_path(fdid, &out_path)
 }
 

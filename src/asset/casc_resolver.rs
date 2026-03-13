@@ -50,7 +50,7 @@ fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
     if path.exists() {
         return Some(path);
     }
-    extract_fdid(fdid, dir).ok()
+    extract_fdid_to_path(fdid, &path).ok()
 }
 
 /// Ensure a CASC asset exists at the requested output path.
@@ -59,12 +59,6 @@ pub fn ensure_file_at_path(fdid: u32, out_path: &Path) -> Option<PathBuf> {
         return Some(out_path.to_path_buf());
     }
     extract_fdid_to_path(fdid, out_path).ok()
-}
-
-fn extract_fdid(fdid: u32, output_dir: &str) -> Result<PathBuf, String> {
-    let filename = resolve_filename(fdid);
-    let out_path = Path::new(output_dir).join(&filename);
-    extract_fdid_to_path(fdid, &out_path)
 }
 
 fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
@@ -142,19 +136,6 @@ fn load_cached_resolution_files(install: &Installation, cache: &Path) -> Result<
         .map_err(|e| format!("load encoding: {e}"))?;
 
     Ok(())
-}
-
-/// Resolve FDID to a filename using the local community listfile.
-fn resolve_filename(fdid: u32) -> String {
-    let ext = resolve_extension(fdid);
-    format!("{fdid}.{ext}")
-}
-
-fn resolve_extension(fdid: u32) -> String {
-    game_engine::listfile::lookup_fdid(fdid)
-        .and_then(|path| Path::new(path).extension().and_then(|ext| ext.to_str()))
-        .map(|ext: &str| ext.to_ascii_lowercase())
-        .unwrap_or_else(|| "dat".to_string())
 }
 
 fn run_async<F: std::future::Future>(fut: F) -> F::Output {
