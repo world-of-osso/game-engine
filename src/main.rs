@@ -217,7 +217,7 @@ fn resolve_initial_state(
     parsed_initial_state: Option<game_state::GameState>,
     cli_initial_state: Option<game_state::GameState>,
 ) -> Option<game_state::GameState> {
-    cli_initial_state.or(parsed_initial_state)
+    parsed_initial_state.or(cli_initial_state)
 }
 
 fn insert_startup_resources(
@@ -801,13 +801,13 @@ mod tests {
     }
 
     #[test]
-    fn resolved_initial_state_prefers_explicit_cli_state() {
+    fn resolved_initial_state_keeps_parsed_rewritten_state() {
         let resolved = resolve_initial_state(
             Some(game_state::GameState::Connecting),
             Some(game_state::GameState::Login),
         );
 
-        assert_eq!(resolved, Some(game_state::GameState::Login));
+        assert_eq!(resolved, Some(game_state::GameState::Connecting));
     }
 
     #[test]
