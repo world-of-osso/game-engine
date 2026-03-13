@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, mpsc};
+use std::sync::{mpsc, Mutex, OnceLock};
 
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -195,7 +195,21 @@ pub fn spawn_adt(
 fn load_and_parse_adt(adt_path: &Path) -> Result<adt::AdtData, String> {
     let data = std::fs::read(adt_path)
         .map_err(|e| format!("Failed to read {}: {e}", adt_path.display()))?;
-    adt::load_adt(&data)
+    let adt = adt::load_adt(&data)?;
+    if let Some(err) = &adt.water_error {
+        warn_mh2o_once(adt_path, err);
+    }
+    Ok(adt)
+}
+
+fn warn_mh2o_once(adt_path: &Path, err: &str) {
+    static WARNED_TILES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    let warned = WARNED_TILES.get_or_init(|| Mutex::new(HashSet::new()));
+    let key = format!("{}:{err}", adt_path.display());
+    let mut warned = warned.lock().unwrap();
+    if warned.insert(key) {
+        warn!("Ignoring malformed MH2O in {}: {err}", adt_path.display());
+    }
 }
 
 /// Spawn terrain mesh + water for one tile (no doodads).

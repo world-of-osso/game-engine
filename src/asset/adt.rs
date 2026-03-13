@@ -2,8 +2,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::adt_tex::{
-    AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0,
-    parse_mh2o,
+    build_water_mesh, load_adt_tex0, parse_mh2o, AdtTexData, AdtWaterData, ChunkTexLayers,
+    TextureLayer,
 };
 use super::m2::wow_to_bevy;
 
@@ -44,6 +44,8 @@ pub struct AdtData {
     pub chunk_positions: Vec<[f32; 3]>,
     /// Parsed MH2O water data (if present in the ADT).
     pub water: Option<AdtWaterData>,
+    /// MH2O parse error captured while keeping terrain loadable.
+    pub water_error: Option<String>,
 }
 
 // ── primitive readers ────────────────────────────────────────────────────────
@@ -361,15 +363,12 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed);
     let chunks = build_chunks(&parsed);
-    let water = match mh2o_payload {
+    let (water, water_error) = match mh2o_payload {
         Some(payload) => match parse_mh2o(payload) {
-            Ok(water) => Some(water),
-            Err(err) => {
-                eprintln!("Ignoring MH2O parse error: {err}");
-                None
-            }
+            Ok(water) => (Some(water), None),
+            Err(err) => (None, Some(err)),
         },
-        None => None,
+        None => (None, None),
     };
     Ok(AdtData {
         chunks,
@@ -377,6 +376,7 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
         center_surface,
         chunk_positions,
         water,
+        water_error,
     })
 }
 
