@@ -363,8 +363,36 @@ fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String
         NodeProps::Camera { fov } => format!("{} fov={}{}", node.label, fov, pos),
         NodeProps::Light { kind, intensity } => format!("{} {}={}", node.label, kind, intensity),
         NodeProps::EquipmentSlot { model, .. } => format_equipment_slot(node, model),
-        NodeProps::Player { name, is_local } => format_player_node(node, name, *is_local, &pos),
-        NodeProps::Npc { name, display_id } => format_npc_node(node, name, *display_id, &pos),
+        NodeProps::Player {
+            name,
+            is_local,
+            model_path,
+            skin_path,
+            display_scale,
+        } => format_player_node(
+            node,
+            name,
+            *is_local,
+            model_path,
+            skin_path,
+            *display_scale,
+            &pos,
+        ),
+        NodeProps::Npc {
+            name,
+            display_id,
+            model_path,
+            skin_path,
+            display_scale,
+        } => format_npc_node(
+            node,
+            name,
+            *display_id,
+            model_path,
+            skin_path,
+            *display_scale,
+            &pos,
+        ),
     }
 }
 
@@ -387,14 +415,52 @@ fn format_equipment_slot(node: &SceneNode, model: &Option<String>) -> String {
     }
 }
 
-fn format_player_node(node: &SceneNode, name: &str, is_local: bool, pos: &str) -> String {
+fn format_player_node(
+    node: &SceneNode,
+    name: &str,
+    is_local: bool,
+    model_path: &Option<String>,
+    skin_path: &Option<String>,
+    display_scale: Option<f32>,
+    pos: &str,
+) -> String {
     let tag = if is_local { " (local)" } else { "" };
-    format!("{} \"{}\"{}{}", node.label, name, tag, pos)
+    let assets = format_model_assets(model_path, skin_path, display_scale);
+    format!("{} \"{}\"{}{}{}", node.label, name, tag, assets, pos)
 }
 
-fn format_npc_node(node: &SceneNode, name: &str, display_id: Option<u32>, pos: &str) -> String {
+fn format_npc_node(
+    node: &SceneNode,
+    name: &str,
+    display_id: Option<u32>,
+    model_path: &Option<String>,
+    skin_path: &Option<String>,
+    display_scale: Option<f32>,
+    pos: &str,
+) -> String {
     let disp = display_id
         .map(|d| format!(" display={d}"))
         .unwrap_or_default();
-    format!("{} \"{}\"{}{}", node.label, name, disp, pos)
+    let assets = format_model_assets(model_path, skin_path, display_scale);
+    format!("{} \"{}\"{}{}{}", node.label, name, disp, assets, pos)
+}
+
+fn format_model_assets(
+    model_path: &Option<String>,
+    skin_path: &Option<String>,
+    display_scale: Option<f32>,
+) -> String {
+    let mut parts = Vec::new();
+    if let Some(scale) = display_scale
+        && (scale - 1.0).abs() > 0.001
+    {
+        parts.push(format!(" scale={scale:.2}"));
+    }
+    if let Some(model_path) = model_path {
+        parts.push(format!(" m2=\"{model_path}\""));
+    }
+    if let Some(skin_path) = skin_path {
+        parts.push(format!(" skin=\"{skin_path}\""));
+    }
+    parts.concat()
 }

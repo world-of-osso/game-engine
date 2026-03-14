@@ -530,7 +530,9 @@ fn parse_sfid(data: &[u8]) -> Vec<u32> {
 fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
     if let Some(&fdid) = sfid.first() {
         let skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        if let Ok(data) = std::fs::read(&skin_path) {
+        if let Some(resolved_path) = super::casc_resolver::ensure_file_at_path(fdid, &skin_path)
+            && let Ok(data) = std::fs::read(&resolved_path)
+        {
             return parse_skin_full(&data).ok();
         }
     }
@@ -538,6 +540,19 @@ fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
     let data = std::fs::read(&skin_path).ok()?;
     parse_skin_full(&data).ok()
+}
+
+/// Resolve the primary companion `.skin` file for an M2, extracting it from CASC if needed.
+pub fn ensure_primary_skin_path(m2_path: &Path) -> Option<PathBuf> {
+    let data = std::fs::read(m2_path).ok()?;
+    let chunks = parse_chunks(&data).ok()?;
+    if let Some(&fdid) = chunks.sfid.first() {
+        let skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
+        return super::casc_resolver::ensure_file_at_path(fdid, &skin_path);
+    }
+    let stem = m2_path.file_stem()?.to_str()?;
+    let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
+    skin_path.exists().then_some(skin_path)
 }
 
 /// Default geoset visibility for initial model display.
@@ -639,6 +654,13 @@ fn build_render_batches(
     let tex_lookup = parse_texture_lookup(md20)?;
     let materials = parse_materials(md20)?;
     let skin = load_skin_data(path, &chunks.sfid);
+    if !chunks.sfid.is_empty() && skin.is_none() {
+        return Err(format!(
+            "Missing external skin for {} (SFID {:?})",
+            path.display(),
+            chunks.sfid
+        ));
+    }
     let tex = TextureTables {
         tex_lookup: &tex_lookup,
         tex_types: &tex_types,

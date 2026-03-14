@@ -16,6 +16,7 @@ static NAMED_MODEL_SKIN_CACHE: OnceLock<Mutex<HashMap<String, [u32; 3]>>> = Once
 pub struct CreatureDisplay {
     pub model_fdid: u32,
     pub skin_fdids: [u32; 3],
+    pub scale_milli: u32,
 }
 
 /// Bevy resource mapping creature display_id → M2 model FileDataID.
@@ -32,8 +33,8 @@ pub struct CreatureDisplayMap {
 impl CreatureDisplayMap {
     /// Load from the two CSV files, joining display_id → model_id → fdid.
     pub fn load(display_info_path: &Path, model_data_path: &Path) -> Self {
-        let model_fdids = parse_model_data(model_data_path);
-        let entries = parse_display_info(display_info_path, &model_fdids);
+        let model_data = parse_model_data(model_data_path);
+        let entries = parse_display_info(display_info_path, &model_data);
         let preferred_skins_by_model_fdid = build_preferred_skins_by_model_fdid(&entries);
         Self {
             entries,
@@ -49,6 +50,13 @@ impl CreatureDisplayMap {
     /// Look up the skin texture FDIDs for a creature display_id.
     pub fn get_skin_fdids(&self, display_id: u32) -> Option<[u32; 3]> {
         self.entries.get(&display_id).map(|e| e.skin_fdids)
+    }
+
+    /// Look up the final creature display scale.
+    pub fn get_scale(&self, display_id: u32) -> Option<f32> {
+        self.entries
+            .get(&display_id)
+            .map(|e| e.scale_milli as f32 / 1000.0)
     }
 
     /// Pick a preferred non-empty skin set for a model FDID.
@@ -334,24 +342,37 @@ fn append_named_model_cache_line(path: &str, line: &str) -> Result<(), String> {
     writeln!(file, "{line}").map_err(|e| format!("write {}: {e}", cache_path.display()))
 }
 
-/// Parse CreatureModelData.csv: model_id → file_data_id.
-fn parse_model_data(path: &Path) -> HashMap<u32, u32> {
+#[derive(Clone, Copy)]
+struct CreatureModelData {
+    fdid: u32,
+    scale_milli: u32,
+}
+
+/// Parse CreatureModelData.csv: model_id → file_data_id + model scale.
+fn parse_model_data(path: &Path) -> HashMap<u32, CreatureModelData> {
     let mut map = HashMap::new();
     let Ok(content) = std::fs::read_to_string(path) else {
         return map;
     };
     let mut lines = content.lines();
-    let Some((id_col, fdid_col)) = find_two_columns(lines.next().unwrap_or(""), "ID", "FileDataID")
-    else {
+    let header = lines.next().unwrap_or("");
+    let Some((id_col, fdid_col)) = find_two_columns(header, "ID", "FileDataID") else {
         return map;
     };
+    let scale_col = header.split(',').position(|col| col.trim() == "ModelScale");
     for line in lines {
-        insert_model_entry(&mut map, line, id_col, fdid_col);
+        insert_model_entry(&mut map, line, id_col, fdid_col, scale_col);
     }
     map
 }
 
-fn insert_model_entry(map: &mut HashMap<u32, u32>, line: &str, id_col: usize, fdid_col: usize) {
+fn insert_model_entry(
+    map: &mut HashMap<u32, CreatureModelData>,
+    line: &str,
+    id_col: usize,
+    fdid_col: usize,
+    scale_col: Option<usize>,
+) {
     let cols: Vec<&str> = line.split(',').collect();
     let Some(id) = cols.get(id_col).and_then(|s| s.parse::<u32>().ok()) else {
         return;
@@ -360,7 +381,13 @@ fn insert_model_entry(map: &mut HashMap<u32, u32>, line: &str, id_col: usize, fd
         return;
     };
     if fdid > 0 {
-        map.insert(id, fdid);
+        map.insert(
+            id,
+            CreatureModelData {
+                fdid,
+                scale_milli: parse_scale_milli(scale_col.and_then(|idx| cols.get(idx).copied())),
+            },
+        );
     }
 }
 
@@ -368,13 +395,14 @@ fn insert_model_entry(map: &mut HashMap<u32, u32>, line: &str, id_col: usize, fd
 struct DisplayInfoColumns {
     id: usize,
     model: usize,
+    scale: usize,
     tex_var: [usize; 3],
 }
 
 /// Parse CreatureDisplayInfo.csv and join with model_fdids to get display_id → CreatureDisplay.
 fn parse_display_info(
     path: &Path,
-    model_fdids: &HashMap<u32, u32>,
+    model_data: &HashMap<u32, CreatureModelData>,
 ) -> HashMap<u32, CreatureDisplay> {
     let mut map = HashMap::new();
     let Ok(content) = std::fs::read_to_string(path) else {
@@ -386,7 +414,7 @@ fn parse_display_info(
         return map;
     };
     for line in lines {
-        insert_display_entry(&mut map, line, &cols, model_fdids);
+        insert_display_entry(&mut map, line, &cols, model_data);
     }
     map
 }
@@ -397,6 +425,7 @@ fn find_display_info_columns(header: &str) -> Option<DisplayInfoColumns> {
     Some(DisplayInfoColumns {
         id: find("ID")?,
         model: find("ModelID")?,
+        scale: find("CreatureModelScale")?,
         tex_var: [
             find("TextureVariationFileDataID_0")?,
             find("TextureVariationFileDataID_1")?,
@@ -409,7 +438,7 @@ fn insert_display_entry(
     map: &mut HashMap<u32, CreatureDisplay>,
     line: &str,
     col: &DisplayInfoColumns,
-    model_fdids: &HashMap<u32, u32>,
+    model_data: &HashMap<u32, CreatureModelData>,
 ) {
     let cols: Vec<&str> = line.split(',').collect();
     let Some(display_id) = cols.get(col.id).and_then(|s| s.parse::<u32>().ok()) else {
@@ -423,19 +452,35 @@ fn insert_display_entry(
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(0)
     };
-    if let Some(&model_fdid) = model_fdids.get(&model_id) {
+    let display_scale_milli = parse_scale_milli(cols.get(col.scale).copied());
+    if let Some(model) = model_data.get(&model_id) {
         map.insert(
             display_id,
             CreatureDisplay {
-                model_fdid,
+                model_fdid: model.fdid,
                 skin_fdids: [
                     parse_fdid(col.tex_var[0]),
                     parse_fdid(col.tex_var[1]),
                     parse_fdid(col.tex_var[2]),
                 ],
+                scale_milli: combine_scale_milli(display_scale_milli, model.scale_milli),
             },
         );
     }
+}
+
+fn parse_scale_milli(value: Option<&str>) -> u32 {
+    let scale = value
+        .and_then(|s| s.parse::<f32>().ok())
+        .filter(|scale| *scale > 0.0)
+        .unwrap_or(1.0);
+    (scale * 1000.0).round() as u32
+}
+
+fn combine_scale_milli(display_scale_milli: u32, model_scale_milli: u32) -> u32 {
+    let display = display_scale_milli.max(1);
+    let model = model_scale_milli.max(1);
+    ((display as u64 * model as u64 + 500) / 1000) as u32
 }
 
 /// Find column indices for two named headers. Returns None if either is missing.
@@ -463,6 +508,7 @@ mod tests {
         let map = CreatureDisplayMap::default();
         assert_eq!(map.get_fdid(123), None);
         assert_eq!(map.get_skin_fdids(123), None);
+        assert_eq!(map.get_scale(123), None);
         assert_eq!(map.len(), 0);
     }
 
@@ -479,6 +525,7 @@ mod tests {
         // Display ID 4 → ModelID 8231 → FDID 1113034 (no skin textures)
         assert_eq!(map.get_fdid(4), Some(1113034));
         assert_eq!(map.get_skin_fdids(4), Some([0, 0, 0]));
+        assert_eq!(map.get_scale(4), Some(1.0));
     }
 
     #[test]
@@ -502,6 +549,7 @@ mod tests {
             CreatureDisplay {
                 model_fdid: 9000,
                 skin_fdids: [111, 0, 0],
+                scale_milli: 1000,
             },
         );
         map.entries.insert(
@@ -509,6 +557,7 @@ mod tests {
             CreatureDisplay {
                 model_fdid: 9000,
                 skin_fdids: [222, 333, 0],
+                scale_milli: 1000,
             },
         );
         map.entries.insert(
@@ -516,6 +565,7 @@ mod tests {
             CreatureDisplay {
                 model_fdid: 9000,
                 skin_fdids: [444, 0, 0],
+                scale_milli: 1000,
             },
         );
 
@@ -530,9 +580,24 @@ mod tests {
             CreatureDisplay {
                 model_fdid: 1234,
                 skin_fdids: [0, 0, 0],
+                scale_milli: 1000,
             },
         );
         assert_eq!(map.get_skin_fdids_for_model_fdid(1234), None);
+    }
+
+    #[test]
+    fn get_scale_returns_display_scale() {
+        let mut map = CreatureDisplayMap::default();
+        map.entries.insert(
+            42,
+            CreatureDisplay {
+                model_fdid: 1234,
+                skin_fdids: [0, 0, 0],
+                scale_milli: 550,
+            },
+        );
+        assert_eq!(map.get_scale(42), Some(0.55));
     }
 
     #[test]

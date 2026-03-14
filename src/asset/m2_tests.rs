@@ -239,6 +239,106 @@ fn parse_skin_full_with_submeshes_and_batches() {
     assert_eq!(data.batches[0].texture_id, 0);
 }
 
+fn rewrite_first_sfid(data: &mut [u8], replacement: u32) {
+    let mut off = 0usize;
+    while off + 8 <= data.len() {
+        let tag = &data[off..off + 4];
+        let size = u32::from_le_bytes(data[off + 4..off + 8].try_into().unwrap()) as usize;
+        let end = off + 8 + size;
+        if end > data.len() {
+            break;
+        }
+        if tag == b"SFID" && size >= 4 {
+            data[off + 8..off + 12].copy_from_slice(&replacement.to_le_bytes());
+            return;
+        }
+        off = end;
+    }
+    panic!("expected SFID chunk in test data");
+}
+
+#[test]
+fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
+    let source_m2 = std::path::Path::new("data/models/126487.m2");
+    if !source_m2.exists() {
+        return;
+    }
+
+    let source_data = std::fs::read(source_m2).expect("wolf m2 should be readable");
+    let chunks = parse_chunks(&source_data).expect("wolf m2 should parse");
+    let skin_fdid = *chunks
+        .sfid
+        .first()
+        .expect("wolf m2 should reference an external skin via SFID");
+
+    let unique = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock should be monotonic enough for test dir")
+            .as_nanos()
+    );
+    let test_dir = std::path::Path::new("target/test-artifacts")
+        .join("m2-sfid-skin")
+        .join(unique);
+    std::fs::create_dir_all(&test_dir).expect("test dir should be created");
+
+    let copied_m2 = test_dir.join("126487.m2");
+    std::fs::write(&copied_m2, &source_data).expect("copied wolf m2 should be written");
+
+    let extracted_skin = test_dir.join(format!("{skin_fdid}.skin"));
+    assert!(
+        !extracted_skin.exists(),
+        "test should start without the SFID skin companion present"
+    );
+
+    let skin = load_skin_data(&copied_m2, &chunks.sfid);
+    assert!(skin.is_some(), "external SFID skin should be loaded");
+    assert!(
+        extracted_skin.exists(),
+        "loading the skin should extract the SFID companion next to the copied m2"
+    );
+}
+
+#[test]
+fn load_m2_errors_when_external_sfid_skin_cannot_be_resolved() {
+    let source_m2 = std::path::Path::new("data/models/126487.m2");
+    if !source_m2.exists() {
+        return;
+    }
+
+    let mut source_data = std::fs::read(source_m2).expect("wolf m2 should be readable");
+    rewrite_first_sfid(&mut source_data, u32::MAX);
+
+    let unique = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock should be monotonic enough for test dir")
+            .as_nanos()
+    );
+    let test_dir = std::path::Path::new("target/test-artifacts")
+        .join("m2-sfid-failure")
+        .join(unique);
+    std::fs::create_dir_all(&test_dir).expect("test dir should be created");
+
+    let copied_m2 = test_dir.join("126487.m2");
+    std::fs::write(&copied_m2, &source_data).expect("modified wolf m2 should be written");
+
+    let err = match load_m2(&copied_m2, &[0, 0, 0]) {
+        Ok(_) => panic!(
+            "creature models with unresolved external SFID skins should fail instead of building fallback geometry"
+        ),
+        Err(err) => err,
+    };
+    assert!(
+        err.contains("external skin"),
+        "expected missing external skin error, got: {err}"
+    );
+}
+
 #[test]
 fn resolve_batch_texture_chain() {
     let tex_lookup = vec![0, 1];

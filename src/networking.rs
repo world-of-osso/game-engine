@@ -50,6 +50,13 @@ struct InterpolationTarget {
 #[derive(Component)]
 pub(crate) struct ReplicatedVisualEntity;
 
+#[derive(Component, Clone, Debug, PartialEq)]
+pub(crate) struct ResolvedModelAssetInfo {
+    pub model_path: String,
+    pub skin_path: Option<String>,
+    pub display_scale: Option<f32>,
+}
+
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 struct AppliedPlayerAppearance(CharacterCustomizationSelection);
 
@@ -343,7 +350,7 @@ fn spawn_replicated_player(
         RotationTarget { yaw },
     ));
     let model_spawned = if let Some(model_path) = resolve_player_model_path(player) {
-        crate::m2_scene::spawn_full_m2_on_entity(
+        let model_spawned = crate::m2_scene::spawn_full_m2_on_entity(
             &mut commands,
             &mut meshes,
             &mut materials,
@@ -352,7 +359,16 @@ fn spawn_replicated_player(
             &model_path,
             &creature_display_map,
             entity,
-        )
+        );
+        if model_spawned {
+            commands.entity(entity).insert(ResolvedModelAssetInfo {
+                model_path: model_path.display().to_string(),
+                skin_path: crate::asset::m2::ensure_primary_skin_path(&model_path)
+                    .map(|path| path.display().to_string()),
+                display_scale: None,
+            });
+        }
+        model_spawned
     } else {
         false
     };
@@ -566,6 +582,8 @@ fn spawn_replicated_npc(
         return;
     };
     insert_npc_transform(&mut commands, entity, pos, rotation);
+    let display_scale = npc_display_scale(model_display, display_map.as_deref());
+    let visual_root = spawn_npc_visual_root(&mut commands, entity, display_scale);
     let mut assets = crate::m2_spawn::SpawnAssets {
         meshes: &mut npc_assets.meshes,
         materials: &mut npc_assets.materials,
@@ -575,22 +593,36 @@ fn spawn_replicated_npc(
     let m2_loaded = try_spawn_npc_model(
         &mut commands,
         &mut assets,
+        visual_root,
         entity,
         model_display,
         display_map.as_deref(),
+        display_scale,
     );
     if !m2_loaded {
         spawn_npc_capsule(
             &mut commands,
             &mut npc_assets.meshes,
             &mut npc_assets.materials,
-            entity,
+            visual_root,
         );
     }
     debug!(
         "Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})",
         npc.template_id, pos.x, pos.y, pos.z
     );
+}
+
+fn spawn_npc_visual_root(commands: &mut Commands, entity: Entity, scale: f32) -> Entity {
+    let visual_root = commands
+        .spawn((
+            Name::new("NpcVisualRoot"),
+            Transform::from_scale(Vec3::splat(scale.max(0.01))),
+            Visibility::default(),
+        ))
+        .id();
+    commands.entity(entity).add_child(visual_root);
+    visual_root
 }
 
 fn insert_npc_transform(
@@ -611,13 +643,26 @@ fn insert_npc_transform(
     ));
 }
 
+fn npc_display_scale(
+    model_display: Option<&ModelDisplay>,
+    display_map: Option<&CreatureDisplayMap>,
+) -> f32 {
+    let display_id = model_display.map(|md| md.display_id).unwrap_or(0);
+    display_map
+        .and_then(|dm| dm.get_scale(display_id))
+        .filter(|scale| *scale > 0.0)
+        .unwrap_or(1.0)
+}
+
 /// Try to resolve display_id → FDID → M2 file and attach meshes. Returns true on success.
 fn try_spawn_npc_model(
     commands: &mut Commands,
     assets: &mut crate::m2_spawn::SpawnAssets<'_>,
+    visual_root: Entity,
     entity: Entity,
     model_display: Option<&ModelDisplay>,
     display_map: Option<&CreatureDisplayMap>,
+    display_scale: f32,
 ) -> bool {
     let display_id = model_display.map(|md| md.display_id).unwrap_or(0);
     if display_id == 0 {
@@ -631,7 +676,13 @@ fn try_spawn_npc_model(
     let Some(m2_path) = crate::asset::casc_resolver::ensure_model(fdid) else {
         return false;
     };
-    crate::m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, entity, &skin_fdids)
+    commands.entity(entity).insert(ResolvedModelAssetInfo {
+        model_path: m2_path.display().to_string(),
+        skin_path: crate::asset::m2::ensure_primary_skin_path(&m2_path)
+            .map(|path| path.display().to_string()),
+        display_scale: Some(display_scale),
+    });
+    crate::m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, visual_root, &skin_fdids)
 }
 
 /// Attach a capsule mesh as fallback for NPCs without M2 models.

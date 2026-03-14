@@ -5,7 +5,7 @@ use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 use lightyear::prelude::Replicated;
 use shared::components::{ModelDisplay, Npc, Player as NetPlayer};
 
-use crate::networking::{LocalPlayer, ReplicatedVisualEntity};
+use crate::networking::{LocalPlayer, ReplicatedVisualEntity, ResolvedModelAssetInfo};
 
 pub struct InWorldSceneTreePlugin;
 
@@ -20,8 +20,19 @@ impl Plugin for InWorldSceneTreePlugin {
 
 fn build_inworld_scene_tree(
     mut commands: Commands,
-    players: Query<(Entity, &NetPlayer), With<ReplicatedVisualEntity>>,
-    npcs: Query<(Entity, &Npc, Option<&ModelDisplay>), With<Replicated>>,
+    players: Query<
+        (Entity, &NetPlayer, Option<&ResolvedModelAssetInfo>),
+        With<ReplicatedVisualEntity>,
+    >,
+    npcs: Query<
+        (
+            Entity,
+            &Npc,
+            Option<&ModelDisplay>,
+            Option<&ResolvedModelAssetInfo>,
+        ),
+        With<Replicated>,
+    >,
     camera: Query<Entity, With<Camera3d>>,
     local_player: Query<Entity, With<LocalPlayer>>,
 ) {
@@ -44,11 +55,14 @@ fn build_inworld_scene_tree(
 }
 
 fn collect_player_nodes(
-    players: &Query<(Entity, &NetPlayer), With<ReplicatedVisualEntity>>,
+    players: &Query<
+        (Entity, &NetPlayer, Option<&ResolvedModelAssetInfo>),
+        With<ReplicatedVisualEntity>,
+    >,
     local_player: &Query<Entity, With<LocalPlayer>>,
     children: &mut Vec<SceneNode>,
 ) {
-    for (entity, player) in players.iter() {
+    for (entity, player, model_info) in players.iter() {
         let is_local = local_player.get(entity).is_ok();
         children.push(SceneNode {
             label: "Player".into(),
@@ -56,6 +70,9 @@ fn collect_player_nodes(
             props: NodeProps::Player {
                 name: player.name.clone(),
                 is_local,
+                model_path: model_info.map(|info| info.model_path.clone()),
+                skin_path: model_info.and_then(|info| info.skin_path.clone()),
+                display_scale: model_info.and_then(|info| info.display_scale),
             },
             children: vec![],
         });
@@ -63,16 +80,27 @@ fn collect_player_nodes(
 }
 
 fn collect_npc_nodes(
-    npcs: &Query<(Entity, &Npc, Option<&ModelDisplay>), With<Replicated>>,
+    npcs: &Query<
+        (
+            Entity,
+            &Npc,
+            Option<&ModelDisplay>,
+            Option<&ResolvedModelAssetInfo>,
+        ),
+        With<Replicated>,
+    >,
     children: &mut Vec<SceneNode>,
 ) {
-    for (entity, npc, display) in npcs.iter() {
+    for (entity, npc, display, model_info) in npcs.iter() {
         children.push(SceneNode {
             label: "Npc".into(),
             entity: Some(entity),
             props: NodeProps::Npc {
                 name: format!("template_{}", npc.template_id),
                 display_id: display.map(|d| d.display_id),
+                model_path: model_info.map(|info| info.model_path.clone()),
+                skin_path: model_info.and_then(|info| info.skin_path.clone()),
+                display_scale: model_info.and_then(|info| info.display_scale),
             },
             children: vec![],
         });

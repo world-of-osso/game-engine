@@ -38,10 +38,16 @@ pub enum NodeProps {
     Player {
         name: String,
         is_local: bool,
+        model_path: Option<String>,
+        skin_path: Option<String>,
+        display_scale: Option<f32>,
     },
     Npc {
         name: String,
         display_id: Option<u32>,
+        model_path: Option<String>,
+        skin_path: Option<String>,
+        display_scale: Option<f32>,
     },
     Terrain,
 }
