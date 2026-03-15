@@ -26,6 +26,7 @@ use crate::ground;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
+use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
 use crate::water_material::WaterMaterial;
@@ -101,12 +102,13 @@ impl Plugin for CharSelectScenePlugin {
 }
 
 fn single_character_focus(
-    scene: &crate::warband_scene::WarbandSceneEntry,
+    _scene: &crate::warband_scene::WarbandSceneEntry,
     placement: &crate::warband_scene::WarbandScenePlacement,
+    presentation: ModelPresentation,
 ) -> Vec3 {
-    let scene_focus = scene.bevy_look_at();
     let char_pos = placement.bevy_position();
-    Vec3::new(char_pos.x, scene_focus.y, char_pos.z)
+    let focus_y = char_pos.y + presentation.customize_scale.max(0.01);
+    Vec3::new(char_pos.x, focus_y, char_pos.z)
 }
 
 fn camera_params(
@@ -117,14 +119,13 @@ fn camera_params(
     if let Some(s) = scene {
         let scene_eye = s.bevy_position();
         let scene_focus = s.bevy_look_at();
-        let scene_offset = scene_eye - scene_focus;
         let focus = placement
-            .map(|placement| single_character_focus(s, placement))
+            .map(|placement| single_character_focus(s, placement, presentation))
             .unwrap_or(scene_focus);
         let eye = if placement.is_some() {
             let distance = (SOLO_CHARACTER_CAMERA_DISTANCE + presentation.camera_distance_offset)
-                .clamp(3.5, scene_offset.length());
-            focus + scene_offset.normalize_or_zero() * distance
+                .clamp(3.5, (scene_eye - scene_focus).length());
+            solo_camera_eye(scene_eye, scene_focus, focus, distance)
         } else {
             scene_eye
         };
@@ -137,6 +138,15 @@ fn camera_params(
     } else {
         (Vec3::new(0.0, 1.8, 6.0), Vec3::new(0.0, 1.0, 0.0), 45.0)
     }
+}
+
+fn solo_camera_eye(scene_eye: Vec3, scene_focus: Vec3, focus: Vec3, distance: f32) -> Vec3 {
+    let scene_offset = scene_eye - scene_focus;
+    let vertical = scene_offset.y;
+    let horizontal = Vec3::new(scene_offset.x, 0.0, scene_offset.z);
+    let horizontal_dir = horizontal.normalize_or_zero();
+    let horizontal_distance = (distance * distance - vertical * vertical).max(0.0).sqrt();
+    focus + horizontal_dir * horizontal_distance + Vec3::Y * vertical
 }
 
 fn orbit_from_eye_focus(eye: Vec3, focus: Vec3) -> CharSelectOrbit {
@@ -219,7 +229,7 @@ fn spawn_char_select_lighting(commands: &mut Commands) -> Entity {
         brightness: 80.0,
         ..default()
     });
-    // Key light from upper-left
+    // Keep the moody upper-left key, but bias it closer to the camera for clearer facial read.
     let directional = commands
         .spawn((
             Name::new("DirectionalLight"),
@@ -230,7 +240,7 @@ fn spawn_char_select_lighting(commands: &mut Commands) -> Entity {
                 color: Color::srgb(1.0, 0.92, 0.8),
                 ..default()
             },
-            Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
+            Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 3.8, PI / 10.0, 0.0)),
         ))
         .id();
     directional
@@ -285,13 +295,20 @@ fn single_character_rotation(
 fn character_transform(
     scene: Option<&crate::warband_scene::WarbandSceneEntry>,
     placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
 ) -> Transform {
     if let Some(placement) = placement {
         let rotation = scene
             .map(|scene| single_character_rotation(scene, placement, presentation))
             .unwrap_or_else(|| placement.bevy_rotation());
-        Transform::from_translation(placement.bevy_position())
+        let mut translation = placement.bevy_position();
+        if let Some(terrain_y) =
+            heightmap.and_then(|heightmap| heightmap.height_at(translation.x, translation.z))
+        {
+            translation.y = translation.y.max(terrain_y);
+        }
+        Transform::from_translation(translation)
             .with_rotation(rotation)
             .with_scale(Vec3::splat(presentation.customize_scale.max(0.01)))
     } else {
@@ -331,6 +348,7 @@ fn selected_scene_placement<'a>(
 fn resolve_char_transform(
     warband: &Option<Res<WarbandScenes>>,
     selected_scene: &Option<Res<SelectedWarbandScene>>,
+    heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
 ) -> Transform {
     let scene = find_scene_entry(warband, selected_scene);
@@ -339,7 +357,7 @@ fn resolve_char_transform(
         .zip(scene)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     if scene.is_some() || placement.is_some() {
-        character_transform(scene, placement.as_ref(), presentation)
+        character_transform(scene, placement.as_ref(), heightmap, presentation)
     } else {
         default_char_transform()
     }
@@ -429,6 +447,7 @@ fn spawn_background(
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
     scene: Option<&crate::warband_scene::WarbandSceneEntry>,
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
@@ -441,6 +460,7 @@ fn spawn_background(
             water_materials,
             images,
             inv_bp,
+            heightmap,
             s,
         )
     {
@@ -464,6 +484,7 @@ fn setup_char_select_scene(
     mut water_materials: ResMut<Assets<WaterMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut heightmap: ResMut<TerrainHeightmap>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     customization_db: Res<CustomizationDb>,
     char_list: Res<CharacterList>,
@@ -490,10 +511,11 @@ fn setup_char_select_scene(
         &mut water_materials,
         &mut images,
         &mut inv_bp,
+        &mut heightmap,
         scene_entry,
         &mut active_scene,
     );
-    let char_tf = resolve_char_transform(&warband, &selected_scene, presentation);
+    let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
     let result = spawn_selected_model(
         &mut commands,
         &mut meshes,
@@ -527,6 +549,7 @@ fn sync_char_select_model(
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     customization_db: Res<CustomizationDb>,
+    heightmap: Res<TerrainHeightmap>,
     char_list: Res<CharacterList>,
     selected: Res<SelectedCharIndex>,
     current_model: Query<Entity, With<CharSelectModelRoot>>,
@@ -535,7 +558,7 @@ fn sync_char_select_model(
     selected_scene: Option<Res<SelectedWarbandScene>>,
     mut camera_query: Query<
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
-        With<CharSelectScene>,
+        (With<CharSelectScene>, Without<CharSelectModelRoot>),
     >,
 ) {
     let desired = selected_scene_character_id(&char_list, selected.0);
@@ -546,7 +569,7 @@ fn sync_char_select_model(
         commands.entity(entity).despawn();
     }
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
-    let char_tf = resolve_char_transform(&warband, &selected_scene, presentation);
+    let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
     displayed.0 = spawn_selected_model(
         &mut commands,
         &mut meshes,
@@ -667,7 +690,7 @@ fn update_camera_for_scene(
     presentation: ModelPresentation,
     camera_query: &mut Query<
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
-        With<CharSelectScene>,
+        (With<CharSelectScene>, Without<CharSelectModelRoot>),
     >,
 ) {
     let (eye, focus, fov) = camera_params(Some(scene), placement, presentation);
@@ -691,6 +714,7 @@ fn sync_warband_scene_switch(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     mut active_scene: ResMut<ActiveWarbandSceneId>,
+    mut heightmap: ResMut<TerrainHeightmap>,
     customization_db: Res<CustomizationDb>,
     char_list: Res<CharacterList>,
     selected: Res<SelectedCharIndex>,
@@ -699,7 +723,7 @@ fn sync_warband_scene_switch(
     terrain_query: Query<Entity, With<CharSelectTerrain>>,
     mut camera_query: Query<
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
-        With<CharSelectScene>,
+        (With<CharSelectScene>, Without<CharSelectModelRoot>),
     >,
 ) {
     let Some(warband) = warband else { return };
@@ -723,6 +747,7 @@ fn sync_warband_scene_switch(
         &mut water_materials,
         &mut images,
         &mut inv_bp,
+        &mut heightmap,
         scene,
     );
     update_camera_for_scene(scene, placement.as_ref(), presentation, &mut camera_query);
@@ -873,6 +898,90 @@ mod tests {
         assert!(
             fov < scene_fov,
             "single-character framing should narrow the FOV from the warband overview"
+        );
+    }
+
+    #[test]
+    fn camera_params_use_model_center_height_for_single_character_focus() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let presentation = ModelPresentation {
+            customize_scale: 1.1,
+            camera_distance_offset: -0.34,
+        };
+
+        let (_, focus, _) = camera_params(Some(scene), Some(&placement), presentation);
+
+        assert!(
+            (focus.y - (placement.bevy_position().y + presentation.customize_scale)).abs() < 0.001,
+            "single-character focus should target model center height, got focus_y={} placement_y={} scale={}",
+            focus.y,
+            placement.bevy_position().y,
+            presentation.customize_scale
+        );
+    }
+
+    #[test]
+    fn camera_params_preserve_authored_vertical_offset_for_single_character_eye() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let presentation = ModelPresentation {
+            customize_scale: 1.1,
+            camera_distance_offset: -0.34,
+        };
+
+        let (eye, focus, _) = camera_params(Some(scene), Some(&placement), presentation);
+        let authored_vertical = scene.bevy_position().y - scene.bevy_look_at().y;
+
+        assert!(
+            ((eye.y - focus.y) - authored_vertical).abs() < 0.001,
+            "single-character eye should preserve authored vertical lift, got {} expected {}",
+            eye.y - focus.y,
+            authored_vertical
+        );
+    }
+
+    #[test]
+    fn character_transform_snaps_character_up_to_warband_terrain() {
+        let warband = crate::warband_scene::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("Adventurer's Rest");
+        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+        let adt_path =
+            crate::warband_scene::ensure_warband_terrain(scene).expect("expected warband terrain");
+        let data = std::fs::read(&adt_path).expect("expected ADT data");
+        let adt = crate::asset::adt::load_adt(&data).expect("expected ADT parse");
+        let mut heightmap = TerrainHeightmap::default();
+        let (tile_y, tile_x) = scene.tile_coords();
+        heightmap.insert_tile(tile_y, tile_x, &adt);
+
+        let transform = character_transform(
+            Some(scene),
+            Some(&placement),
+            Some(&heightmap),
+            ModelPresentation::default(),
+        );
+        let terrain_y = heightmap
+            .height_at(transform.translation.x, transform.translation.z)
+            .expect("expected terrain at placement");
+
+        assert!(
+            (transform.translation.y - terrain_y).abs() < 0.001,
+            "character root should sit on terrain, got root_y={} terrain_y={terrain_y}",
+            transform.translation.y
         );
     }
 

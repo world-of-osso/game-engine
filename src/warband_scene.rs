@@ -1,6 +1,5 @@
 //! WarbandScene DB2 data: camera positions + character placements for char select backgrounds.
 
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
@@ -27,6 +26,7 @@ pub struct WarbandSceneEntry {
 /// Character placement slot within a warband scene.
 #[derive(Debug, Clone)]
 pub struct WarbandScenePlacement {
+    #[allow(dead_code)]
     pub id: u32,
     pub scene_id: u32,
     pub slot_type: u32,
@@ -39,6 +39,7 @@ pub struct WarbandScenePlacement {
 
 /// Optional authored overrides for a placement in alternate warband layouts.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WarbandScenePlacementOption {
     pub placement_id: u32,
     pub layout_key: u32,
@@ -53,6 +54,7 @@ pub struct WarbandScenePlacementOption {
 pub struct WarbandScenes {
     pub scenes: Vec<WarbandSceneEntry>,
     pub placements: Vec<WarbandScenePlacement>,
+    #[allow(dead_code)]
     pub placement_options: Vec<WarbandScenePlacementOption>,
 }
 
@@ -86,91 +88,15 @@ impl WarbandScenes {
 
     /// Pick the authored placement to use when only one character is rendered.
     ///
-    /// Retail char select renders the full warband and uses native map-scene placement logic.
-    /// This client currently renders a single selected character only, so prefer the first
-    /// authored character slot and the most compact authored placement-option layout.
+    /// Warband placement options encode alternate full-layout arrangements, but this client
+    /// does not yet know how to select the same authored layout retail uses. The previous
+    /// "most compact" heuristic produced visibly wrong positions, so prefer the first
+    /// authored character slot directly until layout selection is understood.
     pub fn solo_character_placement(
         &self,
         scene: &WarbandSceneEntry,
     ) -> Option<WarbandScenePlacement> {
-        let placement = self.first_character_placement(scene.id)?.clone();
-        let Some(layout_key) = self.compact_character_layout_key(scene) else {
-            return Some(placement);
-        };
-        Some(self.resolve_placement_layout(&placement, layout_key))
-    }
-
-    fn compact_character_layout_key(&self, scene: &WarbandSceneEntry) -> Option<u32> {
-        let character_placements: Vec<_> = self
-            .placements
-            .iter()
-            .filter(|placement| placement.scene_id == scene.id && placement.is_character_slot())
-            .collect();
-        if character_placements.is_empty() {
-            return None;
-        }
-
-        let layout_keys: BTreeSet<_> = self
-            .placement_options
-            .iter()
-            .filter(|option| {
-                character_placements
-                    .iter()
-                    .any(|placement| placement.id == option.placement_id)
-            })
-            .map(|option| option.layout_key)
-            .collect();
-        if layout_keys.is_empty() {
-            return None;
-        }
-
-        layout_keys.into_iter().min_by(|a, b| {
-            let da = self.layout_camera_distance_score(scene, &character_placements, *a);
-            let db = self.layout_camera_distance_score(scene, &character_placements, *b);
-            da.total_cmp(&db)
-        })
-    }
-
-    fn layout_camera_distance_score(
-        &self,
-        scene: &WarbandSceneEntry,
-        placements: &[&WarbandScenePlacement],
-        layout_key: u32,
-    ) -> f32 {
-        let camera = scene.position;
-        placements
-            .iter()
-            .map(|placement| {
-                let authored = self
-                    .placement_options
-                    .iter()
-                    .find(|option| {
-                        option.placement_id == placement.id && option.layout_key == layout_key
-                    })
-                    .map(|option| option.position)
-                    .unwrap_or(placement.position);
-                squared_distance(camera, authored)
-            })
-            .sum()
-    }
-
-    fn resolve_placement_layout(
-        &self,
-        placement: &WarbandScenePlacement,
-        layout_key: u32,
-    ) -> WarbandScenePlacement {
-        let Some(option) = self
-            .placement_options
-            .iter()
-            .find(|option| option.placement_id == placement.id && option.layout_key == layout_key)
-        else {
-            return placement.clone();
-        };
-
-        let mut resolved = placement.clone();
-        resolved.position = option.position;
-        resolved.rotation = option.orientation;
-        resolved
+        self.first_character_placement(scene.id).cloned()
     }
 }
 
@@ -373,13 +299,6 @@ fn parse_placement_option_line(line: &str) -> Option<WarbandScenePlacementOption
     })
 }
 
-fn squared_distance(a: [f32; 3], b: [f32; 3]) -> f32 {
-    let dx = a[0] - b[0];
-    let dy = a[1] - b[1];
-    let dz = a[2] - b[2];
-    dx * dx + dy * dy + dz * dz
-}
-
 /// Parse a CSV line respecting quoted fields.
 fn parse_csv_fields(line: &str) -> Vec<String> {
     let mut fields = Vec::new();
@@ -462,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn solo_character_placement_prefers_first_character_slot() {
+    fn solo_character_placement_uses_first_authored_character_slot() {
         let warband = WarbandScenes::load();
         let rest = warband
             .scenes
@@ -478,9 +397,9 @@ mod tests {
             "single-character rendering should start from the first authored character slot"
         );
         assert!(
-            (placement.position[0] - (-2982.4099)).abs() < 0.01
-                && (placement.position[1] - 458.5210).abs() < 0.01,
-            "single-character rendering should use the compact authored placement option"
+            (placement.position[0] - (-2981.8201)).abs() < 0.01
+                && (placement.position[1] - 457.3500).abs() < 0.01,
+            "single-character rendering should use the base authored placement until layout selection is understood"
         );
     }
 

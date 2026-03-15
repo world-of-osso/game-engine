@@ -28,10 +28,10 @@ pub fn spawn_warband_terrain(
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
     scene: &warband_scene::WarbandSceneEntry,
 ) -> Option<Entity> {
     let adt_path = warband_scene::ensure_warband_terrain(scene)?;
-    let mut heightmap = TerrainHeightmap::default();
     let result = terrain::spawn_adt(
         commands,
         meshes,
@@ -40,7 +40,7 @@ pub fn spawn_warband_terrain(
         water_materials,
         images,
         inv_bp,
-        &mut heightmap,
+        heightmap,
         &adt_path,
     )
     .ok()?;
