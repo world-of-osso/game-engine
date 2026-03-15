@@ -128,6 +128,8 @@ const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
 const CARD_SELECTED_ATLAS: &str = "glues-characterselect-card-selected";
 const EMPTY_CARD_ATLAS: &str = "glues-characterselect-card-empty";
+const CARD_BACKDROP_TINT: &str = "0.76,0.70,0.57,0.96";
+const CARD_SELECTED_TINT: &str = "0.82,0.74,0.46,0.9";
 
 // --- Card frame name helpers ---
 
@@ -252,11 +254,10 @@ fn card_textures(index: usize, is_selected: bool) -> Element {
             width: 310.0,
             height: 89.0,
             texture_atlas: CARD_BACKDROP_ATLAS,
+            vertex_color: CARD_BACKDROP_TINT,
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-3",
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
             }
         }
         texture {
@@ -264,12 +265,13 @@ fn card_textures(index: usize, is_selected: bool) -> Element {
             width: 342.0,
             height: 122.0,
             texture_atlas: CARD_SELECTED_ATLAS,
+            vertex_color: CARD_SELECTED_TINT,
             hidden: hide_selected,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: "7",
-                y: "11",
+                y: "14",
             }
         }
     }
@@ -359,7 +361,6 @@ fn character_card(index: usize, ch: &CharDisplayEntry, is_selected: bool) -> Ele
             width: 347.0,
             height: 95.0,
             onclick,
-            border: "1px solid 0.45,0.38,0.22,0.8",
             {card_textures(index, is_selected)}
             {texts}
         }
