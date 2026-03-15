@@ -509,7 +509,7 @@ fn zone_id_to_name(id: u32) -> &'static str {
 fn draw_entity_dots(
     player_q: Query<&Transform, With<crate::camera::Player>>,
     remote_q: Query<
-        (&Transform, Option<&shared::components::Npc>),
+        (&Transform, &Visibility, Option<&shared::components::Npc>),
         With<crate::networking::RemoteEntity>,
     >,
     composite_res: Option<Res<MinimapComposite>>,
@@ -532,7 +532,10 @@ fn draw_entity_dots(
     let center = ds as f32 / 2.0;
     let yards_per_pixel = crate::asset::adt::CHUNK_SIZE * 16.0 / MINIMAP_TILE_SIZE as f32;
 
-    for (tf, npc) in &remote_q {
+    for (tf, visibility, npc) in &remote_q {
+        if !entity_should_draw_on_minimap(*visibility) {
+            continue;
+        }
         draw_entity_dot(
             data,
             ds,
@@ -543,6 +546,10 @@ fn draw_entity_dots(
             npc.is_some(),
         );
     }
+}
+
+fn entity_should_draw_on_minimap(visibility: Visibility) -> bool {
+    matches!(visibility, Visibility::Inherited | Visibility::Visible)
 }
 
 fn draw_entity_dot(
@@ -751,6 +758,11 @@ mod tests {
             (MINIMAP_TILE_SIZE as usize..(MINIMAP_TILE_SIZE * 2) as usize).contains(&px_y),
             "expected y to stay in center tile, got {px_y}"
         );
+    }
+
+    #[test]
+    fn hidden_entities_do_not_draw_on_minimap() {
+        assert!(!entity_should_draw_on_minimap(Visibility::Hidden));
     }
 
     #[test]
