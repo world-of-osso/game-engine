@@ -808,21 +808,34 @@ mod tests {
         );
 
         let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
+        let bar_id = reg.get_by_name("CampsiteMenuBar").expect("CampsiteMenuBar");
         let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
+        let bar = reg.get(bar_id).expect("bar frame");
         let tab = reg.get(tab_id).expect("tab frame");
+
+        assert_eq!(bar.anchors.len(), 1);
+        assert_eq!(
+            bar.anchors[0].point,
+            game_engine::ui::anchor::AnchorPoint::Top
+        );
+        assert_eq!(
+            bar.anchors[0].relative_point,
+            game_engine::ui::anchor::AnchorPoint::Top
+        );
+        assert_eq!(bar.anchors[0].relative_to, Some(root_id));
+        assert_eq!(bar.anchors[0].x_offset, 0.0);
+        assert_eq!(bar.anchors[0].y_offset, 0.0);
 
         assert_eq!(tab.anchors.len(), 1);
         assert_eq!(
             tab.anchors[0].point,
-            game_engine::ui::anchor::AnchorPoint::Top
+            game_engine::ui::anchor::AnchorPoint::TopLeft
         );
         assert_eq!(
             tab.anchors[0].relative_point,
-            game_engine::ui::anchor::AnchorPoint::Top
+            game_engine::ui::anchor::AnchorPoint::TopLeft
         );
-        assert_eq!(tab.anchors[0].relative_to, Some(root_id));
-        assert_eq!(tab.anchors[0].x_offset, 0.0);
-        assert_eq!(tab.anchors[0].y_offset, 0.0);
+        assert_eq!(tab.anchors[0].relative_to, Some(bar_id));
     }
 
     #[test]
