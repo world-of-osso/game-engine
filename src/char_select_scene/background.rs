@@ -72,7 +72,7 @@ pub fn spawn(
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
     if let Some(s) = scene
-        && let Some(e) = scene_tree::spawn_warband_terrain(
+        && let Some(result) = scene_tree::spawn_warband_terrain(
             commands,
             meshes,
             materials,
@@ -86,11 +86,18 @@ pub fn spawn(
     {
         active.0 = Some(s.id);
         let (ty, tx) = s.tile_coords();
+        let wmos = result
+            .wmo_entities
+            .into_iter()
+            .map(|(entity, model)| scene_tree::wmo_scene_node(entity, model))
+            .collect();
         return scene_tree::background_scene_node(
-            e,
+            result.root_entity,
             &format!("terrain:{}_{ty}_{tx}", s.map_name()),
+            result.doodad_count,
+            wmos,
         );
     }
     let ground = spawn_tagged_ground(commands, meshes, materials, images);
-    scene_tree::ground_scene_node(ground)
+    scene_tree::background_scene_node(ground, "ground", 0, vec![])
 }

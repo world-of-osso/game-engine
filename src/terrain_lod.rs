@@ -119,7 +119,8 @@ fn spawn_lod_doodads(
             refs.images,
             refs.inverse_bp,
             obj,
-        ),
+        )
+        .all_entities(),
         None => Vec::new(),
     }
 }

@@ -30,7 +30,7 @@ pub fn spawn_warband_terrain(
     inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
     scene: &warband_scene::WarbandSceneEntry,
-) -> Option<Entity> {
+) -> Option<crate::terrain::AdtSpawnResult> {
     let adt_path = warband_scene::ensure_warband_terrain(scene)?;
     let result = terrain::spawn_adt(
         commands,
@@ -47,26 +47,33 @@ pub fn spawn_warband_terrain(
     commands
         .entity(result.root_entity)
         .insert((CharSelectScene, CharSelectTerrain));
-    Some(result.root_entity)
+    for entity in &result.spawned_object_entities {
+        commands.entity(*entity).insert(CharSelectScene);
+    }
+    Some(result)
 }
 
 /// Build the background scene node (terrain or fallback ground).
-pub fn background_scene_node(entity: Entity, label: &str) -> SceneNode {
+pub fn background_scene_node(entity: Entity, label: &str, doodad_count: usize, wmos: Vec<SceneNode>) -> SceneNode {
     SceneNode {
         label: "Background".into(),
         entity: Some(entity),
         props: NodeProps::Background {
             model: label.to_string(),
+            doodad_count,
         },
-        children: vec![],
+        children: wmos,
     }
 }
 
-pub fn ground_scene_node(entity: Entity) -> SceneNode {
+pub fn wmo_scene_node(entity: Entity, model: String) -> SceneNode {
     SceneNode {
-        label: "Ground".into(),
+        label: "Object".into(),
         entity: Some(entity),
-        props: NodeProps::Ground,
+        props: NodeProps::Object {
+            kind: "WMO".into(),
+            model,
+        },
         children: vec![],
     }
 }

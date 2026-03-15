@@ -11,6 +11,25 @@ use crate::m2_spawn;
 
 use crate::terrain::resolve_companion_path;
 
+#[derive(Default)]
+pub struct SpawnedTerrainObjects {
+    pub doodads: Vec<Entity>,
+    pub wmos: Vec<SpawnedWmoRoot>,
+}
+
+pub struct SpawnedWmoRoot {
+    pub entity: Entity,
+    pub model: String,
+}
+
+impl SpawnedTerrainObjects {
+    pub fn all_entities(self) -> Vec<Entity> {
+        let mut entities = self.doodads;
+        entities.extend(self.wmos.into_iter().map(|wmo| wmo.entity));
+        entities
+    }
+}
+
 // ── obj file loading ────────────────────────────────────────────────────────
 
 /// Try to load a companion _obj ADT file at the given LOD suffix.
@@ -45,7 +64,7 @@ pub fn load_obj2(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
 
 // ── doodad spawning ─────────────────────────────────────────────────────────
 
-/// Spawn doodads and WMOs, returning the entities created.
+/// Spawn doodads and WMOs, returning the created root entities grouped by type.
 pub fn spawn_obj_entities(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -53,8 +72,8 @@ pub fn spawn_obj_entities(
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     obj_data: &adt_obj::AdtObjData,
-) -> Vec<Entity> {
-    let mut entities = Vec::new();
+) -> SpawnedTerrainObjects {
+    let mut spawned = SpawnedTerrainObjects::default();
     spawn_doodads(
         commands,
         meshes,
@@ -62,10 +81,10 @@ pub fn spawn_obj_entities(
         images,
         inverse_bp,
         obj_data,
-        &mut entities,
+        &mut spawned.doodads,
     );
-    spawn_wmos(commands, meshes, materials, images, obj_data, &mut entities);
-    entities
+    spawn_wmos(commands, meshes, materials, images, obj_data, &mut spawned.wmos);
+    spawned
 }
 
 /// Spawn doodads (M2 models) from placement data.
@@ -131,11 +150,11 @@ fn try_spawn_doodad(
 /// Resolve a doodad placement to a local M2 file path.
 fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
     if let Some(fdid) = doodad.fdid {
-        return Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")));
+        return crate::asset::casc_resolver::ensure_model(fdid);
     }
     let wow_path = doodad.path.as_ref()?;
     let fdid = game_engine::listfile::lookup_path(wow_path)?;
-    Some(std::path::PathBuf::from(format!("data/models/{fdid}.m2")))
+    crate::asset::casc_resolver::ensure_model(fdid)
 }
 
 /// Convert WoW doodad placement to a Bevy Transform.
@@ -177,21 +196,21 @@ fn spawn_wmos(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     obj_data: &adt_obj::AdtObjData,
-    entities: &mut Vec<Entity>,
+    entities: &mut Vec<SpawnedWmoRoot>,
 ) {
-    let mut spawned = 0u32;
+    let mut spawned_count = 0u32;
     for placement in &obj_data.wmos {
         let mut assets = WmoAssets {
             meshes,
             materials,
             images,
         };
-        if let Some(e) = try_spawn_wmo(commands, &mut assets, placement) {
-            entities.push(e);
-            spawned += 1;
+        if let Some(spawned_wmo) = try_spawn_wmo(commands, &mut assets, placement) {
+            entities.push(spawned_wmo);
+            spawned_count += 1;
         }
     }
-    eprintln!("Spawned {spawned}/{} WMOs", obj_data.wmos.len());
+    eprintln!("Spawned {spawned_count}/{} WMOs", obj_data.wmos.len());
 }
 
 /// Try to spawn a single WMO. Returns root entity if successful.
@@ -199,9 +218,9 @@ fn try_spawn_wmo(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
     placement: &adt_obj::WmoPlacement,
-) -> Option<Entity> {
+) -> Option<SpawnedWmoRoot> {
     let root_fdid = resolve_wmo_fdid(placement)?;
-    let root_path = format!("data/models/{root_fdid}.wmo");
+    let root_path = ensure_wmo_asset(root_fdid)?;
     let root_data = std::fs::read(&root_path).ok()?;
     let root = wmo::load_wmo_root(&root_data).ok()?;
 
@@ -220,7 +239,13 @@ fn try_spawn_wmo(
     );
     log_wmo_spawn(root_fdid, group_count, &root, &transform);
     if group_count > 0 {
-        Some(root_entity)
+        let model = game_engine::listfile::lookup_fdid(root_fdid)
+            .map(str::to_string)
+            .unwrap_or_else(|| root_fdid.to_string());
+        Some(SpawnedWmoRoot {
+            entity: root_entity,
+            model,
+        })
     } else {
         None
     }
@@ -345,6 +370,11 @@ fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
         .collect()
 }
 
+fn ensure_wmo_asset(fdid: u32) -> Option<std::path::PathBuf> {
+    let out_path = std::path::PathBuf::from(format!("data/models/{fdid}.wmo"));
+    crate::asset::casc_resolver::ensure_file_at_path(fdid, &out_path)
+}
+
 /// Parse and spawn one WMO group file as children of the root entity.
 /// Creates a group entity with `WmoGroup` for portal culling, then parents batches under it.
 fn spawn_wmo_group(
@@ -355,7 +385,9 @@ fn spawn_wmo_group(
     root_entity: Entity,
     group_index: u16,
 ) -> bool {
-    let group_path = format!("data/models/{group_fdid}.wmo");
+    let Some(group_path) = ensure_wmo_asset(group_fdid) else {
+        return false;
+    };
     let Ok(data) = std::fs::read(&group_path) else {
         return false;
     };

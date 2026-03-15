@@ -358,7 +358,16 @@ fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String
                 node.label, model, race, gender, pos
             )
         }
-        NodeProps::Background { model } => format!("{} \"{}\"{}", node.label, model, pos),
+        NodeProps::Background {
+            model,
+            doodad_count,
+        } => format!(
+            "{} \"{}\" doodads={}{}",
+            node.label, model, doodad_count, pos
+        ),
+        NodeProps::Object { kind, model } => {
+            format!("{} {} \"{}\"{}", node.label, kind, model, pos)
+        }
         NodeProps::Ground | NodeProps::Terrain => format!("{}{}", node.label, pos),
         NodeProps::Camera { fov } => format!("{} fov={}{}", node.label, fov, pos),
         NodeProps::Light { kind, intensity } => format!("{} {}={}", node.label, kind, intensity),

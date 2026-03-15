@@ -560,15 +560,15 @@ fn dump_scene_and_exit(
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
         return;
     }
-    if *state.get() != game_state::GameState::InWorld {
-        return;
-    }
     if let Some(tree) = tree {
         println!(
             "{}",
             game_engine::dump::build_scene_tree(&tree, &transforms)
         );
         exit.write(AppExit::Success);
+        return;
+    }
+    if *state.get() != game_state::GameState::InWorld {
         return;
     }
     let now = time.elapsed_secs_f64();

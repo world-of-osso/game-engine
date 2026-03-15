@@ -128,6 +128,9 @@ pub struct AdtSpawnResult {
     pub center: Vec3,
     /// Root entity of the spawned ADT tile.
     pub root_entity: Entity,
+    pub doodad_count: usize,
+    pub wmo_entities: Vec<(Entity, String)>,
+    pub spawned_object_entities: Vec<Entity>,
     /// Tile coordinates extracted from the filename.
     pub tile_y: u32,
     pub tile_x: u32,
@@ -167,7 +170,7 @@ pub fn spawn_adt(
         inverse_bp,
     };
     let root = spawn_terrain_chunks(&mut refs, adt_path, &adt_data, tex_data.as_ref(), &tile);
-    if let Some(ref obj) = obj_data {
+    let spawned_objects = if let Some(ref obj) = obj_data {
         terrain_objects::spawn_obj_entities(
             refs.commands,
             refs.meshes,
@@ -175,17 +178,29 @@ pub fn spawn_adt(
             refs.images,
             refs.inverse_bp,
             obj,
-        );
-    }
+        )
+    } else {
+        terrain_objects::SpawnedTerrainObjects::default()
+    };
 
     heightmap.insert_tile(tile_y, tile_x, &adt_data);
     log_adt_spawn(&adt_data, adt_path);
 
     let (camera, center) = compute_spawn_result(&adt_data, obj_data.as_ref());
+    let doodad_count = spawned_objects.doodads.len();
+    let wmo_entities = spawned_objects
+        .wmos
+        .iter()
+        .map(|wmo| (wmo.entity, wmo.model.clone()))
+        .collect();
+    let spawned_object_entities = spawned_objects.all_entities();
     Ok(AdtSpawnResult {
         camera,
         center,
         root_entity: root,
+        doodad_count,
+        wmo_entities,
+        spawned_object_entities,
         tile_y,
         tile_x,
         map_name,
@@ -262,6 +277,7 @@ fn spawn_parsed_tile(refs: &mut SpawnRefs, parsed: &ParsedTile) -> (Entity, Vec<
             refs.inverse_bp,
             obj_data,
         )
+        .all_entities()
     } else {
         Vec::new()
     };

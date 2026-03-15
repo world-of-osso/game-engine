@@ -22,6 +22,11 @@ pub enum NodeProps {
     },
     Background {
         model: String,
+        doodad_count: usize,
+    },
+    Object {
+        kind: String,
+        model: String,
     },
     Ground,
     Camera {
