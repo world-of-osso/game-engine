@@ -6,7 +6,7 @@ pub struct DoodadPlacement {
     /// Index into MMID offset table, or FileDataID if flag 0x40 set.
     pub name_id: u32,
     pub unique_id: u32,
-    /// WoW world-space position [X, Y, Z].
+    /// WoW world-space position as stored in MDDF/MODF: [X, Z, Y].
     pub position: [f32; 3],
     /// Euler rotation in degrees [X, Y, Z].
     pub rotation: [f32; 3],

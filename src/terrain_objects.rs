@@ -10,6 +10,7 @@ use crate::asset::{adt_obj, blp, wmo};
 use crate::m2_spawn;
 
 use crate::terrain::resolve_companion_path;
+use crate::terrain_tile::TILE_SIZE;
 
 #[derive(Default)]
 pub struct SpawnedTerrainObjects {
@@ -83,7 +84,14 @@ pub fn spawn_obj_entities(
         obj_data,
         &mut spawned.doodads,
     );
-    spawn_wmos(commands, meshes, materials, images, obj_data, &mut spawned.wmos);
+    spawn_wmos(
+        commands,
+        meshes,
+        materials,
+        images,
+        obj_data,
+        &mut spawned.wmos,
+    );
     spawned
 }
 
@@ -521,8 +529,8 @@ fn wmo_standard_material(
 
 /// Convert MODF/MDDF placement position to Bevy-space.
 pub fn placement_to_bevy(raw: [f32; 3]) -> [f32; 3] {
-    use crate::asset::m2::wow_to_bevy;
-    wow_to_bevy(raw[0], raw[1], raw[2])
+    let center = 32.0 * TILE_SIZE;
+    [center - raw[2], raw[1], raw[0] - center]
 }
 
 /// Convert WMO placement to a Bevy Transform.
@@ -559,11 +567,21 @@ mod tests {
     }
 
     #[test]
-    fn placement_to_bevy_matches_reference_viewer_position_basis() {
-        let raw = [17012.4, 83.1, 8220.7];
+    fn placement_to_bevy_maps_absolute_wow_world_positions_into_loaded_adt_space() {
+        let raw = [17282.818, 80.921, 25931.766];
         let actual = placement_to_bevy(raw);
-        let expected = crate::asset::m2::wow_to_bevy(raw[0], raw[1], raw[2]);
-        assert_eq!(actual, expected);
+        let (tile_y, tile_x) = crate::terrain_tile::bevy_to_tile_coords(actual[0], actual[2]);
+        assert_eq!((tile_y, tile_x), (32, 48));
+        assert!(
+            (actual[0] + 8865.1).abs() < 1.0,
+            "expected centered Bevy X near player space, got {}",
+            actual[0]
+        );
+        assert!(
+            (actual[2] - 216.2).abs() < 1.0,
+            "expected centered Bevy Z near player space, got {}",
+            actual[2]
+        );
     }
 
     #[test]

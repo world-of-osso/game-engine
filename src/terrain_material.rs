@@ -1,5 +1,6 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{Image, ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, Extent3d, TextureDimension, TextureFormat};
 use bevy::shader::ShaderRef;
@@ -41,6 +42,16 @@ pub struct TerrainMaterial {
 impl Material for TerrainMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/terrain.wgsl".into()
+    }
+
+    fn specialize(
+        _pipeline: &bevy::pbr::MaterialPipeline,
+        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        _layout: &MeshVertexBufferLayoutRef,
+        _key: bevy::pbr::MaterialPipelineKey<Self>,
+    ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+        descriptor.primitive.cull_mode = None;
+        Ok(())
     }
 }
 

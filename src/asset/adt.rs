@@ -1,5 +1,6 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
+use std::collections::HashMap;
 
 pub use super::adt_tex::{
     AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0,
@@ -329,6 +330,78 @@ fn build_chunks(parsed: &[McnkData]) -> Vec<McnkMesh> {
         .collect()
 }
 
+fn stitch_chunk_edges(parsed: &mut [McnkData]) {
+    let indices: HashMap<(u32, u32), usize> = parsed
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| ((chunk.index_x, chunk.index_y), i))
+        .collect();
+
+    for i in 0..parsed.len() {
+        let (index_x, index_y) = (parsed[i].index_x, parsed[i].index_y);
+        if let Some(&neighbor) = indices.get(&(index_x + 1, index_y)) {
+            stitch_vertical_border(parsed, i, neighbor);
+        }
+        if let Some(&neighbor) = indices.get(&(index_x, index_y + 1)) {
+            stitch_horizontal_border(parsed, i, neighbor);
+        }
+    }
+}
+
+fn stitch_horizontal_border(parsed: &mut [McnkData], top: usize, bottom: usize) {
+    let (top_chunk, bottom_chunk) = split_two_mut(parsed, top, bottom);
+    for col in 0..=8 {
+        average_height_pair(
+            top_chunk.pos[2],
+            &mut top_chunk.heights,
+            vertex_index(16, col),
+            bottom_chunk.pos[2],
+            &mut bottom_chunk.heights,
+            vertex_index(0, col),
+        );
+    }
+}
+
+fn stitch_vertical_border(parsed: &mut [McnkData], left: usize, right: usize) {
+    let (left_chunk, right_chunk) = split_two_mut(parsed, left, right);
+    for row in 0..=8 {
+        average_height_pair(
+            left_chunk.pos[2],
+            &mut left_chunk.heights,
+            vertex_index(row * 2, 8),
+            right_chunk.pos[2],
+            &mut right_chunk.heights,
+            vertex_index(row * 2, 0),
+        );
+    }
+}
+
+fn split_two_mut<T>(slice: &mut [T], a: usize, b: usize) -> (&mut T, &mut T) {
+    assert!(a != b, "indices must be distinct");
+    if a < b {
+        let (left, right) = slice.split_at_mut(b);
+        (&mut left[a], &mut right[0])
+    } else {
+        let (left, right) = slice.split_at_mut(a);
+        (&mut right[0], &mut left[b])
+    }
+}
+
+fn average_height_pair(
+    base_a: f32,
+    heights_a: &mut [f32; MCVT_COUNT],
+    idx_a: usize,
+    base_b: f32,
+    heights_b: &mut [f32; MCVT_COUNT],
+    idx_b: usize,
+) {
+    let absolute_a = base_a + heights_a[idx_a];
+    let absolute_b = base_b + heights_b[idx_b];
+    let avg = (absolute_a + absolute_b) * 0.5;
+    heights_a[idx_a] = avg - base_a;
+    heights_b[idx_b] = avg - base_b;
+}
+
 fn center_surface_position(chunks: &[McnkData]) -> [f32; 3] {
     let center_chunk = chunks
         .iter()
@@ -357,10 +430,11 @@ fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
 /// Parse an ADT file and return all 256 MCNK terrain meshes.
 pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     let (mcnk_payloads, mh2o_payload) = collect_adt_chunks(data)?;
-    let parsed: Vec<McnkData> = mcnk_payloads
+    let mut parsed: Vec<McnkData> = mcnk_payloads
         .into_iter()
         .map(parse_mcnk)
         .collect::<Result<Vec<_>, String>>()?;
+    stitch_chunk_edges(&mut parsed);
     let center_surface = center_surface_position(&parsed);
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed);
@@ -440,6 +514,45 @@ mod tests {
             (32, 48),
             "parsed terrain coordinates should map back to the ADT filename tile"
         );
+    }
+
+    fn absolute_height(grid: &ChunkHeightGrid, grid_row: usize, col: usize) -> f32 {
+        grid.base_y + grid.heights[vertex_index(grid_row, col)]
+    }
+
+    #[test]
+    fn stitched_adjacent_chunk_edges_match_on_real_adt() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt = load_adt(&data).expect("expected ADT to parse");
+
+        let by_index: HashMap<(u32, u32), &ChunkHeightGrid> = adt
+            .height_grids
+            .iter()
+            .map(|grid| ((grid.index_x, grid.index_y), grid))
+            .collect();
+
+        let a = by_index.get(&(8, 8)).expect("center chunk");
+        let right = by_index.get(&(9, 8)).expect("east neighbor");
+        let below = by_index.get(&(8, 9)).expect("south neighbor");
+
+        for col in 0..=8 {
+            let a_h = absolute_height(a, 16, col);
+            let b_h = absolute_height(below, 0, col);
+            assert!(
+                (a_h - b_h).abs() < 0.001,
+                "south seam mismatch at col {col}: {a_h} vs {b_h}"
+            );
+        }
+
+        for row in 0..=8 {
+            let a_h = absolute_height(a, row * 2, 8);
+            let b_h = absolute_height(right, row * 2, 0);
+            assert!(
+                (a_h - b_h).abs() < 0.001,
+                "east seam mismatch at row {row}: {a_h} vs {b_h}"
+            );
+        }
     }
 
     fn minimal_adt_with_mh2o(mh2o_payload: Vec<u8>) -> Vec<u8> {
