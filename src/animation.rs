@@ -179,20 +179,43 @@ fn anim_finished(player: &M2AnimPlayer, sequences: &[M2AnimSequence]) -> bool {
         .is_some_and(|seq| player.time_ms >= seq.duration as f32)
 }
 
+fn valid_next_sequence_idx(sequences: &[M2AnimSequence], seq_idx: usize) -> Option<usize> {
+    let next_idx = sequences.get(seq_idx)?.next_animation;
+    let next_idx = usize::try_from(next_idx).ok()?;
+    sequences.get(next_idx)?;
+    Some(next_idx)
+}
+
+fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) {
+    let Some(seq) = data.sequences.get(player.current_seq_idx) else {
+        return;
+    };
+    player.time_ms += delta_ms;
+    if seq.duration > 0 {
+        if player.looping {
+            if player.time_ms >= seq.duration as f32 {
+                if let Some(next_idx) = valid_next_sequence_idx(&data.sequences, player.current_seq_idx)
+                    .filter(|next_idx| *next_idx != player.current_seq_idx)
+                {
+                    let overflow = player.time_ms - seq.duration as f32;
+                    player.time_ms = seq.duration as f32;
+                    let blend_ms = data.sequences[next_idx].blend_time as f32;
+                    start_transition(player, next_idx, blend_ms);
+                    player.time_ms = overflow;
+                } else {
+                    player.time_ms %= seq.duration as f32;
+                }
+            }
+        } else {
+            player.time_ms = player.time_ms.min(seq.duration as f32);
+        }
+    }
+}
+
 fn tick_animation(time: Res<Time>, mut players: Query<(&mut M2AnimPlayer, &M2AnimData)>) {
     let delta_ms = time.delta_secs() * 1000.0;
     for (mut player, data) in &mut players {
-        let Some(seq) = data.sequences.get(player.current_seq_idx) else {
-            continue;
-        };
-        player.time_ms += delta_ms;
-        if seq.duration > 0 {
-            if player.looping {
-                player.time_ms %= seq.duration as f32;
-            } else {
-                player.time_ms = player.time_ms.min(seq.duration as f32);
-            }
-        }
+        advance_player_time(&mut player, data, delta_ms);
 
         let mut clear_transition = false;
         if let Some(ref mut tr) = player.transition {
@@ -350,6 +373,18 @@ mod tests {
         }
     }
 
+    fn stand_sequence_with_next(duration: u32, variation_id: u16, next_animation: i16) -> M2AnimSequence {
+        M2AnimSequence {
+            id: 0,
+            variation_id,
+            duration,
+            movespeed: 0.0,
+            flags: 0,
+            blend_time: 150,
+            next_animation,
+        }
+    }
+
     #[test]
     fn apply_animation_updates_each_model_with_its_own_data() {
         let mut app = App::new();
@@ -433,5 +468,29 @@ mod tests {
             Vec3::new(1.0, 3.0, -2.0),
             "char-select models should sample their idle pose instead of staying in rest pose"
         );
+    }
+
+    #[test]
+    fn looping_stand_advances_into_next_authored_variant() {
+        let mut player = M2AnimPlayer {
+            current_seq_idx: 0,
+            time_ms: 900.0,
+            looping: true,
+            transition: None,
+        };
+        let data = M2AnimData {
+            sequences: vec![
+                stand_sequence_with_next(1000, 0, 1),
+                stand_sequence_with_next(2000, 1, -1),
+            ],
+            bone_tracks: vec![],
+            joint_entities: vec![],
+        };
+
+        advance_player_time(&mut player, &data, 200.0);
+
+        assert_eq!(player.current_seq_idx, 1, "should follow the authored idle chain");
+        assert_eq!(player.time_ms, 100.0, "should preserve overflow into the next variant");
+        assert!(player.transition.is_some(), "switching stand variants should crossfade");
     }
 }
