@@ -7,7 +7,8 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use shared::components::{
-    ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition, Rotation as NetRotation,
+    Health as NetHealth, ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition,
+    Rotation as NetRotation,
 };
 use shared::protocol::ChatMessage;
 pub use shared::protocol::ChatType;
@@ -69,6 +70,16 @@ pub struct CurrentZone {
     pub zone_id: u32,
 }
 
+/// Whether the local player is currently alive according to replicated health.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct LocalAliveState(pub bool);
+
+impl Default for LocalAliveState {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
 /// Chat log storing received messages: (sender, content, chat_type).
 #[derive(Resource, Default)]
 pub struct ChatLog {
@@ -107,6 +118,7 @@ impl Plugin for NetworkPlugin {
 
 fn register_net_resources(app: &mut App) {
     app.init_resource::<CurrentZone>();
+    app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
     app.insert_resource(AuthToken(load_auth_token()));
@@ -171,8 +183,17 @@ fn register_inworld_sync_systems(app: &mut App) {
             sync_replicated_transforms,
             sync_replicated_player_customization,
             interpolate_remote_entities,
-            tag_local_player,
         )
+            .run_if(in_state(GameState::InWorld)),
+    );
+    app.add_systems(
+        Update,
+        (
+            tag_local_player,
+            sync_local_alive_state,
+            apply_npc_visibility_policy,
+        )
+            .chain()
             .run_if(in_state(GameState::InWorld)),
     );
 }
@@ -546,6 +567,53 @@ fn apply_local_player_tag(
             CharacterFacing,
             crate::collision::CharacterPhysics,
         )>();
+    }
+}
+
+fn sync_local_alive_state(
+    mut local_alive: ResMut<LocalAliveState>,
+    local_player_query: Query<&NetHealth, With<LocalPlayer>>,
+) {
+    local_alive.0 = local_player_query
+        .iter()
+        .next()
+        .map(|health| health.current > 0.0)
+        .unwrap_or(true);
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NpcVisibilityPolicy {
+    Always,
+    Hidden,
+    DeadOnly,
+}
+
+fn npc_visibility_policy(template_id: u32) -> NpcVisibilityPolicy {
+    match template_id {
+        6491 => NpcVisibilityPolicy::DeadOnly, // Spirit Healer
+        32820 => NpcVisibilityPolicy::Hidden,  // Wild Turkey clutter near spawn
+        26724 | 26738 | 26739 | 26740..=26745 | 26747..=26759 | 26765 | 33252 => {
+            NpcVisibilityPolicy::Hidden // [DND] TAR pedestals and other debug vendors
+        }
+        _ => NpcVisibilityPolicy::Always,
+    }
+}
+
+fn apply_npc_visibility_policy(
+    local_alive: Res<LocalAliveState>,
+    mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
+) {
+    for (npc, mut visibility) in &mut npcs {
+        let should_show = match npc_visibility_policy(npc.template_id) {
+            NpcVisibilityPolicy::Always => true,
+            NpcVisibilityPolicy::Hidden => false,
+            NpcVisibilityPolicy::DeadOnly => !local_alive.0,
+        };
+        *visibility = if should_show {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 

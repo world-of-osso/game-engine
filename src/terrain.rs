@@ -586,6 +586,27 @@ mod tests {
             "expected alternate flat chunk height"
         );
     }
+
+    #[test]
+    fn bootstrap_terrain_streaming_uses_local_player_tile_when_server_did_not_seed_it() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<AdtManager>();
+        app.world_mut().spawn((
+            crate::camera::Player,
+            Transform::from_xyz(-8912.9, 80.2, 207.8),
+        ));
+
+        let _ = app.world_mut().run_system_once(bootstrap_terrain_streaming);
+
+        let adt_manager = app.world().resource::<AdtManager>();
+        assert_eq!(adt_manager.map_name, "azeroth");
+        assert_eq!(adt_manager.initial_tile, (32, 48));
+        assert_eq!(adt_manager.server_requested.len(), 9);
+        assert!(adt_manager.server_requested.contains(&(32, 48)));
+    }
 }
 
 // ── water spawning ──────────────────────────────────────────────────────────
@@ -634,6 +655,7 @@ impl Plugin for AdtStreamingPlugin {
             .add_systems(
                 Update,
                 (
+                    bootstrap_terrain_streaming,
                     adt_streaming_system,
                     receive_loaded_tiles,
                     doodad_lod_swap_system,
@@ -642,6 +664,29 @@ impl Plugin for AdtStreamingPlugin {
                     .run_if(in_state(GameState::InWorld)),
             );
     }
+}
+
+/// Fall back to bootstrapping terrain streaming from the local player's position.
+///
+/// The server normally seeds this via `LoadTerrain`, but if that message is missed we still
+/// want the in-world scene to become navigable instead of rendering actors over empty space.
+fn bootstrap_terrain_streaming(
+    mut adt_manager: ResMut<AdtManager>,
+    player_q: Query<&Transform, With<crate::camera::Player>>,
+) {
+    if !adt_manager.map_name.is_empty() {
+        return;
+    }
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let (tile_y, tile_x) = bevy_to_tile_coords(player_tf.translation.x, player_tf.translation.z);
+    adt_manager.map_name = "azeroth".into();
+    adt_manager.initial_tile = (tile_y, tile_x);
+    for key in compute_desired_tiles(tile_y, tile_x, adt_manager.load_radius) {
+        adt_manager.server_requested.insert(key);
+    }
+    info!("Bootstrapped terrain streaming from local player position at tile ({tile_y}, {tile_x})");
 }
 
 /// Dispatch background loads and unload distant tiles.

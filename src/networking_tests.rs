@@ -398,3 +398,33 @@ fn queue_despawn_if_exists_ignores_missing_entity() {
 
     assert!(app.world().get_entity(entity).is_err());
 }
+
+#[test]
+fn npc_visibility_policy_hides_debug_pedestals_and_turkeys() {
+    assert_eq!(npc_visibility_policy(26741), NpcVisibilityPolicy::Hidden);
+    assert_eq!(npc_visibility_policy(32820), NpcVisibilityPolicy::Hidden);
+}
+
+#[test]
+fn npc_visibility_policy_only_shows_spirit_healer_when_dead() {
+    assert_eq!(npc_visibility_policy(6491), NpcVisibilityPolicy::DeadOnly);
+}
+
+#[test]
+fn sync_local_alive_state_tracks_local_player_health() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<LocalAliveState>();
+    app.add_systems(Update, sync_local_alive_state);
+    app.world_mut().spawn((
+        LocalPlayer,
+        NetHealth {
+            current: 0.0,
+            max: 100.0,
+        },
+    ));
+
+    app.update();
+
+    assert!(!app.world().resource::<LocalAliveState>().0);
+}
