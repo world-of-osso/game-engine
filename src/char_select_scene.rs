@@ -247,7 +247,7 @@ fn spawn_char_select_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     char_transform: Transform,
 ) -> Option<Entity> {
-    let entity = m2_scene::spawn_static_m2(
+    let entity = m2_scene::spawn_animated_static_m2(
         commands,
         meshes,
         materials,

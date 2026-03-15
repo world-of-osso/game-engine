@@ -291,13 +291,20 @@ fn apply_bone_transform(pivot: Vec3, trans: Vec3, rot: Quat, scl: Vec3, transfor
 
 pub struct AnimationPlugin;
 
+fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
+    matches!(
+        state.as_deref().map(State::get),
+        Some(GameState::InWorld | GameState::CharSelect)
+    )
+}
+
 impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
             (switch_animation, tick_animation, apply_animation)
                 .chain()
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(animation_active_state),
         );
     }
 }
@@ -390,5 +397,41 @@ mod tests {
         let transform_b = app.world().get::<Transform>(joint_b).unwrap();
         assert_eq!(transform_a.translation, Vec3::new(1.0, 3.0, -2.0));
         assert_eq!(transform_b.translation, Vec3::new(4.0, 6.0, -5.0));
+    }
+
+    #[test]
+    fn animation_plugin_runs_on_char_select() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.init_state::<GameState>();
+        app.insert_state(GameState::CharSelect);
+        app.add_plugins(AnimationPlugin);
+
+        let joint = app
+            .world_mut()
+            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
+            .id();
+        app.world_mut().spawn((
+            M2AnimPlayer {
+                current_seq_idx: 0,
+                time_ms: 0.0,
+                looping: true,
+                transition: None,
+            },
+            M2AnimData {
+                sequences: vec![stand_sequence()],
+                bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+                joint_entities: vec![joint],
+            },
+        ));
+
+        app.update();
+
+        let transform = app.world().get::<Transform>(joint).unwrap();
+        assert_eq!(
+            transform.translation,
+            Vec3::new(1.0, 3.0, -2.0),
+            "char-select models should sample their idle pose instead of staying in rest pose"
+        );
     }
 }

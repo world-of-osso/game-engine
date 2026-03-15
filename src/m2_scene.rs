@@ -278,6 +278,49 @@ pub fn spawn_static_m2(
     }
 }
 
+/// Spawn a static M2 model that still carries animation data.
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_animated_static_m2(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    transform: Transform,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) -> Option<Entity> {
+    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
+        return None;
+    };
+    let name = m2_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("prop");
+    let root = commands
+        .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
+        .id();
+    let model_root = commands
+        .spawn((
+            Name::new(format!("{name}ModelRoot")),
+            Transform::IDENTITY,
+            Visibility::default(),
+        ))
+        .id();
+    commands.entity(model_root).insert(ChildOf(root));
+    attach_m2_model_parts(
+        commands,
+        meshes,
+        materials,
+        images,
+        skinned_mesh_inverse_bindposes,
+        model,
+        model_root,
+        false,
+    );
+    Some(root)
+}
+
 /// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.
 /// Returns the joint entity list if animation is active, otherwise None.
 pub fn attach_bone_pivots_and_player(
