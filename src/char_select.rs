@@ -691,6 +691,7 @@ mod tests {
 
     use game_engine::ui::automation::{UiAutomationAction, UiAutomationPlugin, UiAutomationQueue};
     use game_engine::ui::event::EventBus;
+    use game_engine::ui::frame::WidgetData;
     use game_engine::ui::registry::FrameRegistry;
 
     fn test_registry() -> FrameRegistry {
@@ -705,7 +706,10 @@ mod tests {
         reg
     }
 
-    fn build_screen_with_campsites(state: CharSelectState, campsite: CampsiteState) -> FrameRegistry {
+    fn build_screen_with_campsites(
+        state: CharSelectState,
+        campsite: CampsiteState,
+    ) -> FrameRegistry {
         let mut reg = test_registry();
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(state);
@@ -737,6 +741,44 @@ mod tests {
     }
 
     #[test]
+    fn character_cards_use_tinted_atlas_textures_without_css_border() {
+        let reg = build_screen(CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "TestChar".to_string(),
+                info: "Level 60   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            ..Default::default()
+        });
+
+        let card_id = reg.get_by_name("CharCard_0").expect("CharCard_0");
+        let card = reg.get(card_id).expect("card frame");
+        assert!(
+            card.border.is_none(),
+            "card should rely on atlas art, not CSS border"
+        );
+
+        let backdrop_id = reg
+            .get_by_name("CharCard_0Backdrop")
+            .expect("CharCard_0Backdrop");
+        let backdrop = reg.get(backdrop_id).expect("backdrop frame");
+        let Some(WidgetData::Texture(backdrop_tex)) = backdrop.widget_data.as_ref() else {
+            panic!("backdrop should be a texture");
+        };
+        assert_eq!(backdrop_tex.vertex_color, [0.76, 0.70, 0.57, 0.96]);
+
+        let selected_id = reg
+            .get_by_name("CharCard_0Selected")
+            .expect("CharCard_0Selected");
+        let selected = reg.get(selected_id).expect("selected frame");
+        let Some(WidgetData::Texture(selected_tex)) = selected.widget_data.as_ref() else {
+            panic!("selected highlight should be a texture");
+        };
+        assert_eq!(selected_tex.vertex_color, [0.82, 0.74, 0.46, 0.9]);
+    }
+
+    #[test]
     fn screen_does_not_include_inline_create_panel() {
         let reg = build_screen(CharSelectState::default());
         assert!(reg.get_by_name("CreatePanel").is_none());
@@ -765,21 +807,26 @@ mod tests {
             },
         );
 
+        let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
         let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
         let tab = reg.get(tab_id).expect("tab frame");
 
         assert_eq!(tab.anchors.len(), 1);
-        assert_eq!(tab.anchors[0].point, game_engine::ui::anchor::AnchorPoint::Top);
+        assert_eq!(
+            tab.anchors[0].point,
+            game_engine::ui::anchor::AnchorPoint::Top
+        );
         assert_eq!(
             tab.anchors[0].relative_point,
             game_engine::ui::anchor::AnchorPoint::Top
         );
+        assert_eq!(tab.anchors[0].relative_to, Some(root_id));
         assert_eq!(tab.anchors[0].x_offset, 0.0);
         assert_eq!(tab.anchors[0].y_offset, 0.0);
     }
 
     #[test]
-    fn campsite_panel_is_centered_under_tab() {
+    fn campsite_panel_is_anchored_to_top_center_without_offsets() {
         let reg = build_screen_with_campsites(
             CharSelectState::default(),
             CampsiteState {
@@ -792,19 +839,22 @@ mod tests {
             },
         );
 
+        let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
         let panel_id = reg.get_by_name("CampsitePanel").expect("CampsitePanel");
-        let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
         let panel = reg.get(panel_id).expect("panel frame");
 
         assert_eq!(panel.anchors.len(), 1);
-        assert_eq!(panel.anchors[0].point, game_engine::ui::anchor::AnchorPoint::Top);
+        assert_eq!(
+            panel.anchors[0].point,
+            game_engine::ui::anchor::AnchorPoint::Top
+        );
         assert_eq!(
             panel.anchors[0].relative_point,
-            game_engine::ui::anchor::AnchorPoint::Bottom
+            game_engine::ui::anchor::AnchorPoint::Top
         );
-        assert_eq!(panel.anchors[0].relative_to, Some(tab_id));
+        assert_eq!(panel.anchors[0].relative_to, Some(root_id));
         assert_eq!(panel.anchors[0].x_offset, 0.0);
-        assert_eq!(panel.anchors[0].y_offset, 0.0);
+        assert_eq!(panel.anchors[0].y_offset, -12.0);
     }
 
     #[test]

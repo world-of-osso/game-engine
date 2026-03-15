@@ -8,7 +8,7 @@ use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
-use super::campsite_component::{campsite_grid, campsite_tab};
+use super::campsite_component::{campsite_panel, campsite_tab};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CharSelectAction {
@@ -652,7 +652,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
     let has_selection = state.selected_index.is_some();
 
     let campsite_ui: Element = if let Some(cs) = &campsite {
-        [campsite_tab(cs.panel_visible), campsite_grid(cs)]
+        [campsite_tab(cs.panel_visible), campsite_panel(cs)]
             .into_iter()
             .flatten()
             .collect()

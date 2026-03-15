@@ -46,6 +46,7 @@ fn tab_texture_strip(left: &str, mid: &str, right: &str) -> Element {
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
+                y: "-8",
             }
         }
         texture {
@@ -57,6 +58,7 @@ fn tab_texture_strip(left: &str, mid: &str, right: &str) -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: "50",
+                y: "-8",
             }
         }
         texture {
@@ -68,6 +70,7 @@ fn tab_texture_strip(left: &str, mid: &str, right: &str) -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: "130",
+                y: "-8",
             }
         }
     }
@@ -99,11 +102,10 @@ pub fn campsite_tab(selected: bool) -> Element {
             width: 180.0,
             height: 43.0,
             onclick: CharSelectAction::CampsiteToggle,
+            border: "1px solid 1.0,0.0,0.0,1.0",
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "18",
-                y: "-24",
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
             }
             {tab_texture_strip(left, mid, right)}
             {tab_label()}
@@ -167,7 +169,7 @@ fn campsite_card(id: u32, name: &str, is_selected: bool) -> Element {
     }
 }
 
-pub fn campsite_grid(state: &CampsiteState) -> Element {
+pub fn campsite_panel(state: &CampsiteState) -> Element {
     let hide = !state.panel_visible;
     let cards: Element = state
         .scenes
@@ -186,10 +188,9 @@ pub fn campsite_grid(state: &CampsiteState) -> Element {
             layout: "flex-row-wrap",
             gap: 10.0,
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "18",
-                y: "-74",
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                y: "-12",
             }
             {cards}
         }
