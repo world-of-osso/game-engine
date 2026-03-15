@@ -11,7 +11,8 @@ fn light_transform(eye: Vec3, focus: Vec3) -> Transform {
 
 fn spawn_front_fill_light(commands: &mut Commands, eye: Vec3, focus: Vec3) {
     let cam_dir = (focus - eye).normalize_or_zero();
-    let fill_pos = focus + cam_dir * -2.5 + Vec3::Y * -0.5;
+    let right = cam_dir.cross(Vec3::Y).normalize_or_zero();
+    let fill_pos = focus + cam_dir * -2.5 + Vec3::Y * -0.5 - right * 1.2;
     commands.spawn((
         Name::new("FrontFillLight"),
         CharSelectScene,
