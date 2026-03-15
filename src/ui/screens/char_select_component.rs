@@ -650,6 +650,11 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
         .expect("CharSelectState must be in SharedContext");
     let campsite = ctx.get::<CampsiteState>();
     let has_selection = state.selected_index.is_some();
+    let top_hud: Element = if campsite.is_some() {
+        Vec::new()
+    } else {
+        cs_top_hud()
+    };
 
     let campsite_ui: Element = if let Some(cs) = &campsite {
         [campsite_tab(cs.panel_visible), campsite_panel(cs)]
@@ -664,7 +669,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
         r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Background,
             {cs_background()}
             {cs_logo()}
-            {cs_top_hud()}
+            {top_hud}
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
             {cs_action_buttons()}
