@@ -3,6 +3,7 @@ use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
 use lightyear::prelude::*;
 
+use game_engine::ui::atlas;
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -158,17 +159,29 @@ fn apply_post_setup(reg: &mut FrameRegistry, cs: &CharSelectUi) {
 
 fn set_list_panel_backdrop(reg: &mut FrameRegistry, id: u64) {
     if let Some(frame) = reg.get_mut(id) {
-        frame.nine_slice = Some(NineSlice {
-            edge_size: 12.0,
-            uv_edge_size: Some(12.0),
-            texture: Some(TextureSource::Atlas(
-                "glues-characterselect-card-all-bg".to_string(),
-            )),
-            bg_color: [1.0, 1.0, 1.0, 1.0],
-            border_color: [1.0, 1.0, 1.0, 1.0],
-            ..Default::default()
-        });
+        frame.nine_slice = atlas_nine_slice(
+            "glues-characterselect-card-all-bg",
+            frame.resolved_width(),
+            frame.resolved_height(),
+        );
     }
+}
+
+fn atlas_nine_slice(name: &str, frame_w: f32, frame_h: f32) -> Option<NineSlice> {
+    let uv_edges = atlas::nine_slice_margins(name)?;
+    let _ = (frame_w, frame_h);
+    let edge_sizes = uv_edges;
+    Some(NineSlice {
+        edge_size: edge_sizes[0],
+        edge_size_v: Some(edge_sizes[1]),
+        edge_sizes: Some(edge_sizes),
+        uv_edge_size: Some(uv_edges[0]),
+        uv_edge_sizes: Some(uv_edges),
+        texture: Some(TextureSource::Atlas(name.to_string())),
+        bg_color: [1.0, 1.0, 1.0, 1.0],
+        border_color: [1.0, 1.0, 1.0, 1.0],
+        ..Default::default()
+    })
 }
 
 fn teardown_char_select_ui(
@@ -546,7 +559,7 @@ fn char_select_hover_visuals(
 #[allow(clippy::too_many_arguments)]
 fn char_select_update_visuals(
     mut ui: ResMut<UiState>,
-    _cs_ui: Option<Res<CharSelectUi>>,
+    cs_ui: Option<Res<CharSelectUi>>,
     selected: Res<SelectedCharIndex>,
     campsite_visible: Res<CampsitePanelVisible>,
     char_list: Res<CharacterList>,
@@ -555,6 +568,7 @@ fn char_select_update_visuals(
     sync_screen_state(
         &mut screen_res,
         &mut ui.registry,
+        cs_ui.as_deref(),
         &char_list,
         &selected,
         &campsite_visible,
@@ -565,6 +579,7 @@ fn char_select_update_visuals(
 fn sync_screen_state(
     screen_res: &mut Option<ResMut<CharSelectScreenWrap>>,
     reg: &mut FrameRegistry,
+    cs_ui: Option<&CharSelectUi>,
     char_list: &CharacterList,
     selected: &SelectedCharIndex,
     campsite_visible: &CampsitePanelVisible,
@@ -579,6 +594,9 @@ fn sync_screen_state(
         .shared
         .insert(build_campsite_state(campsite_visible.0));
     inner.screen.sync(&inner.shared, reg);
+    if let Some(cs) = cs_ui {
+        apply_post_setup(reg, cs);
+    }
 }
 
 fn build_char_select_state_full(
@@ -686,6 +704,15 @@ mod tests {
         Screen::new(char_select_screen).sync(&shared, &mut reg);
         reg
     }
+
+    fn build_screen_with_campsites(state: CharSelectState, campsite: CampsiteState) -> FrameRegistry {
+        let mut reg = test_registry();
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(state);
+        shared.insert(campsite);
+        Screen::new(char_select_screen).sync(&shared, &mut reg);
+        reg
+    }
     #[test]
     fn screen_builds_with_empty_char_list() {
         let reg = build_screen(CharSelectState::default());
@@ -713,6 +740,71 @@ mod tests {
     fn screen_does_not_include_inline_create_panel() {
         let reg = build_screen(CharSelectState::default());
         assert!(reg.get_by_name("CreatePanel").is_none());
+    }
+
+    #[test]
+    fn character_list_backdrop_uses_atlas_slice_metadata() {
+        let ns = atlas_nine_slice("glues-characterselect-card-all-bg", 386.0, 520.0)
+            .expect("atlas-backed nine-slice");
+        assert_eq!(ns.uv_edge_sizes, Some([14.0, 11.0, 14.0, 17.0]));
+        let display = ns.edge_sizes.expect("display edge sizes");
+        assert_eq!(display, [14.0, 11.0, 14.0, 17.0]);
+    }
+
+    #[test]
+    fn campsite_tab_is_anchored_to_top_center_without_offsets() {
+        let reg = build_screen_with_campsites(
+            CharSelectState::default(),
+            CampsiteState {
+                scenes: vec![CampsiteEntry {
+                    id: 1,
+                    name: "Forest".to_string(),
+                }],
+                panel_visible: true,
+                selected_id: Some(1),
+            },
+        );
+
+        let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
+        let tab = reg.get(tab_id).expect("tab frame");
+
+        assert_eq!(tab.anchors.len(), 1);
+        assert_eq!(tab.anchors[0].point, game_engine::ui::anchor::AnchorPoint::Top);
+        assert_eq!(
+            tab.anchors[0].relative_point,
+            game_engine::ui::anchor::AnchorPoint::Top
+        );
+        assert_eq!(tab.anchors[0].x_offset, 0.0);
+        assert_eq!(tab.anchors[0].y_offset, 0.0);
+    }
+
+    #[test]
+    fn campsite_panel_is_centered_under_tab() {
+        let reg = build_screen_with_campsites(
+            CharSelectState::default(),
+            CampsiteState {
+                scenes: vec![CampsiteEntry {
+                    id: 1,
+                    name: "Forest".to_string(),
+                }],
+                panel_visible: true,
+                selected_id: Some(1),
+            },
+        );
+
+        let panel_id = reg.get_by_name("CampsitePanel").expect("CampsitePanel");
+        let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
+        let panel = reg.get(panel_id).expect("panel frame");
+
+        assert_eq!(panel.anchors.len(), 1);
+        assert_eq!(panel.anchors[0].point, game_engine::ui::anchor::AnchorPoint::Top);
+        assert_eq!(
+            panel.anchors[0].relative_point,
+            game_engine::ui::anchor::AnchorPoint::Bottom
+        );
+        assert_eq!(panel.anchors[0].relative_to, Some(tab_id));
+        assert_eq!(panel.anchors[0].x_offset, 0.0);
+        assert_eq!(panel.anchors[0].y_offset, 0.0);
     }
 
     #[test]
