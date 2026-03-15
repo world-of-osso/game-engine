@@ -21,6 +21,54 @@ Full WoW installation synced from Windows via Syncthing:
 
 **Always extract from local CASC storage. Never use Blizzard CDN.**
 
+## Local Refresh
+
+When `data/casc/root.bin` and `data/casc/encoding.bin` drift out of sync with the
+synced WoW install, local extraction starts failing with errors like:
+
+```text
+Content key not found in local indices
+```
+
+Refresh the cache from the local WoW archives, not CDN.
+
+### Backup First
+
+```bash
+ts=$(date +%Y%m%d-%H%M%S)
+mkdir -p data/casc/backups/$ts
+cp data/casc/root.bin data/casc/backups/$ts/root.bin
+cp data/casc/encoding.bin data/casc/backups/$ts/encoding.bin
+```
+
+### Refresh From Local CASC
+
+```bash
+cargo run --bin casc_refresh
+```
+
+This binary:
+
+1. Reads the active retail build from `/syncthing/World of Warcraft/.build.info`
+2. Opens the matching local build config under `Data/config/`
+3. Reads `encoding.bin` from local CASC archives by the build config's encoding key
+4. Resolves the build config's root content key through that fresh encoding file
+5. Reads `root.bin` from local CASC archives by the resolved encoding key
+6. Writes both files back to `data/casc/`
+
+### Verify
+
+```bash
+# Known-good spot check
+cargo run --bin casc-local -- 145513 4219004 4239595 4226685 -o data/textures
+
+# Optional: verify runtime extraction path too
+cargo run --bin game-engine -- screenshot data/charselect-check.webp --screen charselect
+```
+
+If refresh worked, `casc-local` should extract files instead of failing with
+content-key lookup errors.
+
 ## casc-local (Primary Tool)
 
 Binary in game-engine that reads directly from local CASC archives.
@@ -36,27 +84,15 @@ cargo run --bin casc-local -- <fdid> -o data/textures/
 
 1. Opens local CASC at `/syncthing/World of Warcraft/Data`
 2. Loads `.idx` index files (2.1M entries across 197 archives)
-3. Loads cached root+encoding files from `~/.cache/casc-extract/wow-{build}/`
+3. Loads cached `data/casc/root.bin` + `data/casc/encoding.bin`
 4. Resolution chain: FDID → ContentKey (root) → EncodingKey (encoding) → archive location (.idx)
 5. Reads + BLTE-decompresses from local `.data` archives
 6. Files named by FDID: `{fdid}.m2`, `{fdid}.blp`, etc.
 
 ### Prerequisites
 
-One-time CDN init to get root+encoding mapping files:
-```bash
-cd ../casc-extract && cargo run -- init
-```
-These cached files (`root.bin`, `encoding.bin`) map FDIDs to encoding keys. The actual asset data comes from local CASC.
-
-## casc-extract (CDN fallback)
-
-Located at `../casc-extract/`. Downloads from Blizzard CDN. **Avoid** — only use for `init`.
-
-```bash
-cargo run -- init                              # One-time: cache root+encoding
-cargo run -- search "azeroth_32_48"            # Search listfile
-```
+`data/casc/root.bin` and `data/casc/encoding.bin` must match the local WoW
+build. If they do not, run `cargo run --bin casc_refresh`.
 
 ## CASC Lookup Chain
 
@@ -69,6 +105,13 @@ FDID (e.g. 189929)
 ```
 
 Key detail: local `.idx` files use encoding keys truncated to 9 bytes, not content keys. The `Installation::read_file_by_encoding_key()` method handles this correctly.
+
+This matters in code too: `read_file_by_fdid()` is not the correct local
+archive path for reliable extraction in this project. The working path is:
+
+```text
+FDID -> content key -> encoding key -> read_file_by_encoding_key()
+```
 
 ## Asset Naming
 
