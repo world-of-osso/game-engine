@@ -3,7 +3,7 @@
 //! Spawns camera, lighting, warband terrain, and the selected character's M2 model.
 //! All entities are tagged with [`CharSelectScene`] for bulk despawn on exit.
 
-use std::f32::consts::{FRAC_PI_8, PI};
+use std::f32::consts::FRAC_PI_8;
 use std::path::{Path, PathBuf};
 
 use bevy::input::mouse::AccumulatedMouseMotion;
@@ -14,7 +14,6 @@ use game_engine::customization_data::{CustomizationDb, ModelPresentation};
 use game_engine::outfit_data::OutfitData;
 use shared::protocol::CharacterListEntry;
 
-use crate::asset;
 use crate::char_select::SelectedCharIndex;
 use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain};
 use crate::character_customization::{
@@ -22,7 +21,6 @@ use crate::character_customization::{
 };
 use crate::creature_display;
 use crate::game_state::GameState;
-use crate::ground;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
@@ -201,6 +199,9 @@ fn spawn_char_select_camera(
         .id()
 }
 
+mod background;
+mod lighting;
+
 fn char_select_orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
@@ -221,29 +222,6 @@ fn char_select_orbit_camera(
         let eye = orbit_eye(&orbit);
         *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
     }
-}
-
-fn spawn_char_select_lighting(commands: &mut Commands) -> Entity {
-    commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(1.0, 0.95, 0.85),
-        brightness: 80.0,
-        ..default()
-    });
-    // Keep the moody upper-left key, but bias it closer to the camera for clearer facial read.
-    let directional = commands
-        .spawn((
-            Name::new("DirectionalLight"),
-            CharSelectScene,
-            DirectionalLight {
-                illuminance: 8000.0,
-                shadows_enabled: true,
-                color: Color::srgb(1.0, 0.92, 0.8),
-                ..default()
-            },
-            Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 3.8, PI / 10.0, 0.0)),
-        ))
-        .id();
-    directional
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -351,7 +329,7 @@ fn resolve_char_transform(
     heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
 ) -> Transform {
-    let scene = find_scene_entry(warband, selected_scene);
+    let scene = background::find_scene_entry(warband, selected_scene);
     let placement = warband
         .as_ref()
         .zip(scene)
@@ -393,88 +371,6 @@ fn resolve_char_select_model_path(
         .or_else(fallback_model_path)
 }
 
-fn spawn_tagged_ground(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-) -> Entity {
-    let grass_path = asset::casc_resolver::ensure_texture(187126)
-        .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
-    let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
-        eprintln!("{e}");
-        ground::generate_grass_texture()
-    });
-    grass_image.sampler =
-        bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
-            address_mode_u: bevy::image::ImageAddressMode::Repeat,
-            address_mode_v: bevy::image::ImageAddressMode::Repeat,
-            ..bevy::image::ImageSamplerDescriptor::linear()
-        });
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(grass_image)),
-        perceptual_roughness: 0.9,
-        ..default()
-    });
-    let mut mesh = Plane3d::default().mesh().size(30.0, 30.0).build();
-    ground::scale_mesh_uvs(&mut mesh, 6.0);
-    commands
-        .spawn((
-            Name::new("Ground"),
-            CharSelectScene,
-            Mesh3d(meshes.add(mesh)),
-            MeshMaterial3d(material),
-        ))
-        .id()
-}
-
-fn find_scene_entry<'a>(
-    warband: &'a Option<Res<WarbandScenes>>,
-    selected: &Option<Res<SelectedWarbandScene>>,
-) -> Option<&'a crate::warband_scene::WarbandSceneEntry> {
-    warband
-        .as_ref()
-        .zip(selected.as_ref())
-        .and_then(|(w, sel)| w.scenes.iter().find(|s| s.id == sel.scene_id))
-}
-
-#[allow(clippy::too_many_arguments)]
-fn spawn_background(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
-    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
-    active: &mut ActiveWarbandSceneId,
-) -> game_engine::scene_tree::SceneNode {
-    if let Some(s) = scene
-        && let Some(e) = scene_tree::spawn_warband_terrain(
-            commands,
-            meshes,
-            materials,
-            terrain_materials,
-            water_materials,
-            images,
-            inv_bp,
-            heightmap,
-            s,
-        )
-    {
-        active.0 = Some(s.id);
-        let (ty, tx) = s.tile_coords();
-        return scene_tree::background_scene_node(
-            e,
-            &format!("terrain:{}_{ty}_{tx}", s.map_name()),
-        );
-    }
-    let ground = spawn_tagged_ground(commands, meshes, materials, images);
-    scene_tree::ground_scene_node(ground)
-}
-
 #[allow(clippy::too_many_arguments)]
 fn setup_char_select_scene(
     mut commands: Commands,
@@ -494,7 +390,7 @@ fn setup_char_select_scene(
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
 ) {
-    let scene_entry = find_scene_entry(&warband, &selected_scene);
+    let scene_entry = background::find_scene_entry(&warband, &selected_scene);
     let placement = warband
         .as_ref()
         .zip(scene_entry)
@@ -502,8 +398,9 @@ fn setup_char_select_scene(
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
     let camera_entity =
         spawn_char_select_camera(&mut commands, scene_entry, placement.as_ref(), presentation);
-    let dir = spawn_char_select_lighting(&mut commands);
-    let bg_node = spawn_background(
+    let dir =
+        lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
+    let bg_node = background::spawn(
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -569,6 +466,11 @@ fn sync_char_select_model(
         commands.entity(entity).despawn();
     }
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
+    let scene = background::find_scene_entry(&warband, &selected_scene);
+    let placement = warband
+        .as_ref()
+        .zip(scene)
+        .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
     displayed.0 = spawn_selected_model(
         &mut commands,
@@ -582,10 +484,7 @@ fn sync_char_select_model(
         char_tf,
     )
     .map(|(id, _)| id);
-    if let Some(scene) = find_scene_entry(&warband, &selected_scene) {
-        let placement = warband
-            .as_ref()
-            .and_then(|warband| selected_scene_placement(warband, scene));
+    if let Some(scene) = scene {
         update_camera_for_scene(scene, placement.as_ref(), presentation, &mut camera_query);
     }
 }
@@ -795,273 +694,4 @@ fn char_info_strings(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::networking_auth::CharacterList;
-    use shared::components::CharacterAppearance;
-    use shared::protocol::CharacterListEntry;
-
-    fn character(character_id: u64, race: u8, sex: u8, name: &str) -> CharacterListEntry {
-        CharacterListEntry {
-            character_id,
-            name: name.to_string(),
-            level: 1,
-            race,
-            class: 1,
-            appearance: CharacterAppearance {
-                sex,
-                ..Default::default()
-            },
-        }
-    }
-
-    #[test]
-    fn selected_scene_character_id_uses_selected_index() {
-        let char_list = CharacterList(vec![
-            character(10, 1, 0, "First"),
-            character(20, 2, 0, "Second"),
-        ]);
-
-        assert_eq!(selected_scene_character_id(&char_list, Some(1)), Some(20));
-    }
-
-    #[test]
-    fn selected_scene_character_id_falls_back_to_first_character() {
-        let char_list = CharacterList(vec![
-            character(10, 1, 0, "First"),
-            character(20, 2, 0, "Second"),
-        ]);
-
-        assert_eq!(selected_scene_character_id(&char_list, None), Some(10));
-        assert_eq!(selected_scene_character_id(&char_list, Some(99)), Some(10));
-    }
-
-    #[test]
-    fn race_model_wow_path_covers_known_playable_races_and_sex() {
-        assert_eq!(
-            race_model_wow_path(1, 0),
-            Some("character/human/male/humanmale_hd.m2")
-        );
-        assert_eq!(
-            race_model_wow_path(2, 0),
-            Some("character/orc/male/orcmale_hd.m2")
-        );
-        assert_eq!(
-            race_model_wow_path(10, 1),
-            Some("character/bloodelf/female/bloodelffemale_hd.m2")
-        );
-        assert_eq!(
-            race_model_wow_path(10, 0),
-            Some("character/bloodelf/male/bloodelfmale_hd.m2")
-        );
-        assert_eq!(race_model_wow_path(99, 0), None);
-    }
-
-    #[test]
-    fn camera_params_center_focused_placement_horizontally() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let (eye, focus, _) =
-            camera_params(Some(scene), Some(&placement), ModelPresentation::default());
-        let forward = (focus - eye).normalize();
-        let right = forward.cross(Vec3::Y).normalize();
-        let rel = placement.bevy_position() - eye;
-
-        assert!(
-            rel.dot(right).abs() < 0.001,
-            "focused placement should sit on the camera centerline"
-        );
-    }
-
-    #[test]
-    fn camera_params_use_tighter_single_character_framing() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let presentation = ModelPresentation::default();
-        let (scene_eye, scene_focus, scene_fov) = camera_params(Some(scene), None, presentation);
-        let (eye, focus, fov) = camera_params(Some(scene), Some(&placement), presentation);
-
-        assert!(
-            eye.distance(focus) < scene_eye.distance(scene_focus),
-            "single-character framing should move the camera closer than the raw warband overview"
-        );
-        assert!(
-            fov < scene_fov,
-            "single-character framing should narrow the FOV from the warband overview"
-        );
-    }
-
-    #[test]
-    fn camera_params_use_model_center_height_for_single_character_focus() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let presentation = ModelPresentation {
-            customize_scale: 1.1,
-            camera_distance_offset: -0.34,
-        };
-
-        let (_, focus, _) = camera_params(Some(scene), Some(&placement), presentation);
-
-        assert!(
-            (focus.y - (placement.bevy_position().y + presentation.customize_scale)).abs() < 0.001,
-            "single-character focus should target model center height, got focus_y={} placement_y={} scale={}",
-            focus.y,
-            placement.bevy_position().y,
-            presentation.customize_scale
-        );
-    }
-
-    #[test]
-    fn camera_params_preserve_authored_vertical_offset_for_single_character_eye() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let presentation = ModelPresentation {
-            customize_scale: 1.1,
-            camera_distance_offset: -0.34,
-        };
-
-        let (eye, focus, _) = camera_params(Some(scene), Some(&placement), presentation);
-        let authored_vertical = scene.bevy_position().y - scene.bevy_look_at().y;
-
-        assert!(
-            ((eye.y - focus.y) - authored_vertical).abs() < 0.001,
-            "single-character eye should preserve authored vertical lift, got {} expected {}",
-            eye.y - focus.y,
-            authored_vertical
-        );
-    }
-
-    #[test]
-    fn character_transform_snaps_character_up_to_warband_terrain() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let adt_path =
-            crate::warband_scene::ensure_warband_terrain(scene).expect("expected warband terrain");
-        let data = std::fs::read(&adt_path).expect("expected ADT data");
-        let adt = crate::asset::adt::load_adt(&data).expect("expected ADT parse");
-        let mut heightmap = TerrainHeightmap::default();
-        let (tile_y, tile_x) = scene.tile_coords();
-        heightmap.insert_tile(tile_y, tile_x, &adt);
-
-        let transform = character_transform(
-            Some(scene),
-            Some(&placement),
-            Some(&heightmap),
-            ModelPresentation::default(),
-        );
-        let terrain_y = heightmap
-            .height_at(transform.translation.x, transform.translation.z)
-            .expect("expected terrain at placement");
-
-        assert!(
-            (transform.translation.y - terrain_y).abs() < 0.001,
-            "character root should sit on terrain, got root_y={} terrain_y={terrain_y}",
-            transform.translation.y
-        );
-    }
-
-    #[test]
-    fn focused_placement_rotation_faces_camera_reasonably() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let rotation = single_character_rotation(scene, &placement, ModelPresentation::default());
-        let (eye, _, _) =
-            camera_params(Some(scene), Some(&placement), ModelPresentation::default());
-        let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
-        let facing = rotation * Vec3::X;
-        let angle = facing.angle_between(to_camera).to_degrees();
-
-        assert!(
-            angle < 25.0,
-            "focused placement should face mostly toward the camera, got {angle:.2} degrees"
-        );
-    }
-
-    #[test]
-    fn camera_params_apply_model_distance_offset() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let default_presentation = ModelPresentation::default();
-        let human_presentation = ModelPresentation {
-            customize_scale: 1.1,
-            camera_distance_offset: -0.34,
-        };
-        let (default_eye, default_focus, _) =
-            camera_params(Some(scene), Some(&placement), default_presentation);
-        let (eye, focus, _) = camera_params(Some(scene), Some(&placement), human_presentation);
-
-        assert!(eye.distance(focus) < default_eye.distance(default_focus));
-    }
-
-    #[test]
-    fn orbit_from_eye_focus_preserves_initial_yaw() {
-        let eye = Vec3::new(4.0, 3.0, -2.0);
-        let focus = Vec3::new(1.5, 1.0, 0.5);
-
-        let orbit = orbit_from_eye_focus(eye, focus);
-
-        assert!(
-            orbit_eye(&orbit).distance(eye) < 1e-5,
-            "reconstructed orbit eye should match the authored eye position"
-        );
-    }
-
-    #[test]
-    fn focused_placement_rotation_faces_camera_tightly() {
-        let warband = crate::warband_scene::WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 1)
-            .expect("Adventurer's Rest");
-        let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-        let rotation = single_character_rotation(scene, &placement, ModelPresentation::default());
-        let (eye, _, _) =
-            camera_params(Some(scene), Some(&placement), ModelPresentation::default());
-        let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
-        let to_camera = Vec3::new(to_camera.x, 0.0, to_camera.z).normalize_or_zero();
-        let facing = rotation * Vec3::X;
-        let facing = Vec3::new(facing.x, 0.0, facing.z).normalize_or_zero();
-        let angle = facing.angle_between(to_camera).to_degrees();
-
-        assert!(
-            angle < 1.0,
-            "single-character rotation should face the camera horizontally, got {angle:.2} degrees"
-        );
-    }
-}
+mod tests;
