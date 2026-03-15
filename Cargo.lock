@@ -2286,6 +2286,7 @@ dependencies = [
 [[package]]
 name = "cascette-client-storage"
 version = "0.2.0"
+source = "git+https://github.com/wowemulation-dev/cascette-rs?rev=2d1294b#2d1294b9d8eba0c0d0ffc6387f0777f36ecae671"
 dependencies = [
  "binrw",
  "cascette-crypto",
@@ -2309,6 +2310,7 @@ dependencies = [
 [[package]]
 name = "cascette-crypto"
 version = "0.2.0"
+source = "git+https://github.com/wowemulation-dev/cascette-rs?rev=2d1294b#2d1294b9d8eba0c0d0ffc6387f0777f36ecae671"
 dependencies = [
  "binrw",
  "cipher",
@@ -2321,9 +2323,11 @@ dependencies = [
 [[package]]
 name = "cascette-formats"
 version = "0.2.0"
+source = "git+https://github.com/wowemulation-dev/cascette-rs?rev=2d1294b#2d1294b9d8eba0c0d0ffc6387f0777f36ecae671"
 dependencies = [
  "binrw",
  "cascette-crypto",
+ "divsufsort",
  "flate2",
  "hex",
  "lz4_flex",
@@ -3012,6 +3016,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9c272297e804878a2a4b707cfcfc6d2328b5bb936944613b4fdf2b9269afdfd"
 
 [[package]]
+name = "divsufsort"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e57e36c45fe0b4ef9bc690e53cce2f46dc193f7be3bc93bb7d23ca6dc1be820"
+dependencies = [
+ "sacabase",
+]
+
+[[package]]
 name = "dlib"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3512,6 +3525,7 @@ dependencies = [
 [[package]]
 name = "game-api"
 version = "0.1.0"
+source = "git+ssh://git@github.com/world-of-osso/game-api.git?rev=3827ad6#3827ad6e9b2b282f763095bedee28a4fb5c31847"
 
 [[package]]
 name = "game-engine"
@@ -7123,6 +7137,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "sacabase"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9883fc3d6ce3d78bb54d908602f8bc1f7b5f983afe601dabe083009d86267a84"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "salsa20"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7320,6 +7343,7 @@ dependencies = [
 [[package]]
 name = "shared"
 version = "0.1.0"
+source = "git+ssh://git@github.com/world-of-osso/game-server.git?rev=60cb63c#60cb63c417a874998969216c2e2c750141162b5f"
 dependencies = [
  "bevy",
  "bitcode",
@@ -8184,6 +8208,7 @@ checksum = "f8c1ae7cc0fdb8b842d65d127cb981574b0d2b249b74d1c7a2986863dc134f71"
 [[package]]
 name = "ui-toolkit"
 version = "0.1.0"
+source = "git+ssh://git@github.com/world-of-osso/ui-toolkit.git?rev=3f301b3#3f301b3a04ff97a72298dc914267e2a176f7a359"
 dependencies = [
  "ab_glyph",
  "bevy",
@@ -8198,6 +8223,7 @@ dependencies = [
 [[package]]
 name = "ui-toolkit-macros"
 version = "0.1.0"
+source = "git+ssh://git@github.com/world-of-osso/ui-toolkit-macros.git?rev=1979e54#1979e54134e8ca2ff9870d93bdc748ca816f1d9e"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -18,13 +18,13 @@ half = "2"
 glob = "0.3"
 libc = "0.2"
 clap = { version = "4", features = ["derive"] }
-cascette-client-storage = { path = "/home/osso/Repos/cascette-rs/crates/cascette-client-storage", features = ["local-install"] }
-cascette-crypto = { path = "/home/osso/Repos/cascette-rs/crates/cascette-crypto" }
-cascette-formats = { path = "/home/osso/Repos/cascette-rs/crates/cascette-formats" }
+cascette-client-storage = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", features = ["local-install"] }
+cascette-crypto = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
+cascette-formats = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
-shared = { path = "/syncthing/Sync/Projects/world-of-osso/game-server/crates/shared" }
-game-api = { path = "/syncthing/Sync/Projects/world-of-osso/game-api" }
-ui-toolkit = { path = "/syncthing/Sync/Projects/world-of-osso/ui-toolkit" }
+shared = { git = "ssh://git@github.com/world-of-osso/game-server.git", rev = "60cb63c" }
+game-api = { git = "ssh://git@github.com/world-of-osso/game-api.git", rev = "3827ad6" }
+ui-toolkit = { git = "ssh://git@github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
 ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
