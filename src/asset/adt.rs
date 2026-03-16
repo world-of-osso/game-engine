@@ -339,13 +339,15 @@ fn stitch_chunk_edges(parsed: &mut [McnkData]) {
 
     for i in 0..parsed.len() {
         let (index_x, index_y) = (parsed[i].index_x, parsed[i].index_y);
-        if let Some(&neighbor) = indices.get(&(index_x + 1, index_y)) {
+        if let Some(&neighbor) = indices.get(&(index_x, index_y + 1)) {
             stitch_vertical_border(parsed, i, neighbor);
         }
-        if let Some(&neighbor) = indices.get(&(index_x, index_y + 1)) {
+        if let Some(&neighbor) = indices.get(&(index_x + 1, index_y)) {
             stitch_horizontal_border(parsed, i, neighbor);
         }
     }
+
+    stitch_chunk_corners(parsed, &indices);
 }
 
 fn stitch_horizontal_border(parsed: &mut [McnkData], top: usize, bottom: usize) {
@@ -376,6 +378,29 @@ fn stitch_vertical_border(parsed: &mut [McnkData], left: usize, right: usize) {
     }
 }
 
+fn stitch_chunk_corners(parsed: &mut [McnkData], indices: &HashMap<(u32, u32), usize>) {
+    for (&(index_x, index_y), &top_left) in indices {
+        let Some(&top_right) = indices.get(&(index_x, index_y + 1)) else {
+            continue;
+        };
+        let Some(&bottom_left) = indices.get(&(index_x + 1, index_y)) else {
+            continue;
+        };
+        let Some(&bottom_right) = indices.get(&(index_x + 1, index_y + 1)) else {
+            continue;
+        };
+        average_height_quad(
+            parsed,
+            [
+                (top_left, vertex_index(16, 8)),
+                (top_right, vertex_index(16, 0)),
+                (bottom_left, vertex_index(0, 8)),
+                (bottom_right, vertex_index(0, 0)),
+            ],
+        );
+    }
+}
+
 fn split_two_mut<T>(slice: &mut [T], a: usize, b: usize) -> (&mut T, &mut T) {
     assert!(a != b, "indices must be distinct");
     if a < b {
@@ -400,6 +425,21 @@ fn average_height_pair(
     let avg = (absolute_a + absolute_b) * 0.5;
     heights_a[idx_a] = avg - base_a;
     heights_b[idx_b] = avg - base_b;
+}
+
+fn average_height_quad(parsed: &mut [McnkData], vertices: [(usize, usize); 4]) {
+    let average = vertices
+        .iter()
+        .map(|&(chunk_idx, vertex_idx)| {
+            parsed[chunk_idx].pos[2] + parsed[chunk_idx].heights[vertex_idx]
+        })
+        .sum::<f32>()
+        / vertices.len() as f32;
+
+    for (chunk_idx, vertex_idx) in vertices {
+        let chunk = &mut parsed[chunk_idx];
+        chunk.heights[vertex_idx] = average - chunk.pos[2];
+    }
 }
 
 fn center_surface_position(chunks: &[McnkData]) -> [f32; 3] {
@@ -533,8 +573,8 @@ mod tests {
             .collect();
 
         let a = by_index.get(&(8, 8)).expect("center chunk");
-        let right = by_index.get(&(9, 8)).expect("east neighbor");
-        let below = by_index.get(&(8, 9)).expect("south neighbor");
+        let right = by_index.get(&(8, 9)).expect("east neighbor");
+        let below = by_index.get(&(9, 8)).expect("south neighbor");
 
         for col in 0..=8 {
             let a_h = absolute_height(a, 16, col);

@@ -4,9 +4,15 @@
 // Height-based blending uses ground texture alpha as height channel
 // to make transitions between layers look more natural.
 
-#import bevy_pbr::forward_io::VertexOutput
+#import bevy_pbr::{
+    forward_io::VertexOutput,
+    mesh_view_bindings::view,
+    pbr_functions,
+    pbr_types,
+}
 
 // config.x = layer_count (1-4), config.y = height_blend_strength (0=off, typical 2-4)
+// config.z = perceptual_roughness, config.w = reflectance
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> config: vec4<f32>;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var ground_0: texture_2d<f32>;
@@ -181,10 +187,12 @@ fn height_weight(height: f32, strength: f32) -> f32 {
 // ── Fragment entry ───────────────────────────────────────────────────────────
 
 @fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @location(0) vec4<f32> {
     let uv = in.uv;
     let layer_count = u32(config.x);
     let blend_strength = config.y;
+    let perceptual_roughness = config.z;
+    let reflectance = config.w;
 
     let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
     let paint = paint_weights(alpha, layer_count);
@@ -213,12 +221,21 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         1.0,
     );
 
-    // Basic Lambert lighting
-    let n = normalize(in.world_normal);
-    let sun = normalize(vec3<f32>(0.4, 0.8, 0.3));
-    let ndl = max(dot(n, sun), 0.0);
-    let ambient = 0.35;
-    let lit = color.rgb * (ambient + (1.0 - ambient) * ndl);
+    var pbr_input = pbr_types::pbr_input_new();
+    pbr_input.material.base_color = color;
+    pbr_input.material.perceptual_roughness = perceptual_roughness;
+    pbr_input.material.reflectance = vec3<f32>(reflectance);
+    pbr_input.material.flags = pbr_types::STANDARD_MATERIAL_FLAGS_FOG_ENABLED_BIT;
+    pbr_input.frag_coord = in.position;
+    pbr_input.world_position = in.world_position;
+    pbr_input.world_normal = pbr_functions::prepare_world_normal(in.world_normal, true, is_front);
+    pbr_input.N = normalize(pbr_input.world_normal);
+    pbr_input.is_orthographic = view.clip_from_view[3].w == 1.0;
+    pbr_input.V = pbr_functions::calculate_view(
+        in.world_position,
+        pbr_input.is_orthographic,
+    );
 
-    return vec4<f32>(lit, 1.0);
+    let lit = pbr_functions::apply_pbr_lighting(pbr_input);
+    return pbr_functions::main_pass_post_lighting_processing(pbr_input, lit);
 }
