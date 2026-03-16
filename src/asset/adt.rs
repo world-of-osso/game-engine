@@ -536,12 +536,24 @@ fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
 
 /// Parse an ADT file and return all 256 MCNK terrain meshes.
 pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
+    load_adt_inner(data, true)
+}
+
+/// Parse an ADT without edge stitching (for cross-tile border analysis).
+#[cfg(test)]
+pub(crate) fn load_adt_raw(data: &[u8]) -> Result<AdtData, String> {
+    load_adt_inner(data, false)
+}
+
+fn load_adt_inner(data: &[u8], stitch: bool) -> Result<AdtData, String> {
     let (mcnk_payloads, mh2o_payload) = collect_adt_chunks(data)?;
     let mut parsed: Vec<McnkData> = mcnk_payloads
         .into_iter()
         .map(parse_mcnk)
         .collect::<Result<Vec<_>, String>>()?;
-    stitch_chunk_edges(&mut parsed);
+    if stitch {
+        stitch_chunk_edges(&mut parsed);
+    }
     let center_surface = center_surface_position(&parsed);
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed);
@@ -662,6 +674,7 @@ mod tests {
         }
     }
 
+
     fn minimal_adt_with_mh2o(mh2o_payload: Vec<u8>) -> Vec<u8> {
         iter::empty()
             .chain(wrap_chunk(*b"KNCM", minimal_mcnk_payload()))
@@ -715,4 +728,5 @@ mod tests {
             "malformed MH2O should be ignored instead of aborting terrain load"
         );
     }
+
 }

@@ -1,5 +1,7 @@
 pub mod adt;
 pub mod adt_obj;
+#[cfg(test)]
+mod adt_seam_tests;
 pub mod adt_tex;
 pub mod blp;
 pub mod casc_resolver;
