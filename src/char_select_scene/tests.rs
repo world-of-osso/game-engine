@@ -188,6 +188,27 @@ fn character_transform_snaps_character_up_to_warband_terrain() {
 }
 
 #[test]
+fn clamp_char_select_eye_keeps_camera_above_terrain() {
+    let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+        .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+    let adt = crate::asset::adt::load_adt(&data).expect("expected ADT to parse");
+    let mut heightmap = TerrainHeightmap::default();
+    heightmap.insert_tile(32, 48, &adt);
+
+    let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+    let terrain_y = heightmap
+        .height_at(bx, bz)
+        .expect("expected terrain at sample position");
+    let clamped = clamp_char_select_eye(Vec3::new(bx, terrain_y - 3.0, bz), Some(&heightmap));
+
+    assert!(
+        (clamped.y - (terrain_y + CHAR_SELECT_CAMERA_GROUND_CLEARANCE)).abs() < 0.001,
+        "camera should stay above terrain, got camera_y={} terrain_y={terrain_y}",
+        clamped.y
+    );
+}
+
+#[test]
 fn focused_placement_rotation_faces_camera_reasonably() {
     let warband = crate::warband_scene::WarbandScenes::load();
     let scene = warband
@@ -197,8 +218,7 @@ fn focused_placement_rotation_faces_camera_reasonably() {
         .expect("Adventurer's Rest");
     let placement = selected_scene_placement(&warband, scene).expect("expected placement");
     let rotation = single_character_rotation(scene, &placement, ModelPresentation::default());
-    let (eye, _, _) =
-        camera_params(Some(scene), Some(&placement), ModelPresentation::default());
+    let (eye, _, _) = camera_params(Some(scene), Some(&placement), ModelPresentation::default());
     let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
     let facing = rotation * Vec3::X;
     let angle = facing.angle_between(to_camera).to_degrees();
@@ -253,8 +273,7 @@ fn focused_placement_rotation_faces_camera_tightly() {
         .expect("Adventurer's Rest");
     let placement = selected_scene_placement(&warband, scene).expect("expected placement");
     let rotation = single_character_rotation(scene, &placement, ModelPresentation::default());
-    let (eye, _, _) =
-        camera_params(Some(scene), Some(&placement), ModelPresentation::default());
+    let (eye, _, _) = camera_params(Some(scene), Some(&placement), ModelPresentation::default());
     let to_camera = (eye - placement.bevy_position()).normalize_or_zero();
     let to_camera = Vec3::new(to_camera.x, 0.0, to_camera.z).normalize_or_zero();
     let facing = rotation * Vec3::X;

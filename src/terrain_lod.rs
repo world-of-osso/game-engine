@@ -4,7 +4,9 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::asset::adt_obj;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain::{AdtManager, DoodadLod};
+use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_objects;
 use crate::terrain_tile::{bevy_to_tile_coords, resolve_tile_path, tile_lod_for_distance};
 
@@ -13,6 +15,7 @@ struct LodSpawnRefs<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
     images: &'a mut Assets<Image>,
     inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
@@ -22,8 +25,10 @@ pub(crate) fn doodad_lod_swap_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    heightmap: Res<TerrainHeightmap>,
     mut adt_manager: ResMut<AdtManager>,
     player_q: Query<&Transform, With<crate::camera::Player>>,
 ) {
@@ -39,11 +44,12 @@ pub(crate) fn doodad_lod_swap_system(
         commands: &mut commands,
         meshes: &mut meshes,
         materials: &mut materials,
+        effect_materials: &mut effect_materials,
         images: &mut images,
         inverse_bp: &mut inverse_bp,
     };
     for (key, new_lod) in swaps {
-        swap_tile_lod(&mut refs, &mut adt_manager, key, new_lod);
+        swap_tile_lod(&mut refs, &heightmap, &mut adt_manager, key, new_lod);
     }
 }
 
@@ -66,6 +72,7 @@ fn find_lod_swaps(adt_manager: &AdtManager, cy: u32, cx: u32) -> Vec<((u32, u32)
 /// Swap a tile's doodads to a new LOD level.
 fn swap_tile_lod(
     refs: &mut LodSpawnRefs,
+    heightmap: &TerrainHeightmap,
     adt_manager: &mut AdtManager,
     key: (u32, u32),
     new_lod: DoodadLod,
@@ -74,7 +81,7 @@ fn swap_tile_lod(
         return;
     };
     despawn_tile_doodad_entities(refs.commands, adt_manager, key);
-    let new_entities = spawn_lod_doodads(refs, &adt_path, new_lod);
+    let new_entities = spawn_lod_doodads(refs, heightmap, &adt_path, new_lod);
     adt_manager.tile_lod.insert(key, new_lod);
     adt_manager.tile_doodad_entities.insert(key, new_entities);
     eprintln!("LOD swap tile ({}, {}): {:?}", key.0, key.1, new_lod);
@@ -108,6 +115,7 @@ pub(crate) fn load_obj_for_lod(
 /// Load and spawn doodads/WMOs for a given LOD level.
 fn spawn_lod_doodads(
     refs: &mut LodSpawnRefs,
+    heightmap: &TerrainHeightmap,
     adt_path: &std::path::Path,
     lod: DoodadLod,
 ) -> Vec<Entity> {
@@ -116,8 +124,10 @@ fn spawn_lod_doodads(
             refs.commands,
             refs.meshes,
             refs.materials,
+            refs.effect_materials,
             refs.images,
             refs.inverse_bp,
+            Some(heightmap),
             obj,
         )
         .all_entities(),

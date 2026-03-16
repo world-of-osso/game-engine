@@ -21,6 +21,7 @@ use crate::character_customization::{
 };
 use crate::creature_display;
 use crate::game_state::GameState;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
@@ -54,6 +55,7 @@ const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8; // ±22.5°
 const ORBIT_PITCH_LIMIT: f32 = 0.15; // ±~8.6°
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
 const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
+const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
 
 /// Marker for the currently displayed character model root.
 #[derive(Component)]
@@ -75,6 +77,17 @@ struct AppliedCharacterAppearance {
     race: u8,
     class: u8,
     appearance: shared::components::CharacterAppearance,
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct CharSelectRenderAssets<'w> {
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
+    water_materials: ResMut<'w, Assets<WaterMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
 }
 
 pub struct CharSelectScenePlugin;
@@ -177,13 +190,25 @@ fn orbit_eye(orbit: &CharSelectOrbit) -> Vec3 {
         ) * orbit.distance
 }
 
+fn clamp_char_select_eye(eye: Vec3, heightmap: Option<&TerrainHeightmap>) -> Vec3 {
+    let mut clamped = eye;
+    if let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(eye.x, eye.z)) {
+        clamped.y = clamped
+            .y
+            .max(terrain_y + CHAR_SELECT_CAMERA_GROUND_CLEARANCE);
+    }
+    clamped
+}
+
 fn spawn_char_select_camera(
     commands: &mut Commands,
     scene: Option<&crate::warband_scene::WarbandSceneEntry>,
     placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
 ) -> Entity {
     let (eye, focus, fov) = camera_params(scene, placement, presentation);
+    let eye = clamp_char_select_eye(eye, heightmap);
     commands
         .spawn((
             Name::new("CharSelectCamera"),
@@ -205,6 +230,7 @@ mod lighting;
 fn char_select_orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
+    heightmap: Option<Res<TerrainHeightmap>>,
     mut query: Query<(&mut CharSelectOrbit, &mut Transform)>,
 ) {
     if !mouse_buttons.pressed(MouseButton::Left) {
@@ -219,7 +245,7 @@ fn char_select_orbit_camera(
             (orbit.yaw - delta.x * ORBIT_SENSITIVITY).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
         orbit.pitch = (orbit.pitch + delta.y * ORBIT_SENSITIVITY)
             .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
-        let eye = orbit_eye(&orbit);
+        let eye = clamp_char_select_eye(orbit_eye(&orbit), heightmap.as_deref());
         *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
     }
 }
@@ -229,6 +255,7 @@ fn spawn_char_select_model(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
@@ -239,6 +266,7 @@ fn spawn_char_select_model(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         inv_bp,
         m2_path,
@@ -374,12 +402,7 @@ fn resolve_char_select_model_path(
 #[allow(clippy::too_many_arguments)]
 fn setup_char_select_scene(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
-    mut water_materials: ResMut<Assets<WaterMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut assets: CharSelectRenderAssets,
     mut heightmap: ResMut<TerrainHeightmap>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     customization_db: Res<CustomizationDb>,
@@ -396,29 +419,35 @@ fn setup_char_select_scene(
         .zip(scene_entry)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
-    let camera_entity =
-        spawn_char_select_camera(&mut commands, scene_entry, placement.as_ref(), presentation);
-    let dir =
-        lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
     let bg_node = background::spawn(
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut terrain_materials,
-        &mut water_materials,
-        &mut images,
-        &mut inv_bp,
+        &mut assets.meshes,
+        &mut assets.materials,
+        &mut assets.effect_materials,
+        &mut assets.terrain_materials,
+        &mut assets.water_materials,
+        &mut assets.images,
+        &mut assets.inv_bp,
         &mut heightmap,
         scene_entry,
         &mut active_scene,
     );
+    let camera_entity = spawn_char_select_camera(
+        &mut commands,
+        scene_entry,
+        placement.as_ref(),
+        Some(&heightmap),
+        presentation,
+    );
+    let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
     let result = spawn_selected_model(
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut images,
-        &mut inv_bp,
+        &mut assets.meshes,
+        &mut assets.materials,
+        &mut assets.effect_materials,
+        &mut assets.images,
+        &mut assets.inv_bp,
         &creature_display_map,
         &char_list,
         selected.0,
@@ -440,10 +469,7 @@ fn setup_char_select_scene(
 #[allow(clippy::too_many_arguments)]
 fn sync_char_select_model(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut assets: CharSelectRenderAssets,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     customization_db: Res<CustomizationDb>,
     heightmap: Res<TerrainHeightmap>,
@@ -474,10 +500,11 @@ fn sync_char_select_model(
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
     displayed.0 = spawn_selected_model(
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut images,
-        &mut inv_bp,
+        &mut assets.meshes,
+        &mut assets.materials,
+        &mut assets.effect_materials,
+        &mut assets.images,
+        &mut assets.inv_bp,
         &creature_display_map,
         &char_list,
         selected.0,
@@ -485,7 +512,13 @@ fn sync_char_select_model(
     )
     .map(|(id, _)| id);
     if let Some(scene) = scene {
-        update_camera_for_scene(scene, placement.as_ref(), presentation, &mut camera_query);
+        update_camera_for_scene(
+            scene,
+            placement.as_ref(),
+            Some(&heightmap),
+            presentation,
+            &mut camera_query,
+        );
     }
 }
 
@@ -555,6 +588,7 @@ fn spawn_selected_model(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
@@ -570,6 +604,7 @@ fn spawn_selected_model(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         inv_bp,
         &model_path,
@@ -586,6 +621,7 @@ fn spawn_selected_model(
 fn update_camera_for_scene(
     scene: &crate::warband_scene::WarbandSceneEntry,
     placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
     camera_query: &mut Query<
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
@@ -593,6 +629,7 @@ fn update_camera_for_scene(
     >,
 ) {
     let (eye, focus, fov) = camera_params(Some(scene), placement, presentation);
+    let eye = clamp_char_select_eye(eye, heightmap);
     let orbit = orbit_from_eye_focus(eye, focus);
     for (mut tf, mut orb, mut proj) in camera_query.iter_mut() {
         *tf = Transform::from_translation(eye).looking_at(focus, Vec3::Y);
@@ -606,12 +643,7 @@ fn update_camera_for_scene(
 #[allow(clippy::too_many_arguments)]
 fn sync_warband_scene_switch(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
-    mut water_materials: ResMut<Assets<WaterMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut assets: CharSelectRenderAssets,
     mut active_scene: ResMut<ActiveWarbandSceneId>,
     mut heightmap: ResMut<TerrainHeightmap>,
     customization_db: Res<CustomizationDb>,
@@ -640,16 +672,23 @@ fn sync_warband_scene_switch(
     }
     let _ = scene_tree::spawn_warband_terrain(
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut terrain_materials,
-        &mut water_materials,
-        &mut images,
-        &mut inv_bp,
+        &mut assets.meshes,
+        &mut assets.materials,
+        &mut assets.effect_materials,
+        &mut assets.terrain_materials,
+        &mut assets.water_materials,
+        &mut assets.images,
+        &mut assets.inv_bp,
         &mut heightmap,
         scene,
     );
-    update_camera_for_scene(scene, placement.as_ref(), presentation, &mut camera_query);
+    update_camera_for_scene(
+        scene,
+        placement.as_ref(),
+        Some(&heightmap),
+        presentation,
+        &mut camera_query,
+    );
     active_scene.0 = Some(sel.scene_id);
 }
 

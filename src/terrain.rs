@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use crate::asset::adt::{self};
 use crate::asset::adt_obj;
 use crate::game_state::GameState;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_heightmap::sample_chunk_height;
 use crate::terrain_lod::{despawn_tile_doodad_entities, doodad_lod_swap_system, load_obj_for_lod};
@@ -116,6 +117,7 @@ struct SpawnRefs<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
     terrain_materials: &'a mut Assets<TerrainMaterial>,
     water_materials: &'a mut Assets<WaterMaterial>,
     images: &'a mut Assets<Image>,
@@ -144,6 +146,7 @@ pub fn spawn_adt(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     terrain_materials: &mut Assets<TerrainMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -164,26 +167,28 @@ pub fn spawn_adt(
         commands,
         meshes,
         materials,
+        effect_materials,
         terrain_materials,
         water_materials,
         images,
         inverse_bp,
     };
     let root = spawn_terrain_chunks(&mut refs, adt_path, &adt_data, tex_data.as_ref(), &tile);
+    heightmap.insert_tile(tile_y, tile_x, &adt_data);
     let spawned_objects = if let Some(ref obj) = obj_data {
         terrain_objects::spawn_obj_entities(
             refs.commands,
             refs.meshes,
             refs.materials,
+            refs.effect_materials,
             refs.images,
             refs.inverse_bp,
+            Some(heightmap),
             obj,
         )
     } else {
         terrain_objects::SpawnedTerrainObjects::default()
     };
-
-    heightmap.insert_tile(tile_y, tile_x, &adt_data);
     log_adt_spawn(&adt_data, adt_path);
 
     let (camera, center) = compute_spawn_result(&adt_data, obj_data.as_ref());
@@ -256,7 +261,11 @@ fn spawn_terrain_chunks(
 }
 
 /// Spawn entities from a fully-parsed tile (async receive path).
-fn spawn_parsed_tile(refs: &mut SpawnRefs, parsed: &ParsedTile) -> (Entity, Vec<Entity>) {
+fn spawn_parsed_tile(
+    refs: &mut SpawnRefs,
+    heightmap: &TerrainHeightmap,
+    parsed: &ParsedTile,
+) -> (Entity, Vec<Entity>) {
     let tile = AdtTile {
         _tile_x: parsed.tile_x,
         _tile_y: parsed.tile_y,
@@ -273,8 +282,10 @@ fn spawn_parsed_tile(refs: &mut SpawnRefs, parsed: &ParsedTile) -> (Entity, Vec<
             refs.commands,
             refs.meshes,
             refs.materials,
+            refs.effect_materials,
             refs.images,
             refs.inverse_bp,
+            Some(heightmap),
             obj_data,
         )
         .all_entities()
@@ -719,6 +730,7 @@ fn receive_loaded_tiles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut terrain_mats: ResMut<Assets<TerrainMaterial>>,
     mut water_mats: ResMut<Assets<WaterMaterial>>,
     mut images: ResMut<Assets<Image>>,
@@ -734,6 +746,7 @@ fn receive_loaded_tiles(
         commands: &mut commands,
         meshes: &mut meshes,
         materials: &mut materials,
+        effect_materials: &mut effect_materials,
         terrain_materials: &mut terrain_mats,
         water_materials: &mut water_mats,
         images: &mut images,
@@ -774,8 +787,8 @@ fn handle_tile_success(
 ) {
     let key = (parsed.tile_y, parsed.tile_x);
     adt_manager.pending.remove(&key);
-    let (root, doodad_entities) = spawn_parsed_tile(refs, &parsed);
     heightmap.insert_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data);
+    let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, &parsed);
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);
     adt_manager

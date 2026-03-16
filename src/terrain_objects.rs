@@ -7,9 +7,11 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::asset::{adt_obj, blp, wmo};
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 
 use crate::terrain::resolve_companion_path;
+use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_tile::TILE_SIZE;
 
 #[derive(Default)]
@@ -70,8 +72,10 @@ pub fn spawn_obj_entities(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&TerrainHeightmap>,
     obj_data: &adt_obj::AdtObjData,
 ) -> SpawnedTerrainObjects {
     let mut spawned = SpawnedTerrainObjects::default();
@@ -79,8 +83,10 @@ pub fn spawn_obj_entities(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         inverse_bp,
+        heightmap,
         obj_data,
         &mut spawned.doodads,
     );
@@ -100,14 +106,25 @@ fn spawn_doodads(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&TerrainHeightmap>,
     obj_data: &adt_obj::AdtObjData,
     entities: &mut Vec<Entity>,
 ) {
     let mut spawned = 0u32;
     for doodad in &obj_data.doodads {
-        if let Some(e) = try_spawn_doodad(commands, meshes, materials, images, inverse_bp, doodad) {
+        if let Some(e) = try_spawn_doodad(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inverse_bp,
+            heightmap,
+            doodad,
+        ) {
             entities.push(e);
             spawned += 1;
         }
@@ -120,15 +137,17 @@ fn try_spawn_doodad(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&TerrainHeightmap>,
     doodad: &adt_obj::DoodadPlacement,
 ) -> Option<Entity> {
     let m2_path = resolve_doodad_m2(doodad)?;
     if !m2_path.exists() {
         return None;
     }
-    let transform = doodad_transform(doodad);
+    let transform = doodad_transform(doodad, heightmap);
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -141,6 +160,7 @@ fn try_spawn_doodad(
         &mut m2_spawn::SpawnAssets {
             meshes,
             materials,
+            effect_materials,
             images,
             inverse_bindposes: inverse_bp,
         },
@@ -166,10 +186,16 @@ fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::Pat
 }
 
 /// Convert WoW doodad placement to a Bevy Transform.
-fn doodad_transform(d: &adt_obj::DoodadPlacement) -> Transform {
-    let pos = placement_to_bevy(d.position);
+fn doodad_transform(
+    d: &adt_obj::DoodadPlacement,
+    heightmap: Option<&TerrainHeightmap>,
+) -> Transform {
+    let mut pos = Vec3::from(placement_to_bevy(d.position));
+    if let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z)) {
+        pos.y = pos.y.max(terrain_y);
+    }
     let rotation = placement_rotation(d.rotation);
-    Transform::from_translation(Vec3::from(pos))
+    Transform::from_translation(pos)
         .with_rotation(rotation)
         .with_scale(Vec3::splat(d.scale))
 }
@@ -468,21 +494,42 @@ fn wmo_batch_material(
 ) -> Handle<StandardMaterial> {
     let mat_def = root.materials.get(material_index as usize);
     let texture_fdid = mat_def.map(|m| m.texture_fdid).unwrap_or(0);
+    let texture_2_fdid = mat_def.map(|m| m.texture_2_fdid).unwrap_or(0);
+    let texture_3_fdid = mat_def.map(|m| m.texture_3_fdid).unwrap_or(0);
     let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
     let flags = mat_def.map(|m| m.flags).unwrap_or(0);
+    let shader = mat_def.map(|m| m.shader).unwrap_or(0);
 
     if texture_fdid > 0 {
-        let blp_path =
-            crate::asset::casc_resolver::ensure_texture(texture_fdid).unwrap_or_else(|| {
-                std::path::PathBuf::from(format!("data/textures/{texture_fdid}.blp"))
-            });
-        if let Ok(image) = blp::load_blp_gpu_image(&blp_path) {
-            return materials.add(wmo_standard_material(
-                Some(images.add(image)),
-                blend_mode,
-                flags,
-                has_vertex_color,
-            ));
+        match crate::asset::casc_resolver::ensure_texture(texture_fdid) {
+            Some(blp_path) => {
+                match load_wmo_material_image(&blp_path, texture_2_fdid, texture_3_fdid) {
+                    Ok(mut image) => {
+                        image.sampler = bevy::image::ImageSampler::Descriptor(
+                            bevy::image::ImageSamplerDescriptor {
+                                address_mode_u: bevy::image::ImageAddressMode::Repeat,
+                                address_mode_v: bevy::image::ImageAddressMode::Repeat,
+                                ..bevy::image::ImageSamplerDescriptor::linear()
+                            },
+                        );
+                        return materials.add(wmo_standard_material(
+                            Some(images.add(image)),
+                            blend_mode,
+                            flags,
+                            has_vertex_color,
+                        ));
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "WMO texture decode failed for material {material_index} shader {shader} FDID {texture_fdid}: {err}"
+                        );
+                    }
+                }
+            }
+            None => {
+                let label = game_engine::listfile::lookup_fdid(texture_fdid).unwrap_or("unknown");
+                eprintln!("WMO texture extract failed for FDID {texture_fdid}: {label}");
+            }
         }
     }
     materials.add(wmo_standard_material(
@@ -490,6 +537,40 @@ fn wmo_batch_material(
         blend_mode,
         flags,
         has_vertex_color,
+    ))
+}
+
+fn load_wmo_material_image(
+    base_path: &std::path::Path,
+    texture_2_fdid: u32,
+    texture_3_fdid: u32,
+) -> Result<Image, String> {
+    let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
+    for overlay_fdid in [texture_2_fdid, texture_3_fdid] {
+        if overlay_fdid == 0 {
+            continue;
+        }
+        let Some(overlay_path) = crate::asset::casc_resolver::ensure_texture(overlay_fdid) else {
+            continue;
+        };
+        let Ok((overlay_pixels, ov_w, ov_h)) = blp::load_blp_rgba(&overlay_path) else {
+            continue;
+        };
+        if ov_w == w && ov_h == h {
+            blp::blit_region(&mut pixels, w, &overlay_pixels, ov_w, ov_h, 0, 0);
+        }
+    }
+
+    Ok(Image::new(
+        bevy::render::render_resource::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
+        bevy::render::render_resource::TextureDimension::D2,
+        pixels,
+        bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+        bevy::asset::RenderAssetUsages::default(),
     ))
 }
 
@@ -585,8 +666,147 @@ mod tests {
     }
 
     #[test]
+    fn doodad_transform_lifts_props_to_terrain_height() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt = crate::asset::adt::load_adt(&data).expect("expected ADT to parse");
+        let mut heightmap = crate::terrain_heightmap::TerrainHeightmap::default();
+        heightmap.insert_tile(32, 48, &adt);
+
+        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+        let terrain_y = heightmap
+            .height_at(bx, bz)
+            .expect("expected terrain at sample position");
+        let center = 32.0 * TILE_SIZE;
+        let doodad = adt_obj::DoodadPlacement {
+            name_id: 0,
+            unique_id: 0,
+            position: [bz + center, terrain_y - 5.0, center - bx],
+            rotation: [0.0, 0.0, 0.0],
+            scale: 1.0,
+            flags: 0,
+            fdid: None,
+            path: Some("test.m2".to_string()),
+        };
+
+        let transform = doodad_transform(&doodad, Some(&heightmap));
+
+        assert!(
+            (transform.translation.y - terrain_y).abs() < 0.001,
+            "doodad should snap up to terrain, got doodad_y={} terrain_y={terrain_y}",
+            transform.translation.y
+        );
+    }
+
+    #[test]
     fn wmo_vertex_colored_materials_are_unlit() {
         let material = wmo_standard_material(None, 0, 0, true);
         assert!(material.unlit);
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_charselect_nearby_doodads() {
+        let adt_path = Path::new("data/terrain/2703_31_37.adt");
+        let obj = load_obj0(adt_path).expect("obj0");
+        let char_pos = Vec3::new(-2981.8, 452.9, -457.4);
+        let camera_pos = Vec3::new(-2980.6, 455.1, -463.3);
+        let view_dir = (char_pos - camera_pos).normalize();
+
+        let mut nearest: Vec<_> = obj
+            .doodads
+            .iter()
+            .map(|d| {
+                let pos = Vec3::from(placement_to_bevy(d.position));
+                let to_char = pos.distance(char_pos);
+                let to_camera = pos.distance(camera_pos);
+                let delta = pos - camera_pos;
+                let depth = delta.dot(view_dir);
+                let ray_dist = (delta - view_dir * depth).length();
+                let fdid = d.fdid.or_else(|| {
+                    d.path
+                        .as_deref()
+                        .and_then(game_engine::listfile::lookup_path)
+                });
+                let model = fdid
+                    .and_then(game_engine::listfile::lookup_fdid)
+                    .map(str::to_string)
+                    .or_else(|| d.path.clone())
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                (
+                    to_char,
+                    to_camera,
+                    depth,
+                    ray_dist,
+                    pos,
+                    fdid,
+                    d.unique_id,
+                    model,
+                )
+            })
+            .collect();
+
+        nearest.sort_by(|a, b| a.0.total_cmp(&b.0));
+        println!("Nearest doodads to charselect character:");
+        for (dist_char, dist_cam, depth, ray_dist, pos, fdid, unique_id, model) in
+            nearest.iter().take(40)
+        {
+            println!(
+                "  d_char={dist_char:6.1} d_cam={dist_cam:6.1} depth={depth:6.1} ray={ray_dist:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} {}",
+                pos.x, pos.y, pos.z, unique_id, fdid, model
+            );
+        }
+
+        nearest.retain(|(_, _, depth, ray_dist, ..)| *depth > 0.0 && *ray_dist < 25.0);
+        nearest.sort_by(|a, b| a.3.total_cmp(&b.3).then_with(|| a.2.total_cmp(&b.2)));
+        println!("\nDoodads near the camera view ray:");
+        for (dist_char, dist_cam, depth, ray_dist, pos, fdid, unique_id, model) in
+            nearest.into_iter().take(60)
+        {
+            println!(
+                "  ray={ray_dist:6.1} depth={depth:6.1} d_char={dist_char:6.1} d_cam={dist_cam:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} {}",
+                pos.x, pos.y, pos.z, unique_id, fdid, model
+            );
+        }
+
+        let mut effects: Vec<_> = obj
+            .doodads
+            .iter()
+            .filter_map(|d| {
+                let fdid = d.fdid.or_else(|| {
+                    d.path
+                        .as_deref()
+                        .and_then(game_engine::listfile::lookup_path)
+                });
+                let model = fdid
+                    .and_then(game_engine::listfile::lookup_fdid)
+                    .map(str::to_string)
+                    .or_else(|| d.path.clone())?;
+                let lower = model.to_ascii_lowercase();
+                let interesting = ["water", "fall", "mist", "smoke", "fx", "ripple", "foam"]
+                    .iter()
+                    .any(|needle| lower.contains(needle));
+                if !interesting {
+                    return None;
+                }
+                let pos = Vec3::from(placement_to_bevy(d.position));
+                Some((
+                    pos.distance(char_pos),
+                    pos.distance(camera_pos),
+                    pos,
+                    fdid,
+                    d.unique_id,
+                    model,
+                ))
+            })
+            .collect();
+        effects.sort_by(|a, b| a.0.total_cmp(&b.0));
+        println!("\nInteresting doodad effects on this tile:");
+        for (dist_char, dist_cam, pos, fdid, unique_id, model) in effects.into_iter().take(80) {
+            println!(
+                "  d_char={dist_char:6.1} d_cam={dist_cam:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} {}",
+                pos.x, pos.y, pos.z, unique_id, fdid, model
+            );
+        }
     }
 }
