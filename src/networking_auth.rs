@@ -125,11 +125,13 @@ fn build_login_request(
     username: &LoginUsername,
     password: &LoginPassword,
 ) -> LoginRequest {
+    let token = if username.0.trim().is_empty() && password.0.trim().is_empty() {
+        auth_token.0.as_deref().and_then(normalize_auth_token)
+    } else {
+        None
+    };
     LoginRequest {
-        token: auth_token
-            .0
-            .as_deref()
-            .and_then(normalize_auth_token),
+        token,
         username: username.0.clone(),
         password: password.0.clone(),
     }
@@ -523,17 +525,14 @@ mod tests {
     }
 
     #[test]
-    fn build_login_request_keeps_credentials_for_password_login() {
+    fn build_login_request_omits_cached_token_for_password_login() {
         let request = build_login_request(
             &AuthToken(Some("11111111-1111-1111-1111-111111111111".to_string())),
             &LoginUsername("alice".to_string()),
             &LoginPassword("secret".to_string()),
         );
 
-        assert_eq!(
-            request.token.as_deref(),
-            Some("11111111-1111-1111-1111-111111111111")
-        );
+        assert!(request.token.is_none());
         assert_eq!(request.username, "alice");
         assert_eq!(request.password, "secret");
     }
