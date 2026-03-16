@@ -495,6 +495,10 @@ fn time_speed_controls(keys: Res<ButtonInput<KeyCode>>, mut game_time: ResMut<Ga
 
 pub struct SkyPlugin;
 
+fn sky_scene_active(state: Res<State<GameState>>) -> bool {
+    matches!(state.get(), GameState::InWorld | GameState::CharSelect)
+}
+
 fn register_inworld_systems(app: &mut App) {
     let iw = in_state(GameState::InWorld);
     app.add_systems(Update, advance_game_time.run_if(iw.clone()));
@@ -503,28 +507,29 @@ fn register_inworld_systems(app: &mut App) {
 }
 
 fn register_sky_visual_systems(app: &mut App) {
+    let sky_active = sky_scene_active;
     let iw = in_state(GameState::InWorld);
     app.add_systems(
         Update,
         update_sky_colors
             .after(advance_game_time)
-            .run_if(iw.clone()),
+            .run_if(sky_active),
     )
     .add_systems(
         Update,
         update_sun_direction
             .after(advance_game_time)
-            .run_if(iw.clone()),
+            .run_if(sky_scene_active),
     )
     .add_systems(
         Update,
-        update_fog.after(advance_game_time).run_if(iw.clone()),
+        update_fog.after(advance_game_time).run_if(sky_scene_active),
     )
     .add_systems(
         Update,
         update_sky_env_map
             .after(advance_game_time)
-            .run_if(iw.clone()),
+            .run_if(sky_scene_active),
     )
     .add_systems(
         Update,
