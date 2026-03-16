@@ -161,6 +161,26 @@ pub fn ensure_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     ensure_adt_tile(&map_name, tile_y, tile_x)
 }
 
+/// Extract a square neighborhood of ADT tiles around the scene tile.
+pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry, radius: i32) -> Vec<PathBuf> {
+    let map_name = scene.map_name();
+    let (tile_y, tile_x) = scene.tile_coords();
+    let mut tiles = Vec::new();
+    for dy in -radius..=radius {
+        for dx in -radius..=radius {
+            let ny = tile_y as i32 + dy;
+            let nx = tile_x as i32 + dx;
+            if !(0..=63).contains(&ny) || !(0..=63).contains(&nx) {
+                continue;
+            }
+            if let Some(path) = ensure_adt_tile(&map_name, ny as u32, nx as u32) {
+                tiles.push(path);
+            }
+        }
+    }
+    tiles
+}
+
 /// Extract a single ADT tile + _tex0 + _obj0 from CASC.
 fn ensure_adt_tile(map_name: &str, tile_y: u32, tile_x: u32) -> Option<PathBuf> {
     let base_wow = format!("world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}.adt");

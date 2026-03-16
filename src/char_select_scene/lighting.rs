@@ -4,9 +4,12 @@ use game_engine::customization_data::ModelPresentation;
 use super::{CharSelectScene, camera_params};
 
 fn light_transform(eye: Vec3, focus: Vec3) -> Transform {
-    let forward = (focus - eye).normalize_or_zero();
-    let flatter_forward = (forward + Vec3::Y * 0.05).normalize_or_zero();
-    Transform::from_translation(eye).looking_to(flatter_forward, Vec3::Y)
+    let cam_dir = (focus - eye).normalize_or_zero();
+    let right = cam_dir.cross(Vec3::Y).normalize_or_zero();
+    // Keep the light related to the authored camera, but rotate it off-axis so the
+    // campsite backdrop gets readable side-lighting instead of a head-on flashlight wash.
+    let sun_dir = (cam_dir * 0.2 - right * 0.85 - Vec3::Y * 0.5).normalize_or_zero();
+    Transform::from_translation(focus - sun_dir * 12.0).looking_to(sun_dir, Vec3::Y)
 }
 
 fn spawn_front_fill_light(commands: &mut Commands, eye: Vec3, focus: Vec3) {
@@ -17,9 +20,9 @@ fn spawn_front_fill_light(commands: &mut Commands, eye: Vec3, focus: Vec3) {
         Name::new("FrontFillLight"),
         CharSelectScene,
         PointLight {
-            intensity: 160_000.0,
-            range: 30.0,
-            radius: 2.0,
+            intensity: 70_000.0,
+            range: 12.0,
+            radius: 1.5,
             shadows_enabled: false,
             color: Color::srgb(1.0, 0.94, 0.86),
             ..default()
@@ -36,7 +39,7 @@ pub fn spawn(
 ) -> Entity {
     commands.insert_resource(GlobalAmbientLight {
         color: Color::srgb(1.0, 0.95, 0.85),
-        brightness: 105.0,
+        brightness: 70.0,
         ..default()
     });
     let (eye, focus, _) = camera_params(scene, placement, presentation);
@@ -45,7 +48,7 @@ pub fn spawn(
             Name::new("DirectionalLight"),
             CharSelectScene,
             DirectionalLight {
-                illuminance: 1200.0,
+                illuminance: 2200.0,
                 shadows_enabled: true,
                 color: Color::srgb(1.0, 0.92, 0.8),
                 ..default()

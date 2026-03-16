@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, ModelPresentation};
@@ -25,6 +26,8 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
+use crate::sky::{self, SkyMaterial};
+use crate::sky_lightdata::default_sky_colors;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
@@ -56,6 +59,21 @@ const ORBIT_PITCH_LIMIT: f32 = 0.15; // ±~8.6°
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
 const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
+const CHAR_SELECT_FOG_START: f32 = 16.0;
+const CHAR_SELECT_FOG_END: f32 = 34.0;
+
+fn char_select_fog() -> DistanceFog {
+    let colors = default_sky_colors();
+    DistanceFog {
+        color: colors.sky_smog,
+        directional_light_color: colors.sky_band2,
+        directional_light_exponent: 8.0,
+        falloff: FogFalloff::Linear {
+            start: CHAR_SELECT_FOG_START,
+            end: CHAR_SELECT_FOG_END,
+        },
+    }
+}
 
 /// Marker for the currently displayed character model root.
 #[derive(Component)]
@@ -83,6 +101,7 @@ struct AppliedCharacterAppearance {
 struct CharSelectRenderAssets<'w> {
     meshes: ResMut<'w, Assets<Mesh>>,
     materials: ResMut<'w, Assets<StandardMaterial>>,
+    sky_materials: ResMut<'w, Assets<SkyMaterial>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
     water_materials: ResMut<'w, Assets<WaterMaterial>>,
@@ -220,6 +239,7 @@ fn spawn_char_select_camera(
             }),
             Transform::from_translation(eye).looking_at(focus, Vec3::Y),
             orbit_from_eye_focus(eye, focus),
+            char_select_fog(),
         ))
         .id()
 }
@@ -438,6 +458,13 @@ fn setup_char_select_scene(
         placement.as_ref(),
         Some(&heightmap),
         presentation,
+    );
+    sky::spawn_sky_dome(
+        &mut commands,
+        &mut assets.meshes,
+        &mut assets.sky_materials,
+        &mut assets.images,
+        camera_entity,
     );
     let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);

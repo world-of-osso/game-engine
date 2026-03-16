@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use crate::asset;
 use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId};
 use crate::ground;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
@@ -63,6 +64,7 @@ pub fn spawn(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     terrain_materials: &mut Assets<TerrainMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -76,6 +78,7 @@ pub fn spawn(
             commands,
             meshes,
             materials,
+            effect_materials,
             terrain_materials,
             water_materials,
             images,
