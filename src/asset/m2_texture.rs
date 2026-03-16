@@ -118,6 +118,33 @@ pub fn resolve_batch_texture(
     default_fdid_for_type(ty, is_hd, skin_fdids)
 }
 
+fn resolve_batch_texture_at_offset(
+    unit: &M2TextureUnit,
+    tex_lookup: &[u16],
+    tex_types: &[u32],
+    txid: &[u32],
+    is_hd: bool,
+    skin_fdids: &[u32; 3],
+    offset: u16,
+) -> Option<u32> {
+    let texture_id = unit.texture_id.checked_add(offset)?;
+    let shifted = M2TextureUnit {
+        flags: unit.flags,
+        priority_plane: unit.priority_plane,
+        shader_id: unit.shader_id,
+        submesh_index: unit.submesh_index,
+        color_index: unit.color_index,
+        texture_id,
+        render_flags_index: unit.render_flags_index,
+        material_layer: unit.material_layer,
+        texture_count: unit.texture_count,
+        texture_coord_index: unit.texture_coord_index,
+        transparency_index: unit.transparency_index,
+        texture_animation_id: unit.texture_animation_id,
+    };
+    resolve_batch_texture(&shifted, tex_lookup, tex_types, txid, is_hd, skin_fdids)
+}
+
 /// Get the texture type for a batch (through the lookup chain).
 pub fn batch_texture_type(
     unit: &M2TextureUnit,
@@ -142,7 +169,7 @@ pub fn resolve_batch_fdid_and_overlays(
     unit: &M2TextureUnit,
     tex: &TextureTables<'_>,
     is_hd: bool,
-) -> (Option<u32>, Vec<TextureOverlay>) {
+) -> (Option<u32>, Option<u32>, Vec<TextureOverlay>) {
     let tex_type = batch_texture_type(unit, tex.tex_lookup, tex.tex_types);
     let mut fdid = resolve_batch_texture(
         unit,
@@ -155,6 +182,19 @@ pub fn resolve_batch_fdid_and_overlays(
     if is_hd && fdid.is_none() && tex_type == Some(6) {
         fdid = Some(HD_SCALP_HAIR_FDID);
     }
+    let texture_2_fdid = if unit.texture_count > 1 {
+        resolve_batch_texture_at_offset(
+            unit,
+            tex.tex_lookup,
+            tex.tex_types,
+            tex.txid,
+            is_hd,
+            tex.skin_fdids,
+            1,
+        )
+    } else {
+        None
+    };
     let overlays = body_skin_overlays(unit, tex.tex_lookup, tex.tex_types, is_hd);
-    (fdid, overlays)
+    (fdid, texture_2_fdid, overlays)
 }

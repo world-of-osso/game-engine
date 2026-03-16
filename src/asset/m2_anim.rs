@@ -230,6 +230,13 @@ pub struct BoneAnimTracks {
     pub scale: AnimTrack<[f32; 3]>,
 }
 
+#[derive(Clone)]
+pub struct TextureAnimTracks {
+    pub translation: AnimTrack<[f32; 3]>,
+    pub rotation: AnimTrack<[i16; 4]>,
+    pub scale: AnimTrack<[f32; 3]>,
+}
+
 fn parse_vec3(md20: &[u8], off: usize) -> Result<[f32; 3], String> {
     Ok([
         read_f32(md20, off)?,
@@ -245,6 +252,10 @@ fn parse_quat_packed(md20: &[u8], off: usize) -> Result<[i16; 4], String> {
         read_i16(md20, off + 4)?,
         read_i16(md20, off + 6)?,
     ])
+}
+
+fn parse_i16_value(md20: &[u8], off: usize) -> Result<i16, String> {
+    read_i16(md20, off)
 }
 
 /// Parse an AnimBlock's nested M2Array structure.
@@ -347,6 +358,48 @@ pub fn parse_bone_animations(md20: &[u8]) -> Result<Vec<BoneAnimTracks>, String>
     parse_bone_animations_at(md20, offset, count)
 }
 
+pub fn parse_transparency_tracks(md20: &[u8]) -> Result<Vec<AnimTrack<i16>>, String> {
+    if md20.len() < 0x60 {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, 0x58)? as usize;
+    let offset = read_u32(md20, 0x5C)? as usize;
+    let mut tracks = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * 20;
+        if base + 20 > md20.len() {
+            return Err(format!(
+                "Transparency track {i} out of bounds at offset {base:#x}"
+            ));
+        }
+        tracks.push(parse_anim_track(md20, base, 2, parse_i16_value)?);
+    }
+    Ok(tracks)
+}
+
+pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, String> {
+    if md20.len() < 0x68 {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, 0x60)? as usize;
+    let offset = read_u32(md20, 0x64)? as usize;
+    let mut tracks = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * 60;
+        if base + 60 > md20.len() {
+            return Err(format!(
+                "Texture animation track {i} out of bounds at offset {base:#x}"
+            ));
+        }
+        tracks.push(TextureAnimTracks {
+            translation: parse_anim_track(md20, base, 12, parse_vec3)?,
+            rotation: parse_anim_track(md20, base + 20, 8, parse_quat_packed)?,
+            scale: parse_anim_track(md20, base + 40, 12, parse_vec3)?,
+        });
+    }
+    Ok(tracks)
+}
+
 /// Unpack a WoW packed i16 quaternion to a Bevy Quat with coordinate conversion.
 /// WoW packs rotation as [i16; 4] (x, y, z, w).
 /// Unpack: (raw < 0 ? raw + 32768 : raw - 32767) / 32767.0
@@ -417,6 +470,15 @@ pub fn evaluate_vec3_track(
         return Some(values[i]);
     }
     Some(lerp_vec3(&values[i], &values[i + 1], t))
+}
+
+pub fn evaluate_i16_track(track: &AnimTrack<i16>, seq_idx: usize, time_ms: u32) -> Option<i16> {
+    let (timestamps, values) = track.sequences.get(seq_idx)?;
+    if timestamps.is_empty() || values.is_empty() {
+        return None;
+    }
+    let (i, _) = find_keyframe_pair(timestamps, time_ms)?;
+    values.get(i).copied()
 }
 
 /// Evaluate a rotation track at the given time, returning an unpacked [f32; 4] quaternion.

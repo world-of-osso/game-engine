@@ -34,10 +34,18 @@ pub struct TextureOverlay {
 pub struct M2RenderBatch {
     pub mesh: Mesh,
     pub texture_fdid: Option<u32>,
+    pub texture_2_fdid: Option<u32>,
     pub texture_type: Option<u32>,
     pub overlays: Vec<TextureOverlay>,
     pub render_flags: u16,
     pub blend_mode: u16,
+    pub transparency: f32,
+    pub texture_anim: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
+    pub texture_anim_2: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
+    pub use_uv_2_1: bool,
+    pub use_uv_2_2: bool,
+    pub shader_id: u16,
+    pub texture_count: u16,
     /// M2 submesh mesh_part_id (geoset group*100 + variant). Used for geoset visibility.
     pub mesh_part_id: u16,
 }
@@ -70,6 +78,7 @@ struct M2Vertex {
     bone_indices: [u8; 4],
     normal: [f32; 3],
     tex_coords: [f32; 2],
+    tex_coords_2: [f32; 2],
 }
 
 struct M2Submesh {
@@ -81,9 +90,18 @@ struct M2Submesh {
 }
 
 pub struct M2TextureUnit {
+    pub flags: u8,
+    pub priority_plane: i8,
+    pub shader_id: u16,
     pub submesh_index: u16,
+    pub color_index: i16,
     pub texture_id: u16,
     pub render_flags_index: u16,
+    pub material_layer: u16,
+    pub texture_count: u16,
+    pub texture_coord_index: u16,
+    pub transparency_index: u16,
+    pub texture_animation_id: u16,
 }
 
 struct M2Material {
@@ -192,6 +210,7 @@ fn parse_one_vertex(md20: &[u8], i: usize, base: usize) -> Result<M2Vertex, Stri
             read_f32(md20, base + 28)?,
         ],
         tex_coords: [read_f32(md20, base + 32)?, read_f32(md20, base + 36)?],
+        tex_coords_2: [read_f32(md20, base + 40)?, read_f32(md20, base + 44)?],
     })
 }
 
@@ -275,9 +294,18 @@ fn parse_texture_units(
             return Err(format!("TextureUnit {i} out of bounds at {base:#x}"));
         }
         units.push(M2TextureUnit {
+            flags: data[base],
+            priority_plane: data[base + 1] as i8,
+            shader_id: read_u16(data, base + 2)?,
             submesh_index: read_u16(data, base + 4)?,
-            texture_id: read_u16(data, base + 16)?,
+            color_index: read_u16(data, base + 8)? as i16,
             render_flags_index: read_u16(data, base + 10)?,
+            material_layer: read_u16(data, base + 12)?,
+            texture_count: read_u16(data, base + 14)?,
+            texture_id: read_u16(data, base + 16)?,
+            texture_coord_index: read_u16(data, base + 18)?,
+            transparency_index: read_u16(data, base + 20)?,
+            texture_animation_id: read_u16(data, base + 22)?,
         });
     }
     Ok(units)
@@ -336,6 +364,52 @@ fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
     Ok(lookup)
 }
 
+fn parse_texture_unit_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
+    if md20.len() < 0x90 {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, 0x88)? as usize;
+    let offset = read_u32(md20, 0x8C)? as usize;
+    let mut lookup = Vec::with_capacity(count);
+    for i in 0..count {
+        let off = offset + i * 2;
+        let bytes: [u8; 2] = md20
+            .get(off..off + 2)
+            .ok_or_else(|| format!("texture unit lookup {i} out of bounds at {off:#x}"))?
+            .try_into()
+            .unwrap();
+        lookup.push(i16::from_le_bytes(bytes));
+    }
+    Ok(lookup)
+}
+
+fn parse_i16_lookup(md20: &[u8], header_off: usize, label: &str) -> Result<Vec<i16>, String> {
+    if md20.len() < header_off + 8 {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, header_off)? as usize;
+    let offset = read_u32(md20, header_off + 4)? as usize;
+    let mut lookup = Vec::with_capacity(count);
+    for i in 0..count {
+        let off = offset + i * 2;
+        let bytes: [u8; 2] = md20
+            .get(off..off + 2)
+            .ok_or_else(|| format!("{label} lookup {i} out of bounds at {off:#x}"))?
+            .try_into()
+            .unwrap();
+        lookup.push(i16::from_le_bytes(bytes));
+    }
+    Ok(lookup)
+}
+
+fn parse_transparency_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
+    parse_i16_lookup(md20, 0x90, "transparency")
+}
+
+fn parse_uv_animation_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
+    parse_i16_lookup(md20, 0x98, "uv animation")
+}
+
 fn resolve_indices(lookup: &[u16], indices: &[u16]) -> Vec<u16> {
     indices
         .iter()
@@ -349,6 +423,7 @@ struct VertexBuffers {
     positions: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     uvs: Vec<[f32; 2]>,
+    uvs2: Vec<[f32; 2]>,
     joint_indices: Vec<[u16; 4]>,
     joint_weights: Vec<[f32; 4]>,
 }
@@ -363,6 +438,7 @@ fn collect_submesh_vertices(
         positions: Vec::with_capacity(vcount),
         normals: Vec::with_capacity(vcount),
         uvs: Vec::with_capacity(vcount),
+        uvs2: Vec::with_capacity(vcount),
         joint_indices: Vec::with_capacity(vcount),
         joint_weights: Vec::with_capacity(vcount),
     };
@@ -376,6 +452,7 @@ fn collect_submesh_vertices(
         buf.normals
             .push(wow_to_bevy(v.normal[0], v.normal[1], v.normal[2]));
         buf.uvs.push(v.tex_coords);
+        buf.uvs2.push(v.tex_coords_2);
         buf.joint_indices.push([
             v.bone_indices[0] as u16,
             v.bone_indices[1] as u16,
@@ -421,6 +498,7 @@ fn build_batch_mesh(
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, buf.positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, buf.normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, buf.uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_1, buf.uvs2);
     if has_bones {
         mesh.insert_attribute(
             Mesh::ATTRIBUTE_JOINT_INDEX,
@@ -575,6 +653,11 @@ fn build_one_batch(
     skin: &SkinData,
     materials: &[M2Material],
     tex: &TextureTables<'_>,
+    transparencies: &[super::m2_anim::AnimTrack<i16>],
+    transparency_lookup: &[i16],
+    texture_animations: &[super::m2_anim::TextureAnimTracks],
+    uv_animation_lookup: &[i16],
+    texture_unit_lookup: &[i16],
     has_bones: bool,
     is_hd: bool,
     unit: &M2TextureUnit,
@@ -589,15 +672,67 @@ fn build_one_batch(
     let sub = &skin.submeshes[sub_idx];
     let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
     let texture_type = m2_texture::batch_texture_type(unit, tex.tex_lookup, tex.tex_types);
-    let (texture_fdid, overlays) = m2_texture::resolve_batch_fdid_and_overlays(unit, tex, is_hd);
+    let (texture_fdid, texture_2_fdid, overlays) =
+        m2_texture::resolve_batch_fdid_and_overlays(unit, tex, is_hd);
     let mat = materials.get(unit.render_flags_index as usize);
+    let transparency_track = transparency_lookup
+        .get(unit.transparency_index as usize)
+        .copied()
+        .unwrap_or(unit.transparency_index as i16);
+    let transparency = transparencies
+        .get(transparency_track.max(0) as usize)
+        .and_then(|track| super::m2_anim::evaluate_i16_track(track, 0, 0))
+        .map(|value| (value as f32 / 32767.0).clamp(0.0, 1.0))
+        .unwrap_or(1.0);
+    let texture_anim = uv_animation_lookup
+        .get(unit.texture_animation_id as usize)
+        .copied()
+        .and_then(|idx| usize::try_from(idx).ok())
+        .and_then(|idx| texture_animations.get(idx))
+        .map(|tracks| tracks.translation.clone());
+    let texture_anim_2 = if unit.texture_count > 1 {
+        uv_animation_lookup
+            .get(unit.texture_animation_id.saturating_add(1) as usize)
+            .copied()
+            .and_then(|idx| usize::try_from(idx).ok())
+            .and_then(|idx| texture_animations.get(idx))
+            .map(|tracks| tracks.translation.clone())
+    } else {
+        None
+    };
+    // Retail chunked models sometimes omit the global texture-unit lookup table even
+    // though their second texture stage clearly targets the secondary UV set.
+    let use_uv_2_1 = texture_unit_lookup
+        .get(unit.texture_coord_index as usize)
+        .copied()
+        == Some(1);
+    let use_uv_2_2 = if unit.texture_count > 1 {
+        if texture_unit_lookup.is_empty() {
+            true
+        } else {
+            texture_unit_lookup
+                .get(unit.texture_coord_index.saturating_add(1) as usize)
+                .copied()
+                == Some(1)
+        }
+    } else {
+        false
+    };
     Ok(M2RenderBatch {
         mesh,
         texture_fdid,
+        texture_2_fdid,
         texture_type,
         overlays,
         render_flags: mat.map(|m| m.flags).unwrap_or(0),
         blend_mode: mat.map(|m| m.blend_mode).unwrap_or(0),
+        transparency,
+        texture_anim,
+        texture_anim_2,
+        use_uv_2_1,
+        use_uv_2_2,
+        shader_id: unit.shader_id,
+        texture_count: unit.texture_count,
         mesh_part_id: sub.mesh_part_id,
     })
 }
@@ -607,13 +742,29 @@ fn build_batched_model(
     skin: &SkinData,
     materials: &[M2Material],
     tex: &TextureTables<'_>,
+    transparencies: &[super::m2_anim::AnimTrack<i16>],
+    transparency_lookup: &[i16],
+    texture_animations: &[super::m2_anim::TextureAnimTracks],
+    uv_animation_lookup: &[i16],
+    texture_unit_lookup: &[i16],
     has_bones: bool,
     is_hd: bool,
 ) -> Result<Vec<M2RenderBatch>, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
         batches.push(build_one_batch(
-            vertices, skin, materials, tex, has_bones, is_hd, unit,
+            vertices,
+            skin,
+            materials,
+            tex,
+            transparencies,
+            transparency_lookup,
+            texture_animations,
+            uv_animation_lookup,
+            texture_unit_lookup,
+            has_bones,
+            is_hd,
+            unit,
         )?);
     }
     Ok(batches)
@@ -633,10 +784,18 @@ fn build_fallback_batch(
     Ok(vec![M2RenderBatch {
         mesh: build_mesh(vertices, indices),
         texture_fdid: fdid,
+        texture_2_fdid: None,
         texture_type: None,
         overlays: Vec::new(),
         render_flags: 0,
         blend_mode: 0,
+        transparency: 1.0,
+        texture_anim: None,
+        texture_anim_2: None,
+        use_uv_2_1: false,
+        use_uv_2_2: false,
+        shader_id: 0,
+        texture_count: 1,
         mesh_part_id: 0,
     }])
 }
@@ -652,7 +811,12 @@ fn build_render_batches(
     let vertices = parse_vertices(md20)?;
     let tex_types = parse_texture_types(md20)?;
     let tex_lookup = parse_texture_lookup(md20)?;
+    let texture_unit_lookup = parse_texture_unit_lookup(md20)?;
     let materials = parse_materials(md20)?;
+    let transparencies = super::m2_anim::parse_transparency_tracks(md20)?;
+    let transparency_lookup = parse_transparency_lookup(md20)?;
+    let texture_animations = super::m2_anim::parse_texture_animations(md20)?;
+    let uv_animation_lookup = parse_uv_animation_lookup(md20)?;
     let skin = load_skin_data(path, &chunks.sfid);
     if !chunks.sfid.is_empty() && skin.is_none() {
         return Err(format!(
@@ -676,6 +840,11 @@ fn build_render_batches(
             skin,
             &materials,
             &tex,
+            &transparencies,
+            &transparency_lookup,
+            &texture_animations,
+            &uv_animation_lookup,
+            &texture_unit_lookup,
             has_bones,
             chunks.skid.is_some(),
         )

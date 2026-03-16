@@ -78,7 +78,7 @@ fn write_skin_data(
     lookup: &[u16],
     indices: &[u16],
     submeshes: &[(u16, u16, u16, u16)],
-    batches: &[(u16, u16)],
+    batches: &[(u16, u16, u16, u16)],
     lookup_offset: u32,
     indices_offset: u32,
     sub_offset: u32,
@@ -104,9 +104,11 @@ fn write_skin_data(
         skin[base + 8..base + 10].copy_from_slice(&ts.to_le_bytes());
         skin[base + 10..base + 12].copy_from_slice(&tc.to_le_bytes());
     }
-    for (i, &(sub_idx, tex_id)) in batches.iter().enumerate() {
+    for (i, &(sub_idx, tex_id, shader_id, texture_count)) in batches.iter().enumerate() {
         let base = batch_offset + i * 24;
+        skin[base + 2..base + 4].copy_from_slice(&shader_id.to_le_bytes());
         skin[base + 4..base + 6].copy_from_slice(&sub_idx.to_le_bytes());
+        skin[base + 14..base + 16].copy_from_slice(&texture_count.to_le_bytes());
         skin[base + 16..base + 18].copy_from_slice(&tex_id.to_le_bytes());
     }
 }
@@ -116,7 +118,7 @@ fn build_skin(
     lookup: &[u16],
     indices: &[u16],
     submeshes: &[(u16, u16, u16, u16)],
-    batches: &[(u16, u16)],
+    batches: &[(u16, u16, u16, u16)],
 ) -> Vec<u8> {
     let (lookup_offset, indices_offset, sub_offset, batch_offset, total) =
         compute_skin_offsets(lookup.len(), indices.len(), submeshes.len(), batches.len());
@@ -226,7 +228,7 @@ fn parse_skin_full_with_submeshes_and_batches() {
         &[0, 1, 2, 3],
         &[0, 1, 2, 2, 3, 0],
         &[(0, 4, 0, 6)],
-        &[(0, 0)],
+        &[(0, 0, 0x8002, 2)],
     );
     let data = parse_skin_full(&skin).unwrap();
     assert_eq!(data.submeshes.len(), 1);
@@ -237,6 +239,8 @@ fn parse_skin_full_with_submeshes_and_batches() {
     assert_eq!(data.batches.len(), 1);
     assert_eq!(data.batches[0].submesh_index, 0);
     assert_eq!(data.batches[0].texture_id, 0);
+    assert_eq!(data.batches[0].shader_id, 0x8002);
+    assert_eq!(data.batches[0].texture_count, 2);
 }
 
 fn rewrite_first_sfid(data: &mut [u8], replacement: u32) {
@@ -347,9 +351,18 @@ fn resolve_batch_texture_chain() {
 
     // Type 0 (hardcoded) → FDID from TXID
     let unit0 = M2TextureUnit {
+        flags: 0,
+        priority_plane: 0,
+        shader_id: 0,
         submesh_index: 0,
+        color_index: -1,
         texture_id: 0,
         render_flags_index: 0,
+        material_layer: 0,
+        texture_count: 1,
+        texture_coord_index: 0,
+        transparency_index: 0,
+        texture_animation_id: 0,
     };
     assert_eq!(
         resolve_batch_texture(&unit0, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]),
@@ -358,9 +371,18 @@ fn resolve_batch_texture_chain() {
 
     // Type 1 (body skin) → default FDID (SD)
     let unit1 = M2TextureUnit {
+        flags: 0,
+        priority_plane: 0,
+        shader_id: 0,
         submesh_index: 0,
+        color_index: -1,
         texture_id: 1,
         render_flags_index: 0,
+        material_layer: 0,
+        texture_count: 1,
+        texture_coord_index: 0,
+        transparency_index: 0,
+        texture_animation_id: 0,
     };
     assert_eq!(
         resolve_batch_texture(&unit1, &tex_lookup, &tex_types, &txid, false, &[0, 0, 0]),
@@ -376,9 +398,18 @@ fn resolve_batch_texture_chain() {
     // Unknown type → None (placeholder)
     let tex_types_unk = vec![0, 99];
     let unit2 = M2TextureUnit {
+        flags: 0,
+        priority_plane: 0,
+        shader_id: 0,
         submesh_index: 0,
+        color_index: -1,
         texture_id: 1,
         render_flags_index: 0,
+        material_layer: 0,
+        texture_count: 1,
+        texture_coord_index: 0,
+        transparency_index: 0,
+        texture_animation_id: 0,
     };
     assert_eq!(
         resolve_batch_texture(
