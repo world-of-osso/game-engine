@@ -10,6 +10,7 @@ use crate::asset::m2_particle::M2ParticleEmitter;
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::creature_display;
 use crate::equipment;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::particle;
 
@@ -119,6 +120,7 @@ pub fn spawn_m2_model(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
@@ -132,6 +134,7 @@ pub fn spawn_m2_model(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         inv_bp,
         model,
@@ -145,6 +148,7 @@ pub fn spawn_full_m2_on_entity(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
@@ -155,7 +159,15 @@ pub fn spawn_full_m2_on_entity(
         return false;
     };
     attach_m2_model_parts(
-        commands, meshes, materials, images, inv_bp, model, entity, false,
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        model,
+        entity,
+        false,
     );
     true
 }
@@ -165,6 +177,7 @@ fn attach_m2_model_parts(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     model: asset::m2::M2Model,
@@ -185,6 +198,7 @@ fn attach_m2_model_parts(
         &mut m2_spawn::SpawnAssets {
             meshes,
             materials,
+            effect_materials,
             images,
             inverse_bindposes: inv_bp,
         },
@@ -233,6 +247,7 @@ pub fn spawn_static_m2(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
@@ -264,6 +279,7 @@ pub fn spawn_static_m2(
         &mut m2_spawn::SpawnAssets {
             meshes,
             materials,
+            effect_materials,
             images,
             inverse_bindposes: skinned_mesh_inverse_bindposes,
         },
@@ -284,6 +300,7 @@ pub fn spawn_animated_static_m2(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
@@ -312,6 +329,7 @@ pub fn spawn_animated_static_m2(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         skinned_mesh_inverse_bindposes,
         model,

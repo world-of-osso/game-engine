@@ -5,6 +5,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::asset;
 use crate::creature_display;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 
 const HERB_MODELS: &[&str] = &[
@@ -97,6 +98,7 @@ pub fn spawn_ground_clutter(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
@@ -106,6 +108,7 @@ pub fn spawn_ground_clutter(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         inverse_bindposes,
         creature_display_map,
@@ -152,6 +155,7 @@ fn spawn_herb_clutter(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
@@ -170,6 +174,7 @@ fn spawn_herb_clutter(
             commands,
             meshes,
             materials,
+            effect_materials,
             images,
             inverse_bindposes,
             herb_path,

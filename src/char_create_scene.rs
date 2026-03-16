@@ -18,6 +18,7 @@ use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::ground;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::m2_spawn::GeosetMesh;
 use crate::scene_setup::DEFAULT_M2;
@@ -193,6 +194,7 @@ fn spawn_race_model(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
@@ -205,6 +207,7 @@ fn spawn_race_model(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
         inv_bp,
         &model_path,
@@ -228,6 +231,7 @@ fn spawn_race_pair(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
@@ -240,6 +244,7 @@ fn spawn_race_pair(
             commands,
             meshes,
             materials,
+            effect_materials,
             images,
             inv_bp,
             creature_display_map,
@@ -268,6 +273,7 @@ fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
@@ -280,6 +286,7 @@ fn setup_scene(
         &mut commands,
         &mut meshes,
         &mut materials,
+        &mut effect_materials,
         &mut images,
         &mut inv_bp,
         &creature_display_map,
@@ -296,6 +303,7 @@ fn sync_model(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
@@ -315,6 +323,7 @@ fn sync_model(
             &mut commands,
             &mut meshes,
             &mut materials,
+            &mut effect_materials,
             &mut images,
             &mut inv_bp,
             &creature_display_map,

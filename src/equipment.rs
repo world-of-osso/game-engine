@@ -15,6 +15,7 @@ use serde::Serialize;
 
 use crate::animation::M2AnimData;
 use crate::asset::m2_attach::M2Attachment;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 
 /// Equipment slot for attaching items to a character model.
@@ -210,6 +211,7 @@ pub fn sync_equipment(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     transforms: Res<EquipmentTransforms>,
@@ -252,6 +254,7 @@ pub fn sync_equipment(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
+                &mut effect_materials,
                 &mut images,
                 &mut inv_bp,
                 &anim_data.joint_entities,
@@ -302,6 +305,7 @@ fn spawn_equipment_slot(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     joint_entities: &[Entity],
@@ -362,6 +366,7 @@ fn spawn_equipment_slot(
         &mut m2_spawn::SpawnAssets {
             meshes,
             materials,
+            effect_materials,
             images,
             inverse_bindposes: inv_bp,
         },

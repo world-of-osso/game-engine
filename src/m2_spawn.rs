@@ -5,11 +5,15 @@ use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::prelude::*;
 
 use crate::asset;
+use crate::m2_effect_material::{self, M2EffectMaterial, M2EffectSettings};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct TextureCacheKey {
     base_path: PathBuf,
     overlays: Vec<asset::m2::TextureOverlay>,
+    texture_2_fdid: Option<u32>,
+    shader_id: u16,
+    blend_mode: u16,
 }
 
 static COMPOSITED_TEXTURE_CACHE: OnceLock<
@@ -28,6 +32,7 @@ pub struct BatchTextureType(pub u32);
 pub struct SpawnAssets<'a> {
     pub meshes: &'a mut Assets<Mesh>,
     pub materials: &'a mut Assets<StandardMaterial>,
+    pub effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub images: &'a mut Assets<Image>,
     pub inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
@@ -55,6 +60,11 @@ pub fn spawn_m2_on_entity(
 /// Skinning data returned from mesh attachment, for animation setup.
 pub type SkinningResult = Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>;
 
+enum BatchMaterial {
+    Standard(Handle<StandardMaterial>),
+    Effect(Handle<M2EffectMaterial>),
+}
+
 /// Spawn M2 mesh batches as children of a root entity, with optional skinning.
 /// Returns the skinning data for optional animation setup.
 pub fn attach_m2_batches(
@@ -67,23 +77,62 @@ pub fn attach_m2_batches(
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
         let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
-        let mat = load_batch_material(&batch, i, assets.images, assets.materials);
-        spawn_skinned_mesh(
-            commands,
-            assets.meshes,
-            mat,
-            batch,
-            root,
-            &skinning,
+        let mat = load_batch_material(
+            &batch,
             i,
-            visible,
+            assets.images,
+            assets.materials,
+            assets.effect_materials,
         );
+        match mat {
+            BatchMaterial::Standard(mat) => spawn_skinned_mesh_standard(
+                commands,
+                assets.meshes,
+                mat,
+                batch,
+                root,
+                &skinning,
+                i,
+                visible,
+            ),
+            BatchMaterial::Effect(mat) => spawn_skinned_mesh_effect(
+                commands,
+                assets.meshes,
+                mat,
+                batch,
+                root,
+                &skinning,
+                i,
+                visible,
+            ),
+        }
     }
     skinning
 }
 
 #[allow(clippy::too_many_arguments)]
-fn spawn_skinned_mesh(
+fn spawn_common_mesh_components(
+    cmd: &mut EntityCommands,
+    texture_type: Option<u32>,
+    mesh_part_id: u16,
+    parent: Entity,
+    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+) {
+    cmd.insert(GeosetMesh(mesh_part_id));
+    if let Some(texture_type) = texture_type {
+        cmd.insert(BatchTextureType(texture_type));
+    }
+    cmd.set_parent_in_place(parent);
+    if let Some((inv_bp, joints)) = skinning {
+        cmd.insert(SkinnedMesh {
+            inverse_bindposes: inv_bp.clone(),
+            joints: joints.clone(),
+        });
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_skinned_mesh_standard(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     material: Handle<StandardMaterial>,
@@ -108,19 +157,40 @@ fn spawn_skinned_mesh(
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
         Name::new(format!("Mesh[{batch_index}]")),
-        GeosetMesh(mesh_part_id),
         vis,
     ));
-    if let Some(texture_type) = texture_type {
-        cmd.insert(BatchTextureType(texture_type));
-    }
-    cmd.set_parent_in_place(parent);
-    if let Some((inv_bp, joints)) = skinning {
-        cmd.insert(SkinnedMesh {
-            inverse_bindposes: inv_bp.clone(),
-            joints: joints.clone(),
-        });
-    }
+    spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_skinned_mesh_effect(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    material: Handle<M2EffectMaterial>,
+    batch: asset::m2::M2RenderBatch,
+    parent: Entity,
+    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    batch_index: usize,
+    visible: bool,
+) {
+    let asset::m2::M2RenderBatch {
+        mesh,
+        texture_type,
+        mesh_part_id,
+        ..
+    } = batch;
+    let vis = if visible {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    let mut cmd = commands.spawn((
+        Mesh3d(meshes.add(mesh)),
+        MeshMaterial3d(material),
+        Name::new(format!("Mesh[{batch_index}]")),
+        vis,
+    ));
+    spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
 }
 
 /// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
@@ -174,19 +244,29 @@ fn load_batch_material(
     index: usize,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
-) -> Handle<StandardMaterial> {
+    effect_materials: &mut Assets<M2EffectMaterial>,
+) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
+    if should_use_effect_material(batch)
+        && let Some(mat) = try_load_effect_material(batch, &texture_dir, images, effect_materials)
+    {
+        return BatchMaterial::Effect(mat);
+    }
     if let Some(fdid) = batch.texture_fdid {
         let blp_path = asset::casc_resolver::ensure_texture(fdid)
             .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
         if let Some(mat) =
             try_load_textured_material(&blp_path, batch, &texture_dir, images, materials)
         {
-            return mat;
+            return BatchMaterial::Standard(mat);
         }
     }
     let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
-    materials.add(m2_material(None, Some(color), batch))
+    BatchMaterial::Standard(materials.add(m2_material(None, Some(color), batch)))
+}
+
+fn should_use_effect_material(batch: &asset::m2::M2RenderBatch) -> bool {
+    batch.texture_2_fdid.is_some() && batch.blend_mode >= 2 && batch.overlays.is_empty()
 }
 
 fn try_load_textured_material(
@@ -199,10 +279,61 @@ fn try_load_textured_material(
     if !blp_path.exists() {
         return None;
     }
-    let image = load_composited_texture(blp_path, &batch.overlays, texture_dir)
+    let image = load_composited_texture(blp_path, batch, texture_dir)
         .map_err(|e| eprintln!("{e}"))
         .ok()?;
     Some(materials.add(m2_material(Some(images.add(image)), None, batch)))
+}
+
+fn try_load_effect_material(
+    batch: &asset::m2::M2RenderBatch,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+    materials: &mut Assets<M2EffectMaterial>,
+) -> Option<Handle<M2EffectMaterial>> {
+    let base_fdid = batch.texture_fdid?;
+    let second_fdid = batch.texture_2_fdid?;
+    let base_texture = load_repeat_texture(base_fdid, texture_dir, images)?;
+    let second_texture = load_repeat_texture(second_fdid, texture_dir, images)?;
+    let alpha_test = match batch.blend_mode {
+        1 => 224.0 / 255.0 * batch.transparency,
+        2..=7 => (1.0 / 255.0) * batch.transparency,
+        _ => 0.0,
+    };
+    Some(materials.add(M2EffectMaterial {
+        settings: M2EffectSettings {
+            transparency: batch.transparency,
+            alpha_test,
+            shader_id: batch.shader_id as u32,
+            uv_mode_1: u32::from(batch.use_uv_2_1),
+            uv_mode_2: u32::from(batch.use_uv_2_2),
+            _pad0: 0,
+            uv_offset_1: Vec2::ZERO,
+            uv_offset_2: Vec2::ZERO,
+        },
+        base_texture,
+        second_texture,
+        blend_mode: batch.blend_mode,
+        two_sided: batch.render_flags & 0x04 != 0,
+        texture_anim_1: batch.texture_anim.clone(),
+        texture_anim_2: batch.texture_anim_2.clone(),
+    }))
+}
+
+fn load_repeat_texture(
+    fdid: u32,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+) -> Option<Handle<Image>> {
+    let blp_path = asset::casc_resolver::ensure_texture(fdid)
+        .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
+    if !blp_path.exists() {
+        return None;
+    }
+    let (pixels, width, height) = asset::blp::load_blp_rgba(&blp_path).ok()?;
+    let mut image = crate::rgba_image(pixels, width, height);
+    image.sampler = m2_effect_material::repeat_sampler();
+    Some(images.add(image))
 }
 
 /// Build a StandardMaterial from M2 render flags (two-sided, unlit, blend mode).
@@ -219,14 +350,14 @@ pub fn m2_material(
         Some(bevy::render::render_resource::Face::Back)
     };
     let alpha_mode = match batch.blend_mode {
-        1 => AlphaMode::Mask(0.5),
+        1 => AlphaMode::Mask(224.0 / 255.0),
         2 | 3 | 7 => AlphaMode::Blend,
         4..=6 => AlphaMode::Add,
         _ => AlphaMode::Opaque,
     };
     StandardMaterial {
         base_color_texture: texture,
-        base_color: color.unwrap_or(Color::WHITE),
+        base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
         unlit,
         cull_mode,
         double_sided: two_sided,
@@ -237,12 +368,15 @@ pub fn m2_material(
 
 fn load_composited_texture(
     base_path: &Path,
-    overlays: &[asset::m2::TextureOverlay],
+    batch: &asset::m2::M2RenderBatch,
     texture_dir: &Path,
 ) -> Result<Image, String> {
     let key = TextureCacheKey {
         base_path: base_path.to_path_buf(),
-        overlays: overlays.to_vec(),
+        overlays: batch.overlays.clone(),
+        texture_2_fdid: batch.texture_2_fdid,
+        shader_id: batch.shader_id,
+        blend_mode: batch.blend_mode,
     };
     let cache =
         COMPOSITED_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
@@ -251,7 +385,17 @@ fn load_composited_texture(
     }
     let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
         .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?;
-    for ov in overlays {
+    if let Some(texture_2_fdid) = batch.texture_2_fdid {
+        composite_second_texture(
+            &mut pixels,
+            w,
+            h,
+            texture_2_fdid,
+            batch.shader_id,
+            texture_dir,
+        );
+    }
+    for ov in &batch.overlays {
         composite_overlay(&mut pixels, w, ov, texture_dir);
     }
     let mut image = crate::rgba_image(pixels, w, h);
@@ -262,6 +406,72 @@ fn load_composited_texture(
     });
     cache.lock().unwrap().insert(key, Ok(image.clone()));
     Ok(image)
+}
+
+fn composite_second_texture(
+    base_pixels: &mut [u8],
+    base_width: u32,
+    base_height: u32,
+    overlay_fdid: u32,
+    shader_id: u16,
+    texture_dir: &Path,
+) {
+    let overlay_path = asset::casc_resolver::ensure_texture(overlay_fdid)
+        .unwrap_or_else(|| texture_dir.join(format!("{overlay_fdid}.blp")));
+    let Ok((overlay_pixels, overlay_width, overlay_height)) =
+        asset::blp::load_blp_rgba(&overlay_path)
+    else {
+        eprintln!(
+            "Failed to load secondary texture {}",
+            overlay_path.display()
+        );
+        return;
+    };
+
+    for y in 0..base_height {
+        for x in 0..base_width {
+            let base_idx = ((y * base_width + x) * 4) as usize;
+            let ox = x.rem_euclid(overlay_width);
+            let oy = y.rem_euclid(overlay_height);
+            let overlay_idx = ((oy * overlay_width + ox) * 4) as usize;
+            let base = &mut base_pixels[base_idx..base_idx + 4];
+            let overlay = &overlay_pixels[overlay_idx..overlay_idx + 4];
+            apply_m2_multitexture_shader(base, overlay, shader_id);
+        }
+    }
+}
+
+fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16) {
+    let base_rgb = [
+        base[0] as f32 / 255.0,
+        base[1] as f32 / 255.0,
+        base[2] as f32 / 255.0,
+    ];
+    let base_a = base[3] as f32 / 255.0;
+    let overlay_rgb = [
+        overlay[0] as f32 / 255.0,
+        overlay[1] as f32 / 255.0,
+        overlay[2] as f32 / 255.0,
+    ];
+    let overlay_a = overlay[3] as f32 / 255.0;
+
+    let (rgb, a) = match shader_id {
+        // 0x4014 decodes to Noggit's Combiners_Mod_Mod2x.
+        0x4014 => (
+            [
+                (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
+                (base_rgb[1] * overlay_rgb[1] * 2.0).clamp(0.0, 1.0),
+                (base_rgb[2] * overlay_rgb[2] * 2.0).clamp(0.0, 1.0),
+            ],
+            (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
+        ),
+        _ => (base_rgb, base_a),
+    };
+
+    base[0] = (rgb[0] * 255.0).round() as u8;
+    base[1] = (rgb[1] * 255.0).round() as u8;
+    base[2] = (rgb[2] * 255.0).round() as u8;
+    base[3] = (a * 255.0).round() as u8;
 }
 
 fn composite_overlay(

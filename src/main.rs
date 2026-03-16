@@ -45,6 +45,7 @@ mod health_bar;
 mod inworld_scene_tree;
 mod login_screen;
 mod login_screen_helpers;
+mod m2_effect_material;
 mod m2_scene;
 pub mod m2_spawn;
 mod minimap;
@@ -286,6 +287,7 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(game_engine::culling::CullingPlugin)
         .add_plugins(AdtStreamingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
+        .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(minimap::MinimapPlugin)
         .add_plugins(action_bar::ActionBarPlugin)
