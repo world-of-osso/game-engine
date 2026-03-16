@@ -123,7 +123,7 @@ fn disconnect_during_charselect_keeps_scene_alive() {
 }
 
 #[test]
-fn disconnect_during_connecting_returns_to_login() {
+fn disconnect_during_connecting_is_ignored() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
@@ -139,9 +139,9 @@ fn disconnect_during_connecting_returns_to_login() {
     app.update();
 
     let state = app.world().resource::<State<crate::game_state::GameState>>();
-    assert_eq!(*state.get(), crate::game_state::GameState::Login);
+    assert_eq!(*state.get(), crate::game_state::GameState::Connecting);
     let feedback = app.world().resource::<AuthUiFeedback>();
-    assert_eq!(feedback.0.as_deref(), Some("Connection lost."));
+    assert_eq!(feedback.0.as_deref(), None);
 }
 
 #[test]

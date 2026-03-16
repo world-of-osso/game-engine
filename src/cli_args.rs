@@ -91,7 +91,7 @@ pub fn print_help() {
     );
     println!("  --server <ADDR>     Game server address (default: 127.0.0.1:5000)");
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
-    println!("  --login-dev-admin   Open login screen and auto-login to dev as admin/admin");
+    println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");

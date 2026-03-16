@@ -176,9 +176,9 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
     );
     if has_flag(args, "--login-dev-admin") {
         server_addr = Some(("127.0.0.1:5000".parse().unwrap(), true));
-        initial_state = Some(game_state::GameState::Login);
-        startup_login = None;
-        startup_actions = screen_auto_login::login_dev_admin_actions();
+        initial_state = Some(game_state::GameState::Connecting);
+        startup_login = Some(("admin".to_string(), "admin".to_string()));
+        startup_actions.clear();
         auto_enter_world = false;
     }
     if startup_actions.is_empty()
@@ -828,16 +828,16 @@ mod tests {
     fn parse_run_args_login_dev_admin_forces_login_flow() {
         let parsed = parse_run_args_with_saved_token(&args(&["--login-dev-admin"]), true);
 
-        assert_eq!(parsed.initial_state, Some(game_state::GameState::Login));
+        assert_eq!(parsed.initial_state, Some(game_state::GameState::Connecting));
         assert_eq!(
             parsed.server_addr,
             Some(("127.0.0.1:5000".parse().unwrap(), true))
         );
-        assert_eq!(parsed.startup_login, None);
         assert_eq!(
-            parsed.startup_actions,
-            crate::screen_auto_login::login_dev_admin_actions()
+            parsed.startup_login,
+            Some(("admin".to_string(), "admin".to_string()))
         );
+        assert!(parsed.startup_actions.is_empty());
         assert!(!parsed.auto_enter_world);
     }
 

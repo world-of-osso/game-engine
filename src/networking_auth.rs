@@ -126,6 +126,7 @@ fn send_login(
     senders: &mut Query<&mut MessageSender<LoginRequest>>,
 ) {
     let request = build_login_request(auth_token, username, password);
+    let request_token_label = token_debug_label(request.token.as_deref());
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(request.clone());
     }
@@ -133,7 +134,7 @@ fn send_login(
         "Sent LoginRequest username='{}' password_present={} token={}",
         username.0,
         !password.0.is_empty(),
-        token_debug_label(auth_token.0.as_deref()),
+        request_token_label,
     );
 }
 

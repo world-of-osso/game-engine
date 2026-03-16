@@ -464,7 +464,13 @@ fn handle_client_disconnected(
             );
         }
         crate::game_state::GameState::Connecting
-        | crate::game_state::GameState::CharCreate
+        => {
+            info!(
+                "Disconnect handling: ignoring transient disconnect while still connecting for client entity {:?}",
+                trigger.entity
+            );
+        }
+        crate::game_state::GameState::CharCreate
         | crate::game_state::GameState::Loading
         | crate::game_state::GameState::Reconnecting => {
             warn!(
