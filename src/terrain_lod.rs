@@ -128,6 +128,12 @@ fn spawn_lod_doodads(
             refs.images,
             refs.inverse_bp,
             Some(heightmap),
+            crate::terrain_tile::parse_tile_coords_from_path(adt_path)
+                .map(|(_, ty, _)| ty)
+                .unwrap_or(0),
+            crate::terrain_tile::parse_tile_coords_from_path(adt_path)
+                .map(|(_, _, tx)| tx)
+                .unwrap_or(0),
             obj,
         )
         .all_entities(),

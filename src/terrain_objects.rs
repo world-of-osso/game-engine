@@ -76,6 +76,8 @@ pub fn spawn_obj_entities(
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: Option<&TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
 ) -> SpawnedTerrainObjects {
     let mut spawned = SpawnedTerrainObjects::default();
@@ -87,6 +89,8 @@ pub fn spawn_obj_entities(
         images,
         inverse_bp,
         heightmap,
+        tile_y,
+        tile_x,
         obj_data,
         &mut spawned.doodads,
     );
@@ -95,6 +99,8 @@ pub fn spawn_obj_entities(
         meshes,
         materials,
         images,
+        tile_y,
+        tile_x,
         obj_data,
         &mut spawned.wmos,
     );
@@ -110,6 +116,8 @@ fn spawn_doodads(
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: Option<&TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
     entities: &mut Vec<Entity>,
 ) {
@@ -123,6 +131,8 @@ fn spawn_doodads(
             images,
             inverse_bp,
             heightmap,
+            tile_y,
+            tile_x,
             doodad,
         ) {
             entities.push(e);
@@ -141,13 +151,15 @@ fn try_spawn_doodad(
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: Option<&TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
     doodad: &adt_obj::DoodadPlacement,
 ) -> Option<Entity> {
     let m2_path = resolve_doodad_m2(doodad)?;
     if !m2_path.exists() {
         return None;
     }
-    let transform = doodad_transform(doodad, heightmap);
+    let transform = doodad_transform(doodad, heightmap, tile_y, tile_x);
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -189,8 +201,10 @@ fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::Pat
 fn doodad_transform(
     d: &adt_obj::DoodadPlacement,
     heightmap: Option<&TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
 ) -> Transform {
-    let mut pos = Vec3::from(placement_to_bevy(d.position));
+    let mut pos = Vec3::from(placement_to_bevy_on_tile(d.position, tile_y, tile_x));
     if let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z)) {
         pos.y = pos.y.max(terrain_y);
     }
@@ -228,6 +242,8 @@ fn spawn_wmos(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
+    tile_y: u32,
+    tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
     entities: &mut Vec<SpawnedWmoRoot>,
 ) {
@@ -238,7 +254,8 @@ fn spawn_wmos(
             materials,
             images,
         };
-        if let Some(spawned_wmo) = try_spawn_wmo(commands, &mut assets, placement) {
+        if let Some(spawned_wmo) = try_spawn_wmo(commands, &mut assets, placement, tile_y, tile_x)
+        {
             entities.push(spawned_wmo);
             spawned_count += 1;
         }
@@ -251,6 +268,8 @@ fn try_spawn_wmo(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
     placement: &adt_obj::WmoPlacement,
+    tile_y: u32,
+    tile_x: u32,
 ) -> Option<SpawnedWmoRoot> {
     let root_fdid = resolve_wmo_fdid(placement)?;
     let root_path = ensure_wmo_asset(root_fdid)?;
@@ -258,7 +277,7 @@ fn try_spawn_wmo(
     let root = wmo::load_wmo_root(&root_data).ok()?;
 
     let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
-    let transform = wmo_transform(placement);
+    let transform = wmo_transform(placement, tile_y, tile_x);
     let portal_graph = build_portal_graph(&root);
     let root_entity = spawn_wmo_root_entity(commands, root_fdid, transform, portal_graph);
 
@@ -607,15 +626,25 @@ fn wmo_standard_material(
 
 // ── coordinate conversion ───────────────────────────────────────────────────
 
-/// Convert MODF/MDDF placement position to Bevy-space.
-pub fn placement_to_bevy(raw: [f32; 3]) -> [f32; 3] {
+/// Convert MODF/MDDF placement position to Bevy-space using the legacy
+/// absolute-world ADT convention.
+fn placement_to_bevy_absolute(raw: [f32; 3]) -> [f32; 3] {
     let center = 32.0 * TILE_SIZE;
     [center - raw[2], raw[1], raw[0] - center]
 }
 
+fn placement_to_bevy_on_tile(raw: [f32; 3], tile_y: u32, tile_x: u32) -> [f32; 3] {
+    let absolute = placement_to_bevy_absolute(raw);
+    let (abs_ty, abs_tx) = crate::terrain_tile::bevy_to_tile_coords(absolute[0], absolute[2]);
+    if abs_ty.abs_diff(tile_y) <= 1 && abs_tx.abs_diff(tile_x) <= 1 {
+        return absolute;
+    }
+    crate::asset::m2::wow_to_bevy(raw[0], raw[2], raw[1])
+}
+
 /// Convert WMO placement to a Bevy Transform.
-fn wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
-    let pos = placement_to_bevy(w.position);
+fn wmo_transform(w: &adt_obj::WmoPlacement, tile_y: u32, tile_x: u32) -> Transform {
+    let pos = placement_to_bevy_on_tile(w.position, tile_y, tile_x);
     let rotation = placement_rotation(w.rotation);
     Transform::from_translation(Vec3::from(pos))
         .with_rotation(rotation)
@@ -660,7 +689,7 @@ mod tests {
     #[test]
     fn placement_to_bevy_maps_absolute_wow_world_positions_into_loaded_adt_space() {
         let raw = [17282.818, 80.921, 25931.766];
-        let actual = placement_to_bevy(raw);
+        let actual = placement_to_bevy_absolute(raw);
         let (tile_y, tile_x) = crate::terrain_tile::bevy_to_tile_coords(actual[0], actual[2]);
         assert_eq!((tile_y, tile_x), (32, 48));
         assert!(
@@ -671,6 +700,27 @@ mod tests {
         assert!(
             (actual[2] - 216.2).abs() < 1.0,
             "expected centered Bevy Z near player space, got {}",
+            actual[2]
+        );
+    }
+
+    #[test]
+    fn placement_to_bevy_falls_back_to_local_wow_coords_when_absolute_result_misses_tile() {
+        let raw = [-2982.99, 455.52, 468.06];
+        let actual = placement_to_bevy_on_tile(raw, 31, 37);
+        assert!(
+            (actual[0] + 2982.99).abs() < 0.1,
+            "expected local Bevy X near scene camera, got {}",
+            actual[0]
+        );
+        assert!(
+            (actual[1] - 455.52).abs() < 0.1,
+            "expected local Bevy Y near scene camera, got {}",
+            actual[1]
+        );
+        assert!(
+            (actual[2] + 468.06).abs() < 0.1,
+            "expected local Bevy Z near scene camera, got {}",
             actual[2]
         );
     }
@@ -727,7 +777,7 @@ mod tests {
             .doodads
             .iter()
             .map(|d| {
-                let pos = Vec3::from(placement_to_bevy(d.position));
+                let pos = Vec3::from(placement_to_bevy_on_tile(d.position, 31, 37));
                 let to_char = pos.distance(char_pos);
                 let to_camera = pos.distance(camera_pos);
                 let delta = pos - camera_pos;
@@ -799,7 +849,7 @@ mod tests {
                 if !interesting {
                     return None;
                 }
-                let pos = Vec3::from(placement_to_bevy(d.position));
+                let pos = Vec3::from(placement_to_bevy_on_tile(d.position, 31, 37));
                 Some((
                     pos.distance(char_pos),
                     pos.distance(camera_pos),

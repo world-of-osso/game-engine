@@ -184,6 +184,8 @@ pub fn spawn_adt(
             refs.images,
             refs.inverse_bp,
             Some(heightmap),
+            tile_y,
+            tile_x,
             obj,
         )
     } else {
@@ -287,6 +289,8 @@ fn spawn_parsed_tile(
             refs.images,
             refs.inverse_bp,
             Some(heightmap),
+            parsed.tile_y,
+            parsed.tile_x,
             obj_data,
         )
         .all_entities()
