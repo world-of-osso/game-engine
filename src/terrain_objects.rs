@@ -729,7 +729,8 @@ mod tests {
     fn doodad_transform_lifts_props_to_terrain_height() {
         let data = std::fs::read("data/terrain/azeroth_32_48.adt")
             .expect("expected test ADT data/terrain/azeroth_32_48.adt");
-        let adt = crate::asset::adt::load_adt(&data).expect("expected ADT to parse");
+        let adt =
+            crate::asset::adt::load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
         let mut heightmap = crate::terrain_heightmap::TerrainHeightmap::default();
         heightmap.insert_tile(32, 48, &adt);
 
@@ -749,7 +750,7 @@ mod tests {
             path: Some("test.m2".to_string()),
         };
 
-        let transform = doodad_transform(&doodad, Some(&heightmap));
+        let transform = doodad_transform(&doodad, Some(&heightmap), 32, 48);
 
         assert!(
             (transform.translation.y - terrain_y).abs() < 0.001,

@@ -6,11 +6,16 @@
 use bevy::prelude::*;
 use shared::movement::{GRAVITY, GROUND_SNAP_THRESHOLD, MAX_SLOPE_ANGLE};
 
-pub use shared::movement::JUMP_IMPULSE;
-
 use crate::camera::Player;
 use crate::game_state::GameState;
 use crate::terrain_heightmap::TerrainHeightmap;
+
+/// Upward jump velocity in yards/sec.
+///
+/// The previous value (`9.0`) produced a visibly floaty arc with a peak just
+/// over 2 yards at the current gravity. Lowering this keeps jumps grounded
+/// closer to the in-game feel.
+pub const JUMP_IMPULSE: f32 = 7.0;
 
 pub struct CollisionPlugin;
 
@@ -107,7 +112,12 @@ pub fn is_walkable_slope(height_diff: f32, horizontal_dist: f32) -> bool {
 
 /// Validate a proposed movement against terrain slope.
 /// Returns the clamped position if slope is too steep, or the proposed position if walkable.
-pub fn validate_movement_slope(current: Vec3, proposed: Vec3, terrain: &TerrainHeightmap) -> Vec3 {
+pub fn validate_movement_slope(
+    current: Vec3,
+    proposed: Vec3,
+    terrain: &TerrainHeightmap,
+    snap_to_ground: bool,
+) -> Vec3 {
     let Some(proposed_height) = terrain.height_at(proposed.x, proposed.z) else {
         return proposed;
     };
@@ -116,7 +126,11 @@ pub fn validate_movement_slope(current: Vec3, proposed: Vec3, terrain: &TerrainH
     let height_diff = proposed_height - current_height;
 
     if is_walkable_slope(height_diff, horizontal) {
-        proposed
+        if snap_to_ground {
+            proposed.with_y(proposed_height)
+        } else {
+            proposed
+        }
     } else {
         current
     }
@@ -146,5 +160,91 @@ mod tests {
     #[test]
     fn vertical_wall_is_rejected() {
         assert!(!is_walkable_slope(10.0, 0.1));
+    }
+
+    #[test]
+    fn jump_apex_stays_under_one_and_a_half_yards() {
+        let apex = JUMP_IMPULSE.powi(2) / (2.0 * GRAVITY);
+        assert!(apex < 1.5, "jump apex too high: {apex}");
+        assert!(apex > 1.0, "jump apex too low: {apex}");
+    }
+
+    #[test]
+    fn walkable_movement_snaps_to_sampled_ground_height() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt =
+            crate::asset::adt::load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
+        let mut heightmap = crate::terrain_heightmap::TerrainHeightmap::default();
+        heightmap.insert_tile(32, 48, &adt);
+
+        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+        let current_y = heightmap
+            .height_at(bx, bz)
+            .expect("expected terrain at sample position");
+        let current = Vec3::new(bx, current_y, bz);
+
+        let mut target = None;
+        for dx in [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75] {
+            for dz in [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75] {
+                let proposed_height = heightmap.height_at(bx + dx, bz + dz);
+                let Some(proposed_y) = proposed_height else {
+                    continue;
+                };
+                let horizontal = Vec2::new(dx, dz).length();
+                if horizontal < 0.001 {
+                    continue;
+                }
+                let height_diff = proposed_y - current_y;
+                if height_diff.abs() > 0.01 && is_walkable_slope(height_diff, horizontal) {
+                    target = Some((bx + dx, bz + dz, proposed_y));
+                    break;
+                }
+            }
+            if target.is_some() {
+                break;
+            }
+        }
+
+        let (target_x, target_z, target_y) =
+            target.expect("expected a nearby walkable point with a different terrain height");
+        let moved = validate_movement_slope(
+            current,
+            Vec3::new(target_x, current_y, target_z),
+            &heightmap,
+            true,
+        );
+
+        assert!(
+            (moved.y - target_y).abs() < 0.001,
+            "walkable movement should follow terrain, got y={} terrain_y={target_y}",
+            moved.y
+        );
+    }
+
+    #[test]
+    fn airborne_movement_keeps_vertical_position() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt =
+            crate::asset::adt::load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
+        let mut heightmap = crate::terrain_heightmap::TerrainHeightmap::default();
+        heightmap.insert_tile(32, 48, &adt);
+
+        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+        let ground_y = heightmap
+            .height_at(bx, bz)
+            .expect("expected terrain at sample position");
+        let current = Vec3::new(bx, ground_y + 1.0, bz);
+        let proposed = Vec3::new(bx + 0.25, ground_y + 1.0, bz + 0.25);
+
+        let moved = validate_movement_slope(current, proposed, &heightmap, false);
+
+        assert!(
+            (moved.y - proposed.y).abs() < 0.001,
+            "airborne movement should preserve vertical position, got y={} proposed_y={}",
+            moved.y,
+            proposed.y
+        );
     }
 }

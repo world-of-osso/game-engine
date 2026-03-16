@@ -960,6 +960,7 @@ struct RotationTarget {
 
 type SyncTransformFilter = (
     With<RemoteEntity>,
+    Without<LocalPlayer>,
     Or<(Changed<NetPosition>, Changed<NetRotation>)>,
 );
 type SyncTransformQuery<'w, 's> = Query<
@@ -993,7 +994,7 @@ fn interpolate_remote_entities(
             Option<&RotationTarget>,
             &mut Transform,
         ),
-        With<RemoteEntity>,
+        (With<RemoteEntity>, Without<LocalPlayer>),
     >,
 ) {
     let t = (INTERPOLATION_SPEED * time.delta_secs()).min(1.0);

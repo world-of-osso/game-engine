@@ -330,7 +330,12 @@ fn apply_horizontal_movement(
         let dir = direction.normalize();
         let proposed = transform.translation + dir * speed * dt;
         transform.translation = match terrain {
-            Some(t) => collision::validate_movement_slope(transform.translation, proposed, t),
+            Some(t) => collision::validate_movement_slope(
+                transform.translation,
+                proposed,
+                t,
+                physics.grounded && !movement.jumping,
+            ),
             None => proposed,
         };
     }

@@ -370,6 +370,32 @@ fn sync_skips_entities_without_remote_marker() {
 }
 
 #[test]
+fn sync_skips_local_player_even_with_remote_marker() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, sync_replicated_transforms);
+
+    let entity = app
+        .world_mut()
+        .spawn((
+            NetPosition {
+                x: 5.0,
+                y: 6.0,
+                z: 7.0,
+            },
+            InterpolationTarget { target: Vec3::ZERO },
+            RemoteEntity,
+            LocalPlayer,
+        ))
+        .id();
+
+    app.update();
+
+    let interp = app.world().get::<InterpolationTarget>(entity).unwrap();
+    assert_eq!(interp.target, Vec3::ZERO);
+}
+
+#[test]
 fn interpolation_moves_toward_target() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
@@ -395,6 +421,31 @@ fn interpolation_moves_toward_target() {
     assert!(pos.x > 0.0, "should move toward target");
     assert!(pos.x < 10.0, "should not snap to target");
     assert!((pos.y).abs() < 1e-6, "y should stay zero");
+}
+
+#[test]
+fn interpolation_skips_local_player_even_with_remote_marker() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, interpolate_remote_entities);
+
+    let start = Vec3::ZERO;
+    let target = Vec3::new(10.0, 20.0, 30.0);
+    let entity = app
+        .world_mut()
+        .spawn((
+            InterpolationTarget { target },
+            Transform::from_translation(start),
+            RemoteEntity,
+            LocalPlayer,
+        ))
+        .id();
+
+    app.update();
+    app.update();
+
+    let pos = app.world().get::<Transform>(entity).unwrap().translation;
+    assert_eq!(pos, start);
 }
 
 #[test]
