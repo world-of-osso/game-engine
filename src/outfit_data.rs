@@ -50,9 +50,17 @@ pub struct OutfitData {
 
 impl OutfitData {
     pub fn load(data_dir: &Path) -> Self {
+        let loaded = OnceLock::new();
+        let _ = loaded.set(match Self::try_load(data_dir) {
+            Ok(data) => Ok(data),
+            Err(err) => {
+                warn!("Failed to load outfit data: {err}");
+                Err(err)
+            }
+        });
         Self {
             data_dir: data_dir.to_path_buf(),
-            loaded: OnceLock::new(),
+            loaded,
         }
     }
 
@@ -411,12 +419,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn load_outfit_data_lazily() {
+    fn load_outfit_data_eagerly() {
         let data = OutfitData::load(Path::new("data"));
-        assert!(data.loaded.get().is_none());
+        assert!(data.loaded.get().is_some());
 
         let result = data.resolve_outfit(1, 1, 0);
-        assert!(data.loaded.get().is_some());
         assert!(
             !result.item_textures.is_empty() || !result.model_fdids.is_empty(),
             "expected starter outfit data for human warrior male"
