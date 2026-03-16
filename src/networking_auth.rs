@@ -13,7 +13,7 @@ use crate::game_state::GameState;
 pub struct AuthToken(pub Option<String>);
 
 /// Pending auth feedback to surface when the login screen is shown again.
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Clone)]
 pub struct AuthUiFeedback(pub Option<String>);
 
 /// Character list populated by LoginResponse.
@@ -141,6 +141,7 @@ pub fn receive_login_response(
     mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
     mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
     mut commands: Commands,
 ) {
     for mut receiver in receivers.iter_mut() {
@@ -155,6 +156,7 @@ pub fn receive_login_response(
                 &mut selected_char_idx,
                 &mut select_senders,
                 &mut next_state,
+                reconnect.as_deref_mut(),
                 &mut commands,
             );
         }
@@ -171,6 +173,7 @@ fn handle_login_response(
     selected_char_idx: &mut crate::char_select::SelectedCharIndex,
     select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
     next_state: &mut NextState<GameState>,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
     commands: &mut Commands,
 ) {
     if resp.success {
@@ -202,6 +205,7 @@ fn handle_login_response(
             commands.remove_resource::<crate::char_select::AutoEnterWorld>();
         }
         if let Some(state) = action.next_state {
+            clear_reconnect_if_not_entering_world(reconnect, true);
             next_state.set(state);
         }
     } else {
@@ -211,8 +215,26 @@ fn handle_login_response(
             preselected.map(|name| name.0.as_str()),
             auto_enter_world.is_some(),
         );
+        commands.queue(crate::networking::reset_network_world);
         auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
+        clear_reconnect_if_not_entering_world(reconnect, false);
         next_state.set(GameState::Login);
+    }
+}
+
+fn clear_reconnect_if_not_entering_world(
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    login_succeeded: bool,
+) {
+    let Some(reconnect) = reconnect else { return };
+    if reconnect.is_active() {
+        if login_succeeded {
+            info!("Reconnect fallback stayed out of world; hiding reconnect overlay");
+        } else {
+            warn!("Reconnect login failed; hiding reconnect overlay");
+        }
+        reconnect.phase = crate::networking::ReconnectPhase::Inactive;
+        reconnect.terrain_refresh_seen = false;
     }
 }
 
@@ -370,14 +392,16 @@ pub fn receive_enter_world_response(
     char_list: Res<CharacterList>,
     char_idx: Res<crate::char_select::SelectedCharIndex>,
     state: Res<State<GameState>>,
-    reconnect: Res<crate::networking::ReconnectState>,
+    mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             if resp.success {
                 apply_enter_world(&mut selected, &char_list, &char_idx);
-                if reconnect.is_active() && *state.get() == GameState::InWorld {
+                if reconnect.as_deref().is_some_and(|reconnect| reconnect.is_active())
+                    && *state.get() == GameState::InWorld
+                {
                     info!("Reconnect enter-world accepted, waiting for replicated world state");
                 } else {
                     next_state.set(GameState::Loading);
@@ -385,6 +409,13 @@ pub fn receive_enter_world_response(
             } else {
                 let err = resp.error.unwrap_or_default();
                 error!("Enter world failed: {err}");
+                if let Some(ref mut reconnect) = reconnect
+                    && reconnect.is_active()
+                {
+                    reconnect.phase = crate::networking::ReconnectPhase::Inactive;
+                    reconnect.terrain_refresh_seen = false;
+                    next_state.set(GameState::CharSelect);
+                }
             }
         }
     }
@@ -405,6 +436,71 @@ fn apply_enter_world(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use lightyear::prelude::client::Client;
+
+    fn run_login_response_for_test(
+        resp: LoginResponse,
+        chars: Vec<CharacterListEntry>,
+        reconnect: crate::networking::ReconnectState,
+        auto_enter: bool,
+    ) -> (
+        AuthUiFeedback,
+        bool,
+        bool,
+        crate::networking::ReconnectState,
+    ) {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(AuthToken(None));
+        app.init_resource::<AuthUiFeedback>();
+        app.insert_resource(CharacterList(chars));
+        app.init_resource::<crate::char_select::SelectedCharIndex>();
+        app.init_resource::<NextState<GameState>>();
+        app.insert_resource(reconnect);
+        if auto_enter {
+            app.insert_resource(crate::char_select::AutoEnterWorld);
+        }
+
+        let _ = app.world_mut().run_system_once(
+            move |mut auth_token: ResMut<AuthToken>,
+                  mut auth_feedback: ResMut<AuthUiFeedback>,
+                  mut char_list: ResMut<CharacterList>,
+                  mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
+                  mut next_state: ResMut<NextState<GameState>>,
+                  mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
+                  mut reconnect: ResMut<crate::networking::ReconnectState>,
+                  mut commands: Commands| {
+                handle_login_response(
+                    resp.clone(),
+                    &mut auth_token,
+                    &mut auth_feedback,
+                    &mut char_list,
+                    None,
+                    None,
+                    &mut selected_char_idx,
+                    &mut select_senders,
+                    &mut next_state,
+                    Some(&mut reconnect),
+                    &mut commands,
+                );
+            },
+        );
+        app.update();
+
+        (
+            app.world().resource::<AuthUiFeedback>().clone(),
+            matches!(
+                app.world().resource::<NextState<GameState>>(),
+                NextState::Pending(GameState::Login)
+            ),
+            matches!(
+                app.world().resource::<NextState<GameState>>(),
+                NextState::Pending(GameState::CharSelect)
+            ),
+            *app.world().resource::<crate::networking::ReconnectState>(),
+        )
+    }
 
     #[test]
     fn build_login_request_keeps_credentials_for_password_login() {
@@ -525,6 +621,64 @@ mod tests {
     }
 
     #[test]
+    fn login_failure_despawns_live_client() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.insert_state(GameState::Connecting);
+        app.insert_resource(AuthToken(None));
+        app.init_resource::<AuthUiFeedback>();
+        app.init_resource::<CharacterList>();
+        app.init_resource::<crate::char_select::SelectedCharIndex>();
+        app.init_resource::<NextState<GameState>>();
+        app.init_resource::<crate::networking::ReconnectState>();
+
+        let client = app.world_mut().spawn(Client::default()).id();
+
+        let _ = app.world_mut().run_system_once(
+            move |mut auth_token: ResMut<AuthToken>,
+                  mut auth_feedback: ResMut<AuthUiFeedback>,
+                  mut char_list: ResMut<CharacterList>,
+                  mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
+                  mut next_state: ResMut<NextState<GameState>>,
+                  mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
+                  mut reconnect: ResMut<crate::networking::ReconnectState>,
+                  mut commands: Commands| {
+                handle_login_response(
+                    LoginResponse {
+                        success: false,
+                        token: String::new(),
+                        characters: Vec::new(),
+                        error: Some("Invalid password".to_string()),
+                    },
+                    &mut auth_token,
+                    &mut auth_feedback,
+                    &mut char_list,
+                    None,
+                    None,
+                    &mut selected_char_idx,
+                    &mut select_senders,
+                    &mut next_state,
+                    Some(&mut reconnect),
+                    &mut commands,
+                );
+            },
+        );
+        app.update();
+        app.update();
+
+        assert!(app.world().get_entity(client).is_err());
+        assert_eq!(
+            *app.world().resource::<State<GameState>>().get(),
+            GameState::Login
+        );
+        assert_eq!(
+            app.world().resource::<AuthUiFeedback>().0.as_deref(),
+            Some("Incorrect username or password")
+        );
+    }
+
+    #[test]
     fn login_success_auto_enter_falls_back_to_charselect_when_list_is_empty() {
         assert_eq!(
             decide_login_success_action(&[], None, true),
@@ -534,5 +688,53 @@ mod tests {
                 next_state: Some(GameState::CharSelect),
             }
         );
+    }
+
+    #[test]
+    fn reconnect_login_failure_clears_reconnect_state() {
+        let (feedback, goes_login, goes_charselect, reconnect) = run_login_response_for_test(
+            LoginResponse {
+                success: false,
+                token: String::new(),
+                characters: Vec::new(),
+                error: Some("invalid password".to_string()),
+            },
+            Vec::new(),
+            crate::networking::ReconnectState {
+                phase: crate::networking::ReconnectPhase::AwaitingWorld,
+                terrain_refresh_seen: false,
+            },
+            false,
+        );
+
+        assert_eq!(
+            feedback.0.as_deref(),
+            Some("Incorrect username or password")
+        );
+        assert!(goes_login);
+        assert!(!goes_charselect);
+        assert_eq!(reconnect.phase, crate::networking::ReconnectPhase::Inactive);
+    }
+
+    #[test]
+    fn reconnect_login_fallback_to_charselect_clears_reconnect_state() {
+        let (_feedback, goes_login, goes_charselect, reconnect) = run_login_response_for_test(
+            LoginResponse {
+                success: true,
+                token: "saved-token".to_string(),
+                characters: Vec::new(),
+                error: None,
+            },
+            Vec::new(),
+            crate::networking::ReconnectState {
+                phase: crate::networking::ReconnectPhase::AwaitingWorld,
+                terrain_refresh_seen: false,
+            },
+            true,
+        );
+
+        assert!(!goes_login);
+        assert!(goes_charselect);
+        assert_eq!(reconnect.phase, crate::networking::ReconnectPhase::Inactive);
     }
 }

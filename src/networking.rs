@@ -111,9 +111,10 @@ pub enum ReconnectPhase {
     AwaitingWorld,
 }
 
-#[derive(Resource, Debug, Default)]
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ReconnectState {
     pub phase: ReconnectPhase,
+    pub terrain_refresh_seen: bool,
 }
 
 impl ReconnectState {
@@ -455,6 +456,7 @@ fn handle_client_disconnected(
             commands.insert_resource(LoginPassword(String::new()));
             commands.queue(reset_network_world);
             reconnect.phase = ReconnectPhase::PendingConnect;
+            reconnect.terrain_refresh_seen = false;
             auth_feedback.0 = None;
             info!(
                 "Disconnect handling: queued reconnect with phase {:?}, preselected_name={selected_name:?}",
@@ -1093,19 +1095,18 @@ fn drive_inworld_reconnect(
 fn finish_reconnect_when_world_ready(
     mut reconnect: ResMut<ReconnectState>,
     local_player_q: Query<(), With<LocalPlayer>>,
-    adt_manager: Option<Res<crate::terrain::AdtManager>>,
 ) {
     if reconnect.phase != ReconnectPhase::AwaitingWorld {
         return;
     }
-    let terrain_ready = adt_manager.as_ref().is_none_or(|adt| !adt.map_name.is_empty());
-    if terrain_ready && !local_player_q.is_empty() {
+    if reconnect.terrain_refresh_seen && !local_player_q.is_empty() {
         info!("Reconnect complete, resynchronized local world state");
         reconnect.phase = ReconnectPhase::Inactive;
+        reconnect.terrain_refresh_seen = false;
     }
 }
 
-fn reset_network_world(world: &mut World) {
+pub(crate) fn reset_network_world(world: &mut World) {
     let client_entities: Vec<_> = world
         .query_filtered::<Entity, With<Client>>()
         .iter(world)

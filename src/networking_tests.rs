@@ -233,6 +233,7 @@ fn gameplay_input_is_disabled_during_reconnect() {
     app.add_plugins(MinimalPlugins);
     app.insert_resource(ReconnectState {
         phase: ReconnectPhase::PendingConnect,
+        terrain_refresh_seen: false,
     });
 
     let allowed = app
@@ -240,6 +241,46 @@ fn gameplay_input_is_disabled_during_reconnect() {
         .run_system_once(|reconnect: Option<Res<ReconnectState>>| gameplay_input_allowed(reconnect))
         .expect("run gameplay_input_allowed");
     assert!(!allowed);
+}
+
+#[test]
+fn reconnect_does_not_finish_until_fresh_terrain_signal_arrives() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(ReconnectState {
+        phase: ReconnectPhase::AwaitingWorld,
+        terrain_refresh_seen: false,
+    });
+    let mut adt = crate::terrain::AdtManager::default();
+    adt.map_name = "azeroth".to_string();
+    app.insert_resource(adt);
+    app.add_systems(Update, finish_reconnect_when_world_ready);
+    app.world_mut().spawn(LocalPlayer);
+
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::AwaitingWorld
+    );
+}
+
+#[test]
+fn reconnect_finishes_after_local_player_and_terrain_signal() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(ReconnectState {
+        phase: ReconnectPhase::AwaitingWorld,
+        terrain_refresh_seen: true,
+    });
+    app.add_systems(Update, finish_reconnect_when_world_ready);
+    app.world_mut().spawn(LocalPlayer);
+
+    app.update();
+
+    let reconnect = app.world().resource::<ReconnectState>();
+    assert_eq!(reconnect.phase, ReconnectPhase::Inactive);
+    assert!(!reconnect.terrain_refresh_seen);
 }
 
 #[test]

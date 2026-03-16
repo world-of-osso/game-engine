@@ -58,9 +58,16 @@ pub(crate) fn receive_chat_messages(
 pub(crate) fn receive_load_terrain(
     mut receivers: Query<&mut MessageReceiver<LoadTerrain>>,
     mut adt_manager: ResMut<AdtManager>,
+    reconnect: Option<ResMut<crate::networking::ReconnectState>>,
 ) {
+    let mut reconnect = reconnect;
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
+            if let Some(ref mut reconnect) = reconnect
+                && reconnect.is_active()
+            {
+                reconnect.terrain_refresh_seen = true;
+            }
             let key = (msg.initial_tile_y, msg.initial_tile_x);
             if adt_manager.map_name.is_empty() {
                 info!(
