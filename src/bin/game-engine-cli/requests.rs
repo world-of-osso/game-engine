@@ -151,6 +151,12 @@ pub fn equipment_request(command: EquipmentCmd) -> Result<Request, String> {
     Ok(request)
 }
 
+pub fn export_character_request(output: std::path::PathBuf) -> Request {
+    Request::ExportCharacter {
+        output_path: output.display().to_string(),
+    }
+}
+
 pub fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
     match value.to_ascii_lowercase().as_str() {
         "mainhand" | "main-hand" | "main" | "mh" => Ok("mainhand"),

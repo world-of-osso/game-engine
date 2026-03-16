@@ -9,9 +9,10 @@ use game_engine::ipc::{Request, Response, socket_glob};
 use peercred_ipc::Client;
 
 use requests::{
-    auction_request, collection_request, combat_request, equipment_request, group_request,
-    inventory_request, item_request, mail_request, map_request, profession_request, quest_request,
-    reputation_request, spell_request, status_request,
+    auction_request, collection_request, combat_request, equipment_request,
+    export_character_request, group_request, inventory_request, item_request, mail_request,
+    map_request, profession_request, quest_request, reputation_request, spell_request,
+    status_request,
 };
 
 #[derive(Parser)]
@@ -123,6 +124,10 @@ enum Cmd {
     Equipment {
         #[command(subcommand)]
         command: EquipmentCmd,
+    },
+    /// Export the selected character to a JSON file from the running engine
+    ExportCharacter {
+        output: PathBuf,
     },
 }
 
@@ -410,6 +415,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Profession { command } => handle_profession(socket, command, json),
         Cmd::Map { command } => handle_map(socket, command, json),
         Cmd::Equipment { command } => handle_equipment(socket, command, json),
+        Cmd::ExportCharacter { output } => handle_export_character(socket, output, json),
     }
 }
 
@@ -560,6 +566,10 @@ fn handle_map(socket: &PathBuf, command: MapCmd, json: bool) -> Result<(), Strin
 
 fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, equipment_request(command)?, json)
+}
+
+fn handle_export_character(socket: &PathBuf, output: PathBuf, json: bool) -> Result<(), String> {
+    handle_text_response(socket, export_character_request(output), json)
 }
 
 fn handle_text_response(socket: &PathBuf, request: Request, json: bool) -> Result<(), String> {

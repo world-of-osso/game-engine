@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use shared::components::CharacterAppearance;
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NetworkStatusSnapshot {
@@ -93,10 +94,12 @@ pub struct ReputationsStatusSnapshot {
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
+    pub character_id: Option<u64>,
     pub name: Option<String>,
     pub level: Option<u16>,
     pub race: Option<u8>,
     pub class: Option<u8>,
+    pub appearance: Option<CharacterAppearance>,
     pub health_current: Option<f32>,
     pub health_max: Option<f32>,
     pub mana_current: Option<f32>,

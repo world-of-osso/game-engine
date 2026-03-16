@@ -139,6 +139,9 @@ pub enum Request {
     EquipmentClear {
         slot: String,
     },
+    ExportCharacter {
+        output_path: String,
+    },
     MapPosition,
     MapTarget,
     MapWaypointAdd {

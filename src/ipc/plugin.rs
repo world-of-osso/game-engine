@@ -1,6 +1,7 @@
 //! Bevy plugin that integrates the IPC server with the render pipeline.
 
 use std::sync::mpsc;
+use std::path::Path;
 
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
@@ -9,6 +10,7 @@ use lightyear::prelude::client::Connected;
 
 use super::{Command, Request, Response, init};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
+use crate::character_export::{build_export_character_payload, write_export_character_file};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
@@ -394,6 +396,9 @@ fn dispatch_map_and_equipment_request(
                 handle_equipment_clear(cmd.respond, &mut sender_params.equipment_control, slot);
             }
         }
+        Request::ExportCharacter { output_path } => {
+            handle_export_character(cmd.respond, &ctx, &output_path);
+        }
         _ => {}
     }
 }
@@ -439,6 +444,31 @@ fn handle_equipment_clear(
         .push(EquipmentControlCommand::Clear { slot: slot.clone() });
     let _ = respond.send(Response::Text(format!(
         "equipment clear queued slot={slot}"
+    )));
+}
+
+fn handle_export_character(
+    respond: std::sync::mpsc::Sender<Response>,
+    ctx: &DispatchContext,
+    output_path: &str,
+) {
+    let payload =
+        match build_export_character_payload(ctx.character_stats, ctx.equipped_gear_status) {
+            Ok(payload) => payload,
+            Err(error) => {
+                let _ = respond.send(Response::Error(error));
+                return;
+            }
+        };
+    let output = Path::new(output_path);
+    if let Err(error) = write_export_character_file(output, &payload) {
+        let _ = respond.send(Response::Error(error));
+        return;
+    }
+    let _ = respond.send(Response::Text(format!(
+        "exported character {} to {}",
+        payload.name,
+        output.display()
     )));
 }
 

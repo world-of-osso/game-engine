@@ -2,11 +2,16 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use game_engine::character_export::{
+    ExportCharacterPayload, build_export_character_payload, write_export_character_file,
+};
 use game_engine::ipc::{Request, Response};
 use game_engine::item_info::ItemInfoQuery;
 use game_engine::mail::{DeleteMail, ListMailQuery, ReadMail, SendMail};
+use game_engine::status::{CharacterStatsSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot};
 use peercred_ipc::Server;
 use serde_json::Value;
+use shared::components::CharacterAppearance;
 
 use crate::requests::*;
 use crate::*;
@@ -287,6 +292,145 @@ fn equipment_clear_command_maps_to_request() {
 }
 
 #[test]
+fn export_character_command_maps_to_request() {
+    let request = export_character_request(PathBuf::from("data/exports/thrall.json"));
+    assert_eq!(
+        request,
+        Request::ExportCharacter {
+            output_path: "data/exports/thrall.json".into(),
+        }
+    );
+}
+
+#[test]
+fn export_character_cli_command_parses_output_path() {
+    let cli = crate::Cli::try_parse_from([
+        "game-engine-cli",
+        "export-character",
+        "data/exports/thrall.json",
+    ])
+    .expect("cli args should parse");
+
+    assert!(matches!(
+        cli.command,
+        crate::Cmd::ExportCharacter { output }
+        if output == PathBuf::from("data/exports/thrall.json")
+    ));
+}
+
+#[test]
+fn export_character_payload_includes_stats_appearance_and_equipment() {
+    let payload = build_export_character_payload(
+        &CharacterStatsSnapshot {
+            character_id: Some(7),
+            name: Some("Thrall".into()),
+            level: Some(60),
+            race: Some(2),
+            class: Some(7),
+            appearance: Some(CharacterAppearance {
+                sex: 0,
+                skin_color: 3,
+                face: 4,
+                hair_style: 5,
+                hair_color: 6,
+                facial_style: 7,
+            }),
+            health_current: Some(950.0),
+            health_max: Some(1000.0),
+            mana_current: Some(400.0),
+            mana_max: Some(500.0),
+            movement_speed: Some(7.0),
+            zone_id: 12,
+        },
+        &EquippedGearStatusSnapshot {
+            entries: vec![EquippedGearEntry {
+                slot: "MainHand".into(),
+                path: "data/models/club_1h_torch_a_01.m2".into(),
+            }],
+        },
+    )
+    .expect("payload should build");
+
+    assert_eq!(
+        payload,
+        ExportCharacterPayload {
+            character_id: 7,
+            name: "Thrall".into(),
+            level: 60,
+            race: 2,
+            class: 7,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 3,
+                face: 4,
+                hair_style: 5,
+                hair_color: 6,
+                facial_style: 7,
+            },
+            zone_id: 12,
+            health_current: Some(950.0),
+            health_max: Some(1000.0),
+            mana_current: Some(400.0),
+            mana_max: Some(500.0),
+            movement_speed: Some(7.0),
+            equipped_gear: vec![EquippedGearEntry {
+                slot: "MainHand".into(),
+                path: "data/models/club_1h_torch_a_01.m2".into(),
+            }],
+        }
+    );
+}
+
+#[test]
+fn export_character_payload_requires_selected_character_identity() {
+    let err = build_export_character_payload(
+        &CharacterStatsSnapshot::default(),
+        &EquippedGearStatusSnapshot::default(),
+    )
+    .expect_err("payload should reject missing character");
+
+    assert!(err.contains("no selected character"));
+}
+
+#[test]
+fn write_export_character_file_persists_pretty_json() {
+    let output = unique_export_path("write-character-export");
+    let payload = ExportCharacterPayload {
+        character_id: 99,
+        name: "Jaina".into(),
+        level: 42,
+        race: 1,
+        class: 8,
+        appearance: CharacterAppearance {
+            sex: 1,
+            skin_color: 1,
+            face: 2,
+            hair_style: 3,
+            hair_color: 4,
+            facial_style: 5,
+        },
+        zone_id: 1519,
+        health_current: Some(123.0),
+        health_max: Some(456.0),
+        mana_current: Some(789.0),
+        mana_max: Some(999.0),
+        movement_speed: Some(7.0),
+        equipped_gear: vec![],
+    };
+
+    write_export_character_file(&output, &payload).expect("write should succeed");
+
+    let written = std::fs::read_to_string(&output).expect("export file should exist");
+    let parsed: ExportCharacterPayload =
+        serde_json::from_str(&written).expect("written export should be valid json");
+    assert_eq!(parsed, payload);
+    assert!(written.contains("\n  \"name\": \"Jaina\""));
+
+    let _ = std::fs::remove_file(&output);
+    let _ = output.parent().map(std::fs::remove_dir_all);
+}
+
+#[test]
 fn json_flag_parses_for_new_command_families() {
     let cli = crate::Cli::try_parse_from([
         "game-engine-cli",
@@ -377,6 +521,17 @@ fn unique_test_socket(label: &str) -> PathBuf {
         .as_nanos();
     std::env::temp_dir().join(format!(
         "game-engine-cli-{label}-{}-{nanos}.sock",
+        std::process::id()
+    ))
+}
+
+fn unique_export_path(label: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "game-engine-export-{label}-{}-{nanos}/character.json",
         std::process::id()
     ))
 }
