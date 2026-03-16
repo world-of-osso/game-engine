@@ -13,7 +13,8 @@ use crate::asset::adt;
 /// for more natural transitions between terrain layers.
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
 pub struct TerrainMaterial {
-    /// x = layer_count (1-4), y = height_blend_strength
+    /// x = layer_count (1-4), y = height_blend_strength,
+    /// z = perceptual_roughness, w = reflectance
     #[uniform(0)]
     pub config: Vec4,
 
@@ -239,10 +240,12 @@ pub fn build_terrain_materials(
 /// Height blend strength: how much the texture alpha channel influences
 /// layer transitions. 0 = flat alpha blending, 2-4 = natural rocky edges.
 const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
+const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
+const TERRAIN_REFLECTANCE: f32 = 0.2;
 
 fn fallback_material(ph: &Placeholders) -> TerrainMaterial {
     TerrainMaterial {
-        config: Vec4::ZERO,
+        config: Vec4::new(0.0, 0.0, TERRAIN_PERCEPTUAL_ROUGHNESS, TERRAIN_REFLECTANCE),
         ground_0: ph.image.clone(),
         ground_1: ph.image.clone(),
         ground_2: ph.image.clone(),
@@ -273,7 +276,12 @@ fn build_chunk_material(
     };
 
     terrain_materials.add(TerrainMaterial {
-        config: Vec4::new(layer_count, HEIGHT_BLEND_STRENGTH, 0.0, 0.0),
+        config: Vec4::new(
+            layer_count,
+            HEIGHT_BLEND_STRENGTH,
+            TERRAIN_PERCEPTUAL_ROUGHNESS,
+            TERRAIN_REFLECTANCE,
+        ),
         ground_0: ground(0),
         ground_1: ground(1),
         ground_2: ground(2),
