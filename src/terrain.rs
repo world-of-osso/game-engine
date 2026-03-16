@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock, mpsc};
+use std::sync::{mpsc, Mutex, OnceLock};
 
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -10,8 +10,8 @@ use crate::asset::adt::{self};
 use crate::asset::adt_obj;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
-use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_heightmap::sample_chunk_height;
+use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_lod::{despawn_tile_doodad_entities, doodad_lod_swap_system, load_obj_for_lod};
 use crate::terrain_material::{self, TerrainMaterial};
 use crate::terrain_objects;
@@ -645,7 +645,11 @@ fn spawn_water(
                 continue;
             }
             let chunk_pos = adt_data.chunk_positions[i];
-            let mesh = adt::build_water_mesh(chunk_pos, layer);
+            let chunk_grid = adt_data
+                .height_grids
+                .iter()
+                .find(|grid| (grid.index_y * 16 + grid.index_x) as usize == i);
+            let mesh = adt::build_water_mesh(chunk_pos, layer, chunk_grid);
             commands.spawn((
                 Mesh3d(meshes.add(mesh)),
                 MeshMaterial3d(mat.clone()),
