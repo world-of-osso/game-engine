@@ -566,10 +566,10 @@ fn delete_char_button() -> Element {
     rsx! {
         button {
             name: DELETE_CHAR_BUTTON,
-            width: 128.0,
+            width: 46.0,
             height: 42.0,
-            text: "Delete",
-            font_size: 14.0,
+            text: "X",
+            font_size: 18.0,
             onclick: CharSelectAction::DeleteChar,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
@@ -609,11 +609,17 @@ fn back_button() -> Element {
     }
 }
 
-fn cs_action_buttons() -> Element {
+fn cs_action_buttons(has_selection: bool) -> Element {
+    let delete_button: Element = if has_selection {
+        delete_char_button()
+    } else {
+        Vec::new()
+    };
+
     [
         enter_world_button(),
         create_char_button(),
-        delete_char_button(),
+        delete_button,
         back_button(),
     ]
     .into_iter()
@@ -672,7 +678,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
             {top_hud}
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
-            {cs_action_buttons()}
+            {cs_action_buttons(has_selection)}
             {cs_status(&state.status_text)}
             {campsite_ui}
         }

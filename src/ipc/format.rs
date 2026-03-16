@@ -790,10 +790,12 @@ mod tests {
     #[test]
     fn formats_character_stats_status_snapshot() {
         let text = format_character_stats_status(&crate::status::CharacterStatsSnapshot {
+            character_id: None,
             name: Some("Thrall".into()),
             level: Some(12),
             race: Some(2),
             class: Some(7),
+            appearance: None,
             health_current: Some(120.0),
             health_max: Some(150.0),
             mana_current: Some(80.0),

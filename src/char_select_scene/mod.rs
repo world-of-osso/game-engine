@@ -413,8 +413,8 @@ fn resolve_char_select_model_path(
     char_list: &CharacterList,
     selected: Option<usize>,
 ) -> Option<PathBuf> {
-    selected_scene_character(char_list, selected)
-        .and_then(|character| race_model_wow_path(character.race, character.appearance.sex))
+    let character = selected_scene_character(char_list, selected)?;
+    race_model_wow_path(character.race, character.appearance.sex)
         .and_then(ensure_named_model_bundle)
         .or_else(fallback_model_path)
 }

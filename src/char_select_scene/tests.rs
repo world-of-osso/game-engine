@@ -39,6 +39,13 @@ fn selected_scene_character_id_falls_back_to_first_character() {
 }
 
 #[test]
+fn resolve_char_select_model_path_returns_none_when_no_characters_exist() {
+    let char_list = CharacterList(Vec::new());
+
+    assert_eq!(resolve_char_select_model_path(&char_list, None), None);
+}
+
+#[test]
 fn race_model_wow_path_covers_known_playable_races_and_sex() {
     assert_eq!(
         race_model_wow_path(1, 0),
