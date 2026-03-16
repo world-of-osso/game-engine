@@ -1,7 +1,5 @@
-// Terrain shader with hex tiling (Heitz & Neyret 2018)
-// Breaks visible texture repetition by sampling each ground layer 3x
-// at hex-grid-offset UVs with per-cell random rotation + offset.
-// Height-based blending uses ground texture alpha as height channel
+// Terrain shader with direct repeated sampling.
+// Height-based blending still uses ground texture alpha as height channel
 // to make transitions between layers look more natural.
 
 #import bevy_pbr::{
@@ -60,6 +58,10 @@ fn sample_ground(idx: u32, uv: vec2<f32>) -> vec4<f32> {
         case 3u: { return textureSample(ground_3, ground_sampler_3, uv); }
         default: { return vec4<f32>(0.5, 0.5, 0.5, 1.0); }
     }
+}
+
+fn sample_ground_tiled(idx: u32, uv: vec2<f32>) -> vec4<f32> {
+    return sample_ground(idx, uv * TILE_REPEAT);
 }
 
 // ── Hex tiling ───────────────────────────────────────────────────────────────
@@ -198,10 +200,10 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let paint = paint_weights(alpha, layer_count);
 
     // Sample each potential layer once; alpha channel is used as height.
-    let c0 = hex_sample(0u, uv);
-    let c1 = hex_sample(1u, uv);
-    let c2 = hex_sample(2u, uv);
-    let c3 = hex_sample(3u, uv);
+    let c0 = sample_ground_tiled(0u, uv);
+    let c1 = sample_ground_tiled(1u, uv);
+    let c2 = sample_ground_tiled(2u, uv);
+    let c3 = sample_ground_tiled(3u, uv);
 
     var weights = vec4<f32>(
         paint.x * height_weight(c0.a, blend_strength),

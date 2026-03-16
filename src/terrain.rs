@@ -214,9 +214,10 @@ pub fn spawn_adt(
 
 /// Load and parse an ADT file from disk.
 fn load_and_parse_adt(adt_path: &Path) -> Result<adt::AdtData, String> {
+    let (_, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
     let data = std::fs::read(adt_path)
         .map_err(|e| format!("Failed to read {}: {e}", adt_path.display()))?;
-    let adt = adt::load_adt(&data)?;
+    let adt = adt::load_adt_for_tile(&data, tile_y, tile_x)?;
     if let Some(err) = &adt.water_error {
         warn_mh2o_once(adt_path, err);
     }
