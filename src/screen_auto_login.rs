@@ -66,6 +66,10 @@ fn auto_login_actions() -> Vec<UiAutomationAction> {
     ]
 }
 
+pub fn login_dev_admin_actions() -> Vec<UiAutomationAction> {
+    auto_login_actions()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

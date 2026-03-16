@@ -174,6 +174,13 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
         &mut startup_login,
         has_saved_auth_token,
     );
+    if has_flag(args, "--login-dev-admin") {
+        server_addr = Some(("127.0.0.1:5000".parse().unwrap(), true));
+        initial_state = Some(game_state::GameState::Login);
+        startup_login = None;
+        startup_actions = screen_auto_login::login_dev_admin_actions();
+        auto_enter_world = false;
+    }
     if startup_actions.is_empty()
         && server_addr.is_some()
         && initial_state.is_none()
@@ -775,6 +782,15 @@ mod tests {
     }
 
     #[test]
+    fn asset_path_skips_login_dev_admin_flag() {
+        let parsed = parse_asset_path_from_args(&args(&[
+            "--login-dev-admin",
+            "data/models/humanmale_hd.m2",
+        ]));
+        assert_eq!(parsed, Some(PathBuf::from("data/models/humanmale_hd.m2")));
+    }
+
+    #[test]
     fn parse_js_automation_flag() {
         let parsed = game_engine::ui::js_automation::parse_js_automation_arg(&args(&[
             "--state",
@@ -806,6 +822,23 @@ mod tests {
 
         assert_eq!(parsed.initial_state, Some(game_state::GameState::Login));
         assert!(parsed.startup_actions.is_empty());
+    }
+
+    #[test]
+    fn parse_run_args_login_dev_admin_forces_login_flow() {
+        let parsed = parse_run_args_with_saved_token(&args(&["--login-dev-admin"]), true);
+
+        assert_eq!(parsed.initial_state, Some(game_state::GameState::Login));
+        assert_eq!(
+            parsed.server_addr,
+            Some(("127.0.0.1:5000".parse().unwrap(), true))
+        );
+        assert_eq!(parsed.startup_login, None);
+        assert_eq!(
+            parsed.startup_actions,
+            crate::screen_auto_login::login_dev_admin_actions()
+        );
+        assert!(!parsed.auto_enter_world);
     }
 
     #[test]

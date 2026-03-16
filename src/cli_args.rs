@@ -43,6 +43,10 @@ pub fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)>
     }
 }
 
+pub fn has_flag(args: &[String], flag: &str) -> bool {
+    args.iter().any(|arg| arg == flag)
+}
+
 pub fn parse_state_arg(args: &[String]) -> Result<Option<game_state::GameState>, String> {
     let Some((flag, value)) = find_flag_value(args, &["--state", "--screen"])? else {
         return Ok(None);
@@ -87,6 +91,7 @@ pub fn print_help() {
     );
     println!("  --server <ADDR>     Game server address (default: 127.0.0.1:5000)");
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
+    println!("  --login-dev-admin   Open login screen and auto-login to dev as admin/admin");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -144,6 +149,9 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
         match args[i].as_str() {
             "--server" | "--state" | "--screen" | "--char" => {
                 i += 2;
+            }
+            "--login-dev-admin" => {
+                i += 1;
             }
             arg if arg.starts_with("--") => {
                 i += 1;

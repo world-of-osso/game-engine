@@ -5,6 +5,7 @@ use shared::protocol::{
     EnterWorldResponse, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
     SelectCharacter,
 };
+use std::path::PathBuf;
 
 use crate::game_state::GameState;
 
@@ -46,6 +47,11 @@ pub enum LoginMode {
 }
 
 const AUTH_TOKEN_PATH: &str = "data/auth_token";
+const TEST_PLACEHOLDER_UUID: &str = "11111111-1111-1111-1111-111111111111";
+
+fn auth_token_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(AUTH_TOKEN_PATH)
+}
 
 pub(crate) fn token_debug_label(token: Option<&str>) -> String {
     match token.map(str::trim) {
@@ -66,7 +72,15 @@ fn normalize_auth_token(token: &str) -> Option<String> {
     if token.eq_ignore_ascii_case("saved-token") {
         warn!(
             "Ignoring cached auth token from {}: found test placeholder value",
-            AUTH_TOKEN_PATH
+            auth_token_path().display()
+        );
+        return None;
+    }
+
+    if token == TEST_PLACEHOLDER_UUID {
+        warn!(
+            "Ignoring cached auth token from {}: found test sentinel UUID",
+            auth_token_path().display()
         );
         return None;
     }
@@ -75,14 +89,17 @@ fn normalize_auth_token(token: &str) -> Option<String> {
 }
 
 pub fn load_auth_token() -> Option<String> {
-    std::fs::read_to_string(AUTH_TOKEN_PATH)
+    std::fs::read_to_string(auth_token_path())
         .ok()
         .and_then(|token| normalize_auth_token(&token))
 }
 
 fn save_auth_token(token: &str) {
-    let _ = std::fs::create_dir_all("data");
-    if let Err(e) = std::fs::write(AUTH_TOKEN_PATH, token) {
+    let path = auth_token_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Err(e) = std::fs::write(&path, token) {
         warn!("Failed to save auth token: {e}");
     }
 }
@@ -458,6 +475,8 @@ fn apply_enter_world(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const VALID_TEST_UUID: &str = "22222222-2222-2222-2222-222222222222";
     use bevy::ecs::system::RunSystemOnce;
     use lightyear::prelude::client::Client;
 
@@ -527,7 +546,7 @@ mod tests {
     #[test]
     fn build_login_request_omits_cached_token_for_password_login() {
         let request = build_login_request(
-            &AuthToken(Some("11111111-1111-1111-1111-111111111111".to_string())),
+            &AuthToken(Some(VALID_TEST_UUID.to_string())),
             &LoginUsername("alice".to_string()),
             &LoginPassword("secret".to_string()),
         );
@@ -540,15 +559,12 @@ mod tests {
     #[test]
     fn build_login_request_allows_token_only_login() {
         let request = build_login_request(
-            &AuthToken(Some("11111111-1111-1111-1111-111111111111".to_string())),
+            &AuthToken(Some(VALID_TEST_UUID.to_string())),
             &LoginUsername(String::new()),
             &LoginPassword(String::new()),
         );
 
-        assert_eq!(
-            request.token.as_deref(),
-            Some("11111111-1111-1111-1111-111111111111")
-        );
+        assert_eq!(request.token.as_deref(), Some(VALID_TEST_UUID));
         assert!(request.username.is_empty());
         assert!(request.password.is_empty());
     }
@@ -556,15 +572,12 @@ mod tests {
     #[test]
     fn build_login_request_trims_cached_token() {
         let request = build_login_request(
-            &AuthToken(Some(" 11111111-1111-1111-1111-111111111111 \n".to_string())),
+            &AuthToken(Some(format!(" {VALID_TEST_UUID} \n"))),
             &LoginUsername(String::new()),
             &LoginPassword(String::new()),
         );
 
-        assert_eq!(
-            request.token.as_deref(),
-            Some("11111111-1111-1111-1111-111111111111")
-        );
+        assert_eq!(request.token.as_deref(), Some(VALID_TEST_UUID));
     }
 
     #[test]
@@ -583,13 +596,14 @@ mod tests {
         assert_eq!(normalize_auth_token("   "), None);
         assert_eq!(normalize_auth_token("saved-token"), None);
         assert_eq!(normalize_auth_token(" SAVED-TOKEN \n"), None);
+        assert_eq!(normalize_auth_token(TEST_PLACEHOLDER_UUID), None);
     }
 
     #[test]
     fn normalize_auth_token_trims_valid_token() {
         assert_eq!(
-            normalize_auth_token(" 11111111-1111-1111-1111-111111111111 \n"),
-            Some("11111111-1111-1111-1111-111111111111".to_string())
+            normalize_auth_token(&format!(" {VALID_TEST_UUID} \n")),
+            Some(VALID_TEST_UUID.to_string())
         );
     }
 
@@ -786,7 +800,7 @@ mod tests {
         let (_feedback, goes_login, goes_charselect, reconnect) = run_login_response_for_test(
             LoginResponse {
                 success: true,
-                token: "11111111-1111-1111-1111-111111111111".to_string(),
+                token: VALID_TEST_UUID.to_string(),
                 characters: Vec::new(),
                 error: None,
             },
