@@ -8,6 +8,7 @@ pub fn apply(
     server_addr: &mut Option<(std::net::SocketAddr, bool)>,
     initial_state: &mut Option<GameState>,
     auto_enter: &mut bool,
+    startup_login: &mut Option<(String, String)>,
     has_saved_auth_token: bool,
 ) {
     let target = match *initial_state {
@@ -24,12 +25,19 @@ pub fn apply(
     if server_addr.is_none() {
         *server_addr = Some(("127.0.0.1:5000".parse().unwrap(), false));
     }
-    if has_saved_auth_token {
+    if matches!(target, Some(GameState::CharSelect | GameState::InWorld)) {
         *initial_state = Some(GameState::Connecting);
-        *actions = saved_token_actions();
+        if !has_saved_auth_token {
+            *startup_login = Some(("admin".to_string(), "admin".to_string()));
+        }
     } else {
-        *initial_state = Some(GameState::Login);
-        *actions = auto_login_actions();
+        if has_saved_auth_token {
+            *initial_state = Some(GameState::Connecting);
+            *actions = saved_token_actions();
+        } else {
+            *initial_state = Some(GameState::Login);
+            *actions = auto_login_actions();
+        }
     }
     if target == Some(GameState::CharCreate) {
         actions.push(UiAutomationAction::ClickFrame("CreateChar".to_string()));
@@ -72,23 +80,20 @@ mod tests {
         let mut server_addr = Some((socket(), false));
         let mut initial_state = Some(GameState::CharSelect);
         let mut auto_enter = false;
+        let mut startup_login = None;
 
         apply(
             &mut actions,
             &mut server_addr,
             &mut initial_state,
             &mut auto_enter,
+            &mut startup_login,
             true,
         );
 
         assert_eq!(initial_state, Some(GameState::Connecting));
-        assert_eq!(
-            actions,
-            vec![UiAutomationAction::WaitForState(
-                GameState::CharSelect,
-                10.0
-            )]
-        );
+        assert!(actions.is_empty());
+        assert_eq!(startup_login, None);
         assert!(!auto_enter);
     }
 
@@ -98,12 +103,14 @@ mod tests {
         let mut server_addr = Some((socket(), false));
         let mut initial_state = Some(GameState::CharCreate);
         let mut auto_enter = false;
+        let mut startup_login = None;
 
         apply(
             &mut actions,
             &mut server_addr,
             &mut initial_state,
             &mut auto_enter,
+            &mut startup_login,
             true,
         );
 
@@ -116,5 +123,81 @@ mod tests {
                 UiAutomationAction::WaitForState(GameState::CharCreate, 5.0),
             ]
         );
+        assert_eq!(startup_login, None);
+    }
+
+    #[test]
+    fn charselect_without_token_connects_directly_with_startup_credentials() {
+        let mut actions = Vec::new();
+        let mut server_addr = Some((socket(), false));
+        let mut initial_state = Some(GameState::CharSelect);
+        let mut auto_enter = false;
+        let mut startup_login = None;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            &mut startup_login,
+            false,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Connecting));
+        assert!(actions.is_empty());
+        assert_eq!(
+            startup_login,
+            Some(("admin".to_string(), "admin".to_string()))
+        );
+        assert!(!auto_enter);
+    }
+
+    #[test]
+    fn inworld_uses_connecting_without_ui_automation_when_saved_token_exists() {
+        let mut actions = Vec::new();
+        let mut server_addr = Some((socket(), false));
+        let mut initial_state = Some(GameState::InWorld);
+        let mut auto_enter = false;
+        let mut startup_login = None;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            &mut startup_login,
+            true,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Connecting));
+        assert!(actions.is_empty());
+        assert_eq!(startup_login, None);
+        assert!(auto_enter);
+    }
+
+    #[test]
+    fn inworld_without_token_connects_directly_with_startup_credentials() {
+        let mut actions = Vec::new();
+        let mut server_addr = Some((socket(), false));
+        let mut initial_state = Some(GameState::InWorld);
+        let mut auto_enter = false;
+        let mut startup_login = None;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            &mut startup_login,
+            false,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Connecting));
+        assert!(actions.is_empty());
+        assert_eq!(
+            startup_login,
+            Some(("admin".to_string(), "admin".to_string()))
+        );
+        assert!(auto_enter);
     }
 }

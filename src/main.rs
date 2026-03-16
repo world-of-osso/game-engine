@@ -141,6 +141,7 @@ struct ParsedArgs {
     server_addr: Option<(std::net::SocketAddr, bool)>,
     initial_state: Option<game_state::GameState>,
     auto_enter_world: bool,
+    startup_login: Option<(String, String)>,
 }
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
@@ -164,11 +165,13 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
         }
     };
     let mut auto_enter_world = false;
+    let mut startup_login = None;
     screen_auto_login::apply(
         &mut startup_actions,
         &mut server_addr,
         &mut initial_state,
         &mut auto_enter_world,
+        &mut startup_login,
         has_saved_auth_token,
     );
     if startup_actions.is_empty()
@@ -183,6 +186,7 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
         server_addr,
         initial_state,
         auto_enter_world,
+        startup_login,
     }
 }
 
@@ -203,6 +207,7 @@ fn run_app(
         args.iter().any(|a| a == "--sound"),
         parsed.server_addr,
         parsed.initial_state,
+        parsed.startup_login,
         dump_tree,
         dump_ui_tree,
         dump_scene,
@@ -341,6 +346,7 @@ fn configure_server_resources(
     enable_sound: bool,
     server_addr: Option<(std::net::SocketAddr, bool)>,
     initial_state: Option<game_state::GameState>,
+    startup_login: Option<(String, String)>,
 ) {
     if enable_sound {
         app.add_plugins(sound::SoundPlugin);
@@ -353,6 +359,11 @@ fn configure_server_resources(
     }
     if let Some(state) = initial_state {
         app.insert_resource(game_state::InitialGameState(state));
+    }
+    if let Some((username, password)) = startup_login {
+        app.insert_resource(networking::LoginUsername(username));
+        app.insert_resource(networking::LoginPassword(password));
+        app.insert_resource(networking::LoginMode::Login);
     }
 }
 
@@ -378,12 +389,13 @@ fn configure_app_plugins(
     enable_sound: bool,
     server_addr: Option<(std::net::SocketAddr, bool)>,
     initial_state: Option<game_state::GameState>,
+    startup_login: Option<(String, String)>,
     dump_tree: bool,
     dump_ui_tree: bool,
     dump_scene: bool,
     screenshot: Option<ScreenshotRequest>,
 ) {
-    configure_server_resources(app, enable_sound, server_addr, initial_state);
+    configure_server_resources(app, enable_sound, server_addr, initial_state, startup_login);
     app.add_plugins(game_state::GameStatePlugin);
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
