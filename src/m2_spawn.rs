@@ -254,7 +254,12 @@ fn load_composited_texture(
     for ov in overlays {
         composite_overlay(&mut pixels, w, ov, texture_dir);
     }
-    let image = crate::rgba_image(pixels, w, h);
+    let mut image = crate::rgba_image(pixels, w, h);
+    image.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+        address_mode_u: bevy::image::ImageAddressMode::Repeat,
+        address_mode_v: bevy::image::ImageAddressMode::Repeat,
+        ..bevy::image::ImageSamplerDescriptor::linear()
+    });
     cache.lock().unwrap().insert(key, Ok(image.clone()));
     Ok(image)
 }
