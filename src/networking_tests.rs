@@ -99,6 +99,52 @@ fn y_component_always_zero() {
 }
 
 #[test]
+fn disconnect_during_charselect_keeps_scene_alive() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(crate::game_state::GameState::CharSelect);
+    app.init_resource::<AuthUiFeedback>();
+    app.add_observer(handle_client_disconnected);
+
+    let client = app.world_mut().spawn(Client::default()).id();
+    app.world_mut().entity_mut(client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+    app.update();
+
+    let state = app.world().resource::<State<crate::game_state::GameState>>();
+    assert_eq!(*state.get(), crate::game_state::GameState::CharSelect);
+    let feedback = app.world().resource::<AuthUiFeedback>();
+    assert_eq!(
+        feedback.0.as_deref(),
+        Some("Connection lost. Char select is now offline.")
+    );
+}
+
+#[test]
+fn disconnect_during_connecting_returns_to_login() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(crate::game_state::GameState::Connecting);
+    app.init_resource::<AuthUiFeedback>();
+    app.add_observer(handle_client_disconnected);
+
+    let client = app.world_mut().spawn(Client::default()).id();
+    app.world_mut().entity_mut(client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+    app.update();
+    app.update();
+
+    let state = app.world().resource::<State<crate::game_state::GameState>>();
+    assert_eq!(*state.get(), crate::game_state::GameState::Login);
+    let feedback = app.world().resource::<AuthUiFeedback>();
+    assert_eq!(feedback.0.as_deref(), Some("Connection lost."));
+}
+
+#[test]
 fn sync_updates_rotation_target() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);

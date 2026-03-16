@@ -22,6 +22,7 @@ use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
 use crate::character_customization::CharacterCustomizationSelection;
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display::CreatureDisplayMap;
+use crate::m2_effect_material::M2EffectMaterial;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::CustomizationDb;
 use game_engine::outfit_data::OutfitData;
@@ -240,6 +241,7 @@ fn sync_map_status_snapshot(
 fn register_net_observers(app: &mut App) {
     app.add_observer(on_connected);
     app.add_observer(on_link_established);
+    app.add_observer(handle_client_disconnected);
     app.add_observer(spawn_replicated_player);
     app.add_observer(spawn_replicated_npc);
     app.add_observer(cleanup_disconnected_player);
@@ -306,6 +308,39 @@ fn on_connected(
     );
 }
 
+fn handle_client_disconnected(
+    trigger: On<Add, Disconnected>,
+    disconnected_q: Query<&Disconnected, With<Client>>,
+    state: Res<State<crate::game_state::GameState>>,
+    mut auth_feedback: ResMut<AuthUiFeedback>,
+    mut next_state: ResMut<NextState<crate::game_state::GameState>>,
+) {
+    let Ok(disconnected) = disconnected_q.get(trigger.entity) else {
+        return;
+    };
+    let reason = disconnected
+        .reason
+        .as_deref()
+        .unwrap_or("connection lost");
+    warn!("Client disconnected in {:?}: {reason}", state.get());
+
+    match *state.get() {
+        crate::game_state::GameState::CharSelect => {
+            auth_feedback.0 = Some("Connection lost. Char select is now offline.".to_string());
+        }
+        crate::game_state::GameState::Login => {
+            auth_feedback.0 = Some("Connection lost.".to_string());
+        }
+        crate::game_state::GameState::Connecting
+        | crate::game_state::GameState::CharCreate
+        | crate::game_state::GameState::Loading
+        | crate::game_state::GameState::InWorld => {
+            auth_feedback.0 = Some("Connection lost.".to_string());
+            next_state.set(crate::game_state::GameState::Login);
+        }
+    }
+}
+
 /// Convert local MovementState + CharacterFacing into a world-space direction vector.
 /// Returns direction in Bevy coordinates (X-right, Y-up, Z-back).
 pub(crate) fn movement_to_direction(
@@ -345,6 +380,7 @@ fn spawn_replicated_player(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<CreatureDisplayMap>,
@@ -375,6 +411,7 @@ fn spawn_replicated_player(
             &mut commands,
             &mut meshes,
             &mut materials,
+            &mut effect_materials,
             &mut images,
             &mut inv_bp,
             &model_path,
@@ -633,6 +670,7 @@ type NpcReplicatedQuery<'w, 's> = Query<
 struct NpcSpawnAssets<'w> {
     meshes: ResMut<'w, Assets<Mesh>>,
     materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
 }
@@ -655,6 +693,7 @@ fn spawn_replicated_npc(
     let mut assets = crate::m2_spawn::SpawnAssets {
         meshes: &mut npc_assets.meshes,
         materials: &mut npc_assets.materials,
+        effect_materials: &mut npc_assets.effect_materials,
         images: &mut npc_assets.images,
         inverse_bindposes: &mut npc_assets.inv_bp,
     };
