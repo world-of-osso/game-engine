@@ -465,6 +465,16 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
             ],
             (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
         ),
+        // 0x8015 decodes to Noggit's Combiners_Opaque_AddAlpha.
+        // The second texture is an additive glow mask; alpha stays opaque.
+        0x8015 => (
+            [
+                (base_rgb[0] + overlay_rgb[0] * overlay_a).clamp(0.0, 1.0),
+                (base_rgb[1] + overlay_rgb[1] * overlay_a).clamp(0.0, 1.0),
+                (base_rgb[2] + overlay_rgb[2] * overlay_a).clamp(0.0, 1.0),
+            ],
+            1.0,
+        ),
         _ => (base_rgb, base_a),
     };
 
@@ -472,6 +482,20 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
     base[1] = (rgb[1] * 255.0).round() as u8;
     base[2] = (rgb[2] * 255.0).round() as u8;
     base[3] = (a * 255.0).round() as u8;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_m2_multitexture_shader;
+
+    #[test]
+    fn shader_8015_uses_secondary_alpha_as_additive_mask() {
+        let mut base = [128, 64, 32, 51];
+        let overlay = [255, 128, 0, 128];
+        apply_m2_multitexture_shader(&mut base, &overlay, 0x8015);
+
+        assert_eq!(base, [255, 128, 32, 255]);
+    }
 }
 
 fn composite_overlay(
