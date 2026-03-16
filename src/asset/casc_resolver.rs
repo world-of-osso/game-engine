@@ -8,8 +8,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use cascette_client_storage::resolver::ContentResolver;
 use cascette_client_storage::Installation;
+use cascette_client_storage::resolver::ContentResolver;
 use tokio::runtime::Handle as TokioHandle;
 
 const WOW_DATA_PATH: &str = "/syncthing/World of Warcraft/Data";
@@ -71,9 +71,12 @@ fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
         .resolver
         .resolve_file_data_id(fdid)
         .ok_or_else(|| format!("CASC resolve FDID {fdid}: missing content key in root"))?;
-    let encoding_key = casc.resolver.resolve_content_key(&content_key).ok_or_else(|| {
-        format!("CASC resolve FDID {fdid}: missing encoding key for content {content_key}")
-    })?;
+    let encoding_key = casc
+        .resolver
+        .resolve_content_key(&content_key)
+        .ok_or_else(|| {
+            format!("CASC resolve FDID {fdid}: missing encoding key for content {content_key}")
+        })?;
     let data = run_async(casc.install.read_file_by_encoding_key(&encoding_key))
         .map_err(|e| format!("CASC read FDID {fdid} via encoding key {encoding_key}: {e}"))?;
 

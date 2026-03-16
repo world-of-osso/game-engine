@@ -194,8 +194,9 @@ fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f
     if seq.duration > 0 {
         if player.looping {
             if player.time_ms >= seq.duration as f32 {
-                if let Some(next_idx) = valid_next_sequence_idx(&data.sequences, player.current_seq_idx)
-                    .filter(|next_idx| *next_idx != player.current_seq_idx)
+                if let Some(next_idx) =
+                    valid_next_sequence_idx(&data.sequences, player.current_seq_idx)
+                        .filter(|next_idx| *next_idx != player.current_seq_idx)
                 {
                     let overflow = player.time_ms - seq.duration as f32;
                     player.time_ms = seq.duration as f32;
@@ -373,7 +374,11 @@ mod tests {
         }
     }
 
-    fn stand_sequence_with_next(duration: u32, variation_id: u16, next_animation: i16) -> M2AnimSequence {
+    fn stand_sequence_with_next(
+        duration: u32,
+        variation_id: u16,
+        next_animation: i16,
+    ) -> M2AnimSequence {
         M2AnimSequence {
             id: 0,
             variation_id,
@@ -489,8 +494,17 @@ mod tests {
 
         advance_player_time(&mut player, &data, 200.0);
 
-        assert_eq!(player.current_seq_idx, 1, "should follow the authored idle chain");
-        assert_eq!(player.time_ms, 100.0, "should preserve overflow into the next variant");
-        assert!(player.transition.is_some(), "switching stand variants should crossfade");
+        assert_eq!(
+            player.current_seq_idx, 1,
+            "should follow the authored idle chain"
+        );
+        assert_eq!(
+            player.time_ms, 100.0,
+            "should preserve overflow into the next variant"
+        );
+        assert!(
+            player.transition.is_some(),
+            "switching stand variants should crossfade"
+        );
     }
 }

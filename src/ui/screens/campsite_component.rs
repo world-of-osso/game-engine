@@ -54,7 +54,13 @@ fn menu_divider(name: &'static str, x: &str) -> Element {
     }
 }
 
-fn menu_item(name: &'static str, text: &'static str, width: f32, x: &str, selected: bool) -> Element {
+fn menu_item(
+    name: &'static str,
+    text: &'static str,
+    width: f32,
+    x: &str,
+    selected: bool,
+) -> Element {
     let name_id = name.to_string();
     let name = dyn_name(name_id.clone());
     let underline_width = width - 18.0;
@@ -108,9 +114,27 @@ fn menu_item(name: &'static str, text: &'static str, width: f32, x: &str, select
 
 pub fn campsite_tab(selected: bool) -> Element {
     let mode = menu_item("CampsiteModeTab", "MODE", MENU_MODE_WIDTH, "0", false);
-    let shop = menu_item("CampsiteShopTab", "SHOP", MENU_SHOP_WIDTH, MENU_SHOP_X, false);
-    let menu = menu_item("CampsiteMenuTab", "MENU", MENU_MENU_WIDTH, MENU_MENU_X, false);
-    let realms = menu_item("CampsiteRealmsTab", "REALMS", MENU_REALMS_WIDTH, MENU_REALMS_X, false);
+    let shop = menu_item(
+        "CampsiteShopTab",
+        "SHOP",
+        MENU_SHOP_WIDTH,
+        MENU_SHOP_X,
+        false,
+    );
+    let menu = menu_item(
+        "CampsiteMenuTab",
+        "MENU",
+        MENU_MENU_WIDTH,
+        MENU_MENU_X,
+        false,
+    );
+    let realms = menu_item(
+        "CampsiteRealmsTab",
+        "REALMS",
+        MENU_REALMS_WIDTH,
+        MENU_REALMS_X,
+        false,
+    );
     let campsites = if selected {
         rsx! {
             r#frame {

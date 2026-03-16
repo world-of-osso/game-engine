@@ -1,5 +1,5 @@
-use cascette_client_storage::resolver::ContentResolver;
 use cascette_client_storage::Installation;
+use cascette_client_storage::resolver::ContentResolver;
 use cascette_crypto::{ContentKey, EncodingKey};
 use std::path::{Path, PathBuf};
 
@@ -34,7 +34,10 @@ async fn run() -> Result<(), String> {
         .read_file_by_encoding_key(&encoding_ekey)
         .await
         .map_err(|e| format!("failed to read encoding by local encoding key: {e}"))?;
-    eprintln!("Read encoding.bin from local archives: {} bytes", encoding_data.len());
+    eprintln!(
+        "Read encoding.bin from local archives: {} bytes",
+        encoding_data.len()
+    );
     let resolver = ContentResolver::new();
     resolver
         .load_encoding_file(&encoding_data)
@@ -47,7 +50,10 @@ async fn run() -> Result<(), String> {
         .read_file_by_encoding_key(&root_ekey)
         .await
         .map_err(|e| format!("failed to read root by resolved encoding key {root_ekey}: {e}"))?;
-    eprintln!("Read root.bin from local archives: {} bytes", root_data.len());
+    eprintln!(
+        "Read root.bin from local archives: {} bytes",
+        root_data.len()
+    );
 
     let out_dir = PathBuf::from(OUT_DIR);
     std::fs::create_dir_all(&out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;

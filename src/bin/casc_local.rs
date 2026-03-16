@@ -3,8 +3,8 @@
 //! Usage:
 //!   cargo run --bin casc-local -- <fdid> [fdid2 ...] [-o output_dir]
 
-use cascette_client_storage::resolver::ContentResolver;
 use cascette_client_storage::Installation;
+use cascette_client_storage::resolver::ContentResolver;
 use cascette_crypto::EncodingKey;
 use std::path::{Path, PathBuf};
 
@@ -75,7 +75,9 @@ fn load_cached_resolution() -> ContentResolver {
     let resolver = ContentResolver::new();
     let root_data = std::fs::read(cache.join("root.bin"))
         .unwrap_or_else(|_| panic!("Missing root.bin, run `casc-init` first"));
-    resolver.load_root_file(&root_data).expect("failed to load root");
+    resolver
+        .load_root_file(&root_data)
+        .expect("failed to load root");
     eprintln!("Loaded root ({:.1} MB)", root_data.len() as f64 / 1e6);
 
     let enc_data = std::fs::read(cache.join("encoding.bin"))
