@@ -41,7 +41,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = combine_textures(texture1, texture2, settings.shader_id);
     color.a = clamp(color.a * settings.transparency, 0.0, 1.0);
     if settings.shader_id == 0x8015u {
-        color.rgb *= color.a;
+        color = vec4<f32>(color.rgb * color.a, color.a);
     }
     if color.a < settings.alpha_test {
         discard;
