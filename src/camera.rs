@@ -181,9 +181,13 @@ fn camera_input(
     mouse_motion: Res<AccumulatedMouseMotion>,
     mouse_scroll: Res<AccumulatedMouseScroll>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut camera_q: Query<&mut WowCamera>,
     mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     let Ok(mut cam) = camera_q.single_mut() else {
         return;
     };
@@ -267,6 +271,7 @@ fn player_movement(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     terrain: Option<Res<TerrainHeightmap>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut player_q: Query<
         (
             &mut Transform,
@@ -277,6 +282,9 @@ fn player_movement(
         With<Player>,
     >,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     let Ok((mut transform, mut movement, facing, mut physics)) = player_q.single_mut() else {
         return;
     };
@@ -338,11 +346,17 @@ fn apply_horizontal_movement(
 
 fn cursor_grab(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut cursor_q: Query<&mut bevy::window::CursorOptions>,
 ) {
     let Ok(mut cursor) = cursor_q.single_mut() else {
         return;
     };
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        cursor.grab_mode = bevy::window::CursorGrabMode::None;
+        cursor.visible = true;
+        return;
+    }
     let held =
         mouse_buttons.pressed(MouseButton::Left) || mouse_buttons.pressed(MouseButton::Right);
     if held {

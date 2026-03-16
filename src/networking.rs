@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
@@ -102,6 +103,39 @@ pub(crate) const MAX_COMBAT_LOG: usize = 200;
 #[derive(Resource)]
 pub struct ServerAddr(pub SocketAddr);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ReconnectPhase {
+    #[default]
+    Inactive,
+    PendingConnect,
+    AwaitingWorld,
+}
+
+#[derive(Resource, Debug, Default)]
+pub struct ReconnectState {
+    pub phase: ReconnectPhase,
+}
+
+impl ReconnectState {
+    pub fn is_active(&self) -> bool {
+        self.phase != ReconnectPhase::Inactive
+    }
+
+    fn overlay_text(&self) -> &'static str {
+        match self.phase {
+            ReconnectPhase::Inactive => "",
+            ReconnectPhase::PendingConnect => "Reconnecting...",
+            ReconnectPhase::AwaitingWorld => "Re-synchronizing world...",
+        }
+    }
+}
+
+#[derive(Component)]
+struct ReconnectOverlayRoot;
+
+#[derive(Component)]
+struct ReconnectOverlayText;
+
 pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
@@ -122,6 +156,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
+    app.init_resource::<ReconnectState>();
     app.insert_resource(AuthToken(load_auth_token()));
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<CharacterList>();
@@ -142,8 +177,17 @@ fn register_net_systems(app: &mut App) {
         OnEnter(crate::game_state::GameState::Connecting),
         connect_to_server,
     );
+    app.add_systems(Startup, spawn_reconnect_overlay);
     register_gameplay_net_systems(app);
     register_auth_net_systems(app);
+    app.add_systems(
+        Update,
+        (
+            drive_inworld_reconnect,
+            update_reconnect_overlay,
+            finish_reconnect_when_world_ready,
+        ),
+    );
 }
 
 fn register_gameplay_net_systems(app: &mut App) {
@@ -248,11 +292,15 @@ fn register_net_observers(app: &mut App) {
 }
 
 fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
+    connect_to_server_inner(&mut commands, server_addr.0);
+}
+
+fn connect_to_server_inner(commands: &mut Commands, server_addr: SocketAddr) {
     let bind_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), CLIENT_PORT);
     let client_id = rand_client_id();
     commands.insert_resource(LocalClientId(client_id));
     let auth = Authentication::Manual {
-        server_addr: server_addr.0,
+        server_addr,
         client_id,
         private_key: [0; 32], // matches server default
         protocol_id: 0,       // matches server default
@@ -273,31 +321,56 @@ fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
     let entity = commands
         .spawn((
             LocalAddr(bind_addr),
-            PeerAddr(server_addr.0),
+            PeerAddr(server_addr),
             UdpIo::default(),
             netcode,
         ))
         .id();
     commands.trigger(Connect { entity });
-    info!("Connecting to server at {}...", server_addr.0);
+    info!(
+        "Connecting to server at {server_addr} with client_entity={entity:?} client_id={client_id}"
+    );
 }
 
 fn on_link_established(trigger: On<Add, Connected>, mut commands: Commands) {
+    info!(
+        "Transport link established for client entity {:?}; inserting ReplicationReceiver",
+        trigger.entity
+    );
     commands
         .entity(trigger.entity)
         .insert(ReplicationReceiver::default());
 }
 
 fn on_connected(
-    _trigger: On<Add, Connected>,
+    trigger: On<Add, Connected>,
     auth_token: Res<AuthToken>,
     username: Res<LoginUsername>,
     password: Res<LoginPassword>,
     login_mode: Res<LoginMode>,
+    reconnect: Option<ResMut<ReconnectState>>,
     mut login_senders: Query<&mut MessageSender<shared::protocol::LoginRequest>>,
     mut register_senders: Query<&mut MessageSender<shared::protocol::RegisterRequest>>,
 ) {
-    info!("Connected to server!");
+    let reconnect_phase_before = reconnect.as_deref().map(|r| r.phase);
+    info!(
+        "Connected to server on client entity {:?}; login_mode={:?} username='{}' password_present={} token={} reconnect_phase_before={:?}",
+        trigger.entity,
+        *login_mode,
+        username.0,
+        !password.0.is_empty(),
+        crate::networking_auth::token_debug_label(auth_token.0.as_deref()),
+        reconnect_phase_before,
+    );
+    if let Some(mut reconnect) = reconnect
+        && reconnect.is_active()
+    {
+        reconnect.phase = ReconnectPhase::AwaitingWorld;
+        info!(
+            "Reconnect state advanced to {:?} after successful connect",
+            reconnect.phase
+        );
+    }
     crate::networking_auth::send_auth_request(
         &auth_token,
         &username,
@@ -312,29 +385,91 @@ fn handle_client_disconnected(
     trigger: On<Add, Disconnected>,
     disconnected_q: Query<&Disconnected, With<Client>>,
     state: Res<State<crate::game_state::GameState>>,
+    auth_token: Option<Res<AuthToken>>,
+    selected: Option<Res<SelectedCharacterId>>,
+    reconnect: Option<ResMut<ReconnectState>>,
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut next_state: ResMut<NextState<crate::game_state::GameState>>,
+    mut commands: Commands,
 ) {
     let Ok(disconnected) = disconnected_q.get(trigger.entity) else {
         return;
     };
+    let auth_token_label = auth_token
+        .as_deref()
+        .map(|token| crate::networking_auth::token_debug_label(token.0.as_deref()))
+        .unwrap_or_else(|| "resource-missing".to_string());
+    let selected_name = selected
+        .as_deref()
+        .and_then(|selected| selected.character_name.as_deref());
+    let selected_id = selected
+        .as_deref()
+        .and_then(|selected| selected.character_id);
+    let reconnect_phase = reconnect.as_deref().map(|state| state.phase);
     let reason = disconnected
         .reason
         .as_deref()
         .unwrap_or("connection lost");
-    warn!("Client disconnected in {:?}: {reason}", state.get());
+    warn!(
+        "Client entity {:?} disconnected in {:?}: {reason}; token={} selected_id={selected_id:?} selected_name={selected_name:?} reconnect_phase={reconnect_phase:?}",
+        trigger.entity,
+        state.get(),
+        auth_token_label,
+    );
 
     match *state.get() {
         crate::game_state::GameState::CharSelect => {
+            info!("Disconnect handling: preserving CharSelect and surfacing offline message");
             auth_feedback.0 = Some("Connection lost. Char select is now offline.".to_string());
         }
         crate::game_state::GameState::Login => {
+            info!("Disconnect handling: already in Login, surfacing connection-lost message");
             auth_feedback.0 = Some("Connection lost.".to_string());
+        }
+        crate::game_state::GameState::InWorld => {
+            if auth_token
+                .as_deref()
+                .and_then(|token| token.0.as_deref())
+                .is_none_or(|token| token.trim().is_empty())
+            {
+                warn!("Disconnect handling: no saved auth token available, returning to Login");
+                auth_feedback.0 = Some("Connection lost.".to_string());
+                next_state.set(crate::game_state::GameState::Login);
+                return;
+            }
+            let Some(mut reconnect) = reconnect else {
+                warn!("Disconnect handling: ReconnectState missing, returning to Login");
+                auth_feedback.0 = Some("Connection lost.".to_string());
+                next_state.set(crate::game_state::GameState::Login);
+                return;
+            };
+            if let Some(name) = selected
+                .as_deref()
+                .and_then(|selected| selected.character_name.clone())
+            {
+                commands.insert_resource(crate::char_select::PreselectedCharName(name));
+            }
+            commands.insert_resource(crate::char_select::AutoEnterWorld);
+            commands.insert_resource(LoginMode::Login);
+            commands.insert_resource(LoginUsername(String::new()));
+            commands.insert_resource(LoginPassword(String::new()));
+            commands.queue(reset_network_world);
+            reconnect.phase = ReconnectPhase::PendingConnect;
+            auth_feedback.0 = None;
+            info!(
+                "Disconnect handling: queued reconnect with phase {:?}, preselected_name={selected_name:?}",
+                reconnect.phase
+            );
         }
         crate::game_state::GameState::Connecting
         | crate::game_state::GameState::CharCreate
         | crate::game_state::GameState::Loading
-        | crate::game_state::GameState::InWorld => {
+        | crate::game_state::GameState::Reconnecting => {
+            warn!(
+                "Disconnect handling: transitioning from {:?} to Login due to disconnect on client entity {:?}",
+                state.get(),
+                trigger.entity
+            );
             auth_feedback.0 = Some("Connection lost.".to_string());
             next_state.set(crate::game_state::GameState::Login);
         }
@@ -882,6 +1017,165 @@ fn queue_despawn_if_exists(commands: &mut Commands, entity: Entity) {
             entity_mut.despawn();
         }
     });
+}
+
+pub(crate) fn gameplay_input_allowed(reconnect: Option<Res<ReconnectState>>) -> bool {
+    reconnect.is_none_or(|reconnect| !reconnect.is_active())
+}
+
+fn spawn_reconnect_overlay(mut commands: Commands) {
+    commands
+        .spawn((
+            ReconnectOverlayRoot,
+            Visibility::Hidden,
+            BackgroundColor(Color::srgba(0.03, 0.02, 0.01, 0.82)),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Percent(0.0),
+                top: Val::Percent(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                ReconnectOverlayText,
+                Text::new("Reconnecting..."),
+                TextFont {
+                    font_size: 28.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(1.0, 0.86, 0.45)),
+            ));
+        });
+}
+
+fn update_reconnect_overlay(
+    reconnect: Res<ReconnectState>,
+    mut overlay_q: Query<&mut Visibility, With<ReconnectOverlayRoot>>,
+    mut text_q: Query<&mut Text, With<ReconnectOverlayText>>,
+) {
+    if !reconnect.is_changed() {
+        return;
+    }
+    let visible = reconnect.is_active();
+    let text = reconnect.overlay_text().to_string();
+    for mut visibility in &mut overlay_q {
+        *visibility = if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+    for mut overlay_text in &mut text_q {
+        **overlay_text = text.clone();
+    }
+}
+
+fn drive_inworld_reconnect(
+    reconnect: Option<ResMut<ReconnectState>>,
+    server_addr: Option<Res<ServerAddr>>,
+    client_q: Query<(), With<Client>>,
+    mut commands: Commands,
+) {
+    let (Some(reconnect), Some(server_addr)) = (reconnect, server_addr) else {
+        return;
+    };
+    if reconnect.phase != ReconnectPhase::PendingConnect || !client_q.is_empty() {
+        return;
+    }
+    connect_to_server_inner(&mut commands, server_addr.0);
+}
+
+fn finish_reconnect_when_world_ready(
+    mut reconnect: ResMut<ReconnectState>,
+    local_player_q: Query<(), With<LocalPlayer>>,
+    adt_manager: Option<Res<crate::terrain::AdtManager>>,
+) {
+    if reconnect.phase != ReconnectPhase::AwaitingWorld {
+        return;
+    }
+    let terrain_ready = adt_manager.as_ref().is_none_or(|adt| !adt.map_name.is_empty());
+    if terrain_ready && !local_player_q.is_empty() {
+        info!("Reconnect complete, resynchronized local world state");
+        reconnect.phase = ReconnectPhase::Inactive;
+    }
+}
+
+fn reset_network_world(world: &mut World) {
+    let client_entities: Vec<_> = world
+        .query_filtered::<Entity, With<Client>>()
+        .iter(world)
+        .collect();
+    for entity in client_entities {
+        if let Ok(entity_mut) = world.get_entity_mut(entity) {
+            entity_mut.despawn();
+        }
+    }
+
+    let replicated_entities: Vec<_> = world
+        .query_filtered::<Entity, With<Replicated>>()
+        .iter(world)
+        .collect();
+    for entity in replicated_entities {
+        if let Ok(entity_mut) = world.get_entity_mut(entity) {
+            entity_mut.despawn();
+        }
+    }
+
+    let local_only_entities: Vec<_> = world
+        .query_filtered::<Entity, (With<LocalPlayer>, Without<Replicated>)>()
+        .iter(world)
+        .collect();
+    for entity in local_only_entities {
+        if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+            entity_mut.remove::<(
+                LocalPlayer,
+                Player,
+                MovementState,
+                CharacterFacing,
+                crate::collision::CharacterPhysics,
+            )>();
+        }
+    }
+
+    if let Some(mut current_target) = world.get_resource_mut::<game_engine::targeting::CurrentTarget>()
+    {
+        current_target.0 = None;
+    }
+    if let Some(mut zone) = world.get_resource_mut::<CurrentZone>() {
+        zone.zone_id = 0;
+    }
+    if let Some(mut alive) = world.get_resource_mut::<LocalAliveState>() {
+        alive.0 = true;
+    }
+    if let Some(mut log) = world.get_resource_mut::<ChatLog>() {
+        log.messages.clear();
+    }
+    if let Some(mut chat_input) = world.get_resource_mut::<ChatInput>() {
+        chat_input.0 = None;
+    }
+    if let Some(mut adt_manager) = world.get_resource_mut::<crate::terrain::AdtManager>() {
+        adt_manager.server_requested.clear();
+    }
+
+    reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
+    reset_resource::<game_engine::status::CharacterStatsSnapshot>(world);
+    reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
+    reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
+    reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
+    reset_resource::<game_engine::status::MapStatusSnapshot>(world);
+    reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);
+    reset_resource::<game_engine::status::QuestLogStatusSnapshot>(world);
+}
+
+fn reset_resource<T: Resource + Default>(world: &mut World) {
+    if let Some(mut resource) = world.get_resource_mut::<T>() {
+        *resource = T::default();
+    }
 }
 
 fn rand_client_id() -> u64 {

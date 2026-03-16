@@ -22,8 +22,13 @@ use game_engine::targeting::CurrentTarget;
 /// Send a queued chat message to the server.
 pub(crate) fn send_chat_message(
     mut chat_input: ResMut<ChatInput>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: Query<&mut MessageSender<ChatMessage>>,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        chat_input.0 = None;
+        return;
+    }
     let Some(msg) = chat_input.0.take() else {
         return;
     };
@@ -300,8 +305,12 @@ pub(crate) fn receive_profession_snapshot(
 /// When CurrentTarget changes, send a SetTarget message to the server.
 pub(crate) fn send_target_to_server(
     current: Res<CurrentTarget>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: Query<&mut MessageSender<SetTarget>>,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     if !current.is_changed() {
         return;
     }
@@ -330,8 +339,12 @@ pub(crate) fn track_player_zone(
 /// Send movement input to the server every frame.
 pub(crate) fn send_player_input(
     player_q: Query<(&MovementState, &CharacterFacing), With<Player>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: Query<&mut MessageSender<PlayerInput>>,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     let Ok((movement, facing)) = player_q.single() else {
         return;
     };

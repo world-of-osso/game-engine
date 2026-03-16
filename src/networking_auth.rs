@@ -38,7 +38,7 @@ pub struct LoginUsername(pub String);
 pub struct LoginPassword(pub String);
 
 /// Whether the user is logging in or registering a new account.
-#[derive(Resource, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Resource, Default, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LoginMode {
     #[default]
     Login,
@@ -46,6 +46,16 @@ pub enum LoginMode {
 }
 
 const AUTH_TOKEN_PATH: &str = "data/auth_token";
+
+pub(crate) fn token_debug_label(token: Option<&str>) -> String {
+    match token.map(str::trim) {
+        Some("") | None => "none".to_string(),
+        Some(token) => {
+            let prefix: String = token.chars().take(8).collect();
+            format!("present(len={}, prefix={prefix})", token.len())
+        }
+    }
+}
 
 pub fn load_auth_token() -> Option<String> {
     std::fs::read_to_string(AUTH_TOKEN_PATH)
@@ -85,7 +95,12 @@ fn send_login(
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(request.clone());
     }
-    info!("Sent LoginRequest for '{}'", username.0);
+    info!(
+        "Sent LoginRequest username='{}' password_present={} token={}",
+        username.0,
+        !password.0.is_empty(),
+        token_debug_label(auth_token.0.as_deref()),
+    );
 }
 
 fn build_login_request(
@@ -163,11 +178,23 @@ fn handle_login_response(
         auth_token.0 = Some(resp.token);
         auth_feedback.0 = None;
         char_list.0 = resp.characters;
-        info!("Login success, {} characters", char_list.0.len());
+        info!(
+            "Login success, {} characters, token={}",
+            char_list.0.len(),
+            token_debug_label(auth_token.0.as_deref()),
+        );
         let action = decide_login_success_action(
             &char_list.0,
             preselected.map(|name| name.0.as_str()),
             auto_enter_world.is_some(),
+        );
+        info!(
+            "Post-login action: selected_idx={:?} auto_enter={} enter_world_character_id={:?} next_state={:?} preselected={:?}",
+            action.selected_idx,
+            auto_enter_world.is_some(),
+            action.enter_world_character_id,
+            action.next_state,
+            preselected.map(|name| name.0.as_str()),
         );
         selected_char_idx.0 = action.selected_idx;
         if let Some(character_id) = action.enter_world_character_id {
@@ -179,7 +206,11 @@ fn handle_login_response(
         }
     } else {
         let err = resp.error.unwrap_or_default();
-        error!("Login failed: {err}");
+        error!(
+            "Login failed: {err}; preselected={:?} auto_enter={}",
+            preselected.map(|name| name.0.as_str()),
+            auto_enter_world.is_some(),
+        );
         auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
         next_state.set(GameState::Login);
     }
@@ -338,13 +369,19 @@ pub fn receive_enter_world_response(
     mut selected: ResMut<SelectedCharacterId>,
     char_list: Res<CharacterList>,
     char_idx: Res<crate::char_select::SelectedCharIndex>,
+    state: Res<State<GameState>>,
+    reconnect: Res<crate::networking::ReconnectState>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             if resp.success {
                 apply_enter_world(&mut selected, &char_list, &char_idx);
-                next_state.set(GameState::Loading);
+                if reconnect.is_active() && *state.get() == GameState::InWorld {
+                    info!("Reconnect enter-world accepted, waiting for replicated world state");
+                } else {
+                    next_state.set(GameState::Loading);
+                }
             } else {
                 let err = resp.error.unwrap_or_default();
                 error!("Enter world failed: {err}");

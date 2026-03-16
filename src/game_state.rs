@@ -64,16 +64,23 @@ fn register_in_world_systems(app: &mut App) {
         (
             game_engine::ui::game_plugin::sync_screen_ui,
             game_engine::ui::game_plugin::tick_spellbook_cooldowns,
-            game_engine::ui::game_plugin::handle_spellbook_pointer,
-            game_engine::ui::game_plugin::handle_spellbook_keyboard,
         )
             .chain()
             .run_if(in_state(GameState::InWorld)),
     );
+    app.add_systems(
+        Update,
+        (
+            game_engine::ui::game_plugin::handle_spellbook_pointer,
+            game_engine::ui::game_plugin::handle_spellbook_keyboard,
+        )
+            .chain()
+            .run_if(in_state(GameState::InWorld).and(crate::networking::gameplay_input_allowed)),
+    );
 }
 
 fn on_enter_connecting(mut commands: Commands, time: Res<Time>) {
-    info!("Entering Connecting state...");
+    info!("Entering Connecting state at t={:.3}s", time.elapsed_secs_f64());
     commands.insert_resource(ConnectingStartTime(time.elapsed_secs_f64()));
 }
 
@@ -140,7 +147,9 @@ fn check_connection_status(
     if let Some(start) = start_time {
         let elapsed = time.elapsed_secs_f64() - start.0;
         if elapsed >= CONNECT_TIMEOUT_SECS {
-            warn!("Connection timed out after {CONNECT_TIMEOUT_SECS}s, returning to Login");
+            warn!(
+                "Connection timed out after {elapsed:.3}s (limit {CONNECT_TIMEOUT_SECS}s), returning to Login"
+            );
             auth_feedback.0 = Some("Connection timed out".to_string());
             next_state.set(GameState::Login);
         }
@@ -193,6 +202,7 @@ mod tests {
             GameState::CharCreate,
             GameState::Loading,
             GameState::InWorld,
+            GameState::Reconnecting,
         ];
         // States must be Eq + Hash + Clone + Copy (compile-time check via usage).
         for &s in &states {

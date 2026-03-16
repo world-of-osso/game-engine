@@ -11,16 +11,18 @@ pub enum GameState {
     CharCreate,
     Loading,
     InWorld,
+    Reconnecting,
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 6] = [
+    pub const CLI_VALUES: [&str; 7] = [
         "login",
         "connecting",
         "charselect",
         "charcreate",
         "loading",
         "inworld",
+        "reconnecting",
     ];
 
     pub fn as_cli_str(self) -> &'static str {
@@ -31,6 +33,7 @@ impl GameState {
             Self::CharCreate => "charcreate",
             Self::Loading => "loading",
             Self::InWorld => "inworld",
+            Self::Reconnecting => "reconnecting",
         }
     }
 }
@@ -46,6 +49,7 @@ impl FromStr for GameState {
             "charcreate" => Ok(Self::CharCreate),
             "loading" => Ok(Self::Loading),
             "inworld" => Ok(Self::InWorld),
+            "reconnecting" => Ok(Self::Reconnecting),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
     }

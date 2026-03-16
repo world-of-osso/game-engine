@@ -145,6 +145,104 @@ fn disconnect_during_connecting_returns_to_login() {
 }
 
 #[test]
+fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(crate::game_state::GameState::InWorld);
+    app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<ReconnectState>();
+    app.insert_resource(AuthToken(Some("saved-token".to_string())));
+    app.insert_resource(selected_with_name("Theron"));
+    app.insert_resource(game_engine::targeting::CurrentTarget(Some(Entity::from_bits(77))));
+    app.init_resource::<CurrentZone>();
+    app.init_resource::<LocalAliveState>();
+    app.init_resource::<ChatLog>();
+    app.init_resource::<ChatInput>();
+    app.add_observer(handle_client_disconnected);
+
+    let client = app.world_mut().spawn(Client::default()).id();
+    let receiver = app.world_mut().spawn_empty().id();
+    let replicated = app
+        .world_mut()
+        .spawn((
+            Replicated { receiver },
+            RemoteEntity,
+            NetPlayer {
+                name: "Theron".to_string(),
+                race: 1,
+                class: 1,
+                appearance: CharacterAppearance::default(),
+            },
+        ))
+        .id();
+    app.world_mut().resource_mut::<ChatLog>().messages.push((
+        "system".to_string(),
+        "stale".to_string(),
+        ChatType::Say,
+    ));
+    app.world_mut().entity_mut(client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+
+    app.update();
+    app.update();
+
+    let state = app.world().resource::<State<crate::game_state::GameState>>();
+    assert_eq!(*state.get(), crate::game_state::GameState::InWorld);
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::PendingConnect
+    );
+    assert!(app.world().contains_resource::<crate::char_select::AutoEnterWorld>());
+    assert_eq!(
+        app.world()
+            .resource::<crate::char_select::PreselectedCharName>()
+            .0,
+        "Theron"
+    );
+    assert!(app.world().get_entity(client).is_err());
+    assert!(app.world().get_entity(replicated).is_err());
+    assert!(
+        app.world()
+            .resource::<game_engine::targeting::CurrentTarget>()
+            .0
+            .is_none()
+    );
+    assert!(app.world().resource::<ChatLog>().messages.is_empty());
+}
+
+#[test]
+fn reset_network_world_preserves_selected_character_for_reconnect() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(selected_with_name("Theron"));
+
+    let _ = app.world_mut().run_system_once(|mut commands: Commands| {
+        commands.queue(reset_network_world);
+    });
+    app.update();
+
+    let selected = app.world().resource::<SelectedCharacterId>();
+    assert_eq!(selected.character_name.as_deref(), Some("Theron"));
+}
+
+#[test]
+fn gameplay_input_is_disabled_during_reconnect() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(ReconnectState {
+        phase: ReconnectPhase::PendingConnect,
+    });
+
+    let allowed = app
+        .world_mut()
+        .run_system_once(|reconnect: Option<Res<ReconnectState>>| gameplay_input_allowed(reconnect))
+        .expect("run gameplay_input_allowed");
+    assert!(!allowed);
+}
+
+#[test]
 fn sync_updates_rotation_target() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);

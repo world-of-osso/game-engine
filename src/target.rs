@@ -37,8 +37,12 @@ fn click_to_target(
     cameras: Query<(&Camera, &GlobalTransform)>,
     mut ray_cast: MeshRayCast,
     remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut current: ResMut<CurrentTarget>,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
@@ -68,8 +72,12 @@ fn tab_target(
     keys: Res<ButtonInput<KeyCode>>,
     player_q: Query<&Transform, With<Player>>,
     remote_q: Query<(Entity, &Transform), (With<RemoteEntity>, Without<Player>)>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut current: ResMut<CurrentTarget>,
 ) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     if !keys.just_pressed(KeyCode::Tab) {
         return;
     }
@@ -110,7 +118,14 @@ fn pick_next_target(sorted: &[Entity], current: Option<Entity>) -> Option<Entity
 }
 
 /// On Escape, clear the current target.
-fn clear_target(keys: Res<ButtonInput<KeyCode>>, mut current: ResMut<CurrentTarget>) {
+fn clear_target(
+    keys: Res<ButtonInput<KeyCode>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    mut current: ResMut<CurrentTarget>,
+) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        return;
+    }
     if keys.just_pressed(KeyCode::Escape) {
         current.0 = None;
     }
