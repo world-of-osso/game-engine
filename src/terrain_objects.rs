@@ -202,15 +202,14 @@ fn doodad_transform(
 
 /// Convert WoW MDDF/MODF Euler rotation (degrees) to a Bevy quaternion.
 ///
-/// WoW stores rotation as [X, Y, Z] degrees. The reference ADT viewer
-/// (`worldofwhatever`) applies these directly in the already-swizzled
-/// render basis as:
-///   Ry(Y - 90) * Rz(-X) * Rx(Z)
-/// Our placements and mesh vertices are converted into that same basis
-/// via `placement_to_bevy`/`wow_to_bevy`, so the same composition applies.
+/// WoW stores rotation as [X, Y, Z] degrees. After `placement_to_bevy` and
+/// `wow_to_bevy` swizzle positions/vertices into Bevy space, the placement
+/// rotation can be applied directly in that same basis:
+///   Ry(Y) * Rz(-X) * Rx(Z)
+/// An earlier `-90°` yaw adjustment here rotated world objects sideways.
 fn placement_rotation(rot: [f32; 3]) -> Quat {
     let rx = rot[2].to_radians();
-    let ry = (rot[1] - 90.0).to_radians();
+    let ry = rot[1].to_radians();
     let rz = (-rot[0]).to_radians();
     Quat::from_euler(EulerRot::YZX, ry, rz, rx)
 }
@@ -633,7 +632,7 @@ mod tests {
         let actual = placement_rotation(rot);
         let expected = Quat::from_euler(
             EulerRot::YZX,
-            (rot[1] - 90.0).to_radians(),
+            rot[1].to_radians(),
             (-rot[0]).to_radians(),
             rot[2].to_radians(),
         );
@@ -644,6 +643,17 @@ mod tests {
         assert!(
             actual_vec.abs_diff_eq(expected_vec, 1e-5),
             "rotation mismatch: actual={actual_vec:?} expected={expected_vec:?}"
+        );
+    }
+
+    #[test]
+    fn placement_rotation_zero_is_identity() {
+        let rotation = placement_rotation([0.0, 0.0, 0.0]);
+        let probe = Vec3::new(0.3, -0.4, 0.8).normalize();
+        let rotated = rotation * probe;
+        assert!(
+            rotated.abs_diff_eq(probe, 1e-5),
+            "zero placement rotation should not add an implicit yaw: rotated={rotated:?} probe={probe:?}"
         );
     }
 
