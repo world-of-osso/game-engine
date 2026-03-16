@@ -76,8 +76,11 @@ pub struct WmoGroupInfo {
 #[allow(dead_code)]
 pub struct WmoMaterialDef {
     pub texture_fdid: u32,
+    pub texture_2_fdid: u32,
+    pub texture_3_fdid: u32,
     pub flags: u32,
     pub blend_mode: u32,
+    pub shader: u32,
 }
 
 pub struct WmoGroupData {
@@ -173,12 +176,18 @@ fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
     for i in 0..count {
         let base = i * 64;
         let flags = read_u32(data, base)?;
+        let shader = read_u32(data, base + 4)?;
         let blend_mode = read_u32(data, base + 8)?;
         let texture_fdid = read_u32(data, base + 0x0C)?;
+        let texture_2_fdid = read_u32(data, base + 0x18)?;
+        let texture_3_fdid = read_u32(data, base + 0x24)?;
         mats.push(WmoMaterialDef {
             texture_fdid,
+            texture_2_fdid,
+            texture_3_fdid,
             flags,
             blend_mode,
+            shader,
         });
     }
     Ok(mats)
