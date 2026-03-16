@@ -330,6 +330,8 @@ fn build_chunks(parsed: &[McnkData]) -> Vec<McnkMesh> {
         .collect()
 }
 
+const SEAM_SMOOTHING_RINGS: &[(usize, f32)] = &[(1, 0.35), (2, 0.15)];
+
 fn stitch_chunk_edges(parsed: &mut [McnkData]) {
     let indices: HashMap<(u32, u32), usize> = parsed
         .iter()
@@ -353,7 +355,7 @@ fn stitch_chunk_edges(parsed: &mut [McnkData]) {
 fn stitch_horizontal_border(parsed: &mut [McnkData], top: usize, bottom: usize) {
     let (top_chunk, bottom_chunk) = split_two_mut(parsed, top, bottom);
     for col in 0..=8 {
-        average_height_pair(
+        let stitched = average_height_pair(
             top_chunk.pos[2],
             &mut top_chunk.heights,
             vertex_index(16, col),
@@ -361,13 +363,14 @@ fn stitch_horizontal_border(parsed: &mut [McnkData], top: usize, bottom: usize) 
             &mut bottom_chunk.heights,
             vertex_index(0, col),
         );
+        smooth_horizontal_interior(top_chunk, bottom_chunk, col, stitched);
     }
 }
 
 fn stitch_vertical_border(parsed: &mut [McnkData], left: usize, right: usize) {
     let (left_chunk, right_chunk) = split_two_mut(parsed, left, right);
     for row in 0..=8 {
-        average_height_pair(
+        let stitched = average_height_pair(
             left_chunk.pos[2],
             &mut left_chunk.heights,
             vertex_index(row * 2, 8),
@@ -375,6 +378,7 @@ fn stitch_vertical_border(parsed: &mut [McnkData], left: usize, right: usize) {
             &mut right_chunk.heights,
             vertex_index(row * 2, 0),
         );
+        smooth_vertical_interior(left_chunk, right_chunk, row, stitched);
     }
 }
 
@@ -419,12 +423,13 @@ fn average_height_pair(
     base_b: f32,
     heights_b: &mut [f32; MCVT_COUNT],
     idx_b: usize,
-) {
+) -> f32 {
     let absolute_a = base_a + heights_a[idx_a];
     let absolute_b = base_b + heights_b[idx_b];
     let avg = (absolute_a + absolute_b) * 0.5;
     heights_a[idx_a] = avg - base_a;
     heights_b[idx_b] = avg - base_b;
+    avg
 }
 
 fn average_height_quad(parsed: &mut [McnkData], vertices: [(usize, usize); 4]) {
@@ -440,6 +445,68 @@ fn average_height_quad(parsed: &mut [McnkData], vertices: [(usize, usize); 4]) {
         let chunk = &mut parsed[chunk_idx];
         chunk.heights[vertex_idx] = average - chunk.pos[2];
     }
+}
+
+fn smooth_horizontal_interior(
+    top_chunk: &mut McnkData,
+    bottom_chunk: &mut McnkData,
+    col: usize,
+    stitched_height: f32,
+) {
+    if col == 0 || col == 8 {
+        return;
+    }
+    for &(ring, weight) in SEAM_SMOOTHING_RINGS {
+        if ring > 8 {
+            break;
+        }
+        blend_absolute_height(
+            top_chunk,
+            vertex_index(16 - ring * 2, col),
+            stitched_height,
+            weight,
+        );
+        blend_absolute_height(
+            bottom_chunk,
+            vertex_index(ring * 2, col),
+            stitched_height,
+            weight,
+        );
+    }
+}
+
+fn smooth_vertical_interior(
+    left_chunk: &mut McnkData,
+    right_chunk: &mut McnkData,
+    row: usize,
+    stitched_height: f32,
+) {
+    if row == 0 || row == 8 {
+        return;
+    }
+    for &(ring, weight) in SEAM_SMOOTHING_RINGS {
+        if ring > 8 {
+            break;
+        }
+        blend_absolute_height(
+            left_chunk,
+            vertex_index(row * 2, 8 - ring),
+            stitched_height,
+            weight,
+        );
+        blend_absolute_height(
+            right_chunk,
+            vertex_index(row * 2, ring),
+            stitched_height,
+            weight,
+        );
+    }
+}
+
+fn blend_absolute_height(chunk: &mut McnkData, vertex_idx: usize, target_height: f32, weight: f32) {
+    let current = chunk.pos[2] + chunk.heights[vertex_idx];
+    let blended = current + (target_height - current) * weight;
+    chunk.heights[vertex_idx] = blended - chunk.pos[2];
 }
 
 fn center_surface_position(chunks: &[McnkData]) -> [f32; 3] {
