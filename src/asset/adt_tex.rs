@@ -3,7 +3,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
-use super::adt::{vertex_index, ChunkHeightGrid, ChunkIter, CHUNK_SIZE, UNIT_SIZE};
+use super::adt::{CHUNK_SIZE, ChunkIter};
 use super::m2::wow_to_bevy;
 
 // ── _tex0.adt types ───────────────────────────────────────────────────────────
@@ -365,66 +365,6 @@ pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
 // ── water mesh building ─────────────────────────────────────────────────────
 
 const WATER_STEP: f32 = CHUNK_SIZE / 8.0;
-const SHORELINE_EPSILON: f32 = 0.05;
-
-fn sample_chunk_height(grid: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
-    let local_x = grid.origin_x - bx;
-    let local_z = bz - grid.origin_z;
-    if !(0.0..CHUNK_SIZE).contains(&local_x) || !(0.0..CHUNK_SIZE).contains(&local_z) {
-        return None;
-    }
-    let col = (local_x / UNIT_SIZE).floor() as usize;
-    let row = (local_z / UNIT_SIZE).floor() as usize;
-    let col = col.min(7);
-    let row = row.min(7);
-    let frac_x = (local_x - col as f32 * UNIT_SIZE) / UNIT_SIZE;
-    let frac_z = (local_z - row as f32 * UNIT_SIZE) / UNIT_SIZE;
-    Some(interpolate_quad_height(grid, row, col, frac_x, frac_z))
-}
-
-fn interpolate_quad_height(
-    grid: &ChunkHeightGrid,
-    row: usize,
-    col: usize,
-    fx: f32,
-    fz: f32,
-) -> f32 {
-    let h = |idx: usize| grid.base_y + grid.heights[idx];
-    let tl = h(vertex_index(row * 2, col));
-    let tr = h(vertex_index(row * 2, col + 1));
-    let bl = h(vertex_index(row * 2 + 2, col));
-    let br = h(vertex_index(row * 2 + 2, col + 1));
-    let center = h(vertex_index(row * 2 + 1, col));
-
-    let dx = fx - 0.5;
-    let dz = fz - 0.5;
-    let (ha, hb, ax, az, bxx, bz) = if dz.abs() >= dx.abs() {
-        if dz < 0.0 {
-            (tl, tr, 0.0, 0.0, 1.0, 0.0)
-        } else {
-            (br, bl, 1.0, 1.0, 0.0, 1.0)
-        }
-    } else if dx > 0.0 {
-        (tr, br, 1.0, 0.0, 1.0, 1.0)
-    } else {
-        (bl, tl, 0.0, 1.0, 0.0, 0.0)
-    };
-    barycentric_height(fx, fz, [ax, az, ha], [bxx, bz, hb], [0.5, 0.5, center])
-}
-
-fn barycentric_height(px: f32, pz: f32, a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> f32 {
-    let [ax, az, ha] = a;
-    let [bx, bz, hb] = b;
-    let [cx, cz, hc] = c;
-    let det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
-    if det.abs() < 1e-10 {
-        return (ha + hb + hc) / 3.0;
-    }
-    let wa = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / det;
-    let wb = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / det;
-    let wc = 1.0 - wa - wb;
-    wa * ha + wb * hb + wc * hc
-}
 
 fn quad_exists(layer: &WaterLayer, row: usize, col: usize) -> bool {
     if row >= 8 || col >= 8 {
@@ -443,41 +383,6 @@ fn water_height(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
         .get(vert_row * w + vert_col)
         .copied()
         .unwrap_or(layer.min_height)
-}
-
-fn quad_center(chunk_pos: [f32; 3], layer: &WaterLayer, row: usize, col: usize) -> (f32, f32, f32) {
-    let water_y = if layer.vertex_heights.is_empty() {
-        layer.min_height
-    } else {
-        let h00 = water_height(layer, row, col);
-        let h01 = water_height(layer, row, col + 1);
-        let h10 = water_height(layer, row + 1, col);
-        let h11 = water_height(layer, row + 1, col + 1);
-        (h00 + h01 + h10 + h11) * 0.25
-    };
-    let center_col = layer.x_offset as f32 + col as f32 + 0.5;
-    let center_row = layer.y_offset as f32 + row as f32 + 0.5;
-    let wx = chunk_pos[1] - center_col * WATER_STEP;
-    let wy = chunk_pos[0] - center_row * WATER_STEP;
-    let [bx, _, bz] = wow_to_bevy(wx, wy, water_y);
-    (bx, bz, water_y)
-}
-
-fn quad_is_visible(
-    chunk_pos: [f32; 3],
-    layer: &WaterLayer,
-    row: usize,
-    col: usize,
-    terrain: Option<&ChunkHeightGrid>,
-) -> bool {
-    let Some(terrain) = terrain else {
-        return true;
-    };
-    let (bx, bz, water_y) = quad_center(chunk_pos, layer, row, col);
-    match sample_chunk_height(terrain, bx, bz) {
-        Some(terrain_y) => water_y > terrain_y + SHORELINE_EPSILON,
-        None => true,
-    }
 }
 
 fn emit_water_quad(
@@ -505,11 +410,7 @@ fn emit_water_quad(
 
 type WaterGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 
-fn build_water_geometry(
-    chunk_pos: [f32; 3],
-    layer: &WaterLayer,
-    terrain: Option<&ChunkHeightGrid>,
-) -> WaterGeometry {
+fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometry {
     let w = layer.width as usize;
     let h = layer.height as usize;
     let max_quads = w * h;
@@ -519,9 +420,7 @@ fn build_water_geometry(
     let mut indices = Vec::with_capacity(max_quads * 6);
     for row in 0..h {
         for col in 0..w {
-            if !quad_exists(layer, row, col)
-                || !quad_is_visible(chunk_pos, layer, row, col, terrain)
-            {
+            if !quad_exists(layer, row, col) {
                 continue;
             }
             let base_idx = positions.len() as u32;
@@ -547,12 +446,8 @@ fn build_water_geometry(
     (positions, normals, uvs, indices)
 }
 
-pub fn build_water_mesh(
-    chunk_pos: [f32; 3],
-    layer: &WaterLayer,
-    terrain: Option<&ChunkHeightGrid>,
-) -> Mesh {
-    let (positions, normals, uvs, indices) = build_water_geometry(chunk_pos, layer, terrain);
+pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
+    let (positions, normals, uvs, indices) = build_water_geometry(chunk_pos, layer);
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
@@ -562,60 +457,4 @@ pub fn build_water_mesh(
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     mesh.insert_indices(Indices::U32(indices));
     mesh
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy::mesh::Indices;
-
-    fn quad_count(mesh: &Mesh) -> usize {
-        match mesh.indices() {
-            Some(Indices::U16(v)) => v.len() / 6,
-            Some(Indices::U32(v)) => v.len() / 6,
-            None => 0,
-        }
-    }
-
-    fn flat_chunk_grid(height: f32) -> ChunkHeightGrid {
-        ChunkHeightGrid {
-            index_x: 0,
-            index_y: 0,
-            origin_x: 0.0,
-            origin_z: 0.0,
-            base_y: height,
-            heights: [0.0; 145],
-        }
-    }
-
-    fn single_quad_layer(height: f32) -> WaterLayer {
-        WaterLayer {
-            liquid_type: 0,
-            liquid_object: 0,
-            min_height: height,
-            max_height: height,
-            x_offset: 0,
-            y_offset: 0,
-            width: 1,
-            height: 1,
-            exists: [1, 0, 0, 0, 0, 0, 0, 0],
-            vertex_heights: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn water_mesh_culls_quads_covered_by_terrain() {
-        let terrain = flat_chunk_grid(1.0);
-        let layer = single_quad_layer(0.5);
-        let mesh = build_water_mesh([0.0, 0.0, 0.0], &layer, Some(&terrain));
-        assert_eq!(quad_count(&mesh), 0);
-    }
-
-    #[test]
-    fn water_mesh_keeps_quads_above_terrain() {
-        let terrain = flat_chunk_grid(0.0);
-        let layer = single_quad_layer(0.5);
-        let mesh = build_water_mesh([0.0, 0.0, 0.0], &layer, Some(&terrain));
-        assert_eq!(quad_count(&mesh), 1);
-    }
 }
