@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
+use bevy::mesh::VertexAttributeValues;
 use bevy::prelude::*;
 
 use crate::asset;
@@ -53,8 +54,47 @@ pub fn spawn_m2_on_entity(
             return false;
         }
     };
-    attach_m2_batches(commands, assets, model.batches, &model.bones, entity);
+    let grounded_root = ensure_grounded_model_root(commands, entity, ground_offset_y(&model.batches));
+    attach_m2_batches(commands, assets, model.batches, &model.bones, grounded_root);
     true
+}
+
+pub fn ground_offset_y(batches: &[asset::m2::M2RenderBatch]) -> f32 {
+    let mut min_y = f32::INFINITY;
+    for batch in batches {
+        let Some(VertexAttributeValues::Float32x3(positions)) =
+            batch.mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+        else {
+            continue;
+        };
+        for position in positions {
+            min_y = min_y.min(position[1]);
+        }
+    }
+    if min_y.is_finite() && min_y.abs() > 0.001 {
+        min_y
+    } else {
+        0.0
+    }
+}
+
+pub fn ensure_grounded_model_root(
+    commands: &mut Commands,
+    parent: Entity,
+    ground_offset_y: f32,
+) -> Entity {
+    if ground_offset_y.abs() <= 0.001 {
+        return parent;
+    }
+    let root = commands
+        .spawn((
+            Name::new("GroundedModelRoot"),
+            Transform::from_xyz(0.0, -ground_offset_y, 0.0),
+            Visibility::default(),
+        ))
+        .id();
+    commands.entity(root).set_parent_in_place(parent);
+    root
 }
 
 /// Skinning data returned from mesh attachment, for animation setup.
@@ -305,9 +345,10 @@ fn try_load_effect_material(
             transparency: batch.transparency,
             alpha_test,
             shader_id: batch.shader_id as u32,
+            blend_mode: batch.blend_mode as u32,
             uv_mode_1: u32::from(batch.use_uv_2_1),
             uv_mode_2: u32::from(batch.use_uv_2_2),
-            _pad0: 0,
+            render_flags: batch.render_flags as u32,
             uv_offset_1: Vec2::ZERO,
             uv_offset_2: Vec2::ZERO,
         },
@@ -486,7 +527,9 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
 
 #[cfg(test)]
 mod tests {
-    use super::apply_m2_multitexture_shader;
+    use super::{apply_m2_multitexture_shader, ground_offset_y};
+    use crate::asset;
+    use bevy::mesh::{Mesh, PrimitiveTopology};
 
     #[test]
     fn shader_8015_uses_secondary_alpha_as_additive_mask() {
@@ -495,6 +538,36 @@ mod tests {
         apply_m2_multitexture_shader(&mut base, &overlay, 0x8015);
 
         assert_eq!(base, [255, 128, 32, 255]);
+    }
+
+    #[test]
+    fn ground_offset_uses_lowest_vertex_y() {
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            bevy::asset::RenderAssetUsages::default(),
+        );
+        mesh.insert_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![[0.0, 0.35, 0.0], [0.0, 1.0, 0.0], [0.0, 0.6, 0.0]],
+        );
+        let batch = asset::m2::M2RenderBatch {
+            mesh,
+            texture_fdid: None,
+            texture_2_fdid: None,
+            texture_type: None,
+            overlays: Vec::new(),
+            render_flags: 0,
+            blend_mode: 0,
+            transparency: 1.0,
+            texture_anim: None,
+            texture_anim_2: None,
+            use_uv_2_1: false,
+            use_uv_2_2: false,
+            shader_id: 0,
+            texture_count: 0,
+            mesh_part_id: 0,
+        };
+        assert!((ground_offset_y(&[batch]) - 0.35).abs() < 0.001);
     }
 }
 

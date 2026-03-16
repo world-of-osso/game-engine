@@ -11,9 +11,10 @@ pub struct M2EffectSettings {
     pub transparency: f32,
     pub alpha_test: f32,
     pub shader_id: u32,
+    pub blend_mode: u32,
     pub uv_mode_1: u32,
     pub uv_mode_2: u32,
-    pub _pad0: u32,
+    pub render_flags: u32,
     pub uv_offset_1: Vec2,
     pub uv_offset_2: Vec2,
 }
