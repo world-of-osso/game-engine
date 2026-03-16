@@ -57,10 +57,27 @@ pub(crate) fn token_debug_label(token: Option<&str>) -> String {
     }
 }
 
+fn normalize_auth_token(token: &str) -> Option<String> {
+    let token = token.trim();
+    if token.is_empty() {
+        return None;
+    }
+
+    if token.eq_ignore_ascii_case("saved-token") {
+        warn!(
+            "Ignoring cached auth token from {}: found test placeholder value",
+            AUTH_TOKEN_PATH
+        );
+        return None;
+    }
+
+    Some(token.to_string())
+}
+
 pub fn load_auth_token() -> Option<String> {
     std::fs::read_to_string(AUTH_TOKEN_PATH)
         .ok()
-        .filter(|s| !s.trim().is_empty())
+        .and_then(|token| normalize_auth_token(&token))
 }
 
 fn save_auth_token(token: &str) {
@@ -109,7 +126,10 @@ fn build_login_request(
     password: &LoginPassword,
 ) -> LoginRequest {
     LoginRequest {
-        token: auth_token.0.clone(),
+        token: auth_token
+            .0
+            .as_deref()
+            .and_then(normalize_auth_token),
         username: username.0.clone(),
         password: password.0.clone(),
     }
@@ -505,12 +525,15 @@ mod tests {
     #[test]
     fn build_login_request_keeps_credentials_for_password_login() {
         let request = build_login_request(
-            &AuthToken(Some("saved-token".to_string())),
+            &AuthToken(Some("11111111-1111-1111-1111-111111111111".to_string())),
             &LoginUsername("alice".to_string()),
             &LoginPassword("secret".to_string()),
         );
 
-        assert_eq!(request.token.as_deref(), Some("saved-token"));
+        assert_eq!(
+            request.token.as_deref(),
+            Some("11111111-1111-1111-1111-111111111111")
+        );
         assert_eq!(request.username, "alice");
         assert_eq!(request.password, "secret");
     }
@@ -518,14 +541,57 @@ mod tests {
     #[test]
     fn build_login_request_allows_token_only_login() {
         let request = build_login_request(
+            &AuthToken(Some("11111111-1111-1111-1111-111111111111".to_string())),
+            &LoginUsername(String::new()),
+            &LoginPassword(String::new()),
+        );
+
+        assert_eq!(
+            request.token.as_deref(),
+            Some("11111111-1111-1111-1111-111111111111")
+        );
+        assert!(request.username.is_empty());
+        assert!(request.password.is_empty());
+    }
+
+    #[test]
+    fn build_login_request_trims_cached_token() {
+        let request = build_login_request(
+            &AuthToken(Some(" 11111111-1111-1111-1111-111111111111 \n".to_string())),
+            &LoginUsername(String::new()),
+            &LoginPassword(String::new()),
+        );
+
+        assert_eq!(
+            request.token.as_deref(),
+            Some("11111111-1111-1111-1111-111111111111")
+        );
+    }
+
+    #[test]
+    fn build_login_request_drops_placeholder_cached_token() {
+        let request = build_login_request(
             &AuthToken(Some("saved-token".to_string())),
             &LoginUsername(String::new()),
             &LoginPassword(String::new()),
         );
 
-        assert_eq!(request.token.as_deref(), Some("saved-token"));
-        assert!(request.username.is_empty());
-        assert!(request.password.is_empty());
+        assert!(request.token.is_none());
+    }
+
+    #[test]
+    fn normalize_auth_token_rejects_blank_and_placeholder_values() {
+        assert_eq!(normalize_auth_token("   "), None);
+        assert_eq!(normalize_auth_token("saved-token"), None);
+        assert_eq!(normalize_auth_token(" SAVED-TOKEN \n"), None);
+    }
+
+    #[test]
+    fn normalize_auth_token_trims_valid_token() {
+        assert_eq!(
+            normalize_auth_token(" 11111111-1111-1111-1111-111111111111 \n"),
+            Some("11111111-1111-1111-1111-111111111111".to_string())
+        );
     }
 
     #[test]
@@ -721,7 +787,7 @@ mod tests {
         let (_feedback, goes_login, goes_charselect, reconnect) = run_login_response_for_test(
             LoginResponse {
                 success: true,
-                token: "saved-token".to_string(),
+                token: "11111111-1111-1111-1111-111111111111".to_string(),
                 characters: Vec::new(),
                 error: None,
             },
