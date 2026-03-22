@@ -805,7 +805,7 @@ mod tests {
             matches!(
                 &icon_texture.source,
                 game_engine::ui::widgets::texture::TextureSource::File(path)
-                    if path == "output/imagegen/delete-trash-icon.png"
+                    if path == "data/ui/delete-trash-icon-gold.png"
             ),
             "DeleteCharIcon should point at the generated trash icon texture"
         );

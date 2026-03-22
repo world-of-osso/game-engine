@@ -11,8 +11,7 @@ const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
-const DELETE_ICON_FILE: &str = "output/imagegen/delete-trash-icon.png";
-const DELETE_ICON_TINT: &str = "1.0,0.82,0.0,1.0";
+const DELETE_ICON_FILE: &str = "data/ui/delete-trash-icon-gold.png";
 
 pub const TRASH_BUTTON_ROOT: FrameName = FrameName("TrashButtonRoot");
 pub const TRASH_BUTTON: FrameName = FrameName("TrashButton");
@@ -55,7 +54,6 @@ pub fn trash_icon_button(
                 height: 24.0,
                 frame_level: 100.0,
                 texture_file: DELETE_ICON_FILE,
-                vertex_color: DELETE_ICON_TINT,
                 anchor {
                     point: AnchorPoint::Center,
                     relative_to: name,
@@ -89,7 +87,6 @@ pub fn trash_icon_button(
                 height: 24.0,
                 frame_level: 100.0,
                 texture_file: DELETE_ICON_FILE,
-                vertex_color: DELETE_ICON_TINT,
                 anchor {
                     point: AnchorPoint::Center,
                     relative_to: name,
