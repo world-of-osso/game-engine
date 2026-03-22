@@ -50,17 +50,9 @@ pub struct OutfitData {
 
 impl OutfitData {
     pub fn load(data_dir: &Path) -> Self {
-        let loaded = OnceLock::new();
-        let _ = loaded.set(match Self::try_load(data_dir) {
-            Ok(data) => Ok(data),
-            Err(err) => {
-                warn!("Failed to load outfit data: {err}");
-                Err(err)
-            }
-        });
         Self {
             data_dir: data_dir.to_path_buf(),
-            loaded,
+            loaded: OnceLock::new(),
         }
     }
 

@@ -5,6 +5,7 @@
 
 use std::f32::consts::FRAC_PI_8;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -433,12 +434,14 @@ fn setup_char_select_scene(
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
 ) {
+    let total_start = Instant::now();
     let scene_entry = background::find_scene_entry(&warband, &selected_scene);
     let placement = warband
         .as_ref()
         .zip(scene_entry)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
+    let background_start = Instant::now();
     let bg_node = background::spawn(
         &mut commands,
         &mut assets.meshes,
@@ -452,6 +455,8 @@ fn setup_char_select_scene(
         scene_entry,
         &mut active_scene,
     );
+    let background_elapsed = background_start.elapsed();
+    let camera_start = Instant::now();
     let camera_entity = spawn_char_select_camera(
         &mut commands,
         scene_entry,
@@ -459,6 +464,8 @@ fn setup_char_select_scene(
         Some(&heightmap),
         presentation,
     );
+    let camera_elapsed = camera_start.elapsed();
+    let sky_light_start = Instant::now();
     sky::spawn_sky_dome(
         &mut commands,
         &mut assets.meshes,
@@ -467,7 +474,9 @@ fn setup_char_select_scene(
         camera_entity,
     );
     let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
+    let sky_light_elapsed = sky_light_start.elapsed();
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
+    let model_start = Instant::now();
     let result = spawn_selected_model(
         &mut commands,
         &mut assets.meshes,
@@ -480,6 +489,7 @@ fn setup_char_select_scene(
         selected.0,
         char_tf,
     );
+    let model_elapsed = model_start.elapsed();
     let mut children = vec![bg_node];
     if let Some((_, entity)) = &result {
         let (race, gender, model) = char_info_strings(&char_list, selected.0);
@@ -491,6 +501,14 @@ fn setup_char_select_scene(
     let fov = camera_params(scene_entry, placement.as_ref(), presentation).2;
     children.extend(scene_tree::light_scene_nodes(camera_entity, fov, None, dir));
     commands.insert_resource(scene_tree::build_scene_tree(children));
+    info!(
+        "setup_char_select_scene finished in {:.3}s (background={:.3}s camera={:.3}s sky+light={:.3}s model={:.3}s)",
+        total_start.elapsed().as_secs_f32(),
+        background_elapsed.as_secs_f32(),
+        camera_elapsed.as_secs_f32(),
+        sky_light_elapsed.as_secs_f32(),
+        model_elapsed.as_secs_f32(),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]

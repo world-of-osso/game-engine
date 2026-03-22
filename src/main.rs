@@ -208,6 +208,7 @@ fn run_app(
     let mut parsed = parse_run_args(args);
     parsed.initial_state = resolve_initial_state(parsed.initial_state, initial_state);
     let mut app = App::new();
+    app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     register_plugins(&mut app);
     configure_app_plugins(
         &mut app,

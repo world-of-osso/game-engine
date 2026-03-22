@@ -214,6 +214,56 @@ pub fn spawn_adt(
     })
 }
 
+/// Load an ADT file and spawn only the terrain mesh + water.
+///
+/// This avoids the expensive doodad/WMO path and is used by the fast
+/// char-select background so the screen becomes visible quickly.
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_adt_terrain_only(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<StandardMaterial>,
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    heightmap: &mut TerrainHeightmap,
+    adt_path: &Path,
+) -> Result<AdtSpawnResult, String> {
+    let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
+    let tile = AdtTile {
+        _tile_x: tile_x,
+        _tile_y: tile_y,
+    };
+    let adt_data = load_and_parse_adt(adt_path)?;
+    let tex_data = load_tex0(adt_path);
+    let ground_images = tex_data
+        .as_ref()
+        .map(|td| terrain_material::load_ground_images(images, td, adt_path));
+    let chunk_materials = terrain_material::build_terrain_materials(
+        terrain_materials,
+        images,
+        tex_data.as_ref(),
+        ground_images.as_deref(),
+    );
+    let root = spawn_chunk_entities(commands, meshes, &chunk_materials, &adt_data, &tile);
+    spawn_water(commands, meshes, water_materials, images, &adt_data);
+    heightmap.insert_tile(tile_y, tile_x, &adt_data);
+    log_adt_spawn(&adt_data, adt_path);
+
+    let (camera, center) = compute_spawn_result(&adt_data, None);
+    Ok(AdtSpawnResult {
+        camera,
+        center,
+        root_entity: root,
+        doodad_count: 0,
+        wmo_entities: Vec::new(),
+        spawned_object_entities: Vec::new(),
+        tile_y,
+        tile_x,
+        map_name,
+    })
+}
+
 /// Load and parse an ADT file from disk.
 fn load_and_parse_adt(adt_path: &Path) -> Result<adt::AdtData, String> {
     let (_, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;

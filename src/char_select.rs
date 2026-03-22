@@ -2,6 +2,7 @@ use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
 use lightyear::prelude::*;
+use std::time::Instant;
 
 use game_engine::ui::atlas;
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
@@ -51,6 +52,9 @@ struct CampsitePanelVisible(bool);
 #[derive(Resource, Default)]
 struct CharSelectFocus(Option<u64>);
 
+#[derive(Resource, Default)]
+struct CharSelectReadyLogged(bool);
+
 struct CharSelectScreenRes {
     screen: Screen,
     shared: ui_toolkit::screen::SharedContext,
@@ -71,6 +75,7 @@ impl Plugin for CharSelectPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedCharIndex>();
         app.init_resource::<CharSelectFocus>();
+        app.init_resource::<CharSelectReadyLogged>();
         app.add_systems(OnEnter(GameState::CharSelect), build_char_select_ui);
         app.add_systems(OnExit(GameState::CharSelect), teardown_char_select_ui);
         app.add_systems(
@@ -81,6 +86,7 @@ impl Plugin for CharSelectPlugin {
                 char_select_run_automation,
                 char_select_hover_visuals,
                 char_select_update_visuals,
+                report_char_select_ready,
                 auto_enter_world,
             )
                 .into_configs()
@@ -119,7 +125,10 @@ fn build_char_select_ui(
     char_list: Res<CharacterList>,
     preselected: Option<Res<PreselectedCharName>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mut ready_logged: ResMut<CharSelectReadyLogged>,
 ) {
+    let start = Instant::now();
+    ready_logged.0 = false;
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let initial_selected = preselected
         .as_ref()
@@ -146,6 +155,10 @@ fn build_char_select_ui(
     commands.insert_resource(CharSelectFocus(None));
     commands.insert_resource(CharSelectScreenWrap(CharSelectScreenRes { screen, shared }));
     commands.insert_resource(cs);
+    info!(
+        "build_char_select_ui finished in {:.3}s",
+        start.elapsed().as_secs_f32()
+    );
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, cs: &CharSelectUi) {
@@ -188,13 +201,35 @@ fn teardown_char_select_ui(
     mut ui: ResMut<UiState>,
     mut screen: Option<ResMut<CharSelectScreenWrap>>,
     mut commands: Commands,
+    mut ready_logged: ResMut<CharSelectReadyLogged>,
 ) {
     if let Some(res) = screen.as_mut() {
         res.0.screen.teardown(&mut ui.registry);
     }
+    ready_logged.0 = false;
     commands.remove_resource::<CharSelectScreenWrap>();
     commands.remove_resource::<CharSelectUi>();
     ui.focused_frame = None;
+}
+
+fn report_char_select_ready(
+    screen: Option<Res<CharSelectScreenWrap>>,
+    scene_tree: Option<Res<game_engine::scene_tree::SceneTree>>,
+    startup: Option<Res<crate::game_state::StartupPerfTimer>>,
+    mut ready_logged: ResMut<CharSelectReadyLogged>,
+) {
+    if ready_logged.0 || screen.is_none() || scene_tree.is_none() {
+        return;
+    }
+    if let Some(startup) = startup {
+        info!(
+            "CharSelect ready at app_t={:.3}s",
+            startup.0.elapsed().as_secs_f32()
+        );
+    } else {
+        info!("CharSelect ready");
+    }
+    ready_logged.0 = true;
 }
 
 // --- Input Handling ---

@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::time::Instant;
 
 use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
@@ -11,6 +12,9 @@ pub use game_engine::game_state_enum::GameState;
 
 #[derive(Resource)]
 pub struct InitialGameState(pub GameState);
+
+#[derive(Resource)]
+pub struct StartupPerfTimer(pub Instant);
 
 /// Resource tracking when we entered the Connecting state (for timeout).
 #[derive(Resource)]
@@ -43,6 +47,7 @@ fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>)
 
 fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
+    app.add_systems(OnEnter(GameState::CharSelect), on_enter_char_select);
     app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
     if has_server {
         app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
@@ -79,9 +84,35 @@ fn register_in_world_systems(app: &mut App) {
     );
 }
 
-fn on_enter_connecting(mut commands: Commands, time: Res<Time>) {
-    info!("Entering Connecting state at t={:.3}s", time.elapsed_secs_f64());
+fn on_enter_connecting(
+    mut commands: Commands,
+    time: Res<Time>,
+    startup: Option<Res<StartupPerfTimer>>,
+) {
+    if let Some(startup) = startup {
+        info!(
+            "Entering Connecting state at bevy_t={:.3}s app_t={:.3}s",
+            time.elapsed_secs_f64(),
+            startup.0.elapsed().as_secs_f32()
+        );
+    } else {
+        info!(
+            "Entering Connecting state at t={:.3}s",
+            time.elapsed_secs_f64()
+        );
+    }
     commands.insert_resource(ConnectingStartTime(time.elapsed_secs_f64()));
+}
+
+fn on_enter_char_select(startup: Option<Res<StartupPerfTimer>>) {
+    if let Some(startup) = startup {
+        info!(
+            "Entering CharSelect state at app_t={:.3}s",
+            startup.0.elapsed().as_secs_f32()
+        );
+    } else {
+        info!("Entering CharSelect state");
+    }
 }
 
 fn on_enter_in_world() {

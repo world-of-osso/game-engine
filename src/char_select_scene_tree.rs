@@ -31,18 +31,17 @@ pub fn spawn_warband_terrain(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
+    _effect_materials: &mut Assets<M2EffectMaterial>,
     terrain_materials: &mut Assets<TerrainMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
-    inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
+    _inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
     scene: &warband_scene::WarbandSceneEntry,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let adt_paths = warband_scene::ensure_warband_terrain_tiles(scene, 1);
-    if adt_paths.is_empty() {
+    let Some(adt_path) = warband_scene::local_warband_terrain(scene) else {
         return None;
-    }
+    };
     let root_entity = commands
         .spawn((
             Name::new("WarbandTerrain"),
@@ -52,50 +51,30 @@ pub fn spawn_warband_terrain(
             Visibility::default(),
         ))
         .id();
-    let mut doodad_count = 0usize;
-    let mut wmo_entities = Vec::new();
-    let mut spawned_object_entities = Vec::new();
-    let mut spawned_any = false;
-
-    for adt_path in adt_paths {
-        let Ok(result) = terrain::spawn_adt(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            terrain_materials,
-            water_materials,
-            images,
-            inv_bp,
-            heightmap,
-            &adt_path,
-        ) else {
-            continue;
-        };
-        spawned_any = true;
-        doodad_count += result.doodad_count;
-        wmo_entities.extend(result.wmo_entities);
-        spawned_object_entities.extend(result.spawned_object_entities);
-        commands.entity(root_entity).add_child(result.root_entity);
-        commands
-            .entity(result.root_entity)
-            .insert((CharSelectScene, CharSelectTerrain));
-    }
-
-    if !spawned_any {
+    let Ok(result) = terrain::spawn_adt_terrain_only(
+        commands,
+        meshes,
+        materials,
+        terrain_materials,
+        water_materials,
+        images,
+        heightmap,
+        &adt_path,
+    ) else {
         commands.entity(root_entity).despawn();
         return None;
-    }
+    };
+    commands.entity(root_entity).add_child(result.root_entity);
+    commands
+        .entity(result.root_entity)
+        .insert((CharSelectScene, CharSelectTerrain));
     commands
         .entity(root_entity)
         .insert((CharSelectScene, CharSelectTerrain));
-    for entity in &spawned_object_entities {
-        commands.entity(*entity).insert(CharSelectScene);
-    }
     Some(WarbandTerrainSpawnResult {
         root_entity,
-        doodad_count,
-        wmo_entities,
+        doodad_count: 0,
+        wmo_entities: Vec::new(),
     })
 }
 

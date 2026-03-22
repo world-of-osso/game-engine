@@ -161,6 +161,14 @@ pub fn ensure_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     ensure_adt_tile(&map_name, tile_y, tile_x)
 }
 
+/// Return the local root ADT path for a warband scene if it is already cached on disk.
+pub fn local_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
+    let map_name = scene.map_name();
+    let (tile_y, tile_x) = scene.tile_coords();
+    let local = PathBuf::from(format!("data/terrain/{map_name}_{tile_y}_{tile_x}.adt"));
+    local.exists().then_some(local)
+}
+
 /// Extract a square neighborhood of ADT tiles around the scene tile.
 pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry, radius: i32) -> Vec<PathBuf> {
     let map_name = scene.map_name();
