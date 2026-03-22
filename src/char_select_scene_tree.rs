@@ -151,7 +151,7 @@ pub fn light_scene_nodes(
     camera: Entity,
     fov: f32,
     ambient: Option<Entity>,
-    directional: Entity,
+    primary_light: Entity,
 ) -> Vec<SceneNode> {
     vec![
         SceneNode {
@@ -170,11 +170,11 @@ pub fn light_scene_nodes(
             children: vec![],
         },
         SceneNode {
-            label: "DirectionalLight".into(),
-            entity: Some(directional),
+            label: "PrimaryLight".into(),
+            entity: Some(primary_light),
             props: NodeProps::Light {
-                kind: "directional".into(),
-                intensity: 8000.0,
+                kind: "point".into(),
+                intensity: 220000.0,
             },
             children: vec![],
         },

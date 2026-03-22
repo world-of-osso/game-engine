@@ -7,7 +7,9 @@ use std::f32::consts::FRAC_PI_8;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use bevy::camera::ClearColorConfig;
 use bevy::input::mouse::AccumulatedMouseMotion;
+use bevy::light::GeneratedEnvironmentMapLight;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
@@ -28,7 +30,6 @@ use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
 use crate::sky::{self, SkyMaterial};
-use crate::sky_lightdata::default_sky_colors;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
@@ -60,14 +61,17 @@ const ORBIT_PITCH_LIMIT: f32 = 0.15; // ±~8.6°
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
 const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
-const CHAR_SELECT_FOG_START: f32 = 16.0;
-const CHAR_SELECT_FOG_END: f32 = 34.0;
+const CHAR_SELECT_FOG_START: f32 = 140.0;
+const CHAR_SELECT_FOG_END: f32 = 220.0;
+const CHAR_SELECT_ENV_MAP_INTENSITY: f32 = 70.0;
+const CHAR_SELECT_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
+const CHAR_SELECT_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
+const CHAR_SELECT_FOG_LIGHT_COLOR: Color = Color::srgb(0.35, 0.38, 0.42);
 
 fn char_select_fog() -> DistanceFog {
-    let colors = default_sky_colors();
     DistanceFog {
-        color: colors.sky_smog,
-        directional_light_color: colors.sky_band2,
+        color: CHAR_SELECT_FOG_COLOR,
+        directional_light_color: CHAR_SELECT_FOG_LIGHT_COLOR,
         directional_light_exponent: 8.0,
         falloff: FogFalloff::Linear {
             start: CHAR_SELECT_FOG_START,
@@ -234,6 +238,10 @@ fn spawn_char_select_camera(
             Name::new("CharSelectCamera"),
             CharSelectScene,
             Camera3d::default(),
+            Camera {
+                clear_color: ClearColorConfig::Custom(CHAR_SELECT_CLEAR_COLOR),
+                ..default()
+            },
             Projection::Perspective(PerspectiveProjection {
                 fov: fov.to_radians(),
                 ..default()
@@ -466,13 +474,21 @@ fn setup_char_select_scene(
     );
     let camera_elapsed = camera_start.elapsed();
     let sky_light_start = Instant::now();
-    sky::spawn_sky_dome(
+    let sky_dome = sky::spawn_sky_dome(
         &mut commands,
         &mut assets.meshes,
         &mut assets.sky_materials,
         &mut assets.images,
         camera_entity,
     );
+    commands.entity(sky_dome).insert(Visibility::Hidden);
+    commands.entity(camera_entity).insert((
+        char_select_fog(),
+        GeneratedEnvironmentMapLight {
+            intensity: CHAR_SELECT_ENV_MAP_INTENSITY,
+            ..default()
+        },
+    ));
     let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
     let sky_light_elapsed = sky_light_start.elapsed();
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
