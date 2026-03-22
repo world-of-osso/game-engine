@@ -135,6 +135,7 @@ const EYE_HEIGHT: f32 = 1.8;
 /// Speed at which camera recovers (lerps back out) after collision clears.
 const COLLISION_RECOVERY_SPEED: f32 = 5.0;
 const PITCH_LIMIT: f32 = 88.0_f32 * std::f32::consts::PI / 180.0;
+const LANDING_EPSILON: f32 = 0.05;
 
 fn apply_keyboard_camera(
     keys: &ButtonInput<KeyCode>,
@@ -344,8 +345,26 @@ fn apply_horizontal_movement(
         movement.jumping = true;
         physics.vertical_velocity = collision::JUMP_IMPULSE;
     }
-    if physics.grounded && movement.jumping && physics.vertical_velocity <= 0.0 {
+    if movement.jumping
+        && physics.vertical_velocity <= 0.0
+        && should_end_jump(transform, physics, terrain)
+    {
         movement.jumping = false;
+    }
+}
+
+fn should_end_jump(
+    transform: &Transform,
+    physics: &CharacterPhysics,
+    terrain: Option<&TerrainHeightmap>,
+) -> bool {
+    if !physics.grounded {
+        return false;
+    }
+
+    match terrain.and_then(|t| t.height_at(transform.translation.x, transform.translation.z)) {
+        Some(ground_y) => transform.translation.y <= ground_y + LANDING_EPSILON,
+        None => true,
     }
 }
 
@@ -482,6 +501,7 @@ fn camera_follow(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::terrain_heightmap::TerrainHeightmap;
 
     #[test]
     fn test_smooth_follow_lerps() {
@@ -573,6 +593,49 @@ mod tests {
             (recovered - 5.8).abs() < 0.5,
             "expected gradual recovery, got {}",
             recovered
+        );
+    }
+
+    #[test]
+    fn jump_state_stays_active_until_player_reaches_ground() {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt =
+            crate::asset::adt::load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
+        let mut heightmap = TerrainHeightmap::default();
+        heightmap.insert_tile(32, 48, &adt);
+
+        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+        let ground_y = heightmap
+            .height_at(bx, bz)
+            .expect("expected terrain at sample position");
+
+        let mut transform = Transform::from_xyz(bx, ground_y + 0.2, bz);
+        let mut movement = MovementState {
+            direction: MoveDirection::None,
+            running: true,
+            jumping: true,
+        };
+        let mut physics = CharacterPhysics {
+            vertical_velocity: -1.0,
+            grounded: true,
+        };
+        let keys = ButtonInput::<KeyCode>::default();
+
+        apply_horizontal_movement(
+            &mut transform,
+            &mut movement,
+            &mut physics,
+            &keys,
+            Vec3::ZERO,
+            0.0,
+            0.0,
+            Some(&heightmap),
+        );
+
+        assert!(
+            movement.jumping,
+            "jumping should stay active until the player actually reaches the ground"
         );
     }
 }

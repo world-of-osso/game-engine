@@ -11,7 +11,7 @@ use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 use crate::game_state::GameState;
 use crate::minimap_render::{
     blit_image, create_arrow_image, create_blank_image, create_border_image, crop_with_circle,
-    draw_dot, render_tile_image,
+    render_tile_image,
 };
 use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::ui::screens::inworld_hud_component;
@@ -95,11 +95,8 @@ fn register_minimap_systems(app: &mut App) {
         )
         .add_systems(
             Update,
-            draw_entity_dots
-                .after(update_minimap_composite)
-                .run_if(in_world.clone()),
+            update_coord_text.run_if(in_world.clone()),
         )
-        .add_systems(Update, update_coord_text.run_if(in_world.clone()))
         .add_systems(Update, update_zone_name.run_if(in_world.clone()))
         .add_systems(Update, rotate_minimap.run_if(in_world));
 }
@@ -505,77 +502,6 @@ fn zone_id_to_name(id: u32) -> &'static str {
     }
 }
 
-/// Draw colored dots for nearby remote entities onto the minimap image.
-fn draw_entity_dots(
-    player_q: Query<&Transform, With<crate::camera::Player>>,
-    remote_q: Query<
-        (&Transform, &Visibility, Option<&shared::components::Npc>),
-        With<crate::networking::RemoteEntity>,
-    >,
-    composite_res: Option<Res<MinimapComposite>>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let Ok(player_tf) = player_q.single() else {
-        return;
-    };
-    let Some(composite_res) = composite_res else {
-        return;
-    };
-    let Some(img) = images.get_mut(&composite_res.handle) else {
-        return;
-    };
-    let Some(data) = img.data.as_mut() else {
-        return;
-    };
-
-    let ds = MINIMAP_DISPLAY_SIZE as usize;
-    let center = ds as f32 / 2.0;
-    let yards_per_pixel = crate::asset::adt::CHUNK_SIZE * 16.0 / MINIMAP_TILE_SIZE as f32;
-
-    for (tf, visibility, npc) in &remote_q {
-        if !entity_should_draw_on_minimap(*visibility) {
-            continue;
-        }
-        draw_entity_dot(
-            data,
-            ds,
-            center,
-            yards_per_pixel,
-            player_tf,
-            tf,
-            npc.is_some(),
-        );
-    }
-}
-
-fn entity_should_draw_on_minimap(visibility: Visibility) -> bool {
-    matches!(visibility, Visibility::Inherited | Visibility::Visible)
-}
-
-fn draw_entity_dot(
-    data: &mut [u8],
-    ds: usize,
-    center: f32,
-    yards_per_pixel: f32,
-    player_tf: &Transform,
-    entity_tf: &Transform,
-    is_npc: bool,
-) {
-    let dx = entity_tf.translation.x - player_tf.translation.x;
-    let dz = entity_tf.translation.z - player_tf.translation.z;
-    let px = center + dz / yards_per_pixel;
-    let py = center - dx / yards_per_pixel;
-    if ((px - center).powi(2) + (py - center).powi(2)).sqrt() > center - 3.0 {
-        return;
-    }
-    let color = if is_npc {
-        [255, 200, 0, 255]
-    } else {
-        [0, 255, 0, 255]
-    };
-    draw_dot(data, ds, px as i32, py as i32, &color);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -758,11 +684,6 @@ mod tests {
             (MINIMAP_TILE_SIZE as usize..(MINIMAP_TILE_SIZE * 2) as usize).contains(&px_y),
             "expected y to stay in center tile, got {px_y}"
         );
-    }
-
-    #[test]
-    fn hidden_entities_do_not_draw_on_minimap() {
-        assert!(!entity_should_draw_on_minimap(Visibility::Hidden));
     }
 
     #[test]
