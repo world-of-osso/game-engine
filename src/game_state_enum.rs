@@ -11,17 +11,19 @@ pub enum GameState {
     CharCreate,
     Loading,
     InWorld,
+    TrashButton,
     Reconnecting,
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 7] = [
+    pub const CLI_VALUES: [&str; 8] = [
         "login",
         "connecting",
         "charselect",
         "charcreate",
         "loading",
         "inworld",
+        "trashbutton",
         "reconnecting",
     ];
 
@@ -33,6 +35,7 @@ impl GameState {
             Self::CharCreate => "charcreate",
             Self::Loading => "loading",
             Self::InWorld => "inworld",
+            Self::TrashButton => "trashbutton",
             Self::Reconnecting => "reconnecting",
         }
     }
@@ -49,6 +52,7 @@ impl FromStr for GameState {
             "charcreate" => Ok(Self::CharCreate),
             "loading" => Ok(Self::Loading),
             "inworld" => Ok(Self::InWorld),
+            "trashbutton" => Ok(Self::TrashButton),
             "reconnecting" => Ok(Self::Reconnecting),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
@@ -62,15 +66,17 @@ pub enum ScreenArg {
     CharCreate,
     CharCreateCustomize,
     InWorld,
+    TrashButton,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 5] = [
+    pub const CLI_VALUES: [&str; 6] = [
         "login",
         "charselect",
         "charcreate",
         "charcreate-customize",
         "inworld",
+        "trashbutton",
     ];
 }
 
@@ -81,6 +87,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::CharSelect => Self::CharSelect,
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::InWorld => Self::InWorld,
+            ScreenArg::TrashButton => Self::TrashButton,
         }
     }
 }
@@ -95,6 +102,7 @@ impl FromStr for ScreenArg {
             "charcreate" => Ok(Self::CharCreate),
             "charcreate-customize" => Ok(Self::CharCreateCustomize),
             "inworld" => Ok(Self::InWorld),
+            "trashbutton" => Ok(Self::TrashButton),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
     }

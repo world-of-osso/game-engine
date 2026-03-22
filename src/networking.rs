@@ -407,10 +407,7 @@ fn handle_client_disconnected(
         .as_deref()
         .and_then(|selected| selected.character_id);
     let reconnect_phase = reconnect.as_deref().map(|state| state.phase);
-    let reason = disconnected
-        .reason
-        .as_deref()
-        .unwrap_or("connection lost");
+    let reason = disconnected.reason.as_deref().unwrap_or("connection lost");
     warn!(
         "Client entity {:?} disconnected in {:?}: {reason}; token={} selected_id={selected_id:?} selected_name={selected_name:?} reconnect_phase={reconnect_phase:?}",
         trigger.entity,
@@ -463,14 +460,14 @@ fn handle_client_disconnected(
                 reconnect.phase
             );
         }
-        crate::game_state::GameState::Connecting
-        => {
+        crate::game_state::GameState::Connecting => {
             info!(
                 "Disconnect handling: ignoring transient disconnect while still connecting for client entity {:?}",
                 trigger.entity
             );
         }
         crate::game_state::GameState::CharCreate
+        | crate::game_state::GameState::TrashButton
         | crate::game_state::GameState::Loading
         | crate::game_state::GameState::Reconnecting => {
             warn!(
@@ -1150,7 +1147,8 @@ pub(crate) fn reset_network_world(world: &mut World) {
         }
     }
 
-    if let Some(mut current_target) = world.get_resource_mut::<game_engine::targeting::CurrentTarget>()
+    if let Some(mut current_target) =
+        world.get_resource_mut::<game_engine::targeting::CurrentTarget>()
     {
         current_target.0 = None;
     }

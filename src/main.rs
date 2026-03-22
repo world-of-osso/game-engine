@@ -69,6 +69,7 @@ mod terrain_lod;
 mod terrain_material;
 mod terrain_objects;
 mod terrain_tile;
+mod trash_button_screen;
 mod warband_scene;
 mod water_material;
 mod wow_cursor;
@@ -411,6 +412,7 @@ fn configure_app_plugins(
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
     app.add_plugins(char_create::CharCreatePlugin);
     app.add_plugins(char_create_scene::CharCreateScenePlugin);
+    app.add_plugins(trash_button_screen::TrashButtonScreenPlugin);
     app.add_systems(
         OnEnter(game_state::GameState::InWorld),
         setup_default_world_scene,
@@ -710,6 +712,11 @@ mod tests {
             .expect("expected valid parse")
             .expect("expected charcreate customize");
         assert_eq!(parsed, game_state::GameState::CharCreate);
+
+        let parsed = parse_state_arg(&args(&["--screen", "trashbutton"]))
+            .expect("expected valid parse")
+            .expect("expected trashbutton");
+        assert_eq!(parsed, game_state::GameState::TrashButton);
     }
 
     #[test]
@@ -718,7 +725,7 @@ mod tests {
             .expect_err("connecting should be rejected for --screen");
         assert_eq!(
             err,
-            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, charcreate-customize, inworld"
+            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, charcreate-customize, inworld, trashbutton"
         );
     }
 
@@ -829,7 +836,10 @@ mod tests {
     fn parse_run_args_login_dev_admin_forces_login_flow() {
         let parsed = parse_run_args_with_saved_token(&args(&["--login-dev-admin"]), true);
 
-        assert_eq!(parsed.initial_state, Some(game_state::GameState::Connecting));
+        assert_eq!(
+            parsed.initial_state,
+            Some(game_state::GameState::Connecting)
+        );
         assert_eq!(
             parsed.server_addr,
             Some(("127.0.0.1:5000".parse().unwrap(), true))

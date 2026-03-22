@@ -48,6 +48,7 @@ fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>)
 fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
     app.add_systems(OnEnter(GameState::CharSelect), on_enter_char_select);
+    app.add_systems(OnEnter(GameState::TrashButton), on_enter_trash_button);
     app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
     if has_server {
         app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
@@ -117,6 +118,10 @@ fn on_enter_char_select(startup: Option<Res<StartupPerfTimer>>) {
 
 fn on_enter_in_world() {
     info!("Entering InWorld state — game systems active");
+}
+
+fn on_enter_trash_button() {
+    info!("Entering TrashButton state");
 }
 
 /// Spawn world environment (lights, sky dome) when entering InWorld in server mode.
@@ -233,6 +238,7 @@ mod tests {
             GameState::CharCreate,
             GameState::Loading,
             GameState::InWorld,
+            GameState::TrashButton,
             GameState::Reconnecting,
         ];
         // States must be Eq + Hash + Clone + Copy (compile-time check via usage).

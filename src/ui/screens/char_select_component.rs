@@ -9,6 +9,7 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 use super::campsite_component::{campsite_panel, campsite_tab};
+use super::trash_button_component::trash_icon_button;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CharSelectAction {
@@ -119,8 +120,6 @@ const BIG_BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BIG_BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BIG_BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
-const DELETE_ICON_FILE: &str = "output/imagegen/delete-trash-icon.ktx2";
-
 const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-tophud-left-bg";
 const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-tophud-middle-bg";
 const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-tophud-right-bg";
@@ -564,40 +563,16 @@ fn create_char_button() -> Element {
 }
 
 fn delete_char_button() -> Element {
-    rsx! {
-        button {
-            name: DELETE_CHAR_BUTTON,
-            width: 46.0,
-            height: 42.0,
-            text: "",
-            font_size: 14.0,
-            onclick: CharSelectAction::DeleteChar,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_to: CHAR_LIST_PANEL,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-18",
-                y: "64",
-            }
-            texture {
-                name: "DeleteCharIcon",
-                width: 24.0,
-                height: 24.0,
-                texture_file: DELETE_ICON_FILE,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: DELETE_CHAR_BUTTON,
-                    relative_point: AnchorPoint::Center,
-                    x: "0",
-                    y: "0",
-                }
-            }
-        }
-    }
+    trash_icon_button(
+        DELETE_CHAR_BUTTON,
+        FrameName("DeleteCharIcon"),
+        CharSelectAction::DeleteChar,
+        AnchorPoint::BottomRight,
+        Some(CHAR_LIST_PANEL),
+        AnchorPoint::BottomRight,
+        -18.0,
+        64.0,
+    )
 }
 
 fn back_button() -> Element {
