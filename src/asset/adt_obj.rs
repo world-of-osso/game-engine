@@ -231,6 +231,8 @@ fn parse_mddf(
         .collect()
 }
 
+/// MODF flag: scale field is valid (Legion+). Without this, scale defaults to 1.0.
+const MODF_FLAG_HAS_SCALE: u16 = 0x4;
 /// MODF flag: name_id is a FileDataID, not an MWID index.
 const MODF_FLAG_FILEDATAID: u16 = 0x8;
 
@@ -264,6 +266,12 @@ fn parse_modf_entry(
     let name_set = read_u16(data, base + 60)?;
     let scale_raw = read_u16(data, base + 62)?;
     let (fdid, path) = resolve_wmo(name_id, flags, string_table, offset_table);
+    // MODF flag 0x4: scale field is valid (Legion+). Without it, default to 1.0.
+    let scale = if (flags & MODF_FLAG_HAS_SCALE) != 0 {
+        scale_raw as f32 / 1024.0
+    } else {
+        1.0
+    };
 
     Ok(WmoPlacement {
         name_id,
@@ -273,7 +281,7 @@ fn parse_modf_entry(
         flags,
         doodad_set,
         name_set,
-        scale: scale_raw as f32 / 1024.0,
+        scale,
         fdid,
         path,
     })

@@ -2,7 +2,6 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 use super::adt::ChunkIter;
-use super::m2::wow_to_bevy;
 
 // ── primitive readers ────────────────────────────────────────────────────────
 
@@ -91,6 +90,16 @@ pub struct WmoGroupBatch {
     pub mesh: Mesh,
     pub material_index: u16,
     pub has_vertex_color: bool,
+}
+
+/// Convert WMO-local coordinates to Bevy.
+///
+/// WMO local space uses the same Z-up axes as world space, but our
+/// `placement_to_bevy_absolute` position conversion remaps axes differently
+/// from noggit3 (which uses raw WoW coords). The mapping `[-x, z, y]` was
+/// verified by matching rotated vertex corners against MODF bounding boxes.
+pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
+    [-x, z, y]
 }
 
 /// Type alias for the return value of `parse_mopt`: portals and their vertex ranges.
@@ -470,7 +479,7 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
     let positions: Vec<[f32; 3]> = raw
         .vertices
         .iter()
-        .map(|v| wow_to_bevy(v[0], v[1], v[2]))
+        .map(|v| wmo_local_to_bevy(v[0], v[1], v[2]))
         .collect();
     let normals = convert_normals(&raw.normals, positions.len());
     let uvs = convert_uvs(&raw.uvs, positions.len());
@@ -523,12 +532,12 @@ fn extract_batch_vertices(
 ) -> BatchVertexAttribs {
     let positions: Vec<[f32; 3]> = raw.vertices[vmin..=vmax]
         .iter()
-        .map(|v| wow_to_bevy(v[0], v[1], v[2]))
+        .map(|v| wmo_local_to_bevy(v[0], v[1], v[2]))
         .collect();
     let normals = if raw.normals.len() > vmax {
         raw.normals[vmin..=vmax]
             .iter()
-            .map(|n| wow_to_bevy(n[0], n[1], n[2]))
+            .map(|n| wmo_local_to_bevy(n[0], n[1], n[2]))
             .collect()
     } else {
         vec![[0.0, 1.0, 0.0]; vert_count]
@@ -560,7 +569,9 @@ fn extract_batch_colors(raw: &RawGroupData, vmin: usize, vmax: usize) -> Option<
 
 fn convert_normals(src: &[[f32; 3]], expected: usize) -> Vec<[f32; 3]> {
     if src.len() == expected {
-        src.iter().map(|n| wow_to_bevy(n[0], n[1], n[2])).collect()
+        src.iter()
+            .map(|n| wmo_local_to_bevy(n[0], n[1], n[2]))
+            .collect()
     } else {
         vec![[0.0, 1.0, 0.0]; expected]
     }
@@ -676,7 +687,7 @@ mod tests {
                     let mut packed = Vec::with_capacity(9);
                     for &index in tri {
                         let pos = raw.vertices[index as usize];
-                        let pos = wow_to_bevy(pos[0], pos[1], pos[2]);
+                        let pos = wmo_local_to_bevy(pos[0], pos[1], pos[2]);
                         packed.extend(pos.into_iter().map(f32::to_bits));
                     }
                     expected.push(packed);

@@ -50,6 +50,7 @@ fn spawn_anim_and_particles(
     attachments: Vec<asset::m2_attach::M2Attachment>,
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,
+    visual_root: Entity,
     default_main_hand_torch: bool,
 ) {
     let joint_entities =
@@ -61,7 +62,7 @@ fn spawn_anim_and_particles(
         images,
         &particle_emitters,
         skinning,
-        model_entity,
+        visual_root,
     );
     if let Some(joints) = joint_entities {
         commands.entity(model_entity).insert(M2AnimData {
@@ -193,6 +194,8 @@ fn attach_m2_model_parts(
         attachments,
         ..
     } = model;
+    let visual_root =
+        m2_spawn::ensure_grounded_model_root(commands, model_entity, m2_spawn::ground_offset_y(&batches));
     let skinning = m2_spawn::attach_m2_batches(
         commands,
         &mut m2_spawn::SpawnAssets {
@@ -204,7 +207,7 @@ fn attach_m2_model_parts(
         },
         batches,
         &bones,
-        model_entity,
+        visual_root,
     );
     spawn_anim_and_particles(
         commands,
@@ -218,6 +221,7 @@ fn attach_m2_model_parts(
         attachments,
         &skinning,
         model_entity,
+        visual_root,
         default_main_hand_torch,
     );
 }

@@ -216,11 +216,9 @@ fn doodad_transform(
 
 /// Convert WoW MDDF/MODF Euler rotation (degrees) to a Bevy quaternion.
 ///
-/// WoW stores rotation as [X, Y, Z] degrees. After `placement_to_bevy` and
-/// `wow_to_bevy` swizzle positions/vertices into Bevy space, the placement
-/// rotation can be applied directly in that same basis:
-///   Ry(Y) * Rz(-X) * Rx(Z)
-/// An earlier `-90°` yaw adjustment here rotated world objects sideways.
+/// WoW stores rotation as [X, Y, Z] degrees. Both noggit3 and wowmapviewer
+/// apply a -90° yaw offset after the Z-up → Y-up vertex swizzle:
+///   Ry(Y - 90) * Rz(-X) * Rx(Z)
 fn placement_rotation(rot: [f32; 3]) -> Quat {
     let rx = rot[2].to_radians();
     let ry = rot[1].to_radians();
@@ -386,7 +384,7 @@ fn build_portal_graph(root: &wmo::WmoRootData) -> game_engine::culling::WmoPorta
                 .iter()
                 .map(|vertex| {
                     let [x, y, z] = *vertex;
-                    Vec3::from(crate::asset::m2::wow_to_bevy(x, y, z))
+                    Vec3::from(crate::asset::wmo::wmo_local_to_bevy(x, y, z))
                 })
                 .collect()
         })
@@ -481,13 +479,20 @@ fn spawn_wmo_group(
 
 /// Build a `WmoGroup` component from MOGI bounding box data.
 fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling::WmoGroup {
-    use crate::asset::m2::wow_to_bevy;
     let (bbox_min, bbox_max) = root
         .group_infos
         .get(group_index as usize)
         .map(|info| {
-            let min = wow_to_bevy(info.bbox_min[0], info.bbox_min[1], info.bbox_min[2]);
-            let max = wow_to_bevy(info.bbox_max[0], info.bbox_max[1], info.bbox_max[2]);
+            let min = crate::asset::wmo::wmo_local_to_bevy(
+                info.bbox_min[0],
+                info.bbox_min[1],
+                info.bbox_min[2],
+            );
+            let max = crate::asset::wmo::wmo_local_to_bevy(
+                info.bbox_max[0],
+                info.bbox_max[1],
+                info.bbox_max[2],
+            );
             // wow_to_bevy can flip min/max, so re-sort per axis
             (
                 Vec3::new(min[0].min(max[0]), min[1].min(max[1]), min[2].min(max[2])),
