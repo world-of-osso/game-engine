@@ -119,6 +119,7 @@ const BIG_BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BIG_BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BIG_BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
+const DELETE_ICON_FILE: &str = "output/imagegen/delete-trash-icon.ktx2";
 
 const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-tophud-left-bg";
 const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-tophud-middle-bg";
@@ -568,8 +569,8 @@ fn delete_char_button() -> Element {
             name: DELETE_CHAR_BUTTON,
             width: 46.0,
             height: 42.0,
-            text: "X",
-            font_size: 18.0,
+            text: "",
+            font_size: 14.0,
             onclick: CharSelectAction::DeleteChar,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
@@ -581,6 +582,19 @@ fn delete_char_button() -> Element {
                 relative_point: AnchorPoint::BottomRight,
                 x: "-18",
                 y: "64",
+            }
+            texture {
+                name: "DeleteCharIcon",
+                width: 24.0,
+                height: 24.0,
+                texture_file: DELETE_ICON_FILE,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_to: DELETE_CHAR_BUTTON,
+                    relative_point: AnchorPoint::Center,
+                    x: "0",
+                    y: "0",
+                }
             }
         }
     }

@@ -741,6 +741,49 @@ mod tests {
     }
 
     #[test]
+    fn selected_character_shows_delete_button_with_empty_text_and_icon_child() {
+        let reg = build_screen(CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "TestChar".to_string(),
+                info: "Level 60   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            ..Default::default()
+        });
+
+        let delete_id = reg.get_by_name("DeleteChar").expect("DeleteChar");
+        let delete_frame = reg.get(delete_id).expect("delete frame");
+        let Some(WidgetData::Button(button)) = delete_frame.widget_data.as_ref() else {
+            panic!("DeleteChar should be a button");
+        };
+        assert_eq!(button.text, "");
+
+        let icon_id = reg.get_by_name("DeleteCharIcon").expect("DeleteCharIcon");
+        let icon_frame = reg.get(icon_id).expect("icon frame");
+        assert_eq!(icon_frame.parent_id, Some(delete_id));
+
+        let Some(WidgetData::Texture(icon_texture)) = icon_frame.widget_data.as_ref() else {
+            panic!("DeleteCharIcon should be a texture");
+        };
+        assert!(
+            matches!(
+                &icon_texture.source,
+                game_engine::ui::widgets::texture::TextureSource::File(path)
+                    if path == "output/imagegen/delete-trash-icon.ktx2"
+            ),
+            "DeleteCharIcon should point at the generated trash icon texture"
+        );
+    }
+
+    #[test]
+    fn no_selection_hides_delete_button_and_icon() {
+        let reg = build_screen(CharSelectState::default());
+        assert!(reg.get_by_name("DeleteChar").is_none());
+        assert!(reg.get_by_name("DeleteCharIcon").is_none());
+    }
+
+    #[test]
     fn character_cards_use_tinted_atlas_textures_without_css_border() {
         let reg = build_screen(CharSelectState {
             characters: vec![CharDisplayEntry {
