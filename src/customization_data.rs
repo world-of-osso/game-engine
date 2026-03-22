@@ -73,13 +73,32 @@ impl OptionType {
 }
 
 #[derive(Debug, Clone)]
+pub struct ChoiceMaterial {
+    pub related_choice_id: u32,
+    pub target_id: u16,
+    pub fdid: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChoiceGeoset {
+    pub related_choice_id: u32,
+    pub geoset_type: u16,
+    pub geoset_id: u16,
+}
+
+#[derive(Debug, Clone)]
 pub struct CustomizationChoice {
+    pub id: u32,
     pub display_name: String,
     pub requirement_id: u32,
     /// (ChrModelTextureTargetID, resolved FDID)
     pub materials: Vec<(u16, u32)>,
+    /// Materials gated by another selected customization choice.
+    pub related_materials: Vec<ChoiceMaterial>,
     /// (GeosetType, GeosetID)
     pub geosets: Vec<(u16, u16)>,
+    /// Geosets gated by another selected customization choice.
+    pub related_geosets: Vec<ChoiceGeoset>,
     sample_swatch: bool,
     /// Representative RGB color sampled from the primary texture (center pixel).
     swatch_color_cache: Arc<OnceLock<Option<[u8; 3]>>>,
@@ -345,14 +364,18 @@ fn resolve_option_choices(
     let mut sorted: Vec<_> = raw_choices
         .iter()
         .map(|ch| {
-            let (materials, geosets) = resolve_choice_elements(ch.id, indexed, raw);
+            let (materials, related_materials, geosets, related_geosets) =
+                resolve_choice_elements(ch.id, indexed, raw);
             (
                 ch.order_index,
                 CustomizationChoice {
+                    id: ch.id,
                     display_name: ch.name.clone(),
                     requirement_id: ch.requirement_id,
                     materials,
+                    related_materials,
                     geosets,
+                    related_geosets,
                     sample_swatch,
                     swatch_color_cache: Arc::new(OnceLock::new()),
                 },
@@ -406,7 +429,12 @@ fn option_visible_for_class(race: u8, class: u8, opt_type: OptionType) -> bool {
     }
 }
 
-type ChoiceElements = (Vec<(u16, u32)>, Vec<(u16, u16)>);
+type ChoiceElements = (
+    Vec<(u16, u32)>,
+    Vec<ChoiceMaterial>,
+    Vec<(u16, u16)>,
+    Vec<ChoiceGeoset>,
+);
 
 fn resolve_choice_elements(
     choice_id: u32,
@@ -414,24 +442,42 @@ fn resolve_choice_elements(
     raw: &RawData,
 ) -> ChoiceElements {
     let mut materials = Vec::new();
+    let mut related_materials = Vec::new();
     let mut geosets = Vec::new();
+    let mut related_geosets = Vec::new();
     let Some(elements) = indexed.elements_by_choice.get(&choice_id) else {
-        return (materials, geosets);
+        return (materials, related_materials, geosets, related_geosets);
     };
     for el in elements {
         if el.material_id > 0
             && let Some(mat) = raw.materials.get(&el.material_id)
             && let Some(&fdid) = raw.texture_fdids.get(&mat.material_resources_id)
         {
-            materials.push((mat.texture_target_id, fdid));
+            if el.related_choice_id > 0 {
+                related_materials.push(ChoiceMaterial {
+                    related_choice_id: el.related_choice_id,
+                    target_id: mat.texture_target_id,
+                    fdid,
+                });
+            } else {
+                materials.push((mat.texture_target_id, fdid));
+            }
         }
         if el.geoset_id > 0
             && let Some(geo) = raw.geosets.get(&el.geoset_id)
         {
-            geosets.push((geo.geoset_type, geo.geoset_id));
+            if el.related_choice_id > 0 {
+                related_geosets.push(ChoiceGeoset {
+                    related_choice_id: el.related_choice_id,
+                    geoset_type: geo.geoset_type,
+                    geoset_id: geo.geoset_id,
+                });
+            } else {
+                geosets.push((geo.geoset_type, geo.geoset_id));
+            }
         }
     }
-    (materials, geosets)
+    (materials, related_materials, geosets, related_geosets)
 }
 
 // --- CSV parsing (manual, no csv crate) ---
@@ -480,6 +526,7 @@ struct RawChoice {
 }
 struct RawElement {
     choice_id: u32,
+    related_choice_id: u32,
     geoset_id: u32,
     material_id: u32,
 }
@@ -614,12 +661,14 @@ fn parse_choices(path: &Path) -> Result<Vec<RawChoice>, String> {
 fn parse_elements(path: &Path) -> Result<Vec<RawElement>, String> {
     let (h, rows) = read_csv(path)?;
     let choice = col_idx(&h, "ChrCustomizationChoiceID")?;
+    let related_choice = col_idx(&h, "RelatedChrCustomizationChoiceID")?;
     let geoset = col_idx(&h, "ChrCustomizationGeosetID")?;
     let material = col_idx(&h, "ChrCustomizationMaterialID")?;
     Ok(rows
         .iter()
         .map(|r| RawElement {
             choice_id: field_u32(r, choice),
+            related_choice_id: field_u32(r, related_choice),
             geoset_id: field_u32(r, geoset),
             material_id: field_u32(r, material),
         })

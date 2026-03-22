@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use game_engine::asset::char_texture::CharTextureData;
@@ -106,6 +108,7 @@ pub(crate) fn collect_appearance_materials(
     selection: CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> Vec<(u16, u32)> {
+    let selected_choice_ids = selected_choice_ids(selection, customization_db);
     let fields = [
         (OptionType::SkinColor, selection.appearance.skin_color),
         (OptionType::Face, selection.appearance.face),
@@ -123,6 +126,13 @@ pub(crate) fn collect_appearance_materials(
             index,
         ) {
             all.extend_from_slice(&choice.materials);
+            all.extend(
+                choice
+                    .related_materials
+                    .iter()
+                    .filter(|material| selected_choice_ids.contains(&material.related_choice_id))
+                    .map(|material| (material.target_id, material.fdid)),
+            );
         }
     }
     all
@@ -138,6 +148,7 @@ fn apply_geoset_visibility(
     visibility_query: &mut Query<&mut Visibility>,
 ) {
     let mut active_geosets: Vec<(u16, u16)> = Vec::new();
+    let selected_choice_ids = selected_choice_ids(selection, customization_db);
     let fields = [
         (OptionType::HairStyle, selection.appearance.hair_style),
         (OptionType::FacialHair, selection.appearance.facial_style),
@@ -151,6 +162,13 @@ fn apply_geoset_visibility(
             index,
         ) {
             active_geosets.extend_from_slice(&choice.geosets);
+            active_geosets.extend(
+                choice
+                    .related_geosets
+                    .iter()
+                    .filter(|geoset| selected_choice_ids.contains(&geoset.related_choice_id))
+                    .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
+            );
         }
     }
 
@@ -196,6 +214,33 @@ fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
     matches!(mesh_part_id, 0 | 1 | 16 | 17 | 27..=33) || mesh_part_id == selected_variant
 }
 
+fn selected_choice_ids(
+    selection: CharacterCustomizationSelection,
+    customization_db: &CustomizationDb,
+) -> HashSet<u32> {
+    let fields = [
+        (OptionType::SkinColor, selection.appearance.skin_color),
+        (OptionType::Face, selection.appearance.face),
+        (OptionType::HairStyle, selection.appearance.hair_style),
+        (OptionType::HairColor, selection.appearance.hair_color),
+        (OptionType::FacialHair, selection.appearance.facial_style),
+    ];
+    fields
+        .into_iter()
+        .filter_map(|(opt_type, index)| {
+            customization_db
+                .get_choice_for_class(
+                    selection.race,
+                    selection.sex,
+                    selection.class,
+                    opt_type,
+                    index,
+                )
+                .map(|choice| choice.id)
+        })
+        .collect()
+}
+
 fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
     let mut current = entity;
     loop {
@@ -212,7 +257,12 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 
 #[cfg(test)]
 mod tests {
-    use super::group_zero_visible;
+    use super::{
+        CharacterCustomizationSelection, collect_appearance_materials, group_zero_visible,
+    };
+    use game_engine::customization_data::CustomizationDb;
+    use shared::components::CharacterAppearance;
+    use std::path::Path;
 
     #[test]
     fn hairstyle_group_zero_keeps_base_body_segments_visible() {
@@ -225,5 +275,57 @@ mod tests {
 
         assert!(!group_zero_visible(5, 2));
         assert!(!group_zero_visible(18, 2));
+    }
+
+    #[test]
+    fn face_materials_resolve_against_selected_skin_color() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let base = CharacterCustomizationSelection {
+            race: 1,
+            class: 1,
+            sex: 0,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 0,
+                face: 0,
+                hair_style: 0,
+                hair_color: 0,
+                facial_style: 0,
+            },
+        };
+        let skin0 = collect_appearance_materials(base, &db);
+        let skin1 = collect_appearance_materials(
+            CharacterCustomizationSelection {
+                appearance: CharacterAppearance {
+                    skin_color: 1,
+                    ..base.appearance
+                },
+                ..base
+            },
+            &db,
+        );
+
+        let face0: Vec<_> = skin0
+            .iter()
+            .filter(|(target_id, _)| *target_id == 5)
+            .map(|(_, fdid)| *fdid)
+            .collect();
+        let face1: Vec<_> = skin1
+            .iter()
+            .filter(|(target_id, _)| *target_id == 5)
+            .map(|(_, fdid)| *fdid)
+            .collect();
+
+        assert_eq!(
+            face0.len(),
+            1,
+            "skin color 0 should resolve one face texture"
+        );
+        assert_eq!(
+            face1.len(),
+            1,
+            "skin color 1 should resolve one face texture"
+        );
+        assert_ne!(face0[0], face1[0], "face texture should vary by skin color");
     }
 }
