@@ -3,6 +3,10 @@ use game_engine::customization_data::ModelPresentation;
 
 use super::{CharSelectScene, camera_params};
 
+const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 18.0;
+const CHAR_SELECT_DIRECTIONAL_ILLUMINANCE: f32 = 3_600.0;
+const CHAR_SELECT_FILL_INTENSITY: f32 = 10_000.0;
+
 fn light_transform(eye: Vec3, focus: Vec3) -> Transform {
     let cam_dir = (focus - eye).normalize_or_zero();
     let right = cam_dir.cross(Vec3::Y).normalize_or_zero();
@@ -20,11 +24,11 @@ fn spawn_front_fill_light(commands: &mut Commands, eye: Vec3, focus: Vec3) {
         Name::new("FrontFillLight"),
         CharSelectScene,
         PointLight {
-            intensity: 70_000.0,
-            range: 12.0,
-            radius: 1.5,
+            intensity: CHAR_SELECT_FILL_INTENSITY,
+            range: 10.0,
+            radius: 1.2,
             shadows_enabled: false,
-            color: Color::srgb(1.0, 0.94, 0.86),
+            color: Color::srgb(0.96, 0.83, 0.7),
             ..default()
         },
         Transform::from_translation(fill_pos),
@@ -38,8 +42,8 @@ pub fn spawn(
     presentation: ModelPresentation,
 ) -> Entity {
     commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(1.0, 0.95, 0.85),
-        brightness: 70.0,
+        color: Color::srgb(0.62, 0.66, 0.72),
+        brightness: CHAR_SELECT_AMBIENT_BRIGHTNESS,
         ..default()
     });
     let (eye, focus, _) = camera_params(scene, placement, presentation);
@@ -48,9 +52,9 @@ pub fn spawn(
             Name::new("DirectionalLight"),
             CharSelectScene,
             DirectionalLight {
-                illuminance: 2200.0,
+                illuminance: CHAR_SELECT_DIRECTIONAL_ILLUMINANCE,
                 shadows_enabled: true,
-                color: Color::srgb(1.0, 0.92, 0.8),
+                color: Color::srgb(1.0, 0.88, 0.75),
                 ..default()
             },
             light_transform(eye, focus),

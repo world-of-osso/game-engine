@@ -31,11 +31,11 @@ pub fn spawn_warband_terrain(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    _effect_materials: &mut Assets<M2EffectMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     terrain_materials: &mut Assets<TerrainMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
-    _inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
+    inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
     scene: &warband_scene::WarbandSceneEntry,
 ) -> Option<WarbandTerrainSpawnResult> {
@@ -51,13 +51,15 @@ pub fn spawn_warband_terrain(
             Visibility::default(),
         ))
         .id();
-    let Ok(result) = terrain::spawn_adt_terrain_only(
+    let Ok(result) = terrain::spawn_adt(
         commands,
         meshes,
         materials,
+        effect_materials,
         terrain_materials,
         water_materials,
         images,
+        inv_bp,
         heightmap,
         &adt_path,
     ) else {
@@ -73,8 +75,8 @@ pub fn spawn_warband_terrain(
         .insert((CharSelectScene, CharSelectTerrain));
     Some(WarbandTerrainSpawnResult {
         root_entity,
-        doodad_count: 0,
-        wmo_entities: Vec::new(),
+        doodad_count: result.doodad_count,
+        wmo_entities: result.wmo_entities,
     })
 }
 
