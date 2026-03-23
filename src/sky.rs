@@ -8,6 +8,7 @@ use bevy::render::render_resource::{
     Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension,
 };
 
+use crate::char_select_scene::CharSelectScene;
 use crate::game_state::GameState;
 use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
@@ -282,7 +283,7 @@ fn update_sun_direction(
 fn update_fog(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
-    mut fog_q: Query<&mut DistanceFog>,
+    mut fog_q: Query<&mut DistanceFog, Without<CharSelectScene>>,
     mut last_minutes: Local<f32>,
 ) {
     if (game_time.minutes - *last_minutes).abs() < 0.01 {
@@ -571,5 +572,79 @@ mod tests {
         assert_eq!(format_game_clock(2880.0), "00:00");
         assert_eq!(format_game_clock(2160.0), "18:00");
         assert_eq!(format_game_clock(780.0), "06:30");
+    }
+
+    #[test]
+    fn char_select_fog_is_not_overwritten_by_sky_updates() {
+        let mut app = App::new();
+        let initial_charselect_fog = Color::srgb(0.18, 0.2, 0.23);
+        let initial_world_fog = Color::BLACK;
+        let sky_smog = Color::srgb(0.7, 0.8, 0.9);
+        let sky_band2 = Color::srgb(0.4, 0.5, 0.6);
+
+        app.insert_resource(GameTime {
+            minutes: 100.0,
+            speed: 0.0,
+        });
+        app.insert_resource(LightKeyframes(vec![LightDataRow {
+            time: 0.0,
+            direct_color: Color::WHITE,
+            ambient_color: Color::WHITE,
+            sky_top: Color::WHITE,
+            sky_middle: Color::WHITE,
+            sky_band1: Color::WHITE,
+            sky_band2,
+            sky_smog,
+            fog_color: Color::WHITE,
+        }]));
+        let charselect_entity = app
+            .world_mut()
+            .spawn((
+                CharSelectScene,
+                DistanceFog {
+                    color: initial_charselect_fog,
+                    directional_light_color: initial_charselect_fog,
+                    directional_light_exponent: 8.0,
+                    falloff: FogFalloff::Linear {
+                        start: 140.0,
+                        end: 220.0,
+                    },
+                },
+            ))
+            .id();
+        let world_entity = app
+            .world_mut()
+            .spawn(DistanceFog {
+                color: initial_world_fog,
+                directional_light_color: initial_world_fog,
+                directional_light_exponent: 8.0,
+                falloff: FogFalloff::Linear {
+                    start: 1.0,
+                    end: 2.0,
+                },
+            })
+            .id();
+        app.add_systems(Update, update_fog);
+
+        app.update();
+
+        let charselect_fog = app
+            .world()
+            .entity(charselect_entity)
+            .get::<DistanceFog>()
+            .expect("char select fog");
+        let world_fog = app
+            .world()
+            .entity(world_entity)
+            .get::<DistanceFog>()
+            .expect("world fog");
+
+        assert_eq!(charselect_fog.color.to_srgba(), initial_charselect_fog.to_srgba());
+        assert_eq!(
+            charselect_fog.directional_light_color.to_srgba(),
+            initial_charselect_fog.to_srgba()
+        );
+        assert_eq!(world_fog.color.to_srgba(), sky_smog.to_srgba());
+        assert_eq!(world_fog.directional_light_color.to_srgba(), sky_band2.to_srgba());
     }
 }
