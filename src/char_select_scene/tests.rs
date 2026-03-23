@@ -292,3 +292,8 @@ fn focused_placement_rotation_faces_camera_tightly() {
         "single-character rotation should face the camera horizontally, got {angle:.2} degrees"
     );
 }
+
+#[test]
+fn char_select_ambient_brightness_matches_scene_lighting_budget() {
+    assert_eq!(lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS, 150.0);
+}
