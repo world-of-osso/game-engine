@@ -654,6 +654,7 @@ fn sync_selected_character_appearance(
         &customization_db,
         &char_tex,
         &outfit_data,
+        None,
         root,
         &mut images,
         &mut materials,

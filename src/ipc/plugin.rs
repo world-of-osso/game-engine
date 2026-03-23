@@ -17,7 +17,8 @@ use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupStatusSnapshot,
+    CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
+    GroupStatusSnapshot,
     GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
     QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
     WarbankStatusSnapshot, Waypoint,
@@ -72,6 +73,7 @@ struct StatusSnapshotParams<'w> {
     guild_vault: Res<'w, GuildVaultStatusSnapshot>,
     warbank: Res<'w, WarbankStatusSnapshot>,
     equipped_gear: Res<'w, EquippedGearStatusSnapshot>,
+    equipment_appearance: Res<'w, EquipmentAppearanceStatusSnapshot>,
     quest_log: Res<'w, QuestLogStatusSnapshot>,
     group: Res<'w, GroupStatusSnapshot>,
     combat_log: Res<'w, CombatLogStatusSnapshot>,
@@ -91,6 +93,7 @@ pub(crate) struct DispatchContext<'a> {
     pub guild_vault_status: &'a GuildVaultStatusSnapshot,
     pub warbank_status: &'a WarbankStatusSnapshot,
     pub equipped_gear_status: &'a EquippedGearStatusSnapshot,
+    pub equipment_appearance_status: &'a EquipmentAppearanceStatusSnapshot,
     pub quest_status: &'a QuestLogStatusSnapshot,
     pub group_status: &'a GroupStatusSnapshot,
     pub combat_log_status: &'a CombatLogStatusSnapshot,
@@ -174,6 +177,7 @@ fn build_dispatch_context<'a>(
         guild_vault_status: &snapshots.guild_vault,
         warbank_status: &snapshots.warbank,
         equipped_gear_status: &snapshots.equipped_gear,
+        equipment_appearance_status: &snapshots.equipment_appearance,
         quest_status: &snapshots.quest_log,
         group_status: &snapshots.group,
         combat_log_status: &snapshots.combat_log,
@@ -483,7 +487,11 @@ fn handle_export_character(
     output_path: &str,
 ) {
     let payload =
-        match build_export_character_payload(ctx.character_stats, ctx.equipped_gear_status) {
+        match build_export_character_payload(
+            ctx.character_stats,
+            ctx.equipped_gear_status,
+            ctx.equipment_appearance_status,
+        ) {
             Ok(payload) => payload,
             Err(error) => {
                 let _ = respond.send(Response::Error(error));

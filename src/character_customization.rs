@@ -7,6 +7,7 @@ use game_engine::customization_data::{CustomizationDb, OptionType};
 use game_engine::outfit_data::OutfitData;
 use shared::components::CharacterAppearance;
 
+use crate::equipment_appearance::ResolvedEquipmentAppearance;
 use crate::m2_spawn::{BatchTextureType, GeosetMesh};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,6 +23,7 @@ pub(crate) fn apply_character_customization(
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
     outfit_data: &OutfitData,
+    equipped_appearance: Option<&ResolvedEquipmentAppearance>,
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
@@ -35,7 +37,10 @@ pub(crate) fn apply_character_customization(
         &ChildOf,
     )>,
 ) {
-    let outfit = outfit_data.resolve_outfit(selection.race, selection.class, selection.sex);
+    let starter_outfit = outfit_data.resolve_outfit(selection.race, selection.class, selection.sex);
+    let outfit = equipped_appearance
+        .map(|equipped| merge_outfit_results(&starter_outfit, &equipped.outfit))
+        .unwrap_or(starter_outfit);
     apply_body_texture(
         selection,
         customization_db,
@@ -62,7 +67,7 @@ fn apply_body_texture(
     selection: CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
-    _outfit: &game_engine::outfit_data::OutfitResult,
+    outfit: &game_engine::outfit_data::OutfitResult,
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
@@ -81,7 +86,9 @@ fn apply_body_texture(
     let Some(layout_id) = customization_db.layout_id(selection.race, selection.sex) else {
         return;
     };
-    let Some(composited) = char_tex.composite_model_textures(&all_materials, &[], layout_id) else {
+    let Some(composited) =
+        char_tex.composite_model_textures(&all_materials, &outfit.item_textures, layout_id)
+    else {
         return;
     };
     let (body_pixels, body_w, body_h) = composited.body;
@@ -102,6 +109,37 @@ fn apply_body_texture(
             mat.base_color_texture = Some(replacement);
         }
     }
+}
+
+pub(crate) fn merge_outfit_results(
+    base: &game_engine::outfit_data::OutfitResult,
+    equipped: &game_engine::outfit_data::OutfitResult,
+) -> game_engine::outfit_data::OutfitResult {
+    let mut merged = base.clone();
+
+    for &(component_section, fdid) in &equipped.item_textures {
+        if !merged.item_textures.contains(&(component_section, fdid)) {
+            merged.item_textures.push((component_section, fdid));
+        }
+    }
+
+    for &(group, value) in &equipped.geoset_overrides {
+        merged
+            .geoset_overrides
+            .retain(|(existing_group, _)| *existing_group != group);
+        merged.geoset_overrides.push((group, value));
+    }
+
+    for &(model_resource_id, model_fdid) in &equipped.model_fdids {
+        if !merged
+            .model_fdids
+            .contains(&(model_resource_id, model_fdid))
+        {
+            merged.model_fdids.push((model_resource_id, model_fdid));
+        }
+    }
+
+    merged
 }
 
 pub(crate) fn collect_appearance_materials(
@@ -259,8 +297,10 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 mod tests {
     use super::{
         CharacterCustomizationSelection, collect_appearance_materials, group_zero_visible,
+        merge_outfit_results,
     };
     use game_engine::customization_data::CustomizationDb;
+    use game_engine::outfit_data::OutfitResult;
     use shared::components::CharacterAppearance;
     use std::path::Path;
 
@@ -327,5 +367,25 @@ mod tests {
             "skin color 1 should resolve one face texture"
         );
         assert_ne!(face0[0], face1[0], "face texture should vary by skin color");
+    }
+
+    #[test]
+    fn merge_outfit_results_appends_equipped_overlays_without_duplicates() {
+        let base = OutfitResult {
+            item_textures: vec![(3, 100), (4, 200)],
+            geoset_overrides: vec![(13, 1)],
+            model_fdids: vec![(10, 1000)],
+        };
+        let equipped = OutfitResult {
+            item_textures: vec![(4, 200), (7, 300)],
+            geoset_overrides: vec![(13, 2), (15, 3)],
+            model_fdids: vec![(10, 1000), (11, 2000)],
+        };
+
+        let merged = merge_outfit_results(&base, &equipped);
+
+        assert_eq!(merged.item_textures, vec![(3, 100), (4, 200), (7, 300)]);
+        assert_eq!(merged.geoset_overrides, vec![(13, 2), (15, 3)]);
+        assert_eq!(merged.model_fdids, vec![(10, 1000), (11, 2000)]);
     }
 }

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use shared::components::CharacterAppearance;
+use shared::components::{CharacterAppearance, EquipmentAppearance};
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NetworkStatusSnapshot {
@@ -136,6 +136,11 @@ pub struct EquippedGearEntry {
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct EquippedGearStatusSnapshot {
     pub entries: Vec<EquippedGearEntry>,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct EquipmentAppearanceStatusSnapshot {
+    pub appearance: EquipmentAppearance,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -8,10 +8,15 @@ use game_engine::character_export::{
 use game_engine::ipc::{Request, Response};
 use game_engine::item_info::ItemInfoQuery;
 use game_engine::mail::{DeleteMail, ListMailQuery, ReadMail, SendMail};
-use game_engine::status::{CharacterStatsSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot};
+use game_engine::status::{
+    CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
+    EquippedGearStatusSnapshot,
+};
 use peercred_ipc::Server;
 use serde_json::Value;
-use shared::components::CharacterAppearance;
+use shared::components::{
+    CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+};
 
 use crate::requests::*;
 use crate::*;
@@ -348,6 +353,17 @@ fn export_character_payload_includes_stats_appearance_and_equipment() {
                 path: "data/models/club_1h_torch_a_01.m2".into(),
             }],
         },
+        &EquipmentAppearanceStatusSnapshot {
+            appearance: EquipmentAppearance {
+                entries: vec![EquippedAppearanceEntry {
+                    slot: EquipmentVisualSlot::Chest,
+                    item_id: Some(6123),
+                    display_info_id: Some(777),
+                    inventory_type: 5,
+                    hidden: false,
+                }],
+            },
+        },
     )
     .expect("payload should build");
 
@@ -377,6 +393,15 @@ fn export_character_payload_includes_stats_appearance_and_equipment() {
                 slot: "MainHand".into(),
                 path: "data/models/club_1h_torch_a_01.m2".into(),
             }],
+            equipment_appearance: EquipmentAppearance {
+                entries: vec![EquippedAppearanceEntry {
+                    slot: EquipmentVisualSlot::Chest,
+                    item_id: Some(6123),
+                    display_info_id: Some(777),
+                    inventory_type: 5,
+                    hidden: false,
+                }],
+            },
         }
     );
 }
@@ -386,6 +411,7 @@ fn export_character_payload_requires_selected_character_identity() {
     let err = build_export_character_payload(
         &CharacterStatsSnapshot::default(),
         &EquippedGearStatusSnapshot::default(),
+        &EquipmentAppearanceStatusSnapshot::default(),
     )
     .expect_err("payload should reject missing character");
 
@@ -416,6 +442,7 @@ fn write_export_character_file_persists_pretty_json() {
         mana_max: Some(999.0),
         movement_speed: Some(7.0),
         equipped_gear: vec![],
+        equipment_appearance: EquipmentAppearance::default(),
     };
 
     write_export_character_file(&output, &payload).expect("write should succeed");

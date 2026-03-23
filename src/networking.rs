@@ -8,8 +8,8 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use shared::components::{
-    Health as NetHealth, ModelDisplay, Npc, Player as NetPlayer, Position as NetPosition,
-    Rotation as NetRotation,
+    EquipmentAppearance as NetEquipmentAppearance, Health as NetHealth, ModelDisplay, Npc,
+    Player as NetPlayer, Position as NetPosition, Rotation as NetRotation,
 };
 use shared::protocol::ChatMessage;
 pub use shared::protocol::ChatType;
@@ -23,6 +23,7 @@ use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
 use crate::character_customization::CharacterCustomizationSelection;
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display::CreatureDisplayMap;
+use crate::equipment_appearance;
 use crate::m2_effect_material::M2EffectMaterial;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::CustomizationDb;
@@ -60,8 +61,11 @@ pub(crate) struct ResolvedModelAssetInfo {
     pub display_scale: Option<f32>,
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
-struct AppliedPlayerAppearance(CharacterCustomizationSelection);
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+struct AppliedPlayerAppearance {
+    selection: CharacterCustomizationSelection,
+    equipment: NetEquipmentAppearance,
+}
 
 /// Maximum number of messages stored in the chat log.
 pub(crate) const MAX_CHAT_LOG: usize = 100;
@@ -625,6 +629,7 @@ fn sync_replicated_player_customization(
         (
             Entity,
             &NetPlayer,
+            Option<&NetEquipmentAppearance>,
             Option<&AppliedPlayerAppearance>,
             Option<&Children>,
         ),
@@ -639,22 +644,29 @@ fn sync_replicated_player_customization(
         Option<&crate::m2_spawn::BatchTextureType>,
         &ChildOf,
     )>,
+    mut equipment_query: Query<&mut crate::equipment::Equipment>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, player, applied, children) in &player_query {
+    for (entity, player, equipment_appearance, applied, children) in &player_query {
         let selection = net_player_customization_selection(player);
-        if applied.is_some_and(|applied| applied.0 == selection) {
+        let equipment_snapshot = equipment_appearance.cloned().unwrap_or_default();
+        if applied.is_some_and(|applied| {
+            applied.selection == selection && applied.equipment == equipment_snapshot
+        }) {
             continue;
         }
         if children.is_none_or(|children| children.is_empty()) {
             continue;
         }
+        let resolved_equipment =
+            equipment_appearance::resolve_equipment_appearance(&equipment_snapshot, &outfit_data);
         crate::character_customization::apply_character_customization(
             selection,
             &customization_db,
             &char_tex,
             &outfit_data,
+            Some(&resolved_equipment),
             entity,
             &mut images,
             &mut materials,
@@ -663,9 +675,13 @@ fn sync_replicated_player_customization(
             &mut visibility_query,
             &material_query,
         );
-        commands
-            .entity(entity)
-            .insert(AppliedPlayerAppearance(selection));
+        if let Ok(mut equipment) = equipment_query.get_mut(entity) {
+            equipment_appearance::apply_runtime_equipment(&mut equipment, &resolved_equipment);
+        }
+        commands.entity(entity).insert(AppliedPlayerAppearance {
+            selection,
+            equipment: equipment_snapshot,
+        });
     }
 }
 

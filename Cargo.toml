@@ -38,6 +38,9 @@ path = "src/bin/casc_local.rs"
 [features]
 dev = ["bevy_dylib"]
 
+[patch."ssh://git@github.com/world-of-osso/game-server.git"]
+shared = { path = "../game-server/crates/shared" }
+
 # Optimize deps in debug builds (Bevy is unusably slow at opt-level 0)
 [profile.dev.package."*"]
 opt-level = 2

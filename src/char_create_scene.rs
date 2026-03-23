@@ -395,6 +395,7 @@ fn sync_appearance(
         &cust_db,
         &char_tex,
         &outfit_data,
+        None,
         root,
         &mut images,
         &mut materials,

@@ -20,7 +20,8 @@ use bevy::{
 use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupStatusSnapshot,
+    CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
+    GroupStatusSnapshot,
     GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
     QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
     WarbankStatusSnapshot,
@@ -42,6 +43,7 @@ mod cli_args;
 mod collision;
 mod creature_display;
 mod equipment;
+mod equipment_appearance;
 mod game_state;
 mod ground;
 mod health_bar;
@@ -415,6 +417,7 @@ fn add_status_sync_systems(app: &mut App) {
             status_sync::sync_character_stats_snapshot,
             status_sync::apply_equipment_ipc_commands,
             status_sync::sync_equipped_gear_status_snapshot,
+            status_sync::sync_equipment_appearance_status_snapshot,
             status_sync::sync_map_status_snapshot,
         )
             .run_if(in_state(game_state::GameState::InWorld)),
@@ -497,6 +500,7 @@ fn init_status_resources(app: &mut App) {
         .insert_resource(SoundStatusSnapshot::default())
         .insert_resource(CharacterStatsSnapshot::default())
         .insert_resource(EquippedGearStatusSnapshot::default())
+        .insert_resource(EquipmentAppearanceStatusSnapshot::default())
         .insert_resource(MapStatusSnapshot::default())
         .insert_resource(CollectionStatusSnapshot::default())
         .insert_resource(CombatLogStatusSnapshot::default())

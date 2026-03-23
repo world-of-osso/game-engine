@@ -1,9 +1,12 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use shared::components::CharacterAppearance;
+use shared::components::{CharacterAppearance, EquipmentAppearance};
 
-use crate::status::{CharacterStatsSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot};
+use crate::status::{
+    CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
+    EquippedGearStatusSnapshot,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExportCharacterPayload {
@@ -20,11 +23,13 @@ pub struct ExportCharacterPayload {
     pub mana_max: Option<f32>,
     pub movement_speed: Option<f32>,
     pub equipped_gear: Vec<EquippedGearEntry>,
+    pub equipment_appearance: EquipmentAppearance,
 }
 
 pub fn build_export_character_payload(
     stats: &CharacterStatsSnapshot,
     equipped_gear: &EquippedGearStatusSnapshot,
+    equipment_appearance: &EquipmentAppearanceStatusSnapshot,
 ) -> Result<ExportCharacterPayload, String> {
     let character_id = stats
         .character_id
@@ -49,6 +54,7 @@ pub fn build_export_character_payload(
         mana_max: stats.mana_max,
         movement_speed: stats.movement_speed,
         equipped_gear: equipped_gear.entries.clone(),
+        equipment_appearance: equipment_appearance.appearance.clone(),
     })
 }
 

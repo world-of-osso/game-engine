@@ -124,18 +124,37 @@ impl OutfitData {
             return OutfitResult::default();
         };
 
+        self.resolve_item_ids(data, item_ids)
+    }
+
+    pub fn resolve_display_info(&self, display_info_id: u32) -> OutfitResult {
+        let Some(data) = self.loaded() else {
+            return OutfitResult::default();
+        };
+        self.resolve_display_infos(data, [display_info_id])
+    }
+
+    fn resolve_item_ids(&self, data: &LoadedOutfitData, item_ids: &[u32]) -> OutfitResult {
+        let display_ids = item_ids
+            .iter()
+            .filter_map(|item_id| data.item_to_appearance.get(item_id))
+            .filter_map(|appearance_id| data.appearance_to_display.get(appearance_id))
+            .copied()
+            .collect::<Vec<_>>();
+        self.resolve_display_infos(data, display_ids)
+    }
+
+    fn resolve_display_infos(
+        &self,
+        data: &LoadedOutfitData,
+        display_ids: impl IntoIterator<Item = u32>,
+    ) -> OutfitResult {
         let mut result = OutfitResult::default();
         let mut seen_textures = HashSet::new();
         let mut seen_geosets = HashSet::new();
         let mut seen_models = HashSet::new();
 
-        for &item_id in item_ids {
-            let Some(&appearance_id) = data.item_to_appearance.get(&item_id) else {
-                continue;
-            };
-            let Some(&display_id) = data.appearance_to_display.get(&appearance_id) else {
-                continue;
-            };
+        for display_id in display_ids {
             let Some(display) = data.display_info.get(&display_id) else {
                 continue;
             };

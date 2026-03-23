@@ -7343,7 +7343,6 @@ dependencies = [
 [[package]]
 name = "shared"
 version = "0.1.0"
-source = "git+ssh://git@github.com/world-of-osso/game-server.git?rev=60cb63c#60cb63c417a874998969216c2e2c750141162b5f"
 dependencies = [
  "bevy",
  "bitcode",
