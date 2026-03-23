@@ -1,7 +1,7 @@
 //! Bevy plugin that integrates the IPC server with the render pipeline.
 
-use std::sync::mpsc;
 use std::path::Path;
+use std::sync::mpsc;
 
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};

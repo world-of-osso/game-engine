@@ -66,8 +66,7 @@ mod tests {
                 u32::from_le_bytes(payload[0x04..0x08].try_into().expect("index_x bytes"));
             let index_y =
                 u32::from_le_bytes(payload[0x08..0x0c].try_into().expect("index_y bytes"));
-            let base_y =
-                f32::from_le_bytes(payload[0x70..0x74].try_into().expect("base_y bytes"));
+            let base_y = f32::from_le_bytes(payload[0x70..0x74].try_into().expect("base_y bytes"));
             let mut heights = None;
             let mut sub_off = 128usize;
             while sub_off + 8 <= payload.len() {

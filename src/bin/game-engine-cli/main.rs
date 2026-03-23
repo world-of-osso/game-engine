@@ -126,9 +126,7 @@ enum Cmd {
         command: EquipmentCmd,
     },
     /// Export the selected character to a JSON file from the running engine
-    ExportCharacter {
-        output: PathBuf,
-    },
+    ExportCharacter { output: PathBuf },
 }
 
 #[derive(Subcommand)]

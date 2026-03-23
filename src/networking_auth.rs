@@ -439,7 +439,9 @@ pub fn receive_enter_world_response(
         for resp in receiver.receive() {
             if resp.success {
                 apply_enter_world(&mut selected, &char_list, &char_idx);
-                if reconnect.as_deref().is_some_and(|reconnect| reconnect.is_active())
+                if reconnect
+                    .as_deref()
+                    .is_some_and(|reconnect| reconnect.is_active())
                     && *state.get() == GameState::InWorld
                 {
                     info!("Reconnect enter-world accepted, waiting for replicated world state");

@@ -194,8 +194,11 @@ fn attach_m2_model_parts(
         attachments,
         ..
     } = model;
-    let visual_root =
-        m2_spawn::ensure_grounded_model_root(commands, model_entity, m2_spawn::ground_offset_y(&batches));
+    let visual_root = m2_spawn::ensure_grounded_model_root(
+        commands,
+        model_entity,
+        m2_spawn::ground_offset_y(&batches),
+    );
     let skinning = m2_spawn::attach_m2_batches(
         commands,
         &mut m2_spawn::SpawnAssets {

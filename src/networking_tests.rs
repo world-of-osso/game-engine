@@ -113,7 +113,9 @@ fn disconnect_during_charselect_keeps_scene_alive() {
     });
     app.update();
 
-    let state = app.world().resource::<State<crate::game_state::GameState>>();
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
     assert_eq!(*state.get(), crate::game_state::GameState::CharSelect);
     let feedback = app.world().resource::<AuthUiFeedback>();
     assert_eq!(
@@ -138,7 +140,9 @@ fn disconnect_during_connecting_is_ignored() {
     app.update();
     app.update();
 
-    let state = app.world().resource::<State<crate::game_state::GameState>>();
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
     assert_eq!(*state.get(), crate::game_state::GameState::Connecting);
     let feedback = app.world().resource::<AuthUiFeedback>();
     assert_eq!(feedback.0.as_deref(), None);
@@ -154,7 +158,9 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
     app.init_resource::<ReconnectState>();
     app.insert_resource(AuthToken(Some("saved-token".to_string())));
     app.insert_resource(selected_with_name("Theron"));
-    app.insert_resource(game_engine::targeting::CurrentTarget(Some(Entity::from_bits(77))));
+    app.insert_resource(game_engine::targeting::CurrentTarget(Some(
+        Entity::from_bits(77),
+    )));
     app.init_resource::<CurrentZone>();
     app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
@@ -188,13 +194,18 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
     app.update();
     app.update();
 
-    let state = app.world().resource::<State<crate::game_state::GameState>>();
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
     assert_eq!(*state.get(), crate::game_state::GameState::InWorld);
     assert_eq!(
         app.world().resource::<ReconnectState>().phase,
         ReconnectPhase::PendingConnect
     );
-    assert!(app.world().contains_resource::<crate::char_select::AutoEnterWorld>());
+    assert!(
+        app.world()
+            .contains_resource::<crate::char_select::AutoEnterWorld>()
+    );
     assert_eq!(
         app.world()
             .resource::<crate::char_select::PreselectedCharName>()

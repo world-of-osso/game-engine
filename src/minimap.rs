@@ -93,10 +93,7 @@ fn register_minimap_systems(app: &mut App) {
                 .after(generate_tile_textures)
                 .run_if(in_world.clone()),
         )
-        .add_systems(
-            Update,
-            update_coord_text.run_if(in_world.clone()),
-        )
+        .add_systems(Update, update_coord_text.run_if(in_world.clone()))
         .add_systems(Update, update_zone_name.run_if(in_world.clone()))
         .add_systems(Update, rotate_minimap.run_if(in_world));
 }

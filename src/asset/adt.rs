@@ -353,7 +353,10 @@ fn build_mcnk_mesh(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> Mesh {
 
 // ── top-level parser ──────────────────────────────────────────────────────────
 
-fn build_height_grids(parsed: &[McnkData], tile_coords: Option<(u32, u32)>) -> Vec<ChunkHeightGrid> {
+fn build_height_grids(
+    parsed: &[McnkData],
+    tile_coords: Option<(u32, u32)>,
+) -> Vec<ChunkHeightGrid> {
     parsed
         .iter()
         .map(|d| ChunkHeightGrid {
@@ -563,7 +566,14 @@ fn center_surface_position(chunks: &[McnkData], tile_coords: Option<(u32, u32)>)
         .find(|c| c.index_x == 8 && c.index_y == 8)
         .unwrap_or(&chunks[chunks.len() / 2]);
     let (origin_x, origin_z) = chunk_origin_bevy(center_chunk, tile_coords);
-    vertex_position_from_origin(9, 4, origin_x, origin_z, center_chunk.pos[2], &center_chunk.heights)
+    vertex_position_from_origin(
+        9,
+        4,
+        origin_x,
+        origin_z,
+        center_chunk.pos[2],
+        &center_chunk.heights,
+    )
 }
 
 fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
@@ -777,7 +787,6 @@ mod tests {
         }
     }
 
-
     fn minimal_adt_with_mh2o(mh2o_payload: Vec<u8>) -> Vec<u8> {
         iter::empty()
             .chain(wrap_chunk(*b"KNCM", minimal_mcnk_payload()))
@@ -832,5 +841,4 @@ mod tests {
             "malformed MH2O should be ignored instead of aborting terrain load"
         );
     }
-
 }
