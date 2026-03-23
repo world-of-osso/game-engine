@@ -214,16 +214,13 @@ fn doodad_transform(
         .with_scale(Vec3::splat(d.scale))
 }
 
-/// Convert WoW MDDF/MODF Euler rotation (degrees) to a Bevy quaternion.
-///
-/// WoW stores rotation as [X, Y, Z] degrees. Both noggit3 and wowmapviewer
-/// apply a -90° yaw offset after the Z-up → Y-up vertex swizzle:
-///   Ry(Y - 90) * Rz(-X) * Rx(Z)
+/// Convert WoW MDDF/MODF Euler rotation to Bevy.
+/// stored [X, Y, Z] becomes model rotation [Z, Y - 180, -X], then YZX order.
 fn placement_rotation(rot: [f32; 3]) -> Quat {
-    let rx = rot[2].to_radians();
-    let ry = rot[1].to_radians();
-    let rz = (-rot[0]).to_radians();
-    Quat::from_euler(EulerRot::YZX, ry, rz, rx)
+    let bank_x = rot[2].to_radians();
+    let heading_y = (rot[1] - 180.0).to_radians();
+    let attitude_z = (-rot[0]).to_radians();
+    Quat::from_euler(EulerRot::YZX, heading_y, attitude_z, bank_x)
 }
 
 // ── WMO spawning ────────────────────────────────────────────────────────────
@@ -662,12 +659,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn placement_rotation_matches_reference_viewer_formula() {
+    fn placement_rotation_matches_current_model_rotation_formula() {
         let rot = [17.0, 123.0, -31.0];
         let actual = placement_rotation(rot);
         let expected = Quat::from_euler(
             EulerRot::YZX,
-            rot[1].to_radians(),
+            (rot[1] - 180.0).to_radians(),
             (-rot[0]).to_radians(),
             rot[2].to_radians(),
         );
@@ -682,13 +679,14 @@ mod tests {
     }
 
     #[test]
-    fn placement_rotation_zero_is_identity() {
+    fn placement_rotation_zero_matches_current_yaw_correction() {
         let rotation = placement_rotation([0.0, 0.0, 0.0]);
-        let probe = Vec3::new(0.3, -0.4, 0.8).normalize();
+        let probe = Vec3::X;
         let rotated = rotation * probe;
+        let expected = -Vec3::X;
         assert!(
-            rotated.abs_diff_eq(probe, 1e-5),
-            "zero placement rotation should not add an implicit yaw: rotated={rotated:?} probe={probe:?}"
+            rotated.abs_diff_eq(expected, 1e-5),
+            "zero placement rotation should match the current Y-180 mapping: rotated={rotated:?} expected={expected:?}"
         );
     }
 
@@ -873,6 +871,290 @@ mod tests {
             println!(
                 "  d_char={dist_char:6.1} d_cam={dist_cam:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} {}",
                 pos.x, pos.y, pos.z, unique_id, fdid, model
+            );
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_charselect_nearby_wmos() {
+        let adt_path = Path::new("data/terrain/2703_31_37.adt");
+        let obj = load_obj0(adt_path).expect("obj0");
+        let char_pos = Vec3::new(-2981.8, 452.9, -457.4);
+        let camera_pos = Vec3::new(-2980.6, 455.1, -463.3);
+        let view_dir = (char_pos - camera_pos).normalize();
+
+        let mut nearest: Vec<_> = obj
+            .wmos
+            .iter()
+            .map(|w| {
+                let pos = Vec3::from(placement_to_bevy_on_tile(w.position, 31, 37));
+                let to_char = pos.distance(char_pos);
+                let to_camera = pos.distance(camera_pos);
+                let delta = pos - camera_pos;
+                let depth = delta.dot(view_dir);
+                let ray_dist = (delta - view_dir * depth).length();
+                let fdid = w.fdid.or_else(|| {
+                    w.path
+                        .as_deref()
+                        .and_then(game_engine::listfile::lookup_path)
+                });
+                let model = fdid
+                    .and_then(game_engine::listfile::lookup_fdid)
+                    .map(str::to_string)
+                    .or_else(|| w.path.clone())
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                (
+                    to_char,
+                    to_camera,
+                    depth,
+                    ray_dist,
+                    pos,
+                    fdid,
+                    w.unique_id,
+                    w.rotation,
+                    model,
+                )
+            })
+            .collect();
+
+        nearest.sort_by(|a, b| a.0.total_cmp(&b.0));
+        println!("Nearest WMOs to charselect character:");
+        for (dist_char, dist_cam, depth, ray_dist, pos, fdid, unique_id, rotation, model) in
+            nearest.iter().take(40)
+        {
+            println!(
+                "  d_char={dist_char:6.1} d_cam={dist_cam:6.1} depth={depth:6.1} ray={ray_dist:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} rot={rotation:?} {}",
+                pos.x, pos.y, pos.z, unique_id, fdid, model
+            );
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_charselect_neighbor_tile_objects() {
+        let char_pos = Vec3::new(-2981.8, 452.9, -457.4);
+        for (tile_y, tile_x) in [(31, 36), (31, 37)] {
+            let adt_path_string = format!("data/terrain/2703_{tile_y}_{tile_x}.adt");
+            let adt_path = Path::new(&adt_path_string);
+            let Some(obj) = load_obj0(adt_path) else {
+                println!("missing obj0 for tile ({tile_y}, {tile_x})");
+                continue;
+            };
+            println!("\nTile ({tile_y}, {tile_x}) doodads near campsite:");
+            let mut doodads: Vec<_> = obj
+                .doodads
+                .iter()
+                .filter_map(|d| {
+                    let pos = Vec3::from(placement_to_bevy_on_tile(d.position, tile_y, tile_x));
+                    let dist = pos.distance(char_pos);
+                    if dist > 80.0 {
+                        return None;
+                    }
+                    let fdid = d.fdid.or_else(|| {
+                        d.path
+                            .as_deref()
+                            .and_then(game_engine::listfile::lookup_path)
+                    });
+                    let model = fdid
+                        .and_then(game_engine::listfile::lookup_fdid)
+                        .map(str::to_string)
+                        .or_else(|| d.path.clone())
+                        .unwrap_or_else(|| "<unknown>".to_string());
+                    Some((dist, pos, fdid, d.unique_id, d.rotation, model))
+                })
+                .collect();
+            doodads.sort_by(|a, b| a.0.total_cmp(&b.0));
+            for (dist, pos, fdid, uid, rotation, model) in doodads.into_iter().take(80) {
+                println!(
+                    "  d={dist:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} rot={rotation:?} {}",
+                    pos.x, pos.y, pos.z, uid, fdid, model
+                );
+            }
+
+            println!("\nTile ({tile_y}, {tile_x}) WMOs near campsite:");
+            let mut wmos: Vec<_> = obj
+                .wmos
+                .iter()
+                .filter_map(|w| {
+                    let pos = Vec3::from(placement_to_bevy_on_tile(w.position, tile_y, tile_x));
+                    let dist = pos.distance(char_pos);
+                    if dist > 200.0 {
+                        return None;
+                    }
+                    let fdid = w.fdid.or_else(|| {
+                        w.path
+                            .as_deref()
+                            .and_then(game_engine::listfile::lookup_path)
+                    });
+                    let model = fdid
+                        .and_then(game_engine::listfile::lookup_fdid)
+                        .map(str::to_string)
+                        .or_else(|| w.path.clone())
+                        .unwrap_or_else(|| "<unknown>".to_string());
+                    Some((dist, pos, fdid, w.unique_id, w.rotation, model))
+                })
+                .collect();
+            wmos.sort_by(|a, b| a.0.total_cmp(&b.0));
+            for (dist, pos, fdid, uid, rotation, model) in wmos.into_iter().take(80) {
+                println!(
+                    "  d={dist:6.1} pos=({:.1}, {:.1}, {:.1}) uid={} fdid={:?} rot={rotation:?} {}",
+                    pos.x, pos.y, pos.z, uid, fdid, model
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn compare_wmo_swizzles_against_modf_extents() {
+        #[derive(Clone, Copy)]
+        struct RawModfEntry {
+            unique_id: u32,
+            fdid: Option<u32>,
+            position: [f32; 3],
+            rotation: [f32; 3],
+            extents_min: [f32; 3],
+            extents_max: [f32; 3],
+            scale: f32,
+        }
+
+        fn parse_raw_modf_entries(path: &Path) -> Vec<RawModfEntry> {
+            let data = std::fs::read(path).expect("obj0");
+            let mut modf = None;
+            for chunk in crate::asset::adt::ChunkIter::new(&data) {
+                let (tag, payload) = chunk.expect("chunk");
+                if tag == b"FDOM" {
+                    modf = Some(payload.to_vec());
+                    break;
+                }
+            }
+            let payload = modf.expect("modf");
+            let count = payload.len() / 64;
+            (0..count)
+                .map(|i| {
+                    let base = i * 64;
+                    let name_id = u32::from_le_bytes(payload[base..base + 4].try_into().unwrap());
+                    let unique_id =
+                        u32::from_le_bytes(payload[base + 4..base + 8].try_into().unwrap());
+                    let read_f32 = |off: usize| {
+                        f32::from_le_bytes(payload[base + off..base + off + 4].try_into().unwrap())
+                    };
+                    let position = [read_f32(8), read_f32(12), read_f32(16)];
+                    let rotation = [read_f32(20), read_f32(24), read_f32(28)];
+                    let extents_min = [read_f32(32), read_f32(36), read_f32(40)];
+                    let extents_max = [read_f32(44), read_f32(48), read_f32(52)];
+                    let flags =
+                        u16::from_le_bytes(payload[base + 56..base + 58].try_into().unwrap());
+                    let scale_raw =
+                        u16::from_le_bytes(payload[base + 62..base + 64].try_into().unwrap());
+                    let scale = if (flags & 0x4) != 0 {
+                        scale_raw as f32 / 1024.0
+                    } else {
+                        1.0
+                    };
+                    let fdid = if (flags & 0x8) != 0 { Some(name_id) } else { None };
+                    RawModfEntry {
+                        unique_id,
+                        fdid,
+                        position,
+                        rotation,
+                        extents_min,
+                        extents_max,
+                        scale,
+                    }
+                })
+                .collect()
+        }
+
+        fn sort_bbox(min: [f32; 3], max: [f32; 3]) -> (Vec3, Vec3) {
+            (
+                Vec3::new(min[0].min(max[0]), min[1].min(max[1]), min[2].min(max[2])),
+                Vec3::new(min[0].max(max[0]), min[1].max(max[1]), min[2].max(max[2])),
+            )
+        }
+
+        fn wow_bbox_to_bevy(min: [f32; 3], max: [f32; 3]) -> (Vec3, Vec3) {
+            let min = placement_to_bevy_absolute(min);
+            let max = placement_to_bevy_absolute(max);
+            sort_bbox(min, max)
+        }
+
+        fn corners(min: [f32; 3], max: [f32; 3]) -> [[f32; 3]; 8] {
+            [
+                [min[0], min[1], min[2]],
+                [min[0], min[1], max[2]],
+                [min[0], max[1], min[2]],
+                [min[0], max[1], max[2]],
+                [max[0], min[1], min[2]],
+                [max[0], min[1], max[2]],
+                [max[0], max[1], min[2]],
+                [max[0], max[1], max[2]],
+            ]
+        }
+
+        fn swizzle_current(x: f32, y: f32, z: f32) -> [f32; 3] {
+            crate::asset::wmo::wmo_local_to_bevy(x, y, z)
+        }
+
+        fn swizzle_like_m2(x: f32, y: f32, z: f32) -> [f32; 3] {
+            crate::asset::m2::wow_to_bevy(x, y, z)
+        }
+
+        fn fitted_bbox(
+            root: &crate::asset::wmo::WmoRootData,
+            transform: Transform,
+            swizzle: fn(f32, f32, f32) -> [f32; 3],
+        ) -> (Vec3, Vec3) {
+            let mut mins = Vec3::splat(f32::INFINITY);
+            let mut maxs = Vec3::splat(f32::NEG_INFINITY);
+            for info in &root.group_infos {
+                for corner in corners(info.bbox_min, info.bbox_max) {
+                    let local = Vec3::from(swizzle(corner[0], corner[1], corner[2]));
+                    let world = transform.transform_point(local);
+                    mins = mins.min(world);
+                    maxs = maxs.max(world);
+                }
+            }
+            (mins, maxs)
+        }
+
+        let path = Path::new("data/terrain/2703_31_37_obj0.adt");
+        let raw_entries = parse_raw_modf_entries(path);
+        for raw in raw_entries
+            .into_iter()
+            .filter(|entry| matches!(entry.fdid, Some(4214993 | 3803037)))
+        {
+            let root_fdid = raw.fdid.expect("fdid");
+            let root_path = ensure_wmo_asset(root_fdid).expect("wmo");
+            let root_data = std::fs::read(&root_path).expect("wmo root data");
+            let root = crate::asset::wmo::load_wmo_root(&root_data).expect("wmo root");
+            let pos = Vec3::from(placement_to_bevy_on_tile(raw.position, 31, 37));
+            let rotation = placement_rotation(raw.rotation);
+            let transform = Transform::from_translation(pos)
+                .with_rotation(rotation)
+                .with_scale(Vec3::splat(raw.scale));
+
+            let (expected_min, expected_max) = wow_bbox_to_bevy(raw.extents_min, raw.extents_max);
+            let (current_min, current_max) = fitted_bbox(&root, transform, swizzle_current);
+            let (m2_min, m2_max) = fitted_bbox(&root, transform, swizzle_like_m2);
+
+            let current_err =
+                current_min.distance(expected_min) + current_max.distance(expected_max);
+            let m2_err = m2_min.distance(expected_min) + m2_max.distance(expected_max);
+
+            println!(
+                "uid={} fdid={} current_err={:.3} m2_err={:.3}\n  expected min={:?} max={:?}\n  current  min={:?} max={:?}\n  m2_like  min={:?} max={:?}",
+                raw.unique_id,
+                root_fdid,
+                current_err,
+                m2_err,
+                expected_min,
+                expected_max,
+                current_min,
+                current_max,
+                m2_min,
+                m2_max
             );
         }
     }
