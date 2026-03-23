@@ -252,8 +252,7 @@ fn spawn_wmos(
             materials,
             images,
         };
-        if let Some(spawned_wmo) = try_spawn_wmo(commands, &mut assets, placement, tile_y, tile_x)
-        {
+        if let Some(spawned_wmo) = try_spawn_wmo(commands, &mut assets, placement, tile_y, tile_x) {
             entities.push(spawned_wmo);
             spawned_count += 1;
         }
@@ -601,7 +600,7 @@ fn wmo_standard_material(
     texture: Option<Handle<Image>>,
     blend_mode: u32,
     flags: u32,
-    has_vertex_color: bool,
+    _has_vertex_color: bool,
 ) -> StandardMaterial {
     let alpha_mode = match blend_mode {
         2 | 3 => AlphaMode::Blend,
@@ -609,6 +608,7 @@ fn wmo_standard_material(
         _ => AlphaMode::Opaque,
     };
     let double_sided = (flags & 0x04) != 0;
+    let prop_like_surface = double_sided || !matches!(alpha_mode, AlphaMode::Opaque);
     StandardMaterial {
         base_color: if texture.is_none() {
             Color::srgb(0.6, 0.6, 0.6)
@@ -616,8 +616,9 @@ fn wmo_standard_material(
             Color::WHITE
         },
         base_color_texture: texture,
-        perceptual_roughness: 0.8,
-        unlit: has_vertex_color,
+        perceptual_roughness: if prop_like_surface { 0.97 } else { 0.88 },
+        reflectance: if prop_like_surface { 0.02 } else { 0.18 },
+        unlit: false,
         double_sided,
         cull_mode: if double_sided {
             None

@@ -127,7 +127,7 @@ pub fn spawn_sky_dome(
     sky_materials: &mut Assets<SkyMaterial>,
     images: &mut Assets<Image>,
     camera_entity: Entity,
-) {
+) -> Entity {
     let mesh = build_sky_dome_mesh(900.0, 32, 16);
     let material = sky_materials.add(SkyMaterial {
         uniforms: SkyUniforms::default(),
@@ -161,6 +161,7 @@ pub fn spawn_sky_dome(
             rotation: Quat::IDENTITY,
             affects_lightmapped_mesh_diffuse: true,
         });
+    dome
 }
 
 // ---------------------------------------------------------------------------
