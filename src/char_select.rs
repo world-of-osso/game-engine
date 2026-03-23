@@ -729,6 +729,7 @@ mod tests {
     use game_engine::ui::event::EventBus;
     use game_engine::ui::frame::WidgetData;
     use game_engine::ui::registry::FrameRegistry;
+    use game_engine::ui::strata::FrameStrata;
 
     fn test_registry() -> FrameRegistry {
         FrameRegistry::new(1920.0, 1080.0)
@@ -949,6 +950,40 @@ mod tests {
         assert_eq!(panel.anchors[0].relative_to, Some(root_id));
         assert_eq!(panel.anchors[0].x_offset, 0.0);
         assert_eq!(panel.anchors[0].y_offset, -58.0);
+    }
+
+    #[test]
+    fn campsite_overlay_renders_in_dialog_strata() {
+        let reg = build_screen_with_campsites(
+            CharSelectState {
+                selected_index: Some(0),
+                selected_name: "Elara".to_string(),
+                ..Default::default()
+            },
+            CampsiteState {
+                scenes: vec![CampsiteEntry {
+                    id: 1,
+                    name: "Forest".to_string(),
+                    preview_image: None,
+                }],
+                panel_visible: true,
+                selected_id: Some(1),
+            },
+        );
+
+        let menu_bar = reg
+            .get(reg.get_by_name("CampsiteMenuBar").expect("CampsiteMenuBar"))
+            .expect("menu bar");
+        let panel = reg
+            .get(reg.get_by_name("CampsitePanel").expect("CampsitePanel"))
+            .expect("panel");
+        let card = reg
+            .get(reg.get_by_name("CampsiteScene_1").expect("CampsiteScene_1"))
+            .expect("card");
+
+        assert_eq!(menu_bar.strata, FrameStrata::Dialog);
+        assert_eq!(panel.strata, FrameStrata::Dialog);
+        assert_eq!(card.strata, FrameStrata::Dialog);
     }
 
     #[test]

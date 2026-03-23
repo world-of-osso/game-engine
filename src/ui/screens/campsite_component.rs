@@ -5,6 +5,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
+use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 use super::char_select_component::{CampsiteState, CharSelectAction};
@@ -212,6 +213,7 @@ pub fn campsite_tab(selected: bool) -> Element {
             name: "CampsiteMenuBar",
             width: MENU_BAR_WIDTH,
             height: MENU_BAR_HEIGHT,
+            strata: FrameStrata::Dialog,
             background_color: "0.05,0.04,0.03,0.72",
             border: "1px solid 0.22,0.17,0.05,0.55",
             anchor {
@@ -354,6 +356,7 @@ fn campsite_panel_with_anchor(
             name: "CampsitePanel",
             width,
             height,
+            strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: "0.04,0.03,0.02,0.98",
             border: "1px solid 0.62,0.46,0.10,0.75",
