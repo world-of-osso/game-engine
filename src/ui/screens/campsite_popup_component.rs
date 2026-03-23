@@ -2,18 +2,22 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::FrameName;
+use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 
-use super::campsite_component::campsite_panel_centered;
+use super::campsite_component::{
+    CAMPSITE_PANEL_TOP_OFFSET, CAMPSITE_PANEL_WIDTH, campsite_panel, campsite_panel_height,
+};
 use super::char_select_component::CampsiteState;
 
 pub const CAMPSITE_POPUP_ROOT: FrameName = FrameName("CampsitePopupRoot");
+pub const CAMPSITE_POPUP_MOUNT: FrameName = FrameName("CampsitePopupMount");
 
 pub fn campsite_popup_screen(ctx: &SharedContext) -> Element {
     let campsite = ctx
         .get::<CampsiteState>()
         .expect("CampsitePopup screen requires CampsiteState");
+    let mount_height = campsite_panel_height(campsite.scenes.len()) + CAMPSITE_PANEL_TOP_OFFSET;
 
     rsx! {
         r#frame {
@@ -21,7 +25,17 @@ pub fn campsite_popup_screen(ctx: &SharedContext) -> Element {
             stretch: true,
             background_color: "0.03,0.02,0.01,1.0",
             strata: FrameStrata::Background,
-            {campsite_panel_centered(campsite)}
+            r#frame {
+                name: CAMPSITE_POPUP_MOUNT,
+                width: CAMPSITE_PANEL_WIDTH,
+                height: mount_height,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                    y: "29",
+                }
+                {campsite_panel(campsite)}
+            }
         }
     }
 }
@@ -51,17 +65,21 @@ mod tests {
         Screen::new(campsite_popup_screen).sync(&shared, &mut reg);
 
         assert!(reg.get_by_name("CampsitePopupRoot").is_some());
+        let mount_id = reg
+            .get_by_name("CampsitePopupMount")
+            .expect("CampsitePopupMount");
         let panel_id = reg.get_by_name("CampsitePanel").expect("CampsitePanel");
         let panel = reg.get(panel_id).expect("panel frame");
         assert!(!panel.hidden);
         assert_eq!(panel.anchors.len(), 1);
-        assert_eq!(panel.anchors[0].point, crate::ui::anchor::AnchorPoint::Center);
+        assert_eq!(panel.anchors[0].point, crate::ui::anchor::AnchorPoint::Top);
         assert_eq!(
             panel.anchors[0].relative_point,
-            crate::ui::anchor::AnchorPoint::Center
+            crate::ui::anchor::AnchorPoint::Top
         );
+        assert_eq!(panel.anchors[0].relative_to, Some(mount_id));
         assert_eq!(panel.anchors[0].x_offset, 0.0);
-        assert_eq!(panel.anchors[0].y_offset, 0.0);
+        assert_eq!(panel.anchors[0].y_offset, -58.0);
         assert_eq!(panel.resolved_width(), 470.0);
     }
 }
