@@ -9,6 +9,7 @@ pub enum GameState {
     Connecting,
     CharSelect,
     CharCreate,
+    CampsitePopup,
     Loading,
     InWorld,
     TrashButton,
@@ -16,11 +17,12 @@ pub enum GameState {
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 8] = [
+    pub const CLI_VALUES: [&str; 9] = [
         "login",
         "connecting",
         "charselect",
         "charcreate",
+        "campsitepopup",
         "loading",
         "inworld",
         "trashbutton",
@@ -33,6 +35,7 @@ impl GameState {
             Self::Connecting => "connecting",
             Self::CharSelect => "charselect",
             Self::CharCreate => "charcreate",
+            Self::CampsitePopup => "campsitepopup",
             Self::Loading => "loading",
             Self::InWorld => "inworld",
             Self::TrashButton => "trashbutton",
@@ -50,6 +53,7 @@ impl FromStr for GameState {
             "connecting" => Ok(Self::Connecting),
             "charselect" => Ok(Self::CharSelect),
             "charcreate" => Ok(Self::CharCreate),
+            "campsitepopup" => Ok(Self::CampsitePopup),
             "loading" => Ok(Self::Loading),
             "inworld" => Ok(Self::InWorld),
             "trashbutton" => Ok(Self::TrashButton),
@@ -65,16 +69,18 @@ pub enum ScreenArg {
     CharSelect,
     CharCreate,
     CharCreateCustomize,
+    CampsitePopup,
     InWorld,
     TrashButton,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 6] = [
+    pub const CLI_VALUES: [&str; 7] = [
         "login",
         "charselect",
         "charcreate",
         "charcreate-customize",
+        "campsitepopup",
         "inworld",
         "trashbutton",
     ];
@@ -86,6 +92,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::Login => Self::Login,
             ScreenArg::CharSelect => Self::CharSelect,
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
+            ScreenArg::CampsitePopup => Self::CampsitePopup,
             ScreenArg::InWorld => Self::InWorld,
             ScreenArg::TrashButton => Self::TrashButton,
         }
@@ -101,6 +108,7 @@ impl FromStr for ScreenArg {
             "charselect" => Ok(Self::CharSelect),
             "charcreate" => Ok(Self::CharCreate),
             "charcreate-customize" => Ok(Self::CharCreateCustomize),
+            "campsitepopup" => Ok(Self::CampsitePopup),
             "inworld" => Ok(Self::InWorld),
             "trashbutton" => Ok(Self::TrashButton),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),

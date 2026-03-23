@@ -32,9 +32,8 @@ const CARD_LABEL_TEXT_WIDTH: f32 = 176.0;
 const CARD_LABEL_TEXT_HEIGHT: f32 = 28.0;
 const PANEL_GAP: f32 = 10.0;
 const PANEL_PADDING: f32 = 16.0;
-const PANEL_COLUMNS: f32 = 2.0;
+const POPUP_PANEL_PADDING: f32 = 15.0;
 const PANEL_WIDTH: f32 = 470.0;
-const PANEL_GRID_WIDTH: f32 = CARD_WIDTH * PANEL_COLUMNS + PANEL_GAP * (PANEL_COLUMNS - 1.0);
 
 const DISABLED_ITEMS: &[(&str, &str, f32, &str)] = &[
     ("CampsiteModeTab", "MODE", 100.0, "0"),
@@ -325,7 +324,15 @@ fn campsite_card(id: u32, name: &str, preview_image: Option<&str>, is_selected: 
 }
 
 pub fn campsite_panel(state: &CampsiteState) -> Element {
-    campsite_panel_with_anchor(state, AnchorPoint::Top, AnchorPoint::Top, "-58", PANEL_WIDTH)
+    campsite_panel_with_anchor(
+        state,
+        AnchorPoint::Top,
+        AnchorPoint::Top,
+        "-58",
+        PANEL_WIDTH,
+        None,
+        None,
+    )
 }
 
 pub fn campsite_panel_centered(state: &CampsiteState) -> Element {
@@ -334,7 +341,9 @@ pub fn campsite_panel_centered(state: &CampsiteState) -> Element {
         AnchorPoint::Center,
         AnchorPoint::Center,
         "0",
-        PANEL_GRID_WIDTH,
+        PANEL_WIDTH,
+        Some("center"),
+        Some(POPUP_PANEL_PADDING),
     )
 }
 
@@ -344,6 +353,8 @@ fn campsite_panel_with_anchor(
     relative_point: AnchorPoint,
     y: &'static str,
     width: f32,
+    justify: Option<&'static str>,
+    padding: Option<f32>,
 ) -> Element {
     let hide = !state.panel_visible;
     let cards: Element = state
@@ -359,24 +370,49 @@ fn campsite_panel_with_anchor(
         })
         .collect();
     let rows = (state.scenes.len() as f32 / 2.0).ceil();
-    let height = (rows * CARD_HEIGHT + (rows - 1.0).max(0.0) * PANEL_GAP + PANEL_PADDING)
-        .max(CARD_HEIGHT + PANEL_PADDING);
-    rsx! {
-        r#frame {
-            name: "CampsitePanel",
-            width,
-            height,
-            hidden: hide,
-            background_color: "0.04,0.03,0.02,0.92",
-            border: "1px solid 0.62,0.46,0.10,0.75",
-            layout: "flex-row-wrap",
-            gap: PANEL_GAP,
-            anchor {
-                point,
-                relative_point,
-                y,
+    let vertical_padding = padding.map(|value| value * 2.0).unwrap_or(PANEL_PADDING);
+    let height = (rows * CARD_HEIGHT + (rows - 1.0).max(0.0) * PANEL_GAP + vertical_padding)
+        .max(CARD_HEIGHT + vertical_padding);
+    if let Some(padding) = padding {
+        let justify = justify.unwrap_or("start");
+        rsx! {
+            r#frame {
+                name: "CampsitePanel",
+                width,
+                height,
+                hidden: hide,
+                background_color: "0.04,0.03,0.02,0.98",
+                border: "1px solid 0.62,0.46,0.10,0.75",
+                layout: "flex-row-wrap",
+                justify,
+                gap: PANEL_GAP,
+                padding,
+                anchor {
+                    point,
+                    relative_point,
+                    y,
+                }
+                {cards}
             }
-            {cards}
+        }
+    } else {
+        rsx! {
+            r#frame {
+                name: "CampsitePanel",
+                width,
+                height,
+                hidden: hide,
+                background_color: "0.04,0.03,0.02,0.98",
+                border: "1px solid 0.62,0.46,0.10,0.75",
+                layout: "flex-row-wrap",
+                gap: PANEL_GAP,
+                anchor {
+                    point,
+                    relative_point,
+                    y,
+                }
+                {cards}
+            }
         }
     }
 }

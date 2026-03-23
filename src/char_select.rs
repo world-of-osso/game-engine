@@ -693,6 +693,7 @@ fn build_campsite_state(panel_visible: bool) -> CampsiteState {
             .map(|s| CampsiteEntry {
                 id: s.id,
                 name: s.name.clone(),
+                preview_image: s.preview_image_path().map(str::to_string),
             })
             .collect(),
         panel_visible,
@@ -879,6 +880,7 @@ mod tests {
                 scenes: vec![CampsiteEntry {
                     id: 1,
                     name: "Forest".to_string(),
+                    preview_image: None,
                 }],
                 panel_visible: true,
                 selected_id: Some(1),
@@ -924,6 +926,7 @@ mod tests {
                 scenes: vec![CampsiteEntry {
                     id: 1,
                     name: "Forest".to_string(),
+                    preview_image: None,
                 }],
                 panel_visible: true,
                 selected_id: Some(1),
@@ -945,7 +948,7 @@ mod tests {
         );
         assert_eq!(panel.anchors[0].relative_to, Some(root_id));
         assert_eq!(panel.anchors[0].x_offset, 0.0);
-        assert_eq!(panel.anchors[0].y_offset, -12.0);
+        assert_eq!(panel.anchors[0].y_offset, -58.0);
     }
 
     #[test]

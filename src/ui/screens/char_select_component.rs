@@ -84,6 +84,7 @@ pub struct CharDisplayEntry {
 pub struct CampsiteEntry {
     pub id: u32,
     pub name: String,
+    pub preview_image: Option<String>,
 }
 
 #[derive(Default)]

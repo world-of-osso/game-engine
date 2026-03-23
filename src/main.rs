@@ -28,6 +28,7 @@ mod action_bar;
 mod animation;
 mod asset;
 mod camera;
+mod campsite_popup_screen;
 mod char_create;
 mod char_create_scene;
 mod char_select;
@@ -438,6 +439,7 @@ fn configure_app_plugins(
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
     app.add_plugins(char_create::CharCreatePlugin);
     app.add_plugins(char_create_scene::CharCreateScenePlugin);
+    app.add_plugins(campsite_popup_screen::CampsitePopupScreenPlugin);
     app.add_plugins(trash_button_screen::TrashButtonScreenPlugin);
     app.add_systems(
         OnEnter(game_state::GameState::InWorld),
@@ -739,6 +741,11 @@ mod tests {
             .expect("expected charcreate customize");
         assert_eq!(parsed, game_state::GameState::CharCreate);
 
+        let parsed = parse_state_arg(&args(&["--screen", "campsitepopup"]))
+            .expect("expected valid parse")
+            .expect("expected campsitepopup");
+        assert_eq!(parsed, game_state::GameState::CampsitePopup);
+
         let parsed = parse_state_arg(&args(&["--screen", "trashbutton"]))
             .expect("expected valid parse")
             .expect("expected trashbutton");
@@ -751,7 +758,7 @@ mod tests {
             .expect_err("connecting should be rejected for --screen");
         assert_eq!(
             err,
-            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, charcreate-customize, inworld, trashbutton"
+            "invalid --screen value 'connecting': expected one of: login, charselect, charcreate, charcreate-customize, campsitepopup, inworld, trashbutton"
         );
     }
 

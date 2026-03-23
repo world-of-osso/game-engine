@@ -21,6 +21,7 @@ pub struct WarbandSceneEntry {
     pub look_at: [f32; 3],
     pub map_id: u32,
     pub fov: f32,
+    pub texture_kit: u32,
 }
 
 /// Character placement slot within a warband scene.
@@ -132,6 +133,18 @@ impl WarbandSceneEntry {
     /// Map name for listfile lookup (warband maps use numeric names).
     pub fn map_name(&self) -> String {
         self.map_id.to_string()
+    }
+
+    pub fn preview_image_path(&self) -> Option<&'static str> {
+        match self.texture_kit {
+            5671 => Some("data/ui/campsites/adventurers-rest.png"),
+            5672 => Some("data/ui/campsites/ohnahran-overlook.png"),
+            5673 => Some("data/ui/campsites/cultists-quay.png"),
+            5674 => Some("data/ui/campsites/freywold-spring.png"),
+            5675 => Some("data/ui/campsites/randomize-from-favorites.png"),
+            5676 => Some("data/ui/campsites/gallagio-grand-gallery.png"),
+            _ => None,
+        }
     }
 }
 
@@ -258,6 +271,7 @@ fn parse_scene_line(line: &str) -> Option<WarbandSceneEntry> {
         ],
         map_id: fields[9].parse().ok()?,
         fov: fields[10].parse().ok()?,
+        texture_kit: fields[15].parse().ok()?,
     })
 }
 
@@ -364,10 +378,24 @@ mod tests {
         assert_eq!(rest.name, "Adventurer's Rest");
         assert_eq!(rest.map_id, 2703);
         assert!((rest.fov - 65.0).abs() < 0.1);
+        assert_eq!(rest.texture_kit, 5671);
         // Test entries (ID >= 99 or Flags & 7 != 0) should be filtered
         assert!(scenes.iter().all(|s| s.id < 99));
         // Randomize entry (ID=29, Flags=25 → 25 & 7 = 1) should be filtered
         assert!(!scenes.iter().any(|s| s.id == 29));
+    }
+
+    #[test]
+    fn preview_image_paths_cover_current_char_select_scenes() {
+        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
+        for scene in scenes {
+            assert!(
+                scene.preview_image_path().is_some(),
+                "missing preview image path for scene {} ({})",
+                scene.id,
+                scene.name
+            );
+        }
     }
 
     #[test]
