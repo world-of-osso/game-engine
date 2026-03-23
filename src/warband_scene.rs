@@ -194,10 +194,13 @@ pub fn supplemental_terrain_tile_coords(scene: &WarbandSceneEntry) -> Vec<(u32, 
 /// Extract the specific set of ADT tiles needed for a warband scene background.
 pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry) -> Vec<PathBuf> {
     let map_name = scene.map_name();
-    let mut tiles = vec![scene.tile_coords()];
-    tiles.extend(supplemental_terrain_tile_coords(scene));
-    tiles.sort_unstable();
-    tiles.dedup();
+    let primary = scene.tile_coords();
+    let mut tiles = vec![primary];
+    for supplemental in supplemental_terrain_tile_coords(scene) {
+        if supplemental != primary && !tiles.contains(&supplemental) {
+            tiles.push(supplemental);
+        }
+    }
     tiles
         .into_iter()
         .filter_map(|(tile_y, tile_x)| ensure_adt_tile(&map_name, tile_y, tile_x))
@@ -448,6 +451,32 @@ mod tests {
         let tiles = supplemental_terrain_tile_coords(rest);
 
         assert_eq!(tiles, vec![(31, 36)], "expected only the waterfall tile");
+    }
+
+    #[test]
+    fn warband_scene_primary_tile_stays_first_when_loading_all_tiles() {
+        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
+        let rest = scenes
+            .iter()
+            .find(|s| s.id == 1)
+            .expect("Adventurer's Rest");
+        let tiles = ensure_warband_terrain_tiles(rest);
+
+        assert!(
+            !tiles.is_empty(),
+            "expected at least the primary ADT tile to be extracted"
+        );
+        assert!(
+            tiles[0].ends_with("data/terrain/2703_31_37.adt"),
+            "primary campsite tile should load first, got {}",
+            tiles[0].display()
+        );
+        assert!(
+            tiles
+                .iter()
+                .any(|path| path.ends_with("data/terrain/2703_31_36.adt")),
+            "expected waterfall supplemental tile to remain included"
+        );
     }
 
     #[test]

@@ -44,10 +44,7 @@ pub fn spawn_warband_terrain(
     scene: &warband_scene::WarbandSceneEntry,
     focus: Vec3,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let Some(adt_path) = warband_scene::ensure_warband_terrain_tiles(scene)
-        .into_iter()
-        .next()
-    else {
+    let Some(adt_path) = warband_scene::ensure_warband_terrain(scene) else {
         return None;
     };
     let root_entity = commands
