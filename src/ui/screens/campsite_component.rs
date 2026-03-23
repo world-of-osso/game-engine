@@ -327,7 +327,13 @@ fn campsite_card(id: u32, name: &str, preview_image: Option<&str>, is_selected: 
 }
 
 pub fn campsite_panel(state: &CampsiteState) -> Element {
-    campsite_panel_with_anchor(state, AnchorPoint::Top, AnchorPoint::Top, "-58", PANEL_WIDTH)
+    campsite_panel_with_anchor(
+        state,
+        AnchorPoint::Top,
+        AnchorPoint::Top,
+        "-58",
+        PANEL_WIDTH,
+    )
 }
 
 fn campsite_panel_with_anchor(
