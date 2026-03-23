@@ -747,12 +747,13 @@ fn build_batched_model(
     texture_animations: &[super::m2_anim::TextureAnimTracks],
     uv_animation_lookup: &[i16],
     texture_unit_lookup: &[i16],
+    path: &Path,
     has_bones: bool,
     is_hd: bool,
 ) -> Result<Vec<M2RenderBatch>, String> {
     let mut batches = Vec::with_capacity(skin.batches.len());
     for unit in &skin.batches {
-        batches.push(build_one_batch(
+        let batch = build_one_batch(
             vertices,
             skin,
             materials,
@@ -765,9 +766,20 @@ fn build_batched_model(
             has_bones,
             is_hd,
             unit,
-        )?);
+        )?;
+        if should_skip_problem_batch(path, &batch) {
+            continue;
+        }
+        batches.push(batch);
     }
     Ok(batches)
+}
+
+pub(crate) fn should_skip_problem_batch(path: &Path, batch: &M2RenderBatch) -> bool {
+    if path.file_name().and_then(|name| name.to_str()) == Some("3718225.m2") {
+        return batch.blend_mode >= 4;
+    }
+    false
 }
 
 fn build_fallback_batch(
@@ -845,6 +857,7 @@ fn build_render_batches(
             &texture_animations,
             &uv_animation_lookup,
             &texture_unit_lookup,
+            path,
             has_bones,
             chunks.skid.is_some(),
         )

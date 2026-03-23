@@ -32,6 +32,9 @@ fn combine_textures(texture1: vec4<f32>, texture2: vec4<f32>, shader_id: u32) ->
             let rgb = texture1.rgb + texture2.rgb * texture2.a;
             return vec4<f32>(rgb, 1.0);
         }
+        case 0x0010u, 0x0011u, 0x4016u: {
+            return vec4<f32>(texture1.rgb, texture1.a * texture2.a);
+        }
         default: {
             return texture1;
         }
