@@ -431,6 +431,17 @@ fn write_export_character_file_persists_pretty_json() {
 }
 
 #[test]
+fn export_scene_request_uses_output_path() {
+    let request = export_scene_request(PathBuf::from("data/debug/scene.json"));
+    assert_eq!(
+        request,
+        Request::ExportScene {
+            output_path: "data/debug/scene.json".into(),
+        }
+    );
+}
+
+#[test]
 fn json_flag_parses_for_new_command_families() {
     let cli = crate::Cli::try_parse_from([
         "game-engine-cli",

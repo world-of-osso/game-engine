@@ -107,6 +107,13 @@ fn main() {
     let dump_tree = args.iter().any(|a| a == "--dump-tree");
     let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
     let dump_scene = args.iter().any(|a| a == "--dump-scene");
+    let load_scene = match parse_load_scene_arg(&args) {
+        Ok(path) => path,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
     let screenshot = parse_screenshot_args(&args);
     let initial_state = match parse_state_arg(&args) {
         Ok(state) => state,
@@ -119,6 +126,9 @@ fn main() {
         run_headless_ui_dump_app(initial_state);
         return;
     }
+    if let Some(path) = load_scene {
+        dump_loaded_scene_and_exit(&path, dump_scene);
+    }
     run_app(
         &args,
         dump_tree,
@@ -127,6 +137,22 @@ fn main() {
         screenshot,
         initial_state,
     );
+}
+
+fn dump_loaded_scene_and_exit(path: &Path, dump_scene: bool) -> ! {
+    if !dump_scene {
+        eprintln!("--load-scene currently requires --dump-scene");
+        std::process::exit(1);
+    }
+    let snapshot = match game_engine::scene_tree::read_scene_snapshot_file(path) {
+        Ok(snapshot) => snapshot,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
+    println!("{}", game_engine::dump::build_scene_snapshot(&snapshot));
+    std::process::exit(0);
 }
 
 fn ensure_asset_root() {
@@ -738,6 +764,13 @@ mod tests {
             parsed,
             game_engine::game_state_enum::ScreenArg::CharCreateCustomize
         );
+    }
+
+    #[test]
+    fn parse_load_scene_flag() {
+        let parsed = parse_load_scene_arg(&args(&["--load-scene", "data/debug/scene.json"]))
+            .expect("expected valid parse");
+        assert_eq!(parsed, Some(PathBuf::from("data/debug/scene.json")));
     }
 
     #[test]

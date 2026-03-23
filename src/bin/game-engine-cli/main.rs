@@ -10,9 +10,9 @@ use peercred_ipc::Client;
 
 use requests::{
     auction_request, collection_request, combat_request, equipment_request,
-    export_character_request, group_request, inventory_request, item_request, mail_request,
-    map_request, profession_request, quest_request, reputation_request, spell_request,
-    status_request,
+    export_character_request, export_scene_request, group_request, inventory_request, item_request,
+    mail_request, map_request, profession_request, quest_request, reputation_request,
+    spell_request, status_request,
 };
 
 #[derive(Parser)]
@@ -127,6 +127,8 @@ enum Cmd {
     },
     /// Export the selected character to a JSON file from the running engine
     ExportCharacter { output: PathBuf },
+    /// Export the semantic scene tree to a JSON snapshot file from the running engine
+    ExportScene { output: PathBuf },
 }
 
 #[derive(Subcommand)]
@@ -414,6 +416,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Map { command } => handle_map(socket, command, json),
         Cmd::Equipment { command } => handle_equipment(socket, command, json),
         Cmd::ExportCharacter { output } => handle_export_character(socket, output, json),
+        Cmd::ExportScene { output } => handle_export_scene(socket, output, json),
     }
 }
 
@@ -568,6 +571,10 @@ fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Resu
 
 fn handle_export_character(socket: &PathBuf, output: PathBuf, json: bool) -> Result<(), String> {
     handle_text_response(socket, export_character_request(output), json)
+}
+
+fn handle_export_scene(socket: &PathBuf, output: PathBuf, json: bool) -> Result<(), String> {
+    handle_text_response(socket, export_scene_request(output), json)
 }
 
 fn handle_text_response(socket: &PathBuf, request: Request, json: bool) -> Result<(), String> {

@@ -321,12 +321,20 @@ fn truncate(s: &str, max: usize) -> String {
 
 // --- Scene tree ---
 
-use crate::scene_tree::{NodeProps, SceneNode, SceneTree};
+use crate::scene_tree::{
+    NodeProps, SceneNode, SceneNodeTransform, SceneSnapshot, SceneSnapshotNode, SceneTree,
+};
 
 /// Build a formatted scene tree string.
 pub fn build_scene_tree(tree: &SceneTree, transforms: &Query<&Transform>) -> String {
     let mut lines = Vec::new();
     emit_scene_node(&tree.root, 0, transforms, &mut lines);
+    lines.join("\n")
+}
+
+pub fn build_scene_snapshot(snapshot: &SceneSnapshot) -> String {
+    let mut lines = Vec::new();
+    emit_scene_snapshot_node(&snapshot.root, 0, &mut lines);
     lines.join("\n")
 }
 
@@ -344,34 +352,52 @@ fn emit_scene_node(
     }
 }
 
+fn emit_scene_snapshot_node(node: &SceneSnapshotNode, depth: usize, lines: &mut Vec<String>) {
+    let indent = "  ".repeat(depth);
+    let line = format_scene_snapshot_node(node);
+    lines.push(format!("{indent}{line}"));
+    for child in &node.children {
+        emit_scene_snapshot_node(child, depth + 1, lines);
+    }
+}
+
 fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String {
-    let pos = format_node_position(node, transforms);
-    match &node.props {
-        NodeProps::Scene => node.label.clone(),
+    format_node_with_position(
+        &node.label,
+        &node.props,
+        &format_node_position(node, transforms),
+    )
+}
+
+fn format_scene_snapshot_node(node: &SceneSnapshotNode) -> String {
+    format_node_with_position(
+        &node.label,
+        &node.props,
+        &format_snapshot_position(node.transform),
+    )
+}
+
+fn format_node_with_position(label: &str, props: &NodeProps, pos: &str) -> String {
+    match props {
+        NodeProps::Scene => label.to_string(),
         NodeProps::Character {
             model,
             race,
             gender,
         } => {
-            format!(
-                "{} \"{}\" race={} gender={}{}",
-                node.label, model, race, gender, pos
-            )
+            format!("{label} \"{model}\" race={race} gender={gender}{pos}")
         }
         NodeProps::Background {
             model,
             doodad_count,
-        } => format!(
-            "{} \"{}\" doodads={}{}",
-            node.label, model, doodad_count, pos
-        ),
+        } => format!("{label} \"{model}\" doodads={doodad_count}{pos}"),
         NodeProps::Object { kind, model } => {
-            format!("{} {} \"{}\"{}", node.label, kind, model, pos)
+            format!("{label} {kind} \"{model}\"{pos}")
         }
-        NodeProps::Ground | NodeProps::Terrain => format!("{}{}", node.label, pos),
-        NodeProps::Camera { fov } => format!("{} fov={}{}", node.label, fov, pos),
-        NodeProps::Light { kind, intensity } => format!("{} {}={}", node.label, kind, intensity),
-        NodeProps::EquipmentSlot { model, .. } => format_equipment_slot(node, model),
+        NodeProps::Ground | NodeProps::Terrain => format!("{label}{pos}"),
+        NodeProps::Camera { fov } => format!("{label} fov={fov}{pos}"),
+        NodeProps::Light { kind, intensity } => format!("{label} {kind}={intensity}"),
+        NodeProps::EquipmentSlot { model, .. } => format_equipment_slot(label, model),
         NodeProps::Player {
             name,
             is_local,
@@ -379,13 +405,13 @@ fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String
             skin_path,
             display_scale,
         } => format_player_node(
-            node,
+            label,
             name,
             *is_local,
             model_path,
             skin_path,
             *display_scale,
-            &pos,
+            pos,
         ),
         NodeProps::Npc {
             name,
@@ -394,13 +420,13 @@ fn format_scene_node(node: &SceneNode, transforms: &Query<&Transform>) -> String
             skin_path,
             display_scale,
         } => format_npc_node(
-            node,
+            label,
             name,
             *display_id,
             model_path,
             skin_path,
             *display_scale,
-            &pos,
+            pos,
         ),
     }
 }
@@ -417,15 +443,26 @@ fn format_node_position(node: &SceneNode, transforms: &Query<&Transform>) -> Str
         .unwrap_or_default()
 }
 
-fn format_equipment_slot(node: &SceneNode, model: &Option<String>) -> String {
+fn format_snapshot_position(transform: Option<SceneNodeTransform>) -> String {
+    transform
+        .map(|t| {
+            format!(
+                " @ ({:.1}, {:.1}, {:.1})",
+                t.translation[0], t.translation[1], t.translation[2]
+            )
+        })
+        .unwrap_or_default()
+}
+
+fn format_equipment_slot(label: &str, model: &Option<String>) -> String {
     match model {
-        Some(m) => format!("{} \"{}\"", node.label, m),
-        None => format!("{} (empty)", node.label),
+        Some(m) => format!("{label} \"{m}\""),
+        None => format!("{label} (empty)"),
     }
 }
 
 fn format_player_node(
-    node: &SceneNode,
+    label: &str,
     name: &str,
     is_local: bool,
     model_path: &Option<String>,
@@ -435,11 +472,11 @@ fn format_player_node(
 ) -> String {
     let tag = if is_local { " (local)" } else { "" };
     let assets = format_model_assets(model_path, skin_path, display_scale);
-    format!("{} \"{}\"{}{}{}", node.label, name, tag, assets, pos)
+    format!("{label} \"{name}\"{tag}{assets}{pos}")
 }
 
 fn format_npc_node(
-    node: &SceneNode,
+    label: &str,
     name: &str,
     display_id: Option<u32>,
     model_path: &Option<String>,
@@ -451,7 +488,7 @@ fn format_npc_node(
         .map(|d| format!(" display={d}"))
         .unwrap_or_default();
     let assets = format_model_assets(model_path, skin_path, display_scale);
-    format!("{} \"{}\"{}{}{}", node.label, name, disp, assets, pos)
+    format!("{label} \"{name}\"{disp}{assets}{pos}")
 }
 
 fn format_model_assets(

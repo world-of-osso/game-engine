@@ -142,6 +142,9 @@ pub enum Request {
     ExportCharacter {
         output_path: String,
     },
+    ExportScene {
+        output_path: String,
+    },
     MapPosition,
     MapTarget,
     MapWaypointAdd {

@@ -236,6 +236,22 @@ fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
             };
             let _ = cmd.respond.send(Response::Tree(text));
         }
+        Request::ExportScene { output_path } => {
+            let result = match &scene.scene_tree {
+                Some(tree) => {
+                    let snapshot =
+                        crate::scene_tree::snapshot_scene_tree(tree, &scene.transform_query);
+                    crate::scene_tree::write_scene_snapshot_file(Path::new(output_path), &snapshot)
+                        .map(|_| format!("scene exported to {output_path}"))
+                }
+                None => Err("no scene tree available to export".into()),
+            };
+            let response = match result {
+                Ok(message) => Response::Text(message),
+                Err(error) => Response::Error(error),
+            };
+            let _ = cmd.respond.send(response);
+        }
         _ => return false,
     }
     true

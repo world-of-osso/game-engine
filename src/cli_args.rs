@@ -80,6 +80,10 @@ pub fn parse_char_arg(args: &[String]) -> Option<String> {
         .map(|w| w[1].clone())
 }
 
+pub fn parse_load_scene_arg(args: &[String]) -> Result<Option<PathBuf>, String> {
+    Ok(find_flag_value(args, &["--load-scene"])?.map(|(_, value)| PathBuf::from(value)))
+}
+
 pub fn print_help() {
     println!("game-engine {}", env!("CARGO_PKG_VERSION"));
     println!();
@@ -91,6 +95,7 @@ pub fn print_help() {
     );
     println!("  --server <ADDR>     Game server address (default: 127.0.0.1:5000)");
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
+    println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
@@ -147,7 +152,7 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             continue;
         }
         match args[i].as_str() {
-            "--server" | "--state" | "--screen" | "--char" => {
+            "--server" | "--state" | "--screen" | "--char" | "--load-scene" => {
                 i += 2;
             }
             "--login-dev-admin" => {
