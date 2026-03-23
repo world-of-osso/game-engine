@@ -124,6 +124,7 @@ struct SpawnRefs<'a, 'w, 's> {
     inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
 
+#[allow(dead_code)]
 /// Result of spawning an ADT: camera and ground position for placing models.
 pub struct AdtSpawnResult {
     pub camera: Transform,

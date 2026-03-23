@@ -231,6 +231,7 @@ pub(crate) fn vertex_index(grid_row: usize, col: usize) -> usize {
     }
 }
 
+#[allow(dead_code)]
 /// Compute Bevy-space world position for one vertex in the 145-element grid.
 fn vertex_position(
     grid_row: usize,
@@ -593,6 +594,7 @@ fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
     Ok((mcnks, mh2o))
 }
 
+#[allow(dead_code)]
 /// Parse an ADT file and return all 256 MCNK terrain meshes.
 pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     load_adt_inner(data, true, None)

@@ -178,6 +178,7 @@ pub fn crop_with_circle(
 }
 
 /// Draw a 3x3 colored dot at (cx, cy) in an RGBA buffer.
+#[cfg(test)]
 pub fn draw_dot(data: &mut [u8], size: usize, cx: i32, cy: i32, color: &[u8; 4]) {
     for dy in -1..=1i32 {
         for dx in -1..=1i32 {

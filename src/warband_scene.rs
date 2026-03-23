@@ -175,6 +175,7 @@ pub fn ensure_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
 }
 
 /// Return the local root ADT path for a warband scene if it is already cached on disk.
+#[allow(dead_code)]
 pub fn local_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     let map_name = scene.map_name();
     let (tile_y, tile_x) = scene.tile_coords();
@@ -192,6 +193,7 @@ pub fn supplemental_terrain_tile_coords(scene: &WarbandSceneEntry) -> Vec<(u32, 
 }
 
 /// Extract the specific set of ADT tiles needed for a warband scene background.
+#[allow(dead_code)]
 pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry) -> Vec<PathBuf> {
     let map_name = scene.map_name();
     let primary = scene.tile_coords();

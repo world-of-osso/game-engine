@@ -231,6 +231,7 @@ pub struct BoneAnimTracks {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct TextureAnimTracks {
     pub translation: AnimTrack<[f32; 3]>,
     pub rotation: AnimTrack<[i16; 4]>,
@@ -238,6 +239,7 @@ pub struct TextureAnimTracks {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct ColorAnimTracks {
     pub color: AnimTrack<[f32; 3]>,
     pub opacity: AnimTrack<i16>,
