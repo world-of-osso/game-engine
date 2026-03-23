@@ -191,6 +191,16 @@ pub fn spawn_adt(
     } else {
         terrain_objects::SpawnedTerrainObjects::default()
     };
+    let spawned_fog_volumes = terrain_objects::spawn_map_fog_volumes(
+        refs.commands,
+        refs.meshes,
+        refs.materials,
+        refs.effect_materials,
+        refs.images,
+        refs.inverse_bp,
+        &map_name,
+        Some(root),
+    );
     log_adt_spawn(&adt_data, adt_path);
 
     let (camera, center) = compute_spawn_result(&adt_data, obj_data.as_ref());
@@ -200,7 +210,8 @@ pub fn spawn_adt(
         .iter()
         .map(|wmo| (wmo.entity, wmo.model.clone()))
         .collect();
-    let spawned_object_entities = spawned_objects.all_entities();
+    let mut spawned_object_entities = spawned_objects.all_entities();
+    spawned_object_entities.extend(spawned_fog_volumes.entities);
     Ok(AdtSpawnResult {
         camera,
         center,

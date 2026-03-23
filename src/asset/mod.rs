@@ -7,6 +7,7 @@ pub mod blp;
 pub mod casc_resolver;
 #[allow(dead_code)]
 pub mod char_texture;
+pub mod fogs_wdt;
 pub mod m2;
 pub mod m2_anim;
 pub mod m2_attach;

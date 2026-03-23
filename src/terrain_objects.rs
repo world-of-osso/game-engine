@@ -5,8 +5,9 @@ use std::path::Path;
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use bevy::math::Mat3;
 
-use crate::asset::{adt_obj, blp, wmo};
+use crate::asset::{adt_obj, blp, fogs_wdt, wmo};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 
@@ -25,12 +26,65 @@ pub struct SpawnedWmoRoot {
     pub model: String,
 }
 
+#[derive(Default)]
+pub struct SpawnedFogVolumes {
+    pub entities: Vec<Entity>,
+}
+
 impl SpawnedTerrainObjects {
     pub fn all_entities(self) -> Vec<Entity> {
         let mut entities = self.doodads;
         entities.extend(self.wmos.into_iter().map(|wmo| wmo.entity));
         entities
     }
+}
+
+pub fn load_map_fogs_wdt(map_name: &str) -> Option<fogs_wdt::FogsWdt> {
+    let wow_path = format!("world/maps/{map_name}/{map_name}_fogs.wdt");
+    let fdid = game_engine::listfile::lookup_path(&wow_path)?;
+    let local_path = std::path::PathBuf::from(format!("data/fogs/{fdid}.wdt"));
+    let path = crate::asset::casc_resolver::ensure_file_at_path(fdid, &local_path)?;
+    let data = std::fs::read(path).ok()?;
+    match fogs_wdt::load_fogs_wdt(&data) {
+        Ok(fogs) => Some(fogs),
+        Err(err) => {
+            eprintln!("Failed to parse {wow_path}: {err}");
+            None
+        }
+    }
+}
+
+pub fn spawn_map_fog_volumes(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    map_name: &str,
+    parent: Option<Entity>,
+) -> SpawnedFogVolumes {
+    let Some(fogs) = load_map_fogs_wdt(map_name) else {
+        return SpawnedFogVolumes::default();
+    };
+    let mut entities = Vec::new();
+    for volume in &fogs.volumes {
+        let Some(entity) = try_spawn_fog_volume(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inverse_bp,
+            volume,
+            parent,
+        ) else {
+            continue;
+        };
+        entities.push(entity);
+    }
+    eprintln!("Spawned {}/{} fog volumes for map {map_name}", entities.len(), fogs.volumes.len());
+    SpawnedFogVolumes { entities }
 }
 
 // ── obj file loading ────────────────────────────────────────────────────────
@@ -187,6 +241,54 @@ fn try_spawn_doodad(
     Some(entity)
 }
 
+fn try_spawn_fog_volume(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    volume: &fogs_wdt::FogVolume,
+    parent: Option<Entity>,
+) -> Option<Entity> {
+    let m2_path = crate::asset::casc_resolver::ensure_model(volume.model_fdid)?;
+    if !m2_path.exists() {
+        return None;
+    }
+    let [x, y, z] =
+        crate::asset::m2::wow_to_bevy(volume.position[0], volume.position[1], volume.position[2]);
+    let rotation = wow_quat_to_bevy(volume.rotation);
+    let entity = commands
+        .spawn((
+            Name::new(format!("FogVolume_{}", volume.fog_id)),
+            Transform::from_translation(Vec3::new(x, y, z))
+                .with_rotation(rotation)
+                .with_scale(Vec3::ONE),
+            Visibility::default(),
+        ))
+        .id();
+    if !m2_spawn::spawn_m2_on_entity(
+        commands,
+        &mut m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inverse_bindposes: inverse_bp,
+        },
+        &m2_path,
+        entity,
+        &[0, 0, 0],
+    ) {
+        commands.entity(entity).despawn();
+        return None;
+    }
+    if let Some(parent) = parent {
+        commands.entity(parent).add_child(entity);
+    }
+    Some(entity)
+}
+
 /// Resolve a doodad placement to a local M2 file path.
 fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
     if let Some(fdid) = doodad.fdid {
@@ -221,6 +323,22 @@ fn placement_rotation(rot: [f32; 3]) -> Quat {
     let heading_y = (rot[1] - 180.0).to_radians();
     let attitude_z = (-rot[0]).to_radians();
     Quat::from_euler(EulerRot::YZX, heading_y, attitude_z, bank_x)
+}
+
+fn wow_quat_to_bevy(raw: [f32; 4]) -> Quat {
+    let wow_quat = normalize_quat_or_identity(Quat::from_xyzw(raw[0], raw[1], raw[2], raw[3]));
+    let basis = Mat3::from_cols(Vec3::X, -Vec3::Z, Vec3::Y);
+    let bevy_rot = basis * Mat3::from_quat(wow_quat) * basis.transpose();
+    normalize_quat_or_identity(Quat::from_mat3(&bevy_rot))
+}
+
+fn normalize_quat_or_identity(quat: Quat) -> Quat {
+    let len = quat.length();
+    if len > f32::EPSILON {
+        quat / len
+    } else {
+        Quat::IDENTITY
+    }
 }
 
 // ── WMO spawning ────────────────────────────────────────────────────────────
@@ -688,6 +806,16 @@ mod tests {
             rotated.abs_diff_eq(expected, 1e-5),
             "zero placement rotation should match the current Y-180 mapping: rotated={rotated:?} expected={expected:?}"
         );
+    }
+
+    #[test]
+    fn load_map_fogs_wdt_reads_warband_companion_file() {
+        let fogs = load_map_fogs_wdt("2703").expect("expected 2703_fogs.wdt");
+
+        assert_eq!(fogs.version, 2);
+        assert_eq!(fogs.volumes.len(), 1);
+        assert_eq!(fogs.volumes[0].model_fdid, 1_728_356);
+        assert_eq!(fogs.volumes[0].fog_id, 1_725);
     }
 
     #[test]
