@@ -182,24 +182,26 @@ pub fn local_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     local.exists().then_some(local)
 }
 
-/// Extract a square neighborhood of ADT tiles around the scene tile.
-pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry, radius: i32) -> Vec<PathBuf> {
-    let map_name = scene.map_name();
-    let (tile_y, tile_x) = scene.tile_coords();
-    let mut tiles = Vec::new();
-    for dy in -radius..=radius {
-        for dx in -radius..=radius {
-            let ny = tile_y as i32 + dy;
-            let nx = tile_x as i32 + dx;
-            if !(0..=63).contains(&ny) || !(0..=63).contains(&nx) {
-                continue;
-            }
-            if let Some(path) = ensure_adt_tile(&map_name, ny as u32, nx as u32) {
-                tiles.push(path);
-            }
-        }
+/// Extra tiles needed to complete authored campsite backdrops that cross tile borders.
+pub fn supplemental_terrain_tile_coords(scene: &WarbandSceneEntry) -> Vec<(u32, u32)> {
+    match scene.id {
+        // Adventurer's Rest waterfall sits on the tile immediately west of the campsite tile.
+        1 => vec![(31, 36)],
+        _ => Vec::new(),
     }
+}
+
+/// Extract the specific set of ADT tiles needed for a warband scene background.
+pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry) -> Vec<PathBuf> {
+    let map_name = scene.map_name();
+    let mut tiles = vec![scene.tile_coords()];
+    tiles.extend(supplemental_terrain_tile_coords(scene));
+    tiles.sort_unstable();
+    tiles.dedup();
     tiles
+        .into_iter()
+        .filter_map(|(tile_y, tile_x)| ensure_adt_tile(&map_name, tile_y, tile_x))
+        .collect()
 }
 
 /// Extract a single ADT tile + _tex0 + _obj0 from CASC.
@@ -434,6 +436,18 @@ mod tests {
             crate::terrain::bevy_to_tile_coords(pos.x, pos.z),
             rest.tile_coords()
         );
+    }
+
+    #[test]
+    fn warband_scene_supplemental_tiles_cover_waterfall_neighbor() {
+        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
+        let rest = scenes
+            .iter()
+            .find(|s| s.id == 1)
+            .expect("Adventurer's Rest");
+        let tiles = supplemental_terrain_tile_coords(rest);
+
+        assert_eq!(tiles, vec![(31, 36)], "expected only the waterfall tile");
     }
 
     #[test]

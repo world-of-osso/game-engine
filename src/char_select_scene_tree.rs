@@ -39,9 +39,10 @@ pub fn spawn_warband_terrain(
     heightmap: &mut TerrainHeightmap,
     scene: &warband_scene::WarbandSceneEntry,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let Some(adt_path) = warband_scene::local_warband_terrain(scene) else {
+    let adt_paths = warband_scene::ensure_warband_terrain_tiles(scene);
+    if adt_paths.is_empty() {
         return None;
-    };
+    }
     let root_entity = commands
         .spawn((
             Name::new("WarbandTerrain"),
@@ -51,32 +52,40 @@ pub fn spawn_warband_terrain(
             Visibility::default(),
         ))
         .id();
-    let Ok(result) = terrain::spawn_adt(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        terrain_materials,
-        water_materials,
-        images,
-        inv_bp,
-        heightmap,
-        &adt_path,
-    ) else {
+    let mut doodad_count = 0;
+    let mut wmo_entities = Vec::new();
+    let mut spawned_any = false;
+    for adt_path in adt_paths {
+        let Ok(result) = terrain::spawn_adt(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            terrain_materials,
+            water_materials,
+            images,
+            inv_bp,
+            heightmap,
+            &adt_path,
+        ) else {
+            continue;
+        };
+        commands.entity(root_entity).add_child(result.root_entity);
+        doodad_count += result.doodad_count;
+        wmo_entities.extend(result.wmo_entities);
+        spawned_any = true;
+    }
+    if !spawned_any {
         commands.entity(root_entity).despawn();
         return None;
-    };
-    commands.entity(root_entity).add_child(result.root_entity);
-    commands
-        .entity(result.root_entity)
-        .insert((CharSelectScene, CharSelectTerrain));
+    }
     commands
         .entity(root_entity)
         .insert((CharSelectScene, CharSelectTerrain));
     Some(WarbandTerrainSpawnResult {
         root_entity,
-        doodad_count: result.doodad_count,
-        wmo_entities: result.wmo_entities,
+        doodad_count,
+        wmo_entities,
     })
 }
 
