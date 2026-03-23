@@ -747,7 +747,6 @@ fn build_batched_model(
     texture_animations: &[super::m2_anim::TextureAnimTracks],
     uv_animation_lookup: &[i16],
     texture_unit_lookup: &[i16],
-    path: &Path,
     has_bones: bool,
     is_hd: bool,
 ) -> Result<Vec<M2RenderBatch>, String> {
@@ -767,9 +766,6 @@ fn build_batched_model(
             is_hd,
             unit,
         )?;
-        if should_skip_problem_batch(path, &batch) {
-            continue;
-        }
         batches.push(batch);
     }
     Ok(batches)
@@ -785,13 +781,6 @@ pub(crate) fn mesh_has_distinct_uv1(mesh: &Mesh) -> bool {
     uv0.iter()
         .zip(uv1.iter())
         .any(|(a, b)| (a[0] - b[0]).abs() > 0.0001 || (a[1] - b[1]).abs() > 0.0001)
-}
-
-pub(crate) fn should_skip_problem_batch(path: &Path, batch: &M2RenderBatch) -> bool {
-    if path.file_name().and_then(|name| name.to_str()) == Some("3718225.m2") {
-        return matches!(batch.texture_fdid, Some(3754147 | 3641494));
-    }
-    false
 }
 
 fn build_fallback_batch(
@@ -869,7 +858,6 @@ fn build_render_batches(
             &texture_animations,
             &uv_animation_lookup,
             &texture_unit_lookup,
-            path,
             has_bones,
             chunks.skid.is_some(),
         )

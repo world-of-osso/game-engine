@@ -243,43 +243,6 @@ fn parse_skin_full_with_submeshes_and_batches() {
     assert_eq!(data.batches[0].texture_count, 2);
 }
 
-#[test]
-fn domination_boots_filter_only_skips_helper_glow_layers() {
-    let make_batch = |texture_fdid| M2RenderBatch {
-        mesh: bevy::mesh::Mesh::new(
-            bevy::mesh::PrimitiveTopology::TriangleList,
-            bevy::asset::RenderAssetUsages::default(),
-        ),
-        texture_fdid,
-        texture_2_fdid: None,
-        texture_type: None,
-        overlays: Vec::new(),
-        render_flags: 0,
-        blend_mode: 4,
-        transparency: 1.0,
-        texture_anim: None,
-        texture_anim_2: None,
-        use_uv_2_1: false,
-        use_uv_2_2: false,
-        shader_id: 0,
-        texture_count: 1,
-        mesh_part_id: 0,
-    };
-
-    assert!(should_skip_problem_batch(
-        std::path::Path::new("3718225.m2"),
-        &make_batch(Some(3754147)),
-    ));
-    assert!(!should_skip_problem_batch(
-        std::path::Path::new("3718225.m2"),
-        &make_batch(Some(3794687)),
-    ));
-    assert!(!should_skip_problem_batch(
-        std::path::Path::new("other_model.m2"),
-        &make_batch(Some(3754147)),
-    ));
-}
-
 fn rewrite_first_sfid(data: &mut [u8], replacement: u32) {
     let mut off = 0usize;
     while off + 8 <= data.len() {
