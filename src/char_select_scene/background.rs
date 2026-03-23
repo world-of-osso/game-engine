@@ -71,6 +71,7 @@ pub fn spawn(
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
     scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    focus: Option<Vec3>,
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
     if let Some(s) = scene
@@ -85,6 +86,7 @@ pub fn spawn(
             inv_bp,
             heightmap,
             s,
+            focus.unwrap_or_else(|| s.bevy_look_at()),
         )
     {
         active.0 = Some(s.id);

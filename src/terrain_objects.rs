@@ -3,9 +3,9 @@
 use std::path::Path;
 
 use bevy::image::Image;
+use bevy::math::Mat3;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
-use bevy::math::Mat3;
 
 use crate::asset::{adt_obj, blp, fogs_wdt, wmo};
 use crate::m2_effect_material::M2EffectMaterial;
@@ -83,7 +83,11 @@ pub fn spawn_map_fog_volumes(
         };
         entities.push(entity);
     }
-    eprintln!("Spawned {}/{} fog volumes for map {map_name}", entities.len(), fogs.volumes.len());
+    eprintln!(
+        "Spawned {}/{} fog volumes for map {map_name}",
+        entities.len(),
+        fogs.volumes.len()
+    );
     SpawnedFogVolumes { entities }
 }
 
@@ -135,7 +139,7 @@ pub fn spawn_obj_entities(
     obj_data: &adt_obj::AdtObjData,
 ) -> SpawnedTerrainObjects {
     let mut spawned = SpawnedTerrainObjects::default();
-    spawn_doodads(
+    spawn_doodads_filtered(
         commands,
         meshes,
         materials,
@@ -146,6 +150,7 @@ pub fn spawn_obj_entities(
         tile_y,
         tile_x,
         obj_data,
+        |_| true,
         &mut spawned.doodads,
     );
     spawn_wmos(
@@ -161,8 +166,7 @@ pub fn spawn_obj_entities(
     spawned
 }
 
-/// Spawn doodads (M2 models) from placement data.
-fn spawn_doodads(
+pub fn spawn_waterfall_backdrop_doodads(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -173,10 +177,89 @@ fn spawn_doodads(
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
+) -> Vec<Entity> {
+    let mut entities = Vec::new();
+    spawn_doodads_filtered(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inverse_bp,
+        heightmap,
+        tile_y,
+        tile_x,
+        obj_data,
+        is_waterfall_backdrop_doodad,
+        &mut entities,
+    );
+    entities
+}
+
+pub fn spawn_nearby_campsite_objects(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
+    obj_data: &adt_obj::AdtObjData,
+    focus: Vec3,
+    doodad_radius: f32,
+    wmo_radius: f32,
+) -> SpawnedTerrainObjects {
+    let mut spawned = SpawnedTerrainObjects::default();
+    spawn_doodads_filtered(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inverse_bp,
+        heightmap,
+        tile_y,
+        tile_x,
+        obj_data,
+        |doodad| doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius,
+        &mut spawned.doodads,
+    );
+    spawn_wmos_filtered(
+        commands,
+        meshes,
+        materials,
+        images,
+        tile_y,
+        tile_x,
+        obj_data,
+        |wmo| wmo_position(wmo, tile_y, tile_x).distance(focus) <= wmo_radius,
+        &mut spawned.wmos,
+    );
+    spawned
+}
+
+/// Spawn doodads (M2 models) from placement data.
+fn spawn_doodads_filtered(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
+    obj_data: &adt_obj::AdtObjData,
+    filter: impl Fn(&adt_obj::DoodadPlacement) -> bool,
     entities: &mut Vec<Entity>,
 ) {
     let mut spawned = 0u32;
     for doodad in &obj_data.doodads {
+        if !filter(doodad) {
+            continue;
+        }
         if let Some(e) = try_spawn_doodad(
             commands,
             meshes,
@@ -193,7 +276,7 @@ fn spawn_doodads(
             spawned += 1;
         }
     }
-    eprintln!("Spawned {spawned}/{} doodads", obj_data.doodads.len());
+    eprintln!("Spawned {spawned} filtered doodads");
 }
 
 /// Try to spawn a single doodad. Returns the entity if successful.
@@ -299,6 +382,22 @@ fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::Pat
     crate::asset::casc_resolver::ensure_model(fdid)
 }
 
+fn doodad_model_name(doodad: &adt_obj::DoodadPlacement) -> Option<String> {
+    doodad
+        .fdid
+        .and_then(game_engine::listfile::lookup_fdid)
+        .map(str::to_string)
+        .or_else(|| doodad.path.clone())
+}
+
+fn is_waterfall_backdrop_doodad(doodad: &adt_obj::DoodadPlacement) -> bool {
+    let Some(model) = doodad_model_name(doodad) else {
+        return false;
+    };
+    let model = model.to_ascii_lowercase();
+    model.contains("waterfall") || model.contains("ripple01_misty")
+}
+
 /// Convert WoW doodad placement to a Bevy Transform.
 fn doodad_transform(
     d: &adt_obj::DoodadPlacement,
@@ -306,7 +405,7 @@ fn doodad_transform(
     tile_y: u32,
     tile_x: u32,
 ) -> Transform {
-    let mut pos = Vec3::from(placement_to_bevy_on_tile(d.position, tile_y, tile_x));
+    let mut pos = doodad_position(d, tile_y, tile_x);
     if let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z)) {
         pos.y = pos.y.max(terrain_y);
     }
@@ -314,6 +413,10 @@ fn doodad_transform(
     Transform::from_translation(pos)
         .with_rotation(rotation)
         .with_scale(Vec3::splat(d.scale))
+}
+
+fn doodad_position(d: &adt_obj::DoodadPlacement, tile_y: u32, tile_x: u32) -> Vec3 {
+    Vec3::from(placement_to_bevy_on_tile(d.position, tile_y, tile_x))
 }
 
 /// Convert WoW MDDF/MODF Euler rotation to Bevy.
@@ -360,8 +463,35 @@ fn spawn_wmos(
     obj_data: &adt_obj::AdtObjData,
     entities: &mut Vec<SpawnedWmoRoot>,
 ) {
+    spawn_wmos_filtered(
+        commands,
+        meshes,
+        materials,
+        images,
+        tile_y,
+        tile_x,
+        obj_data,
+        |_| true,
+        entities,
+    );
+}
+
+fn spawn_wmos_filtered(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    tile_y: u32,
+    tile_x: u32,
+    obj_data: &adt_obj::AdtObjData,
+    filter: impl Fn(&adt_obj::WmoPlacement) -> bool,
+    entities: &mut Vec<SpawnedWmoRoot>,
+) {
     let mut spawned_count = 0u32;
     for placement in &obj_data.wmos {
+        if !filter(placement) {
+            continue;
+        }
         let mut assets = WmoAssets {
             meshes,
             materials,
@@ -765,11 +895,14 @@ fn placement_to_bevy_on_tile(raw: [f32; 3], tile_y: u32, tile_x: u32) -> [f32; 3
 
 /// Convert WMO placement to a Bevy Transform.
 fn wmo_transform(w: &adt_obj::WmoPlacement, tile_y: u32, tile_x: u32) -> Transform {
-    let pos = placement_to_bevy_on_tile(w.position, tile_y, tile_x);
     let rotation = placement_rotation(w.rotation);
-    Transform::from_translation(Vec3::from(pos))
+    Transform::from_translation(wmo_position(w, tile_y, tile_x))
         .with_rotation(rotation)
         .with_scale(Vec3::splat(w.scale))
+}
+
+fn wmo_position(w: &adt_obj::WmoPlacement, tile_y: u32, tile_x: u32) -> Vec3 {
+    Vec3::from(placement_to_bevy_on_tile(w.position, tile_y, tile_x))
 }
 
 #[cfg(test)]
@@ -895,6 +1028,33 @@ mod tests {
     fn wmo_vertex_colored_materials_are_unlit() {
         let material = wmo_standard_material(None, 0, 0, true);
         assert!(material.unlit);
+    }
+
+    #[test]
+    fn waterfall_backdrop_filter_keeps_only_waterfall_effects() {
+        let waterfall = adt_obj::DoodadPlacement {
+            name_id: 0,
+            unique_id: 0,
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: 1.0,
+            flags: 0,
+            fdid: None,
+            path: Some("world/expansion09/doodads/exterior/10xp_waterfall04.m2".to_string()),
+        };
+        let campfire = adt_obj::DoodadPlacement {
+            name_id: 0,
+            unique_id: 0,
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: 1.0,
+            flags: 0,
+            fdid: None,
+            path: Some("world/expansion09/doodads/centaur/10ct_centaur_campfire01.m2".to_string()),
+        };
+
+        assert!(is_waterfall_backdrop_doodad(&waterfall));
+        assert!(!is_waterfall_backdrop_doodad(&campfire));
     }
 
     #[test]
@@ -1181,7 +1341,11 @@ mod tests {
                     } else {
                         1.0
                     };
-                    let fdid = if (flags & 0x8) != 0 { Some(name_id) } else { None };
+                    let fdid = if (flags & 0x8) != 0 {
+                        Some(name_id)
+                    } else {
+                        None
+                    };
                     RawModfEntry {
                         unique_id,
                         fdid,

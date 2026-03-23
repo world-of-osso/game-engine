@@ -8,6 +8,7 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
+use crate::terrain_objects;
 use crate::warband_scene;
 use crate::water_material::WaterMaterial;
 
@@ -25,6 +26,9 @@ pub struct WarbandTerrainSpawnResult {
     pub wmo_entities: Vec<(Entity, String)>,
 }
 
+const CHAR_SELECT_PRIMARY_DOODAD_RADIUS: f32 = 75.0;
+const CHAR_SELECT_PRIMARY_WMO_RADIUS: f32 = 120.0;
+
 /// Spawn warband scene terrain from ADT tiles extracted via CASC.
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_warband_terrain(
@@ -38,11 +42,14 @@ pub fn spawn_warband_terrain(
     inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
     scene: &warband_scene::WarbandSceneEntry,
+    focus: Vec3,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let adt_paths = warband_scene::ensure_warband_terrain_tiles(scene);
-    if adt_paths.is_empty() {
+    let Some(adt_path) = warband_scene::ensure_warband_terrain_tiles(scene)
+        .into_iter()
+        .next()
+    else {
         return None;
-    }
+    };
     let root_entity = commands
         .spawn((
             Name::new("WarbandTerrain"),
@@ -54,30 +61,43 @@ pub fn spawn_warband_terrain(
         .id();
     let mut doodad_count = 0;
     let mut wmo_entities = Vec::new();
-    let mut spawned_any = false;
-    for adt_path in adt_paths {
-        let Ok(result) = terrain::spawn_adt(
+    let Ok(result) = terrain::spawn_adt_terrain_only(
+        commands,
+        meshes,
+        materials,
+        terrain_materials,
+        water_materials,
+        images,
+        heightmap,
+        &adt_path,
+    ) else {
+        commands.entity(root_entity).despawn();
+        return None;
+    };
+    commands.entity(root_entity).add_child(result.root_entity);
+    if let Some(obj_data) = terrain_objects::load_obj0(&adt_path) {
+        let spawned_objects = terrain_objects::spawn_nearby_campsite_objects(
             commands,
             meshes,
             materials,
             effect_materials,
-            terrain_materials,
-            water_materials,
             images,
             inv_bp,
-            heightmap,
-            &adt_path,
-        ) else {
-            continue;
-        };
-        commands.entity(root_entity).add_child(result.root_entity);
-        doodad_count += result.doodad_count;
-        wmo_entities.extend(result.wmo_entities);
-        spawned_any = true;
-    }
-    if !spawned_any {
-        commands.entity(root_entity).despawn();
-        return None;
+            Some(heightmap),
+            result.tile_y,
+            result.tile_x,
+            &obj_data,
+            focus,
+            CHAR_SELECT_PRIMARY_DOODAD_RADIUS,
+            CHAR_SELECT_PRIMARY_WMO_RADIUS,
+        );
+        doodad_count += spawned_objects.doodads.len();
+        wmo_entities.extend(
+            spawned_objects
+                .wmos
+                .iter()
+                .map(|wmo| (wmo.entity, wmo.model.clone())),
+        );
     }
     commands
         .entity(root_entity)
@@ -87,6 +107,60 @@ pub fn spawn_warband_terrain(
         doodad_count,
         wmo_entities,
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_warband_supplemental_terrain(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
+    heightmap: &mut TerrainHeightmap,
+    scene: &warband_scene::WarbandSceneEntry,
+    root_entity: Entity,
+) -> usize {
+    let mut doodad_count = 0;
+    for (tile_y, tile_x) in warband_scene::supplemental_terrain_tile_coords(scene) {
+        let adt_path = std::path::PathBuf::from(format!(
+            "data/terrain/{}_{}_{}.adt",
+            scene.map_name(),
+            tile_y,
+            tile_x
+        ));
+        let Ok(result) = terrain::spawn_adt_terrain_only(
+            commands,
+            meshes,
+            materials,
+            terrain_materials,
+            water_materials,
+            images,
+            heightmap,
+            &adt_path,
+        ) else {
+            continue;
+        };
+        commands.entity(root_entity).add_child(result.root_entity);
+        if let Some(obj_data) = terrain_objects::load_obj0(&adt_path) {
+            doodad_count += terrain_objects::spawn_waterfall_backdrop_doodads(
+                commands,
+                meshes,
+                materials,
+                effect_materials,
+                images,
+                inv_bp,
+                Some(heightmap),
+                result.tile_y,
+                result.tile_x,
+                &obj_data,
+            )
+            .len();
+        }
+    }
+    doodad_count
 }
 
 /// Build the background scene node (terrain or fallback ground).

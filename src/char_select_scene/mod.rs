@@ -32,6 +32,7 @@ use crate::scene_setup::DEFAULT_M2;
 use crate::sky::{self, SkyMaterial};
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
+use crate::warband_scene;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
 use crate::water_material::WaterMaterial;
 
@@ -94,6 +95,11 @@ struct DisplayedCharacterId(Option<u64>);
 #[derive(Resource, Default)]
 struct DisplayedCharacterAppearance(Option<AppliedCharacterAppearance>);
 
+#[derive(Resource, Default)]
+struct PendingSupplementalWarbandScene {
+    scene_id: Option<u32>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct AppliedCharacterAppearance {
     character_id: u64,
@@ -121,6 +127,7 @@ impl Plugin for CharSelectScenePlugin {
         app.init_resource::<DisplayedCharacterId>();
         app.init_resource::<DisplayedCharacterAppearance>();
         app.init_resource::<ActiveWarbandSceneId>();
+        app.init_resource::<PendingSupplementalWarbandScene>();
         app.add_systems(OnEnter(GameState::CharSelect), setup_char_select_scene);
         app.add_systems(
             Update,
@@ -128,6 +135,7 @@ impl Plugin for CharSelectScenePlugin {
                 sync_char_select_model,
                 sync_selected_character_appearance,
                 sync_warband_scene_switch,
+                spawn_pending_warband_supplemental_terrain,
                 char_select_orbit_camera,
             )
                 .run_if(in_state(GameState::CharSelect)),
@@ -439,6 +447,7 @@ fn setup_char_select_scene(
     selected: Res<SelectedCharIndex>,
     mut displayed: ResMut<DisplayedCharacterId>,
     mut active_scene: ResMut<ActiveWarbandSceneId>,
+    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
 ) {
@@ -461,6 +470,9 @@ fn setup_char_select_scene(
         &mut assets.inv_bp,
         &mut heightmap,
         scene_entry,
+        placement
+            .as_ref()
+            .map(|placement| placement.bevy_position()),
         &mut active_scene,
     );
     let background_elapsed = background_start.elapsed();
@@ -523,6 +535,9 @@ fn setup_char_select_scene(
         dir,
     ));
     commands.insert_resource(scene_tree::build_scene_tree(children));
+    pending_supplemental.scene_id = scene_entry
+        .filter(|scene| !warband_scene::supplemental_terrain_tile_coords(scene).is_empty())
+        .map(|scene| scene.id);
     info!(
         "setup_char_select_scene finished in {:.3}s (background={:.3}s camera={:.3}s sky+light={:.3}s model={:.3}s)",
         total_start.elapsed().as_secs_f32(),
@@ -723,6 +738,7 @@ fn sync_warband_scene_switch(
         (&mut Transform, &mut CharSelectOrbit, &mut Projection),
         (With<CharSelectScene>, Without<CharSelectModelRoot>),
     >,
+    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
 ) {
     let Some(warband) = warband else { return };
     let Some(sel) = selected_scene else { return };
@@ -748,6 +764,10 @@ fn sync_warband_scene_switch(
         &mut assets.inv_bp,
         &mut heightmap,
         scene,
+        placement
+            .as_ref()
+            .map(|placement| placement.bevy_position())
+            .unwrap_or_else(|| scene.bevy_look_at()),
     );
     update_camera_for_scene(
         scene,
@@ -757,6 +777,53 @@ fn sync_warband_scene_switch(
         &mut camera_query,
     );
     active_scene.0 = Some(sel.scene_id);
+    pending_supplemental.scene_id =
+        if warband_scene::supplemental_terrain_tile_coords(scene).is_empty() {
+            None
+        } else {
+            Some(sel.scene_id)
+        };
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_pending_warband_supplemental_terrain(
+    mut commands: Commands,
+    mut assets: CharSelectRenderAssets,
+    mut pending: ResMut<PendingSupplementalWarbandScene>,
+    active_scene: Res<ActiveWarbandSceneId>,
+    mut heightmap: ResMut<TerrainHeightmap>,
+    warband: Option<Res<WarbandScenes>>,
+    terrain_query: Query<Entity, With<CharSelectTerrain>>,
+) {
+    let Some(scene_id) = pending.scene_id else {
+        return;
+    };
+    if active_scene.0 != Some(scene_id) {
+        pending.scene_id = None;
+        return;
+    }
+    let Some(warband) = warband else { return };
+    let Some(scene) = warband.scenes.iter().find(|scene| scene.id == scene_id) else {
+        pending.scene_id = None;
+        return;
+    };
+    let Ok(root_entity) = terrain_query.single() else {
+        return;
+    };
+    scene_tree::spawn_warband_supplemental_terrain(
+        &mut commands,
+        &mut assets.meshes,
+        &mut assets.materials,
+        &mut assets.effect_materials,
+        &mut assets.terrain_materials,
+        &mut assets.water_materials,
+        &mut assets.images,
+        &mut assets.inv_bp,
+        &mut heightmap,
+        scene,
+        root_entity,
+    );
+    pending.scene_id = None;
 }
 
 fn teardown_char_select_scene(
@@ -765,6 +832,7 @@ fn teardown_char_select_scene(
     mut displayed: ResMut<DisplayedCharacterId>,
     mut displayed_appearance: ResMut<DisplayedCharacterAppearance>,
     mut active_scene: ResMut<ActiveWarbandSceneId>,
+    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
@@ -772,6 +840,7 @@ fn teardown_char_select_scene(
     displayed.0 = None;
     displayed_appearance.0 = None;
     active_scene.0 = None;
+    pending_supplemental.scene_id = None;
     commands.remove_resource::<game_engine::scene_tree::SceneTree>();
 }
 
