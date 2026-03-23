@@ -653,6 +653,7 @@ fn build_one_batch(
     skin: &SkinData,
     materials: &[M2Material],
     tex: &TextureTables<'_>,
+    color_tracks: &[super::m2_anim::ColorAnimTracks],
     transparencies: &[super::m2_anim::AnimTrack<i16>],
     transparency_lookup: &[i16],
     texture_animations: &[super::m2_anim::TextureAnimTracks],
@@ -661,7 +662,7 @@ fn build_one_batch(
     has_bones: bool,
     is_hd: bool,
     unit: &M2TextureUnit,
-) -> Result<M2RenderBatch, String> {
+) -> Result<Option<M2RenderBatch>, String> {
     let sub_idx = unit.submesh_index as usize;
     if sub_idx >= skin.submeshes.len() {
         return Err(format!(
@@ -684,6 +685,16 @@ fn build_one_batch(
         .and_then(|track| super::m2_anim::evaluate_i16_track(track, 0, 0))
         .map(|value| (value as f32 / 32767.0).clamp(0.0, 1.0))
         .unwrap_or(1.0);
+    let color_opacity = usize::try_from(unit.color_index)
+        .ok()
+        .and_then(|idx| color_tracks.get(idx))
+        .and_then(|tracks| super::m2_anim::evaluate_i16_track(&tracks.opacity, 0, 0))
+        .map(|value| (value as f32 / 32767.0).clamp(0.0, 1.0))
+        .unwrap_or(1.0);
+    let transparency = transparency * color_opacity;
+    if transparency <= 0.0 {
+        return Ok(None);
+    }
     let texture_anim = uv_animation_lookup
         .get(unit.texture_animation_id as usize)
         .copied()
@@ -701,14 +712,14 @@ fn build_one_batch(
         None
     };
     // Retail chunked models sometimes omit the global texture-unit lookup table.
-    // Prefer UV1 only when the mesh actually carries a distinct secondary set.
+    // Prefer UV1 only when the mesh actually carries a meaningful secondary set.
     let use_uv_2_1 = texture_unit_lookup
         .get(unit.texture_coord_index as usize)
         .copied()
         == Some(1);
     let use_uv_2_2 = if unit.texture_count > 1 {
         if texture_unit_lookup.is_empty() {
-            mesh_has_distinct_uv1(&mesh)
+            mesh_has_meaningful_uv1(&mesh)
         } else {
             texture_unit_lookup
                 .get(unit.texture_coord_index.saturating_add(1) as usize)
@@ -718,7 +729,7 @@ fn build_one_batch(
     } else {
         false
     };
-    Ok(M2RenderBatch {
+    Ok(Some(M2RenderBatch {
         mesh,
         texture_fdid,
         texture_2_fdid,
@@ -734,7 +745,7 @@ fn build_one_batch(
         shader_id: unit.shader_id,
         texture_count: unit.texture_count,
         mesh_part_id: sub.mesh_part_id,
-    })
+    }))
 }
 
 fn build_batched_model(
@@ -742,6 +753,7 @@ fn build_batched_model(
     skin: &SkinData,
     materials: &[M2Material],
     tex: &TextureTables<'_>,
+    color_tracks: &[super::m2_anim::ColorAnimTracks],
     transparencies: &[super::m2_anim::AnimTrack<i16>],
     transparency_lookup: &[i16],
     texture_animations: &[super::m2_anim::TextureAnimTracks],
@@ -757,6 +769,7 @@ fn build_batched_model(
             skin,
             materials,
             tex,
+            color_tracks,
             transparencies,
             transparency_lookup,
             texture_animations,
@@ -766,21 +779,36 @@ fn build_batched_model(
             is_hd,
             unit,
         )?;
-        batches.push(batch);
+        if let Some(batch) = batch {
+            batches.push(batch);
+        }
     }
     Ok(batches)
 }
 
-pub(crate) fn mesh_has_distinct_uv1(mesh: &Mesh) -> bool {
+pub(crate) fn mesh_has_meaningful_uv1(mesh: &Mesh) -> bool {
     let Some(VertexAttributeValues::Float32x2(uv0)) = mesh.attribute(Mesh::ATTRIBUTE_UV_0) else {
         return false;
     };
     let Some(VertexAttributeValues::Float32x2(uv1)) = mesh.attribute(Mesh::ATTRIBUTE_UV_1) else {
         return false;
     };
-    uv0.iter()
-        .zip(uv1.iter())
-        .any(|(a, b)| (a[0] - b[0]).abs() > 0.0001 || (a[1] - b[1]).abs() > 0.0001)
+    let mut min_u = f32::INFINITY;
+    let mut max_u = f32::NEG_INFINITY;
+    let mut min_v = f32::INFINITY;
+    let mut max_v = f32::NEG_INFINITY;
+    let mut differs_from_uv0 = false;
+
+    for (a, b) in uv0.iter().zip(uv1.iter()) {
+        min_u = min_u.min(b[0]);
+        max_u = max_u.max(b[0]);
+        min_v = min_v.min(b[1]);
+        max_v = max_v.max(b[1]);
+        differs_from_uv0 |= (a[0] - b[0]).abs() > 0.0001 || (a[1] - b[1]).abs() > 0.0001;
+    }
+
+    let uv1_varies = (max_u - min_u) > 0.0001 || (max_v - min_v) > 0.0001;
+    differs_from_uv0 && uv1_varies
 }
 
 fn build_fallback_batch(
@@ -826,6 +854,7 @@ fn build_render_batches(
     let tex_lookup = parse_texture_lookup(md20)?;
     let texture_unit_lookup = parse_texture_unit_lookup(md20)?;
     let materials = parse_materials(md20)?;
+    let color_tracks = super::m2_anim::parse_color_tracks(md20)?;
     let transparencies = super::m2_anim::parse_transparency_tracks(md20)?;
     let transparency_lookup = parse_transparency_lookup(md20)?;
     let texture_animations = super::m2_anim::parse_texture_animations(md20)?;
@@ -853,6 +882,7 @@ fn build_render_batches(
             skin,
             &materials,
             &tex,
+            &color_tracks,
             &transparencies,
             &transparency_lookup,
             &texture_animations,

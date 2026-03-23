@@ -506,6 +506,30 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
             ],
             (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
         ),
+        0x0010 => (
+            [
+                (base_rgb[0] * overlay_rgb[0]).clamp(0.0, 1.0),
+                (base_rgb[1] * overlay_rgb[1]).clamp(0.0, 1.0),
+                (base_rgb[2] * overlay_rgb[2]).clamp(0.0, 1.0),
+            ],
+            base_a,
+        ),
+        0x0011 => (
+            [
+                (base_rgb[0] * overlay_rgb[0]).clamp(0.0, 1.0),
+                (base_rgb[1] * overlay_rgb[1]).clamp(0.0, 1.0),
+                (base_rgb[2] * overlay_rgb[2]).clamp(0.0, 1.0),
+            ],
+            (base_a * overlay_a).clamp(0.0, 1.0),
+        ),
+        0x4016 => (
+            [
+                (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
+                (base_rgb[1] * overlay_rgb[1] * 2.0).clamp(0.0, 1.0),
+                (base_rgb[2] * overlay_rgb[2] * 2.0).clamp(0.0, 1.0),
+            ],
+            base_a,
+        ),
         0x8015 => (
             [
                 (base_rgb[0] + overlay_rgb[0] * overlay_a).clamp(0.0, 1.0),
@@ -514,7 +538,30 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
             ],
             1.0,
         ),
-        0x0010 | 0x0011 | 0x4016 => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
+        0x8001 => (
+            [
+                (base_rgb[0] * ((overlay_rgb[0] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
+                (base_rgb[1] * ((overlay_rgb[1] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
+                (base_rgb[2] * ((overlay_rgb[2] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
+            ],
+            1.0,
+        ),
+        0x8002 => (
+            [
+                (base_rgb[0] + overlay_rgb[0] * overlay_a).clamp(0.0, 1.0),
+                (base_rgb[1] + overlay_rgb[1] * overlay_a).clamp(0.0, 1.0),
+                (base_rgb[2] + overlay_rgb[2] * overlay_a).clamp(0.0, 1.0),
+            ],
+            1.0,
+        ),
+        0x8003 => (
+            [
+                (base_rgb[0] + overlay_rgb[0] * overlay_a * base_a).clamp(0.0, 1.0),
+                (base_rgb[1] + overlay_rgb[1] * overlay_a * base_a).clamp(0.0, 1.0),
+                (base_rgb[2] + overlay_rgb[2] * overlay_a * base_a).clamp(0.0, 1.0),
+            ],
+            1.0,
+        ),
         _ => (base_rgb, base_a),
     };
 
@@ -540,12 +587,21 @@ mod tests {
     }
 
     #[test]
-    fn shader_0011_uses_secondary_alpha_as_mask() {
+    fn shader_0011_modulates_rgb_and_alpha() {
         let mut base = [255, 255, 255, 255];
-        let overlay = [0, 0, 0, 64];
+        let overlay = [128, 64, 32, 64];
         apply_m2_multitexture_shader(&mut base, &overlay, 0x0011);
 
-        assert_eq!(base, [255, 255, 255, 64]);
+        assert_eq!(base, [128, 64, 32, 64]);
+    }
+
+    #[test]
+    fn shader_4016_modulates_rgb_2x_and_keeps_base_alpha() {
+        let mut base = [128, 128, 128, 51];
+        let overlay = [128, 255, 64, 13];
+        apply_m2_multitexture_shader(&mut base, &overlay, 0x4016);
+
+        assert_eq!(base, [129, 255, 64, 51]);
     }
 
     #[test]

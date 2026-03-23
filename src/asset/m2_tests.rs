@@ -1,4 +1,6 @@
 use super::*;
+use bevy::asset::RenderAssetUsages;
+use bevy::mesh::Mesh;
 
 /// Build a minimal MD21 chunked file with the given MD20 blob.
 fn wrap_md21(md20: &[u8]) -> Vec<u8> {
@@ -241,6 +243,42 @@ fn parse_skin_full_with_submeshes_and_batches() {
     assert_eq!(data.batches[0].texture_id, 0);
     assert_eq!(data.batches[0].shader_id, 0x8002);
     assert_eq!(data.batches[0].texture_count, 2);
+}
+
+#[test]
+fn mesh_has_meaningful_uv1_rejects_constant_zero_secondary_uvs() {
+    let mut mesh = Mesh::new(
+        bevy::mesh::PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_0,
+        vec![[0.2, 0.3], [0.7, 0.4], [0.6, 0.9]],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_1,
+        vec![[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+    );
+
+    assert!(!mesh_has_meaningful_uv1(&mesh));
+}
+
+#[test]
+fn mesh_has_meaningful_uv1_accepts_varying_secondary_uvs() {
+    let mut mesh = Mesh::new(
+        bevy::mesh::PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_0,
+        vec![[0.2, 0.3], [0.7, 0.4], [0.6, 0.9]],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_1,
+        vec![[0.1, 0.0], [0.4, 0.2], [0.8, 0.7]],
+    );
+
+    assert!(mesh_has_meaningful_uv1(&mesh));
 }
 
 fn rewrite_first_sfid(data: &mut [u8], replacement: u32) {
@@ -847,5 +885,33 @@ fn load_m2_hd_has_skel_animation_data() {
         model.sequences.len(),
         bones_with_data,
         model.bone_tracks.len()
+    );
+}
+
+#[test]
+fn load_m2_skips_zero_opacity_color_passes() {
+    let m2_path = std::path::Path::new("data/models/3718225.m2");
+    if !m2_path.exists() {
+        return;
+    }
+
+    let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load domination boots M2");
+    let remaining_textures: Vec<u32> = model.batches.iter().filter_map(|b| b.texture_fdid).collect();
+
+    assert!(
+        !remaining_textures.contains(&3794687),
+        "zero-opacity shell pass should be skipped"
+    );
+    assert!(
+        !remaining_textures.contains(&3754147),
+        "zero-opacity white helper pass should be skipped"
+    );
+    assert!(
+        !remaining_textures.contains(&3641494),
+        "zero-opacity rune helper pass should be skipped"
+    );
+    assert!(
+        remaining_textures.contains(&3740328),
+        "opaque leather boot geometry should remain"
     );
 }

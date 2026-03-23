@@ -237,6 +237,12 @@ pub struct TextureAnimTracks {
     pub scale: AnimTrack<[f32; 3]>,
 }
 
+#[derive(Clone)]
+pub struct ColorAnimTracks {
+    pub color: AnimTrack<[f32; 3]>,
+    pub opacity: AnimTrack<i16>,
+}
+
 fn parse_vec3(md20: &[u8], off: usize) -> Result<[f32; 3], String> {
     Ok([
         read_f32(md20, off)?,
@@ -373,6 +379,26 @@ pub fn parse_transparency_tracks(md20: &[u8]) -> Result<Vec<AnimTrack<i16>>, Str
             ));
         }
         tracks.push(parse_anim_track(md20, base, 2, parse_i16_value)?);
+    }
+    Ok(tracks)
+}
+
+pub fn parse_color_tracks(md20: &[u8]) -> Result<Vec<ColorAnimTracks>, String> {
+    if md20.len() < 0x50 {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, 0x48)? as usize;
+    let offset = read_u32(md20, 0x4C)? as usize;
+    let mut tracks = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = offset + i * 40;
+        if base + 40 > md20.len() {
+            return Err(format!("Color track {i} out of bounds at offset {base:#x}"));
+        }
+        tracks.push(ColorAnimTracks {
+            color: parse_anim_track(md20, base, 12, parse_vec3)?,
+            opacity: parse_anim_track(md20, base + 20, 2, parse_i16_value)?,
+        });
     }
     Ok(tracks)
 }

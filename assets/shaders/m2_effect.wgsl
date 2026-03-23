@@ -28,12 +28,31 @@ fn combine_textures(texture1: vec4<f32>, texture2: vec4<f32>, shader_id: u32) ->
         case 0x4014u: {
             return clamp(texture1 * texture2 * vec4<f32>(2.0), vec4<f32>(0.0), vec4<f32>(1.0));
         }
+        case 0x0010u: {
+            return vec4<f32>(texture1.rgb * texture2.rgb, texture1.a);
+        }
+        case 0x0011u: {
+            return texture1 * texture2;
+        }
+        case 0x4016u: {
+            let rgb = clamp(texture1.rgb * texture2.rgb * vec3<f32>(2.0), vec3<f32>(0.0), vec3<f32>(1.0));
+            return vec4<f32>(rgb, texture1.a);
+        }
         case 0x8015u: {
             let rgb = texture1.rgb + texture2.rgb * texture2.a;
             return vec4<f32>(rgb, 1.0);
         }
-        case 0x0010u, 0x0011u, 0x4016u: {
-            return vec4<f32>(texture1.rgb, texture1.a * texture2.a);
+        case 0x8001u: {
+            let rgb = (texture1.rgb) * mix(texture2.rgb * vec3<f32>(2.0), vec3<f32>(1.0), vec3<f32>(texture1.a));
+            return vec4<f32>(rgb, 1.0);
+        }
+        case 0x8002u: {
+            let rgb = texture1.rgb + texture2.rgb * texture2.a;
+            return vec4<f32>(rgb, 1.0);
+        }
+        case 0x8003u: {
+            let rgb = texture1.rgb + texture2.rgb * texture2.a * texture1.a;
+            return vec4<f32>(rgb, 1.0);
         }
         default: {
             return texture1;
