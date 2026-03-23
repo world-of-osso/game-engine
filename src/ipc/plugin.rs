@@ -18,10 +18,9 @@ use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot, Waypoint,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
 };
 use crate::targeting::CurrentTarget;
 use crate::ui::plugin::UiState;
@@ -486,18 +485,17 @@ fn handle_export_character(
     ctx: &DispatchContext,
     output_path: &str,
 ) {
-    let payload =
-        match build_export_character_payload(
-            ctx.character_stats,
-            ctx.equipped_gear_status,
-            ctx.equipment_appearance_status,
-        ) {
-            Ok(payload) => payload,
-            Err(error) => {
-                let _ = respond.send(Response::Error(error));
-                return;
-            }
-        };
+    let payload = match build_export_character_payload(
+        ctx.character_stats,
+        ctx.equipped_gear_status,
+        ctx.equipment_appearance_status,
+    ) {
+        Ok(payload) => payload,
+        Err(error) => {
+            let _ = respond.send(Response::Error(error));
+            return;
+        }
+    };
     let output = Path::new(output_path);
     if let Err(error) = write_export_character_file(output, &payload) {
         let _ = respond.send(Response::Error(error));

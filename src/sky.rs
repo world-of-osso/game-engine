@@ -639,12 +639,18 @@ mod tests {
             .get::<DistanceFog>()
             .expect("world fog");
 
-        assert_eq!(charselect_fog.color.to_srgba(), initial_charselect_fog.to_srgba());
+        assert_eq!(
+            charselect_fog.color.to_srgba(),
+            initial_charselect_fog.to_srgba()
+        );
         assert_eq!(
             charselect_fog.directional_light_color.to_srgba(),
             initial_charselect_fog.to_srgba()
         );
         assert_eq!(world_fog.color.to_srgba(), sky_smog.to_srgba());
-        assert_eq!(world_fog.directional_light_color.to_srgba(), sky_band2.to_srgba());
+        assert_eq!(
+            world_fog.directional_light_color.to_srgba(),
+            sky_band2.to_srgba()
+        );
     }
 }

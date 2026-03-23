@@ -896,7 +896,11 @@ fn load_m2_skips_zero_opacity_color_passes() {
     }
 
     let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load domination boots M2");
-    let remaining_textures: Vec<u32> = model.batches.iter().filter_map(|b| b.texture_fdid).collect();
+    let remaining_textures: Vec<u32> = model
+        .batches
+        .iter()
+        .filter_map(|b| b.texture_fdid)
+        .collect();
 
     assert!(
         !remaining_textures.contains(&3794687),

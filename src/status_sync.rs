@@ -10,8 +10,8 @@ use game_engine::status::{
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
-    EquipmentAppearance as NetEquipmentAppearance,
-    Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer,
+    EquipmentAppearance as NetEquipmentAppearance, Health as NetHealth, Mana as NetMana,
+    MovementSpeed as NetMovementSpeed, Player as NetPlayer,
 };
 
 use crate::camera::Player;
@@ -172,7 +172,11 @@ pub fn sync_equipment_appearance_status_snapshot(
     mut snapshot: ResMut<EquipmentAppearanceStatusSnapshot>,
     local_player_query: Query<&NetEquipmentAppearance, With<networking::LocalPlayer>>,
 ) {
-    snapshot.appearance = local_player_query.iter().next().cloned().unwrap_or_default();
+    snapshot.appearance = local_player_query
+        .iter()
+        .next()
+        .cloned()
+        .unwrap_or_default();
 }
 
 pub fn apply_equipment_ipc_commands(

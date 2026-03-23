@@ -21,10 +21,9 @@ use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 
 mod action_bar;
