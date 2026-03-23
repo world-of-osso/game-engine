@@ -3,6 +3,8 @@
 use std::path::Path;
 use std::sync::mpsc;
 
+use bevy::camera::primitives::Aabb;
+use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use lightyear::prelude::MessageSender;
@@ -104,6 +106,10 @@ struct SceneParams<'w, 's> {
     commands: Commands<'w, 's>,
     tree_query: TreeQuery<'w, 's>,
     parent_query: Query<'w, 's, &'static ChildOf>,
+    global_transform_query: Query<'w, 's, &'static GlobalTransform>,
+    aabb_query: Query<'w, 's, (Entity, &'static Aabb, &'static GlobalTransform)>,
+    camera_query: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<Camera3d>>,
+    ray_cast: MeshRayCast<'w, 's>,
     ui_state: Res<'w, UiState>,
     scene_tree: Option<Res<'w, crate::scene_tree::SceneTree>>,
     transform_query: Query<'w, 's, &'static Transform>,
@@ -231,7 +237,15 @@ fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
         }
         Request::DumpScene { filter: _ } => {
             let text = match &scene.scene_tree {
-                Some(tree) => crate::dump::build_scene_tree(tree, &scene.transform_query),
+                Some(tree) => crate::dump::build_scene_tree(
+                    tree,
+                    &scene.transform_query,
+                    &scene.global_transform_query,
+                    &scene.parent_query,
+                    &scene.aabb_query,
+                    &scene.camera_query,
+                    &mut scene.ray_cast,
+                ),
                 None => "(no scene tree)".into(),
             };
             let _ = cmd.respond.send(Response::Tree(text));

@@ -6,8 +6,10 @@ use std::{
 
 use bevy::{
     asset::RenderAssetUsages,
+    camera::primitives::Aabb,
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
     pbr::MaterialPlugin,
+    picking::mesh_picking::ray_cast::MeshRayCast,
     prelude::*,
     render::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
@@ -595,6 +597,7 @@ fn dump_tree_and_exit(
 fn dump_scene_and_exit(
     tree: Option<Res<game_engine::scene_tree::SceneTree>>,
     transforms: Query<&Transform>,
+    global_transforms: Query<&GlobalTransform>,
     tree_query: Query<(
         Entity,
         Option<&Name>,
@@ -603,6 +606,9 @@ fn dump_scene_and_exit(
         &Transform,
     )>,
     parent_query: Query<&ChildOf>,
+    aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    mut ray_cast: MeshRayCast,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
     state: Res<State<game_state::GameState>>,
     time: Res<Time>,
@@ -615,7 +621,15 @@ fn dump_scene_and_exit(
     if let Some(tree) = tree {
         println!(
             "{}",
-            game_engine::dump::build_scene_tree(&tree, &transforms)
+            game_engine::dump::build_scene_tree(
+                &tree,
+                &transforms,
+                &global_transforms,
+                &parent_query,
+                &aabb_query,
+                &camera_query,
+                &mut ray_cast,
+            )
         );
         exit.write(AppExit::Success);
         return;
