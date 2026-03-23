@@ -44,6 +44,7 @@ pub struct M2RenderBatch {
     pub texture_anim_2: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
     pub use_uv_2_1: bool,
     pub use_uv_2_2: bool,
+    pub use_env_map_2: bool,
     pub shader_id: u16,
     pub texture_count: u16,
     /// M2 submesh mesh_part_id (geoset group*100 + variant). Used for geoset visibility.
@@ -712,22 +713,26 @@ fn build_one_batch(
         None
     };
     // Retail chunked models sometimes omit the global texture-unit lookup table.
-    // Prefer UV1 only when the mesh actually carries a meaningful secondary set.
+    // Fall back to UV1 only when it is meaningful, and infer environment maps
+    // from known reflection textures when the lookup metadata is absent.
     let use_uv_2_1 = texture_unit_lookup
         .get(unit.texture_coord_index as usize)
         .copied()
         == Some(1);
-    let use_uv_2_2 = if unit.texture_count > 1 {
+    let (use_uv_2_2, use_env_map_2) = if unit.texture_count > 1 {
         if texture_unit_lookup.is_empty() {
-            mesh_has_meaningful_uv1(&mesh)
+            (
+                mesh_has_meaningful_uv1(&mesh),
+                texture_looks_like_environment_map(texture_2_fdid),
+            )
         } else {
-            texture_unit_lookup
+            let lookup = texture_unit_lookup
                 .get(unit.texture_coord_index.saturating_add(1) as usize)
-                .copied()
-                == Some(1)
+                .copied();
+            (lookup == Some(1), lookup == Some(-1))
         }
     } else {
-        false
+        (false, false)
     };
     Ok(Some(M2RenderBatch {
         mesh,
@@ -742,10 +747,19 @@ fn build_one_batch(
         texture_anim_2,
         use_uv_2_1,
         use_uv_2_2,
+        use_env_map_2,
         shader_id: unit.shader_id,
         texture_count: unit.texture_count,
         mesh_part_id: sub.mesh_part_id,
     }))
+}
+
+fn texture_looks_like_environment_map(fdid: Option<u32>) -> bool {
+    let Some(path) = fdid.and_then(game_engine::listfile::lookup_fdid) else {
+        return false;
+    };
+    let lower = path.to_ascii_lowercase();
+    lower.contains("armorreflect") || lower.contains("_reflect") || lower.contains("envmap")
 }
 
 fn build_batched_model(
@@ -835,6 +849,7 @@ fn build_fallback_batch(
         texture_anim_2: None,
         use_uv_2_1: false,
         use_uv_2_2: false,
+        use_env_map_2: false,
         shader_id: 0,
         texture_count: 1,
         mesh_part_id: 0,

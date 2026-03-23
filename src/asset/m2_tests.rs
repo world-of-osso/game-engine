@@ -915,3 +915,20 @@ fn load_m2_skips_zero_opacity_color_passes() {
         "opaque leather boot geometry should remain"
     );
 }
+
+#[test]
+fn load_m2_marks_reflection_overlay_batches() {
+    let m2_path = std::path::Path::new("data/models/4198218.m2");
+    if !m2_path.exists() {
+        return;
+    }
+
+    let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load water bucket M2");
+    let bucket_batch = model
+        .batches
+        .iter()
+        .find(|batch| batch.texture_fdid == Some(4227911))
+        .expect("expected water bucket body batch");
+
+    assert!(bucket_batch.use_env_map_2);
+}

@@ -427,7 +427,9 @@ fn load_composited_texture(
     }
     let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
         .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?;
-    if let Some(texture_2_fdid) = batch.texture_2_fdid {
+    if let Some(texture_2_fdid) = batch.texture_2_fdid
+        && !batch.use_env_map_2
+    {
         composite_second_texture(
             &mut pixels,
             w,
@@ -627,6 +629,7 @@ mod tests {
             texture_anim_2: None,
             use_uv_2_1: false,
             use_uv_2_2: false,
+            use_env_map_2: false,
             shader_id: 0,
             texture_count: 0,
             mesh_part_id: 0,
