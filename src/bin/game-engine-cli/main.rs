@@ -125,8 +125,14 @@ enum Cmd {
         #[command(subcommand)]
         command: EquipmentCmd,
     },
-    /// Export the selected character to a JSON file from the running engine
-    ExportCharacter { output: PathBuf },
+    /// Export a character to a JSON file from the running engine
+    ExportCharacter {
+        output: PathBuf,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        character_id: Option<u64>,
+    },
     /// Export the semantic scene tree to a JSON snapshot file from the running engine
     ExportScene { output: PathBuf },
 }
@@ -415,7 +421,11 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Profession { command } => handle_profession(socket, command, json),
         Cmd::Map { command } => handle_map(socket, command, json),
         Cmd::Equipment { command } => handle_equipment(socket, command, json),
-        Cmd::ExportCharacter { output } => handle_export_character(socket, output, json),
+        Cmd::ExportCharacter {
+            output,
+            name,
+            character_id,
+        } => handle_export_character(socket, output, name, character_id, json),
         Cmd::ExportScene { output } => handle_export_scene(socket, output, json),
     }
 }
@@ -569,8 +579,18 @@ fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Resu
     handle_text_response(socket, equipment_request(command)?, json)
 }
 
-fn handle_export_character(socket: &PathBuf, output: PathBuf, json: bool) -> Result<(), String> {
-    handle_text_response(socket, export_character_request(output), json)
+fn handle_export_character(
+    socket: &PathBuf,
+    output: PathBuf,
+    name: Option<String>,
+    character_id: Option<u64>,
+    json: bool,
+) -> Result<(), String> {
+    handle_text_response(
+        socket,
+        export_character_request(output, name, character_id),
+        json,
+    )
 }
 
 fn handle_export_scene(socket: &PathBuf, output: PathBuf, json: bool) -> Result<(), String> {

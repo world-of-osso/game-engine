@@ -28,8 +28,10 @@ pub fn resolve_equipment_appearance(
             continue;
         };
         let display = outfit_data.resolve_display_info(display_info_id);
-        resolved.outfit =
-            crate::character_customization::merge_outfit_results(&resolved.outfit, &display);
+        resolved.outfit = crate::character_customization::merge_overlay_texture_sets(
+            &resolved.outfit,
+            &display,
+        );
 
         if let Some(slot) = visual_slot_to_runtime_slot(entry.slot) {
             if let Some(model_path) = first_model_path(&display) {

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use shared::components::{CharacterAppearance, EquipmentAppearance};
+use shared::protocol::CharacterListEntry;
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NetworkStatusSnapshot {
@@ -106,6 +107,11 @@ pub struct CharacterStatsSnapshot {
     pub mana_max: Option<f32>,
     pub movement_speed: Option<f32>,
     pub zone_id: u32,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct CharacterRosterStatusSnapshot {
+    pub entries: Vec<CharacterListEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

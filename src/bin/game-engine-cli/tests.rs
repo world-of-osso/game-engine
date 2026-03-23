@@ -298,11 +298,17 @@ fn equipment_clear_command_maps_to_request() {
 
 #[test]
 fn export_character_command_maps_to_request() {
-    let request = export_character_request(PathBuf::from("data/exports/thrall.json"));
+    let request = export_character_request(
+        PathBuf::from("data/exports/thrall.json"),
+        Some("Thrall".into()),
+        Some(7),
+    );
     assert_eq!(
         request,
         Request::ExportCharacter {
             output_path: "data/exports/thrall.json".into(),
+            character_name: Some("Thrall".into()),
+            character_id: Some(7),
         }
     );
 }
@@ -312,14 +318,24 @@ fn export_character_cli_command_parses_output_path() {
     let cli = crate::Cli::try_parse_from([
         "game-engine-cli",
         "export-character",
+        "--name",
+        "Thrall",
+        "--character-id",
+        "7",
         "data/exports/thrall.json",
     ])
     .expect("cli args should parse");
 
     assert!(matches!(
         cli.command,
-        crate::Cmd::ExportCharacter { output }
+        crate::Cmd::ExportCharacter {
+            output,
+            name,
+            character_id,
+        }
         if output == PathBuf::from("data/exports/thrall.json")
+            && name == Some("Thrall".into())
+            && character_id == Some(7)
     ));
 }
 
@@ -364,6 +380,9 @@ fn export_character_payload_includes_stats_appearance_and_equipment() {
                 }],
             },
         },
+        &[],
+        None,
+        None,
     )
     .expect("payload should build");
 
@@ -412,10 +431,48 @@ fn export_character_payload_requires_selected_character_identity() {
         &CharacterStatsSnapshot::default(),
         &EquippedGearStatusSnapshot::default(),
         &EquipmentAppearanceStatusSnapshot::default(),
+        &[],
+        None,
+        None,
     )
     .expect_err("payload should reject missing character");
 
     assert!(err.contains("no selected character"));
+}
+
+#[test]
+fn export_character_payload_resolves_from_character_list_by_name() {
+    let payload = build_export_character_payload(
+        &CharacterStatsSnapshot {
+            zone_id: 12,
+            ..Default::default()
+        },
+        &EquippedGearStatusSnapshot::default(),
+        &EquipmentAppearanceStatusSnapshot::default(),
+        &[shared::protocol::CharacterListEntry {
+            character_id: 7,
+            name: "Thrall".into(),
+            level: 60,
+            race: 2,
+            class: 7,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 3,
+                face: 4,
+                hair_style: 5,
+                hair_color: 6,
+                facial_style: 7,
+            },
+            equipment_appearance: EquipmentAppearance::default(),
+        }],
+        Some("Thrall"),
+        None,
+    )
+    .expect("payload should build from character list");
+
+    assert_eq!(payload.character_id, 7);
+    assert_eq!(payload.name, "Thrall");
+    assert_eq!(payload.level, 60);
 }
 
 #[test]

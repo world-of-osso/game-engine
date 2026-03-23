@@ -141,6 +141,8 @@ pub enum Request {
     },
     ExportCharacter {
         output_path: String,
+        character_name: Option<String>,
+        character_id: Option<u64>,
     },
     ExportScene {
         output_path: String,

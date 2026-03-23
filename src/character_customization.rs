@@ -4,7 +4,6 @@ use bevy::prelude::*;
 
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, OptionType};
-use game_engine::outfit_data::OutfitData;
 use shared::components::CharacterAppearance;
 
 use crate::equipment_appearance::ResolvedEquipmentAppearance;
@@ -22,7 +21,6 @@ pub(crate) fn apply_character_customization(
     selection: CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
-    outfit_data: &OutfitData,
     equipped_appearance: Option<&ResolvedEquipmentAppearance>,
     root: Entity,
     images: &mut Assets<Image>,
@@ -37,15 +35,15 @@ pub(crate) fn apply_character_customization(
         &ChildOf,
     )>,
 ) {
-    let starter_outfit = outfit_data.resolve_outfit(selection.race, selection.class, selection.sex);
-    let outfit = equipped_appearance
-        .map(|equipped| merge_equipped_outfit_results(&starter_outfit, equipped))
-        .unwrap_or(starter_outfit);
-    apply_body_texture(
+    let empty_overlay_set = game_engine::outfit_data::OutfitResult::default();
+    let overlay_set = equipped_appearance
+        .map(|equipped| apply_explicit_equipment_overlays(&empty_overlay_set, equipped))
+        .unwrap_or(empty_overlay_set);
+    apply_base_skin_and_overlay_textures(
         selection,
         customization_db,
         char_tex,
-        &outfit,
+        &overlay_set,
         root,
         images,
         materials,
@@ -55,7 +53,7 @@ pub(crate) fn apply_character_customization(
     apply_geoset_visibility(
         selection,
         customization_db,
-        &outfit,
+        &overlay_set,
         root,
         parent_query,
         geoset_query,
@@ -63,11 +61,11 @@ pub(crate) fn apply_character_customization(
     );
 }
 
-fn apply_body_texture(
+fn apply_base_skin_and_overlay_textures(
     selection: CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
-    outfit: &game_engine::outfit_data::OutfitResult,
+    overlay_set: &game_engine::outfit_data::OutfitResult,
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
@@ -87,7 +85,7 @@ fn apply_body_texture(
         return;
     };
     let Some(composited) =
-        char_tex.composite_model_textures(&all_materials, &outfit.item_textures, layout_id)
+        char_tex.composite_model_textures(&all_materials, &overlay_set.item_textures, layout_id)
     else {
         return;
     };
@@ -114,26 +112,26 @@ fn apply_body_texture(
     }
 }
 
-pub(crate) fn merge_outfit_results(
-    base: &game_engine::outfit_data::OutfitResult,
-    equipped: &game_engine::outfit_data::OutfitResult,
+pub(crate) fn merge_overlay_texture_sets(
+    base_layers: &game_engine::outfit_data::OutfitResult,
+    overlay_layers: &game_engine::outfit_data::OutfitResult,
 ) -> game_engine::outfit_data::OutfitResult {
-    let mut merged = base.clone();
+    let mut merged = base_layers.clone();
 
-    for &(component_section, fdid) in &equipped.item_textures {
+    for &(component_section, fdid) in &overlay_layers.item_textures {
         if !merged.item_textures.contains(&(component_section, fdid)) {
             merged.item_textures.push((component_section, fdid));
         }
     }
 
-    for &(group, value) in &equipped.geoset_overrides {
+    for &(group, value) in &overlay_layers.geoset_overrides {
         merged
             .geoset_overrides
             .retain(|(existing_group, _)| *existing_group != group);
         merged.geoset_overrides.push((group, value));
     }
 
-    for &(model_resource_id, model_fdid) in &equipped.model_fdids {
+    for &(model_resource_id, model_fdid) in &overlay_layers.model_fdids {
         if !merged
             .model_fdids
             .contains(&(model_resource_id, model_fdid))
@@ -145,11 +143,11 @@ pub(crate) fn merge_outfit_results(
     merged
 }
 
-pub(crate) fn merge_equipped_outfit_results(
-    base: &game_engine::outfit_data::OutfitResult,
+pub(crate) fn apply_explicit_equipment_overlays(
+    base_layers: &game_engine::outfit_data::OutfitResult,
     equipped: &ResolvedEquipmentAppearance,
 ) -> game_engine::outfit_data::OutfitResult {
-    let mut merged = base.clone();
+    let mut merged = base_layers.clone();
 
     if !equipped.explicit_slots.is_empty() {
         merged.item_textures.retain(|(section, _)| {
@@ -161,7 +159,7 @@ pub(crate) fn merge_equipped_outfit_results(
         });
     }
 
-    merge_outfit_results(&merged, &equipped.outfit)
+    merge_overlay_texture_sets(&merged, &equipped.outfit)
 }
 
 fn replacement_texture_for_batch(
@@ -185,7 +183,6 @@ fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) ->
         Slot::Wrist => &[1],
         Slot::Hands => &[2],
         Slot::Legs => &[5, 6],
-        Slot::Feet => &[7],
         _ => &[],
     }
 }
@@ -344,9 +341,9 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 #[cfg(test)]
 mod tests {
     use super::{
-        CharacterCustomizationSelection, collect_appearance_materials, component_sections_for_slot,
-        group_zero_visible, merge_equipped_outfit_results, merge_outfit_results,
-        replacement_texture_for_batch,
+        CharacterCustomizationSelection, apply_explicit_equipment_overlays,
+        collect_appearance_materials, component_sections_for_slot, group_zero_visible,
+        merge_overlay_texture_sets, replacement_texture_for_batch,
     };
     use crate::equipment_appearance::ResolvedEquipmentAppearance;
     use bevy::prelude::{Handle, Image};
@@ -421,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_outfit_results_appends_equipped_overlays_without_duplicates() {
+    fn merge_overlay_texture_sets_appends_equipment_layers_without_duplicates() {
         let base = OutfitResult {
             item_textures: vec![(3, 100), (4, 200)],
             geoset_overrides: vec![(13, 1)],
@@ -433,7 +430,7 @@ mod tests {
             model_fdids: vec![(10, 1000), (11, 2000)],
         };
 
-        let merged = merge_outfit_results(&base, &equipped);
+        let merged = merge_overlay_texture_sets(&base, &equipped);
 
         assert_eq!(merged.item_textures, vec![(3, 100), (4, 200), (7, 300)]);
         assert_eq!(merged.geoset_overrides, vec![(13, 2), (15, 3)]);
@@ -441,7 +438,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_equipped_outfit_results_suppresses_hidden_feet_sections() {
+    fn apply_explicit_equipment_overlays_keeps_skin_feet_sections_when_feet_hidden() {
         let base = OutfitResult {
             item_textures: vec![(5, 100), (6, 200), (7, 300)],
             ..Default::default()
@@ -451,13 +448,13 @@ mod tests {
             ..Default::default()
         };
 
-        let merged = merge_equipped_outfit_results(&base, &equipped);
+        let merged = apply_explicit_equipment_overlays(&base, &equipped);
 
-        assert_eq!(merged.item_textures, vec![(5, 100), (6, 200)]);
+        assert_eq!(merged.item_textures, vec![(5, 100), (6, 200), (7, 300)]);
     }
 
     #[test]
-    fn merge_equipped_outfit_results_replaces_starter_legs_sections() {
+    fn apply_explicit_equipment_overlays_replaces_conflicting_leg_sections() {
         let base = OutfitResult {
             item_textures: vec![(5, 100), (6, 200), (7, 300)],
             ..Default::default()
@@ -471,7 +468,7 @@ mod tests {
             ..Default::default()
         };
 
-        let merged = merge_equipped_outfit_results(&base, &equipped);
+        let merged = apply_explicit_equipment_overlays(&base, &equipped);
 
         assert_eq!(merged.item_textures, vec![(7, 300), (5, 400), (6, 500)]);
     }
@@ -488,6 +485,9 @@ mod tests {
 
     #[test]
     fn feet_slot_maps_to_foot_component_section() {
-        assert_eq!(component_sections_for_slot(EquipmentVisualSlot::Feet), &[7]);
+        assert_eq!(
+            component_sections_for_slot(EquipmentVisualSlot::Feet),
+            &[] as &[u8]
+        );
     }
 }

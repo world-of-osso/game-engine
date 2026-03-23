@@ -4,9 +4,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
-    CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
-    EquippedGearStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, SoundStatusSnapshot,
-    TerrainStatusSnapshot,
+    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot,
+    EquippedGearEntry, EquippedGearStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    SoundStatusSnapshot, TerrainStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -148,6 +148,13 @@ pub fn sync_character_stats_snapshot(
     snapshot.appearance = selected_character.map(|entry| entry.appearance);
     snapshot.zone_id = current_zone.zone_id;
     fill_local_player_stats(&mut snapshot, &local_player_query);
+}
+
+pub fn sync_character_roster_status_snapshot(
+    mut snapshot: ResMut<CharacterRosterStatusSnapshot>,
+    character_list: Res<networking::CharacterList>,
+) {
+    snapshot.entries = character_list.0.clone();
 }
 
 pub fn sync_equipped_gear_status_snapshot(

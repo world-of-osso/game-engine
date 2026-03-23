@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::protocol::{
-    AuthChannel, CharacterListEntry, CreateCharacterResponse, DeleteCharacterResponse,
-    EnterWorldResponse, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
-    SelectCharacter,
+    AuthChannel, CharacterListEntry, CharacterListUpdate, CreateCharacterResponse,
+    DeleteCharacterResponse, EnterWorldResponse, LoginRequest, LoginResponse, RegisterRequest,
+    RegisterResponse, SelectCharacter,
 };
 use std::path::PathBuf;
 
@@ -354,6 +354,25 @@ pub fn receive_delete_character_response(
     }
 }
 
+pub fn receive_character_list_update(
+    mut receivers: Query<&mut MessageReceiver<CharacterListUpdate>>,
+    mut char_list: ResMut<CharacterList>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for update in receiver.receive() {
+            if let Some(existing) = char_list
+                .0
+                .iter_mut()
+                .find(|entry| entry.character_id == update.character.character_id)
+            {
+                *existing = update.character.clone();
+            } else {
+                char_list.0.push(update.character.clone());
+            }
+        }
+    }
+}
+
 /// Handle RegisterResponse: save token and transition on success.
 pub fn receive_register_response(
     mut receivers: Query<&mut MessageReceiver<RegisterResponse>>,
@@ -628,6 +647,7 @@ mod tests {
                 race: 1,
                 class: 1,
                 appearance: shared::components::CharacterAppearance::default(),
+                equipment_appearance: shared::components::EquipmentAppearance::default(),
             },
             CharacterListEntry {
                 character_id: 2,
@@ -636,6 +656,7 @@ mod tests {
                 race: 1,
                 class: 1,
                 appearance: shared::components::CharacterAppearance::default(),
+                equipment_appearance: shared::components::EquipmentAppearance::default(),
             },
         ];
 
@@ -651,6 +672,7 @@ mod tests {
             race: 1,
             class: 1,
             appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
         }];
 
         assert_eq!(
@@ -669,6 +691,7 @@ mod tests {
             race: 1,
             class: 1,
             appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
         }];
 
         assert_eq!(
@@ -690,6 +713,7 @@ mod tests {
             race: 1,
             class: 1,
             appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
         }];
 
         assert_eq!(

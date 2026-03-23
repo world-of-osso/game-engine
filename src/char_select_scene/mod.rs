@@ -24,6 +24,7 @@ use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
 use crate::creature_display;
+use crate::equipment_appearance::resolve_equipment_appearance;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
@@ -100,12 +101,13 @@ struct PendingSupplementalWarbandScene {
     scene_id: Option<u32>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct AppliedCharacterAppearance {
     character_id: u64,
     race: u8,
     class: u8,
     appearance: shared::components::CharacterAppearance,
+    equipment_appearance: shared::components::EquipmentAppearance,
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -640,10 +642,13 @@ fn sync_selected_character_appearance(
         race: character.race,
         class: character.class,
         appearance: character.appearance,
+        equipment_appearance: character.equipment_appearance.clone(),
     };
-    if displayed_appearance.0 == Some(desired) {
+    if displayed_appearance.0 == Some(desired.clone()) {
         return;
     }
+    let resolved_equipment =
+        resolve_equipment_appearance(&character.equipment_appearance, &outfit_data);
     apply_character_customization(
         CharacterCustomizationSelection {
             race: character.race,
@@ -653,8 +658,7 @@ fn sync_selected_character_appearance(
         },
         &customization_db,
         &char_tex,
-        &outfit_data,
-        None,
+        Some(&resolved_equipment),
         root,
         &mut images,
         &mut materials,

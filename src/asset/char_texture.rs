@@ -10,6 +10,7 @@ use bevy::prelude::*;
 
 use super::blp;
 use super::casc_resolver;
+use super::m2_texture;
 
 /// A texture layer definition from ChrModelTextureLayer.csv.
 #[derive(Debug, Clone)]
@@ -117,6 +118,7 @@ impl CharTextureData {
         let (w, h) = (layout.width, layout.height);
         let mut pixels = vec![0u8; (w * h * 4) as usize];
 
+        self.seed_default_body_texture(&mut pixels, w, h, layout_id);
         self.composite_materials_into(&mut pixels, w, materials, layout_id);
 
         let item_layer = TextureLayer {
@@ -145,6 +147,36 @@ impl CharTextureData {
         }
 
         Some(self.runtime_textures_from_layout(pixels, layout_id, w, h))
+    }
+
+    fn seed_default_body_texture(&self, pixels: &mut [u8], width: u32, height: u32, layout_id: u32) {
+        let is_hd = width == 2048 && height == 1024;
+        let Some(default_fdid) = m2_texture::default_fdid_for_type(1, is_hd, &[0, 0, 0]) else {
+            return;
+        };
+        let Some((tex_pixels, tex_w, tex_h)) = load_texture_rgba(default_fdid) else {
+            return;
+        };
+        let layer = TextureLayer {
+            layer: 0,
+            blend_mode: 0,
+            section_bitmask: -1,
+            target_id: 1,
+            layout_id,
+        };
+        blit_scaled(
+            pixels,
+            width,
+            height,
+            &tex_pixels,
+            tex_w,
+            tex_h,
+            0,
+            0,
+            width,
+            height,
+            &layer,
+        );
     }
 
     fn composite_materials_into(

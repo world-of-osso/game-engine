@@ -151,9 +151,15 @@ pub fn equipment_request(command: EquipmentCmd) -> Result<Request, String> {
     Ok(request)
 }
 
-pub fn export_character_request(output: std::path::PathBuf) -> Request {
+pub fn export_character_request(
+    output: std::path::PathBuf,
+    character_name: Option<String>,
+    character_id: Option<u64>,
+) -> Request {
     Request::ExportCharacter {
         output_path: output.display().to_string(),
+        character_name,
+        character_id,
     }
 }
 

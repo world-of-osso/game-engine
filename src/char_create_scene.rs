@@ -24,7 +24,6 @@ use crate::m2_spawn::GeosetMesh;
 use crate::scene_setup::DEFAULT_M2;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::CustomizationDb;
-use game_engine::outfit_data::OutfitData;
 use shared::components::CharacterAppearance;
 
 #[derive(Component)]
@@ -354,7 +353,6 @@ fn sync_appearance(
     state: Option<Res<CharCreateState>>,
     cust_db: Res<CustomizationDb>,
     char_tex: Res<CharTextureData>,
-    outfit_data: Res<OutfitData>,
     mut displayed: ResMut<DisplayedModels>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -394,7 +392,6 @@ fn sync_appearance(
         },
         &cust_db,
         &char_tex,
-        &outfit_data,
         None,
         root,
         &mut images,

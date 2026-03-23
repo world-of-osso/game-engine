@@ -1,6 +1,6 @@
 use super::*;
 use crate::networking_auth::CharacterList;
-use shared::components::CharacterAppearance;
+use shared::components::{CharacterAppearance, EquipmentAppearance};
 use shared::protocol::CharacterListEntry;
 
 fn character(character_id: u64, race: u8, sex: u8, name: &str) -> CharacterListEntry {
@@ -14,6 +14,7 @@ fn character(character_id: u64, race: u8, sex: u8, name: &str) -> CharacterListE
             sex,
             ..Default::default()
         },
+        equipment_appearance: EquipmentAppearance::default(),
     }
 }
 

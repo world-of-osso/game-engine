@@ -19,10 +19,11 @@ use bevy::{
 };
 use game_engine::ipc::IpcPlugin;
 use game_engine::status::{
-    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
-    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
+    EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    ReputationsStatusSnapshot,
     SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 
@@ -407,6 +408,7 @@ fn configure_server_resources(
 }
 
 fn add_status_sync_systems(app: &mut App) {
+    app.add_systems(Update, status_sync::sync_character_roster_status_snapshot);
     app.add_systems(
         Update,
         (
@@ -497,6 +499,7 @@ fn init_status_resources(app: &mut App) {
     app.insert_resource(NetworkStatusSnapshot::default())
         .insert_resource(TerrainStatusSnapshot::default())
         .insert_resource(SoundStatusSnapshot::default())
+        .insert_resource(CharacterRosterStatusSnapshot::default())
         .insert_resource(CharacterStatsSnapshot::default())
         .insert_resource(EquippedGearStatusSnapshot::default())
         .insert_resource(EquipmentAppearanceStatusSnapshot::default())

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use shared::components::{CharacterAppearance, EquipmentAppearance};
+use shared::protocol::CharacterListEntry;
 
 use crate::status::{
     CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
@@ -30,23 +31,24 @@ pub fn build_export_character_payload(
     stats: &CharacterStatsSnapshot,
     equipped_gear: &EquippedGearStatusSnapshot,
     equipment_appearance: &EquipmentAppearanceStatusSnapshot,
+    character_list: &[CharacterListEntry],
+    requested_name: Option<&str>,
+    requested_character_id: Option<u64>,
 ) -> Result<ExportCharacterPayload, String> {
-    let character_id = stats
-        .character_id
-        .ok_or_else(|| "no selected character available to export".to_string())?;
-    let name = required_field(stats.name.clone(), "name")?;
-    let level = required_field(stats.level, "level")?;
-    let race = required_field(stats.race, "race")?;
-    let class = required_field(stats.class, "class")?;
-    let appearance = required_field(stats.appearance, "appearance")?;
+    let identity = resolve_export_identity(
+        stats,
+        character_list,
+        requested_name,
+        requested_character_id,
+    )?;
 
     Ok(ExportCharacterPayload {
-        character_id,
-        name,
-        level,
-        race,
-        class,
-        appearance,
+        character_id: identity.character_id,
+        name: identity.name,
+        level: identity.level,
+        race: identity.race,
+        class: identity.class,
+        appearance: identity.appearance,
         zone_id: stats.zone_id,
         health_current: stats.health_current,
         health_max: stats.health_max,
@@ -54,8 +56,69 @@ pub fn build_export_character_payload(
         mana_max: stats.mana_max,
         movement_speed: stats.movement_speed,
         equipped_gear: equipped_gear.entries.clone(),
-        equipment_appearance: equipment_appearance.appearance.clone(),
+        equipment_appearance: identity
+            .equipment_appearance
+            .unwrap_or_else(|| equipment_appearance.appearance.clone()),
     })
+}
+
+fn resolve_export_identity(
+    stats: &CharacterStatsSnapshot,
+    character_list: &[CharacterListEntry],
+    requested_name: Option<&str>,
+    requested_character_id: Option<u64>,
+) -> Result<ExportIdentity, String> {
+    if let Some(character_id) = requested_character_id {
+        let entry = character_list
+            .iter()
+            .find(|entry| entry.character_id == character_id)
+            .ok_or_else(|| format!("character id {character_id} not found"))?;
+        return Ok(ExportIdentity::from_entry(entry));
+    }
+
+    if let Some(name) = requested_name {
+        let entry = character_list
+            .iter()
+            .find(|entry| entry.name.eq_ignore_ascii_case(name))
+            .ok_or_else(|| format!("character '{name}' not found"))?;
+        return Ok(ExportIdentity::from_entry(entry));
+    }
+
+    Ok(ExportIdentity {
+        character_id: stats
+            .character_id
+            .ok_or_else(|| "no selected character available to export".to_string())?,
+        name: required_field(stats.name.clone(), "name")?,
+        level: required_field(stats.level, "level")?,
+        race: required_field(stats.race, "race")?,
+        class: required_field(stats.class, "class")?,
+        appearance: required_field(stats.appearance, "appearance")?,
+        equipment_appearance: None,
+    })
+}
+
+struct ExportIdentity {
+    character_id: u64,
+    name: String,
+    level: u16,
+    race: u8,
+    class: u8,
+    appearance: CharacterAppearance,
+    equipment_appearance: Option<EquipmentAppearance>,
+}
+
+impl ExportIdentity {
+    fn from_entry(entry: &CharacterListEntry) -> Self {
+        Self {
+            character_id: entry.character_id,
+            name: entry.name.clone(),
+            level: entry.level,
+            race: entry.race,
+            class: entry.class,
+            appearance: entry.appearance,
+            equipment_appearance: Some(entry.equipment_appearance.clone()),
+        }
+    }
 }
 
 pub fn write_export_character_file(

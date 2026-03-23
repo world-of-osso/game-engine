@@ -1007,6 +1007,7 @@ mod tests {
             race: 1,
             class: 1,
             appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
         }]));
         app.insert_state(GameState::CharSelect);
         app.insert_resource(UiAutomationQueue(VecDeque::from([

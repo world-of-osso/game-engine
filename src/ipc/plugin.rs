@@ -16,10 +16,11 @@ use crate::character_export::{build_export_character_payload, write_export_chara
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::status::{
-    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
-    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
+    EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    ReputationsStatusSnapshot,
     SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
 };
 use crate::targeting::CurrentTarget;
@@ -78,6 +79,7 @@ struct StatusSnapshotParams<'w> {
     combat_log: Res<'w, CombatLogStatusSnapshot>,
     collection: Res<'w, CollectionStatusSnapshot>,
     profession: Res<'w, ProfessionStatusSnapshot>,
+    character_roster: Res<'w, CharacterRosterStatusSnapshot>,
     map: ResMut<'w, MapStatusSnapshot>,
 }
 
@@ -98,6 +100,7 @@ pub(crate) struct DispatchContext<'a> {
     pub combat_log_status: &'a CombatLogStatusSnapshot,
     pub collection_status: &'a CollectionStatusSnapshot,
     pub profession_status: &'a ProfessionStatusSnapshot,
+    pub character_roster: &'a CharacterRosterStatusSnapshot,
     pub map_status: &'a mut MapStatusSnapshot,
     pub current_target: &'a CurrentTarget,
     pub connected: bool,
@@ -182,6 +185,7 @@ fn build_dispatch_context<'a>(
         combat_log_status: &snapshots.combat_log,
         collection_status: &snapshots.collection,
         profession_status: &snapshots.profession,
+        character_roster: &snapshots.character_roster,
         map_status: snapshots.map.as_mut(),
         current_target,
         connected,
@@ -429,8 +433,18 @@ fn dispatch_map_and_equipment_request(
                 handle_equipment_clear(cmd.respond, &mut sender_params.equipment_control, slot);
             }
         }
-        Request::ExportCharacter { output_path } => {
-            handle_export_character(cmd.respond, &ctx, &output_path);
+        Request::ExportCharacter {
+            output_path,
+            character_name,
+            character_id,
+        } => {
+            handle_export_character(
+                cmd.respond,
+                &ctx,
+                &output_path,
+                character_name.as_deref(),
+                character_id,
+            );
         }
         _ => {}
     }
@@ -484,11 +498,16 @@ fn handle_export_character(
     respond: std::sync::mpsc::Sender<Response>,
     ctx: &DispatchContext,
     output_path: &str,
+    character_name: Option<&str>,
+    character_id: Option<u64>,
 ) {
     let payload = match build_export_character_payload(
         ctx.character_stats,
         ctx.equipped_gear_status,
         ctx.equipment_appearance_status,
+        &ctx.character_roster.entries,
+        character_name,
+        character_id,
     ) {
         Ok(payload) => payload,
         Err(error) => {
