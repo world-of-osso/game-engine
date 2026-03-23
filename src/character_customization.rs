@@ -39,7 +39,7 @@ pub(crate) fn apply_character_customization(
 ) {
     let starter_outfit = outfit_data.resolve_outfit(selection.race, selection.class, selection.sex);
     let outfit = equipped_appearance
-        .map(|equipped| merge_outfit_results(&starter_outfit, &equipped.outfit))
+        .map(|equipped| merge_equipped_outfit_results(&starter_outfit, equipped))
         .unwrap_or(starter_outfit);
     apply_body_texture(
         selection,
@@ -93,15 +93,18 @@ fn apply_body_texture(
     };
     let (body_pixels, body_w, body_h) = composited.body;
     let body_handle = images.add(crate::rgba_image(body_pixels, body_w, body_h));
+    let head_handle = composited
+        .head
+        .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
     for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
         }
-        let replacement = match batch_texture_type.map(|t| t.0) {
-            Some(1) => Some(body_handle.clone()),
-            Some(6) => Some(body_handle.clone()),
-            _ => None,
-        };
+        let replacement = replacement_texture_for_batch(
+            batch_texture_type.map(|t| t.0),
+            &body_handle,
+            head_handle.as_ref(),
+        );
         let Some(replacement) = replacement else {
             continue;
         };
@@ -140,6 +143,51 @@ pub(crate) fn merge_outfit_results(
     }
 
     merged
+}
+
+pub(crate) fn merge_equipped_outfit_results(
+    base: &game_engine::outfit_data::OutfitResult,
+    equipped: &ResolvedEquipmentAppearance,
+) -> game_engine::outfit_data::OutfitResult {
+    let mut merged = base.clone();
+
+    if !equipped.explicit_slots.is_empty() {
+        merged.item_textures.retain(|(section, _)| {
+            !equipped
+                .explicit_slots
+                .iter()
+                .flat_map(|slot| component_sections_for_slot(*slot).iter().copied())
+                .any(|suppressed| suppressed == *section)
+        });
+    }
+
+    merge_outfit_results(&merged, &equipped.outfit)
+}
+
+fn replacement_texture_for_batch(
+    texture_type: Option<u32>,
+    body_handle: &Handle<Image>,
+    head_handle: Option<&Handle<Image>>,
+) -> Option<Handle<Image>> {
+    match texture_type {
+        Some(1) => Some(body_handle.clone()),
+        Some(6) => Some(head_handle.cloned().unwrap_or_else(|| body_handle.clone())),
+        _ => None,
+    }
+}
+
+fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) -> &'static [u8] {
+    use shared::components::EquipmentVisualSlot as Slot;
+
+    match slot {
+        Slot::Chest | Slot::Shirt => &[0, 3, 4],
+        Slot::Tabard => &[3, 4],
+        Slot::Wrist => &[1],
+        Slot::Hands => &[2],
+        Slot::Legs => &[5, 6],
+        Slot::Feet => &[7],
+        _ => &[],
+    }
 }
 
 pub(crate) fn collect_appearance_materials(
@@ -296,12 +344,15 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 #[cfg(test)]
 mod tests {
     use super::{
-        CharacterCustomizationSelection, collect_appearance_materials, group_zero_visible,
-        merge_outfit_results,
+        CharacterCustomizationSelection, collect_appearance_materials, component_sections_for_slot,
+        group_zero_visible, merge_equipped_outfit_results, merge_outfit_results,
+        replacement_texture_for_batch,
     };
+    use crate::equipment_appearance::ResolvedEquipmentAppearance;
+    use bevy::prelude::{Handle, Image};
     use game_engine::customization_data::CustomizationDb;
     use game_engine::outfit_data::OutfitResult;
-    use shared::components::CharacterAppearance;
+    use shared::components::{CharacterAppearance, EquipmentVisualSlot};
     use std::path::Path;
 
     #[test]
@@ -387,5 +438,56 @@ mod tests {
         assert_eq!(merged.item_textures, vec![(3, 100), (4, 200), (7, 300)]);
         assert_eq!(merged.geoset_overrides, vec![(13, 2), (15, 3)]);
         assert_eq!(merged.model_fdids, vec![(10, 1000), (11, 2000)]);
+    }
+
+    #[test]
+    fn merge_equipped_outfit_results_suppresses_hidden_feet_sections() {
+        let base = OutfitResult {
+            item_textures: vec![(5, 100), (6, 200), (7, 300)],
+            ..Default::default()
+        };
+        let equipped = ResolvedEquipmentAppearance {
+            explicit_slots: [EquipmentVisualSlot::Feet].into_iter().collect(),
+            ..Default::default()
+        };
+
+        let merged = merge_equipped_outfit_results(&base, &equipped);
+
+        assert_eq!(merged.item_textures, vec![(5, 100), (6, 200)]);
+    }
+
+    #[test]
+    fn merge_equipped_outfit_results_replaces_starter_legs_sections() {
+        let base = OutfitResult {
+            item_textures: vec![(5, 100), (6, 200), (7, 300)],
+            ..Default::default()
+        };
+        let equipped = ResolvedEquipmentAppearance {
+            outfit: OutfitResult {
+                item_textures: vec![(5, 400), (6, 500)],
+                ..Default::default()
+            },
+            explicit_slots: [EquipmentVisualSlot::Legs].into_iter().collect(),
+            ..Default::default()
+        };
+
+        let merged = merge_equipped_outfit_results(&base, &equipped);
+
+        assert_eq!(merged.item_textures, vec![(7, 300), (5, 400), (6, 500)]);
+    }
+
+    #[test]
+    fn replacement_texture_for_head_batches_prefers_head_atlas() {
+        let body = Handle::<Image>::default();
+        let head = Handle::<Image>::default();
+
+        let replacement = replacement_texture_for_batch(Some(6), &body, Some(&head));
+
+        assert_eq!(replacement, Some(head));
+    }
+
+    #[test]
+    fn feet_slot_maps_to_foot_component_section() {
+        assert_eq!(component_sections_for_slot(EquipmentVisualSlot::Feet), &[7]);
     }
 }

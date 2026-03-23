@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use shared::components::{EquipmentAppearance as NetEquipmentAppearance, EquipmentVisualSlot};
@@ -10,6 +11,7 @@ use game_engine::outfit_data::{OutfitData, OutfitResult};
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
     pub runtime_models: Vec<(EquipmentSlot, PathBuf)>,
+    pub explicit_slots: HashSet<EquipmentVisualSlot>,
 }
 
 pub fn resolve_equipment_appearance(
@@ -18,6 +20,7 @@ pub fn resolve_equipment_appearance(
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
     for entry in &appearance.entries {
+        resolved.explicit_slots.insert(entry.slot);
         if entry.hidden {
             continue;
         }
