@@ -151,6 +151,7 @@ pub fn light_scene_nodes(
     camera: Entity,
     fov: f32,
     ambient: Option<Entity>,
+    ambient_intensity: f32,
     primary_light: Entity,
 ) -> Vec<SceneNode> {
     vec![
@@ -165,7 +166,7 @@ pub fn light_scene_nodes(
             entity: ambient,
             props: NodeProps::Light {
                 kind: "ambient".into(),
-                intensity: 80.0,
+                intensity: ambient_intensity,
             },
             children: vec![],
         },

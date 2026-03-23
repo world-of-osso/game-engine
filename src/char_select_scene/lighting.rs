@@ -3,7 +3,8 @@ use game_engine::customization_data::ModelPresentation;
 
 use super::camera_params;
 
-const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 350.0;
+pub(crate) const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 350.0;
+const CHAR_SELECT_AMBIENT_COLOR: Color = Color::srgb(0.92, 0.80, 0.60);
 const CAMPFIRE_LIGHT_OFFSET: Vec3 = Vec3::new(-2.8, 0.9, -3.1);
 const CAMPFIRE_LIGHT_COLOR: Color = Color::srgb(1.0, 0.58, 0.28);
 const CAMPFIRE_LIGHT_INTENSITY: f32 = 220_000.0;
@@ -17,7 +18,7 @@ pub fn spawn(
     presentation: ModelPresentation,
 ) -> Entity {
     commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(0.56, 0.60, 0.68),
+        color: CHAR_SELECT_AMBIENT_COLOR,
         brightness: CHAR_SELECT_AMBIENT_BRIGHTNESS,
         ..default()
     });

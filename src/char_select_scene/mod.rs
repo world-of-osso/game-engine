@@ -515,7 +515,13 @@ fn setup_char_select_scene(
     }
     displayed.0 = result.map(|(id, _)| id);
     let fov = camera_params(scene_entry, placement.as_ref(), presentation).2;
-    children.extend(scene_tree::light_scene_nodes(camera_entity, fov, None, dir));
+    children.extend(scene_tree::light_scene_nodes(
+        camera_entity,
+        fov,
+        None,
+        lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS,
+        dir,
+    ));
     commands.insert_resource(scene_tree::build_scene_tree(children));
     info!(
         "setup_char_select_scene finished in {:.3}s (background={:.3}s camera={:.3}s sky+light={:.3}s model={:.3}s)",
