@@ -700,15 +700,15 @@ fn build_one_batch(
     } else {
         None
     };
-    // Retail chunked models sometimes omit the global texture-unit lookup table even
-    // though their second texture stage clearly targets the secondary UV set.
+    // Retail chunked models sometimes omit the global texture-unit lookup table.
+    // Prefer UV1 only when the mesh actually carries a distinct secondary set.
     let use_uv_2_1 = texture_unit_lookup
         .get(unit.texture_coord_index as usize)
         .copied()
         == Some(1);
     let use_uv_2_2 = if unit.texture_count > 1 {
         if texture_unit_lookup.is_empty() {
-            true
+            mesh_has_distinct_uv1(&mesh)
         } else {
             texture_unit_lookup
                 .get(unit.texture_coord_index.saturating_add(1) as usize)
@@ -775,9 +775,21 @@ fn build_batched_model(
     Ok(batches)
 }
 
+pub(crate) fn mesh_has_distinct_uv1(mesh: &Mesh) -> bool {
+    let Some(VertexAttributeValues::Float32x2(uv0)) = mesh.attribute(Mesh::ATTRIBUTE_UV_0) else {
+        return false;
+    };
+    let Some(VertexAttributeValues::Float32x2(uv1)) = mesh.attribute(Mesh::ATTRIBUTE_UV_1) else {
+        return false;
+    };
+    uv0.iter().zip(uv1.iter()).any(|(a, b)| {
+        (a[0] - b[0]).abs() > 0.0001 || (a[1] - b[1]).abs() > 0.0001
+    })
+}
+
 pub(crate) fn should_skip_problem_batch(path: &Path, batch: &M2RenderBatch) -> bool {
     if path.file_name().and_then(|name| name.to_str()) == Some("3718225.m2") {
-        return batch.blend_mode >= 4;
+        return matches!(batch.texture_fdid, Some(3754147 | 3641494));
     }
     false
 }
