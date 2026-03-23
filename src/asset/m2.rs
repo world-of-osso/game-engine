@@ -782,9 +782,9 @@ pub(crate) fn mesh_has_distinct_uv1(mesh: &Mesh) -> bool {
     let Some(VertexAttributeValues::Float32x2(uv1)) = mesh.attribute(Mesh::ATTRIBUTE_UV_1) else {
         return false;
     };
-    uv0.iter().zip(uv1.iter()).any(|(a, b)| {
-        (a[0] - b[0]).abs() > 0.0001 || (a[1] - b[1]).abs() > 0.0001
-    })
+    uv0.iter()
+        .zip(uv1.iter())
+        .any(|(a, b)| (a[0] - b[0]).abs() > 0.0001 || (a[1] - b[1]).abs() > 0.0001)
 }
 
 pub(crate) fn should_skip_problem_batch(path: &Path, batch: &M2RenderBatch) -> bool {
