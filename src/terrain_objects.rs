@@ -223,7 +223,10 @@ pub fn spawn_nearby_campsite_objects(
         tile_y,
         tile_x,
         obj_data,
-        |doodad| doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius,
+        |doodad| {
+            doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius
+                && !is_charselect_clutter_doodad(doodad)
+        },
         &mut spawned.doodads,
     );
     spawn_wmos_filtered(
@@ -396,6 +399,22 @@ fn is_waterfall_backdrop_doodad(doodad: &adt_obj::DoodadPlacement) -> bool {
     };
     let model = model.to_ascii_lowercase();
     model.contains("waterfall") || model.contains("ripple01_misty")
+}
+
+fn is_charselect_clutter_doodad(doodad: &adt_obj::DoodadPlacement) -> bool {
+    let Some(model) = doodad_model_name(doodad) else {
+        return false;
+    };
+    let model = model.to_ascii_lowercase();
+    model.contains("spells/")
+        || model.contains("pineneedles")
+        || model.contains("pinecone")
+        || model.contains("twigs")
+        || model.contains("forestflowers")
+        || model.contains("spriggyplant")
+        || model.contains("groundivy")
+        || model.contains("grass")
+        || model.contains("smoke")
 }
 
 /// Convert WoW doodad placement to a Bevy Transform.
@@ -1055,6 +1074,33 @@ mod tests {
 
         assert!(is_waterfall_backdrop_doodad(&waterfall));
         assert!(!is_waterfall_backdrop_doodad(&campfire));
+    }
+
+    #[test]
+    fn charselect_filter_drops_ground_clutter_but_keeps_props() {
+        let clutter = adt_obj::DoodadPlacement {
+            name_id: 0,
+            unique_id: 0,
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: 1.0,
+            flags: 0,
+            fdid: None,
+            path: Some("world/expansion09/doodads/highlands/10hgl_pineneedles_a02.m2".to_string()),
+        };
+        let prop = adt_obj::DoodadPlacement {
+            name_id: 0,
+            unique_id: 0,
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            scale: 1.0,
+            flags: 0,
+            fdid: None,
+            path: Some("world/expansion09/doodads/centaur/10ct_centaur_campfire01.m2".to_string()),
+        };
+
+        assert!(is_charselect_clutter_doodad(&clutter));
+        assert!(!is_charselect_clutter_doodad(&prop));
     }
 
     #[test]
