@@ -38,9 +38,10 @@ fn click_to_target(
     mut ray_cast: MeshRayCast,
     remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
     mut current: ResMut<CurrentTarget>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) {
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
     }
     if !mouse.just_pressed(MouseButton::Left) {

@@ -33,6 +33,7 @@ mod asset {
 }
 mod camera;
 mod campsite_popup_screen;
+mod client_options;
 mod char_create;
 mod char_create_scene;
 mod char_select;
@@ -47,6 +48,7 @@ mod creature_display;
 mod dump_systems;
 mod equipment;
 mod equipment_appearance;
+mod game_menu_options;
 mod game_menu_screen;
 mod game_state;
 mod ground;
@@ -376,6 +378,7 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(game_engine::ui::automation::UiAutomationPlugin)
         .add_plugins(IpcPlugin)
+        .add_plugins(client_options::ClientOptionsPlugin)
         .add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
         .add_plugins(CollisionPlugin)

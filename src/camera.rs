@@ -23,9 +23,10 @@ pub struct WowCameraPlugin;
 
 impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<crate::client_options::CameraOptions>();
         app.add_systems(
             Update,
-            (camera_input, cursor_grab, player_movement, camera_follow)
+            (sync_camera_options, camera_input, cursor_grab, player_movement, camera_follow)
                 .chain()
                 .run_if(in_state(GameState::InWorld)),
         );
@@ -124,7 +125,6 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
         .id()
 }
 
-const SENSITIVITY: f32 = 0.01;
 const WALK_SPEED: f32 = 2.5; // M2 Walk movespeed (2.5 yards/sec)
 const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
 const ZOOM_STEP: f32 = 2.0;
@@ -183,10 +183,12 @@ fn camera_input(
     mouse_scroll: Res<AccumulatedMouseScroll>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    options: Res<crate::client_options::CameraOptions>,
     mut camera_q: Query<&mut WowCamera>,
     mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) {
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
     }
     let Ok(mut cam) = camera_q.single_mut() else {
@@ -200,17 +202,17 @@ fn camera_input(
 
     if rmb {
         // RMB: character snaps to face camera direction, then both rotate together
-        let yaw_delta = -delta.x * SENSITIVITY;
+        let yaw_delta = -delta.x * options.look_sensitivity;
         cam.yaw += yaw_delta;
-        cam.pitch -= delta.y * SENSITIVITY;
+        cam.pitch += camera_pitch_delta(delta.y, &options);
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
         if let Ok(mut facing) = facing_q.single_mut() {
             facing.yaw = cam.yaw + std::f32::consts::PI;
         }
     } else if lmb {
         // LMB: orbit camera only (character doesn't turn)
-        cam.yaw -= delta.x * SENSITIVITY;
-        cam.pitch -= delta.y * SENSITIVITY;
+        cam.yaw -= delta.x * options.look_sensitivity;
+        cam.pitch += camera_pitch_delta(delta.y, &options);
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
 
@@ -221,6 +223,30 @@ fn camera_input(
         cam.target_distance = cam
             .target_distance
             .clamp(cam.min_distance, cam.max_distance);
+    }
+}
+
+fn camera_pitch_delta(mouse_delta_y: f32, options: &crate::client_options::CameraOptions) -> f32 {
+    let sign = if options.invert_y { 1.0 } else { -1.0 };
+    mouse_delta_y * options.look_sensitivity * sign
+}
+
+fn sync_camera_options(
+    options: Res<crate::client_options::CameraOptions>,
+    mut camera_q: Query<&mut WowCamera>,
+) {
+    if !options.is_changed() {
+        return;
+    }
+    for mut camera in &mut camera_q {
+        camera.follow_speed = options.follow_speed;
+        camera.zoom_speed = options.zoom_speed;
+        camera.min_distance = options.min_distance;
+        camera.max_distance = options.max_distance.max(options.min_distance + 1.0);
+        camera.target_distance = camera
+            .target_distance
+            .clamp(camera.min_distance, camera.max_distance);
+        camera.distance = camera.distance.clamp(camera.min_distance, camera.max_distance);
     }
 }
 
@@ -503,6 +529,34 @@ mod tests {
     use super::*;
     use crate::terrain_heightmap::TerrainHeightmap;
 
+    fn jump_heightmap() -> TerrainHeightmap {
+        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
+            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
+        let adt =
+            crate::asset::adt::load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
+        let mut heightmap = TerrainHeightmap::default();
+        heightmap.insert_tile(32, 48, &adt);
+        heightmap
+    }
+
+    fn jump_fixture(heightmap: &TerrainHeightmap) -> (Transform, MovementState, CharacterPhysics) {
+        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+        let ground_y = heightmap
+            .height_at(bx, bz)
+            .expect("expected terrain at sample position");
+        let transform = Transform::from_xyz(bx, ground_y + 0.2, bz);
+        let movement = MovementState {
+            direction: MoveDirection::None,
+            running: true,
+            jumping: true,
+        };
+        let physics = CharacterPhysics {
+            vertical_velocity: -1.0,
+            grounded: true,
+        };
+        (transform, movement, physics)
+    }
+
     #[test]
     fn test_smooth_follow_lerps() {
         // Given current pos far from target, lerp should move partway
@@ -598,28 +652,8 @@ mod tests {
 
     #[test]
     fn jump_state_stays_active_until_player_reaches_ground() {
-        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
-            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
-        let adt =
-            crate::asset::adt::load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
-        let mut heightmap = TerrainHeightmap::default();
-        heightmap.insert_tile(32, 48, &adt);
-
-        let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
-        let ground_y = heightmap
-            .height_at(bx, bz)
-            .expect("expected terrain at sample position");
-
-        let mut transform = Transform::from_xyz(bx, ground_y + 0.2, bz);
-        let mut movement = MovementState {
-            direction: MoveDirection::None,
-            running: true,
-            jumping: true,
-        };
-        let mut physics = CharacterPhysics {
-            vertical_velocity: -1.0,
-            grounded: true,
-        };
+        let heightmap = jump_heightmap();
+        let (mut transform, mut movement, mut physics) = jump_fixture(&heightmap);
         let keys = ButtonInput::<KeyCode>::default();
 
         apply_horizontal_movement(

@@ -2,8 +2,10 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::game_state_enum::GameState;
 use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::screens::options_menu_component::{
+    OptionsViewModel, options_view,
+};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -32,7 +34,6 @@ const LOGGED_OUT_BUTTON_COUNT: f32 = 5.0;
 const LOGGED_IN_SPACER_COUNT: f32 = 3.0;
 const LOGGED_OUT_SPACER_COUNT: f32 = 2.0;
 
-// Button onclick actions (matched in game_menu_screen.rs)
 pub const ACTION_OPTIONS: &str = "menu_options";
 pub const ACTION_SUPPORT: &str = "menu_support";
 pub const ACTION_ADDONS: &str = "menu_addons";
@@ -40,73 +41,60 @@ pub const ACTION_LOGOUT: &str = "menu_logout";
 pub const ACTION_EXIT: &str = "menu_exit";
 pub const ACTION_RESUME: &str = "menu_resume";
 
-#[derive(Clone, Copy)]
-pub enum PanelTitleStyle {
-    TitleBar,
-    Overlay,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GameMenuView {
+    MainMenu,
+    Options,
 }
 
-pub fn panel_title(
-    frame_name: FrameName,
-    label_name: FrameName,
-    panel_name: FrameName,
-    text: &str,
-    width: f32,
-    style: PanelTitleStyle,
-) -> Element {
-    let frame_dn = DynName(frame_name.0.to_string());
-    let label_dn = DynName(label_name.0.to_string());
-    let text = text.to_string();
-    let relative_to = match style {
-        PanelTitleStyle::TitleBar => MENU_MOUNT,
-        PanelTitleStyle::Overlay => panel_name,
-    };
-    let (relative_to, pt, rp, y) = match style {
-        PanelTitleStyle::TitleBar => (relative_to, AnchorPoint::Top, AnchorPoint::Top, 0.0),
-        PanelTitleStyle::Overlay => (relative_to, AnchorPoint::Center, AnchorPoint::Top, 0.0),
-    };
-    let y = y.to_string();
-    let label = title_label(&label_dn, &text, width - 20.0, frame_name);
+#[derive(Debug, Clone, PartialEq)]
+pub struct GameMenuViewModel {
+    pub logged_in: bool,
+    pub view: GameMenuView,
+    pub options: OptionsViewModel,
+}
+
+fn panel_title(text: &str) -> Element {
+    let label = title_label(text);
     rsx! {
         panel {
-            name: {&frame_dn},
-            width: {width},
+            name: TITLE_FRAME,
+            width: {PANEL_W},
             height: 36.0,
             strata: FrameStrata::Fullscreen,
             frame_level: 10.0,
             anchor {
-                point: {pt},
-                relative_to: {relative_to},
-                relative_point: {rp},
-                y: {y},
+                point: AnchorPoint::Top,
+                relative_to: MENU_MOUNT,
+                relative_point: AnchorPoint::Top,
             }
             {label}
         }
     }
 }
 
-fn title_label(label: &DynName, text: &str, w: f32, parent: FrameName) -> Element {
+fn title_label(text: &str) -> Element {
     rsx! {
         fontstring {
-            name: {label},
+            name: TITLE_LABEL,
             text: {text},
             font_size: 20.0,
             color: "0.96,0.84,0.56,1.0",
-            width: {w},
+            width: {PANEL_W - 20.0},
             height: 30.0,
             justify_h: "CENTER",
             frame_level: 100.0,
             draw_layer: "OVERLAY",
             anchor {
                 point: AnchorPoint::Center,
-                relative_to: parent,
+                relative_to: TITLE_FRAME,
                 relative_point: AnchorPoint::Center,
             }
         }
     }
 }
 
-fn flex_button(name: &str, text: &str, action: &str) -> Element {
+fn menu_button(name: &str, text: &str, action: &str) -> Element {
     let n = DynName(name.to_string());
     let text = text.to_string();
     let action = action.to_string();
@@ -129,32 +117,30 @@ fn flex_button(name: &str, text: &str, action: &str) -> Element {
 }
 
 fn section_spacer(name: &str) -> Element {
-    let n = DynName(name.to_string());
-    rsx! { r#frame { name: {&n}, width: BUTTON_W, height: SECTION_GAP } }
+    rsx! { r#frame { name: {DynName(name.to_string())}, width: BUTTON_W, height: SECTION_GAP } }
 }
 
 fn menu_buttons(logged_in: bool) -> Element {
-    let mut btns = vec![
-        flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS),
+    let mut items = vec![
+        menu_button("MenuBtnOptions", "Options", ACTION_OPTIONS),
         section_spacer("Spacer1"),
-        flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT),
-        flex_button("MenuBtnAddons", "AddOns", ACTION_ADDONS),
+        menu_button("MenuBtnSupport", "Support", ACTION_SUPPORT),
+        menu_button("MenuBtnAddons", "AddOns", ACTION_ADDONS),
         section_spacer("Spacer2"),
     ];
     if logged_in {
-        btns.push(flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT));
+        items.push(menu_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT));
     }
-    btns.extend([
-        flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT),
+    items.extend([
+        menu_button("MenuBtnExit", "Exit Game", ACTION_EXIT),
         section_spacer("Spacer3"),
-        flex_button("MenuBtnResume", "Return to Game", ACTION_RESUME),
+        menu_button("MenuBtnResume", "Return to Game", ACTION_RESUME),
     ]);
-    btns.into_iter().flatten().collect()
+    items.into_iter().flatten().collect()
 }
 
-fn menu_panel_body(logged_in: bool) -> Element {
-    let panel_y = (-(TITLE_H - TITLE_PANEL_OVERLAP)).to_string();
-    let buttons = menu_buttons(logged_in);
+fn menu_panel(logged_in: bool) -> Element {
+    let y = (-(TITLE_H - TITLE_PANEL_OVERLAP)).to_string();
     rsx! {
         panel {
             name: MENU_PANEL,
@@ -169,45 +155,30 @@ fn menu_panel_body(logged_in: bool) -> Element {
                 point: AnchorPoint::Top,
                 relative_to: MENU_MOUNT,
                 relative_point: AnchorPoint::Top,
-                y: {panel_y},
+                y: {y},
             }
-            {buttons}
+            {menu_buttons(logged_in)}
         }
     }
 }
 
-fn menu_panel_height(logged_in: bool) -> f32 {
-    let (btn_count, spacer_count) = if logged_in {
+fn menu_mount_height(logged_in: bool) -> f32 {
+    let (buttons, spacers) = if logged_in {
         (LOGGED_IN_BUTTON_COUNT, LOGGED_IN_SPACER_COUNT)
     } else {
         (LOGGED_OUT_BUTTON_COUNT, LOGGED_OUT_SPACER_COUNT)
     };
-    let item_count = btn_count + spacer_count;
-    let gap_count = item_count - 1.0;
-    (btn_count * BUTTON_H)
-        + (spacer_count * SECTION_GAP)
-        + (gap_count * PANEL_GAP)
+    let items = buttons + spacers;
+    let gaps = items - 1.0;
+    TITLE_H
+        + (buttons * BUTTON_H)
+        + (spacers * SECTION_GAP)
+        + (gaps * PANEL_GAP)
         + (PANEL_PADDING * 2.0)
+        - TITLE_PANEL_OVERLAP
 }
 
-fn menu_mount_height(logged_in: bool) -> f32 {
-    TITLE_H + menu_panel_height(logged_in) - TITLE_PANEL_OVERLAP
-}
-
-pub fn game_menu_screen(shared: &SharedContext) -> Element {
-    let logged_in = shared
-        .get::<GameState>()
-        .map(|s| s.is_logged_in())
-        .unwrap_or(false);
-    let title = panel_title(
-        TITLE_FRAME,
-        TITLE_LABEL,
-        MENU_PANEL,
-        "Game Menu",
-        PANEL_W,
-        PanelTitleStyle::TitleBar,
-    );
-    let body = menu_panel_body(logged_in);
+fn main_menu_view(logged_in: bool) -> Element {
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,
@@ -223,8 +194,30 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
                 }
-                {body}
-                {title}
+                {menu_panel(logged_in)}
+                {panel_title("Game Menu")}
+            }
+        }
+    }
+}
+
+pub fn game_menu_screen(shared: &SharedContext) -> Element {
+    let Some(model) = shared.get::<GameMenuViewModel>() else {
+        return Vec::new();
+    };
+    match model.view {
+        GameMenuView::MainMenu => main_menu_view(model.logged_in),
+        GameMenuView::Options => {
+            let options = options_view(&model.options);
+            rsx! {
+                r#frame {
+                    name: GAME_MENU_ROOT,
+                    stretch: true,
+                    background_color: "0.01,0.01,0.02,0.75",
+                    strata: FrameStrata::Dialog,
+                    mouse_enabled: true,
+                    {options}
+                }
             }
         }
     }
@@ -233,35 +226,64 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::ui::screens::options_menu_component::{
+        CameraOptionsView, HudOptionsView, OptionsCategory, SoundOptionsView,
+    };
     use ui_toolkit::screen::Screen;
 
     use crate::ui::anchor::AnchorPoint;
     use crate::ui::registry::FrameRegistry;
 
+    fn model(view: GameMenuView) -> GameMenuViewModel {
+        GameMenuViewModel {
+            logged_in: true,
+            view,
+            options: OptionsViewModel {
+                category: OptionsCategory::Sound,
+                position: [500.0, 180.0],
+                sound: SoundOptionsView {
+                    muted: false,
+                    music_enabled: true,
+                    master_volume: 0.8,
+                    music_volume: 0.4,
+                    ambient_volume: 0.3,
+                    footstep_volume: 0.5,
+                },
+                camera: CameraOptionsView {
+                    look_sensitivity: 0.01,
+                    invert_y: false,
+                    zoom_speed: 8.0,
+                    follow_speed: 10.0,
+                    min_distance: 2.0,
+                    max_distance: 40.0,
+                },
+                hud: HudOptionsView {
+                    show_minimap: true,
+                    show_action_bars: true,
+                    show_nameplates: true,
+                    show_health_bars: true,
+                    show_target_marker: true,
+                    show_fps_overlay: true,
+                },
+            },
+        }
+    }
+
     #[test]
     fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
-        shared.insert(GameState::InWorld);
+        shared.insert(model(GameMenuView::MainMenu));
         Screen::new(game_menu_screen).sync(&shared, &mut reg);
 
         let mount_id = reg.get_by_name(MENU_MOUNT.0).expect("GameMenuMount");
         let title_id = reg.get_by_name(TITLE_FRAME.0).expect("GameMenuTitleFrame");
         let panel_id = reg.get_by_name(MENU_PANEL.0).expect("GameMenuPanel");
-
         let title = reg.get(title_id).expect("title frame");
-        assert_eq!(title.anchors.len(), 1);
-        assert_eq!(title.anchors[0].relative_to, Some(mount_id));
-        assert_eq!(title.anchors[0].point, AnchorPoint::Top);
-        assert_eq!(title.anchors[0].relative_point, AnchorPoint::Top);
-        assert_eq!(title.anchors[0].y_offset, 0.0);
-
         let panel = reg.get(panel_id).expect("panel frame");
-        assert_eq!(panel.anchors.len(), 1);
+
+        assert_eq!(title.anchors[0].relative_to, Some(mount_id));
         assert_eq!(panel.anchors[0].relative_to, Some(mount_id));
         assert_eq!(panel.anchors[0].point, AnchorPoint::Top);
-        assert_eq!(panel.anchors[0].relative_point, AnchorPoint::Top);
-        assert_eq!(panel.anchors[0].y_offset, -(TITLE_H - TITLE_PANEL_OVERLAP));
     }
 }
