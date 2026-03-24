@@ -39,7 +39,10 @@ impl Plugin for GameMenuScreenPlugin {
         app.add_systems(OnEnter(GameState::GameMenu), open_menu_overlay);
         app.add_systems(OnExit(GameState::GameMenu), close_menu_overlay);
         // Overlay input runs on ANY state when the overlay is present
-        app.add_systems(Update, handle_overlay_input.run_if(resource_exists::<GameMenuOverlay>));
+        app.add_systems(
+            Update,
+            handle_overlay_input.run_if(resource_exists::<GameMenuOverlay>),
+        );
     }
 }
 
@@ -108,8 +111,12 @@ fn handle_overlay_input(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(pos) = window.cursor_position() else { return };
-    let Some(frame_id) = find_frame_at(&ui.registry, pos.x, pos.y) else { return };
+    let Some(pos) = window.cursor_position() else {
+        return;
+    };
+    let Some(frame_id) = find_frame_at(&ui.registry, pos.x, pos.y) else {
+        return;
+    };
     let action = walk_up_for_onclick(&ui.registry, frame_id);
     if let Some(action) = action {
         dispatch_overlay_action(&action, &mut exit, &mut commands, &state);
@@ -137,7 +144,9 @@ fn dispatch_overlay_action(
     state: &State<GameState>,
 ) {
     match action {
-        ACTION_EXIT => { exit.write(AppExit::Success); }
+        ACTION_EXIT => {
+            exit.write(AppExit::Success);
+        }
         ACTION_LOGOUT => {
             close_game_menu(commands);
             commands.queue(SetStateCommand(GameState::Login));

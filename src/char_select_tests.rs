@@ -1,5 +1,5 @@
-use super::*;
 use super::char_select_input::*;
+use super::*;
 use std::collections::VecDeque;
 
 use bevy::input::ButtonInput;
@@ -173,16 +173,23 @@ fn character_cards_use_tinted_atlas_textures_without_css_border() {
 
     let card_id = reg.get_by_name("CharCard_0").expect("CharCard_0");
     let card = reg.get(card_id).expect("card frame");
-    assert!(card.border.is_none(), "card should rely on atlas art, not CSS border");
+    assert!(
+        card.border.is_none(),
+        "card should rely on atlas art, not CSS border"
+    );
 
-    let backdrop_id = reg.get_by_name("CharCard_0Backdrop").expect("CharCard_0Backdrop");
+    let backdrop_id = reg
+        .get_by_name("CharCard_0Backdrop")
+        .expect("CharCard_0Backdrop");
     let backdrop = reg.get(backdrop_id).expect("backdrop frame");
     let Some(WidgetData::Texture(backdrop_tex)) = backdrop.widget_data.as_ref() else {
         panic!("backdrop should be a texture");
     };
     assert_eq!(backdrop_tex.vertex_color, [0.76, 0.70, 0.57, 0.96]);
 
-    let selected_id = reg.get_by_name("CharCard_0Selected").expect("CharCard_0Selected");
+    let selected_id = reg
+        .get_by_name("CharCard_0Selected")
+        .expect("CharCard_0Selected");
     let selected_frame = reg.get(selected_id).expect("selected frame");
     let Some(WidgetData::Texture(selected_tex)) = selected_frame.widget_data.as_ref() else {
         panic!("selected highlight should be a texture");
@@ -212,8 +219,24 @@ fn campsite_tab_is_anchored_to_top_center_without_offsets() {
     let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
     let bar_id = reg.get_by_name("CampsiteMenuBar").expect("CampsiteMenuBar");
     let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
-    assert_single_anchor(&reg, bar_id, AnchorPoint::Top, AnchorPoint::Top, Some(root_id), 0.0, 0.0);
-    assert_single_anchor(&reg, tab_id, AnchorPoint::TopLeft, AnchorPoint::TopLeft, Some(bar_id), 357.0, -1.0);
+    assert_single_anchor(
+        &reg,
+        bar_id,
+        AnchorPoint::Top,
+        AnchorPoint::Top,
+        Some(root_id),
+        0.0,
+        0.0,
+    );
+    assert_single_anchor(
+        &reg,
+        tab_id,
+        AnchorPoint::TopLeft,
+        AnchorPoint::TopLeft,
+        Some(bar_id),
+        357.0,
+        -1.0,
+    );
 }
 
 #[test]
@@ -222,7 +245,15 @@ fn campsite_panel_is_anchored_to_top_center_without_offsets() {
     let reg = build_screen_with_campsites(CharSelectState::default(), one_scene_campsite_state());
     let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
     let panel_id = reg.get_by_name("CampsitePanel").expect("CampsitePanel");
-    assert_single_anchor(&reg, panel_id, AnchorPoint::Top, AnchorPoint::Top, Some(root_id), 0.0, -58.0);
+    assert_single_anchor(
+        &reg,
+        panel_id,
+        AnchorPoint::Top,
+        AnchorPoint::Top,
+        Some(root_id),
+        0.0,
+        -58.0,
+    );
 }
 
 #[test]
@@ -236,9 +267,15 @@ fn campsite_overlay_renders_in_dialog_strata() {
         one_scene_campsite_state(),
     );
 
-    let menu_bar = reg.get(reg.get_by_name("CampsiteMenuBar").expect("CampsiteMenuBar")).expect("menu bar");
-    let panel = reg.get(reg.get_by_name("CampsitePanel").expect("CampsitePanel")).expect("panel");
-    let card = reg.get(reg.get_by_name("CampsiteScene_1").expect("CampsiteScene_1")).expect("card");
+    let menu_bar = reg
+        .get(reg.get_by_name("CampsiteMenuBar").expect("CampsiteMenuBar"))
+        .expect("menu bar");
+    let panel = reg
+        .get(reg.get_by_name("CampsitePanel").expect("CampsitePanel"))
+        .expect("panel");
+    let card = reg
+        .get(reg.get_by_name("CampsiteScene_1").expect("CampsiteScene_1"))
+        .expect("card");
 
     assert_eq!(menu_bar.strata, FrameStrata::Dialog);
     assert_eq!(panel.strata, FrameStrata::Dialog);

@@ -349,7 +349,13 @@ fn campsite_card(id: u32, name: &str, preview_image: Option<&str>, is_selected: 
 }
 
 pub fn campsite_panel(state: &CampsiteState) -> Element {
-    campsite_panel_with_anchor(state, AnchorPoint::Top, AnchorPoint::Top, "-58", PANEL_WIDTH)
+    campsite_panel_with_anchor(
+        state,
+        AnchorPoint::Top,
+        AnchorPoint::Top,
+        "-58",
+        PANEL_WIDTH,
+    )
 }
 
 fn build_campsite_cards(state: &CampsiteState) -> Element {
@@ -357,7 +363,12 @@ fn build_campsite_cards(state: &CampsiteState) -> Element {
         .scenes
         .iter()
         .flat_map(|e| {
-            campsite_card(e.id, &e.name, e.preview_image.as_deref(), state.selected_id == Some(e.id))
+            campsite_card(
+                e.id,
+                &e.name,
+                e.preview_image.as_deref(),
+                state.selected_id == Some(e.id),
+            )
         })
         .collect()
 }

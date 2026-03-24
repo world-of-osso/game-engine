@@ -149,7 +149,13 @@ impl CharTextureData {
         Some(self.runtime_textures_from_layout(pixels, layout_id, w, h))
     }
 
-    fn seed_default_body_texture(&self, pixels: &mut [u8], width: u32, height: u32, layout_id: u32) {
+    fn seed_default_body_texture(
+        &self,
+        pixels: &mut [u8],
+        width: u32,
+        height: u32,
+        layout_id: u32,
+    ) {
         let is_hd = width == 2048 && height == 1024;
         let Some(default_fdid) = m2_texture::default_fdid_for_type(1, is_hd, &[0, 0, 0]) else {
             return;

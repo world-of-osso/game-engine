@@ -126,10 +126,8 @@ fn startup_flag_loads_ui_script_path() {
 
 #[test]
 fn asset_path_skips_login_dev_admin_flag() {
-    let parsed = parse_asset_path_from_args(&args(&[
-        "--login-dev-admin",
-        "data/models/humanmale_hd.m2",
-    ]));
+    let parsed =
+        parse_asset_path_from_args(&args(&["--login-dev-admin", "data/models/humanmale_hd.m2"]));
     assert_eq!(parsed, Some(PathBuf::from("data/models/humanmale_hd.m2")));
 }
 

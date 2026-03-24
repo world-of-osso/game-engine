@@ -126,10 +126,10 @@ pub use ui_toolkit::widgets;
 // Game-specific modules (stay in game-engine)
 pub mod addon_watcher;
 pub mod automation;
-pub mod panel_styles;
 pub mod automation_script;
 pub mod game_plugin;
 pub mod js_automation;
+pub mod panel_styles;
 pub mod screens;
 pub mod spellbook_data;
 pub mod spellbook_frames;

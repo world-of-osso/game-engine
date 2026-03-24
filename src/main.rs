@@ -21,8 +21,7 @@ use game_engine::status::{
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
     EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
     NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot,
-    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 
 mod action_bar;
@@ -113,7 +112,14 @@ fn main() {
     if let Some(path) = cli.load_scene {
         dump_loaded_scene_and_exit(&path, cli.dump_scene);
     }
-    run_app(&args, cli.dump_tree, cli.dump_ui_tree, cli.dump_scene, cli.screenshot, cli.initial_state);
+    run_app(
+        &args,
+        cli.dump_tree,
+        cli.dump_ui_tree,
+        cli.dump_scene,
+        cli.screenshot,
+        cli.initial_state,
+    );
 }
 
 struct CliFlags {
@@ -209,7 +215,12 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
         has_saved_auth_token,
     );
     apply_login_dev_admin(args, &mut parsed);
-    apply_auto_connecting(&parsed.startup_actions, parsed.server_addr, &mut parsed.initial_state, has_saved_auth_token);
+    apply_auto_connecting(
+        &parsed.startup_actions,
+        parsed.server_addr,
+        &mut parsed.initial_state,
+        has_saved_auth_token,
+    );
     parsed
 }
 
@@ -254,7 +265,11 @@ fn apply_auto_connecting(
     initial_state: &mut Option<game_state::GameState>,
     has_saved_auth_token: bool,
 ) {
-    if actions.is_empty() && server_addr.is_some() && initial_state.is_none() && has_saved_auth_token {
+    if actions.is_empty()
+        && server_addr.is_some()
+        && initial_state.is_none()
+        && has_saved_auth_token
+    {
         *initial_state = Some(game_state::GameState::Connecting);
     }
 }
@@ -321,7 +336,9 @@ fn insert_data_resources(app: &mut App) {
     app.insert_resource(game_engine::asset::char_texture::CharTextureData::load(
         Path::new("data"),
     ));
-    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new("data")));
+    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new(
+        "data",
+    )));
     let warband = warband_scene::WarbandScenes::load();
     if let Some(first) = warband.scenes.first() {
         app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });

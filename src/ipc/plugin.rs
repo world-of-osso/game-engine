@@ -20,8 +20,8 @@ use crate::status::{
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
     EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
     NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot,
-    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    Waypoint,
 };
 use crate::targeting::CurrentTarget;
 use crate::ui::plugin::UiState;
