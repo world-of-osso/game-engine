@@ -1,3 +1,4 @@
+mod appearance_widgets;
 mod char_create_widgets;
 
 use std::fmt;
@@ -10,9 +11,10 @@ use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
+use appearance_widgets::{customization_row, dropdown_panel};
 use char_create_widgets::{
-    bottom_buttons, class_button, create_confirm_button, customization_row, dropdown_panel,
-    error_label, faction_column, name_input_field, race_buttons_for_faction,
+    bottom_buttons, class_button, create_confirm_button, error_label, faction_column,
+    name_input_field, race_buttons_for_faction,
 };
 
 // --- Actions ---
@@ -270,9 +272,9 @@ fn customize_rows(state: &CharCreateUiState) -> Element {
     }
 }
 
-fn customize_panel(state: &CharCreateUiState) -> Element {
-    // row_height(44) + gap(8) = 52 per row; dropdowns should open below the active row.
-    let dropdown = match state.open_dropdown {
+// row_height(44) + gap(8) = 52 per row; dropdowns should open below the active row.
+fn active_dropdown(state: &CharCreateUiState) -> Element {
+    match state.open_dropdown {
         Some(AppearanceField::SkinColor) => dropdown_panel(
             AppearanceField::SkinColor,
             &state.skin_color_swatches,
@@ -286,7 +288,11 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
             -312.0,
         ),
         _ => Element::default(),
-    };
+    }
+}
+
+fn customize_panel(state: &CharCreateUiState) -> Element {
+    let dropdown = active_dropdown(state);
     rsx! {
         r#frame {
             name: "CustomizePanel",
@@ -577,54 +583,31 @@ mod tests {
         );
     }
 
-    #[test]
-    fn skin_dropdown_positions_match_expected_layout() {
+    fn assert_rect(reg: &crate::ui::registry::FrameRegistry, name: &str, x: f32, y: f32, w: f32, h: f32) {
+        let r = rect_for_name(reg, name);
+        assert_eq!((r.x, r.y, r.width, r.height), (x, y, w, h), "{name}");
+    }
+
+    fn build_skin_dropdown_screen() -> crate::ui::registry::FrameRegistry {
         let mut state = CharCreateUiState::default();
         state.mode = CharCreateMode::Customize;
         state.open_dropdown = Some(AppearanceField::SkinColor);
         state.skin_color_swatches =
             vec![Some([64, 32, 16]), Some([96, 48, 24]), Some([128, 64, 32])];
         state.skin_color = 1;
+        build_screen(state)
+    }
 
-        let reg = build_screen(state);
+    #[test]
+    fn skin_dropdown_positions_match_expected_layout() {
+        let reg = build_skin_dropdown_screen();
 
-        let dropdown = rect_for_name(&reg, "Dropdown_skin");
-        assert_eq!(dropdown.x, 20.0);
-        assert_eq!(dropdown.y, 156.0);
-        assert_eq!(dropdown.width, 282.0);
-        assert_eq!(dropdown.height, 36.0);
-
-        let choice0 = rect_for_name(&reg, "DropChoice_skin_0");
-        let choice1 = rect_for_name(&reg, "DropChoice_skin_1");
-        let choice2 = rect_for_name(&reg, "DropChoice_skin_2");
-        assert_eq!(
-            (choice0.x, choice0.y, choice0.width, choice0.height),
-            (24.0, 160.0, 44.0, 28.0)
-        );
-        assert_eq!(
-            (choice1.x, choice1.y, choice1.width, choice1.height),
-            (70.0, 160.0, 44.0, 28.0)
-        );
-        assert_eq!(
-            (choice2.x, choice2.y, choice2.width, choice2.height),
-            (116.0, 160.0, 44.0, 28.0)
-        );
-
-        let swatch1 = rect_for_name(&reg, "DropSwatch_skin_1");
-        let selection1 = rect_for_name(&reg, "DropSel_skin_1");
-        assert_eq!(
-            (swatch1.x, swatch1.y, swatch1.width, swatch1.height),
-            (72.0, 164.0, 40.0, 20.0)
-        );
-        assert_eq!(
-            (
-                selection1.x,
-                selection1.y,
-                selection1.width,
-                selection1.height
-            ),
-            (64.0, 160.0, 48.0, 28.0)
-        );
+        assert_rect(&reg, "Dropdown_skin", 20.0, 156.0, 282.0, 36.0);
+        assert_rect(&reg, "DropChoice_skin_0", 24.0, 160.0, 44.0, 28.0);
+        assert_rect(&reg, "DropChoice_skin_1", 70.0, 160.0, 44.0, 28.0);
+        assert_rect(&reg, "DropChoice_skin_2", 116.0, 160.0, 44.0, 28.0);
+        assert_rect(&reg, "DropSwatch_skin_1", 72.0, 164.0, 40.0, 20.0);
+        assert_rect(&reg, "DropSel_skin_1", 64.0, 160.0, 48.0, 28.0);
     }
 
     #[test]

@@ -327,7 +327,11 @@ mod tests {
     #[test]
     fn all_races_have_icons() {
         for race in RACES {
-            assert!(!race.icon_file.is_empty(), "{} is missing an icon", race.name);
+            assert!(
+                !race.icon_file.is_empty(),
+                "{} is missing an icon",
+                race.name
+            );
         }
     }
 
