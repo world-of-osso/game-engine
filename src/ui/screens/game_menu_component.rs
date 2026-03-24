@@ -118,46 +118,45 @@ fn section_spacer(name: &str) -> Element {
     rsx! { r#frame { name: {&n}, width: BUTTON_W, height: SECTION_GAP } }
 }
 
+fn menu_panel_body() -> Element {
+    rsx! {
+        panel {
+            name: MENU_PANEL,
+            width: PANEL_W,
+            height: 0.0,
+            strata: FrameStrata::Fullscreen,
+            layout: "flex-column",
+            align: "center",
+            padding: 28.0,
+            gap: 5.0,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+            }
+            {flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS)}
+            {section_spacer("Spacer1")}
+            {flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT)}
+            {flex_button("MenuBtnAddons", "AddOns", ACTION_ADDONS)}
+            {section_spacer("Spacer2")}
+            {flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT)}
+            {flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT)}
+            {section_spacer("Spacer3")}
+            {flex_button("MenuBtnResume", "Return to Game", ACTION_RESUME)}
+        }
+    }
+}
+
 pub fn game_menu_screen(_shared: &SharedContext) -> Element {
-    let style = PanelTitleStyle::TitleBar;
-    let title = panel_title(
-        TITLE_FRAME,
-        TITLE_LABEL,
-        MENU_PANEL,
-        "Game Menu",
-        PANEL_W,
-        style,
-    );
+    let title = panel_title(TITLE_FRAME, TITLE_LABEL, MENU_PANEL, "Game Menu", PANEL_W, PanelTitleStyle::TitleBar);
+    let body = menu_panel_body();
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,
             stretch: true,
-            background_color: "0.02,0.02,0.03,0.85",
-            strata: FrameStrata::Background,
-            panel {
-                name: MENU_PANEL,
-                width: PANEL_W,
-                height: 0.0,
-                strata: FrameStrata::Dialog,
-                layout: "flex-column",
-                align: "center",
-                padding: 28.0,
-                gap: 5.0,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
-                {flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS)}
-                {section_spacer("Spacer1")}
-                {flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT)}
-                {flex_button("MenuBtnAddons", "AddOns", ACTION_ADDONS)}
-                {section_spacer("Spacer2")}
-                {flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT)}
-                {flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT)}
-                {section_spacer("Spacer3")}
-                {flex_button("MenuBtnResume", "Return to Game", ACTION_RESUME)}
-            }
-            {title}
+            background_color: "0.01,0.01,0.02,0.75",
+            strata: FrameStrata::Dialog,
+            mouse_enabled: true,
+            {body} {title}
         }
     }
 }
