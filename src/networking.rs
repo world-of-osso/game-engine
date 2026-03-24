@@ -473,6 +473,7 @@ fn handle_client_disconnected(
         }
         crate::game_state::GameState::CharCreate
         | crate::game_state::GameState::CampsitePopup
+        | crate::game_state::GameState::GameMenu
         | crate::game_state::GameState::TrashButton
         | crate::game_state::GameState::Loading
         | crate::game_state::GameState::Reconnecting => {

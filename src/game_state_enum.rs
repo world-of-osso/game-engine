@@ -12,12 +12,13 @@ pub enum GameState {
     CampsitePopup,
     Loading,
     InWorld,
+    GameMenu,
     TrashButton,
     Reconnecting,
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 9] = [
+    pub const CLI_VALUES: [&str; 10] = [
         "login",
         "connecting",
         "charselect",
@@ -25,6 +26,7 @@ impl GameState {
         "campsitepopup",
         "loading",
         "inworld",
+        "gamemenu",
         "trashbutton",
         "reconnecting",
     ];
@@ -38,6 +40,7 @@ impl GameState {
             Self::CampsitePopup => "campsitepopup",
             Self::Loading => "loading",
             Self::InWorld => "inworld",
+            Self::GameMenu => "gamemenu",
             Self::TrashButton => "trashbutton",
             Self::Reconnecting => "reconnecting",
         }
@@ -56,6 +59,7 @@ impl FromStr for GameState {
             "campsitepopup" => Ok(Self::CampsitePopup),
             "loading" => Ok(Self::Loading),
             "inworld" => Ok(Self::InWorld),
+            "gamemenu" | "menu" => Ok(Self::GameMenu),
             "trashbutton" => Ok(Self::TrashButton),
             "reconnecting" => Ok(Self::Reconnecting),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
@@ -71,17 +75,19 @@ pub enum ScreenArg {
     CharCreateCustomize,
     CampsitePopup,
     InWorld,
+    GameMenu,
     TrashButton,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 7] = [
+    pub const CLI_VALUES: [&str; 8] = [
         "login",
         "charselect",
         "charcreate",
         "charcreate-customize",
         "campsitepopup",
         "inworld",
+        "gamemenu",
         "trashbutton",
     ];
 }
@@ -94,6 +100,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::CampsitePopup => Self::CampsitePopup,
             ScreenArg::InWorld => Self::InWorld,
+            ScreenArg::GameMenu => Self::GameMenu,
             ScreenArg::TrashButton => Self::TrashButton,
         }
     }
@@ -110,6 +117,7 @@ impl FromStr for ScreenArg {
             "charcreate-customize" => Ok(Self::CharCreateCustomize),
             "campsitepopup" => Ok(Self::CampsitePopup),
             "inworld" => Ok(Self::InWorld),
+            "gamemenu" | "menu" => Ok(Self::GameMenu),
             "trashbutton" => Ok(Self::TrashButton),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
