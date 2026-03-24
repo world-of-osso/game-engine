@@ -202,7 +202,7 @@ fn spawn_race_model(
     visible: bool,
 ) -> Option<Entity> {
     let model_path = resolve_model_path(race, sex)?;
-    let entity = m2_scene::spawn_static_m2(
+    let entity = m2_scene::spawn_animated_static_m2(
         commands,
         meshes,
         materials,

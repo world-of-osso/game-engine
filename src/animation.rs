@@ -318,7 +318,7 @@ pub struct AnimationPlugin;
 fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
     matches!(
         state.as_deref().map(State::get),
-        Some(GameState::InWorld | GameState::CharSelect)
+        Some(GameState::InWorld | GameState::CharSelect | GameState::CharCreate)
     )
 }
 
@@ -472,6 +472,42 @@ mod tests {
             transform.translation,
             Vec3::new(1.0, 3.0, -2.0),
             "char-select models should sample their idle pose instead of staying in rest pose"
+        );
+    }
+
+    #[test]
+    fn animation_plugin_runs_on_char_create() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.init_state::<GameState>();
+        app.insert_state(GameState::CharCreate);
+        app.add_plugins(AnimationPlugin);
+
+        let joint = app
+            .world_mut()
+            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
+            .id();
+        app.world_mut().spawn((
+            M2AnimPlayer {
+                current_seq_idx: 0,
+                time_ms: 0.0,
+                looping: true,
+                transition: None,
+            },
+            M2AnimData {
+                sequences: vec![stand_sequence()],
+                bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+                joint_entities: vec![joint],
+            },
+        ));
+
+        app.update();
+
+        let transform = app.world().get::<Transform>(joint).unwrap();
+        assert_eq!(
+            transform.translation,
+            Vec3::new(1.0, 3.0, -2.0),
+            "char-create models should sample their idle pose instead of staying in rest pose"
         );
     }
 
