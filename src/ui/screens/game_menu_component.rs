@@ -25,7 +25,7 @@ const SECTION_GAP: f32 = 8.0;
 // Button onclick actions (matched in game_menu_screen.rs)
 pub const ACTION_OPTIONS: &str = "menu_options";
 pub const ACTION_SUPPORT: &str = "menu_support";
-pub const ACTION_MACROS: &str = "menu_macros";
+pub const ACTION_ADDONS: &str = "menu_addons";
 pub const ACTION_LOGOUT: &str = "menu_logout";
 pub const ACTION_EXIT: &str = "menu_exit";
 pub const ACTION_RESUME: &str = "menu_resume";
@@ -120,7 +120,14 @@ fn section_spacer(name: &str) -> Element {
 
 pub fn game_menu_screen(_shared: &SharedContext) -> Element {
     let style = PanelTitleStyle::TitleBar;
-    let title = panel_title(TITLE_FRAME, TITLE_LABEL, MENU_PANEL, "Game Menu", PANEL_W, style);
+    let title = panel_title(
+        TITLE_FRAME,
+        TITLE_LABEL,
+        MENU_PANEL,
+        "Game Menu",
+        PANEL_W,
+        style,
+    );
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,
@@ -135,7 +142,7 @@ pub fn game_menu_screen(_shared: &SharedContext) -> Element {
                 layout: "flex-column",
                 align: "center",
                 padding: 28.0,
-                gap: 0.0,
+                gap: 5.0,
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
@@ -143,7 +150,7 @@ pub fn game_menu_screen(_shared: &SharedContext) -> Element {
                 {flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS)}
                 {section_spacer("Spacer1")}
                 {flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT)}
-                {flex_button("MenuBtnMacros", "Macros", ACTION_MACROS)}
+                {flex_button("MenuBtnAddons", "AddOns", ACTION_ADDONS)}
                 {section_spacer("Spacer2")}
                 {flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT)}
                 {flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT)}
