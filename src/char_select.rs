@@ -248,6 +248,7 @@ fn char_select_mouse_input(
     char_list: Res<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
     selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    mut commands: Commands,
 ) {
     let Some(cs) = cs_ui.as_ref() else { return };
     if !buttons.just_pressed(MouseButton::Left) {
@@ -268,6 +269,7 @@ fn char_select_mouse_input(
         &char_list,
         &mut next_state,
         selected_scene,
+        &mut commands,
     );
 }
 
@@ -275,6 +277,7 @@ fn cursor_pos(windows: &Query<&Window>) -> Option<Vec2> {
     windows.iter().next().and_then(|w| w.cursor_position())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn dispatch_onclick(
     action: &str,
@@ -286,6 +289,7 @@ fn dispatch_onclick(
     char_list: &CharacterList,
     next_state: &mut NextState<GameState>,
     mut selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    commands: &mut Commands,
 ) {
     match CharSelectAction::parse(action) {
         Some(CharSelectAction::SelectChar(idx)) => {
@@ -298,6 +302,10 @@ fn dispatch_onclick(
             try_delete_character(selected, char_list, del_senders)
         }
         Some(CharSelectAction::Back) => next_state.set(GameState::Login),
+        Some(CharSelectAction::Menu) => {
+            commands.insert_resource(crate::game_menu_screen::PreviousGameState(GameState::CharSelect));
+            next_state.set(GameState::GameMenu);
+        }
         Some(CharSelectAction::CampsiteToggle) => {
             campsite_visible.0 = !campsite_visible.0;
         }
@@ -326,6 +334,7 @@ fn handle_cs_click(
     char_list: &CharacterList,
     next_state: &mut NextState<GameState>,
     selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    commands: &mut Commands,
 ) {
     let (mx, my) = (cursor.x, cursor.y);
     let action = find_clicked_action(ui, mx, my);
@@ -340,6 +349,7 @@ fn handle_cs_click(
             char_list,
             next_state,
             selected_scene,
+            commands,
         );
     } else {
         focus.0 = None;
@@ -468,6 +478,7 @@ fn char_select_run_automation(
     char_list: Res<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
     selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    mut commands: Commands,
     mut queue: ResMut<UiAutomationQueue>,
     mut runner: ResMut<UiAutomationRunner>,
 ) {
@@ -489,6 +500,7 @@ fn char_select_run_automation(
         &char_list,
         &mut next_state,
         selected_scene,
+        &mut commands,
         &action,
     );
     queue.pop();
@@ -510,6 +522,7 @@ fn run_char_select_automation_action(
     char_list: &CharacterList,
     next_state: &mut NextState<GameState>,
     selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    commands: &mut Commands,
     action: &UiAutomationAction,
 ) -> Result<(), String> {
     match action {
@@ -524,6 +537,7 @@ fn run_char_select_automation_action(
             char_list,
             next_state,
             selected_scene,
+            commands,
             name,
         )?,
         UiAutomationAction::TypeText(_) => {
@@ -555,6 +569,7 @@ fn click_char_select_frame(
     char_list: &CharacterList,
     next_state: &mut NextState<GameState>,
     selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    commands: &mut Commands,
     frame_name: &str,
 ) -> Result<(), String> {
     let frame_id = ui
@@ -573,6 +588,7 @@ fn click_char_select_frame(
         char_list,
         next_state,
         selected_scene,
+        commands,
     );
     Ok(())
 }
