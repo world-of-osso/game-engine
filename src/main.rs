@@ -33,6 +33,7 @@ mod campsite_popup_screen;
 mod char_create;
 mod char_create_scene;
 mod char_select;
+mod char_select_input;
 mod char_select_scene;
 mod char_select_scene_tree;
 mod character_customization;
