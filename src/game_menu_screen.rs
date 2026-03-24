@@ -47,12 +47,13 @@ impl Plugin for GameMenuScreenPlugin {
 }
 
 /// Open the overlay (callable from any screen).
-pub fn open_game_menu(ui: &mut UiState, commands: &mut Commands) {
+pub fn open_game_menu(ui: &mut UiState, commands: &mut Commands, game_state: GameState) {
     // Check if already open by looking for the root frame
     if ui.registry.get_by_name("GameMenuRoot").is_some() {
         return;
     }
-    let shared = ui_toolkit::screen::SharedContext::new();
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(game_state);
     let mut screen = Screen::new(game_menu_screen);
     screen.sync(&shared, &mut ui.registry);
     commands.insert_resource(GameMenuOverlay {
@@ -82,7 +83,7 @@ impl Command for CloseMenuCommand {
 // --- Standalone test screen (--screen menu) ---
 
 fn open_menu_overlay(mut ui: ResMut<UiState>, mut commands: Commands) {
-    open_game_menu(&mut ui, &mut commands);
+    open_game_menu(&mut ui, &mut commands, GameState::GameMenu);
 }
 
 fn close_menu_overlay(mut commands: Commands) {

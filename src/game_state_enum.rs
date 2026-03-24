@@ -31,6 +31,10 @@ impl GameState {
         "reconnecting",
     ];
 
+    pub fn is_logged_in(self) -> bool {
+        !matches!(self, Self::Login | Self::Connecting)
+    }
+
     pub fn as_cli_str(self) -> &'static str {
         match self {
             Self::Login => "login",

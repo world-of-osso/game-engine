@@ -430,7 +430,7 @@ fn dispatch_login_action(
             params.status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            crate::game_menu_screen::open_game_menu(ui, commands);
+            crate::game_menu_screen::open_game_menu(ui, commands, crate::game_state::GameState::Login);
         }
         Some(LoginAction::Exit) => {
             if let Some(exit) = exit {
@@ -624,7 +624,7 @@ fn click_login_frame(
             status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            crate::game_menu_screen::open_game_menu(ui, commands);
+            crate::game_menu_screen::open_game_menu(ui, commands, crate::game_state::GameState::Login);
         }
         Some(LoginAction::Exit) => {}
         None if ui.registry.focused_frame == Some(frame_id) => {}

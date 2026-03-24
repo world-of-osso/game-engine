@@ -2,6 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::game_state_enum::GameState;
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 
@@ -26,8 +27,10 @@ const PANEL_GAP: f32 = 5.0;
 const SECTION_GAP: f32 = 8.0;
 const TITLE_H: f32 = 36.0;
 const TITLE_PANEL_OVERLAP: f32 = 2.0;
-const BUTTON_COUNT: f32 = 6.0;
-const SPACER_COUNT: f32 = 3.0;
+const LOGGED_IN_BUTTON_COUNT: f32 = 6.0;
+const LOGGED_OUT_BUTTON_COUNT: f32 = 5.0;
+const LOGGED_IN_SPACER_COUNT: f32 = 3.0;
+const LOGGED_OUT_SPACER_COUNT: f32 = 2.0;
 
 // Button onclick actions (matched in game_menu_screen.rs)
 pub const ACTION_OPTIONS: &str = "menu_options";
@@ -130,8 +133,28 @@ fn section_spacer(name: &str) -> Element {
     rsx! { r#frame { name: {&n}, width: BUTTON_W, height: SECTION_GAP } }
 }
 
-fn menu_panel_body() -> Element {
+fn menu_buttons(logged_in: bool) -> Element {
+    let mut btns = vec![
+        flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS),
+        section_spacer("Spacer1"),
+        flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT),
+        flex_button("MenuBtnAddons", "AddOns", ACTION_ADDONS),
+        section_spacer("Spacer2"),
+    ];
+    if logged_in {
+        btns.push(flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT));
+    }
+    btns.extend([
+        flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT),
+        section_spacer("Spacer3"),
+        flex_button("MenuBtnResume", "Return to Game", ACTION_RESUME),
+    ]);
+    btns.into_iter().flatten().collect()
+}
+
+fn menu_panel_body(logged_in: bool) -> Element {
     let panel_y = (-(TITLE_H - TITLE_PANEL_OVERLAP)).to_string();
+    let buttons = menu_buttons(logged_in);
     rsx! {
         panel {
             name: MENU_PANEL,
@@ -148,33 +171,34 @@ fn menu_panel_body() -> Element {
                 relative_point: AnchorPoint::Top,
                 y: {panel_y},
             }
-            {flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS)}
-            {section_spacer("Spacer1")}
-            {flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT)}
-            {flex_button("MenuBtnAddons", "AddOns", ACTION_ADDONS)}
-            {section_spacer("Spacer2")}
-            {flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT)}
-            {flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT)}
-            {section_spacer("Spacer3")}
-            {flex_button("MenuBtnResume", "Return to Game", ACTION_RESUME)}
+            {buttons}
         }
     }
 }
 
-fn menu_panel_height() -> f32 {
-    let item_count = BUTTON_COUNT + SPACER_COUNT;
+fn menu_panel_height(logged_in: bool) -> f32 {
+    let (btn_count, spacer_count) = if logged_in {
+        (LOGGED_IN_BUTTON_COUNT, LOGGED_IN_SPACER_COUNT)
+    } else {
+        (LOGGED_OUT_BUTTON_COUNT, LOGGED_OUT_SPACER_COUNT)
+    };
+    let item_count = btn_count + spacer_count;
     let gap_count = item_count - 1.0;
-    (BUTTON_COUNT * BUTTON_H)
-        + (SPACER_COUNT * SECTION_GAP)
+    (btn_count * BUTTON_H)
+        + (spacer_count * SECTION_GAP)
         + (gap_count * PANEL_GAP)
         + (PANEL_PADDING * 2.0)
 }
 
-fn menu_mount_height() -> f32 {
-    TITLE_H + menu_panel_height() - TITLE_PANEL_OVERLAP
+fn menu_mount_height(logged_in: bool) -> f32 {
+    TITLE_H + menu_panel_height(logged_in) - TITLE_PANEL_OVERLAP
 }
 
-pub fn game_menu_screen(_shared: &SharedContext) -> Element {
+pub fn game_menu_screen(shared: &SharedContext) -> Element {
+    let logged_in = shared
+        .get::<GameState>()
+        .map(|s| s.is_logged_in())
+        .unwrap_or(false);
     let title = panel_title(
         TITLE_FRAME,
         TITLE_LABEL,
@@ -183,7 +207,7 @@ pub fn game_menu_screen(_shared: &SharedContext) -> Element {
         PANEL_W,
         PanelTitleStyle::TitleBar,
     );
-    let body = menu_panel_body();
+    let body = menu_panel_body(logged_in);
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,
@@ -194,7 +218,7 @@ pub fn game_menu_screen(_shared: &SharedContext) -> Element {
             r#frame {
                 name: MENU_MOUNT,
                 width: PANEL_W,
-                height: {menu_mount_height()},
+                height: {menu_mount_height(logged_in)},
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
@@ -218,7 +242,8 @@ mod tests {
     #[test]
     fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let shared = SharedContext::new();
+        let mut shared = SharedContext::new();
+        shared.insert(GameState::InWorld);
         Screen::new(game_menu_screen).sync(&shared, &mut reg);
 
         let mount_id = reg.get_by_name(MENU_MOUNT.0).expect("GameMenuMount");
