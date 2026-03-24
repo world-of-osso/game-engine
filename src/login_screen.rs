@@ -116,19 +116,18 @@ impl Plugin for LoginScreenPlugin {
         app.init_resource::<LoginPressedButton>();
         app.add_systems(OnEnter(GameState::Login), build_login_ui);
         app.add_systems(OnExit(GameState::Login), teardown_login_ui);
-        let no_overlay = not(resource_exists::<crate::game_menu_screen::GameMenuOverlay>);
-        let login_active = in_state(GameState::Login);
         app.add_systems(
             Update,
-            (login_mouse_input, login_keyboard_input, login_run_automation)
+            (
+                login_sync_root_size,
+                login_mouse_input,
+                login_keyboard_input,
+                login_run_automation,
+                login_update_visuals,
+                login_fade_in,
+            )
                 .into_configs()
-                .run_if(login_active.clone().and(no_overlay)),
-        );
-        app.add_systems(
-            Update,
-            (login_sync_root_size, login_hover_visuals, login_update_visuals, login_fade_in)
-                .into_configs()
-                .run_if(login_active),
+                .run_if(in_state(GameState::Login)),
         );
     }
 }
@@ -720,14 +719,7 @@ fn login_hover_visuals(
         button_ids.push(reconnect_button);
     }
     for id in button_ids {
-        let hovered = cursor.is_some_and(|c| {
-            ui.registry
-                .get(id)
-                .and_then(|f| f.layout_rect.as_ref())
-                .is_some_and(|r| {
-                    c.x >= r.x && c.x <= r.x + r.width && c.y >= r.y && c.y <= r.y + r.height
-                })
-        });
+        let hovered = cursor.is_some_and(|c| hit_active_frame(&ui, id, c.x, c.y));
         set_button_hovered(&mut ui.registry, id, hovered);
     }
 }

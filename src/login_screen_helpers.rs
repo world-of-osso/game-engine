@@ -1,4 +1,5 @@
 use game_engine::ui::frame::WidgetData;
+use game_engine::ui::input::find_frame_at;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::widgets::texture::TextureSource;
@@ -84,7 +85,28 @@ pub fn hit_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
         f.layout_rect
             .as_ref()
             .is_some_and(|r| mx >= r.x && mx <= r.x + r.width && my >= r.y && my <= r.y + r.height)
+            && topmost_frame_at(ui, mx, my)
+                .is_some_and(|hit_id| frame_or_ancestor_matches(&ui.registry, hit_id, frame_id))
     })
+}
+
+pub fn topmost_frame_at(ui: &UiState, mx: f32, my: f32) -> Option<u64> {
+    find_frame_at(&ui.registry, mx, my)
+}
+
+pub fn frame_or_ancestor_matches(reg: &FrameRegistry, mut frame_id: u64, target_id: u64) -> bool {
+    loop {
+        if frame_id == target_id {
+            return true;
+        }
+        let Some(frame) = reg.get(frame_id) else {
+            return false;
+        };
+        let Some(parent_id) = frame.parent_id else {
+            return false;
+        };
+        frame_id = parent_id;
+    }
 }
 
 // --- Button visual helpers ---
@@ -166,5 +188,53 @@ fn selected_generated_login_button_path() -> Option<&'static str> {
         Some("knotwork") => Some(LOGIN_BUTTON_GENERATED_KNOTWORK),
         Some("walnut") => Some(LOGIN_BUTTON_GENERATED_WALNUT),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use game_engine::ui::frame::Dimension;
+    use game_engine::ui::layout::LayoutRect;
+    use game_engine::ui::strata::FrameStrata;
+
+    fn set_rect(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) {
+        let frame = reg.get_mut(id).expect("frame should exist");
+        frame.width = Dimension::Fixed(w);
+        frame.height = Dimension::Fixed(h);
+        frame.layout_rect = Some(LayoutRect {
+            x,
+            y,
+            width: w,
+            height: h,
+        });
+    }
+
+    fn make_ui_state(registry: FrameRegistry) -> UiState {
+        UiState {
+            registry,
+            event_bus: game_engine::ui::event::EventBus::new(),
+            focused_frame: None,
+        }
+    }
+
+    #[test]
+    fn hit_frame_rejects_controls_occluded_by_overlay() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let button = registry.create_frame("Button", None);
+        set_rect(&mut registry, button, 800.0, 520.0, 250.0, 66.0);
+        registry.get_mut(button).expect("button").mouse_enabled = true;
+
+        let overlay = registry.create_frame("Overlay", None);
+        set_rect(&mut registry, overlay, 0.0, 0.0, 1920.0, 1080.0);
+        let overlay_frame = registry.get_mut(overlay).expect("overlay");
+        overlay_frame.mouse_enabled = true;
+        overlay_frame.strata = FrameStrata::Dialog;
+        overlay_frame.frame_level = 100;
+
+        let ui = make_ui_state(registry);
+
+        assert_eq!(topmost_frame_at(&ui, 810.0, 530.0), Some(overlay));
+        assert!(!hit_frame(&ui, button, 810.0, 530.0));
     }
 }
