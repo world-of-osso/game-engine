@@ -75,7 +75,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Wo",
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9, 11],
-        icon_file: "",
+        icon_file: "/home/osso/Projects/wow/Interface/CHARACTERFRAME/TEMPORARYPORTRAIT-MALE-WORGEN.BLP",
     },
     RaceInfo {
         id: 29,
@@ -197,7 +197,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "MO",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8],
-        icon_file: "",
+        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_MagharOrc.blp",
     },
     // Neutral
     RaceInfo {
@@ -321,6 +321,13 @@ mod tests {
                 "{} has no classes",
                 race.name
             );
+        }
+    }
+
+    #[test]
+    fn all_races_have_icons() {
+        for race in RACES {
+            assert!(!race.icon_file.is_empty(), "{} is missing an icon", race.name);
         }
     }
 
