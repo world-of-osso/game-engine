@@ -23,6 +23,8 @@ const MENU_ITEM_Y: &str = "-1";
 const MENU_DIVIDER_HEIGHT: f32 = 22.0;
 const MENU_DIVIDER_Y: &str = "-10";
 const MENU_CAMPSITES_X: &str = "357";
+const MENU_TAB_X: &str = "173";
+const MENU_TAB_WIDTH: f32 = 92.0;
 const CARD_WIDTH: f32 = 215.0;
 const CARD_HEIGHT: f32 = 173.0;
 const CARD_PREVIEW_WIDTH: f32 = 206.0;
@@ -40,7 +42,6 @@ pub const CAMPSITE_PANEL_TOP_OFFSET: f32 = 58.0;
 const DISABLED_ITEMS: &[(&str, &str, f32, &str)] = &[
     ("CampsiteModeTab", "MODE", 100.0, "0"),
     ("CampsiteShopTab", "SHOP", 73.0, "100"),
-    ("CampsiteMenuTab", "MENU", 92.0, "173"),
     ("CampsiteRealmsTab", "REALMS", 92.0, "265"),
 ];
 const DIVIDER_POSITIONS: &[(&str, &str)] = &[
@@ -128,6 +129,25 @@ fn disabled_menu_item(name: &str, text: &str, width: f32, x: &str) -> Element {
     }
 }
 
+/// Active MENU tab — opens the game menu overlay.
+fn menu_tab_item() -> Element {
+    rsx! {
+        r#frame {
+            name: "CampsiteMenuTab",
+            width: MENU_TAB_WIDTH,
+            height: MENU_ITEM_HEIGHT,
+            onclick: CharSelectAction::Menu,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: MENU_TAB_X,
+                y: MENU_ITEM_Y,
+            }
+            {menu_item_label("CampsiteMenuTab", "MENU", MENU_TAB_WIDTH, COLOR_SUBTITLE)}
+        }
+    }
+}
+
 fn campsite_menu_item_selected() -> Element {
     rsx! {
         r#frame {
@@ -208,6 +228,7 @@ pub fn campsite_tab(selected: bool) -> Element {
     } else {
         campsite_menu_item_unselected()
     };
+    let menu = menu_tab_item();
     rsx! {
         r#frame {
             name: "CampsiteMenuBar",
@@ -222,6 +243,7 @@ pub fn campsite_tab(selected: bool) -> Element {
             }
             {menu_bar_chrome()}
             {disabled_items_and_dividers()}
+            {menu}
             {campsites}
         }
     }
@@ -327,13 +349,17 @@ fn campsite_card(id: u32, name: &str, preview_image: Option<&str>, is_selected: 
 }
 
 pub fn campsite_panel(state: &CampsiteState) -> Element {
-    campsite_panel_with_anchor(
-        state,
-        AnchorPoint::Top,
-        AnchorPoint::Top,
-        "-58",
-        PANEL_WIDTH,
-    )
+    campsite_panel_with_anchor(state, AnchorPoint::Top, AnchorPoint::Top, "-58", PANEL_WIDTH)
+}
+
+fn build_campsite_cards(state: &CampsiteState) -> Element {
+    state
+        .scenes
+        .iter()
+        .flat_map(|e| {
+            campsite_card(e.id, &e.name, e.preview_image.as_deref(), state.selected_id == Some(e.id))
+        })
+        .collect()
 }
 
 fn campsite_panel_with_anchor(
@@ -344,18 +370,7 @@ fn campsite_panel_with_anchor(
     width: f32,
 ) -> Element {
     let hide = !state.panel_visible;
-    let cards: Element = state
-        .scenes
-        .iter()
-        .flat_map(|e| {
-            campsite_card(
-                e.id,
-                &e.name,
-                e.preview_image.as_deref(),
-                state.selected_id == Some(e.id),
-            )
-        })
-        .collect();
+    let cards = build_campsite_cards(state);
     let height = campsite_panel_height(state.scenes.len());
     rsx! {
         r#frame {

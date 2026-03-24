@@ -105,7 +105,6 @@ pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");
 pub const DELETE_CHAR_BUTTON: FrameName = FrameName("DeleteChar");
 pub const BACK_BUTTON: FrameName = FrameName("BackToLogin");
-pub const MENU_BUTTON: FrameName = FrameName("MenuButton");
 pub const STATUS_TEXT: FrameName = FrameName("CSStatus");
 pub const SELECTED_NAME_TEXT: FrameName = FrameName("CharSelectCharacterName");
 
@@ -172,7 +171,7 @@ fn cs_logo() -> Element {
 
 // --- Top HUD banner (3 atlas pieces) ---
 
-fn cs_top_hud() -> Element {
+fn cs_top_hud_left() -> Element {
     rsx! {
         texture {
             name: "CharSelectTopHudLeft",
@@ -186,6 +185,11 @@ fn cs_top_hud() -> Element {
                 y: "-22",
             }
         }
+    }
+}
+
+fn cs_top_hud_right() -> Element {
+    rsx! {
         texture {
             name: "CharSelectTopHudMiddle",
             width: 30.0,
@@ -211,6 +215,13 @@ fn cs_top_hud() -> Element {
             }
         }
     }
+}
+
+fn cs_top_hud() -> Element {
+    [cs_top_hud_left(), cs_top_hud_right()]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 // --- Name area (below top HUD) ---
@@ -642,29 +653,6 @@ fn cs_status(text: &str) -> Element {
     }
 }
 
-fn cs_menu_button() -> Element {
-    rsx! {
-        button {
-            name: MENU_BUTTON,
-            width: 100.0,
-            height: 36.0,
-            text: "Menu",
-            font_size: 14.0,
-            onclick: CharSelectAction::Menu,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-12",
-                y: "12",
-            }
-        }
-    }
-}
-
 // --- Main screen ---
 
 pub fn char_select_screen(ctx: &SharedContext) -> Element {
@@ -696,7 +684,6 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
             {cs_action_buttons(has_selection)}
-            {cs_menu_button()}
             {cs_status(&state.status_text)}
             {campsite_ui}
         }
