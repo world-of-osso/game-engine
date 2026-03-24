@@ -21,6 +21,8 @@ use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
 use crate::login_screen_helpers as helpers;
+#[path = "char_create_appearance.rs"]
+mod appearance_logic;
 use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use helpers::{
@@ -187,36 +189,7 @@ fn randomize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
 }
 
 fn randomize_appearance_with_seed(state: &mut CharCreateState, db: &CustomizationDb, seed: u64) {
-    let (race, sex, class) = (
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-    );
-    let mut seed = seed ^ ((race as u64) << 40) ^ ((sex as u64) << 32) ^ ((class as u64) << 24);
-
-    state.appearance = CharacterAppearance {
-        sex,
-        skin_color: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
-        ),
-        face: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::Face),
-        ),
-        hair_style: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
-        ),
-        hair_color: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::HairColor),
-        ),
-        facial_style: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
-        ),
-    };
+    appearance_logic::randomize_appearance_with_seed(state, db, seed);
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, cc: &CharCreateUi) {
@@ -379,7 +352,7 @@ fn dispatch_action(
             state.open_dropdown = None;
         }
         CharCreateAction::ToggleDropdown(f) => toggle_dropdown(state, f),
-        CharCreateAction::SelectChoice(f, idx) => select_choice(state, f, idx),
+        CharCreateAction::SelectChoice(f, idx) => select_choice(state, f, idx, cust_db),
         CharCreateAction::CreateConfirm => {
             send_create_request(state, reg, cc, create_senders);
             if let Some(id) = cc.name_input {
@@ -442,32 +415,7 @@ fn apply_randomize_with_seed(state: &mut CharCreateState, db: &CustomizationDb, 
 }
 
 fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
-    let (race, sex, class) = (
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-    );
-
-    clamp_appearance_field(
-        &mut state.appearance.skin_color,
-        db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.face,
-        db.choice_count_for_class(race, sex, class, OptionType::Face),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.hair_style,
-        db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.hair_color,
-        db.choice_count_for_class(race, sex, class, OptionType::HairColor),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.facial_style,
-        db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
-    );
+    appearance_logic::normalize_appearance(state, db);
 }
 
 fn clamp_appearance_field(value: &mut u8, count: u8) {
@@ -492,36 +440,7 @@ fn adjust_appearance(
     delta: i8,
     db: &CustomizationDb,
 ) {
-    let (race, sex, class) = (
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-    );
-    let opt_type = match field {
-        AppearanceField::SkinColor => OptionType::SkinColor,
-        AppearanceField::Face => OptionType::Face,
-        AppearanceField::HairStyle => OptionType::HairStyle,
-        AppearanceField::HairColor => OptionType::HairColor,
-        AppearanceField::FacialStyle => OptionType::FacialHair,
-    };
-    let max = db.choice_count_for_class(race, sex, class, opt_type);
-    let val = match field {
-        AppearanceField::SkinColor => &mut state.appearance.skin_color,
-        AppearanceField::Face => &mut state.appearance.face,
-        AppearanceField::HairStyle => &mut state.appearance.hair_style,
-        AppearanceField::HairColor => &mut state.appearance.hair_color,
-        AppearanceField::FacialStyle => &mut state.appearance.facial_style,
-    };
-    if max == 0 {
-        return;
-    }
-    *val = if delta > 0 {
-        if *val + 1 >= max { 0 } else { *val + 1 }
-    } else if *val == 0 {
-        max - 1
-    } else {
-        *val - 1
-    };
+    appearance_logic::adjust_appearance(state, field, delta, db);
 }
 
 fn toggle_dropdown(state: &mut CharCreateState, field: AppearanceField) {
@@ -532,16 +451,13 @@ fn toggle_dropdown(state: &mut CharCreateState, field: AppearanceField) {
     }
 }
 
-fn select_choice(state: &mut CharCreateState, field: AppearanceField, idx: u8) {
-    let val = match field {
-        AppearanceField::SkinColor => &mut state.appearance.skin_color,
-        AppearanceField::Face => &mut state.appearance.face,
-        AppearanceField::HairStyle => &mut state.appearance.hair_style,
-        AppearanceField::HairColor => &mut state.appearance.hair_color,
-        AppearanceField::FacialStyle => &mut state.appearance.facial_style,
-    };
-    *val = idx;
-    state.open_dropdown = None;
+fn select_choice(
+    state: &mut CharCreateState,
+    field: AppearanceField,
+    idx: u8,
+    db: &CustomizationDb,
+) {
+    appearance_logic::select_choice(state, field, idx, db);
 }
 
 fn send_create_request(
@@ -929,6 +845,110 @@ mod tests {
             state.appearance.facial_style
                 < db.choice_count_for_class(1, 0, 1, OptionType::FacialHair)
         );
+    }
+
+    fn skin_choice_ids(
+        db: &CustomizationDb,
+        race: u8,
+        sex: u8,
+        class: u8,
+    ) -> std::collections::HashSet<u32> {
+        let count = db.choice_count_for_class(race, sex, class, OptionType::SkinColor);
+        (0..count)
+            .filter_map(|index| {
+                db.get_choice_for_class(race, sex, class, OptionType::SkinColor, index)
+                    .map(|choice| choice.id)
+            })
+            .collect()
+    }
+
+    fn face_is_compatible_with_skin(
+        db: &CustomizationDb,
+        race: u8,
+        sex: u8,
+        class: u8,
+        skin_color: u8,
+        face: u8,
+    ) -> bool {
+        let skin_ids = skin_choice_ids(db, race, sex, class);
+        let Some(selected_skin_id) = db
+            .get_choice_for_class(race, sex, class, OptionType::SkinColor, skin_color)
+            .map(|choice| choice.id)
+        else {
+            return false;
+        };
+        let Some(choice) = db.get_choice_for_class(race, sex, class, OptionType::Face, face) else {
+            return false;
+        };
+        let related_skin_ids: std::collections::HashSet<_> = choice
+            .related_materials
+            .iter()
+            .map(|material| material.related_choice_id)
+            .chain(
+                choice
+                    .related_geosets
+                    .iter()
+                    .map(|geoset| geoset.related_choice_id),
+            )
+            .filter(|choice_id| skin_ids.contains(choice_id))
+            .collect();
+        related_skin_ids.is_empty() || related_skin_ids.contains(&selected_skin_id)
+    }
+
+    #[test]
+    fn randomized_face_stays_compatible_with_selected_skin_color() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let mut state = CharCreateState {
+            selected_race: 1,
+            selected_class: 1,
+            selected_sex: 0,
+            ..Default::default()
+        };
+
+        for seed in 0..256_u64 {
+            randomize_appearance_with_seed(&mut state, &db, seed);
+            assert!(
+                face_is_compatible_with_skin(
+                    &db,
+                    state.selected_race,
+                    state.selected_sex,
+                    state.selected_class,
+                    state.appearance.skin_color,
+                    state.appearance.face,
+                ),
+                "seed {seed:#x} produced incompatible face {} for skin {}",
+                state.appearance.face,
+                state.appearance.skin_color
+            );
+        }
+    }
+
+    #[test]
+    fn changing_skin_color_reclamps_face_to_compatible_set() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let mut state = CharCreateState {
+            selected_race: 1,
+            selected_class: 1,
+            selected_sex: 0,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 0,
+                face: 10,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        adjust_appearance(&mut state, AppearanceField::SkinColor, 1, &db);
+
+        assert!(face_is_compatible_with_skin(
+            &db,
+            state.selected_race,
+            state.selected_sex,
+            state.selected_class,
+            state.appearance.skin_color,
+            state.appearance.face,
+        ));
     }
 
     #[test]
