@@ -116,19 +116,19 @@ impl Plugin for LoginScreenPlugin {
         app.init_resource::<LoginPressedButton>();
         app.add_systems(OnEnter(GameState::Login), build_login_ui);
         app.add_systems(OnExit(GameState::Login), teardown_login_ui);
+        let no_overlay = not(resource_exists::<crate::game_menu_screen::GameMenuOverlay>);
+        let login_active = in_state(GameState::Login);
         app.add_systems(
             Update,
-            (
-                login_sync_root_size,
-                login_mouse_input,
-                login_keyboard_input,
-                login_run_automation,
-                login_hover_visuals,
-                login_update_visuals,
-                login_fade_in,
-            )
+            (login_mouse_input, login_keyboard_input, login_run_automation)
                 .into_configs()
-                .run_if(in_state(GameState::Login)),
+                .run_if(login_active.clone().and(no_overlay)),
+        );
+        app.add_systems(
+            Update,
+            (login_sync_root_size, login_hover_visuals, login_update_visuals, login_fade_in)
+                .into_configs()
+                .run_if(login_active),
         );
     }
 }

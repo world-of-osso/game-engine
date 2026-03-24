@@ -75,6 +75,8 @@ impl Plugin for CharSelectPlugin {
         app.add_message::<CharSelectClickEvent>();
         app.add_systems(OnEnter(GameState::CharSelect), build_char_select_ui);
         app.add_systems(OnExit(GameState::CharSelect), teardown_char_select_ui);
+        let no_overlay = not(resource_exists::<crate::game_menu_screen::GameMenuOverlay>);
+        let cs_active = in_state(GameState::CharSelect);
         app.add_systems(
             Update,
             (
@@ -82,12 +84,19 @@ impl Plugin for CharSelectPlugin {
                 char_select_input::char_select_keyboard_input,
                 char_select_input::char_select_run_automation,
                 char_select_input::dispatch_char_select_action,
+            )
+                .into_configs()
+                .run_if(cs_active.clone().and(no_overlay)),
+        );
+        app.add_systems(
+            Update,
+            (
                 char_select_update_visuals,
                 report_char_select_ready,
                 auto_enter_world,
             )
                 .into_configs()
-                .run_if(in_state(GameState::CharSelect)),
+                .run_if(cs_active),
         );
     }
 }
