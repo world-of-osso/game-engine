@@ -84,7 +84,7 @@ fn race_name_label(race_id: u8, name: &str, color: FontColor) -> Element {
     rsx! {
         fontstring {
             name: dyn_name(format!("Race_{race_id}_Label")),
-            width: 56.0,
+            width: 72.0,
             height: 24.0,
             text,
             font: GameFont::FrizQuadrata,
@@ -138,7 +138,7 @@ pub(super) fn race_button(
         r#frame {
             name: dyn_name(format!("Race_{race_id}")),
             width: 56.0,
-            height: 64.0,
+            height: 72.0,
             onclick: CharCreateAction::SelectRace(race_id),
             border,
             background_color: bg,
@@ -235,7 +235,7 @@ fn class_name_label(class_id: u8, name: &str, color: FontColor) -> Element {
     rsx! {
         fontstring {
             name: dyn_name(format!("Class_{class_id}_Label")),
-            width: 56.0,
+            width: 72.0,
             height: 24.0,
             text,
             font: GameFont::FrizQuadrata,
@@ -268,7 +268,7 @@ pub(super) fn class_button(
         r#frame {
             name: dyn_name(format!("Class_{class_id}")),
             width: 56.0,
-            height: 64.0,
+            height: 72.0,
             onclick,
             border,
             background_color: bg,
