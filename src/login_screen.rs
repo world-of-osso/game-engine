@@ -43,7 +43,6 @@ const EDITBOX_FOCUSED_BG: [f32; 4] = [0.32, 0.24, 0.16, 1.0];
 const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.78, 0.0, 1.0];
 pub(crate) const STATUS_CONNECTING: &str = "Connecting...";
 pub(crate) const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
-const STATUS_MENU_UNAVAILABLE: &str = "Menu is not implemented yet";
 pub(crate) const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
 
 /// Grouped UI state params used by mouse/keyboard input systems.
@@ -432,7 +431,7 @@ fn dispatch_login_action(
             params.status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            params.status.0 = STATUS_MENU_UNAVAILABLE.to_string();
+            crate::game_menu_screen::open_game_menu(ui, commands);
         }
         Some(LoginAction::Exit) => {
             if let Some(exit) = exit {
@@ -626,7 +625,7 @@ fn click_login_frame(
             status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            status.0 = STATUS_MENU_UNAVAILABLE.to_string();
+            crate::game_menu_screen::open_game_menu(ui, commands);
         }
         Some(LoginAction::Exit) => {}
         None if ui.registry.focused_frame == Some(frame_id) => {}
