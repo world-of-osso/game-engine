@@ -319,10 +319,19 @@ fn insert_startup_resources(
 
 fn insert_screen_resources(app: &mut App, args: &[String]) {
     match parse_screen_arg(args) {
-        Ok(Some(game_engine::game_state_enum::ScreenArg::CharCreateCustomize)) => {
-            app.insert_resource(char_create::StartupCharCreateMode(
-                game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
-            ));
+        Ok(Some(
+            screen @ (game_engine::game_state_enum::ScreenArg::CharCreate
+            | game_engine::game_state_enum::ScreenArg::CharCreateCustomize),
+        )) => {
+            app.insert_resource(game_state::StartupScreenTarget(screen.into()));
+            if matches!(
+                screen,
+                game_engine::game_state_enum::ScreenArg::CharCreateCustomize
+            ) {
+                app.insert_resource(char_create::StartupCharCreateMode(
+                    game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
+                ));
+            }
         }
         Ok(_) => {}
         Err(err) => {

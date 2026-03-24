@@ -178,6 +178,7 @@ pub fn receive_login_response(
     mut char_list: ResMut<CharacterList>,
     auto_enter_world: Option<Res<crate::char_select::AutoEnterWorld>>,
     preselected: Option<Res<crate::char_select::PreselectedCharName>>,
+    startup_screen_target: Option<Res<crate::game_state::StartupScreenTarget>>,
     mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
     mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -193,6 +194,7 @@ pub fn receive_login_response(
                 &mut char_list,
                 auto_enter_world.as_ref(),
                 preselected.as_ref(),
+                startup_screen_target.as_ref(),
                 &mut selected_char_idx,
                 &mut select_senders,
                 &mut next_state,
@@ -210,6 +212,7 @@ fn handle_login_response(
     char_list: &mut CharacterList,
     auto_enter_world: Option<&Res<crate::char_select::AutoEnterWorld>>,
     preselected: Option<&Res<crate::char_select::PreselectedCharName>>,
+    startup_screen_target: Option<&Res<crate::game_state::StartupScreenTarget>>,
     selected_char_idx: &mut crate::char_select::SelectedCharIndex,
     select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
     next_state: &mut NextState<GameState>,
@@ -230,6 +233,7 @@ fn handle_login_response(
             &char_list.0,
             preselected.map(|name| name.0.as_str()),
             auto_enter_world.is_some(),
+            startup_screen_target.map(|target| target.0),
         );
         info!(
             "Post-login action: selected_idx={:?} auto_enter={} enter_world_character_id={:?} next_state={:?} preselected={:?}",
@@ -289,6 +293,7 @@ fn decide_login_success_action(
     characters: &[CharacterListEntry],
     preselected_name: Option<&str>,
     auto_enter_world: bool,
+    startup_screen_target: Option<GameState>,
 ) -> LoginSuccessAction {
     let selected_idx = resolve_selected_char_index(characters, preselected_name);
     let enter_world_character_id = auto_enter_world
@@ -297,7 +302,7 @@ fn decide_login_success_action(
     let next_state = if enter_world_character_id.is_some() {
         None
     } else {
-        Some(GameState::CharSelect)
+        Some(startup_screen_target.unwrap_or(GameState::CharSelect))
     };
     LoginSuccessAction {
         selected_idx,
@@ -541,6 +546,7 @@ mod tests {
                     &mut char_list,
                     None,
                     None,
+                    None,
                     &mut selected_char_idx,
                     &mut select_senders,
                     &mut next_state,
@@ -695,7 +701,7 @@ mod tests {
         }];
 
         assert_eq!(
-            decide_login_success_action(&chars, None, true),
+            decide_login_success_action(&chars, None, true, None),
             LoginSuccessAction {
                 selected_idx: Some(0),
                 enter_world_character_id: Some(7),
@@ -717,11 +723,33 @@ mod tests {
         }];
 
         assert_eq!(
-            decide_login_success_action(&chars, None, false),
+            decide_login_success_action(&chars, None, false, None),
             LoginSuccessAction {
                 selected_idx: Some(0),
                 enter_world_character_id: None,
                 next_state: Some(GameState::CharSelect),
+            }
+        );
+    }
+
+    #[test]
+    fn login_success_can_route_directly_to_charcreate() {
+        let chars = vec![CharacterListEntry {
+            character_id: 7,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        }];
+
+        assert_eq!(
+            decide_login_success_action(&chars, None, false, Some(GameState::CharCreate)),
+            LoginSuccessAction {
+                selected_idx: Some(0),
+                enter_world_character_id: None,
+                next_state: Some(GameState::CharCreate),
             }
         );
     }
@@ -762,6 +790,7 @@ mod tests {
                     &mut char_list,
                     None,
                     None,
+                    None,
                     &mut selected_char_idx,
                     &mut select_senders,
                     &mut next_state,
@@ -787,7 +816,7 @@ mod tests {
     #[test]
     fn login_success_auto_enter_falls_back_to_charselect_when_list_is_empty() {
         assert_eq!(
-            decide_login_success_action(&[], None, true),
+            decide_login_success_action(&[], None, true, None),
             LoginSuccessAction {
                 selected_idx: None,
                 enter_world_character_id: None,

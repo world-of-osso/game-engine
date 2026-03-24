@@ -2,7 +2,7 @@ use game_engine::ui::automation::UiAutomationAction;
 
 use crate::game_state::GameState;
 
-/// For `--screen charselect/charcreate/inworld`: reach CharSelect, then navigate.
+/// For startup screen shortcuts, rewrite the initial auth flow as needed.
 pub fn apply(
     actions: &mut Vec<UiAutomationAction>,
     server_addr: &mut Option<(std::net::SocketAddr, bool)>,
@@ -33,28 +33,32 @@ pub fn apply(
     } else {
         if has_saved_auth_token {
             *initial_state = Some(GameState::Connecting);
-            *actions = saved_token_actions();
+            *actions = saved_token_actions(target);
         } else {
             *initial_state = Some(GameState::Login);
-            *actions = auto_login_actions();
+            *actions = auto_login_actions(target);
         }
     }
-    if target == Some(GameState::CharCreate) {
-        actions.push(UiAutomationAction::ClickFrame("CreateChar".to_string()));
-        actions.push(UiAutomationAction::WaitForState(GameState::CharCreate, 5.0));
-    } else if target == Some(GameState::InWorld) {
+    if target == Some(GameState::InWorld) {
         *auto_enter = true;
     }
 }
 
-fn saved_token_actions() -> Vec<UiAutomationAction> {
-    vec![UiAutomationAction::WaitForState(
-        GameState::CharSelect,
-        10.0,
-    )]
+fn saved_token_actions(target: Option<GameState>) -> Vec<UiAutomationAction> {
+    match target {
+        Some(GameState::CharCreate) => Vec::new(),
+        _ => vec![UiAutomationAction::WaitForState(
+            GameState::CharSelect,
+            10.0,
+        )],
+    }
 }
 
-fn auto_login_actions() -> Vec<UiAutomationAction> {
+fn auto_login_actions(target: Option<GameState>) -> Vec<UiAutomationAction> {
+    let wait_state = match target {
+        Some(GameState::CharCreate) => GameState::CharCreate,
+        _ => GameState::CharSelect,
+    };
     vec![
         UiAutomationAction::WaitForFrame("UsernameInput".to_string(), 5.0),
         UiAutomationAction::ClickFrame("UsernameInput".to_string()),
@@ -62,7 +66,7 @@ fn auto_login_actions() -> Vec<UiAutomationAction> {
         UiAutomationAction::ClickFrame("PasswordInput".to_string()),
         UiAutomationAction::TypeText("admin".to_string()),
         UiAutomationAction::ClickFrame("ConnectButton".to_string()),
-        UiAutomationAction::WaitForState(GameState::CharSelect, 10.0),
+        UiAutomationAction::WaitForState(wait_state, 10.0),
     ]
 }
 
@@ -115,15 +119,42 @@ mod tests {
         );
 
         assert_eq!(initial_state, Some(GameState::Connecting));
+        assert!(actions.is_empty());
+        assert_eq!(startup_login, None);
+    }
+
+    #[test]
+    fn charcreate_without_token_waits_for_direct_charcreate_transition_after_login() {
+        let mut actions = Vec::new();
+        let mut server_addr = Some((socket(), false));
+        let mut initial_state = Some(GameState::CharCreate);
+        let mut auto_enter = false;
+        let mut startup_login = None;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            &mut startup_login,
+            false,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Login));
         assert_eq!(
             actions,
             vec![
-                UiAutomationAction::WaitForState(GameState::CharSelect, 10.0),
-                UiAutomationAction::ClickFrame("CreateChar".to_string()),
-                UiAutomationAction::WaitForState(GameState::CharCreate, 5.0),
+                UiAutomationAction::WaitForFrame("UsernameInput".to_string(), 5.0),
+                UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+                UiAutomationAction::TypeText("admin".to_string()),
+                UiAutomationAction::ClickFrame("PasswordInput".to_string()),
+                UiAutomationAction::TypeText("admin".to_string()),
+                UiAutomationAction::ClickFrame("ConnectButton".to_string()),
+                UiAutomationAction::WaitForState(GameState::CharCreate, 10.0),
             ]
         );
         assert_eq!(startup_login, None);
+        assert!(!auto_enter);
     }
 
     #[test]

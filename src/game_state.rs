@@ -13,6 +13,9 @@ pub use game_engine::game_state_enum::GameState;
 #[derive(Resource)]
 pub struct InitialGameState(pub GameState);
 
+#[derive(Resource, Clone, Copy)]
+pub struct StartupScreenTarget(pub GameState);
+
 #[derive(Resource)]
 pub struct StartupPerfTimer(pub Instant);
 

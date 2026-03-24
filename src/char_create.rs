@@ -147,6 +147,7 @@ fn build_char_create_ui(
     commands.init_resource::<CharCreateFocus>();
     commands.insert_resource(CharCreateScreenWrap(CharCreateScreenRes { screen, shared }));
     commands.insert_resource(cc);
+    commands.remove_resource::<crate::game_state::StartupScreenTarget>();
     commands.remove_resource::<StartupCharCreateMode>();
 }
 
