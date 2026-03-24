@@ -8,11 +8,11 @@ pub use super::adt_tex::{
 };
 use super::m2::wow_to_bevy;
 
-pub(crate) const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
+pub const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
 
 type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
-pub(crate) const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0; // distance between outer vertices
+pub const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0; // distance between outer vertices
 const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
 const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
 
@@ -222,7 +222,7 @@ fn parse_mcnk_subchunks(sub: &[u8]) -> Result<([f32; MCVT_COUNT], [[f32; 3]; MCV
 // ── vertex position computation ───────────────────────────────────────────────
 
 /// Return the index of a vertex in the flat 145-element array.
-pub(crate) fn vertex_index(grid_row: usize, col: usize) -> usize {
+pub fn vertex_index(grid_row: usize, col: usize) -> usize {
     let r_outer = grid_row / 2;
     if grid_row.is_multiple_of(2) {
         r_outer * 17 + col

@@ -223,3 +223,10 @@ fn parse_screen_menu_alias() {
         .expect("expected gamemenu screen");
     assert_eq!(parsed, game_state::GameState::GameMenu);
 }
+
+#[test]
+fn binary_asset_module_reuses_library_casc_resolver() {
+    let binary_fn: fn(u32) -> Option<PathBuf> = crate::asset::casc_resolver::ensure_model;
+    let lib_fn: fn(u32) -> Option<PathBuf> = game_engine::asset::casc_resolver::ensure_model;
+    assert!(std::ptr::fn_addr_eq(binary_fn, lib_fn));
+}

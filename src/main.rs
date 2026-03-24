@@ -26,7 +26,11 @@ use game_engine::status::{
 
 mod action_bar;
 mod animation;
-mod asset;
+mod asset {
+    // Re-export the library asset module so process-global state such as the CASC
+    // resolver OnceLock is shared instead of compiled into the binary twice.
+    pub use game_engine::asset::*;
+}
 mod camera;
 mod campsite_popup_screen;
 mod char_create;
