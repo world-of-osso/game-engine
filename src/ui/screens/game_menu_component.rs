@@ -91,7 +91,7 @@ fn title_label(label: &DynName, text: &str, w: f32, parent: FrameName) -> Elemen
     }
 }
 
-fn first_menu_button(name: &str, text: &str, action: &str, parent: FrameName, top_pad: f32) -> Element {
+fn flex_button(name: &str, text: &str, action: &str) -> Element {
     let n = DynName(name.to_string());
     let text = text.to_string();
     let action = action.to_string();
@@ -109,71 +109,18 @@ fn first_menu_button(name: &str, text: &str, action: &str, parent: FrameName, to
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: parent,
-                relative_point: AnchorPoint::Top,
-                y: {top_pad},
-            }
         }
     }
 }
 
-fn menu_button(name: &str, text: &str, action: &str, prev: FrameName, y_gap: f32) -> Element {
+fn section_spacer(name: &str) -> Element {
     let n = DynName(name.to_string());
-    let text = text.to_string();
-    let action = action.to_string();
-    rsx! {
-        button {
-            name: {&n},
-            width: BUTTON_W,
-            height: BUTTON_H,
-            text: {&text},
-            font_size: 16.0,
-            strata: FrameStrata::Fullscreen,
-            frame_level: 20.0,
-            onclick: {&action},
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: prev,
-                relative_point: AnchorPoint::Bottom,
-                y: {y_gap},
-            }
-        }
-    }
-}
-
-fn menu_buttons() -> Vec<Element> {
-    let p = MENU_PANEL;
-    let b1 = FrameName("MenuBtnOptions");
-    let b2 = FrameName("MenuBtnSupport");
-    let b3 = FrameName("MenuBtnMacros");
-    let b4 = FrameName("MenuBtnLogout");
-    let b5 = FrameName("MenuBtnExit");
-    vec![
-        first_menu_button("MenuBtnOptions", "Options", ACTION_OPTIONS, p, 48.0),
-        menu_button("MenuBtnSupport", "Support", ACTION_SUPPORT, b1, SECTION_GAP + 8.0),
-        menu_button("MenuBtnMacros", "Macros", ACTION_MACROS, b2, 0.0),
-        menu_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT, b3, SECTION_GAP + 8.0),
-        menu_button("MenuBtnExit", "Exit Game", ACTION_EXIT, b4, 0.0),
-        menu_button("MenuBtnResume", "Return to Game", ACTION_RESUME, b5, SECTION_GAP + 8.0),
-    ]
-}
-
-fn panel_height() -> f32 {
-    // top_pad(48) + 6*button_h(36) + 3*section_gaps(16) + bottom_pad(20)
-    48.0 + 6.0 * BUTTON_H + 3.0 * 16.0 + 20.0
+    rsx! { r#frame { name: {&n}, width: BUTTON_W, height: SECTION_GAP } }
 }
 
 pub fn game_menu_screen(_shared: &SharedContext) -> Element {
     let style = PanelTitleStyle::TitleBar;
-    let h = panel_height();
     let title = panel_title(TITLE_FRAME, TITLE_LABEL, MENU_PANEL, "Game Menu", PANEL_W, style);
-    let btns: Element = menu_buttons().into_iter().flatten().collect();
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,
@@ -183,14 +130,27 @@ pub fn game_menu_screen(_shared: &SharedContext) -> Element {
             panel {
                 name: MENU_PANEL,
                 width: PANEL_W,
-                height: {h},
+                height: 0.0,
                 strata: FrameStrata::Dialog,
+                layout: "flex-column",
+                align: "center",
+                padding: 28.0,
+                gap: 0.0,
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
                 }
+                {flex_button("MenuBtnOptions", "Options", ACTION_OPTIONS)}
+                {section_spacer("Spacer1")}
+                {flex_button("MenuBtnSupport", "Support", ACTION_SUPPORT)}
+                {flex_button("MenuBtnMacros", "Macros", ACTION_MACROS)}
+                {section_spacer("Spacer2")}
+                {flex_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT)}
+                {flex_button("MenuBtnExit", "Exit Game", ACTION_EXIT)}
+                {section_spacer("Spacer3")}
+                {flex_button("MenuBtnResume", "Return to Game", ACTION_RESUME)}
             }
-            {title} {btns}
+            {title}
         }
     }
 }
