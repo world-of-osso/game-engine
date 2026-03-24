@@ -8207,7 +8207,6 @@ checksum = "f8c1ae7cc0fdb8b842d65d127cb981574b0d2b249b74d1c7a2986863dc134f71"
 [[package]]
 name = "ui-toolkit"
 version = "0.1.0"
-source = "git+ssh://git@github.com/world-of-osso/ui-toolkit.git?rev=3f301b3#3f301b3a04ff97a72298dc914267e2a176f7a359"
 dependencies = [
  "ab_glyph",
  "bevy",

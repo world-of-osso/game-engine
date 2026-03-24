@@ -6,10 +6,8 @@ use std::{
 
 use bevy::{
     asset::RenderAssetUsages,
-    camera::primitives::Aabb,
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
     pbr::MaterialPlugin,
-    picking::mesh_picking::ray_cast::MeshRayCast,
     prelude::*,
     render::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
@@ -42,6 +40,7 @@ mod character_models;
 mod cli_args;
 mod collision;
 mod creature_display;
+mod dump_systems;
 mod equipment;
 mod equipment_appearance;
 mod game_state;
@@ -101,47 +100,64 @@ struct ScreenshotRequest {
 fn main() {
     ensure_asset_root();
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if handle_simple_flags(&args) {
+        return;
+    }
+    let cli = parse_cli_flags(&args);
+    if cli.dump_ui_tree && !cli.dump_tree && cli.screenshot.is_none() {
+        run_headless_ui_dump_app(cli.initial_state);
+        return;
+    }
+    if let Some(path) = cli.load_scene {
+        dump_loaded_scene_and_exit(&path, cli.dump_scene);
+    }
+    run_app(&args, cli.dump_tree, cli.dump_ui_tree, cli.dump_scene, cli.screenshot, cli.initial_state);
+}
+
+struct CliFlags {
+    dump_tree: bool,
+    dump_ui_tree: bool,
+    dump_scene: bool,
+    load_scene: Option<PathBuf>,
+    screenshot: Option<ScreenshotRequest>,
+    initial_state: Option<game_state::GameState>,
+}
+
+fn handle_simple_flags(args: &[String]) -> bool {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         print_help();
-        std::process::exit(0);
+        return true;
     }
     if args.iter().any(|a| a == "--version") {
         println!("game-engine {}", env!("CARGO_PKG_VERSION"));
-        std::process::exit(0);
+        return true;
     }
-    let dump_tree = args.iter().any(|a| a == "--dump-tree");
-    let dump_ui_tree = args.iter().any(|a| a == "--dump-ui-tree");
-    let dump_scene = args.iter().any(|a| a == "--dump-scene");
-    let load_scene = match parse_load_scene_arg(&args) {
+    false
+}
+
+fn parse_cli_flags(args: &[String]) -> CliFlags {
+    let load_scene = match parse_load_scene_arg(args) {
         Ok(path) => path,
         Err(err) => {
             eprintln!("{err}");
             std::process::exit(1);
         }
     };
-    let screenshot = parse_screenshot_args(&args);
-    let initial_state = match parse_state_arg(&args) {
+    let initial_state = match parse_state_arg(args) {
         Ok(state) => state,
         Err(err) => {
             eprintln!("{err}");
             std::process::exit(1);
         }
     };
-    if dump_ui_tree && !dump_tree && screenshot.is_none() {
-        run_headless_ui_dump_app(initial_state);
-        return;
-    }
-    if let Some(path) = load_scene {
-        dump_loaded_scene_and_exit(&path, dump_scene);
-    }
-    run_app(
-        &args,
-        dump_tree,
-        dump_ui_tree,
-        dump_scene,
-        screenshot,
+    CliFlags {
+        dump_tree: args.iter().any(|a| a == "--dump-tree"),
+        dump_ui_tree: args.iter().any(|a| a == "--dump-ui-tree"),
+        dump_scene: args.iter().any(|a| a == "--dump-scene"),
+        load_scene,
+        screenshot: parse_screenshot_args(args),
         initial_state,
-    );
+    }
 }
 
 fn dump_loaded_scene_and_exit(path: &Path, dump_scene: bool) -> ! {
@@ -181,51 +197,63 @@ fn parse_run_args(args: &[String]) -> ParsedArgs {
 }
 
 fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) -> ParsedArgs {
-    let mut startup_actions = match load_startup_automation_actions(args) {
+    let mut parsed = parse_run_args_base(args);
+    screen_auto_login::apply(
+        &mut parsed.startup_actions,
+        &mut parsed.server_addr,
+        &mut parsed.initial_state,
+        &mut parsed.auto_enter_world,
+        &mut parsed.startup_login,
+        has_saved_auth_token,
+    );
+    apply_login_dev_admin(args, &mut parsed);
+    apply_auto_connecting(&parsed.startup_actions, parsed.server_addr, &mut parsed.initial_state, has_saved_auth_token);
+    parsed
+}
+
+fn parse_run_args_base(args: &[String]) -> ParsedArgs {
+    let startup_actions = match load_startup_automation_actions(args) {
         Ok(a) => a,
         Err(err) => {
             eprintln!("{err}");
             std::process::exit(1);
         }
     };
-    let mut server_addr = parse_server_arg(args);
-    let mut initial_state = match parse_state_arg(args) {
+    let initial_state = match parse_state_arg(args) {
         Ok(state) => state,
         Err(err) => {
             eprintln!("{err}");
             std::process::exit(1);
         }
     };
-    let mut auto_enter_world = false;
-    let mut startup_login = None;
-    screen_auto_login::apply(
-        &mut startup_actions,
-        &mut server_addr,
-        &mut initial_state,
-        &mut auto_enter_world,
-        &mut startup_login,
-        has_saved_auth_token,
-    );
-    if has_flag(args, "--login-dev-admin") {
-        server_addr = Some(("127.0.0.1:5000".parse().unwrap(), true));
-        initial_state = Some(game_state::GameState::Connecting);
-        startup_login = Some(("admin".to_string(), "admin".to_string()));
-        startup_actions.clear();
-        auto_enter_world = false;
-    }
-    if startup_actions.is_empty()
-        && server_addr.is_some()
-        && initial_state.is_none()
-        && has_saved_auth_token
-    {
-        initial_state = Some(game_state::GameState::Connecting);
-    }
     ParsedArgs {
         startup_actions,
-        server_addr,
+        server_addr: parse_server_arg(args),
         initial_state,
-        auto_enter_world,
-        startup_login,
+        auto_enter_world: false,
+        startup_login: None,
+    }
+}
+
+fn apply_login_dev_admin(args: &[String], parsed: &mut ParsedArgs) {
+    if !has_flag(args, "--login-dev-admin") {
+        return;
+    }
+    parsed.server_addr = Some(("127.0.0.1:5000".parse().unwrap(), true));
+    parsed.initial_state = Some(game_state::GameState::Connecting);
+    parsed.startup_login = Some(("admin".to_string(), "admin".to_string()));
+    parsed.startup_actions.clear();
+    parsed.auto_enter_world = false;
+}
+
+fn apply_auto_connecting(
+    actions: &[game_engine::ui::automation::UiAutomationAction],
+    server_addr: Option<(std::net::SocketAddr, bool)>,
+    initial_state: &mut Option<game_state::GameState>,
+    has_saved_auth_token: bool,
+) {
+    if actions.is_empty() && server_addr.is_some() && initial_state.is_none() && has_saved_auth_token {
+        *initial_state = Some(game_state::GameState::Connecting);
     }
 }
 
@@ -238,33 +266,17 @@ fn run_app(
     initial_state: Option<game_state::GameState>,
 ) {
     let mut parsed = parse_run_args(args);
-    parsed.initial_state = resolve_initial_state(parsed.initial_state, initial_state);
+    parsed.initial_state = parsed.initial_state.or(initial_state);
     let mut app = App::new();
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     register_plugins(&mut app);
-    configure_app_plugins(
-        &mut app,
-        args.iter().any(|a| a == "--sound"),
-        parsed.server_addr,
-        parsed.initial_state,
-        parsed.startup_login,
-        dump_tree,
-        dump_ui_tree,
-        dump_scene,
-        screenshot,
-    );
+    configure_app_plugins(&mut app, args, &parsed);
+    dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     if parsed.auto_enter_world {
         app.insert_resource(char_select::AutoEnterWorld);
     }
     app.run();
-}
-
-fn resolve_initial_state(
-    parsed_initial_state: Option<game_state::GameState>,
-    cli_initial_state: Option<game_state::GameState>,
-) -> Option<game_state::GameState> {
-    parsed_initial_state.or(cli_initial_state)
 }
 
 fn insert_startup_resources(
@@ -280,6 +292,11 @@ fn insert_startup_resources(
     if let Some(name) = parse_char_arg(args) {
         app.insert_resource(char_select::PreselectedCharName(name));
     }
+    insert_screen_resources(app, args);
+    insert_data_resources(app);
+}
+
+fn insert_screen_resources(app: &mut App, args: &[String]) {
     match parse_screen_arg(args) {
         Ok(Some(game_engine::game_state_enum::ScreenArg::CharCreateCustomize)) => {
             app.insert_resource(char_create::StartupCharCreateMode(
@@ -292,6 +309,9 @@ fn insert_startup_resources(
             std::process::exit(1);
         }
     }
+}
+
+fn insert_data_resources(app: &mut App) {
     app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
     app.insert_resource(game_engine::customization_data::CustomizationDb::load(
         Path::new("data"),
@@ -299,9 +319,7 @@ fn insert_startup_resources(
     app.insert_resource(game_engine::asset::char_texture::CharTextureData::load(
         Path::new("data"),
     ));
-    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new(
-        "data",
-    )));
+    app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new("data")));
     let warband = warband_scene::WarbandScenes::load();
     if let Some(first) = warband.scenes.first() {
         app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });
@@ -357,7 +375,11 @@ fn register_plugins(app: &mut App) {
     )));
     app.add_systems(
         Startup,
-        (setup_explicit_asset_scene, wow_cursor::install_wow_cursor),
+        (
+            setup_explicit_asset_scene,
+            wow_cursor::install_wow_cursor,
+            game_engine::ui::panel_styles::register_panel_styles,
+        ),
     )
     .add_systems(
         Update,
@@ -425,19 +447,14 @@ fn add_status_sync_systems(app: &mut App) {
     );
 }
 
-#[allow(clippy::too_many_arguments)]
-fn configure_app_plugins(
-    app: &mut App,
-    enable_sound: bool,
-    server_addr: Option<(std::net::SocketAddr, bool)>,
-    initial_state: Option<game_state::GameState>,
-    startup_login: Option<(String, String)>,
-    dump_tree: bool,
-    dump_ui_tree: bool,
-    dump_scene: bool,
-    screenshot: Option<ScreenshotRequest>,
-) {
-    configure_server_resources(app, enable_sound, server_addr, initial_state, startup_login);
+fn configure_app_plugins(app: &mut App, args: &[String], parsed: &ParsedArgs) {
+    configure_server_resources(
+        app,
+        args.iter().any(|a| a == "--sound"),
+        parsed.server_addr,
+        parsed.initial_state,
+        parsed.startup_login.clone(),
+    );
     app.add_plugins(game_state::GameStatePlugin);
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
@@ -451,31 +468,12 @@ fn configure_app_plugins(
         OnEnter(game_state::GameState::InWorld),
         setup_default_world_scene,
     );
-    app.add_systems(Update, handle_automation_dump_tree_request);
-    app.add_systems(Update, handle_automation_dump_ui_tree_request);
     add_status_sync_systems(app);
-    if dump_tree {
-        app.insert_resource(DumpTreeFlag);
-        app.add_systems(Update, dump_tree_and_exit);
-    }
-    if dump_ui_tree {
-        app.insert_resource(DumpUiTreeFlag);
-        app.add_systems(PostStartup, dump_ui_tree_and_exit);
-    }
-    if dump_scene {
-        app.insert_resource(DumpSceneFlag);
-        app.add_systems(Update, dump_scene_and_exit);
-    }
-    if let Some(req) = screenshot {
-        app.insert_resource(req);
-        app.add_systems(Update, take_screenshot);
-    }
 }
 
 fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
-    // Insert UiState directly instead of UiPlugin to avoid rendering systems
     app.insert_resource(game_engine::ui::plugin::UiState {
         registry: game_engine::ui::registry::FrameRegistry::new(1920.0, 1080.0),
         event_bus: game_engine::ui::event::EventBus::new(),
@@ -491,7 +489,7 @@ fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
             app.add_plugins(login_screen::LoginScreenPlugin);
         }
     }
-    app.add_systems(PostStartup, headless_dump_ui_tree_immediate);
+    app.add_systems(PostStartup, dump_systems::headless_dump_ui_tree_immediate);
     app.run();
 }
 
@@ -522,11 +520,9 @@ fn take_screenshot(
     state: Res<State<crate::game_state::GameState>>,
 ) {
     let Some(mut req) = req else { return };
-    // Wait for automation queue to drain before capturing
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
         return;
     }
-    // When using --screen charselect or login scripts, wait until scene is ready
     if matches!(
         *state.get(),
         crate::game_state::GameState::Login | crate::game_state::GameState::Connecting
@@ -572,153 +568,6 @@ pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     )
-}
-
-#[allow(clippy::type_complexity)]
-fn dump_tree_and_exit(
-    tree_query: Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
-    parent_query: Query<&ChildOf>,
-    automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
-    mut exit: MessageWriter<AppExit>,
-) {
-    // Wait for automation queue to drain before dumping
-    if automation_queue.is_some_and(|q| !q.0.is_empty()) {
-        return;
-    }
-    let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
-    if tree.trim().is_empty() {
-        return;
-    }
-    println!("{tree}");
-    exit.write(AppExit::Success);
-}
-
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
-fn dump_scene_and_exit(
-    tree: Option<Res<game_engine::scene_tree::SceneTree>>,
-    transforms: Query<&Transform>,
-    global_transforms: Query<&GlobalTransform>,
-    tree_query: Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
-    parent_query: Query<&ChildOf>,
-    aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    mut ray_cast: MeshRayCast,
-    automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
-    state: Res<State<game_state::GameState>>,
-    time: Res<Time>,
-    mut entered_at: Local<Option<f64>>,
-    mut exit: MessageWriter<AppExit>,
-) {
-    if automation_queue.is_some_and(|q| !q.0.is_empty()) {
-        return;
-    }
-    if let Some(tree) = tree {
-        println!(
-            "{}",
-            game_engine::dump::build_scene_tree(
-                &tree,
-                &transforms,
-                &global_transforms,
-                &parent_query,
-                &aabb_query,
-                &camera_query,
-                &mut ray_cast,
-            )
-        );
-        exit.write(AppExit::Success);
-        return;
-    }
-    if *state.get() != game_state::GameState::InWorld {
-        return;
-    }
-    let now = time.elapsed_secs_f64();
-    if now - *entered_at.get_or_insert(now) < 5.0 {
-        return;
-    }
-    println!(
-        "{}",
-        game_engine::dump::build_tree(&tree_query, &parent_query, None)
-    );
-    exit.write(AppExit::Success);
-}
-
-fn dump_ui_tree_and_exit(
-    mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut spellbook_runtime: Option<
-        NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
-    >,
-    mut exit: MessageWriter<AppExit>,
-) {
-    if let Some(ref mut rt) = spellbook_runtime {
-        rt.sync(&mut ui_state.registry);
-    }
-    action_bar::ensure_action_bars(&mut ui_state.registry);
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
-    println!("{tree}");
-    exit.write(AppExit::Success);
-}
-
-fn headless_dump_ui_tree_immediate(ui_state: ResMut<game_engine::ui::plugin::UiState>) {
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
-    println!("{tree}");
-    std::process::exit(0);
-}
-
-#[allow(clippy::type_complexity)]
-fn handle_automation_dump_tree_request(
-    request: Option<Res<game_engine::ui::automation::UiAutomationDumpTreeRequest>>,
-    tree_query: Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
-    parent_query: Query<&ChildOf>,
-    mut commands: Commands,
-    mut exit: MessageWriter<AppExit>,
-) {
-    if request.is_none() {
-        return;
-    }
-    commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpTreeRequest>();
-    let tree = game_engine::dump::build_tree(&tree_query, &parent_query, None);
-    println!("{tree}");
-    exit.write(AppExit::Success);
-}
-
-fn handle_automation_dump_ui_tree_request(
-    request: Option<Res<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>>,
-    mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
-    mut spellbook_runtime: Option<
-        NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
-    >,
-    mut commands: Commands,
-    mut exit: MessageWriter<AppExit>,
-) {
-    if request.is_none() {
-        return;
-    }
-    commands.remove_resource::<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>();
-    if let Some(ref mut rt) = spellbook_runtime {
-        rt.sync(&mut ui_state.registry);
-    }
-    action_bar::ensure_action_bars(&mut ui_state.registry);
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
-    println!("{tree}");
-    exit.write(AppExit::Success);
 }
 
 #[cfg(test)]
@@ -914,18 +763,15 @@ mod tests {
 
     #[test]
     fn resolved_initial_state_keeps_parsed_connecting_when_cli_state_is_absent() {
-        let resolved = resolve_initial_state(Some(game_state::GameState::Connecting), None);
-
+        let parsed = parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true);
+        let resolved = parsed.initial_state.or(None);
         assert_eq!(resolved, Some(game_state::GameState::Connecting));
     }
 
     #[test]
     fn resolved_initial_state_keeps_parsed_rewritten_state() {
-        let resolved = resolve_initial_state(
-            Some(game_state::GameState::Connecting),
-            Some(game_state::GameState::Login),
-        );
-
+        let parsed = parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true);
+        let resolved = parsed.initial_state.or(Some(game_state::GameState::Login));
         assert_eq!(resolved, Some(game_state::GameState::Connecting));
     }
 
