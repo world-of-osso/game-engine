@@ -45,13 +45,15 @@ pub(crate) fn char_select_keyboard_input(
     mut selected: ResMut<SelectedCharIndex>,
     char_list: Res<CharacterList>,
     mut senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut ui: ResMut<UiState>,
+    mut commands: Commands,
 ) {
     for event in key_events.read() {
         if event.state != ButtonState::Pressed {
             continue;
         }
         if event.key_code == KeyCode::Escape {
-            info!("Game Menu: not implemented as overlay yet");
+            crate::game_menu_screen::open_game_menu(&mut ui, &mut commands);
             return;
         }
         let _ = handle_selection_key(event.key_code, &mut selected, &char_list, &mut senders);
@@ -164,6 +166,7 @@ pub(crate) fn dispatch_char_select_action(
     char_list: Res<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
     mut selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    mut ui: ResMut<UiState>,
     mut _commands: Commands,
 ) {
     for event in events.read() {
@@ -181,7 +184,7 @@ pub(crate) fn dispatch_char_select_action(
             }
             Some(CharSelectAction::Back) => next_state.set(GameState::Login),
             Some(CharSelectAction::Menu) => {
-                info!("Game Menu: not implemented as overlay yet");
+                crate::game_menu_screen::open_game_menu(&mut ui, &mut _commands);
             }
             Some(CharSelectAction::CampsiteToggle) => {
                 campsite_visible.0 = !campsite_visible.0;
