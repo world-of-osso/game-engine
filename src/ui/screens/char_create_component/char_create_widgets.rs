@@ -73,7 +73,7 @@ fn race_top_widget(race_id: u8, short_name: &str, icon_file: &str, color: FontCo
                 anchor {
                     point: AnchorPoint::Top,
                     relative_point: AnchorPoint::Top,
-                    y: "-2",
+                    y: "-4",
                 }
             }
         }
@@ -101,12 +101,14 @@ fn race_name_label(race_id: u8, name: &str, color: FontColor) -> Element {
     rsx! {
         fontstring {
             name: dyn_name(format!("Race_{race_id}_Label")),
-            width: 50.0,
-            height: 16.0,
+            width: 52.0,
+            height: 20.0,
             text: name,
             font: GameFont::FrizQuadrata,
-            font_size: 9.0,
+            font_size: 8.0,
             font_color: color,
+            word_wrap: true,
+            max_lines: 2,
             anchor {
                 point: AnchorPoint::Bottom,
                 relative_point: AnchorPoint::Bottom,
@@ -241,7 +243,7 @@ fn class_icon_widget(class_id: u8, icon: &str, alpha: &str) -> Element {
             anchor {
                 point: AnchorPoint::Top,
                 relative_point: AnchorPoint::Top,
-                y: "-2",
+                y: "-4",
             }
         }
     }
@@ -251,12 +253,14 @@ fn class_name_label(class_id: u8, name: &str, color: FontColor) -> Element {
     rsx! {
         fontstring {
             name: dyn_name(format!("Class_{class_id}_Label")),
-            width: 50.0,
-            height: 16.0,
+            width: 52.0,
+            height: 20.0,
             text: name,
             font: GameFont::FrizQuadrata,
-            font_size: 9.0,
+            font_size: 8.0,
             font_color: color,
+            word_wrap: true,
+            max_lines: 2,
             anchor {
                 point: AnchorPoint::Bottom,
                 relative_point: AnchorPoint::Bottom,
