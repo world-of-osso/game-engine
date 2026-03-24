@@ -409,10 +409,19 @@ fn char_select_keyboard_input(
     mut selected: ResMut<SelectedCharIndex>,
     char_list: Res<CharacterList>,
     mut senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut next_state: ResMut<NextState<crate::game_state::GameState>>,
+    mut commands: Commands,
 ) {
     for event in key_events.read() {
         if event.state != ButtonState::Pressed {
             continue;
+        }
+        if event.key_code == KeyCode::Escape {
+            commands.insert_resource(crate::game_menu_screen::PreviousGameState(
+                crate::game_state::GameState::CharSelect,
+            ));
+            next_state.set(crate::game_state::GameState::GameMenu);
+            return;
         }
         let _ = handle_selection_key(event.key_code, &mut selected, &char_list, &mut senders);
     }

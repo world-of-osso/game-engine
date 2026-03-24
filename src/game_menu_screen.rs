@@ -27,6 +27,10 @@ unsafe impl Sync for GameMenuScreenRes {}
 #[derive(Resource)]
 struct GameMenuScreenWrap(GameMenuScreenRes);
 
+/// Stores the state to return to when closing the game menu.
+#[derive(Resource)]
+pub struct PreviousGameState(pub GameState);
+
 pub struct GameMenuScreenPlugin;
 
 impl Plugin for GameMenuScreenPlugin {
@@ -76,10 +80,11 @@ fn handle_menu_input(
     mut next_state: ResMut<NextState<GameState>>,
     mut exit: MessageWriter<AppExit>,
     keyboard: Option<Res<ButtonInput<KeyCode>>>,
+    prev_state: Option<Res<PreviousGameState>>,
 ) {
     if let Some(ref kb) = keyboard {
         if kb.just_pressed(KeyCode::Escape) {
-            next_state.set(GameState::InWorld);
+            resume_previous_state(&mut next_state, prev_state.as_deref());
             return;
         }
     }
@@ -92,7 +97,7 @@ fn handle_menu_input(
     let Some(frame_id) = find_frame_at(&ui.registry, pos.x, pos.y) else { return };
     let action = walk_up_for_onclick(&ui.registry, frame_id);
     if let Some(action) = action {
-        dispatch_action(&action, &mut next_state, &mut exit);
+        dispatch_action(&action, &mut next_state, &mut exit, prev_state.as_deref());
     }
     ui.registry.click_frame(frame_id);
 }
@@ -120,14 +125,20 @@ fn dispatch_action(
     action: &str,
     next_state: &mut NextState<GameState>,
     exit: &mut MessageWriter<AppExit>,
+    prev_state: Option<&PreviousGameState>,
 ) {
     match action {
         ACTION_EXIT => { exit.write(AppExit::Success); }
         ACTION_LOGOUT => { next_state.set(GameState::Login); }
-        ACTION_RESUME => { next_state.set(GameState::InWorld); }
+        ACTION_RESUME => resume_previous_state(next_state, prev_state),
         ACTION_OPTIONS => info!("Options: not implemented yet"),
         ACTION_SUPPORT => info!("Support: not implemented yet"),
         ACTION_ADDONS => info!("AddOns: not implemented yet"),
         _ => warn!("Unknown menu action: {action}"),
     }
+}
+
+fn resume_previous_state(next_state: &mut NextState<GameState>, prev: Option<&PreviousGameState>) {
+    let target = prev.map_or(GameState::Login, |p| p.0);
+    next_state.set(target);
 }
