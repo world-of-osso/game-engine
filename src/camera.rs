@@ -26,7 +26,13 @@ impl Plugin for WowCameraPlugin {
         app.init_resource::<crate::client_options::CameraOptions>();
         app.add_systems(
             Update,
-            (sync_camera_options, camera_input, cursor_grab, player_movement, camera_follow)
+            (
+                sync_camera_options,
+                camera_input,
+                cursor_grab,
+                player_movement,
+                camera_follow,
+            )
                 .chain()
                 .run_if(in_state(GameState::InWorld)),
         );
@@ -246,7 +252,9 @@ fn sync_camera_options(
         camera.target_distance = camera
             .target_distance
             .clamp(camera.min_distance, camera.max_distance);
-        camera.distance = camera.distance.clamp(camera.min_distance, camera.max_distance);
+        camera.distance = camera
+            .distance
+            .clamp(camera.min_distance, camera.max_distance);
     }
 }
 

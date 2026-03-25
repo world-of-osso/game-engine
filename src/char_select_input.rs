@@ -51,7 +51,11 @@ pub(crate) fn char_select_keyboard_input(
             continue;
         }
         if event.key_code == KeyCode::Escape {
-            crate::game_menu_screen::open_game_menu(&mut ui, &mut commands, crate::game_state::GameState::CharSelect);
+            crate::game_menu_screen::open_game_menu(
+                &mut ui,
+                &mut commands,
+                crate::game_state::GameState::CharSelect,
+            );
             return;
         }
         let _ = handle_selection_key(event.key_code, &mut selected, &char_list, &mut senders);
@@ -182,7 +186,11 @@ pub(crate) fn dispatch_char_select_action(
             }
             Some(CharSelectAction::Back) => next_state.set(GameState::Login),
             Some(CharSelectAction::Menu) => {
-                crate::game_menu_screen::open_game_menu(&mut ui, &mut _commands, crate::game_state::GameState::CharSelect);
+                crate::game_menu_screen::open_game_menu(
+                    &mut ui,
+                    &mut _commands,
+                    crate::game_state::GameState::CharSelect,
+                );
             }
             Some(CharSelectAction::CampsiteToggle) => {
                 campsite_visible.0 = !campsite_visible.0;

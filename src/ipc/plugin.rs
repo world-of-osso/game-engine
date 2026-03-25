@@ -10,9 +10,9 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use lightyear::prelude::MessageSender;
 use lightyear::prelude::client::Connected;
 
-use super::{Command, Request, Response};
 #[cfg(feature = "ipc")]
 use super::init;
+use super::{Command, Request, Response};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
 use crate::item_info::lookup_item_info;

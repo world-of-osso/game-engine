@@ -244,7 +244,10 @@ fn login_failure_despawns_live_client() {
     app.update();
 
     assert!(app.world().get_entity(client).is_err());
-    assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::Login);
+    assert_eq!(
+        *app.world().resource::<State<GameState>>().get(),
+        GameState::Login
+    );
     assert_eq!(
         app.world().resource::<AuthUiFeedback>().0.as_deref(),
         Some("Incorrect username or password")
@@ -280,10 +283,16 @@ fn reconnect_login_failure_clears_reconnect_state() {
         false,
     );
 
-    assert_eq!(result.feedback.0.as_deref(), Some("Incorrect username or password"));
+    assert_eq!(
+        result.feedback.0.as_deref(),
+        Some("Incorrect username or password")
+    );
     assert!(result.goes_login);
     assert!(!result.goes_charselect);
-    assert_eq!(result.reconnect.phase, crate::networking::ReconnectPhase::Inactive);
+    assert_eq!(
+        result.reconnect.phase,
+        crate::networking::ReconnectPhase::Inactive
+    );
 }
 
 #[test]
@@ -305,7 +314,10 @@ fn reconnect_login_fallback_to_charselect_clears_reconnect_state() {
 
     assert!(!result.goes_login);
     assert!(result.goes_charselect);
-    assert_eq!(result.reconnect.phase, crate::networking::ReconnectPhase::Inactive);
+    assert_eq!(
+        result.reconnect.phase,
+        crate::networking::ReconnectPhase::Inactive
+    );
 }
 
 #[test]

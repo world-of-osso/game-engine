@@ -583,7 +583,14 @@ mod tests {
         );
     }
 
-    fn assert_rect(reg: &crate::ui::registry::FrameRegistry, name: &str, x: f32, y: f32, w: f32, h: f32) {
+    fn assert_rect(
+        reg: &crate::ui::registry::FrameRegistry,
+        name: &str,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    ) {
         let r = rect_for_name(reg, name);
         assert_eq!((r.x, r.y, r.width, r.height), (x, y, w, h), "{name}");
     }
