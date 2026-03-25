@@ -16,8 +16,8 @@ use std::net::ToSocketAddrs;
 
 use super::helpers::{get_editbox_text, insert_char_into_editbox, set_editbox_text};
 use super::{
-    handle_login_key, LoginFocus, LoginKeyParams, LoginStatus, LoginUi,
-    DEFAULT_SERVER_ADDR, STATUS_CONNECTING, STATUS_FILL_FIELDS, STATUS_RECONNECT_UNAVAILABLE,
+    DEFAULT_SERVER_ADDR, LoginFocus, LoginKeyParams, LoginStatus, LoginUi, STATUS_CONNECTING,
+    STATUS_FILL_FIELDS, STATUS_RECONNECT_UNAVAILABLE, handle_login_key,
 };
 
 pub(crate) fn resolve_default_server() -> std::net::SocketAddr {
@@ -29,8 +29,14 @@ pub(crate) fn resolve_default_server() -> std::net::SocketAddr {
 }
 
 pub fn prefill_offline_credentials(reg: &mut FrameRegistry, login: &LoginUi) {
-    set_editbox_text(reg, login.username_input, "admin");
-    set_editbox_text(reg, login.password_input, "admin");
+    let creds = crate::client_options::load_login_credentials().unwrap_or(
+        crate::client_options::LoginCredentials {
+            username: "admin".to_string(),
+            password: "admin".to_string(),
+        },
+    );
+    set_editbox_text(reg, login.username_input, &creds.username);
+    set_editbox_text(reg, login.password_input, &creds.password);
 }
 
 pub fn try_connect(
@@ -40,6 +46,7 @@ pub fn try_connect(
     next_state: &mut NextState<GameState>,
     mode: &networking::LoginMode,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
     commands: &mut Commands,
 ) {
     if status.0 == STATUS_CONNECTING {
@@ -54,7 +61,7 @@ pub fn try_connect(
     let resolved = server_addr.unwrap_or_else(resolve_default_server);
     commands.insert_resource(networking::ServerAddr(resolved));
     commands.insert_resource(networking::ServerHostname(
-        DEFAULT_SERVER_ADDR.to_string(),
+        server_hostname.unwrap_or(DEFAULT_SERVER_ADDR).to_string(),
     ));
     commands.insert_resource(networking::LoginUsername(username));
     commands.insert_resource(networking::LoginPassword(password));
@@ -69,6 +76,7 @@ pub fn try_reconnect(
     next_state: &mut NextState<GameState>,
     login_mode: &mut networking::LoginMode,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
     commands: &mut Commands,
 ) {
     if auth_token
@@ -83,7 +91,7 @@ pub fn try_reconnect(
     let resolved = server_addr.unwrap_or_else(resolve_default_server);
     commands.insert_resource(networking::ServerAddr(resolved));
     commands.insert_resource(networking::ServerHostname(
-        DEFAULT_SERVER_ADDR.to_string(),
+        server_hostname.unwrap_or(DEFAULT_SERVER_ADDR).to_string(),
     ));
     commands.insert_resource(networking::LoginUsername(String::new()));
     commands.insert_resource(networking::LoginPassword(String::new()));
@@ -144,24 +152,45 @@ pub fn run_login_automation_action(
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
     commands: &mut Commands,
     action: &UiAutomationAction,
 ) -> Result<(), String> {
     match action {
         UiAutomationAction::ClickFrame(name) => click_login_frame(
-            ui, login, focus, next_state, status, login_mode, auth_token, server_addr, commands,
+            ui,
+            login,
+            focus,
+            next_state,
+            status,
+            login_mode,
+            auth_token,
+            server_addr,
+            server_hostname,
+            commands,
             name,
         ),
         UiAutomationAction::TypeText(text) => {
-            let fid = focus.0.ok_or("automation type requires a focused edit box")?;
+            let fid = focus
+                .0
+                .ok_or("automation type requires a focused edit box")?;
             for ch in text.chars() {
                 insert_char_into_editbox(&mut ui.registry, fid, &ch.to_string());
             }
             Ok(())
         }
         UiAutomationAction::PressKey(key) => {
-            let fid = focus.0.ok_or("automation key press requires a focused frame")?;
-            let p = LoginKeyParams { login, status, next_state, mode: login_mode, server_addr };
+            let fid = focus
+                .0
+                .ok_or("automation key press requires a focused frame")?;
+            let p = LoginKeyParams {
+                login,
+                status,
+                next_state,
+                mode: login_mode,
+                server_addr,
+                server_hostname,
+            };
             handle_login_key(*key, fid, ui, p, commands);
             Ok(())
         }
@@ -179,6 +208,7 @@ fn click_login_frame(
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
     commands: &mut Commands,
     frame_name: &str,
 ) -> Result<(), String> {
@@ -190,8 +220,18 @@ fn click_login_frame(
     let action = ui.registry.click_frame(frame_id);
     focus.0 = ui.registry.focused_frame;
     dispatch_click(
-        ui, login, next_state, status, login_mode, auth_token, server_addr, commands,
-        action.as_deref(), frame_name, frame_id,
+        ui,
+        login,
+        next_state,
+        status,
+        login_mode,
+        auth_token,
+        server_addr,
+        server_hostname,
+        commands,
+        action.as_deref(),
+        frame_name,
+        frame_id,
     )
 }
 
@@ -204,6 +244,7 @@ fn dispatch_click(
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
     commands: &mut Commands,
     action: Option<&str>,
     frame_name: &str,
@@ -211,10 +252,23 @@ fn dispatch_click(
 ) -> Result<(), String> {
     match action.and_then(LoginAction::parse) {
         Some(LoginAction::Connect) => try_connect(
-            &ui.registry, login, status, next_state, login_mode, server_addr, commands,
+            &ui.registry,
+            login,
+            status,
+            next_state,
+            login_mode,
+            server_addr,
+            server_hostname,
+            commands,
         ),
         Some(LoginAction::Reconnect) => try_reconnect(
-            auth_token, status, next_state, login_mode, server_addr, commands,
+            auth_token,
+            status,
+            next_state,
+            login_mode,
+            server_addr,
+            server_hostname,
+            commands,
         ),
         Some(LoginAction::CreateAccount) => {
             toggle_login_mode(login_mode, &mut ui.registry, login);

@@ -207,10 +207,25 @@ struct ParsedArgs {
 }
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
-    parse_run_args_with_saved_token(args, networking::load_auth_token(None).is_some())
+    let startup_credentials =
+        client_options::load_login_credentials().map(|creds| (creds.username, creds.password));
+    let startup_credentials_path = client_options::login_credentials_path();
+    let has_saved_auth_token =
+        networking::load_auth_token(Some(cli_args::DEFAULT_SERVER_ADDR)).is_some();
+    if startup_credentials.is_some() && !has_saved_auth_token {
+        info!(
+            "Startup auth: using credentials file {} because no saved token was found",
+            startup_credentials_path.display()
+        );
+    }
+    parse_run_args_with_saved_token(args, has_saved_auth_token, startup_credentials)
 }
 
-fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) -> ParsedArgs {
+fn parse_run_args_with_saved_token(
+    args: &[String],
+    has_saved_auth_token: bool,
+    startup_credentials: Option<(String, String)>,
+) -> ParsedArgs {
     let mut parsed = parse_run_args_base(args);
     screen_auto_login::apply(
         &mut parsed.startup_actions,
@@ -219,11 +234,11 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
         &mut parsed.auto_enter_world,
         &mut parsed.startup_login,
         has_saved_auth_token,
+        startup_credentials,
     );
     apply_login_dev_admin(args, &mut parsed);
     apply_auto_connecting(
         &parsed.startup_actions,
-        &parsed.server_addr,
         &mut parsed.initial_state,
         has_saved_auth_token,
     );
@@ -267,15 +282,10 @@ fn apply_login_dev_admin(args: &[String], parsed: &mut ParsedArgs) {
 
 fn apply_auto_connecting(
     actions: &[game_engine::ui::automation::UiAutomationAction],
-    server_addr: &Option<cli_args::ServerArg>,
     initial_state: &mut Option<game_state::GameState>,
     has_saved_auth_token: bool,
 ) {
-    if actions.is_empty()
-        && server_addr.is_some()
-        && initial_state.is_none()
-        && has_saved_auth_token
-    {
+    if actions.is_empty() && initial_state.is_none() && has_saved_auth_token {
         *initial_state = Some(game_state::GameState::Connecting);
     }
 }
@@ -453,6 +463,19 @@ fn configure_server_resources(
     if enable_sound {
         app.add_plugins(sound::SoundPlugin);
     }
+    let server_arg = server_arg.or_else(|| {
+        if initial_state == Some(game_state::GameState::Connecting) {
+            match cli_args::default_server_arg() {
+                Ok(server) => Some(server),
+                Err(err) => {
+                    eprintln!("{err}");
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            None
+        }
+    });
     if let Some(server) = server_arg {
         app.insert_resource(networking::ServerAddr(server.addr));
         app.insert_resource(networking::ServerHostname(server.hostname));

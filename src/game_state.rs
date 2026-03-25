@@ -35,6 +35,7 @@ impl Plugin for GameStatePlugin {
         init_state(app, has_server, initial_state);
         register_state_transitions(app, has_server);
         register_in_world_systems(app);
+        app.add_systems(Update, log_screen_switches);
     }
 }
 
@@ -173,6 +174,16 @@ fn spawn_world_environment(
 
 fn on_exit_in_world() {
     info!("Exiting InWorld state — game systems disabled");
+}
+
+fn log_screen_switches(state: Res<State<GameState>>, mut last_state: Local<Option<GameState>>) {
+    let current = *state.get();
+    if let Some(previous) = *last_state
+        && previous != current
+    {
+        info!("Screen switch: {:?} -> {:?}", previous, current);
+    }
+    *last_state = Some(current);
 }
 
 /// Check if a `Connected` component exists on any entity (lightyear sets this on connection).

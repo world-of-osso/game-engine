@@ -35,10 +35,7 @@ use helpers::{
 };
 
 const FADE_IN_DURATION: f32 = 0.75;
-#[cfg(debug_assertions)]
-pub(crate) const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:5000";
-#[cfg(not(debug_assertions))]
-pub(crate) const DEFAULT_SERVER_ADDR: &str = "game.worldofosso.com:5000";
+pub(crate) const DEFAULT_SERVER_ADDR: &str = crate::cli_args::DEFAULT_SERVER_ADDR;
 const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
 const EDITBOX_BG: [f32; 4] = [0.22, 0.16, 0.11, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -65,6 +62,7 @@ struct LoginConnectParams<'w, 's> {
     login_mode: ResMut<'w, networking::LoginMode>,
     auth_token: Res<'w, networking::AuthToken>,
     server_addr: Option<Res<'w, networking::ServerAddr>>,
+    server_hostname: Option<Res<'w, networking::ServerHostname>>,
     commands: Commands<'w, 's>,
 }
 
@@ -110,8 +108,11 @@ struct LoginClipboard(Arc<dyn Fn() -> Result<String, String> + Send + Sync>);
 impl Default for LoginClipboard {
     fn default() -> Self {
         Self(Arc::new(|| {
-            let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("clipboard init: {e}"))?;
-            clipboard.get_text().map_err(|e| format!("clipboard read: {e}"))
+            let mut clipboard =
+                arboard::Clipboard::new().map_err(|e| format!("clipboard init: {e}"))?;
+            clipboard
+                .get_text()
+                .map_err(|e| format!("clipboard read: {e}"))
         }))
     }
 }
@@ -298,6 +299,7 @@ struct ConnectParams<'a> {
     login_mode: &'a mut networking::LoginMode,
     auth_token: &'a networking::AuthToken,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&'a str>,
 }
 
 fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
@@ -350,6 +352,10 @@ fn login_mouse_input(
                 login_mode: &mut cp.login_mode,
                 auth_token: &cp.auth_token,
                 server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+                server_hostname: cp
+                    .server_hostname
+                    .as_ref()
+                    .map(|hostname| hostname.0.as_str()),
             };
             handle_button_click(
                 &mut lp.ui,
@@ -444,6 +450,7 @@ fn dispatch_login_action(
             params.next_state,
             params.login_mode,
             params.server_addr,
+            params.server_hostname,
             commands,
         ),
         Some(LoginAction::Reconnect) => try_reconnect(
@@ -452,6 +459,7 @@ fn dispatch_login_action(
             params.next_state,
             params.login_mode,
             params.server_addr,
+            params.server_hostname,
             commands,
         ),
         Some(LoginAction::CreateAccount) => {
@@ -459,7 +467,11 @@ fn dispatch_login_action(
             params.status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            crate::game_menu_screen::open_game_menu(ui, commands, crate::game_state::GameState::Login);
+            crate::game_menu_screen::open_game_menu(
+                ui,
+                commands,
+                crate::game_state::GameState::Login,
+            );
         }
         Some(LoginAction::Exit) => {
             if let Some(exit) = exit {
@@ -528,7 +540,14 @@ fn dispatch_login_key_event(
     login: &LoginUi,
     cp: &mut LoginConnectParams,
 ) {
-    if maybe_paste_into_login_editbox(modifiers, event, ui, focused_id, &mut cp.status, clipboard.read_text()) {
+    if maybe_paste_into_login_editbox(
+        modifiers,
+        event,
+        ui,
+        focused_id,
+        &mut cp.status,
+        clipboard.read_text(),
+    ) {
         return;
     }
     if maybe_insert_login_text(event, ui, focused_id) {
@@ -540,6 +559,10 @@ fn dispatch_login_key_event(
         next_state: &mut cp.next_state,
         mode: &cp.login_mode,
         server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+        server_hostname: cp
+            .server_hostname
+            .as_ref()
+            .map(|hostname| hostname.0.as_str()),
     };
     handle_login_key(event.key_code, focused_id, ui, key_params, &mut cp.commands);
 }
@@ -603,6 +626,9 @@ fn login_run_automation(
         &mut cp.login_mode,
         &cp.auth_token,
         cp.server_addr.as_ref().map(|addr| addr.0),
+        cp.server_hostname
+            .as_ref()
+            .map(|hostname| hostname.0.as_str()),
         &mut cp.commands,
         &action,
     );
@@ -644,6 +670,7 @@ pub(crate) struct LoginKeyParams<'a> {
     pub(crate) next_state: &'a mut NextState<GameState>,
     pub(crate) mode: &'a networking::LoginMode,
     pub(crate) server_addr: Option<std::net::SocketAddr>,
+    pub(crate) server_hostname: Option<&'a str>,
 }
 
 pub(crate) fn handle_login_key(
@@ -659,6 +686,7 @@ pub(crate) fn handle_login_key(
         next_state,
         mode,
         server_addr,
+        server_hostname,
     } = p;
     match key {
         KeyCode::Backspace => editbox_backspace(&mut ui.registry, focused_id),
@@ -674,12 +702,12 @@ pub(crate) fn handle_login_key(
             next_state,
             mode,
             server_addr,
+            server_hostname,
             commands,
         ),
         _ => {}
     }
 }
-
 
 fn login_update_visuals(
     mut ui: ResMut<UiState>,

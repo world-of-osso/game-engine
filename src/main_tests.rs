@@ -144,13 +144,42 @@ fn parse_js_automation_flag() {
 }
 
 #[test]
+fn parse_server_arg_supports_prod_alias() {
+    let parsed = parse_server_arg(&args(&["--server", "prod"])).expect("expected prod server");
+    assert_eq!(parsed.hostname, "game.worldofosso.com:5000");
+    assert!(!parsed.dev);
+}
+
+#[test]
 fn parse_run_args_starts_connecting_when_saved_token_exists() {
-    let parsed = parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true);
+    let parsed =
+        parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true, None);
     assert_eq!(
         parsed.initial_state,
         Some(game_state::GameState::Connecting)
     );
     assert!(parsed.startup_actions.is_empty());
+}
+
+#[test]
+fn parse_run_args_without_server_starts_connecting_when_saved_token_exists() {
+    let parsed = parse_run_args_with_saved_token(&args(&[]), true, None);
+    assert_eq!(
+        parsed.initial_state,
+        Some(game_state::GameState::Connecting)
+    );
+    assert!(parsed.server_addr.is_none());
+    assert!(parsed.startup_actions.is_empty());
+}
+
+#[test]
+fn parse_run_args_charselect_without_server_keeps_server_unset() {
+    let parsed = parse_run_args_with_saved_token(&args(&["--screen", "charselect"]), true, None);
+    assert_eq!(
+        parsed.initial_state,
+        Some(game_state::GameState::Connecting)
+    );
+    assert!(parsed.server_addr.is_none());
 }
 
 #[test]
@@ -158,6 +187,7 @@ fn parse_run_args_keeps_explicit_login_screen_with_saved_token() {
     let parsed = parse_run_args_with_saved_token(
         &args(&["--server", "127.0.0.1:25565", "--screen", "login"]),
         true,
+        None,
     );
     assert_eq!(parsed.initial_state, Some(game_state::GameState::Login));
     assert!(parsed.startup_actions.is_empty());
@@ -165,12 +195,17 @@ fn parse_run_args_keeps_explicit_login_screen_with_saved_token() {
 
 #[test]
 fn parse_run_args_login_dev_admin_forces_login_flow() {
-    let parsed = parse_run_args_with_saved_token(&args(&["--login-dev-admin"]), true);
+    let parsed = parse_run_args_with_saved_token(&args(&["--login-dev-admin"]), true, None);
     assert_eq!(
         parsed.initial_state,
         Some(game_state::GameState::Connecting)
     );
-    assert!(parsed.server_addr.as_ref().is_some_and(|s| s.dev && s.addr.to_string() == "127.0.0.1:5000"));
+    assert!(
+        parsed
+            .server_addr
+            .as_ref()
+            .is_some_and(|s| s.dev && s.addr.to_string() == "127.0.0.1:5000")
+    );
     assert_eq!(
         parsed.startup_login,
         Some(("admin".to_string(), "admin".to_string()))
@@ -181,14 +216,16 @@ fn parse_run_args_login_dev_admin_forces_login_flow() {
 
 #[test]
 fn resolved_initial_state_keeps_parsed_connecting_when_cli_state_is_absent() {
-    let parsed = parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true);
+    let parsed =
+        parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true, None);
     let resolved = parsed.initial_state.or(None);
     assert_eq!(resolved, Some(game_state::GameState::Connecting));
 }
 
 #[test]
 fn resolved_initial_state_keeps_parsed_rewritten_state() {
-    let parsed = parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true);
+    let parsed =
+        parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true, None);
     let resolved = parsed.initial_state.or(Some(game_state::GameState::Login));
     assert_eq!(resolved, Some(game_state::GameState::Connecting));
 }

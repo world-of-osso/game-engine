@@ -143,6 +143,14 @@ fn send_login(
 ) {
     let request = build_login_request(auth_token, username, password);
     let request_token_label = token_debug_label(request.token.as_deref());
+    if request.token.is_some() && username.0.trim().is_empty() && password.0.trim().is_empty() {
+        info!("Auth flow: attempting token login with saved session");
+    } else if !username.0.trim().is_empty() && !password.0.trim().is_empty() {
+        info!(
+            "Auth flow: attempting credential login for '{}'",
+            username.0
+        );
+    }
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(request.clone());
     }
@@ -241,6 +249,10 @@ fn handle_login_response(
 ) {
     if resp.success {
         save_auth_token(&resp.token, server);
+        info!(
+            "Auth flow: saved new auth token to {}",
+            auth_token_path(server).display()
+        );
         auth_token.0 = Some(resp.token);
         auth_feedback.0 = None;
         char_list.0 = resp.characters;
@@ -432,6 +444,10 @@ fn handle_register_response(
 ) {
     if resp.success {
         save_auth_token(&resp.token, server);
+        info!(
+            "Auth flow: saved new auth token to {}",
+            auth_token_path(server).display()
+        );
         auth_token.0 = Some(resp.token);
         auth_feedback.0 = None;
         char_list.0.clear();

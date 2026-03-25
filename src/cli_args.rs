@@ -7,6 +7,11 @@ use crate::ScreenshotRequest;
 use crate::game_state;
 use game_engine::game_state_enum::ScreenArg;
 
+#[cfg(debug_assertions)]
+pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:5000";
+#[cfg(not(debug_assertions))]
+pub const DEFAULT_SERVER_ADDR: &str = "game.worldofosso.com:5000";
+
 pub fn screenshot_arg_index(args: &[String]) -> Option<usize> {
     args.iter().position(|arg| arg == "screenshot")
 }
@@ -49,24 +54,51 @@ impl ServerArg {
             dev: true,
         }
     }
+
+    pub fn prod() -> Self {
+        default_server_arg_for("game.worldofosso.com:5000", false)
+            .expect("prod server alias should resolve")
+    }
+}
+
+pub fn default_server_arg() -> Result<ServerArg, String> {
+    default_server_arg_for(DEFAULT_SERVER_ADDR, cfg!(debug_assertions))
+}
+
+fn default_server_arg_for(hostname: &str, dev: bool) -> Result<ServerArg, String> {
+    use std::net::ToSocketAddrs;
+
+    let addr = hostname
+        .parse()
+        .ok()
+        .or_else(|| hostname.to_socket_addrs().ok()?.next())
+        .ok_or_else(|| format!("failed to resolve default server address '{hostname}'"))?;
+    Ok(ServerArg {
+        addr,
+        hostname: hostname.to_string(),
+        dev,
+    })
 }
 
 pub fn parse_server_arg(args: &[String]) -> Option<ServerArg> {
     use std::net::ToSocketAddrs;
     let w = args.windows(2).find(|w| w[0] == "--server")?;
     if w[1] == "dev" {
-        return Some(ServerArg {
-            addr: "127.0.0.1:5000".parse().unwrap(),
-            hostname: "127.0.0.1:5000".to_string(),
-            dev: true,
-        });
+        return Some(ServerArg::dev());
+    }
+    if w[1] == "prod" {
+        return Some(ServerArg::prod());
     }
     let hostname = w[1].clone();
     let addr = w[1]
         .parse()
         .ok()
         .or_else(|| w[1].to_socket_addrs().ok()?.next())?;
-    Some(ServerArg { addr, hostname, dev: false })
+    Some(ServerArg {
+        addr,
+        hostname,
+        dev: false,
+    })
 }
 
 pub fn has_flag(args: &[String], flag: &str) -> bool {
@@ -119,7 +151,9 @@ pub fn print_help() {
     println!(
         "  --screen <SCREEN>   Start at screen: login, charselect, charcreate, charcreate-customize, campsitepopup, inworld, gamemenu, optionsmenu, trashbutton"
     );
-    println!("  --server <ADDR>     Game server address (default: 127.0.0.1:5000)");
+    println!(
+        "  --server <ADDR>     Game server address or alias (`dev`, `prod`); default: {DEFAULT_SERVER_ADDR}"
+    );
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
     println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");

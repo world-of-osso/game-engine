@@ -10,6 +10,8 @@ use crate::sound::SoundSettings;
 
 const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";
+const LEGACY_CREDENTIALS_PATH: &str = "data/ui/credentials.ron";
+const CREDENTIALS_FILE_NAME: &str = "credentials.ron";
 
 pub struct ClientOptionsPlugin;
 
@@ -28,6 +30,12 @@ impl Plugin for ClientOptionsPlugin {
             })
             .add_systems(Update, apply_loaded_client_options);
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoginCredentials {
+    pub username: String,
+    pub password: String,
 }
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -298,6 +306,28 @@ fn options_path() -> PathBuf {
     }
 
     Path::new(LEGACY_OPTIONS_PATH).to_path_buf()
+}
+
+pub fn load_login_credentials() -> Option<LoginCredentials> {
+    let path = login_credentials_path();
+    if !path.exists() {
+        return None;
+    }
+
+    let raw = fs::read_to_string(&path).ok()?;
+    let creds = ron::de::from_str::<LoginCredentials>(&raw).ok()?;
+    if creds.username.trim().is_empty() || creds.password.trim().is_empty() {
+        return None;
+    }
+    Some(creds)
+}
+
+pub fn login_credentials_path() -> PathBuf {
+    if let Some(proj_dirs) = ProjectDirs::from("org", "WorldOfOsso", "game-engine") {
+        return proj_dirs.config_dir().join(CREDENTIALS_FILE_NAME);
+    }
+
+    Path::new(LEGACY_CREDENTIALS_PATH).to_path_buf()
 }
 
 fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {

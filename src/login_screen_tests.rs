@@ -157,6 +157,7 @@ fn automation_click_focuses_username_editbox() {
             &mut login_mode,
             &auth_token,
             None,
+            None,
             &mut commands,
             &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
         )
@@ -210,6 +211,7 @@ fn automation_type_uses_login_editbox_code_path() {
             &mut login_mode,
             &auth_token,
             None,
+            None,
             &mut commands,
             &UiAutomationAction::TypeText("alice".to_string()),
         )
@@ -248,7 +250,10 @@ fn paste_shortcut_inserts_clipboard_text_into_focused_login_editbox() {
     );
 
     assert!(handled);
-    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "alice");
+    assert_eq!(
+        get_editbox_text(&ui.registry, login.username_input),
+        "alice"
+    );
 }
 
 #[test]
@@ -274,7 +279,10 @@ fn paste_logical_key_inserts_clipboard_text_into_focused_login_editbox() {
     );
 
     assert!(handled);
-    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "alice");
+    assert_eq!(
+        get_editbox_text(&ui.registry, login.username_input),
+        "alice"
+    );
 }
 
 #[test]
@@ -313,7 +321,8 @@ fn run_login_actions(
 ) {
     for action in actions {
         run_login_automation_action(
-            ui, login, focus, next_state, status, login_mode, auth_token, None, commands, action,
+            ui, login, focus, next_state, status, login_mode, auth_token, None, None, commands,
+            action,
         )
         .expect("automation action should succeed");
     }
@@ -381,6 +390,7 @@ fn try_connect_requires_all_fields() {
             &mut next_state,
             &networking::LoginMode::Login,
             None,
+            None,
             &mut commands,
         );
     }
@@ -397,6 +407,7 @@ fn run_try_connect_with_credentials(
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
     server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
 ) -> World {
     let (mut world, mut system_state) = make_world_with_commands();
     {
@@ -408,6 +419,7 @@ fn run_try_connect_with_credentials(
             next_state,
             &networking::LoginMode::Login,
             server_addr,
+            server_hostname,
             &mut commands,
         );
     }
@@ -423,7 +435,8 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
     let mut status = LoginStatus::default();
     let mut next_state = NextState::<GameState>::default();
 
-    let world = run_try_connect_with_credentials(&reg, &login, &mut status, &mut next_state, None);
+    let world =
+        run_try_connect_with_credentials(&reg, &login, &mut status, &mut next_state, None, None);
 
     assert_eq!(status.0, "Connecting...");
     assert!(matches!(
@@ -523,9 +536,14 @@ fn try_connect_preserves_explicit_server_address() {
         &mut status,
         &mut next_state,
         Some(explicit_addr),
+        Some("127.0.0.1:5000"),
     );
 
     assert_eq!(world.resource::<networking::ServerAddr>().0, explicit_addr);
+    assert_eq!(
+        world.resource::<networking::ServerHostname>().0,
+        "127.0.0.1:5000"
+    );
 }
 
 fn make_login_app() -> App {
