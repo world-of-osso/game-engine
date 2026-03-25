@@ -3525,7 +3525,7 @@ dependencies = [
 [[package]]
 name = "game-api"
 version = "0.1.0"
-source = "git+ssh://git@github.com/world-of-osso/game-api.git?rev=3827ad6#3827ad6e9b2b282f763095bedee28a4fb5c31847"
+source = "git+https://github.com/world-of-osso/game-api.git?rev=3827ad6#3827ad6e9b2b282f763095bedee28a4fb5c31847"
 
 [[package]]
 name = "game-engine"

@@ -22,9 +22,9 @@ cascette-client-storage = { git = "https://github.com/wowemulation-dev/cascette-
 cascette-crypto = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
 cascette-formats = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
-shared = { git = "ssh://git@github.com/world-of-osso/game-server.git", rev = "60cb63c" }
-game-api = { git = "ssh://git@github.com/world-of-osso/game-api.git", rev = "3827ad6" }
-ui-toolkit = { git = "ssh://git@github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
+game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
+ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
 ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -45,10 +45,10 @@ default = ["ipc"]
 dev = ["bevy_dylib"]
 ipc = ["peercred-ipc", "libc", "glob"]
 
-[patch."ssh://git@github.com/world-of-osso/game-server.git"]
-shared = { path = "../game-server/crates/shared" }
+[patch."https://github.com/world-of-osso/shared-protocol.git"]
+shared = { path = "../shared-protocol" }
 
-[patch."ssh://git@github.com/world-of-osso/ui-toolkit.git"]
+[patch."https://github.com/world-of-osso/ui-toolkit.git"]
 ui-toolkit = { path = "../ui-toolkit" }
 
 # Optimize deps in debug builds (Bevy is unusably slow at opt-level 0)
