@@ -162,6 +162,24 @@ fn parse_run_args_starts_connecting_when_saved_token_exists() {
 }
 
 #[test]
+fn parse_run_args_starts_connecting_when_startup_credentials_exist() {
+    let parsed = parse_run_args_with_saved_token(
+        &args(&["--server", "prod"]),
+        false,
+        Some(("prod-user".to_string(), "prod-pass".to_string())),
+    );
+    assert_eq!(
+        parsed.initial_state,
+        Some(game_state::GameState::Connecting)
+    );
+    assert_eq!(
+        parsed.startup_login,
+        Some(("prod-user".to_string(), "prod-pass".to_string()))
+    );
+    assert!(parsed.startup_actions.is_empty());
+}
+
+#[test]
 fn parse_run_args_without_server_starts_connecting_when_saved_token_exists() {
     let parsed = parse_run_args_with_saved_token(&args(&[]), true, None);
     assert_eq!(

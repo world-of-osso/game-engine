@@ -207,18 +207,24 @@ struct ParsedArgs {
 }
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
+    let mut parsed = parse_run_args_base(args);
     let startup_credentials =
         client_options::load_login_credentials().map(|creds| (creds.username, creds.password));
     let startup_credentials_path = client_options::login_credentials_path();
-    let has_saved_auth_token =
-        networking::load_auth_token(Some(cli_args::DEFAULT_SERVER_ADDR)).is_some();
+    let auth_server = parsed
+        .server_addr
+        .as_ref()
+        .map(|server| server.hostname.as_str())
+        .unwrap_or(cli_args::DEFAULT_SERVER_ADDR);
+    let has_saved_auth_token = networking::load_auth_token(Some(auth_server)).is_some();
     if startup_credentials.is_some() && !has_saved_auth_token {
         info!(
             "Startup auth: using credentials file {} because no saved token was found",
             startup_credentials_path.display()
         );
     }
-    parse_run_args_with_saved_token(args, has_saved_auth_token, startup_credentials)
+    finalize_run_args(&mut parsed, args, has_saved_auth_token, startup_credentials);
+    parsed
 }
 
 fn parse_run_args_with_saved_token(
@@ -227,6 +233,19 @@ fn parse_run_args_with_saved_token(
     startup_credentials: Option<(String, String)>,
 ) -> ParsedArgs {
     let mut parsed = parse_run_args_base(args);
+    finalize_run_args(&mut parsed, args, has_saved_auth_token, startup_credentials);
+    parsed
+}
+
+fn finalize_run_args(
+    parsed: &mut ParsedArgs,
+    args: &[String],
+    has_saved_auth_token: bool,
+    startup_credentials: Option<(String, String)>,
+) {
+    if parsed.initial_state.is_none() && parsed.startup_login.is_none() {
+        parsed.startup_login = startup_credentials.clone();
+    }
     screen_auto_login::apply(
         &mut parsed.startup_actions,
         &mut parsed.server_addr,
@@ -236,13 +255,13 @@ fn parse_run_args_with_saved_token(
         has_saved_auth_token,
         startup_credentials,
     );
-    apply_login_dev_admin(args, &mut parsed);
+    apply_login_dev_admin(args, parsed);
     apply_auto_connecting(
         &parsed.startup_actions,
         &mut parsed.initial_state,
         has_saved_auth_token,
+        parsed.startup_login.is_some(),
     );
-    parsed
 }
 
 fn parse_run_args_base(args: &[String]) -> ParsedArgs {
@@ -284,8 +303,10 @@ fn apply_auto_connecting(
     actions: &[game_engine::ui::automation::UiAutomationAction],
     initial_state: &mut Option<game_state::GameState>,
     has_saved_auth_token: bool,
+    has_startup_login: bool,
 ) {
-    if actions.is_empty() && initial_state.is_none() && has_saved_auth_token {
+    if actions.is_empty() && initial_state.is_none() && (has_saved_auth_token || has_startup_login)
+    {
         *initial_state = Some(game_state::GameState::Connecting);
     }
 }
