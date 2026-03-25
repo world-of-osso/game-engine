@@ -30,12 +30,15 @@ use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, hit_frame, insert_char_into_editbox, set_button_hovered,
+    editbox_move_cursor, hit_frame, insert_char_into_editbox,
     set_login_primary_button_textures,
 };
 
 const FADE_IN_DURATION: f32 = 0.75;
-pub(crate) const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:25565";
+#[cfg(debug_assertions)]
+pub(crate) const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:5000";
+#[cfg(not(debug_assertions))]
+pub(crate) const DEFAULT_SERVER_ADDR: &str = "worldofosso.com:5000";
 const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
 const EDITBOX_BG: [f32; 4] = [0.22, 0.16, 0.11, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -524,116 +527,7 @@ fn login_run_automation(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_login_automation_action(
-    ui: &mut UiState,
-    login: &LoginUi,
-    focus: &mut LoginFocus,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
-    commands: &mut Commands,
-    action: &UiAutomationAction,
-) -> Result<(), String> {
-    match action {
-        UiAutomationAction::ClickFrame(name) => {
-            click_login_frame(
-                ui,
-                login,
-                focus,
-                next_state,
-                status,
-                login_mode,
-                auth_token,
-                server_addr,
-                commands,
-                name,
-            )?;
-        }
-        UiAutomationAction::TypeText(text) => {
-            let focused_id = focus
-                .0
-                .ok_or("automation type requires a focused edit box")?;
-            for ch in text.chars() {
-                insert_char_into_editbox(&mut ui.registry, focused_id, &ch.to_string());
-            }
-        }
-        UiAutomationAction::PressKey(key) => {
-            let focused_id = focus
-                .0
-                .ok_or("automation key press requires a focused frame")?;
-            let key_params = LoginKeyParams {
-                login,
-                status,
-                next_state,
-                mode: login_mode,
-                server_addr,
-            };
-            handle_login_key(*key, focused_id, ui, key_params, commands);
-        }
-        UiAutomationAction::WaitForState(_, _)
-        | UiAutomationAction::WaitForFrame(_, _)
-        | UiAutomationAction::DumpTree
-        | UiAutomationAction::DumpUiTree => {}
-    }
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn click_login_frame(
-    ui: &mut UiState,
-    login: &LoginUi,
-    focus: &mut LoginFocus,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
-    commands: &mut Commands,
-    frame_name: &str,
-) -> Result<(), String> {
-    recompute_layouts(&mut ui.registry);
-    let frame_id = ui
-        .registry
-        .get_by_name(frame_name)
-        .ok_or_else(|| format!("unknown login frame '{frame_name}'"))?;
-    let action = ui.registry.click_frame(frame_id);
-    focus.0 = ui.registry.focused_frame;
-    match action.as_deref().and_then(LoginAction::parse) {
-        Some(LoginAction::Connect) => try_connect(
-            &ui.registry,
-            login,
-            status,
-            next_state,
-            login_mode,
-            server_addr,
-            commands,
-        ),
-        Some(LoginAction::Reconnect) => try_reconnect(
-            auth_token,
-            status,
-            next_state,
-            login_mode,
-            server_addr,
-            commands,
-        ),
-        Some(LoginAction::CreateAccount) => {
-            toggle_login_mode(login_mode, &mut ui.registry, login);
-            status.0.clear();
-        }
-        Some(LoginAction::Menu) => {
-            crate::game_menu_screen::open_game_menu(ui, commands, crate::game_state::GameState::Login);
-        }
-        Some(LoginAction::Exit) => {}
-        None if ui.registry.focused_frame == Some(frame_id) => {}
-        _ => {
-            return Err(format!("login frame '{frame_name}' has no onclick action"));
-        }
-    }
-    Ok(())
-}
+pub(crate) use connect::run_login_automation_action;
 
 fn handle_nav_key(key: KeyCode, focus: &mut LoginFocus, login: &LoginUi) -> bool {
     match key {
@@ -658,15 +552,15 @@ fn cycle_focus(current: Option<u64>, login: &LoginUi) -> u64 {
     fields[idx]
 }
 
-struct LoginKeyParams<'a> {
-    login: &'a LoginUi,
-    status: &'a mut LoginStatus,
-    next_state: &'a mut NextState<GameState>,
-    mode: &'a networking::LoginMode,
-    server_addr: Option<std::net::SocketAddr>,
+pub(crate) struct LoginKeyParams<'a> {
+    pub(crate) login: &'a LoginUi,
+    pub(crate) status: &'a mut LoginStatus,
+    pub(crate) next_state: &'a mut NextState<GameState>,
+    pub(crate) mode: &'a networking::LoginMode,
+    pub(crate) server_addr: Option<std::net::SocketAddr>,
 }
 
-fn handle_login_key(
+pub(crate) fn handle_login_key(
     key: KeyCode,
     focused_id: u64,
     ui: &mut UiState,
@@ -700,29 +594,6 @@ fn handle_login_key(
     }
 }
 
-fn login_hover_visuals(
-    windows: Query<&Window>,
-    mut ui: ResMut<UiState>,
-    login_ui: Option<Res<LoginUi>>,
-) {
-    let Some(login) = login_ui.as_ref() else {
-        return;
-    };
-    let cursor = windows.iter().next().and_then(|w| w.cursor_position());
-    let mut button_ids = vec![
-        login.connect_button,
-        login.create_account_button,
-        login.menu_button,
-        login.exit_button,
-    ];
-    if let Some(reconnect_button) = login.reconnect_button {
-        button_ids.push(reconnect_button);
-    }
-    for id in button_ids {
-        let hovered = cursor.is_some_and(|c| hit_active_frame(&ui, id, c.x, c.y));
-        set_button_hovered(&mut ui.registry, id, hovered);
-    }
-}
 
 fn login_update_visuals(
     mut ui: ResMut<UiState>,
