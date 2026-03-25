@@ -16,7 +16,6 @@ const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
-const OPTIONS_THUMB_TEXTURE: &str = "data/textures/ui/options_slider_thumb.png";
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
@@ -181,7 +180,7 @@ fn slider_row(key: &str, label: &str, value: f32, min: f32, max: f32) -> Element
     let pct = normalize(value, min, max).clamp(0.0, 1.0);
     let action = slider_action(key);
     let slider_name = format!("Slider{key}");
-    rsx! { r#frame { name: {DynName(format!("SliderRow{key}"))}, width: {OPTIONS_CONTENT_W - 30.0}, height: 44.0, {row_label(&format!("SliderLabel{key}"), label)} {slider_widget(SliderWidget { name: &slider_name, action: &action, value, min, max, width: OPTIONS_TRACK_W, interactive_height: 28.0, track_height: OPTIONS_TRACK_H, thumb_width: OPTIONS_THUMB_W, thumb_height: OPTIONS_THUMB_H, thumb_texture: OPTIONS_THUMB_TEXTURE, track_color: OPTIONS_TRACK_BG, fill_color: OPTIONS_TRACK_FILL, x: "286" })} {small_button(&format!("SliderMinus{key}"), "-", &step_action(key, -1), 30.0, "604")} {small_button(&format!("SliderPlus{key}"), "+", &step_action(key, 1), 30.0, "640")} {slider_value_text(key, &slider_display(min, max, pct))} } }
+    rsx! { r#frame { name: {DynName(format!("SliderRow{key}"))}, width: {OPTIONS_CONTENT_W - 30.0}, height: 44.0, {row_label(&format!("SliderLabel{key}"), label)} {slider_widget(SliderWidget { name: &slider_name, action: &action, value, min, max, width: OPTIONS_TRACK_W, interactive_height: 28.0, track_height: OPTIONS_TRACK_H, thumb_width: OPTIONS_THUMB_W, thumb_height: OPTIONS_THUMB_H, thumb_texture: None, track_color: OPTIONS_TRACK_BG, fill_color: OPTIONS_TRACK_FILL, x: "286" })} {small_button(&format!("SliderMinus{key}"), "-", &step_action(key, -1), 30.0, "604")} {small_button(&format!("SliderPlus{key}"), "+", &step_action(key, 1), 30.0, "640")} {slider_value_text(key, &slider_display(min, max, pct))} } }
 }
 
 fn row_label(name: &str, text: &str) -> Element {
