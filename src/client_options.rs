@@ -255,12 +255,31 @@ pub fn save_client_options(
         fs::create_dir_all(parent)
             .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
     }
+    info!("Saving client options to {}", path.display());
     fs::write(&path, serialized)
         .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
 }
 
+pub fn save_client_options_values(
+    sound: &SoundSettings,
+    camera: &CameraOptions,
+    hud: &HudOptions,
+    modal_offset: [f32; 2],
+) -> Result<(), String> {
+    save_client_options(Some(sound), camera, hud, modal_offset)
+}
+
 fn load_options_file() -> ClientOptionsFile {
     let path = load_options_path();
+    if !path.exists() {
+        info!(
+            "No client options file found at {}; using defaults",
+            path.display()
+        );
+        return ClientOptionsFile::default();
+    }
+
+    info!("Loading client options from {}", path.display());
     let Ok(raw) = fs::read_to_string(&path) else {
         return ClientOptionsFile::default();
     };

@@ -386,15 +386,15 @@ mod tests {
         let muted_active = rect_by_name(&muted, "ToggleSwitchmutedActive");
 
         assert!(
-            muted_active.x < unmuted_active.x,
-            "mute active segment should move left when muted: unmuted={}, muted={}",
+            muted_active.x > unmuted_active.x,
+            "mute active segment should move right when muted: unmuted={}, muted={}",
             unmuted_active.x,
             muted_active.x
         );
-        assert!(unmuted.get_by_name("ToggleSwitchmutedLeftHit").is_some());
-        assert!(unmuted.get_by_name("ToggleSwitchmutedRightHit").is_none());
-        assert!(muted.get_by_name("ToggleSwitchmutedLeftHit").is_none());
-        assert!(muted.get_by_name("ToggleSwitchmutedRightHit").is_some());
+        assert!(unmuted.get_by_name("ToggleSwitchmutedLeftHit").is_none());
+        assert!(unmuted.get_by_name("ToggleSwitchmutedRightHit").is_some());
+        assert!(muted.get_by_name("ToggleSwitchmutedLeftHit").is_some());
+        assert!(muted.get_by_name("ToggleSwitchmutedRightHit").is_none());
     }
 
     fn options_registry() -> FrameRegistry {

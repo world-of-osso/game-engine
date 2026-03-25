@@ -2,6 +2,7 @@ use game_engine::ui::screens::game_menu_component::{GameMenuView, GameMenuViewMo
 use game_engine::ui::screens::options_menu_component::{
     CameraOptionsView, HudOptionsView, OptionsCategory, OptionsViewModel, SoundOptionsView,
 };
+use bevy::log::info;
 
 use crate::client_options::{CameraOptions, HudOptions};
 use crate::sound::SoundSettings;
@@ -271,7 +272,13 @@ pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
 
 pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
     match key {
-        "muted" => model.draft_sound.muted = !model.draft_sound.muted,
+        "muted" => {
+            model.draft_sound.muted = !model.draft_sound.muted;
+            info!(
+                "Options toggle: muted -> {}",
+                model.draft_sound.muted
+            );
+        }
         "music_enabled" => model.draft_sound.music_enabled = !model.draft_sound.music_enabled,
         "invert_y" => model.draft_camera.invert_y = !model.draft_camera.invert_y,
         "show_minimap" => model.draft_hud.show_minimap = !model.draft_hud.show_minimap,

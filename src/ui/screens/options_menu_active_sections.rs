@@ -112,7 +112,7 @@ fn content_stack(children: Element) -> Element {
 
 fn sound_items(sound: &SoundOptionsView) -> Element {
     [
-        toggle_row("muted", "Mute All Sound", !sound.muted),
+        toggle_row("muted", "Mute All Sound", sound.muted),
         toggle_row("music_enabled", "Enable Music", sound.music_enabled),
         spacer("SoundSpacer", 18.0),
         slider_row(

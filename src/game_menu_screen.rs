@@ -479,13 +479,23 @@ struct ApplyDraftOptionsCommand(ApplySnapshot);
 impl Command for ApplyDraftOptionsCommand {
     fn apply(self, world: &mut World) {
         apply_snapshot_to_world(world, &self.0);
-        save_snapshot(world, self.0.modal_position);
+        save_snapshot(world, &self.0);
     }
 }
 
 fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
+    info!(
+        "Applying options snapshot: muted={}, music_enabled={}",
+        snapshot.sound.muted,
+        snapshot.sound.music_enabled
+    );
     if let Some(mut sound) = world.get_resource_mut::<SoundSettings>() {
         apply_sound_snapshot(&mut sound, &snapshot.sound);
+        info!(
+            "Sound settings after apply: muted={}, music_enabled={}",
+            sound.muted,
+            sound.music_enabled
+        );
     }
     apply_camera_snapshot(&mut world.resource_mut::<CameraOptions>(), &snapshot.camera);
     apply_hud_snapshot(&mut world.resource_mut::<HudOptions>(), &snapshot.hud);
@@ -499,13 +509,37 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     apply_target_marker_visibility(world, snapshot.hud.show_target_marker);
 }
 
-fn save_snapshot(world: &mut World, modal_position: [f32; 2]) {
-    let sound = world.get_resource::<SoundSettings>();
-    let camera = world.resource::<CameraOptions>();
-    let hud = world.resource::<HudOptions>();
-    if let Err(err) =
-        client_options::save_client_options(sound.as_deref(), &camera, &hud, modal_position)
-    {
+fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
+    let camera = CameraOptions {
+        look_sensitivity: snapshot.camera.look_sensitivity,
+        invert_y: snapshot.camera.invert_y,
+        follow_speed: snapshot.camera.follow_speed,
+        zoom_speed: snapshot.camera.zoom_speed,
+        min_distance: snapshot.camera.min_distance,
+        max_distance: snapshot.camera.max_distance,
+    };
+    let hud = HudOptions {
+        show_minimap: snapshot.hud.show_minimap,
+        show_action_bars: snapshot.hud.show_action_bars,
+        show_nameplates: snapshot.hud.show_nameplates,
+        show_health_bars: snapshot.hud.show_health_bars,
+        show_target_marker: snapshot.hud.show_target_marker,
+        show_fps_overlay: snapshot.hud.show_fps_overlay,
+    };
+    let sound = SoundSettings {
+        master_volume: snapshot.sound.master_volume,
+        footstep_volume: snapshot.sound.footstep_volume,
+        ambient_volume: snapshot.sound.ambient_volume,
+        music_volume: snapshot.sound.music_volume,
+        music_enabled: snapshot.sound.music_enabled,
+        muted: snapshot.sound.muted,
+    };
+    if let Err(err) = client_options::save_client_options_values(
+        &sound,
+        &camera,
+        &hud,
+        snapshot.modal_position,
+    ) {
         warn!("{err}");
     }
 }
