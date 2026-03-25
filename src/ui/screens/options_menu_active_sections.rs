@@ -10,8 +10,15 @@ use super::options_menu_component::{CameraOptionsView, HudOptionsView, SoundOpti
 use super::options_menu_sections;
 
 const OPTIONS_CONTENT_W: f32 = 716.0;
-const OPTIONS_TRACK_W: f32 = 270.0;
-const OPTIONS_TRACK_H: f32 = 10.0;
+const OPTIONS_ROW_W: f32 = OPTIONS_CONTENT_W - 30.0;
+const OPTIONS_LABEL_W: f32 = 252.0;
+const OPTIONS_LABEL_GAP: f32 = 16.0;
+const OPTIONS_VALUE_W: f32 = 76.0;
+const OPTIONS_VALUE_PAD: f32 = 8.0;
+const OPTIONS_SLIDER_X: f32 = OPTIONS_LABEL_W + OPTIONS_LABEL_GAP;
+const OPTIONS_TRACK_W: f32 =
+    OPTIONS_ROW_W - OPTIONS_SLIDER_X - OPTIONS_VALUE_W - OPTIONS_VALUE_PAD;
+const OPTIONS_TRACK_H: f32 = 15.0;
 const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_THUMB_W: f32 = 18.0;
@@ -136,6 +143,16 @@ fn camera_items(camera: &CameraOptionsView) -> Element {
     [
         toggle_row("invert_y", "Invert Vertical Look", camera.invert_y),
         spacer("CameraSpacer", 12.0),
+        camera_sensitivity_sliders(camera),
+        camera_distance_sliders(camera),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn camera_sensitivity_sliders(camera: &CameraOptionsView) -> Element {
+    [
         slider_row(
             "look_sensitivity",
             "Look Sensitivity",
@@ -151,6 +168,14 @@ fn camera_items(camera: &CameraOptionsView) -> Element {
             2.0,
             20.0,
         ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn camera_distance_sliders(camera: &CameraOptionsView) -> Element {
+    [
         slider_row(
             "min_distance",
             "Min Camera Distance",
@@ -180,15 +205,16 @@ fn slider_row(key: &str, label: &str, value: f32, min: f32, max: f32) -> Element
     let pct = normalize(value, min, max).clamp(0.0, 1.0);
     let action = slider_action(key);
     let slider_name = format!("Slider{key}");
-    rsx! { r#frame { name: {DynName(format!("SliderRow{key}"))}, width: {OPTIONS_CONTENT_W - 30.0}, height: 44.0, {row_label(&format!("SliderLabel{key}"), label)} {slider_widget(SliderWidget { name: &slider_name, action: &action, value, min, max, width: OPTIONS_TRACK_W, interactive_height: 28.0, track_height: OPTIONS_TRACK_H, thumb_width: OPTIONS_THUMB_W, thumb_height: OPTIONS_THUMB_H, thumb_texture: None, track_color: OPTIONS_TRACK_BG, fill_color: OPTIONS_TRACK_FILL, x: "286" })} {small_button(&format!("SliderMinus{key}"), "-", &step_action(key, -1), 30.0, "604")} {small_button(&format!("SliderPlus{key}"), "+", &step_action(key, 1), 30.0, "640")} {slider_value_text(key, &slider_display(min, max, pct))} } }
+    let slider_x = OPTIONS_SLIDER_X.to_string();
+    rsx! { r#frame { name: {DynName(format!("SliderRow{key}"))}, width: {OPTIONS_ROW_W}, height: 44.0, {row_label(&format!("SliderLabel{key}"), label)} {slider_widget(SliderWidget { name: &slider_name, action: &action, value, min, max, width: OPTIONS_TRACK_W, interactive_height: 28.0, track_height: OPTIONS_TRACK_H, thumb_width: OPTIONS_THUMB_W, thumb_height: OPTIONS_THUMB_H, thumb_texture: None, track_color: OPTIONS_TRACK_BG, fill_color: OPTIONS_TRACK_FILL, x: &slider_x })} {slider_value_text(key, &slider_display(min, max, pct))} } }
 }
 
 fn row_label(name: &str, text: &str) -> Element {
-    rsx! { fontstring { name: {DynName(name.to_string())}, width: 252.0, height: 20.0, text: {text}, font_size: 16.0, color: "0.95,0.90,0.74,1.0", justify_h: "LEFT", anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left } } }
+    rsx! { fontstring { name: {DynName(name.to_string())}, width: {OPTIONS_LABEL_W}, height: 20.0, text: {text}, font_size: 16.0, color: "0.95,0.90,0.74,1.0", justify_h: "LEFT", anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left } } }
 }
 
 fn slider_value_text(key: &str, text: &str) -> Element {
-    rsx! { fontstring { name: {DynName(format!("SliderValue{key}"))}, width: 76.0, height: 20.0, text: {text}, font_size: 15.0, color: "0.95,0.90,0.74,1.0", justify_h: "RIGHT", anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-100" } } }
+    rsx! { fontstring { name: {DynName(format!("SliderValue{key}"))}, width: 76.0, height: 20.0, text: {text}, font_size: 15.0, color: "0.95,0.90,0.74,1.0", justify_h: "RIGHT", anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-8" } } }
 }
 
 fn small_button(name: &str, text: &str, action: &str, width: f32, x: &str) -> Element {
