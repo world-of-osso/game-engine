@@ -1,11 +1,12 @@
 use game_engine::ui::automation::UiAutomationAction;
 
+use crate::cli_args::ServerArg;
 use crate::game_state::GameState;
 
 /// For startup screen shortcuts, rewrite the initial auth flow as needed.
 pub fn apply(
     actions: &mut Vec<UiAutomationAction>,
-    server_addr: &mut Option<(std::net::SocketAddr, bool)>,
+    server_addr: &mut Option<ServerArg>,
     initial_state: &mut Option<GameState>,
     auto_enter: &mut bool,
     startup_login: &mut Option<(String, String)>,
@@ -23,7 +24,7 @@ pub fn apply(
         return;
     }
     if server_addr.is_none() {
-        *server_addr = Some(("127.0.0.1:5000".parse().unwrap(), false));
+        *server_addr = Some(ServerArg::dev());
     }
     if matches!(target, Some(GameState::CharSelect | GameState::InWorld)) {
         *initial_state = Some(GameState::Connecting);
@@ -74,14 +75,18 @@ fn auto_login_actions(target: Option<GameState>) -> Vec<UiAutomationAction> {
 mod tests {
     use super::*;
 
-    fn socket() -> std::net::SocketAddr {
-        "127.0.0.1:5000".parse().expect("test socket should parse")
+    fn test_server() -> ServerArg {
+        ServerArg {
+            addr: "127.0.0.1:5000".parse().unwrap(),
+            hostname: "127.0.0.1:5000".to_string(),
+            dev: false,
+        }
     }
 
     #[test]
     fn saved_token_uses_connecting_state_for_charselect_screen() {
         let mut actions = Vec::new();
-        let mut server_addr = Some((socket(), false));
+        let mut server_addr = Some(test_server());
         let mut initial_state = Some(GameState::CharSelect);
         let mut auto_enter = false;
         let mut startup_login = None;
@@ -104,7 +109,7 @@ mod tests {
     #[test]
     fn saved_token_charcreate_still_waits_for_charselect_before_clicking_create() {
         let mut actions = Vec::new();
-        let mut server_addr = Some((socket(), false));
+        let mut server_addr = Some(test_server());
         let mut initial_state = Some(GameState::CharCreate);
         let mut auto_enter = false;
         let mut startup_login = None;
@@ -126,7 +131,7 @@ mod tests {
     #[test]
     fn charcreate_without_token_waits_for_direct_charcreate_transition_after_login() {
         let mut actions = Vec::new();
-        let mut server_addr = Some((socket(), false));
+        let mut server_addr = Some(test_server());
         let mut initial_state = Some(GameState::CharCreate);
         let mut auto_enter = false;
         let mut startup_login = None;
@@ -160,7 +165,7 @@ mod tests {
     #[test]
     fn charselect_without_token_connects_directly_with_startup_credentials() {
         let mut actions = Vec::new();
-        let mut server_addr = Some((socket(), false));
+        let mut server_addr = Some(test_server());
         let mut initial_state = Some(GameState::CharSelect);
         let mut auto_enter = false;
         let mut startup_login = None;
@@ -186,7 +191,7 @@ mod tests {
     #[test]
     fn inworld_uses_connecting_without_ui_automation_when_saved_token_exists() {
         let mut actions = Vec::new();
-        let mut server_addr = Some((socket(), false));
+        let mut server_addr = Some(test_server());
         let mut initial_state = Some(GameState::InWorld);
         let mut auto_enter = false;
         let mut startup_login = None;
@@ -209,7 +214,7 @@ mod tests {
     #[test]
     fn inworld_without_token_connects_directly_with_startup_credentials() {
         let mut actions = Vec::new();
-        let mut server_addr = Some((socket(), false));
+        let mut server_addr = Some(test_server());
         let mut initial_state = Some(GameState::InWorld);
         let mut auto_enter = false;
         let mut startup_login = None;

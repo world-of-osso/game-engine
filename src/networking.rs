@@ -107,6 +107,11 @@ pub(crate) const MAX_COMBAT_LOG: usize = 200;
 #[derive(Resource)]
 pub struct ServerAddr(pub SocketAddr);
 
+/// Original server string before DNS resolution (e.g. "game.worldofosso.com:5000").
+/// Used for per-server token storage keying.
+#[derive(Resource)]
+pub struct ServerHostname(pub String);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ReconnectPhase {
     #[default]
@@ -164,8 +169,8 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<ReconnectState>();
     let server = app
         .world()
-        .get_resource::<ServerAddr>()
-        .map(|a| a.0.to_string());
+        .get_resource::<ServerHostname>()
+        .map(|h| h.0.clone());
     app.insert_resource(AuthToken(load_auth_token(server.as_deref())));
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<CharacterList>();

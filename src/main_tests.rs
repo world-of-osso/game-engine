@@ -170,10 +170,7 @@ fn parse_run_args_login_dev_admin_forces_login_flow() {
         parsed.initial_state,
         Some(game_state::GameState::Connecting)
     );
-    assert_eq!(
-        parsed.server_addr,
-        Some(("127.0.0.1:5000".parse().unwrap(), true))
-    );
+    assert!(parsed.server_addr.as_ref().is_some_and(|s| s.dev && s.addr.to_string() == "127.0.0.1:5000"));
     assert_eq!(
         parsed.startup_login,
         Some(("admin".to_string(), "admin".to_string()))

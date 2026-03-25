@@ -200,7 +200,7 @@ fn ensure_asset_root() {
 
 struct ParsedArgs {
     startup_actions: Vec<game_engine::ui::automation::UiAutomationAction>,
-    server_addr: Option<(std::net::SocketAddr, bool)>,
+    server_addr: Option<cli_args::ServerArg>,
     initial_state: Option<game_state::GameState>,
     auto_enter_world: bool,
     startup_login: Option<(String, String)>,
@@ -223,7 +223,7 @@ fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) 
     apply_login_dev_admin(args, &mut parsed);
     apply_auto_connecting(
         &parsed.startup_actions,
-        parsed.server_addr,
+        &parsed.server_addr,
         &mut parsed.initial_state,
         has_saved_auth_token,
     );
@@ -258,7 +258,7 @@ fn apply_login_dev_admin(args: &[String], parsed: &mut ParsedArgs) {
     if !has_flag(args, "--login-dev-admin") {
         return;
     }
-    parsed.server_addr = Some(("127.0.0.1:5000".parse().unwrap(), true));
+    parsed.server_addr = Some(cli_args::ServerArg::dev());
     parsed.initial_state = Some(game_state::GameState::Connecting);
     parsed.startup_login = Some(("admin".to_string(), "admin".to_string()));
     parsed.startup_actions.clear();
@@ -267,7 +267,7 @@ fn apply_login_dev_admin(args: &[String], parsed: &mut ParsedArgs) {
 
 fn apply_auto_connecting(
     actions: &[game_engine::ui::automation::UiAutomationAction],
-    server_addr: Option<(std::net::SocketAddr, bool)>,
+    server_addr: &Option<cli_args::ServerArg>,
     initial_state: &mut Option<game_state::GameState>,
     has_saved_auth_token: bool,
 ) {
@@ -293,7 +293,7 @@ fn run_app(
     let mut app = App::new();
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     register_plugins(&mut app);
-    configure_app_plugins(&mut app, args, &parsed);
+    configure_app_plugins(&mut app, args, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     if parsed.auto_enter_world {
@@ -446,16 +446,17 @@ impl ui_toolkit::render_texture::BlpLoader for GameBlpLoader {
 fn configure_server_resources(
     app: &mut App,
     enable_sound: bool,
-    server_addr: Option<(std::net::SocketAddr, bool)>,
+    server_arg: Option<cli_args::ServerArg>,
     initial_state: Option<game_state::GameState>,
     startup_login: Option<(String, String)>,
 ) {
     if enable_sound {
         app.add_plugins(sound::SoundPlugin);
     }
-    if let Some((addr, dev)) = server_addr {
-        app.insert_resource(networking::ServerAddr(addr));
-        if dev {
+    if let Some(server) = server_arg {
+        app.insert_resource(networking::ServerAddr(server.addr));
+        app.insert_resource(networking::ServerHostname(server.hostname));
+        if server.dev {
             app.insert_resource(login_screen::DevServer);
         }
     }
@@ -487,11 +488,11 @@ fn add_status_sync_systems(app: &mut App) {
     );
 }
 
-fn configure_app_plugins(app: &mut App, args: &[String], parsed: &ParsedArgs) {
+fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs) {
     configure_server_resources(
         app,
         args.iter().any(|a| a == "--sound"),
-        parsed.server_addr,
+        parsed.server_addr.take(),
         parsed.initial_state,
         parsed.startup_login.clone(),
     );

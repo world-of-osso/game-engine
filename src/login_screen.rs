@@ -492,33 +492,37 @@ fn login_keyboard_input(
             continue;
         }
         let Some(focused_id) = focus.0 else { continue };
-        if maybe_paste_into_login_editbox(
-            &key_codes,
-            event,
-            &mut ui,
-            focused_id,
-            clipboard.read_text().as_deref(),
-        ) {
-            continue;
-        }
-        if let Key::Character(ch) = &event.logical_key {
-            insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
-        } else {
-            let key_params = LoginKeyParams {
-                login,
-                status: &mut cp.status,
-                next_state: &mut cp.next_state,
-                mode: &cp.login_mode,
-                server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
-            };
-            handle_login_key(
-                event.key_code,
-                focused_id,
-                &mut ui,
-                key_params,
-                &mut cp.commands,
-            );
-        }
+        dispatch_login_key_event(
+            event, &key_codes, &mut ui, focused_id, &clipboard, login, &mut cp,
+        );
+    }
+}
+
+fn dispatch_login_key_event(
+    event: &KeyboardInput,
+    key_codes: &ButtonInput<KeyCode>,
+    ui: &mut UiState,
+    focused_id: u64,
+    clipboard: &LoginClipboard,
+    login: &LoginUi,
+    cp: &mut LoginConnectParams,
+) {
+    if maybe_paste_into_login_editbox(
+        key_codes, event, ui, focused_id, clipboard.read_text().as_deref(),
+    ) {
+        return;
+    }
+    if let Key::Character(ch) = &event.logical_key {
+        insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
+    } else {
+        let key_params = LoginKeyParams {
+            login,
+            status: &mut cp.status,
+            next_state: &mut cp.next_state,
+            mode: &cp.login_mode,
+            server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+        };
+        handle_login_key(event.key_code, focused_id, ui, key_params, &mut cp.commands);
     }
 }
 

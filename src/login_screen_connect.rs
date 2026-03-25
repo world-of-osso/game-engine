@@ -51,8 +51,10 @@ pub fn try_connect(
         status.0 = STATUS_FILL_FIELDS.to_string();
         return;
     }
-    commands.insert_resource(networking::ServerAddr(
-        server_addr.unwrap_or_else(resolve_default_server),
+    let resolved = server_addr.unwrap_or_else(resolve_default_server);
+    commands.insert_resource(networking::ServerAddr(resolved));
+    commands.insert_resource(networking::ServerHostname(
+        DEFAULT_SERVER_ADDR.to_string(),
     ));
     commands.insert_resource(networking::LoginUsername(username));
     commands.insert_resource(networking::LoginPassword(password));
@@ -78,8 +80,10 @@ pub fn try_reconnect(
         return;
     }
     *login_mode = networking::LoginMode::Login;
-    commands.insert_resource(networking::ServerAddr(
-        server_addr.unwrap_or_else(resolve_default_server),
+    let resolved = server_addr.unwrap_or_else(resolve_default_server);
+    commands.insert_resource(networking::ServerAddr(resolved));
+    commands.insert_resource(networking::ServerHostname(
+        DEFAULT_SERVER_ADDR.to_string(),
     ));
     commands.insert_resource(networking::LoginUsername(String::new()));
     commands.insert_resource(networking::LoginPassword(String::new()));

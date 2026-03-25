@@ -34,13 +34,39 @@ pub fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     })
 }
 
-pub fn parse_server_arg(args: &[String]) -> Option<(std::net::SocketAddr, bool)> {
+#[derive(Debug, PartialEq)]
+pub struct ServerArg {
+    pub addr: std::net::SocketAddr,
+    pub hostname: String,
+    pub dev: bool,
+}
+
+impl ServerArg {
+    pub fn dev() -> Self {
+        Self {
+            addr: "127.0.0.1:5000".parse().unwrap(),
+            hostname: "127.0.0.1:5000".to_string(),
+            dev: true,
+        }
+    }
+}
+
+pub fn parse_server_arg(args: &[String]) -> Option<ServerArg> {
+    use std::net::ToSocketAddrs;
     let w = args.windows(2).find(|w| w[0] == "--server")?;
     if w[1] == "dev" {
-        Some(("127.0.0.1:5000".parse().unwrap(), true))
-    } else {
-        w[1].parse().ok().map(|addr| (addr, false))
+        return Some(ServerArg {
+            addr: "127.0.0.1:5000".parse().unwrap(),
+            hostname: "127.0.0.1:5000".to_string(),
+            dev: true,
+        });
     }
+    let hostname = w[1].clone();
+    let addr = w[1]
+        .parse()
+        .ok()
+        .or_else(|| w[1].to_socket_addrs().ok()?.next())?;
+    Some(ServerArg { addr, hostname, dev: false })
 }
 
 pub fn has_flag(args: &[String], flag: &str) -> bool {

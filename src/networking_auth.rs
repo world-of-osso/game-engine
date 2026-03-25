@@ -199,10 +199,10 @@ pub fn receive_login_response(
     mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
-    server_addr: Option<Res<crate::networking::ServerAddr>>,
+    server_hostname: Option<Res<crate::networking::ServerHostname>>,
     mut commands: Commands,
 ) {
-    let server = server_addr.as_ref().map(|a| a.0.to_string());
+    let server = server_hostname.as_ref().map(|h| h.0.as_str());
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             handle_login_response(
@@ -217,7 +217,7 @@ pub fn receive_login_response(
                 &mut select_senders,
                 &mut next_state,
                 reconnect.as_deref_mut(),
-                server.as_deref(),
+                server,
                 &mut commands,
             );
         }
@@ -405,9 +405,9 @@ pub fn receive_register_response(
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
-    server_addr: Option<Res<crate::networking::ServerAddr>>,
+    server_hostname: Option<Res<crate::networking::ServerHostname>>,
 ) {
-    let server = server_addr.as_ref().map(|a| a.0.to_string());
+    let server = server_hostname.as_ref().map(|h| h.0.as_str());
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             handle_register_response(
@@ -416,7 +416,7 @@ pub fn receive_register_response(
                 &mut auth_feedback,
                 &mut char_list,
                 &mut next_state,
-                server.as_deref(),
+                server,
             );
         }
     }
