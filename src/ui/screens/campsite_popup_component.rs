@@ -57,7 +57,7 @@ mod tests {
             scenes: vec![CampsiteEntry {
                 id: 1,
                 name: "Adventurer's Rest".to_string(),
-                preview_image: Some("data/ui/campsites/adventurers-rest.png".to_string()),
+                preview_image: Some("data/ui/campsites/adventurers-rest.ktx2".to_string()),
             }],
             panel_visible: true,
             selected_id: Some(1),

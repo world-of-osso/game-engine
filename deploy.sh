@@ -14,7 +14,8 @@ scp "$SCRIPT_DIR/target/release/game-engine" "$SERVER:$REMOTE_DIR/game-engine"
 echo "=== Syncing data directory ==="
 rsync -avz --delete \
     --exclude='*.lock' \
-    --exclude='debug_*.webp' \
+    --exclude='*.webp' \
+    --exclude='*.png' \
     --exclude='screenshots/' \
     "$SCRIPT_DIR/data/" "$SERVER:$REMOTE_DIR/data/"
 

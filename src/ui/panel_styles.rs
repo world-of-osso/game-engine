@@ -14,7 +14,7 @@ pub fn register_panel_styles(mut ui: ResMut<UiState>) {
             bg_color: [1.0, 1.0, 1.0, 1.0],
             border_color: [1.0, 1.0, 1.0, 1.0],
             texture: Some(TextureSource::File(
-                "data/textures/ui/panel_slate_gold_512.png".to_string(),
+                "data/textures/ui/panel_slate_gold_512.ktx2".to_string(),
             )),
             ..Default::default()
         },
@@ -27,7 +27,7 @@ pub fn register_panel_styles(mut ui: ResMut<UiState>) {
             bg_color: [1.0, 1.0, 1.0, 1.0],
             border_color: [1.0, 1.0, 1.0, 1.0],
             texture: Some(TextureSource::File(
-                "data/textures/ui/panel_slate_gold_plain_128.png".to_string(),
+                "data/textures/ui/panel_slate_gold_plain_128.ktx2".to_string(),
             )),
             ..Default::default()
         },

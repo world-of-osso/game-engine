@@ -146,7 +146,7 @@ fn selected_character_shows_delete_button_with_empty_text_and_icon_child() {
         matches!(
             &icon_texture.source,
             game_engine::ui::widgets::texture::TextureSource::File(path)
-                if path == "data/ui/delete-trash-icon-gold.png"
+                if path == "data/ui/delete-trash-icon-gold.ktx2"
         ),
         "DeleteCharIcon should point at the generated trash icon texture"
     );

@@ -11,7 +11,7 @@ const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
-const DELETE_ICON_FILE: &str = "data/ui/delete-trash-icon-gold.png";
+const DELETE_ICON_FILE: &str = "data/ui/delete-trash-icon-gold.ktx2";
 
 pub const TRASH_BUTTON_ROOT: FrameName = FrameName("TrashButtonRoot");
 pub const TRASH_BUTTON: FrameName = FrameName("TrashButton");
