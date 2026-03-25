@@ -3,22 +3,9 @@ pub mod plugin;
 
 pub use plugin::IpcPlugin;
 
-use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, mpsc};
+use std::path::PathBuf;
+use std::sync::mpsc;
 
-use peercred_ipc::{Connection, Server};
-
-static SOCKET_PATH: OnceLock<PathBuf> = OnceLock::new();
-
-extern "C" fn signal_handler(sig: libc::c_int) {
-    if let Some(path) = SOCKET_PATH.get() {
-        let _ = std::fs::remove_file(path);
-    }
-    unsafe {
-        libc::signal(sig, libc::SIG_DFL);
-        libc::raise(sig);
-    }
-}
 use serde::{Deserialize, Serialize};
 use shared::protocol::{
     AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
@@ -175,18 +162,43 @@ pub struct Command {
     pub respond: mpsc::Sender<Response>,
 }
 
+// --- Unix-only socket server ---
+
+#[cfg(feature = "ipc")]
+use std::path::Path;
+
+#[cfg(feature = "ipc")]
+use peercred_ipc::{Connection, Server};
+
+#[cfg(feature = "ipc")]
+static SOCKET_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+#[cfg(feature = "ipc")]
+extern "C" fn signal_handler(sig: libc::c_int) {
+    if let Some(path) = SOCKET_PATH.get() {
+        let _ = std::fs::remove_file(path);
+    }
+    unsafe {
+        libc::signal(sig, libc::SIG_DFL);
+        libc::raise(sig);
+    }
+}
+
 /// Socket path: /tmp/game-engine-<pid>.sock
+#[cfg(feature = "ipc")]
 fn socket_path() -> PathBuf {
     let pid = std::process::id();
     PathBuf::from(format!("/tmp/game-engine-{pid}.sock"))
 }
 
 /// Pattern for discovering sockets.
+#[cfg(feature = "ipc")]
 pub fn socket_glob() -> String {
     "/tmp/game-engine-*.sock".into()
 }
 
 /// Remove stale sockets whose PID no longer exists.
+#[cfg(feature = "ipc")]
 pub fn cleanup_stale_sockets() {
     let pattern = socket_glob();
     let Ok(paths) = glob::glob(&pattern) else {
@@ -199,6 +211,7 @@ pub fn cleanup_stale_sockets() {
     }
 }
 
+#[cfg(feature = "ipc")]
 fn extract_pid_and_check(path: &Path) -> Option<bool> {
     let stem = path.file_stem()?.to_str()?;
     let pid_str = stem.strip_prefix("game-engine-")?;
@@ -209,16 +222,19 @@ fn extract_pid_and_check(path: &Path) -> Option<bool> {
 }
 
 /// RAII guard that removes the socket file on drop.
+#[cfg(feature = "ipc")]
 pub struct SocketGuard {
     path: PathBuf,
 }
 
+#[cfg(feature = "ipc")]
 impl Drop for SocketGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.path);
     }
 }
 
+#[cfg(feature = "ipc")]
 fn register_signal_handlers() {
     unsafe {
         libc::signal(
@@ -234,6 +250,7 @@ fn register_signal_handlers() {
 
 /// Spawn the IPC server on a tokio runtime in a background thread.
 /// Returns a receiver for commands and a guard that cleans up the socket.
+#[cfg(feature = "ipc")]
 pub fn init() -> (mpsc::Receiver<Command>, SocketGuard) {
     cleanup_stale_sockets();
 
@@ -254,6 +271,7 @@ pub fn init() -> (mpsc::Receiver<Command>, SocketGuard) {
     (rx, SocketGuard { path })
 }
 
+#[cfg(feature = "ipc")]
 async fn serve(path: PathBuf, tx: mpsc::Sender<Command>) {
     let server = match Server::bind(&path) {
         Ok(s) => s,
@@ -276,6 +294,7 @@ async fn serve(path: PathBuf, tx: mpsc::Sender<Command>) {
     }
 }
 
+#[cfg(feature = "ipc")]
 async fn handle_connection(mut conn: Connection, tx: mpsc::Sender<Command>) {
     let request: Request = match conn.read().await {
         Ok(r) => r,

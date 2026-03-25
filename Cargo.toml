@@ -8,15 +8,15 @@ rust-version = "1.89"
 bevy = { version = "0.18", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 bevy_dylib = { version = "0.18", optional = true }
 image-blp = "1"
-peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
+peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0", optional = true }
 tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ron = "0.8"
 webp = "0.3"
 half = "2"
-glob = "0.3"
-libc = "0.2"
+glob = { version = "0.3", optional = true }
+libc = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"] }
 cascette-client-storage = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", features = ["local-install"] }
 cascette-crypto = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
@@ -32,11 +32,18 @@ ktx2-rw = "0.2.4"
 notify = "7"
 
 [[bin]]
+name = "game-engine-cli"
+path = "src/bin/game-engine-cli/main.rs"
+required-features = ["ipc"]
+
+[[bin]]
 name = "casc-local"
 path = "src/bin/casc_local.rs"
 
 [features]
+default = ["ipc"]
 dev = ["bevy_dylib"]
+ipc = ["peercred-ipc", "libc", "glob"]
 
 [patch."ssh://git@github.com/world-of-osso/game-server.git"]
 shared = { path = "../game-server/crates/shared" }

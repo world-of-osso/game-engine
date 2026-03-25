@@ -10,7 +10,9 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use lightyear::prelude::MessageSender;
 use lightyear::prelude::client::Connected;
 
-use super::{Command, Request, Response, init};
+use super::{Command, Request, Response};
+#[cfg(feature = "ipc")]
+use super::init;
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
 use crate::item_info::lookup_item_info;
@@ -140,15 +142,19 @@ pub struct IpcPlugin;
 
 impl Plugin for IpcPlugin {
     fn build(&self, app: &mut App) {
-        let (receiver, guard) = init();
-        app.insert_non_send_resource(receiver)
-            .insert_non_send_resource(guard)
-            .init_resource::<EquipmentControlQueue>()
-            .add_systems(Update, poll_ipc);
+        app.init_resource::<EquipmentControlQueue>();
+        #[cfg(feature = "ipc")]
+        {
+            let (receiver, guard) = init();
+            app.insert_non_send_resource(receiver)
+                .insert_non_send_resource(guard)
+                .add_systems(Update, poll_ipc);
+        }
     }
 }
 
 /// Poll IPC commands each frame and dispatch them.
+#[cfg(feature = "ipc")]
 fn poll_ipc(
     receiver: NonSend<mpsc::Receiver<Command>>,
     mut scene: SceneParams,
