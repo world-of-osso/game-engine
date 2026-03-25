@@ -331,11 +331,32 @@ mod tests {
         assert!(matches!(fill.widget_data, Some(WidgetData::StatusBar(_))));
     }
 
+    #[test]
+    fn slider_thumb_rect_moves_when_value_changes() {
+        let low = options_registry_with_master_volume(0.2);
+        let high = options_registry_with_master_volume(0.8);
+
+        let low_thumb = rect_by_name(&low, "Slidermaster_volumeThumb");
+        let high_thumb = rect_by_name(&high, "Slidermaster_volumeThumb");
+
+        assert!(
+            high_thumb.x > low_thumb.x,
+            "thumb should move right as value increases: low={}, high={}",
+            low_thumb.x,
+            high_thumb.x
+        );
+    }
+
     fn options_registry() -> FrameRegistry {
+        options_registry_with_master_volume(0.8)
+    }
+
+    fn options_registry_with_master_volume(master_volume: f32) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
         view.options.position = [0.0, 0.0];
+        view.options.sound.master_volume = master_volume;
         shared.insert(view);
         Screen::new(game_menu_screen).sync(&shared, &mut reg);
         recompute_layouts(&mut reg);
