@@ -31,7 +31,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 ktx2-rw = "0.2.4"
 notify = "7"
 directories = "5"
-arboard = "3"
+arboard = { version = "3", features = ["wayland-data-control"] }
 
 [[bin]]
 name = "game-engine-cli"

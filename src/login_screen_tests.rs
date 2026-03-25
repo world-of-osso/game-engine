@@ -1,5 +1,4 @@
 use bevy::ecs::system::SystemState;
-use bevy::input::ButtonInput;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
@@ -229,11 +228,11 @@ fn paste_shortcut_inserts_clipboard_text_into_focused_login_editbox() {
     set_editbox_text_for_test(&mut reg, login.username_input, "al");
     let mut ui = make_ui_state(reg);
 
-    let mut keys = ButtonInput::<KeyCode>::default();
-    keys.press(KeyCode::ControlLeft);
-
     let handled = super::maybe_paste_into_login_editbox(
-        &keys,
+        &super::LoginModifierState {
+            ctrl: true,
+            super_key: false,
+        },
         &KeyboardInput {
             key_code: KeyCode::KeyV,
             logical_key: Key::Character("v".into()),
@@ -244,11 +243,61 @@ fn paste_shortcut_inserts_clipboard_text_into_focused_login_editbox() {
         },
         &mut ui,
         login.username_input,
-        Some("ice"),
+        &mut LoginStatus::default(),
+        Ok("ice".to_string()),
     );
 
     assert!(handled);
     assert_eq!(get_editbox_text(&ui.registry, login.username_input), "alice");
+}
+
+#[test]
+fn paste_logical_key_inserts_clipboard_text_into_focused_login_editbox() {
+    let (mut reg, login) = login_fixture();
+    set_editbox_text_for_test(&mut reg, login.username_input, "al");
+    let mut ui = make_ui_state(reg);
+
+    let handled = super::maybe_paste_into_login_editbox(
+        &super::LoginModifierState::default(),
+        &KeyboardInput {
+            key_code: KeyCode::Unidentified(bevy::input::keyboard::NativeKeyCode::Unidentified),
+            logical_key: Key::Paste,
+            state: ButtonState::Pressed,
+            text: None,
+            repeat: false,
+            window: Entity::PLACEHOLDER,
+        },
+        &mut ui,
+        login.username_input,
+        &mut LoginStatus::default(),
+        Ok("ice".to_string()),
+    );
+
+    assert!(handled);
+    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "alice");
+}
+
+#[test]
+fn ctrl_v_without_text_payload_does_not_insert_literal_v() {
+    let (mut reg, login) = login_fixture();
+    set_editbox_text_for_test(&mut reg, login.username_input, "al");
+    let mut ui = make_ui_state(reg);
+
+    let inserted = super::maybe_insert_login_text(
+        &KeyboardInput {
+            key_code: KeyCode::KeyV,
+            logical_key: Key::Character("v".into()),
+            state: ButtonState::Pressed,
+            text: None,
+            repeat: false,
+            window: Entity::PLACEHOLDER,
+        },
+        &mut ui,
+        login.username_input,
+    );
+
+    assert!(!inserted);
+    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "al");
 }
 
 fn run_login_actions(
@@ -270,6 +319,16 @@ fn run_login_actions(
     }
 }
 
+fn login_submit_actions() -> [UiAutomationAction; 5] {
+    [
+        UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+        UiAutomationAction::TypeText("alice".to_string()),
+        UiAutomationAction::ClickFrame("PasswordInput".to_string()),
+        UiAutomationAction::TypeText("secret".to_string()),
+        UiAutomationAction::ClickFrame("ConnectButton".to_string()),
+    ]
+}
+
 #[test]
 fn automation_login_reaches_connecting_state() {
     let (reg, login) = login_fixture();
@@ -283,13 +342,6 @@ fn automation_login_reaches_connecting_state() {
 
     {
         let mut commands = system_state.get_mut(&mut world);
-        let actions = [
-            UiAutomationAction::ClickFrame("UsernameInput".to_string()),
-            UiAutomationAction::TypeText("alice".to_string()),
-            UiAutomationAction::ClickFrame("PasswordInput".to_string()),
-            UiAutomationAction::TypeText("secret".to_string()),
-            UiAutomationAction::ClickFrame("ConnectButton".to_string()),
-        ];
         run_login_actions(
             &mut ui,
             &login,
@@ -299,7 +351,7 @@ fn automation_login_reaches_connecting_state() {
             &mut login_mode,
             &auth_token,
             &mut commands,
-            &actions,
+            &login_submit_actions(),
         );
     }
     system_state.apply(&mut world);
