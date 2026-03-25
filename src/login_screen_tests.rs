@@ -1,4 +1,7 @@
 use bevy::ecs::system::SystemState;
+use bevy::input::ButtonInput;
+use bevy::input::ButtonState;
+use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
 
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
@@ -218,6 +221,34 @@ fn automation_type_uses_login_editbox_code_path() {
         get_editbox_text(&ui.registry, login.username_input),
         "alice"
     );
+}
+
+#[test]
+fn paste_shortcut_inserts_clipboard_text_into_focused_login_editbox() {
+    let (mut reg, login) = login_fixture();
+    set_editbox_text_for_test(&mut reg, login.username_input, "al");
+    let mut ui = make_ui_state(reg);
+
+    let mut keys = ButtonInput::<KeyCode>::default();
+    keys.press(KeyCode::ControlLeft);
+
+    let handled = super::maybe_paste_into_login_editbox(
+        &keys,
+        &KeyboardInput {
+            key_code: KeyCode::KeyV,
+            logical_key: Key::Character("v".into()),
+            state: ButtonState::Pressed,
+            text: Some("v".into()),
+            repeat: false,
+            window: Entity::PLACEHOLDER,
+        },
+        &mut ui,
+        login.username_input,
+        Some("ice"),
+    );
+
+    assert!(handled);
+    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "alice");
 }
 
 fn run_login_actions(

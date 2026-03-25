@@ -1,6 +1,7 @@
 use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
+use std::sync::Arc;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
@@ -30,7 +31,7 @@ use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, hit_frame, insert_char_into_editbox,
+    editbox_move_cursor, hit_frame, insert_char_into_editbox, insert_text_into_editbox,
     set_login_primary_button_textures,
 };
 
@@ -98,6 +99,24 @@ pub(crate) struct DevServer;
 #[derive(Resource)]
 struct LoginFadeIn(f32);
 
+#[derive(Resource, Clone)]
+struct LoginClipboard(Arc<dyn Fn() -> Option<String> + Send + Sync>);
+
+impl Default for LoginClipboard {
+    fn default() -> Self {
+        Self(Arc::new(|| {
+            let mut clipboard = arboard::Clipboard::new().ok()?;
+            clipboard.get_text().ok()
+        }))
+    }
+}
+
+impl LoginClipboard {
+    fn read_text(&self) -> Option<String> {
+        (self.0)()
+    }
+}
+
 struct LoginScreenRes {
     screen: Screen,
     shared: ui_toolkit::screen::SharedContext,
@@ -117,6 +136,7 @@ impl Plugin for LoginScreenPlugin {
         app.init_resource::<LoginFocus>();
         app.init_resource::<LoginStatus>();
         app.init_resource::<LoginPressedButton>();
+        app.init_resource::<LoginClipboard>();
         app.add_systems(OnEnter(GameState::Login), build_login_ui);
         app.add_systems(OnExit(GameState::Login), teardown_login_ui);
         app.add_systems(
@@ -454,9 +474,11 @@ fn set_button_pushed(reg: &mut FrameRegistry, id: u64) {
 
 fn login_keyboard_input(
     mut key_events: MessageReader<KeyboardInput>,
+    key_codes: Res<ButtonInput<KeyCode>>,
     mut ui: ResMut<UiState>,
     mut focus: ResMut<LoginFocus>,
     login_ui: Option<Res<LoginUi>>,
+    clipboard: Res<LoginClipboard>,
     mut cp: LoginConnectParams,
 ) {
     let Some(login) = login_ui.as_ref() else {
@@ -470,6 +492,15 @@ fn login_keyboard_input(
             continue;
         }
         let Some(focused_id) = focus.0 else { continue };
+        if maybe_paste_into_login_editbox(
+            &key_codes,
+            event,
+            &mut ui,
+            focused_id,
+            clipboard.read_text().as_deref(),
+        ) {
+            continue;
+        }
         if let Key::Character(ch) = &event.logical_key {
             insert_char_into_editbox(&mut ui.registry, focused_id, ch.as_str());
         } else {
@@ -489,6 +520,30 @@ fn login_keyboard_input(
             );
         }
     }
+}
+
+fn maybe_paste_into_login_editbox(
+    key_codes: &ButtonInput<KeyCode>,
+    event: &KeyboardInput,
+    ui: &mut UiState,
+    focused_id: u64,
+    clipboard_text: Option<&str>,
+) -> bool {
+    if !is_paste_shortcut(key_codes, event.key_code) {
+        return false;
+    }
+    if let Some(text) = clipboard_text {
+        insert_text_into_editbox(&mut ui.registry, focused_id, text);
+    }
+    true
+}
+
+fn is_paste_shortcut(key_codes: &ButtonInput<KeyCode>, key_code: KeyCode) -> bool {
+    key_code == KeyCode::KeyV
+        && (key_codes.pressed(KeyCode::ControlLeft)
+            || key_codes.pressed(KeyCode::ControlRight)
+            || key_codes.pressed(KeyCode::SuperLeft)
+            || key_codes.pressed(KeyCode::SuperRight))
 }
 
 fn login_run_automation(

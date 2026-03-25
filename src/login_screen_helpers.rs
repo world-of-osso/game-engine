@@ -46,18 +46,46 @@ pub fn editbox_cursor_end(reg: &mut FrameRegistry, id: u64) {
 }
 
 pub fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
-    if !ch.chars().all(|c| !c.is_control()) {
+    insert_text_into_editbox(reg, id, ch);
+}
+
+pub fn insert_text_into_editbox(reg: &mut FrameRegistry, id: u64, text: &str) {
+    let filtered: String = text.chars().filter(|c| !c.is_control()).collect();
+    if filtered.is_empty() {
         return;
     }
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        if eb
-            .max_letters
-            .is_some_and(|max| eb.text.len() >= max as usize)
-        {
+        let mut insert = filtered;
+
+        if let Some(max_letters) = eb.max_letters {
+            let remaining = (max_letters as usize).saturating_sub(eb.text.chars().count());
+            if remaining == 0 {
+                return;
+            }
+            insert = insert.chars().take(remaining).collect();
+        }
+
+        if let Some(max_bytes) = eb.max_bytes {
+            let remaining = (max_bytes as usize).saturating_sub(eb.text.len());
+            if remaining == 0 {
+                return;
+            }
+            let mut truncated = String::new();
+            for ch in insert.chars() {
+                if truncated.len() + ch.len_utf8() > remaining {
+                    break;
+                }
+                truncated.push(ch);
+            }
+            insert = truncated;
+        }
+
+        if insert.is_empty() {
             return;
         }
-        eb.text.insert_str(eb.cursor_position, ch);
-        eb.cursor_position += ch.len();
+
+        eb.text.insert_str(eb.cursor_position, &insert);
+        eb.cursor_position += insert.len();
     }
 }
 
