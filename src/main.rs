@@ -207,7 +207,7 @@ struct ParsedArgs {
 }
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
-    parse_run_args_with_saved_token(args, networking::load_auth_token().is_some())
+    parse_run_args_with_saved_token(args, networking::load_auth_token(None).is_some())
 }
 
 fn parse_run_args_with_saved_token(args: &[String], has_saved_auth_token: bool) -> ParsedArgs {

@@ -162,7 +162,11 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
     app.init_resource::<ReconnectState>();
-    app.insert_resource(AuthToken(load_auth_token()));
+    let server = app
+        .world()
+        .get_resource::<ServerAddr>()
+        .map(|a| a.0.to_string());
+    app.insert_resource(AuthToken(load_auth_token(server.as_deref())));
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<CharacterList>();
     app.init_resource::<SelectedCharacterId>();
