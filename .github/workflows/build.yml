@@ -28,16 +28,6 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Configure SSH for private deps
-        env:
-          SSH_KEY: ${{ secrets.PRIVATE_REPO_SSH_KEY }}
-        shell: bash
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
-
       - uses: actions/checkout@v4
 
       - name: Install Rust
