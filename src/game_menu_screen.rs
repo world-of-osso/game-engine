@@ -508,7 +508,7 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     apply_camera_snapshot(&mut world.resource_mut::<CameraOptions>(), &snapshot.camera);
     apply_hud_snapshot(&mut world.resource_mut::<HudOptions>(), &snapshot.hud);
     if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
-        fps.enabled = snapshot.hud.show_fps_overlay;
+        client_options::apply_fps_overlay_visibility(&mut fps, snapshot.hud.show_fps_overlay);
     }
     let mut ui_state = world.resource_mut::<ClientOptionsUiState>();
     ui_state.modal_offset = Some(snapshot.modal_position);

@@ -48,11 +48,12 @@ pub fn camera_body(camera: &CameraOptionsView) -> Element {
 }
 
 pub fn interface_body(hud: &HudOptionsView) -> Element {
+    let _ = hud;
     content_stack(
-        [toggle_row(
-            "show_fps_overlay",
-            "Show FPS Overlay",
-            hud.show_fps_overlay,
+        [options_menu_sections::info_row(
+            "interface_status",
+            "Interface",
+            "More interface-specific controls can land here",
         )]
         .into_iter()
         .flatten()

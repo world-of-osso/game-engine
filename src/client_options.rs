@@ -357,9 +357,14 @@ fn apply_loaded_client_options(
         return;
     }
     if let Some(fps) = fps.as_mut() {
-        fps.enabled = loaded.file.hud.show_fps_overlay;
+        apply_fps_overlay_visibility(fps.as_mut(), loaded.file.hud.show_fps_overlay);
     }
     loaded.applied = true;
+}
+
+pub fn apply_fps_overlay_visibility(fps: &mut FpsOverlayConfig, visible: bool) {
+    fps.enabled = visible;
+    fps.frame_time_graph_config.enabled = visible;
 }
 
 #[cfg(test)]
