@@ -15,6 +15,7 @@ echo "=== Syncing data directory ==="
 rsync -avz --delete \
     --exclude='*.lock' \
     --exclude='debug_*.webp' \
+    --exclude='screenshots/' \
     "$SCRIPT_DIR/data/" "$SERVER:$REMOTE_DIR/data/"
 
 echo "=== Generating manifest on server ==="
