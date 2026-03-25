@@ -41,6 +41,7 @@ const OPTIONS_CONTENT_W: f32 = 716.0;
 const OPTIONS_CONTENT_H: f32 = 478.0;
 const OPTIONS_CONTENT_INSET_X: f32 = 15.0;
 const OPTIONS_CONTENT_INSET_TOP: f32 = 54.0;
+const OPTIONS_FOOTER_RIGHT_INSET: f32 = 80.0;
 const TAB_ROW_W: f32 = 164.0;
 const TAB_ROW_H: f32 = 30.0;
 const TAB_LABEL_W: f32 = 132.0;
@@ -441,12 +442,18 @@ fn build_footer() -> Element {
     rsx! {
         r#frame {
             name: OPTIONS_FOOTER,
-            width: {OPTIONS_W - 40.0},
-            height: 42.0,
+            width: 0.0,
+            height: 0.0,
+            layout: "flex-row",
+            justify: "start",
+            align: "center",
+            gap: 12.0,
             anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "-14",
+                point: AnchorPoint::BottomRight,
+                relative_to: OPTIONS_ROOT,
+                relative_point: AnchorPoint::BottomRight,
+                x: {(-OPTIONS_FOOTER_RIGHT_INSET).to_string()},
+                y: "20",
             }
             {footer_buttons}
         }
@@ -456,51 +463,26 @@ fn build_footer() -> Element {
 fn footer_buttons() -> Element {
     footer_specs()
         .into_iter()
-        .flat_map(|(name, text, action, width, x)| small_button(name, text, action, width, x))
+        .flat_map(|(name, text, action, width)| small_button(name, text, action, width))
         .collect()
 }
 
-fn footer_specs() -> [(&'static str, &'static str, &'static str, f32, &'static str); 5] {
+fn footer_specs() -> [(&'static str, &'static str, &'static str, f32); 5] {
     [
-        (
-            "OptionsBackButton",
-            "Back",
-            ACTION_OPTIONS_BACK,
-            86.0,
-            "288",
-        ),
+        ("OptionsBackButton", "Back", ACTION_OPTIONS_BACK, 86.0),
         (
             "OptionsDefaultsButton",
             "Defaults",
             ACTION_OPTIONS_DEFAULTS,
             116.0,
-            "394",
         ),
-        (
-            "OptionsApplyButton",
-            "Apply",
-            ACTION_OPTIONS_APPLY,
-            94.0,
-            "526",
-        ),
-        (
-            "OptionsCancelButton",
-            "Cancel",
-            ACTION_OPTIONS_CANCEL,
-            94.0,
-            "632",
-        ),
-        (
-            "OptionsOkayButton",
-            "Okay",
-            ACTION_OPTIONS_OKAY,
-            94.0,
-            "738",
-        ),
+        ("OptionsApplyButton", "Apply", ACTION_OPTIONS_APPLY, 94.0),
+        ("OptionsCancelButton", "Cancel", ACTION_OPTIONS_CANCEL, 94.0),
+        ("OptionsOkayButton", "Okay", ACTION_OPTIONS_OKAY, 94.0),
     ]
 }
 
-fn small_button(name: &str, text: &str, action: &str, width: f32, x: &str) -> Element {
+fn small_button(name: &str, text: &str, action: &str, width: f32) -> Element {
     let n = DynName(name.to_string());
     let text = text.to_string();
     let action = action.to_string();
@@ -516,11 +498,6 @@ fn small_button(name: &str, text: &str, action: &str, width: f32, x: &str) -> El
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-                x: {x},
-            }
         }
     }
 }
