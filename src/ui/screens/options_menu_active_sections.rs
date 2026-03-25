@@ -3,6 +3,7 @@ use std::fmt;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::slider::{SliderWidget, slider_widget};
+use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
 use crate::ui::anchor::AnchorPoint;
 
@@ -21,12 +22,15 @@ const OPTIONS_TRACK_W: f32 =
 const OPTIONS_TRACK_H: f32 = 15.0;
 const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
+const OPTIONS_TOGGLE_W: f32 = 170.0;
+const OPTIONS_TOGGLE_H: f32 = 28.0;
+const OPTIONS_TOGGLE_BG: &str = "0.10,0.09,0.08,1.0";
+const OPTIONS_TOGGLE_FILL: &str = "0.43,0.31,0.10,0.92";
+const OPTIONS_TOGGLE_BORDER: &str = "1px solid 0.32,0.24,0.10,0.75";
+const OPTIONS_TOGGLE_TEXT_IDLE: &str = "0.70,0.66,0.56,1.0";
+const OPTIONS_TOGGLE_TEXT_ACTIVE: &str = "0.95,0.90,0.74,1.0";
 const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
-const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
-const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
-const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
-const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
 struct DynName(String);
 
@@ -108,7 +112,7 @@ fn content_stack(children: Element) -> Element {
 
 fn sound_items(sound: &SoundOptionsView) -> Element {
     [
-        toggle_row("muted", "Mute All Sound", sound.muted),
+        toggle_row("muted", "Mute All Sound", !sound.muted),
         toggle_row("music_enabled", "Enable Music", sound.music_enabled),
         spacer("SoundSpacer", 18.0),
         slider_row(
@@ -197,8 +201,15 @@ fn camera_distance_sliders(camera: &CameraOptionsView) -> Element {
 }
 
 fn toggle_row(key: &str, label: &str, enabled: bool) -> Element {
-    let state = if enabled { "Enabled" } else { "Disabled" };
-    rsx! { r#frame { name: {DynName(format!("ToggleRow{key}"))}, width: {OPTIONS_CONTENT_W - 30.0}, height: 32.0, {row_label(&format!("ToggleLabel{key}"), label)} {small_button(&format!("ToggleButton{key}"), state, &toggle_action(key), 116.0, "566")} } }
+    rsx! {
+        r#frame {
+            name: {DynName(format!("ToggleRow{key}"))},
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 32.0,
+            {row_label(&format!("ToggleLabel{key}"), label)}
+            {segmented_toggle(key, enabled)}
+        }
+    }
 }
 
 fn slider_row(key: &str, label: &str, value: f32, min: f32, max: f32) -> Element {
@@ -213,12 +224,28 @@ fn row_label(name: &str, text: &str) -> Element {
     rsx! { fontstring { name: {DynName(name.to_string())}, width: {OPTIONS_LABEL_W}, height: 20.0, text: {text}, font_size: 16.0, color: "0.95,0.90,0.74,1.0", justify_h: "LEFT", anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left } } }
 }
 
-fn slider_value_text(key: &str, text: &str) -> Element {
-    rsx! { fontstring { name: {DynName(format!("SliderValue{key}"))}, width: 76.0, height: 20.0, text: {text}, font_size: 15.0, color: "0.95,0.90,0.74,1.0", justify_h: "RIGHT", anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-8" } } }
+fn segmented_toggle(key: &str, enabled: bool) -> Element {
+    let action = toggle_action(key);
+    let name = format!("ToggleSwitch{key}");
+    toggle_widget(ToggleWidget {
+        name: &name,
+        action: &action,
+        right_selected: enabled,
+        width: OPTIONS_TOGGLE_W,
+        height: OPTIONS_TOGGLE_H,
+        left_label: "Off",
+        right_label: "On",
+        background_color: OPTIONS_TOGGLE_BG,
+        active_color: OPTIONS_TOGGLE_FILL,
+        border: OPTIONS_TOGGLE_BORDER,
+        active_text_color: OPTIONS_TOGGLE_TEXT_ACTIVE,
+        idle_text_color: OPTIONS_TOGGLE_TEXT_IDLE,
+        x: "-8",
+    })
 }
 
-fn small_button(name: &str, text: &str, action: &str, width: f32, x: &str) -> Element {
-    rsx! { button { name: {DynName(name.to_string())}, width: {width}, height: 30.0, text: {text}, font_size: 14.0, onclick: {action}, button_atlas_up: BUTTON_ATLAS_UP, button_atlas_pressed: BUTTON_ATLAS_PRESSED, button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT, button_atlas_disabled: BUTTON_ATLAS_DISABLED, anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: {x} } } }
+fn slider_value_text(key: &str, text: &str) -> Element {
+    rsx! { fontstring { name: {DynName(format!("SliderValue{key}"))}, width: 76.0, height: 20.0, text: {text}, font_size: 15.0, color: "0.95,0.90,0.74,1.0", justify_h: "RIGHT", anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-8" } } }
 }
 
 fn spacer(name: &str, height: f32) -> Element {
@@ -231,10 +258,6 @@ fn toggle_action(key: &str) -> String {
 
 fn slider_action(key: &str) -> String {
     format!("options_slider:{key}")
-}
-
-fn step_action(key: &str, delta: i32) -> String {
-    format!("options_step:{key}:{delta}")
 }
 
 fn normalize(value: f32, min: f32, max: f32) -> f32 {

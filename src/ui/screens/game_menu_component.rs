@@ -377,6 +377,26 @@ mod tests {
         );
     }
 
+    #[test]
+    fn sound_toggle_switch_moves_active_segment_with_muted_state() {
+        let unmuted = options_registry_with_muted(false);
+        let muted = options_registry_with_muted(true);
+
+        let unmuted_active = rect_by_name(&unmuted, "ToggleSwitchmutedActive");
+        let muted_active = rect_by_name(&muted, "ToggleSwitchmutedActive");
+
+        assert!(
+            muted_active.x < unmuted_active.x,
+            "mute active segment should move left when muted: unmuted={}, muted={}",
+            unmuted_active.x,
+            muted_active.x
+        );
+        assert!(unmuted.get_by_name("ToggleSwitchmutedLeftHit").is_some());
+        assert!(unmuted.get_by_name("ToggleSwitchmutedRightHit").is_none());
+        assert!(muted.get_by_name("ToggleSwitchmutedLeftHit").is_none());
+        assert!(muted.get_by_name("ToggleSwitchmutedRightHit").is_some());
+    }
+
     fn options_registry() -> FrameRegistry {
         options_registry_with_master_volume(0.8)
     }
@@ -387,6 +407,18 @@ mod tests {
         let mut view = model(GameMenuView::Options);
         view.options.position = [0.0, 0.0];
         view.options.sound.master_volume = master_volume;
+        shared.insert(view);
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn options_registry_with_muted(muted: bool) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut view = model(GameMenuView::Options);
+        view.options.position = [0.0, 0.0];
+        view.options.sound.muted = muted;
         shared.insert(view);
         Screen::new(game_menu_screen).sync(&shared, &mut reg);
         recompute_layouts(&mut reg);
