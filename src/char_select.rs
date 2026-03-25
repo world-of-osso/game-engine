@@ -27,7 +27,7 @@ ui_resource! {
         root: CHAR_SELECT_ROOT,
         enter_button: ENTER_WORLD_BUTTON,
         create_button: CREATE_CHAR_BUTTON,
-        delete_button: DELETE_CHAR_BUTTON,
+        delete_button?: DELETE_CHAR_BUTTON,
         back_button: BACK_BUTTON,
         status_text: STATUS_TEXT,
         selected_name_text: SELECTED_NAME_TEXT,

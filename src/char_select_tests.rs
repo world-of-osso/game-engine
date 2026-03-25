@@ -1,4 +1,3 @@
-use super::char_select_input::*;
 use super::*;
 use std::collections::VecDeque;
 
@@ -99,6 +98,8 @@ fn screen_builds_with_empty_char_list() {
     assert!(reg.get_by_name("CharSelectRoot").is_some());
     assert!(reg.get_by_name("EnterWorld").is_some());
     assert!(reg.get_by_name("BackToLogin").is_some());
+    let ui = CharSelectUi::resolve(&reg);
+    assert_eq!(ui.delete_button, None);
 }
 
 #[test]
