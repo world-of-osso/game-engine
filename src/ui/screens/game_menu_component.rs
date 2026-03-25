@@ -336,12 +336,42 @@ mod tests {
         let low = options_registry_with_master_volume(0.2);
         let high = options_registry_with_master_volume(0.8);
 
-        let low_thumb = rect_by_name(&low, "Slidermaster_volumeThumb");
-        let high_thumb = rect_by_name(&high, "Slidermaster_volumeThumb");
+        let low_thumb = rect_by_name(&low, "Slidermaster_volumeThumbFrame");
+        let high_thumb = rect_by_name(&high, "Slidermaster_volumeThumbFrame");
 
         assert!(
             high_thumb.x > low_thumb.x,
             "thumb should move right as value increases: low={}, high={}",
+            low_thumb.x,
+            high_thumb.x
+        );
+    }
+
+    #[test]
+    fn slider_thumb_rect_moves_when_existing_screen_rebuilds() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut screen = Screen::new(game_menu_screen);
+
+        let mut low = model(GameMenuView::Options);
+        low.options.position = [0.0, 0.0];
+        low.options.sound.master_volume = 0.2;
+        shared.insert(low);
+        screen.sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        let low_thumb = rect_by_name(&reg, "Slidermaster_volumeThumbFrame");
+
+        let mut high = model(GameMenuView::Options);
+        high.options.position = [0.0, 0.0];
+        high.options.sound.master_volume = 0.8;
+        shared.insert(high);
+        screen.sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        let high_thumb = rect_by_name(&reg, "Slidermaster_volumeThumbFrame");
+
+        assert!(
+            high_thumb.x > low_thumb.x,
+            "thumb should move right after rebuild: low={}, high={}",
             low_thumb.x,
             high_thumb.x
         );
