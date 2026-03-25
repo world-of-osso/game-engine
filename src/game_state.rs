@@ -43,8 +43,11 @@ fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>)
         app.insert_state(state);
     } else if has_server {
         app.init_state::<GameState>();
-    } else {
+    } else if cfg!(debug_assertions) {
+        // Dev standalone mode: skip login, go straight to world
         app.insert_state(GameState::InWorld);
+    } else {
+        app.init_state::<GameState>();
     }
 }
 
@@ -216,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_standalone_starts_in_world() {
-        // Without ServerAddr, the plugin should insert InWorld directly.
+        // In debug builds without ServerAddr, the plugin should insert InWorld directly.
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_plugins(bevy::asset::AssetPlugin::default());
