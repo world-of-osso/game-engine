@@ -1,13 +1,15 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::prelude::*;
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
 use crate::sound::SoundSettings;
 
-const OPTIONS_PATH: &str = "data/ui/options_settings.ron";
+const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
+const OPTIONS_FILE_NAME: &str = "options_settings.ron";
 
 pub struct ClientOptionsPlugin;
 
@@ -248,21 +250,45 @@ pub fn save_client_options(
     let pretty = ron::ser::PrettyConfig::new();
     let serialized = ron::ser::to_string_pretty(&file, pretty)
         .map_err(|err| format!("failed to serialize client options: {err}"))?;
-    let path = Path::new(OPTIONS_PATH);
+    let path = options_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
     }
-    fs::write(path, serialized)
+    fs::write(&path, serialized)
         .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
 }
 
 fn load_options_file() -> ClientOptionsFile {
-    let path = Path::new(OPTIONS_PATH);
-    let Ok(raw) = fs::read_to_string(path) else {
+    let path = load_options_path();
+    let Ok(raw) = fs::read_to_string(&path) else {
         return ClientOptionsFile::default();
     };
     ron::de::from_str::<ClientOptionsFile>(&raw).unwrap_or_default()
+}
+
+fn load_options_path() -> PathBuf {
+    let config_path = options_path();
+    let legacy_path = PathBuf::from(LEGACY_OPTIONS_PATH);
+    select_load_options_path(&config_path, &legacy_path)
+}
+
+fn options_path() -> PathBuf {
+    if let Some(proj_dirs) = ProjectDirs::from("org", "WorldOfOsso", "game-engine") {
+        return proj_dirs.config_dir().join(OPTIONS_FILE_NAME);
+    }
+
+    Path::new(LEGACY_OPTIONS_PATH).to_path_buf()
+}
+
+fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {
+    if config_path.exists() {
+        return config_path.to_path_buf();
+    }
+    if legacy_path.exists() {
+        return legacy_path.to_path_buf();
+    }
+    config_path.to_path_buf()
 }
 
 fn apply_loaded_client_options(
@@ -290,6 +316,17 @@ fn apply_loaded_client_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        Path::new("target/test-artifacts")
+            .join("client_options")
+            .join(format!("{name}-{nanos}"))
+    }
 
     #[test]
     fn default_file_uses_expected_modal_position() {
@@ -304,5 +341,47 @@ mod tests {
         assert!(defaults.show_minimap);
         assert!(defaults.show_action_bars);
         assert!(defaults.show_target_marker);
+    }
+
+    #[test]
+    fn prefers_config_path_when_both_exist() {
+        let test_dir = unique_test_dir("prefer-config");
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config").join(OPTIONS_FILE_NAME);
+        let legacy_path = test_dir.join("legacy").join(OPTIONS_FILE_NAME);
+        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        fs::create_dir_all(legacy_path.parent().unwrap()).unwrap();
+        fs::write(&config_path, "config").unwrap();
+        fs::write(&legacy_path, "legacy").unwrap();
+
+        let selected = select_load_options_path(&config_path, &legacy_path);
+
+        assert_eq!(selected, config_path);
+    }
+
+    #[test]
+    fn falls_back_to_legacy_path_when_config_missing() {
+        let test_dir = unique_test_dir("fallback-legacy");
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config").join(OPTIONS_FILE_NAME);
+        let legacy_path = test_dir.join("legacy").join(OPTIONS_FILE_NAME);
+        fs::create_dir_all(legacy_path.parent().unwrap()).unwrap();
+        fs::write(&legacy_path, "legacy").unwrap();
+
+        let selected = select_load_options_path(&config_path, &legacy_path);
+
+        assert_eq!(selected, legacy_path);
+    }
+
+    #[test]
+    fn returns_config_path_when_no_file_exists() {
+        let test_dir = unique_test_dir("default-config");
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config").join(OPTIONS_FILE_NAME);
+        let legacy_path = test_dir.join("legacy").join(OPTIONS_FILE_NAME);
+
+        let selected = select_load_options_path(&config_path, &legacy_path);
+
+        assert_eq!(selected, config_path);
     }
 }

@@ -30,6 +30,7 @@ quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 ktx2-rw = "0.2.4"
 notify = "7"
+directories = "5"
 
 [[bin]]
 name = "game-engine-cli"
