@@ -33,7 +33,6 @@ mod asset {
 }
 mod camera;
 mod campsite_popup_screen;
-mod client_options;
 mod char_create;
 mod char_create_scene;
 mod char_select;
@@ -43,6 +42,7 @@ mod char_select_scene_tree;
 mod character_customization;
 mod character_models;
 mod cli_args;
+mod client_options;
 mod collision;
 mod creature_display;
 mod dump_systems;
@@ -334,6 +334,11 @@ fn insert_screen_resources(app: &mut App, args: &[String]) {
                     game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
                 ));
             }
+        }
+        Ok(Some(game_engine::game_state_enum::ScreenArg::OptionsMenu)) => {
+            app.insert_resource(game_menu_screen::StartupGameMenuView(
+                game_engine::ui::screens::game_menu_component::GameMenuView::Options,
+            ));
         }
         Ok(_) => {}
         Err(err) => {

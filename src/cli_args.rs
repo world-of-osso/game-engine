@@ -91,7 +91,7 @@ pub fn print_help() {
     println!();
     println!("OPTIONS:");
     println!(
-        "  --screen <SCREEN>   Start at screen: login, charselect, charcreate, charcreate-customize, campsitepopup, inworld, trashbutton"
+        "  --screen <SCREEN>   Start at screen: login, charselect, charcreate, charcreate-customize, campsitepopup, inworld, gamemenu, optionsmenu, trashbutton"
     );
     println!("  --server <ADDR>     Game server address (default: 127.0.0.1:5000)");
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");

@@ -222,6 +222,19 @@ fn parse_screen_menu_alias() {
         .expect("valid parse")
         .expect("expected gamemenu screen");
     assert_eq!(parsed, game_state::GameState::GameMenu);
+
+    let parsed = parse_state_arg(&args(&["--screen", "optionsmenu"]))
+        .expect("valid parse")
+        .expect("expected optionsmenu screen");
+    assert_eq!(parsed, game_state::GameState::GameMenu);
+}
+
+#[test]
+fn parse_screen_arg_preserves_optionsmenu_variant() {
+    let parsed = parse_screen_arg(&args(&["--screen", "optionsmenu"]))
+        .expect("valid parse")
+        .expect("expected optionsmenu variant");
+    assert_eq!(parsed, game_engine::game_state_enum::ScreenArg::OptionsMenu);
 }
 
 #[test]

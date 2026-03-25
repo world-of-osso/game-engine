@@ -3,8 +3,12 @@ use std::fmt;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
+use super::options_menu_active_sections;
+use super::options_menu_sections;
+use super::screen_title::framed_title;
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
+use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 struct DynName(String);
 
@@ -16,9 +20,12 @@ impl fmt::Display for DynName {
 
 pub const OPTIONS_ROOT: FrameName = FrameName("OptionsRoot");
 pub const OPTIONS_DRAG_HANDLE: FrameName = FrameName("OptionsDragHandle");
-const OPTIONS_TITLE: FrameName = FrameName("OptionsTitle");
+const OPTIONS_TITLE_FRAME: FrameName = FrameName("OptionsTitleFrame");
+const OPTIONS_TITLE_LABEL: FrameName = FrameName("OptionsTitleLabel");
 const OPTIONS_TAB_PANEL: FrameName = FrameName("OptionsTabPanel");
+const OPTIONS_TAB_INNER: FrameName = FrameName("OptionsTabInner");
 const OPTIONS_CONTENT_PANEL: FrameName = FrameName("OptionsContentPanel");
+const OPTIONS_CONTENT_INNER: FrameName = FrameName("OptionsContentInner");
 const OPTIONS_FOOTER: FrameName = FrameName("OptionsFooter");
 
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
@@ -26,15 +33,27 @@ const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
-const OPTIONS_W: f32 = 860.0;
-const OPTIONS_H: f32 = 580.0;
-const OPTIONS_HEADER_H: f32 = 54.0;
-const OPTIONS_TAB_W: f32 = 170.0;
-const OPTIONS_CONTENT_W: f32 = 610.0;
-const OPTIONS_CONTENT_H: f32 = 404.0;
-const OPTIONS_TRACK_W: f32 = 240.0;
-const OPTIONS_TRACK_H: f32 = 10.0;
-const OPTIONS_THUMB_W: f32 = 14.0;
+const OPTIONS_W: f32 = 980.0;
+const OPTIONS_H: f32 = 660.0;
+const OPTIONS_HEADER_H: f32 = 58.0;
+const OPTIONS_TAB_W: f32 = 186.0;
+const OPTIONS_CONTENT_W: f32 = 716.0;
+const OPTIONS_CONTENT_H: f32 = 478.0;
+const OPTIONS_CONTENT_INSET_X: f32 = 15.0;
+const OPTIONS_CONTENT_INSET_TOP: f32 = 54.0;
+const TAB_ROW_W: f32 = 164.0;
+const TAB_ROW_H: f32 = 30.0;
+const TAB_LABEL_W: f32 = 132.0;
+const TAB_ACCENT_H: f32 = 18.0;
+
+const TAB_TEXT_IDLE: FontColor = FontColor::new(0.83, 0.79, 0.69, 1.0);
+const TAB_TEXT_SELECTED: FontColor = FontColor::new(0.96, 0.84, 0.56, 1.0);
+const TAB_BG_IDLE: &str = "0.07,0.06,0.05,0.0";
+const TAB_BG_SELECTED: &str = "0.18,0.14,0.08,0.55";
+const TAB_BORDER_IDLE: &str = "1px solid 0.30,0.24,0.09,0.0";
+const TAB_BORDER_SELECTED: &str = "1px solid 0.42,0.33,0.12,0.65";
+const TAB_ACCENT_COLOR: &str = "0.95,0.76,0.14,0.95";
+const TAB_DIVIDER_COLOR: &str = "0.22,0.18,0.10,0.45";
 
 pub const ACTION_OPTIONS_BACK: &str = "options_back";
 pub const ACTION_OPTIONS_APPLY: &str = "options_apply";
@@ -173,14 +192,24 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
             width: {OPTIONS_W},
             height: {OPTIONS_H},
             strata: FrameStrata::Dialog,
-            frame_level: 12.0,
+            frame_level: 0.0,
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
                 x: {x},
                 y: {y},
             }
-            {header()}
+            r#frame {
+                name: OPTIONS_DRAG_HANDLE,
+                width: {OPTIONS_W},
+                height: {OPTIONS_HEADER_H},
+                mouse_enabled: true,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+            {title()}
             {build_tabs(model)}
             {build_content(model)}
             {build_footer()}
@@ -188,46 +217,26 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
     }
 }
 
-fn header() -> Element {
-    rsx! {
-        r#frame {
-            name: OPTIONS_DRAG_HANDLE,
-            width: {OPTIONS_W},
-            height: {OPTIONS_HEADER_H},
-            background_color: "0.14,0.10,0.05,0.86",
-            mouse_enabled: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
-        }
-        fontstring {
-            name: OPTIONS_TITLE,
-            width: 280.0,
-            height: 24.0,
-            text: "Options",
-            font_size: 22.0,
-            color: "0.96,0.84,0.56,1.0",
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: OPTIONS_DRAG_HANDLE,
-                relative_point: AnchorPoint::Left,
-                x: "18",
-            }
-        }
-    }
+fn title() -> Element {
+    framed_title(
+        OPTIONS_TITLE_FRAME,
+        OPTIONS_TITLE_LABEL,
+        OPTIONS_ROOT,
+        300.0,
+        "Game Menu",
+    )
 }
 
 fn build_tabs(model: &OptionsViewModel) -> Element {
     let buttons: Element = OptionsCategory::ALL
         .iter()
         .enumerate()
-        .flat_map(|(index, category)| tab_button(*category, model.category == *category, index))
+        .flat_map(|(_, category)| tab_button(*category, model.category == *category))
         .collect();
     rsx! {
         panel {
             name: OPTIONS_TAB_PANEL,
+            style: "inner_plain",
             width: {OPTIONS_TAB_W},
             height: {OPTIONS_CONTENT_H},
             anchor {
@@ -237,38 +246,111 @@ fn build_tabs(model: &OptionsViewModel) -> Element {
                 x: "18",
                 y: "-18",
             }
+            {tab_stack(buttons)}
+        }
+    }
+}
+
+fn tab_stack(buttons: Element) -> Element {
+    rsx! {
+        r#frame {
+            name: OPTIONS_TAB_INNER,
+            width: {OPTIONS_TAB_W - 16.0},
+            height: {OPTIONS_CONTENT_H - 24.0},
+            layout: "flex-column",
+            align: "center",
+            gap: 8.0,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: OPTIONS_TAB_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "8",
+                y: "-12",
+            }
             {buttons}
         }
     }
 }
 
-fn tab_button(category: OptionsCategory, selected: bool, index: usize) -> Element {
+fn tab_button(category: OptionsCategory, selected: bool) -> Element {
     let action = cat_action(category);
     let name = DynName(format!("OptionsTab{}", category.key()));
-    let label = if selected {
-        format!("{} *", category.title())
+    let (background, border, color) = tab_style(selected);
+    let accent = if selected {
+        tab_accent(&name.0)
     } else {
-        category.title().to_string()
+        Vec::new()
     };
-    let y = (index as f32 * 34.0).to_string();
     rsx! {
-        button {
+        r#frame {
             name: {&name},
-            width: 150.0,
-            height: 28.0,
-            text: {&label},
-            font_size: 13.0,
+            width: {TAB_ROW_W},
+            height: {TAB_ROW_H},
             onclick: {&action},
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            background_color: background,
+            border,
+            {tab_label(&name.0, category.title(), color)}
+            {tab_divider(&name.0)}
+            {accent}
+        }
+    }
+}
+
+fn tab_style(selected: bool) -> (&'static str, &'static str, FontColor) {
+    if selected {
+        (TAB_BG_SELECTED, TAB_BORDER_SELECTED, TAB_TEXT_SELECTED)
+    } else {
+        (TAB_BG_IDLE, TAB_BORDER_IDLE, TAB_TEXT_IDLE)
+    }
+}
+
+fn tab_label(name: &str, label: &str, color: FontColor) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("{name}Label"))},
+            width: {TAB_LABEL_W},
+            height: {TAB_ROW_H},
+            text: {label},
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
+            font_color: color,
+            justify_h: JustifyH::Left,
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_TAB_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "10",
-                y: {y},
+                point: AnchorPoint::Left,
+                relative_point: AnchorPoint::Left,
+                x: "18",
+            }
+        }
+    }
+}
+
+fn tab_divider(name: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{name}Divider"))},
+            width: {TAB_ROW_W - 22.0},
+            height: 1.0,
+            background_color: TAB_DIVIDER_COLOR,
+            anchor {
+                point: AnchorPoint::Bottom,
+                relative_point: AnchorPoint::Bottom,
+                y: "1",
+            }
+        }
+    }
+}
+
+fn tab_accent(name: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{name}Accent"))},
+            width: 3.0,
+            height: {TAB_ACCENT_H},
+            background_color: TAB_ACCENT_COLOR,
+            anchor {
+                point: AnchorPoint::Left,
+                relative_point: AnchorPoint::Left,
+                x: "8",
             }
         }
     }
@@ -278,17 +360,18 @@ fn build_content(model: &OptionsViewModel) -> Element {
     rsx! {
         panel {
             name: OPTIONS_CONTENT_PANEL,
+            style: "inner_plain",
             width: {OPTIONS_CONTENT_W},
             height: {OPTIONS_CONTENT_H},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_to: OPTIONS_DRAG_HANDLE,
                 relative_point: AnchorPoint::BottomLeft,
-                x: "220",
+                x: "236",
                 y: "-18",
             }
             {content_header(model.category)}
-            {category_body(model)}
+            {content_body(model)}
         }
     }
 }
@@ -308,7 +391,7 @@ fn content_header(category: OptionsCategory) -> Element {
                 relative_to: OPTIONS_CONTENT_PANEL,
                 relative_point: AnchorPoint::TopLeft,
                 x: "15",
-                y: "18",
+                y: "-18",
             }
         }
     }
@@ -316,332 +399,49 @@ fn content_header(category: OptionsCategory) -> Element {
 
 fn category_body(model: &OptionsViewModel) -> Element {
     match model.category {
-        OptionsCategory::Sound => sound_body(&model.sound),
-        OptionsCategory::Camera => camera_body(&model.camera),
-        OptionsCategory::Interface => interface_body(&model.hud),
-        OptionsCategory::Hud => hud_body(&model.hud),
-        _ => placeholder_body(model.category),
+        OptionsCategory::Graphics => options_menu_sections::graphics_body(),
+        OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
+        OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
+        OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
+        OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud),
+        OptionsCategory::Controls => options_menu_sections::controls_body(),
+        OptionsCategory::Accessibility => options_menu_sections::accessibility_body(),
+        OptionsCategory::Keybindings => options_menu_sections::keybindings_body(),
+        OptionsCategory::Macros => options_menu_sections::macros_body(),
+        OptionsCategory::SocialAddons => options_menu_sections::social_addons_body(),
+        OptionsCategory::Advanced => options_menu_active_sections::advanced_body(&model.hud),
+        OptionsCategory::Support => options_menu_sections::support_body(),
     }
 }
 
-fn sound_body(sound: &SoundOptionsView) -> Element {
-    let rows = [
-        toggle_row("muted", "Mute All Sound", sound.muted, 0),
-        toggle_row("music_enabled", "Enable Music", sound.music_enabled, 1),
-        slider_row("master_volume", "Master Volume", sound.master_volume, 0.0, 1.0, 2),
-        slider_row("music_volume", "Music Volume", sound.music_volume, 0.0, 1.0, 3),
-        slider_row("ambient_volume", "Ambient Volume", sound.ambient_volume, 0.0, 1.0, 4),
-        slider_row("footstep_volume", "Footstep Volume", sound.footstep_volume, 0.0, 1.0, 5),
-    ];
-    rows.into_iter().flatten().collect()
-}
-
-fn camera_body(camera: &CameraOptionsView) -> Element {
-    let settings = camera_slider_settings(camera);
-    settings.into_iter().flatten().collect()
-}
-
-fn camera_slider_settings(camera: &CameraOptionsView) -> [Element; 6] {
-    [
-        toggle_row("invert_y", "Invert Vertical Look", camera.invert_y, 0),
-        slider_row("look_sensitivity", "Look Sensitivity", camera.look_sensitivity, 0.002, 0.03, 1),
-        slider_row("zoom_speed", "Zoom Speed", camera.zoom_speed, 2.0, 20.0, 2),
-        slider_row("follow_speed", "Follow Speed", camera.follow_speed, 2.0, 20.0, 3),
-        slider_row("min_distance", "Min Camera Distance", camera.min_distance, 1.0, 10.0, 4),
-        slider_row("max_distance", "Max Camera Distance", camera.max_distance, 10.0, 60.0, 5),
-    ]
-}
-
-fn interface_body(hud: &HudOptionsView) -> Element {
-    [toggle_row("show_fps_overlay", "Show FPS Overlay", hud.show_fps_overlay, 0)]
-        .into_iter()
-        .flatten()
-        .collect()
-}
-
-fn hud_body(hud: &HudOptionsView) -> Element {
-    let rows = [
-        toggle_row("show_minimap", "Show Minimap", hud.show_minimap, 0),
-        toggle_row("show_action_bars", "Show Action Bars", hud.show_action_bars, 1),
-        toggle_row("show_nameplates", "Show Nameplates", hud.show_nameplates, 2),
-        toggle_row("show_health_bars", "Show Health Bars", hud.show_health_bars, 3),
-        toggle_row("show_target_marker", "Show Target Marker", hud.show_target_marker, 4),
-    ];
-    rows.into_iter().flatten().collect()
-}
-
-fn placeholder_body(category: OptionsCategory) -> Element {
-    let title = format!("{} is planned in this shell.", category.title());
+fn content_body(model: &OptionsViewModel) -> Element {
+    let x = OPTIONS_CONTENT_INSET_X.to_string();
+    let y = (-OPTIONS_CONTENT_INSET_TOP).to_string();
     rsx! {
         r#frame {
-            name: "OptionsPlaceholderPanel",
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: {OPTIONS_CONTENT_H - 40.0},
+            name: OPTIONS_CONTENT_INNER,
+            width: {OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0},
+            height: {OPTIONS_CONTENT_H - OPTIONS_CONTENT_INSET_TOP - 18.0},
+            layout: "flex-column",
+            gap: 12.0,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_to: OPTIONS_CONTENT_PANEL,
                 relative_point: AnchorPoint::TopLeft,
-                x: "15",
-                y: "54",
-            }
-            {placeholder_title(&title)}
-            {placeholder_detail(placeholder_text(category))}
-        }
-    }
-}
-
-fn placeholder_title(text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: "OptionsPlaceholderTitle",
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: 22.0,
-            text: {text},
-            font_size: 18.0,
-            color: "0.95,0.90,0.74,1.0",
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
-        }
-    }
-}
-
-fn placeholder_detail(text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: "OptionsPlaceholderDetail",
-            width: {OPTIONS_CONTENT_W - 40.0},
-            height: 120.0,
-            text: {text},
-            font_size: 15.0,
-            color: "0.72,0.72,0.72,1.0",
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: FrameName("OptionsPlaceholderTitle"),
-                relative_point: AnchorPoint::BottomLeft,
-                y: "-14",
-            }
-        }
-    }
-}
-
-fn placeholder_text(category: OptionsCategory) -> &'static str {
-    match category {
-        OptionsCategory::Graphics => "Display mode, render scale, shadows, textures, and environment quality will land after the drag/input foundation is stable.",
-        OptionsCategory::Controls => "Movement and mouse-control details beyond camera sensitivity will be wired here once the dedicated input-settings pass is ready.",
-        OptionsCategory::Accessibility => "Color, subtitle, readability, and motion-friendly controls will be added as the surrounding UI stack gains those engine hooks.",
-        OptionsCategory::Keybindings => "This panel reserves the Blizzard-style location for a later keybinding editor instead of hiding the category entirely.",
-        OptionsCategory::Macros => "Macros are represented here as a future shell entry so the menu structure matches the intended Blizzard-style breadth.",
-        OptionsCategory::SocialAddons => "Social and AddOns remain placeholders until addon execution and social panels are a real milestone in the client.",
-        OptionsCategory::Advanced => "Advanced and debug controls are partially live elsewhere in the client and can expand here as more toggles are promoted into resources.",
-        OptionsCategory::Support => "Support, help, and account/about affordances stay grouped here for parity with the Blizzard menu structure.",
-        _ => "This category is intentionally present as part of the broad Blizzard-style shell.",
-    }
-}
-
-fn toggle_row(key: &str, label: &str, enabled: bool, row: usize) -> Element {
-    let y = row_y(row, 44.0);
-    let state = if enabled { "Enabled" } else { "Disabled" };
-    let color = if enabled {
-        "0.85,0.95,0.74,1.0"
-    } else {
-        "0.92,0.60,0.54,1.0"
-    };
-    let action = toggle_action(key);
-    let button_name = format!("ToggleButton{key}");
-    rsx! {
-        r#frame {
-            name: {DynName(format!("ToggleRow{key}"))},
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: 32.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_CONTENT_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "15",
+                x: {x},
                 y: {y},
             }
-            {row_label(&format!("ToggleLabel{key}"), label)}
-            {toggle_state_text(key, state, color)}
-            {small_button(&button_name, state, &action, 110.0, "-4")}
-        }
-    }
-}
-
-fn toggle_state_text(key: &str, text: &str, color: &str) -> Element {
-    let button_name = DynName(format!("ToggleButton{key}"));
-    rsx! {
-        fontstring {
-            name: {DynName(format!("ToggleState{key}"))},
-            width: 120.0,
-            height: 18.0,
-            text: {text},
-            font_size: 13.0,
-            color: {color},
-            justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_to: {&button_name},
-                relative_point: AnchorPoint::Left,
-                x: "-8",
-            }
-        }
-    }
-}
-
-fn row_label(name: &str, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: {DynName(name.to_string())},
-            width: 320.0,
-            height: 20.0,
-            text: {text},
-            font_size: 16.0,
-            color: "0.95,0.90,0.74,1.0",
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-            }
-        }
-    }
-}
-
-fn slider_row(key: &str, label: &str, value: f32, min: f32, max: f32, row: usize) -> Element {
-    let y = row_y(row, 56.0);
-    let pct = normalize(value, min, max).clamp(0.0, 1.0);
-    let action = slider_action(key);
-    let minus = step_action(key, -1);
-    let plus = step_action(key, 1);
-    rsx! {
-        r#frame {
-            name: {DynName(format!("SliderRow{key}"))},
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: 44.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_CONTENT_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "15",
-                y: {y},
-            }
-            {row_label(&format!("SliderLabel{key}"), label)}
-            {slider_track_frames(key, pct)}
-            {slider_drag_frame(key, &action)}
-            {small_button(&format!("SliderMinus{key}"), "-", &minus, 30.0, "520")}
-            {small_button(&format!("SliderPlus{key}"), "+", &plus, 30.0, "554")}
-            {slider_value_text(key, &slider_display(min, max, pct))}
-        }
-    }
-}
-
-fn slider_track_frames(key: &str, pct: f32) -> Element {
-    let fill_w = (OPTIONS_TRACK_W * pct).to_string();
-    let thumb_x = ((OPTIONS_TRACK_W - OPTIONS_THUMB_W) * pct).to_string();
-    let track_name = DynName(format!("SliderTrack{key}"));
-    rsx! {
-        r#frame {
-            name: {&track_name},
-            width: {OPTIONS_TRACK_W},
-            height: {OPTIONS_TRACK_H},
-            background_color: "0.10,0.09,0.08,1.0",
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-                x: "230",
-                y: "-2",
-            }
-        }
-        r#frame {
-            name: {DynName(format!("SliderFill{key}"))},
-            width: {fill_w},
-            height: {OPTIONS_TRACK_H},
-            background_color: "0.85,0.66,0.18,1.0",
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: {&track_name},
-                relative_point: AnchorPoint::Left,
-            }
-        }
-        {slider_thumb_frame(key, &track_name, &thumb_x)}
-    }
-}
-
-fn slider_thumb_frame(key: &str, track_name: &DynName, thumb_x: &str) -> Element {
-    rsx! {
-        r#frame {
-            name: {DynName(format!("SliderThumb{key}"))},
-            width: {OPTIONS_THUMB_W},
-            height: 22.0,
-            background_color: "0.92,0.86,0.74,1.0",
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: {track_name},
-                relative_point: AnchorPoint::Left,
-                x: {thumb_x},
-                y: "-6",
-            }
-        }
-    }
-}
-
-fn slider_drag_frame(key: &str, action: &str) -> Element {
-    let track_name = DynName(format!("SliderTrack{key}"));
-    rsx! {
-        r#frame {
-            name: {DynName(format!("SliderDrag{key}"))},
-            width: {OPTIONS_TRACK_W},
-            height: 28.0,
-            mouse_enabled: true,
-            onclick: {action},
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: {&track_name},
-                relative_point: AnchorPoint::Left,
-                y: "-9",
-            }
-        }
-    }
-}
-
-fn slider_value_text(key: &str, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: {DynName(format!("SliderValue{key}"))},
-            width: 70.0,
-            height: 20.0,
-            text: {text},
-            font_size: 15.0,
-            color: "0.95,0.90,0.74,1.0",
-            justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x: "-72",
-            }
+            {category_body(model)}
         }
     }
 }
 
 fn build_footer() -> Element {
-    let buttons = [
-        ("OptionsBackButton", "Back", ACTION_OPTIONS_BACK, 80.0, "212"),
-        ("OptionsDefaultsButton", "Defaults", ACTION_OPTIONS_DEFAULTS, 110.0, "308"),
-        ("OptionsApplyButton", "Apply", ACTION_OPTIONS_APPLY, 90.0, "436"),
-        ("OptionsCancelButton", "Cancel", ACTION_OPTIONS_CANCEL, 90.0, "538"),
-        ("OptionsOkayButton", "Okay", ACTION_OPTIONS_OKAY, 90.0, "640"),
-    ];
-    let footer_buttons: Element = buttons
-        .into_iter()
-        .flat_map(|(name, text, action, width, x)| small_button(name, text, action, width, x))
-        .collect();
+    let footer_buttons = footer_buttons();
     rsx! {
         r#frame {
             name: OPTIONS_FOOTER,
-            width: {OPTIONS_W - 36.0},
+            width: {OPTIONS_W - 40.0},
             height: 42.0,
             anchor {
                 point: AnchorPoint::Bottom,
@@ -651,6 +451,53 @@ fn build_footer() -> Element {
             {footer_buttons}
         }
     }
+}
+
+fn footer_buttons() -> Element {
+    footer_specs()
+        .into_iter()
+        .flat_map(|(name, text, action, width, x)| small_button(name, text, action, width, x))
+        .collect()
+}
+
+fn footer_specs() -> [(&'static str, &'static str, &'static str, f32, &'static str); 5] {
+    [
+        (
+            "OptionsBackButton",
+            "Back",
+            ACTION_OPTIONS_BACK,
+            86.0,
+            "288",
+        ),
+        (
+            "OptionsDefaultsButton",
+            "Defaults",
+            ACTION_OPTIONS_DEFAULTS,
+            116.0,
+            "394",
+        ),
+        (
+            "OptionsApplyButton",
+            "Apply",
+            ACTION_OPTIONS_APPLY,
+            94.0,
+            "526",
+        ),
+        (
+            "OptionsCancelButton",
+            "Cancel",
+            ACTION_OPTIONS_CANCEL,
+            94.0,
+            "632",
+        ),
+        (
+            "OptionsOkayButton",
+            "Okay",
+            ACTION_OPTIONS_OKAY,
+            94.0,
+            "738",
+        ),
+    ]
 }
 
 fn small_button(name: &str, text: &str, action: &str, width: f32, x: &str) -> Element {
@@ -675,26 +522,5 @@ fn small_button(name: &str, text: &str, action: &str, width: f32, x: &str) -> El
                 x: {x},
             }
         }
-    }
-}
-
-fn row_y(row: usize, spacing: f32) -> String {
-    (60.0 + row as f32 * spacing).to_string()
-}
-
-fn normalize(value: f32, min: f32, max: f32) -> f32 {
-    if (max - min).abs() < f32::EPSILON {
-        0.0
-    } else {
-        (value - min) / (max - min)
-    }
-}
-
-fn slider_display(min: f32, max: f32, pct: f32) -> String {
-    let value = min + (max - min) * pct;
-    if max <= 1.0 {
-        format!("{value:.2}")
-    } else {
-        format!("{value:.1}")
     }
 }

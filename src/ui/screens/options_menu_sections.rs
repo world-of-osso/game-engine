@@ -1,0 +1,317 @@
+use std::fmt;
+
+use ui_toolkit::rsx;
+use ui_toolkit::widget_def::Element;
+
+use crate::ui::anchor::AnchorPoint;
+
+const OPTIONS_CONTENT_W: f32 = 716.0;
+const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
+const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
+const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
+const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
+
+struct DynName(String);
+
+impl fmt::Display for DynName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+pub fn graphics_body() -> Element {
+    section_stack(
+        [
+            info_row("graphics_display", "Display Mode", "Windowed Fullscreen"),
+            info_row("graphics_scale", "Render Scale", "100% internal resolution"),
+            info_row(
+                "graphics_terrain",
+                "Terrain Distance",
+                "Balanced world draw distance",
+            ),
+            info_row(
+                "graphics_water",
+                "Water Quality",
+                "High fidelity surface shading",
+            ),
+            ghost_button_row(
+                "graphics_recommend",
+                "Apply Recommended",
+                "Hardware profile pass planned",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn controls_body() -> Element {
+    section_stack(
+        [
+            info_row(
+                "controls_turn",
+                "Mouse Turn Style",
+                "Classic hold-to-turn behavior",
+            ),
+            info_row(
+                "controls_autorun",
+                "Auto-Run",
+                "Supported through gameplay bindings",
+            ),
+            info_row(
+                "controls_clickmove",
+                "Click To Move",
+                "Reserved for in-world pathing work",
+            ),
+            ghost_button_row(
+                "controls_bindings",
+                "Binding Groups",
+                "Full binding editor lives in Keybindings",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn accessibility_body() -> Element {
+    section_stack(
+        [
+            info_row(
+                "access_text",
+                "Readable Text",
+                "UI scale and larger text pass planned",
+            ),
+            info_row(
+                "access_motion",
+                "Reduced Motion",
+                "Animation dampening hooks reserved",
+            ),
+            info_row(
+                "access_subtitles",
+                "Subtitles",
+                "Dialog subtitle pipeline not landed yet",
+            ),
+            ghost_button_row(
+                "access_color",
+                "Color Assist",
+                "Future contrast and color filters",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn keybindings_body() -> Element {
+    section_stack(
+        [
+            ghost_button_row("bindings_move", "Movement", "Open binding editor"),
+            ghost_button_row("bindings_action", "Action Bars", "Open binding editor"),
+            ghost_button_row("bindings_camera", "Camera", "Open binding editor"),
+            ghost_button_row("bindings_ui", "Interface", "Open binding editor"),
+            info_row(
+                "bindings_note",
+                "Status",
+                "Dedicated keybinding capture UI is the next step",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn macros_body() -> Element {
+    section_stack(
+        [
+            ghost_button_row(
+                "macros_general",
+                "General Macros",
+                "Macro list editor planned",
+            ),
+            ghost_button_row(
+                "macros_character",
+                "Character Macros",
+                "Per-character macro storage planned",
+            ),
+            info_row(
+                "macros_exec",
+                "Execution",
+                "Command parser hooks will live here",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn social_addons_body() -> Element {
+    section_stack(
+        [
+            ghost_button_row(
+                "social_addons",
+                "AddOn List",
+                "Addon loading is not enabled yet",
+            ),
+            info_row(
+                "social_friends",
+                "Social Panels",
+                "Friends, guild, and chat settings are reserved",
+            ),
+            info_row(
+                "social_compat",
+                "Compatibility",
+                "Panel exists now so the shell matches Blizzard breadth",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn support_body() -> Element {
+    section_stack(
+        [
+            info_row(
+                "support_about",
+                "About",
+                "Standalone WoW-style client renderer on Bevy 0.18",
+            ),
+            info_row(
+                "support_help",
+                "Help",
+                "Support flow will point to project docs and issue links",
+            ),
+            ghost_button_row(
+                "support_contact",
+                "Open Support",
+                "External support links are not wired in-client",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn info_row(key: &str, label: &str, detail: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("InfoRow{key}"))},
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 34.0,
+            {row_label(key, label)}
+            {info_detail(key, detail)}
+        }
+    }
+}
+
+pub fn ghost_button_row(key: &str, label: &str, detail: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("GhostRow{key}"))},
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 34.0,
+            {row_label(key, label)}
+            {ghost_detail(key, detail)}
+            {disabled_button(key)}
+        }
+    }
+}
+
+fn section_stack(rows: Element) -> Element {
+    rsx! {
+        r#frame {
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 0.0,
+            layout: "flex-column",
+            gap: 12.0,
+            {rows}
+        }
+    }
+}
+
+fn row_label(key: &str, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("RowLabel{key}"))},
+            width: 236.0,
+            height: 20.0,
+            text: {text},
+            font_size: 16.0,
+            color: "0.95,0.90,0.74,1.0",
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::Left,
+                relative_point: AnchorPoint::Left,
+            }
+        }
+    }
+}
+
+fn info_detail(key: &str, detail: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("InfoDetail{key}"))},
+            width: 370.0,
+            height: 28.0,
+            text: {detail},
+            font_size: 13.0,
+            color: "0.72,0.72,0.72,1.0",
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-8",
+            }
+        }
+    }
+}
+
+fn ghost_detail(key: &str, detail: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("GhostDetail{key}"))},
+            width: 270.0,
+            height: 28.0,
+            text: {detail},
+            font_size: 13.0,
+            color: "0.72,0.72,0.72,1.0",
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::Right,
+                relative_to: {DynName(format!("GhostButton{key}"))},
+                relative_point: AnchorPoint::Left,
+                x: "-8",
+            }
+        }
+    }
+}
+
+fn disabled_button(key: &str) -> Element {
+    rsx! {
+        button {
+            name: {DynName(format!("GhostButton{key}"))},
+            width: 84.0,
+            height: 30.0,
+            text: "Open",
+            font_size: 14.0,
+            disabled: true,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-4",
+            }
+        }
+    }
+}

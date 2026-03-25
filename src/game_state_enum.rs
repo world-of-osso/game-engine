@@ -80,11 +80,12 @@ pub enum ScreenArg {
     CampsitePopup,
     InWorld,
     GameMenu,
+    OptionsMenu,
     TrashButton,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 8] = [
+    pub const CLI_VALUES: [&str; 9] = [
         "login",
         "charselect",
         "charcreate",
@@ -92,6 +93,7 @@ impl ScreenArg {
         "campsitepopup",
         "inworld",
         "gamemenu",
+        "optionsmenu",
         "trashbutton",
     ];
 }
@@ -104,7 +106,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::CampsitePopup => Self::CampsitePopup,
             ScreenArg::InWorld => Self::InWorld,
-            ScreenArg::GameMenu => Self::GameMenu,
+            ScreenArg::GameMenu | ScreenArg::OptionsMenu => Self::GameMenu,
             ScreenArg::TrashButton => Self::TrashButton,
         }
     }
@@ -122,6 +124,7 @@ impl FromStr for ScreenArg {
             "campsitepopup" => Ok(Self::CampsitePopup),
             "inworld" => Ok(Self::InWorld),
             "gamemenu" | "menu" => Ok(Self::GameMenu),
+            "optionsmenu" | "options" => Ok(Self::OptionsMenu),
             "trashbutton" => Ok(Self::TrashButton),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }

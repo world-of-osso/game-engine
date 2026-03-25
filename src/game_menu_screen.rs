@@ -17,9 +17,9 @@ use crate::client_options::{self, CameraOptions, ClientOptionsUiState, HudOption
 use crate::game_menu_options::{
     ApplySnapshot, DragCapture, OverlayModel, SliderField, apply_camera_snapshot,
     apply_hud_snapshot, apply_slider_value, apply_snapshot, apply_sound_snapshot, apply_step,
-    apply_toggle, build_view_model, camera_draft, cancel_options, hud_draft,
-    parse_category_action, parse_slider_action, parse_step_action, parse_toggle_action,
-    reset_category_defaults, slider_bounds, sound_draft,
+    apply_toggle, build_view_model, camera_draft, cancel_options, hud_draft, parse_category_action,
+    parse_slider_action, parse_step_action, parse_toggle_action, reset_category_defaults,
+    slider_bounds, sound_draft,
 };
 use crate::game_state::GameState;
 use crate::sound::SoundSettings;
@@ -30,6 +30,9 @@ const OPTIONS_H: f32 = 580.0;
 
 #[derive(Resource)]
 pub struct UiModalOpen;
+
+#[derive(Resource)]
+pub struct StartupGameMenuView(pub GameMenuView);
 
 struct GameMenuScreenRes {
     screen: Screen,
@@ -72,10 +75,18 @@ struct OpenMenuCommand(GameState);
 
 impl Command for OpenMenuCommand {
     fn apply(self, world: &mut World) {
-        if world.resource::<UiState>().registry.get_by_name(GAME_MENU_ROOT.0).is_some() {
+        if world
+            .resource::<UiState>()
+            .registry
+            .get_by_name(GAME_MENU_ROOT.0)
+            .is_some()
+        {
             return;
         }
-        let model = build_overlay_model(world, self.0);
+        let startup_view = world
+            .remove_resource::<StartupGameMenuView>()
+            .map(|res| res.0);
+        let model = build_overlay_model(world, self.0, startup_view);
         let mut shared = SharedContext::new();
         shared.insert(build_view_model(&model));
         let mut screen = Screen::new(game_menu_screen);
@@ -102,19 +113,30 @@ impl Command for CloseMenuCommand {
     }
 }
 
-fn build_overlay_model(world: &mut World, game_state: GameState) -> OverlayModel {
+fn build_overlay_model(
+    world: &mut World,
+    game_state: GameState,
+    startup_view: Option<GameMenuView>,
+) -> OverlayModel {
     let sound = world.get_resource::<SoundSettings>();
     let camera = world.resource::<CameraOptions>();
     let hud = world.resource::<HudOptions>();
     let ui_state = world.resource::<ClientOptionsUiState>();
+    let registry = &world.resource::<UiState>().registry;
     let sound_draft = sound_draft(sound.as_deref());
     let camera_d = camera_draft(&camera);
     let hud_d = hud_draft(&hud);
+    let view = startup_view.unwrap_or(GameMenuView::MainMenu);
+    let modal_position = if view == GameMenuView::Options {
+        [0.0, 0.0]
+    } else {
+        initial_modal_offset(ui_state, registry)
+    };
     OverlayModel {
         logged_in: game_state.is_logged_in(),
-        view: GameMenuView::MainMenu,
+        view,
         category: OptionsCategory::Sound,
-        modal_position: ui_state.modal_position,
+        modal_position,
         drag_capture: DragCapture::None,
         drag_origin: Vec2::ZERO,
         drag_offset: Vec2::ZERO,
@@ -127,6 +149,18 @@ fn build_overlay_model(world: &mut World, game_state: GameState) -> OverlayModel
         committed_camera: camera_d,
         committed_hud: hud_d,
     }
+}
+
+fn initial_modal_offset(ui_state: &ClientOptionsUiState, reg: &FrameRegistry) -> [f32; 2] {
+    let offset = ui_state
+        .modal_offset
+        .or_else(|| {
+            ui_state
+                .legacy_modal_position
+                .map(|[x, y]| top_left_to_modal_offset(Vec2::new(x, y), reg))
+        })
+        .unwrap_or([0.0, 0.0]);
+    clamp_modal_offset(Vec2::new(offset[0], offset[1]), reg)
 }
 
 fn open_menu_overlay(mut ui: ResMut<UiState>, mut commands: Commands) {
@@ -148,8 +182,12 @@ fn handle_overlay_input(
     state: Res<State<GameState>>,
 ) {
     handle_escape(&mut overlay, &mut ui, keyboard.as_deref(), &mut commands);
-    let (Some(mouse), Ok(window)) = (mouse, windows.single()) else { return };
-    let Some(cursor) = window.cursor_position() else { return };
+    let (Some(mouse), Ok(window)) = (mouse, windows.single()) else {
+        return;
+    };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
     let cursor = Vec2::new(cursor.x, cursor.y);
     handle_press(&mouse, cursor, &mut overlay, &mut ui.registry);
     handle_drag(&mouse, cursor, &mut overlay, &mut ui.registry);
@@ -193,32 +231,38 @@ fn handle_press(
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(frame_id) = find_frame_at(reg, cursor.x, cursor.y) else { return };
+    let Some(frame_id) = find_frame_at(reg, cursor.x, cursor.y) else {
+        return;
+    };
     let action = walk_up_for_onclick(reg, frame_id);
     overlay.model.drag_origin = cursor;
     overlay.model.pressed_origin = cursor;
     overlay.model.pressed_action = action.clone();
     if let Some(slider) = action.as_deref().and_then(parse_slider_action) {
-        begin_slider_drag(slider, cursor, overlay);
+        begin_slider_drag(slider, cursor, overlay, reg);
     } else if is_descendant_named(reg, frame_id, OPTIONS_DRAG_HANDLE.0) {
-        begin_window_drag(cursor, overlay);
+        begin_window_drag(cursor, overlay, reg);
     } else {
         let _ = reg.click_frame(frame_id);
     }
 }
 
-fn begin_slider_drag(slider: SliderField, cursor: Vec2, overlay: &mut GameMenuOverlay) {
+fn begin_slider_drag(
+    slider: SliderField,
+    cursor: Vec2,
+    overlay: &mut GameMenuOverlay,
+    reg: &FrameRegistry,
+) {
     overlay.model.drag_capture = DragCapture::Slider(slider);
-    update_slider(slider, cursor, overlay);
+    update_slider(slider, cursor, overlay, reg);
 }
 
-fn begin_window_drag(cursor: Vec2, overlay: &mut GameMenuOverlay) {
+fn begin_window_drag(cursor: Vec2, overlay: &mut GameMenuOverlay, reg: &FrameRegistry) {
     if overlay.model.view != GameMenuView::Options {
         return;
     }
     overlay.model.drag_capture = DragCapture::Window;
-    overlay.model.drag_offset =
-        cursor - Vec2::new(overlay.model.modal_position[0], overlay.model.modal_position[1]);
+    overlay.model.drag_offset = cursor - modal_top_left(overlay.model.modal_position, reg);
 }
 
 fn handle_drag(
@@ -232,7 +276,7 @@ fn handle_drag(
     }
     match overlay.model.drag_capture {
         DragCapture::Window => drag_window(cursor, overlay, reg),
-        DragCapture::Slider(slider) => update_slider(slider, cursor, overlay),
+        DragCapture::Slider(slider) => update_slider(slider, cursor, overlay, reg),
         DragCapture::None => return,
     }
     sync_overlay_model_only(overlay, reg);
@@ -240,24 +284,65 @@ fn handle_drag(
 
 fn drag_window(cursor: Vec2, overlay: &mut GameMenuOverlay, reg: &FrameRegistry) {
     let pos = cursor - overlay.model.drag_offset;
-    overlay.model.modal_position = clamp_modal_position(pos, reg);
+    overlay.model.modal_position = clamp_top_left(pos, reg);
 }
 
-fn clamp_modal_position(pos: Vec2, reg: &FrameRegistry) -> [f32; 2] {
+fn clamp_top_left(pos: Vec2, reg: &FrameRegistry) -> [f32; 2] {
     let x = pos.x.clamp(0.0, (reg.screen_width - OPTIONS_W).max(0.0));
     let y = pos.y.clamp(0.0, (reg.screen_height - OPTIONS_H).max(0.0));
-    [x, y]
+    top_left_to_modal_offset(Vec2::new(x, y), reg)
 }
 
-fn update_slider(slider: SliderField, cursor: Vec2, overlay: &mut GameMenuOverlay) {
+fn clamp_modal_offset(offset: Vec2, reg: &FrameRegistry) -> [f32; 2] {
+    clamp_top_left(modal_top_left([offset.x, offset.y], reg), reg)
+}
+
+fn modal_top_left(offset: [f32; 2], reg: &FrameRegistry) -> Vec2 {
+    Vec2::new(
+        reg.screen_width * 0.5 + offset[0] - OPTIONS_W * 0.5,
+        reg.screen_height * 0.5 - offset[1] - OPTIONS_H * 0.5,
+    )
+}
+
+fn top_left_to_modal_offset(pos: Vec2, reg: &FrameRegistry) -> [f32; 2] {
+    [
+        pos.x - reg.screen_width * 0.5 + OPTIONS_W * 0.5,
+        reg.screen_height * 0.5 - pos.y - OPTIONS_H * 0.5,
+    ]
+}
+
+fn update_slider(
+    slider: SliderField,
+    cursor: Vec2,
+    overlay: &mut GameMenuOverlay,
+    reg: &FrameRegistry,
+) {
     let (min, max) = slider_bounds(slider);
-    let track_x = 220.0 + 15.0 + 230.0;
-    let row = slider_row(slider);
-    let local_x = cursor.x - overlay.model.modal_position[0] - track_x;
-    let pct = (local_x / 240.0).clamp(0.0, 1.0);
+    let pct = slider_rect(slider, reg)
+        .map(|rect| ((cursor.x - rect.x) / rect.width.max(f32::EPSILON)).clamp(0.0, 1.0))
+        .unwrap_or(0.0);
     let raw = min + (max - min) * pct;
     apply_slider_value(slider, raw, &mut overlay.model);
-    overlay.model.drag_origin.y = row;
+    overlay.model.drag_origin.y = slider_row(slider);
+}
+
+fn slider_rect(slider: SliderField, reg: &FrameRegistry) -> Option<ui_toolkit::layout::LayoutRect> {
+    let frame_id = reg.get_by_name(slider_widget_name(slider))?;
+    reg.get(frame_id)?.layout_rect.clone()
+}
+
+fn slider_widget_name(slider: SliderField) -> &'static str {
+    match slider {
+        SliderField::MasterVolume => "Slidermaster_volume",
+        SliderField::MusicVolume => "Slidermusic_volume",
+        SliderField::AmbientVolume => "Sliderambient_volume",
+        SliderField::FootstepVolume => "Sliderfootstep_volume",
+        SliderField::LookSensitivity => "Sliderlook_sensitivity",
+        SliderField::ZoomSpeed => "Sliderzoom_speed",
+        SliderField::FollowSpeed => "Sliderfollow_speed",
+        SliderField::MinDistance => "Slidermin_distance",
+        SliderField::MaxDistance => "Slidermax_distance",
+    }
 }
 
 fn slider_row(slider: SliderField) -> f32 {
@@ -291,8 +376,12 @@ fn handle_release(
         overlay.model.pressed_action = None;
         return;
     }
-    let Some(action) = overlay.model.pressed_action.take() else { return };
-    let Some(frame_id) = find_frame_at(reg, cursor.x, cursor.y) else { return };
+    let Some(action) = overlay.model.pressed_action.take() else {
+        return;
+    };
+    let Some(frame_id) = find_frame_at(reg, cursor.x, cursor.y) else {
+        return;
+    };
     if walk_up_for_onclick(reg, frame_id).as_deref() == Some(action.as_str()) {
         dispatch_overlay_action(action.as_str(), overlay, exit, commands, state);
         sync_overlay_model_only(overlay, reg);
@@ -322,11 +411,15 @@ fn walk_up_for_onclick(reg: &FrameRegistry, mut id: u64) -> Option<String> {
 
 fn is_descendant_named(reg: &FrameRegistry, mut id: u64, target: &str) -> bool {
     loop {
-        let Some(frame) = reg.get(id) else { return false };
+        let Some(frame) = reg.get(id) else {
+            return false;
+        };
         if frame.name.as_deref() == Some(target) {
             return true;
         }
-        let Some(parent) = frame.parent_id else { return false };
+        let Some(parent) = frame.parent_id else {
+            return false;
+        };
         id = parent;
     }
 }
@@ -361,7 +454,9 @@ fn dispatch_overlay_action(
         ACTION_OPTIONS_BACK => overlay.model.view = GameMenuView::MainMenu,
         ACTION_OPTIONS_DEFAULTS => reset_category_defaults(&mut overlay.model),
         ACTION_OPTIONS_CANCEL => cancel_options(&mut overlay.model),
-        ACTION_OPTIONS_APPLY => commands.queue(ApplyDraftOptionsCommand(apply_snapshot(&mut overlay.model))),
+        ACTION_OPTIONS_APPLY => {
+            commands.queue(ApplyDraftOptionsCommand(apply_snapshot(&mut overlay.model)))
+        }
         ACTION_OPTIONS_OKAY => finish_apply_and_close(overlay, commands),
         _ if *state.get() == GameState::GameMenu => warn!("Unknown menu action: {action}"),
         _ => {}
@@ -397,7 +492,9 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
         fps.enabled = snapshot.hud.show_fps_overlay;
     }
-    world.resource_mut::<ClientOptionsUiState>().modal_position = snapshot.modal_position;
+    let mut ui_state = world.resource_mut::<ClientOptionsUiState>();
+    ui_state.modal_offset = Some(snapshot.modal_position);
+    ui_state.legacy_modal_position = None;
     apply_ui_hud_visibility(world, &snapshot.hud);
     apply_target_marker_visibility(world, snapshot.hud.show_target_marker);
 }
@@ -457,8 +554,12 @@ fn apply_target_marker_visibility(world: &mut World, visible: bool) {
 
 fn set_named_frames_visible(reg: &mut FrameRegistry, names: &[&str], visible: bool) {
     for name in names {
-        let Some(id) = reg.get_by_name(name) else { continue };
-        let Some(frame) = reg.get_mut(id) else { continue };
+        let Some(id) = reg.get_by_name(name) else {
+            continue;
+        };
+        let Some(frame) = reg.get_mut(id) else {
+            continue;
+        };
         frame.hidden = !visible;
         frame.visible = visible;
         frame.effective_alpha = if visible { frame.alpha } else { 0.0 };
@@ -469,7 +570,9 @@ struct SaveModalPositionCommand([f32; 2]);
 
 impl Command for SaveModalPositionCommand {
     fn apply(self, world: &mut World) {
-        world.resource_mut::<ClientOptionsUiState>().modal_position = self.0;
+        let mut ui_state = world.resource_mut::<ClientOptionsUiState>();
+        ui_state.modal_offset = Some(self.0);
+        ui_state.legacy_modal_position = None;
     }
 }
 
@@ -490,4 +593,39 @@ fn sync_overlay(overlay: &mut GameMenuOverlay, ui: &mut UiState) {
 fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistry) {
     overlay.wrap.shared.insert(build_view_model(&overlay.model));
     overlay.wrap.screen.sync(&overlay.wrap.shared, reg);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initial_modal_offset_defaults_to_center() {
+        let reg = FrameRegistry::new(1920.0, 1080.0);
+        let state = ClientOptionsUiState {
+            modal_offset: None,
+            legacy_modal_position: None,
+        };
+
+        assert_eq!(initial_modal_offset(&state, &reg), [0.0, 0.0]);
+    }
+
+    #[test]
+    fn initial_modal_offset_migrates_legacy_top_left_position() {
+        let reg = FrameRegistry::new(1920.0, 1080.0);
+        let state = ClientOptionsUiState {
+            modal_offset: None,
+            legacy_modal_position: Some([100.0, 120.0]),
+        };
+
+        assert_eq!(initial_modal_offset(&state, &reg), [-430.0, 130.0]);
+    }
+
+    #[test]
+    fn clamp_modal_offset_keeps_center_anchor_offset_on_screen() {
+        let reg = FrameRegistry::new(1920.0, 1080.0);
+        let clamped = clamp_modal_offset(Vec2::new(900.0, -900.0), &reg);
+
+        assert_eq!(clamped, [530.0, -250.0]);
+    }
 }

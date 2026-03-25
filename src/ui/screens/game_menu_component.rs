@@ -2,10 +2,9 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use super::screen_title::framed_title;
 use crate::ui::anchor::{AnchorPoint, FrameName};
-use crate::ui::screens::options_menu_component::{
-    OptionsViewModel, options_view,
-};
+use crate::ui::screens::options_menu_component::{OptionsViewModel, options_view};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -55,43 +54,7 @@ pub struct GameMenuViewModel {
 }
 
 fn panel_title(text: &str) -> Element {
-    let label = title_label(text);
-    rsx! {
-        panel {
-            name: TITLE_FRAME,
-            width: {PANEL_W},
-            height: 36.0,
-            strata: FrameStrata::Fullscreen,
-            frame_level: 10.0,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: MENU_MOUNT,
-                relative_point: AnchorPoint::Top,
-            }
-            {label}
-        }
-    }
-}
-
-fn title_label(text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: TITLE_LABEL,
-            text: {text},
-            font_size: 20.0,
-            color: "0.96,0.84,0.56,1.0",
-            width: {PANEL_W - 20.0},
-            height: 30.0,
-            justify_h: "CENTER",
-            frame_level: 100.0,
-            draw_layer: "OVERLAY",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: TITLE_FRAME,
-                relative_point: AnchorPoint::Center,
-            }
-        }
-    }
+    framed_title(TITLE_FRAME, TITLE_LABEL, MENU_MOUNT, PANEL_W, text)
 }
 
 fn menu_button(name: &str, text: &str, action: &str) -> Element {
@@ -229,9 +192,11 @@ mod tests {
     use crate::ui::screens::options_menu_component::{
         CameraOptionsView, HudOptionsView, OptionsCategory, SoundOptionsView,
     };
+    use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::screen::Screen;
 
     use crate::ui::anchor::AnchorPoint;
+    use crate::ui::frame::{WidgetData, WidgetType};
     use crate::ui::registry::FrameRegistry;
 
     fn model(view: GameMenuView) -> GameMenuViewModel {
@@ -285,5 +250,101 @@ mod tests {
         assert_eq!(title.anchors[0].relative_to, Some(mount_id));
         assert_eq!(panel.anchors[0].relative_to, Some(mount_id));
         assert_eq!(panel.anchors[0].point, AnchorPoint::Top);
+    }
+
+    #[test]
+    fn options_panel_root_is_screen_centered_with_zero_offset() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut view = model(GameMenuView::Options);
+        view.options.position = [0.0, 0.0];
+        shared.insert(view);
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let game_menu_root = reg.get_by_name(GAME_MENU_ROOT.0).expect("GameMenuRoot");
+        let root_id = reg.get_by_name("OptionsRoot").expect("OptionsRoot");
+        let root = reg.get(root_id).expect("options root");
+        let anchor = &root.anchors[0];
+        let rect = root.layout_rect.as_ref().expect("options root rect");
+
+        assert_eq!(anchor.point, AnchorPoint::Center);
+        assert_eq!(anchor.relative_to, Some(game_menu_root));
+        assert_eq!(anchor.relative_point, AnchorPoint::Center);
+        assert_eq!(rect.x, (1920.0 - rect.width) * 0.5);
+        assert_eq!(rect.y, (1080.0 - rect.height) * 0.5);
+    }
+
+    #[test]
+    fn options_screen_layout_places_sound_rows_inside_content_panel() {
+        let reg = options_registry();
+        let header = rect_by_name(&reg, "OptionsDragHandle");
+        let tabs = rect_by_name(&reg, "OptionsTabPanel");
+        let content = rect_by_name(&reg, "OptionsContentPanel");
+        let row = rect_by_name(&reg, "SliderRowmaster_volume");
+
+        assert_eq!(header.y + header.height + 18.0, content.y);
+        assert_eq!(tabs.y, content.y);
+        assert!(row.y >= content.y);
+        assert!(row.y + row.height <= content.y + content.height);
+    }
+
+    #[test]
+    fn selected_options_tab_uses_list_style_accent_and_plain_label() {
+        let reg = options_registry();
+        let tab_id = reg.get_by_name("OptionsTabsound").expect("OptionsTabsound");
+        let tab = reg.get(tab_id).expect("sound tab");
+        let label_id = reg
+            .get_by_name("OptionsTabsoundLabel")
+            .expect("OptionsTabsoundLabel");
+        let label = reg.get(label_id).expect("sound tab label");
+
+        assert!(reg.get_by_name("OptionsTabsoundAccent").is_some());
+        assert!(reg.get_by_name("OptionsTabgraphicsAccent").is_none());
+        let border = tab.border.as_ref().expect("selected tab border");
+        assert_eq!(border.width, 1.0);
+        assert_eq!(border.color, [0.42, 0.33, 0.12, 0.65]);
+
+        let Some(WidgetData::FontString(font)) = label.widget_data.as_ref() else {
+            panic!("expected selected tab label font string");
+        };
+        assert_eq!(font.text, "Sound");
+        assert_eq!(font.color, [0.96, 0.84, 0.56, 1.0]);
+    }
+
+    #[test]
+    fn options_screen_uses_shared_slider_and_statusbar_widgets() {
+        let reg = options_registry();
+        let slider_id = reg
+            .get_by_name("Slidermaster_volume")
+            .expect("master volume slider");
+        let fill_id = reg
+            .get_by_name("Slidermaster_volumeFill")
+            .expect("master volume fill");
+
+        let slider = reg.get(slider_id).expect("slider frame");
+        let fill = reg.get(fill_id).expect("fill frame");
+
+        assert_eq!(slider.widget_type, WidgetType::Slider);
+        assert!(matches!(slider.widget_data, Some(WidgetData::Slider(_))));
+        assert_eq!(fill.widget_type, WidgetType::StatusBar);
+        assert!(matches!(fill.widget_data, Some(WidgetData::StatusBar(_))));
+    }
+
+    fn options_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut view = model(GameMenuView::Options);
+        view.options.position = [0.0, 0.0];
+        shared.insert(view);
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect_by_name(reg: &FrameRegistry, name: &str) -> crate::ui::layout::LayoutRect {
+        reg.get(reg.get_by_name(name).expect(name))
+            .and_then(|frame| frame.layout_rect.clone())
+            .expect(name)
     }
 }

@@ -5,5 +5,8 @@ pub mod char_select_component;
 pub mod game_menu_component;
 pub mod inworld_hud_component;
 pub mod login_component;
+mod options_menu_active_sections;
 pub mod options_menu_component;
+mod options_menu_sections;
+mod screen_title;
 pub mod trash_button_component;

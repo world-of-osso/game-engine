@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::sound::SoundSettings;
 
 const OPTIONS_PATH: &str = "data/ui/options_settings.ron";
-const DEFAULT_MODAL_POSITION: [f32; 2] = [580.0, 190.0];
 
 pub struct ClientOptionsPlugin;
 
@@ -18,7 +17,8 @@ impl Plugin for ClientOptionsPlugin {
         app.insert_resource(CameraOptions::from_file(&loaded.camera))
             .insert_resource(HudOptions::from_file(&loaded.hud))
             .insert_resource(ClientOptionsUiState {
-                modal_position: loaded.modal_position.unwrap_or(DEFAULT_MODAL_POSITION),
+                modal_offset: loaded.modal_offset,
+                legacy_modal_position: loaded.modal_position,
             })
             .insert_resource(LoadedClientOptions {
                 file: loaded,
@@ -102,7 +102,8 @@ impl HudOptions {
 
 #[derive(Resource, Debug, Clone)]
 pub struct ClientOptionsUiState {
-    pub modal_position: [f32; 2],
+    pub modal_offset: Option<[f32; 2]>,
+    pub legacy_modal_position: Option<[f32; 2]>,
 }
 
 #[derive(Resource)]
@@ -119,7 +120,10 @@ struct ClientOptionsFile {
     camera: CameraOptionsFile,
     #[serde(default)]
     hud: HudOptionsFile,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    modal_offset: Option<[f32; 2]>,
     #[serde(default)]
+    #[serde(rename = "modal_position", skip_serializing_if = "Option::is_none")]
     modal_position: Option<[f32; 2]>,
 }
 
@@ -129,7 +133,8 @@ impl Default for ClientOptionsFile {
             sound: SoundOptionsFile::default(),
             camera: CameraOptionsFile::default(),
             hud: HudOptionsFile::default(),
-            modal_position: Some(DEFAULT_MODAL_POSITION),
+            modal_offset: None,
+            modal_position: None,
         }
     }
 }
@@ -215,7 +220,7 @@ pub fn save_client_options(
     sound: Option<&SoundSettings>,
     camera: &CameraOptions,
     hud: &HudOptions,
-    modal_position: [f32; 2],
+    modal_offset: [f32; 2],
 ) -> Result<(), String> {
     let file = ClientOptionsFile {
         sound: sound
@@ -237,7 +242,8 @@ pub fn save_client_options(
             show_target_marker: hud.show_target_marker,
             show_fps_overlay: hud.show_fps_overlay,
         },
-        modal_position: Some(modal_position),
+        modal_offset: Some(modal_offset),
+        modal_position: None,
     };
     let pretty = ron::ser::PrettyConfig::new();
     let serialized = ron::ser::to_string_pretty(&file, pretty)
@@ -288,7 +294,8 @@ mod tests {
     #[test]
     fn default_file_uses_expected_modal_position() {
         let file = ClientOptionsFile::default();
-        assert_eq!(file.modal_position, Some(DEFAULT_MODAL_POSITION));
+        assert_eq!(file.modal_offset, None);
+        assert_eq!(file.modal_position, None);
     }
 
     #[test]
