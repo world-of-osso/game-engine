@@ -12,11 +12,21 @@ use crate::networking;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::widgets::button::ButtonState as BtnState;
 
+use std::net::ToSocketAddrs;
+
 use super::helpers::{get_editbox_text, insert_char_into_editbox, set_editbox_text};
 use super::{
     handle_login_key, LoginFocus, LoginKeyParams, LoginStatus, LoginUi,
     DEFAULT_SERVER_ADDR, STATUS_CONNECTING, STATUS_FILL_FIELDS, STATUS_RECONNECT_UNAVAILABLE,
 };
+
+pub(crate) fn resolve_default_server() -> std::net::SocketAddr {
+    DEFAULT_SERVER_ADDR
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .unwrap_or_else(|| "127.0.0.1:5000".parse().unwrap())
+}
 
 pub fn prefill_offline_credentials(reg: &mut FrameRegistry, login: &LoginUi) {
     set_editbox_text(reg, login.username_input, "admin");
@@ -42,7 +52,7 @@ pub fn try_connect(
         return;
     }
     commands.insert_resource(networking::ServerAddr(
-        server_addr.unwrap_or_else(|| DEFAULT_SERVER_ADDR.parse().unwrap()),
+        server_addr.unwrap_or_else(resolve_default_server),
     ));
     commands.insert_resource(networking::LoginUsername(username));
     commands.insert_resource(networking::LoginPassword(password));
@@ -69,7 +79,7 @@ pub fn try_reconnect(
     }
     *login_mode = networking::LoginMode::Login;
     commands.insert_resource(networking::ServerAddr(
-        server_addr.unwrap_or_else(|| DEFAULT_SERVER_ADDR.parse().unwrap()),
+        server_addr.unwrap_or_else(resolve_default_server),
     ));
     commands.insert_resource(networking::LoginUsername(String::new()));
     commands.insert_resource(networking::LoginPassword(String::new()));

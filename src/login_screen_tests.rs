@@ -349,7 +349,7 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
     ));
     assert_eq!(
         world.resource::<networking::ServerAddr>().0,
-        super::DEFAULT_SERVER_ADDR.parse().unwrap()
+        super::connect::resolve_default_server()
     );
     assert_eq!(world.resource::<networking::LoginUsername>().0, "alice");
     assert_eq!(world.resource::<networking::LoginPassword>().0, "secret");
