@@ -18,7 +18,8 @@ pub struct ClientOptionsPlugin;
 impl Plugin for ClientOptionsPlugin {
     fn build(&self, app: &mut App) {
         let loaded = load_options_file();
-        app.insert_resource(CameraOptions::from_file(&loaded.camera))
+        app.insert_resource(loaded.sound.to_runtime())
+            .insert_resource(CameraOptions::from_file(&loaded.camera))
             .insert_resource(HudOptions::from_file(&loaded.hud))
             .insert_resource(ClientOptionsUiState {
                 modal_offset: loaded.modal_offset,
@@ -152,7 +153,6 @@ impl Default for ClientOptionsFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SoundOptionsFile {
     master_volume: f32,
-    footstep_volume: f32,
     ambient_volume: f32,
     music_volume: f32,
     music_enabled: bool,
@@ -169,11 +169,20 @@ impl SoundOptionsFile {
     fn from_runtime(settings: &SoundSettings) -> Self {
         Self {
             master_volume: settings.master_volume,
-            footstep_volume: settings.footstep_volume,
             ambient_volume: settings.ambient_volume,
             music_volume: settings.music_volume,
             music_enabled: settings.music_enabled,
             muted: settings.muted,
+        }
+    }
+
+    fn to_runtime(&self) -> SoundSettings {
+        SoundSettings {
+            master_volume: self.master_volume,
+            ambient_volume: self.ambient_volume,
+            music_volume: self.music_volume,
+            music_enabled: self.music_enabled,
+            muted: self.muted,
         }
     }
 }
@@ -342,19 +351,10 @@ fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {
 
 fn apply_loaded_client_options(
     mut loaded: ResMut<LoadedClientOptions>,
-    mut sound: Option<ResMut<SoundSettings>>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
     if loaded.applied {
         return;
-    }
-    if let Some(sound) = sound.as_mut() {
-        sound.master_volume = loaded.file.sound.master_volume;
-        sound.footstep_volume = loaded.file.sound.footstep_volume;
-        sound.ambient_volume = loaded.file.sound.ambient_volume;
-        sound.music_volume = loaded.file.sound.music_volume;
-        sound.music_enabled = loaded.file.sound.music_enabled;
-        sound.muted = loaded.file.sound.muted;
     }
     if let Some(fps) = fps.as_mut() {
         fps.enabled = loaded.file.hud.show_fps_overlay;

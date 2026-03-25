@@ -17,8 +17,7 @@ const OPTIONS_LABEL_GAP: f32 = 16.0;
 const OPTIONS_VALUE_W: f32 = 76.0;
 const OPTIONS_VALUE_PAD: f32 = 8.0;
 const OPTIONS_SLIDER_X: f32 = OPTIONS_LABEL_W + OPTIONS_LABEL_GAP;
-const OPTIONS_TRACK_W: f32 =
-    OPTIONS_ROW_W - OPTIONS_SLIDER_X - OPTIONS_VALUE_W - OPTIONS_VALUE_PAD;
+const OPTIONS_TRACK_W: f32 = OPTIONS_ROW_W - OPTIONS_SLIDER_X - OPTIONS_VALUE_W - OPTIONS_VALUE_PAD;
 const OPTIONS_TRACK_H: f32 = 15.0;
 const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
@@ -127,13 +126,6 @@ fn sound_items(sound: &SoundOptionsView) -> Element {
             "ambient_volume",
             "Ambient Volume",
             sound.ambient_volume,
-            0.0,
-            1.0,
-        ),
-        slider_row(
-            "footstep_volume",
-            "Footstep Volume",
-            sound.footstep_volume,
             0.0,
             1.0,
         ),

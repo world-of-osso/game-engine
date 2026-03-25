@@ -1,8 +1,8 @@
+use bevy::log::info;
 use game_engine::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
 use game_engine::ui::screens::options_menu_component::{
     CameraOptionsView, HudOptionsView, OptionsCategory, OptionsViewModel, SoundOptionsView,
 };
-use bevy::log::info;
 
 use crate::client_options::{CameraOptions, HudOptions};
 use crate::sound::SoundSettings;
@@ -19,7 +19,6 @@ pub enum SliderField {
     MasterVolume,
     MusicVolume,
     AmbientVolume,
-    FootstepVolume,
     LookSensitivity,
     ZoomSpeed,
     FollowSpeed,
@@ -53,7 +52,6 @@ pub struct SoundDraft {
     pub master_volume: f32,
     pub music_volume: f32,
     pub ambient_volume: f32,
-    pub footstep_volume: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +90,6 @@ pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
             master_volume: sound.master_volume,
             music_volume: sound.music_volume,
             ambient_volume: sound.ambient_volume,
-            footstep_volume: sound.footstep_volume,
         }
     } else {
         let defaults = SoundSettings::default();
@@ -102,7 +99,6 @@ pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
             master_volume: defaults.master_volume,
             music_volume: defaults.music_volume,
             ambient_volume: defaults.ambient_volume,
-            footstep_volume: defaults.footstep_volume,
         }
     }
 }
@@ -150,7 +146,6 @@ fn sound_view(draft: &SoundDraft) -> SoundOptionsView {
         master_volume: draft.master_volume,
         music_volume: draft.music_volume,
         ambient_volume: draft.ambient_volume,
-        footstep_volume: draft.footstep_volume,
     }
 }
 
@@ -181,7 +176,6 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
         "master_volume" => Some(SliderField::MasterVolume),
         "music_volume" => Some(SliderField::MusicVolume),
         "ambient_volume" => Some(SliderField::AmbientVolume),
-        "footstep_volume" => Some(SliderField::FootstepVolume),
         "look_sensitivity" => Some(SliderField::LookSensitivity),
         "zoom_speed" => Some(SliderField::ZoomSpeed),
         "follow_speed" => Some(SliderField::FollowSpeed),
@@ -193,10 +187,9 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
 
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
     match field {
-        SliderField::MasterVolume
-        | SliderField::MusicVolume
-        | SliderField::AmbientVolume
-        | SliderField::FootstepVolume => (0.0, 1.0),
+        SliderField::MasterVolume | SliderField::MusicVolume | SliderField::AmbientVolume => {
+            (0.0, 1.0)
+        }
         SliderField::LookSensitivity => (0.002, 0.03),
         SliderField::ZoomSpeed | SliderField::FollowSpeed => (2.0, 20.0),
         SliderField::MinDistance => (1.0, 10.0),
@@ -209,7 +202,6 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
         SliderField::MusicVolume => model.draft_sound.music_volume = value,
         SliderField::AmbientVolume => model.draft_sound.ambient_volume = value,
-        SliderField::FootstepVolume => model.draft_sound.footstep_volume = value,
         SliderField::LookSensitivity => model.draft_camera.look_sensitivity = value,
         SliderField::ZoomSpeed => model.draft_camera.zoom_speed = value,
         SliderField::FollowSpeed => model.draft_camera.follow_speed = value,
@@ -256,15 +248,42 @@ pub fn parse_toggle_action(action: &str) -> Option<&str> {
 pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
     let step = delta as f32;
     match key {
-        "master_volume" => model.draft_sound.master_volume = clamp_step(model.draft_sound.master_volume, 0.05 * step, 0.0, 1.0),
-        "music_volume" => model.draft_sound.music_volume = clamp_step(model.draft_sound.music_volume, 0.05 * step, 0.0, 1.0),
-        "ambient_volume" => model.draft_sound.ambient_volume = clamp_step(model.draft_sound.ambient_volume, 0.05 * step, 0.0, 1.0),
-        "footstep_volume" => model.draft_sound.footstep_volume = clamp_step(model.draft_sound.footstep_volume, 0.05 * step, 0.0, 1.0),
-        "look_sensitivity" => model.draft_camera.look_sensitivity = clamp_step(model.draft_camera.look_sensitivity, 0.001 * step, 0.002, 0.03),
-        "zoom_speed" => model.draft_camera.zoom_speed = clamp_step(model.draft_camera.zoom_speed, 0.5 * step, 2.0, 20.0),
-        "follow_speed" => model.draft_camera.follow_speed = clamp_step(model.draft_camera.follow_speed, 0.5 * step, 2.0, 20.0),
-        "min_distance" => model.draft_camera.min_distance = clamp_step(model.draft_camera.min_distance, 0.5 * step, 1.0, 10.0),
-        "max_distance" => model.draft_camera.max_distance = clamp_step(model.draft_camera.max_distance, 1.0 * step, 10.0, 60.0),
+        "master_volume" => {
+            model.draft_sound.master_volume =
+                clamp_step(model.draft_sound.master_volume, 0.05 * step, 0.0, 1.0)
+        }
+        "music_volume" => {
+            model.draft_sound.music_volume =
+                clamp_step(model.draft_sound.music_volume, 0.05 * step, 0.0, 1.0)
+        }
+        "ambient_volume" => {
+            model.draft_sound.ambient_volume =
+                clamp_step(model.draft_sound.ambient_volume, 0.05 * step, 0.0, 1.0)
+        }
+        "look_sensitivity" => {
+            model.draft_camera.look_sensitivity = clamp_step(
+                model.draft_camera.look_sensitivity,
+                0.001 * step,
+                0.002,
+                0.03,
+            )
+        }
+        "zoom_speed" => {
+            model.draft_camera.zoom_speed =
+                clamp_step(model.draft_camera.zoom_speed, 0.5 * step, 2.0, 20.0)
+        }
+        "follow_speed" => {
+            model.draft_camera.follow_speed =
+                clamp_step(model.draft_camera.follow_speed, 0.5 * step, 2.0, 20.0)
+        }
+        "min_distance" => {
+            model.draft_camera.min_distance =
+                clamp_step(model.draft_camera.min_distance, 0.5 * step, 1.0, 10.0)
+        }
+        "max_distance" => {
+            model.draft_camera.max_distance =
+                clamp_step(model.draft_camera.max_distance, 1.0 * step, 10.0, 60.0)
+        }
         _ => {}
     }
     normalize_camera_limits(&mut model.draft_camera);
@@ -274,10 +293,7 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
     match key {
         "muted" => {
             model.draft_sound.muted = !model.draft_sound.muted;
-            info!(
-                "Options toggle: muted -> {}",
-                model.draft_sound.muted
-            );
+            info!("Options toggle: muted -> {}", model.draft_sound.muted);
         }
         "music_enabled" => model.draft_sound.music_enabled = !model.draft_sound.music_enabled,
         "invert_y" => model.draft_camera.invert_y = !model.draft_camera.invert_y,
@@ -285,7 +301,9 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
         "show_action_bars" => model.draft_hud.show_action_bars = !model.draft_hud.show_action_bars,
         "show_nameplates" => model.draft_hud.show_nameplates = !model.draft_hud.show_nameplates,
         "show_health_bars" => model.draft_hud.show_health_bars = !model.draft_hud.show_health_bars,
-        "show_target_marker" => model.draft_hud.show_target_marker = !model.draft_hud.show_target_marker,
+        "show_target_marker" => {
+            model.draft_hud.show_target_marker = !model.draft_hud.show_target_marker
+        }
         "show_fps_overlay" => model.draft_hud.show_fps_overlay = !model.draft_hud.show_fps_overlay,
         _ => {}
     }
@@ -295,16 +313,11 @@ pub fn reset_category_defaults(model: &mut OverlayModel) {
     match model.category {
         OptionsCategory::Sound => model.draft_sound = sound_draft(None),
         OptionsCategory::Camera => model.draft_camera = camera_draft(&CameraOptions::default()),
-        OptionsCategory::Interface | OptionsCategory::Hud => model.draft_hud = hud_draft(&HudOptions::default()),
+        OptionsCategory::Interface | OptionsCategory::Hud => {
+            model.draft_hud = hud_draft(&HudOptions::default())
+        }
         _ => {}
     }
-}
-
-pub fn cancel_options(model: &mut OverlayModel) {
-    model.draft_sound = model.committed_sound.clone();
-    model.draft_camera = model.committed_camera.clone();
-    model.draft_hud = model.committed_hud.clone();
-    model.view = GameMenuView::MainMenu;
 }
 
 pub fn apply_snapshot(model: &mut OverlayModel) -> ApplySnapshot {
@@ -325,7 +338,6 @@ pub fn apply_sound_snapshot(sound: &mut SoundSettings, draft: &SoundDraft) {
     sound.master_volume = draft.master_volume;
     sound.music_volume = draft.music_volume;
     sound.ambient_volume = draft.ambient_volume;
-    sound.footstep_volume = draft.footstep_volume;
 }
 
 pub fn apply_camera_snapshot(camera: &mut CameraOptions, draft: &CameraDraft) {

@@ -92,11 +92,10 @@ pub fn format_terrain_status(snapshot: &TerrainStatusSnapshot) -> String {
 
 pub fn format_sound_status(snapshot: &SoundStatusSnapshot) -> String {
     format!(
-        "enabled: {}\nmuted: {}\nmaster_volume: {:.2}\nfootstep_volume: {:.2}\nambient_volume: {:.2}\nambient_entities: {}\nactive_sinks: {}",
+        "enabled: {}\nmuted: {}\nmaster_volume: {:.2}\nambient_volume: {:.2}\nambient_entities: {}\nactive_sinks: {}",
         snapshot.enabled,
         snapshot.muted,
         snapshot.master_volume,
-        snapshot.footstep_volume,
         snapshot.ambient_volume,
         snapshot.ambient_entities,
         snapshot.active_sinks,
@@ -765,7 +764,6 @@ mod tests {
             enabled: true,
             muted: false,
             master_volume: 0.8,
-            footstep_volume: 0.5,
             ambient_volume: 0.3,
             ambient_entities: 1,
             active_sinks: 2,

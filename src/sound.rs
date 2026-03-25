@@ -8,7 +8,7 @@ pub struct SoundPlugin;
 
 impl Plugin for SoundPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SoundSettings::default())
+        app.init_resource::<SoundSettings>()
             .insert_resource(MusicPlaybackState::default())
             .add_systems(
                 Startup,
@@ -25,7 +25,6 @@ impl Plugin for SoundPlugin {
 #[derive(Resource)]
 pub struct SoundSettings {
     pub master_volume: f32,
-    pub footstep_volume: f32,
     pub ambient_volume: f32,
     pub music_volume: f32,
     pub music_enabled: bool,
@@ -36,7 +35,6 @@ impl Default for SoundSettings {
     fn default() -> Self {
         Self {
             master_volume: 1.0,
-            footstep_volume: 0.5,
             ambient_volume: 0.3,
             music_volume: 0.45,
             music_enabled: true,
@@ -306,7 +304,7 @@ fn play_footstep(
         sound_assets.footstep_light.clone()
     };
 
-    let volume = settings.footstep_volume * settings.master_volume;
+    let volume = settings.master_volume;
     commands.spawn((
         AudioPlayer::<AudioSource>::new(handle),
         PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),

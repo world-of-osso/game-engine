@@ -92,7 +92,6 @@ pub fn sync_sound_status_snapshot(
         snapshot.enabled = true;
         snapshot.muted = settings.muted;
         snapshot.master_volume = settings.master_volume;
-        snapshot.footstep_volume = settings.footstep_volume;
         snapshot.ambient_volume = settings.ambient_volume;
     } else {
         *snapshot = SoundStatusSnapshot::default();

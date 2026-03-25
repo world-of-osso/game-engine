@@ -56,9 +56,6 @@ const TAB_BORDER_SELECTED: &str = "1px solid 0.42,0.33,0.12,0.65";
 const TAB_ACCENT_COLOR: &str = "0.95,0.76,0.14,0.95";
 const TAB_DIVIDER_COLOR: &str = "0.22,0.18,0.10,0.45";
 
-pub const ACTION_OPTIONS_BACK: &str = "options_back";
-pub const ACTION_OPTIONS_APPLY: &str = "options_apply";
-pub const ACTION_OPTIONS_CANCEL: &str = "options_cancel";
 pub const ACTION_OPTIONS_OKAY: &str = "options_okay";
 pub const ACTION_OPTIONS_DEFAULTS: &str = "options_defaults";
 
@@ -136,7 +133,6 @@ pub struct SoundOptionsView {
     pub master_volume: f32,
     pub music_volume: f32,
     pub ambient_volume: f32,
-    pub footstep_volume: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -467,18 +463,15 @@ fn footer_buttons() -> Element {
         .collect()
 }
 
-fn footer_specs() -> [(&'static str, &'static str, &'static str, f32); 5] {
+fn footer_specs() -> [(&'static str, &'static str, &'static str, f32); 2] {
     [
-        ("OptionsBackButton", "Back", ACTION_OPTIONS_BACK, 86.0),
         (
             "OptionsDefaultsButton",
             "Defaults",
             ACTION_OPTIONS_DEFAULTS,
             116.0,
         ),
-        ("OptionsApplyButton", "Apply", ACTION_OPTIONS_APPLY, 94.0),
-        ("OptionsCancelButton", "Cancel", ACTION_OPTIONS_CANCEL, 94.0),
-        ("OptionsOkayButton", "Okay", ACTION_OPTIONS_OKAY, 94.0),
+        ("OptionsDoneButton", "Done", ACTION_OPTIONS_OKAY, 94.0),
     ]
 }
 

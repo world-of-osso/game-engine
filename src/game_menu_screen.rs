@@ -8,8 +8,7 @@ use game_engine::ui::screens::game_menu_component::{
     GAME_MENU_ROOT, GameMenuView, game_menu_screen,
 };
 use game_engine::ui::screens::options_menu_component::{
-    ACTION_OPTIONS_APPLY, ACTION_OPTIONS_BACK, ACTION_OPTIONS_CANCEL, ACTION_OPTIONS_DEFAULTS,
-    ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE, OptionsCategory,
+    ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE, OptionsCategory,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -17,7 +16,7 @@ use crate::client_options::{self, CameraOptions, ClientOptionsUiState, HudOption
 use crate::game_menu_options::{
     ApplySnapshot, DragCapture, OverlayModel, SliderField, apply_camera_snapshot,
     apply_hud_snapshot, apply_slider_value, apply_snapshot, apply_sound_snapshot, apply_step,
-    apply_toggle, build_view_model, camera_draft, cancel_options, hud_draft, parse_category_action,
+    apply_toggle, build_view_model, camera_draft, hud_draft, parse_category_action,
     parse_slider_action, parse_step_action, parse_toggle_action, reset_category_defaults,
     slider_bounds, sound_draft,
 };
@@ -181,7 +180,7 @@ fn handle_overlay_input(
     mut commands: Commands,
     state: Res<State<GameState>>,
 ) {
-    handle_escape(&mut overlay, &mut ui, keyboard.as_deref(), &mut commands);
+    handle_escape(&mut overlay, keyboard.as_deref(), &mut commands);
     let (Some(mouse), Ok(window)) = (mouse, windows.single()) else {
         return;
     };
@@ -189,8 +188,20 @@ fn handle_overlay_input(
         return;
     };
     let cursor = Vec2::new(cursor.x, cursor.y);
-    handle_press(&mouse, cursor, &mut overlay, &mut ui.registry);
-    handle_drag(&mouse, cursor, &mut overlay, &mut ui.registry);
+    handle_press(
+        &mouse,
+        cursor,
+        &mut overlay,
+        &mut ui.registry,
+        &mut commands,
+    );
+    handle_drag(
+        &mouse,
+        cursor,
+        &mut overlay,
+        &mut ui.registry,
+        &mut commands,
+    );
     handle_release(
         &mouse,
         cursor,
@@ -204,7 +215,6 @@ fn handle_overlay_input(
 
 fn handle_escape(
     overlay: &mut GameMenuOverlay,
-    ui: &mut UiState,
     keyboard: Option<&ButtonInput<KeyCode>>,
     commands: &mut Commands,
 ) {
@@ -213,10 +223,9 @@ fn handle_escape(
         return;
     }
     if overlay.model.view == GameMenuView::Options {
-        overlay.model.view = GameMenuView::MainMenu;
         overlay.model.drag_capture = DragCapture::None;
         overlay.model.pressed_action = None;
-        sync_overlay(overlay, ui);
+        close_game_menu(commands);
     } else {
         close_game_menu(commands);
     }
@@ -227,6 +236,7 @@ fn handle_press(
     cursor: Vec2,
     overlay: &mut GameMenuOverlay,
     reg: &mut FrameRegistry,
+    commands: &mut Commands,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
@@ -239,7 +249,7 @@ fn handle_press(
     overlay.model.pressed_origin = cursor;
     overlay.model.pressed_action = action.clone();
     if let Some(slider) = action.as_deref().and_then(parse_slider_action) {
-        begin_slider_drag(slider, cursor, overlay, reg);
+        begin_slider_drag(slider, cursor, overlay, reg, commands);
     } else if is_descendant_named(reg, frame_id, OPTIONS_DRAG_HANDLE.0) {
         begin_window_drag(cursor, overlay, reg);
     } else {
@@ -252,9 +262,10 @@ fn begin_slider_drag(
     cursor: Vec2,
     overlay: &mut GameMenuOverlay,
     reg: &FrameRegistry,
+    commands: &mut Commands,
 ) {
     overlay.model.drag_capture = DragCapture::Slider(slider);
-    update_slider(slider, cursor, overlay, reg);
+    update_slider(slider, cursor, overlay, reg, commands);
 }
 
 fn begin_window_drag(cursor: Vec2, overlay: &mut GameMenuOverlay, reg: &FrameRegistry) {
@@ -270,13 +281,14 @@ fn handle_drag(
     cursor: Vec2,
     overlay: &mut GameMenuOverlay,
     reg: &mut FrameRegistry,
+    commands: &mut Commands,
 ) {
     if !mouse.pressed(MouseButton::Left) {
         return;
     }
     match overlay.model.drag_capture {
         DragCapture::Window => drag_window(cursor, overlay, reg),
-        DragCapture::Slider(slider) => update_slider(slider, cursor, overlay, reg),
+        DragCapture::Slider(slider) => update_slider(slider, cursor, overlay, reg, commands),
         DragCapture::None => return,
     }
     sync_overlay_model_only(overlay, reg);
@@ -316,6 +328,7 @@ fn update_slider(
     cursor: Vec2,
     overlay: &mut GameMenuOverlay,
     reg: &FrameRegistry,
+    commands: &mut Commands,
 ) {
     let (min, max) = slider_bounds(slider);
     let pct = slider_rect(slider, reg)
@@ -323,6 +336,7 @@ fn update_slider(
         .unwrap_or(0.0);
     let raw = min + (max - min) * pct;
     apply_slider_value(slider, raw, &mut overlay.model);
+    queue_apply_current_options(overlay, commands);
     overlay.model.drag_origin.y = slider_row(slider);
 }
 
@@ -336,7 +350,6 @@ fn slider_widget_name(slider: SliderField) -> &'static str {
         SliderField::MasterVolume => "Slidermaster_volume",
         SliderField::MusicVolume => "Slidermusic_volume",
         SliderField::AmbientVolume => "Sliderambient_volume",
-        SliderField::FootstepVolume => "Sliderfootstep_volume",
         SliderField::LookSensitivity => "Sliderlook_sensitivity",
         SliderField::ZoomSpeed => "Sliderzoom_speed",
         SliderField::FollowSpeed => "Sliderfollow_speed",
@@ -350,7 +363,6 @@ fn slider_row(slider: SliderField) -> f32 {
         SliderField::MasterVolume => 2.0,
         SliderField::MusicVolume => 3.0,
         SliderField::AmbientVolume => 4.0,
-        SliderField::FootstepVolume => 5.0,
         SliderField::LookSensitivity => 1.0,
         SliderField::ZoomSpeed => 2.0,
         SliderField::FollowSpeed => 3.0,
@@ -437,10 +449,12 @@ fn dispatch_overlay_action(
     }
     if let Some((key, delta)) = parse_step_action(action) {
         apply_step(key, delta, &mut overlay.model);
+        queue_apply_current_options(overlay, commands);
         return;
     }
     if let Some(key) = parse_toggle_action(action) {
         apply_toggle(key, &mut overlay.model);
+        queue_apply_current_options(overlay, commands);
         return;
     }
     match action {
@@ -451,13 +465,11 @@ fn dispatch_overlay_action(
         ACTION_RESUME => close_game_menu(commands),
         ACTION_OPTIONS => overlay.model.view = GameMenuView::Options,
         ACTION_SUPPORT | ACTION_ADDONS => info!("{action}: placeholder"),
-        ACTION_OPTIONS_BACK => overlay.model.view = GameMenuView::MainMenu,
-        ACTION_OPTIONS_DEFAULTS => reset_category_defaults(&mut overlay.model),
-        ACTION_OPTIONS_CANCEL => cancel_options(&mut overlay.model),
-        ACTION_OPTIONS_APPLY => {
-            commands.queue(ApplyDraftOptionsCommand(apply_snapshot(&mut overlay.model)))
+        ACTION_OPTIONS_DEFAULTS => {
+            reset_category_defaults(&mut overlay.model);
+            queue_apply_current_options(overlay, commands);
         }
-        ACTION_OPTIONS_OKAY => finish_apply_and_close(overlay, commands),
+        ACTION_OPTIONS_OKAY => close_game_menu(commands),
         _ if *state.get() == GameState::GameMenu => warn!("Unknown menu action: {action}"),
         _ => {}
     }
@@ -468,10 +480,8 @@ fn queue_logout(commands: &mut Commands) {
     commands.queue(SetStateCommand(GameState::Login));
 }
 
-fn finish_apply_and_close(overlay: &mut GameMenuOverlay, commands: &mut Commands) {
-    let snapshot = apply_snapshot(&mut overlay.model);
-    commands.queue(ApplyDraftOptionsCommand(snapshot));
-    close_game_menu(commands);
+fn queue_apply_current_options(overlay: &mut GameMenuOverlay, commands: &mut Commands) {
+    commands.queue(ApplyDraftOptionsCommand(apply_snapshot(&mut overlay.model)));
 }
 
 struct ApplyDraftOptionsCommand(ApplySnapshot);
@@ -486,15 +496,13 @@ impl Command for ApplyDraftOptionsCommand {
 fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     info!(
         "Applying options snapshot: muted={}, music_enabled={}",
-        snapshot.sound.muted,
-        snapshot.sound.music_enabled
+        snapshot.sound.muted, snapshot.sound.music_enabled
     );
     if let Some(mut sound) = world.get_resource_mut::<SoundSettings>() {
         apply_sound_snapshot(&mut sound, &snapshot.sound);
         info!(
             "Sound settings after apply: muted={}, music_enabled={}",
-            sound.muted,
-            sound.music_enabled
+            sound.muted, sound.music_enabled
         );
     }
     apply_camera_snapshot(&mut world.resource_mut::<CameraOptions>(), &snapshot.camera);
@@ -528,18 +536,14 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
     };
     let sound = SoundSettings {
         master_volume: snapshot.sound.master_volume,
-        footstep_volume: snapshot.sound.footstep_volume,
         ambient_volume: snapshot.sound.ambient_volume,
         music_volume: snapshot.sound.music_volume,
         music_enabled: snapshot.sound.music_enabled,
         muted: snapshot.sound.muted,
     };
-    if let Err(err) = client_options::save_client_options_values(
-        &sound,
-        &camera,
-        &hud,
-        snapshot.modal_position,
-    ) {
+    if let Err(err) =
+        client_options::save_client_options_values(&sound, &camera, &hud, snapshot.modal_position)
+    {
         warn!("{err}");
     }
 }
@@ -618,10 +622,6 @@ impl Command for SetStateCommand {
             next.set(self.0);
         }
     }
-}
-
-fn sync_overlay(overlay: &mut GameMenuOverlay, ui: &mut UiState) {
-    sync_overlay_model_only(overlay, &mut ui.registry);
 }
 
 fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistry) {

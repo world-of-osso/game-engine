@@ -212,7 +212,6 @@ mod tests {
                     master_volume: 0.8,
                     music_volume: 0.4,
                     ambient_volume: 0.3,
-                    footstep_volume: 0.5,
                 },
                 camera: CameraOptionsView {
                     look_sensitivity: 0.01,
@@ -395,6 +394,18 @@ mod tests {
         assert!(unmuted.get_by_name("ToggleSwitchmutedRightHit").is_some());
         assert!(muted.get_by_name("ToggleSwitchmutedLeftHit").is_some());
         assert!(muted.get_by_name("ToggleSwitchmutedRightHit").is_none());
+    }
+
+    #[test]
+    fn options_footer_only_shows_defaults_and_done_buttons() {
+        let reg = options_registry();
+
+        assert!(reg.get_by_name("OptionsDefaultsButton").is_some());
+        assert!(reg.get_by_name("OptionsDoneButton").is_some());
+        assert!(reg.get_by_name("OptionsBackButton").is_none());
+        assert!(reg.get_by_name("OptionsApplyButton").is_none());
+        assert!(reg.get_by_name("OptionsCancelButton").is_none());
+        assert!(reg.get_by_name("OptionsOkayButton").is_none());
     }
 
     fn options_registry() -> FrameRegistry {
