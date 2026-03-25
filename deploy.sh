@@ -8,8 +8,17 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "=== Building game-engine (release) ==="
 cargo build --release --manifest-path "$SCRIPT_DIR/Cargo.toml"
 
-echo "=== Syncing game-engine binary ==="
-scp "$SCRIPT_DIR/target/release/game-engine" "$SERVER:$REMOTE_DIR/game-engine"
+PLATFORM="linux-x86_64"
+case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64)   PLATFORM="linux-x86_64" ;;
+  Darwin-arm64)   PLATFORM="macos-aarch64" ;;
+  Darwin-x86_64)  PLATFORM="macos-x86_64" ;;
+  MINGW*|MSYS*|CYGWIN*)  PLATFORM="windows-x86_64" ;;
+esac
+
+echo "=== Syncing game-engine binary ($PLATFORM) ==="
+ssh "$SERVER" "rm -f $REMOTE_DIR/game-engine-${PLATFORM}*"
+scp "$SCRIPT_DIR/target/release/game-engine" "$SERVER:$REMOTE_DIR/game-engine-${PLATFORM}"
 
 echo "=== Syncing data directory ==="
 rsync -avz --delete \
