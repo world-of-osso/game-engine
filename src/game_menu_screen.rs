@@ -549,11 +549,24 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
 }
 
 fn apply_ui_hud_visibility(world: &mut World, hud: &crate::game_menu_options::HudDraft) {
+    let current_state = world
+        .get_resource::<State<GameState>>()
+        .map(|state| *state.get())
+        .unwrap_or(GameState::Login);
     let Some(mut ui) = world.get_resource_mut::<UiState>() else {
         return;
     };
+    apply_ui_hud_visibility_for_state(&mut ui.registry, current_state, hud);
+}
+
+fn apply_ui_hud_visibility_for_state(
+    reg: &mut FrameRegistry,
+    current_state: GameState,
+    hud: &crate::game_menu_options::HudDraft,
+) {
+    let in_world = current_state == GameState::InWorld;
     set_named_frames_visible(
-        &mut ui.registry,
+        reg,
         &[
             "MinimapCluster",
             "MinimapHeader",
@@ -563,10 +576,10 @@ fn apply_ui_hud_visibility(world: &mut World, hud: &crate::game_menu_options::Hu
             "MinimapZoneName",
             "MinimapCoords",
         ],
-        hud.show_minimap,
+        in_world && hud.show_minimap,
     );
     set_named_frames_visible(
-        &mut ui.registry,
+        reg,
         &[
             "MainActionBar",
             "MultiBarRight",
@@ -575,7 +588,7 @@ fn apply_ui_hud_visibility(world: &mut World, hud: &crate::game_menu_options::Hu
             "MultiBarRightMoverLabel",
             "MultiBarLeftMoverLabel",
         ],
-        hud.show_action_bars,
+        in_world && hud.show_action_bars,
     );
 }
 
@@ -632,6 +645,7 @@ fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::game_menu_options::HudDraft;
 
     #[test]
     fn initial_modal_offset_defaults_to_center() {
@@ -661,5 +675,53 @@ mod tests {
         let clamped = clamp_modal_offset(Vec2::new(900.0, -900.0), &reg);
 
         assert_eq!(clamped, [530.0, -250.0]);
+    }
+
+    #[test]
+    fn charselect_options_do_not_show_inworld_hud_frames() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let minimap = reg.create_frame("MinimapCluster", None);
+        let action_bar = reg.create_frame("MainActionBar", None);
+        let hud = HudDraft {
+            show_minimap: true,
+            show_action_bars: true,
+            show_nameplates: true,
+            show_health_bars: true,
+            show_target_marker: true,
+            show_fps_overlay: true,
+        };
+
+        apply_ui_hud_visibility_for_state(&mut reg, GameState::CharSelect, &hud);
+
+        let minimap = reg.get(minimap).expect("minimap frame");
+        let action_bar = reg.get(action_bar).expect("action bar frame");
+        assert!(minimap.hidden);
+        assert!(!minimap.visible);
+        assert!(action_bar.hidden);
+        assert!(!action_bar.visible);
+    }
+
+    #[test]
+    fn inworld_options_can_show_inworld_hud_frames() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let minimap = reg.create_frame("MinimapCluster", None);
+        let action_bar = reg.create_frame("MainActionBar", None);
+        let hud = HudDraft {
+            show_minimap: true,
+            show_action_bars: true,
+            show_nameplates: true,
+            show_health_bars: true,
+            show_target_marker: true,
+            show_fps_overlay: true,
+        };
+
+        apply_ui_hud_visibility_for_state(&mut reg, GameState::InWorld, &hud);
+
+        let minimap = reg.get(minimap).expect("minimap frame");
+        let action_bar = reg.get(action_bar).expect("action bar frame");
+        assert!(!minimap.hidden);
+        assert!(minimap.visible);
+        assert!(!action_bar.hidden);
+        assert!(action_bar.visible);
     }
 }
