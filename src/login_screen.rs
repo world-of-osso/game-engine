@@ -38,7 +38,7 @@ const FADE_IN_DURATION: f32 = 0.75;
 #[cfg(debug_assertions)]
 pub(crate) const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:5000";
 #[cfg(not(debug_assertions))]
-pub(crate) const DEFAULT_SERVER_ADDR: &str = "worldofosso.com:5000";
+pub(crate) const DEFAULT_SERVER_ADDR: &str = "game.worldofosso.com:5000";
 const GLUE_EDITBOX_TEXT_COLOR: [f32; 4] = [1.0, 0.8, 0.2, 1.0];
 const EDITBOX_BG: [f32; 4] = [0.22, 0.16, 0.11, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
