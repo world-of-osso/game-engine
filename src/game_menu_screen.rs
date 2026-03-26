@@ -55,6 +55,10 @@ impl Plugin for GameMenuScreenPlugin {
         app.add_systems(OnExit(GameState::GameMenu), close_menu_overlay);
         app.add_systems(
             Update,
+            open_inworld_menu_on_escape.run_if(in_state(GameState::InWorld)),
+        );
+        app.add_systems(
+            Update,
             handle_overlay_input.run_if(resource_exists::<GameMenuOverlay>),
         );
     }
@@ -168,6 +172,29 @@ fn open_menu_overlay(mut ui: ResMut<UiState>, mut commands: Commands) {
 
 fn close_menu_overlay(mut commands: Commands) {
     close_game_menu(&mut commands);
+}
+
+fn open_inworld_menu_on_escape(
+    keys: Res<ButtonInput<KeyCode>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    overlay: Option<Res<GameMenuOverlay>>,
+    spellbook_runtime: Option<NonSend<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+    mut ui: ResMut<UiState>,
+    mut commands: Commands,
+) {
+    if !crate::networking::gameplay_input_allowed(reconnect) || overlay.is_some() {
+        return;
+    }
+    if spellbook_runtime
+        .as_ref()
+        .is_some_and(|runtime| runtime.has_focus())
+    {
+        return;
+    }
+    if !keys.just_pressed(KeyCode::Escape) {
+        return;
+    }
+    open_game_menu(&mut ui, &mut commands, GameState::InWorld);
 }
 
 fn handle_overlay_input(
@@ -643,85 +670,5 @@ fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistr
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::game_menu_options::HudDraft;
-
-    #[test]
-    fn initial_modal_offset_defaults_to_center() {
-        let reg = FrameRegistry::new(1920.0, 1080.0);
-        let state = ClientOptionsUiState {
-            modal_offset: None,
-            legacy_modal_position: None,
-        };
-
-        assert_eq!(initial_modal_offset(&state, &reg), [0.0, 0.0]);
-    }
-
-    #[test]
-    fn initial_modal_offset_migrates_legacy_top_left_position() {
-        let reg = FrameRegistry::new(1920.0, 1080.0);
-        let state = ClientOptionsUiState {
-            modal_offset: None,
-            legacy_modal_position: Some([100.0, 120.0]),
-        };
-
-        assert_eq!(initial_modal_offset(&state, &reg), [-430.0, 130.0]);
-    }
-
-    #[test]
-    fn clamp_modal_offset_keeps_center_anchor_offset_on_screen() {
-        let reg = FrameRegistry::new(1920.0, 1080.0);
-        let clamped = clamp_modal_offset(Vec2::new(900.0, -900.0), &reg);
-
-        assert_eq!(clamped, [530.0, -250.0]);
-    }
-
-    #[test]
-    fn charselect_options_do_not_show_inworld_hud_frames() {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let minimap = reg.create_frame("MinimapCluster", None);
-        let action_bar = reg.create_frame("MainActionBar", None);
-        let hud = HudDraft {
-            show_minimap: true,
-            show_action_bars: true,
-            show_nameplates: true,
-            show_health_bars: true,
-            show_target_marker: true,
-            show_fps_overlay: true,
-        };
-
-        apply_ui_hud_visibility_for_state(&mut reg, GameState::CharSelect, &hud);
-
-        let minimap = reg.get(minimap).expect("minimap frame");
-        let action_bar = reg.get(action_bar).expect("action bar frame");
-        assert!(minimap.hidden);
-        assert!(!minimap.visible);
-        assert!(action_bar.hidden);
-        assert!(!action_bar.visible);
-    }
-
-    #[test]
-    fn inworld_options_can_show_inworld_hud_frames() {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let minimap = reg.create_frame("MinimapCluster", None);
-        let action_bar = reg.create_frame("MainActionBar", None);
-        let hud = HudDraft {
-            show_minimap: true,
-            show_action_bars: true,
-            show_nameplates: true,
-            show_health_bars: true,
-            show_target_marker: true,
-            show_fps_overlay: true,
-        };
-
-        apply_ui_hud_visibility_for_state(&mut reg, GameState::InWorld, &hud);
-
-        let minimap = reg.get(minimap).expect("minimap frame");
-        let action_bar = reg.get(action_bar).expect("action bar frame");
-        assert!(!minimap.hidden);
-        assert!(minimap.visible);
-        assert!(!action_bar.hidden);
-        assert!(action_bar.visible);
-    }
-}
+#[path = "game_menu_screen_tests.rs"]
+mod tests;
