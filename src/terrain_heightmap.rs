@@ -5,12 +5,16 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::asset::adt::{self, CHUNK_SIZE, ChunkHeightGrid, UNIT_SIZE, vertex_index};
+use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
+use crate::terrain_tile::bevy_to_tile_coords;
 
 /// Queryable heightmap for terrain collision across multiple tiles.
 #[derive(Resource, Default)]
 pub struct TerrainHeightmap {
     /// Per-tile grids: (tile_y, tile_x) → 256 chunk height grids.
     tiles: HashMap<(u32, u32), Vec<Option<ChunkHeightGrid>>>,
+    /// Per-tile dominant surface class for each chunk.
+    surfaces: HashMap<(u32, u32), Vec<FootstepSurface>>,
 }
 
 impl TerrainHeightmap {
@@ -39,6 +43,7 @@ impl TerrainHeightmap {
     /// Remove height grids for a tile.
     pub fn remove_tile(&mut self, tile_y: u32, tile_x: u32) {
         self.tiles.remove(&(tile_y, tile_x));
+        self.surfaces.remove(&(tile_y, tile_x));
     }
 
     /// Look up terrain height at a Bevy-space (x, z) position across all loaded tiles.
@@ -48,6 +53,84 @@ impl TerrainHeightmap {
             .flat_map(|grids| grids.iter().flatten())
             .find_map(|g| sample_chunk_height(g, bx, bz))
     }
+
+    pub fn insert_tile_surfaces(
+        &mut self,
+        tile_y: u32,
+        tile_x: u32,
+        tex_data: &adt::AdtTexData,
+    ) {
+        let mut chunk_surfaces = vec![FootstepSurface::Dirt; 256];
+        for (idx, chunk) in tex_data.chunk_layers.iter().enumerate().take(256) {
+            chunk_surfaces[idx] = dominant_surface_for_chunk(tex_data, chunk);
+        }
+        self.surfaces.insert((tile_y, tile_x), chunk_surfaces);
+    }
+
+    pub fn register_tile(
+        &mut self,
+        tile_y: u32,
+        tile_x: u32,
+        adt_data: &adt::AdtData,
+        tex_data: Option<&adt::AdtTexData>,
+    ) {
+        self.insert_tile(tile_y, tile_x, adt_data);
+        if let Some(tex_data) = tex_data {
+            self.insert_tile_surfaces(tile_y, tile_x, tex_data);
+        }
+    }
+
+    pub fn surface_at(&self, bx: f32, bz: f32) -> Option<FootstepSurface> {
+        let (tile_y, tile_x) = bevy_to_tile_coords(bx, bz);
+        let chunk_idx = self.chunk_index_at(tile_y, tile_x, bx, bz)?;
+        self.surfaces
+            .get(&(tile_y, tile_x))
+            .and_then(|surfaces| surfaces.get(chunk_idx))
+            .copied()
+    }
+
+    fn chunk_index_at(&self, tile_y: u32, tile_x: u32, bx: f32, bz: f32) -> Option<usize> {
+        self.tile_chunks(tile_y, tile_x)?
+            .iter()
+            .flatten()
+            .find(|grid| sample_chunk_height(grid, bx, bz).is_some())
+            .map(|grid| (grid.index_y * 16 + grid.index_x) as usize)
+    }
+}
+
+fn dominant_surface_for_chunk(
+    tex_data: &adt::AdtTexData,
+    chunk: &adt::ChunkTexLayers,
+) -> FootstepSurface {
+    let Some(fdid) = dominant_texture_fdid(tex_data, chunk) else {
+        return FootstepSurface::Dirt;
+    };
+    let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
+        return FootstepSurface::Dirt;
+    };
+    classify_surface_from_texture_path(path)
+}
+
+fn dominant_texture_fdid(tex_data: &adt::AdtTexData, chunk: &adt::ChunkTexLayers) -> Option<u32> {
+    let mut best = None;
+    let mut best_weight = 0u64;
+    for (layer_idx, layer) in chunk.layers.iter().enumerate() {
+        let fdid = tex_data.texture_fdids.get(layer.texture_index as usize).copied()?;
+        let weight = if layer_idx == 0 {
+            1_000_000
+        } else {
+            layer
+                .alpha_map
+                .as_ref()
+                .map(|alpha| alpha.iter().map(|v| u64::from(*v)).sum())
+                .unwrap_or_default()
+        };
+        if weight >= best_weight {
+            best = Some(fdid);
+            best_weight = weight;
+        }
+    }
+    best
 }
 
 /// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
@@ -128,5 +211,28 @@ mod tests {
             (terrain_y - expected_y).abs() < 10.0,
             "expected terrain near saved spawn height, got terrain_y={terrain_y} expected_y={expected_y}"
         );
+    }
+
+    #[test]
+    fn dominant_texture_prefers_highest_alpha_layer() {
+        let tex = adt::AdtTexData {
+            texture_fdids: vec![1, 2],
+            chunk_layers: vec![adt::ChunkTexLayers {
+                layers: vec![
+                    adt::TextureLayer {
+                        texture_index: 0,
+                        _flags: 0,
+                        alpha_map: None,
+                    },
+                    adt::TextureLayer {
+                        texture_index: 1,
+                        _flags: 0,
+                        alpha_map: Some(vec![255; 4096]),
+                    },
+                ],
+            }],
+        };
+
+        assert_eq!(dominant_texture_fdid(&tex, &tex.chunk_layers[0]), Some(2));
     }
 }

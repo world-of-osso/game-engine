@@ -72,6 +72,7 @@ mod sky;
 mod sky_lightdata;
 mod sky_material;
 mod sound;
+mod sound_footsteps;
 mod sound_music_catalog;
 mod status_sync;
 mod target;

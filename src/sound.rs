@@ -5,6 +5,11 @@ use std::path::Path;
 use bevy::audio::{AudioSinkPlayback, Volume};
 use bevy::prelude::*;
 
+use crate::sound_footsteps::{
+    FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
+    classify_player_creature, load_wow_footstep_catalog, movement_from_anim,
+};
+
 pub struct SoundPlugin;
 
 impl Plugin for SoundPlugin {
@@ -48,6 +53,7 @@ impl Default for SoundSettings {
 pub struct SoundAssets {
     pub footstep_light: Handle<AudioSource>,
     pub footstep_heavy: Handle<AudioSource>,
+    pub footstep_catalog: LoadedFootstepCatalog,
     pub ambient_loop: Handle<AudioSource>,
     pub music_loop_fallback: Handle<AudioSource>,
     pub music_tracks: Vec<LoadedMusicTrack>,
@@ -101,11 +107,13 @@ fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<Aud
     let music_loop_fallback = audio_assets.add(AudioSource {
         bytes: music_wav.into(),
     });
+    let footstep_catalog = load_wow_footstep_catalog(&mut audio_assets);
     let (music_tracks, music_tracks_by_zone) = load_external_music_tracks(&mut audio_assets);
 
     commands.insert_resource(SoundAssets {
         footstep_light,
         footstep_heavy,
+        footstep_catalog,
         ambient_loop,
         music_loop_fallback,
         music_tracks,
@@ -285,10 +293,13 @@ fn footstep_trigger(
     mut commands: Commands,
     sound_assets: Option<Res<SoundAssets>>,
     settings: Res<SoundSettings>,
+    stats: Option<Res<game_engine::status::CharacterStatsSnapshot>>,
+    terrain: Option<Res<crate::terrain_heightmap::TerrainHeightmap>>,
     mut player_q: Query<
         (
             &crate::animation::M2AnimPlayer,
             &crate::animation::M2AnimData,
+            &Transform,
             &mut FootstepTracker,
         ),
         With<crate::camera::Player>,
@@ -301,13 +312,12 @@ fn footstep_trigger(
         return;
     };
 
-    for (anim_player, anim_data, mut tracker) in &mut player_q {
+    for (anim_player, anim_data, transform, mut tracker) in &mut player_q {
         let seq = &anim_data.sequences[anim_player.current_seq_idx];
-
-        if !is_movement_anim(seq.id) {
+        let Some(movement) = movement_from_anim(seq.id) else {
             tracker.last_seq_idx = anim_player.current_seq_idx;
             continue;
-        }
+        };
 
         if anim_player.current_seq_idx != tracker.last_seq_idx {
             tracker.last_half = 0;
@@ -321,35 +331,60 @@ fn footstep_trigger(
 
         let progress = (anim_player.time_ms % duration) / duration;
         let current_half = if progress < 0.5 { 0 } else { 1 };
-
-        if current_half != tracker.last_half {
-            tracker.last_half = current_half;
-            play_footstep(&mut commands, seq.id, &sound_assets, &settings);
+        if current_half == tracker.last_half {
+            continue;
         }
+
+        tracker.last_half = current_half;
+        let creature = stats
+            .as_ref()
+            .and_then(|stats| stats.race)
+            .map(classify_player_creature)
+            .unwrap_or_else(|| classify_player_creature(1));
+        let surface = terrain
+            .as_ref()
+            .and_then(|terrain| terrain.surface_at(transform.translation.x, transform.translation.z))
+            .unwrap_or(FootstepSurface::Dirt);
+        let request = FootstepRequest {
+            creature,
+            surface,
+            movement,
+            seed: (anim_player.current_seq_idx as u64) << 8 | u64::from(current_half),
+        };
+        play_footstep(&mut commands, request, &sound_assets, &settings);
     }
 }
 
 fn is_movement_anim(id: u16) -> bool {
-    matches!(id, 4 | 5 | 11 | 12 | 13)
+    movement_from_anim(id).is_some()
 }
 
 fn play_footstep(
     commands: &mut Commands,
-    anim_id: u16,
+    request: FootstepRequest,
     sound_assets: &SoundAssets,
     settings: &SoundSettings,
 ) {
-    let handle = if anim_id == 5 {
-        sound_assets.footstep_heavy.clone()
-    } else {
-        sound_assets.footstep_light.clone()
-    };
-
-    let volume = settings.master_volume;
+    let handle = sound_assets
+        .footstep_catalog
+        .select_handle(request)
+        .unwrap_or_else(|| match request.movement {
+            FootstepMovement::Run => sound_assets.footstep_heavy.clone(),
+            _ => sound_assets.footstep_light.clone(),
+        });
+    let volume = settings.master_volume * footstep_volume_scale(request.movement);
     commands.spawn((
         AudioPlayer::<AudioSource>::new(handle),
         PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
     ));
+}
+
+fn footstep_volume_scale(movement: FootstepMovement) -> f32 {
+    match movement {
+        FootstepMovement::Walk => 0.85,
+        FootstepMovement::Run => 1.0,
+        FootstepMovement::Strafe | FootstepMovement::Backpedal => 0.8,
+    }
 }
 
 fn next_music_track(

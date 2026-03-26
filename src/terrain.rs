@@ -175,7 +175,7 @@ pub fn spawn_adt(
         inverse_bp,
     };
     let root = spawn_terrain_chunks(&mut refs, adt_path, &adt_data, tex_data.as_ref(), &tile);
-    heightmap.insert_tile(tile_y, tile_x, &adt_data);
+    heightmap.register_tile(tile_y, tile_x, &adt_data, tex_data.as_ref());
     let spawned_objects = if let Some(ref obj) = obj_data {
         terrain_objects::spawn_obj_entities(
             refs.commands,
@@ -259,7 +259,7 @@ pub fn spawn_adt_terrain_only(
     );
     let root = spawn_chunk_entities(commands, meshes, &chunk_materials, &adt_data, &tile);
     spawn_water(commands, meshes, water_materials, images, &adt_data);
-    heightmap.insert_tile(tile_y, tile_x, &adt_data);
+    heightmap.register_tile(tile_y, tile_x, &adt_data, tex_data.as_ref());
     log_adt_spawn(&adt_data, adt_path);
 
     let (camera, center) = compute_spawn_result(&adt_data, None);
@@ -854,7 +854,7 @@ fn handle_tile_success(
 ) {
     let key = (parsed.tile_y, parsed.tile_x);
     adt_manager.pending.remove(&key);
-    heightmap.insert_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data);
+    heightmap.register_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data, parsed.tex_data.as_ref());
     let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, &parsed);
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);
