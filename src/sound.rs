@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::f32::consts::TAU;
 use std::path::Path;
 
@@ -49,7 +50,14 @@ pub struct SoundAssets {
     pub footstep_heavy: Handle<AudioSource>,
     pub ambient_loop: Handle<AudioSource>,
     pub music_loop_fallback: Handle<AudioSource>,
-    pub music_tracks: Vec<Handle<AudioSource>>,
+    pub music_tracks: Vec<LoadedMusicTrack>,
+    pub music_tracks_by_zone: HashMap<u32, Vec<usize>>,
+}
+
+#[derive(Clone)]
+pub struct LoadedMusicTrack {
+    pub handle: Handle<AudioSource>,
+    pub name: String,
 }
 
 #[derive(Component)]
@@ -61,7 +69,9 @@ pub struct MusicSound;
 #[derive(Resource, Default)]
 struct MusicPlaybackState {
     next_track_idx: usize,
+    next_zone_track_idx: HashMap<u32, usize>,
     active_track_name: Option<String>,
+    active_zone_id: Option<u32>,
 }
 
 /// Tracks the last footstep trigger point to avoid double-plays.
@@ -91,7 +101,7 @@ fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<Aud
     let music_loop_fallback = audio_assets.add(AudioSource {
         bytes: music_wav.into(),
     });
-    let music_tracks = load_external_music_tracks(&mut audio_assets);
+    let (music_tracks, music_tracks_by_zone) = load_external_music_tracks(&mut audio_assets);
 
     commands.insert_resource(SoundAssets {
         footstep_light,
@@ -99,6 +109,7 @@ fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<Aud
         ambient_loop,
         music_loop_fallback,
         music_tracks,
+        music_tracks_by_zone,
     });
 }
 
@@ -119,12 +130,15 @@ fn spawn_music_sound(
     mut commands: Commands,
     sound_assets: Res<SoundAssets>,
     settings: Res<SoundSettings>,
+    current_zone: Option<Res<crate::networking::CurrentZone>>,
     mut state: ResMut<MusicPlaybackState>,
 ) {
     if !settings.music_enabled {
         return;
     }
-    if let Some((handle, name, looped)) = next_music_track(&sound_assets, &mut state) {
+    if let Some((handle, name, looped, zone_id)) =
+        next_music_track(&sound_assets, current_zone.as_deref(), &mut state)
+    {
         let playback = if looped {
             PlaybackSettings::LOOP.with_volume(Volume::Linear(compute_music_volume(&settings)))
         } else {
@@ -136,6 +150,7 @@ fn spawn_music_sound(
             playback,
         ));
         state.active_track_name = Some(name);
+        state.active_zone_id = zone_id;
     }
 }
 
@@ -196,19 +211,27 @@ fn maintain_music_playback(
     mut commands: Commands,
     sound_assets: Res<SoundAssets>,
     settings: Res<SoundSettings>,
+    current_zone: Option<Res<crate::networking::CurrentZone>>,
     mut state: ResMut<MusicPlaybackState>,
     music_query: Query<Entity, With<MusicSound>>,
 ) {
     if !settings.music_enabled {
-        for entity in &music_query {
-            commands.entity(entity).despawn();
-        }
+        clear_music_entities(&mut commands, &music_query);
+        clear_active_music_state(&mut state);
+        return;
+    }
+    let desired_zone_id = desired_zone_id(current_zone.as_deref());
+    if state.active_zone_id != desired_zone_id && !music_query.is_empty() {
+        clear_music_entities(&mut commands, &music_query);
+        clear_active_music_state(&mut state);
         return;
     }
     if !music_query.is_empty() {
         return;
     }
-    if let Some((handle, name, looped)) = next_music_track(&sound_assets, &mut state) {
+    if let Some((handle, name, looped, zone_id)) =
+        next_music_track(&sound_assets, current_zone.as_deref(), &mut state)
+    {
         let playback = if looped {
             PlaybackSettings::LOOP.with_volume(Volume::Linear(compute_music_volume(&settings)))
         } else {
@@ -220,7 +243,25 @@ fn maintain_music_playback(
             playback,
         ));
         state.active_track_name = Some(name);
+        state.active_zone_id = zone_id;
     }
+}
+
+fn clear_music_entities(commands: &mut Commands, music_query: &Query<Entity, With<MusicSound>>) {
+    for entity in music_query {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn clear_active_music_state(state: &mut MusicPlaybackState) {
+    state.active_track_name = None;
+    state.active_zone_id = None;
+}
+
+fn desired_zone_id(current_zone: Option<&crate::networking::CurrentZone>) -> Option<u32> {
+    current_zone
+        .map(|zone| zone.zone_id)
+        .filter(|zone_id| *zone_id != 0)
 }
 
 #[allow(clippy::type_complexity)]
@@ -313,26 +354,55 @@ fn play_footstep(
 
 fn next_music_track(
     sound_assets: &SoundAssets,
+    current_zone: Option<&crate::networking::CurrentZone>,
     state: &mut MusicPlaybackState,
-) -> Option<(Handle<AudioSource>, String, bool)> {
+) -> Option<(Handle<AudioSource>, String, bool, Option<u32>)> {
+    if let Some(zone_track) =
+        next_zone_music_track(sound_assets, desired_zone_id(current_zone), state)
+    {
+        return Some(zone_track);
+    }
     if !sound_assets.music_tracks.is_empty() {
         let idx = state.next_track_idx % sound_assets.music_tracks.len();
         state.next_track_idx = state.next_track_idx.wrapping_add(1);
-        return Some((
-            sound_assets.music_tracks[idx].clone(),
-            format!("external-{idx}"),
-            false,
-        ));
+        let track = &sound_assets.music_tracks[idx];
+        return Some((track.handle.clone(), track.name.clone(), false, None));
     }
     Some((
         sound_assets.music_loop_fallback.clone(),
         "procedural-fallback".to_string(),
         true,
+        None,
     ))
 }
 
-fn load_external_music_tracks(audio_assets: &mut Assets<AudioSource>) -> Vec<Handle<AudioSource>> {
+fn next_zone_music_track(
+    sound_assets: &SoundAssets,
+    zone_id: Option<u32>,
+    state: &mut MusicPlaybackState,
+) -> Option<(Handle<AudioSource>, String, bool, Option<u32>)> {
+    let zone_id = zone_id?;
+    let track_indices = sound_assets.music_tracks_by_zone.get(&zone_id)?;
+    if track_indices.is_empty() {
+        return None;
+    }
+    let next_idx = state.next_zone_track_idx.entry(zone_id).or_default();
+    let track_idx = track_indices[*next_idx % track_indices.len()];
+    *next_idx = next_idx.wrapping_add(1);
+    let track = &sound_assets.music_tracks[track_idx];
+    Some((
+        track.handle.clone(),
+        format!("zone:{zone_id}:{}", track.name),
+        false,
+        Some(zone_id),
+    ))
+}
+
+fn load_external_music_tracks(
+    audio_assets: &mut Assets<AudioSource>,
+) -> (Vec<LoadedMusicTrack>, HashMap<u32, Vec<usize>>) {
     let mut tracks = Vec::new();
+    let mut track_index_by_fdid = HashMap::new();
     for dir in ["data/sound/music", "data/music"] {
         let path = Path::new(dir);
         let Ok(entries) = std::fs::read_dir(path) else {
@@ -344,18 +414,46 @@ fn load_external_music_tracks(audio_assets: &mut Assets<AudioSource>) -> Vec<Han
                 continue;
             }
             match std::fs::read(&path) {
-                Ok(bytes) => {
-                    tracks.push(audio_assets.add(AudioSource {
-                        bytes: bytes.into(),
-                    }));
-                }
+                Ok(bytes) => add_external_music_track(
+                    audio_assets,
+                    &mut tracks,
+                    &mut track_index_by_fdid,
+                    &path,
+                    bytes,
+                ),
                 Err(e) => {
                     eprintln!("Failed to read music track {}: {e}", path.display());
                 }
             }
         }
     }
-    tracks
+    let tracks_by_zone = crate::sound_music_catalog::load_zone_music_catalog(&track_index_by_fdid);
+    (tracks, tracks_by_zone)
+}
+
+fn add_external_music_track(
+    audio_assets: &mut Assets<AudioSource>,
+    tracks: &mut Vec<LoadedMusicTrack>,
+    track_index_by_fdid: &mut HashMap<u32, usize>,
+    path: &Path,
+    bytes: Vec<u8>,
+) {
+    let handle = audio_assets.add(AudioSource {
+        bytes: bytes.into(),
+    });
+    let name = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let idx = tracks.len();
+    tracks.push(LoadedMusicTrack {
+        handle,
+        name: name.clone(),
+    });
+    if let Ok(fdid) = name.parse::<u32>() {
+        track_index_by_fdid.insert(fdid, idx);
+    }
 }
 
 fn is_supported_audio_file(path: &Path) -> bool {
