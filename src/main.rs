@@ -67,6 +67,7 @@ mod game_state;
 mod ground;
 mod health_bar;
 mod inworld_scene_tree;
+mod loading_screen;
 mod login_screen;
 mod login_screen_helpers;
 mod m2_effect_material;
@@ -559,6 +560,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
     app.add_plugins(game_state::GameStatePlugin);
     app.add_plugins(networking::NetworkPlugin);
     app.add_plugins(login_screen::LoginScreenPlugin);
+    app.add_plugins(loading_screen::LoadingScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
     app.add_plugins(char_create::CharCreatePlugin);

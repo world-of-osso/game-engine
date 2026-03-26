@@ -5,8 +5,9 @@ use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
 
 use crate::camera::{self, WowCamera};
-use crate::networking::ServerAddr;
+use crate::networking::{LocalPlayer, ServerAddr};
 use crate::sky;
+use crate::terrain::AdtManager;
 
 pub use game_engine::game_state_enum::GameState;
 
@@ -56,6 +57,7 @@ fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
     app.add_systems(OnEnter(GameState::CharSelect), on_enter_char_select);
     app.add_systems(OnEnter(GameState::CampsitePopup), on_enter_campsite_popup);
+    app.add_systems(OnEnter(GameState::Loading), on_enter_loading);
     app.add_systems(OnEnter(GameState::TrashButton), on_enter_trash_button);
     app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
     if has_server {
@@ -126,6 +128,17 @@ fn on_enter_char_select(startup: Option<Res<StartupPerfTimer>>) {
 
 fn on_enter_campsite_popup() {
     info!("Entering CampsitePopup state");
+}
+
+fn on_enter_loading(startup: Option<Res<StartupPerfTimer>>) {
+    if let Some(startup) = startup {
+        info!(
+            "Entering Loading state at app_t={:.3}s",
+            startup.0.elapsed().as_secs_f32()
+        );
+    } else {
+        info!("Entering Loading state");
+    }
 }
 
 fn on_enter_in_world() {
@@ -214,9 +227,65 @@ fn check_connection_status(
     }
 }
 
-/// Placeholder: immediately transition to InWorld. Terrain streaming will gate this later.
-fn check_loading_complete(mut next_state: ResMut<NextState<GameState>>) {
-    next_state.set(GameState::InWorld);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LoadingReadiness {
+    pub complete: bool,
+    pub progress_percent: u8,
+    pub status_text: &'static str,
+}
+
+pub(crate) fn evaluate_world_loading(
+    local_player_ready: bool,
+    adt_manager: &AdtManager,
+) -> LoadingReadiness {
+    if !local_player_ready {
+        return LoadingReadiness {
+            complete: false,
+            progress_percent: 35,
+            status_text: "Initializing character...",
+        };
+    }
+
+    if adt_manager.map_name.is_empty() {
+        return LoadingReadiness {
+            complete: false,
+            progress_percent: 62,
+            status_text: "Waiting for terrain...",
+        };
+    }
+
+    let initial_tile = adt_manager.initial_tile;
+    if adt_manager.loaded.contains_key(&initial_tile) {
+        return LoadingReadiness {
+            complete: true,
+            progress_percent: 100,
+            status_text: "Entering world...",
+        };
+    }
+
+    if adt_manager.pending.contains(&initial_tile) {
+        return LoadingReadiness {
+            complete: false,
+            progress_percent: 86,
+            status_text: "Loading terrain...",
+        };
+    }
+
+    LoadingReadiness {
+        complete: false,
+        progress_percent: 74,
+        status_text: "Preparing terrain...",
+    }
+}
+
+fn check_loading_complete(
+    local_player_q: Query<(), With<LocalPlayer>>,
+    adt_manager: Res<AdtManager>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if evaluate_world_loading(!local_player_q.is_empty(), &adt_manager).complete {
+        next_state.set(GameState::InWorld);
+    }
 }
 
 #[cfg(test)]
@@ -273,5 +342,65 @@ mod tests {
         assert_eq!(states[1], GameState::Connecting);
         assert_eq!(states[4], GameState::Loading);
         assert_eq!(states[5], GameState::InWorld);
+    }
+
+    #[test]
+    fn loading_waits_for_local_player_before_progressing() {
+        let adt_manager = AdtManager::default();
+        assert_eq!(
+            evaluate_world_loading(false, &adt_manager),
+            LoadingReadiness {
+                complete: false,
+                progress_percent: 35,
+                status_text: "Initializing character..."
+            }
+        );
+    }
+
+    #[test]
+    fn loading_waits_for_initial_terrain_tile_before_progressing() {
+        let mut adt_manager = AdtManager::default();
+        adt_manager.map_name = "azeroth".into();
+        adt_manager.initial_tile = (32, 48);
+        assert_eq!(
+            evaluate_world_loading(true, &adt_manager),
+            LoadingReadiness {
+                complete: false,
+                progress_percent: 74,
+                status_text: "Preparing terrain..."
+            }
+        );
+    }
+
+    #[test]
+    fn loading_stays_incomplete_while_initial_tile_is_only_pending() {
+        let mut adt_manager = AdtManager::default();
+        adt_manager.map_name = "azeroth".into();
+        adt_manager.initial_tile = (32, 48);
+        adt_manager.pending.insert((32, 48));
+        assert_eq!(
+            evaluate_world_loading(true, &adt_manager),
+            LoadingReadiness {
+                complete: false,
+                progress_percent: 86,
+                status_text: "Loading terrain..."
+            }
+        );
+    }
+
+    #[test]
+    fn loading_completes_when_local_player_and_initial_tile_are_ready() {
+        let mut adt_manager = AdtManager::default();
+        adt_manager.map_name = "azeroth".into();
+        adt_manager.initial_tile = (32, 48);
+        adt_manager.loaded.insert((32, 48), Entity::PLACEHOLDER);
+        assert_eq!(
+            evaluate_world_loading(true, &adt_manager),
+            LoadingReadiness {
+                complete: true,
+                progress_percent: 100,
+                status_text: "Entering world..."
+            }
+        );
     }
 }

@@ -253,7 +253,7 @@ fn register_inworld_sync_systems(app: &mut App) {
             apply_npc_visibility_policy,
         )
             .chain()
-            .run_if(in_state(GameState::InWorld)),
+            .run_if(in_state(GameState::Loading).or(in_state(GameState::InWorld))),
     );
 }
 
