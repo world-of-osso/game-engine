@@ -12,6 +12,7 @@ use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_heightmap::sample_chunk_height;
+use crate::terrain_load_progress;
 use crate::terrain_lod::{despawn_tile_doodad_entities, doodad_lod_swap_system, load_obj_for_lod};
 use crate::terrain_material::{self, TerrainMaterial};
 use crate::terrain_objects;
@@ -91,6 +92,8 @@ pub struct AdtManager {
     pub load_radius: u32,
     /// Tile coordinates of the initially loaded tile.
     pub initial_tile: (u32, u32),
+    /// Whether we've already reported that the initial terrain load finished.
+    pub initial_load_reported: bool,
 }
 
 impl Default for AdtManager {
@@ -108,6 +111,7 @@ impl Default for AdtManager {
             tile_tx,
             load_radius: 1,
             initial_tile: (0, 0),
+            initial_load_reported: false,
         }
     }
 }
@@ -737,6 +741,7 @@ impl Plugin for AdtStreamingPlugin {
                     bootstrap_terrain_streaming,
                     adt_streaming_system,
                     receive_loaded_tiles,
+                    report_initial_world_load_complete,
                     doodad_lod_swap_system,
                 )
                     .chain()
@@ -823,6 +828,28 @@ fn receive_loaded_tiles(
     for result in results {
         handle_tile_result(&mut refs, &mut adt_manager, &mut heightmap, result);
     }
+}
+
+fn report_initial_world_load_complete(mut adt_manager: ResMut<AdtManager>) {
+    if !terrain_load_progress::should_report_initial_world_load(&adt_manager) {
+        return;
+    }
+    let desired_tiles = terrain_load_progress::initial_desired_tiles(&adt_manager);
+    let (loaded, failed, pending) =
+        terrain_load_progress::count_initial_tile_progress(&adt_manager, &desired_tiles);
+    if pending != 0 || loaded + failed != desired_tiles.len() {
+        return;
+    }
+    info!(
+        "Initial world load complete: map={} initial_tile=({}, {}) desired_tiles={} loaded={} failed={}",
+        adt_manager.map_name,
+        adt_manager.initial_tile.0,
+        adt_manager.initial_tile.1,
+        desired_tiles.len(),
+        loaded,
+        failed,
+    );
+    adt_manager.initial_load_reported = true;
 }
 
 fn handle_tile_result(

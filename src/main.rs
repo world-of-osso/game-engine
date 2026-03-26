@@ -91,6 +91,7 @@ mod status_sync;
 mod target;
 mod terrain;
 mod terrain_heightmap;
+mod terrain_load_progress;
 mod terrain_lod;
 mod terrain_material;
 mod terrain_objects;
