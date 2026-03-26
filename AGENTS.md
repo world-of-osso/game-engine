@@ -62,6 +62,10 @@ src/
 - `!bool_expr` doesn't work inside `rsx!` — pre-compute negations as `let hide = !visible;` before the macro call.
 - Post-setup (editbox backdrops, nine-slice textures) happens after first `screen.sync()` since RSX attrs don't cover all frame properties yet.
 
+## Project Skills
+
+- `./.codex/skills/wow-adt-terrain-objects/SKILL.md` — Use for ADT terrain split files, doodad/MDDF placement, WMO/MODF placement, object LOD, portal/culling, and placement-debugging work. Keep low-level format knowledge there instead of expanding this file.
+
 ## Data Assets
 
 - `data/community-listfile.csv` — WoW FDID→path mapping (136MB, from wowdev/wow-listfile). **Use this local copy, never re-download.**
@@ -86,15 +90,9 @@ src/
 
 ## ADT Terrain
 
-- ADT chunks use **reversed 4CC** magic: `REVM`=MVER, `RDHM`=MHDR, `KNCM`=MCNK, `TVCM`=MCVT, `RNCM`=MCNR
-- MCNK position at offset 0x68 is stored as **[Y, X, Z]** (not [X, Y, Z])
-- MCVT: 145 floats (9×9 outer + 8×8 inner ROAM grid), heights relative to MCNK position.Z
-- Terrain grows in **negative X/Y** from the chunk corner position
-- Each MCNK = 33.33 yards (CHUNK_SIZE = 100/3), 16×16 chunks per ADT tile
-- Split files: root .adt (heights/normals), _tex0.adt (texture layers), _obj0.adt (doodads/WMOs)
-- Renders root ADT (heights/normals) + _tex0 (texture splatting via CPU compositing)
-- _tex0 parsing: MDID (specular FDIDs, diffuse = FDID-1), MCLY (16-byte layer entries), MCAL (RLE alpha maps)
-- Ground textures tile 8× per MCNK, composited at 256×256 per chunk, alpha-blended from 64×64 maps
+- Split files: root `.adt` (heights/normals), `_tex0.adt` (texture layers), `_obj0.adt` (doodads/WMOs)
+- The engine renders root terrain + `_tex0` texture compositing and has implemented doodad/WMO spawning from `_obj*` companions
+- For low-level ADT/MDDF/MODF/WMO format details and debugging workflow, use `./.codex/skills/wow-adt-terrain-objects/SKILL.md`
 
 ## Animation
 
