@@ -80,7 +80,13 @@ fn menu_button(name: &str, text: &str, action: &str) -> Element {
 }
 
 fn section_spacer(name: &str) -> Element {
-    rsx! { r#frame { name: {DynName(name.to_string())}, width: BUTTON_W, height: SECTION_GAP } }
+    rsx! {
+        r#frame {
+            name: {DynName(name.to_string())},
+            width: BUTTON_W,
+            height: SECTION_GAP,
+        }
+    }
 }
 
 fn menu_buttons(logged_in: bool) -> Element {
@@ -312,22 +318,30 @@ mod tests {
     }
 
     #[test]
-    fn options_screen_uses_shared_slider_and_statusbar_widgets() {
+    fn options_screen_uses_shared_slider_widget_structure() {
         let reg = options_registry();
         let slider_id = reg
             .get_by_name("Slidermaster_volume")
             .expect("master volume slider");
-        let fill_id = reg
-            .get_by_name("Slidermaster_volumeFill")
-            .expect("master volume fill");
-
         let slider = reg.get(slider_id).expect("slider frame");
-        let fill = reg.get(fill_id).expect("fill frame");
+        let track = reg
+            .get_by_name("Slidermaster_volumeTrack")
+            .and_then(|id| reg.get(id))
+            .expect("master volume track");
+        let handle = reg
+            .get_by_name("Slidermaster_volumeHandle")
+            .and_then(|id| reg.get(id))
+            .expect("master volume handle");
 
         assert_eq!(slider.widget_type, WidgetType::Slider);
         assert!(matches!(slider.widget_data, Some(WidgetData::Slider(_))));
-        assert_eq!(fill.widget_type, WidgetType::StatusBar);
-        assert!(matches!(fill.widget_data, Some(WidgetData::StatusBar(_))));
+        assert_eq!(track.parent_id, Some(slider_id));
+        assert_eq!(track.widget_type, WidgetType::Frame);
+        assert_eq!(
+            handle.parent_id,
+            Some(reg.get_by_name("Slidermaster_volumeTrack").unwrap())
+        );
+        assert_eq!(handle.widget_type, WidgetType::Texture);
     }
 
     #[test]
@@ -335,8 +349,8 @@ mod tests {
         let low = options_registry_with_master_volume(0.2);
         let high = options_registry_with_master_volume(0.8);
 
-        let low_thumb = rect_by_name(&low, "Slidermaster_volumeThumbFrame");
-        let high_thumb = rect_by_name(&high, "Slidermaster_volumeThumbFrame");
+        let low_thumb = rect_by_name(&low, "Slidermaster_volumeHandle");
+        let high_thumb = rect_by_name(&high, "Slidermaster_volumeHandle");
 
         assert!(
             high_thumb.x > low_thumb.x,
@@ -358,7 +372,7 @@ mod tests {
         shared.insert(low);
         screen.sync(&shared, &mut reg);
         recompute_layouts(&mut reg);
-        let low_thumb = rect_by_name(&reg, "Slidermaster_volumeThumbFrame");
+        let low_thumb = rect_by_name(&reg, "Slidermaster_volumeHandle");
 
         let mut high = model(GameMenuView::Options);
         high.options.position = [0.0, 0.0];
@@ -366,7 +380,7 @@ mod tests {
         shared.insert(high);
         screen.sync(&shared, &mut reg);
         recompute_layouts(&mut reg);
-        let high_thumb = rect_by_name(&reg, "Slidermaster_volumeThumbFrame");
+        let high_thumb = rect_by_name(&reg, "Slidermaster_volumeHandle");
 
         assert!(
             high_thumb.x > low_thumb.x,
@@ -408,8 +422,34 @@ mod tests {
         assert!(reg.get_by_name("OptionsOkayButton").is_none());
     }
 
+    #[test]
+    fn keybindings_tab_lists_movement_bindings() {
+        let reg = options_registry_for_category(OptionsCategory::Keybindings);
+
+        assert!(reg.get_by_name("InfoRowbindings_move_forward").is_some());
+        assert!(reg.get_by_name("InfoRowbindings_move_backward").is_some());
+        assert!(reg.get_by_name("InfoRowbindings_move_left").is_some());
+        assert!(reg.get_by_name("InfoRowbindings_move_right").is_some());
+        assert!(reg.get_by_name("InfoRowbindings_jump").is_some());
+        assert!(reg.get_by_name("InfoRowbindings_run_toggle").is_some());
+        assert!(reg.get_by_name("InfoRowbindings_autorun").is_some());
+        assert!(reg.get_by_name("GhostRowbindings_move").is_none());
+    }
+
     fn options_registry() -> FrameRegistry {
         options_registry_with_master_volume(0.8)
+    }
+
+    fn options_registry_for_category(category: OptionsCategory) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut view = model(GameMenuView::Options);
+        view.options.position = [0.0, 0.0];
+        view.options.category = category;
+        shared.insert(view);
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
     }
 
     fn options_registry_with_master_volume(master_volume: f32) -> FrameRegistry {

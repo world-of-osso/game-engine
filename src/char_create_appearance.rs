@@ -18,10 +18,7 @@ pub(super) fn randomize_appearance_with_seed(
         state.selected_class,
     );
     let mut seed = seed ^ ((race as u64) << 40) ^ ((sex as u64) << 32) ^ ((class as u64) << 24);
-    let skin_color = pick_random_choice(
-        &mut seed,
-        db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
-    );
+    let skin_color = random_skin_index(db, race, sex, class, &mut seed);
     let face = random_face_index(db, race, sex, class, skin_color, &mut seed);
 
     state.appearance = CharacterAppearance {
@@ -41,6 +38,18 @@ pub(super) fn randomize_appearance_with_seed(
             db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
         ),
     };
+}
+
+fn random_skin_index(db: &CustomizationDb, race: u8, sex: u8, class: u8, seed: &mut u64) -> u8 {
+    let compatible = compatible_skin_indices(db, race, sex, class);
+    if compatible.is_empty() {
+        return pick_random_choice(
+            seed,
+            db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
+        );
+    }
+    *seed = mix_seed(*seed);
+    compatible[(*seed % compatible.len() as u64) as usize]
 }
 
 pub(super) fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
@@ -197,6 +206,16 @@ fn compatible_face_indices(
                 &skin_choice_ids,
             )
         })
+        .collect()
+}
+
+fn compatible_skin_indices(db: &CustomizationDb, race: u8, sex: u8, class: u8) -> Vec<u8> {
+    let skin_count = db.choice_count_for_class(race, sex, class, OptionType::SkinColor);
+    if db.choice_count_for_class(race, sex, class, OptionType::Face) == 0 {
+        return (0..skin_count).collect();
+    }
+    (0..skin_count)
+        .filter(|&skin_color| !compatible_face_indices(db, race, sex, class, skin_color).is_empty())
         .collect()
 }
 

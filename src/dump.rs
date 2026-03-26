@@ -520,6 +520,7 @@ fn format_equipment_slot(label: &str, model: &Option<String>) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn format_player_node(
     label: &str,
     name: &str,
@@ -535,6 +536,7 @@ fn format_player_node(
     format!("{label} \"{name}\"{tag}{assets}{pos}{displayed}")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn format_npc_node(
     label: &str,
     name: &str,
@@ -578,6 +580,7 @@ fn compute_displayed_nodes(
     displayed
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_displayed_nodes(
     node: &SceneNode,
     camera: &Camera,

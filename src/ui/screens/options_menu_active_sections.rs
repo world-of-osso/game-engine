@@ -107,7 +107,15 @@ pub fn advanced_body(hud: &HudOptionsView) -> Element {
 }
 
 fn content_stack(children: Element) -> Element {
-    rsx! { r#frame { width: {OPTIONS_CONTENT_W - 30.0}, height: 0.0, layout: "flex-column", gap: 14.0, {children} } }
+    rsx! {
+        r#frame {
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 0.0,
+            layout: "flex-column",
+            gap: 14.0,
+            {children}
+        }
+    }
 }
 
 fn sound_items(sound: &SoundOptionsView) -> Element {
@@ -210,11 +218,48 @@ fn slider_row(key: &str, label: &str, value: f32, min: f32, max: f32) -> Element
     let action = slider_action(key);
     let slider_name = format!("Slider{key}");
     let slider_x = OPTIONS_SLIDER_X.to_string();
-    rsx! { r#frame { name: {DynName(format!("SliderRow{key}"))}, width: {OPTIONS_ROW_W}, height: 44.0, {row_label(&format!("SliderLabel{key}"), label)} {slider_widget(SliderWidget { name: &slider_name, action: &action, value, min, max, width: OPTIONS_TRACK_W, interactive_height: 28.0, track_height: OPTIONS_TRACK_H, thumb_width: OPTIONS_THUMB_W, thumb_height: OPTIONS_THUMB_H, thumb_texture: None, track_color: OPTIONS_TRACK_BG, fill_color: OPTIONS_TRACK_FILL, x: &slider_x })} {slider_value_text(key, &slider_display(min, max, pct))} } }
+    rsx! {
+        r#frame {
+            name: {DynName(format!("SliderRow{key}"))},
+            width: {OPTIONS_ROW_W},
+            height: 44.0,
+            {row_label(&format!("SliderLabel{key}"), label)}
+            {
+                slider_widget(SliderWidget {
+                    name: &slider_name,
+                    action: &action,
+                    value,
+                    min,
+                    max,
+                    width: OPTIONS_TRACK_W,
+                    interactive_height: 28.0,
+                    track_height: OPTIONS_TRACK_H,
+                    thumb_width: OPTIONS_THUMB_W,
+                    thumb_height: OPTIONS_THUMB_H,
+                    thumb_texture: None,
+                    track_color: OPTIONS_TRACK_BG,
+                    fill_color: OPTIONS_TRACK_FILL,
+                    x: &slider_x,
+                })
+            }
+            {slider_value_text(key, &slider_display(min, max, pct))}
+        }
+    }
 }
 
 fn row_label(name: &str, text: &str) -> Element {
-    rsx! { fontstring { name: {DynName(name.to_string())}, width: {OPTIONS_LABEL_W}, height: 20.0, text: {text}, font_size: 16.0, color: "0.95,0.90,0.74,1.0", justify_h: "LEFT", anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left } } }
+    rsx! {
+        fontstring {
+            name: {DynName(name.to_string())},
+            width: {OPTIONS_LABEL_W},
+            height: 20.0,
+            text: {text},
+            font_size: 16.0,
+            color: "0.95,0.90,0.74,1.0",
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left }
+        }
+    }
 }
 
 fn segmented_toggle(key: &str, enabled: bool) -> Element {
@@ -238,11 +283,32 @@ fn segmented_toggle(key: &str, enabled: bool) -> Element {
 }
 
 fn slider_value_text(key: &str, text: &str) -> Element {
-    rsx! { fontstring { name: {DynName(format!("SliderValue{key}"))}, width: 76.0, height: 20.0, text: {text}, font_size: 15.0, color: "0.95,0.90,0.74,1.0", justify_h: "RIGHT", anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-8" } } }
+    rsx! {
+        fontstring {
+            name: {DynName(format!("SliderValue{key}"))},
+            width: 76.0,
+            height: 20.0,
+            text: {text},
+            font_size: 15.0,
+            color: "0.95,0.90,0.74,1.0",
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-8",
+            }
+        }
+    }
 }
 
 fn spacer(name: &str, height: f32) -> Element {
-    rsx! { r#frame { name: {DynName(name.to_string())}, width: {OPTIONS_CONTENT_W - 30.0}, height: {height} } }
+    rsx! {
+        r#frame {
+            name: {DynName(name.to_string())},
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: {height},
+        }
+    }
 }
 
 fn toggle_action(key: &str) -> String {

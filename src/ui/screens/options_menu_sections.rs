@@ -54,16 +54,6 @@ pub fn controls_body() -> Element {
                 "Mouse Turn Style",
                 "Classic hold-to-turn behavior",
             ),
-            info_row(
-                "controls_autorun",
-                "Auto-Run",
-                "Supported through gameplay bindings",
-            ),
-            info_row(
-                "controls_clickmove",
-                "Click To Move",
-                "Reserved for in-world pathing work",
-            ),
             ghost_button_row(
                 "controls_bindings",
                 "Binding Groups",
@@ -109,14 +99,22 @@ pub fn accessibility_body() -> Element {
 pub fn keybindings_body() -> Element {
     section_stack(
         [
-            ghost_button_row("bindings_move", "Movement", "Open binding editor"),
-            ghost_button_row("bindings_action", "Action Bars", "Open binding editor"),
-            ghost_button_row("bindings_camera", "Camera", "Open binding editor"),
-            ghost_button_row("bindings_ui", "Interface", "Open binding editor"),
+            info_row("bindings_move_forward", "Move Forward", "W"),
+            info_row("bindings_move_backward", "Move Backward", "S"),
+            info_row("bindings_move_left", "Strafe Left", "A"),
+            info_row("bindings_move_right", "Strafe Right", "D"),
+            info_row("bindings_jump", "Jump", "Space"),
+            info_row("bindings_run_toggle", "Run / Walk Toggle", "Z"),
+            info_row(
+                "bindings_mouse_move",
+                "Move Forward (Mouse)",
+                "Left + Right Mouse",
+            ),
+            info_row("bindings_autorun", "Auto-Run", "Unbound"),
             info_row(
                 "bindings_note",
                 "Status",
-                "Dedicated keybinding capture UI is the next step",
+                "Movement bindings reflect current gameplay input; rebinding UI comes next",
             ),
         ]
         .into_iter()
@@ -247,10 +245,7 @@ fn row_label(key: &str, text: &str) -> Element {
             font_size: 16.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-            }
+            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left }
         }
     }
 }

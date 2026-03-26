@@ -574,6 +574,7 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::{apply_m2_multitexture_shader, ground_offset_y};
     use crate::asset;

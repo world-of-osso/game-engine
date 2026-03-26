@@ -747,15 +747,15 @@ mod tests {
                 t.translation
                     .sequences
                     .get(stand_idx)
-                    .map_or(false, |(ts, _)| !ts.is_empty())
+                    .is_some_and(|(ts, _)| !ts.is_empty())
                     || t.rotation
                         .sequences
                         .get(stand_idx)
-                        .map_or(false, |(ts, _)| !ts.is_empty())
+                        .is_some_and(|(ts, _)| !ts.is_empty())
                     || t.scale
                         .sequences
                         .get(stand_idx)
-                        .map_or(false, |(ts, _)| !ts.is_empty())
+                        .is_some_and(|(ts, _)| !ts.is_empty())
             })
             .count()
     }

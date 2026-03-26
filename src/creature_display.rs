@@ -64,7 +64,10 @@ impl CreatureDisplayMap {
     /// When multiple display IDs share the same model, we pick the entry with the
     /// most populated texture slots (then lowest display ID for deterministic ties).
     pub fn get_skin_fdids_for_model_fdid(&self, model_fdid: u32) -> Option<[u32; 3]> {
-        self.preferred_skins_by_model_fdid.get(&model_fdid).copied()
+        self.preferred_skins_by_model_fdid
+            .get(&model_fdid)
+            .copied()
+            .or_else(|| preferred_skin_fdids_for_model_fdid(&self.entries, model_fdid))
     }
 
     /// Resolve preferred skin texture FDIDs from a local model path.
@@ -186,6 +189,33 @@ fn build_preferred_skins_by_model_fdid(
     best.into_iter()
         .map(|(model_fdid, (_, _, skin_fdids))| (model_fdid, skin_fdids))
         .collect()
+}
+
+fn preferred_skin_fdids_for_model_fdid(
+    entries: &HashMap<u32, CreatureDisplay>,
+    model_fdid: u32,
+) -> Option<[u32; 3]> {
+    let mut best: Option<(usize, u32, [u32; 3])> = None;
+    for (&display_id, entry) in entries {
+        if entry.model_fdid != model_fdid {
+            continue;
+        }
+        let filled_slots = entry.skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
+        if filled_slots == 0 {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((best_filled, best_display_id, _)) => {
+                filled_slots > best_filled
+                    || (filled_slots == best_filled && display_id < best_display_id)
+            }
+        };
+        if better {
+            best = Some((filled_slots, display_id, entry.skin_fdids));
+        }
+    }
+    best.map(|(_, _, skin_fdids)| skin_fdids)
 }
 
 fn select_preferred_named_model(

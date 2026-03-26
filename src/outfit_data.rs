@@ -57,18 +57,16 @@ impl OutfitData {
     }
 
     fn loaded(&self) -> Option<&LoadedOutfitData> {
-        match self
-            .loaded
+        self.loaded
             .get_or_init(|| match Self::try_load(&self.data_dir) {
                 Ok(data) => Ok(data),
                 Err(err) => {
                     warn!("Failed to load outfit data: {err}");
                     Err(err)
                 }
-            }) {
-            Ok(data) => Some(data),
-            Err(_) => None,
-        }
+            })
+            .as_ref()
+            .ok()
     }
 
     fn try_load(data_dir: &Path) -> Result<LoadedOutfitData, String> {
@@ -432,9 +430,10 @@ mod tests {
     #[test]
     fn load_outfit_data_eagerly() {
         let data = OutfitData::load(Path::new("data"));
-        assert!(data.loaded.get().is_some());
+        assert!(data.loaded.get().is_none());
 
         let result = data.resolve_outfit(1, 1, 0);
+        assert!(data.loaded.get().is_some());
         assert!(
             !result.item_textures.is_empty() || !result.model_fdids.is_empty(),
             "expected starter outfit data for human warrior male"

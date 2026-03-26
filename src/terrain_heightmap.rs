@@ -54,12 +54,7 @@ impl TerrainHeightmap {
             .find_map(|g| sample_chunk_height(g, bx, bz))
     }
 
-    pub fn insert_tile_surfaces(
-        &mut self,
-        tile_y: u32,
-        tile_x: u32,
-        tex_data: &adt::AdtTexData,
-    ) {
+    pub fn insert_tile_surfaces(&mut self, tile_y: u32, tile_x: u32, tex_data: &adt::AdtTexData) {
         let mut chunk_surfaces = vec![FootstepSurface::Dirt; 256];
         for (idx, chunk) in tex_data.chunk_layers.iter().enumerate().take(256) {
             chunk_surfaces[idx] = dominant_surface_for_chunk(tex_data, chunk);
@@ -115,7 +110,10 @@ fn dominant_texture_fdid(tex_data: &adt::AdtTexData, chunk: &adt::ChunkTexLayers
     let mut best = None;
     let mut best_weight = 0u64;
     for (layer_idx, layer) in chunk.layers.iter().enumerate() {
-        let fdid = tex_data.texture_fdids.get(layer.texture_index as usize).copied()?;
+        let fdid = tex_data
+            .texture_fdids
+            .get(layer.texture_index as usize)
+            .copied()?;
         let weight = if layer_idx == 0 {
             1_000_000
         } else {

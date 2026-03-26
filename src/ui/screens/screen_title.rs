@@ -20,7 +20,7 @@ pub fn framed_title(
             frame_level: 10.0,
             anchor {
                 point: AnchorPoint::Top,
-                relative_to: relative_to,
+                relative_to,
                 relative_point: AnchorPoint::Top,
                 y: "18",
             }

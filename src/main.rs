@@ -1,3 +1,16 @@
+#![allow(
+    dead_code,
+    clippy::collapsible_if,
+    clippy::collapsible_str_replace,
+    clippy::derivable_impls,
+    clippy::needless_borrow,
+    clippy::needless_lifetimes,
+    clippy::needless_option_as_deref,
+    clippy::question_mark,
+    clippy::too_many_arguments,
+    clippy::type_complexity
+)]
+
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},

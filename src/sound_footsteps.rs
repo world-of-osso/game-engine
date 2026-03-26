@@ -126,9 +126,7 @@ impl LoadedFootstepCatalog {
     }
 }
 
-pub fn load_wow_footstep_catalog(
-    audio_assets: &mut Assets<AudioSource>,
-) -> LoadedFootstepCatalog {
+pub fn load_wow_footstep_catalog(audio_assets: &mut Assets<AudioSource>) -> LoadedFootstepCatalog {
     let mut loaded = LoadedFootstepCatalog::default();
     let Ok(listfile) = std::fs::read_to_string("data/community-listfile.csv") else {
         return loaded;
@@ -203,7 +201,11 @@ fn classify_catalog_creature(path: &str) -> FootstepCreature {
     if path.contains("goblinshredder") || path.contains("golem") || path.contains("spidertank") {
         return FootstepCreature::Mechanical;
     }
-    if path.contains("spider") || path.contains("rat") || path.contains("frog") || path.contains("crab") {
+    if path.contains("spider")
+        || path.contains("rat")
+        || path.contains("frog")
+        || path.contains("crab")
+    {
         return FootstepCreature::Paw;
     }
     if path.contains("mfootsmall") {
@@ -257,7 +259,10 @@ fn is_horse_like(path: &str) -> bool {
 }
 
 fn is_mechanical(path: &str) -> bool {
-    matches_any(path, &["mechanical", "mech", "shredder", "golem", "spidertank"])
+    matches_any(
+        path,
+        &["mechanical", "mech", "shredder", "golem", "spidertank"],
+    )
 }
 
 fn is_water_like(path: &str) -> bool {
@@ -267,14 +272,18 @@ fn is_water_like(path: &str) -> bool {
 fn is_paw_like(path: &str) -> bool {
     matches_any(
         path,
-        &["wolf", "worgen", "vulpera", "fox", "cat", "panther", "tiger", "bear"],
+        &[
+            "wolf", "worgen", "vulpera", "fox", "cat", "panther", "tiger", "bear",
+        ],
     )
 }
 
 fn is_hoof_like(path: &str) -> bool {
     matches_any(
         path,
-        &["tauren", "draenei", "goat", "stag", "deer", "talbuk", "kodo", "hoof"],
+        &[
+            "tauren", "draenei", "goat", "stag", "deer", "talbuk", "kodo", "hoof",
+        ],
     )
 }
 
@@ -397,7 +406,11 @@ fn bucket_full(
     creature: FootstepCreature,
     surface: FootstepSurface,
 ) -> bool {
-    counts.get(&(creature, surface)).copied().unwrap_or_default() >= 6
+    counts
+        .get(&(creature, surface))
+        .copied()
+        .unwrap_or_default()
+        >= 6
 }
 
 fn increment_bucket(
@@ -452,7 +465,10 @@ mod tests {
 
     #[test]
     fn footstep_creature_class_uses_race_and_model_keywords() {
-        assert_eq!(classify_player_creature(1), FootstepCreature::HumanoidMedium);
+        assert_eq!(
+            classify_player_creature(1),
+            FootstepCreature::HumanoidMedium
+        );
         assert_eq!(classify_player_creature(7), FootstepCreature::HumanoidSmall);
         assert_eq!(classify_player_creature(6), FootstepCreature::Hoof);
         assert_eq!(

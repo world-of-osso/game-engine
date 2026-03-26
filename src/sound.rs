@@ -343,7 +343,9 @@ fn footstep_trigger(
             .unwrap_or_else(|| classify_player_creature(1));
         let surface = terrain
             .as_ref()
-            .and_then(|terrain| terrain.surface_at(transform.translation.x, transform.translation.z))
+            .and_then(|terrain| {
+                terrain.surface_at(transform.translation.x, transform.translation.z)
+            })
             .unwrap_or(FootstepSurface::Dirt);
         let request = FootstepRequest {
             creature,
@@ -707,8 +709,10 @@ mod tests {
 
     #[test]
     fn music_volume_muted() {
-        let mut s = SoundSettings::default();
-        s.muted = true;
+        let s = SoundSettings {
+            muted: true,
+            ..Default::default()
+        };
         assert_eq!(compute_music_volume(&s), 0.0);
     }
 

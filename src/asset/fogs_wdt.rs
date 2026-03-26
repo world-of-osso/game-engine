@@ -80,7 +80,7 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
 }
 
 fn parse_vfog(payload: &[u8]) -> Result<Vec<FogVolume>, String> {
-    if payload.len() % VFOG_ENTRY_SIZE != 0 {
+    if !payload.len().is_multiple_of(VFOG_ENTRY_SIZE) {
         return Err(format!(
             "VFOG payload size {} is not a multiple of {}",
             payload.len(),
@@ -126,7 +126,7 @@ fn parse_vfog(payload: &[u8]) -> Result<Vec<FogVolume>, String> {
 }
 
 fn parse_vfex(payload: &[u8]) -> Result<Vec<([f32; 3], u32)>, String> {
-    if payload.len() % VFEX_ENTRY_SIZE != 0 {
+    if !payload.len().is_multiple_of(VFEX_ENTRY_SIZE) {
         return Err(format!(
             "VFEX payload size {} is not a multiple of {}",
             payload.len(),
@@ -147,7 +147,7 @@ fn parse_vfex(payload: &[u8]) -> Result<Vec<([f32; 3], u32)>, String> {
 }
 
 fn parse_vfe2(payload: &[u8]) -> Result<Vec<f32>, String> {
-    if payload.len() % VFE2_ENTRY_SIZE != 0 {
+    if !payload.len().is_multiple_of(VFE2_ENTRY_SIZE) {
         return Err(format!(
             "VFE2 payload size {} is not a multiple of {}",
             payload.len(),

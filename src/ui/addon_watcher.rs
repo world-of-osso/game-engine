@@ -148,9 +148,9 @@ mod tests {
     #[test]
     fn scan_finds_wasm_files() {
         let dir = test_dir("scan");
-        fs::write(dir.join("addon1.wasm"), &[0u8]).unwrap();
-        fs::write(dir.join("addon2.wasm"), &[0u8]).unwrap();
-        fs::write(dir.join("readme.txt"), &[0u8]).unwrap();
+        fs::write(dir.join("addon1.wasm"), [0u8]).unwrap();
+        fs::write(dir.join("addon2.wasm"), [0u8]).unwrap();
+        fs::write(dir.join("readme.txt"), [0u8]).unwrap();
 
         let files = scan_addon_dir(&dir).unwrap();
         assert_eq!(files.len(), 2);

@@ -498,8 +498,8 @@ mod tests {
             "single-character rendering should start from the first authored character slot"
         );
         assert!(
-            (placement.position[0] - (-2981.8201)).abs() < 0.01
-                && (placement.position[1] - 457.3500).abs() < 0.01,
+            (placement.position[0] - (-2_981.82)).abs() < 0.01
+                && (placement.position[1] - 457.35).abs() < 0.01,
             "single-character rendering should use the base authored placement until layout selection is understood"
         );
     }

@@ -57,10 +57,10 @@ fn slot_buttons(prefix: &str, show_labels: bool) -> Element {
             let text = if show_labels { slot_label(index) } else { "" };
             rsx! {
                 button {
-                    name: name,
+                    name,
                     width: SLOT_W,
                     height: SLOT_H,
-                    text: text,
+                    text,
                     font_size: 13.0,
                     background_color: SLOT_BG,
                 }
@@ -77,7 +77,7 @@ fn action_bar_root(
 ) -> Element {
     rsx! {
         r#frame {
-            name: name,
+            name,
             width: 1.0,
             height: 1.0,
             background_color: BAR_BG,

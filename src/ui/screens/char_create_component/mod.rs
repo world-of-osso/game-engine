@@ -264,11 +264,51 @@ fn class_grid(state: &CharCreateUiState) -> Element {
 
 fn customize_rows(state: &CharCreateUiState) -> Element {
     rsx! {
-        {customization_row("Skin Color", state.skin_color, "", &state.skin_color_swatches, AppearanceField::SkinColor)}
-        {customization_row("Face", state.face, &state.face_label, &[], AppearanceField::Face)}
-        {customization_row("Hair Style", state.hair_style, &state.hair_style_label, &[], AppearanceField::HairStyle)}
-        {customization_row("Hair Color", state.hair_color, "", &state.hair_color_swatches, AppearanceField::HairColor)}
-        {customization_row("Facial Style", state.facial_style, &state.facial_style_label, &[], AppearanceField::FacialStyle)}
+        {
+            customization_row(
+                "Skin Color",
+                state.skin_color,
+                "",
+                &state.skin_color_swatches,
+                AppearanceField::SkinColor,
+            )
+        }
+        {
+            customization_row(
+                "Face",
+                state.face,
+                &state.face_label,
+                &[],
+                AppearanceField::Face,
+            )
+        }
+        {
+            customization_row(
+                "Hair Style",
+                state.hair_style,
+                &state.hair_style_label,
+                &[],
+                AppearanceField::HairStyle,
+            )
+        }
+        {
+            customization_row(
+                "Hair Color",
+                state.hair_color,
+                "",
+                &state.hair_color_swatches,
+                AppearanceField::HairColor,
+            )
+        }
+        {
+            customization_row(
+                "Facial Style",
+                state.facial_style,
+                &state.facial_style_label,
+                &[],
+                AppearanceField::FacialStyle,
+            )
+        }
     }
 }
 
@@ -402,6 +442,7 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::ui::frame::{Dimension, WidgetData};

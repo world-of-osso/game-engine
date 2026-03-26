@@ -227,8 +227,7 @@ fn title() -> Element {
 fn build_tabs(model: &OptionsViewModel) -> Element {
     let buttons: Element = OptionsCategory::ALL
         .iter()
-        .enumerate()
-        .flat_map(|(_, category)| tab_button(*category, model.category == *category))
+        .flat_map(|category| tab_button(*category, model.category == *category))
         .collect();
     rsx! {
         panel {

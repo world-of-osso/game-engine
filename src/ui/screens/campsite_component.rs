@@ -180,7 +180,9 @@ fn campsite_menu_item_unselected() -> Element {
                 x: MENU_CAMPSITES_X,
                 y: MENU_ITEM_Y,
             }
-            {menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, COLOR_SUBTITLE)}
+            {
+                menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, COLOR_SUBTITLE)
+            }
         }
     }
 }
@@ -192,10 +194,7 @@ fn menu_bar_chrome() -> Element {
             width: "fill",
             height: 12.0,
             background_color: "0.18,0.14,0.08,0.20",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-            }
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
         }
         r#frame {
             name: "CampsiteMenuBarBottomGlow",
@@ -237,10 +236,7 @@ pub fn campsite_tab(selected: bool) -> Element {
             strata: FrameStrata::Dialog,
             background_color: "0.05,0.04,0.03,0.72",
             border: "1px solid 0.22,0.17,0.05,0.55",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-            }
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
             {menu_bar_chrome()}
             {disabled_items_and_dividers()}
             {menu}
@@ -396,11 +392,7 @@ fn campsite_panel_with_anchor(
             justify: "center",
             gap: PANEL_GAP,
             padding: PANEL_PADDING,
-            anchor {
-                point,
-                relative_point,
-                y,
-            }
+            anchor { point, relative_point, y }
             {cards}
         }
     }

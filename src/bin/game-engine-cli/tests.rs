@@ -333,7 +333,7 @@ fn export_character_cli_command_parses_output_path() {
             name,
             character_id,
         }
-        if output == PathBuf::from("data/exports/thrall.json")
+        if output == std::path::Path::new("data/exports/thrall.json")
             && name == Some("Thrall".into())
             && character_id == Some(7)
     ));

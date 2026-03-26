@@ -22,7 +22,7 @@ use game_engine::ui::automation::UiAutomationAction;
 fn build_login_screen_for_test() -> (Screen, ui_toolkit::screen::SharedContext) {
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert::<SharedStatusText>(Default::default());
-    let screen = Screen::new(|ctx| login_screen(ctx));
+    let screen = Screen::new(login_screen);
     (screen, shared)
 }
 

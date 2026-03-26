@@ -48,16 +48,16 @@ pub fn trash_icon_button(
                     x: {x.to_string()},
                     y: {y.to_string()},
                 }
-            texture {
-                name: icon_name,
-                width: 24.0,
-                height: 24.0,
-                frame_level: 100.0,
-                texture_file: DELETE_ICON_FILE,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: name,
-                    relative_point: AnchorPoint::Center,
+                texture {
+                    name: icon_name,
+                    width: 24.0,
+                    height: 24.0,
+                    frame_level: 100.0,
+                    texture_file: DELETE_ICON_FILE,
+                    anchor {
+                        point: AnchorPoint::Center,
+                        relative_to: name,
+                        relative_point: AnchorPoint::Center,
                     }
                 }
             }
@@ -81,16 +81,16 @@ pub fn trash_icon_button(
                     x: {x.to_string()},
                     y: {y.to_string()},
                 }
-            texture {
-                name: icon_name,
-                width: 24.0,
-                height: 24.0,
-                frame_level: 100.0,
-                texture_file: DELETE_ICON_FILE,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: name,
-                    relative_point: AnchorPoint::Center,
+                texture {
+                    name: icon_name,
+                    width: 24.0,
+                    height: 24.0,
+                    frame_level: 100.0,
+                    texture_file: DELETE_ICON_FILE,
+                    anchor {
+                        point: AnchorPoint::Center,
+                        relative_to: name,
+                        relative_point: AnchorPoint::Center,
                     }
                 }
             }
@@ -105,16 +105,18 @@ pub fn trash_button_screen(_shared: &SharedContext) -> Element {
             stretch: true,
             background_color: "0.02,0.02,0.03,1.0",
             strata: FrameStrata::Background,
-            {trash_icon_button(
-                TRASH_BUTTON,
-                TRASH_BUTTON_ICON,
-                "noop",
-                AnchorPoint::Center,
-                None,
-                AnchorPoint::Center,
-                0.0,
-                0.0,
-            )}
+            {
+                trash_icon_button(
+                    TRASH_BUTTON,
+                    TRASH_BUTTON_ICON,
+                    "noop",
+                    AnchorPoint::Center,
+                    None,
+                    AnchorPoint::Center,
+                    0.0,
+                    0.0,
+                )
+            }
         }
     }
 }

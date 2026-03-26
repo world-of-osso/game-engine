@@ -525,6 +525,7 @@ fn spawn_score(relief: f32, dist_from_center_chunks: f32, occupancy_penalty: f32
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
 
@@ -854,7 +855,12 @@ fn handle_tile_success(
 ) {
     let key = (parsed.tile_y, parsed.tile_x);
     adt_manager.pending.remove(&key);
-    heightmap.register_tile(parsed.tile_y, parsed.tile_x, &parsed.adt_data, parsed.tex_data.as_ref());
+    heightmap.register_tile(
+        parsed.tile_y,
+        parsed.tile_x,
+        &parsed.adt_data,
+        parsed.tex_data.as_ref(),
+    );
     let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, &parsed);
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);

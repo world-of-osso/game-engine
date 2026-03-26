@@ -649,6 +649,7 @@ pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
 
 // --- Batch building (includes ALL submeshes for runtime geoset control) ---
 
+#[allow(clippy::too_many_arguments)]
 fn build_one_batch(
     vertices: &[M2Vertex],
     skin: &SkinData,
@@ -762,6 +763,7 @@ fn texture_looks_like_environment_map(fdid: Option<u32>) -> bool {
     lower.contains("armorreflect") || lower.contains("_reflect") || lower.contains("envmap")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_batched_model(
     vertices: &[M2Vertex],
     skin: &SkinData,

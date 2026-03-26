@@ -53,6 +53,7 @@ fn compute_skin_offsets(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_skin_header(
     skin: &mut [u8],
     lookup_offset: u32,
@@ -75,6 +76,7 @@ fn write_skin_header(
     skin[40..44].copy_from_slice(&batch_offset.to_le_bytes());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_skin_data(
     skin: &mut [u8],
     lookup: &[u16],

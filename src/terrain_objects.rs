@@ -864,7 +864,7 @@ fn wmo_standard_material(
     texture: Option<Handle<Image>>,
     blend_mode: u32,
     flags: u32,
-    _has_vertex_color: bool,
+    has_vertex_color: bool,
 ) -> StandardMaterial {
     let alpha_mode = match blend_mode {
         2 | 3 => AlphaMode::Blend,
@@ -882,7 +882,7 @@ fn wmo_standard_material(
         base_color_texture: texture,
         perceptual_roughness: if prop_like_surface { 0.97 } else { 0.88 },
         reflectance: if prop_like_surface { 0.02 } else { 0.18 },
-        unlit: false,
+        unlit: has_vertex_color,
         double_sided,
         cull_mode: if double_sided {
             None
