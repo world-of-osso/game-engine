@@ -21,6 +21,7 @@ struct LoginResponseResult {
     feedback: AuthUiFeedback,
     goes_login: bool,
     goes_charselect: bool,
+    goes_loading: bool,
     reconnect: crate::networking::ReconnectState,
 }
 
@@ -60,6 +61,7 @@ fn run_handle_login_response(app: &mut App, resp: LoginResponse) {
         move |mut auth_token: ResMut<AuthToken>,
               mut auth_feedback: ResMut<AuthUiFeedback>,
               mut char_list: ResMut<CharacterList>,
+              auto_enter_world: Option<Res<crate::char_select::AutoEnterWorld>>,
               mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
               mut next_state: ResMut<NextState<GameState>>,
               mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
@@ -70,7 +72,7 @@ fn run_handle_login_response(app: &mut App, resp: LoginResponse) {
                 &mut auth_token,
                 &mut auth_feedback,
                 &mut char_list,
-                None,
+                auto_enter_world.as_ref(),
                 None,
                 None,
                 &mut selected_char_idx,
@@ -94,6 +96,10 @@ fn extract_login_result(app: &App) -> LoginResponseResult {
         goes_charselect: matches!(
             app.world().resource::<NextState<GameState>>(),
             NextState::Pending(GameState::CharSelect)
+        ),
+        goes_loading: matches!(
+            app.world().resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::Loading)
         ),
         reconnect: *app.world().resource::<crate::networking::ReconnectState>(),
     }
@@ -195,7 +201,7 @@ fn login_success_auto_enter_skips_charselect_when_character_exists() {
         LoginSuccessAction {
             selected_idx: Some(0),
             enter_world_character_id: Some(7),
-            next_state: None,
+            next_state: Some(GameState::Loading),
         }
     );
 }
@@ -314,10 +320,30 @@ fn reconnect_login_fallback_to_charselect_clears_reconnect_state() {
 
     assert!(!result.goes_login);
     assert!(result.goes_charselect);
+    assert!(!result.goes_loading);
     assert_eq!(
         result.reconnect.phase,
         crate::networking::ReconnectPhase::Inactive
     );
+}
+
+#[test]
+fn auto_enter_login_success_goes_to_loading() {
+    let result = run_login_response_for_test(
+        LoginResponse {
+            success: true,
+            token: VALID_TEST_UUID.to_string(),
+            characters: vec![make_test_char(7, "Elara")],
+            error: None,
+        },
+        Vec::new(),
+        crate::networking::ReconnectState::default(),
+        true,
+    );
+
+    assert!(!result.goes_login);
+    assert!(!result.goes_charselect);
+    assert!(result.goes_loading);
 }
 
 #[test]

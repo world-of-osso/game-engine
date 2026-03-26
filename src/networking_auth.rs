@@ -332,7 +332,7 @@ fn decide_login_success_action(
         .then(|| selected_idx.and_then(|idx| characters.get(idx).map(|ch| ch.character_id)))
         .flatten();
     let next_state = if enter_world_character_id.is_some() {
-        None
+        Some(GameState::Loading)
     } else {
         Some(startup_screen_target.unwrap_or(GameState::CharSelect))
     };
@@ -520,8 +520,8 @@ pub fn receive_enter_world_response(
                 {
                     reconnect.phase = crate::networking::ReconnectPhase::Inactive;
                     reconnect.terrain_refresh_seen = false;
-                    next_state.set(GameState::CharSelect);
                 }
+                next_state.set(GameState::CharSelect);
             }
         }
     }
