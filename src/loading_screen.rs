@@ -10,13 +10,15 @@ use game_engine::ui::screens::loading_component::{
 };
 use game_engine::ui_resource;
 
-use crate::game_state::{GameState, evaluate_world_loading};
+use crate::game_state::{GameState, InitialGameState, evaluate_world_loading};
 use crate::networking::{LocalPlayer, SelectedCharacterId};
 use crate::terrain::AdtManager;
 
 const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
 const DEFAULT_TIP_TEXT: &str =
     "Tip: The first zone load streams terrain and replicated actors before gameplay begins.";
+const LOADING_BAR_FILL_RATE_PERCENT_PER_SEC: f32 = 6.0;
+const PREVIEW_MODE_HOLD_PERCENT: f32 = 100.0;
 
 ui_resource! {
     LoadingUi {
@@ -44,6 +46,13 @@ struct LoadingUiState(LoadingScreenState);
 #[derive(Resource, Clone, PartialEq)]
 struct LoadingLayoutState(LoadingScreenLayout);
 
+#[derive(Resource)]
+struct LoadingProgressAnimation {
+    displayed_percent: f32,
+    elapsed_secs: f32,
+    preview_mode: bool,
+}
+
 pub struct LoadingScreenPlugin;
 
 impl Plugin for LoadingScreenPlugin {
@@ -64,9 +73,23 @@ fn build_loading_ui(
     selected: Res<SelectedCharacterId>,
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
+    initial_state: Option<Res<InitialGameState>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_loading_state(&selected, !local_player_q.is_empty(), &adt_manager);
+    let mut progress_animation = LoadingProgressAnimation {
+        displayed_percent: 0.0,
+        elapsed_secs: 0.0,
+        preview_mode: initial_state
+            .as_ref()
+            .is_some_and(|state| state.0 == GameState::Loading),
+    };
+    let state = build_loading_state(
+        &selected,
+        !local_player_q.is_empty(),
+        &adt_manager,
+        &mut progress_animation,
+        0.0,
+    );
     let layout = debug_loading_layout_from_source();
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state.clone());
@@ -79,6 +102,7 @@ fn build_loading_ui(
 
     commands.insert_resource(LoadingUiState(state));
     commands.insert_resource(LoadingLayoutState(layout));
+    commands.insert_resource(progress_animation);
     commands.insert_resource(LoadingScreenWrap(LoadingScreenRes { screen, shared }));
     commands.insert_resource(loading_ui);
 }
@@ -95,6 +119,7 @@ fn teardown_loading_ui(
     commands.remove_resource::<LoadingUi>();
     commands.remove_resource::<LoadingUiState>();
     commands.remove_resource::<LoadingLayoutState>();
+    commands.remove_resource::<LoadingProgressAnimation>();
     ui.focused_frame = None;
 }
 
@@ -115,17 +140,34 @@ fn loading_update_visuals(
     mut screen_wrap: Option<ResMut<LoadingScreenWrap>>,
     mut last_state: Option<ResMut<LoadingUiState>>,
     mut last_layout: Option<ResMut<LoadingLayoutState>>,
+    mut progress_animation: Option<ResMut<LoadingProgressAnimation>>,
     selected: Res<SelectedCharacterId>,
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
+    time: Res<Time>,
 ) {
-    let (Some(mut screen_wrap), Some(mut last_state), Some(mut last_layout)) =
-        (screen_wrap.take(), last_state.take(), last_layout.take())
+    let (
+        Some(mut screen_wrap),
+        Some(mut last_state),
+        Some(mut last_layout),
+        Some(mut progress_animation),
+    ) = (
+        screen_wrap.take(),
+        last_state.take(),
+        last_layout.take(),
+        progress_animation.take(),
+    )
     else {
         return;
     };
 
-    let state = build_loading_state(&selected, !local_player_q.is_empty(), &adt_manager);
+    let state = build_loading_state(
+        &selected,
+        !local_player_q.is_empty(),
+        &adt_manager,
+        &mut progress_animation,
+        time.delta_secs(),
+    );
     let layout = debug_loading_layout_from_source();
     if last_state.0 == state && last_layout.0 == layout {
         return;
@@ -143,6 +185,8 @@ fn build_loading_state(
     selected: &SelectedCharacterId,
     local_player_ready: bool,
     adt_manager: &AdtManager,
+    progress_animation: &mut LoadingProgressAnimation,
+    delta_secs: f32,
 ) -> LoadingScreenState {
     let readiness = evaluate_world_loading(local_player_ready, adt_manager);
     let zone_text = selected
@@ -150,13 +194,46 @@ fn build_loading_state(
         .as_ref()
         .map(|name| format!("Entering {name}"))
         .unwrap_or_else(|| DEFAULT_ZONE_TEXT.to_string());
+    progress_animation.elapsed_secs += delta_secs.max(0.0);
+    progress_animation.displayed_percent = advance_displayed_progress(
+        progress_animation.displayed_percent,
+        target_progress_percent(&readiness, progress_animation),
+        delta_secs,
+    );
 
     LoadingScreenState {
         status_text: readiness.status_text.to_string(),
         zone_text,
         tip_text: DEFAULT_TIP_TEXT.to_string(),
-        progress_percent: readiness.progress_percent,
+        progress_percent: progress_animation.displayed_percent.round() as u8,
     }
+}
+
+fn target_progress_percent(
+    readiness: &crate::game_state::LoadingReadiness,
+    progress_animation: &LoadingProgressAnimation,
+) -> f32 {
+    if progress_animation.preview_mode {
+        preview_target_progress(progress_animation.elapsed_secs)
+    } else {
+        f32::from(readiness.progress_percent)
+    }
+}
+
+fn preview_target_progress(elapsed_secs: f32) -> f32 {
+    (elapsed_secs.max(0.0) * LOADING_BAR_FILL_RATE_PERCENT_PER_SEC).min(PREVIEW_MODE_HOLD_PERCENT)
+}
+
+fn advance_displayed_progress(current: f32, target: f32, delta_secs: f32) -> f32 {
+    if delta_secs <= 0.0 {
+        return current.min(target);
+    }
+    if current >= target {
+        return target;
+    }
+
+    let step = delta_secs * LOADING_BAR_FILL_RATE_PERCENT_PER_SEC;
+    (current + step).min(target)
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, root_id: u64) {
@@ -173,15 +250,19 @@ mod tests {
     use super::*;
     use game_engine::ui::layout::recompute_layouts;
 
-    #[test]
-    fn loading_screen_builds_expected_frames() {
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(LoadingScreenState {
+    fn sample_loading_state(progress_percent: u8) -> LoadingScreenState {
+        LoadingScreenState {
             status_text: "Loading terrain...".to_string(),
             zone_text: "Entering Elwynn Forest".to_string(),
             tip_text: DEFAULT_TIP_TEXT.to_string(),
-            progress_percent: 86,
-        });
+            progress_percent,
+        }
+    }
+
+    #[test]
+    fn loading_screen_builds_expected_frames() {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(sample_loading_state(86));
         shared.insert(LoadingScreenLayout::default());
 
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
@@ -194,14 +275,9 @@ mod tests {
     }
 
     #[test]
-    fn loading_bar_fill_clip_starts_at_shell_inner_left_edge() {
+    fn loading_bar_fill_clip_uses_configured_fill_offset() {
         let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(LoadingScreenState {
-            status_text: "Loading terrain...".to_string(),
-            zone_text: "Entering Elwynn Forest".to_string(),
-            tip_text: DEFAULT_TIP_TEXT.to_string(),
-            progress_percent: 50,
-        });
+        shared.insert(sample_loading_state(50));
         let layout = LoadingScreenLayout::default();
         shared.insert(layout.clone());
 
@@ -221,7 +297,21 @@ mod tests {
             .and_then(|frame| frame.layout_rect.as_ref())
             .expect("LoadingBarFillClip rect");
 
-        assert_eq!(bar_clip.x, bar_bg.x + layout.bar_cap_width);
-        assert_eq!(bar_clip.width, layout.bar_width - (layout.bar_cap_width * 2.0));
+        assert_eq!(bar_clip.x, bar_bg.x + layout.bar_fill_start_x);
+        assert_eq!(bar_clip.width, layout.bar_fill_max_width);
+    }
+
+    #[test]
+    fn preview_mode_progress_fills_slowly_over_time() {
+        assert_eq!(preview_target_progress(0.0), 0.0);
+        assert_eq!(preview_target_progress(2.0), 12.0);
+        assert_eq!(preview_target_progress(20.0), PREVIEW_MODE_HOLD_PERCENT);
+    }
+
+    #[test]
+    fn displayed_progress_advances_toward_target_without_overshoot() {
+        assert_eq!(advance_displayed_progress(0.0, 86.0, 1.0), 6.0);
+        assert_eq!(advance_displayed_progress(80.0, 86.0, 1.0), 86.0);
+        assert_eq!(advance_displayed_progress(90.0, 86.0, 1.0), 86.0);
     }
 }

@@ -22,12 +22,13 @@ const ART_WIDTH: f32 = 1280.0;
 const ART_HEIGHT: f32 = 640.0;
 const FILLER_WIDTH: f32 = 2048.0;
 const FILLER_HEIGHT: f32 = 96.0;
-const FILLER_TOP_Y: f32 = -50.0;
+const FILLER_TOP_Y: f32 = 0.0;
 const FILLER_BOTTOM_Y: f32 = 0.0;
 const BAR_CAP_WIDTH: f32 = 25.0;
+const BAR_FILL_START_X: f32 = 6.0;
 const BAR_WIDTH: f32 = 610.0;
 const BAR_HEIGHT: f32 = 32.0;
-const BAR_FILL_MAX_WIDTH: f32 = BAR_WIDTH - (BAR_CAP_WIDTH * 2.0);
+const BAR_FILL_MAX_WIDTH: f32 = BAR_WIDTH - (BAR_FILL_START_X * 2.0);
 const BAR_FILL_HEIGHT: f32 = 23.0;
 const PROGRESS_TEXT_X: f32 = -42.0;
 const PROGRESS_TEXT_Y: f32 = -1.0;
@@ -59,6 +60,7 @@ pub struct LoadingScreenLayout {
     pub filler_top_y: f32,
     pub filler_bottom_y: f32,
     pub bar_cap_width: f32,
+    pub bar_fill_start_x: f32,
     pub bar_width: f32,
     pub bar_height: f32,
     pub bar_fill_max_width: f32,
@@ -82,6 +84,7 @@ impl Default for LoadingScreenLayout {
             filler_top_y: FILLER_TOP_Y,
             filler_bottom_y: FILLER_BOTTOM_Y,
             bar_cap_width: BAR_CAP_WIDTH,
+            bar_fill_start_x: BAR_FILL_START_X,
             bar_width: BAR_WIDTH,
             bar_height: BAR_HEIGHT,
             bar_fill_max_width: BAR_FILL_MAX_WIDTH,
@@ -283,7 +286,7 @@ fn bar_fill_clip(progress_percent: u8, layout: &LoadingScreenLayout) -> Element 
                 point: AnchorPoint::Left,
                 relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Left,
-                x: {layout.bar_cap_width.to_string()},
+                x: {layout.bar_fill_start_x.to_string()},
             }
             {bar_fill_texture(fill_width, layout)}
         }
@@ -388,6 +391,7 @@ fn apply_debug_const_override(line: &str, layout: &mut LoadingScreenLayout) {
         "FILLER_TOP_Y" => layout.filler_top_y = value,
         "FILLER_BOTTOM_Y" => layout.filler_bottom_y = value,
         "BAR_CAP_WIDTH" => layout.bar_cap_width = value,
+        "BAR_FILL_START_X" => layout.bar_fill_start_x = value,
         "BAR_WIDTH" => layout.bar_width = value,
         "BAR_HEIGHT" => layout.bar_height = value,
         "BAR_FILL_MAX_WIDTH" => layout.bar_fill_max_width = value,
