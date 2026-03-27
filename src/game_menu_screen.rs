@@ -1,3 +1,5 @@
+use bevy::input::ButtonState;
+use bevy::input::keyboard::KeyboardInput;
 use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::prelude::*;
 use game_engine::ui::input::find_frame_at;
@@ -14,13 +16,15 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::client_options::{self, CameraOptions, ClientOptionsUiState, HudOptions};
 use crate::game_menu_options::{
-    ApplySnapshot, DragCapture, OverlayModel, SliderField, apply_camera_snapshot,
+    ApplySnapshot, BindingCapture, DragCapture, OverlayModel, SliderField, apply_camera_snapshot,
     apply_hud_snapshot, apply_slider_value, apply_snapshot, apply_sound_snapshot, apply_step,
-    apply_toggle, build_view_model, camera_draft, hud_draft, parse_category_action,
-    parse_slider_action, parse_step_action, parse_toggle_action, reset_category_defaults,
-    slider_bounds, sound_draft,
+    apply_toggle, build_view_model, camera_draft, current_capture_action, hud_draft,
+    parse_binding_clear_action, parse_binding_rebind_action, parse_binding_section_action,
+    parse_category_action, parse_slider_action, parse_step_action, parse_toggle_action,
+    reset_category_defaults, slider_bounds, sound_draft,
 };
 use crate::game_state::GameState;
+use game_engine::input_bindings::{BindingSection, InputBinding, InputBindings};
 use crate::sound::SoundSettings;
 
 const DRAG_THRESHOLD: f32 = 4.0;
@@ -121,14 +125,9 @@ fn build_overlay_model(
     game_state: GameState,
     startup_view: Option<GameMenuView>,
 ) -> OverlayModel {
-    let sound = world.get_resource::<SoundSettings>();
-    let camera = world.resource::<CameraOptions>();
-    let hud = world.resource::<HudOptions>();
+    let (sound_draft, camera_d, hud_d, bindings) = overlay_runtime_drafts(world);
     let ui_state = world.resource::<ClientOptionsUiState>();
     let registry = &world.resource::<UiState>().registry;
-    let sound_draft = sound_draft(sound.as_deref());
-    let camera_d = camera_draft(&camera);
-    let hud_d = hud_draft(&hud);
     let view = startup_view.unwrap_or(GameMenuView::MainMenu);
     let modal_position = if view == GameMenuView::Options {
         [0.0, 0.0]
@@ -151,7 +150,29 @@ fn build_overlay_model(
         committed_sound: sound_draft,
         committed_camera: camera_d,
         committed_hud: hud_d,
+        draft_bindings: bindings.clone(),
+        committed_bindings: bindings,
+        binding_section: BindingSection::Movement,
+        binding_capture: BindingCapture::None,
     }
+}
+
+fn overlay_runtime_drafts(world: &mut World) -> (
+    crate::game_menu_options::SoundDraft,
+    crate::game_menu_options::CameraDraft,
+    crate::game_menu_options::HudDraft,
+    InputBindings,
+) {
+    let sound = world.get_resource::<SoundSettings>();
+    let camera = world.resource::<CameraOptions>();
+    let hud = world.resource::<HudOptions>();
+    let bindings = world.get_resource::<InputBindings>().cloned().unwrap_or_default();
+    (
+        sound_draft(sound.as_deref()),
+        camera_draft(&camera),
+        hud_draft(&hud),
+        bindings,
+    )
 }
 
 fn initial_modal_offset(ui_state: &ClientOptionsUiState, reg: &FrameRegistry) -> [f32; 2] {
@@ -203,10 +224,16 @@ fn handle_overlay_input(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     keyboard: Option<Res<ButtonInput<KeyCode>>>,
+    mut key_events: Option<MessageReader<KeyboardInput>>,
     mut exit: MessageWriter<AppExit>,
     mut commands: Commands,
     state: Res<State<GameState>>,
 ) {
+    let capture_changed =
+        handle_binding_capture_keys(&mut overlay, key_events.as_mut(), &mut commands);
+    if capture_changed {
+        sync_overlay_model_only(&mut overlay, &mut ui.registry);
+    }
     handle_escape(&mut overlay, keyboard.as_deref(), &mut commands);
     let (Some(mouse), Ok(window)) = (mouse, windows.single()) else {
         return;
@@ -249,6 +276,11 @@ fn handle_escape(
     if !kb.just_pressed(KeyCode::Escape) {
         return;
     }
+    if current_capture_action(overlay.model.binding_capture).is_some() {
+        overlay.model.binding_capture = BindingCapture::None;
+        overlay.model.pressed_action = None;
+        return;
+    }
     if overlay.model.view == GameMenuView::Options {
         overlay.model.drag_capture = DragCapture::None;
         overlay.model.pressed_action = None;
@@ -265,6 +297,10 @@ fn handle_press(
     reg: &mut FrameRegistry,
     commands: &mut Commands,
 ) {
+    if capture_mouse_binding(mouse, overlay, commands) {
+        sync_overlay_model_only(overlay, reg);
+        return;
+    }
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
@@ -282,6 +318,78 @@ fn handle_press(
     } else {
         let _ = reg.click_frame(frame_id);
     }
+}
+
+fn handle_binding_capture_keys(
+    overlay: &mut GameMenuOverlay,
+    key_events: Option<&mut MessageReader<KeyboardInput>>,
+    commands: &mut Commands,
+) -> bool {
+    let Some(action) = listening_binding_action(overlay) else {
+        return false;
+    };
+    let Some(key_events) = key_events else {
+        return false;
+    };
+    for event in key_events.read() {
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
+        if event.key_code == KeyCode::Escape {
+            overlay.model.binding_capture = BindingCapture::None;
+            return true;
+        }
+        if event.key_code
+            != KeyCode::Unidentified(bevy::input::keyboard::NativeKeyCode::Unidentified)
+        {
+            assign_binding(action, InputBinding::Keyboard(event.key_code), overlay, commands);
+            return true;
+        }
+    }
+    false
+}
+
+fn listening_binding_action(
+    overlay: &GameMenuOverlay,
+) -> Option<game_engine::input_bindings::InputAction> {
+    match overlay.model.binding_capture {
+        BindingCapture::Listening(action) => Some(action),
+        _ => None,
+    }
+}
+
+fn capture_mouse_binding(
+    mouse: &ButtonInput<MouseButton>,
+    overlay: &mut GameMenuOverlay,
+    commands: &mut Commands,
+) -> bool {
+    let Some(action) = listening_binding_action(overlay) else {
+        return false;
+    };
+    for button in [
+        MouseButton::Left,
+        MouseButton::Right,
+        MouseButton::Middle,
+        MouseButton::Back,
+        MouseButton::Forward,
+    ] {
+        if mouse.just_pressed(button) {
+            assign_binding(action, InputBinding::Mouse(button), overlay, commands);
+            return true;
+        }
+    }
+    false
+}
+
+fn assign_binding(
+    action: game_engine::input_bindings::InputAction,
+    binding: InputBinding,
+    overlay: &mut GameMenuOverlay,
+    commands: &mut Commands,
+) {
+    overlay.model.draft_bindings.assign(action, binding);
+    overlay.model.binding_capture = BindingCapture::None;
+    queue_apply_current_options(overlay, commands);
 }
 
 fn begin_slider_drag(
@@ -423,6 +531,9 @@ fn handle_release(
     };
     if walk_up_for_onclick(reg, frame_id).as_deref() == Some(action.as_str()) {
         dispatch_overlay_action(action.as_str(), overlay, exit, commands, state);
+        if let BindingCapture::Armed(action) = overlay.model.binding_capture {
+            overlay.model.binding_capture = BindingCapture::Listening(action);
+        }
         sync_overlay_model_only(overlay, reg);
     }
 }
@@ -474,6 +585,21 @@ fn dispatch_overlay_action(
         overlay.model.category = category;
         return;
     }
+    if let Some(section) = parse_binding_section_action(action) {
+        overlay.model.binding_section = section;
+        overlay.model.binding_capture = BindingCapture::None;
+        return;
+    }
+    if let Some(action) = parse_binding_rebind_action(action) {
+        overlay.model.binding_capture = BindingCapture::Armed(action);
+        return;
+    }
+    if let Some(action) = parse_binding_clear_action(action) {
+        overlay.model.draft_bindings.clear(action);
+        overlay.model.binding_capture = BindingCapture::None;
+        queue_apply_current_options(overlay, commands);
+        return;
+    }
     if let Some((key, delta)) = parse_step_action(action) {
         apply_step(key, delta, &mut overlay.model);
         queue_apply_current_options(overlay, commands);
@@ -481,6 +607,7 @@ fn dispatch_overlay_action(
     }
     if let Some(key) = parse_toggle_action(action) {
         apply_toggle(key, &mut overlay.model);
+        overlay.model.binding_capture = BindingCapture::None;
         queue_apply_current_options(overlay, commands);
         return;
     }
@@ -534,6 +661,7 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     }
     apply_camera_snapshot(&mut world.resource_mut::<CameraOptions>(), &snapshot.camera);
     apply_hud_snapshot(&mut world.resource_mut::<HudOptions>(), &snapshot.hud);
+    *world.resource_mut::<InputBindings>() = snapshot.bindings.clone();
     if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
         client_options::apply_fps_overlay_visibility(&mut fps, snapshot.hud.show_fps_overlay);
     }
@@ -569,7 +697,13 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
         muted: snapshot.sound.muted,
     };
     if let Err(err) =
-        client_options::save_client_options_values(&sound, &camera, &hud, snapshot.modal_position)
+        client_options::save_client_options_values(
+            &sound,
+            &camera,
+            &hud,
+            &snapshot.bindings,
+            snapshot.modal_position,
+        )
     {
         warn!("{err}");
     }

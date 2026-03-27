@@ -7,8 +7,12 @@ use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
 use crate::ui::anchor::AnchorPoint;
 
-use super::options_menu_component::{CameraOptionsView, HudOptionsView, SoundOptionsView};
+use super::options_menu_component::{
+    CameraOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView, SoundOptionsView,
+    keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
+};
 use super::options_menu_sections;
+use crate::input_bindings::BindingSection;
 
 const OPTIONS_CONTENT_W: f32 = 716.0;
 const OPTIONS_ROW_W: f32 = OPTIONS_CONTENT_W - 30.0;
@@ -30,6 +34,7 @@ const OPTIONS_TOGGLE_TEXT_IDLE: &str = "0.70,0.66,0.56,1.0";
 const OPTIONS_TOGGLE_TEXT_ACTIVE: &str = "0.95,0.90,0.74,1.0";
 const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
+const BINDING_VALUE_W: f32 = 180.0;
 
 struct DynName(String);
 
@@ -99,6 +104,19 @@ pub fn advanced_body(hud: &HudOptionsView) -> Element {
                 "Render Debug",
                 "Render overlays need more engine hooks",
             ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+pub fn keybindings_body(bindings: &KeybindingsView) -> Element {
+    content_stack(
+        [
+            keybinding_section_tabs(bindings.section),
+            spacer("KeybindingsSpacer", 6.0),
+            keybinding_rows(bindings),
         ]
         .into_iter()
         .flatten()
@@ -199,6 +217,124 @@ fn camera_distance_sliders(camera: &CameraOptionsView) -> Element {
     .into_iter()
     .flatten()
     .collect()
+}
+
+fn keybinding_section_tabs(active: BindingSection) -> Element {
+    let buttons: Element = BindingSection::ALL
+        .iter()
+        .flat_map(|section| keybinding_section_button(*section, *section == active))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "KeybindingSectionTabs",
+            width: {OPTIONS_ROW_W},
+            height: 0.0,
+            layout: "flex-row",
+            gap: 8.0,
+            {buttons}
+        }
+    }
+}
+
+fn keybinding_section_button(section: BindingSection, active: bool) -> Element {
+    let label = section.title().to_string();
+    let action = keybinding_section_action(section);
+    rsx! {
+        button {
+            name: {DynName(format!("KeybindingSection{}", section.key()))},
+            width: 124.0,
+            height: 28.0,
+            text: {&label},
+            font_size: 14.0,
+            onclick: {&action},
+            disabled: {active},
+            button_atlas_up: "defaultbutton-nineslice-up",
+            button_atlas_pressed: "defaultbutton-nineslice-pressed",
+            button_atlas_highlight: "defaultbutton-nineslice-highlight",
+            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+        }
+    }
+}
+
+fn keybinding_rows(bindings: &KeybindingsView) -> Element {
+    bindings.rows.iter().flat_map(keybinding_row).collect()
+}
+
+fn keybinding_row(row: &KeybindingRowView) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("KeybindingRow{}", row.action.key()))},
+            width: {OPTIONS_ROW_W},
+            height: 34.0,
+            {row_label(&format!("KeybindingLabel{}", row.action.key()), &row.label)}
+            {keybinding_value(row)}
+            {keybinding_clear_button(row)}
+            {keybinding_rebind_button(row)}
+        }
+    }
+}
+
+fn keybinding_value(row: &KeybindingRowView) -> Element {
+    let text = if row.capturing {
+        "Press a key or mouse button...".to_string()
+    } else {
+        row.binding_text.clone()
+    };
+    rsx! {
+        fontstring {
+            name: {DynName(format!("KeybindingValue{}", row.action.key()))},
+            width: {BINDING_VALUE_W},
+            height: 20.0,
+            text: {&text},
+            font_size: 14.0,
+            color: "0.95,0.90,0.74,1.0",
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::Right,
+                relative_point: AnchorPoint::Right,
+                x: "-176",
+            }
+        }
+    }
+}
+
+fn keybinding_clear_button(row: &KeybindingRowView) -> Element {
+    let action = keybinding_clear_action(row.action);
+    rsx! {
+        button {
+            name: {DynName(format!("KeybindingClear{}", row.action.key()))},
+            width: 72.0,
+            height: 28.0,
+            text: "Clear",
+            font_size: 13.0,
+            onclick: {&action},
+            disabled: {!row.can_clear},
+            button_atlas_up: "defaultbutton-nineslice-up",
+            button_atlas_pressed: "defaultbutton-nineslice-pressed",
+            button_atlas_highlight: "defaultbutton-nineslice-highlight",
+            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-84" }
+        }
+    }
+}
+
+fn keybinding_rebind_button(row: &KeybindingRowView) -> Element {
+    let action = keybinding_rebind_action(row.action);
+    rsx! {
+        button {
+            name: {DynName(format!("KeybindingRebind{}", row.action.key()))},
+            width: 72.0,
+            height: 28.0,
+            text: "Rebind",
+            font_size: 13.0,
+            onclick: {&action},
+            button_atlas_up: "defaultbutton-nineslice-up",
+            button_atlas_pressed: "defaultbutton-nineslice-pressed",
+            button_atlas_highlight: "defaultbutton-nineslice-highlight",
+            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right }
+        }
+    }
 }
 
 fn toggle_row(key: &str, label: &str, enabled: bool) -> Element {

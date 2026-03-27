@@ -5,6 +5,7 @@ use game_engine::targeting::CurrentTarget;
 
 use crate::camera::Player;
 use crate::game_state::GameState;
+use game_engine::input_bindings::{InputAction, InputBindings};
 use crate::networking::RemoteEntity;
 
 /// Marker on the selection circle entity.
@@ -71,15 +72,18 @@ fn click_to_target(
 #[allow(clippy::type_complexity)]
 fn tab_target(
     keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     player_q: Query<&Transform, With<Player>>,
     remote_q: Query<(Entity, &Transform), (With<RemoteEntity>, Without<Player>)>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    bindings: Res<InputBindings>,
     mut current: ResMut<CurrentTarget>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) {
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
     }
-    if !keys.just_pressed(KeyCode::Tab) {
+    if !bindings.is_just_pressed(InputAction::TargetNearest, &keys, &mouse_buttons) {
         return;
     }
     let Ok(player_tf) = player_q.single() else {

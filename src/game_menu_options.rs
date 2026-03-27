@@ -1,10 +1,14 @@
 use bevy::log::info;
 use game_engine::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
 use game_engine::ui::screens::options_menu_component::{
-    CameraOptionsView, HudOptionsView, OptionsCategory, OptionsViewModel, SoundOptionsView,
+    CameraOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView, OptionsCategory,
+    OptionsViewModel, SoundOptionsView,
 };
 
 use crate::client_options::{CameraOptions, HudOptions};
+use game_engine::input_bindings::{
+    BindingSection, InputAction, InputBinding, InputBindings, actions_for_section,
+};
 use crate::sound::SoundSettings;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +47,10 @@ pub struct OverlayModel {
     pub committed_sound: SoundDraft,
     pub committed_camera: CameraDraft,
     pub committed_hud: HudDraft,
+    pub draft_bindings: InputBindings,
+    pub committed_bindings: InputBindings,
+    pub binding_section: BindingSection,
+    pub binding_capture: BindingCapture,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +87,15 @@ pub struct ApplySnapshot {
     pub sound: SoundDraft,
     pub camera: CameraDraft,
     pub hud: HudDraft,
+    pub bindings: InputBindings,
     pub modal_position: [f32; 2],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BindingCapture {
+    None,
+    Armed(InputAction),
+    Listening(InputAction),
 }
 
 pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
@@ -135,6 +151,11 @@ pub fn build_view_model(model: &OverlayModel) -> GameMenuViewModel {
             sound: sound_view(&model.draft_sound),
             camera: camera_view(&model.draft_camera),
             hud: hud_view(&model.draft_hud),
+            bindings: bindings_view(
+                &model.draft_bindings,
+                model.binding_section,
+                current_capture_action(model.binding_capture),
+            ),
         },
     }
 }
@@ -168,6 +189,31 @@ fn hud_view(draft: &HudDraft) -> HudOptionsView {
         show_health_bars: draft.show_health_bars,
         show_target_marker: draft.show_target_marker,
         show_fps_overlay: draft.show_fps_overlay,
+    }
+}
+
+fn bindings_view(
+    bindings: &InputBindings,
+    section: BindingSection,
+    capture_action: Option<InputAction>,
+) -> KeybindingsView {
+    let rows = actions_for_section(section)
+        .iter()
+        .map(|action| KeybindingRowView {
+            action: *action,
+            label: action.label().to_string(),
+            binding_text: bindings
+                .binding(*action)
+                .map(InputBinding::display)
+                .unwrap_or_else(|| "Unbound".to_string()),
+            capturing: capture_action == Some(*action),
+            can_clear: bindings.binding(*action).is_some(),
+        })
+        .collect();
+    KeybindingsView {
+        section,
+        capture_action,
+        rows,
     }
 }
 
@@ -232,6 +278,18 @@ pub fn parse_category_action(action: &str) -> Option<OptionsCategory> {
         "support" => Some(OptionsCategory::Support),
         _ => None,
     }
+}
+
+pub fn parse_binding_section_action(action: &str) -> Option<BindingSection> {
+    BindingSection::from_key(action.strip_prefix("options_binding_section:")?)
+}
+
+pub fn parse_binding_rebind_action(action: &str) -> Option<InputAction> {
+    InputAction::from_key(action.strip_prefix("options_binding_rebind:")?)
+}
+
+pub fn parse_binding_clear_action(action: &str) -> Option<InputAction> {
+    InputAction::from_key(action.strip_prefix("options_binding_clear:")?)
 }
 
 pub fn parse_step_action(action: &str) -> Option<(&str, i32)> {
@@ -316,6 +374,7 @@ pub fn reset_category_defaults(model: &mut OverlayModel) {
         OptionsCategory::Interface | OptionsCategory::Hud => {
             model.draft_hud = hud_draft(&HudOptions::default())
         }
+        OptionsCategory::Keybindings => model.draft_bindings.reset_section(model.binding_section),
         _ => {}
     }
 }
@@ -324,10 +383,12 @@ pub fn apply_snapshot(model: &mut OverlayModel) -> ApplySnapshot {
     model.committed_sound = model.draft_sound.clone();
     model.committed_camera = model.draft_camera.clone();
     model.committed_hud = model.draft_hud.clone();
+    model.committed_bindings = model.draft_bindings.clone();
     ApplySnapshot {
         sound: model.draft_sound.clone(),
         camera: model.draft_camera.clone(),
         hud: model.draft_hud.clone(),
+        bindings: model.draft_bindings.clone(),
         modal_position: model.modal_position,
     }
 }
@@ -356,6 +417,13 @@ pub fn apply_hud_snapshot(hud: &mut HudOptions, draft: &HudDraft) {
     hud.show_health_bars = draft.show_health_bars;
     hud.show_target_marker = draft.show_target_marker;
     hud.show_fps_overlay = draft.show_fps_overlay;
+}
+
+pub fn current_capture_action(capture: BindingCapture) -> Option<InputAction> {
+    match capture {
+        BindingCapture::None => None,
+        BindingCapture::Armed(action) | BindingCapture::Listening(action) => Some(action),
+    }
 }
 
 fn clamp_step(value: f32, delta: f32, min: f32, max: f32) -> f32 {

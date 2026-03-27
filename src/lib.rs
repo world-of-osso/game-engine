@@ -9,6 +9,7 @@ pub mod customization_data;
 pub mod dump;
 pub mod game_state_enum;
 pub mod ipc;
+pub mod input_bindings;
 pub mod item_info;
 pub mod listfile;
 pub mod mail;

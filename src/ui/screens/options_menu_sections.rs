@@ -96,6 +96,7 @@ pub fn accessibility_body() -> Element {
     )
 }
 
+#[allow(dead_code)]
 pub fn keybindings_body() -> Element {
     section_stack(
         [

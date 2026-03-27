@@ -5,6 +5,7 @@ use std::path::Path;
 use bevy::audio::{AudioSinkPlayback, Volume};
 use bevy::prelude::*;
 
+use game_engine::input_bindings::{InputAction, InputBindings};
 use crate::sound_footsteps::{
     FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
     classify_player_creature, load_wow_footstep_catalog, movement_from_anim,
@@ -180,11 +181,17 @@ fn compute_music_volume(settings: &SoundSettings) -> f32 {
 
 fn toggle_mute(
     keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    bindings: Res<InputBindings>,
     mut settings: ResMut<SoundSettings>,
     mut ambient_sinks: Query<&mut AudioSink, With<AmbientSound>>,
     mut music_sinks: Query<&mut AudioSink, With<MusicSound>>,
 ) {
-    if keys.just_pressed(KeyCode::KeyM) {
+    if modal_open.is_some() {
+        return;
+    }
+    if bindings.is_just_pressed(InputAction::ToggleMute, &keys, &mouse_buttons) {
         settings.muted = !settings.muted;
         let ambient_volume = compute_ambient_volume(&settings);
         for mut sink in &mut ambient_sinks {

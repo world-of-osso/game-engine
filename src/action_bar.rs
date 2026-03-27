@@ -15,6 +15,7 @@ use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game_state::GameState;
+use game_engine::input_bindings::{InputAction, InputBindings};
 
 const SLOT_COUNT: usize = 12;
 const SLOT_W: f32 = 36.0;
@@ -517,19 +518,22 @@ fn drag_action_bars(
 
 fn update_action_bar_slot_flash(
     keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
     time: Res<Time>,
     mut ui: ResMut<UiState>,
     bars: Option<ResMut<ActionBarsUi>>,
     edit: Option<Res<ActionBarEditState>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    bindings: Res<InputBindings>,
 ) {
     let Some(mut bars) = bars else { return };
-    if edit.is_some_and(|state| state.enabled) {
+    if edit.is_some_and(|state| state.enabled) || modal_open.is_some() {
         return;
     }
 
     let dt = time.delta_secs();
     for i in 0..SLOT_COUNT {
-        if keys.just_pressed(slot_key(i)) {
+        if bindings.is_just_pressed(slot_action(i), &keys, &mouse_buttons) {
             bars.flashes[i] = FLASH_SECONDS;
         }
         if bars.flashes[i] > 0.0 {
@@ -861,20 +865,20 @@ fn save_profiles(edit: &ActionBarEditState) {
     }
 }
 
-fn slot_key(index: usize) -> KeyCode {
+fn slot_action(index: usize) -> InputAction {
     match index {
-        0 => KeyCode::Digit1,
-        1 => KeyCode::Digit2,
-        2 => KeyCode::Digit3,
-        3 => KeyCode::Digit4,
-        4 => KeyCode::Digit5,
-        5 => KeyCode::Digit6,
-        6 => KeyCode::Digit7,
-        7 => KeyCode::Digit8,
-        8 => KeyCode::Digit9,
-        9 => KeyCode::Digit0,
-        10 => KeyCode::Minus,
-        _ => KeyCode::Equal,
+        0 => InputAction::ActionSlot1,
+        1 => InputAction::ActionSlot2,
+        2 => InputAction::ActionSlot3,
+        3 => InputAction::ActionSlot4,
+        4 => InputAction::ActionSlot5,
+        5 => InputAction::ActionSlot6,
+        6 => InputAction::ActionSlot7,
+        7 => InputAction::ActionSlot8,
+        8 => InputAction::ActionSlot9,
+        9 => InputAction::ActionSlot10,
+        10 => InputAction::ActionSlot11,
+        _ => InputAction::ActionSlot12,
     }
 }
 

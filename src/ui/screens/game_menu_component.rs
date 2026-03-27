@@ -195,8 +195,10 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::input_bindings::{BindingSection, InputAction, InputBinding};
     use crate::ui::screens::options_menu_component::{
-        CameraOptionsView, HudOptionsView, OptionsCategory, SoundOptionsView,
+        CameraOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView, OptionsCategory,
+        SoundOptionsView,
     };
     use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::screen::Screen;
@@ -212,30 +214,75 @@ mod tests {
             options: OptionsViewModel {
                 category: OptionsCategory::Sound,
                 position: [500.0, 180.0],
-                sound: SoundOptionsView {
-                    muted: false,
-                    music_enabled: true,
-                    master_volume: 0.8,
-                    music_volume: 0.4,
-                    ambient_volume: 0.3,
-                },
-                camera: CameraOptionsView {
-                    look_sensitivity: 0.01,
-                    invert_y: false,
-                    zoom_speed: 8.0,
-                    follow_speed: 10.0,
-                    min_distance: 2.0,
-                    max_distance: 40.0,
-                },
-                hud: HudOptionsView {
-                    show_minimap: true,
-                    show_action_bars: true,
-                    show_nameplates: true,
-                    show_health_bars: true,
-                    show_target_marker: true,
-                    show_fps_overlay: true,
-                },
+                sound: sound_view(),
+                camera: camera_view(),
+                hud: hud_view(),
+                bindings: bindings_view(),
             },
+        }
+    }
+
+    fn sound_view() -> SoundOptionsView {
+        SoundOptionsView {
+            muted: false,
+            music_enabled: true,
+            master_volume: 0.8,
+            music_volume: 0.4,
+            ambient_volume: 0.3,
+        }
+    }
+
+    fn camera_view() -> CameraOptionsView {
+        CameraOptionsView {
+            look_sensitivity: 0.01,
+            invert_y: false,
+            zoom_speed: 8.0,
+            follow_speed: 10.0,
+            min_distance: 2.0,
+            max_distance: 40.0,
+        }
+    }
+
+    fn hud_view() -> HudOptionsView {
+        HudOptionsView {
+            show_minimap: true,
+            show_action_bars: true,
+            show_nameplates: true,
+            show_health_bars: true,
+            show_target_marker: true,
+            show_fps_overlay: true,
+        }
+    }
+
+    fn bindings_view() -> KeybindingsView {
+        KeybindingsView {
+            section: BindingSection::Movement,
+            capture_action: None,
+            rows: [
+                InputAction::MoveForward,
+                InputAction::MoveBackward,
+                InputAction::StrafeLeft,
+                InputAction::StrafeRight,
+                InputAction::Jump,
+                InputAction::RunToggle,
+                InputAction::AutoRun,
+            ]
+            .into_iter()
+            .map(make_binding_row)
+            .collect(),
+        }
+    }
+
+    fn make_binding_row(action: InputAction) -> KeybindingRowView {
+        KeybindingRowView {
+            action,
+            label: action.label().to_string(),
+            binding_text: action
+                .default_binding()
+                .map(InputBinding::display)
+                .unwrap_or_else(|| "Unbound".to_string()),
+            capturing: false,
+            can_clear: action.default_binding().is_some(),
         }
     }
 
@@ -426,14 +473,14 @@ mod tests {
     fn keybindings_tab_lists_movement_bindings() {
         let reg = options_registry_for_category(OptionsCategory::Keybindings);
 
-        assert!(reg.get_by_name("InfoRowbindings_move_forward").is_some());
-        assert!(reg.get_by_name("InfoRowbindings_move_backward").is_some());
-        assert!(reg.get_by_name("InfoRowbindings_move_left").is_some());
-        assert!(reg.get_by_name("InfoRowbindings_move_right").is_some());
-        assert!(reg.get_by_name("InfoRowbindings_jump").is_some());
-        assert!(reg.get_by_name("InfoRowbindings_run_toggle").is_some());
-        assert!(reg.get_by_name("InfoRowbindings_autorun").is_some());
-        assert!(reg.get_by_name("GhostRowbindings_move").is_none());
+        assert!(reg.get_by_name("KeybindingSectionmovement").is_some());
+        assert!(reg.get_by_name("KeybindingRowmove_forward").is_some());
+        assert!(reg.get_by_name("KeybindingRowmove_backward").is_some());
+        assert!(reg.get_by_name("KeybindingRowstrafe_left").is_some());
+        assert!(reg.get_by_name("KeybindingRowstrafe_right").is_some());
+        assert!(reg.get_by_name("KeybindingRowjump").is_some());
+        assert!(reg.get_by_name("KeybindingRowrun_toggle").is_some());
+        assert!(reg.get_by_name("KeybindingRowauto_run").is_some());
     }
 
     fn options_registry() -> FrameRegistry {

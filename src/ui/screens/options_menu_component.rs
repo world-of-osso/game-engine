@@ -6,6 +6,7 @@ use ui_toolkit::widget_def::Element;
 use super::options_menu_active_sections;
 use super::options_menu_sections;
 use super::screen_title::framed_title;
+use crate::input_bindings::{BindingSection, InputAction};
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
@@ -156,12 +157,29 @@ pub struct HudOptionsView {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct KeybindingRowView {
+    pub action: InputAction,
+    pub label: String,
+    pub binding_text: String,
+    pub capturing: bool,
+    pub can_clear: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct KeybindingsView {
+    pub section: BindingSection,
+    pub capture_action: Option<InputAction>,
+    pub rows: Vec<KeybindingRowView>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct OptionsViewModel {
     pub category: OptionsCategory,
     pub position: [f32; 2],
     pub sound: SoundOptionsView,
     pub camera: CameraOptionsView,
     pub hud: HudOptionsView,
+    pub bindings: KeybindingsView,
 }
 
 pub fn cat_action(category: OptionsCategory) -> String {
@@ -178,6 +196,18 @@ pub fn slider_action(key: &str) -> String {
 
 pub fn step_action(key: &str, delta: i32) -> String {
     format!("options_step:{key}:{delta}")
+}
+
+pub fn keybinding_section_action(section: BindingSection) -> String {
+    format!("options_binding_section:{}", section.key())
+}
+
+pub fn keybinding_rebind_action(action: InputAction) -> String {
+    format!("options_binding_rebind:{}", action.key())
+}
+
+pub fn keybinding_clear_action(action: InputAction) -> String {
+    format!("options_binding_clear:{}", action.key())
 }
 
 pub fn options_view(model: &OptionsViewModel) -> Element {
@@ -402,7 +432,7 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => options_menu_sections::accessibility_body(),
-        OptionsCategory::Keybindings => options_menu_sections::keybindings_body(),
+        OptionsCategory::Keybindings => options_menu_active_sections::keybindings_body(&model.bindings),
         OptionsCategory::Macros => options_menu_sections::macros_body(),
         OptionsCategory::SocialAddons => options_menu_sections::social_addons_body(),
         OptionsCategory::Advanced => options_menu_active_sections::advanced_body(&model.hud),

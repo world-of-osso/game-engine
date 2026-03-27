@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
+use game_engine::input_bindings::InputBindings;
 use crate::sound::SoundSettings;
 
 const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
@@ -21,6 +22,7 @@ impl Plugin for ClientOptionsPlugin {
         app.insert_resource(loaded.sound.to_runtime())
             .insert_resource(CameraOptions::from_file(&loaded.camera))
             .insert_resource(HudOptions::from_file(&loaded.hud))
+            .insert_resource(loaded.bindings.clone())
             .insert_resource(ClientOptionsUiState {
                 modal_offset: loaded.modal_offset,
                 legacy_modal_position: loaded.modal_position,
@@ -131,6 +133,8 @@ struct ClientOptionsFile {
     camera: CameraOptionsFile,
     #[serde(default)]
     hud: HudOptionsFile,
+    #[serde(default)]
+    bindings: InputBindings,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     modal_offset: Option<[f32; 2]>,
     #[serde(default)]
@@ -144,6 +148,7 @@ impl Default for ClientOptionsFile {
             sound: SoundOptionsFile::default(),
             camera: CameraOptionsFile::default(),
             hud: HudOptionsFile::default(),
+            bindings: InputBindings::default(),
             modal_offset: None,
             modal_position: None,
         }
@@ -239,9 +244,41 @@ pub fn save_client_options(
     sound: Option<&SoundSettings>,
     camera: &CameraOptions,
     hud: &HudOptions,
+    bindings: &InputBindings,
     modal_offset: [f32; 2],
 ) -> Result<(), String> {
-    let file = ClientOptionsFile {
+    let file = build_options_file(sound, camera, hud, bindings, modal_offset);
+    let pretty = ron::ser::PrettyConfig::new();
+    let serialized = ron::ser::to_string_pretty(&file, pretty)
+        .map_err(|err| format!("failed to serialize client options: {err}"))?;
+    let path = options_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
+    }
+    info!("Saving client options to {}", path.display());
+    fs::write(&path, serialized)
+        .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
+}
+
+pub fn save_client_options_values(
+    sound: &SoundSettings,
+    camera: &CameraOptions,
+    hud: &HudOptions,
+    bindings: &InputBindings,
+    modal_offset: [f32; 2],
+) -> Result<(), String> {
+    save_client_options(Some(sound), camera, hud, bindings, modal_offset)
+}
+
+fn build_options_file(
+    sound: Option<&SoundSettings>,
+    camera: &CameraOptions,
+    hud: &HudOptions,
+    bindings: &InputBindings,
+    modal_offset: [f32; 2],
+) -> ClientOptionsFile {
+    ClientOptionsFile {
         sound: sound
             .map(SoundOptionsFile::from_runtime)
             .unwrap_or_default(),
@@ -261,29 +298,10 @@ pub fn save_client_options(
             show_target_marker: hud.show_target_marker,
             show_fps_overlay: hud.show_fps_overlay,
         },
+        bindings: bindings.clone(),
         modal_offset: Some(modal_offset),
         modal_position: None,
-    };
-    let pretty = ron::ser::PrettyConfig::new();
-    let serialized = ron::ser::to_string_pretty(&file, pretty)
-        .map_err(|err| format!("failed to serialize client options: {err}"))?;
-    let path = options_path();
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
     }
-    info!("Saving client options to {}", path.display());
-    fs::write(&path, serialized)
-        .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
-}
-
-pub fn save_client_options_values(
-    sound: &SoundSettings,
-    camera: &CameraOptions,
-    hud: &HudOptions,
-    modal_offset: [f32; 2],
-) -> Result<(), String> {
-    save_client_options(Some(sound), camera, hud, modal_offset)
 }
 
 fn load_options_file() -> ClientOptionsFile {
@@ -387,6 +405,7 @@ mod tests {
         let file = ClientOptionsFile::default();
         assert_eq!(file.modal_offset, None);
         assert_eq!(file.modal_position, None);
+        assert_eq!(file.bindings, InputBindings::default());
     }
 
     #[test]

@@ -6,6 +6,7 @@ use bevy::prelude::*;
 
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
+use game_engine::input_bindings::{InputAction, InputBindings};
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
 
@@ -63,6 +64,7 @@ pub struct MovementState {
     pub direction: MoveDirection,
     pub running: bool,
     pub jumping: bool,
+    pub autorun: bool,
 }
 
 impl Default for MovementState {
@@ -71,6 +73,7 @@ impl Default for MovementState {
             direction: MoveDirection::None,
             running: true, // WoW defaults to running
             jumping: false,
+            autorun: false,
         }
     }
 }
@@ -145,13 +148,17 @@ const LANDING_EPSILON: f32 = 0.05;
 
 fn apply_keyboard_camera(
     keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    bindings: &InputBindings,
     dt: f32,
     cam: &mut WowCamera,
     facing_q: &mut Query<&mut CharacterFacing, With<Player>>,
 ) {
     // Arrow keys: rotate camera + character facing (like RMB drag)
-    if keys.pressed(KeyCode::ArrowLeft) || keys.pressed(KeyCode::ArrowRight) {
-        let sign = if keys.pressed(KeyCode::ArrowLeft) {
+    if bindings.is_pressed(InputAction::TurnLeft, keys, mouse_buttons)
+        || bindings.is_pressed(InputAction::TurnRight, keys, mouse_buttons)
+    {
+        let sign = if bindings.is_pressed(InputAction::TurnLeft, keys, mouse_buttons) {
             1.0
         } else {
             -1.0
@@ -162,8 +169,10 @@ fn apply_keyboard_camera(
             facing.yaw += yaw_delta;
         }
     }
-    if keys.pressed(KeyCode::ArrowUp) || keys.pressed(KeyCode::ArrowDown) {
-        let sign = if keys.pressed(KeyCode::ArrowUp) {
+    if bindings.is_pressed(InputAction::PitchUp, keys, mouse_buttons)
+        || bindings.is_pressed(InputAction::PitchDown, keys, mouse_buttons)
+    {
+        let sign = if bindings.is_pressed(InputAction::PitchUp, keys, mouse_buttons) {
             1.0
         } else {
             -1.0
@@ -171,8 +180,10 @@ fn apply_keyboard_camera(
         cam.pitch = (cam.pitch + sign * KEY_ROTATE_SPEED * dt).clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
     // Page Up/Down: zoom in/out
-    if keys.pressed(KeyCode::PageUp) || keys.pressed(KeyCode::PageDown) {
-        let sign = if keys.pressed(KeyCode::PageUp) {
+    if bindings.is_pressed(InputAction::ZoomIn, keys, mouse_buttons)
+        || bindings.is_pressed(InputAction::ZoomOut, keys, mouse_buttons)
+    {
+        let sign = if bindings.is_pressed(InputAction::ZoomIn, keys, mouse_buttons) {
             -1.0
         } else {
             1.0
@@ -191,6 +202,7 @@ fn camera_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
     options: Res<crate::client_options::CameraOptions>,
+    bindings: Res<InputBindings>,
     mut camera_q: Query<&mut WowCamera>,
     mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
@@ -222,7 +234,7 @@ fn camera_input(
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
 
-    apply_keyboard_camera(&keys, dt, &mut cam, &mut facing_q);
+    apply_keyboard_camera(&keys, &mouse_buttons, &bindings, dt, &mut cam, &mut facing_q);
 
     if mouse_scroll.delta.y != 0.0 {
         cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;
@@ -262,37 +274,40 @@ fn sync_camera_options(
 fn compute_movement_input(
     keys: &ButtonInput<KeyCode>,
     mouse_buttons: &ButtonInput<MouseButton>,
+    bindings: &InputBindings,
+    autorun: bool,
     facing: &CharacterFacing,
 ) -> (Vec3, MoveDirection) {
     let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
     let right = Vec3::new(-forward.z, 0.0, forward.x);
 
     let mut direction = Vec3::ZERO;
-    if keys.pressed(KeyCode::KeyW) {
+    if bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons) || autorun {
         direction += forward;
     }
-    if keys.pressed(KeyCode::KeyS) {
+    if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
         direction -= forward;
     }
-    if keys.pressed(KeyCode::KeyA) {
+    if bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons) {
         direction -= right;
     }
-    if keys.pressed(KeyCode::KeyD) {
+    if bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons) {
         direction += right;
     }
     if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
         direction += forward;
     }
 
-    let fwd = keys.pressed(KeyCode::KeyW)
+    let fwd = bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
+        || autorun
         || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
     let anim_dir = if fwd {
         MoveDirection::Forward
-    } else if keys.pressed(KeyCode::KeyS) {
+    } else if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
         MoveDirection::Backward
-    } else if keys.pressed(KeyCode::KeyA) {
+    } else if bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons) {
         MoveDirection::Left
-    } else if keys.pressed(KeyCode::KeyD) {
+    } else if bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons) {
         MoveDirection::Right
     } else {
         MoveDirection::None
@@ -307,6 +322,8 @@ fn player_movement(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     terrain: Option<Res<TerrainHeightmap>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    bindings: Res<InputBindings>,
     mut player_q: Query<
         (
             &mut Transform,
@@ -324,10 +341,24 @@ fn player_movement(
         return;
     };
 
-    let (direction, anim_dir) = compute_movement_input(&keys, &mouse_buttons, facing);
+    if modal_open.is_some() {
+        movement.autorun = false;
+        movement.direction = MoveDirection::None;
+        return;
+    }
+
+    if bindings.is_just_pressed(InputAction::AutoRun, &keys, &mouse_buttons) {
+        movement.autorun = !movement.autorun;
+    }
+    if bindings.is_pressed(InputAction::MoveBackward, &keys, &mouse_buttons) {
+        movement.autorun = false;
+    }
+
+    let (direction, anim_dir) =
+        compute_movement_input(&keys, &mouse_buttons, &bindings, movement.autorun, facing);
     movement.direction = anim_dir;
 
-    if keys.just_pressed(KeyCode::KeyZ) {
+    if bindings.is_just_pressed(InputAction::RunToggle, &keys, &mouse_buttons) {
         movement.running = !movement.running;
     }
 
@@ -341,6 +372,8 @@ fn player_movement(
         &mut movement,
         &mut physics,
         &keys,
+        &mouse_buttons,
+        &bindings,
         direction,
         speed,
         time.delta_secs(),
@@ -356,6 +389,8 @@ fn apply_horizontal_movement(
     movement: &mut MovementState,
     physics: &mut CharacterPhysics,
     keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    bindings: &InputBindings,
     direction: Vec3,
     speed: f32,
     dt: f32,
@@ -375,7 +410,10 @@ fn apply_horizontal_movement(
         };
     }
 
-    if keys.just_pressed(KeyCode::Space) && physics.grounded && !movement.jumping {
+    if bindings.is_just_pressed(InputAction::Jump, keys, mouse_buttons)
+        && physics.grounded
+        && !movement.jumping
+    {
         movement.jumping = true;
         physics.vertical_velocity = collision::JUMP_IMPULSE;
     }
@@ -557,6 +595,7 @@ mod tests {
             direction: MoveDirection::None,
             running: true,
             jumping: true,
+            autorun: false,
         };
         let physics = CharacterPhysics {
             vertical_velocity: -1.0,
@@ -663,12 +702,16 @@ mod tests {
         let heightmap = jump_heightmap();
         let (mut transform, mut movement, mut physics) = jump_fixture(&heightmap);
         let keys = ButtonInput::<KeyCode>::default();
+        let mouse_buttons = ButtonInput::<MouseButton>::default();
+        let bindings = InputBindings::default();
 
         apply_horizontal_movement(
             &mut transform,
             &mut movement,
             &mut physics,
             &keys,
+            &mouse_buttons,
+            &bindings,
             Vec3::ZERO,
             0.0,
             0.0,
