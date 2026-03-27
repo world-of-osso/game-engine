@@ -2,7 +2,7 @@
 //!
 //! Extracted from m2.rs to keep file sizes manageable.
 
-use super::m2::{M2TextureUnit, OverlayScale, TextureOverlay, TextureTables};
+use super::m2::{M2TextureUnit, TextureOverlay, TextureTables};
 
 /// Default FDIDs for runtime-resolved character texture types (human male, light skin).
 /// `skin_fdids` supplies creature Monster Skin 1/2/3 (types 11/12/13).
@@ -20,82 +20,6 @@ pub fn default_fdid_for_type(ty: u32, is_hd: bool, skin_fdids: &[u32; 3]) -> Opt
 
 fn nonzero(fdid: u32) -> Option<u32> {
     if fdid != 0 { Some(fdid) } else { None }
-}
-
-/// HD face texture for type-6 head atlas.
-pub const HD_FACE_FDID: u32 = 1027494;
-pub const HD_SCALP_HAIR_FDID: u32 = 1043094;
-
-const UNDERWEAR_SD_FDID: u32 = 120181;
-const UNDERWEAR_SD_POS: (u32, u32) = (256, 192);
-const UNDERWEAR_HD_FDID: u32 = 1027743;
-const UNDERWEAR_HD_POS: (u32, u32) = (256, 192);
-const SCALP_UPPER_FDID: u32 = 120233;
-const SCALP_UPPER_REGION: (u32, u32) = (0, 320);
-const SCALP_LOWER_FDID: u32 = 119383;
-const SCALP_LOWER_REGION: (u32, u32) = (0, 384);
-
-fn hd_body_overlays() -> Vec<TextureOverlay> {
-    let (x, y) = UNDERWEAR_HD_POS;
-    vec![
-        TextureOverlay {
-            fdid: HD_FACE_FDID,
-            x: 512,
-            y: 0,
-            scale: OverlayScale::None,
-        },
-        TextureOverlay {
-            fdid: UNDERWEAR_HD_FDID,
-            x,
-            y,
-            scale: OverlayScale::None,
-        },
-    ]
-}
-
-fn sd_body_overlays() -> Vec<TextureOverlay> {
-    let (x, y) = UNDERWEAR_SD_POS;
-    vec![
-        TextureOverlay {
-            fdid: UNDERWEAR_SD_FDID,
-            x,
-            y,
-            scale: OverlayScale::None,
-        },
-        TextureOverlay {
-            fdid: SCALP_UPPER_FDID,
-            x: SCALP_UPPER_REGION.0,
-            y: SCALP_UPPER_REGION.1,
-            scale: OverlayScale::Uniform2x,
-        },
-        TextureOverlay {
-            fdid: SCALP_LOWER_FDID,
-            x: SCALP_LOWER_REGION.0,
-            y: SCALP_LOWER_REGION.1,
-            scale: OverlayScale::Uniform2x,
-        },
-    ]
-}
-
-/// Return body skin overlays: underwear + scalp hair textures.
-pub fn body_skin_overlays(
-    unit: &M2TextureUnit,
-    tex_lookup: &[u16],
-    tex_types: &[u32],
-    is_hd: bool,
-) -> Vec<TextureOverlay> {
-    let Some(&lookup_val) = tex_lookup.get(unit.texture_id as usize) else {
-        return Vec::new();
-    };
-    let ty = tex_types.get(lookup_val as usize).copied().unwrap_or(0);
-    if ty != 1 {
-        return Vec::new();
-    }
-    if is_hd {
-        hd_body_overlays()
-    } else {
-        sd_body_overlays()
-    }
 }
 
 /// batch.texture_id -> textureLookup -> textures[].type -> TXID[].
@@ -170,8 +94,7 @@ pub fn resolve_batch_fdid_and_overlays(
     tex: &TextureTables<'_>,
     is_hd: bool,
 ) -> (Option<u32>, Option<u32>, Vec<TextureOverlay>) {
-    let tex_type = batch_texture_type(unit, tex.tex_lookup, tex.tex_types);
-    let mut fdid = resolve_batch_texture(
+    let fdid = resolve_batch_texture(
         unit,
         tex.tex_lookup,
         tex.tex_types,
@@ -179,9 +102,6 @@ pub fn resolve_batch_fdid_and_overlays(
         is_hd,
         tex.skin_fdids,
     );
-    if is_hd && fdid.is_none() && tex_type == Some(6) {
-        fdid = Some(HD_SCALP_HAIR_FDID);
-    }
     let texture_2_fdid = if unit.texture_count > 1 {
         resolve_batch_texture_at_offset(
             unit,
@@ -195,6 +115,5 @@ pub fn resolve_batch_fdid_and_overlays(
     } else {
         None
     };
-    let overlays = body_skin_overlays(unit, tex.tex_lookup, tex.tex_types, is_hd);
-    (fdid, texture_2_fdid, overlays)
+    (fdid, texture_2_fdid, Vec::new())
 }
