@@ -99,6 +99,7 @@ struct DisplayedCharacterAppearance(Option<AppliedCharacterAppearance>);
 #[derive(Resource, Default)]
 struct PendingSupplementalWarbandScene {
     scene_id: Option<u32>,
+    wait_for_next_frame: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -540,6 +541,7 @@ fn setup_char_select_scene(
     pending_supplemental.scene_id = scene_entry
         .filter(|scene| !warband_scene::supplemental_terrain_tile_coords(scene).is_empty())
         .map(|scene| scene.id);
+    pending_supplemental.wait_for_next_frame = pending_supplemental.scene_id.is_some();
     info!(
         "setup_char_select_scene finished in {:.3}s (background={:.3}s camera={:.3}s sky+light={:.3}s model={:.3}s)",
         total_start.elapsed().as_secs_f32(),
@@ -788,6 +790,7 @@ fn sync_warband_scene_switch(
         } else {
             Some(sel.scene_id)
         };
+    pending_supplemental.wait_for_next_frame = pending_supplemental.scene_id.is_some();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -803,13 +806,19 @@ fn spawn_pending_warband_supplemental_terrain(
     let Some(scene_id) = pending.scene_id else {
         return;
     };
+    if pending.wait_for_next_frame {
+        pending.wait_for_next_frame = false;
+        return;
+    }
     if active_scene.0 != Some(scene_id) {
         pending.scene_id = None;
+        pending.wait_for_next_frame = false;
         return;
     }
     let Some(warband) = warband else { return };
     let Some(scene) = warband.scenes.iter().find(|scene| scene.id == scene_id) else {
         pending.scene_id = None;
+        pending.wait_for_next_frame = false;
         return;
     };
     let Ok(root_entity) = terrain_query.single() else {
@@ -829,6 +838,7 @@ fn spawn_pending_warband_supplemental_terrain(
         root_entity,
     );
     pending.scene_id = None;
+    pending.wait_for_next_frame = false;
 }
 
 fn teardown_char_select_scene(
@@ -846,6 +856,7 @@ fn teardown_char_select_scene(
     displayed_appearance.0 = None;
     active_scene.0 = None;
     pending_supplemental.scene_id = None;
+    pending_supplemental.wait_for_next_frame = false;
     commands.remove_resource::<game_engine::scene_tree::SceneTree>();
 }
 
