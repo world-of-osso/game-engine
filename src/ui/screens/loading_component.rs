@@ -51,21 +51,66 @@ pub struct LoadingScreenState {
     pub progress_percent: u8,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct LoadingScreenLayout {
+    pub art_width: f32,
+    pub art_height: f32,
+    pub filler_width: f32,
+    pub filler_height: f32,
+    pub bar_cap_width: f32,
+    pub bar_width: f32,
+    pub bar_height: f32,
+    pub bar_fill_max_width: f32,
+    pub bar_fill_height: f32,
+    pub progress_text_x: f32,
+    pub progress_text_y: f32,
+    pub status_text_y: f32,
+    pub bar_y: f32,
+    pub zone_text_y: f32,
+    pub tip_text_y: f32,
+}
+
+impl Default for LoadingScreenLayout {
+    fn default() -> Self {
+        Self {
+            art_width: ART_WIDTH,
+            art_height: ART_HEIGHT,
+            filler_width: FILLER_WIDTH,
+            filler_height: FILLER_HEIGHT,
+            bar_cap_width: BAR_CAP_WIDTH,
+            bar_width: BAR_WIDTH,
+            bar_height: BAR_HEIGHT,
+            bar_fill_max_width: BAR_FILL_MAX_WIDTH,
+            bar_fill_height: BAR_FILL_HEIGHT,
+            progress_text_x: PROGRESS_TEXT_X,
+            progress_text_y: PROGRESS_TEXT_Y,
+            status_text_y: STATUS_TEXT_Y,
+            bar_y: BAR_Y,
+            zone_text_y: ZONE_TEXT_Y,
+            tip_text_y: TIP_TEXT_Y,
+        }
+    }
+}
+
 pub fn loading_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<LoadingScreenState>()
         .expect("LoadingScreenState must be in SharedContext");
+    let layout = ctx
+        .get::<LoadingScreenLayout>()
+        .cloned()
+        .unwrap_or_default();
     [
         background_frame(),
-        filler_bands(),
-        artwork_frame(),
+        filler_bands(&layout),
+        artwork_frame(&layout),
         logo_frame(),
-        zone_text(state),
-        status_text(state),
-        bar_background(),
-        bar_fill_clip(state.progress_percent),
-        progress_text(state.progress_percent),
-        tip_text(state),
+        zone_text(state, &layout),
+        status_text(state, &layout),
+        bar_background(&layout),
+        bar_fill_clip(state.progress_percent, &layout),
+        progress_text(state.progress_percent, &layout),
+        tip_text(state, &layout),
     ]
     .into_iter()
     .flatten()
@@ -83,12 +128,12 @@ fn background_frame() -> Element {
     }
 }
 
-fn filler_bands() -> Element {
+fn filler_bands(layout: &LoadingScreenLayout) -> Element {
     rsx! {
         texture {
             name: "LoadingTopFiller",
-            width: FILLER_WIDTH,
-            height: FILLER_HEIGHT,
+            width: layout.filler_width,
+            height: layout.filler_height,
             texture_file: TEX_LOADING_FILLER_TOP,
             strata: FrameStrata::Background,
             anchor {
@@ -99,8 +144,8 @@ fn filler_bands() -> Element {
         }
         texture {
             name: "LoadingBottomFiller",
-            width: FILLER_WIDTH,
-            height: FILLER_HEIGHT,
+            width: layout.filler_width,
+            height: layout.filler_height,
             texture_file: TEX_LOADING_FILLER_BOTTOM,
             strata: FrameStrata::Background,
             anchor {
@@ -112,7 +157,7 @@ fn filler_bands() -> Element {
     }
 }
 
-fn artwork_frame() -> Element {
+fn artwork_frame(layout: &LoadingScreenLayout) -> Element {
     rsx! {
         r#frame {
             name: "LoadingArtworkMatte",
@@ -128,8 +173,8 @@ fn artwork_frame() -> Element {
         }
         texture {
             name: "LoadingArtwork",
-            width: ART_WIDTH,
-            height: ART_HEIGHT,
+            width: layout.art_width,
+            height: layout.art_height,
             texture_file: TEX_LOADING_ART,
             strata: FrameStrata::Background,
             anchor {
@@ -159,7 +204,7 @@ fn logo_frame() -> Element {
     }
 }
 
-fn zone_text(state: &LoadingScreenState) -> Element {
+fn zone_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element {
     rsx! {
         fontstring {
             name: "LoadingZoneText",
@@ -173,13 +218,13 @@ fn zone_text(state: &LoadingScreenState) -> Element {
                 point: AnchorPoint::Bottom,
                 relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Top,
-                y: {ZONE_TEXT_Y.to_string()},
+                y: {layout.zone_text_y.to_string()},
             }
         }
     }
 }
 
-fn status_text(state: &LoadingScreenState) -> Element {
+fn status_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element {
     rsx! {
         fontstring {
             name: LOADING_STATUS_TEXT,
@@ -193,36 +238,37 @@ fn status_text(state: &LoadingScreenState) -> Element {
                 point: AnchorPoint::Center,
                 relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Center,
-                y: STATUS_TEXT_Y,
+                y: {layout.status_text_y.to_string()},
             }
         }
     }
 }
 
-fn bar_background() -> Element {
+fn bar_background(layout: &LoadingScreenLayout) -> Element {
     rsx! {
         r#frame {
             name: "LoadingBarBackground",
-            width: BAR_WIDTH,
-            height: BAR_HEIGHT,
+            width: layout.bar_width,
+            height: layout.bar_height,
             strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Bottom,
                 relative_to: FrameName("LoadingArtwork"),
                 relative_point: AnchorPoint::Bottom,
-                y: {BAR_Y.to_string()},
+                y: {layout.bar_y.to_string()},
             }
         }
     }
 }
 
-fn bar_fill_clip(progress_percent: u8) -> Element {
-    let fill_width = BAR_FILL_MAX_WIDTH * (f32::from(progress_percent).clamp(0.0, 100.0) / 100.0);
+fn bar_fill_clip(progress_percent: u8, layout: &LoadingScreenLayout) -> Element {
+    let fill_width =
+        layout.bar_fill_max_width * (f32::from(progress_percent).clamp(0.0, 100.0) / 100.0);
     rsx! {
         r#frame {
             name: "LoadingBarFillClip",
-            width: BAR_FILL_MAX_WIDTH,
-            height: BAR_FILL_HEIGHT,
+            width: layout.bar_fill_max_width,
+            height: layout.bar_fill_height,
             background_color: "0.0,0.0,0.0,0.0",
             strata: FrameStrata::High,
             anchor {
@@ -230,18 +276,18 @@ fn bar_fill_clip(progress_percent: u8) -> Element {
                 relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Center,
             }
-            {bar_track_texture()}
-            {bar_fill_texture(fill_width)}
+            {bar_track_texture(layout)}
+            {bar_fill_texture(fill_width, layout)}
         }
     }
 }
 
-fn bar_track_texture() -> Element {
+fn bar_track_texture(layout: &LoadingScreenLayout) -> Element {
     rsx! {
         texture {
             name: "LoadingBarTrack",
-            width: BAR_FILL_MAX_WIDTH,
-            height: BAR_FILL_HEIGHT,
+            width: layout.bar_fill_max_width,
+            height: layout.bar_fill_height,
             texture_file: TEX_LOADING_BAR_TRACK,
             strata: FrameStrata::High,
             anchor {
@@ -252,12 +298,12 @@ fn bar_track_texture() -> Element {
     }
 }
 
-fn bar_fill_texture(fill_width: f32) -> Element {
+fn bar_fill_texture(fill_width: f32, layout: &LoadingScreenLayout) -> Element {
     rsx! {
         texture {
             name: LOADING_BAR_FILL,
             width: fill_width,
-            height: BAR_FILL_HEIGHT,
+            height: layout.bar_fill_height,
             texture_file: TEX_LOADING_BAR_FILL,
             strata: FrameStrata::High,
             anchor {
@@ -270,6 +316,10 @@ fn bar_fill_texture(fill_width: f32) -> Element {
 
 /// Apply nine-slice to the loading bar background frame (3-slice: left cap, center, right cap).
 pub fn apply_bar_nine_slice(reg: &mut FrameRegistry) {
+    apply_bar_nine_slice_with_layout(reg, &LoadingScreenLayout::default());
+}
+
+pub fn apply_bar_nine_slice_with_layout(reg: &mut FrameRegistry, layout: &LoadingScreenLayout) {
     let Some(id) = reg.get_by_name("LoadingBarBackground") else {
         return;
     };
@@ -277,7 +327,7 @@ pub fn apply_bar_nine_slice(reg: &mut FrameRegistry) {
         return;
     };
     frame.nine_slice = Some(NineSlice {
-        edge_sizes: Some([BAR_CAP_WIDTH, 0.0, BAR_CAP_WIDTH, 0.0]),
+        edge_sizes: Some([layout.bar_cap_width, 0.0, layout.bar_cap_width, 0.0]),
         part_textures: Some(bar_shell_part_textures()),
         border_color: [1.0, 1.0, 1.0, 1.0],
         bg_color: [1.0, 1.0, 1.0, 1.0],
@@ -299,7 +349,7 @@ fn bar_shell_part_textures() -> [TextureSource; 9] {
     ]
 }
 
-fn progress_text(progress_percent: u8) -> Element {
+fn progress_text(progress_percent: u8, layout: &LoadingScreenLayout) -> Element {
     let text = format!("{}%", progress_percent);
     rsx! {
         fontstring {
@@ -314,14 +364,14 @@ fn progress_text(progress_percent: u8) -> Element {
                 point: AnchorPoint::Right,
                 relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Right,
-                x: PROGRESS_TEXT_X,
-                y: PROGRESS_TEXT_Y,
+                x: {layout.progress_text_x.to_string()},
+                y: {layout.progress_text_y.to_string()},
             }
         }
     }
 }
 
-fn tip_text(state: &LoadingScreenState) -> Element {
+fn tip_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element {
     rsx! {
         fontstring {
             name: "LoadingTipText",
@@ -335,8 +385,60 @@ fn tip_text(state: &LoadingScreenState) -> Element {
                 point: AnchorPoint::Top,
                 relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Bottom,
-                y: {TIP_TEXT_Y.to_string()},
+                y: {layout.tip_text_y.to_string()},
             }
         }
+    }
+}
+
+#[cfg(debug_assertions)]
+pub fn debug_loading_layout_from_source() -> LoadingScreenLayout {
+    let path = std::path::Path::new("src/ui/screens/loading_component.rs");
+    let Ok(source) = std::fs::read_to_string(path) else {
+        return LoadingScreenLayout::default();
+    };
+    let mut layout = LoadingScreenLayout::default();
+    for line in source.lines() {
+        apply_debug_const_override(line, &mut layout);
+    }
+    layout
+}
+
+#[cfg(not(debug_assertions))]
+pub fn debug_loading_layout_from_source() -> LoadingScreenLayout {
+    LoadingScreenLayout::default()
+}
+
+#[cfg(debug_assertions)]
+fn apply_debug_const_override(line: &str, layout: &mut LoadingScreenLayout) {
+    let Some(line) = line.trim().strip_prefix("const ") else {
+        return;
+    };
+    let Some((name, value)) = line.split_once(": f32 = ") else {
+        return;
+    };
+    let Some(value) = value.strip_suffix(';') else {
+        return;
+    };
+    let Ok(value) = value.parse::<f32>() else {
+        return;
+    };
+    match name {
+        "ART_WIDTH" => layout.art_width = value,
+        "ART_HEIGHT" => layout.art_height = value,
+        "FILLER_WIDTH" => layout.filler_width = value,
+        "FILLER_HEIGHT" => layout.filler_height = value,
+        "BAR_CAP_WIDTH" => layout.bar_cap_width = value,
+        "BAR_WIDTH" => layout.bar_width = value,
+        "BAR_HEIGHT" => layout.bar_height = value,
+        "BAR_FILL_MAX_WIDTH" => layout.bar_fill_max_width = value,
+        "BAR_FILL_HEIGHT" => layout.bar_fill_height = value,
+        "PROGRESS_TEXT_X" => layout.progress_text_x = value,
+        "PROGRESS_TEXT_Y" => layout.progress_text_y = value,
+        "STATUS_TEXT_Y" => layout.status_text_y = value,
+        "BAR_Y" => layout.bar_y = value,
+        "ZONE_TEXT_Y" => layout.zone_text_y = value,
+        "TIP_TEXT_Y" => layout.tip_text_y = value,
+        _ => {}
     }
 }

@@ -5,7 +5,8 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::loading_component::{
-    LOADING_ROOT, LoadingScreenState, apply_bar_nine_slice, loading_screen,
+    LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, apply_bar_nine_slice_with_layout,
+    debug_loading_layout_from_source, loading_screen,
 };
 use game_engine::ui_resource;
 
@@ -40,6 +41,9 @@ struct LoadingScreenWrap(LoadingScreenRes);
 #[derive(Resource, Clone, PartialEq, Eq)]
 struct LoadingUiState(LoadingScreenState);
 
+#[derive(Resource, Clone, PartialEq)]
+struct LoadingLayoutState(LoadingScreenLayout);
+
 pub struct LoadingScreenPlugin;
 
 impl Plugin for LoadingScreenPlugin {
@@ -63,8 +67,10 @@ fn build_loading_ui(
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_loading_state(&selected, !local_player_q.is_empty(), &adt_manager);
+    let layout = debug_loading_layout_from_source();
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state.clone());
+    shared.insert(layout.clone());
     let mut screen = Screen::new(loading_screen);
     screen.sync(&shared, &mut ui.registry);
 
@@ -72,6 +78,7 @@ fn build_loading_ui(
     apply_post_setup(&mut ui.registry, loading_ui.root);
 
     commands.insert_resource(LoadingUiState(state));
+    commands.insert_resource(LoadingLayoutState(layout));
     commands.insert_resource(LoadingScreenWrap(LoadingScreenRes { screen, shared }));
     commands.insert_resource(loading_ui);
 }
@@ -87,6 +94,7 @@ fn teardown_loading_ui(
     commands.remove_resource::<LoadingScreenWrap>();
     commands.remove_resource::<LoadingUi>();
     commands.remove_resource::<LoadingUiState>();
+    commands.remove_resource::<LoadingLayoutState>();
     ui.focused_frame = None;
 }
 
@@ -106,25 +114,30 @@ fn loading_update_visuals(
     mut ui: ResMut<UiState>,
     mut screen_wrap: Option<ResMut<LoadingScreenWrap>>,
     mut last_state: Option<ResMut<LoadingUiState>>,
+    mut last_layout: Option<ResMut<LoadingLayoutState>>,
     selected: Res<SelectedCharacterId>,
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
 ) {
-    let (Some(mut screen_wrap), Some(mut last_state)) = (screen_wrap.take(), last_state.take())
+    let (Some(mut screen_wrap), Some(mut last_state), Some(mut last_layout)) =
+        (screen_wrap.take(), last_state.take(), last_layout.take())
     else {
         return;
     };
 
     let state = build_loading_state(&selected, !local_player_q.is_empty(), &adt_manager);
-    if last_state.0 == state {
+    let layout = debug_loading_layout_from_source();
+    if last_state.0 == state && last_layout.0 == layout {
         return;
     }
 
     last_state.0 = state.clone();
+    last_layout.0 = layout.clone();
     let res = &mut screen_wrap.0;
     res.shared.insert(state);
+    res.shared.insert(layout.clone());
     res.screen.sync(&res.shared, &mut ui.registry);
-    apply_bar_nine_slice(&mut ui.registry);
+    apply_bar_nine_slice_with_layout(&mut ui.registry, &layout);
 }
 
 fn build_loading_state(
@@ -154,7 +167,7 @@ fn apply_post_setup(reg: &mut FrameRegistry, root_id: u64) {
         root.width = Dimension::Fixed(width);
         root.height = Dimension::Fixed(height);
     }
-    apply_bar_nine_slice(reg);
+    apply_bar_nine_slice_with_layout(reg, &debug_loading_layout_from_source());
 }
 
 #[cfg(test)]
@@ -170,6 +183,7 @@ mod tests {
             tip_text: DEFAULT_TIP_TEXT.to_string(),
             progress_percent: 86,
         });
+        shared.insert(LoadingScreenLayout::default());
 
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(loading_screen);
