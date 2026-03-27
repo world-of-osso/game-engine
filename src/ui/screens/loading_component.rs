@@ -13,7 +13,7 @@ const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 pub const TEX_LOADING_BAR_LEFT: &str = "data/ui/loading-bar-steel-shell-left.png";
 pub const TEX_LOADING_BAR_CENTER: &str = "data/ui/loading-bar-steel-shell-center.png";
 pub const TEX_LOADING_BAR_RIGHT: &str = "data/ui/loading-bar-steel-shell-right.png";
-pub const TEX_LOADING_BAR_FILL: &str = "data/ui/loading-bar-fill-v2-flat.png";
+pub const TEX_LOADING_BAR_FILL: &str = "data/ui/loading-bar-fill-v3-alchemical.png";
 
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTLE: FontColor = FontColor::new(0.95, 0.9, 0.78, 1.0);
