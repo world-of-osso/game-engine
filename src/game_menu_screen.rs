@@ -743,9 +743,13 @@ fn apply_ui_hud_visibility_for_state(
         reg,
         &[
             "MainActionBar",
+            "MultiBarBottomLeft",
+            "MultiBarBottomRight",
             "MultiBarRight",
             "MultiBarLeft",
             "MainActionBarMoverLabel",
+            "MultiBarBottomLeftMoverLabel",
+            "MultiBarBottomRightMoverLabel",
             "MultiBarRightMoverLabel",
             "MultiBarLeftMoverLabel",
         ],

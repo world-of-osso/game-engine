@@ -6,12 +6,14 @@ use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 
 const SLOT_COUNT: usize = 12;
-const SLOT_W: f32 = 36.0;
-const SLOT_H: f32 = 36.0;
+const SLOT_W: f32 = 45.0;
+const SLOT_H: f32 = 45.0;
 const MINIMAP_DISPLAY_SIZE: f32 = 200.0;
 
-const BAR_BG: &str = "0.07,0.06,0.05,0.92";
-const SLOT_BG: &str = "0.15,0.12,0.08,0.95";
+const BAR_BG: &str = "0.03,0.02,0.01,0.18";
+const SLOT_BG: &str = "0.06,0.05,0.04,0.82";
+const SLOT_HOTKEY: &str = "0.82,0.88,1.0,0.95";
+const SLOT_COUNT_COLOR: &str = "1.0,1.0,1.0,0.95";
 const GUIDE_COLOR: &str = "0.95,0.78,0.25,0.95";
 const EDIT_BANNER_BG: &str = "0.03,0.04,0.06,0.9";
 const EDIT_BANNER_TEXT: &str = "1.0,0.86,0.25,1.0";
@@ -50,21 +52,93 @@ fn slot_label(index: usize) -> &'static str {
     }
 }
 
-fn slot_buttons(prefix: &str, show_labels: bool) -> Element {
+fn slot_hotkey(button_name: &DynName, hotkey_name: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: hotkey_name,
+            width: 32.0,
+            height: 15.0,
+            text,
+            font: "ArialNarrow",
+            font_size: 12.0,
+            font_color: SLOT_HOTKEY,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_to: button_name.0.as_str(),
+                relative_point: AnchorPoint::TopRight,
+                x: "-5",
+                y: "-5",
+            }
+        }
+    }
+}
+
+fn slot_count(button_name: &DynName, count_name: DynName) -> Element {
+    rsx! {
+        fontstring {
+            name: count_name,
+            width: 18.0,
+            height: 14.0,
+            text: "",
+            font: "ArialNarrow",
+            font_size: 14.0,
+            font_color: SLOT_COUNT_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_to: button_name.0.as_str(),
+                relative_point: AnchorPoint::BottomRight,
+                x: "-5",
+                y: "5",
+            }
+        }
+    }
+}
+
+fn slot_button_widget(button_name: DynName, hotkey_text: &str) -> Element {
+    let hotkey_name = dyn_name(format!("{}HotKey", button_name.0));
+    let count_name = dyn_name(format!("{}Count", button_name.0));
+    rsx! {
+        button {
+            name: button_name,
+            width: SLOT_W,
+            height: SLOT_H,
+            text: "",
+            font_size: 12.0,
+            background_color: SLOT_BG,
+            button_atlas_up: "defaultbutton-nineslice-up",
+            button_atlas_pressed: "defaultbutton-nineslice-pressed",
+            button_atlas_highlight: "defaultbutton-nineslice-highlight",
+            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+            }
+            {slot_hotkey(&button_name, hotkey_name, hotkey_text)}
+            {slot_count(&button_name, count_name)}
+        }
+    }
+}
+
+fn action_button(container_prefix: &str, button_prefix: &str, index: usize, hotkey: &str) -> Element {
+    let container_name = dyn_name(format!("{container_prefix}{}", index + 1));
+    let button_name = dyn_name(format!("{button_prefix}{}", index + 1));
+    rsx! {
+        r#frame {
+            name: container_name,
+            width: SLOT_W,
+            height: SLOT_H,
+            {slot_button_widget(button_name, hotkey)}
+        }
+    }
+}
+
+fn slot_buttons(container_prefix: &str, button_prefix: &str, show_hotkeys: bool) -> Element {
     (0..SLOT_COUNT)
         .flat_map(|index| {
-            let name = dyn_name(format!("{prefix}{}", index + 1));
-            let text = if show_labels { slot_label(index) } else { "" };
-            rsx! {
-                button {
-                    name,
-                    width: SLOT_W,
-                    height: SLOT_H,
-                    text,
-                    font_size: 13.0,
-                    background_color: SLOT_BG,
-                }
-            }
+            let hotkey = if show_hotkeys { slot_label(index) } else { "" };
+            action_button(container_prefix, button_prefix, index, hotkey)
         })
         .collect()
 }
@@ -73,6 +147,7 @@ fn action_bar_root(
     name: FrameName,
     label_name: FrameName,
     label_text: &str,
+    hidden: bool,
     buttons: Element,
 ) -> Element {
     rsx! {
@@ -82,6 +157,7 @@ fn action_bar_root(
             height: 1.0,
             background_color: BAR_BG,
             strata: FrameStrata::Dialog,
+            hidden,
             {buttons}
             fontstring {
                 name: label_name,
@@ -96,26 +172,66 @@ fn action_bar_root(
     }
 }
 
-pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
-    let main = action_bar_root(
+fn main_action_bar() -> Element {
+    action_bar_root(
         FrameName("MainActionBar"),
         FrameName("MainActionBarMoverLabel"),
         "Main Action Bar",
-        slot_buttons("ActionButton", true),
-    );
-    let right = action_bar_root(
-        FrameName("MultiBarRight"),
-        FrameName("MultiBarRightMoverLabel"),
-        "Right Action Bar",
-        slot_buttons("MultiBarRightButton", false),
-    );
-    let left = action_bar_root(
-        FrameName("MultiBarLeft"),
-        FrameName("MultiBarLeftMoverLabel"),
-        "Left Action Bar",
-        slot_buttons("MultiBarLeftButton", false),
-    );
-    let overlays = rsx! {
+        false,
+        slot_buttons("MainActionBarButtonContainer", "ActionButton", true),
+    )
+}
+
+fn bottom_action_bars() -> Element {
+    [
+        action_bar_root(
+            FrameName("MultiBarBottomLeft"),
+            FrameName("MultiBarBottomLeftMoverLabel"),
+            "Bottom Left Action Bar",
+            true,
+            slot_buttons("MultiBarBottomLeftButtonContainer", "MultiBarBottomLeftButton", false),
+        ),
+        action_bar_root(
+            FrameName("MultiBarBottomRight"),
+            FrameName("MultiBarBottomRightMoverLabel"),
+            "Bottom Right Action Bar",
+            true,
+            slot_buttons(
+                "MultiBarBottomRightButtonContainer",
+                "MultiBarBottomRightButton",
+                false,
+            ),
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn side_action_bars() -> Element {
+    [
+        action_bar_root(
+            FrameName("MultiBarRight"),
+            FrameName("MultiBarRightMoverLabel"),
+            "Right Action Bar",
+            true,
+            slot_buttons("MultiBarRightButtonContainer", "MultiBarRightButton", false),
+        ),
+        action_bar_root(
+            FrameName("MultiBarLeft"),
+            FrameName("MultiBarLeftMoverLabel"),
+            "Left Action Bar",
+            true,
+            slot_buttons("MultiBarLeftButtonContainer", "MultiBarLeftButton", false),
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn action_bar_overlays() -> Element {
+    rsx! {
         r#frame {
             name: "ActionBarGuideVertical",
             width: 2.0,
@@ -148,15 +264,137 @@ pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
                 font_color: EDIT_BANNER_TEXT,
             }
         }
-    };
-
-    [main, right, left, overlays]
-        .into_iter()
-        .flatten()
-        .collect()
+    }
 }
 
-pub fn minimap_screen(_ctx: &SharedContext) -> Element {
+pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
+    [
+        main_action_bar(),
+        bottom_action_bars(),
+        side_action_bars(),
+        action_bar_overlays(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn minimap_header() -> Element {
+    rsx! {
+        r#frame {
+            name: "MinimapHeader",
+            width: 175.0,
+            height: 16.0,
+            background_color: MINIMAP_HEADER_BG,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                x: "15",
+                y: "-4",
+            }
+        }
+        fontstring {
+            name: MINIMAP_ZONE_NAME,
+            width: 135.0,
+            height: 12.0,
+            text: "Elwynn Forest",
+            font_size: 16.0,
+            font_color: MINIMAP_ZONE_COLOR,
+            justify_h: "LEFT",
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Left,
+                relative_to: FrameName("MinimapHeader"),
+                relative_point: AnchorPoint::Left,
+                x: "6",
+            }
+        }
+    }
+}
+
+fn minimap_display() -> Element {
+    rsx! {
+        r#frame {
+            name: "MinimapShade",
+            width: 215.0,
+            height: 226.0,
+            background_color: MINIMAP_CLUSTER_SHADE,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                x: "10",
+                y: "-30",
+            }
+        }
+        texture {
+            name: MINIMAP_DISPLAY,
+            width: MINIMAP_DISPLAY_SIZE,
+            height: MINIMAP_DISPLAY_SIZE,
+            strata: FrameStrata::High,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                x: "10",
+                y: "-42",
+            }
+        }
+    }
+}
+
+fn minimap_border() -> Element {
+    rsx! {
+        texture {
+            name: MINIMAP_BORDER,
+            width: MINIMAP_DISPLAY_SIZE,
+            height: MINIMAP_DISPLAY_SIZE,
+            strata: FrameStrata::High,
+            frame_level: 10.0,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_to: MINIMAP_DISPLAY,
+                relative_point: AnchorPoint::Center,
+            }
+        }
+    }
+}
+
+fn minimap_overlay() -> Element {
+    rsx! {
+        texture {
+            name: MINIMAP_ARROW,
+            width: 16.0,
+            height: 16.0,
+            strata: FrameStrata::High,
+            frame_level: 11.0,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_to: MINIMAP_DISPLAY,
+                relative_point: AnchorPoint::Center,
+            }
+        }
+        fontstring {
+            name: MINIMAP_COORDS,
+            width: MINIMAP_DISPLAY_SIZE,
+            height: 18.0,
+            text: "0, 0",
+            font_size: 14.0,
+            font_color: MINIMAP_COORDS_COLOR,
+            justify_h: "RIGHT",
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_to: MINIMAP_DISPLAY,
+                relative_point: AnchorPoint::BottomRight,
+                y: "-6",
+            }
+        }
+    }
+}
+
+fn minimap_cluster() -> Element {
     rsx! {
         r#frame {
             name: "MinimapCluster",
@@ -170,101 +408,14 @@ pub fn minimap_screen(_ctx: &SharedContext) -> Element {
                 x: "-12",
                 y: "-8",
             }
-            r#frame {
-                name: "MinimapHeader",
-                width: 175.0,
-                height: 16.0,
-                background_color: MINIMAP_HEADER_BG,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "15",
-                    y: "-4",
-                }
-            }
-            fontstring {
-                name: MINIMAP_ZONE_NAME,
-                width: 135.0,
-                height: 12.0,
-                text: "Elwynn Forest",
-                font_size: 16.0,
-                font_color: MINIMAP_ZONE_COLOR,
-                justify_h: "LEFT",
-                hidden: true,
-                anchor {
-                    point: AnchorPoint::Left,
-                    relative_to: FrameName("MinimapHeader"),
-                    relative_point: AnchorPoint::Left,
-                    x: "6",
-                }
-            }
-            r#frame {
-                name: "MinimapShade",
-                width: 215.0,
-                height: 226.0,
-                background_color: MINIMAP_CLUSTER_SHADE,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "10",
-                    y: "-30",
-                }
-            }
-            texture {
-                name: MINIMAP_DISPLAY,
-                width: MINIMAP_DISPLAY_SIZE,
-                height: MINIMAP_DISPLAY_SIZE,
-                strata: FrameStrata::High,
-                hidden: true,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "10",
-                    y: "-42",
-                }
-            }
-            texture {
-                name: MINIMAP_BORDER,
-                width: MINIMAP_DISPLAY_SIZE,
-                height: MINIMAP_DISPLAY_SIZE,
-                strata: FrameStrata::High,
-                frame_level: 10.0,
-                hidden: true,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::Center,
-                }
-            }
-            texture {
-                name: MINIMAP_ARROW,
-                width: 16.0,
-                height: 16.0,
-                strata: FrameStrata::High,
-                frame_level: 11.0,
-                hidden: true,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::Center,
-                }
-            }
-            fontstring {
-                name: MINIMAP_COORDS,
-                width: MINIMAP_DISPLAY_SIZE,
-                height: 18.0,
-                text: "0, 0",
-                font_size: 14.0,
-                font_color: MINIMAP_COORDS_COLOR,
-                justify_h: "RIGHT",
-                hidden: true,
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::BottomRight,
-                    y: "-6",
-                }
-            }
+            {minimap_header()}
+            {minimap_display()}
+            {minimap_border()}
+            {minimap_overlay()}
         }
     }
+}
+
+pub fn minimap_screen(_ctx: &SharedContext) -> Element {
+    minimap_cluster()
 }
