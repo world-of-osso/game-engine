@@ -3,11 +3,8 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
-use crate::ui::frame::NineSlice;
-use crate::ui::registry::FrameRegistry;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
-use crate::ui::widgets::texture::TextureSource;
 
 const TEX_LOADING_ART: &str = "data/ui/loading-screen-cathedral-bg-v1.png";
 const TEX_LOADING_FILLER_TOP: &str = "data/ui/loading-screen-parchment-band-top-v1.png";
@@ -16,7 +13,6 @@ const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 pub const TEX_LOADING_BAR_LEFT: &str = "data/ui/loading-bar-steel-shell-left.png";
 pub const TEX_LOADING_BAR_CENTER: &str = "data/ui/loading-bar-steel-shell-center.png";
 pub const TEX_LOADING_BAR_RIGHT: &str = "data/ui/loading-bar-steel-shell-right.png";
-pub const TEX_LOADING_BAR_TRACK: &str = "data/ui/loading-bar-track-steel-flat.png";
 pub const TEX_LOADING_BAR_FILL: &str = "data/ui/loading-bar-fill-v2-flat.png";
 
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
@@ -26,15 +22,18 @@ const ART_WIDTH: f32 = 1280.0;
 const ART_HEIGHT: f32 = 640.0;
 const FILLER_WIDTH: f32 = 2048.0;
 const FILLER_HEIGHT: f32 = 96.0;
+const FILLER_TOP_Y: f32 = -50.0;
+const FILLER_BOTTOM_Y: f32 = 0.0;
 const BAR_CAP_WIDTH: f32 = 25.0;
 const BAR_WIDTH: f32 = 610.0;
 const BAR_HEIGHT: f32 = 32.0;
-const BAR_FILL_MAX_WIDTH: f32 = 524.0;
-const BAR_FILL_HEIGHT: f32 = 21.0;
+const BAR_FILL_MAX_WIDTH: f32 = BAR_WIDTH - (BAR_CAP_WIDTH * 2.0);
+const BAR_FILL_HEIGHT: f32 = 23.0;
 const PROGRESS_TEXT_X: f32 = -42.0;
 const PROGRESS_TEXT_Y: f32 = -1.0;
 const STATUS_TEXT_Y: f32 = -1.0;
-const BAR_Y: f32 = -18.0;
+const BAR_Y: f32 = -10.0;
+const LOGO_Y: f32 = -150.0;
 const ZONE_TEXT_Y: f32 = 8.0;
 const TIP_TEXT_Y: f32 = -5.0;
 
@@ -57,6 +56,8 @@ pub struct LoadingScreenLayout {
     pub art_height: f32,
     pub filler_width: f32,
     pub filler_height: f32,
+    pub filler_top_y: f32,
+    pub filler_bottom_y: f32,
     pub bar_cap_width: f32,
     pub bar_width: f32,
     pub bar_height: f32,
@@ -66,6 +67,7 @@ pub struct LoadingScreenLayout {
     pub progress_text_y: f32,
     pub status_text_y: f32,
     pub bar_y: f32,
+    pub logo_y: f32,
     pub zone_text_y: f32,
     pub tip_text_y: f32,
 }
@@ -77,6 +79,8 @@ impl Default for LoadingScreenLayout {
             art_height: ART_HEIGHT,
             filler_width: FILLER_WIDTH,
             filler_height: FILLER_HEIGHT,
+            filler_top_y: FILLER_TOP_Y,
+            filler_bottom_y: FILLER_BOTTOM_Y,
             bar_cap_width: BAR_CAP_WIDTH,
             bar_width: BAR_WIDTH,
             bar_height: BAR_HEIGHT,
@@ -86,6 +90,7 @@ impl Default for LoadingScreenLayout {
             progress_text_y: PROGRESS_TEXT_Y,
             status_text_y: STATUS_TEXT_Y,
             bar_y: BAR_Y,
+            logo_y: LOGO_Y,
             zone_text_y: ZONE_TEXT_Y,
             tip_text_y: TIP_TEXT_Y,
         }
@@ -104,7 +109,7 @@ pub fn loading_screen(ctx: &SharedContext) -> Element {
         background_frame(),
         filler_bands(&layout),
         artwork_frame(&layout),
-        logo_frame(),
+        logo_frame(&layout),
         zone_text(state, &layout),
         status_text(state, &layout),
         bar_background(&layout),
@@ -140,6 +145,7 @@ fn filler_bands(layout: &LoadingScreenLayout) -> Element {
                 point: AnchorPoint::Bottom,
                 relative_to: FrameName("LoadingArtwork"),
                 relative_point: AnchorPoint::Top,
+                y: {layout.filler_top_y.to_string()},
             }
         }
         texture {
@@ -152,6 +158,7 @@ fn filler_bands(layout: &LoadingScreenLayout) -> Element {
                 point: AnchorPoint::Top,
                 relative_to: FrameName("LoadingArtwork"),
                 relative_point: AnchorPoint::Bottom,
+                y: {layout.filler_bottom_y.to_string()},
             }
         }
     }
@@ -180,13 +187,13 @@ fn artwork_frame(layout: &LoadingScreenLayout) -> Element {
             anchor {
                 point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Center,
-                y: "-18",
+                y: "-50",
             }
         }
     }
 }
 
-fn logo_frame() -> Element {
+fn logo_frame(layout: &LoadingScreenLayout) -> Element {
     rsx! {
         texture {
             name: "LoadingLogo",
@@ -198,7 +205,7 @@ fn logo_frame() -> Element {
                 point: AnchorPoint::Bottom,
                 relative_to: FrameName("LoadingArtwork"),
                 relative_point: AnchorPoint::Top,
-                y: "34",
+                y: {layout.logo_y.to_string()},
             }
         }
     }
@@ -250,6 +257,7 @@ fn bar_background(layout: &LoadingScreenLayout) -> Element {
             name: "LoadingBarBackground",
             width: layout.bar_width,
             height: layout.bar_height,
+            three_slice_style: "loading_bar_shell",
             strata: FrameStrata::Medium,
             anchor {
                 point: AnchorPoint::Bottom,
@@ -272,28 +280,12 @@ fn bar_fill_clip(progress_percent: u8, layout: &LoadingScreenLayout) -> Element 
             background_color: "0.0,0.0,0.0,0.0",
             strata: FrameStrata::High,
             anchor {
-                point: AnchorPoint::Center,
-                relative_to: FrameName("LoadingBarBackground"),
-                relative_point: AnchorPoint::Center,
-            }
-            {bar_track_texture(layout)}
-            {bar_fill_texture(fill_width, layout)}
-        }
-    }
-}
-
-fn bar_track_texture(layout: &LoadingScreenLayout) -> Element {
-    rsx! {
-        texture {
-            name: "LoadingBarTrack",
-            width: layout.bar_fill_max_width,
-            height: layout.bar_fill_height,
-            texture_file: TEX_LOADING_BAR_TRACK,
-            strata: FrameStrata::High,
-            anchor {
                 point: AnchorPoint::Left,
+                relative_to: FrameName("LoadingBarBackground"),
                 relative_point: AnchorPoint::Left,
+                x: {layout.bar_cap_width.to_string()},
             }
+            {bar_fill_texture(fill_width, layout)}
         }
     }
 }
@@ -312,41 +304,6 @@ fn bar_fill_texture(fill_width: f32, layout: &LoadingScreenLayout) -> Element {
             }
         }
     }
-}
-
-/// Apply nine-slice to the loading bar background frame (3-slice: left cap, center, right cap).
-pub fn apply_bar_nine_slice(reg: &mut FrameRegistry) {
-    apply_bar_nine_slice_with_layout(reg, &LoadingScreenLayout::default());
-}
-
-pub fn apply_bar_nine_slice_with_layout(reg: &mut FrameRegistry, layout: &LoadingScreenLayout) {
-    let Some(id) = reg.get_by_name("LoadingBarBackground") else {
-        return;
-    };
-    let Some(frame) = reg.get_mut(id) else {
-        return;
-    };
-    frame.nine_slice = Some(NineSlice {
-        edge_sizes: Some([layout.bar_cap_width, 0.0, layout.bar_cap_width, 0.0]),
-        part_textures: Some(bar_shell_part_textures()),
-        border_color: [1.0, 1.0, 1.0, 1.0],
-        bg_color: [1.0, 1.0, 1.0, 1.0],
-        ..Default::default()
-    });
-}
-
-fn bar_shell_part_textures() -> [TextureSource; 9] {
-    [
-        TextureSource::None,                                     // TL
-        TextureSource::None,                                     // T
-        TextureSource::None,                                     // TR
-        TextureSource::File(TEX_LOADING_BAR_LEFT.to_string()),   // L
-        TextureSource::File(TEX_LOADING_BAR_CENTER.to_string()), // C
-        TextureSource::File(TEX_LOADING_BAR_RIGHT.to_string()),  // R
-        TextureSource::None,                                     // BL
-        TextureSource::None,                                     // B
-        TextureSource::None,                                     // BR
-    ]
 }
 
 fn progress_text(progress_percent: u8, layout: &LoadingScreenLayout) -> Element {
@@ -428,6 +385,8 @@ fn apply_debug_const_override(line: &str, layout: &mut LoadingScreenLayout) {
         "ART_HEIGHT" => layout.art_height = value,
         "FILLER_WIDTH" => layout.filler_width = value,
         "FILLER_HEIGHT" => layout.filler_height = value,
+        "FILLER_TOP_Y" => layout.filler_top_y = value,
+        "FILLER_BOTTOM_Y" => layout.filler_bottom_y = value,
         "BAR_CAP_WIDTH" => layout.bar_cap_width = value,
         "BAR_WIDTH" => layout.bar_width = value,
         "BAR_HEIGHT" => layout.bar_height = value,
@@ -437,6 +396,7 @@ fn apply_debug_const_override(line: &str, layout: &mut LoadingScreenLayout) {
         "PROGRESS_TEXT_Y" => layout.progress_text_y = value,
         "STATUS_TEXT_Y" => layout.status_text_y = value,
         "BAR_Y" => layout.bar_y = value,
+        "LOGO_Y" => layout.logo_y = value,
         "ZONE_TEXT_Y" => layout.zone_text_y = value,
         "TIP_TEXT_Y" => layout.tip_text_y = value,
         _ => {}

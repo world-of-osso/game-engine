@@ -5,8 +5,8 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::loading_component::{
-    LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, apply_bar_nine_slice_with_layout,
-    debug_loading_layout_from_source, loading_screen,
+    LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, debug_loading_layout_from_source,
+    loading_screen,
 };
 use game_engine::ui_resource;
 
@@ -137,7 +137,6 @@ fn loading_update_visuals(
     res.shared.insert(state);
     res.shared.insert(layout.clone());
     res.screen.sync(&res.shared, &mut ui.registry);
-    apply_bar_nine_slice_with_layout(&mut ui.registry, &layout);
 }
 
 fn build_loading_state(
@@ -167,12 +166,12 @@ fn apply_post_setup(reg: &mut FrameRegistry, root_id: u64) {
         root.width = Dimension::Fixed(width);
         root.height = Dimension::Fixed(height);
     }
-    apply_bar_nine_slice_with_layout(reg, &debug_loading_layout_from_source());
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use game_engine::ui::layout::recompute_layouts;
 
     #[test]
     fn loading_screen_builds_expected_frames() {
@@ -192,5 +191,37 @@ mod tests {
         assert!(reg.get_by_name("LoadingRoot").is_some());
         assert!(reg.get_by_name("LoadingBarFill").is_some());
         assert!(reg.get_by_name("LoadingStatusText").is_some());
+    }
+
+    #[test]
+    fn loading_bar_fill_clip_starts_at_shell_inner_left_edge() {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(LoadingScreenState {
+            status_text: "Loading terrain...".to_string(),
+            zone_text: "Entering Elwynn Forest".to_string(),
+            tip_text: DEFAULT_TIP_TEXT.to_string(),
+            progress_percent: 50,
+        });
+        let layout = LoadingScreenLayout::default();
+        shared.insert(layout.clone());
+
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(loading_screen);
+        screen.sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let bar_bg = reg
+            .get_by_name("LoadingBarBackground")
+            .and_then(|id| reg.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .expect("LoadingBarBackground rect");
+        let bar_clip = reg
+            .get_by_name("LoadingBarFillClip")
+            .and_then(|id| reg.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .expect("LoadingBarFillClip rect");
+
+        assert_eq!(bar_clip.x, bar_bg.x + layout.bar_cap_width);
+        assert_eq!(bar_clip.width, layout.bar_width - (layout.bar_cap_width * 2.0));
     }
 }
