@@ -216,7 +216,13 @@ fn apply_layout(reg: &mut FrameRegistry, bars: &ActionBarsUi) {
     layout_flat_bar(reg, bars.roots[1], bars.labels[1], &bars.bottom_left_slots);
     layout_flat_bar(reg, bars.roots[2], bars.labels[2], &bars.bottom_right_slots);
     layout_side_bar(reg, bars.roots[3], bars.labels[3], &bars.right_slots, 0.0);
-    layout_side_bar(reg, bars.roots[4], bars.labels[4], &bars.left_slots, -SIDE_W - 5.0);
+    layout_side_bar(
+        reg,
+        bars.roots[4],
+        bars.labels[4],
+        &bars.left_slots,
+        -SIDE_W - 5.0,
+    );
     center_banner(reg, bars.edit_banner, bars.edit_banner_text);
 }
 
@@ -391,7 +397,11 @@ mod tests {
         assert!(registry.get_by_name("MainActionBar").is_some());
         assert!(registry.get_by_name("MultiBarBottomLeft").is_some());
         assert!(registry.get_by_name("MultiBarBottomRight").is_some());
-        assert!(registry.get_by_name("MainActionBarButtonContainer1").is_some());
+        assert!(
+            registry
+                .get_by_name("MainActionBarButtonContainer1")
+                .is_some()
+        );
         assert!(registry.get_by_name("ActionButton1HotKey").is_some());
         assert!(registry.get_by_name("MultiBarRightButton12Count").is_some());
     }

@@ -432,7 +432,9 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => options_menu_sections::accessibility_body(),
-        OptionsCategory::Keybindings => options_menu_active_sections::keybindings_body(&model.bindings),
+        OptionsCategory::Keybindings => {
+            options_menu_active_sections::keybindings_body(&model.bindings)
+        }
         OptionsCategory::Macros => options_menu_sections::macros_body(),
         OptionsCategory::SocialAddons => options_menu_sections::social_addons_body(),
         OptionsCategory::Advanced => options_menu_active_sections::advanced_body(&model.hud),

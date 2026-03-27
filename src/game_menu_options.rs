@@ -6,10 +6,10 @@ use game_engine::ui::screens::options_menu_component::{
 };
 
 use crate::client_options::{CameraOptions, HudOptions};
+use crate::sound::SoundSettings;
 use game_engine::input_bindings::{
     BindingSection, InputAction, InputBinding, InputBindings, actions_for_section,
 };
-use crate::sound::SoundSettings;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DragCapture {

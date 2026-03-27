@@ -1,6 +1,6 @@
+use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::prelude::*;
 use game_engine::ui::input::find_frame_at;
 use game_engine::ui::plugin::UiState;
@@ -24,8 +24,8 @@ use crate::game_menu_options::{
     reset_category_defaults, slider_bounds, sound_draft,
 };
 use crate::game_state::GameState;
-use game_engine::input_bindings::{BindingSection, InputBinding, InputBindings};
 use crate::sound::SoundSettings;
+use game_engine::input_bindings::{BindingSection, InputBinding, InputBindings};
 
 const DRAG_THRESHOLD: f32 = 4.0;
 const OPTIONS_W: f32 = 860.0;
@@ -157,7 +157,9 @@ fn build_overlay_model(
     }
 }
 
-fn overlay_runtime_drafts(world: &mut World) -> (
+fn overlay_runtime_drafts(
+    world: &mut World,
+) -> (
     crate::game_menu_options::SoundDraft,
     crate::game_menu_options::CameraDraft,
     crate::game_menu_options::HudDraft,
@@ -166,7 +168,10 @@ fn overlay_runtime_drafts(world: &mut World) -> (
     let sound = world.get_resource::<SoundSettings>();
     let camera = world.resource::<CameraOptions>();
     let hud = world.resource::<HudOptions>();
-    let bindings = world.get_resource::<InputBindings>().cloned().unwrap_or_default();
+    let bindings = world
+        .get_resource::<InputBindings>()
+        .cloned()
+        .unwrap_or_default();
     (
         sound_draft(sound.as_deref()),
         camera_draft(&camera),
@@ -342,7 +347,12 @@ fn handle_binding_capture_keys(
         if event.key_code
             != KeyCode::Unidentified(bevy::input::keyboard::NativeKeyCode::Unidentified)
         {
-            assign_binding(action, InputBinding::Keyboard(event.key_code), overlay, commands);
+            assign_binding(
+                action,
+                InputBinding::Keyboard(event.key_code),
+                overlay,
+                commands,
+            );
             return true;
         }
     }
@@ -696,15 +706,13 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
         music_enabled: snapshot.sound.music_enabled,
         muted: snapshot.sound.muted,
     };
-    if let Err(err) =
-        client_options::save_client_options_values(
-            &sound,
-            &camera,
-            &hud,
-            &snapshot.bindings,
-            snapshot.modal_position,
-        )
-    {
+    if let Err(err) = client_options::save_client_options_values(
+        &sound,
+        &camera,
+        &hud,
+        &snapshot.bindings,
+        snapshot.modal_position,
+    ) {
         warn!("{err}");
     }
 }
