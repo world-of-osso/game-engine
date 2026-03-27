@@ -1,6 +1,7 @@
 //! Doodad (M2) and WMO spawning from _obj0/_obj1/_obj2 ADT companion files.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use bevy::image::Image;
 use bevy::math::Mat3;
@@ -30,6 +31,17 @@ pub struct SpawnedWmoRoot {
 pub struct SpawnedFogVolumes {
     pub entities: Vec<Entity>,
 }
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct WmoTextureCacheKey {
+    base_path: PathBuf,
+    texture_2_fdid: u32,
+    texture_3_fdid: u32,
+}
+
+static WMO_TEXTURE_CACHE: OnceLock<
+    Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<Handle<Image>, String>>>,
+> = OnceLock::new();
 
 impl SpawnedTerrainObjects {
     pub fn all_entities(self) -> Vec<Entity> {
@@ -789,17 +801,10 @@ fn wmo_batch_material(
     if texture_fdid > 0 {
         match crate::asset::casc_resolver::ensure_texture(texture_fdid) {
             Some(blp_path) => {
-                match load_wmo_material_image(&blp_path, texture_2_fdid, texture_3_fdid) {
-                    Ok(mut image) => {
-                        image.sampler = bevy::image::ImageSampler::Descriptor(
-                            bevy::image::ImageSamplerDescriptor {
-                                address_mode_u: bevy::image::ImageAddressMode::Repeat,
-                                address_mode_v: bevy::image::ImageAddressMode::Repeat,
-                                ..bevy::image::ImageSamplerDescriptor::linear()
-                            },
-                        );
+                match load_wmo_material_image(&blp_path, texture_2_fdid, texture_3_fdid, images) {
+                    Ok(image) => {
                         return materials.add(wmo_standard_material(
-                            Some(images.add(image)),
+                            Some(image),
                             blend_mode,
                             flags,
                             has_vertex_color,
@@ -830,7 +835,17 @@ fn load_wmo_material_image(
     base_path: &std::path::Path,
     texture_2_fdid: u32,
     texture_3_fdid: u32,
-) -> Result<Image, String> {
+    images: &mut Assets<Image>,
+) -> Result<Handle<Image>, String> {
+    let key = WmoTextureCacheKey {
+        base_path: base_path.to_path_buf(),
+        texture_2_fdid,
+        texture_3_fdid,
+    };
+    let cache = WMO_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
+    if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
+        return cached;
+    }
     let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
     for overlay_fdid in [texture_2_fdid, texture_3_fdid] {
         if overlay_fdid == 0 {
@@ -847,7 +862,7 @@ fn load_wmo_material_image(
         }
     }
 
-    Ok(Image::new(
+    let mut image = Image::new(
         bevy::render::render_resource::Extent3d {
             width: w,
             height: h,
@@ -857,7 +872,15 @@ fn load_wmo_material_image(
         pixels,
         bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
         bevy::asset::RenderAssetUsages::default(),
-    ))
+    );
+    image.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+        address_mode_u: bevy::image::ImageAddressMode::Repeat,
+        address_mode_v: bevy::image::ImageAddressMode::Repeat,
+        ..bevy::image::ImageSamplerDescriptor::linear()
+    });
+    let handle = images.add(image);
+    cache.lock().unwrap().insert(key, Ok(handle.clone()));
+    Ok(handle)
 }
 
 fn wmo_standard_material(

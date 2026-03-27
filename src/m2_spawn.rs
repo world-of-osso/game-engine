@@ -18,8 +18,11 @@ struct TextureCacheKey {
 }
 
 static COMPOSITED_TEXTURE_CACHE: OnceLock<
-    Mutex<std::collections::HashMap<TextureCacheKey, Result<Image, String>>>,
+    Mutex<std::collections::HashMap<TextureCacheKey, Result<Handle<Image>, String>>>,
 > = OnceLock::new();
+
+static REPEAT_TEXTURE_CACHE: OnceLock<Mutex<std::collections::HashMap<u32, Handle<Image>>>> =
+    OnceLock::new();
 
 #[path = "m2_spawn_cache_stats.rs"]
 mod cache_stats;
@@ -121,38 +124,49 @@ pub fn attach_m2_batches(
 ) -> SkinningResult {
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
-        let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
-        let mat = load_batch_material(
-            &batch,
-            i,
-            assets.images,
-            assets.materials,
-            assets.effect_materials,
-        );
-        match mat {
-            BatchMaterial::Standard(mat) => spawn_skinned_mesh_standard(
-                commands,
-                assets.meshes,
-                mat,
-                batch,
-                root,
-                &skinning,
-                i,
-                visible,
-            ),
-            BatchMaterial::Effect(mat) => spawn_skinned_mesh_effect(
-                commands,
-                assets.meshes,
-                mat,
-                batch,
-                root,
-                &skinning,
-                i,
-                visible,
-            ),
-        }
+        spawn_batch_mesh(commands, assets, batch, root, &skinning, i);
     }
     skinning
+}
+
+fn spawn_batch_mesh(
+    commands: &mut Commands,
+    assets: &mut SpawnAssets<'_>,
+    batch: asset::m2::M2RenderBatch,
+    root: Entity,
+    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    batch_index: usize,
+) {
+    let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
+    let mat = load_batch_material(
+        &batch,
+        batch_index,
+        assets.images,
+        assets.materials,
+        assets.effect_materials,
+    );
+    match mat {
+        BatchMaterial::Standard(mat) => spawn_skinned_mesh_standard(
+            commands,
+            assets.meshes,
+            mat,
+            batch,
+            root,
+            skinning,
+            batch_index,
+            visible,
+        ),
+        BatchMaterial::Effect(mat) => spawn_skinned_mesh_effect(
+            commands,
+            assets.meshes,
+            mat,
+            batch,
+            root,
+            skinning,
+            batch_index,
+            visible,
+        ),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -324,10 +338,10 @@ fn try_load_textured_material(
     if !blp_path.exists() {
         return None;
     }
-    let image = load_composited_texture(blp_path, batch, texture_dir)
+    let image = load_composited_texture(blp_path, batch, texture_dir, images)
         .map_err(|e| eprintln!("{e}"))
         .ok()?;
-    Some(materials.add(m2_material(Some(images.add(image)), None, batch)))
+    Some(materials.add(m2_material(Some(image), None, batch)))
 }
 
 fn try_load_effect_material(
@@ -371,6 +385,10 @@ fn load_repeat_texture(
     texture_dir: &Path,
     images: &mut Assets<Image>,
 ) -> Option<Handle<Image>> {
+    let cache = REPEAT_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
+    if let Some(handle) = cache.lock().unwrap().get(&fdid).cloned() {
+        return Some(handle);
+    }
     let blp_path = asset::casc_resolver::ensure_texture(fdid)
         .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
     if !blp_path.exists() {
@@ -379,7 +397,9 @@ fn load_repeat_texture(
     let (pixels, width, height) = asset::blp::load_blp_rgba(&blp_path).ok()?;
     let mut image = crate::rgba_image(pixels, width, height);
     image.sampler = m2_effect_material::repeat_sampler();
-    Some(images.add(image))
+    let handle = images.add(image);
+    cache.lock().unwrap().insert(fdid, handle.clone());
+    Some(handle)
 }
 
 /// Build a StandardMaterial from M2 render flags (two-sided, unlit, blend mode).
@@ -416,19 +436,38 @@ fn load_composited_texture(
     base_path: &Path,
     batch: &asset::m2::M2RenderBatch,
     texture_dir: &Path,
-) -> Result<Image, String> {
-    let key = TextureCacheKey {
-        base_path: base_path.to_path_buf(),
-        overlays: batch.overlays.clone(),
-        texture_2_fdid: batch.texture_2_fdid,
-        shader_id: batch.shader_id,
-        blend_mode: batch.blend_mode,
-    };
+    images: &mut Assets<Image>,
+) -> Result<Handle<Image>, String> {
+    let key = composited_texture_cache_key(base_path, batch);
     let cache =
         COMPOSITED_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
     if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
         return cached;
     }
+    let handle = build_composited_texture_handle(base_path, batch, texture_dir, images)?;
+    cache.lock().unwrap().insert(key, Ok(handle.clone()));
+    Ok(handle)
+}
+
+fn composited_texture_cache_key(
+    base_path: &Path,
+    batch: &asset::m2::M2RenderBatch,
+) -> TextureCacheKey {
+    TextureCacheKey {
+        base_path: base_path.to_path_buf(),
+        overlays: batch.overlays.clone(),
+        texture_2_fdid: batch.texture_2_fdid,
+        shader_id: batch.shader_id,
+        blend_mode: batch.blend_mode,
+    }
+}
+
+fn build_composited_texture_handle(
+    base_path: &Path,
+    batch: &asset::m2::M2RenderBatch,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+) -> Result<Handle<Image>, String> {
     let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
         .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?;
     if let Some(texture_2_fdid) = batch.texture_2_fdid
@@ -452,8 +491,7 @@ fn load_composited_texture(
         address_mode_v: bevy::image::ImageAddressMode::Repeat,
         ..bevy::image::ImageSamplerDescriptor::linear()
     });
-    cache.lock().unwrap().insert(key, Ok(image.clone()));
-    Ok(image)
+    Ok(images.add(image))
 }
 
 fn composite_second_texture(

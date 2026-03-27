@@ -13,10 +13,6 @@ pub fn composited_texture_cache_stats() -> CompositedTextureCacheStats {
     let cache = cache.lock().unwrap();
     CompositedTextureCacheStats {
         entries: cache.len(),
-        est_cpu_bytes: cache
-            .values()
-            .filter_map(|result| result.as_ref().ok())
-            .map(|image| image.data.as_ref().map_or(0, |data| data.len() as u64))
-            .sum(),
+        est_cpu_bytes: 0,
     }
 }

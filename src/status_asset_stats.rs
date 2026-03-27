@@ -57,10 +57,13 @@ fn mesh_bytes(meshes: &Assets<Mesh>) -> u64 {
 }
 
 fn estimate_mesh_cpu_bytes(mesh: &Mesh) -> u64 {
-    mesh.attributes()
-        .map(|(_, values)| estimate_vertex_attribute_bytes(values))
-        .sum::<u64>()
-        + mesh.indices().map_or(0, estimate_indices_bytes)
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        mesh.attributes()
+            .map(|(_, values)| estimate_vertex_attribute_bytes(values))
+            .sum::<u64>()
+            + mesh.indices().map_or(0, estimate_indices_bytes)
+    }))
+    .unwrap_or(0)
 }
 
 fn estimate_indices_bytes(indices: &Indices) -> u64 {
