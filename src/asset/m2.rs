@@ -73,6 +73,10 @@ struct ModelCacheKey {
 static M2_MODEL_CACHE: OnceLock<Mutex<HashMap<ModelCacheKey, Result<M2Model, String>>>> =
     OnceLock::new();
 
+#[path = "m2_cache_stats.rs"]
+mod cache_stats;
+pub use cache_stats::{ModelCacheStats, model_cache_stats};
+
 struct M2Vertex {
     position: [f32; 3],
     bone_weights: [u8; 4],

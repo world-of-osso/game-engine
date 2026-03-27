@@ -41,6 +41,21 @@ pub struct TerrainStatusSnapshot {
     pub failed_tiles: usize,
     pub server_requested_tiles: usize,
     pub heightmap_tiles: usize,
+    pub process_rss_kb: u64,
+    pub process_anon_kb: u64,
+    pub process_data_kb: u64,
+    pub m2_model_cache_entries: usize,
+    pub m2_model_cache_est_cpu_bytes: u64,
+    pub composited_texture_cache_entries: usize,
+    pub composited_texture_cache_est_cpu_bytes: u64,
+    pub image_assets: usize,
+    pub image_asset_cpu_bytes: u64,
+    pub mesh_assets: usize,
+    pub mesh_asset_est_cpu_bytes: u64,
+    pub standard_material_assets: usize,
+    pub terrain_material_assets: usize,
+    pub water_material_assets: usize,
+    pub m2_effect_material_assets: usize,
 }
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]

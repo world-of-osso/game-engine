@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 use bevy::ecs::system::SystemParam;
+use bevy::image::Image;
+use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
@@ -16,10 +18,14 @@ use shared::components::{
 
 use crate::camera::Player;
 use crate::equipment;
+use crate::m2_spawn;
 use crate::networking;
 use crate::sound;
+use crate::status_asset_stats;
 use crate::terrain::AdtManager;
 use crate::terrain_heightmap::TerrainHeightmap;
+use crate::terrain_material::TerrainMaterial;
+use crate::water_material::WaterMaterial;
 
 type LocalPlayerComponents = (
     Option<&'static NetPlayer>,
@@ -71,7 +77,24 @@ pub fn sync_terrain_status_snapshot(
     mut snapshot: ResMut<TerrainStatusSnapshot>,
     adt_manager: Res<AdtManager>,
     heightmap: Res<TerrainHeightmap>,
+    images: Res<Assets<Image>>,
+    meshes: Res<Assets<Mesh>>,
+    standard_materials: Res<Assets<StandardMaterial>>,
+    terrain_materials: Res<Assets<TerrainMaterial>>,
+    water_materials: Res<Assets<WaterMaterial>>,
+    m2_effect_materials: Res<Assets<crate::m2_effect_material::M2EffectMaterial>>,
 ) {
+    let process_memory = current_process_memory_kb();
+    let model_cache = crate::asset::m2::model_cache_stats();
+    let composited_cache = m2_spawn::composited_texture_cache_stats();
+    let asset_stats = status_asset_stats::collect_asset_store_stats(
+        &images,
+        &meshes,
+        &standard_materials,
+        &terrain_materials,
+        &water_materials,
+        &m2_effect_materials,
+    );
     snapshot.map_name = adt_manager.map_name.clone();
     snapshot.initial_tile = adt_manager.initial_tile;
     snapshot.load_radius = adt_manager.load_radius;
@@ -80,6 +103,59 @@ pub fn sync_terrain_status_snapshot(
     snapshot.failed_tiles = adt_manager.failed.len();
     snapshot.server_requested_tiles = adt_manager.server_requested.len();
     snapshot.heightmap_tiles = heightmap.tile_keys().count();
+    snapshot.process_rss_kb = process_memory.rss_kb;
+    snapshot.process_anon_kb = process_memory.anon_kb;
+    snapshot.process_data_kb = process_memory.data_kb;
+    snapshot.m2_model_cache_entries = model_cache.entries;
+    snapshot.m2_model_cache_est_cpu_bytes = model_cache.est_cpu_bytes;
+    snapshot.composited_texture_cache_entries = composited_cache.entries;
+    snapshot.composited_texture_cache_est_cpu_bytes = composited_cache.est_cpu_bytes;
+    snapshot.image_assets = asset_stats.image_assets;
+    snapshot.image_asset_cpu_bytes = asset_stats.image_asset_cpu_bytes;
+    snapshot.mesh_assets = asset_stats.mesh_assets;
+    snapshot.mesh_asset_est_cpu_bytes = asset_stats.mesh_asset_est_cpu_bytes;
+    snapshot.standard_material_assets = asset_stats.standard_material_assets;
+    snapshot.terrain_material_assets = asset_stats.terrain_material_assets;
+    snapshot.water_material_assets = asset_stats.water_material_assets;
+    snapshot.m2_effect_material_assets = asset_stats.m2_effect_material_assets;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ProcessMemoryKb {
+    rss_kb: u64,
+    anon_kb: u64,
+    data_kb: u64,
+}
+
+#[cfg(target_os = "linux")]
+fn current_process_memory_kb() -> ProcessMemoryKb {
+    let Ok(status) = std::fs::read_to_string("/proc/self/status") else {
+        return ProcessMemoryKb::default();
+    };
+    let mut memory = ProcessMemoryKb::default();
+    for line in status.lines() {
+        if let Some(value) = line.strip_prefix("VmRSS:") {
+            memory.rss_kb = parse_kb_field(value);
+        } else if let Some(value) = line.strip_prefix("RssAnon:") {
+            memory.anon_kb = parse_kb_field(value);
+        } else if let Some(value) = line.strip_prefix("VmData:") {
+            memory.data_kb = parse_kb_field(value);
+        }
+    }
+    memory
+}
+
+#[cfg(not(target_os = "linux"))]
+fn current_process_memory_kb() -> ProcessMemoryKb {
+    ProcessMemoryKb::default()
+}
+
+fn parse_kb_field(value: &str) -> u64 {
+    value
+        .split_whitespace()
+        .next()
+        .and_then(|part| part.parse().ok())
+        .unwrap_or(0)
 }
 
 pub fn sync_sound_status_snapshot(

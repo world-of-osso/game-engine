@@ -73,7 +73,29 @@ pub fn format_network_status(snapshot: &NetworkStatusSnapshot, connected: bool) 
 
 pub fn format_terrain_status(snapshot: &TerrainStatusSnapshot) -> String {
     format!(
-        "map_name: {}\ninitial_tile: {},{}\nload_radius: {}\nloaded_tiles: {}\npending_tiles: {}\nfailed_tiles: {}\nserver_requested_tiles: {}\nheightmap_tiles: {}",
+        "map_name: {}
+initial_tile: {},{}
+load_radius: {}
+loaded_tiles: {}
+pending_tiles: {}
+failed_tiles: {}
+server_requested_tiles: {}
+heightmap_tiles: {}
+process_rss_kb: {}
+process_anon_kb: {}
+process_data_kb: {}
+m2_model_cache_entries: {}
+m2_model_cache_est_cpu_bytes: {}
+composited_texture_cache_entries: {}
+composited_texture_cache_est_cpu_bytes: {}
+image_assets: {}
+image_asset_cpu_bytes: {}
+mesh_assets: {}
+mesh_asset_est_cpu_bytes: {}
+standard_material_assets: {}
+terrain_material_assets: {}
+water_material_assets: {}
+m2_effect_material_assets: {}",
         if snapshot.map_name.is_empty() {
             "-"
         } else {
@@ -87,6 +109,21 @@ pub fn format_terrain_status(snapshot: &TerrainStatusSnapshot) -> String {
         snapshot.failed_tiles,
         snapshot.server_requested_tiles,
         snapshot.heightmap_tiles,
+        snapshot.process_rss_kb,
+        snapshot.process_anon_kb,
+        snapshot.process_data_kb,
+        snapshot.m2_model_cache_entries,
+        snapshot.m2_model_cache_est_cpu_bytes,
+        snapshot.composited_texture_cache_entries,
+        snapshot.composited_texture_cache_est_cpu_bytes,
+        snapshot.image_assets,
+        snapshot.image_asset_cpu_bytes,
+        snapshot.mesh_assets,
+        snapshot.mesh_asset_est_cpu_bytes,
+        snapshot.standard_material_assets,
+        snapshot.terrain_material_assets,
+        snapshot.water_material_assets,
+        snapshot.m2_effect_material_assets,
     )
 }
 
@@ -752,10 +789,27 @@ mod tests {
             failed_tiles: 2,
             server_requested_tiles: 0,
             heightmap_tiles: 9,
+            process_rss_kb: 1234,
+            process_anon_kb: 1111,
+            process_data_kb: 2222,
+            m2_model_cache_entries: 12,
+            m2_model_cache_est_cpu_bytes: 3456,
+            composited_texture_cache_entries: 34,
+            composited_texture_cache_est_cpu_bytes: 7890,
+            image_assets: 56,
+            image_asset_cpu_bytes: 9876,
+            mesh_assets: 78,
+            mesh_asset_est_cpu_bytes: 6543,
+            standard_material_assets: 90,
+            terrain_material_assets: 12,
+            water_material_assets: 13,
+            m2_effect_material_assets: 14,
         });
         assert!(text.contains("map_name: azeroth"));
         assert!(text.contains("loaded_tiles: 9"));
         assert!(text.contains("pending_tiles: 1"));
+        assert!(text.contains("m2_model_cache_entries: 12"));
+        assert!(text.contains("image_assets: 56"));
     }
 
     #[test]

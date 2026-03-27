@@ -21,6 +21,10 @@ static COMPOSITED_TEXTURE_CACHE: OnceLock<
     Mutex<std::collections::HashMap<TextureCacheKey, Result<Image, String>>>,
 > = OnceLock::new();
 
+#[path = "m2_spawn_cache_stats.rs"]
+mod cache_stats;
+pub use cache_stats::{CompositedTextureCacheStats, composited_texture_cache_stats};
+
 /// Component tagging a mesh entity with its M2 geoset mesh_part_id.
 #[derive(Component)]
 pub struct GeosetMesh(pub u16);

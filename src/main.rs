@@ -81,6 +81,7 @@ mod networking;
 mod networking_auth;
 mod networking_messages;
 mod particle;
+mod process_limits;
 mod scene_setup;
 mod screen_auto_login;
 mod sky;
@@ -89,6 +90,7 @@ mod sky_material;
 mod sound;
 mod sound_footsteps;
 mod sound_music_catalog;
+mod status_asset_stats;
 mod status_sync;
 mod target;
 mod terrain;
@@ -125,6 +127,7 @@ struct ScreenshotRequest {
 
 fn main() {
     ensure_asset_root();
+    process_limits::apply_resource_limits();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if handle_simple_flags(&args) {
         return;
