@@ -14,6 +14,7 @@ use crate::minimap_render::{
     render_tile_image,
 };
 use crate::terrain_heightmap::TerrainHeightmap;
+use crate::zone_names::zone_id_to_name;
 use game_engine::ui::screens::inworld_hud_component;
 
 const MINIMAP_TILE_SIZE: u32 = 256;
@@ -473,29 +474,6 @@ fn update_coord_text(
         if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
             fs.text = format!("{:.0}, {:.0}", tf.translation.x, tf.translation.z);
         }
-    }
-}
-
-/// Map a WoW zone ID to its display name.
-fn zone_id_to_name(id: u32) -> &'static str {
-    match id {
-        10 => "Duskwood",
-        12 => "Elwynn Forest",
-        14 => "Durotar",
-        17 => "The Barrens",
-        38 => "Loch Modan",
-        40 => "Westfall",
-        44 => "Redridge Mountains",
-        85 => "Tirisfal Glades",
-        215 => "Mulgore",
-        331 => "Ashenvale",
-        1497 => "Undercity",
-        1519 => "Stormwind City",
-        1537 => "Ironforge",
-        1637 => "Orgrimmar",
-        1638 => "Thunder Bluff",
-        1657 => "Darnassus",
-        _ => "Unknown",
     }
 }
 

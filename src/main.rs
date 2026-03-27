@@ -102,6 +102,7 @@ mod trash_button_screen;
 mod warband_scene;
 mod water_material;
 mod wow_cursor;
+mod zone_names;
 
 use animation::AnimationPlugin;
 use camera::WowCameraPlugin;

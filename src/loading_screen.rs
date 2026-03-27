@@ -11,8 +11,9 @@ use game_engine::ui::screens::loading_component::{
 use game_engine::ui_resource;
 
 use crate::game_state::{GameState, InitialGameState, evaluate_world_loading};
-use crate::networking::{LocalPlayer, SelectedCharacterId};
+use crate::networking::{CurrentZone, LocalPlayer};
 use crate::terrain::AdtManager;
+use crate::zone_names::zone_id_to_name;
 
 const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
 const DEFAULT_TIP_TEXT: &str =
@@ -70,7 +71,7 @@ fn build_loading_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-    selected: Res<SelectedCharacterId>,
+    current_zone: Res<CurrentZone>,
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
     initial_state: Option<Res<InitialGameState>>,
@@ -84,7 +85,7 @@ fn build_loading_ui(
             .is_some_and(|state| state.0 == GameState::Loading),
     };
     let state = build_loading_state(
-        &selected,
+        current_zone.zone_id,
         !local_player_q.is_empty(),
         &adt_manager,
         &mut progress_animation,
@@ -141,7 +142,7 @@ fn loading_update_visuals(
     mut last_state: Option<ResMut<LoadingUiState>>,
     mut last_layout: Option<ResMut<LoadingLayoutState>>,
     mut progress_animation: Option<ResMut<LoadingProgressAnimation>>,
-    selected: Res<SelectedCharacterId>,
+    current_zone: Res<CurrentZone>,
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
     time: Res<Time>,
@@ -162,7 +163,7 @@ fn loading_update_visuals(
     };
 
     let state = build_loading_state(
-        &selected,
+        current_zone.zone_id,
         !local_player_q.is_empty(),
         &adt_manager,
         &mut progress_animation,
@@ -182,18 +183,18 @@ fn loading_update_visuals(
 }
 
 fn build_loading_state(
-    selected: &SelectedCharacterId,
+    zone_id: u32,
     local_player_ready: bool,
     adt_manager: &AdtManager,
     progress_animation: &mut LoadingProgressAnimation,
     delta_secs: f32,
 ) -> LoadingScreenState {
     let readiness = evaluate_world_loading(local_player_ready, adt_manager);
-    let zone_text = selected
-        .character_name
-        .as_ref()
-        .map(|name| format!("Entering {name}"))
-        .unwrap_or_else(|| DEFAULT_ZONE_TEXT.to_string());
+    let zone_text = if zone_id == 0 {
+        DEFAULT_ZONE_TEXT.to_string()
+    } else {
+        format!("Entering {}", zone_id_to_name(zone_id))
+    };
     progress_animation.elapsed_secs += delta_secs.max(0.0);
     progress_animation.displayed_percent = advance_displayed_progress(
         progress_animation.displayed_percent,
@@ -313,5 +314,27 @@ mod tests {
         assert_eq!(advance_displayed_progress(0.0, 86.0, 1.0), 6.0);
         assert_eq!(advance_displayed_progress(80.0, 86.0, 1.0), 86.0);
         assert_eq!(advance_displayed_progress(90.0, 86.0, 1.0), 86.0);
+    }
+
+    #[test]
+    fn loading_zone_text_uses_current_zone_name() {
+        let mut progress = LoadingProgressAnimation {
+            displayed_percent: 0.0,
+            elapsed_secs: 0.0,
+            preview_mode: false,
+        };
+        let state = build_loading_state(12, false, &AdtManager::default(), &mut progress, 0.0);
+        assert_eq!(state.zone_text, "Entering Elwynn Forest");
+    }
+
+    #[test]
+    fn loading_zone_text_falls_back_when_zone_unknown() {
+        let mut progress = LoadingProgressAnimation {
+            displayed_percent: 0.0,
+            elapsed_secs: 0.0,
+            preview_mode: false,
+        };
+        let state = build_loading_state(0, false, &AdtManager::default(), &mut progress, 0.0);
+        assert_eq!(state.zone_text, DEFAULT_ZONE_TEXT);
     }
 }
