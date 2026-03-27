@@ -5,11 +5,11 @@ use std::path::Path;
 use bevy::audio::{AudioSinkPlayback, Volume};
 use bevy::prelude::*;
 
-use game_engine::input_bindings::{InputAction, InputBindings};
 use crate::sound_footsteps::{
     FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
     classify_player_creature, load_wow_footstep_catalog, movement_from_anim,
 };
+use game_engine::input_bindings::{InputAction, InputBindings};
 
 pub struct SoundPlugin;
 

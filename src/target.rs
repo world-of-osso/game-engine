@@ -5,8 +5,8 @@ use game_engine::targeting::CurrentTarget;
 
 use crate::camera::Player;
 use crate::game_state::GameState;
-use game_engine::input_bindings::{InputAction, InputBindings};
 use crate::networking::RemoteEntity;
+use game_engine::input_bindings::{InputAction, InputBindings};
 
 /// Marker on the selection circle entity.
 #[derive(Component)]

@@ -112,6 +112,11 @@ pub fn load_ground_images(
     tex_data: &adt::AdtTexData,
     adt_path: &std::path::Path,
 ) -> Vec<Option<Handle<Image>>> {
+    eprintln!(
+        "load_ground_images {} texture_fdids={}",
+        adt_path.display(),
+        tex_data.texture_fdids.len(),
+    );
     let tex_dir = adt_path
         .parent()
         .unwrap_or(std::path::Path::new("."))

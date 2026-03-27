@@ -6,9 +6,9 @@ use bevy::prelude::*;
 
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
-use game_engine::input_bindings::{InputAction, InputBindings};
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
+use game_engine::input_bindings::{InputAction, InputBindings};
 
 /// Recursively collect all descendant entities into the set.
 fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut HashSet<Entity>) {
@@ -234,7 +234,14 @@ fn camera_input(
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
 
-    apply_keyboard_camera(&keys, &mouse_buttons, &bindings, dt, &mut cam, &mut facing_q);
+    apply_keyboard_camera(
+        &keys,
+        &mouse_buttons,
+        &bindings,
+        dt,
+        &mut cam,
+        &mut facing_q,
+    );
 
     if mouse_scroll.delta.y != 0.0 {
         cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;

@@ -6,8 +6,8 @@ use bevy::prelude::*;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
-use game_engine::input_bindings::InputBindings;
 use crate::sound::SoundSettings;
+use game_engine::input_bindings::InputBindings;
 
 const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";

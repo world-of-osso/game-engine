@@ -1,3 +1,4 @@
+use bevy::asset::RenderAssetUsages;
 use bevy::image::Image;
 use bevy::mesh::{Indices, Mesh, VertexAttributeValues};
 use bevy::prelude::{Asset, Assets, StandardMaterial};
@@ -57,13 +58,14 @@ fn mesh_bytes(meshes: &Assets<Mesh>) -> u64 {
 }
 
 fn estimate_mesh_cpu_bytes(mesh: &Mesh) -> u64 {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        mesh.attributes()
-            .map(|(_, values)| estimate_vertex_attribute_bytes(values))
-            .sum::<u64>()
-            + mesh.indices().map_or(0, estimate_indices_bytes)
-    }))
-    .unwrap_or(0)
+    if !mesh.asset_usage.contains(RenderAssetUsages::MAIN_WORLD) {
+        return 0;
+    }
+
+    mesh.attributes()
+        .map(|(_, values)| estimate_vertex_attribute_bytes(values))
+        .sum::<u64>()
+        + mesh.indices().map_or(0, estimate_indices_bytes)
 }
 
 fn estimate_indices_bytes(indices: &Indices) -> u64 {
@@ -108,4 +110,21 @@ fn estimate_vertex_attribute_bytes(values: &VertexAttributeValues) -> u64 {
 
 fn slice_bytes<T>(values: &[T]) -> u64 {
     std::mem::size_of_val(values) as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::mesh::PrimitiveTopology;
+
+    #[test]
+    fn render_world_only_mesh_reports_zero_cpu_bytes() {
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::RENDER_WORLD,
+        );
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vec![[0.0f32, 0.0, 0.0]; 3]);
+
+        assert_eq!(estimate_mesh_cpu_bytes(&mesh), 0);
+    }
 }

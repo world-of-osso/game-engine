@@ -255,6 +255,7 @@ pub fn spawn_adt_terrain_only(
     let ground_images = tex_data
         .as_ref()
         .map(|td| terrain_material::load_ground_images(images, td, adt_path));
+    eprintln!("build_terrain_materials {}", adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
         terrain_materials,
         images,
@@ -310,8 +311,15 @@ fn spawn_terrain_chunks(
     tex_data: Option<&adt::AdtTexData>,
     tile: &AdtTile,
 ) -> Entity {
+    eprintln!(
+        "spawn_terrain_chunks {} chunks={} tex={}",
+        adt_path.display(),
+        adt_data.chunks.len(),
+        tex_data.map_or(0, |td| td.texture_fdids.len()),
+    );
     let ground_images =
         tex_data.map(|td| terrain_material::load_ground_images(refs.images, td, adt_path));
+    eprintln!("build_terrain_materials {}", adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
         refs.terrain_materials,
         refs.images,
@@ -339,6 +347,18 @@ fn spawn_parsed_tile(
         _tile_x: parsed.tile_x,
         _tile_y: parsed.tile_y,
     };
+    eprintln!(
+        "Spawning parsed tile ({}, {}) {} tex={} doodads={} wmos={}",
+        parsed.tile_y,
+        parsed.tile_x,
+        parsed.adt_path.display(),
+        parsed
+            .tex_data
+            .as_ref()
+            .map_or(0, |td| td.texture_fdids.len()),
+        parsed.obj_data.as_ref().map_or(0, |obj| obj.doodads.len()),
+        parsed.obj_data.as_ref().map_or(0, |obj| obj.wmos.len()),
+    );
     let root = spawn_terrain_chunks(
         refs,
         &parsed.adt_path,
@@ -882,11 +902,23 @@ fn handle_tile_success(
 ) {
     let key = (parsed.tile_y, parsed.tile_x);
     adt_manager.pending.remove(&key);
+    eprintln!(
+        "handle_tile_success before register_tile ({}, {}) {}",
+        parsed.tile_y,
+        parsed.tile_x,
+        parsed.adt_path.display()
+    );
     heightmap.register_tile(
         parsed.tile_y,
         parsed.tile_x,
         &parsed.adt_data,
         parsed.tex_data.as_ref(),
+    );
+    eprintln!(
+        "handle_tile_success after register_tile ({}, {}) {}",
+        parsed.tile_y,
+        parsed.tile_x,
+        parsed.adt_path.display()
     );
     let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, &parsed);
     adt_manager.loaded.insert(key, root);
@@ -895,6 +927,21 @@ fn handle_tile_success(
         .tile_doodad_entities
         .insert(key, doodad_entities);
     log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
+    log_tile_memory_stats(refs, &parsed);
+}
+
+fn log_tile_memory_stats(refs: &SpawnRefs, parsed: &ParsedTile) {
+    crate::terrain_memory_debug::log_tile_spawn_stats(
+        parsed.tile_y,
+        parsed.tile_x,
+        &parsed.adt_path,
+        refs.images,
+        refs.meshes,
+        refs.materials,
+        refs.terrain_materials,
+        refs.water_materials,
+        refs.effect_materials,
+    );
 }
 
 /// Compute the set of (tile_y, tile_x) that should be loaded around a center tile.
@@ -971,6 +1018,9 @@ fn dispatch_single_tile(
     if adt_manager.pending.contains(&(ty, tx)) {
         return;
     }
+    if adt_manager.pending.len() >= crate::terrain_load_limits::max_pending_tile_loads() {
+        return;
+    }
 
     let path = match resolve_tile_path(&adt_manager.map_name, ty, tx) {
         Ok(p) => p,
@@ -996,8 +1046,28 @@ fn parse_tile_background(
     adt_path: PathBuf,
     lod: DoodadLod,
 ) -> TileLoadResult {
+    let start_mem = crate::terrain_memory_debug::current_process_memory_kb();
+    eprintln!(
+        "parse_tile_background start ({}, {}) {} lod={:?} rss={}MiB anon={}MiB",
+        tile_y,
+        tile_x,
+        adt_path.display(),
+        lod,
+        start_mem.rss_kb / 1024,
+        start_mem.anon_kb / 1024,
+    );
     let adt_data = match load_and_parse_adt(&adt_path) {
-        Ok(d) => d,
+        Ok(d) => {
+            eprintln!(
+                "parse_tile_background adt ok ({}, {}) {} chunks={} height_grids={}",
+                tile_y,
+                tile_x,
+                adt_path.display(),
+                d.chunks.len(),
+                d.height_grids.len(),
+            );
+            d
+        }
         Err(e) => {
             return TileLoadResult::Failed {
                 tile_y,
@@ -1007,7 +1077,32 @@ fn parse_tile_background(
         }
     };
     let tex_data = load_tex0(&adt_path);
+    eprintln!(
+        "parse_tile_background tex ok ({}, {}) {} tex={}",
+        tile_y,
+        tile_x,
+        adt_path.display(),
+        tex_data.as_ref().map_or(0, |td| td.texture_fdids.len()),
+    );
     let obj_data = load_obj_for_lod(&adt_path, lod);
+    eprintln!(
+        "parse_tile_background obj ok ({}, {}) {} doodads={} wmos={}",
+        tile_y,
+        tile_x,
+        adt_path.display(),
+        obj_data.as_ref().map_or(0, |obj| obj.doodads.len()),
+        obj_data.as_ref().map_or(0, |obj| obj.wmos.len()),
+    );
+    let end_mem = crate::terrain_memory_debug::current_process_memory_kb();
+    eprintln!(
+        "parse_tile_background success ({}, {}) {} rss={}MiB anon={}MiB delta_rss={}MiB",
+        tile_y,
+        tile_x,
+        adt_path.display(),
+        end_mem.rss_kb / 1024,
+        end_mem.anon_kb / 1024,
+        (end_mem.rss_kb as i64 - start_mem.rss_kb as i64) / 1024,
+    );
     TileLoadResult::Success(Box::new(ParsedTile {
         tile_y,
         tile_x,
