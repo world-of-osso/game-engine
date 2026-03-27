@@ -1,1 +1,0 @@
-(bevy::prelude::With<culling::Doodad>, bevy::prelude::Without<culling::TerrainChunk>, bevy::prelude::Without<bevy::prelude::Camera3d>)
