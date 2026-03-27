@@ -41,6 +41,11 @@ fn parse_screen_alias_matches_state_parser() {
         .expect("expected campsitepopup");
     assert_eq!(parsed, game_state::GameState::CampsitePopup);
 
+    let parsed = parse_state_arg(&args(&["--screen", "loading"]))
+        .expect("expected valid parse")
+        .expect("expected loading");
+    assert_eq!(parsed, game_state::GameState::Loading);
+
     let parsed = parse_state_arg(&args(&["--screen", "trashbutton"]))
         .expect("expected valid parse")
         .expect("expected trashbutton");
@@ -287,6 +292,14 @@ fn parse_screen_arg_preserves_optionsmenu_variant() {
         .expect("valid parse")
         .expect("expected optionsmenu variant");
     assert_eq!(parsed, game_engine::game_state_enum::ScreenArg::OptionsMenu);
+}
+
+#[test]
+fn parse_screen_arg_preserves_loading_variant() {
+    let parsed = parse_screen_arg(&args(&["--screen", "loading"]))
+        .expect("valid parse")
+        .expect("expected loading variant");
+    assert_eq!(parsed, game_engine::game_state_enum::ScreenArg::Loading);
 }
 
 #[test]

@@ -3628,6 +3628,7 @@ dependencies = [
  "notify",
  "peercred-ipc",
  "quick-js",
+ "raw-window-handle",
  "ron 0.8.1",
  "serde",
  "serde_json",

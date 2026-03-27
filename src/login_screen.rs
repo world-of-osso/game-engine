@@ -202,11 +202,7 @@ fn build_login_screen(status: &LoginStatus) -> LoginScreenRes {
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert::<SharedStatusText>(status.0.clone());
     shared.insert::<SharedConnecting>(false);
-
-    let mut screen = Screen::new(login_screen);
-    let watch_dirs = vec![std::path::PathBuf::from("src/ui/screens")];
-    let rx = ui_toolkit::hotreload::watcher::start_watcher(watch_dirs);
-    screen.set_hot_reload_rx(rx);
+    let screen = Screen::new(login_screen);
 
     LoginScreenRes { screen, shared }
 }

@@ -36,6 +36,7 @@ use game_engine::status::{
     NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
     ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
+use raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 
 mod action_bar;
 mod animation;
@@ -464,6 +465,7 @@ fn register_plugins(app: &mut App) {
     app.add_systems(
         Startup,
         (
+            log_window_backend,
             setup_explicit_asset_scene,
             wow_cursor::install_wow_cursor,
             game_engine::ui::panel_styles::register_panel_styles,
@@ -474,6 +476,34 @@ fn register_plugins(app: &mut App) {
         wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
     );
     init_status_resources(app);
+}
+
+fn log_window_backend(display: Option<Res<bevy::winit::DisplayHandleWrapper>>) {
+    let Some(display) = display else {
+        info!("Window backend: unavailable (no display handle resource)");
+        return;
+    };
+    let Ok(handle) = display.0.display_handle() else {
+        warn!("Window backend: unavailable (failed to acquire display handle)");
+        return;
+    };
+    let backend = match handle.as_raw() {
+        RawDisplayHandle::Wayland(_) => "Wayland",
+        RawDisplayHandle::Xlib(_) => "X11 (Xlib)",
+        RawDisplayHandle::Xcb(_) => "X11 (XCB)",
+        RawDisplayHandle::Windows(_) => "Windows",
+        RawDisplayHandle::AppKit(_) => "AppKit",
+        RawDisplayHandle::UiKit(_) => "UIKit",
+        RawDisplayHandle::Android(_) => "Android",
+        RawDisplayHandle::Web(_) => "Web",
+        RawDisplayHandle::Orbital(_) => "Orbital",
+        _ => "Unknown",
+    };
+    info!(
+        "Window backend: {backend} (DISPLAY={:?}, WAYLAND_DISPLAY={:?})",
+        std::env::var_os("DISPLAY"),
+        std::env::var_os("WAYLAND_DISPLAY")
+    );
 }
 
 struct GameBlpLoader;
@@ -550,6 +580,11 @@ fn add_status_sync_systems(app: &mut App) {
 }
 
 fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs) {
+    #[cfg(debug_assertions)]
+    game_engine::ui::screen::init_global_hot_reload(vec![std::path::PathBuf::from(
+        "src/ui/screens",
+    )]);
+
     configure_server_resources(
         app,
         args.iter().any(|a| a == "--sound"),

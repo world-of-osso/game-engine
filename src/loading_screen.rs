@@ -5,7 +5,7 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::loading_component::{
-    LOADING_ROOT, LoadingScreenState, loading_screen,
+    LOADING_ROOT, LoadingScreenState, apply_bar_nine_slice, loading_screen,
 };
 use game_engine::ui_resource;
 
@@ -124,6 +124,7 @@ fn loading_update_visuals(
     let res = &mut screen_wrap.0;
     res.shared.insert(state);
     res.screen.sync(&res.shared, &mut ui.registry);
+    apply_bar_nine_slice(&mut ui.registry);
 }
 
 fn build_loading_state(
@@ -153,6 +154,7 @@ fn apply_post_setup(reg: &mut FrameRegistry, root_id: u64) {
         root.width = Dimension::Fixed(width);
         root.height = Dimension::Fixed(height);
     }
+    apply_bar_nine_slice(reg);
 }
 
 #[cfg(test)]
