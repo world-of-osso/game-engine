@@ -230,30 +230,7 @@ fn apply_geoset_visibility(
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
 ) {
-    let mut active_geosets: Vec<(u16, u16)> = Vec::new();
-    let selected_choice_ids = selected_choice_ids(selection, customization_db);
-    let fields = [
-        (OptionType::HairStyle, selection.appearance.hair_style),
-        (OptionType::FacialHair, selection.appearance.facial_style),
-    ];
-    for (opt_type, index) in fields {
-        if let Some(choice) = customization_db.get_choice_for_class(
-            selection.race,
-            selection.sex,
-            selection.class,
-            opt_type,
-            index,
-        ) {
-            active_geosets.extend_from_slice(&choice.geosets);
-            active_geosets.extend(
-                choice
-                    .related_geosets
-                    .iter()
-                    .filter(|geoset| selected_choice_ids.contains(&geoset.related_choice_id))
-                    .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
-            );
-        }
-    }
+    let mut active_geosets = collect_active_geosets(selection, customization_db);
 
     for &(group_index, value) in &outfit.geoset_overrides {
         active_geosets.retain(|(group, _)| *group != group_index);
@@ -324,6 +301,44 @@ fn selected_choice_ids(
         .collect()
 }
 
+fn collect_active_geosets(
+    selection: CharacterCustomizationSelection,
+    customization_db: &CustomizationDb,
+) -> Vec<(u16, u16)> {
+    let mut active_geosets: Vec<(u16, u16)> = Vec::new();
+    let selected_choice_ids = selected_choice_ids(selection, customization_db);
+    let fields = [
+        (OptionType::HairStyle, Some(selection.appearance.hair_style)),
+        (OptionType::FacialHair, Some(selection.appearance.facial_style)),
+        // CharacterAppearance doesn't persist modern ear choices yet.
+        // Pick the first DB choice so we drive a single ear geoset instead of
+        // leaving both default ear meshes visible on HD models.
+        (OptionType::Ears, Some(0)),
+    ];
+    for (opt_type, index) in fields {
+        let Some(index) = index else {
+            continue;
+        };
+        if let Some(choice) = customization_db.get_choice_for_class(
+            selection.race,
+            selection.sex,
+            selection.class,
+            opt_type,
+            index,
+        ) {
+            active_geosets.extend_from_slice(&choice.geosets);
+            active_geosets.extend(
+                choice
+                    .related_geosets
+                    .iter()
+                    .filter(|geoset| selected_choice_ids.contains(&geoset.related_choice_id))
+                    .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
+            );
+        }
+    }
+    active_geosets
+}
+
 fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
     let mut current = entity;
     loop {
@@ -341,7 +356,7 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 #[cfg(test)]
 mod tests {
     use super::{
-        CharacterCustomizationSelection, apply_explicit_equipment_overlays,
+        CharacterCustomizationSelection, apply_explicit_equipment_overlays, collect_active_geosets,
         collect_appearance_materials, component_sections_for_slot, group_zero_visible,
         merge_overlay_texture_sets, replacement_texture_for_batch,
     };
@@ -415,6 +430,36 @@ mod tests {
             "skin color 1 should resolve one face texture"
         );
         assert_ne!(face0[0], face1[0], "face texture should vary by skin color");
+    }
+
+    #[test]
+    fn human_male_defaults_to_single_round_ear_geoset() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let geosets = collect_active_geosets(
+            CharacterCustomizationSelection {
+                race: 1,
+                class: 1,
+                sex: 0,
+                appearance: CharacterAppearance {
+                    sex: 0,
+                    skin_color: 0,
+                    face: 0,
+                    hair_style: 0,
+                    hair_color: 0,
+                    facial_style: 0,
+                },
+            },
+            &db,
+        );
+
+        assert!(
+            geosets.contains(&(7, 2)),
+            "human male should drive the round-ear geoset by default: {geosets:?}"
+        );
+        assert!(
+            !geosets.contains(&(7, 1)),
+            "human male should not leave the hidden/default ear mesh active alongside the selected one: {geosets:?}"
+        );
     }
 
     #[test]
