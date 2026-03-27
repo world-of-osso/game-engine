@@ -14,6 +14,13 @@ const BAR_BG: &str = "0.03,0.02,0.01,0.18";
 const SLOT_BG: &str = "0.06,0.05,0.04,0.82";
 const SLOT_HOTKEY: &str = "0.82,0.88,1.0,0.95";
 const SLOT_COUNT_COLOR: &str = "1.0,1.0,1.0,0.95";
+const MAIN_BUTTON_ATLAS: &str = "ui-hud-actionbar-iconframe";
+const EXTRA_BUTTON_ATLAS: &str = "ui-hud-actionbar-iconframe-addrow";
+const MAIN_BUTTON_PRESSED_ATLAS: &str = "ui-hud-actionbar-iconframe-down";
+const EXTRA_BUTTON_PRESSED_ATLAS: &str = "ui-hud-actionbar-iconframe-addrow-down";
+const HIGHLIGHT_BUTTON_ATLAS: &str = "ui-hud-actionbar-iconframe-mouseover";
+const BORDER_ATLAS: &str = "ui-hud-actionbar-iconframe-border";
+const FLASH_ATLAS: &str = "ui-hud-actionbar-iconframe-flash";
 const GUIDE_COLOR: &str = "0.95,0.78,0.25,0.95";
 const EDIT_BANNER_BG: &str = "0.03,0.04,0.06,0.9";
 const EDIT_BANNER_TEXT: &str = "1.0,0.86,0.25,1.0";
@@ -96,7 +103,39 @@ fn slot_count(button_name: &DynName, count_name: DynName) -> Element {
     }
 }
 
-fn slot_button_widget(button_name: DynName, hotkey_text: &str) -> Element {
+fn slot_frame_texture(texture_name: DynName, atlas: &str, hidden: bool, size: f32) -> Element {
+    rsx! {
+        texture {
+            name: texture_name,
+            width: size,
+            height: SLOT_H,
+            texture_atlas: atlas,
+            hidden,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+        }
+    }
+}
+
+fn slot_button_layers(button_name: &DynName, frame_atlas: &str) -> Element {
+    let normal_name = dyn_name(format!("{}NormalTexture", button_name.0));
+    let border_name = dyn_name(format!("{}Border", button_name.0));
+    let flash_name = dyn_name(format!("{}Flash", button_name.0));
+    rsx! {
+        {slot_frame_texture(normal_name, frame_atlas, false, SLOT_W)}
+        {slot_frame_texture(border_name, BORDER_ATLAS, true, SLOT_W + 1.0)}
+        {slot_frame_texture(flash_name, FLASH_ATLAS, true, SLOT_W + 1.0)}
+    }
+}
+
+fn slot_button_widget(
+    button_name: DynName,
+    hotkey_text: &str,
+    frame_atlas: &str,
+    pressed_atlas: &str,
+) -> Element {
     let hotkey_name = dyn_name(format!("{}HotKey", button_name.0));
     let count_name = dyn_name(format!("{}Count", button_name.0));
     rsx! {
@@ -107,21 +146,29 @@ fn slot_button_widget(button_name: DynName, hotkey_text: &str) -> Element {
             text: "",
             font_size: 12.0,
             background_color: SLOT_BG,
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            button_atlas_up: frame_atlas,
+            button_atlas_pressed: pressed_atlas,
+            button_atlas_highlight: HIGHLIGHT_BUTTON_ATLAS,
+            button_atlas_disabled: frame_atlas,
             anchor {
                 point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Center,
             }
+            {slot_button_layers(&button_name, frame_atlas)}
             {slot_hotkey(&button_name, hotkey_name, hotkey_text)}
             {slot_count(&button_name, count_name)}
         }
     }
 }
 
-fn action_button(container_prefix: &str, button_prefix: &str, index: usize, hotkey: &str) -> Element {
+fn action_button(
+    container_prefix: &str,
+    button_prefix: &str,
+    index: usize,
+    hotkey: &str,
+    frame_atlas: &str,
+    pressed_atlas: &str,
+) -> Element {
     let container_name = dyn_name(format!("{container_prefix}{}", index + 1));
     let button_name = dyn_name(format!("{button_prefix}{}", index + 1));
     rsx! {
@@ -129,16 +176,29 @@ fn action_button(container_prefix: &str, button_prefix: &str, index: usize, hotk
             name: container_name,
             width: SLOT_W,
             height: SLOT_H,
-            {slot_button_widget(button_name, hotkey)}
+            {slot_button_widget(button_name, hotkey, frame_atlas, pressed_atlas)}
         }
     }
 }
 
-fn slot_buttons(container_prefix: &str, button_prefix: &str, show_hotkeys: bool) -> Element {
+fn slot_buttons(
+    container_prefix: &str,
+    button_prefix: &str,
+    show_hotkeys: bool,
+    frame_atlas: &str,
+    pressed_atlas: &str,
+) -> Element {
     (0..SLOT_COUNT)
         .flat_map(|index| {
             let hotkey = if show_hotkeys { slot_label(index) } else { "" };
-            action_button(container_prefix, button_prefix, index, hotkey)
+            action_button(
+                container_prefix,
+                button_prefix,
+                index,
+                hotkey,
+                frame_atlas,
+                pressed_atlas,
+            )
         })
         .collect()
 }
@@ -178,7 +238,13 @@ fn main_action_bar() -> Element {
         FrameName("MainActionBarMoverLabel"),
         "Main Action Bar",
         false,
-        slot_buttons("MainActionBarButtonContainer", "ActionButton", true),
+        slot_buttons(
+            "MainActionBarButtonContainer",
+            "ActionButton",
+            true,
+            MAIN_BUTTON_ATLAS,
+            MAIN_BUTTON_PRESSED_ATLAS,
+        ),
     )
 }
 
@@ -189,7 +255,13 @@ fn bottom_action_bars() -> Element {
             FrameName("MultiBarBottomLeftMoverLabel"),
             "Bottom Left Action Bar",
             true,
-            slot_buttons("MultiBarBottomLeftButtonContainer", "MultiBarBottomLeftButton", false),
+            slot_buttons(
+                "MultiBarBottomLeftButtonContainer",
+                "MultiBarBottomLeftButton",
+                false,
+                EXTRA_BUTTON_ATLAS,
+                EXTRA_BUTTON_PRESSED_ATLAS,
+            ),
         ),
         action_bar_root(
             FrameName("MultiBarBottomRight"),
@@ -200,6 +272,8 @@ fn bottom_action_bars() -> Element {
                 "MultiBarBottomRightButtonContainer",
                 "MultiBarBottomRightButton",
                 false,
+                EXTRA_BUTTON_ATLAS,
+                EXTRA_BUTTON_PRESSED_ATLAS,
             ),
         ),
     ]
@@ -215,14 +289,26 @@ fn side_action_bars() -> Element {
             FrameName("MultiBarRightMoverLabel"),
             "Right Action Bar",
             true,
-            slot_buttons("MultiBarRightButtonContainer", "MultiBarRightButton", false),
+            slot_buttons(
+                "MultiBarRightButtonContainer",
+                "MultiBarRightButton",
+                false,
+                EXTRA_BUTTON_ATLAS,
+                EXTRA_BUTTON_PRESSED_ATLAS,
+            ),
         ),
         action_bar_root(
             FrameName("MultiBarLeft"),
             FrameName("MultiBarLeftMoverLabel"),
             "Left Action Bar",
             true,
-            slot_buttons("MultiBarLeftButtonContainer", "MultiBarLeftButton", false),
+            slot_buttons(
+                "MultiBarLeftButtonContainer",
+                "MultiBarLeftButton",
+                false,
+                EXTRA_BUTTON_ATLAS,
+                EXTRA_BUTTON_PRESSED_ATLAS,
+            ),
         ),
     ]
     .into_iter()
