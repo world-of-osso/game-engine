@@ -248,7 +248,7 @@ fn apply_geoset_visibility(
     visibility_query: &mut Query<&mut Visibility>,
 ) {
     let mut active_geosets = collect_active_geosets(selection, customization_db);
-    apply_hidden_geoset_groups(&mut active_geosets, hidden_groups);
+    apply_hidden_geoset_groups(&mut active_geosets, hidden_groups, selection, customization_db);
 
     for &(group_index, value) in &outfit.geoset_overrides {
         active_geosets.retain(|(group, _)| *group != group_index);
@@ -360,10 +360,29 @@ fn collect_active_geosets(
     active_geosets
 }
 
-fn apply_hidden_geoset_groups(active_geosets: &mut Vec<(u16, u16)>, hidden_groups: &HashSet<u16>) {
+fn apply_hidden_geoset_groups(
+    active_geosets: &mut Vec<(u16, u16)>,
+    hidden_groups: &HashSet<u16>,
+    selection: CharacterCustomizationSelection,
+    customization_db: &CustomizationDb,
+) {
     for &group in hidden_groups {
         active_geosets.retain(|(existing_group, _)| *existing_group != group);
-        active_geosets.push((group, 1));
+        active_geosets.push((group, hidden_group_variant(group, selection, customization_db)));
+    }
+}
+
+fn hidden_group_variant(
+    group: u16,
+    selection: CharacterCustomizationSelection,
+    customization_db: &CustomizationDb,
+) -> u16 {
+    if group == 0 {
+        customization_db
+            .scalp_fallback_hair_geoset(selection.race, selection.sex)
+            .unwrap_or(1)
+    } else {
+        1
     }
 }
 
@@ -527,13 +546,27 @@ mod tests {
     }
 
     #[test]
-    fn hidden_helmet_groups_reset_selected_geosets_to_default_variant() {
+    fn hidden_helmet_groups_use_scalp_fallback_for_group_zero() {
+        let db = CustomizationDb::load(Path::new("data"));
         let mut active_geosets = vec![(0, 5), (1, 4), (7, 2)];
         let hidden_groups = [0, 7].into_iter().collect();
+        let selection = CharacterCustomizationSelection {
+            race: 1,
+            class: 1,
+            sex: 0,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 0,
+                face: 0,
+                hair_style: 0,
+                hair_color: 0,
+                facial_style: 0,
+            },
+        };
 
-        apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups);
+        apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups, selection, &db);
 
-        assert!(active_geosets.contains(&(0, 1)));
+        assert!(active_geosets.contains(&(0, 0)));
         assert!(active_geosets.contains(&(7, 1)));
         assert!(!active_geosets.contains(&(0, 5)));
         assert!(!active_geosets.contains(&(7, 2)));
