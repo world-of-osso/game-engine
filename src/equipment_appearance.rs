@@ -19,6 +19,7 @@ pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
     pub runtime_models: Vec<RuntimeModelAppearance>,
     pub explicit_slots: HashSet<EquipmentVisualSlot>,
+    pub hidden_character_geoset_groups: HashSet<u16>,
 }
 
 pub fn resolve_equipment_appearance(
@@ -29,48 +30,91 @@ pub fn resolve_equipment_appearance(
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
     for entry in &appearance.entries {
-        resolved.explicit_slots.insert(entry.slot);
-        if entry.hidden {
-            continue;
-        }
-        let Some(display_info_id) = entry.display_info_id else {
-            continue;
-        };
-        let mut display = outfit_data.resolve_display_info(display_info_id);
-        if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
-            match entry.slot {
-                EquipmentVisualSlot::Hands => {
-                    display.geoset_overrides.retain(|(group, _)| *group != 4);
-                    display.geoset_overrides.push((4, variant));
-                }
-                EquipmentVisualSlot::Feet => {
-                    display.geoset_overrides.retain(|(group, _)| *group != 5);
-                    display.geoset_overrides.push((5, variant));
-                }
-                _ => {}
-            }
-        }
-        resolved.outfit =
-            crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
-
-        if let Some(slot) = visual_slot_to_runtime_slot(entry.slot) {
-            if let Some((model_path, skin_fdids)) = runtime_model_for_slot(
-                slot,
-                display_info_id,
-                &display,
-                outfit_data,
-                race,
-                sex,
-            ) {
-                resolved.runtime_models.push(RuntimeModelAppearance {
-                    slot,
-                    path: model_path,
-                    skin_fdids,
-                });
-            }
-        }
+        apply_equipment_entry(&mut resolved, entry, outfit_data, race, sex);
     }
     resolved
+}
+
+fn apply_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    entry: &shared::components::EquippedAppearanceEntry,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    resolved.explicit_slots.insert(entry.slot);
+    if entry.hidden {
+        return;
+    }
+    let Some(display_info_id) = entry.display_info_id else {
+        return;
+    };
+    if entry.slot == EquipmentVisualSlot::Head {
+        resolved
+            .hidden_character_geoset_groups
+            .extend(outfit_data.helmet_hide_geoset_groups(display_info_id, race));
+    }
+    let mut display = outfit_data.resolve_display_info(display_info_id);
+    apply_slot_geoset_overrides(entry.slot, display_info_id, outfit_data, &mut display);
+    resolved.outfit =
+        crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
+    if let Some(slot) = visual_slot_to_runtime_slot(entry.slot) {
+        maybe_push_runtime_model(
+            resolved,
+            slot,
+            display_info_id,
+            &display,
+            outfit_data,
+            race,
+            sex,
+        );
+    }
+}
+
+fn apply_slot_geoset_overrides(
+    slot: EquipmentVisualSlot,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    display: &mut OutfitResult,
+) {
+    if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
+        match slot {
+            EquipmentVisualSlot::Hands => {
+                display.geoset_overrides.retain(|(group, _)| *group != 4);
+                display.geoset_overrides.push((4, variant));
+            }
+            EquipmentVisualSlot::Feet => {
+                display.geoset_overrides.retain(|(group, _)| *group != 5);
+                display.geoset_overrides.push((5, variant));
+            }
+            _ => {}
+        }
+    }
+}
+
+fn maybe_push_runtime_model(
+    resolved: &mut ResolvedEquipmentAppearance,
+    slot: EquipmentSlot,
+    display_info_id: u32,
+    display: &OutfitResult,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    if let Some((model_path, skin_fdids)) = runtime_model_for_slot(
+        slot,
+        display_info_id,
+        display,
+        outfit_data,
+        race,
+        sex,
+    ) {
+        resolved.runtime_models.push(RuntimeModelAppearance {
+            slot,
+            path: model_path,
+            skin_fdids,
+        });
+    }
 }
 
 pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEquipmentAppearance) {
@@ -231,6 +275,38 @@ mod tests {
 
         assert!(runtime.path.ends_with("helm_plate_d_02_hum.m2"));
         assert_eq!(runtime.skin_fdids[0], 140455);
+    }
+
+    #[test]
+    fn head_display_resolves_helmet_geoset_hide_groups() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(1),
+                display_info_id: Some(173086),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+
+        assert!(
+            resolved.hidden_character_geoset_groups.contains(&1),
+            "expected vis 247 to reset human head geoset group 1: {:?}",
+            resolved.hidden_character_geoset_groups
+        );
+        assert!(
+            resolved.hidden_character_geoset_groups.contains(&2),
+            "expected vis 247 to reset human head geoset group 2: {:?}",
+            resolved.hidden_character_geoset_groups
+        );
+        assert!(
+            resolved.hidden_character_geoset_groups.contains(&3),
+            "expected vis 247 to reset human head geoset group 3: {:?}",
+            resolved.hidden_character_geoset_groups
+        );
     }
 
     #[test]

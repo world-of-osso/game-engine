@@ -8,6 +8,7 @@ pub mod culling;
 pub mod customization_data;
 pub mod dump;
 pub mod game_state_enum;
+mod helmet_geoset_data;
 pub mod input_bindings;
 pub mod ipc;
 pub mod item_info;

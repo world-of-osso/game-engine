@@ -36,9 +36,13 @@ pub(crate) fn apply_character_customization(
     )>,
 ) {
     let empty_overlay_set = game_engine::outfit_data::OutfitResult::default();
+    let empty_hidden_groups = HashSet::new();
     let overlay_set = equipped_appearance
         .map(|equipped| apply_explicit_equipment_overlays(&empty_overlay_set, equipped))
         .unwrap_or(empty_overlay_set);
+    let hidden_groups = equipped_appearance
+        .map(|equipped| &equipped.hidden_character_geoset_groups)
+        .unwrap_or(&empty_hidden_groups);
     apply_base_skin_and_overlay_textures(
         selection,
         customization_db,
@@ -54,6 +58,7 @@ pub(crate) fn apply_character_customization(
         selection,
         customization_db,
         &overlay_set,
+        hidden_groups,
         root,
         parent_query,
         geoset_query,
@@ -236,12 +241,14 @@ fn apply_geoset_visibility(
     selection: CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     outfit: &game_engine::outfit_data::OutfitResult,
+    hidden_groups: &HashSet<u16>,
     root: Entity,
     parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
 ) {
     let mut active_geosets = collect_active_geosets(selection, customization_db);
+    apply_hidden_geoset_groups(&mut active_geosets, hidden_groups);
 
     for &(group_index, value) in &outfit.geoset_overrides {
         active_geosets.retain(|(group, _)| *group != group_index);
@@ -353,6 +360,13 @@ fn collect_active_geosets(
     active_geosets
 }
 
+fn apply_hidden_geoset_groups(active_geosets: &mut Vec<(u16, u16)>, hidden_groups: &HashSet<u16>) {
+    for &group in hidden_groups {
+        active_geosets.retain(|(existing_group, _)| *existing_group != group);
+        active_geosets.push((group, 1));
+    }
+}
+
 fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
     let mut current = entity;
     loop {
@@ -370,9 +384,10 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 #[cfg(test)]
 mod tests {
     use super::{
-        CharacterCustomizationSelection, apply_explicit_equipment_overlays, collect_active_geosets,
-        collect_appearance_materials, component_sections_for_slot, group_zero_visible,
-        merge_overlay_texture_sets, replacement_texture_for_batch,
+        CharacterCustomizationSelection, apply_explicit_equipment_overlays,
+        apply_hidden_geoset_groups, collect_active_geosets, collect_appearance_materials,
+        component_sections_for_slot, group_zero_visible, merge_overlay_texture_sets,
+        replacement_texture_for_batch,
     };
     use crate::equipment_appearance::ResolvedEquipmentAppearance;
     use bevy::prelude::{Assets, Image};
@@ -397,52 +412,11 @@ mod tests {
     #[test]
     fn face_materials_resolve_against_selected_skin_color() {
         let db = CustomizationDb::load(Path::new("data"));
-        let base = CharacterCustomizationSelection {
-            race: 1,
-            class: 1,
-            sex: 0,
-            appearance: CharacterAppearance {
-                sex: 0,
-                skin_color: 0,
-                face: 0,
-                hair_style: 0,
-                hair_color: 0,
-                facial_style: 0,
-            },
-        };
-        let skin0 = collect_appearance_materials(base, &db);
-        let skin1 = collect_appearance_materials(
-            CharacterCustomizationSelection {
-                appearance: CharacterAppearance {
-                    skin_color: 1,
-                    ..base.appearance
-                },
-                ..base
-            },
-            &db,
-        );
+        let face0 = resolved_face_target_fdids(selection_with_skin_color(0), &db);
+        let face1 = resolved_face_target_fdids(selection_with_skin_color(1), &db);
 
-        let face0: Vec<_> = skin0
-            .iter()
-            .filter(|(target_id, _)| *target_id == 5)
-            .map(|(_, fdid)| *fdid)
-            .collect();
-        let face1: Vec<_> = skin1
-            .iter()
-            .filter(|(target_id, _)| *target_id == 5)
-            .map(|(_, fdid)| *fdid)
-            .collect();
-
-        assert_eq!(
-            face0.len(),
-            1,
-            "skin color 0 should resolve one face texture"
-        );
-        assert_eq!(
-            face1.len(),
-            1,
-            "skin color 1 should resolve one face texture"
-        );
+        assert_eq!(face0.len(), 1, "skin color 0 should resolve one face texture");
+        assert_eq!(face1.len(), 1, "skin color 1 should resolve one face texture");
         assert_ne!(face0[0], face1[0], "face texture should vary by skin color");
     }
 
@@ -550,5 +524,46 @@ mod tests {
             component_sections_for_slot(EquipmentVisualSlot::Feet),
             &[6u8, 7] as &[u8]
         );
+    }
+
+    #[test]
+    fn hidden_helmet_groups_reset_selected_geosets_to_default_variant() {
+        let mut active_geosets = vec![(0, 5), (1, 4), (7, 2)];
+        let hidden_groups = [0, 7].into_iter().collect();
+
+        apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups);
+
+        assert!(active_geosets.contains(&(0, 1)));
+        assert!(active_geosets.contains(&(7, 1)));
+        assert!(!active_geosets.contains(&(0, 5)));
+        assert!(!active_geosets.contains(&(7, 2)));
+        assert!(active_geosets.contains(&(1, 4)));
+    }
+
+    fn selection_with_skin_color(skin_color: u8) -> CharacterCustomizationSelection {
+        CharacterCustomizationSelection {
+            race: 1,
+            class: 1,
+            sex: 0,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color,
+                face: 0,
+                hair_style: 0,
+                hair_color: 0,
+                facial_style: 0,
+            },
+        }
+    }
+
+    fn resolved_face_target_fdids(
+        selection: CharacterCustomizationSelection,
+        db: &CustomizationDb,
+    ) -> Vec<u32> {
+        collect_appearance_materials(selection, db)
+            .iter()
+            .filter(|(target_id, _)| *target_id == 5)
+            .map(|(_, fdid)| *fdid)
+            .collect()
     }
 }

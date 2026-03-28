@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use bevy::prelude::*;
+use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
 
 /// Result of resolving a starter outfit for a (race, class, sex) combo.
 #[derive(Debug, Clone, Default)]
@@ -24,6 +25,7 @@ struct DisplayInfoResolved {
     geoset_overrides: Vec<(u16, u16)>,
     model_resource_ids: Vec<u32>,
     model_material_resource_ids: Vec<u32>,
+    helmet_geoset_vis_ids: Vec<u32>,
 }
 
 #[derive(Debug, Default)]
@@ -44,6 +46,8 @@ struct LoadedOutfitData {
     model_to_fdids: HashMap<u32, Vec<u32>>,
     /// RaceID -> model filename token prefix (for example `hu`, `be`).
     race_prefix: HashMap<u8, String>,
+    /// HelmetGeosetVisDataID -> race-specific hide rules.
+    helmet_geoset_rules: HashMap<u32, Vec<HelmetGeosetRule>>,
 }
 
 /// Parsed outfit lookup data loaded lazily on first use.
@@ -79,40 +83,17 @@ impl OutfitData {
         let item_to_appearance =
             parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
         let appearance_to_display = parse_item_appearance(&data_dir.join("ItemAppearance.csv"))?;
-        let (base_display_info, hand_geoset_group) =
-            parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
-        let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
-        let model_to_fdids = parse_model_file_data(&data_dir.join("ModelFileData.csv"))?;
-        let race_prefix = parse_race_prefix(&data_dir.join("ChrRaces.csv"))?;
-        let display_materials = parse_item_display_info_material_res(
-            &data_dir.join("ItemDisplayInfoMaterialRes.csv"),
-            &material_to_texture,
-        )?;
-
-        let mut display_info = base_display_info;
-        for (display_id, textures) in display_materials {
-            if let Some(entry) = display_info.get_mut(&display_id) {
-                entry.item_textures.extend(textures);
-            } else {
-                display_info.insert(
-                    display_id,
-                    DisplayInfoResolved {
-                        item_textures: textures,
-                        ..Default::default()
-                    },
-                );
-            }
-        }
-
+        let display_resources = load_display_resources(data_dir)?;
         let data = LoadedOutfitData {
             outfits,
             item_to_appearance,
             appearance_to_display,
-            display_info,
-            hand_geoset_group,
-            material_to_texture,
-            model_to_fdids,
-            race_prefix,
+            display_info: display_resources.display_info,
+            hand_geoset_group: display_resources.hand_geoset_group,
+            material_to_texture: display_resources.material_to_texture,
+            model_to_fdids: display_resources.model_to_fdids,
+            race_prefix: display_resources.race_prefix,
+            helmet_geoset_rules: display_resources.helmet_geoset_rules,
         };
         info!(
             "OutfitData loaded: {} outfits, {} item appearances, {} display infos",
@@ -167,6 +148,16 @@ impl OutfitData {
                 .unwrap_or(0);
         }
         Some((model_fdid, skin_fdids))
+    }
+
+    pub fn helmet_hide_geoset_groups(&self, display_info_id: u32, race: u8) -> Vec<u16> {
+        let Some(data) = self.loaded() else {
+            return Vec::new();
+        };
+        let Some(display) = data.display_info.get(&display_info_id) else {
+            return Vec::new();
+        };
+        collect_helmet_hide_geoset_groups(data, display, race)
     }
 
     fn resolve_item_ids(&self, data: &LoadedOutfitData, item_ids: &[u32]) -> OutfitResult {
@@ -231,6 +222,92 @@ impl OutfitData {
 }
 
 type OutfitKey = (u8, u8, u8);
+
+struct DisplayResources {
+    display_info: HashMap<u32, DisplayInfoResolved>,
+    hand_geoset_group: HashMap<u32, u16>,
+    material_to_texture: HashMap<u32, u32>,
+    model_to_fdids: HashMap<u32, Vec<u32>>,
+    race_prefix: HashMap<u8, String>,
+    helmet_geoset_rules: HashMap<u32, Vec<HelmetGeosetRule>>,
+}
+
+fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
+    let (base_display_info, hand_geoset_group) =
+        parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
+    let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
+    let display_materials = parse_item_display_info_material_res(
+        &data_dir.join("ItemDisplayInfoMaterialRes.csv"),
+        &material_to_texture,
+    )?;
+    Ok(DisplayResources {
+        display_info: merge_display_materials(base_display_info, display_materials),
+        hand_geoset_group,
+        material_to_texture,
+        model_to_fdids: parse_model_file_data(&data_dir.join("ModelFileData.csv"))?,
+        race_prefix: parse_race_prefix(&data_dir.join("ChrRaces.csv"))?,
+        helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
+    })
+}
+
+fn merge_display_materials(
+    mut display_info: HashMap<u32, DisplayInfoResolved>,
+    display_materials: HashMap<u32, Vec<(u8, u32)>>,
+) -> HashMap<u32, DisplayInfoResolved> {
+    for (display_id, textures) in display_materials {
+        if let Some(entry) = display_info.get_mut(&display_id) {
+            entry.item_textures.extend(textures);
+            continue;
+        }
+        display_info.insert(
+            display_id,
+            DisplayInfoResolved {
+                item_textures: textures,
+                ..Default::default()
+            },
+        );
+    }
+    display_info
+}
+
+fn collect_helmet_hide_geoset_groups(
+    data: &LoadedOutfitData,
+    display: &DisplayInfoResolved,
+    race: u8,
+) -> Vec<u16> {
+    let race_bit = playable_race_bit_selection(race);
+    let mut hidden = Vec::new();
+    for vis_id in &display.helmet_geoset_vis_ids {
+        let Some(rules) = data.helmet_geoset_rules.get(vis_id) else {
+            continue;
+        };
+        for rule in rules {
+            if helmet_geoset_rule_matches(*rule, race, race_bit)
+                && !hidden.contains(&rule.hide_geoset_group)
+            {
+                hidden.push(rule.hide_geoset_group);
+            }
+        }
+    }
+    hidden
+}
+
+fn helmet_geoset_rule_matches(rule: HelmetGeosetRule, race: u8, race_bit: u32) -> bool {
+    rule.race_id == race
+        || (rule.race_id == 0
+            && rule.race_bit_selection != 0
+            && rule.race_bit_selection == race_bit)
+}
+
+fn playable_race_bit_selection(race: u8) -> u32 {
+    if matches!(race, 1 | 3 | 4 | 7 | 11 | 22 | 25 | 29 | 30 | 34 | 37) {
+        1
+    } else if matches!(race, 2 | 5 | 6 | 8 | 9 | 10 | 27 | 28 | 31 | 35 | 36) {
+        2
+    } else {
+        3
+    }
+}
 
 fn select_model_fdid(
     data: &LoadedOutfitData,
@@ -328,59 +405,82 @@ fn parse_item_display_info(
     path: &Path,
 ) -> Result<(HashMap<u32, DisplayInfoResolved>, HashMap<u32, u16>), String> {
     let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
-    let model_res_0_col = col(&h, "ModelResourcesID_0")?;
-    let model_res_1_col = col(&h, "ModelResourcesID_1")?;
-    let model_mat_res_0_col = col(&h, "ModelMaterialResourcesID_0")?;
-    let model_mat_res_1_col = col(&h, "ModelMaterialResourcesID_1")?;
-    let glove_geoset_col = col(&h, "GeosetGroup_0")?;
+    let columns = ItemDisplayInfoColumns::from_headers(&h)?;
 
     let mut map = HashMap::new();
     let mut hand_geoset_group = HashMap::new();
     for row in &rows {
-        let id = field_u32(row, id_col);
-        if id == 0 {
-            continue;
-        }
-
-        let mut model_resource_ids = Vec::new();
-        for model_resource_id in [
-            field_u32(row, model_res_0_col),
-            field_u32(row, model_res_1_col),
-        ] {
-            if model_resource_id != 0 && !model_resource_ids.contains(&model_resource_id) {
-                model_resource_ids.push(model_resource_id);
-            }
-        }
-
-        let mut model_material_resource_ids = Vec::new();
-        for material_resource_id in [
-            field_u32(row, model_mat_res_0_col),
-            field_u32(row, model_mat_res_1_col),
-        ] {
-            if material_resource_id != 0
-                && !model_material_resource_ids.contains(&material_resource_id)
-            {
-                model_material_resource_ids.push(material_resource_id);
-            }
-        }
-
-        let glove_geoset = field_u32(row, glove_geoset_col) as u16;
-        if glove_geoset != 0 {
-            hand_geoset_group.insert(id, glove_geoset);
-        }
-
-        map.insert(
-            id,
-            DisplayInfoResolved {
-                item_textures: Vec::new(),
-                geoset_overrides: Vec::new(),
-                model_resource_ids,
-                model_material_resource_ids,
-            },
-        );
+        insert_display_info_row(&mut map, &mut hand_geoset_group, row, columns);
     }
     Ok((map, hand_geoset_group))
+}
+
+fn insert_display_info_row(
+    map: &mut HashMap<u32, DisplayInfoResolved>,
+    hand_geoset_group: &mut HashMap<u32, u16>,
+    row: &[String],
+    columns: ItemDisplayInfoColumns,
+) {
+    let id = field_u32(row, columns.id);
+    if id == 0 {
+        return;
+    }
+    let glove_geoset = field_u32(row, columns.glove_geoset) as u16;
+    if glove_geoset != 0 {
+        hand_geoset_group.insert(id, glove_geoset);
+    }
+    map.insert(id, parse_display_info_row(row, columns));
+}
+
+fn parse_display_info_row(row: &[String], columns: ItemDisplayInfoColumns) -> DisplayInfoResolved {
+    DisplayInfoResolved {
+        item_textures: Vec::new(),
+        geoset_overrides: Vec::new(),
+        model_resource_ids: collect_unique_u32(row, &[columns.model_res_0, columns.model_res_1]),
+        model_material_resource_ids: collect_unique_u32(
+            row,
+            &[columns.model_mat_res_0, columns.model_mat_res_1],
+        ),
+        helmet_geoset_vis_ids: collect_unique_u32(row, &[columns.helmet_vis_0, columns.helmet_vis_1]),
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ItemDisplayInfoColumns {
+    id: usize,
+    model_res_0: usize,
+    model_res_1: usize,
+    model_mat_res_0: usize,
+    model_mat_res_1: usize,
+    glove_geoset: usize,
+    helmet_vis_0: usize,
+    helmet_vis_1: usize,
+}
+
+impl ItemDisplayInfoColumns {
+    fn from_headers(headers: &[String]) -> Result<Self, String> {
+        Ok(Self {
+            id: col(headers, "ID")?,
+            model_res_0: col(headers, "ModelResourcesID_0")?,
+            model_res_1: col(headers, "ModelResourcesID_1")?,
+            model_mat_res_0: col(headers, "ModelMaterialResourcesID_0")?,
+            model_mat_res_1: col(headers, "ModelMaterialResourcesID_1")?,
+            glove_geoset: col(headers, "GeosetGroup_0")?,
+            helmet_vis_0: col(headers, "HelmetGeosetVis_0")?,
+            helmet_vis_1: col(headers, "HelmetGeosetVis_1")?,
+        })
+    }
+}
+
+fn collect_unique_u32(row: &[String], columns: &[usize]) -> Vec<u32> {
+    let mut values = Vec::new();
+    for &column in columns {
+        let value = field_u32(row, column);
+        if value != 0 && !values.contains(&value) {
+            values.push(value);
+        }
+    }
+    values
 }
 
 fn parse_item_display_info_material_res(
