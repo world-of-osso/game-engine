@@ -523,6 +523,69 @@ mod tests {
         assert_eq!((head.1, head.2), (512, 512));
         assert_eq!(&head.0[0..4], &[40, 50, 60, 255]);
     }
+
+    #[test]
+    fn hd_glove_item_sections_change_runtime_body_atlas_pixels() {
+        let data = CharTextureData::load(Path::new("data"));
+
+        let base = data
+            .composite_model_textures(&[], &[], 103)
+            .expect("base HD composite");
+        let gloved = data
+            .composite_model_textures(&[], &[(1, 149592), (2, 154135)], 103)
+            .expect("gloved HD composite");
+
+        let arm_lower = scaled_section(
+            *data.sections.get(&(103, 1)).expect("section 1"),
+            2,
+        );
+        let hand = scaled_section(*data.sections.get(&(103, 2)).expect("section 2"), 2);
+
+        let sample = |pixels: &[u8], width: u32, section: TextureSection| {
+            let x = section.x + section.width / 2;
+            let y = section.y + section.height / 2;
+            let idx = ((y * width + x) * 4) as usize;
+            pixels[idx..idx + 4].to_vec()
+        };
+
+        assert_ne!(
+            sample(&base.body.0, base.body.1, arm_lower),
+            sample(&gloved.body.0, gloved.body.1, arm_lower),
+            "arm lower section should change when glove texture is applied"
+        );
+        assert_ne!(
+            sample(&base.body.0, base.body.1, hand),
+            sample(&gloved.body.0, gloved.body.1, hand),
+            "hand section should change when glove texture is applied"
+        );
+    }
+
+    #[test]
+    fn loud_hd_glove_changes_pixels_at_sampled_glove_uv() {
+        let data = CharTextureData::load(Path::new("data"));
+
+        let base = data
+            .composite_model_textures(&[], &[], 103)
+            .expect("base HD composite");
+        let gloved = data
+            .composite_model_textures(&[], &[(1, 1318191), (2, 1318200)], 103)
+            .expect("gloved HD composite");
+
+        // HD glove submeshes sample roughly this UV box:
+        // u=0.002..0.248, v=0.250..0.500
+        let sample_uv = |pixels: &[u8], width: u32, height: u32, u: f32, v: f32| {
+            let x = (u * width as f32).floor().clamp(0.0, (width - 1) as f32) as u32;
+            let y = (v * height as f32).floor().clamp(0.0, (height - 1) as f32) as u32;
+            let idx = ((y * width + x) * 4) as usize;
+            pixels[idx..idx + 4].to_vec()
+        };
+
+        assert_ne!(
+            sample_uv(&base.body.0, base.body.1, base.body.2, 0.125, 0.375),
+            sample_uv(&gloved.body.0, gloved.body.1, gloved.body.2, 0.125, 0.375),
+            "sampled glove UV should see the loud glove texture in the runtime body atlas"
+        );
+    }
 }
 
 /// Nearest-neighbor scale to target dimensions.

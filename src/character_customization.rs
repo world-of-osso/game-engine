@@ -181,7 +181,7 @@ fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) ->
         Slot::Chest | Slot::Shirt => &[0, 3, 4],
         Slot::Tabard => &[3, 4],
         Slot::Wrist => &[1],
-        Slot::Hands => &[2],
+        Slot::Hands => &[1, 2],
         Slot::Legs => &[5, 6],
         _ => &[],
     }

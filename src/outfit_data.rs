@@ -35,6 +35,8 @@ struct LoadedOutfitData {
     appearance_to_display: HashMap<u32, u32>,
     /// ItemDisplayInfoID -> resolved display data
     display_info: HashMap<u32, DisplayInfoResolved>,
+    /// ItemDisplayInfoID -> raw hand/glove geoset selector from GeosetGroup_0.
+    hand_geoset_group: HashMap<u32, u16>,
     /// MaterialResourcesID -> first diffuse texture FileDataID
     material_to_texture: HashMap<u32, u32>,
     /// ModelResourcesID -> model FileDataID
@@ -74,7 +76,8 @@ impl OutfitData {
         let item_to_appearance =
             parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
         let appearance_to_display = parse_item_appearance(&data_dir.join("ItemAppearance.csv"))?;
-        let base_display_info = parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
+        let (base_display_info, hand_geoset_group) =
+            parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
         let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
         let model_to_fdid = parse_model_file_data(&data_dir.join("ModelFileData.csv"))?;
         let display_materials = parse_item_display_info_material_res(
@@ -102,6 +105,7 @@ impl OutfitData {
             item_to_appearance,
             appearance_to_display,
             display_info,
+            hand_geoset_group,
             material_to_texture,
             model_to_fdid,
         };
@@ -130,6 +134,13 @@ impl OutfitData {
             return OutfitResult::default();
         };
         self.resolve_display_infos(data, [display_info_id])
+    }
+
+    pub fn hand_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        let data = self.loaded()?;
+        let raw = *data.hand_geoset_group.get(&display_info_id)?;
+        // Human glove geosets use 401 as bare wrists and item variants start at 402.
+        raw.checked_add(1)
     }
 
     fn resolve_item_ids(&self, data: &LoadedOutfitData, item_ids: &[u32]) -> OutfitResult {
@@ -252,13 +263,17 @@ fn parse_item_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
     Ok(map)
 }
 
-fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
+fn parse_item_display_info(
+    path: &Path,
+) -> Result<(HashMap<u32, DisplayInfoResolved>, HashMap<u32, u16>), String> {
     let (h, rows) = read_csv(path)?;
     let id_col = col(&h, "ID")?;
     let model_res_0_col = col(&h, "ModelResourcesID_0")?;
     let model_res_1_col = col(&h, "ModelResourcesID_1")?;
+    let glove_geoset_col = col(&h, "GeosetGroup_0")?;
 
     let mut map = HashMap::new();
+    let mut hand_geoset_group = HashMap::new();
     for row in &rows {
         let id = field_u32(row, id_col);
         if id == 0 {
@@ -275,6 +290,11 @@ fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolv
             }
         }
 
+        let glove_geoset = field_u32(row, glove_geoset_col) as u16;
+        if glove_geoset != 0 {
+            hand_geoset_group.insert(id, glove_geoset);
+        }
+
         map.insert(
             id,
             DisplayInfoResolved {
@@ -284,7 +304,7 @@ fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolv
             },
         );
     }
-    Ok(map)
+    Ok((map, hand_geoset_group))
 }
 
 fn parse_item_display_info_material_res(

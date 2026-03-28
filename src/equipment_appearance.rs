@@ -27,7 +27,13 @@ pub fn resolve_equipment_appearance(
         let Some(display_info_id) = entry.display_info_id else {
             continue;
         };
-        let display = outfit_data.resolve_display_info(display_info_id);
+        let mut display = outfit_data.resolve_display_info(display_info_id);
+        if entry.slot == EquipmentVisualSlot::Hands
+            && let Some(variant) = outfit_data.hand_geoset_variant(display_info_id)
+        {
+            display.geoset_overrides.retain(|(group, _)| *group != 4);
+            display.geoset_overrides.push((4, variant));
+        }
         resolved.outfit =
             crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
 
