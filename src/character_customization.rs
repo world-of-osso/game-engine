@@ -183,6 +183,7 @@ fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) ->
         Slot::Wrist => &[1],
         Slot::Hands => &[1, 2],
         Slot::Legs => &[5, 6],
+        Slot::Feet => &[6, 7],
         _ => &[],
     }
 }
@@ -532,7 +533,7 @@ mod tests {
     fn feet_slot_maps_to_foot_component_section() {
         assert_eq!(
             component_sections_for_slot(EquipmentVisualSlot::Feet),
-            &[] as &[u8]
+            &[6u8, 7] as &[u8]
         );
     }
 }

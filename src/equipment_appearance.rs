@@ -28,11 +28,18 @@ pub fn resolve_equipment_appearance(
             continue;
         };
         let mut display = outfit_data.resolve_display_info(display_info_id);
-        if entry.slot == EquipmentVisualSlot::Hands
-            && let Some(variant) = outfit_data.hand_geoset_variant(display_info_id)
-        {
-            display.geoset_overrides.retain(|(group, _)| *group != 4);
-            display.geoset_overrides.push((4, variant));
+        if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
+            match entry.slot {
+                EquipmentVisualSlot::Hands => {
+                    display.geoset_overrides.retain(|(group, _)| *group != 4);
+                    display.geoset_overrides.push((4, variant));
+                }
+                EquipmentVisualSlot::Feet => {
+                    display.geoset_overrides.retain(|(group, _)| *group != 5);
+                    display.geoset_overrides.push((5, variant));
+                }
+                _ => {}
+            }
         }
         resolved.outfit =
             crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);

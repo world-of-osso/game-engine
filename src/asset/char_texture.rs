@@ -586,6 +586,64 @@ mod tests {
             "sampled glove UV should see the loud glove texture in the runtime body atlas"
         );
     }
+
+    #[test]
+    fn hd_boot_item_sections_change_runtime_body_atlas_pixels() {
+        let data = CharTextureData::load(Path::new("data"));
+
+        let base = data
+            .composite_model_textures(&[], &[], 103)
+            .expect("base HD composite");
+        let booted = data
+            .composite_model_textures(&[], &[(6, 155028), (7, 152769)], 103)
+            .expect("booted HD composite");
+
+        let leg_lower = scaled_section(*data.sections.get(&(103, 6)).expect("section 6"), 2);
+        let foot = scaled_section(*data.sections.get(&(103, 7)).expect("section 7"), 2);
+
+        let sample = |pixels: &[u8], width: u32, section: TextureSection| {
+            let x = section.x + section.width / 2;
+            let y = section.y + section.height / 2;
+            let idx = ((y * width + x) * 4) as usize;
+            pixels[idx..idx + 4].to_vec()
+        };
+
+        assert_ne!(
+            sample(&base.body.0, base.body.1, leg_lower),
+            sample(&booted.body.0, booted.body.1, leg_lower),
+            "leg lower section should change when boot texture is applied"
+        );
+        assert_ne!(
+            sample(&base.body.0, base.body.1, foot),
+            sample(&booted.body.0, booted.body.1, foot),
+            "foot section should change when boot texture is applied"
+        );
+    }
+
+    #[test]
+    fn loud_hd_boot_changes_pixels_at_sampled_boot_uv() {
+        let data = CharTextureData::load(Path::new("data"));
+
+        let base = data
+            .composite_model_textures(&[], &[], 103)
+            .expect("base HD composite");
+        let booted = data
+            .composite_model_textures(&[], &[(6, 155028), (7, 152769)], 103)
+            .expect("booted HD composite");
+
+        let sample_uv = |pixels: &[u8], width: u32, height: u32, u: f32, v: f32| {
+            let x = (u * width as f32).floor().clamp(0.0, (width - 1) as f32) as u32;
+            let y = (v * height as f32).floor().clamp(0.0, (height - 1) as f32) as u32;
+            let idx = ((y * width + x) * 4) as usize;
+            pixels[idx..idx + 4].to_vec()
+        };
+
+        assert_ne!(
+            sample_uv(&base.body.0, base.body.1, base.body.2, 0.375, 0.78),
+            sample_uv(&booted.body.0, booted.body.1, booted.body.2, 0.375, 0.78),
+            "sampled boot UV should see the boot texture in the runtime body atlas"
+        );
+    }
 }
 
 /// Nearest-neighbor scale to target dimensions.
