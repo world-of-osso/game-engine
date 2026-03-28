@@ -22,6 +22,7 @@ impl Plugin for TargetPlugin {
             (
                 click_to_target,
                 tab_target,
+                self_target,
                 clear_target,
                 spawn_target_circle,
                 update_target_circle,
@@ -120,6 +121,26 @@ fn pick_next_target(sorted: &[Entity], current: Option<Entity>) -> Option<Entity
         Some(i) => Some(sorted[(i + 1) % sorted.len()]),
         None => Some(sorted[0]),
     }
+}
+
+/// On F1, set the current target to the local player entity.
+fn self_target(
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    player_q: Query<Entity, With<Player>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    bindings: Res<InputBindings>,
+    mut current: ResMut<CurrentTarget>,
+) {
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+        return;
+    }
+    if !bindings.is_just_pressed(InputAction::TargetSelf, &keys, &mouse_buttons) {
+        return;
+    }
+    let Ok(player) = player_q.single() else { return };
+    current.0 = Some(player);
 }
 
 /// On Escape, clear the current target.

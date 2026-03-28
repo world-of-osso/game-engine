@@ -21,6 +21,7 @@ pub enum InputAction {
     ZoomIn,
     ZoomOut,
     TargetNearest,
+    TargetSelf,
     ActionSlot1,
     ActionSlot2,
     ActionSlot3,
@@ -37,7 +38,7 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 28] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -52,6 +53,7 @@ impl InputAction {
         Self::ZoomIn,
         Self::ZoomOut,
         Self::TargetNearest,
+        Self::TargetSelf,
         Self::ActionSlot1,
         Self::ActionSlot2,
         Self::ActionSlot3,
@@ -83,6 +85,7 @@ impl InputAction {
             Self::ZoomIn => "zoom_in",
             Self::ZoomOut => "zoom_out",
             Self::TargetNearest => "target_nearest",
+            Self::TargetSelf => "target_self",
             Self::ActionSlot1 => "action_slot_1",
             Self::ActionSlot2 => "action_slot_2",
             Self::ActionSlot3 => "action_slot_3",
@@ -115,6 +118,7 @@ impl InputAction {
             "zoom_in" => Self::ZoomIn,
             "zoom_out" => Self::ZoomOut,
             "target_nearest" => Self::TargetNearest,
+            "target_self" => Self::TargetSelf,
             "action_slot_1" => Self::ActionSlot1,
             "action_slot_2" => Self::ActionSlot2,
             "action_slot_3" => Self::ActionSlot3,
@@ -148,6 +152,7 @@ impl InputAction {
             Self::ZoomIn => "Zoom In",
             Self::ZoomOut => "Zoom Out",
             Self::TargetNearest => "Target Nearest",
+            Self::TargetSelf => "Target Self",
             Self::ActionSlot1 => "Action Button 1",
             Self::ActionSlot2 => "Action Button 2",
             Self::ActionSlot3 => "Action Button 3",
@@ -179,7 +184,7 @@ impl InputAction {
             | Self::PitchDown
             | Self::ZoomIn
             | Self::ZoomOut => BindingSection::Camera,
-            Self::TargetNearest => BindingSection::Targeting,
+            Self::TargetNearest | Self::TargetSelf => BindingSection::Targeting,
             Self::ActionSlot1
             | Self::ActionSlot2
             | Self::ActionSlot3
@@ -212,6 +217,7 @@ impl InputAction {
             Self::ZoomIn => Some(InputBinding::Keyboard(KeyCode::PageUp)),
             Self::ZoomOut => Some(InputBinding::Keyboard(KeyCode::PageDown)),
             Self::TargetNearest => Some(InputBinding::Keyboard(KeyCode::Tab)),
+            Self::TargetSelf => Some(InputBinding::Keyboard(KeyCode::F1)),
             Self::ActionSlot1 => Some(InputBinding::Keyboard(KeyCode::Digit1)),
             Self::ActionSlot2 => Some(InputBinding::Keyboard(KeyCode::Digit2)),
             Self::ActionSlot3 => Some(InputBinding::Keyboard(KeyCode::Digit3)),
@@ -414,7 +420,7 @@ pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
             InputAction::ZoomIn,
             InputAction::ZoomOut,
         ],
-        BindingSection::Targeting => &[InputAction::TargetNearest],
+        BindingSection::Targeting => &[InputAction::TargetNearest, InputAction::TargetSelf],
         BindingSection::ActionBar => &[
             InputAction::ActionSlot1,
             InputAction::ActionSlot2,
