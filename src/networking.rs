@@ -249,6 +249,7 @@ fn register_inworld_sync_systems(app: &mut App) {
         Update,
         (
             tag_local_player,
+            crate::networking_auth::sync_selected_character_roster_entry,
             sync_local_alive_state,
             apply_npc_visibility_policy,
         )

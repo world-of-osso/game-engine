@@ -2,6 +2,9 @@ use super::*;
 
 use bevy::ecs::system::RunSystemOnce;
 use lightyear::prelude::client::Client;
+use shared::components::{
+    EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player as NetPlayer,
+};
 
 const VALID_TEST_UUID: &str = "22222222-2222-2222-2222-222222222222";
 
@@ -217,6 +220,46 @@ fn login_success_without_auto_enter_still_goes_to_charselect() {
             next_state: Some(GameState::CharSelect),
         }
     );
+}
+
+fn live_helm_appearance() -> EquipmentAppearance {
+    EquipmentAppearance {
+        entries: vec![EquippedAppearanceEntry {
+            slot: EquipmentVisualSlot::Head,
+            item_id: Some(9001),
+            display_info_id: Some(1234),
+            inventory_type: 1,
+            hidden: false,
+        }],
+    }
+}
+
+#[test]
+fn sync_selected_character_roster_entry_copies_live_equipment_appearance() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(CharacterList(vec![make_test_char(7, "Elara")]));
+    app.insert_resource(SelectedCharacterId {
+        character_id: Some(7),
+        character_name: Some("Elara".to_string()),
+    });
+    app.world_mut().spawn((
+        crate::networking::LocalPlayer,
+        NetPlayer {
+            name: "Elara".to_string(),
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+        },
+        live_helm_appearance(),
+    ));
+
+    let _ = app
+        .world_mut()
+        .run_system_once(sync_selected_character_roster_entry);
+
+    let char_list = app.world().resource::<CharacterList>();
+    assert_eq!(char_list.0[0].equipment_appearance, live_helm_appearance());
 }
 
 #[test]
