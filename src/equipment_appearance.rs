@@ -90,6 +90,14 @@ fn apply_slot_geoset_overrides(
             _ => {}
         }
     }
+    if slot == EquipmentVisualSlot::Head {
+        for (group, value) in outfit_data.head_geoset_overrides(display_info_id) {
+            display
+                .geoset_overrides
+                .retain(|(existing_group, _)| *existing_group != group);
+            display.geoset_overrides.push((group, value));
+        }
+    }
 }
 
 fn maybe_push_runtime_model(
@@ -161,10 +169,18 @@ fn runtime_model_for_slot(
         EquipmentSlot::Head => {
             let (fdid, skin_fdids) = outfit_data.resolve_runtime_model(display_info_id, race, sex)?;
             let path = resolve_model_path(fdid)?;
+            if is_collection_head_model(&path) {
+                return None;
+            }
             Some((path, skin_fdids))
         }
         _ => first_model_path(display).map(|path| (path, [0, 0, 0])),
     }
+}
+
+fn is_collection_head_model(path: &Path) -> bool {
+    let lower = path.to_string_lossy().to_ascii_lowercase();
+    lower.contains("item/objectcomponents/collections/")
 }
 
 fn first_model_path(display: &OutfitResult) -> Option<PathBuf> {
@@ -310,6 +326,43 @@ mod tests {
     }
 
     #[test]
+    fn real_mask_display_hides_scalp_and_enables_head_geosets() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(249913),
+                display_info_id: Some(720086),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+
+        assert!(
+            resolved.hidden_character_geoset_groups.contains(&0),
+            "expected vis 644/645 to hide scalp hair group 0: {:?}",
+            resolved.hidden_character_geoset_groups
+        );
+        assert!(
+            resolved.hidden_character_geoset_groups.contains(&7),
+            "expected vis 644/645 to hide ear-adjacent group 7: {:?}",
+            resolved.hidden_character_geoset_groups
+        );
+        assert!(
+            resolved.outfit.geoset_overrides.contains(&(27, 2)),
+            "expected equipped head slot to switch character head geoset to 2702: {:?}",
+            resolved.outfit.geoset_overrides
+        );
+        assert!(
+            !resolved.outfit.geoset_overrides.iter().any(|(group, _)| *group == 21),
+            "expected GeosetGroup_1 == 0 to avoid emitting a 21xx override: {:?}",
+            resolved.outfit.geoset_overrides
+        );
+    }
+
+    #[test]
     fn live_helm_display_resolves_to_runtime_model_path() {
         let data = OutfitData::load(Path::new("data"));
         let display = data.resolve_display_info(1128);
@@ -324,6 +377,63 @@ mod tests {
             path.is_some(),
             "expected helm display 1128 to resolve to a model path, model_fdids={:?}",
             display.model_fdids
+        );
+    }
+
+    #[test]
+    fn real_mask_display_does_not_fallback_to_blood_elf_collection_model() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(249913),
+                display_info_id: Some(720086),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+        let Some(runtime) = resolved
+            .runtime_models
+            .iter()
+            .find(|model| model.slot == EquipmentSlot::Head)
+        else {
+            return;
+        };
+
+        let path = runtime.path.to_string_lossy().to_ascii_lowercase();
+        assert!(
+            !path.contains("_be_m.m2"),
+            "head runtime model should not fall back to blood-elf male for human male displays: {}",
+            runtime.path.display()
+        );
+        assert!(
+            path.contains("_hu_m.m2") || path.contains("_hum.m2"),
+            "head runtime model should resolve to a human-male variant when present: {}",
+            runtime.path.display()
+        );
+    }
+
+    #[test]
+    fn real_mask_display_skips_collection_runtime_head_model() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(249913),
+                display_info_id: Some(720086),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+
+        assert!(
+            resolved.runtime_models.iter().all(|model| model.slot != EquipmentSlot::Head),
+            "collection-style head displays should not spawn runtime head attachments: {:?}",
+            resolved.runtime_models
         );
     }
 }

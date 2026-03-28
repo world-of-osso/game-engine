@@ -26,6 +26,7 @@ struct DisplayInfoResolved {
     model_resource_ids: Vec<u32>,
     model_material_resource_ids: Vec<u32>,
     helmet_geoset_vis_ids: Vec<u32>,
+    head_geoset_groups: [i16; 2],
 }
 
 #[derive(Debug, Default)]
@@ -127,6 +128,16 @@ impl OutfitData {
         let raw = *data.hand_geoset_group.get(&display_info_id)?;
         // Human glove geosets use 401 as bare wrists and item variants start at 402.
         raw.checked_add(1)
+    }
+
+    pub fn head_geoset_overrides(&self, display_info_id: u32) -> Vec<(u16, u16)> {
+        let Some(data) = self.loaded() else {
+            return Vec::new();
+        };
+        let Some(display) = data.display_info.get(&display_info_id) else {
+            return Vec::new();
+        };
+        collect_head_geoset_overrides(display)
     }
 
     pub fn resolve_runtime_model(
@@ -316,28 +327,37 @@ fn select_model_fdid(
     sex: u8,
 ) -> Option<u32> {
     let candidates = data.model_to_fdids.get(&model_resource_id)?;
-    let variant_suffix = race_model_suffix(data, race, sex);
-    if let Some(suffix) = variant_suffix {
-        for &fdid in candidates {
-            let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
-                continue;
-            };
-            if path.ends_with(&format!("_{suffix}.m2")) {
-                return Some(fdid);
+    let suffixes = race_model_suffixes(data, race, sex);
+    if !suffixes.is_empty() {
+        for suffix in &suffixes {
+            for &fdid in candidates {
+                let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
+                    continue;
+                };
+                if path.ends_with(&format!("_{suffix}.m2")) {
+                    return Some(fdid);
+                }
             }
         }
+        return None;
     }
     candidates.first().copied()
 }
 
-fn race_model_suffix(data: &LoadedOutfitData, race: u8, sex: u8) -> Option<String> {
-    let prefix = data.race_prefix.get(&race)?;
+fn race_model_suffixes(data: &LoadedOutfitData, race: u8, sex: u8) -> Vec<String> {
+    let Some(prefix) = data.race_prefix.get(&race) else {
+        return Vec::new();
+    };
     let sex_suffix = match sex {
         0 => "m",
         1 => "f",
-        _ => return None,
+        _ => return Vec::new(),
     };
-    Some(format!("{prefix}{sex_suffix}"))
+    let mut suffixes = vec![format!("{prefix}{sex_suffix}")];
+    if prefix.len() == 2 {
+        suffixes.push(format!("{prefix}_{sex_suffix}"));
+    }
+    suffixes
 }
 
 fn parse_char_start_outfits(path: &Path) -> Result<HashMap<OutfitKey, Vec<u32>>, String> {
@@ -442,6 +462,10 @@ fn parse_display_info_row(row: &[String], columns: ItemDisplayInfoColumns) -> Di
             &[columns.model_mat_res_0, columns.model_mat_res_1],
         ),
         helmet_geoset_vis_ids: collect_unique_u32(row, &[columns.helmet_vis_0, columns.helmet_vis_1]),
+        head_geoset_groups: [
+            field_i32(row, columns.geoset_group_0) as i16,
+            field_i32(row, columns.geoset_group_1) as i16,
+        ],
     }
 }
 
@@ -453,6 +477,8 @@ struct ItemDisplayInfoColumns {
     model_mat_res_0: usize,
     model_mat_res_1: usize,
     glove_geoset: usize,
+    geoset_group_0: usize,
+    geoset_group_1: usize,
     helmet_vis_0: usize,
     helmet_vis_1: usize,
 }
@@ -466,9 +492,37 @@ impl ItemDisplayInfoColumns {
             model_mat_res_0: col(headers, "ModelMaterialResourcesID_0")?,
             model_mat_res_1: col(headers, "ModelMaterialResourcesID_1")?,
             glove_geoset: col(headers, "GeosetGroup_0")?,
+            geoset_group_0: col(headers, "GeosetGroup_0")?,
+            geoset_group_1: col(headers, "GeosetGroup_1")?,
             helmet_vis_0: col(headers, "HelmetGeosetVis_0")?,
             helmet_vis_1: col(headers, "HelmetGeosetVis_1")?,
         })
+    }
+}
+
+fn collect_head_geoset_overrides(display: &DisplayInfoResolved) -> Vec<(u16, u16)> {
+    let mut overrides = Vec::new();
+    if let Some(primary_variant) = head_geoset_primary_variant(display.head_geoset_groups[0]) {
+        overrides.push((27, primary_variant));
+    }
+    if let Some(secondary_variant) = head_geoset_secondary_variant(display.head_geoset_groups[1]) {
+        overrides.push((21, secondary_variant));
+    }
+    overrides
+}
+
+fn head_geoset_primary_variant(raw_value: i16) -> Option<u16> {
+    match raw_value {
+        value if value < 0 => None,
+        0 => Some(2),
+        value => Some(value as u16),
+    }
+}
+
+fn head_geoset_secondary_variant(raw_value: i16) -> Option<u16> {
+    match raw_value {
+        value if value <= 0 => None,
+        value => Some(value as u16),
     }
 }
 
@@ -641,6 +695,12 @@ fn field_u32(row: &[String], col: usize) -> u32 {
         .unwrap_or(0)
 }
 
+fn field_i32(row: &[String], col: usize) -> i32 {
+    row.get(col)
+        .and_then(|s| s.parse::<i32>().ok())
+        .unwrap_or(0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -660,5 +720,12 @@ mod tests {
             result.geoset_overrides.is_empty(),
             "raw ItemDisplayInfo geoset columns should not be applied directly"
         );
+    }
+
+    #[test]
+    fn live_mask_display_resolves_head_geoset_defaults() {
+        let data = OutfitData::load(Path::new("data"));
+
+        assert_eq!(data.head_geoset_overrides(720086), vec![(27, 2)]);
     }
 }
