@@ -555,62 +555,6 @@ fn debug_humanmale_skin_submeshes() {
     }
 }
 
-#[test]
-fn debug_humanmale_hd_glove_batches() {
-    let m2_path = std::path::Path::new("data/models/humanmale_hd.m2");
-    match load_m2(m2_path, &[0, 0, 0]) {
-        Ok(model) => {
-            println!("
-=== humanmale_hd glove batches ===");
-            for (i, batch) in model.batches.iter().enumerate() {
-                if (400..500).contains(&batch.mesh_part_id) {
-                    println!(
-                        "batch[{i}]: mesh_part_id={}, texture_type={:?}, texture_fdid={:?}, texture_2_fdid={:?}",
-                        batch.mesh_part_id, batch.texture_type, batch.texture_fdid, batch.texture_2_fdid
-                    );
-                }
-            }
-        }
-        Err(e) => println!("Failed to load {}: {}", m2_path.display(), e),
-    }
-}
-
-#[test]
-fn debug_humanmale_hd_glove_uv_ranges() {
-    use bevy::mesh::VertexAttributeValues;
-
-    let m2_path = std::path::Path::new("data/models/humanmale_hd.m2");
-    match load_m2(m2_path, &[0, 0, 0]) {
-        Ok(model) => {
-            println!("
-=== humanmale_hd glove uv ranges ===");
-            for (i, batch) in model.batches.iter().enumerate() {
-                if !(400..500).contains(&batch.mesh_part_id) {
-                    continue;
-                }
-                let Some(VertexAttributeValues::Float32x2(uvs)) =
-                    batch.mesh.attribute(Mesh::ATTRIBUTE_UV_0)
-                else {
-                    println!("batch[{i}] no uv0");
-                    continue;
-                };
-                let (mut min_u, mut min_v) = (f32::INFINITY, f32::INFINITY);
-                let (mut max_u, mut max_v) = (f32::NEG_INFINITY, f32::NEG_INFINITY);
-                for uv in uvs {
-                    min_u = min_u.min(uv[0]);
-                    min_v = min_v.min(uv[1]);
-                    max_u = max_u.max(uv[0]);
-                    max_v = max_v.max(uv[1]);
-                }
-                println!(
-                    "batch[{i}] mesh_part_id={} uv0=({min_u:.3},{min_v:.3})..({max_u:.3},{max_v:.3})",
-                    batch.mesh_part_id
-                );
-            }
-        }
-        Err(e) => println!("Failed to load {}: {}", m2_path.display(), e),
-    }
-}
 
 #[test]
 fn parse_vertices_has_bone_data() {
