@@ -56,7 +56,12 @@ pub fn resolve_equipment_appearance(
 pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEquipmentAppearance) {
     equipment
         .slots
-        .retain(|slot, _| matches!(slot, EquipmentSlot::MainHand | EquipmentSlot::OffHand));
+        .retain(|slot, _| {
+            matches!(
+                slot,
+                EquipmentSlot::Head | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            )
+        });
     for (slot, path) in &resolved.runtime_models {
         equipment.slots.insert(*slot, path.clone());
     }
@@ -64,6 +69,7 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
 
 fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlot> {
     match slot {
+        EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
         EquipmentVisualSlot::OffHand => Some(EquipmentSlot::OffHand),
         _ => None,
@@ -104,6 +110,37 @@ mod tests {
         let resolved = resolve_equipment_appearance(&appearance, &data);
 
         assert!(resolved.runtime_models.is_empty());
+    }
+
+    #[test]
+    fn head_slot_maps_to_runtime_slot() {
+        assert_eq!(
+            visual_slot_to_runtime_slot(EquipmentVisualSlot::Head),
+            Some(EquipmentSlot::Head)
+        );
+    }
+
+    #[test]
+    fn apply_runtime_equipment_preserves_head_slot() {
+        let mut equipment = Equipment::default();
+        equipment.slots.insert(EquipmentSlot::Head, PathBuf::from("old"));
+        equipment
+            .slots
+            .insert(EquipmentSlot::MainHand, PathBuf::from("mh"));
+        equipment
+            .slots
+            .insert(EquipmentSlot::OffHand, PathBuf::from("oh"));
+        let resolved = ResolvedEquipmentAppearance {
+            runtime_models: vec![(EquipmentSlot::Head, PathBuf::from("new-head"))],
+            ..Default::default()
+        };
+
+        apply_runtime_equipment(&mut equipment, &resolved);
+
+        assert_eq!(
+            equipment.slots.get(&EquipmentSlot::Head),
+            Some(&PathBuf::from("new-head"))
+        );
     }
 
     #[test]
