@@ -94,6 +94,9 @@ fn apply_base_skin_and_overlay_textures(
     let head_handle = composited
         .head
         .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
+    let hair_handle = composited
+        .hair
+        .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
     for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
@@ -102,6 +105,7 @@ fn apply_base_skin_and_overlay_textures(
             batch_texture_type.map(|t| t.0),
             &body_handle,
             head_handle.as_ref(),
+            hair_handle.as_ref(),
         );
         let Some(replacement) = replacement else {
             continue;
@@ -166,10 +170,16 @@ fn replacement_texture_for_batch(
     texture_type: Option<u32>,
     body_handle: &Handle<Image>,
     head_handle: Option<&Handle<Image>>,
+    hair_handle: Option<&Handle<Image>>,
 ) -> Option<Handle<Image>> {
     match texture_type {
         Some(1) => Some(body_handle.clone()),
-        Some(6) => Some(head_handle.cloned().unwrap_or_else(|| body_handle.clone())),
+        Some(6) => Some(
+            hair_handle
+                .cloned()
+                .or_else(|| head_handle.cloned())
+                .unwrap_or_else(|| body_handle.clone()),
+        ),
         _ => None,
     }
 }
@@ -310,7 +320,10 @@ fn collect_active_geosets(
     let selected_choice_ids = selected_choice_ids(selection, customization_db);
     let fields = [
         (OptionType::HairStyle, Some(selection.appearance.hair_style)),
-        (OptionType::FacialHair, Some(selection.appearance.facial_style)),
+        (
+            OptionType::FacialHair,
+            Some(selection.appearance.facial_style),
+        ),
         // CharacterAppearance doesn't persist modern ear choices yet.
         // Pick the first DB choice so we drive a single ear geoset instead of
         // leaving both default ear meshes visible on HD models.
@@ -362,7 +375,7 @@ mod tests {
         merge_overlay_texture_sets, replacement_texture_for_batch,
     };
     use crate::equipment_appearance::ResolvedEquipmentAppearance;
-    use bevy::prelude::{Handle, Image};
+    use bevy::prelude::{Assets, Image};
     use game_engine::customization_data::CustomizationDb;
     use game_engine::outfit_data::OutfitResult;
     use shared::components::{CharacterAppearance, EquipmentVisualSlot};
@@ -520,13 +533,15 @@ mod tests {
     }
 
     #[test]
-    fn replacement_texture_for_head_batches_prefers_head_atlas() {
-        let body = Handle::<Image>::default();
-        let head = Handle::<Image>::default();
+    fn replacement_texture_for_type_six_batches_prefers_hair_atlas() {
+        let mut images = Assets::<Image>::default();
+        let body = images.add(Image::default());
+        let head = images.add(Image::default());
+        let hair = images.add(Image::default());
 
-        let replacement = replacement_texture_for_batch(Some(6), &body, Some(&head));
+        let replacement = replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair));
 
-        assert_eq!(replacement, Some(head));
+        assert_eq!(replacement, Some(hair));
     }
 
     #[test]

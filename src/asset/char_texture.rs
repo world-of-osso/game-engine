@@ -42,6 +42,7 @@ struct TextureLayout {
 pub struct CompositedModelTextures {
     pub body: (Vec<u8>, u32, u32),
     pub head: Option<(Vec<u8>, u32, u32)>,
+    pub hair: Option<(Vec<u8>, u32, u32)>,
 }
 
 /// Loaded compositor data (parsed once at startup).
@@ -146,7 +147,32 @@ impl CharTextureData {
             );
         }
 
-        Some(self.runtime_textures_from_layout(pixels, layout_id, w, h))
+        let hair = self.runtime_target_texture(materials, layout_id, 10);
+
+        let mut composited = self.runtime_textures_from_layout(pixels, layout_id, w, h);
+        composited.hair = hair;
+        Some(composited)
+    }
+
+    fn runtime_target_texture(
+        &self,
+        materials: &[(u16, u32)],
+        layout_id: u32,
+        target_id: u16,
+    ) -> Option<(Vec<u8>, u32, u32)> {
+        let filtered: Vec<_> = materials
+            .iter()
+            .copied()
+            .filter(|(material_target, _)| *material_target == target_id)
+            .collect();
+        if filtered.is_empty() {
+            return None;
+        }
+        let layout = self.layouts.get(&layout_id)?;
+        let (w, h) = (layout.width, layout.height);
+        let mut pixels = vec![0u8; (w * h * 4) as usize];
+        self.composite_materials_into(&mut pixels, w, &filtered, layout_id);
+        self.runtime_texture_for_section(pixels, layout_id, w, h, target_id as u32)
     }
 
     fn seed_default_body_texture(
@@ -259,12 +285,49 @@ impl CharTextureData {
     }
 
     fn full_texture_section(&self, layer: &TextureLayer, layout_id: u32) -> Option<TextureSection> {
-        // HD/modern hair color layers use target 10 with a standalone head atlas.
+        // HD/modern hair color layers use target 10 with a standalone hair atlas.
         // That atlas belongs in section 10, not stretched across the full body canvas.
         if layer.target_id == 10 {
             return self.sections.get(&(layout_id, 10)).copied();
         }
         None
+    }
+
+    fn runtime_texture_for_section(
+        &self,
+        pixels: Vec<u8>,
+        layout_id: u32,
+        width: u32,
+        height: u32,
+        section_type: u32,
+    ) -> Option<(Vec<u8>, u32, u32)> {
+        let section = *self.sections.get(&(layout_id, section_type))?;
+        if width == 2048 && height == 1024 {
+            let (scaled_pixels, scaled_w, scaled_h) =
+                scale_to(&pixels, width, height, width / 2, height / 2);
+            let section = scaled_section(section, 2);
+            let cropped = crop_rgba(
+                &scaled_pixels,
+                scaled_w,
+                scaled_h,
+                section.x,
+                section.y,
+                section.width,
+                section.height,
+            );
+            return Some((cropped, section.width, section.height));
+        }
+
+        let cropped = crop_rgba(
+            &pixels,
+            width,
+            height,
+            section.x,
+            section.y,
+            section.width,
+            section.height,
+        );
+        Some((cropped, section.width, section.height))
     }
 
     fn runtime_textures_from_layout(
@@ -281,31 +344,19 @@ impl CharTextureData {
         if width == 2048 && height == 1024 {
             let (body_pixels, body_w, body_h) =
                 scale_to(&pixels, width, height, width / 2, height / 2);
-            let head = self
-                .sections
-                .get(&(layout_id, 9))
-                .map(|section| scaled_section(*section, 2))
-                .map(|section| {
-                    let head_pixels = crop_rgba(
-                        &body_pixels,
-                        body_w,
-                        body_h,
-                        section.x,
-                        section.y,
-                        section.width,
-                        section.height,
-                    );
-                    (head_pixels, section.width, section.height)
-                });
+            let head =
+                self.runtime_texture_for_section(pixels.clone(), layout_id, width, height, 9);
             return CompositedModelTextures {
                 body: (body_pixels, body_w, body_h),
                 head,
+                hair: None,
             };
         }
 
         CompositedModelTextures {
             body: (pixels, width, height),
             head: None,
+            hair: None,
         }
     }
 }
@@ -525,6 +576,43 @@ mod tests {
     }
 
     #[test]
+    fn hd_layout_extracts_runtime_hair_texture_from_section_ten() {
+        let mut sections = HashMap::new();
+        sections.insert(
+            (103, 10),
+            TextureSection {
+                x: 1024,
+                y: 0,
+                width: 1024,
+                height: 1024,
+            },
+        );
+        let data = CharTextureData {
+            layers: Vec::new(),
+            sections,
+            layouts: HashMap::new(),
+        };
+        let mut pixels = vec![0u8; (2048 * 1024 * 4) as usize];
+        for y in 0..1024u32 {
+            for x in 0..2048u32 {
+                let idx = ((y * 2048 + x) * 4) as usize;
+                if x < 1024 {
+                    pixels[idx..idx + 4].copy_from_slice(&[10, 20, 30, 255]);
+                } else {
+                    pixels[idx..idx + 4].copy_from_slice(&[40, 50, 60, 255]);
+                }
+            }
+        }
+
+        let hair = data
+            .runtime_texture_for_section(pixels, 103, 2048, 1024, 10)
+            .expect("expected HD hair atlas");
+
+        assert_eq!((hair.1, hair.2), (512, 512));
+        assert_eq!(&hair.0[0..4], &[40, 50, 60, 255]);
+    }
+
+    #[test]
     fn hd_glove_item_sections_change_runtime_body_atlas_pixels() {
         let data = CharTextureData::load(Path::new("data"));
 
@@ -535,10 +623,7 @@ mod tests {
             .composite_model_textures(&[], &[(1, 149592), (2, 154135)], 103)
             .expect("gloved HD composite");
 
-        let arm_lower = scaled_section(
-            *data.sections.get(&(103, 1)).expect("section 1"),
-            2,
-        );
+        let arm_lower = scaled_section(*data.sections.get(&(103, 1)).expect("section 1"), 2);
         let hand = scaled_section(*data.sections.get(&(103, 2)).expect("section 2"), 2);
 
         let sample = |pixels: &[u8], width: u32, section: TextureSection| {
