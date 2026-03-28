@@ -107,10 +107,16 @@ src/
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
 - WoWDBDefs: https://github.com/wowdev/WoWDBDefs — DB2/DBC schema definitions and field layouts for WoW client data
-- WoWee: https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
+- wow_messages (WoWee): https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
 - cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)
 - noggit3: https://github.com/wowdev/noggit3 — Open-source WoW map editor/reference for terrain, WMO, and world data handling
 - wowmapview 0.5: https://sourceforge.net/projects/wowmapview/ — C++ WoW map viewer (ADT/WMO/M2 rendering reference)
+- WoWee client: https://github.com/Kelsidavis/WoWee — C++ open-source WoW client reimplementation (OpenGL, Vanilla/TBC/WotLK, MIT). Reportedly AI-generated.
+- Thunderbrew: https://github.com/openwow-org/thunderbrew — C++ clean-room WoW client reimplementation (stalled)
+- OpenWow: https://github.com/World0fWarcraft/OpenWow — C++ open-source WoW 1.12 client (abandoned)
+- Wowser: https://github.com/wowserhq/client — TypeScript/WebGL 2 WoW client in the browser (WotLK 3.3.5a, MIT)
+- WebWowViewerCpp: https://github.com/Deamon87/WebWowViewerCpp — C++/Vulkan WoW map/model renderer (powers wow.tools map viewer)
+- warcraft-rs: https://github.com/wowemulation-dev/warcraft-rs — Rust crate collection for WoW formats (MPQ, ADT, M2, WMO, DBC)
 - game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
 - Future: game-engine as a full standalone client renderer + game-server authoritative backend
