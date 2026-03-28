@@ -10,6 +10,7 @@ pub fn default_fdid_for_type(ty: u32, is_hd: bool, skin_fdids: &[u32; 3]) -> Opt
     match (ty, is_hd) {
         (1, true) => Some(1027767), // body skin HD (humanmaleskin00_00_hd, 1024x512)
         (1, false) => Some(120191), // body skin SD (humanmaleskin00_00, 512x512)
+        (2, _) => nonzero(skin_fdids[0]),
         (11, _) => nonzero(skin_fdids[0]),
         (12, _) => nonzero(skin_fdids[1]),
         (13, _) => nonzero(skin_fdids[2]),

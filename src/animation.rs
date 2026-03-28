@@ -5,7 +5,7 @@ use super::camera::{MoveDirection, MovementState};
 use super::game_state::GameState;
 use bevy::prelude::*;
 
-/// Marker component for bone entities, storing their pivot in Bevy coordinates.
+/// Marker component for bone entities, storing their local pivot relative to the parent bone.
 #[derive(Component)]
 pub struct BonePivot(pub Vec3);
 

@@ -21,25 +21,46 @@ struct CascState {
     install: Installation,
     resolver: ContentResolver,
     /// Archive indices are expensive to load; defer until first FDID extraction.
-    initialized: Mutex<bool>,
+    initialized: Mutex<InitState>,
+}
+
+enum InitState {
+    Uninitialized,
+    Initialized,
+    Failed(String),
 }
 
 impl CascState {
     /// Ensure archive indices are loaded (slow, ~30s first time).
     fn ensure_initialized(&self) -> Result<(), String> {
         let mut init = self.initialized.lock().unwrap();
-        if *init {
-            return Ok(());
+        match &*init {
+            InitState::Initialized => return Ok(()),
+            InitState::Failed(err) => return Err(err.clone()),
+            InitState::Uninitialized => {}
         }
-        run_async(self.install.initialize()).map_err(|e| format!("CASC init: {e}"))?;
-        *init = true;
-        Ok(())
+        match run_async(self.install.initialize()).map_err(|e| format!("CASC init: {e}")) {
+            Ok(()) => {
+                *init = InitState::Initialized;
+                Ok(())
+            }
+            Err(err) => {
+                *init = InitState::Failed(err.clone());
+                Err(err)
+            }
+        }
     }
 }
 
 /// Ensure a BLP texture exists at `data/textures/{fdid}.blp`.
 pub fn ensure_texture(fdid: u32) -> Option<PathBuf> {
     ensure_file(fdid, "data/textures", "blp")
+}
+
+/// Force CASC archive indices to initialize on the current thread.
+pub fn warm_up() -> Result<(), String> {
+    let casc = get_casc()?;
+    casc.ensure_initialized()
 }
 
 /// Ensure an M2 model exists at `data/models/{fdid}.m2`.
@@ -118,7 +139,7 @@ fn init_casc() -> Result<CascState, String> {
     Ok(CascState {
         install,
         resolver,
-        initialized: Mutex::new(false),
+        initialized: Mutex::new(InitState::Uninitialized),
     })
 }
 

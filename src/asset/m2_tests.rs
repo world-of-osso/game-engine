@@ -1,6 +1,8 @@
 use super::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::Mesh;
+use std::path::Path;
+use crate::asset::casc_resolver;
 
 /// Build a minimal MD21 chunked file with the given MD20 blob.
 fn wrap_md21(md20: &[u8]) -> Vec<u8> {
@@ -310,10 +312,10 @@ fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
 
     let source_data = std::fs::read(source_m2).expect("wolf m2 should be readable");
     let chunks = parse_chunks(&source_data).expect("wolf m2 should parse");
-    let skin_fdid = *chunks
-        .sfid
-        .first()
-        .expect("wolf m2 should reference an external skin via SFID");
+    assert!(
+        chunks.sfid.first().is_some(),
+        "wolf m2 should reference an external skin via SFID"
+    );
 
     let unique = format!(
         "{}-{}",
@@ -330,8 +332,12 @@ fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
 
     let copied_m2 = test_dir.join("126487.m2");
     std::fs::write(&copied_m2, &source_data).expect("copied wolf m2 should be written");
+    let stem = copied_m2
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("copied wolf m2 should have a stem");
 
-    let extracted_skin = test_dir.join(format!("{skin_fdid}.skin"));
+    let extracted_skin = test_dir.join(format!("{stem}00.skin"));
     assert!(
         !extracted_skin.exists(),
         "test should start without the SFID skin companion present"
@@ -342,6 +348,27 @@ fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
     assert!(
         extracted_skin.exists(),
         "loading the skin should extract the SFID companion next to the copied m2"
+    );
+}
+
+#[test]
+fn load_skin_data_extracts_external_sfid_skin_for_helm_item_model() {
+    let source_m2 = std::path::Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_bef.m2");
+    if !source_m2.exists() {
+        return;
+    }
+
+    let source_data = std::fs::read(source_m2).expect("helm m2 should be readable");
+    let chunks = parse_chunks(&source_data).expect("helm m2 should parse");
+    assert_eq!(chunks.sfid.first().copied(), Some(482392));
+
+    let skin = load_skin_data(source_m2, &chunks.sfid);
+    assert!(skin.is_some(), "helm external SFID skin should load");
+
+    let extracted_skin = source_m2.with_file_name("helm_plate_d_02_bef00.skin");
+    assert!(
+        extracted_skin.exists(),
+        "helm SFID skin should be extracted next to the helm m2"
     );
 }
 
@@ -554,7 +581,6 @@ fn debug_humanmale_skin_submeshes() {
         Err(e) => println!("Failed to read {}: {}", skin_path, e),
     }
 }
-
 
 #[test]
 fn parse_vertices_has_bone_data() {
@@ -920,6 +946,32 @@ fn load_m2_skips_zero_opacity_color_passes() {
     assert!(
         remaining_textures.contains(&3740328),
         "opaque leather boot geometry should remain"
+    );
+}
+
+#[test]
+fn human_male_helm_runtime_model_resolves_display_material_texture() {
+    let outfit = crate::outfit_data::OutfitData::load(Path::new("data"));
+    let Some((model_fdid, skin_fdids)) = outfit.resolve_runtime_model(1128, 1, 0) else {
+        return;
+    };
+    let Some(wow_path) = game_engine::listfile::lookup_fdid(model_fdid) else {
+        return;
+    };
+    let model_path = Path::new("data/item-models").join(wow_path);
+    let Some(model_path) = casc_resolver::ensure_file_at_path(model_fdid, &model_path) else {
+        return;
+    };
+
+    let model = load_m2(&model_path, &skin_fdids).expect("failed to load human male helm model");
+
+    assert!(
+        model.batches.iter().any(|batch| batch.texture_fdid == Some(140455)),
+        "expected helm runtime model to resolve display material texture 140455, got {:?}",
+        model.batches
+            .iter()
+            .map(|batch| (batch.texture_fdid, batch.texture_type))
+            .collect::<Vec<_>>()
     );
 }
 

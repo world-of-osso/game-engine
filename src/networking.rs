@@ -671,7 +671,12 @@ fn sync_replicated_player_customization(
             continue;
         }
         let resolved_equipment =
-            equipment_appearance::resolve_equipment_appearance(&equipment_snapshot, &outfit_data);
+            equipment_appearance::resolve_equipment_appearance(
+                &equipment_snapshot,
+                &outfit_data,
+                selection.race,
+                selection.sex,
+            );
         crate::character_customization::apply_character_customization(
             selection,
             &customization_db,

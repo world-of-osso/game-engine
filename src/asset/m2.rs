@@ -123,6 +123,7 @@ struct SkinData {
 
 struct M2Chunks<'a> {
     md20: &'a [u8],
+    ska1: Option<&'a [u8]>,
     txid: Option<&'a [u8]>,
     skid: Option<u32>,
     sfid: Vec<u32>,
@@ -165,6 +166,7 @@ pub(crate) fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
 
 fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
+    let mut ska1 = None;
     let mut txid = None;
     let mut skid = None;
     let mut sfid = Vec::new();
@@ -179,6 +181,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
         }
         match tag {
             b"MD21" => md20 = Some(&data[off + 8..end]),
+            b"SKA1" => ska1 = Some(&data[off + 8..end]),
             b"TXID" => txid = Some(&data[off + 8..end]),
             b"SKID" if size >= 4 => skid = Some(read_u32(data, off + 8)?),
             b"SFID" => sfid = parse_sfid(&data[off + 8..end]),
@@ -188,6 +191,7 @@ fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     }
     Ok(M2Chunks {
         md20: md20.ok_or("No MD21 chunk found")?,
+        ska1,
         txid,
         skid,
         sfid,
@@ -611,15 +615,21 @@ fn parse_sfid(data: &[u8]) -> Vec<u32> {
 }
 
 fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
+    let stem = m2_path.file_stem()?.to_str()?;
     if let Some(&fdid) = sfid.first() {
-        let skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        if let Some(resolved_path) = super::casc_resolver::ensure_file_at_path(fdid, &skin_path)
+        let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
+        if let Some(resolved_path) = super::casc_resolver::ensure_file_at_path(fdid, &canonical_skin_path)
+            && let Ok(data) = std::fs::read(&resolved_path)
+        {
+            return parse_skin_full(&data).ok();
+        }
+        let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
+        if let Some(resolved_path) = super::casc_resolver::ensure_file_at_path(fdid, &numeric_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();
         }
     }
-    let stem = m2_path.file_stem()?.to_str()?;
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
     let data = std::fs::read(&skin_path).ok()?;
     parse_skin_full(&data).ok()
@@ -629,11 +639,15 @@ fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
 pub fn ensure_primary_skin_path(m2_path: &Path) -> Option<PathBuf> {
     let data = std::fs::read(m2_path).ok()?;
     let chunks = parse_chunks(&data).ok()?;
-    if let Some(&fdid) = chunks.sfid.first() {
-        let skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        return super::casc_resolver::ensure_file_at_path(fdid, &skin_path);
-    }
     let stem = m2_path.file_stem()?.to_str()?;
+    if let Some(&fdid) = chunks.sfid.first() {
+        let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
+        if let Some(path) = super::casc_resolver::ensure_file_at_path(fdid, &canonical_skin_path) {
+            return Some(path);
+        }
+        let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
+        return super::casc_resolver::ensure_file_at_path(fdid, &numeric_skin_path);
+    }
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
     skin_path.exists().then_some(skin_path)
 }
@@ -917,6 +931,71 @@ fn build_render_batches(
     }
 }
 
+fn load_attachment_data(chunks: &M2Chunks<'_>) -> (Vec<super::m2_attach::M2Attachment>, Vec<i16>) {
+    let attachments = chunks
+        .ska1
+        .map(super::m2_attach::parse_ska1_attachments)
+        .transpose()
+        .unwrap_or_default()
+        .filter(|parsed| !parsed.is_empty())
+        .unwrap_or_else(|| super::m2_attach::parse_attachments(chunks.md20).unwrap_or_default());
+    let attachment_lookup = chunks
+        .ska1
+        .map(super::m2_attach::parse_ska1_attachment_lookup)
+        .transpose()
+        .unwrap_or_default()
+        .filter(|parsed| !parsed.is_empty())
+        .unwrap_or_else(|| {
+            super::m2_attach::parse_attachment_lookup(chunks.md20).unwrap_or_default()
+        });
+    (attachments, attachment_lookup)
+}
+
+fn find_chunk<'a>(data: &'a [u8], needle: &[u8; 4]) -> Option<&'a [u8]> {
+    let mut off = 0;
+    while off + 8 <= data.len() {
+        let tag = &data[off..off + 4];
+        let size = read_u32(data, off + 4).ok()? as usize;
+        let end = off + 8 + size;
+        if end > data.len() {
+            return None;
+        }
+        if tag == needle {
+            return Some(&data[off + 8..end]);
+        }
+        off = end;
+    }
+    None
+}
+
+fn load_skel_attachment_data(skel_path: &Path) -> Result<(Vec<super::m2_attach::M2Attachment>, Vec<i16>), String> {
+    let data = std::fs::read(skel_path).map_err(|e| format!("Failed to read .skel file: {e}"))?;
+    let Some(ska1) = find_chunk(&data, b"SKA1") else {
+        return Ok((Vec::new(), Vec::new()));
+    };
+    Ok((
+        super::m2_attach::parse_ska1_attachments(ska1)?,
+        super::m2_attach::parse_ska1_attachment_lookup(ska1)?,
+    ))
+}
+
+fn load_model_attachment_data(path: &Path, chunks: &M2Chunks<'_>) -> (Vec<super::m2_attach::M2Attachment>, Vec<i16>) {
+    if !path.starts_with("data/models") {
+        return load_attachment_data(chunks);
+    }
+    if let Some(skel_fdid) = chunks.skid {
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let skel_path = path.with_file_name(format!("{stem}.skel"));
+        super::casc_resolver::ensure_file_at_path(skel_fdid, &skel_path);
+        if let Ok((attachments, attachment_lookup)) = load_skel_attachment_data(&skel_path)
+            && (!attachments.is_empty() || !attachment_lookup.is_empty())
+        {
+            return (attachments, attachment_lookup);
+        }
+    }
+    load_attachment_data(chunks)
+}
+
 fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
     let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
     let chunks = parse_chunks(&data)?;
@@ -932,9 +1011,7 @@ fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, Strin
     )?;
     let mut particles = super::m2_particle::parse_particle_emitters(chunks.md20);
     super::m2_particle::resolve_texture_fdids(&mut particles, &txid);
-    let attachments = super::m2_attach::parse_attachments(chunks.md20).unwrap_or_default();
-    let attachment_lookup =
-        super::m2_attach::parse_attachment_lookup(chunks.md20).unwrap_or_default();
+    let (attachments, attachment_lookup) = load_model_attachment_data(path, &chunks);
     Ok(M2Model {
         batches,
         bones: anim.bones,

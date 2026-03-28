@@ -19,12 +19,13 @@ pub fn attach_equipment_to_model(
     commands: &mut Commands,
     model_entity: Entity,
     attachments: &[asset::m2_attach::M2Attachment],
+    attachment_lookup: &[i16],
     default_main_hand_torch: bool,
 ) {
     if attachments.is_empty() {
         return;
     }
-    let attach_pts = equipment::build_attachment_points(attachments);
+    let attach_pts = equipment::build_attachment_points(attachments, attachment_lookup);
     let mut equip = equipment::Equipment::default();
     if default_main_hand_torch {
         let torch = Path::new("data/models/club_1h_torch_a_01.m2");
@@ -48,6 +49,7 @@ fn spawn_anim_and_particles(
     bone_tracks: Vec<BoneAnimTracks>,
     particle_emitters: Vec<M2ParticleEmitter>,
     attachments: Vec<asset::m2_attach::M2Attachment>,
+    attachment_lookup: Vec<i16>,
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,
     visual_root: Entity,
@@ -75,6 +77,7 @@ fn spawn_anim_and_particles(
         commands,
         model_entity,
         &attachments,
+        &attachment_lookup,
         default_main_hand_torch,
     );
 }
@@ -192,6 +195,7 @@ fn attach_m2_model_parts(
         bone_tracks,
         particle_emitters,
         attachments,
+        attachment_lookup,
         ..
     } = model;
     let visual_root = m2_spawn::ensure_grounded_model_root(
@@ -222,6 +226,7 @@ fn attach_m2_model_parts(
         bone_tracks,
         particle_emitters,
         attachments,
+        attachment_lookup,
         &skinning,
         model_entity,
         visual_root,
@@ -302,8 +307,14 @@ pub fn spawn_static_m2(
 }
 
 /// Spawn a static M2 model that still carries animation data.
+pub struct SpawnedAnimatedStaticM2 {
+    pub root: Entity,
+    pub model_root: Entity,
+}
+
+/// Spawn a static M2 model that still carries animation data.
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_animated_static_m2(
+pub fn spawn_animated_static_m2_parts(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -313,7 +324,7 @@ pub fn spawn_animated_static_m2(
     m2_path: &Path,
     transform: Transform,
     creature_display_map: &creature_display::CreatureDisplayMap,
-) -> Option<Entity> {
+) -> Option<SpawnedAnimatedStaticM2> {
     let Some(model) = load_m2_model(m2_path, creature_display_map) else {
         return None;
     };
@@ -343,7 +354,34 @@ pub fn spawn_animated_static_m2(
         model_root,
         false,
     );
-    Some(root)
+    Some(SpawnedAnimatedStaticM2 { root, model_root })
+}
+
+/// Spawn a static M2 model that still carries animation data.
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_animated_static_m2(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    transform: Transform,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) -> Option<Entity> {
+    spawn_animated_static_m2_parts(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        skinned_mesh_inverse_bindposes,
+        m2_path,
+        transform,
+        creature_display_map,
+    )
+    .map(|spawned| spawned.root)
 }
 
 /// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.

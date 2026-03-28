@@ -7,16 +7,25 @@ use crate::asset::casc_resolver;
 use crate::equipment::{Equipment, EquipmentSlot};
 use game_engine::outfit_data::{OutfitData, OutfitResult};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeModelAppearance {
+    pub slot: EquipmentSlot,
+    pub path: PathBuf,
+    pub skin_fdids: [u32; 3],
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
-    pub runtime_models: Vec<(EquipmentSlot, PathBuf)>,
+    pub runtime_models: Vec<RuntimeModelAppearance>,
     pub explicit_slots: HashSet<EquipmentVisualSlot>,
 }
 
 pub fn resolve_equipment_appearance(
     appearance: &NetEquipmentAppearance,
     outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
     for entry in &appearance.entries {
@@ -45,8 +54,19 @@ pub fn resolve_equipment_appearance(
             crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
 
         if let Some(slot) = visual_slot_to_runtime_slot(entry.slot) {
-            if let Some(model_path) = first_model_path(&display) {
-                resolved.runtime_models.push((slot, model_path));
+            if let Some((model_path, skin_fdids)) = runtime_model_for_slot(
+                slot,
+                display_info_id,
+                &display,
+                outfit_data,
+                race,
+                sex,
+            ) {
+                resolved.runtime_models.push(RuntimeModelAppearance {
+                    slot,
+                    path: model_path,
+                    skin_fdids,
+                });
             }
         }
     }
@@ -54,16 +74,25 @@ pub fn resolve_equipment_appearance(
 }
 
 pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEquipmentAppearance) {
-    equipment
-        .slots
-        .retain(|slot, _| {
-            matches!(
-                slot,
-                EquipmentSlot::Head | EquipmentSlot::MainHand | EquipmentSlot::OffHand
-            )
-        });
-    for (slot, path) in &resolved.runtime_models {
-        equipment.slots.insert(*slot, path.clone());
+    equipment.slots.retain(|slot, _| {
+        matches!(
+            slot,
+            EquipmentSlot::Head | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+        )
+    });
+    equipment.slot_skin_fdids.retain(|slot, _| {
+        matches!(
+            slot,
+            EquipmentSlot::Head | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+        )
+    });
+    for runtime_model in &resolved.runtime_models {
+        equipment
+            .slots
+            .insert(runtime_model.slot, runtime_model.path.clone());
+        equipment
+            .slot_skin_fdids
+            .insert(runtime_model.slot, runtime_model.skin_fdids);
     }
 }
 
@@ -73,6 +102,24 @@ fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlo
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
         EquipmentVisualSlot::OffHand => Some(EquipmentSlot::OffHand),
         _ => None,
+    }
+}
+
+fn runtime_model_for_slot(
+    slot: EquipmentSlot,
+    display_info_id: u32,
+    display: &OutfitResult,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) -> Option<(PathBuf, [u32; 3])> {
+    match slot {
+        EquipmentSlot::Head => {
+            let (fdid, skin_fdids) = outfit_data.resolve_runtime_model(display_info_id, race, sex)?;
+            let path = resolve_model_path(fdid)?;
+            Some((path, skin_fdids))
+        }
+        _ => first_model_path(display).map(|path| (path, [0, 0, 0])),
     }
 }
 
@@ -107,7 +154,7 @@ mod tests {
         };
         let data = OutfitData::default();
 
-        let resolved = resolve_equipment_appearance(&appearance, &data);
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
 
         assert!(resolved.runtime_models.is_empty());
     }
@@ -123,7 +170,9 @@ mod tests {
     #[test]
     fn apply_runtime_equipment_preserves_head_slot() {
         let mut equipment = Equipment::default();
-        equipment.slots.insert(EquipmentSlot::Head, PathBuf::from("old"));
+        equipment
+            .slots
+            .insert(EquipmentSlot::Head, PathBuf::from("old"));
         equipment
             .slots
             .insert(EquipmentSlot::MainHand, PathBuf::from("mh"));
@@ -131,7 +180,11 @@ mod tests {
             .slots
             .insert(EquipmentSlot::OffHand, PathBuf::from("oh"));
         let resolved = ResolvedEquipmentAppearance {
-            runtime_models: vec![(EquipmentSlot::Head, PathBuf::from("new-head"))],
+            runtime_models: vec![RuntimeModelAppearance {
+                slot: EquipmentSlot::Head,
+                path: PathBuf::from("new-head"),
+                skin_fdids: [123, 0, 0],
+            }],
             ..Default::default()
         };
 
@@ -140,6 +193,10 @@ mod tests {
         assert_eq!(
             equipment.slots.get(&EquipmentSlot::Head),
             Some(&PathBuf::from("new-head"))
+        );
+        assert_eq!(
+            equipment.slot_skin_fdids.get(&EquipmentSlot::Head),
+            Some(&[123, 0, 0])
         );
     }
 
@@ -150,5 +207,47 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(first_model_path(&display), None);
+    }
+
+    #[test]
+    fn human_male_helm_runtime_model_uses_human_variant_and_texture() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(1),
+                display_info_id: Some(1128),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+        let runtime = resolved
+            .runtime_models
+            .iter()
+            .find(|model| model.slot == EquipmentSlot::Head)
+            .expect("expected head runtime model");
+
+        assert!(runtime.path.ends_with("helm_plate_d_02_hum.m2"));
+        assert_eq!(runtime.skin_fdids[0], 140455);
+    }
+
+    #[test]
+    fn live_helm_display_resolves_to_runtime_model_path() {
+        let data = OutfitData::load(Path::new("data"));
+        let display = data.resolve_display_info(1128);
+
+        assert!(
+            !display.model_fdids.is_empty(),
+            "expected helm display 1128 to have model fdids"
+        );
+
+        let path = first_model_path(&display);
+        assert!(
+            path.is_some(),
+            "expected helm display 1128 to resolve to a model path, model_fdids={:?}",
+            display.model_fdids
+        );
     }
 }

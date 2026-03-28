@@ -23,6 +23,7 @@ struct DisplayInfoResolved {
     item_textures: Vec<(u8, u32)>,
     geoset_overrides: Vec<(u16, u16)>,
     model_resource_ids: Vec<u32>,
+    model_material_resource_ids: Vec<u32>,
 }
 
 #[derive(Debug, Default)]
@@ -39,8 +40,10 @@ struct LoadedOutfitData {
     hand_geoset_group: HashMap<u32, u16>,
     /// MaterialResourcesID -> first diffuse texture FileDataID
     material_to_texture: HashMap<u32, u32>,
-    /// ModelResourcesID -> model FileDataID
-    model_to_fdid: HashMap<u32, u32>,
+    /// ModelResourcesID -> model FileDataIDs
+    model_to_fdids: HashMap<u32, Vec<u32>>,
+    /// RaceID -> model filename token prefix (for example `hu`, `be`).
+    race_prefix: HashMap<u8, String>,
 }
 
 /// Parsed outfit lookup data loaded lazily on first use.
@@ -79,7 +82,8 @@ impl OutfitData {
         let (base_display_info, hand_geoset_group) =
             parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
         let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
-        let model_to_fdid = parse_model_file_data(&data_dir.join("ModelFileData.csv"))?;
+        let model_to_fdids = parse_model_file_data(&data_dir.join("ModelFileData.csv"))?;
+        let race_prefix = parse_race_prefix(&data_dir.join("ChrRaces.csv"))?;
         let display_materials = parse_item_display_info_material_res(
             &data_dir.join("ItemDisplayInfoMaterialRes.csv"),
             &material_to_texture,
@@ -107,7 +111,8 @@ impl OutfitData {
             display_info,
             hand_geoset_group,
             material_to_texture,
-            model_to_fdid,
+            model_to_fdids,
+            race_prefix,
         };
         info!(
             "OutfitData loaded: {} outfits, {} item appearances, {} display infos",
@@ -141,6 +146,27 @@ impl OutfitData {
         let raw = *data.hand_geoset_group.get(&display_info_id)?;
         // Human glove geosets use 401 as bare wrists and item variants start at 402.
         raw.checked_add(1)
+    }
+
+    pub fn resolve_runtime_model(
+        &self,
+        display_info_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Option<(u32, [u32; 3])> {
+        let data = self.loaded()?;
+        let display = data.display_info.get(&display_info_id)?;
+        let model_resource_id = *display.model_resource_ids.first()?;
+        let model_fdid = select_model_fdid(data, model_resource_id, race, sex)?;
+        let mut skin_fdids = [0; 3];
+        for (idx, material_resource_id) in display.model_material_resource_ids.iter().take(3).enumerate() {
+            skin_fdids[idx] = data
+                .material_to_texture
+                .get(material_resource_id)
+                .copied()
+                .unwrap_or(0);
+        }
+        Some((model_fdid, skin_fdids))
     }
 
     fn resolve_item_ids(&self, data: &LoadedOutfitData, item_ids: &[u32]) -> OutfitResult {
@@ -181,7 +207,11 @@ impl OutfitData {
             }
 
             for &model_resource_id in &display.model_resource_ids {
-                let Some(&model_fdid) = data.model_to_fdid.get(&model_resource_id) else {
+                let Some(&model_fdid) = data
+                    .model_to_fdids
+                    .get(&model_resource_id)
+                    .and_then(|fdids| fdids.first())
+                else {
                     continue;
                 };
                 if seen_models.insert((model_resource_id, model_fdid)) {
@@ -201,6 +231,37 @@ impl OutfitData {
 }
 
 type OutfitKey = (u8, u8, u8);
+
+fn select_model_fdid(
+    data: &LoadedOutfitData,
+    model_resource_id: u32,
+    race: u8,
+    sex: u8,
+) -> Option<u32> {
+    let candidates = data.model_to_fdids.get(&model_resource_id)?;
+    let variant_suffix = race_model_suffix(data, race, sex);
+    if let Some(suffix) = variant_suffix {
+        for &fdid in candidates {
+            let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
+                continue;
+            };
+            if path.ends_with(&format!("_{suffix}.m2")) {
+                return Some(fdid);
+            }
+        }
+    }
+    candidates.first().copied()
+}
+
+fn race_model_suffix(data: &LoadedOutfitData, race: u8, sex: u8) -> Option<String> {
+    let prefix = data.race_prefix.get(&race)?;
+    let sex_suffix = match sex {
+        0 => "m",
+        1 => "f",
+        _ => return None,
+    };
+    Some(format!("{prefix}{sex_suffix}"))
+}
 
 fn parse_char_start_outfits(path: &Path) -> Result<HashMap<OutfitKey, Vec<u32>>, String> {
     let (h, rows) = read_csv(path)?;
@@ -270,6 +331,8 @@ fn parse_item_display_info(
     let id_col = col(&h, "ID")?;
     let model_res_0_col = col(&h, "ModelResourcesID_0")?;
     let model_res_1_col = col(&h, "ModelResourcesID_1")?;
+    let model_mat_res_0_col = col(&h, "ModelMaterialResourcesID_0")?;
+    let model_mat_res_1_col = col(&h, "ModelMaterialResourcesID_1")?;
     let glove_geoset_col = col(&h, "GeosetGroup_0")?;
 
     let mut map = HashMap::new();
@@ -290,6 +353,18 @@ fn parse_item_display_info(
             }
         }
 
+        let mut model_material_resource_ids = Vec::new();
+        for material_resource_id in [
+            field_u32(row, model_mat_res_0_col),
+            field_u32(row, model_mat_res_1_col),
+        ] {
+            if material_resource_id != 0
+                && !model_material_resource_ids.contains(&material_resource_id)
+            {
+                model_material_resource_ids.push(material_resource_id);
+            }
+        }
+
         let glove_geoset = field_u32(row, glove_geoset_col) as u16;
         if glove_geoset != 0 {
             hand_geoset_group.insert(id, glove_geoset);
@@ -301,6 +376,7 @@ fn parse_item_display_info(
                 item_textures: Vec::new(),
                 geoset_overrides: Vec::new(),
                 model_resource_ids,
+                model_material_resource_ids,
             },
         );
     }
@@ -370,19 +446,41 @@ fn parse_texture_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
     Ok(preferred)
 }
 
-fn parse_model_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
+fn parse_model_file_data(path: &Path) -> Result<HashMap<u32, Vec<u32>>, String> {
     let (h, rows) = read_csv(path)?;
     let file_data_col = col(&h, "FileDataID")?;
     let model_resource_col = col(&h, "ModelResourcesID")?;
 
-    let mut map = HashMap::new();
+    let mut map: HashMap<u32, Vec<u32>> = HashMap::new();
     for row in &rows {
         let file_data_id = field_u32(row, file_data_col);
         let model_resource_id = field_u32(row, model_resource_col);
         if file_data_id == 0 || model_resource_id == 0 {
             continue;
         }
-        map.entry(model_resource_id).or_insert(file_data_id);
+        let entry = map.entry(model_resource_id).or_default();
+        if !entry.contains(&file_data_id) {
+            entry.push(file_data_id);
+        }
+    }
+    Ok(map)
+}
+
+fn parse_race_prefix(path: &Path) -> Result<HashMap<u8, String>, String> {
+    let (h, rows) = read_csv(path)?;
+    let id_col = col(&h, "ID")?;
+    let prefix_col = col(&h, "ClientPrefix")?;
+
+    let mut map = HashMap::new();
+    for row in &rows {
+        let id = field_u32(row, id_col) as u8;
+        let prefix = row
+            .get(prefix_col)
+            .map(|s| s.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if id != 0 && !prefix.is_empty() {
+            map.insert(id, prefix);
+        }
     }
     Ok(map)
 }

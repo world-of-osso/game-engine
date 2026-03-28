@@ -269,6 +269,7 @@ fn spawn_skeleton(
             commands
                 .spawn((
                     Transform::IDENTITY,
+                    Visibility::default(),
                     Name::new(asset::m2_bone_names::bone_display_name(bone.key_bone_id, i)),
                 ))
                 .id()

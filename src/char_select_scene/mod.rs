@@ -24,7 +24,7 @@ use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
 use crate::creature_display;
-use crate::equipment_appearance::resolve_equipment_appearance;
+use crate::equipment_appearance::{apply_runtime_equipment, resolve_equipment_appearance};
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
@@ -85,6 +85,9 @@ fn char_select_fog() -> DistanceFog {
 /// Marker for the currently displayed character model root.
 #[derive(Component)]
 struct CharSelectModelRoot;
+
+#[derive(Component)]
+struct CharSelectModelWrapper;
 
 #[derive(Component)]
 struct CharSelectModelCharacter(u64);
@@ -301,8 +304,8 @@ fn spawn_char_select_model(
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
     char_transform: Transform,
-) -> Option<Entity> {
-    let entity = m2_scene::spawn_animated_static_m2(
+) -> Option<(Entity, Entity)> {
+    let spawned = m2_scene::spawn_animated_static_m2_parts(
         commands,
         meshes,
         materials,
@@ -313,14 +316,14 @@ fn spawn_char_select_model(
         char_transform,
         creature_display_map,
     );
-    if let Some(e) = entity {
-        commands
-            .entity(e)
-            .insert((CharSelectScene, CharSelectModelRoot));
-        Some(e)
-    } else {
-        None
-    }
+    let spawned = spawned?;
+    commands
+        .entity(spawned.root)
+        .insert((CharSelectScene, CharSelectModelWrapper));
+    commands
+        .entity(spawned.model_root)
+        .insert(CharSelectModelRoot);
+    Some((spawned.root, spawned.model_root))
 }
 
 fn single_character_rotation(
@@ -561,7 +564,7 @@ fn sync_char_select_model(
     heightmap: Res<TerrainHeightmap>,
     char_list: Res<CharacterList>,
     selected: Res<SelectedCharIndex>,
-    current_model: Query<Entity, With<CharSelectModelRoot>>,
+    current_model: Query<Entity, With<CharSelectModelWrapper>>,
     mut displayed: ResMut<DisplayedCharacterId>,
     warband: Option<Res<WarbandScenes>>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
@@ -626,6 +629,7 @@ fn sync_selected_character_appearance(
         Option<&crate::m2_spawn::BatchTextureType>,
         &ChildOf,
     )>,
+    mut equipment_query: Query<&mut crate::equipment::Equipment>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -650,7 +654,12 @@ fn sync_selected_character_appearance(
         return;
     }
     let resolved_equipment =
-        resolve_equipment_appearance(&character.equipment_appearance, &outfit_data);
+        resolve_equipment_appearance(
+            &character.equipment_appearance,
+            &outfit_data,
+            character.race,
+            character.appearance.sex,
+        );
     apply_character_customization(
         CharacterCustomizationSelection {
             race: character.race,
@@ -669,6 +678,9 @@ fn sync_selected_character_appearance(
         &mut visibility_query,
         &material_query,
     );
+    if let Ok(mut equipment) = equipment_query.get_mut(root) {
+        apply_runtime_equipment(&mut equipment, &resolved_equipment);
+    }
     displayed_appearance.0 = Some(desired);
 }
 
@@ -689,7 +701,7 @@ fn spawn_selected_model(
     if !model_path.exists() {
         return None;
     }
-    let model_entity = spawn_char_select_model(
+    let (_, model_entity) = spawn_char_select_model(
         commands,
         meshes,
         materials,
