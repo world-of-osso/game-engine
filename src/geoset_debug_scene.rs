@@ -146,14 +146,14 @@ fn spawn_camera(commands: &mut Commands) {
 fn spawn_lighting(commands: &mut Commands) {
     commands.insert_resource(GlobalAmbientLight {
         color: Color::srgb(1.0, 0.95, 0.85),
-        brightness: 22.0,
+        brightness: 35.0,
         ..default()
     });
     commands.spawn((
         Name::new("DebugCharacterLight"),
         DebugCharacterScene,
         DirectionalLight {
-            illuminance: 2800.0,
+            illuminance: 4200.0,
             shadows_enabled: true,
             color: Color::srgb(1.0, 0.92, 0.8),
             ..default()

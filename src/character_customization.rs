@@ -145,6 +145,7 @@ fn apply_base_skin_and_overlay_textures(
         };
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
             mat.base_color_texture = Some(replacement);
+            mat.base_color = Color::WHITE;
         }
     }
 }

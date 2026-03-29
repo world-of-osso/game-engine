@@ -9,12 +9,14 @@ fn debug_human_male_cape_batches() {
     for batch in &model.batches {
         if batch.texture_type == Some(2) {
             println!(
-                "type2 batch mesh_part_id={} texture_fdid={:?} texture_type={:?} shader=0x{:x} blend={} tex2={:?}",
+                "type2 batch mesh_part_id={} texture_fdid={:?} texture_type={:?} shader=0x{:x} blend={} transparency={} flags=0x{:x} tex2={:?}",
                 batch.mesh_part_id,
                 batch.texture_fdid,
                 batch.texture_type,
                 batch.shader_id,
                 batch.blend_mode,
+                batch.transparency,
+                batch.render_flags,
                 batch.texture_2_fdid
             );
         }
@@ -66,6 +68,11 @@ fn merged_cloak_alt_display_extracts_display_material_texture() {
 #[test]
 fn merged_cloak_third_display_extracts_display_material_texture() {
     assert_merged_cloak_texture_extracted(192768, 4046072);
+}
+
+#[test]
+fn merged_cloak_fourth_display_extracts_display_material_texture() {
+    assert_merged_cloak_texture_extracted(192778, 4046073);
 }
 
 fn assert_merged_cloak_texture_extracted(display_info_id: u32, expected_fdid: u32) {
