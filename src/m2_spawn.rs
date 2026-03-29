@@ -543,6 +543,7 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
     let overlay_a = overlay[3] as f32 / 255.0;
 
     let (rgb, a) = match shader_id {
+        0x8000 => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
         0x4014 => (
             [
                 (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
@@ -648,6 +649,15 @@ mod tests {
         apply_m2_multitexture_shader(&mut base, &overlay, 0x4016);
 
         assert_eq!(base, [129, 255, 64, 51]);
+    }
+
+    #[test]
+    fn shader_8000_uses_secondary_alpha_as_mask_only() {
+        let mut base = [128, 64, 32, 128];
+        let overlay = [0, 255, 255, 64];
+        apply_m2_multitexture_shader(&mut base, &overlay, 0x8000);
+
+        assert_eq!(base, [128, 64, 32, 32]);
     }
 
     #[test]

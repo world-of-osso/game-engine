@@ -693,11 +693,8 @@ fn build_one_batch(
     let sub = &skin.submeshes[sub_idx];
     let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
     let texture_type = m2_texture::batch_texture_type(unit, tex.tex_lookup, tex.tex_types);
-    let (texture_fdid, mut texture_2_fdid, overlays) =
+    let (texture_fdid, texture_2_fdid, overlays) =
         m2_texture::resolve_batch_fdid_and_overlays(unit, tex, is_hd);
-    if unit.shader_id & 0x7fff == 0 {
-        texture_2_fdid = None;
-    }
     let mat = materials.get(unit.render_flags_index as usize);
     let transparency_track = transparency_lookup
         .get(unit.transparency_index as usize)

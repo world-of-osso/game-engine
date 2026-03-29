@@ -74,7 +74,10 @@ impl DebugCharacterConfig {
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
             equipment_appearance: EquipmentAppearance {
-                entries: vec![equipped_entry(EquipmentVisualSlot::Head, 685129)],
+                entries: vec![equipped_entry(
+                    EquipmentVisualSlot::Head,
+                    env_u32("DEBUG_CHARACTER_HEAD_DISPLAY", 685128),
+                )],
             },
         }
     }
@@ -94,6 +97,13 @@ fn env_u8(name: &str, default: u8) -> u8 {
     std::env::var(name)
         .ok()
         .and_then(|value| value.parse::<u8>().ok())
+        .unwrap_or(default)
+}
+
+fn env_u32(name: &str, default: u32) -> u32 {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
         .unwrap_or(default)
 }
 
@@ -121,14 +131,14 @@ fn spawn_camera(commands: &mut Commands) {
 fn spawn_lighting(commands: &mut Commands) {
     commands.insert_resource(GlobalAmbientLight {
         color: Color::srgb(1.0, 0.95, 0.85),
-        brightness: 80.0,
+        brightness: 22.0,
         ..default()
     });
     commands.spawn((
         Name::new("DebugCharacterLight"),
         DebugCharacterScene,
         DirectionalLight {
-            illuminance: 8000.0,
+            illuminance: 2800.0,
             shadows_enabled: true,
             color: Color::srgb(1.0, 0.92, 0.8),
             ..default()
@@ -143,10 +153,12 @@ fn spawn_ground(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
 ) {
-    let grass_path = asset::casc_resolver::ensure_texture(187126)
-        .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
-    let mut img = asset::blp::load_blp_gpu_image(&grass_path)
-        .unwrap_or_else(|_| ground::generate_grass_texture());
+    let grass_path = PathBuf::from("data/textures/187126.blp");
+    let mut img = if grass_path.exists() {
+        asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|_| ground::generate_grass_texture())
+    } else {
+        ground::generate_grass_texture()
+    };
     img.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
         address_mode_u: bevy::image::ImageAddressMode::Repeat,
         address_mode_v: bevy::image::ImageAddressMode::Repeat,

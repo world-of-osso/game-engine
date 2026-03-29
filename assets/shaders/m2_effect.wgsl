@@ -124,15 +124,15 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     if color.a < settings.alpha_test {
         discard;
     }
+    if (settings.render_flags & 0x1u) != 0u {
+        return color;
+    }
 
     var pbr_input = pbr_types::pbr_input_new();
     pbr_input.material.base_color = color;
     pbr_input.material.perceptual_roughness = 1.0;
     pbr_input.material.reflectance = vec3<f32>(0.0);
     pbr_input.material.flags = alpha_mode_flags(settings.blend_mode);
-    if (settings.render_flags & 0x1u) != 0u {
-        pbr_input.material.flags |= pbr_types::STANDARD_MATERIAL_FLAGS_UNLIT_BIT;
-    }
     pbr_input.frag_coord = in.position;
     pbr_input.world_position = in.world_position;
     pbr_input.world_normal = pbr_functions::prepare_world_normal(in.world_normal, true, is_front);
