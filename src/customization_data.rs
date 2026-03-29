@@ -49,6 +49,7 @@ fn race_sex_to_chr_model_id(race: u8, sex: u8) -> Option<u32> {
 pub enum OptionType {
     SkinColor,
     Face,
+    EyeColor,
     HairStyle,
     HairColor,
     FacialHair,
@@ -64,6 +65,7 @@ impl OptionType {
         match name {
             "Skin Color" | "Fur Color" => Some(Self::SkinColor),
             "Face" => Some(Self::Face),
+            "Eye Color" | "Eye Color Style" => Some(Self::EyeColor),
             "Hair Style" => Some(Self::HairStyle),
             "Hair Color" => Some(Self::HairColor),
             "Beard" | "Facial Hair" | "Mustache" | "Sideburns" => Some(Self::FacialHair),

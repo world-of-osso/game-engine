@@ -101,3 +101,59 @@ fn troll_male_scalp_fallback_hair_geoset_uses_first_showscalp_geoset() {
     let db = CustomizationDb::load(Path::new("data"));
     assert_eq!(db.scalp_fallback_hair_geoset(8, 0), Some(8));
 }
+
+#[test]
+#[ignore]
+fn dump_human_male_eye_color_choices() {
+    let db = CustomizationDb::load(Path::new("data"));
+    let count = db.choice_count_for_class(1, 0, 1, OptionType::EyeColor);
+    println!("human male eye color count={count}");
+    for idx in 0..count {
+        let choice = db
+            .get_choice_for_class(1, 0, 1, OptionType::EyeColor, idx)
+            .unwrap();
+        println!(
+            "idx={idx} id={} name={} mats={:?} related={:?}",
+            choice.id,
+            choice.display_name,
+            choice.materials,
+            choice
+                .related_materials
+                .iter()
+                .map(|m| (m.related_choice_id, m.target_id, m.fdid))
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+#[ignore]
+fn dump_human_male_face_and_eye_materials() {
+    let db = CustomizationDb::load(Path::new("data"));
+    let face = db
+        .get_choice_for_class(1, 0, 1, OptionType::Face, 3)
+        .unwrap();
+    let eye = db
+        .get_choice_for_class(1, 0, 1, OptionType::EyeColor, 0)
+        .unwrap();
+    println!(
+        "face idx=3 id={} name={} mats={:?} related={:?}",
+        face.id,
+        face.display_name,
+        face.materials,
+        face.related_materials
+            .iter()
+            .map(|m| (m.related_choice_id, m.target_id, m.fdid))
+            .collect::<Vec<_>>()
+    );
+    println!(
+        "eye idx=0 id={} name={} mats={:?} related={:?}",
+        eye.id,
+        eye.display_name,
+        eye.materials,
+        eye.related_materials
+            .iter()
+            .map(|m| (m.related_choice_id, m.target_id, m.fdid))
+            .collect::<Vec<_>>()
+    );
+}

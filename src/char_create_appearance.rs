@@ -25,6 +25,10 @@ pub(super) fn randomize_appearance_with_seed(
         sex,
         skin_color,
         face,
+        eye_color: pick_random_choice(
+            &mut seed,
+            db.choice_count_for_class(race, sex, class, OptionType::EyeColor),
+        ),
         hair_style: pick_random_choice(
             &mut seed,
             db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
@@ -64,6 +68,10 @@ pub(super) fn normalize_appearance(state: &mut CharCreateState, db: &Customizati
         db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
     );
     normalize_face_choice(state, db);
+    clamp_appearance_field(
+        &mut state.appearance.eye_color,
+        db.choice_count_for_class(race, sex, class, OptionType::EyeColor),
+    );
     clamp_appearance_field(
         &mut state.appearance.hair_style,
         db.choice_count_for_class(race, sex, class, OptionType::HairStyle),

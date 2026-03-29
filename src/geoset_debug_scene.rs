@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use std::path::PathBuf;
 
-use bevy::input::mouse::AccumulatedMouseMotion;
+use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
@@ -32,6 +32,9 @@ struct DebugCharacterOrbit {
     pitch: f32,
     focus: Vec3,
     distance: f32,
+    target_distance: f32,
+    min_distance: f32,
+    max_distance: f32,
     base_pitch: f32,
 }
 
@@ -46,6 +49,8 @@ struct DebugCharacterConfig {
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
+const ORBIT_ZOOM_STEP: f32 = 0.4;
+const ORBIT_ZOOM_LERP: f32 = 0.25;
 
 pub struct DebugCharacterScenePlugin;
 
@@ -68,6 +73,7 @@ impl DebugCharacterConfig {
                 sex: env_u8("DEBUG_CHARACTER_SEX", 0),
                 skin_color: env_u8("DEBUG_CHARACTER_SKIN_COLOR", 2),
                 face: env_u8("DEBUG_CHARACTER_FACE", 3),
+                eye_color: env_u8("DEBUG_CHARACTER_EYE_COLOR", 0),
                 hair_style: env_u8("DEBUG_CHARACTER_HAIR_STYLE", 4),
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
@@ -134,6 +140,9 @@ fn spawn_camera(commands: &mut Commands) {
             pitch: 0.0,
             focus,
             distance,
+            target_distance: distance,
+            min_distance: 1.5,
+            max_distance: 12.0,
             base_pitch,
         },
     ));
@@ -299,14 +308,19 @@ fn setup_scene(
 fn orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
+    scroll: Res<AccumulatedMouseScroll>,
     mut query: Query<(&mut DebugCharacterOrbit, &mut Transform)>,
 ) {
-    if !mouse_buttons.pressed(MouseButton::Left) || motion.delta == Vec2::ZERO {
-        return;
-    }
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw -= motion.delta.x * ORBIT_SENSITIVITY;
-        orbit.pitch += motion.delta.y * ORBIT_SENSITIVITY;
+        if scroll.delta.y != 0.0 {
+            orbit.target_distance = (orbit.target_distance - scroll.delta.y * ORBIT_ZOOM_STEP)
+                .clamp(orbit.min_distance, orbit.max_distance);
+        }
+        orbit.distance = orbit.distance.lerp(orbit.target_distance, ORBIT_ZOOM_LERP);
+        if mouse_buttons.pressed(MouseButton::Left) && motion.delta != Vec2::ZERO {
+            orbit.yaw -= motion.delta.x * ORBIT_SENSITIVITY;
+            orbit.pitch += motion.delta.y * ORBIT_SENSITIVITY;
+        }
         let pitch = orbit.base_pitch + orbit.pitch;
         let eye = orbit.focus
             + Vec3::new(

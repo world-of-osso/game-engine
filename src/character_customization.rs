@@ -125,6 +125,11 @@ fn apply_base_skin_and_overlay_textures(
     let hair_handle = composited
         .hair
         .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
+    let eye_handle = char_tex
+        .replacement_texture_fdid(&all_materials, layout_id, 19)
+        .and_then(crate::asset::casc_resolver::ensure_texture)
+        .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
+        .map(|image| images.add(image));
     let cape_handle = merged_cape_texture_fdid
         .and_then(|fdid| crate::asset::casc_resolver::ensure_texture(fdid))
         .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
@@ -138,6 +143,7 @@ fn apply_base_skin_and_overlay_textures(
             &body_handle,
             head_handle.as_ref(),
             hair_handle.as_ref(),
+            eye_handle.as_ref(),
             cape_handle.as_ref(),
         );
         let Some(replacement) = replacement else {
@@ -205,6 +211,7 @@ fn replacement_texture_for_batch(
     body_handle: &Handle<Image>,
     head_handle: Option<&Handle<Image>>,
     hair_handle: Option<&Handle<Image>>,
+    eye_handle: Option<&Handle<Image>>,
     cape_handle: Option<&Handle<Image>>,
 ) -> Option<Handle<Image>> {
     match texture_type {
@@ -216,6 +223,7 @@ fn replacement_texture_for_batch(
                 .or_else(|| head_handle.cloned())
                 .unwrap_or_else(|| body_handle.clone()),
         ),
+        Some(19) => eye_handle.cloned(),
         _ => None,
     }
 }
@@ -242,6 +250,7 @@ pub(crate) fn collect_appearance_materials(
     let fields = [
         (OptionType::SkinColor, selection.appearance.skin_color),
         (OptionType::Face, selection.appearance.face),
+        (OptionType::EyeColor, selection.appearance.eye_color),
         (OptionType::HairStyle, selection.appearance.hair_style),
         (OptionType::HairColor, selection.appearance.hair_color),
         (OptionType::FacialHair, selection.appearance.facial_style),
@@ -429,6 +438,7 @@ fn selected_choice_ids(
     let fields = [
         (OptionType::SkinColor, selection.appearance.skin_color),
         (OptionType::Face, selection.appearance.face),
+        (OptionType::EyeColor, selection.appearance.eye_color),
         (OptionType::HairStyle, selection.appearance.hair_style),
         (OptionType::HairColor, selection.appearance.hair_color),
         (OptionType::FacialHair, selection.appearance.facial_style),
@@ -581,6 +591,7 @@ mod tests {
                     sex: 0,
                     skin_color: 0,
                     face: 0,
+                    eye_color: 0,
                     hair_style: 0,
                     hair_color: 0,
                     facial_style: 0,
@@ -663,7 +674,7 @@ mod tests {
         let hair = images.add(Image::default());
 
         let replacement =
-            replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair), None);
+            replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair), None, None);
 
         assert_eq!(replacement, Some(hair));
     }
@@ -677,9 +688,29 @@ mod tests {
         let cape = images.add(Image::default());
 
         let replacement =
-            replacement_texture_for_batch(Some(2), &body, Some(&head), Some(&hair), Some(&cape));
+            replacement_texture_for_batch(Some(2), &body, Some(&head), Some(&hair), None, Some(&cape));
 
         assert_eq!(replacement, Some(cape));
+    }
+
+    #[test]
+    fn replacement_texture_for_type_nineteen_batches_uses_eye_texture() {
+        let mut images = Assets::<Image>::default();
+        let body = images.add(Image::default());
+        let head = images.add(Image::default());
+        let hair = images.add(Image::default());
+        let eye = images.add(Image::default());
+
+        let replacement = replacement_texture_for_batch(
+            Some(19),
+            &body,
+            Some(&head),
+            Some(&hair),
+            Some(&eye),
+            None,
+        );
+
+        assert_eq!(replacement, Some(eye));
     }
 
     #[test]
@@ -687,6 +718,32 @@ mod tests {
         assert_eq!(
             component_sections_for_slot(EquipmentVisualSlot::Feet),
             &[6u8, 7] as &[u8]
+        );
+    }
+
+    #[test]
+    fn human_male_eye_color_selection_provides_default_eye_texture() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let selection = CharacterCustomizationSelection {
+            race: 1,
+            class: 1,
+            sex: 0,
+            appearance: CharacterAppearance {
+                sex: 0,
+                skin_color: 2,
+                face: 3,
+                    eye_color: 0,
+                hair_style: 4,
+                hair_color: 5,
+                facial_style: 1,
+            },
+        };
+
+        let materials = collect_appearance_materials(selection, &db);
+
+        assert!(
+            materials.iter().any(|(target_id, fdid)| *target_id == 25 && *fdid == 3484643),
+            "expected current human male appearance to resolve the default eye texture: {materials:?}"
         );
     }
 
@@ -703,6 +760,7 @@ mod tests {
                 sex: 0,
                 skin_color: 0,
                 face: 0,
+                    eye_color: 0,
                 hair_style: 0,
                 hair_color: 0,
                 facial_style: 0,
@@ -727,6 +785,7 @@ mod tests {
                 sex: 0,
                 skin_color,
                 face: 0,
+                    eye_color: 0,
                 hair_style: 0,
                 hair_color: 0,
                 facial_style: 0,

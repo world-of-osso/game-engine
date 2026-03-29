@@ -15,6 +15,7 @@ use super::m2_texture;
 /// A texture layer definition from ChrModelTextureLayer.csv.
 #[derive(Debug, Clone)]
 struct TextureLayer {
+    texture_type: u32,
     layer: u32,
     blend_mode: u32,
     section_bitmask: i64,
@@ -120,9 +121,11 @@ impl CharTextureData {
         let mut pixels = vec![0u8; (w * h * 4) as usize];
 
         self.seed_default_body_texture(&mut pixels, w, h, layout_id);
-        self.composite_materials_into(&mut pixels, w, materials, layout_id);
+        let atlas_materials = self.atlas_materials(materials, layout_id);
+        self.composite_materials_into(&mut pixels, w, &atlas_materials, layout_id);
 
         let item_layer = TextureLayer {
+            texture_type: 1,
             layer: 0,
             blend_mode: 0,
             section_bitmask: 0,
@@ -152,6 +155,25 @@ impl CharTextureData {
         let mut composited = self.runtime_textures_from_layout(pixels, layout_id, w, h);
         composited.hair = hair;
         Some(composited)
+    }
+
+    pub fn replacement_texture_fdid(
+        &self,
+        materials: &[(u16, u32)],
+        layout_id: u32,
+        texture_type: u32,
+    ) -> Option<u32> {
+        let material_by_target: HashMap<u16, u32> = materials.iter().copied().collect();
+        let mut active_layers: Vec<_> = self
+            .layers
+            .iter()
+            .filter(|layer| layer.layout_id == layout_id && layer.texture_type == texture_type)
+            .collect();
+        active_layers.sort_by_key(|layer| layer.layer);
+        active_layers
+            .into_iter()
+            .filter_map(|layer| material_by_target.get(&layer.target_id).copied())
+            .last()
     }
 
     fn runtime_target_texture(
@@ -190,6 +212,7 @@ impl CharTextureData {
             return;
         };
         let layer = TextureLayer {
+            texture_type: 1,
             layer: 0,
             blend_mode: 0,
             section_bitmask: -1,
@@ -218,10 +241,8 @@ impl CharTextureData {
         materials: &[(u16, u32)],
         layout_id: u32,
     ) {
-        // Group materials by target ID for lookup
         let mat_by_target: HashMap<u16, u32> = materials.iter().copied().collect();
 
-        // Get layers for this layout, sorted by layer order
         let mut active_layers: Vec<_> = self
             .layers
             .iter()
@@ -247,6 +268,21 @@ impl CharTextureData {
                 layout_id,
             );
         }
+    }
+
+    fn atlas_materials(&self, materials: &[(u16, u32)], layout_id: u32) -> Vec<(u16, u32)> {
+        materials
+            .iter()
+            .copied()
+            .filter(|(target_id, _)| self.target_uses_atlas(layout_id, *target_id))
+            .collect()
+    }
+
+    fn target_uses_atlas(&self, layout_id: u32, target_id: u16) -> bool {
+        self.layers
+            .iter()
+            .filter(|layer| layer.layout_id == layout_id && layer.target_id == target_id)
+            .all(|layer| !matches!(layer.texture_type, 2 | 6 | 19))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -519,6 +555,7 @@ mod tests {
             layouts: HashMap::new(),
         };
         let layer = TextureLayer {
+            texture_type: 6,
             layer: 0,
             blend_mode: 0,
             section_bitmask: -1,
@@ -814,6 +851,7 @@ fn field_i64(row: &[String], idx: usize) -> i64 {
 
 fn parse_texture_layers(path: &Path) -> Result<Vec<TextureLayer>, String> {
     let (h, rows) = read_csv(path)?;
+    let texture_type_col = col(&h, "TextureType")?;
     let layer_col = col(&h, "Layer")?;
     let blend_col = col(&h, "BlendMode")?;
     let mask_col = col(&h, "TextureSectionTypeBitMask")?;
@@ -823,6 +861,7 @@ fn parse_texture_layers(path: &Path) -> Result<Vec<TextureLayer>, String> {
     let mut out = Vec::new();
     for row in &rows {
         out.push(TextureLayer {
+            texture_type: field_u32(row, texture_type_col),
             layer: field_u32(row, layer_col),
             blend_mode: field_u32(row, blend_col),
             section_bitmask: field_i64(row, mask_col),

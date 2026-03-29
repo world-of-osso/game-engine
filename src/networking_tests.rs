@@ -569,6 +569,7 @@ fn net_player_customization_selection_uses_player_race_class_and_appearance() {
             sex: 1,
             skin_color: 2,
             face: 3,
+            eye_color: 0,
             hair_style: 4,
             hair_color: 5,
             facial_style: 6,

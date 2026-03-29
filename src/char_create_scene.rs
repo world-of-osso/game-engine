@@ -437,6 +437,7 @@ mod tests {
                 sex: 0,
                 skin_color: 0,
                 face: 0,
+                eye_color: 0,
                 hair_style: 0,
                 hair_color: 0,
                 facial_style: 0,

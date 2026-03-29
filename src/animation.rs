@@ -318,7 +318,12 @@ pub struct AnimationPlugin;
 fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
     matches!(
         state.as_deref().map(State::get),
-        Some(GameState::InWorld | GameState::CharSelect | GameState::CharCreate)
+        Some(
+            GameState::InWorld
+                | GameState::CharSelect
+                | GameState::CharCreate
+                | GameState::DebugCharacter
+        )
     )
 }
 
