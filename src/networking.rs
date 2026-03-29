@@ -481,7 +481,8 @@ fn handle_client_disconnected(
                 trigger.entity
             );
         }
-        crate::game_state::GameState::CharCreate
+        crate::game_state::GameState::GeosetDebug
+        | crate::game_state::GameState::CharCreate
         | crate::game_state::GameState::CampsitePopup
         | crate::game_state::GameState::GameMenu
         | crate::game_state::GameState::TrashButton

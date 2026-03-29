@@ -8,6 +8,7 @@ pub enum GameState {
     Login,
     Connecting,
     CharSelect,
+    GeosetDebug,
     CharCreate,
     CampsitePopup,
     Loading,
@@ -18,10 +19,11 @@ pub enum GameState {
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 10] = [
+    pub const CLI_VALUES: [&str; 11] = [
         "login",
         "connecting",
         "charselect",
+        "geosetdebug",
         "charcreate",
         "campsitepopup",
         "loading",
@@ -40,6 +42,7 @@ impl GameState {
             Self::Login => "login",
             Self::Connecting => "connecting",
             Self::CharSelect => "charselect",
+            Self::GeosetDebug => "geosetdebug",
             Self::CharCreate => "charcreate",
             Self::CampsitePopup => "campsitepopup",
             Self::Loading => "loading",
@@ -59,6 +62,7 @@ impl FromStr for GameState {
             "login" => Ok(Self::Login),
             "connecting" => Ok(Self::Connecting),
             "charselect" => Ok(Self::CharSelect),
+            "geosetdebug" => Ok(Self::GeosetDebug),
             "charcreate" => Ok(Self::CharCreate),
             "campsitepopup" => Ok(Self::CampsitePopup),
             "loading" => Ok(Self::Loading),
@@ -75,6 +79,7 @@ impl FromStr for GameState {
 pub enum ScreenArg {
     Login,
     CharSelect,
+    GeosetDebug,
     CharCreate,
     CharCreateCustomize,
     CampsitePopup,
@@ -86,9 +91,10 @@ pub enum ScreenArg {
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 10] = [
+    pub const CLI_VALUES: [&str; 11] = [
         "login",
         "charselect",
+        "geosetdebug",
         "charcreate",
         "charcreate-customize",
         "campsitepopup",
@@ -105,6 +111,7 @@ impl From<ScreenArg> for GameState {
         match value {
             ScreenArg::Login => Self::Login,
             ScreenArg::CharSelect => Self::CharSelect,
+            ScreenArg::GeosetDebug => Self::GeosetDebug,
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::CampsitePopup => Self::CampsitePopup,
             ScreenArg::Loading => Self::Loading,
@@ -122,6 +129,7 @@ impl FromStr for ScreenArg {
         match value {
             "login" => Ok(Self::Login),
             "charselect" => Ok(Self::CharSelect),
+            "geosetdebug" => Ok(Self::GeosetDebug),
             "charcreate" => Ok(Self::CharCreate),
             "charcreate-customize" => Ok(Self::CharCreateCustomize),
             "campsitepopup" => Ok(Self::CampsitePopup),

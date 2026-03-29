@@ -261,23 +261,7 @@ fn apply_geoset_visibility(
         if child_of.parent() != root && !is_descendant_of(entity, root, parent_query) {
             continue;
         }
-        let group = geoset_mesh.0 / 100;
-        let variant = geoset_mesh.0 % 100;
-        if !active_types.contains(&group) {
-            continue;
-        }
-        let visible = if group == 0 {
-            let selected_variant = active_geosets
-                .iter()
-                .find(|(t, _)| *t == 0)
-                .map(|(_, id)| *id)
-                .unwrap_or(0);
-            group_zero_visible(geoset_mesh.0, selected_variant)
-        } else {
-            active_geosets
-                .iter()
-                .any(|(t, id)| *t == group && *id == variant)
-        };
+        let visible = is_geoset_visible(geoset_mesh.0, &active_geosets, &active_types);
         if let Ok(mut vis) = visibility_query.get_mut(entity) {
             *vis = if visible {
                 Visibility::Inherited
@@ -286,6 +270,25 @@ fn apply_geoset_visibility(
             };
         }
     }
+}
+
+fn is_geoset_visible(mesh_part_id: u16, active_geosets: &[(u16, u16)], active_types: &[u16]) -> bool {
+    let group = mesh_part_id / 100;
+    let variant = mesh_part_id % 100;
+    if !active_types.contains(&group) {
+        return false;
+    }
+    if group == 0 {
+        let selected_variant = active_geosets
+            .iter()
+            .find(|(t, _)| *t == 0)
+            .map(|(_, id)| *id)
+            .unwrap_or(0);
+        return group_zero_visible(mesh_part_id, selected_variant);
+    }
+    active_geosets
+        .iter()
+        .any(|(t, id)| *t == group && *id == variant)
 }
 
 fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
