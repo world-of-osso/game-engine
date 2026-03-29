@@ -18,6 +18,10 @@ pub struct RuntimeModelAppearance {
 #[path = "equipment_cloak_tests.rs"]
 mod cloak_tests;
 
+#[cfg(test)]
+#[path = "equipment_feet_tests.rs"]
+mod feet_tests;
+
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
@@ -112,6 +116,7 @@ fn apply_non_head_equipment_entry(
 ) {
     ensure_display_material_textures(display_info_id, outfit_data);
     let mut display = outfit_data.resolve_display_info(display_info_id);
+    ensure_item_component_textures(&display);
     apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
     resolved.outfit =
         crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
@@ -335,13 +340,13 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
     equipment.slots.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     equipment.slot_skin_fdids.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     for runtime_model in &resolved.runtime_models {
@@ -358,6 +363,7 @@ fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlo
     match slot {
         EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
         EquipmentVisualSlot::Back => Some(EquipmentSlot::Back),
+        EquipmentVisualSlot::Feet => Some(EquipmentSlot::Feet),
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
         EquipmentVisualSlot::OffHand => Some(EquipmentSlot::OffHand),
         _ => None,
@@ -415,6 +421,12 @@ fn ensure_display_material_textures(display_info_id: u32, outfit_data: &OutfitDa
     }
 }
 
+fn ensure_item_component_textures(display: &OutfitResult) {
+    for &(_, fdid) in &display.item_textures {
+        let _ = casc_resolver::ensure_texture(fdid);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,6 +455,14 @@ mod tests {
         assert_eq!(
             visual_slot_to_runtime_slot(EquipmentVisualSlot::Head),
             Some(EquipmentSlot::Head)
+        );
+    }
+
+    #[test]
+    fn feet_slot_maps_to_runtime_slot() {
+        assert_eq!(
+            visual_slot_to_runtime_slot(EquipmentVisualSlot::Feet),
+            Some(EquipmentSlot::Feet)
         );
     }
 

@@ -41,8 +41,10 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    merged_cloak_display: u32,
-    runtime_cloak_display: u32,
+    left_back_display: u32,
+    left_feet_display: u32,
+    right_back_display: u32,
+    right_feet_display: u32,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -72,19 +74,18 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            merged_cloak_display: env_u32("DEBUG_CHARACTER_MERGED_CLOAK_DISPLAY", 192758),
-            runtime_cloak_display: env_u32("DEBUG_CHARACTER_RUNTIME_CLOAK_DISPLAY", 677577),
+            left_back_display: env_u32("DEBUG_CHARACTER_LEFT_BACK_DISPLAY", 192758),
+            left_feet_display: env_u32("DEBUG_CHARACTER_LEFT_FEET_DISPLAY", 6060),
+            right_back_display: env_u32("DEBUG_CHARACTER_RIGHT_BACK_DISPLAY", 0),
+            right_feet_display: env_u32("DEBUG_CHARACTER_RIGHT_FEET_DISPLAY", 154620),
         }
     }
 }
 
-fn back_equipment_appearance(display_info_id: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(back_display_id: u32, feet_display_id: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
-    push_equipped_entry(
-        &mut entries,
-        EquipmentVisualSlot::Back,
-        display_info_id,
-    );
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Back, back_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Feet, feet_display_id);
     EquipmentAppearance { entries }
 }
 
@@ -196,7 +197,7 @@ fn spawn_ground(
 
 fn model_transform(x: f32) -> Transform {
     Transform::from_xyz(x, 0.0, 0.0)
-        .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))
+        .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
 }
 
 fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
@@ -219,7 +220,8 @@ fn spawn_debug_character_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     config: &DebugCharacterConfig,
     x: f32,
-    cloak_display: u32,
+    back_display: u32,
+    feet_display: u32,
     name: &str,
 ) {
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
@@ -253,7 +255,7 @@ fn spawn_debug_character_model(
                     sex: config.sex,
                     appearance: config.appearance,
                 },
-                equipment_appearance: back_equipment_appearance(cloak_display),
+                equipment_appearance: debug_equipment_appearance(back_display, feet_display),
             },
         ));
 }
@@ -282,8 +284,9 @@ fn setup_scene(
         &creature_display_map,
         &config,
         -1.7,
-        config.merged_cloak_display,
-        "DebugCharacterMergedCloak",
+        config.left_back_display,
+        config.left_feet_display,
+        "DebugCharacterGeosetBoots",
     );
     spawn_debug_character_model(
         &mut commands,
@@ -295,8 +298,9 @@ fn setup_scene(
         &creature_display_map,
         &config,
         1.7,
-        config.runtime_cloak_display,
-        "DebugCharacterRuntimeCloak",
+        config.right_back_display,
+        config.right_feet_display,
+        "DebugCharacterM2Boots",
     );
 }
 

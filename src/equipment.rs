@@ -23,6 +23,7 @@ use crate::m2_spawn;
 pub enum EquipmentSlot {
     Head,
     Back,
+    Feet,
     MainHand,
     OffHand,
 }
@@ -119,6 +120,7 @@ impl Default for EquipmentTransforms {
         let mut slot_defaults = HashMap::new();
         slot_defaults.insert(EquipmentSlot::Head, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Back, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::Feet, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::MainHand, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::OffHand, Transform::IDENTITY);
         Self {
@@ -188,6 +190,7 @@ fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
     match slot {
         EquipmentSlot::Head => 11,    // Helm
         EquipmentSlot::Back => 12,    // Back
+        EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
         EquipmentSlot::MainHand => 0, // HandRight
         EquipmentSlot::OffHand => 1,  // HandLeft
     }
@@ -349,21 +352,26 @@ fn spawn_equipment_slot(
     warned: &mut HashSet<String>,
     owner: Entity,
 ) -> Option<Entity> {
-    let att_id = slot_attachment_id(slot);
-    let Some(&(bone_idx, base_offset)) = attach_points.points.get(&att_id) else {
-        warn_once(
-            warned,
-            format!("missing attachment {att_id} for slot {slot:?} on {owner:?}"),
-        );
-        return None;
-    };
+    let (parent_entity, base_offset) = if matches!(slot, EquipmentSlot::Feet) {
+        (owner, Vec3::ZERO)
+    } else {
+        let att_id = slot_attachment_id(slot);
+        let Some(&(bone_idx, base_offset)) = attach_points.points.get(&att_id) else {
+            warn_once(
+                warned,
+                format!("missing attachment {att_id} for slot {slot:?} on {owner:?}"),
+            );
+            return None;
+        };
 
-    let Some(&joint) = joint_entities.get(bone_idx as usize) else {
-        warn_once(
-            warned,
-            format!("missing bone {bone_idx} for slot {slot:?} on {owner:?}"),
-        );
-        return None;
+        let Some(&joint) = joint_entities.get(bone_idx as usize) else {
+            warn_once(
+                warned,
+                format!("missing bone {bone_idx} for slot {slot:?} on {owner:?}"),
+            );
+            return None;
+        };
+        (joint, base_offset)
     };
 
     if !m2_path.exists() {
@@ -390,11 +398,11 @@ fn spawn_equipment_slot(
             EquipmentItem { _slot: slot },
             transform,
             Visibility::default(),
-            ChildOf(joint),
+            ChildOf(parent_entity),
         ))
         .id();
 
-    if !m2_spawn::spawn_m2_on_entity(
+    if !m2_spawn::spawn_m2_on_entity_filtered(
         commands,
         &mut m2_spawn::SpawnAssets {
             meshes,
@@ -406,6 +414,7 @@ fn spawn_equipment_slot(
         m2_path,
         item_root,
         &skin_fdids,
+        |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
     ) {
         commands.entity(item_root).despawn();
         warn_once(
@@ -419,6 +428,13 @@ fn spawn_equipment_slot(
     }
 
     Some(item_root)
+}
+
+fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
+    match slot {
+        EquipmentSlot::Feet => mesh_part_id / 100 == 5,
+        _ => true,
+    }
 }
 
 fn warn_once(warned: &mut HashSet<String>, message: String) {

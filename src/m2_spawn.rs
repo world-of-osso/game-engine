@@ -54,6 +54,17 @@ pub fn spawn_m2_on_entity(
     entity: Entity,
     skin_fdids: &[u32; 3],
 ) -> bool {
+    spawn_m2_on_entity_filtered(commands, assets, m2_path, entity, skin_fdids, |_| true)
+}
+
+pub fn spawn_m2_on_entity_filtered(
+    commands: &mut Commands,
+    assets: &mut SpawnAssets<'_>,
+    m2_path: &Path,
+    entity: Entity,
+    skin_fdids: &[u32; 3],
+    filter: impl Fn(u16) -> bool,
+) -> bool {
     let model = match asset::m2::load_m2(m2_path, skin_fdids) {
         Ok(m) => m,
         Err(e) => {
@@ -61,9 +72,13 @@ pub fn spawn_m2_on_entity(
             return false;
         }
     };
-    let grounded_root =
-        ensure_grounded_model_root(commands, entity, ground_offset_y(&model.batches));
-    attach_m2_batches(commands, assets, model.batches, &model.bones, grounded_root);
+    let batches = model
+        .batches
+        .into_iter()
+        .filter(|batch| filter(batch.mesh_part_id))
+        .collect::<Vec<_>>();
+    let grounded_root = ensure_grounded_model_root(commands, entity, ground_offset_y(&batches));
+    attach_m2_batches(commands, assets, batches, &model.bones, grounded_root);
     true
 }
 
