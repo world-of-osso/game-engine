@@ -23,6 +23,7 @@ use crate::m2_spawn;
 pub enum EquipmentSlot {
     Head,
     Back,
+    Legs,
     Feet,
     MainHand,
     OffHand,
@@ -120,6 +121,7 @@ impl Default for EquipmentTransforms {
         let mut slot_defaults = HashMap::new();
         slot_defaults.insert(EquipmentSlot::Head, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Back, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::Legs, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Feet, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::MainHand, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::OffHand, Transform::IDENTITY);
@@ -190,6 +192,7 @@ fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
     match slot {
         EquipmentSlot::Head => 11,    // Helm
         EquipmentSlot::Back => 12,    // Back
+        EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
         EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
         EquipmentSlot::MainHand => 0, // HandRight
         EquipmentSlot::OffHand => 1,  // HandLeft
@@ -352,7 +355,7 @@ fn spawn_equipment_slot(
     warned: &mut HashSet<String>,
     owner: Entity,
 ) -> Option<Entity> {
-    let (parent_entity, base_offset) = if matches!(slot, EquipmentSlot::Feet) {
+    let (parent_entity, base_offset) = if matches!(slot, EquipmentSlot::Legs | EquipmentSlot::Feet) {
         (owner, Vec3::ZERO)
     } else {
         let att_id = slot_attachment_id(slot);
@@ -432,6 +435,7 @@ fn spawn_equipment_slot(
 
 fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
     match slot {
+        EquipmentSlot::Legs => matches!(mesh_part_id / 100, 11 | 13),
         EquipmentSlot::Feet => mesh_part_id / 100 == 5,
         _ => true,
     }

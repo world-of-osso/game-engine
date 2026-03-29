@@ -26,7 +26,7 @@ struct DisplayInfoResolved {
     model_resource_ids: Vec<u32>,
     model_material_resource_ids: Vec<u32>,
     helmet_geoset_vis_ids: Vec<u32>,
-    head_geoset_groups: [i16; 2],
+    geoset_groups: [i16; 6],
 }
 
 #[derive(Debug, Default)]
@@ -39,8 +39,6 @@ struct LoadedOutfitData {
     appearance_to_display: HashMap<u32, u32>,
     /// ItemDisplayInfoID -> resolved display data
     display_info: HashMap<u32, DisplayInfoResolved>,
-    /// ItemDisplayInfoID -> raw hand/glove geoset selector from GeosetGroup_0.
-    hand_geoset_group: HashMap<u32, u16>,
     /// MaterialResourcesID -> first diffuse texture FileDataID
     material_to_texture: HashMap<u32, u32>,
     /// ModelResourcesID -> model FileDataIDs
@@ -90,7 +88,6 @@ impl OutfitData {
             item_to_appearance,
             appearance_to_display,
             display_info: display_resources.display_info,
-            hand_geoset_group: display_resources.hand_geoset_group,
             material_to_texture: display_resources.material_to_texture,
             model_to_fdids: display_resources.model_to_fdids,
             race_prefix: display_resources.race_prefix,
@@ -124,16 +121,23 @@ impl OutfitData {
     }
 
     pub fn hand_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        let data = self.loaded()?;
-        let raw = *data.hand_geoset_group.get(&display_info_id)?;
-        // Human glove geosets use 401 as bare wrists and item variants start at 402.
-        raw.checked_add(1)
+        self.display_geoset_variant(display_info_id, 0)
     }
 
     pub fn cape_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        let data = self.loaded()?;
-        let raw = *data.hand_geoset_group.get(&display_info_id)?;
-        raw.checked_add(1)
+        self.display_geoset_variant(display_info_id, 0)
+    }
+
+    pub fn pants_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        self.display_geoset_variant(display_info_id, 0)
+    }
+
+    pub fn kneepad_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        self.display_geoset_variant(display_info_id, 1)
+    }
+
+    pub fn trouser_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        self.display_geoset_variant(display_info_id, 2)
     }
 
     pub fn display_material_texture_fdids(&self, display_info_id: u32) -> Vec<u32> {
@@ -258,13 +262,20 @@ impl OutfitData {
             .map(|data| data.material_to_texture.len())
             .unwrap_or(0)
     }
+
+    fn display_geoset_variant(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
+        let data = self.loaded()?;
+        let display = data.display_info.get(&display_info_id)?;
+        let raw = *display.geoset_groups.get(group_index)?;
+        let raw = u16::try_from(raw).ok()?;
+        (raw != 0).then_some(raw + 1)
+    }
 }
 
 type OutfitKey = (u8, u8, u8);
 
 struct DisplayResources {
     display_info: HashMap<u32, DisplayInfoResolved>,
-    hand_geoset_group: HashMap<u32, u16>,
     material_to_texture: HashMap<u32, u32>,
     model_to_fdids: HashMap<u32, Vec<u32>>,
     race_prefix: HashMap<u8, String>,
@@ -272,8 +283,7 @@ struct DisplayResources {
 }
 
 fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
-    let (base_display_info, hand_geoset_group) =
-        parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
+    let base_display_info = parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
     let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
     let display_materials = parse_item_display_info_material_res(
         &data_dir.join("ItemDisplayInfoMaterialRes.csv"),
@@ -281,7 +291,6 @@ fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
     )?;
     Ok(DisplayResources {
         display_info: merge_display_materials(base_display_info, display_materials),
-        hand_geoset_group,
         material_to_texture,
         model_to_fdids: parse_model_file_data(&data_dir.join("ModelFileData.csv"))?,
         race_prefix: parse_race_prefix(&data_dir.join("ChrRaces.csv"))?,
@@ -454,31 +463,25 @@ fn parse_item_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
 
 fn parse_item_display_info(
     path: &Path,
-) -> Result<(HashMap<u32, DisplayInfoResolved>, HashMap<u32, u16>), String> {
+) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
     let (h, rows) = read_csv(path)?;
     let columns = ItemDisplayInfoColumns::from_headers(&h)?;
 
     let mut map = HashMap::new();
-    let mut hand_geoset_group = HashMap::new();
     for row in &rows {
-        insert_display_info_row(&mut map, &mut hand_geoset_group, row, columns);
+        insert_display_info_row(&mut map, row, columns);
     }
-    Ok((map, hand_geoset_group))
+    Ok(map)
 }
 
 fn insert_display_info_row(
     map: &mut HashMap<u32, DisplayInfoResolved>,
-    hand_geoset_group: &mut HashMap<u32, u16>,
     row: &[String],
     columns: ItemDisplayInfoColumns,
 ) {
     let id = field_u32(row, columns.id);
     if id == 0 {
         return;
-    }
-    let glove_geoset = field_u32(row, columns.glove_geoset) as u16;
-    if glove_geoset != 0 {
-        hand_geoset_group.insert(id, glove_geoset);
     }
     map.insert(id, parse_display_info_row(row, columns));
 }
@@ -493,9 +496,13 @@ fn parse_display_info_row(row: &[String], columns: ItemDisplayInfoColumns) -> Di
             &[columns.model_mat_res_0, columns.model_mat_res_1],
         ),
         helmet_geoset_vis_ids: collect_unique_u32(row, &[columns.helmet_vis_0, columns.helmet_vis_1]),
-        head_geoset_groups: [
+        geoset_groups: [
             field_i32(row, columns.geoset_group_0) as i16,
             field_i32(row, columns.geoset_group_1) as i16,
+            field_i32(row, columns.geoset_group_2) as i16,
+            0,
+            0,
+            0,
         ],
     }
 }
@@ -507,9 +514,9 @@ struct ItemDisplayInfoColumns {
     model_res_1: usize,
     model_mat_res_0: usize,
     model_mat_res_1: usize,
-    glove_geoset: usize,
     geoset_group_0: usize,
     geoset_group_1: usize,
+    geoset_group_2: usize,
     helmet_vis_0: usize,
     helmet_vis_1: usize,
 }
@@ -522,9 +529,9 @@ impl ItemDisplayInfoColumns {
             model_res_1: col(headers, "ModelResourcesID_1")?,
             model_mat_res_0: col(headers, "ModelMaterialResourcesID_0")?,
             model_mat_res_1: col(headers, "ModelMaterialResourcesID_1")?,
-            glove_geoset: col(headers, "GeosetGroup_0")?,
             geoset_group_0: col(headers, "GeosetGroup_0")?,
             geoset_group_1: col(headers, "GeosetGroup_1")?,
+            geoset_group_2: col(headers, "GeosetGroup_2")?,
             helmet_vis_0: col(headers, "HelmetGeosetVis_0")?,
             helmet_vis_1: col(headers, "HelmetGeosetVis_1")?,
         })
@@ -533,10 +540,10 @@ impl ItemDisplayInfoColumns {
 
 fn collect_head_geoset_overrides(display: &DisplayInfoResolved) -> Vec<(u16, u16)> {
     let mut overrides = Vec::new();
-    if let Some(primary_variant) = head_geoset_primary_variant(display.head_geoset_groups[0]) {
+    if let Some(primary_variant) = head_geoset_primary_variant(display.geoset_groups[0]) {
         overrides.push((27, primary_variant));
     }
-    if let Some(secondary_variant) = head_geoset_secondary_variant(display.head_geoset_groups[1]) {
+    if let Some(secondary_variant) = head_geoset_secondary_variant(display.geoset_groups[1]) {
         overrides.push((21, secondary_variant));
     }
     overrides

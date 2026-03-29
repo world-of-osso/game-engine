@@ -41,10 +41,8 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    left_back_display: u32,
-    left_feet_display: u32,
-    right_back_display: u32,
-    right_feet_display: u32,
+    left_legs_display: u32,
+    right_legs_display: u32,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -74,18 +72,15 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            left_back_display: env_u32("DEBUG_CHARACTER_LEFT_BACK_DISPLAY", 192758),
-            left_feet_display: env_u32("DEBUG_CHARACTER_LEFT_FEET_DISPLAY", 6060),
-            right_back_display: env_u32("DEBUG_CHARACTER_RIGHT_BACK_DISPLAY", 0),
-            right_feet_display: env_u32("DEBUG_CHARACTER_RIGHT_FEET_DISPLAY", 154620),
+            left_legs_display: env_u32("DEBUG_CHARACTER_LEFT_LEGS_DISPLAY", 73783),
+            right_legs_display: env_u32("DEBUG_CHARACTER_RIGHT_LEGS_DISPLAY", 159629),
         }
     }
 }
 
-fn debug_equipment_appearance(back_display_id: u32, feet_display_id: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(legs_display_id: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Back, back_display_id);
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Feet, feet_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Legs, legs_display_id);
     EquipmentAppearance { entries }
 }
 
@@ -220,8 +215,7 @@ fn spawn_debug_character_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     config: &DebugCharacterConfig,
     x: f32,
-    back_display: u32,
-    feet_display: u32,
+    legs_display: u32,
     name: &str,
 ) {
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
@@ -255,7 +249,7 @@ fn spawn_debug_character_model(
                     sex: config.sex,
                     appearance: config.appearance,
                 },
-                equipment_appearance: debug_equipment_appearance(back_display, feet_display),
+                equipment_appearance: debug_equipment_appearance(legs_display),
             },
         ));
 }
@@ -284,9 +278,8 @@ fn setup_scene(
         &creature_display_map,
         &config,
         -1.7,
-        config.left_back_display,
-        config.left_feet_display,
-        "DebugCharacterGeosetBoots",
+        config.left_legs_display,
+        "DebugCharacterGeosetPants",
     );
     spawn_debug_character_model(
         &mut commands,
@@ -298,9 +291,8 @@ fn setup_scene(
         &creature_display_map,
         &config,
         1.7,
-        config.right_back_display,
-        config.right_feet_display,
-        "DebugCharacterM2Boots",
+        config.right_legs_display,
+        "DebugCharacterM2Pants",
     );
 }
 

@@ -22,6 +22,10 @@ mod cloak_tests;
 #[path = "equipment_feet_tests.rs"]
 mod feet_tests;
 
+#[cfg(test)]
+#[path = "equipment_legs_tests.rs"]
+mod legs_tests;
+
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
@@ -274,6 +278,21 @@ fn apply_slot_geoset_overrides(
             _ => {}
         }
     }
+    if matches!(slot, EquipmentVisualSlot::Legs) {
+        let mut overrides = Vec::new();
+        if let Some(variant) = outfit_data.pants_geoset_variant(display_info_id) {
+            overrides.push((11, variant));
+        }
+        if let Some(variant) = outfit_data.kneepad_geoset_variant(display_info_id) {
+            overrides.push((9, variant));
+        }
+        if let Some(variant) = outfit_data.trouser_geoset_variant(display_info_id) {
+            overrides.push((13, variant));
+        }
+        if !overrides.is_empty() {
+            apply_geoset_overrides(display, overrides);
+        }
+    }
     if matches!(slot, EquipmentVisualSlot::Back)
         && let Some(variant) = outfit_data.cape_geoset_variant(display_info_id)
     {
@@ -340,13 +359,13 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
     equipment.slots.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     equipment.slot_skin_fdids.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     for runtime_model in &resolved.runtime_models {
@@ -363,6 +382,7 @@ fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlo
     match slot {
         EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
         EquipmentVisualSlot::Back => Some(EquipmentSlot::Back),
+        EquipmentVisualSlot::Legs => Some(EquipmentSlot::Legs),
         EquipmentVisualSlot::Feet => Some(EquipmentSlot::Feet),
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
         EquipmentVisualSlot::OffHand => Some(EquipmentSlot::OffHand),
@@ -463,6 +483,14 @@ mod tests {
         assert_eq!(
             visual_slot_to_runtime_slot(EquipmentVisualSlot::Feet),
             Some(EquipmentSlot::Feet)
+        );
+    }
+
+    #[test]
+    fn legs_slot_maps_to_runtime_slot() {
+        assert_eq!(
+            visual_slot_to_runtime_slot(EquipmentVisualSlot::Legs),
+            Some(EquipmentSlot::Legs)
         );
     }
 
