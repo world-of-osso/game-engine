@@ -1,4 +1,4 @@
-use std::f32::consts::{FRAC_PI_8, PI};
+use std::f32::consts::PI;
 use std::path::PathBuf;
 
 use bevy::input::mouse::AccumulatedMouseMotion;
@@ -46,8 +46,6 @@ struct DebugCharacterConfig {
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
-const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
-const ORBIT_PITCH_LIMIT: f32 = 0.15;
 
 pub struct DebugCharacterScenePlugin;
 
@@ -311,10 +309,8 @@ fn orbit_camera(
         return;
     }
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw = (orbit.yaw - motion.delta.x * ORBIT_SENSITIVITY)
-            .clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
-        orbit.pitch = (orbit.pitch + motion.delta.y * ORBIT_SENSITIVITY)
-            .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        orbit.yaw -= motion.delta.x * ORBIT_SENSITIVITY;
+        orbit.pitch += motion.delta.y * ORBIT_SENSITIVITY;
         let pitch = orbit.base_pitch + orbit.pitch;
         let eye = orbit.focus
             + Vec3::new(
