@@ -516,6 +516,7 @@ fn default_geoset_visibility() {
     assert!(!default_geoset_visible(802)); // shirt sleeves (not default visible)
     assert!(!default_geoset_visible(902)); // leggings (not default visible)
     assert!(!default_geoset_visible(1502)); // cape style 2
+    assert!(!default_geoset_visible(1701)); // eyeglow
     assert!(!default_geoset_visible(1703)); // eyeglow
 }
 

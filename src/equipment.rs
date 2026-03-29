@@ -434,6 +434,9 @@ fn spawn_equipment_slot(
 }
 
 fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
+    if mesh_part_id / 100 == 17 {
+        return false;
+    }
     match slot {
         EquipmentSlot::Legs => matches!(mesh_part_id / 100, 11 | 13),
         EquipmentSlot::Feet => mesh_part_id / 100 == 5,
@@ -491,6 +494,14 @@ mod tests {
             Path::new("data/models/club_1h_torch_a_01.m2"),
         );
         assert!((t.translation.x - 0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn runtime_mesh_filter_excludes_dk_eye_glow_group() {
+        assert!(!runtime_mesh_part_allowed(EquipmentSlot::Back, 1701));
+        assert!(!runtime_mesh_part_allowed(EquipmentSlot::Legs, 1702));
+        assert!(!runtime_mesh_part_allowed(EquipmentSlot::Feet, 1705));
+        assert!(runtime_mesh_part_allowed(EquipmentSlot::Feet, 501));
     }
 
     #[test]
