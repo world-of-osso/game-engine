@@ -74,7 +74,7 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            merged_cloak_display: env_u32("DEBUG_CHARACTER_MERGED_CLOAK_DISPLAY", 192786),
+            merged_cloak_display: env_u32("DEBUG_CHARACTER_MERGED_CLOAK_DISPLAY", 192758),
             runtime_cloak_display: env_u32("DEBUG_CHARACTER_RUNTIME_CLOAK_DISPLAY", 677577),
         }
     }
@@ -198,7 +198,7 @@ fn spawn_ground(
 
 fn model_transform(x: f32) -> Transform {
     Transform::from_xyz(x, 0.0, 0.0)
-        .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))
 }
 
 fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {

@@ -22,6 +22,7 @@ mod cloak_tests;
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
     pub runtime_models: Vec<RuntimeModelAppearance>,
+    pub merged_cape_texture_fdid: Option<u32>,
     pub explicit_slots: HashSet<EquipmentVisualSlot>,
     pub hidden_character_geoset_groups: HashSet<u16>,
 }
@@ -109,6 +110,7 @@ fn apply_non_head_equipment_entry(
     race: u8,
     sex: u8,
 ) {
+    ensure_display_material_textures(display_info_id, outfit_data);
     let mut display = outfit_data.resolve_display_info(display_info_id);
     apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
     resolved.outfit =
@@ -143,6 +145,10 @@ fn apply_back_equipment_entry(
     race: u8,
     sex: u8,
 ) {
+    if let Some(cape_texture_fdid) = outfit_data.cape_texture_fdid(display_info_id) {
+        let _ = casc_resolver::ensure_texture(cape_texture_fdid);
+        resolved.merged_cape_texture_fdid = Some(cape_texture_fdid);
+    }
     apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Back, display_info_id, outfit_data, race, sex);
 }
 
@@ -400,6 +406,12 @@ fn ensure_runtime_model_textures(skin_fdids: &[u32; 3]) {
         if fdid != 0 {
             let _ = casc_resolver::ensure_texture(fdid);
         }
+    }
+}
+
+fn ensure_display_material_textures(display_info_id: u32, outfit_data: &OutfitData) {
+    for fdid in outfit_data.display_material_texture_fdids(display_info_id) {
+        let _ = casc_resolver::ensure_texture(fdid);
     }
 }
 

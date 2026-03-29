@@ -76,6 +76,7 @@ src/
 - `data/casc/root.bin` + `encoding.bin` — CASC resolution tables (~250MB, from `casc-extract init`). **Never delete — expensive to regenerate.**
 - WoW install: `/syncthing/World of Warcraft/` — full install synced from Windows (CASC at `Data/`, retail at `_retail_/`)
 - **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `doc/casc-extraction.md`.
+- **Gotcha: item material textures** — some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData`, not from the same path as attached runtime M2 textures. Auto-extraction is not fully reliable for every such path yet. If an item geoset/model shows untextured, verify the resolved texture FDID exists under `data/textures/` and extract it manually with `cargo run --bin casc-local -- <fdid> -o data/textures` before assuming the render path is wrong.
 
 ## Test Assets
 

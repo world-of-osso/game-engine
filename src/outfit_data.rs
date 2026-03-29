@@ -132,7 +132,30 @@ impl OutfitData {
 
     pub fn cape_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
         let data = self.loaded()?;
-        data.hand_geoset_group.get(&display_info_id).copied()
+        let raw = *data.hand_geoset_group.get(&display_info_id)?;
+        raw.checked_add(1)
+    }
+
+    pub fn display_material_texture_fdids(&self, display_info_id: u32) -> Vec<u32> {
+        let Some(data) = self.loaded() else {
+            return Vec::new();
+        };
+        let Some(display) = data.display_info.get(&display_info_id) else {
+            return Vec::new();
+        };
+        display
+            .model_material_resource_ids
+            .iter()
+            .filter_map(|material_resource_id| data.material_to_texture.get(material_resource_id))
+            .copied()
+            .filter(|fdid| *fdid != 0)
+            .collect()
+    }
+
+    pub fn cape_texture_fdid(&self, display_info_id: u32) -> Option<u32> {
+        self.display_material_texture_fdids(display_info_id)
+            .into_iter()
+            .next()
     }
 
     pub fn head_geoset_overrides(&self, display_info_id: u32) -> Vec<(u16, u16)> {

@@ -69,6 +69,7 @@ pub(crate) fn apply_character_customization(
         customization_db,
         char_tex,
         &overlay_set,
+        equipped_appearance.and_then(|equipped| equipped.merged_cape_texture_fdid),
         root,
         images,
         materials,
@@ -92,6 +93,7 @@ fn apply_base_skin_and_overlay_textures(
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
     overlay_set: &game_engine::outfit_data::OutfitResult,
+    merged_cape_texture_fdid: Option<u32>,
     root: Entity,
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
@@ -123,6 +125,10 @@ fn apply_base_skin_and_overlay_textures(
     let hair_handle = composited
         .hair
         .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
+    let cape_handle = merged_cape_texture_fdid
+        .and_then(|fdid| crate::asset::casc_resolver::ensure_texture(fdid))
+        .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
+        .map(|image| images.add(image));
     for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
@@ -132,6 +138,7 @@ fn apply_base_skin_and_overlay_textures(
             &body_handle,
             head_handle.as_ref(),
             hair_handle.as_ref(),
+            cape_handle.as_ref(),
         );
         let Some(replacement) = replacement else {
             continue;
@@ -197,9 +204,11 @@ fn replacement_texture_for_batch(
     body_handle: &Handle<Image>,
     head_handle: Option<&Handle<Image>>,
     hair_handle: Option<&Handle<Image>>,
+    cape_handle: Option<&Handle<Image>>,
 ) -> Option<Handle<Image>> {
     match texture_type {
         Some(1) => Some(body_handle.clone()),
+        Some(2) => cape_handle.cloned(),
         Some(6) => Some(
             hair_handle
                 .cloned()
@@ -652,9 +661,24 @@ mod tests {
         let head = images.add(Image::default());
         let hair = images.add(Image::default());
 
-        let replacement = replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair));
+        let replacement =
+            replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair), None);
 
         assert_eq!(replacement, Some(hair));
+    }
+
+    #[test]
+    fn replacement_texture_for_type_two_batches_uses_cape_texture() {
+        let mut images = Assets::<Image>::default();
+        let body = images.add(Image::default());
+        let head = images.add(Image::default());
+        let hair = images.add(Image::default());
+        let cape = images.add(Image::default());
+
+        let replacement =
+            replacement_texture_for_batch(Some(2), &body, Some(&head), Some(&hair), Some(&cape));
+
+        assert_eq!(replacement, Some(cape));
     }
 
     #[test]

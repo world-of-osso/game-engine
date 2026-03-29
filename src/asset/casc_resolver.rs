@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use cascette_client_storage::Installation;
+use cascette_client_storage::resolver::ContentResolver;
 use tokio::runtime::Handle as TokioHandle;
 
 const WOW_DATA_PATH: &str = "/syncthing/World of Warcraft/Data";
@@ -18,6 +19,7 @@ static CASC: OnceLock<Option<CascState>> = OnceLock::new();
 
 struct CascState {
     install: Installation,
+    resolver: ContentResolver,
     /// Archive indices are expensive to load; defer until first FDID extraction.
     initialized: Mutex<InitState>,
 }
@@ -86,8 +88,18 @@ fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
     let casc = get_casc()?;
     casc.ensure_initialized()?;
 
-    let data = run_async(casc.install.read_file_by_fdid(fdid))
-        .map_err(|e| format!("CASC read FDID {fdid}: {e}"))?;
+    let content_key = casc
+        .resolver
+        .resolve_file_data_id(fdid)
+        .ok_or_else(|| format!("CASC resolve FDID {fdid}: missing content key in root"))?;
+    let encoding_key = casc
+        .resolver
+        .resolve_content_key(&content_key)
+        .ok_or_else(|| {
+            format!("CASC resolve FDID {fdid}: missing encoding key for content {content_key}")
+        })?;
+    let data = run_async(casc.install.read_file_by_encoding_key(&encoding_key))
+        .map_err(|e| format!("CASC read FDID {fdid} via encoding key {encoding_key}: {e}"))?;
 
     write_to_path(out_path, &data)?;
     eprintln!("CASC: extracted FDID {fdid} -> {}", out_path.display());
@@ -118,22 +130,21 @@ fn init_casc() -> Result<CascState, String> {
     }
 
     let install = Installation::open(data_root).map_err(|e| format!("CASC open: {e}"))?;
+    let resolver = ContentResolver::new();
 
     let casc_dir = PathBuf::from(CASC_DATA_DIR);
-    load_cached_resolution_files(&install, &casc_dir)?;
+    load_cached_resolution_files(&resolver, &casc_dir)?;
 
     eprintln!("CASC resolver initialized from {WOW_DATA_PATH}");
     Ok(CascState {
         install,
+        resolver,
         initialized: Mutex::new(InitState::Uninitialized),
     })
 }
 
 /// Load root+encoding from disk cache. Fails if cache doesn't exist yet.
-fn load_cached_resolution_files(
-    install: &Installation,
-    cache: &Path,
-) -> Result<(), String> {
+fn load_cached_resolution_files(resolver: &ContentResolver, cache: &Path) -> Result<(), String> {
     let root_path = cache.join("root.bin");
     let enc_path = cache.join("encoding.bin");
 
@@ -143,15 +154,15 @@ fn load_cached_resolution_files(
             root_path.display()
         )
     })?;
-    install
+    resolver
         .load_root_file(&root_data)
-        .map_err(|e| format!("load root: {e}"))?;
+        .map_err(|e| format!("resolver load root: {e}"))?;
 
     let enc_data = std::fs::read(&enc_path)
         .map_err(|e| format!("{}: {e} (run `casc-init` binary first)", enc_path.display()))?;
-    install
+    resolver
         .load_encoding_file(&enc_data)
-        .map_err(|e| format!("load encoding: {e}"))?;
+        .map_err(|e| format!("resolver load encoding: {e}"))?;
 
     Ok(())
 }
