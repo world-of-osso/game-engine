@@ -72,6 +72,30 @@ fn live_human_male_back_cloak_spawns_runtime_attachment() {
     assert!(found.is_some(), "expected spawned back cloak equipment item");
 }
 
+#[test]
+fn live_human_male_chest_runtime_attachment_uses_character_joints_without_local_animation() {
+    let Some((spawned, chest_path, mut app)) = setup_live_chest_test_app() else {
+        return;
+    };
+    equip_live_chest(&mut app, spawned.model_root, &chest_path);
+    app.update();
+    app.update();
+
+    let chest_entity = chest_equipment_entity(app.world_mut()).expect("spawned chest equipment item");
+    let parent = app
+        .world()
+        .get::<ChildOf>(chest_entity)
+        .expect("chest parent")
+        .parent();
+    assert_eq!(parent, spawned.model_root);
+    assert!(app.world().get::<crate::animation::M2AnimPlayer>(chest_entity).is_none());
+    assert!(app.world().get::<crate::animation::M2AnimData>(chest_entity).is_none());
+    assert!(
+        find_named_descendant_y(app.world(), chest_entity, "SpineLow").is_none(),
+        "expected chest runtime attachment to avoid spawning its own named torso skeleton",
+    );
+}
+
 fn setup_live_helm_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
     let character_path = Path::new("data/models/humanmale_hd.m2");
     let helm_path = Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_hum.m2");
@@ -82,6 +106,20 @@ fn setup_live_helm_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'st
     configure_live_test_app(&mut app);
     let spawned = spawn_live_character(&mut app, character_path);
     Some((spawned, helm_path, app))
+}
+
+fn setup_live_chest_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
+    let character_path = Path::new("data/models/humanmale_hd.m2");
+    let chest_path = Path::new(
+        "data/item-models/item/objectcomponents/collections/collections_mail_warfrontsnightelfmythic_d_01_hu_m.m2",
+    );
+    if !character_path.exists() || !chest_path.exists() {
+        return None;
+    }
+    let mut app = App::new();
+    configure_live_test_app(&mut app);
+    let spawned = spawn_live_character(&mut app, character_path);
+    Some((spawned, chest_path, app))
 }
 
 fn configure_live_test_app(app: &mut App) {
@@ -140,11 +178,32 @@ fn equip_live_helm(app: &mut App, model_root: Entity, helm_path: &Path) {
         .insert(EquipmentSlot::Head, [140455, 0, 0]);
 }
 
+fn equip_live_chest(app: &mut App, model_root: Entity, chest_path: &Path) {
+    let mut equipment = app
+        .world_mut()
+        .get_mut::<Equipment>(model_root)
+        .expect("equipment on model root");
+    equipment
+        .slots
+        .insert(EquipmentSlot::Chest, chest_path.to_path_buf());
+    equipment
+        .slot_skin_fdids
+        .insert(EquipmentSlot::Chest, [2373825, 0, 0]);
+}
+
 fn head_equipment_entity(world: &mut World) -> Option<Entity> {
     let mut query = world.query::<(Entity, &EquipmentItem)>();
     query
         .iter(world)
         .find(|(_, item)| item._slot == EquipmentSlot::Head)
+        .map(|(entity, _)| entity)
+}
+
+fn chest_equipment_entity(world: &mut World) -> Option<Entity> {
+    let mut query = world.query::<(Entity, &EquipmentItem)>();
+    query
+        .iter(world)
+        .find(|(_, item)| item._slot == EquipmentSlot::Chest)
         .map(|(entity, _)| entity)
 }
 

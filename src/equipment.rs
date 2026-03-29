@@ -256,6 +256,7 @@ pub fn sync_equipment(
         &M2AnimData,
         &mut RenderedEquipment,
     )>,
+    names: Query<&Name>,
     existing_items: Query<(), With<EquipmentItem>>,
     mut warned: Local<HashSet<String>>,
 ) {
@@ -297,6 +298,7 @@ pub fn sync_equipment(
                 &mut images,
                 &mut inv_bp,
                 &anim_data.joint_entities,
+                &names,
                 attach_points,
                 slot,
                 path,
@@ -350,6 +352,7 @@ fn spawn_equipment_slot(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     joint_entities: &[Entity],
+    names: &Query<&Name>,
     attach_points: &AttachmentPoints,
     slot: EquipmentSlot,
     m2_path: &Path,
@@ -358,10 +361,7 @@ fn spawn_equipment_slot(
     warned: &mut HashSet<String>,
     owner: Entity,
 ) -> Option<Entity> {
-    let (parent_entity, base_offset) = if matches!(
-        slot,
-        EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet
-    ) {
+    let (parent_entity, base_offset) = if matches!(slot, EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet) {
         (owner, Vec3::ZERO)
     } else {
         let att_id = slot_attachment_id(slot);
@@ -411,20 +411,41 @@ fn spawn_equipment_slot(
         ))
         .id();
 
-    if !m2_spawn::spawn_m2_on_entity_filtered(
-        commands,
-        &mut m2_spawn::SpawnAssets {
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inverse_bindposes: inv_bp,
-        },
-        m2_path,
-        item_root,
-        &skin_fdids,
-        |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
-    ) {
+    let spawned = if matches!(slot, EquipmentSlot::Chest) {
+        m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
+            commands,
+            &mut m2_spawn::SpawnAssets {
+                meshes,
+                materials,
+                effect_materials,
+                images,
+                inverse_bindposes: inv_bp,
+            },
+            m2_path,
+            item_root,
+            &skin_fdids,
+            |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
+            joint_entities,
+            names,
+        )
+    } else {
+        m2_spawn::spawn_m2_on_entity_filtered(
+            commands,
+            &mut m2_spawn::SpawnAssets {
+                meshes,
+                materials,
+                effect_materials,
+                images,
+                inverse_bindposes: inv_bp,
+            },
+            m2_path,
+            item_root,
+            &skin_fdids,
+            |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
+        )
+    };
+
+    if !spawned {
         commands.entity(item_root).despawn();
         warn_once(
             warned,

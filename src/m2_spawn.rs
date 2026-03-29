@@ -82,6 +82,43 @@ pub fn spawn_m2_on_entity_filtered(
     true
 }
 
+pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
+    commands: &mut Commands,
+    assets: &mut SpawnAssets<'_>,
+    m2_path: &Path,
+    entity: Entity,
+    skin_fdids: &[u32; 3],
+    filter: impl Fn(u16) -> bool,
+    target_joints: &[Entity],
+    names: &Query<&Name>,
+) -> bool {
+    let model = match asset::m2::load_m2(m2_path, skin_fdids) {
+        Ok(m) => m,
+        Err(e) => {
+            warn!("Failed to load M2 {}: {e}", m2_path.display());
+            return false;
+        }
+    };
+    let asset::m2::M2Model { batches, bones, .. } = model;
+    let batches = batches
+        .into_iter()
+        .filter(|batch| filter(batch.mesh_part_id))
+        .collect::<Vec<_>>();
+    let grounded_root = ensure_grounded_model_root(commands, entity, ground_offset_y(&batches));
+    let skinning = bind_existing_skeleton(
+        commands,
+        assets.inverse_bindposes,
+        &bones,
+        grounded_root,
+        target_joints,
+        names,
+    );
+    for (i, batch) in batches.into_iter().enumerate() {
+        spawn_batch_mesh(commands, assets, batch, grounded_root, &skinning, i);
+    }
+    true
+}
+
 pub fn ground_offset_y(batches: &[asset::m2::M2RenderBatch]) -> f32 {
     let mut min_y = f32::INFINITY;
     for batch in batches {
@@ -142,6 +179,45 @@ pub fn attach_m2_batches(
         spawn_batch_mesh(commands, assets, batch, root, &skinning, i);
     }
     skinning
+}
+
+fn bind_existing_skeleton(
+    commands: &mut Commands,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    bones: &[asset::m2_anim::M2Bone],
+    model_entity: Entity,
+    target_joints: &[Entity],
+    names: &Query<&Name>,
+) -> SkinningResult {
+    if bones.is_empty() {
+        return None;
+    }
+    let named_targets = target_joints
+        .iter()
+        .filter_map(|entity| names.get(*entity).ok().map(|name| (name.as_str().to_owned(), *entity)))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut mapped_joints = Vec::with_capacity(bones.len());
+    for (i, bone) in bones.iter().enumerate() {
+        let bone_name = asset::m2_bone_names::bone_display_name(bone.key_bone_id, i);
+        if let Some(entity) = named_targets.get(&bone_name) {
+            mapped_joints.push(*entity);
+            continue;
+        }
+        let fallback = commands
+            .spawn((
+                Transform::IDENTITY,
+                Visibility::default(),
+                Name::new(format!("Unmapped{bone_name}")),
+            ))
+            .id();
+        commands.entity(fallback).set_parent_in_place(model_entity);
+        mapped_joints.push(fallback);
+    }
+    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(vec![
+        Mat4::IDENTITY;
+        bones.len()
+    ]));
+    Some((inv_bp, mapped_joints))
 }
 
 fn spawn_batch_mesh(
