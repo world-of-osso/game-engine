@@ -288,11 +288,29 @@ fn sync_character_render_requests(
         if applied.is_some_and(|applied| applied.0 == *request) {
             continue;
         }
+        if !character_render_targets_ready(entity, &parent_query, &geoset_query, &material_query) {
+            continue;
+        }
         let resolved_equipment = resolve_equipment_appearance(
             &request.equipment_appearance,
             &outfit_data,
             request.selection.race,
             request.selection.sex,
+        );
+        info!(
+            "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} runtime_models={:?}",
+            request
+                .equipment_appearance
+                .entries
+                .iter()
+                .map(|entry| (entry.slot, entry.display_info_id, entry.hidden))
+                .collect::<Vec<_>>(),
+            resolved_equipment.outfit.geoset_overrides,
+            resolved_equipment
+                .runtime_models
+                .iter()
+                .map(|model| (&model.slot, model.path.display().to_string()))
+                .collect::<Vec<_>>()
         );
         apply_character_customization(
             request.selection,
@@ -314,6 +332,26 @@ fn sync_character_render_requests(
             .entity(entity)
             .insert(AppliedCharacterRenderRequest(request.clone()));
     }
+}
+
+fn character_render_targets_ready(
+    root: Entity,
+    parent_query: &Query<&ChildOf>,
+    geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
+    material_query: &Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&BatchTextureType>,
+        &ChildOf,
+    )>,
+) -> bool {
+    let has_geosets = geoset_query
+        .iter()
+        .any(|(entity, _, _)| is_descendant_of(entity, root, parent_query));
+    let has_materials = material_query
+        .iter()
+        .any(|(entity, _, _, _)| is_descendant_of(entity, root, parent_query));
+    has_geosets && has_materials
 }
 
 fn apply_geoset_visibility(

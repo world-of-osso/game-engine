@@ -14,6 +14,10 @@ pub struct RuntimeModelAppearance {
     pub skin_fdids: [u32; 3],
 }
 
+#[cfg(test)]
+#[path = "equipment_cloak_tests.rs"]
+mod cloak_tests;
+
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
@@ -259,6 +263,11 @@ fn apply_slot_geoset_overrides(
             _ => {}
         }
     }
+    if matches!(slot, EquipmentVisualSlot::Back)
+        && let Some(variant) = outfit_data.cape_geoset_variant(display_info_id)
+    {
+        apply_geoset_overrides(display, vec![(15, variant)]);
+    }
 }
 
 fn apply_geoset_overrides(display: &mut OutfitResult, overrides: Vec<(u16, u16)>) {
@@ -320,13 +329,13 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
     equipment.slots.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     equipment.slot_skin_fdids.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     for runtime_model in &resolved.runtime_models {
@@ -342,6 +351,7 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
 fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlot> {
     match slot {
         EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
+        EquipmentVisualSlot::Back => Some(EquipmentSlot::Back),
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
         EquipmentVisualSlot::OffHand => Some(EquipmentSlot::OffHand),
         _ => None,
@@ -351,23 +361,18 @@ fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlo
 fn runtime_model_for_slot(
     slot: EquipmentSlot,
     display_info_id: u32,
-    display: &OutfitResult,
+    _display: &OutfitResult,
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
 ) -> Option<(PathBuf, [u32; 3])> {
-    match slot {
-        EquipmentSlot::Head => {
-            let (fdid, skin_fdids) = outfit_data.resolve_runtime_model(display_info_id, race, sex)?;
-            let path = resolve_model_path(fdid)?;
-            if is_collection_head_model(&path) {
-                return None;
-            }
-            ensure_runtime_model_textures(&skin_fdids);
-            Some((path, skin_fdids))
-        }
-        _ => first_model_path(display).map(|path| (path, [0, 0, 0])),
+    let (fdid, skin_fdids) = outfit_data.resolve_runtime_model(display_info_id, race, sex)?;
+    let path = resolve_model_path(fdid)?;
+    if matches!(slot, EquipmentSlot::Head) && is_collection_head_model(&path) {
+        return None;
     }
+    ensure_runtime_model_textures(&skin_fdids);
+    Some((path, skin_fdids))
 }
 
 fn is_collection_head_model(path: &Path) -> bool {
@@ -609,6 +614,35 @@ mod tests {
             runtime.path.display()
         );
         assert_eq!(runtime.skin_fdids[0], 3865285);
+    }
+
+    #[test]
+    fn cloak_display_resolves_to_runtime_back_model_with_texture() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Back,
+                item_id: None,
+                display_info_id: Some(181925),
+                inventory_type: 16,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+        let runtime = resolved
+            .runtime_models
+            .first()
+            .expect("expected back runtime model");
+
+        assert!(
+            runtime
+                .path
+                .ends_with("cape_special_bastion_d_01.m2"),
+            "unexpected runtime path: {}",
+            runtime.path.display()
+        );
+        assert_eq!(runtime.skin_fdids[0], 3150979);
     }
 
     #[test]

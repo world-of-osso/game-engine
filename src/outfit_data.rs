@@ -130,6 +130,11 @@ impl OutfitData {
         raw.checked_add(1)
     }
 
+    pub fn cape_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        let data = self.loaded()?;
+        data.hand_geoset_group.get(&display_info_id).copied()
+    }
+
     pub fn head_geoset_overrides(&self, display_info_id: u32) -> Vec<(u16, u16)> {
         let Some(data) = self.loaded() else {
             return Vec::new();
@@ -338,6 +343,9 @@ fn select_model_fdid(
                     return Some(fdid);
                 }
             }
+        }
+        if candidates.len() == 1 {
+            return candidates.first().copied();
         }
         return None;
     }

@@ -37,6 +37,41 @@ fn live_human_male_helm_wraps_head_and_binds_texture() {
     );
 }
 
+#[test]
+fn live_human_male_back_cloak_spawns_runtime_attachment() {
+    let character_path = Path::new("data/models/humanmale_hd.m2");
+    let cloak_path = Path::new("data/item-models/item/objectcomponents/cape/cape_special_keg_d_01.m2");
+    if !character_path.exists() || !cloak_path.exists() {
+        return;
+    }
+
+    let mut app = App::new();
+    configure_live_test_app(&mut app);
+    let spawned = spawn_live_character(&mut app, character_path);
+
+    let mut equipment = app
+        .world_mut()
+        .get_mut::<Equipment>(spawned.model_root)
+        .expect("equipment on model root");
+    equipment
+        .slots
+        .insert(EquipmentSlot::Back, cloak_path.to_path_buf());
+    equipment
+        .slot_skin_fdids
+        .insert(EquipmentSlot::Back, [5644278, 0, 0]);
+
+    app.update();
+    app.update();
+
+    let mut query = app.world_mut().query::<(Entity, &EquipmentItem)>();
+    let found = query
+        .iter(app.world())
+        .find(|(_, item)| item._slot == EquipmentSlot::Back)
+        .map(|(entity, _)| entity);
+
+    assert!(found.is_some(), "expected spawned back cloak equipment item");
+}
+
 fn setup_live_helm_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
     let character_path = Path::new("data/models/humanmale_hd.m2");
     let helm_path = Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_hum.m2");

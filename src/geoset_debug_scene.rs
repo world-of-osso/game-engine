@@ -41,7 +41,8 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    equipment_appearance: EquipmentAppearance,
+    merged_cloak_display: u32,
+    runtime_cloak_display: u32,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -73,14 +74,20 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            equipment_appearance: EquipmentAppearance {
-                entries: vec![equipped_entry(
-                    EquipmentVisualSlot::Head,
-                    env_u32("DEBUG_CHARACTER_HEAD_DISPLAY", 685128),
-                )],
-            },
+            merged_cloak_display: env_u32("DEBUG_CHARACTER_MERGED_CLOAK_DISPLAY", 192786),
+            runtime_cloak_display: env_u32("DEBUG_CHARACTER_RUNTIME_CLOAK_DISPLAY", 677577),
         }
     }
+}
+
+fn back_equipment_appearance(display_info_id: u32) -> EquipmentAppearance {
+    let mut entries = Vec::new();
+    push_equipped_entry(
+        &mut entries,
+        EquipmentVisualSlot::Back,
+        display_info_id,
+    );
+    EquipmentAppearance { entries }
 }
 
 fn equipped_entry(slot: EquipmentVisualSlot, display_info_id: u32) -> EquippedAppearanceEntry {
@@ -90,6 +97,16 @@ fn equipped_entry(slot: EquipmentVisualSlot, display_info_id: u32) -> EquippedAp
         display_info_id: Some(display_info_id),
         inventory_type: 0,
         hidden: false,
+    }
+}
+
+fn push_equipped_entry(
+    entries: &mut Vec<EquippedAppearanceEntry>,
+    slot: EquipmentVisualSlot,
+    display_info_id: u32,
+) {
+    if display_info_id != 0 {
+        entries.push(equipped_entry(slot, display_info_id));
     }
 }
 
@@ -179,8 +196,8 @@ fn spawn_ground(
     ));
 }
 
-fn model_transform() -> Transform {
-    Transform::from_xyz(0.0, 0.0, 0.0)
+fn model_transform(x: f32) -> Transform {
+    Transform::from_xyz(x, 0.0, 0.0)
         .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
 }
 
@@ -203,6 +220,9 @@ fn spawn_debug_character_model(
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
     config: &DebugCharacterConfig,
+    x: f32,
+    cloak_display: u32,
+    name: &str,
 ) {
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
         return;
@@ -215,12 +235,14 @@ fn spawn_debug_character_model(
         images,
         inv_bp,
         &model_path,
-        model_transform(),
+        model_transform(x),
         creature_display_map,
     ) else {
         return;
     };
-    commands.entity(spawned.root).insert(DebugCharacterScene);
+    commands
+        .entity(spawned.root)
+        .insert((DebugCharacterScene, Name::new(name.to_string())));
     commands
         .entity(spawned.model_root)
         .insert((
@@ -233,7 +255,7 @@ fn spawn_debug_character_model(
                     sex: config.sex,
                     appearance: config.appearance,
                 },
-                equipment_appearance: config.equipment_appearance.clone(),
+                equipment_appearance: back_equipment_appearance(cloak_display),
             },
         ));
 }
@@ -261,6 +283,22 @@ fn setup_scene(
         &mut inv_bp,
         &creature_display_map,
         &config,
+        -1.7,
+        config.merged_cloak_display,
+        "DebugCharacterMergedCloak",
+    );
+    spawn_debug_character_model(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut effect_materials,
+        &mut images,
+        &mut inv_bp,
+        &creature_display_map,
+        &config,
+        1.7,
+        config.runtime_cloak_display,
+        "DebugCharacterRuntimeCloak",
     );
 }
 

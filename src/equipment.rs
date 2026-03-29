@@ -22,6 +22,7 @@ use crate::m2_spawn;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EquipmentSlot {
     Head,
+    Back,
     MainHand,
     OffHand,
 }
@@ -117,6 +118,7 @@ impl Default for EquipmentTransforms {
     fn default() -> Self {
         let mut slot_defaults = HashMap::new();
         slot_defaults.insert(EquipmentSlot::Head, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::Back, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::MainHand, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::OffHand, Transform::IDENTITY);
         Self {
@@ -185,6 +187,7 @@ fn default_scale() -> [f32; 3] {
 fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
     match slot {
         EquipmentSlot::Head => 11,    // Helm
+        EquipmentSlot::Back => 12,    // Back
         EquipmentSlot::MainHand => 0, // HandRight
         EquipmentSlot::OffHand => 1,  // HandLeft
     }

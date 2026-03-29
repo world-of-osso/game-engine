@@ -660,6 +660,7 @@ pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
         0 => matches!(mesh_part_id, 0 | 1 | 5 | 16 | 17 | 27..=33),
         1..=3 => variant == 2,
         7 => matches!(variant, 1 | 2),
+        15 => false,
         32 => variant >= 1,
         _ => variant == 1,
     }
