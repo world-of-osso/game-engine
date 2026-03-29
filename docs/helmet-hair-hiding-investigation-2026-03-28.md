@@ -6,6 +6,16 @@
 
 That path is real, but it does not yet explain the visible helm case we were testing.
 
+As of 2026-03-28, wowdev's `ItemDisplayInfo` docs also give the first concrete missing
+head-item geoset mapping we were not applying:
+
+- `Head.GeosetGroup_0` -> character geoset group `27`
+- `Head.GeosetGroup_1` -> character geoset group `21`
+- group `27` has special default behavior when `GeosetGroup_0 == 0`
+
+That explains why `HelmetGeosetVis` alone never accounted for all visible helm behavior.
+We were missing the base head-slot geoset path entirely.
+
 ## Confirmed Facts
 
 - Visible helm display `1128` renders and is the right live probe for human male head gear.
@@ -50,6 +60,11 @@ Reasons:
 
 Scalp hair hiding probably uses an additional rule path beyond `HelmetGeosetVis` / `HelmetGeosetData`.
 
+Part of the previously "missing" behavior is now identified: head items also drive base
+character geosets through `ItemDisplayInfo.GeosetGroup_0/1` -> groups `27/21`.
+
+What still appears unresolved is the remaining scalp-hair suppression behavior beyond that.
+
 Possible sources:
 
 - another DB2/CSV keyed by head display or model resource
@@ -69,6 +84,6 @@ This is the current best live comparison:
 ## Next Steps
 
 1. Judge `15304` live and record exactly what changed: scalp hair, facial hair, ears, or nothing.
-2. Dump the resolved hidden geoset groups for `15304` and map them to visible human male HD submeshes.
-3. Investigate whether `CharHairGeosets.Showscalp` needs to participate in helmet hair suppression.
-4. Search for a second head-item data path keyed by display ID or model resource for scalp-hair hiding.
+2. Implement and verify the base head-slot geoset mapping for groups `27` and `21`.
+3. Dump the resolved hidden geoset groups for `15304` and map them to visible human male HD submeshes.
+4. Investigate whether `CharHairGeosets.Showscalp` needs to participate in helmet hair suppression.
