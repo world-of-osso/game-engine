@@ -19,6 +19,10 @@ pub struct RuntimeModelAppearance {
 mod cloak_tests;
 
 #[cfg(test)]
+#[path = "equipment_chest_tests.rs"]
+mod chest_tests;
+
+#[cfg(test)]
 #[path = "equipment_feet_tests.rs"]
 mod feet_tests;
 
@@ -267,6 +271,11 @@ fn apply_slot_geoset_overrides(
     outfit_data: &OutfitData,
     display: &mut OutfitResult,
 ) {
+    if let Some(variant) = outfit_data.chest_geoset_variant(display_info_id)
+        && matches!(slot, EquipmentVisualSlot::Chest)
+    {
+        apply_geoset_overrides(display, vec![(22, variant)]);
+    }
     if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
         match slot {
             EquipmentVisualSlot::Hands => {
@@ -359,13 +368,13 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
     equipment.slots.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     equipment.slot_skin_fdids.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     for runtime_model in &resolved.runtime_models {
@@ -382,6 +391,7 @@ fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlo
     match slot {
         EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
         EquipmentVisualSlot::Back => Some(EquipmentSlot::Back),
+        EquipmentVisualSlot::Chest => Some(EquipmentSlot::Chest),
         EquipmentVisualSlot::Legs => Some(EquipmentSlot::Legs),
         EquipmentVisualSlot::Feet => Some(EquipmentSlot::Feet),
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
@@ -453,7 +463,7 @@ mod tests {
     use game_engine::outfit_data::OutfitResult;
 
     #[test]
-    fn ignores_non_attachment_slots_for_runtime_models() {
+    fn chest_runtime_model_defaults_to_empty_without_data() {
         let appearance = NetEquipmentAppearance {
             entries: vec![shared::components::EquippedAppearanceEntry {
                 slot: EquipmentVisualSlot::Chest,
@@ -475,6 +485,14 @@ mod tests {
         assert_eq!(
             visual_slot_to_runtime_slot(EquipmentVisualSlot::Head),
             Some(EquipmentSlot::Head)
+        );
+    }
+
+    #[test]
+    fn chest_slot_maps_to_runtime_slot() {
+        assert_eq!(
+            visual_slot_to_runtime_slot(EquipmentVisualSlot::Chest),
+            Some(EquipmentSlot::Chest)
         );
     }
 

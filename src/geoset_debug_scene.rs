@@ -44,8 +44,8 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    left_legs_display: u32,
-    right_legs_display: u32,
+    left_chest_display: u32,
+    right_chest_display: u32,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -78,15 +78,15 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            left_legs_display: env_u32("DEBUG_CHARACTER_LEFT_LEGS_DISPLAY", 73783),
-            right_legs_display: env_u32("DEBUG_CHARACTER_RIGHT_LEGS_DISPLAY", 159629),
+            left_chest_display: env_u32("DEBUG_CHARACTER_LEFT_CHEST_DISPLAY", 692385),
+            right_chest_display: env_u32("DEBUG_CHARACTER_RIGHT_CHEST_DISPLAY", 175942),
         }
     }
 }
 
-fn debug_equipment_appearance(legs_display_id: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(chest_display_id: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Legs, legs_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Chest, chest_display_id);
     EquipmentAppearance { entries }
 }
 
@@ -224,7 +224,7 @@ fn spawn_debug_character_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     config: &DebugCharacterConfig,
     x: f32,
-    legs_display: u32,
+    chest_display: u32,
     name: &str,
 ) {
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
@@ -258,7 +258,7 @@ fn spawn_debug_character_model(
                     sex: config.sex,
                     appearance: config.appearance,
                 },
-                equipment_appearance: debug_equipment_appearance(legs_display),
+                equipment_appearance: debug_equipment_appearance(chest_display),
             },
         ));
 }
@@ -287,8 +287,8 @@ fn setup_scene(
         &creature_display_map,
         &config,
         -1.7,
-        config.left_legs_display,
-        "DebugCharacterGeosetPants",
+        config.left_chest_display,
+        "DebugCharacterGeosetChest",
     );
     spawn_debug_character_model(
         &mut commands,
@@ -300,8 +300,8 @@ fn setup_scene(
         &creature_display_map,
         &config,
         1.7,
-        config.right_legs_display,
-        "DebugCharacterM2Pants",
+        config.right_chest_display,
+        "DebugCharacterM2Chest",
     );
 }
 

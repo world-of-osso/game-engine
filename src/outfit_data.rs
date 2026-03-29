@@ -128,6 +128,13 @@ impl OutfitData {
         self.display_geoset_variant(display_info_id, 0)
     }
 
+    pub fn chest_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        let data = self.loaded()?;
+        let display = data.display_info.get(&display_info_id)?;
+        let raw = *display.geoset_groups.first()?;
+        (raw > 0).then_some(2)
+    }
+
     pub fn pants_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
         self.display_geoset_variant(display_info_id, 0)
     }
