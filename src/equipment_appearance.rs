@@ -22,6 +22,13 @@ pub struct ResolvedEquipmentAppearance {
     pub hidden_character_geoset_groups: HashSet<u16>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct HeadAppearanceEffects {
+    hidden_geoset_groups: Vec<u16>,
+    geoset_overrides: Vec<(u16, u16)>,
+    runtime_model: Option<(PathBuf, [u32; 3])>,
+}
+
 pub fn resolve_equipment_appearance(
     appearance: &NetEquipmentAppearance,
     outfit_data: &OutfitData,
@@ -49,19 +56,54 @@ fn apply_equipment_entry(
     let Some(display_info_id) = entry.display_info_id else {
         return;
     };
-    if entry.slot == EquipmentVisualSlot::Head {
-        resolved
-            .hidden_character_geoset_groups
-            .extend(outfit_data.helmet_hide_geoset_groups(display_info_id, race));
+    match entry.slot {
+        EquipmentVisualSlot::Head => {
+            apply_head_equipment_entry(resolved, display_info_id, outfit_data, race, sex)
+        }
+        _ => apply_non_head_equipment_entry(resolved, entry.slot, display_info_id, outfit_data, race, sex),
     }
+}
+
+fn apply_head_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
     let mut display = outfit_data.resolve_display_info(display_info_id);
-    apply_slot_geoset_overrides(entry.slot, display_info_id, outfit_data, &mut display);
+    let head = resolve_head_appearance_effects(display_info_id, outfit_data, race, sex);
+    resolved
+        .hidden_character_geoset_groups
+        .extend(head.hidden_geoset_groups);
+    apply_geoset_overrides(&mut display, head.geoset_overrides);
     resolved.outfit =
         crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
-    if let Some(slot) = visual_slot_to_runtime_slot(entry.slot) {
+    if let Some((path, skin_fdids)) = head.runtime_model {
+        resolved.runtime_models.push(RuntimeModelAppearance {
+            slot: EquipmentSlot::Head,
+            path,
+            skin_fdids,
+        });
+    }
+}
+
+fn apply_non_head_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    slot: EquipmentVisualSlot,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    let mut display = outfit_data.resolve_display_info(display_info_id);
+    apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
+    resolved.outfit =
+        crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
+    if let Some(runtime_slot) = visual_slot_to_runtime_slot(slot) {
         maybe_push_runtime_model(
             resolved,
-            slot,
+            runtime_slot,
             display_info_id,
             &display,
             outfit_data,
@@ -80,23 +122,43 @@ fn apply_slot_geoset_overrides(
     if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
         match slot {
             EquipmentVisualSlot::Hands => {
-                display.geoset_overrides.retain(|(group, _)| *group != 4);
-                display.geoset_overrides.push((4, variant));
+                apply_geoset_overrides(display, vec![(4, variant)]);
             }
             EquipmentVisualSlot::Feet => {
-                display.geoset_overrides.retain(|(group, _)| *group != 5);
-                display.geoset_overrides.push((5, variant));
+                apply_geoset_overrides(display, vec![(5, variant)]);
             }
             _ => {}
         }
     }
-    if slot == EquipmentVisualSlot::Head {
-        for (group, value) in outfit_data.head_geoset_overrides(display_info_id) {
-            display
-                .geoset_overrides
-                .retain(|(existing_group, _)| *existing_group != group);
-            display.geoset_overrides.push((group, value));
-        }
+}
+
+fn apply_geoset_overrides(display: &mut OutfitResult, overrides: Vec<(u16, u16)>) {
+    for (group, value) in overrides {
+        display
+            .geoset_overrides
+            .retain(|(existing_group, _)| *existing_group != group);
+        display.geoset_overrides.push((group, value));
+    }
+}
+
+fn resolve_head_appearance_effects(
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) -> HeadAppearanceEffects {
+    let hidden_geoset_groups = outfit_data.helmet_hide_geoset_groups(display_info_id, race);
+    let geoset_overrides = outfit_data.head_geoset_overrides(display_info_id);
+    let runtime_model = outfit_data
+        .resolve_runtime_model(display_info_id, race, sex)
+        .and_then(|(fdid, skin_fdids)| {
+            let path = resolve_model_path(fdid)?;
+            (!is_collection_head_model(&path)).then_some((path, skin_fdids))
+        });
+    HeadAppearanceEffects {
+        hidden_geoset_groups,
+        geoset_overrides,
+        runtime_model,
     }
 }
 
