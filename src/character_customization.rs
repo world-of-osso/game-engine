@@ -371,7 +371,7 @@ fn is_geoset_visible(mesh_part_id: u16, active_geosets: &[(u16, u16)], active_ty
 }
 
 fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
-    matches!(mesh_part_id, 0 | 1 | 16 | 17 | 27..=33) || mesh_part_id == selected_variant
+    mesh_part_id == 0 || mesh_part_id == selected_variant
 }
 
 fn selected_choice_ids(
