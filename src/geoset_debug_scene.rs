@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::asset;
 use crate::character_customization::{
-    CharacterCustomizationSelection, apply_character_customization,
+    CharacterCustomizationSelection, CharacterRenderRequest,
 };
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
@@ -15,11 +15,10 @@ use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
-use crate::m2_spawn::BatchTextureType;
 use crate::scene_setup::DEFAULT_M2;
-use game_engine::asset::char_texture::CharTextureData;
-use game_engine::customization_data::CustomizationDb;
-use shared::components::CharacterAppearance;
+use shared::components::{
+    CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+};
 
 #[derive(Component)]
 struct DebugCharacterScene;
@@ -42,12 +41,7 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-}
-
-#[derive(Resource, Default)]
-struct DebugCharacterModel {
-    root: Option<Entity>,
-    applied: bool,
+    equipment_appearance: EquipmentAppearance,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -59,12 +53,8 @@ pub struct DebugCharacterScenePlugin;
 impl Plugin for DebugCharacterScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DebugCharacterConfig::from_env());
-        app.init_resource::<DebugCharacterModel>();
         app.add_systems(OnEnter(GameState::DebugCharacter), setup_scene);
-        app.add_systems(
-            Update,
-            (apply_debug_character_once, orbit_camera).run_if(in_state(GameState::DebugCharacter)),
-        );
+        app.add_systems(Update, orbit_camera.run_if(in_state(GameState::DebugCharacter)));
         app.add_systems(OnExit(GameState::DebugCharacter), teardown_scene);
     }
 }
@@ -83,7 +73,20 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
+            equipment_appearance: EquipmentAppearance {
+                entries: vec![equipped_entry(EquipmentVisualSlot::Head, 685129)],
+            },
         }
+    }
+}
+
+fn equipped_entry(slot: EquipmentVisualSlot, display_info_id: u32) -> EquippedAppearanceEntry {
+    EquippedAppearanceEntry {
+        slot,
+        item_id: None,
+        display_info_id: Some(display_info_id),
+        inventory_type: 0,
+        hidden: false,
     }
 }
 
@@ -179,6 +182,51 @@ fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
 }
 
 #[allow(clippy::too_many_arguments)]
+fn spawn_debug_character_model(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    config: &DebugCharacterConfig,
+) {
+    let Some(model_path) = resolve_model_path(config.race, config.sex) else {
+        return;
+    };
+    let Some(spawned) = m2_scene::spawn_animated_static_m2_parts(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        &model_path,
+        model_transform(),
+        creature_display_map,
+    ) else {
+        return;
+    };
+    commands.entity(spawned.root).insert(DebugCharacterScene);
+    commands
+        .entity(spawned.model_root)
+        .insert((
+            DebugCharacterScene,
+            DebugCharacterModelRoot,
+            CharacterRenderRequest {
+                selection: CharacterCustomizationSelection {
+                    race: config.race,
+                    class: config.class,
+                    sex: config.sex,
+                    appearance: config.appearance,
+                },
+                equipment_appearance: config.equipment_appearance.clone(),
+            },
+        ));
+}
+
+#[allow(clippy::too_many_arguments)]
 fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -188,77 +236,20 @@ fn setup_scene(
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     config: Res<DebugCharacterConfig>,
-    mut model: ResMut<DebugCharacterModel>,
 ) {
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    let Some(model_path) = resolve_model_path(config.race, config.sex) else {
-        return;
-    };
-    let Some(root) = m2_scene::spawn_animated_static_m2(
+    spawn_debug_character_model(
         &mut commands,
         &mut meshes,
         &mut materials,
         &mut effect_materials,
         &mut images,
         &mut inv_bp,
-        &model_path,
-        model_transform(),
         &creature_display_map,
-    ) else {
-        return;
-    };
-    commands
-        .entity(root)
-        .insert((DebugCharacterScene, DebugCharacterModelRoot));
-    model.root = Some(root);
-    model.applied = false;
-}
-
-#[allow(clippy::too_many_arguments)]
-fn apply_debug_character_once(
-    config: Res<DebugCharacterConfig>,
-    customization_db: Res<CustomizationDb>,
-    char_tex: Res<CharTextureData>,
-    mut model: ResMut<DebugCharacterModel>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
-    mut visibility_query: Query<&mut Visibility>,
-    material_query: Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&BatchTextureType>,
-        &ChildOf,
-    )>,
-) {
-    if model.applied {
-        return;
-    }
-    let Some(root) = model.root else {
-        return;
-    };
-    apply_character_customization(
-        CharacterCustomizationSelection {
-            race: config.race,
-            class: config.class,
-            sex: config.sex,
-            appearance: config.appearance,
-        },
-        &customization_db,
-        &char_tex,
-        None,
-        root,
-        &mut images,
-        &mut materials,
-        &parent_query,
-        &geoset_query,
-        &mut visibility_query,
-        &material_query,
+        &config,
     );
-    model.applied = true;
 }
 
 fn orbit_camera(
@@ -288,11 +279,8 @@ fn orbit_camera(
 fn teardown_scene(
     mut commands: Commands,
     query: Query<Entity, With<DebugCharacterScene>>,
-    mut model: ResMut<DebugCharacterModel>,
 ) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
-    model.root = None;
-    model.applied = false;
 }

@@ -5,9 +5,12 @@ use bevy::prelude::*;
 use game_engine::asset::m2::default_geoset_visible;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, OptionType};
-use shared::components::CharacterAppearance;
+use shared::components::{CharacterAppearance, EquipmentAppearance as NetEquipmentAppearance};
 
-use crate::equipment_appearance::ResolvedEquipmentAppearance;
+use crate::equipment::Equipment;
+use crate::equipment_appearance::{
+    ResolvedEquipmentAppearance, apply_runtime_equipment, resolve_equipment_appearance,
+};
 use crate::m2_spawn::{BatchTextureType, GeosetMesh};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,6 +19,23 @@ pub(crate) struct CharacterCustomizationSelection {
     pub(crate) class: u8,
     pub(crate) sex: u8,
     pub(crate) appearance: CharacterAppearance,
+}
+
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CharacterRenderRequest {
+    pub(crate) selection: CharacterCustomizationSelection,
+    pub(crate) equipment_appearance: NetEquipmentAppearance,
+}
+
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+struct AppliedCharacterRenderRequest(CharacterRenderRequest);
+
+pub(crate) struct CharacterCustomizationPlugin;
+
+impl Plugin for CharacterCustomizationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, sync_character_render_requests);
+    }
 }
 
 pub(crate) fn apply_character_customization(
@@ -236,6 +256,64 @@ pub(crate) fn collect_appearance_materials(
         }
     }
     all
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sync_character_render_requests(
+    mut commands: Commands,
+    customization_db: Res<CustomizationDb>,
+    char_tex: Res<CharTextureData>,
+    outfit_data: Res<game_engine::outfit_data::OutfitData>,
+    request_query: Query<
+        (
+            Entity,
+            &CharacterRenderRequest,
+            Option<&AppliedCharacterRenderRequest>,
+        ),
+    >,
+    parent_query: Query<&ChildOf>,
+    geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
+    mut visibility_query: Query<&mut Visibility>,
+    material_query: Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&BatchTextureType>,
+        &ChildOf,
+    )>,
+    mut equipment_query: Query<&mut Equipment>,
+    mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, request, applied) in &request_query {
+        if applied.is_some_and(|applied| applied.0 == *request) {
+            continue;
+        }
+        let resolved_equipment = resolve_equipment_appearance(
+            &request.equipment_appearance,
+            &outfit_data,
+            request.selection.race,
+            request.selection.sex,
+        );
+        apply_character_customization(
+            request.selection,
+            &customization_db,
+            &char_tex,
+            Some(&resolved_equipment),
+            entity,
+            &mut images,
+            &mut materials,
+            &parent_query,
+            &geoset_query,
+            &mut visibility_query,
+            &material_query,
+        );
+        if let Ok(mut equipment) = equipment_query.get_mut(entity) {
+            apply_runtime_equipment(&mut equipment, &resolved_equipment);
+        }
+        commands
+            .entity(entity)
+            .insert(AppliedCharacterRenderRequest(request.clone()));
+    }
 }
 
 fn apply_geoset_visibility(

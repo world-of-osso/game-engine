@@ -456,6 +456,7 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(target::TargetPlugin)
         .add_plugins(particle::ParticlePlugin)
         .add_plugins(equipment::EquipmentPlugin)
+        .add_plugins(character_customization::CharacterCustomizationPlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 refresh_interval: Duration::from_millis(500),

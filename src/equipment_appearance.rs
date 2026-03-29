@@ -384,7 +384,9 @@ fn first_model_path(display: &OutfitResult) -> Option<PathBuf> {
 fn resolve_model_path(fdid: u32) -> Option<PathBuf> {
     let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
     let out_path = Path::new("data/item-models").join(wow_path);
-    casc_resolver::ensure_file_at_path(fdid, &out_path)
+    let path = casc_resolver::ensure_file_at_path(fdid, &out_path)?;
+    let _ = crate::asset::m2::ensure_primary_skin_path(&path);
+    Some(path)
 }
 
 #[cfg(test)]
@@ -569,6 +571,35 @@ mod tests {
             "expected helm display 1128 to resolve to a model path, model_fdids={:?}",
             display.model_fdids
         );
+    }
+
+    #[test]
+    fn hood_of_empty_eternities_resolves_to_runtime_head_model() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(190626),
+                display_info_id: Some(685129),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+        let runtime = resolved
+            .runtime_models
+            .iter()
+            .find(|model| model.slot == EquipmentSlot::Head)
+            .expect("expected head runtime model");
+
+        assert!(
+            runtime.path
+                .ends_with("helm_leather_raidrogueprogenitor_d_01_hu_m.m2"),
+            "unexpected runtime path: {}",
+            runtime.path.display()
+        );
+        assert_eq!(runtime.skin_fdids[0], 3865285);
     }
 
     #[test]

@@ -1050,3 +1050,7 @@ mod debug_tests;
 #[cfg(test)]
 #[path = "m2_jaw_debug_tests.rs"]
 mod jaw_debug_tests;
+
+#[cfg(test)]
+#[path = "m2_runtime_head_tests.rs"]
+mod runtime_head_tests;
