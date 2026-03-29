@@ -57,10 +57,19 @@ fn apply_equipment_entry(
         return;
     };
     match entry.slot {
-        EquipmentVisualSlot::Head => {
-            apply_head_equipment_entry(resolved, display_info_id, outfit_data, race, sex)
-        }
-        _ => apply_non_head_equipment_entry(resolved, entry.slot, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Head => apply_head_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Shoulder => apply_shoulder_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Back => apply_back_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Chest => apply_chest_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Shirt => apply_shirt_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Tabard => apply_tabard_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Wrist => apply_wrist_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Hands => apply_hands_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Waist => apply_waist_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Legs => apply_legs_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::Feet => apply_feet_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::MainHand => apply_main_hand_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
+        EquipmentVisualSlot::OffHand => apply_off_hand_equipment_entry(resolved, display_info_id, outfit_data, race, sex),
     }
 }
 
@@ -111,6 +120,126 @@ fn apply_non_head_equipment_entry(
             sex,
         );
     }
+}
+
+fn apply_shoulder_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Shoulder, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_back_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Back, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_chest_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Chest, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_shirt_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Shirt, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_tabard_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Tabard, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_wrist_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Wrist, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_hands_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Hands, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_waist_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Waist, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_legs_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Legs, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_feet_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Feet, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_main_hand_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::MainHand, display_info_id, outfit_data, race, sex);
+}
+
+fn apply_off_hand_equipment_entry(
+    resolved: &mut ResolvedEquipmentAppearance,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) {
+    apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::OffHand, display_info_id, outfit_data, race, sex);
 }
 
 fn apply_slot_geoset_overrides(
