@@ -363,6 +363,7 @@ fn runtime_model_for_slot(
             if is_collection_head_model(&path) {
                 return None;
             }
+            ensure_runtime_model_textures(&skin_fdids);
             Some((path, skin_fdids))
         }
         _ => first_model_path(display).map(|path| (path, [0, 0, 0])),
@@ -387,6 +388,14 @@ fn resolve_model_path(fdid: u32) -> Option<PathBuf> {
     let path = casc_resolver::ensure_file_at_path(fdid, &out_path)?;
     let _ = crate::asset::m2::ensure_primary_skin_path(&path);
     Some(path)
+}
+
+fn ensure_runtime_model_textures(skin_fdids: &[u32; 3]) {
+    for &fdid in skin_fdids {
+        if fdid != 0 {
+            let _ = casc_resolver::ensure_texture(fdid);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -600,6 +609,37 @@ mod tests {
             runtime.path.display()
         );
         assert_eq!(runtime.skin_fdids[0], 3865285);
+    }
+
+    #[test]
+    fn orange_hood_runtime_head_model_extracts_runtime_textures() {
+        let data = OutfitData::load(Path::new("data"));
+        let appearance = NetEquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: Some(190626),
+                display_info_id: Some(685128),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+
+        let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+        let runtime = resolved
+            .runtime_models
+            .iter()
+            .find(|model| model.slot == EquipmentSlot::Head)
+            .expect("expected head runtime model");
+
+        assert_eq!(runtime.skin_fdids[0], 3865286);
+        assert!(
+            Path::new("data/textures/3865286.blp").exists(),
+            "expected orange hood texture to be extracted"
+        );
+        assert!(
+            Path::new("data/textures/3865065.blp").exists(),
+            "expected gold hood texture to be extracted"
+        );
     }
 
     #[test]
