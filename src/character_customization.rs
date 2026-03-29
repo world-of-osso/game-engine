@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use game_engine::asset::m2::default_geoset_visible;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use shared::components::CharacterAppearance;
@@ -276,7 +277,7 @@ fn is_geoset_visible(mesh_part_id: u16, active_geosets: &[(u16, u16)], active_ty
     let group = mesh_part_id / 100;
     let variant = mesh_part_id % 100;
     if !active_types.contains(&group) {
-        return false;
+        return default_geoset_visible(mesh_part_id);
     }
     if group == 0 {
         let selected_variant = active_geosets

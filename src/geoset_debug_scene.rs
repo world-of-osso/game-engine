@@ -11,28 +11,24 @@ use crate::character_customization::{
 };
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
-use crate::equipment_appearance::resolve_equipment_appearance;
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
-use crate::m2_spawn::{BatchTextureType, GeosetMesh};
+use crate::m2_spawn::BatchTextureType;
 use crate::scene_setup::DEFAULT_M2;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::CustomizationDb;
-use game_engine::outfit_data::OutfitData;
-use shared::components::{
-    CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
-};
+use shared::components::CharacterAppearance;
 
 #[derive(Component)]
-struct GeosetDebugScene;
+struct DebugCharacterScene;
 
 #[derive(Component)]
-struct GeosetDebugModelRoot;
+struct DebugCharacterModelRoot;
 
 #[derive(Component)]
-struct GeosetDebugOrbit {
+struct DebugCharacterOrbit {
     yaw: f32,
     pitch: f32,
     focus: Vec3,
@@ -41,17 +37,15 @@ struct GeosetDebugOrbit {
 }
 
 #[derive(Resource, Clone)]
-struct GeosetDebugConfig {
-    mesh_part_id: u16,
+struct DebugCharacterConfig {
     race: u8,
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    equipment_appearance: EquipmentAppearance,
 }
 
 #[derive(Resource, Default)]
-struct GeosetDebugModel {
+struct DebugCharacterModel {
     root: Option<Entity>,
     applied: bool,
 }
@@ -60,57 +54,36 @@ const ORBIT_SENSITIVITY: f32 = 0.003;
 const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
 
-pub struct GeosetDebugScenePlugin;
+pub struct DebugCharacterScenePlugin;
 
-impl Plugin for GeosetDebugScenePlugin {
+impl Plugin for DebugCharacterScenePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GeosetDebugConfig::from_env());
-        app.init_resource::<GeosetDebugModel>();
-        app.add_systems(OnEnter(GameState::GeosetDebug), setup_scene);
+        app.insert_resource(DebugCharacterConfig::from_env());
+        app.init_resource::<DebugCharacterModel>();
+        app.add_systems(OnEnter(GameState::DebugCharacter), setup_scene);
         app.add_systems(
             Update,
-            (apply_debug_character_once, isolate_debug_geoset_mesh, orbit_camera)
-                .run_if(in_state(GameState::GeosetDebug)),
+            (apply_debug_character_once, orbit_camera).run_if(in_state(GameState::DebugCharacter)),
         );
-        app.add_systems(OnExit(GameState::GeosetDebug), teardown_scene);
+        app.add_systems(OnExit(GameState::DebugCharacter), teardown_scene);
     }
 }
 
-impl GeosetDebugConfig {
+impl DebugCharacterConfig {
     fn from_env() -> Self {
         Self {
-            mesh_part_id: env_u16("GEOSET_DEBUG_MESH_PART_ID", 5),
-            race: env_u8("GEOSET_DEBUG_RACE", 1),
-            class: env_u8("GEOSET_DEBUG_CLASS", 1),
-            sex: env_u8("GEOSET_DEBUG_SEX", 0),
+            race: env_u8("DEBUG_CHARACTER_RACE", 1),
+            class: env_u8("DEBUG_CHARACTER_CLASS", 1),
+            sex: env_u8("DEBUG_CHARACTER_SEX", 0),
             appearance: CharacterAppearance {
-                sex: env_u8("GEOSET_DEBUG_SEX", 0),
-                skin_color: env_u8("GEOSET_DEBUG_SKIN_COLOR", 0),
-                face: env_u8("GEOSET_DEBUG_FACE", 1),
-                hair_style: env_u8("GEOSET_DEBUG_HAIR_STYLE", 1),
-                hair_color: env_u8("GEOSET_DEBUG_HAIR_COLOR", 2),
-                facial_style: env_u8("GEOSET_DEBUG_FACIAL_STYLE", 1),
-            },
-            equipment_appearance: EquipmentAppearance {
-                entries: vec![
-                    equipped_entry(EquipmentVisualSlot::Chest, 5729),
-                    equipped_entry(EquipmentVisualSlot::Legs, 6050),
-                    equipped_entry(EquipmentVisualSlot::Feet, 703),
-                    equipped_entry(EquipmentVisualSlot::Hands, 155438),
-                    equipped_entry(EquipmentVisualSlot::Head, 720086),
-                ],
+                sex: env_u8("DEBUG_CHARACTER_SEX", 0),
+                skin_color: env_u8("DEBUG_CHARACTER_SKIN_COLOR", 2),
+                face: env_u8("DEBUG_CHARACTER_FACE", 3),
+                hair_style: env_u8("DEBUG_CHARACTER_HAIR_STYLE", 4),
+                hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
+                facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
         }
-    }
-}
-
-fn equipped_entry(slot: EquipmentVisualSlot, display_info_id: u32) -> EquippedAppearanceEntry {
-    EquippedAppearanceEntry {
-        slot,
-        item_id: None,
-        display_info_id: Some(display_info_id),
-        inventory_type: 0,
-        hidden: false,
     }
 }
 
@@ -121,13 +94,6 @@ fn env_u8(name: &str, default: u8) -> u8 {
         .unwrap_or(default)
 }
 
-fn env_u16(name: &str, default: u16) -> u16 {
-    std::env::var(name)
-        .ok()
-        .and_then(|value| value.parse::<u16>().ok())
-        .unwrap_or(default)
-}
-
 fn spawn_camera(commands: &mut Commands) {
     let focus = Vec3::new(0.0, 1.0, 0.0);
     let eye = Vec3::new(0.0, 1.8, 6.0);
@@ -135,11 +101,11 @@ fn spawn_camera(commands: &mut Commands) {
     let distance = offset.length();
     let base_pitch = (offset.y / distance).asin();
     commands.spawn((
-        Name::new("GeosetDebugCamera"),
-        GeosetDebugScene,
+        Name::new("DebugCharacterCamera"),
+        DebugCharacterScene,
         Camera3d::default(),
         Transform::from_translation(eye).looking_at(focus, Vec3::Y),
-        GeosetDebugOrbit {
+        DebugCharacterOrbit {
             yaw: 0.0,
             pitch: 0.0,
             focus,
@@ -156,8 +122,8 @@ fn spawn_lighting(commands: &mut Commands) {
         ..default()
     });
     commands.spawn((
-        Name::new("GeosetDebugLight"),
-        GeosetDebugScene,
+        Name::new("DebugCharacterLight"),
+        DebugCharacterScene,
         DirectionalLight {
             illuminance: 8000.0,
             shadows_enabled: true,
@@ -191,8 +157,8 @@ fn spawn_ground(
     let mut mesh = Plane3d::default().mesh().size(30.0, 30.0).build();
     ground::scale_mesh_uvs(&mut mesh, 6.0);
     commands.spawn((
-        Name::new("GeosetDebugGround"),
-        GeosetDebugScene,
+        Name::new("DebugCharacterGround"),
+        DebugCharacterScene,
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
     ));
@@ -221,8 +187,8 @@ fn setup_scene(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    config: Res<GeosetDebugConfig>,
-    mut model: ResMut<GeosetDebugModel>,
+    config: Res<DebugCharacterConfig>,
+    mut model: ResMut<DebugCharacterModel>,
 ) {
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
@@ -245,22 +211,21 @@ fn setup_scene(
     };
     commands
         .entity(root)
-        .insert((GeosetDebugScene, GeosetDebugModelRoot));
+        .insert((DebugCharacterScene, DebugCharacterModelRoot));
     model.root = Some(root);
     model.applied = false;
 }
 
 #[allow(clippy::too_many_arguments)]
 fn apply_debug_character_once(
-    config: Res<GeosetDebugConfig>,
-    outfit_data: Res<OutfitData>,
+    config: Res<DebugCharacterConfig>,
     customization_db: Res<CustomizationDb>,
     char_tex: Res<CharTextureData>,
-    mut model: ResMut<GeosetDebugModel>,
+    mut model: ResMut<DebugCharacterModel>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
+    geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
     material_query: Query<(
         Entity,
@@ -275,12 +240,6 @@ fn apply_debug_character_once(
     let Some(root) = model.root else {
         return;
     };
-    let resolved_equipment = resolve_equipment_appearance(
-        &config.equipment_appearance,
-        &outfit_data,
-        config.race,
-        config.sex,
-    );
     apply_character_customization(
         CharacterCustomizationSelection {
             race: config.race,
@@ -290,7 +249,7 @@ fn apply_debug_character_once(
         },
         &customization_db,
         &char_tex,
-        Some(&resolved_equipment),
+        None,
         root,
         &mut images,
         &mut materials,
@@ -302,34 +261,10 @@ fn apply_debug_character_once(
     model.applied = true;
 }
 
-fn isolate_debug_geoset_mesh(
-    config: Res<GeosetDebugConfig>,
-    model: Res<GeosetDebugModel>,
-    parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
-    mut visibility_query: Query<&mut Visibility>,
-) {
-    let Some(root) = model.root else {
-        return;
-    };
-    for (entity, geoset_mesh, child_of) in &geoset_query {
-        if child_of.parent() != root && !is_descendant_of(entity, root, &parent_query) {
-            continue;
-        }
-        if let Ok(mut visibility) = visibility_query.get_mut(entity) {
-            *visibility = if geoset_mesh.0 == config.mesh_part_id {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            };
-        }
-    }
-}
-
 fn orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
-    mut query: Query<(&mut GeosetDebugOrbit, &mut Transform)>,
+    mut query: Query<(&mut DebugCharacterOrbit, &mut Transform)>,
 ) {
     if !mouse_buttons.pressed(MouseButton::Left) || motion.delta == Vec2::ZERO {
         return;
@@ -352,26 +287,12 @@ fn orbit_camera(
 
 fn teardown_scene(
     mut commands: Commands,
-    query: Query<Entity, With<GeosetDebugScene>>,
-    mut model: ResMut<GeosetDebugModel>,
+    query: Query<Entity, With<DebugCharacterScene>>,
+    mut model: ResMut<DebugCharacterModel>,
 ) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
     model.root = None;
     model.applied = false;
-}
-
-fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
-    let mut current = entity;
-    loop {
-        let Ok(child_of) = parent_query.get(current) else {
-            return false;
-        };
-        let parent = child_of.parent();
-        if parent == root {
-            return true;
-        }
-        current = parent;
-    }
 }

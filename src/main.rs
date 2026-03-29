@@ -607,7 +607,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
     app.add_plugins(char_create::CharCreatePlugin);
     app.add_plugins(char_create_scene::CharCreateScenePlugin);
-    app.add_plugins(geoset_debug_scene::GeosetDebugScenePlugin);
+    app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
     app.add_plugins(campsite_popup_screen::CampsitePopupScreenPlugin);
     app.add_plugins(game_menu_screen::GameMenuScreenPlugin);
     app.add_plugins(trash_button_screen::TrashButtonScreenPlugin);
