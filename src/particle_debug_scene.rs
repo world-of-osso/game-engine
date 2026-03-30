@@ -8,6 +8,7 @@ use crate::creature_display;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
+use crate::orbit_camera::OrbitCamera;
 
 const TORCH_M2: &str = "data/models/club_1h_torch_a_01.m2";
 
@@ -47,11 +48,15 @@ fn setup_scene(
 }
 
 fn spawn_camera(commands: &mut Commands) {
+    let focus = Vec3::Y * 0.5;
+    let orbit = OrbitCamera::new(focus, 3.0);
+    let eye = orbit.eye_position();
     commands.spawn((
         Name::new("ParticleDebugCamera"),
         ParticleDebugScene,
         Camera3d::default(),
-        Transform::from_xyz(0.0, 2.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_translation(eye).looking_at(focus, Vec3::Y),
+        orbit,
     ));
 }
 

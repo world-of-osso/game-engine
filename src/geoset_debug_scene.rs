@@ -1,7 +1,6 @@
 use std::f32::consts::PI;
 use std::path::PathBuf;
 
-use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
@@ -15,6 +14,7 @@ use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
+use crate::orbit_camera::OrbitCamera;
 use crate::scene_setup::DEFAULT_M2;
 use shared::components::{
     CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
@@ -25,18 +25,6 @@ struct DebugCharacterScene;
 
 #[derive(Component)]
 struct DebugCharacterModelRoot;
-
-#[derive(Component)]
-struct DebugCharacterOrbit {
-    yaw: f32,
-    pitch: f32,
-    focus: Vec3,
-    distance: f32,
-    target_distance: f32,
-    min_distance: f32,
-    max_distance: f32,
-    base_pitch: f32,
-}
 
 #[derive(Resource, Clone)]
 struct DebugCharacterConfig {
@@ -59,10 +47,6 @@ struct DebugCharacterConfig {
     right_feet_display: u32,
 }
 
-const ORBIT_SENSITIVITY: f32 = 0.003;
-const ORBIT_ZOOM_STEP: f32 = 0.4;
-const ORBIT_ZOOM_LERP: f32 = 0.25;
-
 pub struct DebugCharacterScenePlugin;
 
 impl Plugin for DebugCharacterScenePlugin {
@@ -71,8 +55,7 @@ impl Plugin for DebugCharacterScenePlugin {
         app.add_systems(OnEnter(GameState::DebugCharacter), setup_scene);
         app.add_systems(
             Update,
-            (orbit_camera, build_debug_scene_tree.after(orbit_camera))
-                .run_if(in_state(GameState::DebugCharacter)),
+            build_debug_scene_tree.run_if(in_state(GameState::DebugCharacter)),
         );
         app.add_systems(OnExit(GameState::DebugCharacter), teardown_scene);
     }
@@ -189,21 +172,16 @@ fn spawn_camera(commands: &mut Commands) {
     let offset = eye - focus;
     let distance = offset.length();
     let base_pitch = (offset.y / distance).asin();
+    let mut orbit = OrbitCamera::new(focus, distance);
+    orbit.min_distance = 1.5;
+    orbit.max_distance = 12.0;
+    orbit.base_pitch = base_pitch;
     commands.spawn((
         Name::new("DebugCharacterCamera"),
         DebugCharacterScene,
         Camera3d::default(),
         Transform::from_translation(eye).looking_at(focus, Vec3::Y),
-        DebugCharacterOrbit {
-            yaw: 0.0,
-            pitch: 0.0,
-            focus,
-            distance,
-            target_distance: distance,
-            min_distance: 1.5,
-            max_distance: 12.0,
-            base_pitch,
-        },
+        orbit,
     ));
 }
 
@@ -342,18 +320,8 @@ struct DebugCharacterSide {
     name: &'static str,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn spawn_debug_pair(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    config: &DebugCharacterConfig,
-) {
-    let sides = [
+fn debug_sides(config: &DebugCharacterConfig) -> [DebugCharacterSide; 2] {
+    [
         DebugCharacterSide {
             x: -1.7,
             head: config.left_head_display,
@@ -372,8 +340,21 @@ fn spawn_debug_pair(
             feet: config.right_feet_display,
             name: "DebugCharacterM2",
         },
-    ];
-    for side in &sides {
+    ]
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_debug_pair(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    config: &DebugCharacterConfig,
+) {
+    for side in &debug_sides(config) {
         spawn_debug_character_model(
             commands,
             meshes,
@@ -394,17 +375,7 @@ fn spawn_debug_pair(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    config: Res<DebugCharacterConfig>,
-) {
+fn log_debug_config(config: &DebugCharacterConfig) {
     eprintln!(
         "debugcharacter displays: left_head={} right_head={} shoulder={} back={} chest={} left_hands={} right_hands={} left_waist={} left_legs={} left_feet={} right_waist={} right_legs={} right_feet={}",
         config.left_head_display,
@@ -421,6 +392,20 @@ fn setup_scene(
         config.right_legs_display,
         config.right_feet_display
     );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn setup_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    config: Res<DebugCharacterConfig>,
+) {
+    log_debug_config(&config);
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
@@ -434,33 +419,6 @@ fn setup_scene(
         &creature_display_map,
         &config,
     );
-}
-
-fn orbit_camera(
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
-    motion: Res<AccumulatedMouseMotion>,
-    scroll: Res<AccumulatedMouseScroll>,
-    mut query: Query<(&mut DebugCharacterOrbit, &mut Transform)>,
-) {
-    for (mut orbit, mut transform) in &mut query {
-        if scroll.delta.y != 0.0 {
-            orbit.target_distance = (orbit.target_distance - scroll.delta.y * ORBIT_ZOOM_STEP)
-                .clamp(orbit.min_distance, orbit.max_distance);
-        }
-        orbit.distance = orbit.distance.lerp(orbit.target_distance, ORBIT_ZOOM_LERP);
-        if mouse_buttons.pressed(MouseButton::Left) && motion.delta != Vec2::ZERO {
-            orbit.yaw -= motion.delta.x * ORBIT_SENSITIVITY;
-            orbit.pitch += motion.delta.y * ORBIT_SENSITIVITY;
-        }
-        let pitch = orbit.base_pitch + orbit.pitch;
-        let eye = orbit.focus
-            + Vec3::new(
-                orbit.yaw.sin() * pitch.cos(),
-                pitch.sin(),
-                orbit.yaw.cos() * pitch.cos(),
-            ) * orbit.distance;
-        *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
-    }
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharacterScene>>) {
@@ -522,15 +480,10 @@ fn build_debug_scene_tree(
     });
 }
 
-fn debug_character_scene_node(
-    model_root: Entity,
-    label: String,
-    request: &CharacterRenderRequest,
-    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
-    parents: &Query<&ChildOf>,
-    names: &Query<&Name>,
-) -> SceneNode {
-    let slot_defs: &[(Option<EquipmentSlot>, EquipmentVisualSlot, &str)] = &[
+type SlotDef = (Option<EquipmentSlot>, EquipmentVisualSlot, &'static str);
+
+fn upper_body_slot_defs() -> [SlotDef; 4] {
+    [
         (Some(EquipmentSlot::Head), EquipmentVisualSlot::Head, "Head"),
         (
             Some(EquipmentSlot::ShoulderLeft),
@@ -543,6 +496,11 @@ fn debug_character_scene_node(
             "ShoulderRight",
         ),
         (Some(EquipmentSlot::Back), EquipmentVisualSlot::Back, "Back"),
+    ]
+}
+
+fn lower_body_slot_defs() -> [SlotDef; 5] {
+    [
         (
             Some(EquipmentSlot::Chest),
             EquipmentVisualSlot::Chest,
@@ -560,8 +518,22 @@ fn debug_character_scene_node(
         ),
         (Some(EquipmentSlot::Legs), EquipmentVisualSlot::Legs, "Legs"),
         (Some(EquipmentSlot::Feet), EquipmentVisualSlot::Feet, "Feet"),
-    ];
-    let children = slot_defs
+    ]
+}
+
+fn debug_character_scene_node(
+    model_root: Entity,
+    label: String,
+    request: &CharacterRenderRequest,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: &Query<&ChildOf>,
+    names: &Query<&Name>,
+) -> SceneNode {
+    let all_defs: Vec<SlotDef> = upper_body_slot_defs()
+        .into_iter()
+        .chain(lower_body_slot_defs())
+        .collect();
+    let children = all_defs
         .iter()
         .map(|(eq_slot, vis_slot, name)| {
             equipment_slot_scene_node(
