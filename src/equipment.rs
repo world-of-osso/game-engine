@@ -433,7 +433,7 @@ fn spawn_equipment_slot(
         ))
         .id();
 
-    let spawned = if matches!(slot, EquipmentSlot::Chest | EquipmentSlot::Feet) {
+    let spawned = if matches!(slot, EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet) {
         m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
             commands,
             &mut m2_spawn::SpawnAssets {

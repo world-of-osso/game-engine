@@ -44,8 +44,8 @@ fn geoset_only_waist_display_enables_belt_geoset_without_runtime_model() {
 
     assert_eq!(resolved.outfit.geoset_overrides, vec![(18, 2)]);
     assert!(
-        resolved.outfit.item_textures.contains(&(4, 160531)),
-        "expected legacy waist overlay texture, got {:?}",
+        resolved.outfit.item_textures.is_empty(),
+        "display 15040 has no material rows, should have no item textures, got {:?}",
         resolved.outfit.item_textures
     );
     assert!(
