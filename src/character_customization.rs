@@ -662,11 +662,19 @@ fn apply_exact_geoset_overrides(
     base_visible: bool,
     overrides: &[(u16, u16)],
 ) -> bool {
+    let group = mesh_part_id / 100;
     let mut visible = base_visible;
-    for &(group, value) in overrides {
-        let exact_mesh_part_id = group * 100 + value;
-        if mesh_part_id == exact_mesh_part_id {
-            visible = value != 0;
+    for &(override_group, value) in overrides {
+        if override_group == group {
+            if value == 0 {
+                // Exact hide: only affects mesh group*100+0
+                if mesh_part_id == group * 100 {
+                    visible = false;
+                }
+            } else {
+                // Group-level switch: show only the target variant, hide others
+                visible = mesh_part_id == group * 100 + value;
+            }
         }
     }
     visible

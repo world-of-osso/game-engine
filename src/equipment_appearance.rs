@@ -453,7 +453,11 @@ fn apply_slot_geoset_overrides(
                 apply_geoset_overrides(display, vec![(15, variant)]);
             }
         }
-        EquipmentVisualSlot::Feet => {}
+        EquipmentVisualSlot::Feet => {
+            if let Some(variant) = outfit_data.boot_geoset_variant(display_info_id) {
+                apply_geoset_overrides(display, vec![(5, variant), (20, variant)]);
+            }
+        }
         _ => {}
     }
 }

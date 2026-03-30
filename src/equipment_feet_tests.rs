@@ -63,7 +63,7 @@ fn m2_backed_feet_display_resolves_runtime_model() {
 }
 
 #[test]
-fn m2_backed_feet_display_adds_no_synthetic_feet_overrides() {
+fn m2_backed_feet_display_sets_boot_geoset_overrides() {
     let data = OutfitData::load(Path::new("data"));
     let appearance = NetEquipmentAppearance {
         entries: vec![shared::components::EquippedAppearanceEntry {
@@ -78,8 +78,13 @@ fn m2_backed_feet_display_adds_no_synthetic_feet_overrides() {
     let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
 
     assert!(
-        resolved.outfit.geoset_overrides.is_empty(),
-        "expected runtime feet display to avoid synthetic geoset overrides: {:?}",
+        resolved.outfit.geoset_overrides.contains(&(5, 2)),
+        "expected boot geoset override (5, 2) for group 5: {:?}",
+        resolved.outfit.geoset_overrides
+    );
+    assert!(
+        resolved.outfit.geoset_overrides.contains(&(20, 2)),
+        "expected feet covering geoset override (20, 2) for group 20: {:?}",
         resolved.outfit.geoset_overrides
     );
 }
