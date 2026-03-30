@@ -24,6 +24,7 @@ pub enum EquipmentSlot {
     Head,
     Back,
     Chest,
+    Waist,
     Legs,
     Feet,
     MainHand,
@@ -123,6 +124,7 @@ impl Default for EquipmentTransforms {
         slot_defaults.insert(EquipmentSlot::Head, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Back, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Chest, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::Waist, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Legs, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Feet, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::MainHand, Transform::IDENTITY);
@@ -195,6 +197,7 @@ fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
         EquipmentSlot::Head => 11,    // Helm
         EquipmentSlot::Back => 12,    // Back
         EquipmentSlot::Chest => unreachable!("chest runtime models anchor on the character root"),
+        EquipmentSlot::Waist => 53, // Belt buckle
         EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
         EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
         EquipmentSlot::MainHand => 0, // HandRight
@@ -466,6 +469,7 @@ fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
     }
     match slot {
         EquipmentSlot::Chest => mesh_part_id / 100 == 22,
+        EquipmentSlot::Waist => mesh_part_id == 0 || mesh_part_id / 100 == 18,
         EquipmentSlot::Legs => matches!(mesh_part_id / 100, 11 | 13),
         EquipmentSlot::Feet => mesh_part_id / 100 == 5,
         _ => true,
@@ -533,6 +537,9 @@ mod tests {
         assert!(!runtime_mesh_part_allowed(EquipmentSlot::Chest, 401));
         assert!(runtime_mesh_part_allowed(EquipmentSlot::Feet, 501));
         assert!(runtime_mesh_part_allowed(EquipmentSlot::Chest, 2202));
+        assert!(runtime_mesh_part_allowed(EquipmentSlot::Waist, 0));
+        assert!(runtime_mesh_part_allowed(EquipmentSlot::Waist, 1802));
+        assert!(!runtime_mesh_part_allowed(EquipmentSlot::Waist, 2202));
         assert!(!runtime_mesh_part_allowed(EquipmentSlot::Chest, 2301));
     }
 

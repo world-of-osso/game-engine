@@ -654,6 +654,7 @@ fn sync_replicated_player_customization(
     material_query: Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&crate::m2_spawn::GeosetMesh>,
         Option<&crate::m2_spawn::BatchTextureType>,
         &ChildOf,
     )>,

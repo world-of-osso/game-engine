@@ -30,6 +30,10 @@ mod feet_tests;
 #[path = "equipment_legs_tests.rs"]
 mod legs_tests;
 
+#[cfg(test)]
+#[path = "equipment_waist_tests.rs"]
+mod waist_tests;
+
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
@@ -122,7 +126,6 @@ fn apply_non_head_equipment_entry(
     race: u8,
     sex: u8,
 ) {
-    ensure_display_material_textures(display_info_id, outfit_data);
     let mut display = outfit_data.resolve_display_info(display_info_id);
     ensure_item_component_textures(&display);
     apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
@@ -222,7 +225,17 @@ fn apply_waist_equipment_entry(
     race: u8,
     sex: u8,
 ) {
+    let before_runtime = resolved.runtime_models.len();
+    let before_geosets = resolved.outfit.geoset_overrides.len();
+    let before_textures = resolved.outfit.item_textures.len();
     apply_non_head_equipment_entry(resolved, EquipmentVisualSlot::Waist, display_info_id, outfit_data, race, sex);
+    eprintln!(
+        "waist display {} resolved: new_item_textures={:?} new_geosets={:?} new_runtime_models={:?}",
+        display_info_id,
+        &resolved.outfit.item_textures[before_textures..],
+        &resolved.outfit.geoset_overrides[before_geosets..],
+        &resolved.runtime_models[before_runtime..]
+    );
 }
 
 fn apply_legs_equipment_entry(
@@ -275,6 +288,11 @@ fn apply_slot_geoset_overrides(
         && matches!(slot, EquipmentVisualSlot::Chest)
     {
         apply_geoset_overrides(display, vec![(22, variant)]);
+    }
+    if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id)
+        && matches!(slot, EquipmentVisualSlot::Waist)
+    {
+        apply_geoset_overrides(display, vec![(18, variant)]);
     }
     if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
         match slot {
@@ -368,13 +386,13 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
     equipment.slots.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Chest | EquipmentSlot::Waist | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     equipment.slot_skin_fdids.retain(|slot, _| {
         matches!(
             slot,
-            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
+            EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Chest | EquipmentSlot::Waist | EquipmentSlot::Legs | EquipmentSlot::Feet | EquipmentSlot::MainHand | EquipmentSlot::OffHand
         )
     });
     for runtime_model in &resolved.runtime_models {
@@ -392,6 +410,7 @@ fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlo
         EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
         EquipmentVisualSlot::Back => Some(EquipmentSlot::Back),
         EquipmentVisualSlot::Chest => Some(EquipmentSlot::Chest),
+        EquipmentVisualSlot::Waist => Some(EquipmentSlot::Waist),
         EquipmentVisualSlot::Legs => Some(EquipmentSlot::Legs),
         EquipmentVisualSlot::Feet => Some(EquipmentSlot::Feet),
         EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
@@ -445,12 +464,6 @@ fn ensure_runtime_model_textures(skin_fdids: &[u32; 3]) {
     }
 }
 
-fn ensure_display_material_textures(display_info_id: u32, outfit_data: &OutfitData) {
-    for fdid in outfit_data.display_material_texture_fdids(display_info_id) {
-        let _ = casc_resolver::ensure_texture(fdid);
-    }
-}
-
 fn ensure_item_component_textures(display: &OutfitResult) {
     for &(_, fdid) in &display.item_textures {
         let _ = casc_resolver::ensure_texture(fdid);
@@ -493,6 +506,14 @@ mod tests {
         assert_eq!(
             visual_slot_to_runtime_slot(EquipmentVisualSlot::Chest),
             Some(EquipmentSlot::Chest)
+        );
+    }
+
+    #[test]
+    fn waist_slot_maps_to_runtime_slot() {
+        assert_eq!(
+            visual_slot_to_runtime_slot(EquipmentVisualSlot::Waist),
+            Some(EquipmentSlot::Waist)
         );
     }
 

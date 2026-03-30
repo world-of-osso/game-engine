@@ -52,6 +52,7 @@ pub(crate) fn apply_character_customization(
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -101,6 +102,7 @@ fn apply_base_skin_and_overlay_textures(
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -134,7 +136,7 @@ fn apply_base_skin_and_overlay_textures(
         .and_then(|fdid| crate::asset::casc_resolver::ensure_texture(fdid))
         .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
         .map(|image| images.add(image));
-    for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
+    for (entity, mat_handle, _geoset_mesh, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
         }
@@ -236,6 +238,7 @@ fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) ->
         Slot::Tabard => &[3, 4],
         Slot::Wrist => &[1],
         Slot::Hands => &[1, 2],
+        Slot::Waist => &[4, 5],
         Slot::Legs => &[5, 6],
         Slot::Feet => &[6, 7],
         _ => &[],
@@ -296,6 +299,7 @@ fn sync_character_render_requests(
     material_query: Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -360,6 +364,7 @@ fn character_render_targets_ready(
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -369,7 +374,7 @@ fn character_render_targets_ready(
         .any(|(entity, _, _)| is_descendant_of(entity, root, parent_query));
     let has_materials = material_query
         .iter()
-        .any(|(entity, _, _, _)| is_descendant_of(entity, root, parent_query));
+        .any(|(entity, _, _, _, _)| is_descendant_of(entity, root, parent_query));
     has_geosets && has_materials
 }
 
@@ -673,8 +678,14 @@ mod tests {
         let head = images.add(Image::default());
         let hair = images.add(Image::default());
 
-        let replacement =
-            replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair), None, None);
+        let replacement = replacement_texture_for_batch(
+            Some(6),
+            &body,
+            Some(&head),
+            Some(&hair),
+            None,
+            None,
+        );
 
         assert_eq!(replacement, Some(hair));
     }
@@ -687,8 +698,14 @@ mod tests {
         let hair = images.add(Image::default());
         let cape = images.add(Image::default());
 
-        let replacement =
-            replacement_texture_for_batch(Some(2), &body, Some(&head), Some(&hair), None, Some(&cape));
+        let replacement = replacement_texture_for_batch(
+            Some(2),
+            &body,
+            Some(&head),
+            Some(&hair),
+            None,
+            Some(&cape),
+        );
 
         assert_eq!(replacement, Some(cape));
     }

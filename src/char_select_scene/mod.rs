@@ -626,6 +626,7 @@ fn sync_selected_character_appearance(
     material_query: Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&crate::m2_spawn::GeosetMesh>,
         Option<&crate::m2_spawn::BatchTextureType>,
         &ChildOf,
     )>,
