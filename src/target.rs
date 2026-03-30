@@ -27,9 +27,16 @@ impl Plugin for TargetPlugin {
                 spawn_target_circle,
                 update_target_circle,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(targeting_state_active),
         );
     }
+}
+
+fn targeting_state_active(state: Res<State<GameState>>) -> bool {
+    matches!(
+        *state.get(),
+        GameState::InWorld | GameState::InWorldSelectionDebug
+    )
 }
 
 /// Raycast from camera through mouse cursor on left-click. Target the hit RemoteEntity.

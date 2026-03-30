@@ -31,6 +31,11 @@ fn parse_screen_alias_matches_state_parser() {
         .expect("expected selectiondebug");
     assert_eq!(parsed, game_state::GameState::SelectionDebug);
 
+    let parsed = parse_state_arg(&args(&["--screen", "inworldselectiondebug"]))
+        .expect("expected valid parse")
+        .expect("expected inworldselectiondebug");
+    assert_eq!(parsed, game_state::GameState::InWorldSelectionDebug);
+
     let parsed = parse_state_arg(&args(&["--screen", "login"]))
         .expect("expected valid parse")
         .expect("expected login");
@@ -86,6 +91,17 @@ fn parse_screen_arg_preserves_selectiondebug_variant() {
     assert_eq!(
         parsed,
         game_engine::game_state_enum::ScreenArg::SelectionDebug
+    );
+}
+
+#[test]
+fn parse_screen_arg_preserves_inworldselectiondebug_variant() {
+    let parsed = parse_screen_arg(&args(&["--screen", "inworldselectiondebug"]))
+        .expect("expected valid parse")
+        .expect("expected screen alias");
+    assert_eq!(
+        parsed,
+        game_engine::game_state_enum::ScreenArg::InWorldSelectionDebug
     );
 }
 

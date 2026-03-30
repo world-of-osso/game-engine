@@ -4,6 +4,7 @@ pub mod char_create_component;
 pub mod char_select_component;
 pub mod game_menu_component;
 pub mod inworld_hud_component;
+pub mod inworld_selection_debug_component;
 pub mod loading_component;
 pub mod login_component;
 mod options_menu_active_sections;

@@ -9,6 +9,7 @@ pub enum GameState {
     Connecting,
     CharSelect,
     SelectionDebug,
+    InWorldSelectionDebug,
     DebugCharacter,
     CharCreate,
     CampsitePopup,
@@ -20,11 +21,12 @@ pub enum GameState {
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 12] = [
+    pub const CLI_VALUES: [&str; 13] = [
         "login",
         "connecting",
         "charselect",
         "selectiondebug",
+        "inworldselectiondebug",
         "debugcharacter",
         "charcreate",
         "campsitepopup",
@@ -36,7 +38,10 @@ impl GameState {
     ];
 
     pub fn is_logged_in(self) -> bool {
-        !matches!(self, Self::Login | Self::Connecting | Self::SelectionDebug)
+        !matches!(
+            self,
+            Self::Login | Self::Connecting | Self::SelectionDebug | Self::InWorldSelectionDebug
+        )
     }
 
     pub fn as_cli_str(self) -> &'static str {
@@ -45,6 +50,7 @@ impl GameState {
             Self::Connecting => "connecting",
             Self::CharSelect => "charselect",
             Self::SelectionDebug => "selectiondebug",
+            Self::InWorldSelectionDebug => "inworldselectiondebug",
             Self::DebugCharacter => "debugcharacter",
             Self::CharCreate => "charcreate",
             Self::CampsitePopup => "campsitepopup",
@@ -66,6 +72,7 @@ impl FromStr for GameState {
             "connecting" => Ok(Self::Connecting),
             "charselect" => Ok(Self::CharSelect),
             "selectiondebug" => Ok(Self::SelectionDebug),
+            "inworldselectiondebug" | "inworld-selectiondebug" => Ok(Self::InWorldSelectionDebug),
             "debugcharacter" => Ok(Self::DebugCharacter),
             "charcreate" => Ok(Self::CharCreate),
             "campsitepopup" => Ok(Self::CampsitePopup),
@@ -84,6 +91,7 @@ pub enum ScreenArg {
     Login,
     CharSelect,
     SelectionDebug,
+    InWorldSelectionDebug,
     DebugCharacter,
     CharCreate,
     CharCreateCustomize,
@@ -96,10 +104,11 @@ pub enum ScreenArg {
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 12] = [
+    pub const CLI_VALUES: [&str; 13] = [
         "login",
         "charselect",
         "selectiondebug",
+        "inworldselectiondebug",
         "debugcharacter",
         "charcreate",
         "charcreate-customize",
@@ -118,6 +127,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::Login => Self::Login,
             ScreenArg::CharSelect => Self::CharSelect,
             ScreenArg::SelectionDebug => Self::SelectionDebug,
+            ScreenArg::InWorldSelectionDebug => Self::InWorldSelectionDebug,
             ScreenArg::DebugCharacter => Self::DebugCharacter,
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::CampsitePopup => Self::CampsitePopup,
@@ -137,6 +147,7 @@ impl FromStr for ScreenArg {
             "login" => Ok(Self::Login),
             "charselect" => Ok(Self::CharSelect),
             "selectiondebug" => Ok(Self::SelectionDebug),
+            "inworldselectiondebug" | "inworld-selectiondebug" => Ok(Self::InWorldSelectionDebug),
             "debugcharacter" => Ok(Self::DebugCharacter),
             "charcreate" => Ok(Self::CharCreate),
             "charcreate-customize" => Ok(Self::CharCreateCustomize),

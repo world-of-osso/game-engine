@@ -69,6 +69,7 @@ mod geoset_debug_scene;
 mod ground;
 mod health_bar;
 mod inworld_scene_tree;
+mod inworld_selection_debug_screen;
 mod loading_screen;
 mod login_screen;
 mod login_screen_helpers;
@@ -622,6 +623,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
     app.add_plugins(char_select::CharSelectPlugin);
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
     app.add_plugins(selection_debug_screen::SelectionDebugScreenPlugin);
+    app.add_plugins(inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin);
     app.add_plugins(char_create::CharCreatePlugin);
     app.add_plugins(char_create_scene::CharCreateScenePlugin);
     app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
@@ -653,6 +655,8 @@ fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
             app.add_plugins(login_screen::LoginScreenPlugin);
         } else if matches!(state, game_state::GameState::SelectionDebug) {
             app.add_plugins(selection_debug_screen::SelectionDebugScreenPlugin);
+        } else if matches!(state, game_state::GameState::InWorldSelectionDebug) {
+            app.add_plugins(inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin);
         }
     }
     app.add_systems(PostStartup, dump_systems::headless_dump_ui_tree_immediate);
