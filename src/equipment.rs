@@ -26,6 +26,7 @@ pub enum EquipmentSlot {
     ShoulderRight,
     Back,
     Chest,
+    Hands,
     Waist,
     Legs,
     Feet,
@@ -128,6 +129,7 @@ impl Default for EquipmentTransforms {
         slot_defaults.insert(EquipmentSlot::ShoulderRight, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Back, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Chest, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::Hands, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Waist, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Legs, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Feet, Transform::IDENTITY);
@@ -203,6 +205,7 @@ fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
         EquipmentSlot::ShoulderRight => 5, // ShoulderRight
         EquipmentSlot::Back => 12,         // Back
         EquipmentSlot::Chest => unreachable!("chest runtime models anchor on the character root"),
+        EquipmentSlot::Hands => unreachable!("hands runtime models anchor on the character root"),
         EquipmentSlot::Waist => 53, // Belt buckle
         EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
         EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
@@ -377,10 +380,11 @@ fn spawn_equipment_slot(
     warned: &mut HashSet<String>,
     owner: Entity,
 ) -> Option<Entity> {
-    let (parent_entity, base_offset) = if matches!(
+    let use_bound_joints = matches!(
         slot,
-        EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet
-    ) {
+        EquipmentSlot::Chest | EquipmentSlot::Hands | EquipmentSlot::Legs | EquipmentSlot::Feet
+    ) || (matches!(slot, EquipmentSlot::Head) && is_collection_model(m2_path));
+    let (parent_entity, base_offset) = if use_bound_joints {
         (
             bound_visual_root(owner, joint_entities, parents),
             Vec3::ZERO,
@@ -433,7 +437,7 @@ fn spawn_equipment_slot(
         ))
         .id();
 
-    let spawned = if matches!(slot, EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet) {
+    let spawned = if use_bound_joints {
         m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
             commands,
             &mut m2_spawn::SpawnAssets {
@@ -504,9 +508,15 @@ fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
         EquipmentSlot::Chest => mesh_part_id / 100 == 22,
         EquipmentSlot::Waist => mesh_part_id == 0 || mesh_part_id / 100 == 18,
         EquipmentSlot::Legs => matches!(mesh_part_id / 100, 11 | 13),
+        EquipmentSlot::Hands => mesh_part_id / 100 == 4,
         EquipmentSlot::Feet => matches!(mesh_part_id / 100, 5 | 20),
         _ => true,
     }
+}
+
+fn is_collection_model(path: &Path) -> bool {
+    let lower = path.to_string_lossy().to_ascii_lowercase();
+    lower.contains("item/objectcomponents/collections/")
 }
 
 fn warn_once(warned: &mut HashSet<String>, message: String) {

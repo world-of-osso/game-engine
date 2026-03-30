@@ -27,6 +27,10 @@ mod chest_tests;
 mod feet_tests;
 
 #[cfg(test)]
+#[path = "equipment_hands_tests.rs"]
+mod hands_tests;
+
+#[cfg(test)]
 #[path = "equipment_legs_tests.rs"]
 mod legs_tests;
 
@@ -483,7 +487,7 @@ fn resolve_head_appearance_effects(
         .resolve_runtime_model(display_info_id, race, sex)
         .and_then(|(fdid, skin_fdids)| {
             let path = resolve_model_path(fdid)?;
-            (!is_collection_head_model(&path)).then_some((path, skin_fdids))
+            Some((path, skin_fdids))
         });
     HeadAppearanceEffects {
         hidden_geoset_groups,
@@ -542,6 +546,7 @@ fn visual_slot_to_runtime_slots(slot: EquipmentVisualSlot) -> Vec<EquipmentSlot>
         EquipmentVisualSlot::Chest => vec![EquipmentSlot::Chest],
         EquipmentVisualSlot::Waist => vec![EquipmentSlot::Waist],
         EquipmentVisualSlot::Legs => vec![EquipmentSlot::Legs],
+        EquipmentVisualSlot::Hands => vec![EquipmentSlot::Hands],
         EquipmentVisualSlot::Feet => vec![EquipmentSlot::Feet],
         EquipmentVisualSlot::MainHand => vec![EquipmentSlot::MainHand],
         EquipmentVisualSlot::OffHand => vec![EquipmentSlot::OffHand],
@@ -567,16 +572,8 @@ fn runtime_model_for_slot(
         _ => outfit_data.resolve_runtime_model(display_info_id, race, sex)?,
     };
     let path = resolve_model_path(fdid)?;
-    if matches!(slot, EquipmentSlot::Head) && is_collection_head_model(&path) {
-        return None;
-    }
     ensure_runtime_model_textures(&skin_fdids);
     Some((path, skin_fdids))
-}
-
-fn is_collection_head_model(path: &Path) -> bool {
-    let lower = path.to_string_lossy().to_ascii_lowercase();
-    lower.contains("item/objectcomponents/collections/")
 }
 
 fn first_model_path(display: &OutfitResult) -> Option<PathBuf> {
