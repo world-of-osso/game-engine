@@ -160,7 +160,7 @@ struct InitModifiers {
     age: SetAttributeModifier,
     lifetime: SetAttributeModifier,
     pos: SetPositionSphereModifier,
-    vel: SetVelocitySphereModifier,
+    vel: SetAttributeModifier,
 }
 
 fn build_init_modifiers(em: &M2ParticleEmitter, writer: &ExprWriter) -> InitModifiers {
@@ -185,19 +185,23 @@ fn build_position_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetPo
     }
 }
 
-fn build_velocity_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetVelocitySphereModifier {
-    let speed_expr = if em.speed_variation > 0.0 {
-        let base = writer.lit(em.emission_speed);
-        let variation = writer.rand(ScalarType::Float) * writer.lit(em.speed_variation * 2.0)
+fn build_velocity_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetAttributeModifier {
+    let speed = em.emission_speed;
+    let h_range = em.horizontal_range.max(0.1);
+    let v_range = em.vertical_range.max(0.1);
+    let rand_h = writer.rand(ScalarType::Float) * writer.lit(h_range * 2.0) - writer.lit(h_range);
+    let rand_v = writer.rand(ScalarType::Float) * writer.lit(v_range * 2.0) - writer.lit(v_range);
+    let speed_var = if em.speed_variation > 0.0 {
+        let var = writer.rand(ScalarType::Float) * writer.lit(em.speed_variation * 2.0)
             - writer.lit(em.speed_variation);
-        (base.clone() + base * variation).expr()
+        writer.lit(speed) * (writer.lit(1.0) + var)
     } else {
-        writer.lit(em.emission_speed.max(0.01)).expr()
+        writer.lit(speed)
     };
-    SetVelocitySphereModifier {
-        center: writer.lit(Vec3::ZERO).expr(),
-        speed: speed_expr,
-    }
+    let vx = rand_h.clone().sin() * speed_var.clone();
+    let vy = speed_var.clone();
+    let vz = rand_v.clone().sin() * speed_var;
+    SetAttributeModifier::new(Attribute::VELOCITY, vx.vec3(vy, vz).expr())
 }
 
 fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::AlphaMode {
