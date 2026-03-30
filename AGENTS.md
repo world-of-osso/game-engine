@@ -57,6 +57,7 @@ src/
 
 - Use `apply_patch` for manual code edits in this repo.
 - If `apply_patch` is blocked by file-size or function-size limits, refactor first so the edit can still be made with `apply_patch`; do not stop at the blocker.
+- `data/` is effectively a different repo/cache tree for this project. Do not stage or commit files under `data/` from this repo unless the user explicitly asks for that exact path.
 
 ## UI Screens (rsx! + Screen pattern)
 
