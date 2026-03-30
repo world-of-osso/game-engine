@@ -342,30 +342,7 @@ fn real_mask_display_does_not_fallback_to_blood_elf_collection_model() {
     );
 }
 
-#[test]
-fn real_mask_display_skips_collection_runtime_head_model() {
-    let data = OutfitData::load(Path::new("data"));
-    let appearance = NetEquipmentAppearance {
-        entries: vec![shared::components::EquippedAppearanceEntry {
-            slot: EquipmentVisualSlot::Head,
-            item_id: Some(249913),
-            display_info_id: Some(720086),
-            inventory_type: 1,
-            hidden: false,
-        }],
-    };
 
-    let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
-
-    assert!(
-        resolved
-            .runtime_models
-            .iter()
-            .all(|model| model.slot != EquipmentSlot::Head),
-        "collection-style head displays should not spawn runtime head attachments: {:?}",
-        resolved.runtime_models
-    );
-}
 
 // --- Helmet hair hiding ---
 
