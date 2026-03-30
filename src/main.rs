@@ -86,6 +86,7 @@ mod networking_npc;
 mod networking_player;
 mod networking_reconnect;
 mod particle;
+mod particle_debug_scene;
 mod process_limits;
 mod scene_setup;
 mod screen_auto_login;
@@ -629,6 +630,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
     app.add_plugins(char_create::CharCreatePlugin);
     app.add_plugins(char_create_scene::CharCreateScenePlugin);
     app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
+    app.add_plugins(particle_debug_scene::ParticleDebugScenePlugin);
     app.add_plugins(campsite_popup_screen::CampsitePopupScreenPlugin);
     app.add_plugins(game_menu_screen::GameMenuScreenPlugin);
     app.add_plugins(trash_button_screen::TrashButtonScreenPlugin);

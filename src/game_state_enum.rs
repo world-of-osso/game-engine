@@ -18,10 +18,11 @@ pub enum GameState {
     GameMenu,
     TrashButton,
     Reconnecting,
+    ParticleDebug,
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 13] = [
+    pub const CLI_VALUES: [&str; 14] = [
         "login",
         "connecting",
         "charselect",
@@ -35,6 +36,7 @@ impl GameState {
         "gamemenu",
         "trashbutton",
         "reconnecting",
+        "particledebug",
     ];
 
     pub fn is_logged_in(self) -> bool {
@@ -59,6 +61,7 @@ impl GameState {
             Self::GameMenu => "gamemenu",
             Self::TrashButton => "trashbutton",
             Self::Reconnecting => "reconnecting",
+            Self::ParticleDebug => "particledebug",
         }
     }
 }
@@ -81,6 +84,7 @@ impl FromStr for GameState {
             "gamemenu" | "menu" => Ok(Self::GameMenu),
             "trashbutton" => Ok(Self::TrashButton),
             "reconnecting" => Ok(Self::Reconnecting),
+            "particledebug" => Ok(Self::ParticleDebug),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
     }
@@ -101,10 +105,11 @@ pub enum ScreenArg {
     GameMenu,
     OptionsMenu,
     TrashButton,
+    ParticleDebug,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 13] = [
+    pub const CLI_VALUES: [&str; 14] = [
         "login",
         "charselect",
         "selectiondebug",
@@ -118,6 +123,7 @@ impl ScreenArg {
         "gamemenu",
         "optionsmenu",
         "trashbutton",
+        "particledebug",
     ];
 }
 
@@ -135,6 +141,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::InWorld => Self::InWorld,
             ScreenArg::GameMenu | ScreenArg::OptionsMenu => Self::GameMenu,
             ScreenArg::TrashButton => Self::TrashButton,
+            ScreenArg::ParticleDebug => Self::ParticleDebug,
         }
     }
 }
@@ -157,6 +164,7 @@ impl FromStr for ScreenArg {
             "gamemenu" | "menu" => Ok(Self::GameMenu),
             "optionsmenu" | "options" => Ok(Self::OptionsMenu),
             "trashbutton" => Ok(Self::TrashButton),
+            "particledebug" => Ok(Self::ParticleDebug),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
     }

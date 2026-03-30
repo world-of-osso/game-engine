@@ -26,7 +26,11 @@ pub fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     let has_state = args
         .windows(2)
         .any(|w| w[0] == "--state" || w[0] == "--screen");
-    let frames = if has_server {
+    let has_inworld = args.iter().any(|a| a == "inworld");
+    let has_login_dev = args.iter().any(|a| a == "--login-dev-admin");
+    let frames = if has_inworld || has_login_dev {
+        120
+    } else if has_server {
         60
     } else if has_state {
         10
