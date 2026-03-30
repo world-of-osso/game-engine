@@ -3,8 +3,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use bevy::prelude::*;
 use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
+use bevy::prelude::*;
 
 #[path = "outfit_data_parse.rs"]
 mod parse;
@@ -207,8 +207,11 @@ impl OutfitData {
         let model_resource_id = *display.model_resource_ids.first()?;
         let model_fdid = select_model_fdid(data, model_resource_id, race, sex)?;
         let mut skin_fdids = [0; 3];
-        for (idx, material_resource_id) in
-            display.model_material_resource_ids.iter().take(3).enumerate()
+        for (idx, material_resource_id) in display
+            .model_material_resource_ids
+            .iter()
+            .take(3)
+            .enumerate()
         {
             skin_fdids[idx] = data
                 .material_to_texture
@@ -343,8 +346,7 @@ struct DisplayResources {
 }
 
 fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
-    let base_display_info =
-        parse::parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
+    let base_display_info = parse::parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
     let material_to_texture =
         parse::parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
     let display_materials = parse::parse_item_display_info_material_res(

@@ -383,7 +383,8 @@ fn spawn_equipment_slot(
     let use_bound_joints = matches!(
         slot,
         EquipmentSlot::Chest | EquipmentSlot::Hands | EquipmentSlot::Legs | EquipmentSlot::Feet
-    ) || (matches!(slot, EquipmentSlot::Head) && is_collection_model(m2_path));
+    ) || (matches!(slot, EquipmentSlot::Head)
+        && is_collection_model(m2_path));
     let (parent_entity, base_offset) = if use_bound_joints {
         (
             bound_visual_root(owner, joint_entities, parents),

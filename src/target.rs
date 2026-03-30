@@ -38,6 +38,7 @@ fn click_to_target(
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform)>,
     mut ray_cast: MeshRayCast,
+    parent_query: Query<&ChildOf>,
     remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
@@ -62,8 +63,8 @@ fn click_to_target(
 
     let hits = ray_cast.cast_ray(ray, &default());
     for &(entity, _) in hits {
-        if remote_q.get(entity).is_ok() {
-            current.0 = Some(entity);
+        if let Some(target) = resolve_targetable_ancestor(entity, &parent_query, &remote_q) {
+            current.0 = Some(target);
             return;
         }
     }
@@ -123,6 +124,29 @@ fn pick_next_target(sorted: &[Entity], current: Option<Entity>) -> Option<Entity
     }
 }
 
+pub(crate) fn resolve_targetable_ancestor(
+    entity: Entity,
+    parent_query: &Query<&ChildOf>,
+    remote_q: &Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+) -> Option<Entity> {
+    let mut current = entity;
+    loop {
+        if remote_q.get(current).is_ok() {
+            return Some(current);
+        }
+        let Ok(parent) = parent_query.get(current) else {
+            return None;
+        };
+        current = parent.parent();
+    }
+}
+
+fn target_circle_transform(target_translation: Vec3) -> Transform {
+    Transform::from_translation(target_translation + Vec3::Y * 0.08)
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::splat(1.0))
+}
+
 /// On F1, set the current target to the local player entity.
 fn self_target(
     keys: Res<ButtonInput<KeyCode>>,
@@ -139,7 +163,9 @@ fn self_target(
     if !bindings.is_just_pressed(InputAction::TargetSelf, &keys, &mouse_buttons) {
         return;
     }
-    let Ok(player) = player_q.single() else { return };
+    let Ok(player) = player_q.single() else {
+        return;
+    };
     current.0 = Some(player);
 }
 
@@ -178,18 +204,21 @@ fn spawn_target_circle(
         return;
     };
 
-    let ring = meshes.add(Torus::new(0.6, 0.8));
+    let ring = meshes.add(Annulus::new(0.7, 0.95).mesh().resolution(64));
     let mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 1.0, 0.0),
+        base_color: Color::srgba(1.0, 0.95, 0.2, 0.92),
+        emissive: LinearRgba::rgb(8.0, 7.0, 1.5),
         unlit: true,
+        cull_mode: None,
+        alpha_mode: AlphaMode::Blend,
+        reflectance: 0.0,
+        perceptual_roughness: 1.0,
         ..default()
     });
     commands.spawn((
         Mesh3d(ring),
         MeshMaterial3d(mat),
-        Transform::from_translation(tf.translation + Vec3::Y * 0.05)
-            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(1.0)),
+        target_circle_transform(tf.translation),
         TargetMarker,
     ));
 }
@@ -212,6 +241,19 @@ fn update_target_circle(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Resource, Default)]
+    struct TargetResolutionResult(Option<Entity>);
+
+    #[test]
+    fn test_target_circle_transform_stays_flat_on_ground() {
+        let transform = target_circle_transform(Vec3::new(10.0, 2.0, 5.0));
+        assert_eq!(transform.translation, Vec3::new(10.0, 2.08, 5.0));
+        assert_eq!(
+            transform.rotation,
+            Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+        );
+    }
 
     #[test]
     fn test_tab_cycles_targets() {
@@ -319,6 +361,34 @@ mod tests {
             (circle_pos.z - 5.0).abs() < 0.01,
             "circle z should follow target, got {}",
             circle_pos.z
+        );
+    }
+
+    #[test]
+    fn test_resolve_targetable_ancestor_finds_remote_root_from_child_mesh() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<TargetResolutionResult>();
+
+        let root = app
+            .world_mut()
+            .spawn((Transform::default(), RemoteEntity))
+            .id();
+        let child = app.world_mut().spawn(Transform::default()).id();
+        app.world_mut().entity_mut(child).insert(ChildOf(root));
+        app.add_systems(
+            Update,
+            move |parent_query: Query<&ChildOf>,
+                  remote_query: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+                  mut result: ResMut<TargetResolutionResult>| {
+                result.0 = resolve_targetable_ancestor(child, &parent_query, &remote_query);
+            },
+        );
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<TargetResolutionResult>().0,
+            Some(root)
         );
     }
 }

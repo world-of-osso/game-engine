@@ -1,8 +1,8 @@
 use super::*;
+use crate::asset::casc_resolver;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::Mesh;
 use std::path::Path;
-use crate::asset::casc_resolver;
 
 /// Build a minimal MD21 chunked file with the given MD20 blob.
 fn wrap_md21(md20: &[u8]) -> Vec<u8> {
@@ -353,7 +353,8 @@ fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
 
 #[test]
 fn load_skin_data_extracts_external_sfid_skin_for_helm_item_model() {
-    let source_m2 = std::path::Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_bef.m2");
+    let source_m2 =
+        std::path::Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_bef.m2");
     if !source_m2.exists() {
         return;
     }
@@ -967,9 +968,13 @@ fn human_male_helm_runtime_model_resolves_display_material_texture() {
     let model = load_m2(&model_path, &skin_fdids).expect("failed to load human male helm model");
 
     assert!(
-        model.batches.iter().any(|batch| batch.texture_fdid == Some(140455)),
+        model
+            .batches
+            .iter()
+            .any(|batch| batch.texture_fdid == Some(140455)),
         "expected helm runtime model to resolve display material texture 140455, got {:?}",
-        model.batches
+        model
+            .batches
             .iter()
             .map(|batch| (batch.texture_fdid, batch.texture_type))
             .collect::<Vec<_>>()

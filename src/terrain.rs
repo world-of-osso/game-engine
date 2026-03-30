@@ -109,7 +109,7 @@ impl Default for AdtManager {
             tile_doodad_entities: HashMap::new(),
             tile_rx: Mutex::new(tile_rx),
             tile_tx,
-            load_radius: 1,
+            load_radius: 0,
             initial_tile: (0, 0),
             initial_load_reported: false,
         }
@@ -707,7 +707,7 @@ mod tests {
         let adt_manager = app.world().resource::<AdtManager>();
         assert_eq!(adt_manager.map_name, "azeroth");
         assert_eq!(adt_manager.initial_tile, (32, 48));
-        assert_eq!(adt_manager.server_requested.len(), 9);
+        assert_eq!(adt_manager.server_requested.len(), 1);
         assert!(adt_manager.server_requested.contains(&(32, 48)));
     }
 }
@@ -1034,9 +1034,17 @@ fn dispatch_single_tile(
     let lod = tile_lod_for_distance(ty, tx, center_y, center_x);
     adt_manager.pending.insert((ty, tx));
     let tx_chan = adt_manager.tile_tx.clone();
-    std::thread::spawn(move || {
-        tx_chan.send(parse_tile_background(ty, tx, path, lod)).ok();
-    });
+    let thread_name = format!("adt-load-{ty}-{tx}");
+    let spawn_result = std::thread::Builder::new()
+        .name(thread_name)
+        .stack_size(2 * 1024 * 1024)
+        .spawn(move || {
+            tx_chan.send(parse_tile_background(ty, tx, path, lod)).ok();
+        });
+    if let Err(err) = spawn_result {
+        adt_manager.pending.remove(&(ty, tx));
+        eprintln!("Cannot spawn ADT loader thread ({ty}, {tx}): {err}");
+    }
 }
 
 /// Parse an ADT tile and its companions on a background thread.

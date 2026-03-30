@@ -21,9 +21,13 @@ fn hood_of_empty_eternities_runtime_model_loads_with_display_material_texture() 
         .expect("failed to load hood of empty eternities runtime model");
 
     assert!(
-        model.batches.iter().any(|batch| batch.texture_fdid == Some(3865285)),
+        model
+            .batches
+            .iter()
+            .any(|batch| batch.texture_fdid == Some(3865285)),
         "expected hood runtime model to resolve display material texture 3865285, got {:?}",
-        model.batches
+        model
+            .batches
             .iter()
             .map(|batch| (batch.texture_fdid, batch.texture_type))
             .collect::<Vec<_>>()

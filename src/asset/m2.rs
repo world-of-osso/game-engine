@@ -618,13 +618,15 @@ fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
     let stem = m2_path.file_stem()?.to_str()?;
     if let Some(&fdid) = sfid.first() {
         let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-        if let Some(resolved_path) = super::casc_resolver::ensure_file_at_path(fdid, &canonical_skin_path)
+        if let Some(resolved_path) =
+            super::casc_resolver::ensure_file_at_path(fdid, &canonical_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();
         }
         let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        if let Some(resolved_path) = super::casc_resolver::ensure_file_at_path(fdid, &numeric_skin_path)
+        if let Some(resolved_path) =
+            super::casc_resolver::ensure_file_at_path(fdid, &numeric_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();
@@ -970,7 +972,9 @@ fn find_chunk<'a>(data: &'a [u8], needle: &[u8; 4]) -> Option<&'a [u8]> {
     None
 }
 
-fn load_skel_attachment_data(skel_path: &Path) -> Result<(Vec<super::m2_attach::M2Attachment>, Vec<i16>), String> {
+fn load_skel_attachment_data(
+    skel_path: &Path,
+) -> Result<(Vec<super::m2_attach::M2Attachment>, Vec<i16>), String> {
     let data = std::fs::read(skel_path).map_err(|e| format!("Failed to read .skel file: {e}"))?;
     let Some(ska1) = find_chunk(&data, b"SKA1") else {
         return Ok((Vec::new(), Vec::new()));
@@ -981,7 +985,10 @@ fn load_skel_attachment_data(skel_path: &Path) -> Result<(Vec<super::m2_attach::
     ))
 }
 
-fn load_model_attachment_data(path: &Path, chunks: &M2Chunks<'_>) -> (Vec<super::m2_attach::M2Attachment>, Vec<i16>) {
+fn load_model_attachment_data(
+    path: &Path,
+    chunks: &M2Chunks<'_>,
+) -> (Vec<super::m2_attach::M2Attachment>, Vec<i16>) {
     if !path.starts_with("data/models") {
         return load_attachment_data(chunks);
     }
@@ -998,7 +1005,7 @@ fn load_model_attachment_data(path: &Path, chunks: &M2Chunks<'_>) -> (Vec<super:
     load_attachment_data(chunks)
 }
 
-fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
     let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
     let chunks = parse_chunks(&data)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();

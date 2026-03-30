@@ -68,9 +68,7 @@ pub fn parse_item_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
     Ok(map)
 }
 
-pub fn parse_item_display_info(
-    path: &Path,
-) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
+pub fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
     let (h, rows) = read_csv(path)?;
     let columns = ItemDisplayInfoColumns::from_headers(&h)?;
 

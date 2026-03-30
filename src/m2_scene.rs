@@ -113,7 +113,7 @@ fn load_m2_model(
     let skin_fdids = creature_display_map
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
-    asset::m2::load_m2(m2_path, &skin_fdids)
+    asset::m2::load_m2_uncached(m2_path, &skin_fdids)
         .map_err(|e| {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
         })

@@ -65,7 +65,7 @@ pub fn spawn_m2_on_entity_filtered(
     skin_fdids: &[u32; 3],
     filter: impl Fn(u16) -> bool,
 ) -> bool {
-    let model = match asset::m2::load_m2(m2_path, skin_fdids) {
+    let model = match asset::m2::load_m2_uncached(m2_path, skin_fdids) {
         Ok(m) => m,
         Err(e) => {
             warn!("Failed to load M2 {}: {e}", m2_path.display());
@@ -92,7 +92,7 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
     target_joints: &[Entity],
     names: &Query<&Name>,
 ) -> bool {
-    let model = match asset::m2::load_m2(m2_path, skin_fdids) {
+    let model = match asset::m2::load_m2_uncached(m2_path, skin_fdids) {
         Ok(m) => m,
         Err(e) => {
             warn!("Failed to load M2 {}: {e}", m2_path.display());

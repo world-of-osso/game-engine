@@ -132,6 +132,7 @@ struct ScreenshotRequest {
 }
 
 fn main() {
+    configure_thread_pools();
     ensure_asset_root();
     process_limits::apply_resource_limits();
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -154,6 +155,16 @@ fn main() {
         cli.screenshot,
         cli.initial_state,
     );
+}
+
+fn configure_thread_pools() {
+    if std::env::var_os("RAYON_NUM_THREADS").is_none() {
+        // Lightyear transitively initializes Rayon during replication apply.
+        // Keep that pool small so it doesn't oversubscribe alongside Bevy task pools.
+        unsafe {
+            std::env::set_var("RAYON_NUM_THREADS", "2");
+        }
+    }
 }
 
 struct CliFlags {

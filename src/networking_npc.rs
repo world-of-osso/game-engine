@@ -110,10 +110,22 @@ fn spawn_npc_model_or_capsule(
         images: &mut npc_assets.images,
         inverse_bindposes: &mut npc_assets.inv_bp,
     };
-    let m2_loaded =
-        try_spawn_npc_model(commands, &mut assets, visual_root, entity, model_display, display_map, display_scale);
+    let m2_loaded = try_spawn_npc_model(
+        commands,
+        &mut assets,
+        visual_root,
+        entity,
+        model_display,
+        display_map,
+        display_scale,
+    );
     if !m2_loaded {
-        spawn_npc_capsule(commands, &mut npc_assets.meshes, &mut npc_assets.materials, visual_root);
+        spawn_npc_capsule(
+            commands,
+            &mut npc_assets.meshes,
+            &mut npc_assets.materials,
+            visual_root,
+        );
     }
     m2_loaded
 }
@@ -181,12 +193,14 @@ fn try_spawn_npc_model(
     let Some(m2_path) = crate::asset::casc_resolver::ensure_model(fdid) else {
         return false;
     };
-    commands.entity(entity).insert(crate::networking::ResolvedModelAssetInfo {
-        model_path: m2_path.display().to_string(),
-        skin_path: crate::asset::m2::ensure_primary_skin_path(&m2_path)
-            .map(|path| path.display().to_string()),
-        display_scale: Some(display_scale),
-    });
+    commands
+        .entity(entity)
+        .insert(crate::networking::ResolvedModelAssetInfo {
+            model_path: m2_path.display().to_string(),
+            skin_path: crate::asset::m2::ensure_primary_skin_path(&m2_path)
+                .map(|path| path.display().to_string()),
+            display_scale: Some(display_scale),
+        });
     crate::m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, visual_root, &skin_fdids)
 }
 

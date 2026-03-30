@@ -422,7 +422,8 @@ pub fn sync_selected_character_roster_entry(
     let Some((player, equipment_appearance)) = local_player_query.iter().next() else {
         return;
     };
-    let Some(entry) = find_selected_roster_entry_mut(&mut char_list, &selected, &player.name) else {
+    let Some(entry) = find_selected_roster_entry_mut(&mut char_list, &selected, &player.name)
+    else {
         return;
     };
     let equipment_appearance = equipment_appearance.cloned().unwrap_or_default();
@@ -453,9 +454,15 @@ fn find_selected_roster_entry_mut<'a>(
             .find(|entry| entry.character_id == character_id);
     }
     if let Some(character_name) = selected.character_name.as_deref() {
-        return char_list.0.iter_mut().find(|entry| entry.name == character_name);
+        return char_list
+            .0
+            .iter_mut()
+            .find(|entry| entry.name == character_name);
     }
-    char_list.0.iter_mut().find(|entry| entry.name == player_name)
+    char_list
+        .0
+        .iter_mut()
+        .find(|entry| entry.name == player_name)
 }
 
 /// Handle RegisterResponse: save token and transition on success.

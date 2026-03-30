@@ -656,13 +656,12 @@ fn sync_selected_character_appearance(
     if displayed_appearance.0 == Some(desired.clone()) {
         return;
     }
-    let resolved_equipment =
-        resolve_equipment_appearance(
-            &character.equipment_appearance,
-            &outfit_data,
-            character.race,
-            character.appearance.sex,
-        );
+    let resolved_equipment = resolve_equipment_appearance(
+        &character.equipment_appearance,
+        &outfit_data,
+        character.race,
+        character.appearance.sex,
+    );
     apply_character_customization(
         CharacterCustomizationSelection {
             race: character.race,

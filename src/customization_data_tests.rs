@@ -65,8 +65,14 @@ fn blood_elf_face_choices_are_filtered_by_class() {
 fn blood_elf_blindfold_choices_are_demon_hunter_only() {
     let db = CustomizationDb::load(Path::new("data"));
 
-    assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::Blindfold), 0);
-    assert_eq!(db.choice_count_for_class(10, 0, 12, OptionType::Blindfold), 12);
+    assert_eq!(
+        db.choice_count_for_class(10, 0, 1, OptionType::Blindfold),
+        0
+    );
+    assert_eq!(
+        db.choice_count_for_class(10, 0, 12, OptionType::Blindfold),
+        12
+    );
 }
 
 #[test]
@@ -76,9 +82,15 @@ fn blood_elf_horns_and_eyesight_are_demon_hunter_only() {
     assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::Horns), 0);
     assert_eq!(db.choice_count_for_class(10, 0, 12, OptionType::Horns), 7);
     assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::Eyesight), 0);
-    assert_eq!(db.choice_count_for_class(10, 0, 12, OptionType::Eyesight), 4);
+    assert_eq!(
+        db.choice_count_for_class(10, 0, 12, OptionType::Eyesight),
+        4
+    );
     assert_eq!(db.choice_count_for_class(10, 0, 1, OptionType::EyeStyle), 0);
-    assert_eq!(db.choice_count_for_class(10, 0, 12, OptionType::EyeStyle), 3);
+    assert_eq!(
+        db.choice_count_for_class(10, 0, 12, OptionType::EyeStyle),
+        3
+    );
 }
 
 #[test]

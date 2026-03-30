@@ -298,7 +298,11 @@ fn feet_equipment_entity(world: &mut World) -> Option<Entity> {
 fn find_named_bone_pivot_y(world: &World, root: Entity, target: &str) -> Option<f32> {
     let mut entities = vec![root];
     collect_descendants(world, root, &mut entities);
-    let root_scale = world.get::<GlobalTransform>(root)?.to_scale_rotation_translation().0.y;
+    let root_scale = world
+        .get::<GlobalTransform>(root)?
+        .to_scale_rotation_translation()
+        .0
+        .y;
     entities.into_iter().find_map(|entity| {
         let name = world.get::<Name>(entity)?;
         let pivot = world.get::<crate::animation::BonePivot>(entity)?;

@@ -121,12 +121,27 @@ impl DebugCharacterConfig {
     }
 }
 
-fn debug_equipment_appearance(config: &DebugCharacterConfig, head: u32, hands: u32, waist: u32, legs: u32, feet: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(
+    config: &DebugCharacterConfig,
+    head: u32,
+    hands: u32,
+    waist: u32,
+    legs: u32,
+    feet: u32,
+) -> EquipmentAppearance {
     let mut entries = Vec::new();
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Head, head);
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Shoulder, config.shoulder_display);
+    push_equipped_entry(
+        &mut entries,
+        EquipmentVisualSlot::Shoulder,
+        config.shoulder_display,
+    );
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Back, config.back_display);
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Chest, config.chest_display);
+    push_equipped_entry(
+        &mut entries,
+        EquipmentVisualSlot::Chest,
+        config.chest_display,
+    );
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Hands, hands);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Waist, waist);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Legs, legs);
@@ -305,7 +320,14 @@ fn spawn_debug_character_model(
                 sex: config.sex,
                 appearance: config.appearance,
             },
-            equipment_appearance: debug_equipment_appearance(config, head_display, hands_display, waist_display, legs_display, feet_display),
+            equipment_appearance: debug_equipment_appearance(
+                config,
+                head_display,
+                hands_display,
+                waist_display,
+                legs_display,
+                feet_display,
+            ),
         },
     ));
 }
@@ -332,11 +354,43 @@ fn spawn_debug_pair(
     config: &DebugCharacterConfig,
 ) {
     let sides = [
-        DebugCharacterSide { x: -1.7, head: config.left_head_display, hands: config.left_hands_display, waist: config.left_waist_display, legs: config.left_legs_display, feet: config.left_feet_display, name: "DebugCharacterGeoset" },
-        DebugCharacterSide { x: 1.7, head: config.right_head_display, hands: config.right_hands_display, waist: config.right_waist_display, legs: config.right_legs_display, feet: config.right_feet_display, name: "DebugCharacterM2" },
+        DebugCharacterSide {
+            x: -1.7,
+            head: config.left_head_display,
+            hands: config.left_hands_display,
+            waist: config.left_waist_display,
+            legs: config.left_legs_display,
+            feet: config.left_feet_display,
+            name: "DebugCharacterGeoset",
+        },
+        DebugCharacterSide {
+            x: 1.7,
+            head: config.right_head_display,
+            hands: config.right_hands_display,
+            waist: config.right_waist_display,
+            legs: config.right_legs_display,
+            feet: config.right_feet_display,
+            name: "DebugCharacterM2",
+        },
     ];
     for side in &sides {
-        spawn_debug_character_model(commands, meshes, materials, effect_materials, images, inv_bp, creature_display_map, config, side.x, side.head, side.hands, side.waist, side.legs, side.feet, side.name);
+        spawn_debug_character_model(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inv_bp,
+            creature_display_map,
+            config,
+            side.x,
+            side.head,
+            side.hands,
+            side.waist,
+            side.legs,
+            side.feet,
+            side.name,
+        );
     }
 }
 
@@ -419,7 +473,12 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharact
 fn build_debug_scene_tree(
     mut commands: Commands,
     model_roots: Query<
-        (Entity, &CharacterRenderRequest, &ChildOf, Option<&Equipment>),
+        (
+            Entity,
+            &CharacterRenderRequest,
+            &ChildOf,
+            Option<&Equipment>,
+        ),
         With<DebugCharacterModelRoot>,
     >,
     equipment_items: Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
@@ -473,12 +532,32 @@ fn debug_character_scene_node(
 ) -> SceneNode {
     let slot_defs: &[(Option<EquipmentSlot>, EquipmentVisualSlot, &str)] = &[
         (Some(EquipmentSlot::Head), EquipmentVisualSlot::Head, "Head"),
-        (Some(EquipmentSlot::ShoulderLeft), EquipmentVisualSlot::Shoulder, "ShoulderLeft"),
-        (Some(EquipmentSlot::ShoulderRight), EquipmentVisualSlot::Shoulder, "ShoulderRight"),
+        (
+            Some(EquipmentSlot::ShoulderLeft),
+            EquipmentVisualSlot::Shoulder,
+            "ShoulderLeft",
+        ),
+        (
+            Some(EquipmentSlot::ShoulderRight),
+            EquipmentVisualSlot::Shoulder,
+            "ShoulderRight",
+        ),
         (Some(EquipmentSlot::Back), EquipmentVisualSlot::Back, "Back"),
-        (Some(EquipmentSlot::Chest), EquipmentVisualSlot::Chest, "Chest"),
-        (Some(EquipmentSlot::Hands), EquipmentVisualSlot::Hands, "Hands"),
-        (Some(EquipmentSlot::Waist), EquipmentVisualSlot::Waist, "Waist"),
+        (
+            Some(EquipmentSlot::Chest),
+            EquipmentVisualSlot::Chest,
+            "Chest",
+        ),
+        (
+            Some(EquipmentSlot::Hands),
+            EquipmentVisualSlot::Hands,
+            "Hands",
+        ),
+        (
+            Some(EquipmentSlot::Waist),
+            EquipmentVisualSlot::Waist,
+            "Waist",
+        ),
         (Some(EquipmentSlot::Legs), EquipmentVisualSlot::Legs, "Legs"),
         (Some(EquipmentSlot::Feet), EquipmentVisualSlot::Feet, "Feet"),
     ];
@@ -486,7 +565,14 @@ fn debug_character_scene_node(
         .iter()
         .map(|(eq_slot, vis_slot, name)| {
             equipment_slot_scene_node(
-                model_root, *eq_slot, *vis_slot, name, request, equipment_items, parents, names,
+                model_root,
+                *eq_slot,
+                *vis_slot,
+                name,
+                request,
+                equipment_items,
+                parents,
+                names,
             )
         })
         .collect();

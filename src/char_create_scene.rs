@@ -448,10 +448,7 @@ mod tests {
         }
     }
 
-    fn assert_face_materials_present(
-        db: &CustomizationDb,
-        state: &CharCreateState,
-    ) {
+    fn assert_face_materials_present(db: &CustomizationDb, state: &CharCreateState) {
         let expected_face = db
             .get_choice_for_class(10, 0, 1, OptionType::Face, 0)
             .unwrap();
@@ -465,10 +462,12 @@ mod tests {
             db,
         );
         assert_eq!(expected_face.requirement_id, 142);
-        assert!(expected_face
-            .materials
-            .iter()
-            .all(|material| all_materials.contains(material)));
+        assert!(
+            expected_face
+                .materials
+                .iter()
+                .all(|material| all_materials.contains(material))
+        );
     }
 
     #[test]

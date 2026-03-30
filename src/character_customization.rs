@@ -393,7 +393,13 @@ fn apply_character_render_request(
         "character visible geosets entity={entity:?} ids={:?}",
         visible_geoset_ids_for_root(entity, parent_query, geoset_query, visibility_query)
     );
-    finalize_character_render(entity, request, &resolved_equipment, equipment_query, commands);
+    finalize_character_render(
+        entity,
+        request,
+        &resolved_equipment,
+        equipment_query,
+        commands,
+    );
 }
 
 fn finalize_character_render(

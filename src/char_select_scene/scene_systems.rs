@@ -10,10 +10,10 @@ use crate::terrain_heightmap::TerrainHeightmap;
 use crate::warband_scene::{self, SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
 
 use super::{
-    CharSelectModelRoot, CharSelectRenderAssets, CharSelectScene, DisplayedCharacterAppearance,
-    DisplayedCharacterId, PendingSupplementalWarbandScene,
+    CharSelectModelRoot, CharSelectOrbit, CharSelectRenderAssets, CharSelectScene,
+    DisplayedCharacterAppearance, DisplayedCharacterId, PendingSupplementalWarbandScene,
     resolve_char_select_model_path, selected_character_presentation, selected_scene_character,
-    selected_scene_placement, update_camera_for_scene, CharSelectOrbit,
+    selected_scene_placement, update_camera_for_scene,
 };
 
 fn spawn_scene_warband_terrain(
@@ -43,7 +43,11 @@ fn update_pending_scene(
     scene_id: u32,
     has_supplemental: bool,
 ) {
-    pending.scene_id = if has_supplemental { Some(scene_id) } else { None };
+    pending.scene_id = if has_supplemental {
+        Some(scene_id)
+    } else {
+        None
+    };
     pending.wait_for_next_frame = pending.scene_id.is_some();
 }
 
@@ -83,7 +87,13 @@ pub(super) fn sync_warband_scene_switch(
         .map(|p| p.bevy_position())
         .unwrap_or_else(|| scene.bevy_look_at());
     spawn_scene_warband_terrain(&mut commands, &mut assets, &mut heightmap, scene, focus_pos);
-    update_camera_for_scene(scene, placement.as_ref(), Some(&heightmap), presentation, &mut camera_query);
+    update_camera_for_scene(
+        scene,
+        placement.as_ref(),
+        Some(&heightmap),
+        presentation,
+        &mut camera_query,
+    );
     active_scene.0 = Some(sel.scene_id);
     let has_supplemental = !warband_scene::supplemental_terrain_tile_coords(scene).is_empty();
     update_pending_scene(&mut pending_supplemental, sel.scene_id, has_supplemental);
@@ -132,7 +142,9 @@ pub(super) fn spawn_pending_warband_supplemental_terrain(
     warband: Option<Res<WarbandScenes>>,
     terrain_query: Query<Entity, With<CharSelectTerrain>>,
 ) {
-    let Some(scene_id) = pending.scene_id else { return };
+    let Some(scene_id) = pending.scene_id else {
+        return;
+    };
     if pending.wait_for_next_frame {
         pending.wait_for_next_frame = false;
         return;
@@ -148,8 +160,16 @@ pub(super) fn spawn_pending_warband_supplemental_terrain(
         pending.wait_for_next_frame = false;
         return;
     };
-    let Ok(root_entity) = terrain_query.single() else { return };
-    do_spawn_supplemental(&mut commands, &mut assets, &mut heightmap, scene, root_entity);
+    let Ok(root_entity) = terrain_query.single() else {
+        return;
+    };
+    do_spawn_supplemental(
+        &mut commands,
+        &mut assets,
+        &mut heightmap,
+        scene,
+        root_entity,
+    );
     pending.scene_id = None;
     pending.wait_for_next_frame = false;
 }
@@ -183,7 +203,13 @@ pub(super) fn char_info_strings(
         .map(|c| race_name(c.race).to_string())
         .unwrap_or_else(|| "Unknown".into());
     let gender = character
-        .map(|c| if c.appearance.sex == 0 { "Male" } else { "Female" })
+        .map(|c| {
+            if c.appearance.sex == 0 {
+                "Male"
+            } else {
+                "Female"
+            }
+        })
         .unwrap_or("Unknown")
         .to_string();
     let model = resolve_char_select_model_path(char_list, selected)

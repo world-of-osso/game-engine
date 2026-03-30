@@ -45,7 +45,10 @@ fn geoset_only_chest_display_keeps_and_extracts_chest_textures() {
         resolved.outfit.item_textures
     );
     assert!(
-        resolved.runtime_models.iter().all(|model| model.slot != EquipmentSlot::Chest),
+        resolved
+            .runtime_models
+            .iter()
+            .all(|model| model.slot != EquipmentSlot::Chest),
         "expected geoset-only chest display to avoid runtime chest model: {:?}",
         resolved.runtime_models
     );
@@ -56,8 +59,14 @@ fn geoset_only_chest_display_keeps_and_extracts_chest_textures() {
         resolved.outfit.geoset_overrides
     );
     assert!(upper.exists(), "expected upper-arm texture extraction");
-    assert!(torso_upper.exists(), "expected upper-torso texture extraction");
-    assert!(torso_lower.exists(), "expected lower-torso texture extraction");
+    assert!(
+        torso_upper.exists(),
+        "expected upper-torso texture extraction"
+    );
+    assert!(
+        torso_lower.exists(),
+        "expected lower-torso texture extraction"
+    );
 }
 
 #[test]

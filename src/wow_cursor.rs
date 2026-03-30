@@ -74,6 +74,7 @@ pub fn install_wow_cursor(
 fn pick_desired_cursor(
     window: &Window,
     camera: (&Camera, &GlobalTransform),
+    parent_query: &Query<&ChildOf>,
     remote_q: &Query<Entity, (With<RemoteEntity>, Without<Player>)>,
     ray_cast: &mut MeshRayCast,
 ) -> Option<ActiveWowCursor> {
@@ -83,7 +84,9 @@ fn pick_desired_cursor(
     let hover = ray_cast
         .cast_ray(ray, &default())
         .iter()
-        .any(|(entity, _)| remote_q.get(*entity).is_ok());
+        .any(|(entity, _)| {
+            crate::target::resolve_targetable_ancestor(*entity, parent_query, remote_q).is_some()
+        });
     Some(if hover {
         ActiveWowCursor::Hover
     } else {
@@ -94,6 +97,7 @@ fn pick_desired_cursor(
 pub fn update_wow_cursor_style(
     windows: Query<(&Window, &CursorOptions, Entity), With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<WowCamera>>,
+    parent_query: Query<&ChildOf>,
     remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
     assets: Option<Res<WowCursorAssets>>,
     active: Option<ResMut<ActiveWowCursor>>,
@@ -111,7 +115,7 @@ pub fn update_wow_cursor_style(
     let Some(assets) = assets else { return };
     let Some(mut active) = active else { return };
 
-    let desired = pick_desired_cursor(window, camera, &remote_q, &mut ray_cast)
+    let desired = pick_desired_cursor(window, camera, &parent_query, &remote_q, &mut ray_cast)
         .unwrap_or(ActiveWowCursor::Default);
     if *active == desired {
         return;

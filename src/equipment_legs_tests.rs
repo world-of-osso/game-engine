@@ -47,7 +47,10 @@ fn geoset_only_legs_display_keeps_and_extracts_leg_textures() {
         resolved.outfit.item_textures
     );
     assert!(
-        resolved.runtime_models.iter().all(|model| model.slot != EquipmentSlot::Legs),
+        resolved
+            .runtime_models
+            .iter()
+            .all(|model| model.slot != EquipmentSlot::Legs),
         "expected geoset-only legs display to avoid runtime legs model: {:?}",
         resolved.runtime_models
     );
@@ -76,7 +79,11 @@ fn debug_m2_backed_legs_display_mesh_parts() {
     let _ = crate::asset::m2::ensure_primary_skin_path(&model_path);
     let model =
         crate::asset::m2::load_m2(&model_path, &skin_fdids).expect("load runtime legs model");
-    let mut mesh_ids = model.batches.iter().map(|batch| batch.mesh_part_id).collect::<Vec<_>>();
+    let mut mesh_ids = model
+        .batches
+        .iter()
+        .map(|batch| batch.mesh_part_id)
+        .collect::<Vec<_>>();
     mesh_ids.sort_unstable();
     mesh_ids.dedup();
     println!("runtime legs mesh ids: {mesh_ids:?}");

@@ -49,7 +49,10 @@ fn geoset_only_waist_display_enables_belt_geoset_without_runtime_model() {
         resolved.outfit.item_textures
     );
     assert!(
-        resolved.runtime_models.iter().all(|model| model.slot != EquipmentSlot::Waist),
+        resolved
+            .runtime_models
+            .iter()
+            .all(|model| model.slot != EquipmentSlot::Waist),
         "expected no runtime waist model: {:?}",
         resolved.runtime_models
     );
@@ -67,7 +70,9 @@ fn hybrid_waist_display_resolves_runtime_model_and_belt_geoset() {
         .find(|model| model.slot == EquipmentSlot::Waist)
         .expect("expected waist runtime model");
     assert!(
-        runtime.path.ends_with("buckle_mail_challengeshaman_d_01.m2"),
+        runtime
+            .path
+            .ends_with("buckle_mail_challengeshaman_d_01.m2"),
         "unexpected waist runtime path: {}",
         runtime.path.display()
     );
@@ -86,7 +91,9 @@ fn isolated_runtime_waist_display_resolves_runtime_model_without_belt_geoset() {
         .find(|model| model.slot == EquipmentSlot::Waist)
         .expect("expected waist runtime model");
     assert!(
-        runtime.path.ends_with("buckle_mail_challengeshaman_d_01.m2"),
+        runtime
+            .path
+            .ends_with("buckle_mail_challengeshaman_d_01.m2"),
         "unexpected isolated waist runtime path: {}",
         runtime.path.display()
     );
@@ -97,7 +104,11 @@ fn isolated_runtime_waist_display_resolves_runtime_model_without_belt_geoset() {
 fn debug_humanmale_hd_waist_batch_texture_types() {
     let model = crate::asset::m2::load_m2(Path::new("data/models/humanmale_hd.m2"), &[0, 0, 0])
         .expect("load humanmale_hd");
-    for batch in model.batches.iter().filter(|batch| batch.mesh_part_id / 100 == 18) {
+    for batch in model
+        .batches
+        .iter()
+        .filter(|batch| batch.mesh_part_id / 100 == 18)
+    {
         println!(
             "waist batch mesh_part_id={} texture_type={:?} texture_fdid={:?} shader=0x{:x} blend={} tex2={:?}",
             batch.mesh_part_id,
@@ -113,7 +124,9 @@ fn debug_humanmale_hd_waist_batch_texture_types() {
 #[test]
 fn debug_runtime_waist_model_batch_mesh_parts() {
     let model = crate::asset::m2::load_m2(
-        Path::new("data/item-models/item/objectcomponents/waist/buckle_mail_challengeshaman_d_01.m2"),
+        Path::new(
+            "data/item-models/item/objectcomponents/waist/buckle_mail_challengeshaman_d_01.m2",
+        ),
         &[0, 0, 0],
     )
     .expect("load runtime waist model");
@@ -133,7 +146,9 @@ fn debug_runtime_waist_model_batch_mesh_parts() {
 #[test]
 fn debug_runtime_waist_model_with_skin_fdid_resolves_textured_batch() {
     let model = crate::asset::m2::load_m2(
-        Path::new("data/item-models/item/objectcomponents/waist/buckle_mail_challengeshaman_d_01.m2"),
+        Path::new(
+            "data/item-models/item/objectcomponents/waist/buckle_mail_challengeshaman_d_01.m2",
+        ),
         &[604564, 0, 0],
     )
     .expect("load runtime waist model with skin fdid");
@@ -149,7 +164,10 @@ fn debug_runtime_waist_model_with_skin_fdid_resolves_textured_batch() {
         );
     }
     assert!(
-        model.batches.iter().any(|batch| batch.texture_fdid == Some(604564)),
+        model
+            .batches
+            .iter()
+            .any(|batch| batch.texture_fdid == Some(604564)),
         "expected runtime waist batch to resolve skin_fdid 604564"
     );
 }

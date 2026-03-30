@@ -191,7 +191,11 @@ fn real_mask_display_hides_scalp_and_enables_head_geosets() {
         resolved.outfit.geoset_overrides
     );
     assert!(
-        !resolved.outfit.geoset_overrides.iter().any(|(g, _)| *g == 21),
+        !resolved
+            .outfit
+            .geoset_overrides
+            .iter()
+            .any(|(g, _)| *g == 21),
         "expected GeosetGroup_1 == 0 to avoid emitting a 21xx override: {:?}",
         resolved.outfit.geoset_overrides
     );

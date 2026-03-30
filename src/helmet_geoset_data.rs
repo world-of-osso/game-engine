@@ -61,8 +61,13 @@ impl<'a> ParsedHelmetGeosetDb2<'a> {
             record_count: header.record_count,
             record_size: header.record_size,
             file_offset: section.file_offset,
-            id_list_offset: section.file_offset + header.record_count * header.record_size + section.string_table_size,
-            relation_offset: section.file_offset + header.record_count * header.record_size + section.string_table_size + section.id_list_size,
+            id_list_offset: section.file_offset
+                + header.record_count * header.record_size
+                + section.string_table_size,
+            relation_offset: section.file_offset
+                + header.record_count * header.record_size
+                + section.string_table_size
+                + section.id_list_size,
             relation_size: section.relationship_data_size,
             pallet_offset,
             pallet_offsets: helmet_pallet_offsets(&fields),
@@ -73,9 +78,12 @@ impl<'a> ParsedHelmetGeosetDb2<'a> {
     fn rules_by_vis_id(&self) -> HashMap<u32, Vec<HelmetGeosetRule>> {
         let mut rules = HashMap::new();
         for row_index in 0..self.record_count {
-            let Some(vis_id) =
-                helmet_relation_value(self.bytes, self.relation_offset, self.relation_size, row_index)
-            else {
+            let Some(vis_id) = helmet_relation_value(
+                self.bytes,
+                self.relation_offset,
+                self.relation_size,
+                row_index,
+            ) else {
                 continue;
             };
             rules
@@ -119,7 +127,10 @@ fn decode_helmet_storage_value(
     match field.storage_type {
         1 | 5 => pallet_index as u32,
         2 => parsed_common_value(parsed, field_index, row_index),
-        3 => read_le_u32(parsed.bytes, parsed.pallet_offset + parsed.pallet_offsets[field_index] + pallet_index * 4),
+        3 => read_le_u32(
+            parsed.bytes,
+            parsed.pallet_offset + parsed.pallet_offsets[field_index] + pallet_index * 4,
+        ),
         other => panic!("unsupported HelmetGeosetData storage type {other}"),
     }
 }
@@ -205,7 +216,12 @@ fn parse_helmet_field_storage(bytes: &[u8], offset: usize) -> [HelmetFieldStorag
     fields
 }
 
-fn helmet_relation_value(bytes: &[u8], offset: usize, size: usize, row_index: usize) -> Option<u32> {
+fn helmet_relation_value(
+    bytes: &[u8],
+    offset: usize,
+    size: usize,
+    row_index: usize,
+) -> Option<u32> {
     let mut cursor = offset + 12;
     let end = offset + size;
     while cursor < end {

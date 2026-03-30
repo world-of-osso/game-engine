@@ -1,8 +1,8 @@
 use super::{
     CharacterCustomizationSelection, apply_exact_geoset_overrides,
-    apply_explicit_equipment_overlays, apply_hidden_geoset_groups,
-    collect_active_geosets, collect_appearance_materials, component_sections_for_slot,
-    group_zero_visible, merge_overlay_texture_sets, replacement_texture_for_batch,
+    apply_explicit_equipment_overlays, apply_hidden_geoset_groups, collect_active_geosets,
+    collect_appearance_materials, component_sections_for_slot, group_zero_visible,
+    merge_overlay_texture_sets, replacement_texture_for_batch,
 };
 use crate::equipment_appearance::ResolvedEquipmentAppearance;
 use bevy::prelude::{Assets, Image};

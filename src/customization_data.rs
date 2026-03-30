@@ -9,10 +9,10 @@ use std::sync::{Arc, OnceLock};
 
 use bevy::prelude::*;
 
-#[path = "customization_data_support.rs"]
-mod support;
 #[path = "customization_csv.rs"]
 mod csv;
+#[path = "customization_data_support.rs"]
+mod support;
 
 /// Hardcoded (race, sex) -> ChrModelID mapping.
 /// Derived from ChrModel.csv: IDs 1-22 cover the 11 original races (male=odd, female=even).
@@ -185,8 +185,10 @@ impl CustomizationDb {
         db.hair_scalp_fallback_by_model = build_hair_scalp_fallbacks(&raw.hair_geosets);
         let indexed = IndexedData::build(&raw);
         for (model_id, opts) in &indexed.opts_by_model {
-            db.options_by_model
-                .insert(*model_id, build_model_options(*model_id, opts, &indexed, &raw));
+            db.options_by_model.insert(
+                *model_id,
+                build_model_options(*model_id, opts, &indexed, &raw),
+            );
         }
         Ok(db)
     }
@@ -209,7 +211,9 @@ impl CustomizationDb {
             .map(|o| {
                 o.choices
                     .iter()
-                    .filter(|choice| support::choice_visible_for_class(race, class, opt_type, choice))
+                    .filter(|choice| {
+                        support::choice_visible_for_class(race, class, opt_type, choice)
+                    })
                     .count()
                     .min(255) as u8
             })
@@ -362,7 +366,14 @@ fn build_model_options(
             let sample_swatch = matches!(opt_type, OptionType::SkinColor | OptionType::HairColor);
             Some(CustomizationOption {
                 option_type: opt_type,
-                choices: resolve_option_choices(model_id, opt_type, opt.id, indexed, raw, sample_swatch),
+                choices: resolve_option_choices(
+                    model_id,
+                    opt_type,
+                    opt.id,
+                    indexed,
+                    raw,
+                    sample_swatch,
+                ),
             })
         })
         .collect()
@@ -427,12 +438,12 @@ fn choice_shows_scalp(
             })
 }
 
-fn build_hair_scalp_fallbacks(
-    hair_geosets: &HashMap<(u32, u16, u16), bool>,
-) -> HashMap<u32, u16> {
+fn build_hair_scalp_fallbacks(hair_geosets: &HashMap<(u32, u16, u16), bool>) -> HashMap<u32, u16> {
     let mut fallbacks = HashMap::new();
     let mut entries: Vec<_> = hair_geosets.iter().collect();
-    entries.sort_by_key(|((model_id, geoset_type, geoset_id), _)| (*model_id, *geoset_type, *geoset_id));
+    entries.sort_by_key(|((model_id, geoset_type, geoset_id), _)| {
+        (*model_id, *geoset_type, *geoset_id)
+    });
     for (&(model_id, geoset_type, geoset_id), &shows_scalp) in entries {
         if shows_scalp && geoset_type == 0 {
             fallbacks.entry(model_id).or_insert(geoset_id);

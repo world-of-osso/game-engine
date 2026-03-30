@@ -23,7 +23,10 @@ fn texture_only_glove_sets_hand_geoset_override() {
         resolved.outfit.geoset_overrides
     );
     assert!(
-        resolved.runtime_models.iter().all(|m| m.slot != EquipmentSlot::Hands),
+        resolved
+            .runtime_models
+            .iter()
+            .all(|m| m.slot != EquipmentSlot::Hands),
         "texture-only glove should not produce a runtime model"
     );
 }
