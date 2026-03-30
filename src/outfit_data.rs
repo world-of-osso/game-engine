@@ -36,7 +36,6 @@ struct DisplayInfoResolved {
 
 struct DisplayMaterialTextures {
     direct: HashMap<u32, Vec<(u8, u32)>>,
-    legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>>,
 }
 
 #[derive(Debug, Default)]
@@ -358,8 +357,6 @@ fn merge_display_materials(
     for (display_id, entry) in &mut display_info {
         if let Some(textures) = display_materials.direct.get(display_id) {
             entry.item_textures.extend(textures.iter().copied());
-        } else if let Some(textures) = display_materials.legacy_by_row_id.get(display_id) {
-            entry.item_textures.extend(textures.iter().copied());
         }
     }
 
@@ -376,18 +373,6 @@ fn merge_display_materials(
         );
     }
 
-    for (display_id, textures) in display_materials.legacy_by_row_id {
-        if display_info.contains_key(&display_id) {
-            continue;
-        }
-        display_info.insert(
-            display_id,
-            DisplayInfoResolved {
-                item_textures: textures,
-                ..Default::default()
-            },
-        );
-    }
     display_info
 }
 
@@ -609,14 +594,14 @@ mod tests {
     }
 
     #[test]
-    fn legacy_waist_display_uses_material_rows_keyed_by_row_id() {
+    fn waist_display_without_material_rows_has_no_item_textures() {
         let data = OutfitData::load(Path::new("data"));
 
         let resolved = data.resolve_display_info(15040);
 
         assert!(
-            resolved.item_textures.contains(&(4, 160531)),
-            "expected legacy torso-lower belt texture, got {:?}",
+            resolved.item_textures.is_empty(),
+            "display 15040 has no material rows, should have no item textures, got {:?}",
             resolved.item_textures
         );
     }

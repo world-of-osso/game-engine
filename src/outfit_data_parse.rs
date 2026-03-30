@@ -153,44 +153,29 @@ pub fn parse_item_display_info_material_res(
     material_to_texture: &HashMap<u32, u32>,
 ) -> Result<DisplayMaterialTextures, String> {
     let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
     let component_col = col(&h, "ComponentSection")?;
     let material_col = col(&h, "MaterialResourcesID")?;
     let display_info_col = col(&h, "ItemDisplayInfoID")?;
 
     let mut direct: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
-    let mut legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
-    let mut seen_direct: HashSet<(u32, u8, u32)> = HashSet::new();
-    let mut seen_legacy: HashSet<(u32, u8, u32)> = HashSet::new();
+    let mut seen: HashSet<(u32, u8, u32)> = HashSet::new();
 
     for row in &rows {
-        let row_id = field_u32(row, id_col);
         let display_info_id = field_u32(row, display_info_col);
         let component_section = field_u32(row, component_col) as u8;
         let material_resource_id = field_u32(row, material_col);
         let Some(&texture_fdid) = material_to_texture.get(&material_resource_id) else {
             continue;
         };
-        if seen_direct.insert((display_info_id, component_section, texture_fdid)) {
+        if seen.insert((display_info_id, component_section, texture_fdid)) {
             direct
                 .entry(display_info_id)
                 .or_default()
                 .push((component_section, texture_fdid));
         }
-        if row_id != display_info_id
-            && seen_legacy.insert((row_id, component_section, texture_fdid))
-        {
-            legacy_by_row_id
-                .entry(row_id)
-                .or_default()
-                .push((component_section, texture_fdid));
-        }
     }
 
-    Ok(DisplayMaterialTextures {
-        direct,
-        legacy_by_row_id,
-    })
+    Ok(DisplayMaterialTextures { direct })
 }
 
 pub fn parse_texture_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
