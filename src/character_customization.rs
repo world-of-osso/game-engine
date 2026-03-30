@@ -202,11 +202,17 @@ pub(crate) fn apply_explicit_equipment_overlays(
 
     if !equipped.explicit_slots.is_empty() {
         merged.item_textures.retain(|(section, _)| {
-            !equipped
+            let claimed_by_slot = equipped
                 .explicit_slots
                 .iter()
                 .flat_map(|slot| component_sections_for_slot(*slot).iter().copied())
-                .any(|suppressed| suppressed == *section)
+                .any(|suppressed| suppressed == *section);
+            let has_replacement = equipped
+                .outfit
+                .item_textures
+                .iter()
+                .any(|&(s, _)| s == *section);
+            !(claimed_by_slot && has_replacement)
         });
     }
 

@@ -10,7 +10,7 @@ use crate::asset;
 use crate::character_customization::{CharacterCustomizationSelection, CharacterRenderRequest};
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
-use crate::equipment::{EquipmentItem, EquipmentSlot};
+use crate::equipment::{Equipment, EquipmentItem, EquipmentSlot};
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -382,13 +382,27 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharact
 
 fn build_debug_scene_tree(
     mut commands: Commands,
-    model_roots: Query<(Entity, &CharacterRenderRequest, &ChildOf), With<DebugCharacterModelRoot>>,
+    model_roots: Query<
+        (Entity, &CharacterRenderRequest, &ChildOf, Option<&Equipment>),
+        With<DebugCharacterModelRoot>,
+    >,
     equipment_items: Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
     parents: Query<&ChildOf>,
     names: Query<&Name>,
 ) {
+    // Wait until equipment items have been spawned for all expected runtime slots.
+    for (model_root, _request, _root_parent, equipment) in &model_roots {
+        let Some(equipment) = equipment else { continue };
+        for &slot in equipment.slots.keys() {
+            if find_equipment_item_for_slot(model_root, slot, &equipment_items, &parents).is_none()
+            {
+                return;
+            }
+        }
+    }
+
     let mut children = Vec::new();
-    for (model_root, request, root_parent) in &model_roots {
+    for (model_root, request, root_parent, _) in &model_roots {
         let label = names
             .get(root_parent.parent())
             .map(|name| name.as_str().to_string())
