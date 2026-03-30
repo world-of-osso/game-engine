@@ -22,6 +22,8 @@ use crate::m2_spawn;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EquipmentSlot {
     Head,
+    ShoulderLeft,
+    ShoulderRight,
     Back,
     Chest,
     Waist,
@@ -122,6 +124,8 @@ impl Default for EquipmentTransforms {
     fn default() -> Self {
         let mut slot_defaults = HashMap::new();
         slot_defaults.insert(EquipmentSlot::Head, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::ShoulderLeft, Transform::IDENTITY);
+        slot_defaults.insert(EquipmentSlot::ShoulderRight, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Back, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Chest, Transform::IDENTITY);
         slot_defaults.insert(EquipmentSlot::Waist, Transform::IDENTITY);
@@ -194,8 +198,10 @@ fn default_scale() -> [f32; 3] {
 /// Attachment lookup ID for each equipment slot.
 fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
     match slot {
-        EquipmentSlot::Head => 11, // Helm
-        EquipmentSlot::Back => 12, // Back
+        EquipmentSlot::Head => 11,         // Helm
+        EquipmentSlot::ShoulderLeft => 6,  // ShoulderLeft
+        EquipmentSlot::ShoulderRight => 5, // ShoulderRight
+        EquipmentSlot::Back => 12,         // Back
         EquipmentSlot::Chest => unreachable!("chest runtime models anchor on the character root"),
         EquipmentSlot::Waist => 53, // Belt buckle
         EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),

@@ -1,10 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use bevy::prelude::*;
 use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
+
+#[path = "outfit_data_parse.rs"]
+mod parse;
 
 /// Result of resolving a starter outfit for a (race, class, sex) combo.
 #[derive(Debug, Clone, Default)]
@@ -25,8 +28,15 @@ struct DisplayInfoResolved {
     geoset_overrides: Vec<(u16, u16)>,
     model_resource_ids: Vec<u32>,
     model_material_resource_ids: Vec<u32>,
+    model_resource_columns: [u32; 2],
+    model_material_resource_columns: [u32; 2],
     helmet_geoset_vis_ids: Vec<u32>,
     geoset_groups: [i16; 6],
+}
+
+struct DisplayMaterialTextures {
+    direct: HashMap<u32, Vec<(u8, u32)>>,
+    legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>>,
 }
 
 #[derive(Debug, Default)]
@@ -78,10 +88,11 @@ impl OutfitData {
     }
 
     fn try_load(data_dir: &Path) -> Result<LoadedOutfitData, String> {
-        let outfits = parse_char_start_outfits(&data_dir.join("CharStartOutfit.csv"))?;
+        let outfits = parse::parse_char_start_outfits(&data_dir.join("CharStartOutfit.csv"))?;
         let item_to_appearance =
-            parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
-        let appearance_to_display = parse_item_appearance(&data_dir.join("ItemAppearance.csv"))?;
+            parse::parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
+        let appearance_to_display =
+            parse::parse_item_appearance(&data_dir.join("ItemAppearance.csv"))?;
         let display_resources = load_display_resources(data_dir)?;
         let data = LoadedOutfitData {
             outfits,
@@ -109,7 +120,6 @@ impl OutfitData {
         let Some(item_ids) = data.outfits.get(&(race, class, sex)) else {
             return OutfitResult::default();
         };
-
         self.resolve_item_ids(data, item_ids)
     }
 
@@ -194,10 +204,37 @@ impl OutfitData {
         let model_resource_id = *display.model_resource_ids.first()?;
         let model_fdid = select_model_fdid(data, model_resource_id, race, sex)?;
         let mut skin_fdids = [0; 3];
-        for (idx, material_resource_id) in display.model_material_resource_ids.iter().take(3).enumerate() {
+        for (idx, material_resource_id) in
+            display.model_material_resource_ids.iter().take(3).enumerate()
+        {
             skin_fdids[idx] = data
                 .material_to_texture
                 .get(material_resource_id)
+                .copied()
+                .unwrap_or(0);
+        }
+        Some((model_fdid, skin_fdids))
+    }
+
+    pub fn resolve_shoulder_runtime_model(
+        &self,
+        display_info_id: u32,
+        shoulder_index: usize,
+        race: u8,
+        sex: u8,
+    ) -> Option<(u32, [u32; 3])> {
+        let data = self.loaded()?;
+        let display = data.display_info.get(&display_info_id)?;
+        let column_index = shoulder_model_column_index(display, shoulder_index)?;
+        let model_resource_id = display.model_resource_columns[column_index];
+        let model_fdid =
+            select_shoulder_model_fdid(data, model_resource_id, shoulder_index, race, sex)?;
+        let mut skin_fdids = [0; 3];
+        let material_resource_id = display.model_material_resource_columns[column_index];
+        if material_resource_id != 0 {
+            skin_fdids[0] = data
+                .material_to_texture
+                .get(&material_resource_id)
                 .copied()
                 .unwrap_or(0);
         }
@@ -230,41 +267,12 @@ impl OutfitData {
         display_ids: impl IntoIterator<Item = u32>,
     ) -> OutfitResult {
         let mut result = OutfitResult::default();
-        let mut seen_textures = HashSet::new();
-        let mut seen_geosets = HashSet::new();
-        let mut seen_models = HashSet::new();
-
         for display_id in display_ids {
             let Some(display) = data.display_info.get(&display_id) else {
                 continue;
             };
-
-            for &(component_section, fdid) in &display.item_textures {
-                if seen_textures.insert((component_section, fdid)) {
-                    result.item_textures.push((component_section, fdid));
-                }
-            }
-
-            for &(group_index, value) in &display.geoset_overrides {
-                if seen_geosets.insert((group_index, value)) {
-                    result.geoset_overrides.push((group_index, value));
-                }
-            }
-
-            for &model_resource_id in &display.model_resource_ids {
-                let Some(&model_fdid) = data
-                    .model_to_fdids
-                    .get(&model_resource_id)
-                    .and_then(|fdids| fdids.first())
-                else {
-                    continue;
-                };
-                if seen_models.insert((model_resource_id, model_fdid)) {
-                    result.model_fdids.push((model_resource_id, model_fdid));
-                }
-            }
+            merge_display_into_result(&mut result, display, data);
         }
-
         result
     }
 
@@ -283,7 +291,35 @@ impl OutfitData {
     }
 }
 
-type OutfitKey = (u8, u8, u8);
+fn merge_display_into_result(
+    result: &mut OutfitResult,
+    display: &DisplayInfoResolved,
+    data: &LoadedOutfitData,
+) {
+    for &(component_section, fdid) in &display.item_textures {
+        if !result.item_textures.contains(&(component_section, fdid)) {
+            result.item_textures.push((component_section, fdid));
+        }
+    }
+    for &pair in &display.geoset_overrides {
+        if !result.geoset_overrides.contains(&pair) {
+            result.geoset_overrides.push(pair);
+        }
+    }
+    for &model_resource_id in &display.model_resource_ids {
+        let Some(&model_fdid) = data
+            .model_to_fdids
+            .get(&model_resource_id)
+            .and_then(|fdids| fdids.first())
+        else {
+            continue;
+        };
+        let pair = (model_resource_id, model_fdid);
+        if !result.model_fdids.contains(&pair) {
+            result.model_fdids.push(pair);
+        }
+    }
+}
 
 struct DisplayResources {
     display_info: HashMap<u32, DisplayInfoResolved>,
@@ -293,23 +329,20 @@ struct DisplayResources {
     helmet_geoset_rules: HashMap<u32, Vec<HelmetGeosetRule>>,
 }
 
-struct DisplayMaterialTextures {
-    direct: HashMap<u32, Vec<(u8, u32)>>,
-    legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>>,
-}
-
 fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
-    let base_display_info = parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
-    let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
-    let display_materials = parse_item_display_info_material_res(
+    let base_display_info =
+        parse::parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
+    let material_to_texture =
+        parse::parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
+    let display_materials = parse::parse_item_display_info_material_res(
         &data_dir.join("ItemDisplayInfoMaterialRes.csv"),
         &material_to_texture,
     )?;
     Ok(DisplayResources {
         display_info: merge_display_materials(base_display_info, display_materials),
         material_to_texture,
-        model_to_fdids: parse_model_file_data(&data_dir.join("ModelFileData.csv"))?,
-        race_prefix: parse_race_prefix(&data_dir.join("ChrRaces.csv"))?,
+        model_to_fdids: parse::parse_model_file_data(&data_dir.join("ModelFileData.csv"))?,
+        race_prefix: parse::parse_race_prefix(&data_dir.join("ChrRaces.csv"))?,
         helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
     })
 }
@@ -393,6 +426,32 @@ fn playable_race_bit_selection(race: u8) -> u32 {
     }
 }
 
+fn collect_head_geoset_overrides(display: &DisplayInfoResolved) -> Vec<(u16, u16)> {
+    let mut overrides = Vec::new();
+    if let Some(primary_variant) = head_geoset_primary_variant(display.geoset_groups[0]) {
+        overrides.push((27, primary_variant));
+    }
+    if let Some(secondary_variant) = head_geoset_secondary_variant(display.geoset_groups[1]) {
+        overrides.push((21, secondary_variant));
+    }
+    overrides
+}
+
+fn head_geoset_primary_variant(raw_value: i16) -> Option<u16> {
+    match raw_value {
+        value if value < 0 => None,
+        0 => Some(2),
+        value => Some(value as u16),
+    }
+}
+
+fn head_geoset_secondary_variant(raw_value: i16) -> Option<u16> {
+    match raw_value {
+        value if value <= 0 => None,
+        value => Some(value as u16),
+    }
+}
+
 fn select_model_fdid(
     data: &LoadedOutfitData,
     model_resource_id: u32,
@@ -436,357 +495,85 @@ fn race_model_suffixes(data: &LoadedOutfitData, race: u8, sex: u8) -> Vec<String
     suffixes
 }
 
-fn parse_char_start_outfits(path: &Path) -> Result<HashMap<OutfitKey, Vec<u32>>, String> {
-    let (h, rows) = read_csv(path)?;
-    let race_col = col(&h, "RaceID")?;
-    let class_col = col(&h, "ClassID")?;
-    let sex_col = col(&h, "SexID")?;
-
-    let item_cols: Vec<_> = (0..12)
-        .map(|i| col(&h, &format!("ItemID_{i}")))
-        .collect::<Result<_, _>>()?;
-
-    let mut outfits = HashMap::new();
-    for row in &rows {
-        let key = (
-            field_u32(row, race_col) as u8,
-            field_u32(row, class_col) as u8,
-            field_u32(row, sex_col) as u8,
-        );
-        let items = item_cols
-            .iter()
-            .map(|&c| field_u32(row, c))
-            .filter(|&item_id| item_id != 0 && item_id != 6948)
-            .collect::<Vec<_>>();
-        outfits.insert(key, items);
-    }
-    Ok(outfits)
-}
-
-fn parse_item_modified_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
-    let (h, rows) = read_csv(path)?;
-    let item_col = col(&h, "ItemID")?;
-    let appearance_col = col(&h, "ItemAppearanceID")?;
-
-    let mut map = HashMap::new();
-    for row in &rows {
-        let item_id = field_u32(row, item_col);
-        let appearance_id = field_u32(row, appearance_col);
-        if item_id == 0 || appearance_id == 0 {
-            continue;
-        }
-        map.entry(item_id).or_insert(appearance_id);
-    }
-    Ok(map)
-}
-
-fn parse_item_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
-    let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
-    let display_info_col = col(&h, "ItemDisplayInfoID")?;
-
-    let mut map = HashMap::new();
-    for row in &rows {
-        let id = field_u32(row, id_col);
-        let display_info_id = field_u32(row, display_info_col);
-        if id == 0 || display_info_id == 0 {
-            continue;
-        }
-        map.insert(id, display_info_id);
-    }
-    Ok(map)
-}
-
-fn parse_item_display_info(
-    path: &Path,
-) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
-    let (h, rows) = read_csv(path)?;
-    let columns = ItemDisplayInfoColumns::from_headers(&h)?;
-
-    let mut map = HashMap::new();
-    for row in &rows {
-        insert_display_info_row(&mut map, row, columns);
-    }
-    Ok(map)
-}
-
-fn insert_display_info_row(
-    map: &mut HashMap<u32, DisplayInfoResolved>,
-    row: &[String],
-    columns: ItemDisplayInfoColumns,
-) {
-    let id = field_u32(row, columns.id);
-    if id == 0 {
-        return;
-    }
-    map.insert(id, parse_display_info_row(row, columns));
-}
-
-fn parse_display_info_row(row: &[String], columns: ItemDisplayInfoColumns) -> DisplayInfoResolved {
-    DisplayInfoResolved {
-        item_textures: Vec::new(),
-        geoset_overrides: Vec::new(),
-        model_resource_ids: collect_unique_u32(row, &[columns.model_res_0, columns.model_res_1]),
-        model_material_resource_ids: collect_unique_u32(
-            row,
-            &[columns.model_mat_res_0, columns.model_mat_res_1],
-        ),
-        helmet_geoset_vis_ids: collect_unique_u32(row, &[columns.helmet_vis_0, columns.helmet_vis_1]),
-        geoset_groups: [
-            field_i32(row, columns.geoset_group_0) as i16,
-            field_i32(row, columns.geoset_group_1) as i16,
-            field_i32(row, columns.geoset_group_2) as i16,
-            0,
-            0,
-            0,
-        ],
-    }
-}
-
-#[derive(Clone, Copy)]
-struct ItemDisplayInfoColumns {
-    id: usize,
-    model_res_0: usize,
-    model_res_1: usize,
-    model_mat_res_0: usize,
-    model_mat_res_1: usize,
-    geoset_group_0: usize,
-    geoset_group_1: usize,
-    geoset_group_2: usize,
-    helmet_vis_0: usize,
-    helmet_vis_1: usize,
-}
-
-impl ItemDisplayInfoColumns {
-    fn from_headers(headers: &[String]) -> Result<Self, String> {
-        Ok(Self {
-            id: col(headers, "ID")?,
-            model_res_0: col(headers, "ModelResourcesID_0")?,
-            model_res_1: col(headers, "ModelResourcesID_1")?,
-            model_mat_res_0: col(headers, "ModelMaterialResourcesID_0")?,
-            model_mat_res_1: col(headers, "ModelMaterialResourcesID_1")?,
-            geoset_group_0: col(headers, "GeosetGroup_0")?,
-            geoset_group_1: col(headers, "GeosetGroup_1")?,
-            geoset_group_2: col(headers, "GeosetGroup_2")?,
-            helmet_vis_0: col(headers, "HelmetGeosetVis_0")?,
-            helmet_vis_1: col(headers, "HelmetGeosetVis_1")?,
-        })
-    }
-}
-
-fn collect_head_geoset_overrides(display: &DisplayInfoResolved) -> Vec<(u16, u16)> {
-    let mut overrides = Vec::new();
-    if let Some(primary_variant) = head_geoset_primary_variant(display.geoset_groups[0]) {
-        overrides.push((27, primary_variant));
-    }
-    if let Some(secondary_variant) = head_geoset_secondary_variant(display.geoset_groups[1]) {
-        overrides.push((21, secondary_variant));
-    }
-    overrides
-}
-
-fn head_geoset_primary_variant(raw_value: i16) -> Option<u16> {
-    match raw_value {
-        value if value < 0 => None,
-        0 => Some(2),
-        value => Some(value as u16),
-    }
-}
-
-fn head_geoset_secondary_variant(raw_value: i16) -> Option<u16> {
-    match raw_value {
-        value if value <= 0 => None,
-        value => Some(value as u16),
-    }
-}
-
-fn collect_unique_u32(row: &[String], columns: &[usize]) -> Vec<u32> {
-    let mut values = Vec::new();
-    for &column in columns {
-        let value = field_u32(row, column);
-        if value != 0 && !values.contains(&value) {
-            values.push(value);
-        }
-    }
-    values
-}
-
-fn parse_item_display_info_material_res(
-    path: &Path,
-    material_to_texture: &HashMap<u32, u32>,
-) -> Result<DisplayMaterialTextures, String> {
-    let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
-    let component_col = col(&h, "ComponentSection")?;
-    let material_col = col(&h, "MaterialResourcesID")?;
-    let display_info_col = col(&h, "ItemDisplayInfoID")?;
-
-    let mut direct: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
-    let mut legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
-    let mut seen_direct: HashSet<(u32, u8, u32)> = HashSet::new();
-    let mut seen_legacy: HashSet<(u32, u8, u32)> = HashSet::new();
-
-    for row in &rows {
-        let row_id = field_u32(row, id_col);
-        let display_info_id = field_u32(row, display_info_col);
-        let component_section = field_u32(row, component_col) as u8;
-        let material_resource_id = field_u32(row, material_col);
-        let Some(&texture_fdid) = material_to_texture.get(&material_resource_id) else {
-            continue;
-        };
-        if seen_direct.insert((display_info_id, component_section, texture_fdid)) {
-            direct
-                .entry(display_info_id)
-                .or_default()
-                .push((component_section, texture_fdid));
-        }
-        if row_id != display_info_id && seen_legacy.insert((row_id, component_section, texture_fdid)) {
-            legacy_by_row_id
-                .entry(row_id)
-                .or_default()
-                .push((component_section, texture_fdid));
-        }
-    }
-
-    Ok(DisplayMaterialTextures {
-        direct,
-        legacy_by_row_id,
-    })
-}
-
-fn parse_texture_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
-    let (h, rows) = read_csv(path)?;
-    let file_data_col = col(&h, "FileDataID")?;
-    let usage_type_col = col(&h, "UsageType")?;
-    let material_col = col(&h, "MaterialResourcesID")?;
-
-    let mut preferred = HashMap::new();
-    let mut fallback = HashMap::new();
-
-    for row in &rows {
-        let file_data_id = field_u32(row, file_data_col);
-        let usage_type = field_u32(row, usage_type_col);
-        let material_resource_id = field_u32(row, material_col);
-        if file_data_id == 0 || material_resource_id == 0 {
-            continue;
-        }
-
-        fallback.entry(material_resource_id).or_insert(file_data_id);
-        if usage_type == 0 {
-            preferred
-                .entry(material_resource_id)
-                .or_insert(file_data_id);
-        }
-    }
-
-    for (material_resource_id, file_data_id) in fallback {
-        preferred
-            .entry(material_resource_id)
-            .or_insert(file_data_id);
-    }
-
-    Ok(preferred)
-}
-
-fn parse_model_file_data(path: &Path) -> Result<HashMap<u32, Vec<u32>>, String> {
-    let (h, rows) = read_csv(path)?;
-    let file_data_col = col(&h, "FileDataID")?;
-    let model_resource_col = col(&h, "ModelResourcesID")?;
-
-    let mut map: HashMap<u32, Vec<u32>> = HashMap::new();
-    for row in &rows {
-        let file_data_id = field_u32(row, file_data_col);
-        let model_resource_id = field_u32(row, model_resource_col);
-        if file_data_id == 0 || model_resource_id == 0 {
-            continue;
-        }
-        let entry = map.entry(model_resource_id).or_default();
-        if !entry.contains(&file_data_id) {
-            entry.push(file_data_id);
-        }
-    }
-    Ok(map)
-}
-
-fn parse_race_prefix(path: &Path) -> Result<HashMap<u8, String>, String> {
-    let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
-    let prefix_col = col(&h, "ClientPrefix")?;
-
-    let mut map = HashMap::new();
-    for row in &rows {
-        let id = field_u32(row, id_col) as u8;
-        let prefix = row
-            .get(prefix_col)
-            .map(|s| s.trim().to_ascii_lowercase())
-            .unwrap_or_default();
-        if id != 0 && !prefix.is_empty() {
-            map.insert(id, prefix);
-        }
-    }
-    Ok(map)
-}
-
-fn read_csv(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>), String> {
-    let data =
-        std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
-    let mut lines = data.lines();
-    let header_line = lines.next().ok_or("empty CSV")?;
-    let headers = parse_csv_line(header_line);
-    let rows: Vec<_> = lines.map(parse_csv_line).collect();
-    Ok((headers, rows))
-}
-
-fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    let mut chars = line.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if in_quotes {
-            if ch == '"' {
-                if chars.peek() == Some(&'"') {
-                    chars.next();
-                    current.push('"');
-                } else {
-                    in_quotes = false;
-                }
+fn shoulder_model_column_index(
+    display: &DisplayInfoResolved,
+    shoulder_index: usize,
+) -> Option<usize> {
+    match shoulder_index {
+        0 => {
+            if display.model_resource_columns[0] != 0 {
+                Some(0)
+            } else if display.model_resource_columns[1] != 0 {
+                Some(1)
             } else {
-                current.push(ch);
+                None
             }
-        } else if ch == '"' {
-            in_quotes = true;
-        } else if ch == ',' {
-            fields.push(std::mem::take(&mut current));
-        } else {
-            current.push(ch);
+        }
+        1 => {
+            if display.model_resource_columns[1] != 0 {
+                Some(1)
+            } else if display.model_resource_columns[0] != 0 {
+                Some(0)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn select_shoulder_model_fdid(
+    data: &LoadedOutfitData,
+    model_resource_id: u32,
+    shoulder_index: usize,
+    race: u8,
+    sex: u8,
+) -> Option<u32> {
+    let candidates = data.model_to_fdids.get(&model_resource_id)?;
+    let side_candidates = candidates
+        .iter()
+        .copied()
+        .filter(|fdid| shoulder_model_matches_side(*fdid, shoulder_index))
+        .collect::<Vec<_>>();
+    select_candidate_fdid(data, &side_candidates, race, sex)
+        .or_else(|| select_candidate_fdid(data, candidates, race, sex))
+}
+
+fn shoulder_model_matches_side(fdid: u32, shoulder_index: usize) -> bool {
+    let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
+        return false;
+    };
+    let lower = path.to_ascii_lowercase();
+    match shoulder_index {
+        0 => lower.contains("/lshoulder_") || lower.ends_with("_l.m2"),
+        1 => lower.contains("/rshoulder_") || lower.ends_with("_r.m2"),
+        _ => false,
+    }
+}
+
+fn select_candidate_fdid(
+    data: &LoadedOutfitData,
+    candidates: &[u32],
+    race: u8,
+    sex: u8,
+) -> Option<u32> {
+    if candidates.is_empty() {
+        return None;
+    }
+    let suffixes = race_model_suffixes(data, race, sex);
+    if !suffixes.is_empty() {
+        for suffix in &suffixes {
+            for &fdid in candidates {
+                let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
+                    continue;
+                };
+                if path.ends_with(&format!("_{suffix}.m2")) {
+                    return Some(fdid);
+                }
+            }
         }
     }
-    fields.push(current);
-    fields
-}
-
-fn col(headers: &[String], name: &str) -> Result<usize, String> {
-    headers
-        .iter()
-        .position(|h| h == name)
-        .ok_or_else(|| format!("Column '{name}' not found"))
-}
-
-fn field_u32(row: &[String], col: usize) -> u32 {
-    row.get(col)
-        .and_then(|s| {
-            s.parse::<u32>()
-                .ok()
-                .or_else(|| s.parse::<i32>().ok().map(|v| v as u32))
-        })
-        .unwrap_or(0)
-}
-
-fn field_i32(row: &[String], col: usize) -> i32 {
-    row.get(col)
-        .and_then(|s| s.parse::<i32>().ok())
-        .unwrap_or(0)
+    (candidates.len() == 1).then(|| candidates[0])
 }
 
 #[cfg(test)]
@@ -816,7 +603,6 @@ mod tests {
 
         assert_eq!(data.head_geoset_overrides(720086), vec![(27, 2)]);
     }
-
 
     #[test]
     fn legacy_waist_display_uses_material_rows_keyed_by_row_id() {

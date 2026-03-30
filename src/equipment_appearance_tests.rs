@@ -20,42 +20,42 @@ fn chest_runtime_model_defaults_to_empty_without_data() {
 }
 
 #[test]
-fn head_slot_maps_to_runtime_slot() {
+fn head_slot_maps_to_runtime_slots() {
     assert_eq!(
-        visual_slot_to_runtime_slot(EquipmentVisualSlot::Head),
-        Some(EquipmentSlot::Head)
+        visual_slot_to_runtime_slots(EquipmentVisualSlot::Head),
+        vec![EquipmentSlot::Head]
     );
 }
 
 #[test]
-fn chest_slot_maps_to_runtime_slot() {
+fn chest_slot_maps_to_runtime_slots() {
     assert_eq!(
-        visual_slot_to_runtime_slot(EquipmentVisualSlot::Chest),
-        Some(EquipmentSlot::Chest)
+        visual_slot_to_runtime_slots(EquipmentVisualSlot::Chest),
+        vec![EquipmentSlot::Chest]
     );
 }
 
 #[test]
-fn waist_slot_maps_to_runtime_slot() {
+fn waist_slot_maps_to_runtime_slots() {
     assert_eq!(
-        visual_slot_to_runtime_slot(EquipmentVisualSlot::Waist),
-        Some(EquipmentSlot::Waist)
+        visual_slot_to_runtime_slots(EquipmentVisualSlot::Waist),
+        vec![EquipmentSlot::Waist]
     );
 }
 
 #[test]
-fn feet_slot_maps_to_runtime_slot() {
+fn feet_slot_maps_to_runtime_slots() {
     assert_eq!(
-        visual_slot_to_runtime_slot(EquipmentVisualSlot::Feet),
-        Some(EquipmentSlot::Feet)
+        visual_slot_to_runtime_slots(EquipmentVisualSlot::Feet),
+        vec![EquipmentSlot::Feet]
     );
 }
 
 #[test]
-fn legs_slot_maps_to_runtime_slot() {
+fn legs_slot_maps_to_runtime_slots() {
     assert_eq!(
-        visual_slot_to_runtime_slot(EquipmentVisualSlot::Legs),
-        Some(EquipmentSlot::Legs)
+        visual_slot_to_runtime_slots(EquipmentVisualSlot::Legs),
+        vec![EquipmentSlot::Legs]
     );
 }
 

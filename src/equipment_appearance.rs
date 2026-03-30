@@ -34,6 +34,10 @@ mod legs_tests;
 #[path = "equipment_waist_tests.rs"]
 mod waist_tests;
 
+#[cfg(test)]
+#[path = "equipment_shoulder_tests.rs"]
+mod shoulder_tests;
+
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
@@ -176,7 +180,7 @@ fn apply_non_head_equipment_entry(
     apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
     resolved.outfit =
         crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
-    if let Some(runtime_slot) = visual_slot_to_runtime_slot(slot) {
+    for runtime_slot in visual_slot_to_runtime_slots(slot) {
         maybe_push_runtime_model(
             resolved,
             runtime_slot,
@@ -504,27 +508,16 @@ fn maybe_push_runtime_model(
     }
 }
 
-fn is_runtime_equipment_slot(slot: &EquipmentSlot) -> bool {
-    matches!(
-        slot,
-        EquipmentSlot::Head
-            | EquipmentSlot::Back
-            | EquipmentSlot::Chest
-            | EquipmentSlot::Waist
-            | EquipmentSlot::Legs
-            | EquipmentSlot::Feet
-            | EquipmentSlot::MainHand
-            | EquipmentSlot::OffHand
-    )
-}
-
 pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEquipmentAppearance) {
-    equipment
-        .slots
-        .retain(|slot, _| is_runtime_equipment_slot(slot));
-    equipment
-        .slot_skin_fdids
-        .retain(|slot, _| is_runtime_equipment_slot(slot));
+    for slot in resolved
+        .explicit_slots
+        .iter()
+        .copied()
+        .flat_map(visual_slot_to_runtime_slots)
+    {
+        equipment.slots.remove(&slot);
+        equipment.slot_skin_fdids.remove(&slot);
+    }
     for runtime_model in &resolved.runtime_models {
         equipment
             .slots
@@ -535,17 +528,20 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
     }
 }
 
-fn visual_slot_to_runtime_slot(slot: EquipmentVisualSlot) -> Option<EquipmentSlot> {
+fn visual_slot_to_runtime_slots(slot: EquipmentVisualSlot) -> Vec<EquipmentSlot> {
     match slot {
-        EquipmentVisualSlot::Head => Some(EquipmentSlot::Head),
-        EquipmentVisualSlot::Back => Some(EquipmentSlot::Back),
-        EquipmentVisualSlot::Chest => Some(EquipmentSlot::Chest),
-        EquipmentVisualSlot::Waist => Some(EquipmentSlot::Waist),
-        EquipmentVisualSlot::Legs => Some(EquipmentSlot::Legs),
-        EquipmentVisualSlot::Feet => Some(EquipmentSlot::Feet),
-        EquipmentVisualSlot::MainHand => Some(EquipmentSlot::MainHand),
-        EquipmentVisualSlot::OffHand => Some(EquipmentSlot::OffHand),
-        _ => None,
+        EquipmentVisualSlot::Head => vec![EquipmentSlot::Head],
+        EquipmentVisualSlot::Shoulder => {
+            vec![EquipmentSlot::ShoulderLeft, EquipmentSlot::ShoulderRight]
+        }
+        EquipmentVisualSlot::Back => vec![EquipmentSlot::Back],
+        EquipmentVisualSlot::Chest => vec![EquipmentSlot::Chest],
+        EquipmentVisualSlot::Waist => vec![EquipmentSlot::Waist],
+        EquipmentVisualSlot::Legs => vec![EquipmentSlot::Legs],
+        EquipmentVisualSlot::Feet => vec![EquipmentSlot::Feet],
+        EquipmentVisualSlot::MainHand => vec![EquipmentSlot::MainHand],
+        EquipmentVisualSlot::OffHand => vec![EquipmentSlot::OffHand],
+        _ => Vec::new(),
     }
 }
 
@@ -557,7 +553,15 @@ fn runtime_model_for_slot(
     race: u8,
     sex: u8,
 ) -> Option<(PathBuf, [u32; 3])> {
-    let (fdid, skin_fdids) = outfit_data.resolve_runtime_model(display_info_id, race, sex)?;
+    let (fdid, skin_fdids) = match slot {
+        EquipmentSlot::ShoulderLeft => {
+            outfit_data.resolve_shoulder_runtime_model(display_info_id, 0, race, sex)?
+        }
+        EquipmentSlot::ShoulderRight => {
+            outfit_data.resolve_shoulder_runtime_model(display_info_id, 1, race, sex)?
+        }
+        _ => outfit_data.resolve_runtime_model(display_info_id, race, sex)?,
+    };
     let path = resolve_model_path(fdid)?;
     if matches!(slot, EquipmentSlot::Head) && is_collection_head_model(&path) {
         return None;

@@ -84,7 +84,8 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            left_waist_display: env_u32("DEBUG_CHARACTER_LEFT_WAIST_DISPLAY", 15040),
+            // https://www.wowhead.com/item=49806/flayers-black-belt
+            left_waist_display: env_u32("DEBUG_CHARACTER_LEFT_WAIST_DISPLAY", 64562),
             left_feet_display: env_u32("DEBUG_CHARACTER_LEFT_FEET_DISPLAY", 154620),
             right_waist_display: env_u32("DEBUG_CHARACTER_RIGHT_WAIST_DISPLAY", 160997),
             right_feet_display: env_u32("DEBUG_CHARACTER_RIGHT_FEET_DISPLAY", 154620),
