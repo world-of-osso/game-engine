@@ -44,6 +44,7 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
+    head_display: u32,
     shoulder_display: u32,
     back_display: u32,
     chest_display: u32,
@@ -90,6 +91,8 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
+            // Display 95498: plate helmet
+            head_display: env_u32("DEBUG_CHARACTER_HEAD_DISPLAY", 95498),
             // Display 148865: shoulder with runtime models
             shoulder_display: env_u32("DEBUG_CHARACTER_SHOULDER_DISPLAY", 148865),
             // Display 181925: cloak
@@ -113,6 +116,7 @@ impl DebugCharacterConfig {
 
 fn debug_equipment_appearance(config: &DebugCharacterConfig, waist: u32, legs: u32, feet: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Head, config.head_display);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Shoulder, config.shoulder_display);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Back, config.back_display);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Chest, config.chest_display);
@@ -352,7 +356,8 @@ fn setup_scene(
     config: Res<DebugCharacterConfig>,
 ) {
     eprintln!(
-        "debugcharacter displays: shoulder={} back={} chest={} hands={} left_waist={} left_legs={} left_feet={} right_waist={} right_legs={} right_feet={}",
+        "debugcharacter displays: head={} shoulder={} back={} chest={} hands={} left_waist={} left_legs={} left_feet={} right_waist={} right_legs={} right_feet={}",
+        config.head_display,
         config.shoulder_display,
         config.back_display,
         config.chest_display,
@@ -469,6 +474,7 @@ fn debug_character_scene_node(
     names: &Query<&Name>,
 ) -> SceneNode {
     let slot_defs: &[(Option<EquipmentSlot>, EquipmentVisualSlot, &str)] = &[
+        (Some(EquipmentSlot::Head), EquipmentVisualSlot::Head, "Head"),
         (Some(EquipmentSlot::ShoulderLeft), EquipmentVisualSlot::Shoulder, "ShoulderLeft"),
         (Some(EquipmentSlot::ShoulderRight), EquipmentVisualSlot::Shoulder, "ShoulderRight"),
         (Some(EquipmentSlot::Back), EquipmentVisualSlot::Back, "Back"),
