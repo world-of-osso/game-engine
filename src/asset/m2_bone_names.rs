@@ -37,13 +37,17 @@ pub fn key_bone_name(id: i32) -> &'static str {
     }
 }
 
-/// Display name for a bone: known key_bone_id names, or "Bone[index]" for unknown.
+/// Display name for a bone: known key_bone_id names, key-based ID for unknown
+/// positive IDs, or "Bone[index]" for bones with no key (-1).
 pub fn bone_display_name(key_bone_id: i32, index: usize) -> String {
     let name = key_bone_name(key_bone_id);
-    if name == "bone" {
-        format!("Bone[{index}]")
+    if name != "bone" {
+        return name.to_string();
+    }
+    if key_bone_id >= 0 {
+        format!("KeyBone{key_bone_id}")
     } else {
-        name.to_string()
+        format!("Bone[{index}]")
     }
 }
 
@@ -71,8 +75,14 @@ mod tests {
     }
 
     #[test]
-    fn bone_display_name_unknown() {
+    fn bone_display_name_unknown_negative() {
         assert_eq!(bone_display_name(-1, 5), "Bone[5]");
         assert_eq!(bone_display_name(-1, 0), "Bone[0]");
+    }
+
+    #[test]
+    fn bone_display_name_unknown_positive_uses_key_id() {
+        assert_eq!(bone_display_name(48, 9), "KeyBone48");
+        assert_eq!(bone_display_name(55, 5), "KeyBone55");
     }
 }
