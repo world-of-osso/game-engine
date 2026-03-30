@@ -1,329 +1,203 @@
-//! M2 particle emitter rendering — spawns billboard quads per emitter.
+//! M2 particle emitter rendering — GPU particles via bevy_hanabi.
 //!
-//! Each emitter spawns particles at its bone position with velocity, gravity,
-//! color/opacity/scale interpolation over lifetime, and texture atlas tiling.
+//! Each M2 emitter is translated to a bevy_hanabi `EffectAsset` and spawned as
+//! a `ParticleEffect` entity parented to the model (or its bone).
 
 use std::path::PathBuf;
 
-use bevy::math::Affine2;
 use bevy::prelude::*;
+use bevy_hanabi::prelude::*;
 
 use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
 use crate::asset::m2_particle::M2ParticleEmitter;
-use crate::game_state::GameState;
 
 pub struct ParticlePlugin;
 
 impl Plugin for ParticlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (emit_particles, update_particles, billboard_particles)
-                .run_if(in_state(GameState::InWorld)),
-        );
+        app.add_plugins(HanabiPlugin)
+            .add_systems(Update, register_pending_particle_effects);
     }
 }
 
 /// Marker for a particle emitter entity.
+///
+/// Carries the pending effect asset until `register_pending_particle_effects`
+/// picks it up and inserts the actual `ParticleEffect` + handle.
 #[derive(Component)]
 pub struct ParticleEmitterComp {
     pub emitter: M2ParticleEmitter,
     pub bone_entity: Option<Entity>,
-    /// Fractional accumulator for emission.
-    pub emit_accum: f32,
+    /// Unregistered effect asset, consumed by `register_pending_particle_effects`.
+    pending_effect: Option<EffectAsset>,
+    /// Optional texture handle to attach via `EffectMaterial`.
+    pending_texture: Option<Handle<Image>>,
 }
 
-/// Individual live particle.
-#[derive(Component)]
-struct Particle {
-    velocity: Vec3,
-    gravity: f32,
-    age: f32,
-    max_age: f32,
-    /// Color at start, mid, end (linear RGB 0–1).
-    colors: [Vec3; 3],
-    /// Opacity at start, mid, end.
-    opacity: [f32; 3],
-    /// Scale (uniform) at start, mid, end.
-    scales: [f32; 3],
-    mid_point: f32,
-    atlas_uv: AtlasUv,
-}
-
-#[derive(Clone, Copy)]
-struct AtlasUv {
-    scale: Vec2,
-    offset: Vec2,
+/// System: convert pending `EffectAsset`s into registered `ParticleEffect` handles.
+fn register_pending_particle_effects(
+    mut commands: Commands,
+    mut effects: ResMut<Assets<EffectAsset>>,
+    mut query: Query<(Entity, &mut ParticleEmitterComp), Without<ParticleEffect>>,
+) {
+    for (entity, mut comp) in &mut query {
+        let Some(asset) = comp.pending_effect.take() else {
+            continue;
+        };
+        let handle = effects.add(asset);
+        let mut ec = commands.entity(entity);
+        ec.insert(ParticleEffect::new(handle));
+        if let Some(tex) = comp.pending_texture.take() {
+            ec.insert(EffectMaterial { images: vec![tex] });
+        }
+    }
 }
 
 /// Spawn emitter entities for an M2 model's particle emitters.
 pub fn spawn_emitters(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    _meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
     for em in emitters {
-        let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
-        let mat = emitter_material(em, images, materials);
-        let mesh = meshes.add(Rectangle::new(1.0, 1.0));
-
-        commands
-            .spawn((
-                Name::new("ParticleEmitter"),
-                ParticleEmitterComp {
-                    emitter: em.clone(),
-                    bone_entity,
-                    emit_accum: 0.0,
-                },
-                // Emitter needs a transform so we can read bone world position
-                Transform::IDENTITY,
-                Visibility::default(),
-                EmitterMesh(mesh),
-                EmitterMaterial(mat),
-            ))
-            .set_parent_in_place(parent);
+        spawn_single_emitter(commands, images, em, bone_entities, parent);
     }
 }
 
-/// Cached mesh/material handles on the emitter for spawning particles.
-#[derive(Component)]
-struct EmitterMesh(Handle<Mesh>);
-
-#[derive(Component)]
-struct EmitterMaterial(Handle<StandardMaterial>);
-
-/// System: emit new particles based on emission rate.
-fn emit_particles(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut emitters: Query<(
-        &mut ParticleEmitterComp,
-        &EmitterMesh,
-        &EmitterMaterial,
-        &GlobalTransform,
-    )>,
-    bone_transforms: Query<&GlobalTransform, Without<ParticleEmitterComp>>,
-) {
-    let dt = time.delta_secs();
-    for (mut ecomp, emesh, emat, emitter_gtf) in &mut emitters {
-        if ecomp.emitter.emission_rate <= 0.0 || ecomp.emitter.lifespan <= 0.0 {
-            continue;
-        }
-        // Resolve spawn position from bone or emitter transform
-        let bone_pos = resolve_bone_position(&ecomp, emitter_gtf, &bone_transforms);
-        let pos = ecomp.emitter.position;
-        let offset = wow_to_bevy(pos[0], pos[1], pos[2]);
-        let spawn_pos = bone_pos + Vec3::from(offset);
-
-        ecomp.emit_accum += ecomp.emitter.emission_rate * dt;
-        let count = ecomp.emit_accum as u32;
-        ecomp.emit_accum -= count as f32;
-
-        let em = &ecomp.emitter;
-        for _ in 0..count.min(8) {
-            spawn_particle(&mut commands, em, spawn_pos, &emesh.0, &emat.0);
-        }
-    }
-}
-
-fn resolve_bone_position(
-    ecomp: &ParticleEmitterComp,
-    emitter_gtf: &GlobalTransform,
-    bone_transforms: &Query<&GlobalTransform, Without<ParticleEmitterComp>>,
-) -> Vec3 {
-    ecomp
-        .bone_entity
-        .and_then(|e| bone_transforms.get(e).ok())
-        .map(|gt| gt.translation())
-        .unwrap_or_else(|| emitter_gtf.translation())
-}
-
-fn build_particle(em: &M2ParticleEmitter, seed: u32) -> Particle {
-    let spread = compute_velocity_spread(em, seed);
-    let speed = em.emission_speed * (1.0 + em.speed_variation * hash_float(seed, 3));
-    Particle {
-        velocity: Vec3::new(spread.x, speed, spread.y),
-        gravity: em.gravity,
-        age: 0.0,
-        max_age: em.lifespan,
-        colors: [
-            color_to_vec3(em.colors[0]),
-            color_to_vec3(em.colors[1]),
-            color_to_vec3(em.colors[2]),
-        ],
-        opacity: em.opacity,
-        scales: [
-            em.scales[0][0].max(0.05),
-            em.scales[1][0].max(0.05),
-            em.scales[2][0].max(0.05),
-        ],
-        mid_point: em.mid_point,
-        atlas_uv: select_atlas_uv(em, seed),
-    }
-}
-
-fn spawn_particle(
+fn spawn_single_emitter(
     commands: &mut Commands,
-    em: &M2ParticleEmitter,
-    pos: Vec3,
-    mesh: &Handle<Mesh>,
-    material: &Handle<StandardMaterial>,
-) {
-    let seed = (pos.x * 1000.0 + pos.z * 7919.0) as u32;
-    let particle = build_particle(em, seed);
-    let scale = Vec3::splat(particle.scales[0]);
-    commands.spawn((
-        Name::new("Particle"),
-        Mesh3d(mesh.clone()),
-        MeshMaterial3d(material.clone()),
-        Transform::from_translation(pos).with_scale(scale),
-        particle,
-    ));
-}
-
-fn select_atlas_uv(em: &M2ParticleEmitter, seed: u32) -> AtlasUv {
-    let rows = em.tile_rows.max(1) as u32;
-    let cols = em.tile_cols.max(1) as u32;
-    let tile_count = rows.saturating_mul(cols).max(1);
-    let tile_index = seed % tile_count;
-    let col = tile_index % cols;
-    let row = tile_index / cols;
-    let scale = Vec2::new(1.0 / cols as f32, 1.0 / rows as f32);
-    AtlasUv {
-        scale,
-        offset: Vec2::new(col as f32 * scale.x, row as f32 * scale.y),
-    }
-}
-
-fn compute_velocity_spread(em: &M2ParticleEmitter, seed: u32) -> Vec2 {
-    let h_angle = em.horizontal_range * hash_float(seed, 1);
-    let v_angle = em.vertical_range * hash_float(seed, 2);
-    Vec2::new(h_angle.sin() * 0.5, v_angle.sin() * 0.5)
-}
-
-/// Simple deterministic float in [-1, 1] from seed + salt.
-fn hash_float(seed: u32, salt: u32) -> f32 {
-    let h = seed
-        .wrapping_mul(2654435761)
-        .wrapping_add(salt.wrapping_mul(7919));
-    (h % 10000) as f32 / 5000.0 - 1.0
-}
-
-fn color_to_vec3(c: [f32; 3]) -> Vec3 {
-    Vec3::new(c[0] / 255.0, c[1] / 255.0, c[2] / 255.0)
-}
-
-/// System: update particle age, position, scale, and despawn dead particles.
-fn update_particles(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut particles: Query<(
-        Entity,
-        &mut Particle,
-        &mut Transform,
-        &MeshMaterial3d<StandardMaterial>,
-    )>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let dt = time.delta_secs();
-    for (entity, mut p, mut xf, material_handle) in &mut particles {
-        p.age += dt;
-        if p.age >= p.max_age {
-            commands.entity(entity).despawn();
-            continue;
-        }
-        // Apply velocity + gravity
-        p.velocity.y -= p.gravity * dt;
-        xf.translation += p.velocity * dt;
-
-        let t = p.age / p.max_age;
-        let scale = lerp_over_lifetime(p.scales[0], p.scales[1], p.scales[2], p.mid_point, t);
-        xf.scale = Vec3::splat(scale.max(0.01));
-
-        if let Some(material) = materials.get_mut(&material_handle.0) {
-            let color =
-                lerp_vec3_over_lifetime(p.colors[0], p.colors[1], p.colors[2], p.mid_point, t);
-            let alpha =
-                lerp_over_lifetime(p.opacity[0], p.opacity[1], p.opacity[2], p.mid_point, t)
-                    .clamp(0.0, 1.0);
-            material.base_color = Color::srgba(color.x, color.y, color.z, alpha);
-            material.uv_transform =
-                Affine2::from_scale_angle_translation(p.atlas_uv.scale, 0.0, p.atlas_uv.offset);
-        }
-    }
-}
-
-/// Interpolate a value over lifetime using start→mid→end with a midpoint.
-fn lerp_over_lifetime(start: f32, mid: f32, end: f32, mid_point: f32, t: f32) -> f32 {
-    if t <= mid_point {
-        let local_t = if mid_point > 0.0 { t / mid_point } else { 0.0 };
-        start + (mid - start) * local_t
-    } else {
-        let local_t = if mid_point < 1.0 {
-            (t - mid_point) / (1.0 - mid_point)
-        } else {
-            1.0
-        };
-        mid + (end - mid) * local_t
-    }
-}
-
-/// System: orient particle quads to face the camera (billboard).
-fn lerp_vec3_over_lifetime(start: Vec3, mid: Vec3, end: Vec3, mid_point: f32, t: f32) -> Vec3 {
-    Vec3::new(
-        lerp_over_lifetime(start.x, mid.x, end.x, mid_point, t),
-        lerp_over_lifetime(start.y, mid.y, end.y, mid_point, t),
-        lerp_over_lifetime(start.z, mid.z, end.z, mid_point, t),
-    )
-}
-
-fn billboard_particles(
-    camera: Query<&GlobalTransform, With<Camera3d>>,
-    mut particles: Query<&mut Transform, With<Particle>>,
-) {
-    let Ok(cam_gtf) = camera.single() else {
-        return;
-    };
-    let cam_pos = cam_gtf.translation();
-    for mut xf in &mut particles {
-        let dir = cam_pos - xf.translation;
-        if dir.length_squared() > 0.001 {
-            let scale = xf.scale;
-            xf.look_at(cam_pos, Vec3::Y);
-            xf.scale = scale; // preserve scale after look_at
-        }
-    }
-}
-
-/// Create material for a particle emitter (textured or white, additive/blend).
-fn emitter_material(
-    em: &M2ParticleEmitter,
     images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
-) -> Handle<StandardMaterial> {
-    let texture = load_emitter_texture(em, images);
-    let start_color = color_to_vec3(em.colors[0]);
-    let alpha_mode = match em.blend_type {
-        4..=6 => AlphaMode::Add,
-        2 | 3 | 7 => AlphaMode::Blend,
-        1 => AlphaMode::Mask(0.5),
-        _ => AlphaMode::Blend,
-    };
+    em: &M2ParticleEmitter,
+    bone_entities: Option<&[Entity]>,
+    parent: Entity,
+) {
+    let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
+    let pending_texture = load_emitter_texture(em, images);
+    let pos = em.position;
+    let offset = wow_to_bevy(pos[0], pos[1], pos[2]);
+    let parent_entity = bone_entity.unwrap_or(parent);
+    commands
+        .spawn((
+            Name::new("ParticleEmitter"),
+            ParticleEmitterComp {
+                emitter: em.clone(),
+                bone_entity,
+                pending_effect: Some(build_effect_asset(em)),
+                pending_texture,
+            },
+            Transform::from_translation(Vec3::from(offset)),
+            Visibility::default(),
+        ))
+        .set_parent_in_place(parent_entity);
+}
 
-    materials.add(StandardMaterial {
-        base_color_texture: texture,
-        base_color: Color::srgba(start_color.x, start_color.y, start_color.z, em.opacity[0]),
-        unlit: true,
-        alpha_mode,
-        cull_mode: None,
-        double_sided: true,
-        ..default()
-    })
+fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
+    let writer = ExprWriter::new();
+    let init_modifiers = build_init_modifiers(em, &writer);
+    let gravity = AccelModifier::new(writer.lit(Vec3::new(0.0, -em.gravity, 0.0)).expr());
+    let mask_cutoff = writer.lit(0.5_f32).expr();
+    let module = writer.finish();
+
+    let max_particles = ((em.emission_rate * em.lifespan) as u32).clamp(16, 4096);
+    let spawner = SpawnerSettings::rate(em.emission_rate.max(0.1).into());
+    let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
+
+    EffectAsset::new(max_particles, spawner, module)
+        .with_name("m2_particle")
+        .with_alpha_mode(alpha_mode)
+        .with_simulation_space(SimulationSpace::Global)
+        .init(init_modifiers.age)
+        .init(init_modifiers.lifetime)
+        .init(init_modifiers.pos)
+        .init(init_modifiers.vel)
+        .update(gravity)
+        .render(ColorOverLifetimeModifier {
+            gradient: build_color_gradient(em),
+            blend: ColorBlendMode::Overwrite,
+            mask: ColorBlendMask::RGBA,
+        })
+        .render(SizeOverLifetimeModifier {
+            gradient: build_size_gradient(em),
+            screen_space_size: false,
+        })
+        .render(OrientModifier::new(OrientMode::FaceCameraPosition))
+}
+
+struct InitModifiers {
+    age: SetAttributeModifier,
+    lifetime: SetAttributeModifier,
+    pos: SetPositionSphereModifier,
+    vel: SetVelocitySphereModifier,
+}
+
+fn build_init_modifiers(em: &M2ParticleEmitter, writer: &ExprWriter) -> InitModifiers {
+    let age = SetAttributeModifier::new(Attribute::AGE, writer.lit(0.0).expr());
+    let lifetime =
+        SetAttributeModifier::new(Attribute::LIFETIME, writer.lit(em.lifespan.max(0.1)).expr());
+    let pos = build_position_modifier(em, writer);
+    let vel = build_velocity_modifier(em, writer);
+    InitModifiers { age, lifetime, pos, vel }
+}
+
+fn build_position_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetPositionSphereModifier {
+    let radius = if em.area_length > 0.0 || em.area_width > 0.0 {
+        (em.area_length.max(em.area_width) * 0.5).max(0.01)
+    } else {
+        0.01_f32
+    };
+    SetPositionSphereModifier {
+        center: writer.lit(Vec3::ZERO).expr(),
+        radius: writer.lit(radius).expr(),
+        dimension: ShapeDimension::Volume,
+    }
+}
+
+fn build_velocity_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetVelocitySphereModifier {
+    let speed_expr = if em.speed_variation > 0.0 {
+        let base = writer.lit(em.emission_speed);
+        let variation = writer.rand(ScalarType::Float) * writer.lit(em.speed_variation * 2.0)
+            - writer.lit(em.speed_variation);
+        (base.clone() + base * variation).expr()
+    } else {
+        writer.lit(em.emission_speed.max(0.01)).expr()
+    };
+    SetVelocitySphereModifier {
+        center: writer.lit(Vec3::ZERO).expr(),
+        speed: speed_expr,
+    }
+}
+
+fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::AlphaMode {
+    match blend_type {
+        4..=6 => bevy_hanabi::AlphaMode::Add,
+        1 => bevy_hanabi::AlphaMode::Mask(mask_cutoff),
+        _ => bevy_hanabi::AlphaMode::Blend,
+    }
+}
+
+fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
+    let [c0, c1, c2] = em.colors;
+    let [o0, o1, o2] = em.opacity;
+    let mid = em.mid_point.clamp(0.01, 0.99);
+    let mut g = bevy_hanabi::Gradient::new();
+    g.add_key(0.0, Vec4::new(c0[0] / 255.0, c0[1] / 255.0, c0[2] / 255.0, o0));
+    g.add_key(mid, Vec4::new(c1[0] / 255.0, c1[1] / 255.0, c1[2] / 255.0, o1));
+    g.add_key(1.0, Vec4::new(c2[0] / 255.0, c2[1] / 255.0, c2[2] / 255.0, o2));
+    g
+}
+
+fn build_size_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec3> {
+    let mid = em.mid_point.clamp(0.01, 0.99);
+    let mut g = bevy_hanabi::Gradient::new();
+    g.add_key(0.0, Vec3::splat(em.scales[0][0].max(0.01)));
+    g.add_key(mid, Vec3::splat(em.scales[1][0].max(0.01)));
+    g.add_key(1.0, Vec3::splat(em.scales[2][0].max(0.01)));
+    g
 }
 
 fn load_emitter_texture(
