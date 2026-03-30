@@ -93,10 +93,10 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            // Display 178116: geoset-only helmet (item 158364)
-            left_head_display: env_u32("DEBUG_CHARACTER_LEFT_HEAD_DISPLAY", 178116),
-            // Display 178254: cloth helm with runtime M2 model (item 1280)
-            right_head_display: env_u32("DEBUG_CHARACTER_RIGHT_HEAD_DISPLAY", 178254),
+            // Display 1128: clearly visible plate helm with runtime M2 model.
+            left_head_display: env_u32("DEBUG_CHARACTER_LEFT_HEAD_DISPLAY", 1128),
+            // Display 685129: clearly visible hood with runtime M2 model.
+            right_head_display: env_u32("DEBUG_CHARACTER_RIGHT_HEAD_DISPLAY", 685129),
             // Display 148865: shoulder with runtime models
             shoulder_display: env_u32("DEBUG_CHARACTER_SHOULDER_DISPLAY", 148865),
             // Display 181925: cloak

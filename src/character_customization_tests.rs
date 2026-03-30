@@ -16,11 +16,11 @@ fn hairstyle_group_zero_keeps_base_body_segments_visible() {
     assert!(group_zero_visible(0, 2));
     assert!(group_zero_visible(1, 2));
     assert!(group_zero_visible(2, 2));
-    assert!(group_zero_visible(16, 2));
-    assert!(group_zero_visible(17, 2));
     assert!(group_zero_visible(28, 2));
 
     assert!(!group_zero_visible(5, 2));
+    assert!(!group_zero_visible(16, 2));
+    assert!(!group_zero_visible(17, 2));
     assert!(!group_zero_visible(18, 2));
 }
 

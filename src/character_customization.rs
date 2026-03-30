@@ -417,7 +417,7 @@ fn log_character_render_apply(
     resolved_equipment: &ResolvedEquipmentAppearance,
 ) {
     info!(
-        "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} hidden_geoset_ids={:?} runtime_models={:?}",
+        "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} hidden_groups={:?} runtime_models={:?}",
         request
             .equipment_appearance
             .entries
@@ -425,7 +425,7 @@ fn log_character_render_apply(
             .map(|entry| (entry.slot, entry.display_info_id, entry.hidden))
             .collect::<Vec<_>>(),
         resolved_equipment.outfit.geoset_overrides,
-        resolved_equipment.hidden_character_geoset_ids,
+        resolved_equipment.hidden_character_geoset_groups,
         resolved_equipment
             .runtime_models
             .iter()
@@ -550,9 +550,11 @@ fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
 }
 
 /// Group-0 body segments always visible regardless of hair selection.
-/// 0-1 (base skin, bald cap), 16-17 (male HD arms/hands), 27-33 (female HD body).
+/// 0-1 are the human male base skin + scalp closure meshes; 27-33 are
+/// body segments on models that multiplex body geometry through group 0.
+/// Hair variants like 16/17 must remain switchable so helmet hides can suppress them.
 fn is_group_zero_body_segment(mesh_part_id: u16) -> bool {
-    matches!(mesh_part_id, 0 | 1 | 16 | 17 | 27..=33)
+    matches!(mesh_part_id, 0 | 1 | 27..=33)
 }
 
 fn selected_choice_ids(
