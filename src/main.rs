@@ -88,6 +88,7 @@ mod particle;
 mod process_limits;
 mod scene_setup;
 mod screen_auto_login;
+mod selection_debug_screen;
 mod sky;
 mod sky_lightdata;
 mod sky_material;
@@ -620,6 +621,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
     app.add_plugins(loading_screen::LoadingScreenPlugin);
     app.add_plugins(char_select::CharSelectPlugin);
     app.add_plugins(char_select_scene::CharSelectScenePlugin);
+    app.add_plugins(selection_debug_screen::SelectionDebugScreenPlugin);
     app.add_plugins(char_create::CharCreatePlugin);
     app.add_plugins(char_create_scene::CharCreateScenePlugin);
     app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
@@ -649,6 +651,8 @@ fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
         if matches!(state, game_state::GameState::Login) {
             app.init_resource::<networking::AuthUiFeedback>();
             app.add_plugins(login_screen::LoginScreenPlugin);
+        } else if matches!(state, game_state::GameState::SelectionDebug) {
+            app.add_plugins(selection_debug_screen::SelectionDebugScreenPlugin);
         }
     }
     app.add_systems(PostStartup, dump_systems::headless_dump_ui_tree_immediate);

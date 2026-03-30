@@ -56,6 +56,7 @@ fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>)
 fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
     app.add_systems(OnEnter(GameState::CharSelect), on_enter_char_select);
+    app.add_systems(OnEnter(GameState::SelectionDebug), on_enter_selection_debug);
     app.add_systems(OnEnter(GameState::DebugCharacter), on_enter_debug_character);
     app.add_systems(OnEnter(GameState::CampsitePopup), on_enter_campsite_popup);
     app.add_systems(OnEnter(GameState::Loading), on_enter_loading);
@@ -125,6 +126,10 @@ fn on_enter_char_select(startup: Option<Res<StartupPerfTimer>>) {
     } else {
         info!("Entering CharSelect state");
     }
+}
+
+fn on_enter_selection_debug() {
+    info!("Entering SelectionDebug state");
 }
 
 fn on_enter_debug_character() {

@@ -8,6 +8,7 @@ pub enum GameState {
     Login,
     Connecting,
     CharSelect,
+    SelectionDebug,
     DebugCharacter,
     CharCreate,
     CampsitePopup,
@@ -19,10 +20,11 @@ pub enum GameState {
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 11] = [
+    pub const CLI_VALUES: [&str; 12] = [
         "login",
         "connecting",
         "charselect",
+        "selectiondebug",
         "debugcharacter",
         "charcreate",
         "campsitepopup",
@@ -34,7 +36,7 @@ impl GameState {
     ];
 
     pub fn is_logged_in(self) -> bool {
-        !matches!(self, Self::Login | Self::Connecting)
+        !matches!(self, Self::Login | Self::Connecting | Self::SelectionDebug)
     }
 
     pub fn as_cli_str(self) -> &'static str {
@@ -42,6 +44,7 @@ impl GameState {
             Self::Login => "login",
             Self::Connecting => "connecting",
             Self::CharSelect => "charselect",
+            Self::SelectionDebug => "selectiondebug",
             Self::DebugCharacter => "debugcharacter",
             Self::CharCreate => "charcreate",
             Self::CampsitePopup => "campsitepopup",
@@ -62,6 +65,7 @@ impl FromStr for GameState {
             "login" => Ok(Self::Login),
             "connecting" => Ok(Self::Connecting),
             "charselect" => Ok(Self::CharSelect),
+            "selectiondebug" => Ok(Self::SelectionDebug),
             "debugcharacter" => Ok(Self::DebugCharacter),
             "charcreate" => Ok(Self::CharCreate),
             "campsitepopup" => Ok(Self::CampsitePopup),
@@ -79,6 +83,7 @@ impl FromStr for GameState {
 pub enum ScreenArg {
     Login,
     CharSelect,
+    SelectionDebug,
     DebugCharacter,
     CharCreate,
     CharCreateCustomize,
@@ -91,9 +96,10 @@ pub enum ScreenArg {
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 11] = [
+    pub const CLI_VALUES: [&str; 12] = [
         "login",
         "charselect",
+        "selectiondebug",
         "debugcharacter",
         "charcreate",
         "charcreate-customize",
@@ -111,6 +117,7 @@ impl From<ScreenArg> for GameState {
         match value {
             ScreenArg::Login => Self::Login,
             ScreenArg::CharSelect => Self::CharSelect,
+            ScreenArg::SelectionDebug => Self::SelectionDebug,
             ScreenArg::DebugCharacter => Self::DebugCharacter,
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::CampsitePopup => Self::CampsitePopup,
@@ -129,6 +136,7 @@ impl FromStr for ScreenArg {
         match value {
             "login" => Ok(Self::Login),
             "charselect" => Ok(Self::CharSelect),
+            "selectiondebug" => Ok(Self::SelectionDebug),
             "debugcharacter" => Ok(Self::DebugCharacter),
             "charcreate" => Ok(Self::CharCreate),
             "charcreate-customize" => Ok(Self::CharCreateCustomize),
