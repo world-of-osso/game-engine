@@ -10,6 +10,7 @@ use crate::asset;
 use crate::character_customization::{CharacterCustomizationSelection, CharacterRenderRequest};
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
+use crate::equipment::{EquipmentItem, EquipmentSlot};
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -61,7 +62,8 @@ impl Plugin for DebugCharacterScenePlugin {
         app.add_systems(OnEnter(GameState::DebugCharacter), setup_scene);
         app.add_systems(
             Update,
-            orbit_camera.run_if(in_state(GameState::DebugCharacter)),
+            (orbit_camera, build_debug_scene_tree.after(orbit_camera))
+                .run_if(in_state(GameState::DebugCharacter)),
         );
         app.add_systems(OnExit(GameState::DebugCharacter), teardown_scene);
     }
@@ -342,7 +344,6 @@ fn setup_scene(
         &creature_display_map,
         &config,
     );
-    commands.insert_resource(debug_scene_tree(&config));
 }
 
 fn orbit_camera(
@@ -379,40 +380,134 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharact
     }
 }
 
-fn debug_scene_tree(config: &DebugCharacterConfig) -> SceneTree {
-    SceneTree {
+fn build_debug_scene_tree(
+    mut commands: Commands,
+    model_roots: Query<(Entity, &CharacterRenderRequest, &ChildOf), With<DebugCharacterModelRoot>>,
+    equipment_items: Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: Query<&ChildOf>,
+    names: Query<&Name>,
+) {
+    let mut children = Vec::new();
+    for (model_root, request, root_parent) in &model_roots {
+        let label = names
+            .get(root_parent.parent())
+            .map(|name| name.as_str().to_string())
+            .unwrap_or_else(|_| format!("Character:{model_root:?}"));
+        children.push(debug_character_scene_node(
+            model_root,
+            label,
+            request,
+            &equipment_items,
+            &parents,
+            &names,
+        ));
+    }
+    children.sort_by(|a, b| a.label.cmp(&b.label));
+    commands.insert_resource(SceneTree {
         root: SceneNode {
             label: "DebugCharacterScene".into(),
             entity: None,
             props: NodeProps::Scene,
-            children: vec![
-                debug_character_scene_node("LeftCharacter", config.left_feet_display),
-                debug_character_scene_node("RightCharacter", config.right_feet_display),
-            ],
+            children,
         },
-    }
+    });
 }
 
-fn debug_character_scene_node(label: &str, feet_display: u32) -> SceneNode {
+fn debug_character_scene_node(
+    model_root: Entity,
+    label: String,
+    request: &CharacterRenderRequest,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: &Query<&ChildOf>,
+    names: &Query<&Name>,
+) -> SceneNode {
+    let feet_item =
+        find_equipment_item_for_slot(model_root, EquipmentSlot::Feet, equipment_items, parents);
+    let feet_slot = feet_slot_node(request, feet_item, equipment_items, names);
     SceneNode {
-        label: label.into(),
-        entity: None,
+        label,
+        entity: Some(model_root),
         props: NodeProps::Character {
             model: "humanmale_hd".into(),
             race: "Human".into(),
             gender: "Male".into(),
         },
-        children: vec![SceneNode {
-            label: "Slot:Feet".into(),
-            entity: None,
-            props: NodeProps::EquipmentSlot {
-                slot: "Feet".into(),
-                model: Some(format!("display:{feet_display}")),
-                anchor: Some("GroundedModelRoot".into()),
-                attachment: Some("equip_collections_leather_raidroguemythic_q_01_hu_m".into()),
-                attachment_anchor: Some("GroundedModelRoot".into()),
-            },
-            children: vec![],
-        }],
+        children: vec![feet_slot],
     }
+}
+
+fn feet_slot_node(
+    request: &CharacterRenderRequest,
+    feet_item: Option<Entity>,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    names: &Query<&Name>,
+) -> SceneNode {
+    let (anchor, attachment, attachment_anchor) =
+        feet_item_details(feet_item, equipment_items, names);
+    SceneNode {
+        label: "Slot:Feet".into(),
+        entity: feet_item,
+        props: NodeProps::EquipmentSlot {
+            slot: "Feet".into(),
+            model: feet_display_label(request),
+            anchor,
+            attachment,
+            attachment_anchor,
+        },
+        children: vec![],
+    }
+}
+
+fn feet_display_label(request: &CharacterRenderRequest) -> Option<String> {
+    request
+        .equipment_appearance
+        .entries
+        .iter()
+        .find(|entry| entry.slot == EquipmentVisualSlot::Feet)
+        .and_then(|entry| entry.display_info_id)
+        .map(|display| format!("display:{display}"))
+}
+
+fn find_equipment_item_for_slot(
+    model_root: Entity,
+    slot: EquipmentSlot,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: &Query<&ChildOf>,
+) -> Option<Entity> {
+    equipment_items
+        .iter()
+        .find(|(entity, item, _, _)| {
+            item._slot == slot && belongs_to_model_root(*entity, model_root, parents)
+        })
+        .map(|(entity, _, _, _)| entity)
+}
+
+fn belongs_to_model_root(entity: Entity, model_root: Entity, parents: &Query<&ChildOf>) -> bool {
+    let mut current = entity;
+    while let Ok(parent) = parents.get(current) {
+        current = parent.parent();
+        if current == model_root {
+            return true;
+        }
+    }
+    false
+}
+
+fn feet_item_details(
+    entity: Option<Entity>,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    names: &Query<&Name>,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let Some(entity) = entity else {
+        return (None, None, None);
+    };
+    let Ok((_, _, parent, name)) = equipment_items.get(entity) else {
+        return (None, None, None);
+    };
+    let anchor = names
+        .get(parent.parent())
+        .ok()
+        .map(|name| name.as_str().to_string());
+    let attachment = name.map(|name| name.as_str().to_string());
+    (anchor.clone(), attachment, anchor)
 }

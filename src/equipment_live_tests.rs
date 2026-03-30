@@ -109,6 +109,28 @@ fn live_human_male_chest_runtime_attachment_uses_character_joints_without_local_
     );
 }
 
+#[test]
+fn live_human_male_feet_runtime_attachment_uses_character_visual_root() {
+    let Some((spawned, feet_path, mut app)) = setup_live_feet_test_app() else {
+        return;
+    };
+    equip_live_feet(&mut app, spawned.model_root, &feet_path);
+    app.update();
+    app.update();
+
+    let feet_entity = feet_equipment_entity(app.world_mut()).expect("spawned feet equipment item");
+    let parent = app
+        .world()
+        .get::<ChildOf>(feet_entity)
+        .expect("feet parent")
+        .parent();
+    assert_eq!(parent, spawned_visual_root(app.world(), &spawned));
+    assert!(
+        find_named_descendant_y(app.world(), feet_entity, "FootL").is_none(),
+        "expected feet runtime attachment to avoid spawning its own named foot skeleton",
+    );
+}
+
 fn spawned_visual_root(world: &World, spawned: &m2_scene::SpawnedAnimatedStaticM2) -> Entity {
     let joints = &world
         .get::<crate::animation::M2AnimData>(spawned.model_root)
@@ -144,6 +166,20 @@ fn setup_live_chest_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'s
     configure_live_test_app(&mut app);
     let spawned = spawn_live_character(&mut app, character_path);
     Some((spawned, chest_path, app))
+}
+
+fn setup_live_feet_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
+    let character_path = Path::new("data/models/humanmale_hd.m2");
+    let feet_path = Path::new(
+        "data/item-models/item/objectcomponents/collections/collections_leather_raidroguemythic_q_01_hu_m.m2",
+    );
+    if !character_path.exists() || !feet_path.exists() {
+        return None;
+    }
+    let mut app = App::new();
+    configure_live_test_app(&mut app);
+    let spawned = spawn_live_character(&mut app, character_path);
+    Some((spawned, feet_path, app))
 }
 
 fn configure_live_test_app(app: &mut App) {
@@ -222,6 +258,19 @@ fn equip_live_chest(app: &mut App, model_root: Entity, chest_path: &Path) {
         .insert(EquipmentSlot::Chest, [2373825, 0, 0]);
 }
 
+fn equip_live_feet(app: &mut App, model_root: Entity, feet_path: &Path) {
+    let mut equipment = app
+        .world_mut()
+        .get_mut::<Equipment>(model_root)
+        .expect("equipment on model root");
+    equipment
+        .slots
+        .insert(EquipmentSlot::Feet, feet_path.to_path_buf());
+    equipment
+        .slot_skin_fdids
+        .insert(EquipmentSlot::Feet, [1360784, 0, 0]);
+}
+
 fn head_equipment_entity(world: &mut World) -> Option<Entity> {
     let mut query = world.query::<(Entity, &EquipmentItem)>();
     query
@@ -235,6 +284,14 @@ fn chest_equipment_entity(world: &mut World) -> Option<Entity> {
     query
         .iter(world)
         .find(|(_, item)| item._slot == EquipmentSlot::Chest)
+        .map(|(entity, _)| entity)
+}
+
+fn feet_equipment_entity(world: &mut World) -> Option<Entity> {
+    let mut query = world.query::<(Entity, &EquipmentItem)>();
+    query
+        .iter(world)
+        .find(|(_, item)| item._slot == EquipmentSlot::Feet)
         .map(|(entity, _)| entity)
 }
 
