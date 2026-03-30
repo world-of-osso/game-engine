@@ -186,22 +186,26 @@ fn build_position_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetPo
 }
 
 fn build_velocity_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetAttributeModifier {
-    let speed = em.emission_speed;
-    let h_range = em.horizontal_range.max(0.1);
-    let v_range = em.vertical_range.max(0.1);
-    let rand_h = writer.rand(ScalarType::Float) * writer.lit(h_range * 2.0) - writer.lit(h_range);
-    let rand_v = writer.rand(ScalarType::Float) * writer.lit(v_range * 2.0) - writer.lit(v_range);
-    let speed_var = if em.speed_variation > 0.0 {
+    let speed = build_speed_expr(em, writer);
+    // Cone: yaw random over horizontal_range, pitch = random within vertical_range
+    let yaw = writer.rand(ScalarType::Float) * writer.lit(em.horizontal_range);
+    let pitch = writer.rand(ScalarType::Float) * writer.lit(em.vertical_range);
+    let sin_p = pitch.clone().sin();
+    let cos_p = pitch.cos();
+    let vx = sin_p.clone() * yaw.clone().cos() * speed.clone();
+    let vy = cos_p * speed.clone();
+    let vz = sin_p * yaw.sin() * speed;
+    SetAttributeModifier::new(Attribute::VELOCITY, vx.vec3(vy, vz).expr())
+}
+
+fn build_speed_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> WriterExpr {
+    if em.speed_variation > 0.0 {
         let var = writer.rand(ScalarType::Float) * writer.lit(em.speed_variation * 2.0)
             - writer.lit(em.speed_variation);
-        writer.lit(speed) * (writer.lit(1.0) + var)
+        writer.lit(em.emission_speed) * (writer.lit(1.0) + var)
     } else {
-        writer.lit(speed)
-    };
-    let vx = rand_h.clone().sin() * speed_var.clone();
-    let vy = speed_var.clone();
-    let vz = rand_v.clone().sin() * speed_var;
-    SetAttributeModifier::new(Attribute::VELOCITY, vx.vec3(vy, vz).expr())
+        writer.lit(em.emission_speed)
+    }
 }
 
 fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::AlphaMode {
