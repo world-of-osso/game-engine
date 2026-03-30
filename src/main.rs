@@ -109,6 +109,7 @@ mod terrain_memory_debug;
 mod terrain_objects;
 mod terrain_tile;
 mod trash_button_screen;
+mod unit_frames;
 mod warband_scene;
 mod water_material;
 mod wow_cursor;
@@ -466,6 +467,7 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(minimap::MinimapPlugin)
         .add_plugins(action_bar::ActionBarPlugin)
+        .add_plugins(unit_frames::InWorldUnitFramesPlugin)
         .add_plugins(sky::SkyPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
