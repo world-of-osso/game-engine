@@ -498,7 +498,7 @@ fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
         EquipmentSlot::Chest => mesh_part_id / 100 == 22,
         EquipmentSlot::Waist => mesh_part_id == 0 || mesh_part_id / 100 == 18,
         EquipmentSlot::Legs => matches!(mesh_part_id / 100, 11 | 13),
-        EquipmentSlot::Feet => mesh_part_id / 100 == 5,
+        EquipmentSlot::Feet => matches!(mesh_part_id / 100, 5 | 20),
         _ => true,
     }
 }

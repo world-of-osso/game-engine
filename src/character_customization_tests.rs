@@ -1,5 +1,6 @@
 use super::{
-    CharacterCustomizationSelection, apply_explicit_equipment_overlays, apply_hidden_geoset_groups,
+    CharacterCustomizationSelection, apply_exact_geoset_overrides,
+    apply_explicit_equipment_overlays, apply_hidden_geoset_groups,
     collect_active_geosets, collect_appearance_materials, component_sections_for_slot,
     group_zero_visible, merge_overlay_texture_sets, replacement_texture_for_batch,
 };
@@ -21,6 +22,18 @@ fn hairstyle_group_zero_keeps_base_body_segments_visible() {
 
     assert!(!group_zero_visible(5, 2));
     assert!(!group_zero_visible(18, 2));
+}
+
+#[test]
+fn exact_geoset_override_zero_only_hides_the_exact_mesh_part() {
+    assert!(!apply_exact_geoset_overrides(2000, true, &[(20, 0)]));
+    assert!(apply_exact_geoset_overrides(2001, true, &[(20, 0)]));
+}
+
+#[test]
+fn exact_geoset_override_enables_only_the_matching_mesh_part() {
+    assert!(apply_exact_geoset_overrides(2202, false, &[(22, 2)]));
+    assert!(!apply_exact_geoset_overrides(2201, false, &[(22, 2)]));
 }
 
 #[test]

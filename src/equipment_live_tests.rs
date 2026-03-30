@@ -23,7 +23,7 @@ fn live_human_male_helm_wraps_head_and_binds_texture() {
     app.update();
 
     let helm_entity = head_equipment_entity(app.world_mut()).expect("spawned head equipment item");
-    let head_y = find_named_descendant_y(app.world(), spawned.model_root, "Head")
+    let head_y = find_named_bone_pivot_y(app.world(), spawned.model_root, "Head")
         .expect("head joint world y");
     let (min_y, max_y) = mesh_world_y_bounds(app.world(), helm_entity).expect("helm mesh bounds");
 
@@ -104,7 +104,7 @@ fn live_human_male_chest_runtime_attachment_uses_character_joints_without_local_
             .is_none()
     );
     assert!(
-        find_named_descendant_y(app.world(), chest_entity, "SpineLow").is_none(),
+        find_named_bone_pivot_y(app.world(), chest_entity, "SpineLow").is_none(),
         "expected chest runtime attachment to avoid spawning its own named torso skeleton",
     );
 }
@@ -126,7 +126,7 @@ fn live_human_male_feet_runtime_attachment_uses_character_visual_root() {
         .parent();
     assert_eq!(parent, spawned_visual_root(app.world(), &spawned));
     assert!(
-        find_named_descendant_y(app.world(), feet_entity, "FootL").is_none(),
+        find_named_bone_pivot_y(app.world(), feet_entity, "FootL").is_none(),
         "expected feet runtime attachment to avoid spawning its own named foot skeleton",
     );
 }
@@ -295,13 +295,14 @@ fn feet_equipment_entity(world: &mut World) -> Option<Entity> {
         .map(|(entity, _)| entity)
 }
 
-fn find_named_descendant_y(world: &World, root: Entity, target: &str) -> Option<f32> {
+fn find_named_bone_pivot_y(world: &World, root: Entity, target: &str) -> Option<f32> {
     let mut entities = vec![root];
     collect_descendants(world, root, &mut entities);
+    let root_scale = world.get::<GlobalTransform>(root)?.to_scale_rotation_translation().0.y;
     entities.into_iter().find_map(|entity| {
         let name = world.get::<Name>(entity)?;
-        let tf = world.get::<GlobalTransform>(entity)?;
-        (name.as_str() == target).then_some(tf.translation().y)
+        let pivot = world.get::<crate::animation::BonePivot>(entity)?;
+        (name.as_str() == target).then_some(pivot.0.y * root_scale)
     })
 }
 

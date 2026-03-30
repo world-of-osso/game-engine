@@ -63,7 +63,7 @@ fn m2_backed_feet_display_resolves_runtime_model() {
 }
 
 #[test]
-fn m2_backed_feet_display_selects_2002_body_foot_variant() {
+fn m2_backed_feet_display_adds_no_synthetic_feet_overrides() {
     let data = OutfitData::load(Path::new("data"));
     let appearance = NetEquipmentAppearance {
         entries: vec![shared::components::EquippedAppearanceEntry {
@@ -78,13 +78,8 @@ fn m2_backed_feet_display_selects_2002_body_foot_variant() {
     let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
 
     assert!(
-        resolved.outfit.geoset_overrides.contains(&(20, 2)),
-        "expected feet display to select body feet variant 2002: {:?}",
+        resolved.outfit.geoset_overrides.is_empty(),
+        "expected runtime feet display to avoid synthetic geoset overrides: {:?}",
         resolved.outfit.geoset_overrides
-    );
-    assert!(
-        !resolved.hidden_character_geoset_ids.contains(&2001),
-        "expected feet display to stop treating 2001 as an exact hide: {:?}",
-        resolved.hidden_character_geoset_ids
     );
 }

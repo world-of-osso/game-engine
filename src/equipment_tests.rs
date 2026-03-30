@@ -46,6 +46,7 @@ fn runtime_mesh_filter_excludes_dk_eye_glow_group() {
     assert!(!runtime_mesh_part_allowed(EquipmentSlot::Feet, 1705));
     assert!(!runtime_mesh_part_allowed(EquipmentSlot::Chest, 401));
     assert!(runtime_mesh_part_allowed(EquipmentSlot::Feet, 501));
+        assert!(runtime_mesh_part_allowed(EquipmentSlot::Feet, 2001));
     assert!(runtime_mesh_part_allowed(EquipmentSlot::Chest, 2202));
     assert!(runtime_mesh_part_allowed(EquipmentSlot::Waist, 0));
     assert!(runtime_mesh_part_allowed(EquipmentSlot::Waist, 1802));

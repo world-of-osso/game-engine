@@ -7,7 +7,7 @@ use game_engine::asset::m2::default_geoset_visible;
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use shared::components::{CharacterAppearance, EquipmentAppearance as NetEquipmentAppearance};
 
-use crate::equipment::Equipment;
+use crate::equipment::{Equipment, EquipmentItem};
 use crate::equipment_appearance::{
     ResolvedEquipmentAppearance, apply_runtime_equipment, resolve_equipment_appearance,
 };
@@ -49,6 +49,7 @@ pub(crate) fn apply_character_customization(
     parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
+    equipment_item_query: &Query<(), With<EquipmentItem>>,
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
@@ -91,6 +92,7 @@ pub(crate) fn apply_character_customization(
         parent_query,
         geoset_query,
         visibility_query,
+        equipment_item_query,
     );
 }
 
@@ -313,6 +315,7 @@ fn sync_character_render_requests(
         &ChildOf,
     )>,
     mut equipment_query: Query<&mut Equipment>,
+    equipment_item_query: Query<(), With<EquipmentItem>>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -323,57 +326,112 @@ fn sync_character_render_requests(
         if !character_render_targets_ready(entity, &parent_query, &geoset_query, &material_query) {
             continue;
         }
-        let resolved_equipment = resolve_equipment_appearance(
-            &request.equipment_appearance,
-            &outfit_data,
-            request.selection.race,
-            request.selection.sex,
-        );
-        info!(
-            "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} hidden_geoset_ids={:?} runtime_models={:?}",
-            request
-                .equipment_appearance
-                .entries
-                .iter()
-                .map(|entry| (entry.slot, entry.display_info_id, entry.hidden))
-                .collect::<Vec<_>>(),
-            resolved_equipment.outfit.geoset_overrides,
-            resolved_equipment.hidden_character_geoset_ids,
-            resolved_equipment
-                .runtime_models
-                .iter()
-                .map(|model| (&model.slot, model.path.display().to_string()))
-                .collect::<Vec<_>>()
-        );
-        apply_character_customization(
-            request.selection,
+        apply_character_render_request(
+            entity,
+            request,
             &customization_db,
             &char_tex,
-            Some(&resolved_equipment),
-            entity,
-            &mut images,
-            &mut materials,
+            &outfit_data,
             &parent_query,
             &geoset_query,
             &mut visibility_query,
             &material_query,
+            &mut equipment_query,
+            &equipment_item_query,
+            &mut images,
+            &mut materials,
+            &mut commands,
         );
-        info!(
-            "character visible geosets entity={entity:?} ids={:?}",
-            visible_geoset_ids_for_root(
-                entity,
-                &parent_query,
-                &geoset_query,
-                &mut visibility_query
-            )
-        );
-        if let Ok(mut equipment) = equipment_query.get_mut(entity) {
-            apply_runtime_equipment(&mut equipment, &resolved_equipment);
-        }
-        commands
-            .entity(entity)
-            .insert(AppliedCharacterRenderRequest(request.clone()));
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_character_render_request(
+    entity: Entity,
+    request: &CharacterRenderRequest,
+    customization_db: &CustomizationDb,
+    char_tex: &CharTextureData,
+    outfit_data: &game_engine::outfit_data::OutfitData,
+    parent_query: &Query<&ChildOf>,
+    geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
+    visibility_query: &mut Query<&mut Visibility>,
+    material_query: &Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
+        Option<&BatchTextureType>,
+        &ChildOf,
+    )>,
+    equipment_query: &mut Query<&mut Equipment>,
+    equipment_item_query: &Query<(), With<EquipmentItem>>,
+    images: &mut Assets<Image>,
+    materials: &mut Assets<StandardMaterial>,
+    commands: &mut Commands,
+) {
+    let resolved_equipment = resolve_equipment_appearance(
+        &request.equipment_appearance,
+        outfit_data,
+        request.selection.race,
+        request.selection.sex,
+    );
+    log_character_render_apply(entity, request, &resolved_equipment);
+    apply_character_customization(
+        request.selection,
+        customization_db,
+        char_tex,
+        Some(&resolved_equipment),
+        entity,
+        images,
+        materials,
+        parent_query,
+        geoset_query,
+        visibility_query,
+        equipment_item_query,
+        material_query,
+    );
+    info!(
+        "character visible geosets entity={entity:?} ids={:?}",
+        visible_geoset_ids_for_root(entity, parent_query, geoset_query, visibility_query)
+    );
+    finalize_character_render(entity, request, &resolved_equipment, equipment_query, commands);
+}
+
+fn finalize_character_render(
+    entity: Entity,
+    request: &CharacterRenderRequest,
+    resolved_equipment: &ResolvedEquipmentAppearance,
+    equipment_query: &mut Query<&mut Equipment>,
+    commands: &mut Commands,
+) {
+    if let Ok(mut equipment) = equipment_query.get_mut(entity) {
+        apply_runtime_equipment(&mut equipment, resolved_equipment);
+    }
+    commands
+        .entity(entity)
+        .insert(AppliedCharacterRenderRequest(request.clone()));
+}
+
+fn log_character_render_apply(
+    entity: Entity,
+    request: &CharacterRenderRequest,
+    resolved_equipment: &ResolvedEquipmentAppearance,
+) {
+    info!(
+        "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} hidden_geoset_ids={:?} runtime_models={:?}",
+        request
+            .equipment_appearance
+            .entries
+            .iter()
+            .map(|entry| (entry.slot, entry.display_info_id, entry.hidden))
+            .collect::<Vec<_>>(),
+        resolved_equipment.outfit.geoset_overrides,
+        resolved_equipment.hidden_character_geoset_ids,
+        resolved_equipment
+            .runtime_models
+            .iter()
+            .map(|model| (&model.slot, model.path.display().to_string()))
+            .collect::<Vec<_>>()
+    );
 }
 
 fn visible_geoset_ids_for_root(
@@ -432,6 +490,7 @@ fn apply_geoset_visibility(
     parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
+    equipment_item_query: &Query<(), With<EquipmentItem>>,
 ) {
     let mut active_geosets = collect_active_geosets(selection, customization_db);
     apply_hidden_geoset_groups(
@@ -441,19 +500,18 @@ fn apply_geoset_visibility(
         customization_db,
     );
 
-    for &(group_index, value) in &outfit.geoset_overrides {
-        active_geosets.retain(|(group, _)| *group != group_index);
-        active_geosets.push((group_index, value));
-    }
-
     let active_types: Vec<u16> = active_geosets.iter().map(|(t, _)| *t).collect();
 
     for (entity, geoset_mesh, child_of) in geoset_query.iter() {
         if child_of.parent() != root && !is_descendant_of(entity, root, parent_query) {
             continue;
         }
-        let visible = !hidden_geoset_ids.contains(&geoset_mesh.0)
+        if has_equipment_item_ancestor(entity, parent_query, equipment_item_query) {
+            continue;
+        }
+        let mut visible = !hidden_geoset_ids.contains(&geoset_mesh.0)
             && is_geoset_visible(geoset_mesh.0, &active_geosets, &active_types);
+        visible = apply_exact_geoset_overrides(geoset_mesh.0, visible, &outfit.geoset_overrides);
         if let Ok(mut vis) = visibility_query.get_mut(entity) {
             *vis = if visible {
                 Visibility::Inherited
@@ -488,7 +546,13 @@ fn is_geoset_visible(
 }
 
 fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
-    mesh_part_id == 0 || mesh_part_id == selected_variant
+    mesh_part_id == selected_variant || is_group_zero_body_segment(mesh_part_id)
+}
+
+/// Group-0 body segments always visible regardless of hair selection.
+/// 0-1 (base skin, bald cap), 16-17 (male HD arms/hands), 27-33 (female HD body).
+fn is_group_zero_body_segment(mesh_part_id: u16) -> bool {
+    matches!(mesh_part_id, 0 | 1 | 16 | 17 | 27..=33)
 }
 
 fn selected_choice_ids(
@@ -590,6 +654,38 @@ fn hidden_group_variant(
             .unwrap_or(1)
     } else {
         1
+    }
+}
+
+fn apply_exact_geoset_overrides(
+    mesh_part_id: u16,
+    base_visible: bool,
+    overrides: &[(u16, u16)],
+) -> bool {
+    let mut visible = base_visible;
+    for &(group, value) in overrides {
+        let exact_mesh_part_id = group * 100 + value;
+        if mesh_part_id == exact_mesh_part_id {
+            visible = value != 0;
+        }
+    }
+    visible
+}
+
+fn has_equipment_item_ancestor(
+    entity: Entity,
+    parent_query: &Query<&ChildOf>,
+    equipment_item_query: &Query<(), With<EquipmentItem>>,
+) -> bool {
+    let mut current = entity;
+    loop {
+        if equipment_item_query.get(current).is_ok() {
+            return true;
+        }
+        let Ok(child_of) = parent_query.get(current) else {
+            return false;
+        };
+        current = child_of.parent();
     }
 }
 

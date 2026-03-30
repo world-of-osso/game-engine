@@ -2,7 +2,16 @@ use super::*;
 use bevy::ecs::system::RunSystemOnce;
 use std::f32::consts::{FRAC_PI_2, PI};
 
-use shared::components::CharacterAppearance;
+use crate::camera::MoveDirection;
+use crate::networking_npc::{npc_visibility_policy, NpcVisibilityPolicy};
+use crate::networking_player::{
+    choose_local_player_entity, is_local_player_entity, net_player_customization_selection,
+    resolve_player_model_path, sync_local_alive_state,
+};
+use crate::networking_reconnect::{finish_reconnect_when_world_ready, reset_network_world};
+use shared::components::{
+    CharacterAppearance, Health as NetHealth, Player as NetPlayer,
+};
 
 fn make_state(direction: MoveDirection) -> MovementState {
     MovementState {
@@ -148,8 +157,7 @@ fn disconnect_during_connecting_is_ignored() {
     assert_eq!(feedback.0.as_deref(), None);
 }
 
-#[test]
-fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
+fn inworld_disconnect_base_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
@@ -166,7 +174,10 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
     app.add_observer(handle_client_disconnected);
+    app
+}
 
+fn populate_inworld_disconnect_entities(app: &mut App) -> (Entity, Entity) {
     let client = app.world_mut().spawn(Client::default()).id();
     let receiver = app.world_mut().spawn_empty().id();
     let replicated = app
@@ -187,13 +198,10 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
         "stale".to_string(),
         ChatType::Say,
     ));
-    app.world_mut().entity_mut(client).insert(Disconnected {
-        reason: Some("Link failed: test".to_string()),
-    });
+    (client, replicated)
+}
 
-    app.update();
-    app.update();
-
+fn assert_inworld_reconnect_state(app: &App, client: Entity, replicated: Entity) {
     let state = app
         .world()
         .resource::<State<crate::game_state::GameState>>();
@@ -221,6 +229,20 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
             .is_none()
     );
     assert!(app.world().resource::<ChatLog>().messages.is_empty());
+}
+
+#[test]
+fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
+    let mut app = inworld_disconnect_base_app();
+    let (client, replicated) = populate_inworld_disconnect_entities(&mut app);
+    app.world_mut().entity_mut(client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+
+    app.update();
+    app.update();
+
+    assert_inworld_reconnect_state(&app, client, replicated);
 }
 
 #[test]

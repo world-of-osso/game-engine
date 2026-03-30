@@ -16,6 +16,7 @@ use crate::character_customization::{
 };
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
+use crate::equipment::EquipmentItem;
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -359,6 +360,7 @@ fn sync_appearance(
     parent_query: Query<&ChildOf>,
     geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
+    equipment_item_query: Query<(), With<EquipmentItem>>,
     material_query: Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
@@ -400,6 +402,7 @@ fn sync_appearance(
         &parent_query,
         &geoset_query,
         &mut visibility_query,
+        &equipment_item_query,
         &material_query,
     );
 }
@@ -427,10 +430,8 @@ mod tests {
     };
     use game_engine::customization_data::OptionType;
 
-    #[test]
-    fn non_demon_hunter_face_uses_non_dh_materials() {
-        let db = CustomizationDb::load(Path::new("data"));
-        let state = CharCreateState {
+    fn blood_elf_warrior_state() -> CharCreateState {
+        CharCreateState {
             selected_race: 10,
             selected_class: 1,
             selected_sex: 0,
@@ -444,8 +445,13 @@ mod tests {
                 facial_style: 0,
             },
             ..Default::default()
-        };
+        }
+    }
 
+    fn assert_face_materials_present(
+        db: &CustomizationDb,
+        state: &CharCreateState,
+    ) {
         let expected_face = db
             .get_choice_for_class(10, 0, 1, OptionType::Face, 0)
             .unwrap();
@@ -456,15 +462,19 @@ mod tests {
                 sex: state.selected_sex,
                 appearance: state.appearance,
             },
-            &db,
+            db,
         );
-
         assert_eq!(expected_face.requirement_id, 142);
-        assert!(
-            expected_face
-                .materials
-                .iter()
-                .all(|material| all_materials.contains(material))
-        );
+        assert!(expected_face
+            .materials
+            .iter()
+            .all(|material| all_materials.contains(material)));
+    }
+
+    #[test]
+    fn non_demon_hunter_face_uses_non_dh_materials() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let state = blood_elf_warrior_state();
+        assert_face_materials_present(&db, &state);
     }
 }

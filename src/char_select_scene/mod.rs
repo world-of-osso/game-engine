@@ -19,11 +19,13 @@ use game_engine::outfit_data::OutfitData;
 use shared::protocol::CharacterListEntry;
 
 use crate::char_select::SelectedCharIndex;
-use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain};
+use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId};
 use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
+use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
+use crate::equipment::EquipmentItem;
 use crate::equipment_appearance::{apply_runtime_equipment, resolve_equipment_appearance};
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -42,7 +44,7 @@ use crate::water_material::WaterMaterial;
 pub struct CharSelectScene;
 
 #[derive(Component, Clone)]
-struct CharSelectOrbit {
+pub(super) struct CharSelectOrbit {
     /// Current yaw offset in radians (horizontal rotation).
     yaw: f32,
     /// Starting yaw from focus to eye in radians.
@@ -84,29 +86,28 @@ fn char_select_fog() -> DistanceFog {
 
 /// Marker for the currently displayed character model root.
 #[derive(Component)]
-struct CharSelectModelRoot;
+pub(super) struct CharSelectModelRoot;
 
 #[derive(Component)]
 struct CharSelectModelWrapper;
-
 #[derive(Component)]
 struct CharSelectModelCharacter(u64);
 
 /// Tracks which character is currently displayed as a 3D model.
 #[derive(Resource, Default)]
-struct DisplayedCharacterId(Option<u64>);
+pub(super) struct DisplayedCharacterId(pub(super) Option<u64>);
 
 #[derive(Resource, Default)]
-struct DisplayedCharacterAppearance(Option<AppliedCharacterAppearance>);
+pub(super) struct DisplayedCharacterAppearance(pub(super) Option<AppliedCharacterAppearance>);
 
 #[derive(Resource, Default)]
-struct PendingSupplementalWarbandScene {
-    scene_id: Option<u32>,
-    wait_for_next_frame: bool,
+pub(super) struct PendingSupplementalWarbandScene {
+    pub(super) scene_id: Option<u32>,
+    pub(super) wait_for_next_frame: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct AppliedCharacterAppearance {
+pub(super) struct AppliedCharacterAppearance {
     character_id: u64,
     race: u8,
     class: u8,
@@ -115,15 +116,15 @@ struct AppliedCharacterAppearance {
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
-struct CharSelectRenderAssets<'w> {
-    meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
-    sky_materials: ResMut<'w, Assets<SkyMaterial>>,
-    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
-    terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
-    water_materials: ResMut<'w, Assets<WaterMaterial>>,
-    images: ResMut<'w, Assets<Image>>,
-    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+pub(super) struct CharSelectRenderAssets<'w> {
+    pub(super) meshes: ResMut<'w, Assets<Mesh>>,
+    pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
+    pub(super) sky_materials: ResMut<'w, Assets<SkyMaterial>>,
+    pub(super) effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    pub(super) terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
+    pub(super) water_materials: ResMut<'w, Assets<WaterMaterial>>,
+    pub(super) images: ResMut<'w, Assets<Image>>,
+    pub(super) inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
 }
 
 pub struct CharSelectScenePlugin;
@@ -140,13 +141,16 @@ impl Plugin for CharSelectScenePlugin {
             (
                 sync_char_select_model,
                 sync_selected_character_appearance,
-                sync_warband_scene_switch,
-                spawn_pending_warband_supplemental_terrain,
+                scene_systems::sync_warband_scene_switch,
+                scene_systems::spawn_pending_warband_supplemental_terrain,
                 char_select_orbit_camera,
             )
                 .run_if(in_state(GameState::CharSelect)),
         );
-        app.add_systems(OnExit(GameState::CharSelect), teardown_char_select_scene);
+        app.add_systems(
+            OnExit(GameState::CharSelect),
+            scene_systems::teardown_char_select_scene,
+        );
     }
 }
 
@@ -269,6 +273,7 @@ fn spawn_char_select_camera(
 
 mod background;
 mod lighting;
+mod scene_systems;
 
 fn char_select_orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -412,7 +417,7 @@ fn resolve_char_transform(
     }
 }
 
-fn selected_scene_character(
+pub(super) fn selected_scene_character(
     char_list: &CharacterList,
     selected: Option<usize>,
 ) -> Option<&CharacterListEntry> {
@@ -425,21 +430,17 @@ fn selected_scene_character_id(char_list: &CharacterList, selected: Option<usize
     selected_scene_character(char_list, selected).map(|character| character.character_id)
 }
 
-use crate::character_models::{ensure_named_model_bundle, race_model_wow_path, race_name};
-
-fn fallback_model_path() -> Option<PathBuf> {
-    let default_path = PathBuf::from(DEFAULT_M2);
-    default_path.exists().then_some(default_path)
-}
-
-fn resolve_char_select_model_path(
+pub(super) fn resolve_char_select_model_path(
     char_list: &CharacterList,
     selected: Option<usize>,
 ) -> Option<PathBuf> {
     let character = selected_scene_character(char_list, selected)?;
     race_model_wow_path(character.race, character.appearance.sex)
         .and_then(ensure_named_model_bundle)
-        .or_else(fallback_model_path)
+        .or_else(|| {
+            let p = PathBuf::from(DEFAULT_M2);
+            p.exists().then_some(p)
+        })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -526,7 +527,7 @@ fn setup_char_select_scene(
     let model_elapsed = model_start.elapsed();
     let mut children = vec![bg_node];
     if let Some((_, entity)) = &result {
-        let (race, gender, model) = char_info_strings(&char_list, selected.0);
+        let (race, gender, model) = scene_systems::char_info_strings(&char_list, selected.0);
         children.push(scene_tree::character_scene_node(
             *entity, model, race, gender,
         ));
@@ -623,6 +624,7 @@ fn sync_selected_character_appearance(
     parent_query: Query<&ChildOf>,
     geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
+    equipment_item_query: Query<(), With<EquipmentItem>>,
     material_query: Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
@@ -677,6 +679,7 @@ fn sync_selected_character_appearance(
         &parent_query,
         &geoset_query,
         &mut visibility_query,
+        &equipment_item_query,
         &material_query,
     );
     if let Ok(mut equipment) = equipment_query.get_mut(root) {
@@ -720,7 +723,7 @@ fn spawn_selected_model(
     Some((char_id, model_entity))
 }
 
-fn update_camera_for_scene(
+pub(super) fn update_camera_for_scene(
     scene: &crate::warband_scene::WarbandSceneEntry,
     placement: Option<&crate::warband_scene::WarbandScenePlacement>,
     heightmap: Option<&TerrainHeightmap>,
@@ -740,161 +743,6 @@ fn update_camera_for_scene(
             p.fov = fov.to_radians();
         }
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn sync_warband_scene_switch(
-    mut commands: Commands,
-    mut assets: CharSelectRenderAssets,
-    mut active_scene: ResMut<ActiveWarbandSceneId>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    customization_db: Res<CustomizationDb>,
-    char_list: Res<CharacterList>,
-    selected: Res<SelectedCharIndex>,
-    warband: Option<Res<WarbandScenes>>,
-    selected_scene: Option<Res<SelectedWarbandScene>>,
-    terrain_query: Query<Entity, With<CharSelectTerrain>>,
-    mut camera_query: Query<
-        (&mut Transform, &mut CharSelectOrbit, &mut Projection),
-        (With<CharSelectScene>, Without<CharSelectModelRoot>),
-    >,
-    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
-) {
-    let Some(warband) = warband else { return };
-    let Some(sel) = selected_scene else { return };
-    if active_scene.0 == Some(sel.scene_id) {
-        return;
-    }
-    let Some(scene) = warband.scenes.iter().find(|s| s.id == sel.scene_id) else {
-        return;
-    };
-    let placement = selected_scene_placement(&warband, scene);
-    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
-    for entity in terrain_query.iter() {
-        commands.entity(entity).despawn();
-    }
-    let _ = scene_tree::spawn_warband_terrain(
-        &mut commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.terrain_materials,
-        &mut assets.water_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        &mut heightmap,
-        scene,
-        placement
-            .as_ref()
-            .map(|placement| placement.bevy_position())
-            .unwrap_or_else(|| scene.bevy_look_at()),
-    );
-    update_camera_for_scene(
-        scene,
-        placement.as_ref(),
-        Some(&heightmap),
-        presentation,
-        &mut camera_query,
-    );
-    active_scene.0 = Some(sel.scene_id);
-    pending_supplemental.scene_id =
-        if warband_scene::supplemental_terrain_tile_coords(scene).is_empty() {
-            None
-        } else {
-            Some(sel.scene_id)
-        };
-    pending_supplemental.wait_for_next_frame = pending_supplemental.scene_id.is_some();
-}
-
-#[allow(clippy::too_many_arguments)]
-fn spawn_pending_warband_supplemental_terrain(
-    mut commands: Commands,
-    mut assets: CharSelectRenderAssets,
-    mut pending: ResMut<PendingSupplementalWarbandScene>,
-    active_scene: Res<ActiveWarbandSceneId>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    warband: Option<Res<WarbandScenes>>,
-    terrain_query: Query<Entity, With<CharSelectTerrain>>,
-) {
-    let Some(scene_id) = pending.scene_id else {
-        return;
-    };
-    if pending.wait_for_next_frame {
-        pending.wait_for_next_frame = false;
-        return;
-    }
-    if active_scene.0 != Some(scene_id) {
-        pending.scene_id = None;
-        pending.wait_for_next_frame = false;
-        return;
-    }
-    let Some(warband) = warband else { return };
-    let Some(scene) = warband.scenes.iter().find(|scene| scene.id == scene_id) else {
-        pending.scene_id = None;
-        pending.wait_for_next_frame = false;
-        return;
-    };
-    let Ok(root_entity) = terrain_query.single() else {
-        return;
-    };
-    scene_tree::spawn_warband_supplemental_terrain(
-        &mut commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.terrain_materials,
-        &mut assets.water_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        &mut heightmap,
-        scene,
-        root_entity,
-    );
-    pending.scene_id = None;
-    pending.wait_for_next_frame = false;
-}
-
-fn teardown_char_select_scene(
-    mut commands: Commands,
-    query: Query<Entity, With<CharSelectScene>>,
-    mut displayed: ResMut<DisplayedCharacterId>,
-    mut displayed_appearance: ResMut<DisplayedCharacterAppearance>,
-    mut active_scene: ResMut<ActiveWarbandSceneId>,
-    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
-) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn();
-    }
-    displayed.0 = None;
-    displayed_appearance.0 = None;
-    active_scene.0 = None;
-    pending_supplemental.scene_id = None;
-    pending_supplemental.wait_for_next_frame = false;
-    commands.remove_resource::<game_engine::scene_tree::SceneTree>();
-}
-
-fn char_info_strings(
-    char_list: &CharacterList,
-    selected: Option<usize>,
-) -> (String, String, String) {
-    let character = selected_scene_character(char_list, selected);
-    let race = character
-        .map(|c| race_name(c.race).to_string())
-        .unwrap_or_else(|| "Unknown".into());
-    let gender = character
-        .map(|c| {
-            if c.appearance.sex == 0 {
-                "Male"
-            } else {
-                "Female"
-            }
-        })
-        .unwrap_or("Unknown")
-        .to_string();
-    let model = resolve_char_select_model_path(char_list, selected)
-        .and_then(|p| p.file_name().map(|f| f.to_string_lossy().to_string()))
-        .unwrap_or_else(|| "unknown".into());
-    (race, gender, model)
 }
 
 #[cfg(test)]
