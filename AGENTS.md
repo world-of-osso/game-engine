@@ -53,6 +53,11 @@ src/
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 
+## Editing Workflow
+
+- Use `apply_patch` for manual code edits in this repo.
+- If `apply_patch` is blocked by file-size or function-size limits, refactor first so the edit can still be made with `apply_patch`; do not stop at the blocker.
+
 ## UI Screens (rsx! + Screen pattern)
 
 - Screens use `ui_toolkit::screen::Screen` with `rsx!` macro for declarative UI (see `login_component.rs`, `char_select_component.rs`)
@@ -107,6 +112,7 @@ src/
 - casc-extract: `https://github.com/Osso/casc-extract` — CLI to regenerate `data/casc/` files from Blizzard CDN. Clone to /tmp, point deps at `~/Repos/cascette-rs`, run `cargo run -- init`.
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
+- wow_client: `~/Repos/wow_client` — C++ WoW client reimplementation/reference
 - WoWDBDefs: https://github.com/wowdev/WoWDBDefs — DB2/DBC schema definitions and field layouts for WoW client data
 - wow_messages (WoWee): https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
 - cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)

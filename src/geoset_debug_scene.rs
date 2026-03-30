@@ -6,9 +6,7 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::asset;
-use crate::character_customization::{
-    CharacterCustomizationSelection, CharacterRenderRequest,
-};
+use crate::character_customization::{CharacterCustomizationSelection, CharacterRenderRequest};
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
 use crate::game_state::GameState;
@@ -45,7 +43,9 @@ struct DebugCharacterConfig {
     sex: u8,
     appearance: CharacterAppearance,
     left_waist_display: u32,
+    left_feet_display: u32,
     right_waist_display: u32,
+    right_feet_display: u32,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -58,7 +58,10 @@ impl Plugin for DebugCharacterScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DebugCharacterConfig::from_env());
         app.add_systems(OnEnter(GameState::DebugCharacter), setup_scene);
-        app.add_systems(Update, orbit_camera.run_if(in_state(GameState::DebugCharacter)));
+        app.add_systems(
+            Update,
+            orbit_camera.run_if(in_state(GameState::DebugCharacter)),
+        );
         app.add_systems(OnExit(GameState::DebugCharacter), teardown_scene);
     }
 }
@@ -79,14 +82,17 @@ impl DebugCharacterConfig {
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
             left_waist_display: env_u32("DEBUG_CHARACTER_LEFT_WAIST_DISPLAY", 15040),
+            left_feet_display: env_u32("DEBUG_CHARACTER_LEFT_FEET_DISPLAY", 154620),
             right_waist_display: env_u32("DEBUG_CHARACTER_RIGHT_WAIST_DISPLAY", 160997),
+            right_feet_display: env_u32("DEBUG_CHARACTER_RIGHT_FEET_DISPLAY", 154620),
         }
     }
 }
 
-fn debug_equipment_appearance(waist_display_id: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(waist_display_id: u32, feet_display_id: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Waist, waist_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Feet, feet_display_id);
     EquipmentAppearance { entries }
 }
 
@@ -175,7 +181,8 @@ fn spawn_ground(
 ) {
     let grass_path = PathBuf::from("data/textures/187126.blp");
     let mut img = if grass_path.exists() {
-        asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|_| ground::generate_grass_texture())
+        asset::blp::load_blp_gpu_image(&grass_path)
+            .unwrap_or_else(|_| ground::generate_grass_texture())
     } else {
         ground::generate_grass_texture()
     };
@@ -225,6 +232,7 @@ fn spawn_debug_character_model(
     config: &DebugCharacterConfig,
     x: f32,
     waist_display: u32,
+    feet_display: u32,
     name: &str,
 ) {
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
@@ -246,21 +254,60 @@ fn spawn_debug_character_model(
     commands
         .entity(spawned.root)
         .insert((DebugCharacterScene, Name::new(name.to_string())));
-    commands
-        .entity(spawned.model_root)
-        .insert((
-            DebugCharacterScene,
-            DebugCharacterModelRoot,
-            CharacterRenderRequest {
-                selection: CharacterCustomizationSelection {
-                    race: config.race,
-                    class: config.class,
-                    sex: config.sex,
-                    appearance: config.appearance,
-                },
-                equipment_appearance: debug_equipment_appearance(waist_display),
+    commands.entity(spawned.model_root).insert((
+        DebugCharacterScene,
+        DebugCharacterModelRoot,
+        CharacterRenderRequest {
+            selection: CharacterCustomizationSelection {
+                race: config.race,
+                class: config.class,
+                sex: config.sex,
+                appearance: config.appearance,
             },
-        ));
+            equipment_appearance: debug_equipment_appearance(waist_display, feet_display),
+        },
+    ));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_debug_pair(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    config: &DebugCharacterConfig,
+) {
+    spawn_debug_character_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        creature_display_map,
+        config,
+        -1.7,
+        config.left_waist_display,
+        config.left_feet_display,
+        "DebugCharacterGeosetWaist",
+    );
+    spawn_debug_character_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        creature_display_map,
+        config,
+        1.7,
+        config.right_waist_display,
+        config.right_feet_display,
+        "DebugCharacterM2Waist",
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -275,13 +322,16 @@ fn setup_scene(
     config: Res<DebugCharacterConfig>,
 ) {
     eprintln!(
-        "debugcharacter waist displays: left={} right={}",
-        config.left_waist_display, config.right_waist_display
+        "debugcharacter displays: left_waist={} left_feet={} right_waist={} right_feet={}",
+        config.left_waist_display,
+        config.left_feet_display,
+        config.right_waist_display,
+        config.right_feet_display
     );
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    spawn_debug_character_model(
+    spawn_debug_pair(
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -290,22 +340,6 @@ fn setup_scene(
         &mut inv_bp,
         &creature_display_map,
         &config,
-        -1.7,
-        config.left_waist_display,
-        "DebugCharacterGeosetWaist",
-    );
-    spawn_debug_character_model(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-        &creature_display_map,
-        &config,
-        1.7,
-        config.right_waist_display,
-        "DebugCharacterM2Waist",
     );
 }
 
@@ -336,10 +370,7 @@ fn orbit_camera(
     }
 }
 
-fn teardown_scene(
-    mut commands: Commands,
-    query: Query<Entity, With<DebugCharacterScene>>,
-) {
+fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharacterScene>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }

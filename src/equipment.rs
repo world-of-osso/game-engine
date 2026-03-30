@@ -194,8 +194,8 @@ fn default_scale() -> [f32; 3] {
 /// Attachment lookup ID for each equipment slot.
 fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
     match slot {
-        EquipmentSlot::Head => 11,    // Helm
-        EquipmentSlot::Back => 12,    // Back
+        EquipmentSlot::Head => 11, // Helm
+        EquipmentSlot::Back => 12, // Back
         EquipmentSlot::Chest => unreachable!("chest runtime models anchor on the character root"),
         EquipmentSlot::Waist => 53, // Belt buckle
         EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
@@ -276,7 +276,11 @@ pub fn sync_equipment(
                 continue;
             }
 
-            let skin_fdids = equipment.slot_skin_fdids.get(&slot).copied().unwrap_or([0, 0, 0]);
+            let skin_fdids = equipment
+                .slot_skin_fdids
+                .get(&slot)
+                .copied()
+                .unwrap_or([0, 0, 0]);
             let should_respawn = match rendered.slots.get(&slot) {
                 Some(item) => {
                     item.path != *path
@@ -364,7 +368,10 @@ fn spawn_equipment_slot(
     warned: &mut HashSet<String>,
     owner: Entity,
 ) -> Option<Entity> {
-    let (parent_entity, base_offset) = if matches!(slot, EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet) {
+    let (parent_entity, base_offset) = if matches!(
+        slot,
+        EquipmentSlot::Chest | EquipmentSlot::Legs | EquipmentSlot::Feet
+    ) {
         (owner, Vec3::ZERO)
     } else {
         let att_id = slot_attachment_id(slot);
@@ -414,7 +421,7 @@ fn spawn_equipment_slot(
         ))
         .id();
 
-    let spawned = if matches!(slot, EquipmentSlot::Chest) {
+    let spawned = if matches!(slot, EquipmentSlot::Chest | EquipmentSlot::Feet) {
         m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
             commands,
             &mut m2_spawn::SpawnAssets {
@@ -588,7 +595,8 @@ mod tests {
         assert!(
             mesh_min_y <= head_bone_height && mesh_max_y >= head_bone_height,
             "expected helmet mesh to wrap head height; head_y={head_bone_height:.3} min_y={mesh_min_y:.3} max_y={mesh_max_y:.3} joint_y={:.3} offset_y={:.3}",
-            attachment_joint_translation.y, head_offset.y,
+            attachment_joint_translation.y,
+            head_offset.y,
         );
     }
 
@@ -600,13 +608,8 @@ mod tests {
 
         let mut app = App::new();
         configure_equipment_test_app(&mut app);
-        let owner = spawn_head_equipment_owner(
-            &mut app,
-            helm_path,
-            Vec3::ZERO,
-            Vec3::ZERO,
-            [140455, 0, 0],
-        );
+        let owner =
+            spawn_head_equipment_owner(&mut app, helm_path, Vec3::ZERO, Vec3::ZERO, [140455, 0, 0]);
 
         app.update();
         app.update();
@@ -616,7 +619,9 @@ mod tests {
         let textured_meshes = descendants
             .into_iter()
             .filter_map(|entity| {
-                let material = app.world().get::<MeshMaterial3d<StandardMaterial>>(entity)?;
+                let material = app
+                    .world()
+                    .get::<MeshMaterial3d<StandardMaterial>>(entity)?;
                 let material = materials.get(&material.0)?;
                 material.base_color_texture.as_ref()
             })
@@ -636,7 +641,8 @@ mod tests {
     }
 
     fn head_slot_reference_data(model: &crate::asset::m2::M2Model) -> (Vec3, Vec3, f32) {
-        let attachment_points = build_attachment_points(&model.attachments, &model.attachment_lookup);
+        let attachment_points =
+            build_attachment_points(&model.attachments, &model.attachment_lookup);
         let &(attachment_bone, head_offset) = attachment_points
             .points
             .get(&slot_attachment_id(EquipmentSlot::Head))
@@ -670,7 +676,10 @@ mod tests {
         app.insert_resource(Assets::<M2EffectMaterial>::default());
         app.insert_resource(Assets::<SkinnedMeshInverseBindposes>::default());
         app.insert_resource(EquipmentTransforms::default());
-        app.add_systems(Update, (attach_rendered_equipment_state, sync_equipment).chain());
+        app.add_systems(
+            Update,
+            (attach_rendered_equipment_state, sync_equipment).chain(),
+        );
     }
 
     fn spawn_head_equipment_owner(
@@ -695,7 +704,10 @@ mod tests {
                     slot_skin_fdids: HashMap::from([(EquipmentSlot::Head, skin_fdids)]),
                 },
                 AttachmentPoints {
-                    points: HashMap::from([(slot_attachment_id(EquipmentSlot::Head), (0, head_offset))]),
+                    points: HashMap::from([(
+                        slot_attachment_id(EquipmentSlot::Head),
+                        (0, head_offset),
+                    )]),
                 },
                 M2AnimData {
                     sequences: vec![],

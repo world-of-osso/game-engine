@@ -61,3 +61,30 @@ fn m2_backed_feet_display_resolves_runtime_model() {
     );
     assert_eq!(runtime.skin_fdids[0], 1360784);
 }
+
+#[test]
+fn m2_backed_feet_display_selects_2002_body_foot_variant() {
+    let data = OutfitData::load(Path::new("data"));
+    let appearance = NetEquipmentAppearance {
+        entries: vec![shared::components::EquippedAppearanceEntry {
+            slot: EquipmentVisualSlot::Feet,
+            item_id: Some(1),
+            display_info_id: Some(154620),
+            inventory_type: 8,
+            hidden: false,
+        }],
+    };
+
+    let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+
+    assert!(
+        resolved.outfit.geoset_overrides.contains(&(20, 2)),
+        "expected feet display to select body feet variant 2002: {:?}",
+        resolved.outfit.geoset_overrides
+    );
+    assert!(
+        !resolved.hidden_character_geoset_ids.contains(&2001),
+        "expected feet display to stop treating 2001 as an exact hide: {:?}",
+        resolved.hidden_character_geoset_ids
+    );
+}
