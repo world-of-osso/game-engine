@@ -3,15 +3,13 @@ use bevy::ecs::system::RunSystemOnce;
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use crate::camera::MoveDirection;
-use crate::networking_npc::{npc_visibility_policy, NpcVisibilityPolicy};
+use crate::networking_npc::{NpcVisibilityPolicy, npc_visibility_policy};
 use crate::networking_player::{
     choose_local_player_entity, is_local_player_entity, net_player_customization_selection,
     resolve_player_model_path, sync_local_alive_state,
 };
 use crate::networking_reconnect::{finish_reconnect_when_world_ready, reset_network_world};
-use shared::components::{
-    CharacterAppearance, Health as NetHealth, Player as NetPlayer,
-};
+use shared::components::{CharacterAppearance, Health as NetHealth, Player as NetPlayer};
 
 fn make_state(direction: MoveDirection) -> MovementState {
     MovementState {
@@ -108,12 +106,49 @@ fn y_component_always_zero() {
 }
 
 #[test]
-fn disconnect_during_charselect_keeps_scene_alive() {
+fn disconnect_during_charselect_arms_reconnect_when_token_exists() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(crate::game_state::GameState::CharSelect);
     app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<ReconnectState>();
+    app.insert_resource(AuthToken(Some("saved-token".to_string())));
+    app.insert_resource(LoginMode::Login);
+    app.insert_resource(LoginUsername("stale-user".to_string()));
+    app.insert_resource(LoginPassword("stale-pass".to_string()));
+    app.add_observer(handle_client_disconnected);
+
+    let client = app.world_mut().spawn(Client::default()).id();
+    app.world_mut().entity_mut(client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+    app.update();
+
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
+    assert_eq!(*state.get(), crate::game_state::GameState::CharSelect);
+    let feedback = app.world().resource::<AuthUiFeedback>();
+    assert_eq!(feedback.0.as_deref(), None);
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::PendingConnect
+    );
+    assert_eq!(app.world().resource::<LoginUsername>().0, "");
+    assert_eq!(app.world().resource::<LoginPassword>().0, "");
+    assert!(app.world().get_entity(client).is_err());
+}
+
+#[test]
+fn disconnect_during_charselect_without_token_stays_offline() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(crate::game_state::GameState::CharSelect);
+    app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<ReconnectState>();
+    app.insert_resource(AuthToken(None));
     app.add_observer(handle_client_disconnected);
 
     let client = app.world_mut().spawn(Client::default()).id();
@@ -131,6 +166,11 @@ fn disconnect_during_charselect_keeps_scene_alive() {
         feedback.0.as_deref(),
         Some("Connection lost. Char select is now offline.")
     );
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::Inactive
+    );
+    assert!(app.world().get_entity(client).is_ok());
 }
 
 #[test]

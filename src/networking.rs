@@ -315,16 +315,29 @@ pub(crate) fn connect_to_server_inner(commands: &mut Commands, server_addr: Sock
     };
     let netcode = match NetcodeClient::new(
         auth,
-        NetcodeConfig { client_timeout_secs: 60, ..NetcodeConfig::default() },
+        NetcodeConfig {
+            client_timeout_secs: 60,
+            ..NetcodeConfig::default()
+        },
     ) {
         Ok(nc) => nc,
-        Err(e) => { error!("Failed to create netcode client: {e}"); return; }
+        Err(e) => {
+            error!("Failed to create netcode client: {e}");
+            return;
+        }
     };
     let entity = commands
-        .spawn((LocalAddr(bind_addr), PeerAddr(server_addr), UdpIo::default(), netcode))
+        .spawn((
+            LocalAddr(bind_addr),
+            PeerAddr(server_addr),
+            UdpIo::default(),
+            netcode,
+        ))
         .id();
     commands.trigger(Connect { entity });
-    info!("Connecting to server at {server_addr} with client_entity={entity:?} client_id={client_id}");
+    info!(
+        "Connecting to server at {server_addr} with client_entity={entity:?} client_id={client_id}"
+    );
 }
 
 fn on_link_established(trigger: On<Add, Connected>, mut commands: Commands) {
@@ -332,7 +345,9 @@ fn on_link_established(trigger: On<Add, Connected>, mut commands: Commands) {
         "Transport link established for client entity {:?}; inserting ReplicationReceiver",
         trigger.entity
     );
-    commands.entity(trigger.entity).insert(ReplicationReceiver::default());
+    commands
+        .entity(trigger.entity)
+        .insert(ReplicationReceiver::default());
 }
 
 fn on_connected(
@@ -348,7 +363,10 @@ fn on_connected(
     let reconnect_phase_before = reconnect.as_deref().map(|r| r.phase);
     info!(
         "Connected to server on client entity {:?}; login_mode={:?} username='{}' password_present={} token={} reconnect_phase_before={:?}",
-        trigger.entity, *login_mode, username.0, !password.0.is_empty(),
+        trigger.entity,
+        *login_mode,
+        username.0,
+        !password.0.is_empty(),
         crate::networking_auth::token_debug_label(auth_token.0.as_deref()),
         reconnect_phase_before,
     );
@@ -356,11 +374,18 @@ fn on_connected(
         && reconnect.is_active()
     {
         reconnect.phase = ReconnectPhase::AwaitingWorld;
-        info!("Reconnect state advanced to {:?} after successful connect", reconnect.phase);
+        info!(
+            "Reconnect state advanced to {:?} after successful connect",
+            reconnect.phase
+        );
     }
     crate::networking_auth::send_auth_request(
-        &auth_token, &username, &password, &login_mode,
-        &mut login_senders, &mut register_senders,
+        &auth_token,
+        &username,
+        &password,
+        &login_mode,
+        &mut login_senders,
+        &mut register_senders,
     );
 }
 
@@ -375,7 +400,9 @@ fn handle_client_disconnected(
     mut next_state: ResMut<NextState<crate::game_state::GameState>>,
     mut commands: Commands,
 ) {
-    let Ok(disconnected) = disconnected_q.get(trigger.entity) else { return };
+    let Ok(disconnected) = disconnected_q.get(trigger.entity) else {
+        return;
+    };
     let auth_token_label = auth_token
         .as_deref()
         .map(|token| crate::networking_auth::token_debug_label(token.0.as_deref()))
@@ -386,12 +413,20 @@ fn handle_client_disconnected(
     let reason = disconnected.reason.as_deref().unwrap_or("connection lost");
     warn!(
         "Client entity {:?} disconnected in {:?}: {reason}; token={} selected_id={selected_id:?} selected_name={selected_name:?} reconnect_phase={reconnect_phase:?}",
-        trigger.entity, state.get(), auth_token_label,
+        trigger.entity,
+        state.get(),
+        auth_token_label,
     );
     handle_disconnect_by_state(
-        &state, auth_token, selected, reconnect,
-        &mut auth_feedback, &mut next_state, &mut commands,
-        trigger.entity, selected_name.as_deref(),
+        &state,
+        auth_token,
+        selected,
+        reconnect,
+        &mut auth_feedback,
+        &mut next_state,
+        &mut commands,
+        trigger.entity,
+        selected_name.as_deref(),
     );
 }
 
@@ -409,8 +444,7 @@ fn handle_disconnect_by_state(
 ) {
     match *state.get() {
         crate::game_state::GameState::CharSelect => {
-            info!("Disconnect handling: preserving CharSelect and surfacing offline message");
-            auth_feedback.0 = Some("Connection lost. Char select is now offline.".to_string());
+            handle_charselect_disconnect(auth_token, reconnect, auth_feedback, commands);
         }
         crate::game_state::GameState::Login => {
             info!("Disconnect handling: already in Login, surfacing connection-lost message");
@@ -418,18 +452,64 @@ fn handle_disconnect_by_state(
         }
         crate::game_state::GameState::InWorld => {
             handle_inworld_disconnect(
-                auth_token, selected, reconnect, auth_feedback, next_state, commands, selected_name,
+                auth_token,
+                selected,
+                reconnect,
+                auth_feedback,
+                next_state,
+                commands,
+                selected_name,
             );
         }
         crate::game_state::GameState::Connecting => {
-            info!("Disconnect handling: ignoring transient disconnect while still connecting for client entity {:?}", entity);
+            info!(
+                "Disconnect handling: ignoring transient disconnect while still connecting for client entity {:?}",
+                entity
+            );
         }
         _ => {
-            warn!("Disconnect handling: transitioning from {:?} to Login due to disconnect on client entity {:?}", state.get(), entity);
+            warn!(
+                "Disconnect handling: transitioning from {:?} to Login due to disconnect on client entity {:?}",
+                state.get(),
+                entity
+            );
             auth_feedback.0 = Some("Connection lost.".to_string());
             next_state.set(crate::game_state::GameState::Login);
         }
     }
+}
+
+fn handle_charselect_disconnect(
+    auth_token: Option<Res<AuthToken>>,
+    reconnect: Option<ResMut<ReconnectState>>,
+    auth_feedback: &mut ResMut<AuthUiFeedback>,
+    commands: &mut Commands,
+) {
+    if auth_token
+        .as_deref()
+        .and_then(|t| t.0.as_deref())
+        .is_none_or(|t| t.trim().is_empty())
+    {
+        info!("Disconnect handling: CharSelect has no saved auth token, staying offline");
+        auth_feedback.0 = Some("Connection lost. Char select is now offline.".to_string());
+        return;
+    }
+    let Some(mut reconnect) = reconnect else {
+        warn!("Disconnect handling: CharSelect missing ReconnectState, staying offline");
+        auth_feedback.0 = Some("Connection lost. Char select is now offline.".to_string());
+        return;
+    };
+    commands.insert_resource(LoginMode::Login);
+    commands.insert_resource(LoginUsername(String::new()));
+    commands.insert_resource(LoginPassword(String::new()));
+    commands.queue(crate::networking_reconnect::reset_network_world);
+    reconnect.phase = ReconnectPhase::PendingConnect;
+    reconnect.terrain_refresh_seen = false;
+    auth_feedback.0 = None;
+    info!(
+        "Disconnect handling: queued CharSelect reconnect with phase {:?}",
+        reconnect.phase
+    );
 }
 
 fn handle_inworld_disconnect(
@@ -441,7 +521,11 @@ fn handle_inworld_disconnect(
     commands: &mut Commands,
     selected_name: Option<&str>,
 ) {
-    if auth_token.as_deref().and_then(|t| t.0.as_deref()).is_none_or(|t| t.trim().is_empty()) {
+    if auth_token
+        .as_deref()
+        .and_then(|t| t.0.as_deref())
+        .is_none_or(|t| t.trim().is_empty())
+    {
         warn!("Disconnect handling: no saved auth token available, returning to Login");
         auth_feedback.0 = Some("Connection lost.".to_string());
         next_state.set(crate::game_state::GameState::Login);
@@ -464,14 +548,20 @@ fn handle_inworld_disconnect(
     reconnect.phase = ReconnectPhase::PendingConnect;
     reconnect.terrain_refresh_seen = false;
     auth_feedback.0 = None;
-    info!("Disconnect handling: queued reconnect with phase {:?}, preselected_name={selected_name:?}", reconnect.phase);
+    info!(
+        "Disconnect handling: queued reconnect with phase {:?}, preselected_name={selected_name:?}",
+        reconnect.phase
+    );
 }
 
 pub(crate) fn net_position_to_bevy(pos: &NetPosition) -> Vec3 {
     Vec3::new(pos.x, pos.y, pos.z)
 }
 
-pub(crate) fn movement_to_direction(movement: &MovementState, facing: &CharacterFacing) -> [f32; 3] {
+pub(crate) fn movement_to_direction(
+    movement: &MovementState,
+    facing: &CharacterFacing,
+) -> [f32; 3] {
     crate::networking_player::movement_to_direction(movement, facing)
 }
 
@@ -506,7 +596,11 @@ fn sync_replicated_transforms(mut query: SyncTransformQuery) {
 fn interpolate_remote_entities(
     time: Res<Time>,
     mut query: Query<
-        (&InterpolationTarget, Option<&RotationTarget>, &mut Transform),
+        (
+            &InterpolationTarget,
+            Option<&RotationTarget>,
+            &mut Transform,
+        ),
         (With<RemoteEntity>, Without<LocalPlayer>),
     >,
 ) {
@@ -565,7 +659,10 @@ fn spawn_reconnect_overlay(mut commands: Commands) {
             parent.spawn((
                 ReconnectOverlayText,
                 Text::new("Reconnecting..."),
-                TextFont { font_size: 28.0, ..default() },
+                TextFont {
+                    font_size: 28.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.86, 0.45)),
             ));
         });
@@ -576,11 +673,17 @@ fn update_reconnect_overlay(
     mut overlay_q: Query<&mut Visibility, With<ReconnectOverlayRoot>>,
     mut text_q: Query<&mut Text, With<ReconnectOverlayText>>,
 ) {
-    if !reconnect.is_changed() { return; }
+    if !reconnect.is_changed() {
+        return;
+    }
     let visible = reconnect.is_active();
     let text = reconnect.overlay_text().to_string();
     for mut visibility in &mut overlay_q {
-        *visibility = if visible { Visibility::Visible } else { Visibility::Hidden };
+        *visibility = if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
     for mut overlay_text in &mut text_q {
         **overlay_text = text.clone();
