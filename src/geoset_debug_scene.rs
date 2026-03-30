@@ -44,9 +44,15 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
+    shoulder_display: u32,
+    back_display: u32,
+    chest_display: u32,
+    hands_display: u32,
     left_waist_display: u32,
+    left_legs_display: u32,
     left_feet_display: u32,
     right_waist_display: u32,
+    right_legs_display: u32,
     right_feet_display: u32,
 }
 
@@ -84,19 +90,36 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
+            // Display 148865: shoulder with runtime models
+            shoulder_display: env_u32("DEBUG_CHARACTER_SHOULDER_DISPLAY", 148865),
+            // Display 181925: cloak
+            back_display: env_u32("DEBUG_CHARACTER_BACK_DISPLAY", 181925),
+            // Display 175942: chest
+            chest_display: env_u32("DEBUG_CHARACTER_CHEST_DISPLAY", 175942),
+            hands_display: env_u32("DEBUG_CHARACTER_HANDS_DISPLAY", 0),
             // https://www.wowhead.com/item=49806/flayers-black-belt
-            left_waist_display: env_u32("DEBUG_CHARACTER_LEFT_WAIST_DISPLAY", 64562),
+            // Display 109162: belt geoset + TorsoLower/LegUpper textures + runtime buckle
+            left_waist_display: env_u32("DEBUG_CHARACTER_LEFT_WAIST_DISPLAY", 109162),
+            // Display 159629: hybrid legs (geoset + runtime model)
+            left_legs_display: env_u32("DEBUG_CHARACTER_LEFT_LEGS_DISPLAY", 159629),
             left_feet_display: env_u32("DEBUG_CHARACTER_LEFT_FEET_DISPLAY", 154620),
             right_waist_display: env_u32("DEBUG_CHARACTER_RIGHT_WAIST_DISPLAY", 160997),
+            // Display 73783: geoset-only legs
+            right_legs_display: env_u32("DEBUG_CHARACTER_RIGHT_LEGS_DISPLAY", 73783),
             right_feet_display: env_u32("DEBUG_CHARACTER_RIGHT_FEET_DISPLAY", 154620),
         }
     }
 }
 
-fn debug_equipment_appearance(waist_display_id: u32, feet_display_id: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(config: &DebugCharacterConfig, waist: u32, legs: u32, feet: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Waist, waist_display_id);
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Feet, feet_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Shoulder, config.shoulder_display);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Back, config.back_display);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Chest, config.chest_display);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Hands, config.hands_display);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Waist, waist);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Legs, legs);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Feet, feet);
     EquipmentAppearance { entries }
 }
 
@@ -236,6 +259,7 @@ fn spawn_debug_character_model(
     config: &DebugCharacterConfig,
     x: f32,
     waist_display: u32,
+    legs_display: u32,
     feet_display: u32,
     name: &str,
 ) {
@@ -268,7 +292,7 @@ fn spawn_debug_character_model(
                 sex: config.sex,
                 appearance: config.appearance,
             },
-            equipment_appearance: debug_equipment_appearance(waist_display, feet_display),
+            equipment_appearance: debug_equipment_appearance(config, waist_display, legs_display, feet_display),
         },
     ));
 }
@@ -295,6 +319,7 @@ fn spawn_debug_pair(
         config,
         -1.7,
         config.left_waist_display,
+        config.left_legs_display,
         config.left_feet_display,
         "DebugCharacterGeosetWaist",
     );
@@ -309,6 +334,7 @@ fn spawn_debug_pair(
         config,
         1.7,
         config.right_waist_display,
+        config.right_legs_display,
         config.right_feet_display,
         "DebugCharacterM2Waist",
     );
@@ -326,10 +352,16 @@ fn setup_scene(
     config: Res<DebugCharacterConfig>,
 ) {
     eprintln!(
-        "debugcharacter displays: left_waist={} left_feet={} right_waist={} right_feet={}",
+        "debugcharacter displays: shoulder={} back={} chest={} hands={} left_waist={} left_legs={} left_feet={} right_waist={} right_legs={} right_feet={}",
+        config.shoulder_display,
+        config.back_display,
+        config.chest_display,
+        config.hands_display,
         config.left_waist_display,
+        config.left_legs_display,
         config.left_feet_display,
         config.right_waist_display,
+        config.right_legs_display,
         config.right_feet_display
     );
     spawn_camera(&mut commands);
@@ -436,9 +468,24 @@ fn debug_character_scene_node(
     parents: &Query<&ChildOf>,
     names: &Query<&Name>,
 ) -> SceneNode {
-    let feet_item =
-        find_equipment_item_for_slot(model_root, EquipmentSlot::Feet, equipment_items, parents);
-    let feet_slot = feet_slot_node(request, feet_item, equipment_items, names);
+    let slot_defs: &[(Option<EquipmentSlot>, EquipmentVisualSlot, &str)] = &[
+        (Some(EquipmentSlot::ShoulderLeft), EquipmentVisualSlot::Shoulder, "ShoulderLeft"),
+        (Some(EquipmentSlot::ShoulderRight), EquipmentVisualSlot::Shoulder, "ShoulderRight"),
+        (Some(EquipmentSlot::Back), EquipmentVisualSlot::Back, "Back"),
+        (Some(EquipmentSlot::Chest), EquipmentVisualSlot::Chest, "Chest"),
+        (None, EquipmentVisualSlot::Hands, "Hands"),
+        (Some(EquipmentSlot::Waist), EquipmentVisualSlot::Waist, "Waist"),
+        (Some(EquipmentSlot::Legs), EquipmentVisualSlot::Legs, "Legs"),
+        (Some(EquipmentSlot::Feet), EquipmentVisualSlot::Feet, "Feet"),
+    ];
+    let children = slot_defs
+        .iter()
+        .map(|(eq_slot, vis_slot, name)| {
+            equipment_slot_scene_node(
+                model_root, *eq_slot, *vis_slot, name, request, equipment_items, parents, names,
+            )
+        })
+        .collect();
     SceneNode {
         label,
         entity: Some(model_root),
@@ -447,40 +494,43 @@ fn debug_character_scene_node(
             race: "Human".into(),
             gender: "Male".into(),
         },
-        children: vec![feet_slot],
+        children,
     }
 }
 
-fn feet_slot_node(
+fn equipment_slot_scene_node(
+    model_root: Entity,
+    slot: Option<EquipmentSlot>,
+    visual_slot: EquipmentVisualSlot,
+    slot_name: &str,
     request: &CharacterRenderRequest,
-    feet_item: Option<Entity>,
     equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: &Query<&ChildOf>,
     names: &Query<&Name>,
 ) -> SceneNode {
+    let item_entity =
+        slot.and_then(|s| find_equipment_item_for_slot(model_root, s, equipment_items, parents));
     let (anchor, attachment, attachment_anchor) =
-        feet_item_details(feet_item, equipment_items, names);
+        equipment_item_details(item_entity, equipment_items, names);
+    let model = request
+        .equipment_appearance
+        .entries
+        .iter()
+        .find(|entry| entry.slot == visual_slot)
+        .and_then(|entry| entry.display_info_id)
+        .map(|display| format!("display:{display}"));
     SceneNode {
-        label: "Slot:Feet".into(),
-        entity: feet_item,
+        label: format!("Slot:{slot_name}"),
+        entity: item_entity,
         props: NodeProps::EquipmentSlot {
-            slot: "Feet".into(),
-            model: feet_display_label(request),
+            slot: slot_name.into(),
+            model,
             anchor,
             attachment,
             attachment_anchor,
         },
         children: vec![],
     }
-}
-
-fn feet_display_label(request: &CharacterRenderRequest) -> Option<String> {
-    request
-        .equipment_appearance
-        .entries
-        .iter()
-        .find(|entry| entry.slot == EquipmentVisualSlot::Feet)
-        .and_then(|entry| entry.display_info_id)
-        .map(|display| format!("display:{display}"))
 }
 
 fn find_equipment_item_for_slot(
@@ -508,7 +558,7 @@ fn belongs_to_model_root(entity: Entity, model_root: Entity, parents: &Query<&Ch
     false
 }
 
-fn feet_item_details(
+fn equipment_item_details(
     entity: Option<Entity>,
     equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
     names: &Query<&Name>,
