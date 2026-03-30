@@ -202,7 +202,6 @@ fn spawn_target_circle(
     if !current.is_changed() {
         return;
     }
-    // Remove old circle
     for e in existing.iter() {
         commands.entity(e).despawn();
     }
@@ -210,11 +209,45 @@ fn spawn_target_circle(
     let Ok(tf) = target_tf.get(target) else {
         return;
     };
+    spawn_target_fill(&mut commands, &mut meshes, &mut materials, tf.translation);
+    spawn_target_ring(&mut commands, &mut meshes, &mut materials, tf.translation);
+}
 
+fn spawn_target_fill(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    translation: Vec3,
+) {
+    let fill = meshes.add(Circle::new(0.68).mesh().resolution(64).build());
+    let fill_mat = materials.add(StandardMaterial {
+        base_color: Color::srgba(1.0, 0.92, 0.18, 0.10),
+        emissive: LinearRgba::rgb(0.8, 0.68, 0.1),
+        unlit: true,
+        cull_mode: None,
+        alpha_mode: AlphaMode::Blend,
+        reflectance: 0.0,
+        perceptual_roughness: 1.0,
+        ..default()
+    });
+    commands.spawn((
+        Mesh3d(fill),
+        MeshMaterial3d(fill_mat),
+        target_circle_transform(translation),
+        TargetMarker,
+    ));
+}
+
+fn spawn_target_ring(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    translation: Vec3,
+) {
     let ring = meshes.add(Annulus::new(0.7, 0.95).mesh().resolution(64));
     let mat = materials.add(StandardMaterial {
-        base_color: Color::srgba(1.0, 0.95, 0.2, 0.92),
-        emissive: LinearRgba::rgb(8.0, 7.0, 1.5),
+        base_color: Color::srgba(1.0, 0.95, 0.2, 0.45),
+        emissive: LinearRgba::rgb(3.0, 2.6, 0.55),
         unlit: true,
         cull_mode: None,
         alpha_mode: AlphaMode::Blend,
@@ -225,7 +258,7 @@ fn spawn_target_circle(
     commands.spawn((
         Mesh3d(ring),
         MeshMaterial3d(mat),
-        target_circle_transform(tf.translation),
+        target_circle_transform(translation),
         TargetMarker,
     ));
 }
