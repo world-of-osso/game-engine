@@ -96,36 +96,64 @@ fn spawn_single_emitter(
         .set_parent_in_place(parent_entity);
 }
 
-fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
+struct ExprModifiers {
+    init: InitModifiers,
+    gravity: AccelModifier,
+    texture: Option<ParticleTextureModifier>,
+    alpha_mode: bevy_hanabi::AlphaMode,
+    module: Module,
+}
+
+fn build_expr_modifiers(em: &M2ParticleEmitter) -> ExprModifiers {
     let writer = ExprWriter::new();
-    let init_modifiers = build_init_modifiers(em, &writer);
+    let init = build_init_modifiers(em, &writer);
     let gravity = AccelModifier::new(writer.lit(Vec3::new(0.0, -em.gravity, 0.0)).expr());
     let mask_cutoff = writer.lit(0.5_f32).expr();
-    let module = writer.finish();
+    let texture = em.texture_fdid.map(|_| ParticleTextureModifier {
+        texture_slot: writer.lit(0u32).expr(),
+        sample_mapping: ImageSampleMapping::Modulate,
+    });
+    let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
+    ExprModifiers { init, gravity, texture, alpha_mode, module: writer.finish() }
+}
 
+fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
+    let m = build_expr_modifiers(em);
     let max_particles = ((em.emission_rate * em.lifespan) as u32).clamp(16, 4096);
     let spawner = SpawnerSettings::rate(em.emission_rate.max(0.1).into());
-    let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
 
+    let mut effect = assemble_effect(em, m.module, spawner, max_particles, m.alpha_mode, m.init, m.gravity);
+    if let Some(tex) = m.texture {
+        effect = effect.render(tex);
+    }
+    effect
+}
+
+fn assemble_effect(
+    em: &M2ParticleEmitter, module: Module, spawner: SpawnerSettings,
+    max_particles: u32, alpha_mode: bevy_hanabi::AlphaMode,
+    init: InitModifiers, gravity: AccelModifier,
+) -> EffectAsset {
     EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
         .with_alpha_mode(alpha_mode)
         .with_simulation_space(SimulationSpace::Global)
-        .init(init_modifiers.age)
-        .init(init_modifiers.lifetime)
-        .init(init_modifiers.pos)
-        .init(init_modifiers.vel)
+        .init(init.age).init(init.lifetime).init(init.pos).init(init.vel)
         .update(gravity)
-        .render(ColorOverLifetimeModifier {
-            gradient: build_color_gradient(em),
-            blend: ColorBlendMode::Overwrite,
-            mask: ColorBlendMask::RGBA,
-        })
+        .render(build_color_render_modifier(em))
         .render(SizeOverLifetimeModifier {
             gradient: build_size_gradient(em),
             screen_space_size: false,
         })
         .render(OrientModifier::new(OrientMode::FaceCameraPosition))
+}
+
+fn build_color_render_modifier(em: &M2ParticleEmitter) -> ColorOverLifetimeModifier {
+    ColorOverLifetimeModifier {
+        gradient: build_color_gradient(em),
+        blend: ColorBlendMode::Overwrite,
+        mask: ColorBlendMask::RGBA,
+    }
 }
 
 struct InitModifiers {
