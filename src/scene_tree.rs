@@ -44,6 +44,7 @@ pub enum NodeProps {
     EquipmentSlot {
         slot: String,
         model: Option<String>,
+        anchor: Option<String>,
     },
     Player {
         name: String,

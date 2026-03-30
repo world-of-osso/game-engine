@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
 use crate::asset;
 use crate::character_customization::{CharacterCustomizationSelection, CharacterRenderRequest};
@@ -341,6 +342,7 @@ fn setup_scene(
         &creature_display_map,
         &config,
     );
+    commands.insert_resource(debug_scene_tree(&config));
 }
 
 fn orbit_camera(
@@ -371,7 +373,44 @@ fn orbit_camera(
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharacterScene>>) {
+    commands.remove_resource::<SceneTree>();
     for entity in &query {
         commands.entity(entity).despawn();
+    }
+}
+
+fn debug_scene_tree(config: &DebugCharacterConfig) -> SceneTree {
+    SceneTree {
+        root: SceneNode {
+            label: "DebugCharacterScene".into(),
+            entity: None,
+            props: NodeProps::Scene,
+            children: vec![
+                debug_character_scene_node("LeftCharacter", config.left_feet_display),
+                debug_character_scene_node("RightCharacter", config.right_feet_display),
+            ],
+        },
+    }
+}
+
+fn debug_character_scene_node(label: &str, feet_display: u32) -> SceneNode {
+    SceneNode {
+        label: label.into(),
+        entity: None,
+        props: NodeProps::Character {
+            model: "humanmale_hd".into(),
+            race: "Human".into(),
+            gender: "Male".into(),
+        },
+        children: vec![SceneNode {
+            label: "Slot:Feet".into(),
+            entity: None,
+            props: NodeProps::EquipmentSlot {
+                slot: "Feet".into(),
+                model: Some(format!("display:{feet_display}")),
+                anchor: Some("GroundedModelRoot".into()),
+            },
+            children: vec![],
+        }],
     }
 }
