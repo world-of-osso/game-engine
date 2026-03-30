@@ -211,6 +211,9 @@ pub fn character_scene_node(
                 props: NodeProps::EquipmentSlot {
                     slot: "Head".into(),
                     model: None,
+                    anchor: None,
+                    attachment: None,
+                    attachment_anchor: None,
                 },
                 children: vec![],
             },
@@ -220,6 +223,9 @@ pub fn character_scene_node(
                 props: NodeProps::EquipmentSlot {
                     slot: "MainHand".into(),
                     model: None,
+                    anchor: None,
+                    attachment: None,
+                    attachment_anchor: None,
                 },
                 children: vec![],
             },

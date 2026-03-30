@@ -135,6 +135,10 @@ impl OutfitData {
         (raw > 0).then_some(2)
     }
 
+    pub fn waist_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        self.display_geoset_variant(display_info_id, 0)
+    }
+
     pub fn pants_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
         self.display_geoset_variant(display_info_id, 0)
     }
@@ -289,6 +293,11 @@ struct DisplayResources {
     helmet_geoset_rules: HashMap<u32, Vec<HelmetGeosetRule>>,
 }
 
+struct DisplayMaterialTextures {
+    direct: HashMap<u32, Vec<(u8, u32)>>,
+    legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>>,
+}
+
 fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
     let base_display_info = parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
     let material_to_texture = parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
@@ -307,11 +316,31 @@ fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
 
 fn merge_display_materials(
     mut display_info: HashMap<u32, DisplayInfoResolved>,
-    display_materials: HashMap<u32, Vec<(u8, u32)>>,
+    display_materials: DisplayMaterialTextures,
 ) -> HashMap<u32, DisplayInfoResolved> {
-    for (display_id, textures) in display_materials {
-        if let Some(entry) = display_info.get_mut(&display_id) {
-            entry.item_textures.extend(textures);
+    for (display_id, entry) in &mut display_info {
+        if let Some(textures) = display_materials.direct.get(display_id) {
+            entry.item_textures.extend(textures.iter().copied());
+        } else if let Some(textures) = display_materials.legacy_by_row_id.get(display_id) {
+            entry.item_textures.extend(textures.iter().copied());
+        }
+    }
+
+    for (display_id, textures) in display_materials.direct {
+        if display_info.contains_key(&display_id) {
+            continue;
+        }
+        display_info.insert(
+            display_id,
+            DisplayInfoResolved {
+                item_textures: textures,
+                ..Default::default()
+            },
+        );
+    }
+
+    for (display_id, textures) in display_materials.legacy_by_row_id {
+        if display_info.contains_key(&display_id) {
             continue;
         }
         display_info.insert(
@@ -585,30 +614,44 @@ fn collect_unique_u32(row: &[String], columns: &[usize]) -> Vec<u32> {
 fn parse_item_display_info_material_res(
     path: &Path,
     material_to_texture: &HashMap<u32, u32>,
-) -> Result<HashMap<u32, Vec<(u8, u32)>>, String> {
+) -> Result<DisplayMaterialTextures, String> {
     let (h, rows) = read_csv(path)?;
+    let id_col = col(&h, "ID")?;
     let component_col = col(&h, "ComponentSection")?;
     let material_col = col(&h, "MaterialResourcesID")?;
     let display_info_col = col(&h, "ItemDisplayInfoID")?;
 
-    let mut map: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
-    let mut seen: HashSet<(u32, u8, u32)> = HashSet::new();
+    let mut direct: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
+    let mut legacy_by_row_id: HashMap<u32, Vec<(u8, u32)>> = HashMap::new();
+    let mut seen_direct: HashSet<(u32, u8, u32)> = HashSet::new();
+    let mut seen_legacy: HashSet<(u32, u8, u32)> = HashSet::new();
 
     for row in &rows {
+        let row_id = field_u32(row, id_col);
         let display_info_id = field_u32(row, display_info_col);
         let component_section = field_u32(row, component_col) as u8;
         let material_resource_id = field_u32(row, material_col);
         let Some(&texture_fdid) = material_to_texture.get(&material_resource_id) else {
             continue;
         };
-        if seen.insert((display_info_id, component_section, texture_fdid)) {
-            map.entry(display_info_id)
+        if seen_direct.insert((display_info_id, component_section, texture_fdid)) {
+            direct
+                .entry(display_info_id)
+                .or_default()
+                .push((component_section, texture_fdid));
+        }
+        if row_id != display_info_id && seen_legacy.insert((row_id, component_section, texture_fdid)) {
+            legacy_by_row_id
+                .entry(row_id)
                 .or_default()
                 .push((component_section, texture_fdid));
         }
     }
 
-    Ok(map)
+    Ok(DisplayMaterialTextures {
+        direct,
+        legacy_by_row_id,
+    })
 }
 
 fn parse_texture_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
@@ -772,5 +815,19 @@ mod tests {
         let data = OutfitData::load(Path::new("data"));
 
         assert_eq!(data.head_geoset_overrides(720086), vec![(27, 2)]);
+    }
+
+
+    #[test]
+    fn legacy_waist_display_uses_material_rows_keyed_by_row_id() {
+        let data = OutfitData::load(Path::new("data"));
+
+        let resolved = data.resolve_display_info(15040);
+
+        assert!(
+            resolved.item_textures.contains(&(4, 160531)),
+            "expected legacy torso-lower belt texture, got {:?}",
+            resolved.item_textures
+        );
     }
 }

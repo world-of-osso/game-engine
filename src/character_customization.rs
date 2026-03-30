@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
-use game_engine::asset::m2::default_geoset_visible;
 use game_engine::asset::char_texture::CharTextureData;
+use game_engine::asset::m2::default_geoset_visible;
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use shared::components::{CharacterAppearance, EquipmentAppearance as NetEquipmentAppearance};
 
@@ -52,18 +52,23 @@ pub(crate) fn apply_character_customization(
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
 ) {
     let empty_overlay_set = game_engine::outfit_data::OutfitResult::default();
     let empty_hidden_groups = HashSet::new();
+    let empty_hidden_ids = HashSet::new();
     let overlay_set = equipped_appearance
         .map(|equipped| apply_explicit_equipment_overlays(&empty_overlay_set, equipped))
         .unwrap_or(empty_overlay_set);
     let hidden_groups = equipped_appearance
         .map(|equipped| &equipped.hidden_character_geoset_groups)
         .unwrap_or(&empty_hidden_groups);
+    let hidden_ids = equipped_appearance
+        .map(|equipped| &equipped.hidden_character_geoset_ids)
+        .unwrap_or(&empty_hidden_ids);
     apply_base_skin_and_overlay_textures(
         selection,
         customization_db,
@@ -81,6 +86,7 @@ pub(crate) fn apply_character_customization(
         customization_db,
         &overlay_set,
         hidden_groups,
+        hidden_ids,
         root,
         parent_query,
         geoset_query,
@@ -101,6 +107,7 @@ fn apply_base_skin_and_overlay_textures(
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -134,7 +141,7 @@ fn apply_base_skin_and_overlay_textures(
         .and_then(|fdid| crate::asset::casc_resolver::ensure_texture(fdid))
         .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
         .map(|image| images.add(image));
-    for (entity, mat_handle, batch_texture_type, _) in material_query.iter() {
+    for (entity, mat_handle, _geoset_mesh, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
         }
@@ -195,11 +202,17 @@ pub(crate) fn apply_explicit_equipment_overlays(
 
     if !equipped.explicit_slots.is_empty() {
         merged.item_textures.retain(|(section, _)| {
-            !equipped
+            let claimed_by_slot = equipped
                 .explicit_slots
                 .iter()
                 .flat_map(|slot| component_sections_for_slot(*slot).iter().copied())
-                .any(|suppressed| suppressed == *section)
+                .any(|suppressed| suppressed == *section);
+            let has_replacement = equipped
+                .outfit
+                .item_textures
+                .iter()
+                .any(|&(s, _)| s == *section);
+            !(claimed_by_slot && has_replacement)
         });
     }
 
@@ -236,6 +249,7 @@ fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) ->
         Slot::Tabard => &[3, 4],
         Slot::Wrist => &[1],
         Slot::Hands => &[1, 2],
+        Slot::Waist => &[4, 5],
         Slot::Legs => &[5, 6],
         Slot::Feet => &[6, 7],
         _ => &[],
@@ -283,19 +297,18 @@ fn sync_character_render_requests(
     customization_db: Res<CustomizationDb>,
     char_tex: Res<CharTextureData>,
     outfit_data: Res<game_engine::outfit_data::OutfitData>,
-    request_query: Query<
-        (
-            Entity,
-            &CharacterRenderRequest,
-            Option<&AppliedCharacterRenderRequest>,
-        ),
-    >,
+    request_query: Query<(
+        Entity,
+        &CharacterRenderRequest,
+        Option<&AppliedCharacterRenderRequest>,
+    )>,
     parent_query: Query<&ChildOf>,
     geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
     mut visibility_query: Query<&mut Visibility>,
     material_query: Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -317,7 +330,7 @@ fn sync_character_render_requests(
             request.selection.sex,
         );
         info!(
-            "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} runtime_models={:?}",
+            "character render apply entity={entity:?} request_entries={:?} geoset_overrides={:?} hidden_geoset_ids={:?} runtime_models={:?}",
             request
                 .equipment_appearance
                 .entries
@@ -325,6 +338,7 @@ fn sync_character_render_requests(
                 .map(|entry| (entry.slot, entry.display_info_id, entry.hidden))
                 .collect::<Vec<_>>(),
             resolved_equipment.outfit.geoset_overrides,
+            resolved_equipment.hidden_character_geoset_ids,
             resolved_equipment
                 .runtime_models
                 .iter()
@@ -344,6 +358,15 @@ fn sync_character_render_requests(
             &mut visibility_query,
             &material_query,
         );
+        info!(
+            "character visible geosets entity={entity:?} ids={:?}",
+            visible_geoset_ids_for_root(
+                entity,
+                &parent_query,
+                &geoset_query,
+                &mut visibility_query
+            )
+        );
         if let Ok(mut equipment) = equipment_query.get_mut(entity) {
             apply_runtime_equipment(&mut equipment, &resolved_equipment);
         }
@@ -353,6 +376,31 @@ fn sync_character_render_requests(
     }
 }
 
+fn visible_geoset_ids_for_root(
+    root: Entity,
+    parent_query: &Query<&ChildOf>,
+    geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
+    visibility_query: &mut Query<&mut Visibility>,
+) -> Vec<u16> {
+    let mut ids = geoset_query
+        .iter()
+        .filter(|(entity, _, child_of)| {
+            child_of.parent() == root || is_descendant_of(*entity, root, parent_query)
+        })
+        .filter_map(
+            |(entity, geoset_mesh, _)| match visibility_query.get(entity) {
+                Ok(visibility) if matches!(*visibility, Visibility::Inherited) => {
+                    Some(geoset_mesh.0)
+                }
+                _ => None,
+            },
+        )
+        .collect::<Vec<_>>();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
 fn character_render_targets_ready(
     root: Entity,
     parent_query: &Query<&ChildOf>,
@@ -360,6 +408,7 @@ fn character_render_targets_ready(
     material_query: &Query<(
         Entity,
         &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
     )>,
@@ -369,7 +418,7 @@ fn character_render_targets_ready(
         .any(|(entity, _, _)| is_descendant_of(entity, root, parent_query));
     let has_materials = material_query
         .iter()
-        .any(|(entity, _, _, _)| is_descendant_of(entity, root, parent_query));
+        .any(|(entity, _, _, _, _)| is_descendant_of(entity, root, parent_query));
     has_geosets && has_materials
 }
 
@@ -378,13 +427,19 @@ fn apply_geoset_visibility(
     customization_db: &CustomizationDb,
     outfit: &game_engine::outfit_data::OutfitResult,
     hidden_groups: &HashSet<u16>,
+    hidden_geoset_ids: &HashSet<u16>,
     root: Entity,
     parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
 ) {
     let mut active_geosets = collect_active_geosets(selection, customization_db);
-    apply_hidden_geoset_groups(&mut active_geosets, hidden_groups, selection, customization_db);
+    apply_hidden_geoset_groups(
+        &mut active_geosets,
+        hidden_groups,
+        selection,
+        customization_db,
+    );
 
     for &(group_index, value) in &outfit.geoset_overrides {
         active_geosets.retain(|(group, _)| *group != group_index);
@@ -397,7 +452,8 @@ fn apply_geoset_visibility(
         if child_of.parent() != root && !is_descendant_of(entity, root, parent_query) {
             continue;
         }
-        let visible = is_geoset_visible(geoset_mesh.0, &active_geosets, &active_types);
+        let visible = !hidden_geoset_ids.contains(&geoset_mesh.0)
+            && is_geoset_visible(geoset_mesh.0, &active_geosets, &active_types);
         if let Ok(mut vis) = visibility_query.get_mut(entity) {
             *vis = if visible {
                 Visibility::Inherited
@@ -408,7 +464,11 @@ fn apply_geoset_visibility(
     }
 }
 
-fn is_geoset_visible(mesh_part_id: u16, active_geosets: &[(u16, u16)], active_types: &[u16]) -> bool {
+fn is_geoset_visible(
+    mesh_part_id: u16,
+    active_geosets: &[(u16, u16)],
+    active_types: &[u16],
+) -> bool {
     let group = mesh_part_id / 100;
     let variant = mesh_part_id % 100;
     if !active_types.contains(&group) {
@@ -465,18 +525,7 @@ fn collect_active_geosets(
 ) -> Vec<(u16, u16)> {
     let mut active_geosets: Vec<(u16, u16)> = Vec::new();
     let selected_choice_ids = selected_choice_ids(selection, customization_db);
-    let fields = [
-        (OptionType::HairStyle, Some(selection.appearance.hair_style)),
-        (
-            OptionType::FacialHair,
-            Some(selection.appearance.facial_style),
-        ),
-        // CharacterAppearance doesn't persist modern ear choices yet.
-        // Pick the first DB choice so we drive a single ear geoset instead of
-        // leaving both default ear meshes visible on HD models.
-        (OptionType::Ears, Some(0)),
-    ];
-    for (opt_type, index) in fields {
+    for (opt_type, index) in selected_geoset_fields(selection) {
         let Some(index) = index else {
             continue;
         };
@@ -500,6 +549,21 @@ fn collect_active_geosets(
     active_geosets
 }
 
+fn selected_geoset_fields(
+    selection: CharacterCustomizationSelection,
+) -> [(OptionType, Option<u8>); 3] {
+    [
+        (OptionType::HairStyle, Some(selection.appearance.hair_style)),
+        (
+            OptionType::FacialHair,
+            Some(selection.appearance.facial_style),
+        ),
+        // CharacterAppearance doesn't persist modern ear choices yet.
+        // Pick the first DB choice so render state still drives one sane ear geoset.
+        (OptionType::Ears, Some(0)),
+    ]
+}
+
 fn apply_hidden_geoset_groups(
     active_geosets: &mut Vec<(u16, u16)>,
     hidden_groups: &HashSet<u16>,
@@ -508,7 +572,10 @@ fn apply_hidden_geoset_groups(
 ) {
     for &group in hidden_groups {
         active_geosets.retain(|(existing_group, _)| *existing_group != group);
-        active_geosets.push((group, hidden_group_variant(group, selection, customization_db)));
+        active_geosets.push((
+            group,
+            hidden_group_variant(group, selection, customization_db),
+        ));
     }
 }
 
@@ -541,266 +608,5 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        CharacterCustomizationSelection, apply_explicit_equipment_overlays,
-        apply_hidden_geoset_groups, collect_active_geosets, collect_appearance_materials,
-        component_sections_for_slot, group_zero_visible, merge_overlay_texture_sets,
-        replacement_texture_for_batch,
-    };
-    use crate::equipment_appearance::ResolvedEquipmentAppearance;
-    use bevy::prelude::{Assets, Image};
-    use game_engine::customization_data::CustomizationDb;
-    use game_engine::outfit_data::OutfitResult;
-    use shared::components::{CharacterAppearance, EquipmentVisualSlot};
-    use std::path::Path;
-
-    #[test]
-    fn hairstyle_group_zero_keeps_base_body_segments_visible() {
-        assert!(group_zero_visible(0, 2));
-        assert!(group_zero_visible(1, 2));
-        assert!(group_zero_visible(2, 2));
-        assert!(group_zero_visible(16, 2));
-        assert!(group_zero_visible(17, 2));
-        assert!(group_zero_visible(28, 2));
-
-        assert!(!group_zero_visible(5, 2));
-        assert!(!group_zero_visible(18, 2));
-    }
-
-    #[test]
-    fn face_materials_resolve_against_selected_skin_color() {
-        let db = CustomizationDb::load(Path::new("data"));
-        let face0 = resolved_face_target_fdids(selection_with_skin_color(0), &db);
-        let face1 = resolved_face_target_fdids(selection_with_skin_color(1), &db);
-
-        assert_eq!(face0.len(), 1, "skin color 0 should resolve one face texture");
-        assert_eq!(face1.len(), 1, "skin color 1 should resolve one face texture");
-        assert_ne!(face0[0], face1[0], "face texture should vary by skin color");
-    }
-
-    #[test]
-    fn human_male_defaults_to_single_round_ear_geoset() {
-        let db = CustomizationDb::load(Path::new("data"));
-        let geosets = collect_active_geosets(
-            CharacterCustomizationSelection {
-                race: 1,
-                class: 1,
-                sex: 0,
-                appearance: CharacterAppearance {
-                    sex: 0,
-                    skin_color: 0,
-                    face: 0,
-                    eye_color: 0,
-                    hair_style: 0,
-                    hair_color: 0,
-                    facial_style: 0,
-                },
-            },
-            &db,
-        );
-
-        assert!(
-            geosets.contains(&(7, 2)),
-            "human male should drive the round-ear geoset by default: {geosets:?}"
-        );
-        assert!(
-            !geosets.contains(&(7, 1)),
-            "human male should not leave the hidden/default ear mesh active alongside the selected one: {geosets:?}"
-        );
-    }
-
-    #[test]
-    fn merge_overlay_texture_sets_appends_equipment_layers_without_duplicates() {
-        let base = OutfitResult {
-            item_textures: vec![(3, 100), (4, 200)],
-            geoset_overrides: vec![(13, 1)],
-            model_fdids: vec![(10, 1000)],
-        };
-        let equipped = OutfitResult {
-            item_textures: vec![(4, 200), (7, 300)],
-            geoset_overrides: vec![(13, 2), (15, 3)],
-            model_fdids: vec![(10, 1000), (11, 2000)],
-        };
-
-        let merged = merge_overlay_texture_sets(&base, &equipped);
-
-        assert_eq!(merged.item_textures, vec![(3, 100), (4, 200), (7, 300)]);
-        assert_eq!(merged.geoset_overrides, vec![(13, 2), (15, 3)]);
-        assert_eq!(merged.model_fdids, vec![(10, 1000), (11, 2000)]);
-    }
-
-    #[test]
-    fn apply_explicit_equipment_overlays_keeps_skin_feet_sections_when_feet_hidden() {
-        let base = OutfitResult {
-            item_textures: vec![(5, 100), (6, 200), (7, 300)],
-            ..Default::default()
-        };
-        let equipped = ResolvedEquipmentAppearance {
-            explicit_slots: [EquipmentVisualSlot::Feet].into_iter().collect(),
-            ..Default::default()
-        };
-
-        let merged = apply_explicit_equipment_overlays(&base, &equipped);
-
-        assert_eq!(merged.item_textures, vec![(5, 100), (6, 200), (7, 300)]);
-    }
-
-    #[test]
-    fn apply_explicit_equipment_overlays_replaces_conflicting_leg_sections() {
-        let base = OutfitResult {
-            item_textures: vec![(5, 100), (6, 200), (7, 300)],
-            ..Default::default()
-        };
-        let equipped = ResolvedEquipmentAppearance {
-            outfit: OutfitResult {
-                item_textures: vec![(5, 400), (6, 500)],
-                ..Default::default()
-            },
-            explicit_slots: [EquipmentVisualSlot::Legs].into_iter().collect(),
-            ..Default::default()
-        };
-
-        let merged = apply_explicit_equipment_overlays(&base, &equipped);
-
-        assert_eq!(merged.item_textures, vec![(7, 300), (5, 400), (6, 500)]);
-    }
-
-    #[test]
-    fn replacement_texture_for_type_six_batches_prefers_hair_atlas() {
-        let mut images = Assets::<Image>::default();
-        let body = images.add(Image::default());
-        let head = images.add(Image::default());
-        let hair = images.add(Image::default());
-
-        let replacement =
-            replacement_texture_for_batch(Some(6), &body, Some(&head), Some(&hair), None, None);
-
-        assert_eq!(replacement, Some(hair));
-    }
-
-    #[test]
-    fn replacement_texture_for_type_two_batches_uses_cape_texture() {
-        let mut images = Assets::<Image>::default();
-        let body = images.add(Image::default());
-        let head = images.add(Image::default());
-        let hair = images.add(Image::default());
-        let cape = images.add(Image::default());
-
-        let replacement =
-            replacement_texture_for_batch(Some(2), &body, Some(&head), Some(&hair), None, Some(&cape));
-
-        assert_eq!(replacement, Some(cape));
-    }
-
-    #[test]
-    fn replacement_texture_for_type_nineteen_batches_uses_eye_texture() {
-        let mut images = Assets::<Image>::default();
-        let body = images.add(Image::default());
-        let head = images.add(Image::default());
-        let hair = images.add(Image::default());
-        let eye = images.add(Image::default());
-
-        let replacement = replacement_texture_for_batch(
-            Some(19),
-            &body,
-            Some(&head),
-            Some(&hair),
-            Some(&eye),
-            None,
-        );
-
-        assert_eq!(replacement, Some(eye));
-    }
-
-    #[test]
-    fn feet_slot_maps_to_foot_component_section() {
-        assert_eq!(
-            component_sections_for_slot(EquipmentVisualSlot::Feet),
-            &[6u8, 7] as &[u8]
-        );
-    }
-
-    #[test]
-    fn human_male_eye_color_selection_provides_default_eye_texture() {
-        let db = CustomizationDb::load(Path::new("data"));
-        let selection = CharacterCustomizationSelection {
-            race: 1,
-            class: 1,
-            sex: 0,
-            appearance: CharacterAppearance {
-                sex: 0,
-                skin_color: 2,
-                face: 3,
-                    eye_color: 0,
-                hair_style: 4,
-                hair_color: 5,
-                facial_style: 1,
-            },
-        };
-
-        let materials = collect_appearance_materials(selection, &db);
-
-        assert!(
-            materials.iter().any(|(target_id, fdid)| *target_id == 25 && *fdid == 3484643),
-            "expected current human male appearance to resolve the default eye texture: {materials:?}"
-        );
-    }
-
-    #[test]
-    fn hidden_helmet_groups_use_scalp_fallback_for_group_zero() {
-        let db = CustomizationDb::load(Path::new("data"));
-        let mut active_geosets = vec![(0, 5), (1, 4), (7, 2)];
-        let hidden_groups = [0, 7].into_iter().collect();
-        let selection = CharacterCustomizationSelection {
-            race: 1,
-            class: 1,
-            sex: 0,
-            appearance: CharacterAppearance {
-                sex: 0,
-                skin_color: 0,
-                face: 0,
-                    eye_color: 0,
-                hair_style: 0,
-                hair_color: 0,
-                facial_style: 0,
-            },
-        };
-
-        apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups, selection, &db);
-
-        assert!(active_geosets.contains(&(0, 0)));
-        assert!(active_geosets.contains(&(7, 1)));
-        assert!(!active_geosets.contains(&(0, 5)));
-        assert!(!active_geosets.contains(&(7, 2)));
-        assert!(active_geosets.contains(&(1, 4)));
-    }
-
-    fn selection_with_skin_color(skin_color: u8) -> CharacterCustomizationSelection {
-        CharacterCustomizationSelection {
-            race: 1,
-            class: 1,
-            sex: 0,
-            appearance: CharacterAppearance {
-                sex: 0,
-                skin_color,
-                face: 0,
-                    eye_color: 0,
-                hair_style: 0,
-                hair_color: 0,
-                facial_style: 0,
-            },
-        }
-    }
-
-    fn resolved_face_target_fdids(
-        selection: CharacterCustomizationSelection,
-        db: &CustomizationDb,
-    ) -> Vec<u32> {
-        collect_appearance_materials(selection, db)
-            .iter()
-            .filter(|(target_id, _)| *target_id == 5)
-            .map(|(_, fdid)| *fdid)
-            .collect()
-    }
-}
+#[path = "character_customization_tests.rs"]
+mod tests;

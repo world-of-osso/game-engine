@@ -104,17 +104,16 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
         .into_iter()
         .filter(|batch| filter(batch.mesh_part_id))
         .collect::<Vec<_>>();
-    let grounded_root = ensure_grounded_model_root(commands, entity, ground_offset_y(&batches));
     let skinning = bind_existing_skeleton(
         commands,
         assets.inverse_bindposes,
         &bones,
-        grounded_root,
+        entity,
         target_joints,
         names,
     );
     for (i, batch) in batches.into_iter().enumerate() {
-        spawn_batch_mesh(commands, assets, batch, grounded_root, &skinning, i);
+        spawn_batch_mesh(commands, assets, batch, entity, &skinning, i);
     }
     true
 }
@@ -194,7 +193,12 @@ fn bind_existing_skeleton(
     }
     let named_targets = target_joints
         .iter()
-        .filter_map(|entity| names.get(*entity).ok().map(|name| (name.as_str().to_owned(), *entity)))
+        .filter_map(|entity| {
+            names
+                .get(*entity)
+                .ok()
+                .map(|name| (name.as_str().to_owned(), *entity))
+        })
         .collect::<std::collections::HashMap<_, _>>();
     let mut mapped_joints = Vec::with_capacity(bones.len());
     for (i, bone) in bones.iter().enumerate() {
@@ -633,79 +637,79 @@ fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16)
     ];
     let overlay_a = overlay[3] as f32 / 255.0;
 
-    let (rgb, a) = match shader_id {
-        0x8000 => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
-        0x4014 => (
-            [
-                (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
-                (base_rgb[1] * overlay_rgb[1] * 2.0).clamp(0.0, 1.0),
-                (base_rgb[2] * overlay_rgb[2] * 2.0).clamp(0.0, 1.0),
-            ],
-            (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
-        ),
-        0x0010 => (
-            [
-                (base_rgb[0] * overlay_rgb[0]).clamp(0.0, 1.0),
-                (base_rgb[1] * overlay_rgb[1]).clamp(0.0, 1.0),
-                (base_rgb[2] * overlay_rgb[2]).clamp(0.0, 1.0),
-            ],
-            base_a,
-        ),
-        0x0011 => (
-            [
-                (base_rgb[0] * overlay_rgb[0]).clamp(0.0, 1.0),
-                (base_rgb[1] * overlay_rgb[1]).clamp(0.0, 1.0),
-                (base_rgb[2] * overlay_rgb[2]).clamp(0.0, 1.0),
-            ],
-            (base_a * overlay_a).clamp(0.0, 1.0),
-        ),
-        0x4016 => (
-            [
-                (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
-                (base_rgb[1] * overlay_rgb[1] * 2.0).clamp(0.0, 1.0),
-                (base_rgb[2] * overlay_rgb[2] * 2.0).clamp(0.0, 1.0),
-            ],
-            base_a,
-        ),
-        0x8015 => (
-            [
-                (base_rgb[0] + overlay_rgb[0] * overlay_a).clamp(0.0, 1.0),
-                (base_rgb[1] + overlay_rgb[1] * overlay_a).clamp(0.0, 1.0),
-                (base_rgb[2] + overlay_rgb[2] * overlay_a).clamp(0.0, 1.0),
-            ],
-            1.0,
-        ),
-        0x8001 => (
-            [
-                (base_rgb[0] * ((overlay_rgb[0] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
-                (base_rgb[1] * ((overlay_rgb[1] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
-                (base_rgb[2] * ((overlay_rgb[2] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
-            ],
-            1.0,
-        ),
-        0x8002 => (
-            [
-                (base_rgb[0] + overlay_rgb[0] * overlay_a).clamp(0.0, 1.0),
-                (base_rgb[1] + overlay_rgb[1] * overlay_a).clamp(0.0, 1.0),
-                (base_rgb[2] + overlay_rgb[2] * overlay_a).clamp(0.0, 1.0),
-            ],
-            1.0,
-        ),
-        0x8003 => (
-            [
-                (base_rgb[0] + overlay_rgb[0] * overlay_a * base_a).clamp(0.0, 1.0),
-                (base_rgb[1] + overlay_rgb[1] * overlay_a * base_a).clamp(0.0, 1.0),
-                (base_rgb[2] + overlay_rgb[2] * overlay_a * base_a).clamp(0.0, 1.0),
-            ],
-            1.0,
-        ),
-        _ => (base_rgb, base_a),
-    };
+    let (rgb, a) = shader_blend(base_rgb, base_a, overlay_rgb, overlay_a, shader_id);
 
     base[0] = (rgb[0] * 255.0).round() as u8;
     base[1] = (rgb[1] * 255.0).round() as u8;
     base[2] = (rgb[2] * 255.0).round() as u8;
     base[3] = (a * 255.0).round() as u8;
+}
+
+fn shader_blend(
+    base_rgb: [f32; 3],
+    base_a: f32,
+    overlay_rgb: [f32; 3],
+    overlay_a: f32,
+    shader_id: u16,
+) -> ([f32; 3], f32) {
+    match shader_id {
+        0x8000 => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
+        0x4014 => (
+            mul_2x_rgb(base_rgb, overlay_rgb),
+            (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
+        ),
+        0x0010 => (mul_rgb(base_rgb, overlay_rgb), base_a),
+        0x0011 => (
+            mul_rgb(base_rgb, overlay_rgb),
+            (base_a * overlay_a).clamp(0.0, 1.0),
+        ),
+        0x4016 => (mul_2x_rgb(base_rgb, overlay_rgb), base_a),
+        0x8015 => (add_overlay_rgb(base_rgb, overlay_rgb, overlay_a, 1.0), 1.0),
+        0x8001 => (shader_8001_rgb(base_rgb, base_a, overlay_rgb), 1.0),
+        0x8002 => (add_overlay_rgb(base_rgb, overlay_rgb, overlay_a, 1.0), 1.0),
+        0x8003 => (
+            add_overlay_rgb(base_rgb, overlay_rgb, overlay_a, base_a),
+            1.0,
+        ),
+        _ => (base_rgb, base_a),
+    }
+}
+
+fn mul_rgb(base_rgb: [f32; 3], overlay_rgb: [f32; 3]) -> [f32; 3] {
+    [
+        (base_rgb[0] * overlay_rgb[0]).clamp(0.0, 1.0),
+        (base_rgb[1] * overlay_rgb[1]).clamp(0.0, 1.0),
+        (base_rgb[2] * overlay_rgb[2]).clamp(0.0, 1.0),
+    ]
+}
+
+fn mul_2x_rgb(base_rgb: [f32; 3], overlay_rgb: [f32; 3]) -> [f32; 3] {
+    [
+        (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
+        (base_rgb[1] * overlay_rgb[1] * 2.0).clamp(0.0, 1.0),
+        (base_rgb[2] * overlay_rgb[2] * 2.0).clamp(0.0, 1.0),
+    ]
+}
+
+fn add_overlay_rgb(
+    base_rgb: [f32; 3],
+    overlay_rgb: [f32; 3],
+    overlay_a: f32,
+    weight: f32,
+) -> [f32; 3] {
+    [
+        (base_rgb[0] + overlay_rgb[0] * overlay_a * weight).clamp(0.0, 1.0),
+        (base_rgb[1] + overlay_rgb[1] * overlay_a * weight).clamp(0.0, 1.0),
+        (base_rgb[2] + overlay_rgb[2] * overlay_a * weight).clamp(0.0, 1.0),
+    ]
+}
+
+fn shader_8001_rgb(base_rgb: [f32; 3], base_a: f32, overlay_rgb: [f32; 3]) -> [f32; 3] {
+    [
+        (base_rgb[0] * ((overlay_rgb[0] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
+        (base_rgb[1] * ((overlay_rgb[1] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
+        (base_rgb[2] * ((overlay_rgb[2] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
+    ]
 }
 
 #[cfg(test)]

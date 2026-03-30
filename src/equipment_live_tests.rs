@@ -1,10 +1,10 @@
 use std::path::Path;
 
+use bevy::ecs::system::SystemState;
 use bevy::mesh::VertexAttributeValues;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::mesh::{Mesh, Mesh3d};
 use bevy::prelude::*;
-use bevy::ecs::system::SystemState;
 
 use super::*;
 use crate::animation::AnimationPlugin;
@@ -40,7 +40,8 @@ fn live_human_male_helm_wraps_head_and_binds_texture() {
 #[test]
 fn live_human_male_back_cloak_spawns_runtime_attachment() {
     let character_path = Path::new("data/models/humanmale_hd.m2");
-    let cloak_path = Path::new("data/item-models/item/objectcomponents/cape/cape_special_keg_d_01.m2");
+    let cloak_path =
+        Path::new("data/item-models/item/objectcomponents/cape/cape_special_keg_d_01.m2");
     if !character_path.exists() || !cloak_path.exists() {
         return;
     }
@@ -69,7 +70,10 @@ fn live_human_male_back_cloak_spawns_runtime_attachment() {
         .find(|(_, item)| item._slot == EquipmentSlot::Back)
         .map(|(entity, _)| entity);
 
-    assert!(found.is_some(), "expected spawned back cloak equipment item");
+    assert!(
+        found.is_some(),
+        "expected spawned back cloak equipment item"
+    );
 }
 
 #[test]
@@ -81,19 +85,61 @@ fn live_human_male_chest_runtime_attachment_uses_character_joints_without_local_
     app.update();
     app.update();
 
-    let chest_entity = chest_equipment_entity(app.world_mut()).expect("spawned chest equipment item");
+    let chest_entity =
+        chest_equipment_entity(app.world_mut()).expect("spawned chest equipment item");
     let parent = app
         .world()
         .get::<ChildOf>(chest_entity)
         .expect("chest parent")
         .parent();
-    assert_eq!(parent, spawned.model_root);
-    assert!(app.world().get::<crate::animation::M2AnimPlayer>(chest_entity).is_none());
-    assert!(app.world().get::<crate::animation::M2AnimData>(chest_entity).is_none());
+    assert_eq!(parent, spawned_visual_root(app.world(), &spawned));
+    assert!(
+        app.world()
+            .get::<crate::animation::M2AnimPlayer>(chest_entity)
+            .is_none()
+    );
+    assert!(
+        app.world()
+            .get::<crate::animation::M2AnimData>(chest_entity)
+            .is_none()
+    );
     assert!(
         find_named_descendant_y(app.world(), chest_entity, "SpineLow").is_none(),
         "expected chest runtime attachment to avoid spawning its own named torso skeleton",
     );
+}
+
+#[test]
+fn live_human_male_feet_runtime_attachment_uses_character_visual_root() {
+    let Some((spawned, feet_path, mut app)) = setup_live_feet_test_app() else {
+        return;
+    };
+    equip_live_feet(&mut app, spawned.model_root, &feet_path);
+    app.update();
+    app.update();
+
+    let feet_entity = feet_equipment_entity(app.world_mut()).expect("spawned feet equipment item");
+    let parent = app
+        .world()
+        .get::<ChildOf>(feet_entity)
+        .expect("feet parent")
+        .parent();
+    assert_eq!(parent, spawned_visual_root(app.world(), &spawned));
+    assert!(
+        find_named_descendant_y(app.world(), feet_entity, "FootL").is_none(),
+        "expected feet runtime attachment to avoid spawning its own named foot skeleton",
+    );
+}
+
+fn spawned_visual_root(world: &World, spawned: &m2_scene::SpawnedAnimatedStaticM2) -> Entity {
+    let joints = &world
+        .get::<crate::animation::M2AnimData>(spawned.model_root)
+        .expect("character anim data")
+        .joint_entities;
+    world
+        .get::<ChildOf>(joints[0])
+        .expect("visual root parent")
+        .parent()
 }
 
 fn setup_live_helm_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
@@ -122,8 +168,26 @@ fn setup_live_chest_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'s
     Some((spawned, chest_path, app))
 }
 
+fn setup_live_feet_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
+    let character_path = Path::new("data/models/humanmale_hd.m2");
+    let feet_path = Path::new(
+        "data/item-models/item/objectcomponents/collections/collections_leather_raidroguemythic_q_01_hu_m.m2",
+    );
+    if !character_path.exists() || !feet_path.exists() {
+        return None;
+    }
+    let mut app = App::new();
+    configure_live_test_app(&mut app);
+    let spawned = spawn_live_character(&mut app, character_path);
+    Some((spawned, feet_path, app))
+}
+
 fn configure_live_test_app(app: &mut App) {
-    app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin, TransformPlugin));
+    app.add_plugins((
+        MinimalPlugins,
+        bevy::state::app::StatesPlugin,
+        TransformPlugin,
+    ));
     app.insert_state(GameState::CharSelect);
     app.add_plugins(AnimationPlugin);
     app.insert_resource(Assets::<Mesh>::default());
@@ -132,7 +196,10 @@ fn configure_live_test_app(app: &mut App) {
     app.insert_resource(Assets::<M2EffectMaterial>::default());
     app.insert_resource(Assets::<SkinnedMeshInverseBindposes>::default());
     app.insert_resource(EquipmentTransforms::default());
-    app.add_systems(Update, (attach_rendered_equipment_state, sync_equipment).chain());
+    app.add_systems(
+        Update,
+        (attach_rendered_equipment_state, sync_equipment).chain(),
+    );
 }
 
 fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::SpawnedAnimatedStaticM2 {
@@ -191,6 +258,19 @@ fn equip_live_chest(app: &mut App, model_root: Entity, chest_path: &Path) {
         .insert(EquipmentSlot::Chest, [2373825, 0, 0]);
 }
 
+fn equip_live_feet(app: &mut App, model_root: Entity, feet_path: &Path) {
+    let mut equipment = app
+        .world_mut()
+        .get_mut::<Equipment>(model_root)
+        .expect("equipment on model root");
+    equipment
+        .slots
+        .insert(EquipmentSlot::Feet, feet_path.to_path_buf());
+    equipment
+        .slot_skin_fdids
+        .insert(EquipmentSlot::Feet, [1360784, 0, 0]);
+}
+
 fn head_equipment_entity(world: &mut World) -> Option<Entity> {
     let mut query = world.query::<(Entity, &EquipmentItem)>();
     query
@@ -204,6 +284,14 @@ fn chest_equipment_entity(world: &mut World) -> Option<Entity> {
     query
         .iter(world)
         .find(|(_, item)| item._slot == EquipmentSlot::Chest)
+        .map(|(entity, _)| entity)
+}
+
+fn feet_equipment_entity(world: &mut World) -> Option<Entity> {
+    let mut query = world.query::<(Entity, &EquipmentItem)>();
+    query
+        .iter(world)
+        .find(|(_, item)| item._slot == EquipmentSlot::Feet)
         .map(|(entity, _)| entity)
 }
 
@@ -245,7 +333,9 @@ fn accumulate_mesh_bounds(
     let Some(mesh) = meshes.get(&mesh3d.0) else {
         return;
     };
-    let Some(VertexAttributeValues::Float32x3(positions)) = mesh.attribute(Mesh::ATTRIBUTE_POSITION) else {
+    let Some(VertexAttributeValues::Float32x3(positions)) =
+        mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+    else {
         return;
     };
     for position in positions {

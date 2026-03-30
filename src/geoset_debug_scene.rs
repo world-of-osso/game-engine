@@ -4,13 +4,13 @@ use std::path::PathBuf;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
 use crate::asset;
-use crate::character_customization::{
-    CharacterCustomizationSelection, CharacterRenderRequest,
-};
+use crate::character_customization::{CharacterCustomizationSelection, CharacterRenderRequest};
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
+use crate::equipment::{Equipment, EquipmentItem, EquipmentSlot};
 use crate::game_state::GameState;
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -44,8 +44,10 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    left_chest_display: u32,
-    right_chest_display: u32,
+    left_waist_display: u32,
+    left_feet_display: u32,
+    right_waist_display: u32,
+    right_feet_display: u32,
 }
 
 const ORBIT_SENSITIVITY: f32 = 0.003;
@@ -58,7 +60,11 @@ impl Plugin for DebugCharacterScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DebugCharacterConfig::from_env());
         app.add_systems(OnEnter(GameState::DebugCharacter), setup_scene);
-        app.add_systems(Update, orbit_camera.run_if(in_state(GameState::DebugCharacter)));
+        app.add_systems(
+            Update,
+            (orbit_camera, build_debug_scene_tree.after(orbit_camera))
+                .run_if(in_state(GameState::DebugCharacter)),
+        );
         app.add_systems(OnExit(GameState::DebugCharacter), teardown_scene);
     }
 }
@@ -78,15 +84,18 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            left_chest_display: env_u32("DEBUG_CHARACTER_LEFT_CHEST_DISPLAY", 692385),
-            right_chest_display: env_u32("DEBUG_CHARACTER_RIGHT_CHEST_DISPLAY", 175942),
+            left_waist_display: env_u32("DEBUG_CHARACTER_LEFT_WAIST_DISPLAY", 15040),
+            left_feet_display: env_u32("DEBUG_CHARACTER_LEFT_FEET_DISPLAY", 154620),
+            right_waist_display: env_u32("DEBUG_CHARACTER_RIGHT_WAIST_DISPLAY", 160997),
+            right_feet_display: env_u32("DEBUG_CHARACTER_RIGHT_FEET_DISPLAY", 154620),
         }
     }
 }
 
-fn debug_equipment_appearance(chest_display_id: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(waist_display_id: u32, feet_display_id: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Chest, chest_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Waist, waist_display_id);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Feet, feet_display_id);
     EquipmentAppearance { entries }
 }
 
@@ -175,7 +184,8 @@ fn spawn_ground(
 ) {
     let grass_path = PathBuf::from("data/textures/187126.blp");
     let mut img = if grass_path.exists() {
-        asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|_| ground::generate_grass_texture())
+        asset::blp::load_blp_gpu_image(&grass_path)
+            .unwrap_or_else(|_| ground::generate_grass_texture())
     } else {
         ground::generate_grass_texture()
     };
@@ -224,7 +234,8 @@ fn spawn_debug_character_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     config: &DebugCharacterConfig,
     x: f32,
-    chest_display: u32,
+    waist_display: u32,
+    feet_display: u32,
     name: &str,
 ) {
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
@@ -246,21 +257,60 @@ fn spawn_debug_character_model(
     commands
         .entity(spawned.root)
         .insert((DebugCharacterScene, Name::new(name.to_string())));
-    commands
-        .entity(spawned.model_root)
-        .insert((
-            DebugCharacterScene,
-            DebugCharacterModelRoot,
-            CharacterRenderRequest {
-                selection: CharacterCustomizationSelection {
-                    race: config.race,
-                    class: config.class,
-                    sex: config.sex,
-                    appearance: config.appearance,
-                },
-                equipment_appearance: debug_equipment_appearance(chest_display),
+    commands.entity(spawned.model_root).insert((
+        DebugCharacterScene,
+        DebugCharacterModelRoot,
+        CharacterRenderRequest {
+            selection: CharacterCustomizationSelection {
+                race: config.race,
+                class: config.class,
+                sex: config.sex,
+                appearance: config.appearance,
             },
-        ));
+            equipment_appearance: debug_equipment_appearance(waist_display, feet_display),
+        },
+    ));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_debug_pair(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    config: &DebugCharacterConfig,
+) {
+    spawn_debug_character_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        creature_display_map,
+        config,
+        -1.7,
+        config.left_waist_display,
+        config.left_feet_display,
+        "DebugCharacterGeosetWaist",
+    );
+    spawn_debug_character_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        creature_display_map,
+        config,
+        1.7,
+        config.right_waist_display,
+        config.right_feet_display,
+        "DebugCharacterM2Waist",
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -274,10 +324,17 @@ fn setup_scene(
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     config: Res<DebugCharacterConfig>,
 ) {
+    eprintln!(
+        "debugcharacter displays: left_waist={} left_feet={} right_waist={} right_feet={}",
+        config.left_waist_display,
+        config.left_feet_display,
+        config.right_waist_display,
+        config.right_feet_display
+    );
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    spawn_debug_character_model(
+    spawn_debug_pair(
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -286,22 +343,6 @@ fn setup_scene(
         &mut inv_bp,
         &creature_display_map,
         &config,
-        -1.7,
-        config.left_chest_display,
-        "DebugCharacterGeosetChest",
-    );
-    spawn_debug_character_model(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-        &creature_display_map,
-        &config,
-        1.7,
-        config.right_chest_display,
-        "DebugCharacterM2Chest",
     );
 }
 
@@ -332,11 +373,155 @@ fn orbit_camera(
     }
 }
 
-fn teardown_scene(
-    mut commands: Commands,
-    query: Query<Entity, With<DebugCharacterScene>>,
-) {
+fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharacterScene>>) {
+    commands.remove_resource::<SceneTree>();
     for entity in &query {
         commands.entity(entity).despawn();
     }
+}
+
+fn build_debug_scene_tree(
+    mut commands: Commands,
+    model_roots: Query<
+        (Entity, &CharacterRenderRequest, &ChildOf, Option<&Equipment>),
+        With<DebugCharacterModelRoot>,
+    >,
+    equipment_items: Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: Query<&ChildOf>,
+    names: Query<&Name>,
+) {
+    // Wait until equipment items have been spawned for all expected runtime slots.
+    for (model_root, _request, _root_parent, equipment) in &model_roots {
+        let Some(equipment) = equipment else { continue };
+        for &slot in equipment.slots.keys() {
+            if find_equipment_item_for_slot(model_root, slot, &equipment_items, &parents).is_none()
+            {
+                return;
+            }
+        }
+    }
+
+    let mut children = Vec::new();
+    for (model_root, request, root_parent, _) in &model_roots {
+        let label = names
+            .get(root_parent.parent())
+            .map(|name| name.as_str().to_string())
+            .unwrap_or_else(|_| format!("Character:{model_root:?}"));
+        children.push(debug_character_scene_node(
+            model_root,
+            label,
+            request,
+            &equipment_items,
+            &parents,
+            &names,
+        ));
+    }
+    children.sort_by(|a, b| a.label.cmp(&b.label));
+    commands.insert_resource(SceneTree {
+        root: SceneNode {
+            label: "DebugCharacterScene".into(),
+            entity: None,
+            props: NodeProps::Scene,
+            children,
+        },
+    });
+}
+
+fn debug_character_scene_node(
+    model_root: Entity,
+    label: String,
+    request: &CharacterRenderRequest,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: &Query<&ChildOf>,
+    names: &Query<&Name>,
+) -> SceneNode {
+    let feet_item =
+        find_equipment_item_for_slot(model_root, EquipmentSlot::Feet, equipment_items, parents);
+    let feet_slot = feet_slot_node(request, feet_item, equipment_items, names);
+    SceneNode {
+        label,
+        entity: Some(model_root),
+        props: NodeProps::Character {
+            model: "humanmale_hd".into(),
+            race: "Human".into(),
+            gender: "Male".into(),
+        },
+        children: vec![feet_slot],
+    }
+}
+
+fn feet_slot_node(
+    request: &CharacterRenderRequest,
+    feet_item: Option<Entity>,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    names: &Query<&Name>,
+) -> SceneNode {
+    let (anchor, attachment, attachment_anchor) =
+        feet_item_details(feet_item, equipment_items, names);
+    SceneNode {
+        label: "Slot:Feet".into(),
+        entity: feet_item,
+        props: NodeProps::EquipmentSlot {
+            slot: "Feet".into(),
+            model: feet_display_label(request),
+            anchor,
+            attachment,
+            attachment_anchor,
+        },
+        children: vec![],
+    }
+}
+
+fn feet_display_label(request: &CharacterRenderRequest) -> Option<String> {
+    request
+        .equipment_appearance
+        .entries
+        .iter()
+        .find(|entry| entry.slot == EquipmentVisualSlot::Feet)
+        .and_then(|entry| entry.display_info_id)
+        .map(|display| format!("display:{display}"))
+}
+
+fn find_equipment_item_for_slot(
+    model_root: Entity,
+    slot: EquipmentSlot,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    parents: &Query<&ChildOf>,
+) -> Option<Entity> {
+    equipment_items
+        .iter()
+        .find(|(entity, item, _, _)| {
+            item._slot == slot && belongs_to_model_root(*entity, model_root, parents)
+        })
+        .map(|(entity, _, _, _)| entity)
+}
+
+fn belongs_to_model_root(entity: Entity, model_root: Entity, parents: &Query<&ChildOf>) -> bool {
+    let mut current = entity;
+    while let Ok(parent) = parents.get(current) {
+        current = parent.parent();
+        if current == model_root {
+            return true;
+        }
+    }
+    false
+}
+
+fn feet_item_details(
+    entity: Option<Entity>,
+    equipment_items: &Query<(Entity, &EquipmentItem, &ChildOf, Option<&Name>)>,
+    names: &Query<&Name>,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let Some(entity) = entity else {
+        return (None, None, None);
+    };
+    let Ok((_, _, parent, name)) = equipment_items.get(entity) else {
+        return (None, None, None);
+    };
+    let anchor = names
+        .get(parent.parent())
+        .ok()
+        .map(|name| name.as_str().to_string());
+    let attachment = name.map(|name| name.as_str().to_string());
+    (anchor.clone(), attachment, anchor)
 }
