@@ -110,9 +110,13 @@ fn format_misc_node(label: &str, props: &NodeProps, pos: &str, displayed: &str) 
         NodeProps::Ground | NodeProps::Terrain => format_terrain_label(label, pos, displayed),
         NodeProps::Camera { fov } => format_camera_label(label, *fov, pos, displayed),
         NodeProps::Light { kind, intensity } => format_light_label(label, kind, *intensity),
-        NodeProps::EquipmentSlot { model, anchor, .. } => {
-            format_equipment_slot(label, model, anchor)
-        }
+        NodeProps::EquipmentSlot {
+            model,
+            anchor,
+            attachment,
+            attachment_anchor,
+            ..
+        } => format_equipment_slot(label, model, anchor, attachment, attachment_anchor),
         NodeProps::Player { .. } => format_player_props(label, props, pos, displayed),
         NodeProps::Npc { .. } => format_npc_props(label, props, pos, displayed),
         NodeProps::Scene | NodeProps::Character { .. } | NodeProps::Background { .. } => {
@@ -257,14 +261,28 @@ fn format_snapshot_position(transform: Option<SceneNodeTransform>) -> String {
         .unwrap_or_default()
 }
 
-fn format_equipment_slot(label: &str, model: &Option<String>, anchor: &Option<String>) -> String {
+fn format_equipment_slot(
+    label: &str,
+    model: &Option<String>,
+    anchor: &Option<String>,
+    attachment: &Option<String>,
+    attachment_anchor: &Option<String>,
+) -> String {
     let anchor = anchor
         .as_ref()
         .map(|anchor| format!(" anchor={anchor}"))
         .unwrap_or_default();
+    let attachment = attachment
+        .as_ref()
+        .map(|attachment| format!(" attachment={attachment}"))
+        .unwrap_or_default();
+    let attachment_anchor = attachment_anchor
+        .as_ref()
+        .map(|anchor| format!(" attachment_anchor={anchor}"))
+        .unwrap_or_default();
     match model {
-        Some(m) => format!("{label} \"{m}\"{anchor}"),
-        None => format!("{label} (empty){anchor}"),
+        Some(m) => format!("{label} \"{m}\"{anchor}{attachment}{attachment_anchor}"),
+        None => format!("{label} (empty){anchor}{attachment}{attachment_anchor}"),
     }
 }
 

@@ -409,6 +409,8 @@ fn debug_character_scene_node(label: &str, feet_display: u32) -> SceneNode {
                 slot: "Feet".into(),
                 model: Some(format!("display:{feet_display}")),
                 anchor: Some("GroundedModelRoot".into()),
+                attachment: Some("equip_collections_leather_raidroguemythic_q_01_hu_m".into()),
+                attachment_anchor: Some("GroundedModelRoot".into()),
             },
             children: vec![],
         }],

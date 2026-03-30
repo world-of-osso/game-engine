@@ -45,6 +45,8 @@ pub enum NodeProps {
         slot: String,
         model: Option<String>,
         anchor: Option<String>,
+        attachment: Option<String>,
+        attachment_anchor: Option<String>,
     },
     Player {
         name: String,
