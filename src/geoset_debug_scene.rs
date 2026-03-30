@@ -44,7 +44,8 @@ struct DebugCharacterConfig {
     class: u8,
     sex: u8,
     appearance: CharacterAppearance,
-    head_display: u32,
+    left_head_display: u32,
+    right_head_display: u32,
     shoulder_display: u32,
     back_display: u32,
     chest_display: u32,
@@ -92,8 +93,10 @@ impl DebugCharacterConfig {
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
             },
-            // Display 14903: cloth helm with runtime model + helmet geoset vis
-            head_display: env_u32("DEBUG_CHARACTER_HEAD_DISPLAY", 14903),
+            // Display 178116: geoset-only helmet (item 158364)
+            left_head_display: env_u32("DEBUG_CHARACTER_LEFT_HEAD_DISPLAY", 178116),
+            // Display 178254: cloth helm with runtime M2 model (item 1280)
+            right_head_display: env_u32("DEBUG_CHARACTER_RIGHT_HEAD_DISPLAY", 178254),
             // Display 148865: shoulder with runtime models
             shoulder_display: env_u32("DEBUG_CHARACTER_SHOULDER_DISPLAY", 148865),
             // Display 181925: cloak
@@ -118,9 +121,9 @@ impl DebugCharacterConfig {
     }
 }
 
-fn debug_equipment_appearance(config: &DebugCharacterConfig, hands: u32, waist: u32, legs: u32, feet: u32) -> EquipmentAppearance {
+fn debug_equipment_appearance(config: &DebugCharacterConfig, head: u32, hands: u32, waist: u32, legs: u32, feet: u32) -> EquipmentAppearance {
     let mut entries = Vec::new();
-    push_equipped_entry(&mut entries, EquipmentVisualSlot::Head, config.head_display);
+    push_equipped_entry(&mut entries, EquipmentVisualSlot::Head, head);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Shoulder, config.shoulder_display);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Back, config.back_display);
     push_equipped_entry(&mut entries, EquipmentVisualSlot::Chest, config.chest_display);
@@ -266,6 +269,7 @@ fn spawn_debug_character_model(
     creature_display_map: &creature_display::CreatureDisplayMap,
     config: &DebugCharacterConfig,
     x: f32,
+    head_display: u32,
     hands_display: u32,
     waist_display: u32,
     legs_display: u32,
@@ -301,13 +305,14 @@ fn spawn_debug_character_model(
                 sex: config.sex,
                 appearance: config.appearance,
             },
-            equipment_appearance: debug_equipment_appearance(config, hands_display, waist_display, legs_display, feet_display),
+            equipment_appearance: debug_equipment_appearance(config, head_display, hands_display, waist_display, legs_display, feet_display),
         },
     ));
 }
 
 struct DebugCharacterSide {
     x: f32,
+    head: u32,
     hands: u32,
     waist: u32,
     legs: u32,
@@ -327,11 +332,11 @@ fn spawn_debug_pair(
     config: &DebugCharacterConfig,
 ) {
     let sides = [
-        DebugCharacterSide { x: -1.7, hands: config.left_hands_display, waist: config.left_waist_display, legs: config.left_legs_display, feet: config.left_feet_display, name: "DebugCharacterGeoset" },
-        DebugCharacterSide { x: 1.7, hands: config.right_hands_display, waist: config.right_waist_display, legs: config.right_legs_display, feet: config.right_feet_display, name: "DebugCharacterM2" },
+        DebugCharacterSide { x: -1.7, head: config.left_head_display, hands: config.left_hands_display, waist: config.left_waist_display, legs: config.left_legs_display, feet: config.left_feet_display, name: "DebugCharacterGeoset" },
+        DebugCharacterSide { x: 1.7, head: config.right_head_display, hands: config.right_hands_display, waist: config.right_waist_display, legs: config.right_legs_display, feet: config.right_feet_display, name: "DebugCharacterM2" },
     ];
     for side in &sides {
-        spawn_debug_character_model(commands, meshes, materials, effect_materials, images, inv_bp, creature_display_map, config, side.x, side.hands, side.waist, side.legs, side.feet, side.name);
+        spawn_debug_character_model(commands, meshes, materials, effect_materials, images, inv_bp, creature_display_map, config, side.x, side.head, side.hands, side.waist, side.legs, side.feet, side.name);
     }
 }
 
@@ -347,8 +352,9 @@ fn setup_scene(
     config: Res<DebugCharacterConfig>,
 ) {
     eprintln!(
-        "debugcharacter displays: head={} shoulder={} back={} chest={} left_hands={} right_hands={} left_waist={} left_legs={} left_feet={} right_waist={} right_legs={} right_feet={}",
-        config.head_display,
+        "debugcharacter displays: left_head={} right_head={} shoulder={} back={} chest={} left_hands={} right_hands={} left_waist={} left_legs={} left_feet={} right_waist={} right_legs={} right_feet={}",
+        config.left_head_display,
+        config.right_head_display,
         config.shoulder_display,
         config.back_display,
         config.chest_display,
