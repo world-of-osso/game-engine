@@ -13,7 +13,6 @@ use cascette_client_storage::resolver::ContentResolver;
 use tokio::runtime::Handle as TokioHandle;
 
 const WOW_DATA_PATH: &str = "/syncthing/World of Warcraft/Data";
-const CASC_DATA_DIR: &str = "data/casc";
 
 static CASC: OnceLock<Option<CascState>> = OnceLock::new();
 
@@ -54,7 +53,7 @@ impl CascState {
 
 /// Ensure a BLP texture exists at `data/textures/{fdid}.blp`.
 pub fn ensure_texture(fdid: u32) -> Option<PathBuf> {
-    ensure_file(fdid, "data/textures", "blp")
+    ensure_file(fdid, "textures", "blp")
 }
 
 /// Force CASC archive indices to initialize on the current thread.
@@ -65,11 +64,11 @@ pub fn warm_up() -> Result<(), String> {
 
 /// Ensure an M2 model exists at `data/models/{fdid}.m2`.
 pub fn ensure_model(fdid: u32) -> Option<PathBuf> {
-    ensure_file(fdid, "data/models", "m2")
+    ensure_file(fdid, "models", "m2")
 }
 
 fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
-    let path = PathBuf::from(dir).join(format!("{fdid}.{ext}"));
+    let path = crate::paths::shared_data_path(dir).join(format!("{fdid}.{ext}"));
     if path.exists() {
         return Some(path);
     }
@@ -78,10 +77,11 @@ fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
 
 /// Ensure a CASC asset exists at the requested output path.
 pub fn ensure_file_at_path(fdid: u32, out_path: &Path) -> Option<PathBuf> {
-    if out_path.exists() {
-        return Some(out_path.to_path_buf());
+    let shared_path = crate::paths::remap_to_shared_data_path(out_path);
+    if shared_path.exists() {
+        return Some(shared_path);
     }
-    extract_fdid_to_path(fdid, out_path).ok()
+    extract_fdid_to_path(fdid, &shared_path).ok()
 }
 
 fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
@@ -132,7 +132,7 @@ fn init_casc() -> Result<CascState, String> {
     let install = Installation::open(data_root).map_err(|e| format!("CASC open: {e}"))?;
     let resolver = ContentResolver::new();
 
-    let casc_dir = PathBuf::from(CASC_DATA_DIR);
+    let casc_dir = crate::paths::shared_data_path("casc");
     load_cached_resolution_files(&resolver, &casc_dir)?;
 
     eprintln!("CASC resolver initialized from {WOW_DATA_PATH}");

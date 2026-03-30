@@ -6,6 +6,8 @@ use std::path::Path;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
+use game_engine::paths;
+
 use crate::camera::Player;
 use crate::creature_display;
 use crate::ground;
@@ -60,7 +62,7 @@ pub fn setup_world_scene(
                 camera,
                 p,
             );
-            let m2_path = Path::new(DEFAULT_M2);
+            let m2_path = paths::resolve_data_path("models/humanmale_hd.m2");
             if m2_path.exists() {
                 m2_scene::spawn_m2_model(
                     commands,
@@ -69,7 +71,7 @@ pub fn setup_world_scene(
                     effect_materials,
                     images,
                     inverse_bp,
-                    m2_path,
+                    &m2_path,
                     creature_display_map,
                 );
             }
@@ -232,7 +234,7 @@ fn load_default_terrain(
     heightmap: &mut TerrainHeightmap,
     adt_manager: &mut AdtManager,
 ) -> Option<Vec3> {
-    let adt_path = Path::new(DEFAULT_ADT);
+    let adt_path = paths::resolve_data_path("terrain/azeroth_32_48.adt");
     if !adt_path.exists() {
         return None;
     }
@@ -246,7 +248,7 @@ fn load_default_terrain(
         images,
         inverse_bp,
         heightmap,
-        adt_path,
+        &adt_path,
     ) {
         Ok(result) => {
             adt_manager.map_name = result.map_name;
@@ -289,7 +291,7 @@ fn spawn_default_scene(
         heightmap,
         adt_manager,
     );
-    let m2_path = Path::new(DEFAULT_M2);
+    let m2_path = paths::resolve_data_path("models/humanmale_hd.m2");
     if m2_path.exists() {
         m2_scene::spawn_m2_model(
             commands,
@@ -298,7 +300,7 @@ fn spawn_default_scene(
             effect_materials,
             images,
             inverse_bp,
-            m2_path,
+            &m2_path,
             creature_display_map,
         );
     }

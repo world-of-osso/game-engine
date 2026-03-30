@@ -3,9 +3,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-const COMMUNITY_LISTFILE_PATH: &str = "data/community-listfile.csv";
-const LOCAL_CACHE_PATH: &str = "data/local-listfile-cache.csv";
-
 static LISTFILE: OnceLock<Listfile> = OnceLock::new();
 
 #[derive(Default)]
@@ -26,8 +23,8 @@ struct Listfile {
 fn get() -> &'static Listfile {
     LISTFILE.get_or_init(|| {
         Listfile::new(
-            PathBuf::from(COMMUNITY_LISTFILE_PATH),
-            PathBuf::from(LOCAL_CACHE_PATH),
+            crate::paths::resolve_data_path("community-listfile.csv"),
+            crate::paths::shared_data_path("local-listfile-cache.csv"),
         )
     })
 }

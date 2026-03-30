@@ -215,7 +215,7 @@ fn ensure_adt_tile(map_name: &str, tile_y: u32, tile_x: u32) -> Option<PathBuf> 
     let local = PathBuf::from(format!("data/terrain/{map_name}_{tile_y}_{tile_x}.adt"));
 
     let fdid = game_engine::listfile::lookup_path(&base_wow)?;
-    casc_resolver::ensure_file_at_path(fdid, &local)?;
+    let local = casc_resolver::ensure_file_at_path(fdid, &local)?;
 
     // Also extract _tex0 and _obj0 companions
     for suffix in &["_tex0", "_obj0"] {

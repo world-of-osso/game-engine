@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use game_engine::paths;
+
 use crate::asset::adt::{self, CHUNK_SIZE};
 use crate::terrain::DoodadLod;
 
@@ -49,12 +51,12 @@ pub(crate) fn resolve_tile_path(
     let wow_path = format!("world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}.adt");
     let fdid = game_engine::listfile::lookup_path(&wow_path)
         .ok_or_else(|| format!("Tile ({tile_y},{tile_x}) not in listfile: {wow_path}"))?;
-    let local = PathBuf::from(format!("data/terrain/{map_name}_{tile_y}_{tile_x}.adt"));
+    let local = paths::resolve_data_path(format!("terrain/{map_name}_{tile_y}_{tile_x}.adt"));
     if local.exists() {
         return Ok(local);
     }
     // Fall back to FDID-based naming.
-    let fdid_path = PathBuf::from(format!("data/terrain/{fdid}.adt"));
+    let fdid_path = paths::resolve_data_path(format!("terrain/{fdid}.adt"));
     if fdid_path.exists() {
         return Ok(fdid_path);
     }
@@ -119,6 +121,12 @@ pub(crate) fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<Pa
     if direct.exists() {
         return Some(direct);
     }
+    if let Ok(relative) = direct.strip_prefix(paths::worktree_root()) {
+        let shared = paths::shared_repo_root().join(relative);
+        if shared.exists() {
+            return Some(shared);
+        }
+    }
     // FDID-based: reverse lookup to get WoW path, then find companion FDID
     let fdid: u32 = stem.parse().ok()?;
     let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
@@ -128,6 +136,9 @@ pub(crate) fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<Pa
     let companion_path = adt_path.with_file_name(format!("{companion_fdid}.adt"));
     if companion_path.exists() {
         Some(companion_path)
+    } else if let Ok(relative) = companion_path.strip_prefix(paths::worktree_root()) {
+        let shared = paths::shared_repo_root().join(relative);
+        shared.exists().then_some(shared)
     } else {
         None
     }
