@@ -54,6 +54,7 @@ pub struct ResolvedEquipmentAppearance {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct HeadAppearanceEffects {
+    has_vis_data: bool,
     hidden_geoset_groups: Vec<u16>,
     geoset_overrides: Vec<(u16, u16)>,
     runtime_model: Option<(PathBuf, [u32; 3])>,
@@ -156,7 +157,6 @@ fn apply_head_equipment_entry(
 ) {
     let mut display = outfit_data.resolve_display_info(display_info_id);
     let head = resolve_head_appearance_effects(display_info_id, outfit_data, race, sex);
-    let has_vis_data = !head.hidden_geoset_groups.is_empty();
     resolved
         .hidden_character_geoset_groups
         .extend(head.hidden_geoset_groups);
@@ -166,8 +166,8 @@ fn apply_head_equipment_entry(
     if let Some((path, skin_fdids)) = head.runtime_model {
         // Old helmets without HelmetGeosetVisData hide hair by default.
         // Modern items (tiaras, circlets) that show hair have vis data
-        // with permissive flags.
-        if !has_vis_data {
+        // with permissive flags that don't hide group 0.
+        if !head.has_vis_data {
             resolved.hidden_character_geoset_groups.insert(0);
         }
         resolved.runtime_models.push(RuntimeModelAppearance {
@@ -488,6 +488,7 @@ fn resolve_head_appearance_effects(
     race: u8,
     sex: u8,
 ) -> HeadAppearanceEffects {
+    let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
     let hidden_geoset_groups = outfit_data.helmet_hide_geoset_groups(display_info_id, race);
     let geoset_overrides = outfit_data.head_geoset_overrides(display_info_id);
     let runtime_model = outfit_data
@@ -497,6 +498,7 @@ fn resolve_head_appearance_effects(
             Some((path, skin_fdids))
         });
     HeadAppearanceEffects {
+        has_vis_data,
         hidden_geoset_groups,
         geoset_overrides,
         runtime_model,

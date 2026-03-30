@@ -157,20 +157,23 @@ fn head_display_resolves_helmet_geoset_hide_groups() {
     );
 }
 
-#[test]
-fn real_mask_display_hides_scalp_and_enables_head_geosets() {
+fn resolve_head_display(display_info_id: u32, item_id: Option<u32>) -> ResolvedEquipmentAppearance {
     let data = OutfitData::load(Path::new("data"));
     let appearance = NetEquipmentAppearance {
         entries: vec![shared::components::EquippedAppearanceEntry {
             slot: EquipmentVisualSlot::Head,
-            item_id: Some(249913),
-            display_info_id: Some(720086),
+            item_id,
+            display_info_id: Some(display_info_id),
             inventory_type: 1,
             hidden: false,
         }],
     };
+    resolve_equipment_appearance(&appearance, &data, 1, 0)
+}
 
-    let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+#[test]
+fn real_mask_display_hides_scalp_and_enables_head_geosets() {
+    let resolved = resolve_head_display(720086, Some(249913));
 
     assert!(
         resolved.hidden_character_geoset_groups.contains(&0),
@@ -188,11 +191,7 @@ fn real_mask_display_hides_scalp_and_enables_head_geosets() {
         resolved.outfit.geoset_overrides
     );
     assert!(
-        !resolved
-            .outfit
-            .geoset_overrides
-            .iter()
-            .any(|(group, _)| *group == 21),
+        !resolved.outfit.geoset_overrides.iter().any(|(g, _)| *g == 21),
         "expected GeosetGroup_1 == 0 to avoid emitting a 21xx override: {:?}",
         resolved.outfit.geoset_overrides
     );
@@ -361,5 +360,48 @@ fn real_mask_display_skips_collection_runtime_head_model() {
             .all(|model| model.slot != EquipmentSlot::Head),
         "collection-style head displays should not spawn runtime head attachments: {:?}",
         resolved.runtime_models
+    );
+}
+
+// --- Helmet hair hiding ---
+
+#[test]
+fn old_helm_without_vis_data_hides_hair() {
+    // Display 1128: vanilla plate helm, no HelmetGeosetVisData, has runtime M2 model
+    let resolved = resolve_head_display(1128, None);
+
+    assert!(
+        resolved.hidden_character_geoset_groups.contains(&0),
+        "old helm without HelmetGeosetVisData should hide hair (group 0): {:?}",
+        resolved.hidden_character_geoset_groups
+    );
+}
+
+#[test]
+fn modern_helm_with_vis_data_hides_hair_per_rules() {
+    // Display 685129: modern hood with HelmetGeosetVis 246/307
+    let resolved = resolve_head_display(685129, None);
+
+    assert!(
+        resolved.hidden_character_geoset_groups.contains(&0),
+        "hood vis 246 should hide hair (group 0) for human: {:?}",
+        resolved.hidden_character_geoset_groups
+    );
+    assert!(
+        resolved.hidden_character_geoset_groups.contains(&7),
+        "hood vis 246 should hide ears (group 7) for human: {:?}",
+        resolved.hidden_character_geoset_groups
+    );
+}
+
+#[test]
+fn tiara_with_vis_data_does_not_hide_hair() {
+    // Display 96760: Tiara of the Oracle (item 21348), HelmetGeosetVis 245
+    let resolved = resolve_head_display(96760, Some(21348));
+
+    assert!(
+        !resolved.hidden_character_geoset_groups.contains(&0),
+        "tiara vis 245 should NOT hide hair for human: {:?}",
+        resolved.hidden_character_geoset_groups
     );
 }

@@ -244,6 +244,16 @@ impl OutfitData {
         Some((model_fdid, skin_fdids))
     }
 
+    pub fn has_helmet_geoset_vis_data(&self, display_info_id: u32) -> bool {
+        let Some(data) = self.loaded() else {
+            return false;
+        };
+        let Some(display) = data.display_info.get(&display_info_id) else {
+            return false;
+        };
+        !display.helmet_geoset_vis_ids.is_empty()
+    }
+
     pub fn helmet_hide_geoset_groups(&self, display_info_id: u32, race: u8) -> Vec<u16> {
         let Some(data) = self.loaded() else {
             return Vec::new();
