@@ -10,6 +10,7 @@ use bevy_hanabi::prelude::*;
 
 use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
+use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
 
 pub struct ParticlePlugin;
@@ -61,11 +62,12 @@ pub fn spawn_emitters(
     _materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
+    bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
     for em in emitters {
-        spawn_single_emitter(commands, images, em, bone_entities, parent);
+        spawn_single_emitter(commands, images, em, bones, bone_entities, parent);
     }
 }
 
@@ -73,13 +75,13 @@ fn spawn_single_emitter(
     commands: &mut Commands,
     images: &mut Assets<Image>,
     em: &M2ParticleEmitter,
+    bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
-    let pos = em.position;
-    let offset = wow_to_bevy(pos[0], pos[1], pos[2]);
+    let offset = emitter_translation(em, bones);
     let parent_entity = bone_entity.unwrap_or(parent);
     commands
         .spawn((
@@ -94,6 +96,19 @@ fn spawn_single_emitter(
             Visibility::default(),
         ))
         .set_parent_in_place(parent_entity);
+}
+
+fn emitter_translation(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
+    let pos = if let Some(bone) = bones.get(em.bone_index as usize) {
+        [
+            em.position[0] - bone.pivot[0],
+            em.position[1] - bone.pivot[1],
+            em.position[2] - bone.pivot[2],
+        ]
+    } else {
+        em.position
+    };
+    Vec3::from(wow_to_bevy(pos[0], pos[1], pos[2]))
 }
 
 struct ExprModifiers {
@@ -337,7 +352,10 @@ fn load_emitter_texture(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_effect_asset, build_expr_modifiers};
+    use bevy::prelude::Vec3;
+
+    use super::{build_effect_asset, build_expr_modifiers, emitter_translation};
+    use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
 
     fn sample_emitter() -> M2ParticleEmitter {
@@ -368,6 +386,16 @@ mod tests {
         }
     }
 
+    fn sample_bone(pivot: [f32; 3]) -> M2Bone {
+        M2Bone {
+            key_bone_id: 0,
+            flags: 0,
+            parent_bone_id: -1,
+            submesh_id: 0,
+            pivot,
+        }
+    }
+
     #[test]
     fn textured_emitters_declare_hanabi_texture_slot() {
         let mut emitter = sample_emitter();
@@ -385,5 +413,33 @@ mod tests {
         let modifiers = build_expr_modifiers(&emitter);
 
         assert!(modifiers.module.texture_layout().layout.is_empty());
+    }
+
+    #[test]
+    fn emitter_translation_is_relative_to_bound_bone_pivot() {
+        let mut emitter = sample_emitter();
+        emitter.position = [1.0, 2.0, 3.0];
+        emitter.bone_index = 0;
+        let bones = vec![sample_bone([0.25, 0.5, 0.75])];
+
+        let translation = emitter_translation(&emitter, &bones);
+
+        assert_eq!(translation, Vec3::new(0.75, 2.25, -1.5));
+    }
+
+    #[test]
+    fn torch_emitter_translation_cancels_matching_bone_pivot() {
+        let path = std::path::Path::new("data/models/club_1h_torch_a_01.m2");
+        if !path.exists() {
+            return;
+        }
+
+        let skin_fdids = [0_u32; 3];
+        let model = crate::asset::m2::load_m2_uncached(path, &skin_fdids).unwrap();
+        let emitter = model.particle_emitters.into_iter().next().unwrap();
+
+        let translation = emitter_translation(&emitter, &model.bones);
+
+        assert!(translation.length() < 0.001, "translation={translation:?}");
     }
 }

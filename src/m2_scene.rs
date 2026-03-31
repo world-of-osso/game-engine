@@ -63,6 +63,7 @@ fn spawn_anim_and_particles(
         materials,
         images,
         &particle_emitters,
+        bones,
         skinning,
         visual_root,
     );
@@ -88,6 +89,7 @@ fn spawn_particle_emitters(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     particle_emitters: &[M2ParticleEmitter],
+    bones: &[M2Bone],
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,
 ) {
@@ -101,6 +103,7 @@ fn spawn_particle_emitters(
         materials,
         images,
         particle_emitters,
+        bones,
         bone_slice,
         model_entity,
     );
