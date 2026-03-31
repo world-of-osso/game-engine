@@ -404,8 +404,16 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
 fn contextual_icons(prefix: &str, player_side: bool) -> Element {
     if player_side {
         [
-            anchored_marker(format!("{prefix}LeaderIcon"), PLAYER_LEADER_X, PLAYER_LEADER_Y),
-            anchored_marker(format!("{prefix}GuideIcon"), PLAYER_LEADER_X, PLAYER_LEADER_Y),
+            anchored_marker(
+                format!("{prefix}LeaderIcon"),
+                PLAYER_LEADER_X,
+                PLAYER_LEADER_Y,
+            ),
+            anchored_marker(
+                format!("{prefix}GuideIcon"),
+                PLAYER_LEADER_X,
+                PLAYER_LEADER_Y,
+            ),
             sized_marker(
                 format!("{prefix}RoleIcon"),
                 PLAYER_ROLE_X,
@@ -413,7 +421,11 @@ fn contextual_icons(prefix: &str, player_side: bool) -> Element {
                 PLAYER_ROLE_W,
                 PLAYER_ROLE_H,
             ),
-            anchored_marker(format!("{prefix}AttackIcon"), PLAYER_ATTACK_X, PLAYER_ATTACK_Y),
+            anchored_marker(
+                format!("{prefix}AttackIcon"),
+                PLAYER_ATTACK_X,
+                PLAYER_ATTACK_Y,
+            ),
             anchored_marker(
                 format!("{prefix}PlayerPortraitCornerIcon"),
                 PLAYER_CORNER_X,
@@ -445,14 +457,26 @@ fn contextual_icons(prefix: &str, player_side: bool) -> Element {
         .collect()
     } else {
         [
-            anchored_marker(format!("{prefix}ReputationColor"), TARGET_REPUTATION_X, TARGET_REPUTATION_Y),
+            anchored_marker(
+                format!("{prefix}ReputationColor"),
+                TARGET_REPUTATION_X,
+                TARGET_REPUTATION_Y,
+            ),
             anchored_marker(
                 format!("{prefix}HighLevelTexture"),
                 TARGET_HIGH_LEVEL_X,
                 TARGET_HIGH_LEVEL_Y,
             ),
-            anchored_topright_marker(format!("{prefix}LeaderIcon"), TARGET_LEADER_X, TARGET_LEADER_Y),
-            anchored_topright_marker(format!("{prefix}GuideIcon"), TARGET_LEADER_X, TARGET_LEADER_Y),
+            anchored_topright_marker(
+                format!("{prefix}LeaderIcon"),
+                TARGET_LEADER_X,
+                TARGET_LEADER_Y,
+            ),
+            anchored_topright_marker(
+                format!("{prefix}GuideIcon"),
+                TARGET_LEADER_X,
+                TARGET_LEADER_Y,
+            ),
             portrait_centered_marker(
                 format!("{prefix}RaidTargetIcon"),
                 AnchorPoint::Top,
@@ -837,10 +861,10 @@ mod tests {
     fn unit_frame_text_uses_wow_font_styles() {
         let reg = unit_frames_registry();
 
-        let player_name = reg
-            .get(reg.get_by_name("PlayerName").unwrap())
-            .unwrap();
-        let Some(ui_toolkit::frame::WidgetData::FontString(name_font)) = player_name.widget_data.as_ref() else {
+        let player_name = reg.get(reg.get_by_name("PlayerName").unwrap()).unwrap();
+        let Some(ui_toolkit::frame::WidgetData::FontString(name_font)) =
+            player_name.widget_data.as_ref()
+        else {
             panic!("expected PlayerName fontstring");
         };
         assert_eq!(name_font.font, GameFont::FrizQuadrata);
