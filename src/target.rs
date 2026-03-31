@@ -1,6 +1,9 @@
+use std::path::Path;
+
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::asset::blp::load_blp_to_image;
 use game_engine::targeting::CurrentTarget;
 
 use crate::camera::Player;
@@ -12,11 +15,81 @@ use game_engine::input_bindings::{InputAction, InputBindings};
 #[derive(Component)]
 pub struct TargetMarker;
 
+/// Which visual style the target selection circle uses.
+#[derive(Debug, Clone, PartialEq, Eq, Resource)]
+pub enum TargetCircleStyle {
+    /// Procedural yellow ring + fill (no texture).
+    Procedural,
+    /// BLP texture by FDID pair: (base, optional glow).
+    Blp {
+        name: String,
+        base_fdid: u32,
+        glow_fdid: Option<u32>,
+        emissive: [u8; 3],
+    },
+}
+
+impl Default for TargetCircleStyle {
+    fn default() -> Self {
+        Self::Procedural
+    }
+}
+
+impl TargetCircleStyle {
+    pub fn label(&self) -> &str {
+        match self {
+            Self::Procedural => "Procedural",
+            Self::Blp { name, .. } => name,
+        }
+    }
+}
+
+fn blp_style(name: &str, base: u32, glow: Option<u32>, rgb: [u8; 3]) -> TargetCircleStyle {
+    TargetCircleStyle::Blp {
+        name: name.into(),
+        base_fdid: base,
+        glow_fdid: glow,
+        emissive: rgb,
+    }
+}
+
+/// All available circle styles for the debug picker.
+pub fn available_circle_styles() -> Vec<TargetCircleStyle> {
+    let mut styles = vec![TargetCircleStyle::Procedural];
+    styles.extend(white_ring_styles());
+    styles.extend(spell_area_styles());
+    styles
+}
+
+fn white_ring_styles() -> Vec<TargetCircleStyle> {
+    vec![
+        blp_style("Thin Ring (Hostile)", 167208, None, [255, 40, 40]),
+        blp_style("Thin Ring (Friendly)", 167208, None, [40, 255, 40]),
+        blp_style("Thin Ring (Neutral)", 167208, None, [255, 220, 50]),
+        blp_style("Fat Ring", 167207, None, [255, 220, 50]),
+        blp_style("Ring Glow", 651522, None, [255, 220, 50]),
+        blp_style("Double Ring", 623667, None, [255, 220, 50]),
+        blp_style("Reticle", 166706, None, [255, 255, 255]),
+    ]
+}
+
+fn spell_area_styles() -> Vec<TargetCircleStyle> {
+    vec![
+        blp_style("Holy", 1001694, None, [255, 240, 150]),
+        blp_style("Fire", 1001600, None, [255, 120, 30]),
+        blp_style("Arcane", 1001690, None, [180, 130, 255]),
+        blp_style("Frost", 1001693, None, [100, 200, 255]),
+        blp_style("Nature", 1001695, None, [100, 220, 80]),
+        blp_style("Shadow", 1001697, None, [160, 80, 220]),
+    ]
+}
+
 pub struct TargetPlugin;
 
 impl Plugin for TargetPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentTarget>();
+        app.init_resource::<TargetCircleStyle>();
         app.add_systems(
             Update,
             (
@@ -193,13 +266,15 @@ fn clear_target(
 /// When CurrentTarget changes, spawn or move the selection circle.
 fn spawn_target_circle(
     current: Res<CurrentTarget>,
+    style: Res<TargetCircleStyle>,
     mut commands: Commands,
     existing: Query<Entity, With<TargetMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
     target_tf: Query<&Transform>,
 ) {
-    if !current.is_changed() {
+    if !current.is_changed() && !style.is_changed() {
         return;
     }
     for e in existing.iter() {
@@ -209,11 +284,37 @@ fn spawn_target_circle(
     let Ok(tf) = target_tf.get(target) else {
         return;
     };
-    spawn_target_fill(&mut commands, &mut meshes, &mut materials, tf.translation);
-    spawn_target_ring(&mut commands, &mut meshes, &mut materials, tf.translation);
+    match style.as_ref() {
+        TargetCircleStyle::Procedural => {
+            spawn_procedural_fill(&mut commands, &mut meshes, &mut materials, tf.translation);
+            spawn_procedural_ring(&mut commands, &mut meshes, &mut materials, tf.translation);
+        }
+        TargetCircleStyle::Blp {
+            base_fdid,
+            glow_fdid,
+            emissive,
+            ..
+        } => {
+            let e = emissive_from_rgb(*emissive);
+            let base = format!("data/textures/{base_fdid}.blp");
+            spawn_target_textured(&mut commands, &mut meshes, &mut materials, &mut images, tf.translation, Path::new(&base), e);
+            if let Some(glow) = glow_fdid {
+                let glow_path = format!("data/textures/{glow}.blp");
+                spawn_target_textured(&mut commands, &mut meshes, &mut materials, &mut images, tf.translation, Path::new(&glow_path), e);
+            }
+        }
+    }
 }
 
-fn spawn_target_fill(
+fn emissive_from_rgb(rgb: [u8; 3]) -> LinearRgba {
+    LinearRgba::rgb(
+        rgb[0] as f32 / 255.0 * 1.5,
+        rgb[1] as f32 / 255.0 * 1.5,
+        rgb[2] as f32 / 255.0 * 1.5,
+    )
+}
+
+fn spawn_procedural_fill(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -238,7 +339,7 @@ fn spawn_target_fill(
     ));
 }
 
-fn spawn_target_ring(
+fn spawn_procedural_ring(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -261,6 +362,54 @@ fn spawn_target_ring(
         target_circle_transform(translation),
         TargetMarker,
     ));
+}
+
+fn spawn_target_textured(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    translation: Vec3,
+    blp_path: &Path,
+    emissive: LinearRgba,
+) {
+    let Ok(image) = load_blp_to_image(blp_path) else {
+        warn!("Failed to load target texture: {}", blp_path.display());
+        return;
+    };
+    let opaque = is_fully_opaque(&image);
+    let texture = images.add(image);
+    let quad = meshes.add(Rectangle::new(2.0, 2.0));
+    let tint = Color::linear_rgba(emissive.red, emissive.green, emissive.blue, 1.0);
+    // DXT1 textures (no alpha) use additive blending — black adds nothing,
+    // bright pixels glow. Textures with real alpha use standard alpha blend.
+    let alpha_mode = if opaque { AlphaMode::Add } else { AlphaMode::Blend };
+    let mat = materials.add(StandardMaterial {
+        base_color: tint,
+        base_color_texture: Some(texture.clone()),
+        emissive,
+        emissive_texture: Some(texture),
+        unlit: true,
+        cull_mode: None,
+        alpha_mode,
+        reflectance: 0.0,
+        perceptual_roughness: 1.0,
+        ..default()
+    });
+    commands.spawn((
+        Mesh3d(quad),
+        MeshMaterial3d(mat),
+        target_circle_transform(translation),
+        TargetMarker,
+    ));
+}
+
+/// Returns true if every pixel has alpha == 255 (no real alpha channel — DXT1).
+fn is_fully_opaque(image: &Image) -> bool {
+    let Some(data) = image.data.as_ref() else {
+        return false;
+    };
+    data.iter().skip(3).step_by(4).all(|&a| a == 255)
 }
 
 /// Keep the selection circle positioned under the current target each frame.

@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use crate::creature_display;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
+use crate::target::{TargetCircleStyle, available_circle_styles};
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::inworld_selection_debug_component::{
@@ -27,6 +28,7 @@ struct InWorldSelectionDebugModel {
     selected_index: usize,
     pinned: bool,
     last_action: String,
+    active_circle_style: usize,
 }
 
 struct InWorldSelectionDebugScreenRes {
@@ -108,6 +110,7 @@ impl Default for InWorldSelectionDebugModel {
             selected_index: 0,
             pinned: false,
             last_action: "Initialized in-world selection debug screen".to_string(),
+            active_circle_style: 0,
         }
     }
 }
@@ -264,6 +267,8 @@ fn inworld_selection_debug_state(model: &InWorldSelectionDebugModel) -> InWorldS
         selected_index: model.selected_index,
         pinned: model.pinned,
         last_action: model.last_action.clone(),
+        circle_styles: available_circle_styles().iter().map(|s| s.label().to_string()).collect(),
+        active_circle_style: model.active_circle_style,
     }
 }
 
@@ -309,11 +314,15 @@ fn dispatch_inworld_selection_debug_action(
     mut events: MessageReader<InWorldSelectionDebugClickEvent>,
     mut model: ResMut<InWorldSelectionDebugModel>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut circle_style: ResMut<TargetCircleStyle>,
 ) {
     for event in events.read() {
         match InWorldSelectionDebugAction::parse(&event.0) {
             Some(InWorldSelectionDebugAction::SelectEntry(index)) => {
                 select_entry(&mut model, index)
+            }
+            Some(InWorldSelectionDebugAction::SelectCircleStyle(index)) => {
+                apply_circle_style(&mut model, &mut circle_style, index);
             }
             Some(InWorldSelectionDebugAction::Prev) => cycle_entry(&mut model, -1),
             Some(InWorldSelectionDebugAction::Next) => cycle_entry(&mut model, 1),
@@ -321,6 +330,19 @@ fn dispatch_inworld_selection_debug_action(
             Some(InWorldSelectionDebugAction::Back) => next_state.set(GameState::Login),
             None => {}
         }
+    }
+}
+
+fn apply_circle_style(
+    model: &mut InWorldSelectionDebugModel,
+    circle_style: &mut TargetCircleStyle,
+    index: usize,
+) {
+    let styles = available_circle_styles();
+    if let Some(style) = styles.into_iter().nth(index) {
+        model.active_circle_style = index;
+        model.last_action = format!("Circle: {}", style.label());
+        *circle_style = style;
     }
 }
 

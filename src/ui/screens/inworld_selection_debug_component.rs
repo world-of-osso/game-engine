@@ -32,6 +32,7 @@ struct DynName(String);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InWorldSelectionDebugAction {
     SelectEntry(usize),
+    SelectCircleStyle(usize),
     Prev,
     Next,
     TogglePinned,
@@ -41,7 +42,8 @@ pub enum InWorldSelectionDebugAction {
 impl fmt::Display for InWorldSelectionDebugAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::SelectEntry(index) => write!(f, "inworld_selection_debug_select:{index}"),
+            Self::SelectEntry(i) => write!(f, "inworld_selection_debug_select:{i}"),
+            Self::SelectCircleStyle(i) => write!(f, "inworld_selection_debug_circle:{i}"),
             Self::Prev => f.write_str("inworld_selection_debug_prev"),
             Self::Next => f.write_str("inworld_selection_debug_next"),
             Self::TogglePinned => f.write_str("inworld_selection_debug_pin"),
@@ -52,8 +54,11 @@ impl fmt::Display for InWorldSelectionDebugAction {
 
 impl InWorldSelectionDebugAction {
     pub fn parse(value: &str) -> Option<Self> {
-        if let Some(index) = value.strip_prefix("inworld_selection_debug_select:") {
-            return index.parse().ok().map(Self::SelectEntry);
+        if let Some(i) = value.strip_prefix("inworld_selection_debug_select:") {
+            return i.parse().ok().map(Self::SelectEntry);
+        }
+        if let Some(i) = value.strip_prefix("inworld_selection_debug_circle:") {
+            return i.parse().ok().map(Self::SelectCircleStyle);
         }
         match value {
             "inworld_selection_debug_prev" => Some(Self::Prev),
@@ -79,6 +84,8 @@ pub struct InWorldSelectionDebugState {
     pub selected_index: usize,
     pub pinned: bool,
     pub last_action: String,
+    pub circle_styles: Vec<String>,
+    pub active_circle_style: usize,
 }
 
 fn row_name(index: usize) -> DynName {
@@ -129,7 +136,36 @@ fn selection_rows(entries: &[InWorldSelectionDebugEntry], selected_index: usize)
         .collect()
 }
 
+fn row_label(index: usize, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {row_label_name(index)},
+            width: 290.0,
+            height: 24.0,
+            text: {text},
+            font_size: 18.0,
+            color: TEXT_GOLD,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-12" }
+        }
+    }
+}
+
+fn row_category(index: usize, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {row_category_name(index)},
+            width: 290.0,
+            height: 16.0,
+            text: {text},
+            font_size: 12.0,
+            color: TEXT_SUBTITLE,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-38" }
+        }
+    }
+}
+
 fn row(index: usize, entry: &InWorldSelectionDebugEntry, selected: bool) -> Element {
+    let not_selected = !selected;
     rsx! {
         r#frame {
             name: {row_name(index)},
@@ -139,40 +175,43 @@ fn row(index: usize, entry: &InWorldSelectionDebugEntry, selected: bool) -> Elem
             background_color: if selected { ROW_SELECTED } else { ROW_IDLE },
             r#frame {
                 name: {row_selected_name(index)},
-                width: 332.0,
-                height: 4.0,
-                hidden: {!selected},
+                width: 332.0, height: 4.0,
+                hidden: {not_selected},
                 background_color: ROW_ACCENT,
                 anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
             }
-            fontstring {
-                name: {row_label_name(index)},
-                width: 290.0,
-                height: 24.0,
-                text: {&entry.label},
-                font_size: 18.0,
-                color: TEXT_GOLD,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "14",
-                    y: "-12",
-                }
-            }
-            fontstring {
-                name: {row_category_name(index)},
-                width: 290.0,
-                height: 16.0,
-                text: {&entry.category},
-                font_size: 12.0,
-                color: TEXT_SUBTITLE,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "14",
-                    y: "-38",
-                }
-            }
+            {row_label(index, &entry.label)}
+            {row_category(index, &entry.category)}
+        }
+    }
+}
+
+fn panel_header(name: DynName, title: &str, subtitle: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{}Border", name.0))},
+            width: 360.0,
+            height: 2.0,
+            background_color: PANEL_BORDER,
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+        }
+        fontstring {
+            name: {DynName(format!("{}Title", name.0))},
+            width: 320.0,
+            height: 20.0,
+            text: {title},
+            font_size: 18.0,
+            color: TEXT_GOLD,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-14" }
+        }
+        fontstring {
+            name: {DynName(format!("{}Helper", name.0))},
+            width: 320.0,
+            height: 34.0,
+            text: {subtitle},
+            font_size: 12.0,
+            color: TEXT_MUTED,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-38" }
         }
     }
 }
@@ -188,57 +227,79 @@ fn candidate_panel(state: &InWorldSelectionDebugState) -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_to: INWORLD_SELECTION_DEBUG_ROOT,
                 relative_point: AnchorPoint::TopLeft,
-                x: "22",
-                y: "-22",
+                x: "22", y: "-22",
             }
-            r#frame {
-                name: "InWorldSelectionDebugListBorder",
-                width: 360.0,
-                height: 2.0,
-                background_color: PANEL_BORDER,
-                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
-            }
-            fontstring {
-                name: "InWorldSelectionDebugListTitle",
-                width: 320.0,
-                height: 20.0,
-                text: "In-World Selection Cases",
-                font_size: 18.0,
-                color: TEXT_GOLD,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "14",
-                    y: "-14",
-                }
-            }
-            fontstring {
-                name: "InWorldSelectionDebugListHelper",
-                width: 320.0,
-                height: 34.0,
-                text: "Cycle likely target classes while viewing the selected wolf in the in-world debug scene.",
-                font_size: 12.0,
-                color: TEXT_MUTED,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "14",
-                    y: "-38",
-                }
-            }
+            {panel_header(
+                DynName("InWorldSelectionDebugList".into()),
+                "In-World Selection Cases",
+                "Cycle likely target classes while viewing the selected wolf in the in-world debug scene.",
+            )}
             r#frame {
                 name: "InWorldSelectionDebugRows",
                 width: 332.0,
                 height: 272.0,
                 layout: "flex-col",
                 gap: 8.0,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "14",
-                    y: "-82",
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-82" }
                 {selection_rows(&state.entries, state.selected_index)}
+            }
+        }
+    }
+}
+
+fn circle_style_row(index: usize, label: &str, active: bool) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("CircleStyle_{index}"))},
+            width: 200.0,
+            height: 30.0,
+            onclick: InWorldSelectionDebugAction::SelectCircleStyle(index),
+            background_color: if active { ROW_SELECTED } else { ROW_IDLE },
+            fontstring {
+                name: {DynName(format!("CircleStyleLabel_{index}"))},
+                width: 180.0,
+                height: 20.0,
+                text: {label},
+                font_size: 14.0,
+                color: if active { TEXT_GOLD } else { TEXT_SUBTITLE },
+                anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "10" }
+            }
+        }
+    }
+}
+
+fn circle_style_panel(state: &InWorldSelectionDebugState) -> Element {
+    let rows: Element = state
+        .circle_styles
+        .iter()
+        .enumerate()
+        .flat_map(|(i, label)| circle_style_row(i, label, i == state.active_circle_style))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "CircleStylePanel",
+            width: 228.0,
+            height: 400.0,
+            background_color: PANEL_BG,
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_to: INWORLD_SELECTION_DEBUG_ROOT,
+                relative_point: AnchorPoint::TopRight,
+                x: "-22", y: "-22",
+            }
+            {panel_header(
+                DynName("CircleStyle".into()),
+                "Circle Style",
+                "Pick a target circle texture.",
+            )}
+            r#frame {
+                name: "CircleStyleRows",
+                width: 210.0,
+                height: 340.0,
+                layout: "flex-col",
+                gap: 4.0,
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: "-82" }
+                {rows}
             }
         }
     }
@@ -258,6 +319,7 @@ pub fn inworld_selection_debug_screen(ctx: &SharedContext) -> Element {
             {action_bar_screen(ctx)}
             {minimap_screen(ctx)}
             {candidate_panel(state)}
+            {circle_style_panel(state)}
             {button(INWORLD_SELECTION_DEBUG_PREV, "Previous", InWorldSelectionDebugAction::Prev, 22.0)}
             {button(INWORLD_SELECTION_DEBUG_NEXT, "Next", InWorldSelectionDebugAction::Next, 192.0)}
             {button(
@@ -297,6 +359,8 @@ mod tests {
             selected_index: 1,
             pinned: true,
             last_action: "Pinned World Object".to_string(),
+            circle_styles: vec!["Procedural".to_string(), "Fire".to_string()],
+            active_circle_style: 0,
         }
     }
 
