@@ -160,8 +160,9 @@ fn build_flipbook_sprite_index(
 
 fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
     let m = build_expr_modifiers(em);
-    let max_particles = ((em.emission_rate * em.lifespan) as u32).clamp(16, 4096);
-    let spawner = SpawnerSettings::rate(em.emission_rate.max(0.1).into());
+    let emission_rate = (em.emission_rate * emitter_rate_scale(em)).max(0.1);
+    let max_particles = ((emission_rate * em.lifespan) as u32).clamp(16, 4096);
+    let spawner = SpawnerSettings::rate(emission_rate.into());
 
     let mut effect = assemble_effect(
         em,
@@ -187,6 +188,14 @@ fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
         });
     }
     effect
+}
+
+fn emitter_rate_scale(em: &M2ParticleEmitter) -> f32 {
+    if is_fire_effect(em) { 4.0 } else { 1.0 }
+}
+
+fn is_fire_effect(em: &M2ParticleEmitter) -> bool {
+    em.texture_fdid.is_some() && em.blend_type >= 4 && (em.tile_rows > 1 || em.tile_cols > 1)
 }
 
 fn assemble_effect(
@@ -351,7 +360,8 @@ mod tests {
     use bevy::prelude::Vec3;
 
     use super::{
-        build_effect_asset, build_expr_modifiers, emitter_spawn_radius, emitter_translation,
+        build_effect_asset, build_expr_modifiers, emitter_rate_scale, emitter_spawn_radius,
+        emitter_translation, is_fire_effect,
     };
     use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
@@ -442,6 +452,24 @@ mod tests {
         emitter.area_width = 0.2;
 
         assert_eq!(emitter_spawn_radius(&emitter), 0.0);
+    }
+
+    #[test]
+    fn fire_emitters_use_four_x_rate_scale() {
+        let mut emitter = sample_emitter();
+        emitter.texture_fdid = Some(145513);
+
+        assert!(is_fire_effect(&emitter));
+        assert_eq!(emitter_rate_scale(&emitter), 4.0);
+    }
+
+    #[test]
+    fn non_fire_emitters_keep_default_rate_scale() {
+        let mut emitter = sample_emitter();
+        emitter.texture_fdid = None;
+
+        assert!(!is_fire_effect(&emitter));
+        assert_eq!(emitter_rate_scale(&emitter), 1.0);
     }
 
     #[test]
