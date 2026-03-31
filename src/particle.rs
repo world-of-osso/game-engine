@@ -99,6 +99,8 @@ fn spawn_single_emitter(
 struct ExprModifiers {
     init: InitModifiers,
     gravity: AccelModifier,
+    drag: Option<LinearDragModifier>,
+    flipbook_sprite_index: Option<SetAttributeModifier>,
     texture: Option<ParticleTextureModifier>,
     alpha_mode: bevy_hanabi::AlphaMode,
     module: Module,
@@ -108,13 +110,26 @@ fn build_expr_modifiers(em: &M2ParticleEmitter) -> ExprModifiers {
     let writer = ExprWriter::new();
     let init = build_init_modifiers(em, &writer);
     let gravity = AccelModifier::new(writer.lit(Vec3::new(0.0, -em.gravity, 0.0)).expr());
+    let drag = (em.drag > 0.0).then(|| LinearDragModifier::new(writer.lit(em.drag).expr()));
+    let flipbook_sprite_index = build_flipbook_sprite_index(em, &writer);
     let mask_cutoff = writer.lit(0.5_f32).expr();
     let texture = em.texture_fdid.map(|_| ParticleTextureModifier {
         texture_slot: writer.lit(0u32).expr(),
         sample_mapping: ImageSampleMapping::Modulate,
     });
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
-    ExprModifiers { init, gravity, texture, alpha_mode, module: writer.finish() }
+    ExprModifiers { init, gravity, drag, flipbook_sprite_index, texture, alpha_mode, module: writer.finish() }
+}
+
+fn build_flipbook_sprite_index(em: &M2ParticleEmitter, writer: &ExprWriter) -> Option<SetAttributeModifier> {
+    if em.tile_rows <= 1 && em.tile_cols <= 1 {
+        return None;
+    }
+    let total = (em.tile_rows as i32) * (em.tile_cols as i32);
+    let age = writer.attr(Attribute::AGE);
+    let lifetime = writer.attr(Attribute::LIFETIME);
+    let frame = (age / lifetime * writer.lit(total as f32)).cast(ScalarType::Int).rem(writer.lit(total));
+    Some(SetAttributeModifier::new(Attribute::SPRITE_INDEX, frame.expr()))
 }
 
 fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
@@ -123,8 +138,19 @@ fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
     let spawner = SpawnerSettings::rate(em.emission_rate.max(0.1).into());
 
     let mut effect = assemble_effect(em, m.module, spawner, max_particles, m.alpha_mode, m.init, m.gravity);
+    if let Some(drag) = m.drag {
+        effect = effect.update(drag);
+    }
+    if let Some(sprite_idx) = m.flipbook_sprite_index {
+        effect = effect.update(sprite_idx);
+    }
     if let Some(tex) = m.texture {
         effect = effect.render(tex);
+    }
+    if em.tile_rows > 1 || em.tile_cols > 1 {
+        effect = effect.render(FlipbookModifier {
+            sprite_grid_size: UVec2::new(em.tile_cols as u32, em.tile_rows as u32),
+        });
     }
     effect
 }
@@ -145,7 +171,15 @@ fn assemble_effect(
             gradient: build_size_gradient(em),
             screen_space_size: false,
         })
-        .render(OrientModifier::new(OrientMode::FaceCameraPosition))
+        .render(OrientModifier::new(orient_mode(em)))
+}
+
+fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
+    if em.flags & 0x08 != 0 {
+        OrientMode::AlongVelocity
+    } else {
+        OrientMode::FaceCameraPosition
+    }
 }
 
 fn build_color_render_modifier(em: &M2ParticleEmitter) -> ColorOverLifetimeModifier {

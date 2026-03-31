@@ -30,6 +30,7 @@ pub struct M2ParticleEmitter {
     pub emission_rate: f32,
     pub area_length: f32,
     pub area_width: f32,
+    pub drag: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
     /// Opacity over lifetime: start, mid, end (0–1).
@@ -141,6 +142,7 @@ fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
         emission_rate: 0.0,
         area_length: 0.0,
         area_width: 0.0,
+        drag: 0.0,
         colors: [[0.0; 3]; 3],
         opacity: [1.0; 3],
         scales: [[1.0; 2]; 3],
@@ -159,6 +161,7 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.emission_rate = read_track_static_f32(md20, data, 0xB0);
     em.area_length = read_track_static_f32(md20, data, 0xC8);
     em.area_width = read_track_static_f32(md20, data, 0xDC);
+    em.drag = read_track_static_f32(md20, data, 0xF0);
 }
 
 /// Fill FakeAnimBlock visual values (color, opacity, scale).
