@@ -1,9 +1,16 @@
-#![allow(dead_code, clippy::collapsible_if, clippy::collapsible_str_replace,
-    clippy::derivable_impls, clippy::needless_borrow, clippy::needless_lifetimes,
-    clippy::needless_option_as_deref, clippy::question_mark,
-    clippy::too_many_arguments, clippy::type_complexity)]
+#![allow(
+    dead_code,
+    clippy::collapsible_if,
+    clippy::collapsible_str_replace,
+    clippy::derivable_impls,
+    clippy::needless_borrow,
+    clippy::needless_lifetimes,
+    clippy::needless_option_as_deref,
+    clippy::question_mark,
+    clippy::too_many_arguments,
+    clippy::type_complexity
+)]
 
-use std::{collections::VecDeque, path::{Path, PathBuf}, time::Duration};
 use bevy::{
     asset::RenderAssetUsages,
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
@@ -24,6 +31,11 @@ use game_engine::status::{
     ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 use raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 mod action_bar;
 mod animation;
@@ -53,7 +65,6 @@ mod game_menu_options;
 mod game_menu_screen;
 mod game_state;
 mod geoset_debug_scene;
-mod orbit_camera;
 mod ground;
 mod health_bar;
 mod inworld_scene_tree;
@@ -73,6 +84,7 @@ mod networking_messages;
 mod networking_npc;
 mod networking_player;
 mod networking_reconnect;
+mod orbit_camera;
 mod particle;
 mod particle_debug_scene;
 mod process_limits;
@@ -617,14 +629,19 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
 
 fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState>) {
     app.add_plugins((
-        game_state::GameStatePlugin, networking::NetworkPlugin,
-        login_screen::LoginScreenPlugin, loading_screen::LoadingScreenPlugin,
-        char_select::CharSelectPlugin, char_select_scene::CharSelectScenePlugin,
+        game_state::GameStatePlugin,
+        networking::NetworkPlugin,
+        login_screen::LoginScreenPlugin,
+        loading_screen::LoadingScreenPlugin,
+        char_select::CharSelectPlugin,
+        char_select_scene::CharSelectScenePlugin,
         selection_debug_screen::SelectionDebugScreenPlugin,
         inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin,
-        char_create::CharCreatePlugin, char_create_scene::CharCreateScenePlugin,
+        char_create::CharCreatePlugin,
+        char_create_scene::CharCreateScenePlugin,
         campsite_popup_screen::CampsitePopupScreenPlugin,
-        game_menu_screen::GameMenuScreenPlugin, trash_button_screen::TrashButtonScreenPlugin,
+        game_menu_screen::GameMenuScreenPlugin,
+        trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));
     match initial_state {

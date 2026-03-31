@@ -342,8 +342,6 @@ fn real_mask_display_does_not_fallback_to_blood_elf_collection_model() {
     );
 }
 
-
-
 // --- Helmet hair hiding ---
 
 #[test]

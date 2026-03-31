@@ -118,18 +118,34 @@ fn build_expr_modifiers(em: &M2ParticleEmitter) -> ExprModifiers {
         sample_mapping: ImageSampleMapping::Modulate,
     });
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
-    ExprModifiers { init, gravity, drag, flipbook_sprite_index, texture, alpha_mode, module: writer.finish() }
+    ExprModifiers {
+        init,
+        gravity,
+        drag,
+        flipbook_sprite_index,
+        texture,
+        alpha_mode,
+        module: writer.finish(),
+    }
 }
 
-fn build_flipbook_sprite_index(em: &M2ParticleEmitter, writer: &ExprWriter) -> Option<SetAttributeModifier> {
+fn build_flipbook_sprite_index(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
     if em.tile_rows <= 1 && em.tile_cols <= 1 {
         return None;
     }
     let total = (em.tile_rows as i32) * (em.tile_cols as i32);
     let age = writer.attr(Attribute::AGE);
     let lifetime = writer.attr(Attribute::LIFETIME);
-    let frame = (age / lifetime * writer.lit(total as f32)).cast(ScalarType::Int).rem(writer.lit(total));
-    Some(SetAttributeModifier::new(Attribute::SPRITE_INDEX, frame.expr()))
+    let frame = (age / lifetime * writer.lit(total as f32))
+        .cast(ScalarType::Int)
+        .rem(writer.lit(total));
+    Some(SetAttributeModifier::new(
+        Attribute::SPRITE_INDEX,
+        frame.expr(),
+    ))
 }
 
 fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
@@ -137,7 +153,15 @@ fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
     let max_particles = ((em.emission_rate * em.lifespan) as u32).clamp(16, 4096);
     let spawner = SpawnerSettings::rate(em.emission_rate.max(0.1).into());
 
-    let mut effect = assemble_effect(em, m.module, spawner, max_particles, m.alpha_mode, m.init, m.gravity);
+    let mut effect = assemble_effect(
+        em,
+        m.module,
+        spawner,
+        max_particles,
+        m.alpha_mode,
+        m.init,
+        m.gravity,
+    );
     if let Some(drag) = m.drag {
         effect = effect.update(drag);
     }
@@ -156,15 +180,22 @@ fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
 }
 
 fn assemble_effect(
-    em: &M2ParticleEmitter, module: Module, spawner: SpawnerSettings,
-    max_particles: u32, alpha_mode: bevy_hanabi::AlphaMode,
-    init: InitModifiers, gravity: AccelModifier,
+    em: &M2ParticleEmitter,
+    module: Module,
+    spawner: SpawnerSettings,
+    max_particles: u32,
+    alpha_mode: bevy_hanabi::AlphaMode,
+    init: InitModifiers,
+    gravity: AccelModifier,
 ) -> EffectAsset {
     EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
         .with_alpha_mode(alpha_mode)
         .with_simulation_space(SimulationSpace::Global)
-        .init(init.age).init(init.lifetime).init(init.pos).init(init.vel)
+        .init(init.age)
+        .init(init.lifetime)
+        .init(init.pos)
+        .init(init.vel)
         .update(gravity)
         .render(build_color_render_modifier(em))
         .render(SizeOverLifetimeModifier {
@@ -203,10 +234,18 @@ fn build_init_modifiers(em: &M2ParticleEmitter, writer: &ExprWriter) -> InitModi
         SetAttributeModifier::new(Attribute::LIFETIME, writer.lit(em.lifespan.max(0.1)).expr());
     let pos = build_position_modifier(em, writer);
     let vel = build_velocity_modifier(em, writer);
-    InitModifiers { age, lifetime, pos, vel }
+    InitModifiers {
+        age,
+        lifetime,
+        pos,
+        vel,
+    }
 }
 
-fn build_position_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetPositionSphereModifier {
+fn build_position_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> SetPositionSphereModifier {
     let radius = if em.area_length > 0.0 || em.area_width > 0.0 {
         (em.area_length.max(em.area_width) * 0.5).max(0.01)
     } else {
@@ -255,9 +294,18 @@ fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
     let [o0, o1, o2] = em.opacity;
     let mid = em.mid_point.clamp(0.01, 0.99);
     let mut g = bevy_hanabi::Gradient::new();
-    g.add_key(0.0, Vec4::new(c0[0] / 255.0, c0[1] / 255.0, c0[2] / 255.0, o0));
-    g.add_key(mid, Vec4::new(c1[0] / 255.0, c1[1] / 255.0, c1[2] / 255.0, o1));
-    g.add_key(1.0, Vec4::new(c2[0] / 255.0, c2[1] / 255.0, c2[2] / 255.0, o2));
+    g.add_key(
+        0.0,
+        Vec4::new(c0[0] / 255.0, c0[1] / 255.0, c0[2] / 255.0, o0),
+    );
+    g.add_key(
+        mid,
+        Vec4::new(c1[0] / 255.0, c1[1] / 255.0, c1[2] / 255.0, o1),
+    );
+    g.add_key(
+        1.0,
+        Vec4::new(c2[0] / 255.0, c2[1] / 255.0, c2[2] / 255.0, o2),
+    );
     g
 }
 
