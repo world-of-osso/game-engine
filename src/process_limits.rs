@@ -1,5 +1,8 @@
 pub fn apply_resource_limits() {
-    let max_mem_gb = read_max_memory_gb();
+    let Some(max_mem_gb) = read_max_memory_gb() else {
+        eprintln!("Resource limits: RLIMIT_AS disabled by default");
+        return;
+    };
     let max_mem_bytes = max_mem_gb * 1024 * 1024 * 1024;
     let mem_limit = libc::rlimit {
         rlim_cur: max_mem_bytes,
@@ -16,11 +19,10 @@ pub fn apply_resource_limits() {
     log_current_limit();
 }
 
-fn read_max_memory_gb() -> u64 {
+fn read_max_memory_gb() -> Option<u64> {
     std::env::var("GAME_ENGINE_MAX_MEM_GB")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(10)
 }
 
 fn log_current_limit() {

@@ -70,7 +70,16 @@ fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
         "asset-cache miss: fdid {fdid} not cached at {}, extracting from local CASC",
         path.display()
     );
-    extract_fdid_to_path(fdid, &path).ok()
+    match extract_fdid_to_path(fdid, &path) {
+        Ok(path) => Some(path),
+        Err(err) => {
+            eprintln!(
+                "asset-cache extraction failed: fdid {fdid} -> {}: {err}",
+                path.display()
+            );
+            None
+        }
+    }
 }
 
 /// Ensure a CASC asset exists at the requested output path.
@@ -83,7 +92,16 @@ pub(super) fn ensure_file_cached_at_path(fdid: u32, out_path: &Path) -> Option<P
         "asset-cache miss: fdid {fdid} not cached at {}, extracting from local CASC",
         shared_path.display()
     );
-    extract_fdid_to_path(fdid, &shared_path).ok()
+    match extract_fdid_to_path(fdid, &shared_path) {
+        Ok(path) => Some(path),
+        Err(err) => {
+            eprintln!(
+                "asset-cache extraction failed: fdid {fdid} -> {}: {err}",
+                shared_path.display()
+            );
+            None
+        }
+    }
 }
 
 fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
