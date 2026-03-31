@@ -303,7 +303,9 @@ fn keybinding_section_button(section: BindingSection, active: bool) -> Element {
                 text: {&label},
                 font: "FrizQuadrata",
                 font_size: KEYBINDING_TAB_FONT_SIZE,
-                color: text_color,
+                font_color: text_color,
+                shadow_color: "0.0,0.0,0.0,1.0",
+                shadow_offset: "1,-1",
                 justify_h: "CENTER",
                 anchor {
                     point: AnchorPoint::Center,

@@ -208,6 +208,7 @@ mod tests {
     use crate::ui::anchor::AnchorPoint;
     use crate::ui::frame::{WidgetData, WidgetType};
     use crate::ui::registry::FrameRegistry;
+    use ui_toolkit::widgets::font_string::Outline;
 
     fn model(view: GameMenuView) -> GameMenuViewModel {
         GameMenuViewModel {
@@ -521,6 +522,24 @@ mod tests {
                 "section tabs should keep WoW 1px spacing: left={left:?} right={right:?}"
             );
         }
+    }
+
+    #[test]
+    fn keybinding_active_tab_label_uses_wow_font_treatment() {
+        let reg = options_registry_for_category(OptionsCategory::Keybindings);
+        let label = reg
+            .get(reg.get_by_name("KeybindingSectionmovementLabel").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(font)) = label.widget_data.as_ref() else {
+            panic!("expected active tab label font string");
+        };
+
+        assert_eq!(font.font, GameFont::FrizQuadrata);
+        assert_eq!(font.font_size, 10.0);
+        assert_eq!(font.color, [0.96, 0.84, 0.56, 1.0]);
+        assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+        assert_eq!(font.shadow_offset, [1.0, -1.0]);
+        assert_eq!(font.outline, Outline::None);
     }
 
     fn options_registry() -> FrameRegistry {

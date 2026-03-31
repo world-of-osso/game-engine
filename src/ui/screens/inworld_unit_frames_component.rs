@@ -296,6 +296,8 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 font: UNIT_NAME_FONT,
                 font_size: UNIT_NAME_FONT_SIZE,
                 font_color: NAME_TEXT,
+                shadow_color: "0.0,0.0,0.0,1.0",
+                shadow_offset: "1,-1",
                 justify_h: "LEFT",
                 anchor {
                     point: AnchorPoint::TopLeft,
@@ -312,6 +314,8 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 font: UNIT_NAME_FONT,
                 font_size: UNIT_LEVEL_FONT_SIZE,
                 font_color: GOLD_TEXT,
+                shadow_color: "0.0,0.0,0.0,1.0",
+                shadow_offset: "1,-1",
                 justify_h: if player_side { "RIGHT" } else { "CENTER" },
                 anchor {
                     point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
@@ -408,6 +412,7 @@ fn bar_block(
                 font: STATUS_BAR_FONT,
                 font_size: STATUS_BAR_FONT_SIZE,
                 font_color: VALUE_TEXT,
+                outline: "OUTLINE",
                 justify_h: "CENTER",
                 anchor {
                     point: AnchorPoint::Center,
@@ -470,6 +475,7 @@ mod tests {
     use crate::ui::registry::FrameRegistry;
     use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::screen::Screen;
+    use ui_toolkit::widgets::font_string::{GameFont, Outline};
 
     #[test]
     fn fill_width_clamps_to_bounds() {
@@ -591,6 +597,34 @@ mod tests {
                 height: MANA_H,
             }
         );
+    }
+
+    #[test]
+    fn unit_frame_text_uses_wow_font_styles() {
+        let reg = unit_frames_registry();
+
+        let player_name = reg
+            .get(reg.get_by_name("PlayerName").unwrap())
+            .unwrap();
+        let Some(ui_toolkit::frame::WidgetData::FontString(name_font)) = player_name.widget_data.as_ref() else {
+            panic!("expected PlayerName fontstring");
+        };
+        assert_eq!(name_font.font, GameFont::FrizQuadrata);
+        assert_eq!(name_font.font_size, 10.0);
+        assert_eq!(name_font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+        assert_eq!(name_font.shadow_offset, [1.0, -1.0]);
+
+        let player_health_text = reg
+            .get(reg.get_by_name("PlayerHealthBarText").unwrap())
+            .unwrap();
+        let Some(ui_toolkit::frame::WidgetData::FontString(bar_font)) =
+            player_health_text.widget_data.as_ref()
+        else {
+            panic!("expected PlayerHealthBarText fontstring");
+        };
+        assert_eq!(bar_font.font, GameFont::FrizQuadrata);
+        assert_eq!(bar_font.font_size, 10.0);
+        assert_eq!(bar_font.outline, Outline::Outline);
     }
 
     fn unit_frames_registry() -> FrameRegistry {
