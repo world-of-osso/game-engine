@@ -18,6 +18,9 @@ use game_engine::input_bindings::{InputAction, InputBindings};
 #[derive(Component)]
 pub struct TargetMarker;
 
+#[derive(Component, Clone, Copy)]
+struct TargetMarkerScaleFactor(f32);
+
 /// Which visual style the target selection circle uses.
 #[derive(Debug, Clone, PartialEq, Eq, Resource)]
 pub enum TargetCircleStyle {
@@ -32,9 +35,11 @@ pub enum TargetCircleStyle {
     },
 }
 
+const TARGET_CIRCLE_SIZE_FACTOR: f32 = 0.7;
+
 impl Default for TargetCircleStyle {
     fn default() -> Self {
-        Self::Procedural
+        blp_style("Fat Ring", 167207, None, [255, 220, 50])
     }
 }
 
@@ -250,7 +255,7 @@ fn target_circle_size(
             .filter(|scale| *scale > 0.0)
             .unwrap_or(1.0);
     }
-    size.max(0.35)
+    (size * TARGET_CIRCLE_SIZE_FACTOR).max(0.35)
 }
 
 fn target_footprint_size(
@@ -468,6 +473,7 @@ fn spawn_procedural_fill(
         Mesh3d(fill),
         MeshMaterial3d(fill_mat),
         target_circle_transform_scaled(translation, scale),
+        TargetMarkerScaleFactor(1.0),
         TargetMarker,
     ));
 }
@@ -494,6 +500,7 @@ fn spawn_procedural_ring(
         Mesh3d(ring),
         MeshMaterial3d(mat),
         target_circle_transform_scaled(translation, scale),
+        TargetMarkerScaleFactor(1.0),
         TargetMarker,
     ));
 }
@@ -538,6 +545,7 @@ fn spawn_target_textured(
         MeshMaterial3d(mat),
         ForwardDecal,
         target_circle_decal_transform(translation, scale),
+        TargetMarkerScaleFactor(2.0),
         TargetMarker,
     ));
 }
@@ -580,14 +588,26 @@ fn target_circle_decal_transform(target_translation: Vec3, scale: f32) -> Transf
 fn update_target_circle(
     current: Res<CurrentTarget>,
     target_tf: Query<&Transform, Without<TargetMarker>>,
-    mut circle_q: Query<&mut Transform, With<TargetMarker>>,
+    target_global_q: Query<&GlobalTransform, Without<TargetMarker>>,
+    parent_query: Query<&ChildOf>,
+    aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
+    model_info_q: Query<&ResolvedModelAssetInfo>,
+    mut circle_q: Query<(&mut Transform, &TargetMarkerScaleFactor), With<TargetMarker>>,
 ) {
     let Some(target) = current.0 else { return };
     let Ok(tf) = target_tf.get(target) else {
         return;
     };
-    for mut circle_tf in circle_q.iter_mut() {
+    let circle_size = target_circle_size(
+        target,
+        &parent_query,
+        &target_global_q,
+        &aabb_query,
+        &model_info_q,
+    );
+    for (mut circle_tf, scale_factor) in circle_q.iter_mut() {
         circle_tf.translation = tf.translation + Vec3::Y * 0.05;
+        circle_tf.scale = Vec3::splat((circle_size * scale_factor.0).max(0.01));
     }
 }
 
@@ -610,6 +630,14 @@ mod tests {
         assert_eq!(
             transform.rotation,
             Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+        );
+    }
+
+    #[test]
+    fn test_target_circle_style_default_is_fat_ring() {
+        assert_eq!(
+            TargetCircleStyle::default(),
+            blp_style("Fat Ring", 167207, None, [255, 220, 50])
         );
     }
 
@@ -691,13 +719,21 @@ mod tests {
         // Spawn a target entity
         let target = app
             .world_mut()
-            .spawn(Transform::from_xyz(10.0, 0.0, 5.0))
+            .spawn((
+                Transform::from_xyz(10.0, 0.0, 5.0),
+                GlobalTransform::from_translation(Vec3::new(10.0, 0.0, 5.0)),
+                RemoteEntity,
+            ))
             .id();
 
         // Spawn a circle tracking it
         let circle = app
             .world_mut()
-            .spawn((Transform::from_xyz(0.0, 0.0, 0.0), TargetMarker))
+            .spawn((
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                TargetMarkerScaleFactor(1.0),
+                TargetMarker,
+            ))
             .id();
 
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(target);
@@ -720,6 +756,73 @@ mod tests {
             "circle z should follow target, got {}",
             circle_pos.z
         );
+    }
+
+    #[test]
+    fn test_target_circle_rescales_when_target_bounds_appear() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<CurrentTarget>();
+
+        let target = app
+            .world_mut()
+            .spawn((
+                Transform::from_xyz(10.0, 0.0, 5.0),
+                GlobalTransform::from_translation(Vec3::new(10.0, 0.0, 5.0)),
+                RemoteEntity,
+                ResolvedModelAssetInfo {
+                    model_path: "data/models/test.m2".into(),
+                    skin_path: None,
+                    display_scale: Some(1.0),
+                },
+            ))
+            .id();
+
+        let circle = app
+            .world_mut()
+            .spawn((
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                TargetMarkerScaleFactor(1.0),
+                TargetMarker,
+            ))
+            .id();
+
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(target);
+        app.add_systems(Update, update_target_circle);
+        app.update();
+
+        let initial_scale = app
+            .world()
+            .entity(circle)
+            .get::<Transform>()
+            .unwrap()
+            .scale
+            .x;
+        assert!((initial_scale - 0.7).abs() < 0.001);
+
+        let child = app
+            .world_mut()
+            .spawn((
+                Transform::from_translation(Vec3::new(1.2, 0.0, 0.2)),
+                GlobalTransform::from_translation(Vec3::new(11.2, 0.0, 5.2)),
+                Aabb {
+                    center: Vec3::ZERO.into(),
+                    half_extents: Vec3::new(0.8, 0.6, 0.3).into(),
+                },
+            ))
+            .id();
+        app.world_mut().entity_mut(child).insert(ChildOf(target));
+
+        app.update();
+
+        let updated_scale = app
+            .world()
+            .entity(circle)
+            .get::<Transform>()
+            .unwrap()
+            .scale
+            .x;
+        assert!((updated_scale - 1.4).abs() < 0.001);
     }
 
     #[test]
@@ -817,7 +920,7 @@ mod tests {
         let size = app.world().resource::<TargetCircleSizeResult>().0;
 
         assert!(
-            (size - 2.0).abs() < 0.001,
+            (size - 1.4).abs() < 0.001,
             "expected size from XZ footprint radius, got {size}"
         );
     }
@@ -861,7 +964,7 @@ mod tests {
         let size = app.world().resource::<TargetCircleSizeResult>().0;
 
         assert!(
-            (size - 1.75).abs() < 0.001,
+            (size - 1.225).abs() < 0.001,
             "expected display scale fallback, got {size}"
         );
     }
