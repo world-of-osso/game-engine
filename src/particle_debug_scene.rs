@@ -93,7 +93,7 @@ fn spawn_torch(
         eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
         return;
     }
-    m2_scene::spawn_m2_model(
+    m2_scene::spawn_animated_static_m2(
         commands,
         meshes,
         materials,
@@ -101,6 +101,7 @@ fn spawn_torch(
         images,
         inv_bp,
         &path,
+        Transform::IDENTITY,
         creature_display_map,
     );
 }

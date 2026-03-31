@@ -62,12 +62,12 @@ pub fn spawn_emitters(
     _materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
-    bones: &[M2Bone],
+    _bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
     for em in emitters {
-        spawn_single_emitter(commands, images, em, bones, bone_entities, parent);
+        spawn_single_emitter(commands, images, em, _bones, bone_entities, parent);
     }
 }
 
@@ -81,7 +81,6 @@ fn spawn_single_emitter(
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
-    let offset = emitter_translation(em, bones);
     let parent_entity = bone_entity.unwrap_or(parent);
     commands
         .spawn((
@@ -92,22 +91,14 @@ fn spawn_single_emitter(
                 pending_effect: Some(build_effect_asset(em)),
                 pending_texture,
             },
-            Transform::from_translation(Vec3::from(offset)),
+            Transform::IDENTITY,
             Visibility::default(),
         ))
         .set_parent_in_place(parent_entity);
 }
 
-fn emitter_translation(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
-    let pos = if let Some(bone) = bones.get(em.bone_index as usize) {
-        [
-            em.position[0] - bone.pivot[0],
-            em.position[1] - bone.pivot[1],
-            em.position[2] - bone.pivot[2],
-        ]
-    } else {
-        em.position
-    };
+fn emitter_translation(em: &M2ParticleEmitter, _bones: &[M2Bone]) -> Vec3 {
+    let pos = em.position;
     Vec3::from(wow_to_bevy(pos[0], pos[1], pos[2]))
 }
 
@@ -265,13 +256,14 @@ fn build_position_modifier(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
 ) -> SetPositionSphereModifier {
+    let center = emitter_translation(em, &[]);
     let radius = if em.area_length > 0.0 || em.area_width > 0.0 {
         (em.area_length.max(em.area_width) * 0.5).max(0.01)
     } else {
         0.01_f32
     };
     SetPositionSphereModifier {
-        center: writer.lit(Vec3::ZERO).expr(),
+        center: writer.lit(center).expr(),
         radius: writer.lit(radius).expr(),
         dimension: ShapeDimension::Volume,
     }
@@ -416,19 +408,18 @@ mod tests {
     }
 
     #[test]
-    fn emitter_translation_is_relative_to_bound_bone_pivot() {
+    fn emitter_translation_uses_raw_model_position() {
         let mut emitter = sample_emitter();
         emitter.position = [1.0, 2.0, 3.0];
-        emitter.bone_index = 0;
         let bones = vec![sample_bone([0.25, 0.5, 0.75])];
 
         let translation = emitter_translation(&emitter, &bones);
 
-        assert_eq!(translation, Vec3::new(0.75, 2.25, -1.5));
+        assert_eq!(translation, Vec3::new(1.0, 3.0, -2.0));
     }
 
     #[test]
-    fn torch_emitter_translation_cancels_matching_bone_pivot() {
+    fn torch_emitter_translation_matches_particle_position() {
         let path = std::path::Path::new("data/models/club_1h_torch_a_01.m2");
         if !path.exists() {
             return;
@@ -440,6 +431,10 @@ mod tests {
 
         let translation = emitter_translation(&emitter, &model.bones);
 
-        assert!(translation.length() < 0.001, "translation={translation:?}");
+        let expected = Vec3::new(0.63709766, -0.07413276, 0.0009614461);
+        assert!(
+            translation.distance(expected) < 0.00001,
+            "translation={translation:?}"
+        );
     }
 }
