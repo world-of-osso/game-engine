@@ -2,7 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
+use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 
 const FRAME_W: f32 = 232.0;
@@ -51,6 +51,52 @@ const UNIT_NAME_FONT_SIZE: f32 = 10.0;
 const UNIT_LEVEL_FONT_SIZE: f32 = 10.0;
 const STATUS_BAR_FONT: &str = "FrizQuadrata";
 const STATUS_BAR_FONT_SIZE: f32 = 10.0;
+const PLAYER_LEADER_X: f32 = 86.0;
+const PLAYER_LEADER_Y: f32 = 10.0;
+const PLAYER_ROLE_X: f32 = 196.0;
+const PLAYER_ROLE_Y: f32 = 27.0;
+const PLAYER_ROLE_W: f32 = 12.0;
+const PLAYER_ROLE_H: f32 = 12.0;
+const PLAYER_ATTACK_X: f32 = 64.0;
+const PLAYER_ATTACK_Y: f32 = 62.0;
+const PLAYER_CORNER_X: f32 = 58.5;
+const PLAYER_CORNER_Y: f32 = 53.5;
+const PLAYER_PVP_X: f32 = 25.0;
+const PLAYER_PVP_Y: f32 = 50.0;
+const PLAYER_PRESTIGE_X: f32 = -2.0;
+const PLAYER_PRESTIGE_Y: f32 = 38.0;
+const PLAYER_PRESTIGE_W: f32 = 50.0;
+const PLAYER_PRESTIGE_H: f32 = 52.0;
+const PLAYER_PRESTIGE_BADGE_W: f32 = 30.0;
+const PLAYER_PRESTIGE_BADGE_H: f32 = 30.0;
+const READY_CHECK_W: f32 = 40.0;
+const READY_CHECK_H: f32 = 40.0;
+const TARGET_REPUTATION_X: f32 = 157.0;
+const TARGET_REPUTATION_Y: f32 = 25.0;
+const TARGET_HIGH_LEVEL_X: f32 = 28.0;
+const TARGET_HIGH_LEVEL_Y: f32 = 25.0;
+const TARGET_LEADER_X: f32 = 147.0;
+const TARGET_LEADER_Y: f32 = 8.0;
+const TARGET_RAID_ICON_W: f32 = 26.0;
+const TARGET_RAID_ICON_H: f32 = 26.0;
+const TARGET_PRESTIGE_X: f32 = 180.0;
+const TARGET_PRESTIGE_Y: f32 = 38.0;
+const TARGET_PRESTIGE_W: f32 = 50.0;
+const TARGET_PRESTIGE_H: f32 = 52.0;
+const TARGET_PET_BATTLE_X: f32 = 187.0;
+const TARGET_PET_BATTLE_Y: f32 = 52.0;
+const TARGET_PET_BATTLE_W: f32 = 32.0;
+const TARGET_PET_BATTLE_H: f32 = 32.0;
+const TARGET_PRESTIGE_BADGE_W: f32 = 30.0;
+const TARGET_PRESTIGE_BADGE_H: f32 = 30.0;
+const TARGET_THREAT_W: f32 = 49.0;
+const TARGET_THREAT_H: f32 = 18.0;
+const TARGET_THREAT_X: f32 = 147.0;
+const TARGET_THREAT_Y: f32 = 5.0;
+const PLAYER_PRESTIGE_PORTRAIT_FRAME: FrameName = FrameName("PlayerPrestigePortrait");
+const PLAYER_PORTRAIT_FRAME: FrameName = FrameName("PlayerPortrait");
+const TARGET_PRESTIGE_PORTRAIT_FRAME: FrameName = FrameName("TargetPrestigePortrait");
+const TARGET_PORTRAIT_FRAME: FrameName = FrameName("TargetPortrait");
 
 const PLAYER_SHELL_TEXTURE: &str = "data/ui/unitframes/player-frame-shell.ktx2";
 const TARGET_SHELL_TEXTURE: &str = "data/ui/unitframes/target-frame-shell.ktx2";
@@ -350,6 +396,194 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 mana_text_x,
                 mana_hidden,
             )}
+            {contextual_icons(prefix, player_side)}
+        }
+    }
+}
+
+fn contextual_icons(prefix: &str, player_side: bool) -> Element {
+    if player_side {
+        [
+            anchored_marker(format!("{prefix}LeaderIcon"), PLAYER_LEADER_X, PLAYER_LEADER_Y),
+            anchored_marker(format!("{prefix}GuideIcon"), PLAYER_LEADER_X, PLAYER_LEADER_Y),
+            sized_marker(
+                format!("{prefix}RoleIcon"),
+                PLAYER_ROLE_X,
+                PLAYER_ROLE_Y,
+                PLAYER_ROLE_W,
+                PLAYER_ROLE_H,
+            ),
+            anchored_marker(format!("{prefix}AttackIcon"), PLAYER_ATTACK_X, PLAYER_ATTACK_Y),
+            anchored_marker(
+                format!("{prefix}PlayerPortraitCornerIcon"),
+                PLAYER_CORNER_X,
+                PLAYER_CORNER_Y,
+            ),
+            anchored_top_marker(format!("{prefix}PVPIcon"), PLAYER_PVP_X, PLAYER_PVP_Y),
+            sized_marker(
+                format!("{prefix}PrestigePortrait"),
+                PLAYER_PRESTIGE_X,
+                PLAYER_PRESTIGE_Y,
+                PLAYER_PRESTIGE_W,
+                PLAYER_PRESTIGE_H,
+            ),
+            centered_marker(
+                format!("{prefix}PrestigeBadge"),
+                PLAYER_PRESTIGE_PORTRAIT_FRAME,
+                PLAYER_PRESTIGE_BADGE_W,
+                PLAYER_PRESTIGE_BADGE_H,
+            ),
+            centered_marker(
+                format!("{prefix}ReadyCheck"),
+                PLAYER_PORTRAIT_FRAME,
+                READY_CHECK_W,
+                READY_CHECK_H,
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    } else {
+        [
+            anchored_marker(format!("{prefix}ReputationColor"), TARGET_REPUTATION_X, TARGET_REPUTATION_Y),
+            anchored_marker(
+                format!("{prefix}HighLevelTexture"),
+                TARGET_HIGH_LEVEL_X,
+                TARGET_HIGH_LEVEL_Y,
+            ),
+            anchored_topright_marker(format!("{prefix}LeaderIcon"), TARGET_LEADER_X, TARGET_LEADER_Y),
+            anchored_topright_marker(format!("{prefix}GuideIcon"), TARGET_LEADER_X, TARGET_LEADER_Y),
+            portrait_centered_marker(
+                format!("{prefix}RaidTargetIcon"),
+                AnchorPoint::Top,
+                TARGET_RAID_ICON_W,
+                TARGET_RAID_ICON_H,
+            ),
+            portrait_centered_marker(format!("{prefix}BossIcon"), AnchorPoint::Bottom, 0.0, 0.0),
+            portrait_centered_marker(format!("{prefix}QuestIcon"), AnchorPoint::Bottom, 0.0, 0.0),
+            anchored_top_marker(format!("{prefix}PvpIcon"), FRAME_W - 26.0, PLAYER_PVP_Y),
+            sized_marker(
+                format!("{prefix}PrestigePortrait"),
+                TARGET_PRESTIGE_X,
+                TARGET_PRESTIGE_Y,
+                TARGET_PRESTIGE_W,
+                TARGET_PRESTIGE_H,
+            ),
+            sized_marker(
+                format!("{prefix}PetBattleIcon"),
+                TARGET_PET_BATTLE_X,
+                TARGET_PET_BATTLE_Y,
+                TARGET_PET_BATTLE_W,
+                TARGET_PET_BATTLE_H,
+            ),
+            centered_marker(
+                format!("{prefix}PrestigeBadge"),
+                TARGET_PRESTIGE_PORTRAIT_FRAME,
+                TARGET_PRESTIGE_BADGE_W,
+                TARGET_PRESTIGE_BADGE_H,
+            ),
+            sized_marker(
+                format!("{prefix}NumericalThreat"),
+                TARGET_THREAT_X,
+                TARGET_THREAT_Y,
+                TARGET_THREAT_W,
+                TARGET_THREAT_H,
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+}
+
+fn anchored_marker(name: String, x: f32, y: f32) -> Element {
+    sized_marker(name, x, y, 0.0, 0.0)
+}
+
+fn anchored_top_marker(name: String, x: f32, y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: dyn_name(name),
+            width: 0.0,
+            height: 0.0,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::TopLeft,
+                x,
+                y: {-y},
+            }
+        }
+    }
+}
+
+fn anchored_topright_marker(name: String, x: f32, y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: dyn_name(name),
+            width: 0.0,
+            height: 0.0,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopLeft,
+                x,
+                y: {-y},
+            }
+        }
+    }
+}
+
+fn sized_marker(name: String, x: f32, y: f32, width: f32, height: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: dyn_name(name),
+            width,
+            height,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x,
+                y: {-y},
+            }
+        }
+    }
+}
+
+fn centered_marker(name: String, relative_to: FrameName, width: f32, height: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: dyn_name(name),
+            width,
+            height,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_to,
+                relative_point: AnchorPoint::Center,
+            }
+        }
+    }
+}
+
+fn portrait_centered_marker(
+    name: String,
+    relative_point: AnchorPoint,
+    width: f32,
+    height: f32,
+) -> Element {
+    rsx! {
+        r#frame {
+            name: dyn_name(name),
+            width,
+            height,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_to: TARGET_PORTRAIT_FRAME,
+                relative_point,
+            }
         }
     }
 }
@@ -625,6 +859,48 @@ mod tests {
         assert_eq!(bar_font.font, GameFont::FrizQuadrata);
         assert_eq!(bar_font.font_size, 10.0);
         assert_eq!(bar_font.outline, Outline::Outline);
+    }
+
+    #[test]
+    fn explicit_size_icon_placeholders_match_wow_spec() {
+        let reg = unit_frames_registry();
+
+        assert_eq!(
+            rect_by_name(&reg, "PlayerRoleIcon"),
+            LayoutRect {
+                x: PLAYER_FRAME_X + PLAYER_ROLE_X,
+                y: 877.0,
+                width: PLAYER_ROLE_W,
+                height: PLAYER_ROLE_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "PlayerPrestigePortrait"),
+            LayoutRect {
+                x: PLAYER_FRAME_X + PLAYER_PRESTIGE_X,
+                y: 888.0,
+                width: PLAYER_PRESTIGE_W,
+                height: PLAYER_PRESTIGE_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "TargetRaidTargetIcon"),
+            LayoutRect {
+                x: TARGET_FRAME_X + TARGET_PORTRAIT_X + 16.0,
+                y: 856.0,
+                width: TARGET_RAID_ICON_W,
+                height: TARGET_RAID_ICON_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "TargetPetBattleIcon"),
+            LayoutRect {
+                x: TARGET_FRAME_X + TARGET_PET_BATTLE_X,
+                y: 902.0,
+                width: TARGET_PET_BATTLE_W,
+                height: TARGET_PET_BATTLE_H,
+            }
+        );
     }
 
     fn unit_frames_registry() -> FrameRegistry {
