@@ -408,7 +408,7 @@ fn load_batch_material(
         return BatchMaterial::Effect(mat);
     }
     if let Some(fdid) = batch.texture_fdid {
-        let blp_path = asset::casc_resolver::ensure_texture(fdid)
+        let blp_path = asset::asset_cache::texture(fdid)
             .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
         if let Some(mat) =
             try_load_textured_material(&blp_path, batch, &texture_dir, images, materials)
@@ -485,7 +485,7 @@ fn load_repeat_texture(
     if let Some(handle) = cache.lock().unwrap().get(&fdid).cloned() {
         return Some(handle);
     }
-    let blp_path = asset::casc_resolver::ensure_texture(fdid)
+    let blp_path = asset::asset_cache::texture(fdid)
         .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
     if !blp_path.exists() {
         return None;
@@ -598,7 +598,7 @@ fn composite_second_texture(
     shader_id: u16,
     texture_dir: &Path,
 ) {
-    let overlay_path = asset::casc_resolver::ensure_texture(overlay_fdid)
+    let overlay_path = asset::asset_cache::texture(overlay_fdid)
         .unwrap_or_else(|| texture_dir.join(format!("{overlay_fdid}.blp")));
     let Ok((overlay_pixels, overlay_width, overlay_height)) =
         asset::blp::load_blp_rgba(&overlay_path)
@@ -794,7 +794,7 @@ fn composite_overlay(
     texture_dir: &Path,
 ) {
     use asset::m2::OverlayScale;
-    let ov_path = asset::casc_resolver::ensure_texture(ov.fdid)
+    let ov_path = asset::asset_cache::texture(ov.fdid)
         .unwrap_or_else(|| texture_dir.join(format!("{}.blp", ov.fdid)));
     match asset::blp::load_blp_rgba(&ov_path) {
         Ok((ov_pixels, ov_w, ov_h)) => match ov.scale {

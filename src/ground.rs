@@ -21,7 +21,7 @@ pub fn spawn_ground_plane(
     images: &mut Assets<Image>,
 ) {
     use std::path::PathBuf;
-    let grass_path = asset::casc_resolver::ensure_texture(187126)
+    let grass_path = asset::asset_cache::texture(187126)
         .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
     let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
         eprintln!("{e}");

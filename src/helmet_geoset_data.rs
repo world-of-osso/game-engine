@@ -23,7 +23,7 @@ fn ensure_helmet_geoset_data_path(data_dir: &Path) -> Result<PathBuf, String> {
     if path.exists() {
         return Ok(path);
     }
-    crate::asset::casc_resolver::ensure_file_at_path(HELMET_GEOSET_DATA_FDID, &path)
+    crate::asset::asset_cache::file_at_path(HELMET_GEOSET_DATA_FDID, &path)
         .ok_or_else(|| format!("extract HelmetGeosetData.db2 FDID {HELMET_GEOSET_DATA_FDID}"))
 }
 

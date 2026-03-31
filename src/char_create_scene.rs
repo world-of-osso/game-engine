@@ -149,7 +149,7 @@ fn spawn_ground(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
 ) {
-    let grass_path = asset::casc_resolver::ensure_texture(187126)
+    let grass_path = asset::asset_cache::texture(187126)
         .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
     let mut img = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
         eprintln!("{e}");

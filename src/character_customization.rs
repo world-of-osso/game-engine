@@ -136,11 +136,11 @@ fn apply_base_skin_and_overlay_textures(
         .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
     let eye_handle = char_tex
         .replacement_texture_fdid(&all_materials, layout_id, 19)
-        .and_then(crate::asset::casc_resolver::ensure_texture)
+        .and_then(crate::asset::asset_cache::texture)
         .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
         .map(|image| images.add(image));
     let cape_handle = merged_cape_texture_fdid
-        .and_then(|fdid| crate::asset::casc_resolver::ensure_texture(fdid))
+        .and_then(|fdid| crate::asset::asset_cache::texture(fdid))
         .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
         .map(|image| images.add(image));
     for (entity, mat_handle, _geoset_mesh, batch_texture_type, _) in material_query.iter() {

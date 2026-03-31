@@ -1,5 +1,5 @@
 use super::*;
-use crate::asset::casc_resolver;
+use crate::asset::asset_cache;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::Mesh;
 use std::path::Path;
@@ -961,7 +961,7 @@ fn human_male_helm_runtime_model_resolves_display_material_texture() {
         return;
     };
     let model_path = Path::new("data/item-models").join(wow_path);
-    let Some(model_path) = casc_resolver::ensure_file_at_path(model_fdid, &model_path) else {
+    let Some(model_path) = asset_cache::file_at_path(model_fdid, &model_path) else {
         return;
     };
 

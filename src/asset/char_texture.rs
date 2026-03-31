@@ -9,7 +9,7 @@ use std::path::Path;
 use bevy::prelude::*;
 
 use super::blp;
-use super::casc_resolver;
+use super::asset_cache;
 use super::m2_texture;
 
 /// A texture layer definition from ChrModelTextureLayer.csv.
@@ -398,7 +398,7 @@ impl CharTextureData {
 }
 
 pub(crate) fn load_texture_rgba(fdid: u32) -> Option<(Vec<u8>, u32, u32)> {
-    let path = casc_resolver::ensure_texture(fdid)
+    let path = asset_cache::texture(fdid)
         .unwrap_or_else(|| Path::new("data/textures").join(format!("{fdid}.blp")));
     blp::load_blp_rgba(&path).ok()
 }

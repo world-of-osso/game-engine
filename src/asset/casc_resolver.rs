@@ -1,4 +1,4 @@
-//! Auto-extract missing assets from local WoW CASC storage.
+//! Internal CASC-backed extractor for the disk asset cache.
 //!
 //! Reads directly from the local WoW installation at [`WOW_DATA_PATH`].
 //! On first use, parses `.build.info` and the build config to find root/encoding
@@ -52,18 +52,12 @@ impl CascState {
 }
 
 /// Ensure a BLP texture exists at `data/textures/{fdid}.blp`.
-pub fn ensure_texture(fdid: u32) -> Option<PathBuf> {
+pub(super) fn ensure_texture_cached(fdid: u32) -> Option<PathBuf> {
     ensure_file(fdid, "textures", "blp")
 }
 
-/// Force CASC archive indices to initialize on the current thread.
-pub fn warm_up() -> Result<(), String> {
-    let casc = get_casc()?;
-    casc.ensure_initialized()
-}
-
 /// Ensure an M2 model exists at `data/models/{fdid}.m2`.
-pub fn ensure_model(fdid: u32) -> Option<PathBuf> {
+pub(super) fn ensure_model_cached(fdid: u32) -> Option<PathBuf> {
     ensure_file(fdid, "models", "m2")
 }
 
@@ -72,15 +66,23 @@ fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
     if path.exists() {
         return Some(path);
     }
+    eprintln!(
+        "asset-cache miss: fdid {fdid} not cached at {}, extracting from local CASC",
+        path.display()
+    );
     extract_fdid_to_path(fdid, &path).ok()
 }
 
 /// Ensure a CASC asset exists at the requested output path.
-pub fn ensure_file_at_path(fdid: u32, out_path: &Path) -> Option<PathBuf> {
+pub(super) fn ensure_file_cached_at_path(fdid: u32, out_path: &Path) -> Option<PathBuf> {
     let shared_path = crate::paths::remap_to_shared_data_path(out_path);
     if shared_path.exists() {
         return Some(shared_path);
     }
+    eprintln!(
+        "asset-cache miss: fdid {fdid} not cached at {}, extracting from local CASC",
+        shared_path.display()
+    );
     extract_fdid_to_path(fdid, &shared_path).ok()
 }
 

@@ -8,7 +8,7 @@ fn debug_m2_backed_feet_display_mesh_parts() {
         .resolve_runtime_model(154620, 1, 0)
         .expect("resolve runtime model");
     let wow_path = game_engine::listfile::lookup_fdid(fdid).expect("listfile path");
-    let model_path = crate::asset::casc_resolver::ensure_file_at_path(
+    let model_path = crate::asset::asset_cache::file_at_path(
         fdid,
         &Path::new("data/item-models").join(wow_path),
     )

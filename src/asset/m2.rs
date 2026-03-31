@@ -599,7 +599,7 @@ fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
     if let Some(skel_fdid) = chunks.skid {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let skel_path = path.with_file_name(format!("{stem}.skel"));
-        super::casc_resolver::ensure_file_at_path(skel_fdid, &skel_path);
+        super::asset_cache::file_at_path(skel_fdid, &skel_path);
         match load_skel_data(&skel_path) {
             Ok(s) => return s,
             Err(e) => eprintln!("Failed to load .skel: {e}"),
@@ -619,14 +619,14 @@ fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
     if let Some(&fdid) = sfid.first() {
         let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
         if let Some(resolved_path) =
-            super::casc_resolver::ensure_file_at_path(fdid, &canonical_skin_path)
+            super::asset_cache::file_at_path(fdid, &canonical_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();
         }
         let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
         if let Some(resolved_path) =
-            super::casc_resolver::ensure_file_at_path(fdid, &numeric_skin_path)
+            super::asset_cache::file_at_path(fdid, &numeric_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();
@@ -644,11 +644,11 @@ pub fn ensure_primary_skin_path(m2_path: &Path) -> Option<PathBuf> {
     let stem = m2_path.file_stem()?.to_str()?;
     if let Some(&fdid) = chunks.sfid.first() {
         let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-        if let Some(path) = super::casc_resolver::ensure_file_at_path(fdid, &canonical_skin_path) {
+        if let Some(path) = super::asset_cache::file_at_path(fdid, &canonical_skin_path) {
             return Some(path);
         }
         let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        return super::casc_resolver::ensure_file_at_path(fdid, &numeric_skin_path);
+        return super::asset_cache::file_at_path(fdid, &numeric_skin_path);
     }
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
     skin_path.exists().then_some(skin_path)
@@ -995,7 +995,7 @@ fn load_model_attachment_data(
     if let Some(skel_fdid) = chunks.skid {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let skel_path = path.with_file_name(format!("{stem}.skel"));
-        super::casc_resolver::ensure_file_at_path(skel_fdid, &skel_path);
+        super::asset_cache::file_at_path(skel_fdid, &skel_path);
         if let Ok((attachments, attachment_lookup)) = load_skel_attachment_data(&skel_path)
             && (!attachments.is_empty() || !attachment_lookup.is_empty())
         {

@@ -190,7 +190,7 @@ fn try_spawn_npc_model(
     let skin_fdids = display_map
         .and_then(|dm| dm.get_skin_fdids(display_id))
         .unwrap_or([0, 0, 0]);
-    let Some(m2_path) = crate::asset::casc_resolver::ensure_model(fdid) else {
+    let Some(m2_path) = crate::asset::asset_cache::model(fdid) else {
         return false;
     };
     commands

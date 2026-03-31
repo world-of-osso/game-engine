@@ -423,7 +423,7 @@ fn increment_bucket(
 
 fn load_footstep_bytes(fdid: u32, path: &str) -> Option<Vec<u8>> {
     let out_path = footstep_output_path(fdid, path);
-    let local = game_engine::asset::casc_resolver::ensure_file_at_path(fdid, &out_path)?;
+    let local = game_engine::asset::asset_cache::file_at_path(fdid, &out_path)?;
     std::fs::read(local).ok()
 }
 

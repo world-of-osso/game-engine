@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use shared::components::{EquipmentAppearance as NetEquipmentAppearance, EquipmentVisualSlot};
 
-use crate::asset::casc_resolver;
+use crate::asset::asset_cache;
 use crate::equipment::{Equipment, EquipmentSlot};
 use game_engine::outfit_data::{OutfitData, OutfitResult};
 
@@ -229,7 +229,7 @@ fn apply_back_equipment_entry(
     sex: u8,
 ) {
     if let Some(cape_texture_fdid) = outfit_data.cape_texture_fdid(display_info_id) {
-        let _ = casc_resolver::ensure_texture(cape_texture_fdid);
+        let _ = asset_cache::texture(cape_texture_fdid);
         resolved.merged_cape_texture_fdid = Some(cape_texture_fdid);
     }
     apply_non_head_equipment_entry(
@@ -595,7 +595,7 @@ fn first_model_path(display: &OutfitResult) -> Option<PathBuf> {
 fn resolve_model_path(fdid: u32) -> Option<PathBuf> {
     let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
     let out_path = Path::new("data/item-models").join(wow_path);
-    let path = casc_resolver::ensure_file_at_path(fdid, &out_path)?;
+    let path = asset_cache::file_at_path(fdid, &out_path)?;
     let _ = crate::asset::m2::ensure_primary_skin_path(&path);
     Some(path)
 }
@@ -603,14 +603,14 @@ fn resolve_model_path(fdid: u32) -> Option<PathBuf> {
 fn ensure_runtime_model_textures(skin_fdids: &[u32; 3]) {
     for &fdid in skin_fdids {
         if fdid != 0 {
-            let _ = casc_resolver::ensure_texture(fdid);
+            let _ = asset_cache::texture(fdid);
         }
     }
 }
 
 fn ensure_item_component_textures(display: &OutfitResult) {
     for &(_, fdid) in &display.item_textures {
-        let _ = casc_resolver::ensure_texture(fdid);
+        let _ = asset_cache::texture(fdid);
     }
 }
 

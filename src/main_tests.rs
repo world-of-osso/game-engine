@@ -336,7 +336,7 @@ fn parse_screen_arg_preserves_loading_variant() {
 
 #[test]
 fn binary_asset_module_reuses_library_casc_resolver() {
-    let binary_fn: fn(u32) -> Option<PathBuf> = crate::asset::casc_resolver::ensure_model;
-    let lib_fn: fn(u32) -> Option<PathBuf> = game_engine::asset::casc_resolver::ensure_model;
+    let binary_fn: fn(u32) -> Option<PathBuf> = crate::asset::asset_cache::model;
+    let lib_fn: fn(u32) -> Option<PathBuf> = game_engine::asset::asset_cache::model;
     assert!(std::ptr::fn_addr_eq(binary_fn, lib_fn));
 }

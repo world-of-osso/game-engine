@@ -3,8 +3,9 @@ pub mod adt_obj;
 #[cfg(test)]
 mod adt_seam_tests;
 pub mod adt_tex;
+pub mod asset_cache;
 pub mod blp;
-pub mod casc_resolver;
+mod casc_resolver;
 #[allow(dead_code)]
 pub mod char_texture;
 pub mod fogs_wdt;

@@ -55,7 +55,7 @@ pub fn load_map_fogs_wdt(map_name: &str) -> Option<fogs_wdt::FogsWdt> {
     let wow_path = format!("world/maps/{map_name}/{map_name}_fogs.wdt");
     let fdid = game_engine::listfile::lookup_path(&wow_path)?;
     let local_path = std::path::PathBuf::from(format!("data/fogs/{fdid}.wdt"));
-    let path = crate::asset::casc_resolver::ensure_file_at_path(fdid, &local_path)?;
+    let path = crate::asset::asset_cache::file_at_path(fdid, &local_path)?;
     let data = std::fs::read(path).ok()?;
     match fogs_wdt::load_fogs_wdt(&data) {
         Ok(fogs) => Some(fogs),
@@ -349,7 +349,7 @@ fn try_spawn_fog_volume(
     volume: &fogs_wdt::FogVolume,
     parent: Option<Entity>,
 ) -> Option<Entity> {
-    let m2_path = crate::asset::casc_resolver::ensure_model(volume.model_fdid)?;
+    let m2_path = crate::asset::asset_cache::model(volume.model_fdid)?;
     if !m2_path.exists() {
         return None;
     }
@@ -390,11 +390,11 @@ fn try_spawn_fog_volume(
 /// Resolve a doodad placement to a local M2 file path.
 fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
     if let Some(fdid) = doodad.fdid {
-        return crate::asset::casc_resolver::ensure_model(fdid);
+        return crate::asset::asset_cache::model(fdid);
     }
     let wow_path = doodad.path.as_ref()?;
     let fdid = game_engine::listfile::lookup_path(wow_path)?;
-    crate::asset::casc_resolver::ensure_model(fdid)
+    crate::asset::asset_cache::model(fdid)
 }
 
 fn doodad_model_name(doodad: &adt_obj::DoodadPlacement) -> Option<String> {
@@ -697,7 +697,7 @@ fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
 
 fn ensure_wmo_asset(fdid: u32) -> Option<std::path::PathBuf> {
     let out_path = std::path::PathBuf::from(format!("data/models/{fdid}.wmo"));
-    crate::asset::casc_resolver::ensure_file_at_path(fdid, &out_path)
+    crate::asset::asset_cache::file_at_path(fdid, &out_path)
 }
 
 /// Parse and spawn one WMO group file as children of the root entity.
@@ -799,7 +799,7 @@ fn wmo_batch_material(
     let shader = mat_def.map(|m| m.shader).unwrap_or(0);
 
     if texture_fdid > 0 {
-        match crate::asset::casc_resolver::ensure_texture(texture_fdid) {
+        match crate::asset::asset_cache::texture(texture_fdid) {
             Some(blp_path) => {
                 match load_wmo_material_image(&blp_path, texture_2_fdid, texture_3_fdid, images) {
                     Ok(image) => {
@@ -851,7 +851,7 @@ fn load_wmo_material_image(
         if overlay_fdid == 0 {
             continue;
         }
-        let Some(overlay_path) = crate::asset::casc_resolver::ensure_texture(overlay_fdid) else {
+        let Some(overlay_path) = crate::asset::asset_cache::texture(overlay_fdid) else {
             continue;
         };
         let Ok((overlay_pixels, ov_w, ov_h)) = blp::load_blp_rgba(&overlay_path) else {

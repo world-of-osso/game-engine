@@ -1,10 +1,10 @@
-use crate::asset::{blp::load_blp_rgba, casc_resolver::ensure_texture};
+use crate::asset::{blp::load_blp_rgba, asset_cache::texture};
 
 use super::{CustomizationChoice, OptionType};
 
 pub(super) fn sample_swatch_color(materials: &[(u16, u32)]) -> Option<[u8; 3]> {
     let &(_, fdid) = materials.first()?;
-    let path = ensure_texture(fdid)?;
+    let path = texture(fdid)?;
     let (rgba, w, h) = load_blp_rgba(&path).ok()?;
     let cx = w / 2;
     let cy = h / 2;

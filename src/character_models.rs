@@ -107,7 +107,7 @@ fn ensure_named_model_asset(wow_path: &str) -> Option<PathBuf> {
             crate::creature_display::remember_named_model_fdid_for_wow_path(wow_path, fdid);
             Some(fdid)
         })?;
-    asset::casc_resolver::ensure_file_at_path(fdid, &out_path)
+    asset::asset_cache::file_at_path(fdid, &out_path)
 }
 
 pub fn race_name(race: u8) -> &'static str {

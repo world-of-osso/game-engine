@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::load_m2;
-use crate::asset::casc_resolver;
+use crate::asset::asset_cache;
 
 #[test]
 fn hood_of_empty_eternities_runtime_model_loads_with_display_material_texture() {
@@ -13,7 +13,7 @@ fn hood_of_empty_eternities_runtime_model_loads_with_display_material_texture() 
         return;
     };
     let model_path = Path::new("data/item-models").join(wow_path);
-    let Some(model_path) = casc_resolver::ensure_file_at_path(model_fdid, &model_path) else {
+    let Some(model_path) = asset_cache::file_at_path(model_fdid, &model_path) else {
         return;
     };
 

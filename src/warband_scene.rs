@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 
-use crate::asset::casc_resolver;
+use crate::asset::asset_cache;
 use crate::asset::m2::wow_to_bevy;
 use crate::terrain_tile::TILE_SIZE;
 
@@ -215,7 +215,7 @@ fn ensure_adt_tile(map_name: &str, tile_y: u32, tile_x: u32) -> Option<PathBuf> 
     let local = PathBuf::from(format!("data/terrain/{map_name}_{tile_y}_{tile_x}.adt"));
 
     let fdid = game_engine::listfile::lookup_path(&base_wow)?;
-    let local = casc_resolver::ensure_file_at_path(fdid, &local)?;
+    let local = asset_cache::file_at_path(fdid, &local)?;
 
     // Also extract _tex0 and _obj0 companions
     for suffix in &["_tex0", "_obj0"] {
@@ -225,7 +225,7 @@ fn ensure_adt_tile(map_name: &str, tile_y: u32, tile_x: u32) -> Option<PathBuf> 
             "data/terrain/{map_name}_{tile_y}_{tile_x}{suffix}.adt"
         ));
         if let Some(companion_fdid) = game_engine::listfile::lookup_path(&companion_wow) {
-            let _ = casc_resolver::ensure_file_at_path(companion_fdid, &companion_local);
+            let _ = asset_cache::file_at_path(companion_fdid, &companion_local);
         }
     }
 
