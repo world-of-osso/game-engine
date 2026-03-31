@@ -41,12 +41,7 @@ impl Material for M2EffectMaterial {
     }
 
     fn alpha_mode(&self) -> AlphaMode {
-        match self.blend_mode {
-            1 => AlphaMode::Mask(224.0 / 255.0),
-            2 | 3 | 7 => AlphaMode::Blend,
-            4..=6 => AlphaMode::Add,
-            _ => AlphaMode::Opaque,
-        }
+        alpha_mode_for_blend(self.blend_mode)
     }
 
     fn specialize(
@@ -96,4 +91,26 @@ pub fn repeat_sampler() -> ImageSampler {
         address_mode_v: ImageAddressMode::Repeat,
         ..ImageSamplerDescriptor::linear()
     })
+}
+
+pub(crate) fn alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
+    match blend_mode {
+        0 => AlphaMode::Opaque,
+        1 => AlphaMode::Mask(224.0 / 255.0),
+        2 | 3 | 7 => AlphaMode::Blend,
+        4..=6 => AlphaMode::Add,
+        _ => AlphaMode::Add,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::alpha_mode_for_blend;
+    use bevy::prelude::AlphaMode;
+
+    #[test]
+    fn invalid_blend_modes_fallback_to_additive() {
+        assert!(matches!(alpha_mode_for_blend(u16::MAX), AlphaMode::Add));
+        assert!(matches!(alpha_mode_for_blend(8), AlphaMode::Add));
+    }
 }

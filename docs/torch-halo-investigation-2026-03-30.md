@@ -6,40 +6,35 @@ The torch model (`club_1h_torch_a_01.m2`) renders a large golden halo that persi
 
 ## Findings
 
-### Material data
+### Re-checking the actual asset
+
+The earlier parser diagnosis was wrong. The current torch asset parses as:
 
 ```
-Materials (3):
-  mat[0]: render_flags=0x0002 blend_mode=0xFFFF  ← invalid
-  mat[1]: render_flags=0x0000 blend_mode=0
-  mat[2]: render_flags=0x0000 blend_mode=0
+Materials (2):
+  mat[0]: render_flags=0x0000 blend_mode=0
+  mat[1]: render_flags=0x0011 blend_mode=2
+
+Skin batches (2):
+  batch[0]: submesh=0 mat_idx=0 texture_id=0
+  batch[1]: submesh=1 mat_idx=1 texture_id=1
 ```
 
-`blend_mode=0xFFFF` is invalid (valid range 0-7). WMVx triggers `assert(false)` on values outside 0-7 — it considers this a data error.
+So the torch `.skin` file is using valid 24-byte batch records, and the batch-to-material mapping is correct.
 
-### Skin batch parsing issue
-
-```
-Skin batches (count=2, offset=0x230):
-  batch[0]: mat_idx=99  ← out of range (only 3 materials exist)
-  batch[1]: garbage values throughout
-```
-
-The skin file parser is producing invalid material indices. `mat_idx=99` for a model with 3 materials means the batch-to-material mapping is wrong. This likely causes fallback behavior where our renderer picks up `blend_mode=0xFFFF` incorrectly.
-
-### Our blend mode fallback
+### Blend mode fallback
 
 ```rust
-// src/m2_spawn.rs:514
-let alpha_mode = match batch.blend_mode {
+match blend_mode {
+    0 => AlphaMode::Opaque,
     1 => AlphaMode::Mask(224.0 / 255.0),
     2 | 3 | 7 => AlphaMode::Blend,
     4..=6 => AlphaMode::Add,
-    _ => AlphaMode::Opaque,  // ← 0xFFFF lands here
-};
+    _ => AlphaMode::Add,
+}
 ```
 
-`0xFFFF` maps to Opaque, rendering flame effect textures as solid quads = visible halo.
+Unknown `blend_mode > 7` values now fall back to additive instead of opaque, which is a safer default for emissive/fx textures.
 
 ### WMVx blend mode reference
 
@@ -54,8 +49,8 @@ From `~/Repos/WMVx/src/ModelRenderPassRenderer.cpp`:
 - 7: Blend add (ONE, ONE_MINUS_SRC_ALPHA)
 - default: assert(false) — invalid
 
-## Next steps
+## Resolution
 
-1. Investigate why the skin file batch parser produces `mat_idx=99` — likely a stride or offset error in the skin parsing code
-2. Once skin parsing is correct, the batch should reference a valid material with a proper blend mode
-3. As a safety net, treat `blend_mode > 7` as additive or skip the batch entirely
+1. Keep the existing skin batch parser behavior; the torch asset is already parsed correctly
+2. Add a regression test so the torch batch/material mapping stays valid
+3. Treat unknown `blend_mode` values as additive instead of opaque

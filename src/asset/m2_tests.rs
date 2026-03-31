@@ -250,6 +250,33 @@ fn parse_skin_full_with_submeshes_and_batches() {
 }
 
 #[test]
+fn torch_skin_batches_map_to_valid_materials() {
+    let m2_path = Path::new("data/models/club_1h_torch_a_01.m2");
+    let skin_path = Path::new("data/models/club_1h_torch_a_0100.skin");
+    if !m2_path.exists() || !skin_path.exists() {
+        return;
+    }
+
+    let data = std::fs::read(m2_path).expect("torch m2 should be readable");
+    let chunks = parse_chunks(&data).expect("torch m2 should parse");
+    let materials = parse_materials(chunks.md20).expect("torch materials should parse");
+    let skin_data = std::fs::read(skin_path).expect("torch skin should be readable");
+    let skin = parse_skin_full(&skin_data).expect("torch skin should parse");
+
+    assert_eq!(materials.len(), 2, "torch material count changed");
+    assert_eq!(skin.batches.len(), 2, "torch batch count changed");
+    assert_eq!(skin.batches[0].render_flags_index, 0);
+    assert_eq!(skin.batches[0].texture_id, 0);
+    assert_eq!(skin.batches[1].render_flags_index, 1);
+    assert_eq!(skin.batches[1].texture_id, 1);
+    assert_eq!(skin.batches[1].submesh_index, 1);
+    assert_eq!(
+        materials[1].blend_mode, 2,
+        "torch glow batch should stay additive"
+    );
+}
+
+#[test]
 fn mesh_has_meaningful_uv1_rejects_constant_zero_secondary_uvs() {
     let mut mesh = Mesh::new(
         bevy::mesh::PrimitiveTopology::TriangleList,

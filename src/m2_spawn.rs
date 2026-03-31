@@ -511,12 +511,7 @@ pub fn m2_material(
     } else {
         Some(bevy::render::render_resource::Face::Back)
     };
-    let alpha_mode = match batch.blend_mode {
-        1 => AlphaMode::Mask(224.0 / 255.0),
-        2 | 3 | 7 => AlphaMode::Blend,
-        4..=6 => AlphaMode::Add,
-        _ => AlphaMode::Opaque,
-    };
+    let alpha_mode = m2_effect_material::alpha_mode_for_blend(batch.blend_mode);
     StandardMaterial {
         base_color_texture: texture,
         base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
@@ -717,7 +712,9 @@ fn shader_8001_rgb(base_rgb: [f32; 3], base_a: f32, overlay_rgb: [f32; 3]) -> [f
 mod tests {
     use super::{apply_m2_multitexture_shader, ground_offset_y};
     use crate::asset;
+    use crate::m2_effect_material;
     use bevy::mesh::{Mesh, PrimitiveTopology};
+    use bevy::prelude::AlphaMode;
 
     #[test]
     fn shader_8015_uses_secondary_alpha_as_additive_mask() {
@@ -784,6 +781,14 @@ mod tests {
             mesh_part_id: 0,
         };
         assert!((ground_offset_y(&[batch]) - 0.35).abs() < 0.001);
+    }
+
+    #[test]
+    fn invalid_blend_modes_use_additive_alpha_mode() {
+        assert!(matches!(
+            m2_effect_material::alpha_mode_for_blend(u16::MAX),
+            AlphaMode::Add
+        ));
     }
 }
 

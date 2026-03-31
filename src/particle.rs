@@ -118,6 +118,10 @@ fn build_expr_modifiers(em: &M2ParticleEmitter) -> ExprModifiers {
         sample_mapping: ImageSampleMapping::Modulate,
     });
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
+    let mut module = writer.finish();
+    if texture.is_some() {
+        module.add_texture_slot("color");
+    }
     ExprModifiers {
         init,
         gravity,
@@ -125,7 +129,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter) -> ExprModifiers {
         flipbook_sprite_index,
         texture,
         alpha_mode,
-        module: writer.finish(),
+        module,
     }
 }
 
@@ -329,4 +333,57 @@ fn load_emitter_texture(
     }
     let image = blp::load_blp_gpu_image(&path).ok()?;
     Some(images.add(image))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_effect_asset, build_expr_modifiers};
+    use crate::asset::m2_particle::M2ParticleEmitter;
+
+    fn sample_emitter() -> M2ParticleEmitter {
+        M2ParticleEmitter {
+            flags: 0,
+            position: [0.0, 0.0, 0.0],
+            bone_index: 0,
+            texture_index: 0,
+            texture_fdid: None,
+            blend_type: 4,
+            emitter_type: 1,
+            tile_rows: 4,
+            tile_cols: 4,
+            emission_speed: 1.0,
+            speed_variation: 0.0,
+            vertical_range: 0.1,
+            horizontal_range: std::f32::consts::TAU,
+            gravity: 0.0,
+            lifespan: 1.0,
+            emission_rate: 20.0,
+            area_length: 0.1,
+            area_width: 0.1,
+            drag: 0.0,
+            colors: [[255.0, 128.0, 64.0]; 3],
+            opacity: [1.0, 1.0, 0.0],
+            scales: [[0.1, 0.1], [0.2, 0.2], [0.05, 0.05]],
+            mid_point: 0.5,
+        }
+    }
+
+    #[test]
+    fn textured_emitters_declare_hanabi_texture_slot() {
+        let mut emitter = sample_emitter();
+        emitter.texture_fdid = Some(145513);
+
+        let asset = build_effect_asset(&emitter);
+
+        assert_eq!(asset.texture_layout().layout.len(), 1);
+        assert_eq!(asset.texture_layout().layout[0].name, "color");
+    }
+
+    #[test]
+    fn untextured_emitters_do_not_declare_hanabi_texture_slot() {
+        let emitter = sample_emitter();
+        let modifiers = build_expr_modifiers(&emitter);
+
+        assert!(modifiers.module.texture_layout().layout.is_empty());
+    }
 }
