@@ -257,15 +257,19 @@ fn build_position_modifier(
     writer: &ExprWriter,
 ) -> SetPositionSphereModifier {
     let center = emitter_translation(em, &[]);
-    let radius = if em.area_length > 0.0 || em.area_width > 0.0 {
-        (em.area_length.max(em.area_width) * 0.5).max(0.01)
-    } else {
-        0.01_f32
-    };
+    let radius = emitter_spawn_radius(em);
     SetPositionSphereModifier {
         center: writer.lit(center).expr(),
         radius: writer.lit(radius).expr(),
         dimension: ShapeDimension::Volume,
+    }
+}
+
+fn emitter_spawn_radius(em: &M2ParticleEmitter) -> f32 {
+    if em.emitter_type == 1 && (em.area_length > 0.0 || em.area_width > 0.0) {
+        (em.area_length.max(em.area_width) * 0.5).max(0.01)
+    } else {
+        0.0
     }
 }
 
@@ -346,7 +350,9 @@ fn load_emitter_texture(
 mod tests {
     use bevy::prelude::Vec3;
 
-    use super::{build_effect_asset, build_expr_modifiers, emitter_translation};
+    use super::{
+        build_effect_asset, build_expr_modifiers, emitter_spawn_radius, emitter_translation,
+    };
     use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
 
@@ -416,6 +422,26 @@ mod tests {
         let translation = emitter_translation(&emitter, &bones);
 
         assert_eq!(translation, Vec3::new(1.0, 3.0, -2.0));
+    }
+
+    #[test]
+    fn sphere_emitters_use_area_as_spawn_radius() {
+        let mut emitter = sample_emitter();
+        emitter.emitter_type = 1;
+        emitter.area_length = 0.4;
+        emitter.area_width = 0.2;
+
+        assert_eq!(emitter_spawn_radius(&emitter), 0.2);
+    }
+
+    #[test]
+    fn non_sphere_emitters_do_not_expand_spawn_radius() {
+        let mut emitter = sample_emitter();
+        emitter.emitter_type = 0;
+        emitter.area_length = 0.4;
+        emitter.area_width = 0.2;
+
+        assert_eq!(emitter_spawn_radius(&emitter), 0.0);
     }
 
     #[test]
