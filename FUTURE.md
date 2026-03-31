@@ -93,7 +93,6 @@
 - [ ] Particle Phase 2: parse drag from M2 emitter, add `LinearDragModifier`. Use area_length/area_width in position modifiers.
 - [ ] Particle Phase 3: flipbook animation — `FlipbookModifier` driven by age/lifetime to cycle texture atlas frames.
 - [ ] Particle Phase 4: velocity-oriented particles — `OrientModifier(AlongVelocity)` when tail flag set.
-- [ ] Fix torch halo: skin batch parser produces invalid material indices (mat_idx=99 for 3-material model). Also treat blend_mode>7 as additive instead of opaque. See `docs/torch-halo-investigation-2026-03-30.md`.
 - [ ] Refactor app startup: each screen should own its full App configuration instead of main.rs building a monolithic app with all plugins always registered. Debug scenes (particledebug, debugcharacter) should not load game networking, login UI, etc.
 - [ ] Cross-tile ADT stitching: raw MCNK heights differ by up to 50 units at tile borders (same as intra-tile). Need to stitch border chunks when adjacent tiles are loaded. See `adt_seam_tests.rs` for diagnostics.
 - [ ] Find the root cause of the white/grey terrain bands in the in-world ADT renderer.
