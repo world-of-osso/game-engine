@@ -202,6 +202,8 @@ mod tests {
     };
     use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::screen::Screen;
+    use ui_toolkit::text_measure::measure_text;
+    use ui_toolkit::widgets::font_string::GameFont;
 
     use crate::ui::anchor::AnchorPoint;
     use crate::ui::frame::{WidgetData, WidgetType};
@@ -481,6 +483,44 @@ mod tests {
         assert!(reg.get_by_name("KeybindingRowjump").is_some());
         assert!(reg.get_by_name("KeybindingRowrun_toggle").is_some());
         assert!(reg.get_by_name("KeybindingRowauto_run").is_some());
+    }
+
+    #[test]
+    fn keybinding_section_tabs_layout_left_to_right_without_overlap() {
+        let reg = options_registry_for_category(OptionsCategory::Keybindings);
+        let tabs = [
+            ("KeybindingSectionmovement", "Movement"),
+            ("KeybindingSectioncamera", "Camera"),
+            ("KeybindingSectiontargeting", "Targeting"),
+            ("KeybindingSectionaction_bar", "Action Bar"),
+            ("KeybindingSectionaudio", "Audio"),
+        ];
+        let rects: Vec<_> = tabs
+            .iter()
+            .map(|(name, _)| rect_by_name(&reg, name))
+            .collect();
+
+        for (rect, (_, label)) in rects.iter().zip(tabs.iter()) {
+            let expected_width = measure_text(label, GameFont::FrizQuadrata, 10.0)
+                .unwrap()
+                .0
+                .ceil()
+                + 20.0;
+            assert_eq!(
+                rect.width, expected_width,
+                "tab width should match WoW width formula"
+            );
+            assert_eq!(rect.height, 32.0, "tab height should match WoW tab height");
+        }
+
+        for pair in rects.windows(2) {
+            let left = &pair[0];
+            let right = &pair[1];
+            assert!(
+                (right.x - (left.x + left.width) - 1.0).abs() < f32::EPSILON,
+                "section tabs should keep WoW 1px spacing: left={left:?} right={right:?}"
+            );
+        }
     }
 
     fn options_registry() -> FrameRegistry {

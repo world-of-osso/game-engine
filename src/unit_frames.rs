@@ -206,6 +206,10 @@ fn build_target_state((player, health, mana, npc, name): UnitComponents) -> Unit
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::window::PrimaryWindow;
+    use game_engine::targeting::CurrentTarget;
+    use game_engine::ui::plugin::UiState;
+    use game_engine::ui::{event::EventBus, registry::FrameRegistry};
 
     #[test]
     fn target_state_uses_player_name_when_available() {
@@ -224,5 +228,70 @@ mod tests {
         let npc = Npc { template_id: 42 };
         let state = build_target_state((None, None, None, Some(&npc), None));
         assert_eq!(state.name, "Creature 42");
+    }
+
+    #[test]
+    fn inworld_target_frame_unhides_for_self_target() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.init_state::<GameState>();
+        app.insert_state(GameState::InWorld);
+        app.insert_resource(UiState {
+            registry: FrameRegistry::new(1920.0, 1080.0),
+            event_bus: EventBus::new(),
+            focused_frame: None,
+        });
+        app.insert_resource(CurrentTarget::default());
+        app.add_plugins(InWorldUnitFramesPlugin);
+        let player = app
+            .world_mut()
+            .spawn((
+                LocalPlayer,
+                NetPlayer {
+                    name: "Theron".to_string(),
+                    race: 0,
+                    class: 0,
+                    appearance: default(),
+                },
+                NetHealth {
+                    current: 100.0,
+                    max: 100.0,
+                },
+                Name::new("Theron"),
+            ))
+            .id();
+        app.world_mut().spawn((
+            Window {
+                resolution: (1920, 1080).into(),
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+
+        app.update();
+        assert!(
+            target_frame_hidden(&app),
+            "target frame should start hidden"
+        );
+
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(player);
+        app.update();
+
+        assert!(
+            !target_frame_hidden(&app),
+            "target frame should unhide after self-targeting the local player"
+        );
+    }
+
+    fn target_frame_hidden(app: &App) -> bool {
+        let ui = app.world().resource::<UiState>();
+        let target_frame = ui
+            .registry
+            .get_by_name("TargetFrame")
+            .expect("TargetFrame should exist");
+        ui.registry
+            .get(target_frame)
+            .expect("TargetFrame should resolve")
+            .hidden
     }
 }

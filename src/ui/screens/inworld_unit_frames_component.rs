@@ -2,26 +2,55 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 const FRAME_W: f32 = 232.0;
 const FRAME_H: f32 = 100.0;
+const PLAYER_FRAME_X: f32 = 268.0;
+const TARGET_FRAME_X: f32 = 1100.0;
+const FRAME_BOTTOM_Y: f32 = 130.0;
 const PLAYER_SHELL_W: f32 = 396.0;
 const PLAYER_SHELL_H: f32 = 142.0;
 const TARGET_SHELL_W: f32 = 384.0;
 const TARGET_SHELL_H: f32 = 134.0;
 const PLAYER_PORTRAIT_X: f32 = 24.0;
-const TARGET_PORTRAIT_X: f32 = 150.0;
+const TARGET_PORTRAIT_X: f32 = 148.0;
+const PLAYER_PORTRAIT_W: f32 = 60.0;
+const PLAYER_PORTRAIT_H: f32 = 60.0;
+const TARGET_PORTRAIT_W: f32 = 58.0;
+const TARGET_PORTRAIT_H: f32 = 58.0;
 const PORTRAIT_Y: f32 = 19.0;
-const NAME_TEXT_W: f32 = 100.0;
-const PORTRAIT_INNER_W: f32 = 54.0;
-const PORTRAIT_INNER_H: f32 = 54.0;
-const BAR_H: f32 = 18.0;
+const PLAYER_NAME_X: f32 = 88.0;
+const PLAYER_NAME_Y: f32 = 27.0;
+const PLAYER_NAME_W: f32 = 96.0;
+const TARGET_NAME_X: f32 = 51.0;
+const TARGET_NAME_Y: f32 = 26.0;
+const TARGET_NAME_W: f32 = 90.0;
+const PLAYER_LEVEL_X: f32 = -24.5;
+const PLAYER_LEVEL_Y: f32 = 28.0;
+const TARGET_LEVEL_X: f32 = 24.0;
+const TARGET_LEVEL_Y: f32 = 27.0;
+const BAR_H: f32 = 20.0;
 const MANA_H: f32 = 10.0;
 const PLAYER_BAR_W: f32 = 124.0;
 const TARGET_BAR_W: f32 = 126.0;
 const TARGET_MANA_W: f32 = 134.0;
+const PLAYER_BAR_X: f32 = 85.0;
+const PLAYER_BAR_Y: f32 = 40.0;
+const PLAYER_MANA_Y: f32 = 61.0;
+const TARGET_BAR_X: f32 = 22.0;
+const TARGET_BAR_Y: f32 = 28.0;
+const TARGET_MANA_X: f32 = 22.0;
+const TARGET_MANA_Y: f32 = 39.0;
+const PLAYER_BAR_TEXT_X: f32 = 0.0;
+const TARGET_HEALTH_TEXT_X: f32 = 0.0;
+const TARGET_MANA_TEXT_X: f32 = -4.0;
+const UNIT_NAME_FONT: &str = "FrizQuadrata";
+const UNIT_NAME_FONT_SIZE: f32 = 10.0;
+const UNIT_LEVEL_FONT_SIZE: f32 = 10.0;
+const STATUS_BAR_FONT: &str = "FrizQuadrata";
+const STATUS_BAR_FONT_SIZE: f32 = 10.0;
 
 const PLAYER_SHELL_TEXTURE: &str = "data/ui/unitframes/player-frame-shell.ktx2";
 const TARGET_SHELL_TEXTURE: &str = "data/ui/unitframes/target-frame-shell.ktx2";
@@ -83,10 +112,9 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
                 hidden: hide_target,
                 anchor {
                     point: AnchorPoint::BottomLeft,
-                    relative_to: FrameName("PlayerFrame"),
-                    relative_point: AnchorPoint::BottomRight,
-                    x: "30",
-                    y: "0",
+                    relative_point: AnchorPoint::BottomLeft,
+                    x: {TARGET_FRAME_X},
+                    y: {FRAME_BOTTOM_Y},
                 }
                 {state
                     .target
@@ -108,8 +136,8 @@ fn player_frame(state: &UnitFrameState) -> Element {
             anchor {
                 point: AnchorPoint::BottomLeft,
                 relative_point: AnchorPoint::BottomLeft,
-                x: "18",
-                y: "154",
+                x: {PLAYER_FRAME_X},
+                y: {FRAME_BOTTOM_Y},
             }
             {unit_frame_shell("Player", state, true)}
         }
@@ -146,19 +174,71 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
     } else {
         TARGET_PORTRAIT_X
     };
-    let bar_x = if player_side { 85.0 } else { 22.0 };
+    let portrait_w = if player_side {
+        PLAYER_PORTRAIT_W
+    } else {
+        TARGET_PORTRAIT_W
+    };
+    let portrait_h = if player_side {
+        PLAYER_PORTRAIT_H
+    } else {
+        TARGET_PORTRAIT_H
+    };
+    let bar_x = if player_side {
+        PLAYER_BAR_X
+    } else {
+        TARGET_BAR_X
+    };
+    let bar_y = if player_side {
+        PLAYER_BAR_Y
+    } else {
+        TARGET_BAR_Y
+    };
     let bar_w = if player_side {
         PLAYER_BAR_W
     } else {
         TARGET_BAR_W
+    };
+    let mana_x = if player_side {
+        PLAYER_BAR_X
+    } else {
+        TARGET_MANA_X
+    };
+    let mana_y = if player_side {
+        PLAYER_MANA_Y
+    } else {
+        TARGET_MANA_Y
     };
     let mana_w = if player_side {
         PLAYER_BAR_W
     } else {
         TARGET_MANA_W
     };
-    let level_x = if player_side { 184.0 } else { 34.0 };
-    let name_x = if player_side { 88.0 } else { 48.0 };
+    let level_x = if player_side {
+        PLAYER_LEVEL_X
+    } else {
+        TARGET_LEVEL_X
+    };
+    let level_y = if player_side {
+        PLAYER_LEVEL_Y
+    } else {
+        TARGET_LEVEL_Y
+    };
+    let name_x = if player_side {
+        PLAYER_NAME_X
+    } else {
+        TARGET_NAME_X
+    };
+    let name_y = if player_side {
+        PLAYER_NAME_Y
+    } else {
+        TARGET_NAME_Y
+    };
+    let name_w = if player_side {
+        PLAYER_NAME_W
+    } else {
+        TARGET_NAME_W
+    };
     let health_bg = if player_side {
         PLAYER_HEALTH_BG
     } else {
@@ -168,6 +248,16 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
         PLAYER_HEALTH_FILL
     } else {
         TARGET_HEALTH_FILL
+    };
+    let health_text_x = if player_side {
+        PLAYER_BAR_TEXT_X
+    } else {
+        TARGET_HEALTH_TEXT_X
+    };
+    let mana_text_x = if player_side {
+        PLAYER_BAR_TEXT_X
+    } else {
+        TARGET_MANA_TEXT_X
     };
     let mana_hidden = !state.has_mana;
     rsx! {
@@ -188,70 +278,72 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
             }
             r#frame {
                 name: portrait_name,
-                width: PORTRAIT_INNER_W,
-                height: PORTRAIT_INNER_H,
+                width: portrait_w,
+                height: portrait_h,
                 background_color: PORTRAIT_BG,
                 anchor {
                     point: AnchorPoint::TopLeft,
                     relative_point: AnchorPoint::TopLeft,
-                    x: {portrait_x + 2.0},
-                    y: {-(PORTRAIT_Y + 2.0)},
+                    x: {portrait_x},
+                    y: {-PORTRAIT_Y},
                 }
             }
             fontstring {
                 name: name_name,
-                width: NAME_TEXT_W,
-                height: 14.0,
+                width: name_w,
+                height: 12.0,
                 text: {state.name.as_str()},
-                font: "ArialNarrow",
-                font_size: 14.0,
+                font: UNIT_NAME_FONT,
+                font_size: UNIT_NAME_FONT_SIZE,
                 font_color: NAME_TEXT,
                 justify_h: "LEFT",
                 anchor {
                     point: AnchorPoint::TopLeft,
                     relative_point: AnchorPoint::TopLeft,
                     x: {name_x},
-                    y: "-24",
+                    y: {-name_y},
                 }
             }
             fontstring {
                 name: level_name,
                 width: 24.0,
-                height: 16.0,
+                height: 12.0,
                 text: {state.level_text.as_str()},
-                font: "ArialNarrow",
-                font_size: 15.0,
+                font: UNIT_NAME_FONT,
+                font_size: UNIT_LEVEL_FONT_SIZE,
                 font_color: GOLD_TEXT,
-                justify_h: "CENTER",
+                justify_h: if player_side { "RIGHT" } else { "CENTER" },
                 anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
+                    point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
+                    relative_point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
                     x: {level_x},
-                    y: "-24",
+                    y: {-level_y},
                 }
             }
             {bar_block(
                 format!("{prefix}HealthBar"),
                 bar_x,
-                40.0,
+                bar_y,
                 bar_w,
                 BAR_H,
                 health_bg,
                 health_fill,
                 state.health_fill_width,
                 state.health_text.as_str(),
+                health_text_x,
                 false,
             )}
             {bar_block(
                 format!("{prefix}ManaBar"),
-                if player_side { bar_x } else { 14.0 },
-                60.0,
+                mana_x,
+                mana_y,
                 mana_w,
                 MANA_H,
                 MANA_BG,
                 MANA_FILL,
                 state.mana_fill_width,
                 state.mana_text.as_str(),
+                mana_text_x,
                 mana_hidden,
             )}
         }
@@ -268,6 +360,7 @@ fn bar_block(
     fill_color: &str,
     fill_width: f32,
     value_text: &str,
+    text_x: f32,
     hidden: bool,
 ) -> Element {
     let frame_name = dyn_name(name);
@@ -312,13 +405,14 @@ fn bar_block(
                 width,
                 height,
                 text: value_text,
-                font: "ArialNarrow",
-                font_size: 13.0,
+                font: STATUS_BAR_FONT,
+                font_size: STATUS_BAR_FONT_SIZE,
                 font_color: VALUE_TEXT,
                 justify_h: "CENTER",
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
+                    x: {text_x},
                 }
             }
         }
@@ -372,6 +466,10 @@ pub fn missing_target_name() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::layout::LayoutRect;
+    use crate::ui::registry::FrameRegistry;
+    use ui_toolkit::layout::recompute_layouts;
+    use ui_toolkit::screen::Screen;
 
     #[test]
     fn fill_width_clamps_to_bounds() {
@@ -385,5 +483,147 @@ mod tests {
         assert_eq!(format_value_text(Some(42.0), Some(80.0)), "42 / 80");
         assert_eq!(format_value_text(Some(42.0), None), "42");
         assert_eq!(format_value_text(None, Some(80.0)), "");
+    }
+
+    #[test]
+    fn unit_frames_match_wow_screen_rects() {
+        let reg = unit_frames_registry();
+
+        assert_eq!(
+            rect_by_name(&reg, "PlayerFrame"),
+            LayoutRect {
+                x: PLAYER_FRAME_X,
+                y: 850.0,
+                width: FRAME_W,
+                height: FRAME_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "TargetFrame"),
+            LayoutRect {
+                x: TARGET_FRAME_X,
+                y: 850.0,
+                width: FRAME_W,
+                height: FRAME_H,
+            }
+        );
+    }
+
+    #[test]
+    fn player_frame_key_geometry_matches_wow_spec() {
+        let reg = unit_frames_registry();
+
+        assert_eq!(
+            rect_by_name(&reg, "PlayerPortrait"),
+            LayoutRect {
+                x: PLAYER_FRAME_X + PLAYER_PORTRAIT_X,
+                y: 869.0,
+                width: PLAYER_PORTRAIT_W,
+                height: PLAYER_PORTRAIT_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "PlayerName"),
+            LayoutRect {
+                x: PLAYER_FRAME_X + PLAYER_NAME_X,
+                y: 877.0,
+                width: PLAYER_NAME_W,
+                height: 12.0,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "PlayerHealthBar"),
+            LayoutRect {
+                x: PLAYER_FRAME_X + PLAYER_BAR_X,
+                y: 890.0,
+                width: PLAYER_BAR_W,
+                height: BAR_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "PlayerManaBar"),
+            LayoutRect {
+                x: PLAYER_FRAME_X + PLAYER_BAR_X,
+                y: 911.0,
+                width: PLAYER_BAR_W,
+                height: MANA_H,
+            }
+        );
+    }
+
+    #[test]
+    fn target_frame_key_geometry_matches_wow_spec() {
+        let reg = unit_frames_registry();
+
+        assert_eq!(
+            rect_by_name(&reg, "TargetPortrait"),
+            LayoutRect {
+                x: TARGET_FRAME_X + TARGET_PORTRAIT_X,
+                y: 869.0,
+                width: TARGET_PORTRAIT_W,
+                height: TARGET_PORTRAIT_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "TargetName"),
+            LayoutRect {
+                x: TARGET_FRAME_X + TARGET_NAME_X,
+                y: 876.0,
+                width: TARGET_NAME_W,
+                height: 12.0,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "TargetHealthBar"),
+            LayoutRect {
+                x: TARGET_FRAME_X + TARGET_BAR_X,
+                y: 878.0,
+                width: TARGET_BAR_W,
+                height: BAR_H,
+            }
+        );
+        assert_eq!(
+            rect_by_name(&reg, "TargetManaBar"),
+            LayoutRect {
+                x: TARGET_FRAME_X + TARGET_MANA_X,
+                y: 889.0,
+                width: TARGET_MANA_W,
+                height: MANA_H,
+            }
+        );
+    }
+
+    fn unit_frames_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(InWorldUnitFramesState {
+            player: UnitFrameState {
+                name: "Player".to_string(),
+                level_text: "10".to_string(),
+                health_text: "100 / 100".to_string(),
+                mana_text: "80 / 80".to_string(),
+                health_fill_width: PLAYER_BAR_W,
+                mana_fill_width: PLAYER_BAR_W,
+                has_mana: true,
+            },
+            target: Some(UnitFrameState {
+                name: "Target".to_string(),
+                level_text: "12".to_string(),
+                health_text: "90 / 90".to_string(),
+                mana_text: "60 / 60".to_string(),
+                health_fill_width: TARGET_BAR_W,
+                mana_fill_width: TARGET_MANA_W,
+                has_mana: true,
+            }),
+        });
+        Screen::new(inworld_unit_frames_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect_by_name(reg: &FrameRegistry, name: &str) -> LayoutRect {
+        reg.get(reg.get_by_name(name).expect(name))
+            .and_then(|frame| frame.layout_rect.clone())
+            .expect(name)
     }
 }

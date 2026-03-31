@@ -1,7 +1,9 @@
 use std::fmt;
 
 use ui_toolkit::rsx;
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::slider::{SliderWidget, slider_widget};
 use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
@@ -35,6 +37,15 @@ const OPTIONS_TOGGLE_TEXT_ACTIVE: &str = "0.95,0.90,0.74,1.0";
 const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
 const BINDING_VALUE_W: f32 = 180.0;
+const KEYBINDING_TAB_LEAD_X: f32 = 11.0;
+const KEYBINDING_TAB_H: f32 = 32.0;
+const KEYBINDING_TAB_GAP: f32 = 1.0;
+const KEYBINDING_TAB_SIDE_PADDING: f32 = 20.0;
+const KEYBINDING_TAB_FONT_SIZE: f32 = 10.0;
+const KEYBINDING_TAB_LABEL_Y_IDLE: f32 = 2.0;
+const KEYBINDING_TAB_LABEL_Y_ACTIVE: f32 = -3.0;
+const KEYBINDING_TAB_TEXT_IDLE: &str = "0.85,0.78,0.61,1.0";
+const KEYBINDING_TAB_TEXT_ACTIVE: &str = "0.96,0.84,0.56,1.0";
 
 struct DynName(String);
 
@@ -228,9 +239,14 @@ fn keybinding_section_tabs(active: BindingSection) -> Element {
         r#frame {
             name: "KeybindingSectionTabs",
             width: {OPTIONS_ROW_W},
-            height: 0.0,
+            height: KEYBINDING_TAB_H,
             layout: "flex-row",
-            gap: 8.0,
+            gap: KEYBINDING_TAB_GAP,
+            r#frame {
+                name: "KeybindingSectionTabsLeadSpacer",
+                width: KEYBINDING_TAB_LEAD_X,
+                height: KEYBINDING_TAB_H,
+            }
             {buttons}
         }
     }
@@ -239,21 +255,70 @@ fn keybinding_section_tabs(active: BindingSection) -> Element {
 fn keybinding_section_button(section: BindingSection, active: bool) -> Element {
     let label = section.title().to_string();
     let action = keybinding_section_action(section);
+    let frame_name = DynName(format!("KeybindingSection{}", section.key()));
+    let button_name = DynName(format!("KeybindingSection{}Button", section.key()));
+    let label_name = DynName(format!("KeybindingSection{}Label", section.key()));
+    let width = keybinding_section_tab_width(&label);
+    let text_y = if active {
+        KEYBINDING_TAB_LABEL_Y_ACTIVE
+    } else {
+        KEYBINDING_TAB_LABEL_Y_IDLE
+    };
+    let atlas_up = if active {
+        "defaultbutton-nineslice-pressed"
+    } else {
+        "defaultbutton-nineslice-up"
+    };
+    let atlas_pressed = "defaultbutton-nineslice-pressed";
+    let atlas_highlight = if active {
+        "defaultbutton-nineslice-pressed"
+    } else {
+        "defaultbutton-nineslice-highlight"
+    };
+    let text_color = if active {
+        KEYBINDING_TAB_TEXT_ACTIVE
+    } else {
+        KEYBINDING_TAB_TEXT_IDLE
+    };
     rsx! {
-        button {
-            name: {DynName(format!("KeybindingSection{}", section.key()))},
-            width: 124.0,
-            height: 28.0,
-            text: {&label},
-            font_size: 14.0,
-            onclick: {&action},
-            disabled: {active},
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+        r#frame {
+            name: {frame_name},
+            width: {width},
+            height: KEYBINDING_TAB_H,
+            button {
+                name: {button_name},
+                stretch: true,
+                text: "",
+                font_size: KEYBINDING_TAB_FONT_SIZE,
+                onclick: {&action},
+                button_atlas_up: atlas_up,
+                button_atlas_pressed: atlas_pressed,
+                button_atlas_highlight: atlas_highlight,
+                button_atlas_disabled: "defaultbutton-nineslice-disabled",
+            }
+            fontstring {
+                name: {label_name},
+                width: {width},
+                height: KEYBINDING_TAB_H,
+                text: {&label},
+                font: "FrizQuadrata",
+                font_size: KEYBINDING_TAB_FONT_SIZE,
+                color: text_color,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_point: AnchorPoint::Center,
+                    y: {text_y},
+                }
+            }
         }
     }
+}
+
+fn keybinding_section_tab_width(label: &str) -> f32 {
+    let (text_width, _) =
+        measure_text(label, GameFont::FrizQuadrata, KEYBINDING_TAB_FONT_SIZE).unwrap_or((0.0, 0.0));
+    (text_width + KEYBINDING_TAB_SIDE_PADDING).ceil().max(10.0)
 }
 
 fn keybinding_rows(bindings: &KeybindingsView) -> Element {
