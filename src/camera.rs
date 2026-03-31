@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
@@ -128,6 +129,7 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
     commands
         .spawn((
             Camera3d::default(),
+            DepthPrepass,
             Transform::default(),
             WowCamera::default(),
         ))

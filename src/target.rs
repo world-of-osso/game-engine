@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use bevy::image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::pbr::decal::{ForwardDecal, ForwardDecalMaterial, ForwardDecalMaterialExt};
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -271,6 +273,7 @@ fn spawn_target_circle(
     existing: Query<Entity, With<TargetMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut decal_materials: ResMut<Assets<ForwardDecalMaterial<StandardMaterial>>>,
     mut images: ResMut<Assets<Image>>,
     target_tf: Query<&Transform>,
 ) {
@@ -297,10 +300,24 @@ fn spawn_target_circle(
         } => {
             let e = emissive_from_rgb(*emissive);
             let base = format!("data/textures/{base_fdid}.blp");
-            spawn_target_textured(&mut commands, &mut meshes, &mut materials, &mut images, tf.translation, Path::new(&base), e);
+            spawn_target_textured(
+                &mut commands,
+                &mut decal_materials,
+                &mut images,
+                tf.translation,
+                Path::new(&base),
+                e,
+            );
             if let Some(glow) = glow_fdid {
                 let glow_path = format!("data/textures/{glow}.blp");
-                spawn_target_textured(&mut commands, &mut meshes, &mut materials, &mut images, tf.translation, Path::new(&glow_path), e);
+                spawn_target_textured(
+                    &mut commands,
+                    &mut decal_materials,
+                    &mut images,
+                    tf.translation,
+                    Path::new(&glow_path),
+                    e,
+                );
             }
         }
     }
@@ -366,40 +383,43 @@ fn spawn_procedural_ring(
 
 fn spawn_target_textured(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<ForwardDecalMaterial<StandardMaterial>>,
     images: &mut Assets<Image>,
     translation: Vec3,
     blp_path: &Path,
     emissive: LinearRgba,
 ) {
-    let Ok(image) = load_blp_to_image(blp_path) else {
+    let Ok(mut image) = load_blp_to_image(blp_path) else {
         warn!("Failed to load target texture: {}", blp_path.display());
         return;
     };
-    let opaque = is_fully_opaque(&image);
+    if is_fully_opaque(&image) {
+        convert_opaque_image_to_alpha_mask(&mut image);
+    }
+    image.sampler = clamp_linear_sampler();
     let texture = images.add(image);
-    let quad = meshes.add(Rectangle::new(2.0, 2.0));
     let tint = Color::linear_rgba(emissive.red, emissive.green, emissive.blue, 1.0);
-    // DXT1 textures (no alpha) use additive blending — black adds nothing,
-    // bright pixels glow. Textures with real alpha use standard alpha blend.
-    let alpha_mode = if opaque { AlphaMode::Add } else { AlphaMode::Blend };
-    let mat = materials.add(StandardMaterial {
-        base_color: tint,
-        base_color_texture: Some(texture.clone()),
-        emissive,
-        emissive_texture: Some(texture),
-        unlit: true,
-        cull_mode: None,
-        alpha_mode,
-        reflectance: 0.0,
-        perceptual_roughness: 1.0,
-        ..default()
+    let mat = materials.add(ForwardDecalMaterial {
+        base: StandardMaterial {
+            base_color: tint,
+            base_color_texture: Some(texture.clone()),
+            emissive,
+            emissive_texture: Some(texture),
+            unlit: true,
+            cull_mode: None,
+            alpha_mode: AlphaMode::Blend,
+            reflectance: 0.0,
+            perceptual_roughness: 1.0,
+            ..default()
+        },
+        extension: ForwardDecalMaterialExt {
+            depth_fade_factor: 0.35,
+        },
     });
     commands.spawn((
-        Mesh3d(quad),
         MeshMaterial3d(mat),
-        target_circle_transform(translation),
+        ForwardDecal,
+        target_circle_decal_transform(translation),
         TargetMarker,
     ));
 }
@@ -410,6 +430,31 @@ fn is_fully_opaque(image: &Image) -> bool {
         return false;
     };
     data.iter().skip(3).step_by(4).all(|&a| a == 255)
+}
+
+fn convert_opaque_image_to_alpha_mask(image: &mut Image) {
+    let Some(data) = image.data.as_mut() else {
+        return;
+    };
+    for rgba in data.chunks_exact_mut(4) {
+        let intensity = rgba[0].max(rgba[1]).max(rgba[2]);
+        rgba[0] = intensity;
+        rgba[1] = intensity;
+        rgba[2] = intensity;
+        rgba[3] = intensity;
+    }
+}
+
+fn clamp_linear_sampler() -> ImageSampler {
+    ImageSampler::Descriptor(ImageSamplerDescriptor {
+        address_mode_u: ImageAddressMode::ClampToEdge,
+        address_mode_v: ImageAddressMode::ClampToEdge,
+        ..ImageSamplerDescriptor::linear()
+    })
+}
+
+fn target_circle_decal_transform(target_translation: Vec3) -> Transform {
+    Transform::from_translation(target_translation + Vec3::Y * 0.08).with_scale(Vec3::splat(2.0))
 }
 
 /// Keep the selection circle positioned under the current target each frame.
@@ -579,5 +624,26 @@ mod tests {
             app.world().resource::<TargetResolutionResult>().0,
             Some(root)
         );
+    }
+
+    #[test]
+    fn test_convert_opaque_image_to_alpha_mask_uses_luminance() {
+        let mut image = Image::new(
+            bevy::render::render_resource::Extent3d {
+                width: 2,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            bevy::render::render_resource::TextureDimension::D2,
+            vec![0, 0, 0, 255, 200, 120, 40, 255],
+            bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+            bevy::asset::RenderAssetUsages::default(),
+        );
+
+        convert_opaque_image_to_alpha_mask(&mut image);
+
+        let data = image.data.expect("image should keep pixel data");
+        assert_eq!(&data[0..4], &[0, 0, 0, 0]);
+        assert_eq!(&data[4..8], &[200, 200, 200, 200]);
     }
 }

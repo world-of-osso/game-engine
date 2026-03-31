@@ -1,3 +1,4 @@
+use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -169,6 +170,7 @@ fn spawn_debug_camera(commands: &mut Commands) {
         Name::new("InWorldSelectionDebugCamera"),
         InWorldSelectionDebugScene,
         Camera3d::default(),
+        DepthPrepass,
         Transform::from_xyz(-3.2, 2.6, 6.6).looking_at(Vec3::new(0.0, 1.0, 0.0), Vec3::Y),
     ));
 }
@@ -267,7 +269,10 @@ fn inworld_selection_debug_state(model: &InWorldSelectionDebugModel) -> InWorldS
         selected_index: model.selected_index,
         pinned: model.pinned,
         last_action: model.last_action.clone(),
-        circle_styles: available_circle_styles().iter().map(|s| s.label().to_string()).collect(),
+        circle_styles: available_circle_styles()
+            .iter()
+            .map(|s| s.label().to_string())
+            .collect(),
         active_circle_style: model.active_circle_style,
     }
 }
