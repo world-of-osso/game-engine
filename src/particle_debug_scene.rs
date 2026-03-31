@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::outfit_data::OutfitData;
 
 use crate::creature_display;
 use crate::game_state::GameState;
@@ -33,6 +34,7 @@ fn setup_scene(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    outfit_data: Res<OutfitData>,
 ) {
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
@@ -44,6 +46,7 @@ fn setup_scene(
         &mut images,
         &mut inv_bp,
         &creature_display_map,
+        &outfit_data,
     );
 }
 
@@ -87,13 +90,18 @@ fn spawn_torch(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &creature_display::CreatureDisplayMap,
+    outfit_data: &OutfitData,
 ) {
     let path = PathBuf::from(TORCH_M2);
     if !path.exists() {
         eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
         return;
     }
-    m2_scene::spawn_animated_static_m2(
+    let skin_fdids = outfit_data
+        .resolve_item_model_skin_fdids_for_model_path(&path)
+        .or_else(|| creature_display_map.resolve_skin_fdids_for_model_path(&path))
+        .unwrap_or([0, 0, 0]);
+    m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
         commands,
         meshes,
         materials,
@@ -102,7 +110,7 @@ fn spawn_torch(
         inv_bp,
         &path,
         Transform::IDENTITY,
-        creature_display_map,
+        &skin_fdids,
     );
 }
 

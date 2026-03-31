@@ -116,6 +116,13 @@ fn load_m2_model(
     let skin_fdids = creature_display_map
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
+    load_m2_model_with_skin_fdids(m2_path, &skin_fdids)
+}
+
+fn load_m2_model_with_skin_fdids(
+    m2_path: &Path,
+    skin_fdids: &[u32; 3],
+) -> Option<asset::m2::M2Model> {
     asset::m2::load_m2_uncached(m2_path, &skin_fdids)
         .map_err(|e| {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
@@ -331,6 +338,59 @@ pub fn spawn_animated_static_m2_parts(
     let Some(model) = load_m2_model(m2_path, creature_display_map) else {
         return None;
     };
+    spawn_animated_static_m2_parts_from_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        skinned_mesh_inverse_bindposes,
+        m2_path,
+        transform,
+        model,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_animated_static_m2_parts_with_skin_fdids(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    transform: Transform,
+    skin_fdids: &[u32; 3],
+) -> Option<SpawnedAnimatedStaticM2> {
+    let Some(model) = load_m2_model_with_skin_fdids(m2_path, skin_fdids) else {
+        return None;
+    };
+    spawn_animated_static_m2_parts_from_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        skinned_mesh_inverse_bindposes,
+        m2_path,
+        transform,
+        model,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_animated_static_m2_parts_from_model(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    transform: Transform,
+    model: asset::m2::M2Model,
+) -> Option<SpawnedAnimatedStaticM2> {
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())

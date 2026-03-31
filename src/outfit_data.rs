@@ -222,6 +222,19 @@ impl OutfitData {
         Some((model_fdid, skin_fdids))
     }
 
+    pub fn resolve_item_model_skin_fdids_for_model_path(
+        &self,
+        model_path: &Path,
+    ) -> Option<[u32; 3]> {
+        let data = self.loaded()?;
+        let stem = model_path.file_stem()?.to_str()?;
+        if let Ok(model_fdid) = stem.parse::<u32>() {
+            return preferred_skin_fdids_for_model_fdid(data, model_fdid);
+        }
+        let model_name = model_path.file_name()?.to_str()?.to_ascii_lowercase();
+        preferred_skin_fdids_for_model_name(data, &model_name)
+    }
+
     pub fn resolve_shoulder_runtime_model(
         &self,
         display_info_id: u32,
@@ -478,6 +491,96 @@ fn select_model_fdid(
         return None;
     }
     candidates.first().copied()
+}
+
+fn preferred_skin_fdids_for_model_fdid(
+    data: &LoadedOutfitData,
+    model_fdid: u32,
+) -> Option<[u32; 3]> {
+    let mut best: Option<(usize, u32, [u32; 3])> = None;
+    for (&display_info_id, display) in &data.display_info {
+        let matches_model = display.model_resource_ids.iter().any(|model_resource_id| {
+            data.model_to_fdids
+                .get(model_resource_id)
+                .is_some_and(|fdids| fdids.contains(&model_fdid))
+        });
+        if !matches_model {
+            continue;
+        }
+        let skin_fdids = display_skin_fdids(data, display);
+        let filled_slots = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
+        if filled_slots == 0 {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((best_filled, best_display_id, _)) => {
+                filled_slots > best_filled
+                    || (filled_slots == best_filled && display_info_id < best_display_id)
+            }
+        };
+        if better {
+            best = Some((filled_slots, display_info_id, skin_fdids));
+        }
+    }
+    best.map(|(_, _, skin_fdids)| skin_fdids)
+}
+
+fn preferred_skin_fdids_for_model_name(
+    data: &LoadedOutfitData,
+    model_name: &str,
+) -> Option<[u32; 3]> {
+    let mut best: Option<(usize, u32, [u32; 3])> = None;
+    for (&display_info_id, display) in &data.display_info {
+        let matches_model = display.model_resource_ids.iter().any(|model_resource_id| {
+            data.model_to_fdids
+                .get(model_resource_id)
+                .into_iter()
+                .flatten()
+                .copied()
+                .any(|fdid| {
+                    game_engine::listfile::lookup_fdid(fdid)
+                        .and_then(|path| Path::new(path).file_name()?.to_str())
+                        .is_some_and(|name| name.eq_ignore_ascii_case(model_name))
+                })
+        });
+        if !matches_model {
+            continue;
+        }
+        let skin_fdids = display_skin_fdids(data, display);
+        let filled_slots = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
+        if filled_slots == 0 {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((best_filled, best_display_id, _)) => {
+                filled_slots > best_filled
+                    || (filled_slots == best_filled && display_info_id < best_display_id)
+            }
+        };
+        if better {
+            best = Some((filled_slots, display_info_id, skin_fdids));
+        }
+    }
+    best.map(|(_, _, skin_fdids)| skin_fdids)
+}
+
+fn display_skin_fdids(data: &LoadedOutfitData, display: &DisplayInfoResolved) -> [u32; 3] {
+    let mut skin_fdids = [0; 3];
+    for (idx, material_resource_id) in display
+        .model_material_resource_ids
+        .iter()
+        .take(3)
+        .enumerate()
+    {
+        skin_fdids[idx] = data
+            .material_to_texture
+            .get(material_resource_id)
+            .copied()
+            .unwrap_or(0);
+    }
+    skin_fdids
 }
 
 fn race_model_suffixes(data: &LoadedOutfitData, race: u8, sex: u8) -> Vec<String> {
