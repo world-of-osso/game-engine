@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use bevy::camera::primitives::Aabb;
 use bevy::image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
 use bevy::pbr::decal::{ForwardDecal, ForwardDecalMaterial, ForwardDecalMaterialExt};
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
@@ -10,7 +11,7 @@ use game_engine::targeting::CurrentTarget;
 
 use crate::camera::Player;
 use crate::game_state::GameState;
-use crate::networking::RemoteEntity;
+use crate::networking::{RemoteEntity, ResolvedModelAssetInfo};
 use game_engine::input_bindings::{InputAction, InputBindings};
 
 /// Marker on the selection circle entity.
@@ -224,9 +225,98 @@ pub(crate) fn resolve_targetable_ancestor(
 }
 
 fn target_circle_transform(target_translation: Vec3) -> Transform {
+    target_circle_transform_scaled(target_translation, 1.0)
+}
+
+fn target_circle_transform_scaled(target_translation: Vec3, scale: f32) -> Transform {
     Transform::from_translation(target_translation + Vec3::Y * 0.08)
         .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-        .with_scale(Vec3::splat(1.0))
+        .with_scale(Vec3::splat(scale.max(0.01)))
+}
+
+fn target_circle_size(
+    target: Entity,
+    parent_query: &Query<&ChildOf>,
+    target_global_q: &Query<&GlobalTransform, Without<TargetMarker>>,
+    aabb_query: &Query<(Entity, &Aabb, &GlobalTransform)>,
+    model_info_q: &Query<&ResolvedModelAssetInfo>,
+) -> f32 {
+    let mut size = target_footprint_size(target, parent_query, target_global_q, aabb_query);
+    if size <= 0.0 {
+        size = model_info_q
+            .get(target)
+            .ok()
+            .and_then(|info| info.display_scale)
+            .filter(|scale| *scale > 0.0)
+            .unwrap_or(1.0);
+    }
+    size.max(0.35)
+}
+
+fn target_footprint_size(
+    target: Entity,
+    parent_query: &Query<&ChildOf>,
+    target_global_q: &Query<&GlobalTransform, Without<TargetMarker>>,
+    aabb_query: &Query<(Entity, &Aabb, &GlobalTransform)>,
+) -> f32 {
+    let Ok(target_global) = target_global_q.get(target) else {
+        return 0.0;
+    };
+    let target_origin = target_global.translation();
+    let mut max_extent = 0.0_f32;
+    for (candidate, aabb, transform) in aabb_query.iter() {
+        if !is_descendant_or_self(candidate, target, parent_query) {
+            continue;
+        }
+        for point in world_aabb_corners(aabb, transform) {
+            let delta = point - target_origin;
+            max_extent = max_extent.max(delta.x.abs()).max(delta.z.abs());
+        }
+    }
+    max_extent
+}
+
+fn world_aabb_corners(aabb: &Aabb, transform: &GlobalTransform) -> [Vec3; 8] {
+    let center: Vec3 = aabb.center.into();
+    let extents: Vec3 = aabb.half_extents.into();
+    let affine = transform.affine();
+    [
+        point(center, extents, -1.0, -1.0, -1.0),
+        point(center, extents, -1.0, -1.0, 1.0),
+        point(center, extents, -1.0, 1.0, -1.0),
+        point(center, extents, -1.0, 1.0, 1.0),
+        point(center, extents, 1.0, -1.0, -1.0),
+        point(center, extents, 1.0, -1.0, 1.0),
+        point(center, extents, 1.0, 1.0, -1.0),
+        point(center, extents, 1.0, 1.0, 1.0),
+    ]
+    .map(|v| affine.transform_point3(v))
+}
+
+fn point(center: Vec3, extents: Vec3, sx: f32, sy: f32, sz: f32) -> Vec3 {
+    Vec3::new(
+        center.x + extents.x * sx,
+        center.y + extents.y * sy,
+        center.z + extents.z * sz,
+    )
+}
+
+fn is_descendant_or_self(
+    candidate: Entity,
+    ancestor: Entity,
+    parent_query: &Query<&ChildOf>,
+) -> bool {
+    if candidate == ancestor {
+        return true;
+    }
+    let mut current = candidate;
+    while let Ok(parent) = parent_query.get(current) {
+        current = parent.parent();
+        if current == ancestor {
+            return true;
+        }
+    }
+    false
 }
 
 /// On F1, set the current target to the local player entity.
@@ -271,11 +361,15 @@ fn spawn_target_circle(
     style: Res<TargetCircleStyle>,
     mut commands: Commands,
     existing: Query<Entity, With<TargetMarker>>,
+    parent_query: Query<&ChildOf>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut decal_materials: ResMut<Assets<ForwardDecalMaterial<StandardMaterial>>>,
     mut images: ResMut<Assets<Image>>,
     target_tf: Query<&Transform>,
+    target_global_q: Query<&GlobalTransform, Without<TargetMarker>>,
+    aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
+    model_info_q: Query<&ResolvedModelAssetInfo>,
 ) {
     if !current.is_changed() && !style.is_changed() {
         return;
@@ -287,10 +381,29 @@ fn spawn_target_circle(
     let Ok(tf) = target_tf.get(target) else {
         return;
     };
+    let circle_size = target_circle_size(
+        target,
+        &parent_query,
+        &target_global_q,
+        &aabb_query,
+        &model_info_q,
+    );
     match style.as_ref() {
         TargetCircleStyle::Procedural => {
-            spawn_procedural_fill(&mut commands, &mut meshes, &mut materials, tf.translation);
-            spawn_procedural_ring(&mut commands, &mut meshes, &mut materials, tf.translation);
+            spawn_procedural_fill(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                tf.translation,
+                circle_size,
+            );
+            spawn_procedural_ring(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                tf.translation,
+                circle_size,
+            );
         }
         TargetCircleStyle::Blp {
             base_fdid,
@@ -307,6 +420,7 @@ fn spawn_target_circle(
                 tf.translation,
                 Path::new(&base),
                 e,
+                circle_size,
             );
             if let Some(glow) = glow_fdid {
                 let glow_path = format!("data/textures/{glow}.blp");
@@ -317,6 +431,7 @@ fn spawn_target_circle(
                     tf.translation,
                     Path::new(&glow_path),
                     e,
+                    circle_size,
                 );
             }
         }
@@ -336,6 +451,7 @@ fn spawn_procedural_fill(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     translation: Vec3,
+    scale: f32,
 ) {
     let fill = meshes.add(Circle::new(0.68).mesh().resolution(64).build());
     let fill_mat = materials.add(StandardMaterial {
@@ -351,7 +467,7 @@ fn spawn_procedural_fill(
     commands.spawn((
         Mesh3d(fill),
         MeshMaterial3d(fill_mat),
-        target_circle_transform(translation),
+        target_circle_transform_scaled(translation, scale),
         TargetMarker,
     ));
 }
@@ -361,6 +477,7 @@ fn spawn_procedural_ring(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     translation: Vec3,
+    scale: f32,
 ) {
     let ring = meshes.add(Annulus::new(0.7, 0.95).mesh().resolution(64));
     let mat = materials.add(StandardMaterial {
@@ -376,7 +493,7 @@ fn spawn_procedural_ring(
     commands.spawn((
         Mesh3d(ring),
         MeshMaterial3d(mat),
-        target_circle_transform(translation),
+        target_circle_transform_scaled(translation, scale),
         TargetMarker,
     ));
 }
@@ -388,6 +505,7 @@ fn spawn_target_textured(
     translation: Vec3,
     blp_path: &Path,
     emissive: LinearRgba,
+    scale: f32,
 ) {
     let Ok(mut image) = load_blp_to_image(blp_path) else {
         warn!("Failed to load target texture: {}", blp_path.display());
@@ -419,7 +537,7 @@ fn spawn_target_textured(
     commands.spawn((
         MeshMaterial3d(mat),
         ForwardDecal,
-        target_circle_decal_transform(translation),
+        target_circle_decal_transform(translation, scale),
         TargetMarker,
     ));
 }
@@ -453,8 +571,9 @@ fn clamp_linear_sampler() -> ImageSampler {
     })
 }
 
-fn target_circle_decal_transform(target_translation: Vec3) -> Transform {
-    Transform::from_translation(target_translation + Vec3::Y * 0.08).with_scale(Vec3::splat(2.0))
+fn target_circle_decal_transform(target_translation: Vec3, scale: f32) -> Transform {
+    Transform::from_translation(target_translation + Vec3::Y * 0.08)
+        .with_scale(Vec3::splat((scale * 2.0).max(0.01)))
 }
 
 /// Keep the selection circle positioned under the current target each frame.
@@ -475,9 +594,14 @@ fn update_target_circle(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::networking::ResolvedModelAssetInfo;
+    use bevy::camera::primitives::Aabb;
 
     #[derive(Resource, Default)]
     struct TargetResolutionResult(Option<Entity>);
+
+    #[derive(Resource, Default)]
+    struct TargetCircleSizeResult(f32);
 
     #[test]
     fn test_target_circle_transform_stays_flat_on_ground() {
@@ -645,5 +769,100 @@ mod tests {
         let data = image.data.expect("image should keep pixel data");
         assert_eq!(&data[0..4], &[0, 0, 0, 0]);
         assert_eq!(&data[4..8], &[200, 200, 200, 200]);
+    }
+
+    #[test]
+    fn test_target_circle_size_uses_descendant_aabb_footprint() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<TargetCircleSizeResult>();
+
+        let target = app
+            .world_mut()
+            .spawn((
+                Transform::default(),
+                GlobalTransform::default(),
+                RemoteEntity,
+            ))
+            .id();
+        let child = app
+            .world_mut()
+            .spawn((
+                Transform::from_translation(Vec3::new(1.2, 0.0, 0.2)),
+                GlobalTransform::from_translation(Vec3::new(1.2, 0.0, 0.2)),
+                Aabb {
+                    center: Vec3::ZERO.into(),
+                    half_extents: Vec3::new(0.8, 0.6, 0.3).into(),
+                },
+            ))
+            .id();
+        app.world_mut().entity_mut(child).insert(ChildOf(target));
+        app.add_systems(
+            Update,
+            move |parent_query: Query<&ChildOf>,
+                  target_global_q: Query<&GlobalTransform, Without<TargetMarker>>,
+                  aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
+                  model_info_query: Query<&ResolvedModelAssetInfo>,
+                  mut result: ResMut<TargetCircleSizeResult>| {
+                result.0 = target_circle_size(
+                    target,
+                    &parent_query,
+                    &target_global_q,
+                    &aabb_query,
+                    &model_info_query,
+                );
+            },
+        );
+        app.update();
+        let size = app.world().resource::<TargetCircleSizeResult>().0;
+
+        assert!(
+            (size - 2.0).abs() < 0.001,
+            "expected size from XZ footprint radius, got {size}"
+        );
+    }
+
+    #[test]
+    fn test_target_circle_size_falls_back_to_display_scale() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<TargetCircleSizeResult>();
+
+        let target = app
+            .world_mut()
+            .spawn((
+                Transform::default(),
+                GlobalTransform::default(),
+                RemoteEntity,
+                ResolvedModelAssetInfo {
+                    model_path: "data/models/test.m2".into(),
+                    skin_path: None,
+                    display_scale: Some(1.75),
+                },
+            ))
+            .id();
+        app.add_systems(
+            Update,
+            move |parent_query: Query<&ChildOf>,
+                  target_global_q: Query<&GlobalTransform, Without<TargetMarker>>,
+                  aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
+                  model_info_query: Query<&ResolvedModelAssetInfo>,
+                  mut result: ResMut<TargetCircleSizeResult>| {
+                result.0 = target_circle_size(
+                    target,
+                    &parent_query,
+                    &target_global_q,
+                    &aabb_query,
+                    &model_info_query,
+                );
+            },
+        );
+        app.update();
+        let size = app.world().resource::<TargetCircleSizeResult>().0;
+
+        assert!(
+            (size - 1.75).abs() < 0.001,
+            "expected display scale fallback, got {size}"
+        );
     }
 }
