@@ -8,8 +8,8 @@ use std::path::Path;
 
 use bevy::prelude::*;
 
-use super::blp;
 use super::asset_cache;
+use super::blp;
 use super::m2_texture;
 
 /// A texture layer definition from ChrModelTextureLayer.csv.

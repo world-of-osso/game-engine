@@ -618,15 +618,13 @@ fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
     let stem = m2_path.file_stem()?.to_str()?;
     if let Some(&fdid) = sfid.first() {
         let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-        if let Some(resolved_path) =
-            super::asset_cache::file_at_path(fdid, &canonical_skin_path)
+        if let Some(resolved_path) = super::asset_cache::file_at_path(fdid, &canonical_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();
         }
         let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        if let Some(resolved_path) =
-            super::asset_cache::file_at_path(fdid, &numeric_skin_path)
+        if let Some(resolved_path) = super::asset_cache::file_at_path(fdid, &numeric_skin_path)
             && let Ok(data) = std::fs::read(&resolved_path)
         {
             return parse_skin_full(&data).ok();

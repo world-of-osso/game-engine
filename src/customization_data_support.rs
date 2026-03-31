@@ -1,4 +1,4 @@
-use crate::asset::{blp::load_blp_rgba, asset_cache::texture};
+use crate::asset::{asset_cache::texture, blp::load_blp_rgba};
 
 use super::{CustomizationChoice, OptionType};
 
