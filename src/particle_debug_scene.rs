@@ -111,6 +111,7 @@ fn spawn_torch(
         &path,
         Transform::IDENTITY,
         &skin_fdids,
+        1.0,
     );
 }
 

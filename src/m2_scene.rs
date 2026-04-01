@@ -56,6 +56,7 @@ fn spawn_anim_and_particles(
     model_entity: Entity,
     visual_root: Entity,
     default_main_hand_torch: bool,
+    model_scale: f32,
 ) {
     let joint_entities =
         attach_bone_pivots_and_player(commands, bones, &sequences, skinning, model_entity);
@@ -68,6 +69,7 @@ fn spawn_anim_and_particles(
         bones,
         skinning,
         visual_root,
+        model_scale,
     );
     if let Some(joints) = joint_entities {
         commands.entity(model_entity).insert(M2AnimData {
@@ -96,6 +98,7 @@ fn spawn_particle_emitters(
     bones: &[M2Bone],
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,
+    model_scale: f32,
 ) {
     if particle_emitters.is_empty() {
         return;
@@ -110,6 +113,7 @@ fn spawn_particle_emitters(
         bones,
         bone_slice,
         model_entity,
+        model_scale,
     );
 }
 
@@ -158,6 +162,7 @@ pub fn spawn_m2_model(
         model,
         model_entity,
         true,
+        1.0,
     );
 }
 
@@ -172,6 +177,7 @@ pub fn spawn_full_m2_on_entity(
     m2_path: &Path,
     creature_display_map: &creature_display::CreatureDisplayMap,
     entity: Entity,
+    model_scale: f32,
 ) -> bool {
     let Some(model) = load_m2_model(m2_path, creature_display_map) else {
         return false;
@@ -186,6 +192,7 @@ pub fn spawn_full_m2_on_entity(
         model,
         entity,
         false,
+        model_scale,
     );
     true
 }
@@ -201,6 +208,7 @@ fn attach_m2_model_parts(
     model: asset::m2::M2Model,
     model_entity: Entity,
     default_main_hand_torch: bool,
+    model_scale: f32,
 ) {
     let asset::m2::M2Model {
         batches,
@@ -246,6 +254,7 @@ fn attach_m2_model_parts(
         model_entity,
         visual_root,
         default_main_hand_torch,
+        model_scale,
     );
     m2_spawn::spawn_model_point_lights(commands, &lights, &skinning, visual_root, model_entity);
 }
@@ -340,6 +349,7 @@ pub fn spawn_animated_static_m2_parts(
     m2_path: &Path,
     transform: Transform,
     creature_display_map: &creature_display::CreatureDisplayMap,
+    model_scale: f32,
 ) -> Option<SpawnedAnimatedStaticM2> {
     let Some(model) = load_m2_model(m2_path, creature_display_map) else {
         return None;
@@ -354,6 +364,7 @@ pub fn spawn_animated_static_m2_parts(
         m2_path,
         transform,
         model,
+        model_scale,
     )
 }
 
@@ -368,6 +379,7 @@ pub fn spawn_animated_static_m2_parts_with_skin_fdids(
     m2_path: &Path,
     transform: Transform,
     skin_fdids: &[u32; 3],
+    model_scale: f32,
 ) -> Option<SpawnedAnimatedStaticM2> {
     let Some(model) = load_m2_model_with_skin_fdids(m2_path, skin_fdids) else {
         return None;
@@ -382,6 +394,7 @@ pub fn spawn_animated_static_m2_parts_with_skin_fdids(
         m2_path,
         transform,
         model,
+        model_scale,
     )
 }
 
@@ -396,6 +409,7 @@ fn spawn_animated_static_m2_parts_from_model(
     m2_path: &Path,
     transform: Transform,
     model: asset::m2::M2Model,
+    model_scale: f32,
 ) -> Option<SpawnedAnimatedStaticM2> {
     let name = m2_path
         .file_stem()
@@ -422,6 +436,7 @@ fn spawn_animated_static_m2_parts_from_model(
         model,
         model_root,
         false,
+        model_scale,
     );
     Some(SpawnedAnimatedStaticM2 { root, model_root })
 }
@@ -438,6 +453,7 @@ pub fn spawn_animated_static_m2(
     m2_path: &Path,
     transform: Transform,
     creature_display_map: &creature_display::CreatureDisplayMap,
+    model_scale: f32,
 ) -> Option<Entity> {
     spawn_animated_static_m2_parts(
         commands,
@@ -449,6 +465,7 @@ pub fn spawn_animated_static_m2(
         m2_path,
         transform,
         creature_display_map,
+        model_scale,
     )
     .map(|spawned| spawned.root)
 }

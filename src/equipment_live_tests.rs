@@ -225,6 +225,7 @@ fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::Spawn
         character_path,
         Transform::from_scale(Vec3::splat(1.1)),
         &creature_display_map,
+        1.0,
     )
     .expect("spawned humanmale_hd");
     state.apply(world);

@@ -65,9 +65,18 @@ pub fn spawn_emitters(
     _bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
+    model_scale: f32,
 ) {
     for em in emitters {
-        spawn_single_emitter(commands, images, em, _bones, bone_entities, parent);
+        spawn_single_emitter(
+            commands,
+            images,
+            em,
+            _bones,
+            bone_entities,
+            parent,
+            model_scale,
+        );
     }
 }
 
@@ -78,6 +87,7 @@ fn spawn_single_emitter(
     bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
+    model_scale: f32,
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
@@ -89,7 +99,7 @@ fn spawn_single_emitter(
             ParticleEmitterComp {
                 emitter: em.clone(),
                 bone_entity,
-                pending_effect: Some(build_effect_asset(em)),
+                pending_effect: Some(build_effect_asset(em, model_scale)),
                 pending_texture,
             },
             Transform::from_translation(local_offset),
@@ -123,9 +133,9 @@ struct ExprModifiers {
     module: Module,
 }
 
-fn build_expr_modifiers(em: &M2ParticleEmitter) -> ExprModifiers {
+fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifiers {
     let writer = ExprWriter::new();
-    let init = build_init_modifiers(em, &writer);
+    let init = build_init_modifiers(em, &writer, model_scale);
     let gravity = AccelModifier::new(writer.lit(Vec3::new(0.0, -em.gravity, 0.0)).expr());
     let drag = (em.drag > 0.0).then(|| LinearDragModifier::new(writer.lit(em.drag).expr()));
     let flipbook_sprite_index = build_flipbook_sprite_index(em, &writer);
@@ -169,8 +179,8 @@ fn build_flipbook_sprite_index(
     ))
 }
 
-fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
-    let m = build_expr_modifiers(em);
+fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
+    let m = build_expr_modifiers(em, model_scale);
     let emission_rate = (em.emission_rate * emitter_rate_scale(em)).max(0.1);
     let max_particles = ((emission_rate * em.lifespan) as u32).clamp(16, 4096);
     let spawner = SpawnerSettings::rate(emission_rate.into());
@@ -183,6 +193,7 @@ fn build_effect_asset(em: &M2ParticleEmitter) -> EffectAsset {
         m.alpha_mode,
         m.init,
         m.gravity,
+        model_scale,
     );
     if let Some(drag) = m.drag {
         effect = effect.update(drag);
@@ -217,6 +228,7 @@ fn assemble_effect(
     alpha_mode: bevy_hanabi::AlphaMode,
     init: InitModifiers,
     gravity: AccelModifier,
+    model_scale: f32,
 ) -> EffectAsset {
     EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
@@ -229,7 +241,7 @@ fn assemble_effect(
         .update(gravity)
         .render(build_color_render_modifier(em))
         .render(SizeOverLifetimeModifier {
-            gradient: build_size_gradient(em),
+            gradient: build_size_gradient(em, model_scale),
             screen_space_size: false,
         })
         .render(OrientModifier::new(orient_mode(em)))
@@ -258,12 +270,16 @@ struct InitModifiers {
     vel: SetAttributeModifier,
 }
 
-fn build_init_modifiers(em: &M2ParticleEmitter, writer: &ExprWriter) -> InitModifiers {
+fn build_init_modifiers(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    model_scale: f32,
+) -> InitModifiers {
     let age = SetAttributeModifier::new(Attribute::AGE, writer.lit(0.0).expr());
     let lifetime =
         SetAttributeModifier::new(Attribute::LIFETIME, writer.lit(em.lifespan.max(0.1)).expr());
-    let pos = build_position_modifier(em, writer);
-    let vel = build_velocity_modifier(em, writer);
+    let pos = build_position_modifier(em, writer, model_scale);
+    let vel = build_velocity_modifier(em, writer, model_scale);
     InitModifiers {
         age,
         lifetime,
@@ -275,8 +291,9 @@ fn build_init_modifiers(em: &M2ParticleEmitter, writer: &ExprWriter) -> InitModi
 fn build_position_modifier(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
+    model_scale: f32,
 ) -> SetPositionSphereModifier {
-    let radius = emitter_spawn_radius(em);
+    let radius = emitter_spawn_radius(em) * model_scale;
     SetPositionSphereModifier {
         center: writer.lit(Vec3::ZERO).expr(),
         radius: writer.lit(radius).expr(),
@@ -292,8 +309,12 @@ fn emitter_spawn_radius(em: &M2ParticleEmitter) -> f32 {
     }
 }
 
-fn build_velocity_modifier(em: &M2ParticleEmitter, writer: &ExprWriter) -> SetAttributeModifier {
-    let speed = build_speed_expr(em, writer);
+fn build_velocity_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    model_scale: f32,
+) -> SetAttributeModifier {
+    let speed = build_speed_expr(em, writer) * writer.lit(model_scale);
     // Cone: yaw random over horizontal_range, pitch = random within vertical_range
     let yaw = writer.rand(ScalarType::Float) * writer.lit(em.horizontal_range);
     let pitch = writer.rand(ScalarType::Float) * writer.lit(em.vertical_range);
@@ -343,12 +364,12 @@ fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
     g
 }
 
-fn build_size_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec3> {
+fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi::Gradient<Vec3> {
     let mid = em.mid_point.clamp(0.01, 0.99);
     let mut g = bevy_hanabi::Gradient::new();
-    g.add_key(0.0, Vec3::splat(em.scales[0][0].max(0.01)));
-    g.add_key(mid, Vec3::splat(em.scales[1][0].max(0.01)));
-    g.add_key(1.0, Vec3::splat(em.scales[2][0].max(0.01)));
+    g.add_key(0.0, Vec3::splat(em.scales[0][0].max(0.01) * model_scale));
+    g.add_key(mid, Vec3::splat(em.scales[1][0].max(0.01) * model_scale));
+    g.add_key(1.0, Vec3::splat(em.scales[2][0].max(0.01) * model_scale));
     g
 }
 
@@ -419,7 +440,7 @@ mod tests {
         let mut emitter = sample_emitter();
         emitter.texture_fdid = Some(145513);
 
-        let asset = build_effect_asset(&emitter);
+        let asset = build_effect_asset(&emitter, 1.0);
 
         assert_eq!(asset.texture_layout().layout.len(), 1);
         assert_eq!(asset.texture_layout().layout[0].name, "color");
@@ -428,7 +449,7 @@ mod tests {
     #[test]
     fn untextured_emitters_do_not_declare_hanabi_texture_slot() {
         let emitter = sample_emitter();
-        let modifiers = build_expr_modifiers(&emitter);
+        let modifiers = build_expr_modifiers(&emitter, 1.0);
 
         assert!(modifiers.module.texture_layout().layout.is_empty());
     }
