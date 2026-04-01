@@ -13,6 +13,16 @@ pub use billboard::{compute_bone_stages, propagate_spherical_billboards};
 #[derive(Component)]
 pub struct BonePivot(pub Vec3);
 
+/// Bone flag: spherical billboard — bone always faces the camera.
+pub const M2_BONE_SPHERICAL_BILLBOARD: u32 = 0x8;
+
+/// Marker for bones that should always face the camera (M2 bone flag 0x8).
+#[derive(Component)]
+pub struct SphericalBillboard {
+    /// Bone pivot in Bevy coordinates — the point the bone rotates around.
+    pub pivot: Vec3,
+}
+
 /// All animation data for a single animated M2 model root.
 #[derive(Component)]
 pub struct M2AnimData {
@@ -318,6 +328,37 @@ pub fn evaluate_bone_components(
     (trans, rot, scl)
 }
 
+fn apply_billboard_rotation(
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    mut bones: Query<(&mut Transform, &SphericalBillboard)>,
+) {
+    let Some(camera_gt) = camera_query.iter().next() else {
+        return;
+    };
+    let Some(bb_rot) = billboard_rotation_from_camera(camera_gt.rotation()) else {
+        return;
+    };
+    for (mut transform, bb) in &mut bones {
+        transform.translation = bb.pivot;
+        transform.rotation = bb_rot;
+    }
+}
+
+fn billboard_rotation_from_camera(camera_rotation: Quat) -> Option<Quat> {
+    let view_dir = camera_rotation * -Vec3::Z;
+    let right = view_dir.cross(Vec3::Y);
+    if right.length_squared() < 1.0e-6 {
+        return None;
+    }
+    let right = right.normalize();
+    let toward_camera = -view_dir;
+    let up = toward_camera.cross(right).normalize();
+    Some(
+        Quat::from_mat3(&Mat3::from_cols(right, up, toward_camera))
+            * Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
+    )
+}
+
 pub struct AnimationPlugin;
 
 fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
@@ -340,7 +381,8 @@ impl Plugin for AnimationPlugin {
             (switch_animation, tick_animation, apply_animation)
                 .chain()
                 .run_if(animation_active_state),
-        );
+        )
+        .add_systems(Update, apply_billboard_rotation.after(apply_animation));
     }
 }
 

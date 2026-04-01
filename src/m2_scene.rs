@@ -3,7 +3,9 @@ use std::path::Path;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
-use crate::animation::{BonePivot, M2AnimData, M2AnimPlayer};
+use crate::animation::{
+    BonePivot, M2_BONE_SPHERICAL_BILLBOARD, M2AnimData, M2AnimPlayer, SphericalBillboard,
+};
 use crate::asset;
 use crate::asset::m2_anim::{BoneAnimTracks, M2AnimSequence, M2Bone};
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -461,9 +463,13 @@ pub fn attach_bone_pivots_and_player(
     let (_, joints) = skinning.as_ref()?;
     for (i, bone) in bones.iter().enumerate() {
         let p = bone.pivot;
-        commands
-            .entity(joints[i])
-            .insert(BonePivot(Vec3::new(p[0], p[2], -p[1])));
+        let mut entity = commands.entity(joints[i]);
+        entity.insert(BonePivot(Vec3::new(p[0], p[2], -p[1])));
+        if bone.flags & M2_BONE_SPHERICAL_BILLBOARD != 0 {
+            entity.insert(SphericalBillboard {
+                pivot: Vec3::new(p[0], p[2], -p[1]),
+            });
+        }
     }
     if sequences.is_empty() {
         return None;

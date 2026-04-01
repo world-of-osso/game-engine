@@ -14,7 +14,10 @@ pub fn apply_spherical_billboard_stage(stage: Mat4, billboard_world_rotation: Qu
 }
 
 pub fn propagate_spherical_billboards(bones: &[M2Bone]) -> Vec<bool> {
-    bones.iter().map(|bone| bone.flags & 0x8 != 0).collect()
+    bones
+        .iter()
+        .map(|bone| bone.flags & super::M2_BONE_SPHERICAL_BILLBOARD != 0)
+        .collect()
 }
 
 fn regular_post_stage(pre_stage: Mat4, rotation: Quat, scale: Vec3, pivot: Vec3) -> Mat4 {
