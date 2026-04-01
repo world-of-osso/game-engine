@@ -82,6 +82,7 @@ fn spawn_single_emitter(
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
     let parent_entity = bone_entity.unwrap_or(parent);
+    let local_offset = emitter_local_offset(em, bones);
     commands
         .spawn((
             Name::new("ParticleEmitter"),
@@ -91,10 +92,20 @@ fn spawn_single_emitter(
                 pending_effect: Some(build_effect_asset(em)),
                 pending_texture,
             },
-            Transform::IDENTITY,
+            Transform::from_translation(local_offset),
             Visibility::default(),
         ))
         .set_parent_in_place(parent_entity);
+}
+
+/// Emitter position relative to its parent bone.
+fn emitter_local_offset(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
+    let pos = emitter_translation(em, bones);
+    let bone_pivot = bones
+        .get(em.bone_index as usize)
+        .map(|b| Vec3::new(b.pivot[0], b.pivot[2], -b.pivot[1]))
+        .unwrap_or(Vec3::ZERO);
+    pos - bone_pivot
 }
 
 fn emitter_translation(em: &M2ParticleEmitter, _bones: &[M2Bone]) -> Vec3 {
@@ -265,10 +276,9 @@ fn build_position_modifier(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
 ) -> SetPositionSphereModifier {
-    let center = emitter_translation(em, &[]);
     let radius = emitter_spawn_radius(em);
     SetPositionSphereModifier {
-        center: writer.lit(center).expr(),
+        center: writer.lit(Vec3::ZERO).expr(),
         radius: writer.lit(radius).expr(),
         dimension: ShapeDimension::Volume,
     }
