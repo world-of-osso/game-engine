@@ -213,7 +213,6 @@ fn spawn_race_model(
         &model_path,
         model_transform(),
         creature_display_map,
-        1.0,
     )?;
     let vis = if visible {
         Visibility::Inherited

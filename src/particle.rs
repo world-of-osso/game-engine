@@ -24,32 +24,31 @@ impl Plugin for ParticlePlugin {
 
 /// Marker for a particle emitter entity.
 ///
-/// Carries the pending effect asset until `register_pending_particle_effects`
-/// picks it up and inserts the actual `ParticleEffect` + handle.
+/// The effect asset is built lazily in `register_pending_particle_effects`
+/// once `GlobalTransform` is available, so the inherited model scale is
+/// automatically baked into particle size, spawn radius, and velocity.
 #[derive(Component)]
 pub struct ParticleEmitterComp {
     pub emitter: M2ParticleEmitter,
     pub bone_entity: Option<Entity>,
-    /// Unregistered effect asset, consumed by `register_pending_particle_effects`.
-    pending_effect: Option<EffectAsset>,
     /// Optional texture handle to attach via `EffectMaterial`.
     pending_texture: Option<Handle<Image>>,
 }
 
-/// System: convert pending `EffectAsset`s into registered `ParticleEffect` handles.
+/// System: build `EffectAsset` from emitter data + inherited `GlobalTransform`
+/// scale, then register as `ParticleEffect`.
 fn register_pending_particle_effects(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
-    mut query: Query<(Entity, &mut ParticleEmitterComp), Without<ParticleEffect>>,
+    query: Query<(Entity, &ParticleEmitterComp, &GlobalTransform), Without<ParticleEffect>>,
 ) {
-    for (entity, mut comp) in &mut query {
-        let Some(asset) = comp.pending_effect.take() else {
-            continue;
-        };
+    for (entity, comp, global_tf) in &query {
+        let model_scale = global_tf.compute_transform().scale.x;
+        let asset = build_effect_asset(&comp.emitter, model_scale);
         let handle = effects.add(asset);
         let mut ec = commands.entity(entity);
         ec.insert(ParticleEffect::new(handle));
-        if let Some(tex) = comp.pending_texture.take() {
+        if let Some(tex) = comp.pending_texture.clone() {
             ec.insert(EffectMaterial { images: vec![tex] });
         }
     }
@@ -65,18 +64,9 @@ pub fn spawn_emitters(
     _bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
-    model_scale: f32,
 ) {
     for em in emitters {
-        spawn_single_emitter(
-            commands,
-            images,
-            em,
-            _bones,
-            bone_entities,
-            parent,
-            model_scale,
-        );
+        spawn_single_emitter(commands, images, em, _bones, bone_entities, parent);
     }
 }
 
@@ -87,7 +77,6 @@ fn spawn_single_emitter(
     bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
-    model_scale: f32,
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
@@ -99,7 +88,6 @@ fn spawn_single_emitter(
             ParticleEmitterComp {
                 emitter: em.clone(),
                 bone_entity,
-                pending_effect: Some(build_effect_asset(em, model_scale)),
                 pending_texture,
             },
             Transform::from_translation(local_offset),

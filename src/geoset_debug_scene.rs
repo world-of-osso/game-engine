@@ -282,7 +282,6 @@ fn spawn_debug_character_model(
         &model_path,
         model_transform(x),
         creature_display_map,
-        1.0,
     ) else {
         return;
     };

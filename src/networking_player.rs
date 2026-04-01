@@ -162,7 +162,6 @@ fn try_spawn_player_m2(
         &model_path,
         creature_display_map,
         entity,
-        1.0,
     );
     if spawned {
         commands.entity(entity).insert(ResolvedModelAssetInfo {

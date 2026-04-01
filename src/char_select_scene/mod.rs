@@ -320,7 +320,6 @@ fn spawn_char_select_model(
         m2_path,
         char_transform,
         creature_display_map,
-        1.0,
     );
     let spawned = spawned?;
     commands

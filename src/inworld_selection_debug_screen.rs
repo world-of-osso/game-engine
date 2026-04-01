@@ -227,7 +227,6 @@ fn spawn_debug_wolf(
         Transform::from_xyz(0.0, 0.0, 0.0)
             .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
         creature_display_map,
-        1.0,
     )?;
     commands.entity(spawned.root).insert((
         InWorldSelectionDebugScene,
