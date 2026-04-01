@@ -23,13 +23,6 @@ use bevy::{
     window::WindowPlugin,
 };
 use game_engine::ipc::IpcPlugin;
-use game_engine::status::{
-    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
-    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
-    EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
-};
 use raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use std::{
     collections::VecDeque,
@@ -75,6 +68,7 @@ mod login_screen_helpers;
 mod m2_effect_material;
 mod m2_scene;
 pub mod m2_spawn;
+mod m2_texture_composite;
 mod minimap;
 mod minimap_render;
 mod nameplate;
@@ -502,7 +496,7 @@ fn register_plugins(app: &mut App) {
         Update,
         wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
     );
-    init_status_resources(app);
+    status_sync::init_status_resources(app);
 }
 
 fn log_window_backend(display: Option<Res<bevy::winit::DisplayHandleWrapper>>) {
@@ -588,24 +582,6 @@ fn configure_server_resources(
     }
 }
 
-fn add_status_sync_systems(app: &mut App) {
-    app.add_systems(Update, status_sync::sync_character_roster_status_snapshot);
-    app.add_systems(
-        Update,
-        (
-            status_sync::sync_network_status_snapshot,
-            status_sync::sync_terrain_status_snapshot,
-            status_sync::sync_sound_status_snapshot,
-            status_sync::sync_character_stats_snapshot,
-            status_sync::apply_equipment_ipc_commands,
-            status_sync::sync_equipped_gear_status_snapshot,
-            status_sync::sync_equipment_appearance_status_snapshot,
-            status_sync::sync_map_status_snapshot,
-        )
-            .run_if(in_state(game_state::GameState::InWorld)),
-    );
-}
-
 fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs) {
     #[cfg(debug_assertions)]
     game_engine::ui::screen::init_global_hot_reload(vec![std::path::PathBuf::from(
@@ -624,7 +600,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
         OnEnter(game_state::GameState::InWorld),
         setup_default_world_scene,
     );
-    add_status_sync_systems(app);
+    status_sync::register_status_sync_systems(app);
 }
 
 fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState>) {
@@ -679,26 +655,6 @@ fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
     }
     app.add_systems(PostStartup, dump_systems::headless_dump_ui_tree_immediate);
     app.run();
-}
-
-fn init_status_resources(app: &mut App) {
-    app.insert_resource(NetworkStatusSnapshot::default())
-        .insert_resource(TerrainStatusSnapshot::default())
-        .insert_resource(SoundStatusSnapshot::default())
-        .insert_resource(CharacterRosterStatusSnapshot::default())
-        .insert_resource(CharacterStatsSnapshot::default())
-        .insert_resource(EquippedGearStatusSnapshot::default())
-        .insert_resource(EquipmentAppearanceStatusSnapshot::default())
-        .insert_resource(MapStatusSnapshot::default())
-        .insert_resource(CollectionStatusSnapshot::default())
-        .insert_resource(CombatLogStatusSnapshot::default())
-        .insert_resource(CurrenciesStatusSnapshot::default())
-        .insert_resource(GroupStatusSnapshot::default())
-        .insert_resource(GuildVaultStatusSnapshot::default())
-        .insert_resource(ProfessionStatusSnapshot::default())
-        .insert_resource(QuestLogStatusSnapshot::default())
-        .insert_resource(ReputationsStatusSnapshot::default())
-        .insert_resource(WarbankStatusSnapshot::default());
 }
 
 fn take_screenshot(

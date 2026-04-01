@@ -6,9 +6,11 @@ use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
-    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot,
-    EquippedGearEntry, EquippedGearStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
-    SoundStatusSnapshot, TerrainStatusSnapshot,
+    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
+    EquippedGearEntry, EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -332,4 +334,42 @@ pub fn sync_map_status_snapshot(
         snapshot.player_x = transform.translation.x;
         snapshot.player_z = transform.translation.z;
     }
+}
+
+pub(crate) fn init_status_resources(app: &mut App) {
+    app.insert_resource(NetworkStatusSnapshot::default())
+        .insert_resource(TerrainStatusSnapshot::default())
+        .insert_resource(SoundStatusSnapshot::default())
+        .insert_resource(CharacterRosterStatusSnapshot::default())
+        .insert_resource(CharacterStatsSnapshot::default())
+        .insert_resource(EquippedGearStatusSnapshot::default())
+        .insert_resource(EquipmentAppearanceStatusSnapshot::default())
+        .insert_resource(MapStatusSnapshot::default())
+        .insert_resource(CollectionStatusSnapshot::default())
+        .insert_resource(CombatLogStatusSnapshot::default())
+        .insert_resource(CurrenciesStatusSnapshot::default())
+        .insert_resource(GroupStatusSnapshot::default())
+        .insert_resource(GuildVaultStatusSnapshot::default())
+        .insert_resource(ProfessionStatusSnapshot::default())
+        .insert_resource(QuestLogStatusSnapshot::default())
+        .insert_resource(ReputationsStatusSnapshot::default())
+        .insert_resource(WarbankStatusSnapshot::default());
+}
+
+pub(crate) fn register_status_sync_systems(app: &mut App) {
+    app.add_systems(Update, sync_character_roster_status_snapshot);
+    app.add_systems(
+        Update,
+        (
+            sync_network_status_snapshot,
+            sync_terrain_status_snapshot,
+            sync_sound_status_snapshot,
+            sync_character_stats_snapshot,
+            apply_equipment_ipc_commands,
+            sync_equipped_gear_status_snapshot,
+            sync_equipment_appearance_status_snapshot,
+            sync_map_status_snapshot,
+        )
+            .run_if(in_state(crate::game_state::GameState::InWorld)),
+    );
 }

@@ -1,4 +1,4 @@
-use super::COMPOSITED_TEXTURE_CACHE;
+use crate::m2_texture_composite::COMPOSITED_TEXTURE_CACHE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CompositedTextureCacheStats {
