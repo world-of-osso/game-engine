@@ -1,6 +1,7 @@
 use bevy::mesh::{Indices, Mesh, VertexAttributeValues};
 
-use super::{M2_MODEL_CACHE, M2Model};
+use super::M2Model;
+use super::m2_loader::M2_MODEL_CACHE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ModelCacheStats {

@@ -210,6 +210,7 @@ fn attach_m2_model_parts(
         particle_emitters,
         attachments,
         attachment_lookup,
+        lights,
         ..
     } = model;
     let visual_root = m2_spawn::ensure_grounded_model_root(
@@ -246,6 +247,7 @@ fn attach_m2_model_parts(
         visual_root,
         default_main_hand_torch,
     );
+    m2_spawn::spawn_model_point_lights(commands, &lights, &skinning, visual_root, model_entity);
 }
 
 pub fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {

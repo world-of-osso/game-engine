@@ -146,6 +146,73 @@ pub fn ensure_grounded_model_root(
 /// Skinning data returned from mesh attachment, for animation setup.
 pub type SkinningResult = Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>;
 
+/// Runtime data linking a spawned point light to its M2 light definition and animation owner.
+#[derive(Component)]
+pub struct RuntimeM2PointLight {
+    pub light: asset::m2_light::M2Light,
+    pub anim_owner: Entity,
+}
+
+fn point_light_parent(
+    light: &asset::m2_light::M2Light,
+    skinning: &SkinningResult,
+    root: Entity,
+) -> Entity {
+    let Some(bone_index) = usize::try_from(light.bone_index).ok() else {
+        return root;
+    };
+    skinning
+        .as_ref()
+        .and_then(|(_, joints)| joints.get(bone_index).copied())
+        .unwrap_or(root)
+}
+
+fn authored_point_light(authored: &asset::m2_light::EvaluatedLight) -> PointLight {
+    PointLight {
+        color: Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]),
+        intensity: authored.intensity,
+        range: authored.attenuation_end,
+        radius: authored.attenuation_start.min(authored.attenuation_end),
+        shadows_enabled: false,
+        ..default()
+    }
+}
+
+pub fn spawn_model_point_lights(
+    commands: &mut Commands,
+    lights: &[asset::m2_light::M2Light],
+    skinning: &SkinningResult,
+    root: Entity,
+    anim_owner: Entity,
+) {
+    for (index, light) in lights
+        .iter()
+        .filter(|l| l.light_type == asset::m2_light::M2_LIGHT_TYPE_POINT)
+        .enumerate()
+    {
+        let parent = point_light_parent(light, skinning, root);
+        let pos = asset::m2::wow_to_bevy(light.position[0], light.position[1], light.position[2]);
+        let authored = asset::m2_light::evaluate_light(light, 0, 0);
+        let vis = if authored.visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        commands.entity(parent).with_children(|children| {
+            children.spawn((
+                Name::new(format!("M2PointLight{index}")),
+                Transform::from_translation(pos.into()),
+                authored_point_light(&authored),
+                vis,
+                RuntimeM2PointLight {
+                    light: light.clone(),
+                    anim_owner,
+                },
+            ));
+        });
+    }
+}
+
 enum BatchMaterial {
     Standard(Handle<StandardMaterial>),
     Effect(Handle<M2EffectMaterial>),

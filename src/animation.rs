@@ -7,6 +7,7 @@ use super::camera::{MoveDirection, MovementState};
 use super::game_state::GameState;
 use bevy::prelude::*;
 
+use super::m2_spawn::RuntimeM2PointLight;
 pub use billboard::{compute_bone_stages, propagate_spherical_billboards};
 
 /// Marker component for bone entities, storing their local pivot relative to the parent bone.
@@ -359,6 +360,29 @@ fn billboard_rotation_from_camera(camera_rotation: Quat) -> Option<Quat> {
     )
 }
 
+fn sync_model_lights(
+    players: Query<&M2AnimPlayer>,
+    mut lights: Query<(&RuntimeM2PointLight, &mut PointLight, &mut Visibility)>,
+) {
+    for (runtime, mut point_light, mut visibility) in &mut lights {
+        let (seq_idx, time_ms) = players
+            .get(runtime.anim_owner)
+            .map(|player| (player.current_seq_idx, player.time_ms as u32))
+            .unwrap_or((0, 0));
+        let authored = crate::asset::m2_light::evaluate_light(&runtime.light, seq_idx, time_ms);
+        point_light.color =
+            Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]);
+        point_light.intensity = authored.intensity;
+        point_light.range = authored.attenuation_end;
+        point_light.radius = authored.attenuation_start.min(authored.attenuation_end);
+        *visibility = if authored.visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
+}
+
 pub struct AnimationPlugin;
 
 fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
@@ -382,7 +406,8 @@ impl Plugin for AnimationPlugin {
                 .chain()
                 .run_if(animation_active_state),
         )
-        .add_systems(Update, apply_billboard_rotation.after(apply_animation));
+        .add_systems(Update, apply_billboard_rotation.after(apply_animation))
+        .add_systems(Update, sync_model_lights.run_if(animation_active_state));
     }
 }
 
