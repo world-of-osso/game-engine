@@ -1,9 +1,13 @@
+pub mod billboard;
+
 use super::asset::m2_anim::{
-    BoneAnimTracks, M2AnimSequence, evaluate_rotation_track, evaluate_vec3_track,
+    BoneAnimTracks, M2AnimSequence, M2Bone, evaluate_rotation_track, evaluate_vec3_track,
 };
 use super::camera::{MoveDirection, MovementState};
 use super::game_state::GameState;
 use bevy::prelude::*;
+
+pub use billboard::{compute_bone_stages, propagate_spherical_billboards};
 
 /// Marker component for bone entities, storing their local pivot relative to the parent bone.
 #[derive(Component)]
@@ -12,6 +16,8 @@ pub struct BonePivot(pub Vec3);
 /// All animation data for a single animated M2 model root.
 #[derive(Component)]
 pub struct M2AnimData {
+    pub bones: Vec<M2Bone>,
+    pub spherical_billboards: Vec<bool>,
     pub sequences: Vec<M2AnimSequence>,
     pub bone_tracks: Vec<BoneAnimTracks>,
     pub joint_entities: Vec<Entity>,
@@ -186,7 +192,7 @@ fn valid_next_sequence_idx(sequences: &[M2AnimSequence], seq_idx: usize) -> Opti
     Some(next_idx)
 }
 
-fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) {
+pub(crate) fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) {
     let Some(seq) = data.sequences.get(player.current_seq_idx) else {
         return;
     };
@@ -238,43 +244,119 @@ fn tick_animation(time: Res<Time>, mut players: Query<(&mut M2AnimPlayer, &M2Ani
     }
 }
 
+fn blended_bone_components(
+    player: &M2AnimPlayer,
+    data: &M2AnimData,
+    bone_idx: usize,
+) -> Option<(Vec3, Quat, Vec3)> {
+    let tracks = data.bone_tracks.get(bone_idx)?;
+    let current = evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
+    Some(if let Some(ref tr) = player.transition {
+        let from = evaluate_bone_components(tracks, tr.from_seq_idx, tr.from_time_ms as u32);
+        let t = (tr.blend_elapsed_ms / tr.blend_duration_ms).clamp(0.0, 1.0);
+        (
+            from.0.lerp(current.0, t),
+            from.1.slerp(current.1, t),
+            from.2.lerp(current.2, t),
+        )
+    } else {
+        current
+    })
+}
+
 fn apply_animation_to_model(
     player: &M2AnimPlayer,
     data: &M2AnimData,
-    bone_query: &mut Query<(&mut Transform, &BonePivot)>,
+    camera_rotation: Option<Quat>,
+    bone_query: &mut Query<&mut Transform>,
 ) {
+    let mut pre_billboard_stage = vec![Mat4::IDENTITY; data.joint_entities.len()];
+    let mut post_billboard_stage = vec![Mat4::IDENTITY; data.joint_entities.len()];
+    let billboard_world_rotation = camera_rotation.and_then(billboard_world_rotation_from_camera);
+
     for (bone_idx, joint_entity) in data.joint_entities.iter().enumerate() {
-        let Some(tracks) = data.bone_tracks.get(bone_idx) else {
-            continue;
-        };
-        let Ok((mut transform, pivot)) = bone_query.get_mut(*joint_entity) else {
-            continue;
-        };
-        let current =
-            evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
-
-        let (trans, rot, scl) = if let Some(ref tr) = player.transition {
-            let from = evaluate_bone_components(tracks, tr.from_seq_idx, tr.from_time_ms as u32);
-            let t = (tr.blend_elapsed_ms / tr.blend_duration_ms).clamp(0.0, 1.0);
-            (
-                from.0.lerp(current.0, t),
-                from.1.slerp(current.1, t),
-                from.2.lerp(current.2, t),
-            )
-        } else {
-            current
-        };
-
-        apply_bone_transform(pivot.0, trans, rot, scl, &mut transform);
+        apply_animation_to_bone(
+            player,
+            data,
+            bone_idx,
+            *joint_entity,
+            billboard_world_rotation,
+            &mut pre_billboard_stage,
+            &mut post_billboard_stage,
+            bone_query,
+        );
     }
 }
 
-fn apply_animation(
-    players: Query<(&M2AnimPlayer, &M2AnimData)>,
-    mut bone_query: Query<(&mut Transform, &BonePivot)>,
+fn billboard_world_rotation_from_camera(camera_rotation: Quat) -> Option<Quat> {
+    let view_dir = camera_rotation * -Vec3::Z;
+    let right = view_dir.cross(Vec3::Y);
+    if right.length_squared() < 1.0e-6 {
+        return None;
+    }
+    let right = right.normalize();
+    let toward_camera = -view_dir;
+    let up = toward_camera.cross(right).normalize();
+    Some(
+        Quat::from_mat3(&Mat3::from_cols(right, up, toward_camera))
+            * Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_animation_to_bone(
+    player: &M2AnimPlayer,
+    data: &M2AnimData,
+    bone_idx: usize,
+    joint_entity: Entity,
+    billboard_world_rotation: Option<Quat>,
+    pre_billboard_stage: &mut [Mat4],
+    post_billboard_stage: &mut [Mat4],
+    bone_query: &mut Query<&mut Transform>,
 ) {
+    let Some((trans, rot, scl)) = blended_bone_components(player, data, bone_idx) else {
+        return;
+    };
+    let Some((parent_idx, pre_stage, post_stage)) = compute_bone_stages(
+        &data.bones,
+        &data.spherical_billboards,
+        bone_idx,
+        trans,
+        rot,
+        scl,
+        billboard_world_rotation,
+        pre_billboard_stage,
+        post_billboard_stage,
+    ) else {
+        return;
+    };
+    pre_billboard_stage[bone_idx] = pre_stage;
+    post_billboard_stage[bone_idx] = post_stage;
+
+    let Ok(mut transform) = bone_query.get_mut(joint_entity) else {
+        return;
+    };
+    let local = if let Some(parent_idx) = parent_idx {
+        post_billboard_stage[parent_idx].inverse() * post_stage
+    } else {
+        post_stage
+    };
+    let (scale, rotation, translation) = local.to_scale_rotation_translation();
+    *transform = Transform {
+        translation,
+        rotation,
+        scale,
+    };
+}
+
+pub(crate) fn apply_animation(
+    players: Query<(&M2AnimPlayer, &M2AnimData)>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    mut bone_query: Query<&mut Transform>,
+) {
+    let camera_rotation = camera_query.iter().next().map(GlobalTransform::rotation);
     for (player, data) in &players {
-        apply_animation_to_model(player, data, &mut bone_query);
+        apply_animation_to_model(player, data, camera_rotation, &mut bone_query);
     }
 }
 
@@ -302,17 +384,6 @@ pub fn evaluate_bone_components(
     (trans, rot, scl)
 }
 
-/// Apply SRT with pivot offset to a bone Transform.
-fn apply_bone_transform(pivot: Vec3, trans: Vec3, rot: Quat, scl: Vec3, transform: &mut Transform) {
-    // local = translate(pivot) * SRT * translate(-pivot)
-    let effective_trans = trans + pivot - rot * (scl * pivot);
-    *transform = Transform {
-        translation: effective_trans,
-        rotation: rot,
-        scale: scl,
-    };
-}
-
 pub struct AnimationPlugin;
 
 fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
@@ -324,6 +395,7 @@ fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
                 | GameState::CharSelect
                 | GameState::CharCreate
                 | GameState::DebugCharacter
+                | GameState::ParticleDebug
         )
     )
 }
@@ -332,257 +404,20 @@ impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (switch_animation, tick_animation, apply_animation)
+            (switch_animation, tick_animation)
                 .chain()
+                .run_if(animation_active_state),
+        )
+        .add_systems(
+            Update,
+            apply_animation
+                .after(tick_animation)
+                .after(crate::orbit_camera::orbit_camera_system)
                 .run_if(animation_active_state),
         );
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::asset::m2_anim::AnimTrack;
-
-    fn single_key_vec3_track(value: [f32; 3]) -> AnimTrack<[f32; 3]> {
-        AnimTrack {
-            interpolation_type: 0,
-            global_sequence: -1,
-            sequences: vec![(vec![0], vec![value])],
-        }
-    }
-
-    fn single_key_rot_track() -> AnimTrack<[i16; 4]> {
-        AnimTrack {
-            interpolation_type: 0,
-            global_sequence: -1,
-            sequences: vec![(vec![0], vec![[0, 0, 0, i16::MAX]])],
-        }
-    }
-
-    fn stationary_bone(translation: [f32; 3]) -> BoneAnimTracks {
-        BoneAnimTracks {
-            translation: single_key_vec3_track(translation),
-            rotation: single_key_rot_track(),
-            scale: single_key_vec3_track([1.0, 1.0, 1.0]),
-        }
-    }
-
-    fn stand_sequence() -> M2AnimSequence {
-        M2AnimSequence {
-            id: 0,
-            variation_id: 0,
-            duration: 1000,
-            movespeed: 0.0,
-            flags: 0,
-            blend_time: 0,
-            next_animation: -1,
-        }
-    }
-
-    fn stand_sequence_with_next(
-        duration: u32,
-        variation_id: u16,
-        next_animation: i16,
-    ) -> M2AnimSequence {
-        M2AnimSequence {
-            id: 0,
-            variation_id,
-            duration,
-            movespeed: 0.0,
-            flags: 0,
-            blend_time: 150,
-            next_animation,
-        }
-    }
-
-    #[test]
-    fn apply_animation_updates_each_model_with_its_own_data() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_systems(Update, apply_animation);
-
-        let joint_a = app
-            .world_mut()
-            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
-            .id();
-        let joint_b = app
-            .world_mut()
-            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
-            .id();
-
-        let player_a = M2AnimPlayer {
-            current_seq_idx: 0,
-            time_ms: 0.0,
-            looping: true,
-            transition: None,
-        };
-        let player_b = M2AnimPlayer {
-            current_seq_idx: 0,
-            time_ms: 0.0,
-            looping: true,
-            transition: None,
-        };
-        let data_a = M2AnimData {
-            sequences: vec![stand_sequence()],
-            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
-            joint_entities: vec![joint_a],
-        };
-        let data_b = M2AnimData {
-            sequences: vec![stand_sequence()],
-            bone_tracks: vec![stationary_bone([4.0, 5.0, 6.0])],
-            joint_entities: vec![joint_b],
-        };
-
-        app.world_mut().spawn((player_a, data_a));
-        app.world_mut().spawn((player_b, data_b));
-
-        app.update();
-
-        let transform_a = app.world().get::<Transform>(joint_a).unwrap();
-        let transform_b = app.world().get::<Transform>(joint_b).unwrap();
-        assert_eq!(transform_a.translation, Vec3::new(1.0, 3.0, -2.0));
-        assert_eq!(transform_b.translation, Vec3::new(4.0, 6.0, -5.0));
-    }
-
-    #[test]
-    fn animation_plugin_runs_on_char_select() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
-        app.init_state::<GameState>();
-        app.insert_state(GameState::CharSelect);
-        app.add_plugins(AnimationPlugin);
-
-        let joint = app
-            .world_mut()
-            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
-            .id();
-        app.world_mut().spawn((
-            M2AnimPlayer {
-                current_seq_idx: 0,
-                time_ms: 0.0,
-                looping: true,
-                transition: None,
-            },
-            M2AnimData {
-                sequences: vec![stand_sequence()],
-                bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
-                joint_entities: vec![joint],
-            },
-        ));
-
-        app.update();
-
-        let transform = app.world().get::<Transform>(joint).unwrap();
-        assert_eq!(
-            transform.translation,
-            Vec3::new(1.0, 3.0, -2.0),
-            "char-select models should sample their idle pose instead of staying in rest pose"
-        );
-    }
-
-    #[test]
-    fn animation_plugin_runs_on_char_create() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
-        app.init_state::<GameState>();
-        app.insert_state(GameState::CharCreate);
-        app.add_plugins(AnimationPlugin);
-
-        let joint = app
-            .world_mut()
-            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
-            .id();
-        app.world_mut().spawn((
-            M2AnimPlayer {
-                current_seq_idx: 0,
-                time_ms: 0.0,
-                looping: true,
-                transition: None,
-            },
-            M2AnimData {
-                sequences: vec![stand_sequence()],
-                bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
-                joint_entities: vec![joint],
-            },
-        ));
-
-        app.update();
-
-        let transform = app.world().get::<Transform>(joint).unwrap();
-        assert_eq!(
-            transform.translation,
-            Vec3::new(1.0, 3.0, -2.0),
-            "char-create models should sample their idle pose instead of staying in rest pose"
-        );
-    }
-
-    #[test]
-    fn animation_plugin_runs_on_inworld_selection_debug() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
-        app.init_state::<GameState>();
-        app.insert_state(GameState::InWorldSelectionDebug);
-        app.add_plugins(AnimationPlugin);
-
-        let joint = app
-            .world_mut()
-            .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
-            .id();
-        app.world_mut().spawn((
-            M2AnimPlayer {
-                current_seq_idx: 0,
-                time_ms: 0.0,
-                looping: true,
-                transition: None,
-            },
-            M2AnimData {
-                sequences: vec![stand_sequence()],
-                bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
-                joint_entities: vec![joint],
-            },
-        ));
-
-        app.update();
-
-        let transform = app.world().get::<Transform>(joint).unwrap();
-        assert_eq!(
-            transform.translation,
-            Vec3::new(1.0, 3.0, -2.0),
-            "in-world selection debug models should sample their idle pose"
-        );
-    }
-
-    #[test]
-    fn looping_stand_advances_into_next_authored_variant() {
-        let mut player = M2AnimPlayer {
-            current_seq_idx: 0,
-            time_ms: 900.0,
-            looping: true,
-            transition: None,
-        };
-        let data = M2AnimData {
-            sequences: vec![
-                stand_sequence_with_next(1000, 0, 1),
-                stand_sequence_with_next(2000, 1, -1),
-            ],
-            bone_tracks: vec![],
-            joint_entities: vec![],
-        };
-
-        advance_player_time(&mut player, &data, 200.0);
-
-        assert_eq!(
-            player.current_seq_idx, 1,
-            "should follow the authored idle chain"
-        );
-        assert_eq!(
-            player.time_ms, 100.0,
-            "should preserve overflow into the next variant"
-        );
-        assert!(
-            player.transition.is_some(),
-            "switching stand variants should crossfade"
-        );
-    }
-}
+#[path = "animation_tests.rs"]
+mod tests;

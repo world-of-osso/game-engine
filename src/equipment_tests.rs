@@ -212,6 +212,8 @@ fn spawn_head_equipment_owner(
                 )]),
             },
             M2AnimData {
+                bones: vec![],
+                spherical_billboards: vec![],
                 sequences: vec![],
                 bone_tracks: vec![],
                 joint_entities: vec![joint],

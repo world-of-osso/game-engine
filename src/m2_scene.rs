@@ -69,6 +69,8 @@ fn spawn_anim_and_particles(
     );
     if let Some(joints) = joint_entities {
         commands.entity(model_entity).insert(M2AnimData {
+            spherical_billboards: crate::animation::propagate_spherical_billboards(bones),
+            bones: bones.to_vec(),
             sequences,
             bone_tracks,
             joint_entities: joints,
