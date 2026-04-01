@@ -96,8 +96,8 @@ pub fn repeat_sampler() -> ImageSampler {
 pub(crate) fn alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
     match blend_mode {
         0 => AlphaMode::Opaque,
-        1 => AlphaMode::Mask(224.0 / 255.0),
-        2 | 3 | 7 => AlphaMode::Blend,
+        1 => AlphaMode::AlphaToCoverage,
+        2 | 3 => AlphaMode::Blend,
         4..=6 => AlphaMode::Add,
         _ => AlphaMode::Add,
     }
