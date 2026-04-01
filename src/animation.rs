@@ -267,96 +267,30 @@ fn blended_bone_components(
 fn apply_animation_to_model(
     player: &M2AnimPlayer,
     data: &M2AnimData,
-    camera_rotation: Option<Quat>,
-    bone_query: &mut Query<&mut Transform>,
+    bone_query: &mut Query<(&mut Transform, &BonePivot)>,
 ) {
-    let mut pre_billboard_stage = vec![Mat4::IDENTITY; data.joint_entities.len()];
-    let mut post_billboard_stage = vec![Mat4::IDENTITY; data.joint_entities.len()];
-    let billboard_world_rotation = camera_rotation.and_then(billboard_world_rotation_from_camera);
-
     for (bone_idx, joint_entity) in data.joint_entities.iter().enumerate() {
-        apply_animation_to_bone(
-            player,
-            data,
-            bone_idx,
-            *joint_entity,
-            billboard_world_rotation,
-            &mut pre_billboard_stage,
-            &mut post_billboard_stage,
-            bone_query,
-        );
+        let Some((trans, rot, scl)) = blended_bone_components(player, data, bone_idx) else {
+            continue;
+        };
+        let Ok((mut transform, pivot)) = bone_query.get_mut(*joint_entity) else {
+            continue;
+        };
+        let effective_trans = trans + pivot.0 - rot * (scl * pivot.0);
+        *transform = Transform {
+            translation: effective_trans,
+            rotation: rot,
+            scale: scl,
+        };
     }
 }
 
-fn billboard_world_rotation_from_camera(camera_rotation: Quat) -> Option<Quat> {
-    let view_dir = camera_rotation * -Vec3::Z;
-    let right = view_dir.cross(Vec3::Y);
-    if right.length_squared() < 1.0e-6 {
-        return None;
-    }
-    let right = right.normalize();
-    let toward_camera = -view_dir;
-    let up = toward_camera.cross(right).normalize();
-    Some(
-        Quat::from_mat3(&Mat3::from_cols(right, up, toward_camera))
-            * Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn apply_animation_to_bone(
-    player: &M2AnimPlayer,
-    data: &M2AnimData,
-    bone_idx: usize,
-    joint_entity: Entity,
-    billboard_world_rotation: Option<Quat>,
-    pre_billboard_stage: &mut [Mat4],
-    post_billboard_stage: &mut [Mat4],
-    bone_query: &mut Query<&mut Transform>,
-) {
-    let Some((trans, rot, scl)) = blended_bone_components(player, data, bone_idx) else {
-        return;
-    };
-    let Some((parent_idx, pre_stage, post_stage)) = compute_bone_stages(
-        &data.bones,
-        &data.spherical_billboards,
-        bone_idx,
-        trans,
-        rot,
-        scl,
-        billboard_world_rotation,
-        pre_billboard_stage,
-        post_billboard_stage,
-    ) else {
-        return;
-    };
-    pre_billboard_stage[bone_idx] = pre_stage;
-    post_billboard_stage[bone_idx] = post_stage;
-
-    let Ok(mut transform) = bone_query.get_mut(joint_entity) else {
-        return;
-    };
-    let local = if let Some(parent_idx) = parent_idx {
-        post_billboard_stage[parent_idx].inverse() * post_stage
-    } else {
-        post_stage
-    };
-    let (scale, rotation, translation) = local.to_scale_rotation_translation();
-    *transform = Transform {
-        translation,
-        rotation,
-        scale,
-    };
-}
-
-pub(crate) fn apply_animation(
+fn apply_animation(
     players: Query<(&M2AnimPlayer, &M2AnimData)>,
-    camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    mut bone_query: Query<&mut Transform>,
+    mut bone_query: Query<(&mut Transform, &BonePivot)>,
 ) {
-    let camera_rotation = camera_query.iter().next().map(GlobalTransform::rotation);
     for (player, data) in &players {
-        apply_animation_to_model(player, data, camera_rotation, &mut bone_query);
+        apply_animation_to_model(player, data, &mut bone_query);
     }
 }
 
@@ -395,7 +329,6 @@ fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
                 | GameState::CharSelect
                 | GameState::CharCreate
                 | GameState::DebugCharacter
-                | GameState::ParticleDebug
         )
     )
 }
@@ -404,15 +337,8 @@ impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (switch_animation, tick_animation)
+            (switch_animation, tick_animation, apply_animation)
                 .chain()
-                .run_if(animation_active_state),
-        )
-        .add_systems(
-            Update,
-            apply_animation
-                .after(tick_animation)
-                .after(crate::orbit_camera::orbit_camera_system)
                 .run_if(animation_active_state),
         );
     }
