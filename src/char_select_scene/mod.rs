@@ -31,6 +31,7 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
+use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene;
@@ -121,6 +122,7 @@ pub(super) struct CharSelectRenderAssets<'w> {
     pub(super) meshes: ResMut<'w, Assets<Mesh>>,
     pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
     pub(super) effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    pub(super) skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
     pub(super) terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
     pub(super) water_materials: ResMut<'w, Assets<WaterMaterial>>,
     pub(super) images: ResMut<'w, Assets<Image>>,
@@ -501,6 +503,7 @@ fn setup_char_select_scene(
         &mut assets.meshes,
         &mut assets.materials,
         &mut assets.effect_materials,
+        &mut assets.skybox_materials,
         &mut assets.images,
         &mut assets.inv_bp,
         &creature_display_map,

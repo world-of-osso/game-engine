@@ -15,6 +15,7 @@ use crate::equipment;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::particle;
+use crate::skybox_m2_material::SkyboxM2Material;
 
 /// Attach equipment (attachment points + default main-hand torch) to a model entity.
 pub fn attach_equipment_to_model(
@@ -153,11 +154,13 @@ pub fn spawn_m2_model(
         meshes,
         materials,
         effect_materials,
+        None,
         images,
         inv_bp,
         model,
         model_entity,
         true,
+        false,
     );
 }
 
@@ -181,10 +184,12 @@ pub fn spawn_full_m2_on_entity(
         meshes,
         materials,
         effect_materials,
+        None,
         images,
         inv_bp,
         model,
         entity,
+        false,
         false,
     );
     true
@@ -196,11 +201,13 @@ fn attach_m2_model_parts(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     model: asset::m2::M2Model,
     model_entity: Entity,
     default_main_hand_torch: bool,
+    force_skybox_material: bool,
 ) {
     let asset::m2::M2Model {
         batches,
@@ -218,18 +225,21 @@ fn attach_m2_model_parts(
         model_entity,
         m2_spawn::ground_offset_y(&batches),
     );
+    let spawn_assets = &mut m2_spawn::SpawnAssets {
+        meshes,
+        materials,
+        effect_materials,
+        skybox_materials,
+        images,
+        inverse_bindposes: inv_bp,
+    };
     let skinning = m2_spawn::attach_m2_batches(
         commands,
-        &mut m2_spawn::SpawnAssets {
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inverse_bindposes: inv_bp,
-        },
+        spawn_assets,
         batches,
         &bones,
         visual_root,
+        force_skybox_material,
     );
     spawn_anim_and_particles(
         commands,
@@ -308,6 +318,7 @@ pub fn spawn_static_m2(
             meshes,
             materials,
             effect_materials,
+            skybox_materials: None,
             images,
             inverse_bindposes: skinned_mesh_inverse_bindposes,
         },
@@ -349,11 +360,44 @@ pub fn spawn_animated_static_m2_parts(
         meshes,
         materials,
         effect_materials,
+        None,
         images,
         skinned_mesh_inverse_bindposes,
         m2_path,
         transform,
         model,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_animated_static_skybox_m2_parts(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    skybox_materials: &mut Assets<SkyboxM2Material>,
+    images: &mut Assets<Image>,
+    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    m2_path: &Path,
+    transform: Transform,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) -> Option<SpawnedAnimatedStaticM2> {
+    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
+        return None;
+    };
+    spawn_animated_static_m2_parts_from_model(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        Some(skybox_materials),
+        images,
+        skinned_mesh_inverse_bindposes,
+        m2_path,
+        transform,
+        model,
+        true,
     )
 }
 
@@ -377,11 +421,13 @@ pub fn spawn_animated_static_m2_parts_with_skin_fdids(
         meshes,
         materials,
         effect_materials,
+        None,
         images,
         skinned_mesh_inverse_bindposes,
         m2_path,
         transform,
         model,
+        false,
     )
 }
 
@@ -391,11 +437,13 @@ fn spawn_animated_static_m2_parts_from_model(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
     images: &mut Assets<Image>,
     skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     m2_path: &Path,
     transform: Transform,
     model: asset::m2::M2Model,
+    force_skybox_material: bool,
 ) -> Option<SpawnedAnimatedStaticM2> {
     let name = m2_path
         .file_stem()
@@ -417,11 +465,13 @@ fn spawn_animated_static_m2_parts_from_model(
         meshes,
         materials,
         effect_materials,
+        skybox_materials,
         images,
         skinned_mesh_inverse_bindposes,
         model,
         model_root,
         false,
+        force_skybox_material,
     );
     Some(SpawnedAnimatedStaticM2 { root, model_root })
 }

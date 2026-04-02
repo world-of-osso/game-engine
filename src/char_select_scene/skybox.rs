@@ -38,6 +38,7 @@ pub(super) fn sync_char_select_skybox(
             &mut assets.meshes,
             &mut assets.materials,
             &mut assets.effect_materials,
+            &mut assets.skybox_materials,
             &mut assets.images,
             &mut assets.inv_bp,
             &creature_display_map,

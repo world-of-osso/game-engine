@@ -89,6 +89,7 @@ mod sky;
 mod sky_lightdata;
 mod sky_material;
 mod skybox_debug_scene;
+mod skybox_m2_material;
 mod sound;
 mod sound_footsteps;
 mod sound_music_catalog;
@@ -460,6 +461,7 @@ fn register_bevy_plugins(app: &mut App) {
         .add_plugins(AdtStreamingPlugin)
         .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
         .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
+        .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(minimap::MinimapPlugin)
         .add_plugins(action_bar::ActionBarPlugin)

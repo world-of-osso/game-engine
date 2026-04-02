@@ -8,6 +8,7 @@ use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId};
 use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
+use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
@@ -114,6 +115,7 @@ pub fn spawn_skybox(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    skybox_materials: &mut Assets<SkyboxM2Material>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &crate::creature_display::CreatureDisplayMap,
@@ -121,11 +123,12 @@ pub fn spawn_skybox(
     camera_translation: Vec3,
 ) -> Option<Entity> {
     let m2_path = crate::warband_scene::ensure_warband_skybox(scene?)?;
-    let spawned = m2_scene::spawn_animated_static_m2_parts(
+    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
         commands,
         meshes,
         materials,
         effect_materials,
+        skybox_materials,
         images,
         inv_bp,
         &m2_path,

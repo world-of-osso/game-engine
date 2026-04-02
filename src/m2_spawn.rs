@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use crate::asset;
 use crate::m2_effect_material::{self, M2EffectMaterial, M2EffectSettings};
+use crate::skybox_m2_material::{SkyboxM2Material, SkyboxM2Settings};
 
 static REPEAT_TEXTURE_CACHE: OnceLock<Mutex<std::collections::HashMap<u32, Handle<Image>>>> =
     OnceLock::new();
@@ -28,6 +29,7 @@ pub struct SpawnAssets<'a> {
     pub meshes: &'a mut Assets<Mesh>,
     pub materials: &'a mut Assets<StandardMaterial>,
     pub effect_materials: &'a mut Assets<M2EffectMaterial>,
+    pub skybox_materials: Option<&'a mut Assets<SkyboxM2Material>>,
     pub images: &'a mut Assets<Image>,
     pub inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
@@ -65,7 +67,14 @@ pub fn spawn_m2_on_entity_filtered(
         .filter(|batch| filter(batch.mesh_part_id))
         .collect::<Vec<_>>();
     let grounded_root = ensure_grounded_model_root(commands, entity, ground_offset_y(&batches));
-    attach_m2_batches(commands, assets, batches, &model.bones, grounded_root);
+    attach_m2_batches(
+        commands,
+        assets,
+        batches,
+        &model.bones,
+        grounded_root,
+        false,
+    );
     true
 }
 
@@ -100,7 +109,7 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
         names,
     );
     for (i, batch) in batches.into_iter().enumerate() {
-        spawn_batch_mesh(commands, assets, batch, entity, &skinning, i);
+        spawn_batch_mesh(commands, assets, batch, entity, &skinning, i, false);
     }
     true
 }
@@ -216,6 +225,7 @@ pub fn spawn_model_point_lights(
 enum BatchMaterial {
     Standard(Handle<StandardMaterial>),
     Effect(Handle<M2EffectMaterial>),
+    Skybox(Handle<SkyboxM2Material>),
 }
 
 /// Spawn M2 mesh batches as children of a root entity, with optional skinning.
@@ -226,10 +236,19 @@ pub fn attach_m2_batches(
     batches: Vec<asset::m2::M2RenderBatch>,
     bones: &[asset::m2_anim::M2Bone],
     root: Entity,
+    force_skybox_material: bool,
 ) -> SkinningResult {
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
-        spawn_batch_mesh(commands, assets, batch, root, &skinning, i);
+        spawn_batch_mesh(
+            commands,
+            assets,
+            batch,
+            root,
+            &skinning,
+            i,
+            force_skybox_material,
+        );
     }
     skinning
 }
@@ -285,6 +304,7 @@ fn spawn_batch_mesh(
     root: Entity,
     skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
     batch_index: usize,
+    force_skybox_material: bool,
 ) {
     let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
     let mat = load_batch_material(
@@ -293,11 +313,36 @@ fn spawn_batch_mesh(
         assets.images,
         assets.materials,
         assets.effect_materials,
+        assets.skybox_materials.as_deref_mut(),
+        force_skybox_material,
     );
+    spawn_mesh_with_material(
+        commands,
+        assets.meshes,
+        mat,
+        batch,
+        root,
+        skinning,
+        batch_index,
+        visible,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_mesh_with_material(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    mat: BatchMaterial,
+    batch: asset::m2::M2RenderBatch,
+    root: Entity,
+    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    batch_index: usize,
+    visible: bool,
+) {
     match mat {
         BatchMaterial::Standard(mat) => spawn_skinned_mesh_standard(
             commands,
-            assets.meshes,
+            meshes,
             mat,
             batch,
             root,
@@ -307,7 +352,17 @@ fn spawn_batch_mesh(
         ),
         BatchMaterial::Effect(mat) => spawn_skinned_mesh_effect(
             commands,
-            assets.meshes,
+            meshes,
+            mat,
+            batch,
+            root,
+            skinning,
+            batch_index,
+            visible,
+        ),
+        BatchMaterial::Skybox(mat) => spawn_skinned_mesh_skybox(
+            commands,
+            meshes,
             mat,
             batch,
             root,
@@ -401,6 +456,37 @@ fn spawn_skinned_mesh_effect(
     spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
 }
 
+#[allow(clippy::too_many_arguments)]
+fn spawn_skinned_mesh_skybox(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    material: Handle<SkyboxM2Material>,
+    batch: asset::m2::M2RenderBatch,
+    parent: Entity,
+    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    batch_index: usize,
+    visible: bool,
+) {
+    let asset::m2::M2RenderBatch {
+        mesh,
+        texture_type,
+        mesh_part_id,
+        ..
+    } = batch;
+    let vis = if visible {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    let mut cmd = commands.spawn((
+        Mesh3d(meshes.add(mesh)),
+        MeshMaterial3d(material),
+        Name::new(format!("Mesh[{batch_index}]")),
+        vis,
+    ));
+    spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
+}
+
 /// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
 fn spawn_skeleton(
     commands: &mut Commands,
@@ -467,8 +553,16 @@ fn load_batch_material(
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    mut skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
+    force_skybox_material: bool,
 ) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
+    if force_skybox_material
+        && let Some(materials) = skybox_materials.as_deref_mut()
+        && let Some(mat) = try_load_skybox_material(batch, &texture_dir, images, materials)
+    {
+        return BatchMaterial::Skybox(mat);
+    }
     if should_use_effect_material(batch)
         && let Some(mat) = try_load_effect_material(batch, &texture_dir, images, effect_materials)
     {
@@ -484,6 +578,9 @@ fn load_batch_material(
         }
     }
     let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
+    if force_skybox_material && let Some(materials) = skybox_materials.as_deref_mut() {
+        return BatchMaterial::Skybox(materials.add(skybox_m2_material(None, Some(color), batch)));
+    }
     BatchMaterial::Standard(materials.add(m2_material(None, Some(color), batch)))
 }
 
@@ -544,6 +641,25 @@ fn try_load_effect_material(
     }))
 }
 
+fn try_load_skybox_material(
+    batch: &asset::m2::M2RenderBatch,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+    materials: &mut Assets<SkyboxM2Material>,
+) -> Option<Handle<SkyboxM2Material>> {
+    let fdid = batch.texture_fdid?;
+    let blp_path = asset::asset_cache::texture(fdid)
+        .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
+    if !blp_path.exists() {
+        return None;
+    }
+    let image =
+        crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
+            .map_err(|e| eprintln!("{e}"))
+            .ok()?;
+    Some(materials.add(skybox_m2_material(Some(image), None, batch)))
+}
+
 fn load_repeat_texture(
     fdid: u32,
     texture_dir: &Path,
@@ -588,6 +704,24 @@ pub fn m2_material(
         double_sided: two_sided,
         alpha_mode,
         ..default()
+    }
+}
+
+pub fn skybox_m2_material(
+    texture: Option<Handle<Image>>,
+    color: Option<Color>,
+    batch: &asset::m2::M2RenderBatch,
+) -> SkyboxM2Material {
+    SkyboxM2Material {
+        settings: SkyboxM2Settings {
+            color: color
+                .unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency))
+                .to_linear()
+                .to_f32_array()
+                .into(),
+        },
+        base_texture: texture.unwrap_or_default(),
+        blend_mode: batch.blend_mode,
     }
 }
 

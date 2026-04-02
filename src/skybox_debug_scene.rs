@@ -8,6 +8,7 @@ use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::orbit_camera::OrbitCamera;
+use crate::skybox_m2_material::SkyboxM2Material;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
 
 #[derive(Component)]
@@ -35,6 +36,7 @@ fn setup_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+    mut skybox_materials: ResMut<Assets<SkyboxM2Material>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
@@ -106,11 +108,12 @@ fn setup_scene(
         return;
     };
 
-    let Some(spawned) = m2_scene::spawn_animated_static_m2_parts(
+    let Some(spawned) = m2_scene::spawn_animated_static_skybox_m2_parts(
         &mut commands,
         &mut meshes,
         &mut materials,
         &mut effect_materials,
+        &mut skybox_materials,
         &mut images,
         &mut inv_bp,
         &path,

@@ -107,6 +107,7 @@ fn spawn_npc_model_or_capsule(
         meshes: &mut npc_assets.meshes,
         materials: &mut npc_assets.materials,
         effect_materials: &mut npc_assets.effect_materials,
+        skybox_materials: None,
         images: &mut npc_assets.images,
         inverse_bindposes: &mut npc_assets.inv_bp,
     };
