@@ -12,6 +12,12 @@ use crate::orbit_camera::OrbitCamera;
 use crate::skybox_m2_material::SkyboxM2Material;
 use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
 
+#[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SkyboxDebugOverride {
+    LightSkyboxId(u32),
+    SkyboxFileDataId(u32),
+}
+
 #[derive(Component)]
 struct SkyboxDebugScene;
 
@@ -43,6 +49,7 @@ fn setup_scene(
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
     warband: Res<WarbandScenes>,
     selected_scene: Option<Res<SelectedWarbandScene>>,
+    override_spec: Option<Res<SkyboxDebugOverride>>,
 ) {
     let scene = selected_scene
         .as_ref()
@@ -97,17 +104,18 @@ fn setup_scene(
         Transform::from_xyz(0.0, 0.05, 0.0),
     ));
 
-    let Some(scene) = scene else {
-        warn!("skybox_debug_scene: no warband scene available for skybox selection");
+    let resolved = resolve_debug_skybox(scene, override_spec.as_deref().copied());
+    let Some(resolved) = resolved else {
+        match scene {
+            Some(scene) => warn!(
+                "skybox_debug_scene: failed to resolve skybox model for scene {} ({})",
+                scene.id, scene.name
+            ),
+            None => warn!("skybox_debug_scene: no warband scene available for skybox selection"),
+        }
         return;
     };
-    let Some(path) = crate::warband_scene::ensure_warband_skybox(scene) else {
-        warn!(
-            "skybox_debug_scene: failed to resolve skybox model for scene {} ({})",
-            scene.id, scene.name
-        );
-        return;
-    };
+    let path = resolved.path;
 
     let Some(spawned) = m2_scene::spawn_animated_static_skybox_m2_parts(
         &mut commands,
@@ -127,13 +135,15 @@ fn setup_scene(
         );
         return;
     };
-    let authored_light_params = scene.authored_light_params_id();
+    let authored_light_params = scene.and_then(|scene| scene.authored_light_params_id());
+    let authored_light_skybox = scene.and_then(|scene| scene.authored_light_skybox_id());
     info!(
-        "skybox_debug_scene: resolved scene {} ({}) to skybox {} (LightParamsID={:?})",
-        scene.id,
-        scene.name,
+        "skybox_debug_scene: resolved skybox {} via {} (scene={:?}, LightParamsID={:?}, LightSkyboxID={:?})",
         path.display(),
-        authored_light_params
+        resolved.source,
+        scene.map(|scene| (scene.id, scene.name.as_str())),
+        authored_light_params,
+        authored_light_skybox
     );
     commands.entity(spawned.root).insert((
         SkyboxDebugScene,
@@ -167,6 +177,52 @@ fn setup_scene(
     });
 }
 
+struct ResolvedDebugSkybox {
+    path: std::path::PathBuf,
+    source: String,
+}
+
+fn resolve_debug_skybox(
+    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    override_spec: Option<SkyboxDebugOverride>,
+) -> Option<ResolvedDebugSkybox> {
+    match override_spec {
+        Some(SkyboxDebugOverride::LightSkyboxId(light_skybox_id)) => {
+            let path = ensure_skybox_fdid(crate::light_lookup::resolve_light_skybox_fdid(
+                light_skybox_id,
+            )?)?;
+            Some(ResolvedDebugSkybox {
+                path,
+                source: format!("forced LightSkyboxID={light_skybox_id}"),
+            })
+        }
+        Some(SkyboxDebugOverride::SkyboxFileDataId(fdid)) => {
+            let path = ensure_skybox_fdid(fdid)?;
+            Some(ResolvedDebugSkybox {
+                path,
+                source: format!("forced SkyboxFileDataID={fdid}"),
+            })
+        }
+        None => {
+            let scene = scene?;
+            Some(ResolvedDebugSkybox {
+                path: crate::warband_scene::ensure_warband_skybox(scene)?,
+                source: format!("warband scene {} ({})", scene.id, scene.name),
+            })
+        }
+    }
+}
+
+fn ensure_skybox_fdid(fdid: u32) -> Option<std::path::PathBuf> {
+    let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
+    if !wow_path.ends_with(".m2") {
+        return None;
+    }
+    let filename = std::path::Path::new(wow_path).file_name()?;
+    let local = std::path::PathBuf::from("data/models/skyboxes").join(filename);
+    crate::asset::asset_cache::file_at_path(fdid, &local)
+}
+
 fn sync_skybox_to_camera(
     camera_query: Query<&Transform, (With<OrbitCamera>, With<SkyboxDebugScene>)>,
     mut skybox_query: Query<&mut Transform, (With<SkyboxDebugSkybox>, Without<OrbitCamera>)>,
@@ -183,5 +239,39 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<SkyboxDebugS
     commands.remove_resource::<SceneTree>();
     for entity in &query {
         commands.entity(entity).despawn();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SkyboxDebugOverride, resolve_debug_skybox};
+
+    #[test]
+    fn debug_override_resolves_light_skybox_id() {
+        let resolved = resolve_debug_skybox(None, Some(SkyboxDebugOverride::LightSkyboxId(653)))
+            .expect("resolved light skybox override");
+        assert!(
+            resolved
+                .path
+                .ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
+            "unexpected resolved path: {}",
+            resolved.path.display()
+        );
+        assert_eq!(resolved.source, "forced LightSkyboxID=653");
+    }
+
+    #[test]
+    fn debug_override_resolves_skybox_fdid() {
+        let resolved =
+            resolve_debug_skybox(None, Some(SkyboxDebugOverride::SkyboxFileDataId(5_412_968)))
+                .expect("resolved skybox fdid override");
+        assert!(
+            resolved
+                .path
+                .ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
+            "unexpected resolved path: {}",
+            resolved.path.display()
+        );
+        assert_eq!(resolved.source, "forced SkyboxFileDataID=5412968");
     }
 }

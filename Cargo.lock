@@ -3636,6 +3636,7 @@ dependencies = [
  "bevy",
  "bevy_dylib",
  "bevy_hanabi",
+ "binrw",
  "cascette-client-storage",
  "cascette-crypto",
  "cascette-formats",

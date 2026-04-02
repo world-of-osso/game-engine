@@ -246,6 +246,26 @@ struct ParsedArgs {
     startup_login: Option<(String, String)>,
 }
 
+fn parse_skybox_debug_override(
+    args: &[String],
+) -> Result<Option<skybox_debug_scene::SkyboxDebugOverride>, String> {
+    let skybox_fdid = parse_u32_flag(args, "--skybox-fdid")?;
+    let light_skybox_id = parse_u32_flag(args, "--light-skybox-id")?;
+    match (skybox_fdid, light_skybox_id) {
+        (Some(_), Some(_)) => Err(
+            "use only one of --skybox-fdid or --light-skybox-id when forcing skyboxdebug"
+                .to_string(),
+        ),
+        (Some(fdid), None) => Ok(Some(
+            skybox_debug_scene::SkyboxDebugOverride::SkyboxFileDataId(fdid),
+        )),
+        (None, Some(id)) => Ok(Some(
+            skybox_debug_scene::SkyboxDebugOverride::LightSkyboxId(id),
+        )),
+        (None, None) => Ok(None),
+    }
+}
+
 fn parse_run_args(args: &[String]) -> ParsedArgs {
     let mut parsed = parse_run_args_base(args);
     let startup_credentials =
@@ -391,6 +411,17 @@ fn insert_startup_resources(
 }
 
 fn insert_screen_resources(app: &mut App, args: &[String]) {
+    match parse_skybox_debug_override(args) {
+        Ok(Some(override_spec)) => {
+            app.insert_resource(override_spec);
+        }
+        Ok(None) => {}
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    }
+
     match parse_screen_arg(args) {
         Ok(Some(
             screen @ (game_engine::game_state_enum::ScreenArg::CharCreate

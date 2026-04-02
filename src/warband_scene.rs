@@ -151,11 +151,25 @@ impl WarbandSceneEntry {
         crate::light_lookup::resolve_light_params_id(self.map_id, self.position)
     }
 
+    pub fn authored_light_skybox_id(&self) -> Option<u32> {
+        let light_params_id =
+            crate::light_lookup::resolve_skybox_light_params_id(self.map_id, self.position)?;
+        crate::light_lookup::resolve_light_skybox_id(light_params_id)
+    }
+
+    pub fn authored_skybox_model_wow_path(&self) -> Option<&'static str> {
+        let light_skybox_id = self.authored_light_skybox_id()?;
+        let fdid = crate::light_lookup::resolve_light_skybox_fdid(light_skybox_id)?;
+        let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
+        wow_path.ends_with(".m2").then_some(wow_path)
+    }
+
     pub fn skybox_model_wow_path(&self) -> Option<&'static str> {
+        if let Some(path) = self.authored_skybox_model_wow_path() {
+            return Some(path);
+        }
         match self.texture_kit {
-            5671 | 5672 | 5673 | 5674 | 5675 | 5676 => {
-                Some("environments/stars/costalislandskybox.m2")
-            }
+            5671..=5676 => Some("environments/stars/costalislandskybox.m2"),
             _ => None,
         }
     }
@@ -391,6 +405,38 @@ fn parse_csv_fields(line: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
+    fn load_all_scenes_for_audit() -> Vec<WarbandSceneEntry> {
+        let data =
+            std::fs::read_to_string(Path::new("data/WarbandScene.csv")).expect("WarbandScene.csv");
+        data.lines()
+            .skip(1)
+            .filter_map(|line| {
+                let fields = parse_csv_fields(line);
+                if fields.len() < 16 {
+                    return None;
+                }
+                Some(WarbandSceneEntry {
+                    id: fields[8].parse().ok()?,
+                    name: fields[0].trim_matches('"').to_string(),
+                    description: fields[1].trim_matches('"').to_string(),
+                    position: [
+                        fields[2].parse().ok()?,
+                        fields[3].parse().ok()?,
+                        fields[4].parse().ok()?,
+                    ],
+                    look_at: [
+                        fields[5].parse().ok()?,
+                        fields[6].parse().ok()?,
+                        fields[7].parse().ok()?,
+                    ],
+                    map_id: fields[9].parse().ok()?,
+                    fov: fields[10].parse().ok()?,
+                    texture_kit: fields[15].parse().ok()?,
+                })
+            })
+            .collect()
+    }
+
     #[test]
     fn parse_warband_scenes_csv() {
         let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
@@ -513,6 +559,79 @@ mod tests {
                 scene.name
             );
         }
+    }
+
+    #[test]
+    fn authored_light_scenes_resolve_authored_skybox_paths() {
+        let warband = WarbandScenes::load();
+        for (scene_id, expected_path) in [
+            (1_u32, "environments/stars/deathskybox.m2"),
+            (4_u32, "environments/stars/10gsl_sky01.m2"),
+            (7_u32, "environments/stars/11xp_cloudsky01.m2"),
+            (25_u32, "environments/stars/deathskybox.m2"),
+        ] {
+            let scene = warband
+                .scenes
+                .iter()
+                .find(|scene| scene.id == scene_id)
+                .expect("known scene");
+            let path = scene
+                .authored_skybox_model_wow_path()
+                .expect("authored skybox path");
+
+            assert_eq!(path, expected_path, "scene {scene_id} path mismatch");
+        }
+    }
+
+    #[test]
+    fn active_warband_scenes_now_resolve_authored_skybox_paths() {
+        let warband = WarbandScenes::load();
+        for scene in &warband.scenes {
+            let path = scene
+                .authored_skybox_model_wow_path()
+                .expect("active scene should resolve authored skybox path");
+            assert!(
+                path.ends_with(".m2"),
+                "scene {} ({}) should resolve authored m2 skybox path, got {path}",
+                scene.id,
+                scene.name
+            );
+        }
+    }
+
+    #[test]
+    fn non_active_warband_scene_rows_also_resolve_authored_skybox_paths() {
+        let scenes = load_all_scenes_for_audit();
+        for (scene_id, expected_path) in [
+            (119_u32, "environments/stars/11krs_mainskybox01.m2"),
+            (145_u32, "environments/stars/deathskybox.m2"),
+            (146_u32, "environments/stars/deathskybox.m2"),
+        ] {
+            let scene = scenes
+                .iter()
+                .find(|scene| scene.id == scene_id)
+                .expect("known scene");
+            let path = scene
+                .authored_skybox_model_wow_path()
+                .expect("authored skybox path");
+            assert_eq!(path, expected_path, "scene {scene_id} path mismatch");
+        }
+    }
+
+    #[test]
+    fn scenes_missing_primary_lightparams_rows_can_still_resolve_authored_skyboxes() {
+        let warband = WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 25)
+            .expect("known scene");
+
+        assert_eq!(scene.authored_light_params_id(), Some(6412));
+        assert_eq!(
+            scene.authored_skybox_model_wow_path(),
+            Some("environments/stars/deathskybox.m2")
+        );
     }
 
     #[test]

@@ -18,6 +18,7 @@ pub mod outfit_data;
 pub mod paths;
 pub mod scene_tree;
 pub mod screenshot;
+pub mod skybox_validation;
 pub mod status;
 pub mod targeting;
 pub mod ui;

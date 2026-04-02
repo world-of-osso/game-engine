@@ -34,6 +34,7 @@ notify = "7"
 directories = "5"
 arboard = { version = "3", features = ["wayland-data-control"] }
 raw-window-handle = "0.6"
+binrw = "0.15.1"
 
 [[bin]]
 name = "game-engine-cli"

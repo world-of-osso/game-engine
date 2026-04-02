@@ -118,6 +118,41 @@ fn parse_load_scene_flag() {
 }
 
 #[test]
+fn parse_skybox_debug_override_accepts_skybox_fdid() {
+    let parsed = parse_skybox_debug_override(&args(&["--skybox-fdid", "5412968"]))
+        .expect("expected valid parse");
+    assert_eq!(
+        parsed,
+        Some(crate::skybox_debug_scene::SkyboxDebugOverride::SkyboxFileDataId(5_412_968))
+    );
+}
+
+#[test]
+fn parse_skybox_debug_override_accepts_light_skybox_id() {
+    let parsed = parse_skybox_debug_override(&args(&["--light-skybox-id", "653"]))
+        .expect("expected valid parse");
+    assert_eq!(
+        parsed,
+        Some(crate::skybox_debug_scene::SkyboxDebugOverride::LightSkyboxId(653))
+    );
+}
+
+#[test]
+fn parse_skybox_debug_override_rejects_conflicting_flags() {
+    let err = parse_skybox_debug_override(&args(&[
+        "--light-skybox-id",
+        "653",
+        "--skybox-fdid",
+        "5412968",
+    ]))
+    .expect_err("conflicting override flags should fail");
+    assert_eq!(
+        err,
+        "use only one of --skybox-fdid or --light-skybox-id when forcing skyboxdebug"
+    );
+}
+
+#[test]
 fn parse_screen_requires_value() {
     let err =
         parse_state_arg(&args(&["--screen"])).expect_err("missing --screen value should fail");
@@ -149,6 +184,29 @@ fn asset_path_after_screenshot_is_preserved() {
         "data/models/humanmale_hd.m2",
     ]));
     assert_eq!(parsed, Some(PathBuf::from("data/models/humanmale_hd.m2")));
+}
+
+#[test]
+fn asset_path_skips_skybox_debug_override_flags() {
+    let parsed = parse_asset_path_from_args(&args(&[
+        "--screen",
+        "skyboxdebug",
+        "--light-skybox-id",
+        "628",
+        "screenshot",
+        "data/skybox.webp",
+    ]));
+    assert_eq!(parsed, None);
+
+    let parsed = parse_asset_path_from_args(&args(&[
+        "--screen",
+        "skyboxdebug",
+        "--skybox-fdid",
+        "5412968",
+        "screenshot",
+        "data/skybox.webp",
+    ]));
+    assert_eq!(parsed, None);
 }
 
 #[test]

@@ -8,11 +8,18 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use binrw::BinRead;
 use cascette_client_storage::Installation;
+use cascette_client_storage::index::IndexManager;
 use cascette_client_storage::resolver::ContentResolver;
+use cascette_client_storage::storage::ArchiveManager;
+use cascette_crypto::TactKeyStore;
+use cascette_formats::blte::BlteFile;
 use tokio::runtime::Handle as TokioHandle;
 
 const WOW_DATA_PATH: &str = "/syncthing/World of Warcraft/Data";
+const LOCAL_CASC_HEADER_SIZE: usize = 30;
+const EXTERNAL_TACT_KEYS_PATH: &str = "data/tactkeys/WoW.txt";
 
 static CASC: OnceLock<Option<CascState>> = OnceLock::new();
 
@@ -21,12 +28,25 @@ struct CascState {
     resolver: ContentResolver,
     /// Archive indices are expensive to load; defer until first FDID extraction.
     initialized: Mutex<InitState>,
+    local_access: Mutex<LocalAccessState>,
 }
 
 enum InitState {
     Uninitialized,
     Initialized,
     Failed(String),
+}
+
+enum LocalAccessState {
+    Uninitialized,
+    Initialized(LocalArchiveAccess),
+    Failed(String),
+}
+
+struct LocalArchiveAccess {
+    indices: IndexManager,
+    archives: ArchiveManager,
+    keys: TactKeyStore,
 }
 
 impl CascState {
@@ -49,6 +69,105 @@ impl CascState {
             }
         }
     }
+
+    fn read_file_by_encoding_key(
+        &self,
+        encoding_key: &cascette_crypto::EncodingKey,
+    ) -> Result<Vec<u8>, String> {
+        match run_async(self.install.read_file_by_encoding_key(encoding_key)) {
+            Ok(data) => Ok(data),
+            Err(primary_err) => self
+                .read_file_by_encoding_key_with_keys(encoding_key)
+                .map_err(|fallback_err| {
+                    format!(
+                        "{primary_err}; key-aware local archive fallback also failed: {fallback_err}"
+                    )
+                }),
+        }
+    }
+
+    fn read_file_by_encoding_key_with_keys(
+        &self,
+        encoding_key: &cascette_crypto::EncodingKey,
+    ) -> Result<Vec<u8>, String> {
+        let local = self.ensure_local_access()?;
+        let LocalAccessState::Initialized(local) = &*local else {
+            return Err("local CASC access not initialized".to_string());
+        };
+        let index_entry = local
+            .indices
+            .lookup(encoding_key)
+            .ok_or_else(|| format!("missing archive location for encoding key {encoding_key}"))?;
+        let raw_blte = local
+            .archives
+            .read_raw(
+                index_entry.archive_id(),
+                index_entry.archive_offset(),
+                index_entry.size,
+            )
+            .map_err(|e| format!("read raw BLTE archive entry: {e}"))?;
+        let blte_bytes = if raw_blte.len() >= LOCAL_CASC_HEADER_SIZE + 4
+            && &raw_blte[LOCAL_CASC_HEADER_SIZE..LOCAL_CASC_HEADER_SIZE + 4] == b"BLTE"
+        {
+            &raw_blte[LOCAL_CASC_HEADER_SIZE..]
+        } else {
+            raw_blte.as_slice()
+        };
+        let blte = BlteFile::read_options(
+            &mut std::io::Cursor::new(blte_bytes),
+            binrw::Endian::Big,
+            (),
+        )
+        .map_err(|e| format!("parse BLTE container: {e}"))?;
+        blte.decompress_with_keys(&local.keys)
+            .map_err(|e| format!("decrypt/decompress BLTE container: {e}"))
+    }
+
+    fn ensure_local_access(&self) -> Result<std::sync::MutexGuard<'_, LocalAccessState>, String> {
+        let mut local_access = self.local_access.lock().unwrap();
+        match &*local_access {
+            LocalAccessState::Initialized(_) => return Ok(local_access),
+            LocalAccessState::Failed(err) => return Err(err.clone()),
+            LocalAccessState::Uninitialized => {}
+        }
+
+        let data_dir = PathBuf::from(WOW_DATA_PATH).join("data");
+        let mut indices = IndexManager::new(&data_dir);
+        let mut archives = ArchiveManager::new(&data_dir);
+        let keys = load_tact_keys();
+
+        let init_result = (|| -> Result<LocalArchiveAccess, String> {
+            run_async(indices.load_all()).map_err(|e| format!("load CASC indices: {e}"))?;
+            run_async(archives.open_all()).map_err(|e| format!("open CASC archives: {e}"))?;
+            Ok(LocalArchiveAccess {
+                indices,
+                archives,
+                keys,
+            })
+        })();
+
+        match init_result {
+            Ok(access) => {
+                *local_access = LocalAccessState::Initialized(access);
+                Ok(local_access)
+            }
+            Err(err) => {
+                *local_access = LocalAccessState::Failed(err.clone());
+                Err(err)
+            }
+        }
+    }
+}
+
+fn load_tact_keys() -> TactKeyStore {
+    let mut keys = TactKeyStore::new();
+    if let Ok(content) = std::fs::read_to_string(EXTERNAL_TACT_KEYS_PATH) {
+        let loaded = keys.load_from_txt(&content);
+        if loaded > 0 {
+            eprintln!("CASC: loaded {loaded} external TACT keys from {EXTERNAL_TACT_KEYS_PATH}");
+        }
+    }
+    keys
 }
 
 /// Ensure a BLP texture exists at `data/textures/{fdid}.blp`.
@@ -118,7 +237,8 @@ fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
         .ok_or_else(|| {
             format!("CASC resolve FDID {fdid}: missing encoding key for content {content_key}")
         })?;
-    let data = run_async(casc.install.read_file_by_encoding_key(&encoding_key))
+    let data = casc
+        .read_file_by_encoding_key(&encoding_key)
         .map_err(|e| format!("CASC read FDID {fdid} via encoding key {encoding_key}: {e}"))?;
 
     write_to_path(out_path, &data)?;
@@ -160,6 +280,7 @@ fn init_casc() -> Result<CascState, String> {
         install,
         resolver,
         initialized: Mutex::new(InitState::Uninitialized),
+        local_access: Mutex::new(LocalAccessState::Uninitialized),
     })
 }
 

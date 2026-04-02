@@ -146,6 +146,16 @@ pub fn parse_load_scene_arg(args: &[String]) -> Result<Option<PathBuf>, String> 
     Ok(find_flag_value(args, &["--load-scene"])?.map(|(_, value)| PathBuf::from(value)))
 }
 
+pub fn parse_u32_flag(args: &[String], flag: &str) -> Result<Option<u32>, String> {
+    let Some((_, value)) = find_flag_value(args, &[flag])? else {
+        return Ok(None);
+    };
+    value
+        .parse::<u32>()
+        .map(Some)
+        .map_err(|err| format!("invalid {flag} value '{value}': {err}"))
+}
+
 pub fn print_help() {
     println!("game-engine {}", env!("CARGO_PKG_VERSION"));
     println!();
@@ -160,6 +170,8 @@ pub fn print_help() {
     );
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
     println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
+    println!("  --skybox-fdid <ID>  Force skyboxdebug to load a specific skybox FileDataID");
+    println!("  --light-skybox-id <ID>  Force skyboxdebug to resolve a specific LightSkyboxID");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
@@ -216,7 +228,8 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             continue;
         }
         match args[i].as_str() {
-            "--server" | "--state" | "--screen" | "--char" | "--load-scene" => {
+            "--server" | "--state" | "--screen" | "--char" | "--load-scene" | "--skybox-fdid"
+            | "--light-skybox-id" => {
                 i += 2;
             }
             "--login-dev-admin" => {

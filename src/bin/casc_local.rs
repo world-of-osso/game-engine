@@ -3,14 +3,21 @@
 //! Usage:
 //!   cargo run --bin casc-local -- <fdid> [fdid2 ...] [-o output_dir]
 
+use binrw::BinRead;
 use cascette_client_storage::Installation;
+use cascette_client_storage::index::IndexManager;
 use cascette_client_storage::resolver::ContentResolver;
+use cascette_client_storage::storage::ArchiveManager;
 use cascette_crypto::EncodingKey;
+use cascette_crypto::TactKeyStore;
+use cascette_formats::blte::BlteFile;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
 const CACHE_DIR: &str = "data/casc";
 const LISTFILE_PATH: &str = "data/community-listfile.csv";
+const LOCAL_CASC_HEADER_SIZE: usize = 30;
+const EXTERNAL_TACT_KEYS_PATH: &str = "data/tactkeys/WoW.txt";
 
 #[tokio::main]
 async fn main() {
@@ -107,14 +114,78 @@ async fn extract_fdid(
     let encoding_key: EncodingKey = resolver
         .resolve_content_key(&content_key)
         .ok_or_else(|| format!("FDID {fdid}: missing encoding key for content {content_key}"))?;
-    let data = install
-        .read_file_by_encoding_key(&encoding_key)
-        .await
-        .map_err(|e| format!("FDID {fdid}: {e}"))?;
+    let data = match install.read_file_by_encoding_key(&encoding_key).await {
+        Ok(data) => data,
+        Err(primary_err) => read_file_by_encoding_key_with_keys(&encoding_key)
+            .await
+            .map_err(|fallback_err| format!("FDID {fdid}: {primary_err}; key-aware local archive fallback also failed: {fallback_err}"))?,
+    };
 
     std::fs::create_dir_all(output_dir).map_err(|e| format!("mkdir: {e}"))?;
     std::fs::write(&out_path, &data).map_err(|e| format!("write: {e}"))?;
     Ok(out_path)
+}
+
+async fn read_file_by_encoding_key_with_keys(
+    encoding_key: &EncodingKey,
+) -> Result<Vec<u8>, String> {
+    let data_dir = PathBuf::from(WOW_PATH).join("Data").join("data");
+    let mut indices = IndexManager::new(&data_dir);
+    indices
+        .load_all()
+        .await
+        .map_err(|e| format!("load CASC indices: {e}"))?;
+    let mut archives = ArchiveManager::new(&data_dir);
+    archives
+        .open_all()
+        .await
+        .map_err(|e| format!("open CASC archives: {e}"))?;
+    let keys = load_tact_keys();
+
+    let index_entry = indices
+        .lookup(encoding_key)
+        .ok_or_else(|| format!("missing archive location for encoding key {encoding_key}"))?;
+    decode_archive_entry_with_keys(&archives, &keys, &index_entry)
+}
+
+fn load_tact_keys() -> TactKeyStore {
+    let mut keys = TactKeyStore::new();
+    if let Ok(content) = std::fs::read_to_string(EXTERNAL_TACT_KEYS_PATH) {
+        let loaded = keys.load_from_txt(&content);
+        if loaded > 0 {
+            eprintln!("Loaded {loaded} external TACT keys from {EXTERNAL_TACT_KEYS_PATH}");
+        }
+    }
+    keys
+}
+
+fn decode_archive_entry_with_keys(
+    archives: &ArchiveManager,
+    keys: &TactKeyStore,
+    index_entry: &cascette_client_storage::index::IndexEntry,
+) -> Result<Vec<u8>, String> {
+    let raw_blte = archives
+        .read_raw(
+            index_entry.archive_id(),
+            index_entry.archive_offset(),
+            index_entry.size,
+        )
+        .map_err(|e| format!("read raw BLTE archive entry: {e}"))?;
+    let blte_bytes = if raw_blte.len() >= LOCAL_CASC_HEADER_SIZE + 4
+        && &raw_blte[LOCAL_CASC_HEADER_SIZE..LOCAL_CASC_HEADER_SIZE + 4] == b"BLTE"
+    {
+        &raw_blte[LOCAL_CASC_HEADER_SIZE..]
+    } else {
+        raw_blte.as_slice()
+    };
+    let blte = BlteFile::read_options(
+        &mut std::io::Cursor::new(blte_bytes),
+        binrw::Endian::Big,
+        (),
+    )
+    .map_err(|e| format!("parse BLTE container: {e}"))?;
+    blte.decompress_with_keys(keys)
+        .map_err(|e| format!("decrypt/decompress BLTE container: {e}"))
 }
 
 fn resolve_filename(fdid: u32) -> String {

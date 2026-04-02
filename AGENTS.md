@@ -116,7 +116,7 @@ src/
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
 - wow_client: `~/Repos/wow_client` — C++ WoW client reimplementation/reference
-- WoWDBDefs: https://github.com/wowdev/WoWDBDefs — DB2/DBC schema definitions and field layouts for WoW client data
+- WoWDBDefs: https://github.com/wowdev/WoWDBDefs — Primary reference for DB2/DBC schema definitions, layout hashes, and DBMeta-derived field layouts for WoW client data
 - wow_messages (WoWee): https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
 - cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)

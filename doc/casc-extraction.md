@@ -126,3 +126,8 @@ FDID -> content key -> encoding key -> read_file_by_encoding_key()
   - `cascette-crypto`: ContentKey, EncodingKey types
   - `cascette-formats`: BLTE decompression
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C reference implementation
+
+## Related Notes
+
+- `doc/casc-db2-keys.md` — difference between WoWDBDefs schema metadata and TACT key sources for encrypted DB2 extraction
+- `doc/skybox-authored-lookup.md` — current `Light.csv -> LightParams -> LightSkybox -> FileDataID -> .m2` lookup chain and fallback behavior
