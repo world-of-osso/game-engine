@@ -35,6 +35,8 @@ pub struct M2ParticleEmitter {
     pub colors: [[f32; 3]; 3],
     /// Opacity over lifetime: start, mid, end (0–1).
     pub opacity: [f32; 3],
+    /// Full FakeAnimBlock opacity keys as (normalized time, opacity 0–1).
+    pub opacity_keys: Vec<(f32, f32)>,
     /// Scale over lifetime: start, mid, end (x,y pairs).
     pub scales: [[f32; 2]; 3],
     /// Simple flipbook cell track used by some emitters for head particles.
@@ -86,6 +88,20 @@ fn read_u16_values(md20: &[u8], emitter: &[u8], off: usize) -> [u16; 3] {
         *value = read_u16(md20, base + i * 2).unwrap_or(0);
     }
     values
+}
+
+fn read_normalized_timestamps(md20: &[u8], emitter: &[u8], off: usize) -> Vec<f32> {
+    let count = read_u32(emitter, off).unwrap_or(0) as usize;
+    let base = read_u32(emitter, off + 4).unwrap_or(0) as usize;
+    let mut timestamps = Vec::with_capacity(count);
+    for i in 0..count {
+        timestamps.push(
+            read_u16(md20, base + i * 2)
+                .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+                .unwrap_or(0.0),
+        );
+    }
+    timestamps
 }
 
 fn default_visual_values() -> VisualDefaults {
@@ -145,6 +161,20 @@ fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
             .unwrap_or(1.0);
     }
     opacities
+}
+
+fn read_opacity_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, f32)> {
+    let timestamps = read_normalized_timestamps(md20, emitter, off);
+    let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
+    let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
+    let mut keys = Vec::with_capacity(count.min(timestamps.len()));
+    for (i, time) in timestamps.into_iter().enumerate().take(count) {
+        let opacity = read_i16(md20, base + i * 2)
+            .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+            .unwrap_or(1.0);
+        keys.push((time, opacity));
+    }
+    keys
 }
 
 /// Read FakeAnimBlock scale values (3 × [f32; 2]).
@@ -232,6 +262,7 @@ fn build_emitter_header(
         drag: 0.0,
         colors,
         opacity,
+        opacity_keys: Vec::new(),
         scales,
         head_cell_track,
         tail_cell_track,
@@ -259,6 +290,7 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.mid_point = read_midpoint(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
     em.colors = read_color_values(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
     em.opacity = read_opacity_values(md20, data, EMITTER_VISUAL_OPACITY_OFFSET);
+    em.opacity_keys = read_opacity_keys(md20, data, EMITTER_VISUAL_OPACITY_OFFSET);
     em.scales = read_scale_values(md20, data, EMITTER_VISUAL_SCALE_OFFSET);
     em.head_cell_track = read_u16_values(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
     em.tail_cell_track = read_u16_values(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
@@ -360,6 +392,34 @@ mod tests {
 
         assert_eq!(opacities[0], 0.0);
         assert!((opacities[1] - (16384.0 / 32767.0)).abs() < 0.0001);
+    }
+
+    #[test]
+    fn opacity_keys_preserve_full_fake_animblock_timeline() {
+        let mut md20 = vec![0u8; 64];
+        let mut emitter = vec![0u8; 16];
+
+        emitter[0..4].copy_from_slice(&(4u32).to_le_bytes());
+        emitter[4..8].copy_from_slice(&(32u32).to_le_bytes());
+        emitter[8..12].copy_from_slice(&(4u32).to_le_bytes());
+        emitter[12..16].copy_from_slice(&(40u32).to_le_bytes());
+
+        for (idx, time) in [0u16, 8192, 16384, 32767].into_iter().enumerate() {
+            md20[32 + idx * 2..34 + idx * 2].copy_from_slice(&time.to_le_bytes());
+        }
+        for (idx, value) in [0i16, 8192, 16384, 32767].into_iter().enumerate() {
+            md20[40 + idx * 2..42 + idx * 2].copy_from_slice(&value.to_le_bytes());
+        }
+
+        let keys = read_opacity_keys(&md20, &emitter, 0);
+
+        assert_eq!(keys.len(), 4);
+        assert_eq!(keys[0], (0.0, 0.0));
+        assert!((keys[1].0 - (8192.0 / 32767.0)).abs() < 0.0001);
+        assert!((keys[1].1 - (8192.0 / 32767.0)).abs() < 0.0001);
+        assert!((keys[2].0 - (16384.0 / 32767.0)).abs() < 0.0001);
+        assert!((keys[2].1 - (16384.0 / 32767.0)).abs() < 0.0001);
+        assert_eq!(keys[3], (1.0, 1.0));
     }
 
     #[test]

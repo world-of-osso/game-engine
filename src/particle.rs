@@ -402,6 +402,13 @@ fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::A
 }
 
 fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
+    if em.opacity_keys.len() >= 2 {
+        return build_fake_animblock_opacity_gradient(em);
+    }
+    build_simple_color_gradient(em)
+}
+
+fn build_simple_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
     let [c0, c1, c2] = em.colors;
     let [o0, o1, o2] = em.opacity;
     let mid = em.mid_point.clamp(0.01, 0.99);
@@ -419,6 +426,40 @@ fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
         Vec4::new(c2[0] / 255.0, c2[1] / 255.0, c2[2] / 255.0, o2),
     );
     g
+}
+
+fn build_fake_animblock_opacity_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
+    let mut g = bevy_hanabi::Gradient::new();
+    for &(time, opacity) in &em.opacity_keys {
+        let color = sample_fake_animblock_color(em, time);
+        g.add_key(time, Vec4::new(color.x, color.y, color.z, opacity));
+    }
+    g
+}
+
+fn sample_fake_animblock_color(em: &M2ParticleEmitter, time: f32) -> Vec3 {
+    let t = time.clamp(0.0, 1.0);
+    let mid = em.mid_point.clamp(0.01, 0.99);
+    let c0 = Vec3::new(
+        em.colors[0][0] / 255.0,
+        em.colors[0][1] / 255.0,
+        em.colors[0][2] / 255.0,
+    );
+    let c1 = Vec3::new(
+        em.colors[1][0] / 255.0,
+        em.colors[1][1] / 255.0,
+        em.colors[1][2] / 255.0,
+    );
+    let c2 = Vec3::new(
+        em.colors[2][0] / 255.0,
+        em.colors[2][1] / 255.0,
+        em.colors[2][2] / 255.0,
+    );
+    if t < mid {
+        c0.lerp(c1, (t / mid).clamp(0.0, 1.0))
+    } else {
+        c1.lerp(c2, ((t - mid) / (1.0 - mid)).clamp(0.0, 1.0))
+    }
 }
 
 fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi::Gradient<Vec3> {
@@ -459,9 +500,9 @@ mod tests {
     use bevy_hanabi::{AlphaMode, ExprWriter};
 
     use super::{
-        active_cell_track, build_effect_asset, build_expr_modifiers, build_size_gradient,
-        emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius, emitter_translation,
-        is_fire_effect, sample_cell_track_frame,
+        active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
+        build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
+        emitter_translation, is_fire_effect, sample_cell_track_frame,
     };
     use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
@@ -489,6 +530,7 @@ mod tests {
             drag: 0.0,
             colors: [[255.0, 128.0, 64.0]; 3],
             opacity: [1.0, 1.0, 0.0],
+            opacity_keys: Vec::new(),
             scales: [[0.1, 0.1], [0.2, 0.2], [0.05, 0.05]],
             head_cell_track: [0, 0, 0],
             tail_cell_track: [0, 0, 0],
@@ -587,6 +629,31 @@ mod tests {
         assert_eq!(keys[0].value, Vec3::splat(0.25));
         assert_eq!(keys[1].value, Vec3::splat(0.5));
         assert_eq!(keys[2].value, Vec3::splat(0.125));
+    }
+
+    #[test]
+    fn color_gradient_uses_full_opacity_key_timeline_when_present() {
+        let mut emitter = sample_emitter();
+        emitter.colors = [[255.0, 0.0, 0.0], [0.0, 255.0, 0.0], [0.0, 0.0, 255.0]];
+        emitter.mid_point = 0.5;
+        emitter.opacity_keys = vec![(0.0, 0.1), (0.25, 0.4), (0.75, 0.8), (1.0, 0.2)];
+
+        let gradient = build_color_gradient(&emitter);
+        let keys = gradient.keys();
+
+        assert_eq!(keys.len(), 4);
+        assert_eq!(keys[0].ratio(), 0.0);
+        assert_eq!(keys[0].value.w, 0.1);
+        assert!((keys[1].ratio() - 0.25).abs() < 0.0001);
+        assert!((keys[1].value.x - 0.5).abs() < 0.0001);
+        assert!((keys[1].value.y - 0.5).abs() < 0.0001);
+        assert_eq!(keys[1].value.w, 0.4);
+        assert!((keys[2].ratio() - 0.75).abs() < 0.0001);
+        assert!((keys[2].value.y - 0.5).abs() < 0.0001);
+        assert!((keys[2].value.z - 0.5).abs() < 0.0001);
+        assert_eq!(keys[2].value.w, 0.8);
+        assert_eq!(keys[3].ratio(), 1.0);
+        assert_eq!(keys[3].value.w, 0.2);
     }
 
     #[test]
