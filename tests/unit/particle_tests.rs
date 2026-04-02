@@ -10,19 +10,45 @@ use super::{
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
 
-fn sample_emitter() -> M2ParticleEmitter {
-    M2ParticleEmitter {
-        flags: 0,
-        position: [0.0, 0.0, 0.0],
-        bone_index: 0,
-        texture_index: 0,
-        texture_fdid: None,
-        blend_type: 4,
-        emitter_type: 1,
-        particle_type: 0,
-        head_or_tail: 0,
-        tile_rows: 4,
-        tile_cols: 4,
+struct SampleMotionDefaults {
+    emission_speed: f32,
+    speed_variation: f32,
+    vertical_range: f32,
+    horizontal_range: f32,
+    gravity: f32,
+    lifespan: f32,
+    lifespan_variation: f32,
+    emission_rate: f32,
+    area_length: f32,
+    area_width: f32,
+    drag: f32,
+    base_spin: f32,
+    base_spin_variation: f32,
+    spin: f32,
+    spin_variation: f32,
+    wind_vector: [f32; 3],
+    wind_time: f32,
+}
+
+struct SampleVisualDefaults {
+    colors: [[f32; 3]; 3],
+    color_keys: Vec<(f32, [f32; 3])>,
+    opacity: [f32; 3],
+    opacity_keys: Vec<(f32, f32)>,
+    scales: [[f32; 2]; 3],
+    scale_keys: Vec<(f32, [f32; 2])>,
+    twinkle_speed: f32,
+    twinkle_percent: f32,
+    twinkle_scale_min: f32,
+    twinkle_scale_max: f32,
+    head_cell_track: [u16; 3],
+    tail_cell_track: [u16; 3],
+    burst_multiplier: f32,
+    mid_point: f32,
+}
+
+fn sample_motion_defaults() -> SampleMotionDefaults {
+    SampleMotionDefaults {
         emission_speed: 1.0,
         speed_variation: 0.0,
         vertical_range: 0.1,
@@ -40,6 +66,11 @@ fn sample_emitter() -> M2ParticleEmitter {
         spin_variation: 0.0,
         wind_vector: [0.0, 0.0, 0.0],
         wind_time: 0.0,
+    }
+}
+
+fn sample_visual_defaults() -> SampleVisualDefaults {
+    SampleVisualDefaults {
         colors: [[255.0, 128.0, 64.0]; 3],
         color_keys: Vec::new(),
         opacity: [1.0, 1.0, 0.0],
@@ -54,6 +85,55 @@ fn sample_emitter() -> M2ParticleEmitter {
         tail_cell_track: [0, 0, 0],
         burst_multiplier: 1.0,
         mid_point: 0.5,
+    }
+}
+
+fn sample_emitter() -> M2ParticleEmitter {
+    let motion = sample_motion_defaults();
+    let visuals = sample_visual_defaults();
+    M2ParticleEmitter {
+        flags: 0,
+        position: [0.0, 0.0, 0.0],
+        bone_index: 0,
+        texture_index: 0,
+        texture_fdid: None,
+        blend_type: 4,
+        emitter_type: 1,
+        particle_type: 0,
+        head_or_tail: 0,
+        tile_rows: 4,
+        tile_cols: 4,
+        emission_speed: motion.emission_speed,
+        speed_variation: motion.speed_variation,
+        vertical_range: motion.vertical_range,
+        horizontal_range: motion.horizontal_range,
+        gravity: motion.gravity,
+        lifespan: motion.lifespan,
+        lifespan_variation: motion.lifespan_variation,
+        emission_rate: motion.emission_rate,
+        area_length: motion.area_length,
+        area_width: motion.area_width,
+        drag: motion.drag,
+        base_spin: motion.base_spin,
+        base_spin_variation: motion.base_spin_variation,
+        spin: motion.spin,
+        spin_variation: motion.spin_variation,
+        wind_vector: motion.wind_vector,
+        wind_time: motion.wind_time,
+        colors: visuals.colors,
+        color_keys: visuals.color_keys,
+        opacity: visuals.opacity,
+        opacity_keys: visuals.opacity_keys,
+        scales: visuals.scales,
+        scale_keys: visuals.scale_keys,
+        twinkle_speed: visuals.twinkle_speed,
+        twinkle_percent: visuals.twinkle_percent,
+        twinkle_scale_min: visuals.twinkle_scale_min,
+        twinkle_scale_max: visuals.twinkle_scale_max,
+        head_cell_track: visuals.head_cell_track,
+        tail_cell_track: visuals.tail_cell_track,
+        burst_multiplier: visuals.burst_multiplier,
+        mid_point: visuals.mid_point,
     }
 }
 
