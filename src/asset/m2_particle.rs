@@ -291,19 +291,45 @@ fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
     })
 }
 
-fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
-    M2ParticleEmitter {
-        flags: header.flags,
-        position: header.position,
-        bone_index: header.bone_index,
-        texture_index: header.texture_index,
-        texture_fdid: None,
-        blend_type: header.blend_type,
-        emitter_type: header.emitter_type,
-        particle_type: header.particle_type,
-        head_or_tail: header.head_or_tail,
-        tile_rows: header.tile_rows,
-        tile_cols: header.tile_cols,
+struct EmitterTrackDefaults {
+    emission_speed: f32,
+    speed_variation: f32,
+    vertical_range: f32,
+    horizontal_range: f32,
+    gravity: f32,
+    lifespan: f32,
+    lifespan_variation: f32,
+    emission_rate: f32,
+    area_length: f32,
+    area_width: f32,
+    drag: f32,
+    base_spin: f32,
+    base_spin_variation: f32,
+    spin: f32,
+    spin_variation: f32,
+    wind_vector: [f32; 3],
+    wind_time: f32,
+}
+
+struct EmitterVisualDefaults {
+    colors: [[f32; 3]; 3],
+    color_keys: Vec<(f32, [f32; 3])>,
+    opacity: [f32; 3],
+    opacity_keys: Vec<(f32, f32)>,
+    scales: [[f32; 2]; 3],
+    scale_keys: Vec<(f32, [f32; 2])>,
+    twinkle_speed: f32,
+    twinkle_percent: f32,
+    twinkle_scale_min: f32,
+    twinkle_scale_max: f32,
+    head_cell_track: [u16; 3],
+    tail_cell_track: [u16; 3],
+    burst_multiplier: f32,
+    mid_point: f32,
+}
+
+fn emitter_track_defaults() -> EmitterTrackDefaults {
+    EmitterTrackDefaults {
         emission_speed: 0.0,
         speed_variation: 0.0,
         vertical_range: 0.0,
@@ -321,6 +347,11 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         spin_variation: 0.0,
         wind_vector: [0.0; 3],
         wind_time: 0.0,
+    }
+}
+
+fn emitter_visual_defaults() -> EmitterVisualDefaults {
+    EmitterVisualDefaults {
         colors: [[0.0; 3]; 3],
         color_keys: Vec::new(),
         opacity: [1.0; 3],
@@ -335,6 +366,55 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         tail_cell_track: [0; 3],
         burst_multiplier: 1.0,
         mid_point: 0.5,
+    }
+}
+
+fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
+    let tracks = emitter_track_defaults();
+    let visuals = emitter_visual_defaults();
+    M2ParticleEmitter {
+        flags: header.flags,
+        position: header.position,
+        bone_index: header.bone_index,
+        texture_index: header.texture_index,
+        texture_fdid: None,
+        blend_type: header.blend_type,
+        emitter_type: header.emitter_type,
+        particle_type: header.particle_type,
+        head_or_tail: header.head_or_tail,
+        tile_rows: header.tile_rows,
+        tile_cols: header.tile_cols,
+        emission_speed: tracks.emission_speed,
+        speed_variation: tracks.speed_variation,
+        vertical_range: tracks.vertical_range,
+        horizontal_range: tracks.horizontal_range,
+        gravity: tracks.gravity,
+        lifespan: tracks.lifespan,
+        lifespan_variation: tracks.lifespan_variation,
+        emission_rate: tracks.emission_rate,
+        area_length: tracks.area_length,
+        area_width: tracks.area_width,
+        drag: tracks.drag,
+        base_spin: tracks.base_spin,
+        base_spin_variation: tracks.base_spin_variation,
+        spin: tracks.spin,
+        spin_variation: tracks.spin_variation,
+        wind_vector: tracks.wind_vector,
+        wind_time: tracks.wind_time,
+        colors: visuals.colors,
+        color_keys: visuals.color_keys,
+        opacity: visuals.opacity,
+        opacity_keys: visuals.opacity_keys,
+        scales: visuals.scales,
+        scale_keys: visuals.scale_keys,
+        twinkle_speed: visuals.twinkle_speed,
+        twinkle_percent: visuals.twinkle_percent,
+        twinkle_scale_min: visuals.twinkle_scale_min,
+        twinkle_scale_max: visuals.twinkle_scale_max,
+        head_cell_track: visuals.head_cell_track,
+        tail_cell_track: visuals.tail_cell_track,
+        burst_multiplier: visuals.burst_multiplier,
+        mid_point: visuals.mid_point,
     }
 }
 
