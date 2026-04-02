@@ -568,12 +568,19 @@ fn load_batch_material(
     skybox_color: Option<Color>,
 ) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
-    if force_skybox_material
-        && let Some(mat) = skybox_materials.and_then(|materials| {
-            try_load_skybox_material(batch, &texture_dir, images, materials, skybox_color)
-        })
-    {
-        return BatchMaterial::Skybox(mat);
+    if force_skybox_material {
+        if let Some(materials) = skybox_materials {
+            if let Some(mat) =
+                try_load_skybox_material(batch, &texture_dir, images, materials, skybox_color)
+            {
+                return BatchMaterial::Skybox(mat);
+            }
+            return BatchMaterial::Skybox(materials.add(skybox_m2_material(
+                None,
+                Some(PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()]),
+                batch,
+            )));
+        }
     }
     if should_use_effect_material(batch)
         && let Some(mat) = try_load_effect_material(batch, &texture_dir, images, effect_materials)
@@ -590,13 +597,6 @@ fn load_batch_material(
         }
     }
     let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
-    if force_skybox_material {
-        return BatchMaterial::Standard(materials.add(skybox_standard_material(
-            None,
-            Some(color),
-            batch,
-        )));
-    }
     BatchMaterial::Standard(materials.add(m2_material(None, Some(color), batch)))
 }
 
@@ -677,25 +677,6 @@ fn try_load_skybox_material(
     Some(materials.add(skybox_m2_material(Some(image), color, batch)))
 }
 
-fn try_load_textured_skybox_material(
-    batch: &asset::m2::M2RenderBatch,
-    texture_dir: &Path,
-    images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
-) -> Option<Handle<StandardMaterial>> {
-    let fdid = batch.texture_fdid?;
-    let blp_path = asset::asset_cache::texture(fdid)
-        .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
-    if !blp_path.exists() {
-        return None;
-    }
-    let image =
-        crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
-            .map_err(|e| eprintln!("{e}"))
-            .ok()?;
-    Some(materials.add(skybox_standard_material(Some(image), None, batch)))
-}
-
 fn load_repeat_texture(
     fdid: u32,
     texture_dir: &Path,
@@ -761,30 +742,14 @@ pub fn skybox_m2_material(
     }
 }
 
-pub fn skybox_standard_material(
-    texture: Option<Handle<Image>>,
-    color: Option<Color>,
-    batch: &asset::m2::M2RenderBatch,
-) -> StandardMaterial {
-    StandardMaterial {
-        base_color_texture: texture,
-        base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
-        emissive: LinearRgba::WHITE,
-        unlit: true,
-        cull_mode: None,
-        double_sided: true,
-        alpha_mode: m2_effect_material::alpha_mode_for_blend(batch.blend_mode),
-        ..default()
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::ground_offset_y;
+    use super::{BatchMaterial, ground_offset_y, load_batch_material};
     use crate::asset;
     use crate::m2_effect_material;
+    use crate::skybox_m2_material::SkyboxM2Material;
     use bevy::mesh::{Mesh, PrimitiveTopology};
-    use bevy::prelude::AlphaMode;
+    use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial};
 
     #[test]
     fn ground_offset_uses_lowest_vertex_y() {
@@ -823,5 +788,47 @@ mod tests {
             m2_effect_material::alpha_mode_for_blend(u16::MAX),
             AlphaMode::Add
         ));
+    }
+
+    #[test]
+    fn forced_skybox_batches_keep_dedicated_material_without_texture() {
+        let mut images = Assets::<Image>::default();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
+        let mut skybox_materials = Assets::<SkyboxM2Material>::default();
+        let batch = asset::m2::M2RenderBatch {
+            mesh: Mesh::new(
+                PrimitiveTopology::TriangleList,
+                bevy::asset::RenderAssetUsages::default(),
+            ),
+            texture_fdid: None,
+            texture_2_fdid: None,
+            texture_type: None,
+            overlays: Vec::new(),
+            render_flags: 0,
+            blend_mode: 1,
+            transparency: 1.0,
+            texture_anim: None,
+            texture_anim_2: None,
+            use_uv_2_1: false,
+            use_uv_2_2: false,
+            use_env_map_2: false,
+            shader_id: 0,
+            texture_count: 0,
+            mesh_part_id: 0,
+        };
+
+        let material = load_batch_material(
+            &batch,
+            0,
+            &mut images,
+            &mut materials,
+            &mut effect_materials,
+            Some(&mut skybox_materials),
+            true,
+            None,
+        );
+
+        assert!(matches!(material, BatchMaterial::Skybox(_)));
     }
 }
