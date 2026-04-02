@@ -19,6 +19,10 @@ pub struct M2ParticleEmitter {
     pub blend_type: u8,
     /// 0 = plane, 1 = sphere, 2 = spline.
     pub emitter_type: u8,
+    /// 0 = normal billboard, 1 = origin->position trail quad, others rare/legacy.
+    pub particle_type: u8,
+    /// Distinguishes head vs tail rendering for some legacy emitters.
+    pub head_or_tail: u8,
     pub tile_rows: u16,
     pub tile_cols: u16,
     pub emission_speed: f32,
@@ -71,6 +75,8 @@ struct EmitterHeaderCore {
     texture_index: u16,
     blend_type: u8,
     emitter_type: u8,
+    particle_type: u8,
+    head_or_tail: u8,
     tile_rows: u16,
     tile_cols: u16,
 }
@@ -245,6 +251,8 @@ fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
         texture_index: read_u16(em, 0x16)? & 0x1F,
         blend_type: em[0x28],
         emitter_type: em[0x29],
+        particle_type: em[0x2A],
+        head_or_tail: em[0x2B],
         tile_rows: read_u16(em, 0x30)?,
         tile_cols: read_u16(em, 0x32)?,
     })
@@ -259,6 +267,8 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         texture_fdid: None,
         blend_type: header.blend_type,
         emitter_type: header.emitter_type,
+        particle_type: header.particle_type,
+        head_or_tail: header.head_or_tail,
         tile_rows: header.tile_rows,
         tile_cols: header.tile_cols,
         emission_speed: 0.0,
@@ -546,6 +556,18 @@ mod tests {
         assert_eq!(parsed.head_cell_track, [1, 2, 3]);
         assert_eq!(parsed.tail_cell_track, [4, 5, 6]);
         assert!((parsed.burst_multiplier - 1.75).abs() < 0.0001);
+    }
+
+    #[test]
+    fn parses_particle_type_and_head_or_tail() {
+        let mut emitter = vec![0u8; 0x178];
+        emitter[0x2A] = 1;
+        emitter[0x2B] = 2;
+
+        let parsed = parse_emitter_header(&emitter).unwrap();
+
+        assert_eq!(parsed.particle_type, 1);
+        assert_eq!(parsed.head_or_tail, 2);
     }
 
     #[test]

@@ -22,6 +22,8 @@ const BLEND_ADD: u8 = 4;
 const BLEND_ADD_ALPHA: u8 = 5;
 const BLEND_MOD: u8 = 6;
 const BLEND_MOD2X: u8 = 7;
+const PARTICLE_TYPE_TRAIL: u8 = 1;
+const TRAIL_LENGTH_FACTOR: f32 = 0.6;
 
 pub struct ParticlePlugin;
 
@@ -291,7 +293,7 @@ fn assemble_effect(
 }
 
 fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
-    if em.flags & PARTICLE_FLAG_ALONG_VELOCITY != 0 {
+    if is_trail_particle(em) || em.flags & PARTICLE_FLAG_ALONG_VELOCITY != 0 {
         OrientMode::AlongVelocity
     } else {
         OrientMode::FaceCameraPosition
@@ -508,23 +510,46 @@ fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi:
     let mut g = bevy_hanabi::Gradient::new();
     if em.scale_keys.len() >= 2 {
         for &(time, scale) in &em.scale_keys {
-            g.add_key(time, size_key_value(scale, burst, model_scale));
+            g.add_key(time, size_key_value(em, scale, burst, model_scale, time));
         }
         return g;
     }
     let mid = em.mid_point.clamp(0.01, 0.99);
-    g.add_key(0.0, size_key_value(em.scales[0], burst, model_scale));
-    g.add_key(mid, size_key_value(em.scales[1], burst, model_scale));
-    g.add_key(1.0, size_key_value(em.scales[2], burst, model_scale));
+    g.add_key(
+        0.0,
+        size_key_value(em, em.scales[0], burst, model_scale, 0.0),
+    );
+    g.add_key(
+        mid,
+        size_key_value(em, em.scales[1], burst, model_scale, mid),
+    );
+    g.add_key(
+        1.0,
+        size_key_value(em, em.scales[2], burst, model_scale, 1.0),
+    );
     g
 }
 
-fn size_key_value(scale: [f32; 2], burst: f32, model_scale: f32) -> Vec3 {
-    Vec3::new(
-        scale[0].max(0.01) * burst * model_scale,
-        scale[1].max(0.01) * burst * model_scale,
-        1.0,
-    )
+fn size_key_value(
+    em: &M2ParticleEmitter,
+    scale: [f32; 2],
+    burst: f32,
+    model_scale: f32,
+    time: f32,
+) -> Vec3 {
+    let width = scale[0].max(0.01) * burst * model_scale;
+    let height = scale[1].max(0.01) * burst * model_scale;
+    if is_trail_particle(em) {
+        let trail_length =
+            em.emission_speed.max(0.0) * em.lifespan.max(0.0) * TRAIL_LENGTH_FACTOR * time;
+        Vec3::new(width + trail_length * model_scale, height, 1.0)
+    } else {
+        Vec3::new(width, height, 1.0)
+    }
+}
+
+fn is_trail_particle(em: &M2ParticleEmitter) -> bool {
+    em.particle_type == PARTICLE_TYPE_TRAIL
 }
 
 fn load_emitter_texture(

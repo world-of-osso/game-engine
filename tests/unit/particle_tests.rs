@@ -4,9 +4,10 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::{
     active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, is_fire_effect,
+    emitter_translation, is_fire_effect, orient_mode,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
+use bevy_hanabi::OrientMode;
 
 fn sample_emitter() -> M2ParticleEmitter {
     M2ParticleEmitter {
@@ -17,6 +18,8 @@ fn sample_emitter() -> M2ParticleEmitter {
         texture_fdid: None,
         blend_type: 4,
         emitter_type: 1,
+        particle_type: 0,
+        head_or_tail: 0,
         tile_rows: 4,
         tile_cols: 4,
         emission_speed: 1.0,
@@ -170,6 +173,31 @@ fn size_gradient_uses_full_scale_key_timeline_when_present() {
     assert_eq!(keys[2].value.z, 1.0);
     assert_eq!(keys[3].ratio(), 1.0);
     assert_eq!(keys[3].value, Vec3::new(2.1, 2.4, 1.0));
+}
+
+#[test]
+fn trail_particles_stretch_length_over_lifetime() {
+    let mut emitter = sample_emitter();
+    emitter.particle_type = 1;
+    emitter.emission_speed = 3.0;
+    emitter.lifespan = 2.0;
+
+    let gradient = build_size_gradient(&emitter, 1.0);
+    let keys = gradient.keys();
+
+    assert_eq!(keys.len(), 3);
+    assert!((keys[0].value.x - 0.1).abs() < 0.0001);
+    assert!((keys[1].value.x - 2.0).abs() < 0.0001);
+    assert!((keys[2].value.x - 3.65).abs() < 0.0001);
+    assert!((keys[2].value.y - 0.05).abs() < 0.0001);
+}
+
+#[test]
+fn trail_particles_orient_along_velocity() {
+    let mut emitter = sample_emitter();
+    emitter.particle_type = 1;
+
+    assert!(matches!(orient_mode(&emitter), OrientMode::AlongVelocity));
 }
 
 #[test]
