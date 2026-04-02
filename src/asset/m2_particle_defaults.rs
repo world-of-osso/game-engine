@@ -186,9 +186,15 @@ fn base_zeroed_emitter_seed() -> M2ParticleEmitter {
     M2ParticleEmitter {
         flags: 0,
         position: [0.0; 3],
+        texture_fdid: None,
+        ..base_zeroed_emitter_seed_tail()
+    }
+}
+
+fn base_zeroed_emitter_seed_tail() -> M2ParticleEmitter {
+    M2ParticleEmitter {
         bone_index: 0,
         texture_index: 0,
-        texture_fdid: None,
         blend_type: 0,
         emitter_type: 0,
         particle_type: 0,
@@ -226,6 +232,50 @@ fn base_zeroed_emitter_seed() -> M2ParticleEmitter {
         tail_cell_track: [0; 3],
         burst_multiplier: 0.0,
         mid_point: 0.0,
+        ..M2ParticleEmitter {
+            flags: 0,
+            position: [0.0; 3],
+            bone_index: 0,
+            texture_index: 0,
+            texture_fdid: None,
+            blend_type: 0,
+            emitter_type: 0,
+            particle_type: 0,
+            head_or_tail: 0,
+            tile_rows: 0,
+            tile_cols: 0,
+            emission_speed: 0.0,
+            speed_variation: 0.0,
+            vertical_range: 0.0,
+            horizontal_range: 0.0,
+            gravity: 0.0,
+            lifespan: 0.0,
+            lifespan_variation: 0.0,
+            emission_rate: 0.0,
+            area_length: 0.0,
+            area_width: 0.0,
+            drag: 0.0,
+            base_spin: 0.0,
+            base_spin_variation: 0.0,
+            spin: 0.0,
+            spin_variation: 0.0,
+            wind_vector: [0.0; 3],
+            wind_time: 0.0,
+            colors: [[0.0; 3]; 3],
+            color_keys: Vec::new(),
+            opacity: [0.0; 3],
+            opacity_keys: Vec::new(),
+            scales: [[0.0; 2]; 3],
+            scale_keys: Vec::new(),
+            twinkle_speed: 0.0,
+            twinkle_percent: 0.0,
+            twinkle_scale_min: 0.0,
+            twinkle_scale_max: 0.0,
+            head_cell_track: [0; 3],
+            tail_cell_track: [0; 3],
+            burst_multiplier: 0.0,
+            mid_point: 0.0,
+        }
     }
 }
 
