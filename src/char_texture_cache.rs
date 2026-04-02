@@ -182,11 +182,14 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
-    let _ = std::fs::remove_file(cache_path);
     let conn = Connection::open(cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     conn.execute_batch(
         "BEGIN;
+         DROP TABLE IF EXISTS source_files;
+         DROP TABLE IF EXISTS layers;
+         DROP TABLE IF EXISTS sections;
+         DROP TABLE IF EXISTS layouts;
          CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
          CREATE TABLE layers (
              texture_type INTEGER NOT NULL,
@@ -384,5 +387,23 @@ mod tests {
         assert!(!layers.is_empty());
         assert!(!sections.is_empty());
         assert!(!layouts.is_empty());
+    }
+
+    #[test]
+    fn char_texture_cache_import_reuses_fresh_cache() {
+        let cache_path =
+            import_char_texture_cache(Path::new("data")).expect("import char texture cache");
+        let before = std::fs::metadata(&cache_path)
+            .expect("stat char texture cache")
+            .modified()
+            .expect("char texture cache mtime");
+        let reused_path =
+            import_char_texture_cache(Path::new("data")).expect("reuse char texture cache");
+        let after = std::fs::metadata(&reused_path)
+            .expect("stat reused char texture cache")
+            .modified()
+            .expect("reused char texture cache mtime");
+        assert_eq!(cache_path, reused_path);
+        assert_eq!(before, after);
     }
 }
