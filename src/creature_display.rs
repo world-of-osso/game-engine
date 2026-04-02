@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
@@ -7,9 +6,10 @@ use bevy::prelude::*;
 
 #[path = "creature_display_cache.rs"]
 mod cache;
+#[path = "creature_named_model_cache.rs"]
+mod named_cache;
 
-const NAMED_MODEL_FDID_CACHE_PATH: &str = "data/named-model-fdid-cache.csv";
-const NAMED_MODEL_SKIN_CACHE_PATH: &str = "data/named-model-skin-cache.csv";
+const NAMED_MODEL_CACHE_PATH: &str = "cache/named-model-lookups.sqlite";
 
 static NAMED_MODEL_FDID_CACHE: OnceLock<Mutex<HashMap<String, u32>>> = OnceLock::new();
 static NAMED_MODEL_SKIN_CACHE: OnceLock<Mutex<HashMap<String, [u32; 3]>>> = OnceLock::new();
@@ -340,76 +340,19 @@ fn named_model_skin_cache() -> &'static Mutex<HashMap<String, [u32; 3]>> {
 }
 
 fn load_named_model_fdid_cache() -> HashMap<String, u32> {
-    load_named_model_cache_lines(NAMED_MODEL_FDID_CACHE_PATH, |line, cache| {
-        let Some((name, fdid)) = line.split_once(';') else {
-            return;
-        };
-        let Ok(fdid) = fdid.parse::<u32>() else {
-            return;
-        };
-        cache.insert(name.to_ascii_lowercase(), fdid);
-    })
+    named_cache::load_named_model_fdid_cache(Path::new(NAMED_MODEL_CACHE_PATH)).unwrap_or_default()
 }
 
 fn load_named_model_skin_cache() -> HashMap<String, [u32; 3]> {
-    load_named_model_cache_lines(NAMED_MODEL_SKIN_CACHE_PATH, |line, cache| {
-        let mut parts = line.split(';');
-        let Some(name) = parts.next() else {
-            return;
-        };
-        let Some(a) = parts.next().and_then(|v| v.parse::<u32>().ok()) else {
-            return;
-        };
-        let Some(b) = parts.next().and_then(|v| v.parse::<u32>().ok()) else {
-            return;
-        };
-        let Some(c) = parts.next().and_then(|v| v.parse::<u32>().ok()) else {
-            return;
-        };
-        cache.insert(name.to_ascii_lowercase(), [a, b, c]);
-    })
-}
-
-fn load_named_model_cache_lines<T>(
-    path: &str,
-    mut parse: impl FnMut(&str, &mut HashMap<String, T>),
-) -> HashMap<String, T> {
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return HashMap::new();
-    };
-    let mut cache = HashMap::new();
-    for line in content.lines() {
-        parse(line, &mut cache);
-    }
-    cache
+    named_cache::load_named_model_skin_cache(Path::new(NAMED_MODEL_CACHE_PATH)).unwrap_or_default()
 }
 
 fn append_named_model_fdid_cache_entry(name: &str, fdid: u32) -> Result<(), String> {
-    append_named_model_cache_line(NAMED_MODEL_FDID_CACHE_PATH, &format!("{name};{fdid}"))
+    named_cache::remember_named_model_fdid(Path::new(NAMED_MODEL_CACHE_PATH), name, fdid)
 }
 
 fn append_named_model_skin_cache_entry(name: &str, skin_fdids: [u32; 3]) -> Result<(), String> {
-    append_named_model_cache_line(
-        NAMED_MODEL_SKIN_CACHE_PATH,
-        &format!(
-            "{name};{};{};{}",
-            skin_fdids[0], skin_fdids[1], skin_fdids[2]
-        ),
-    )
-}
-
-fn append_named_model_cache_line(path: &str, line: &str) -> Result<(), String> {
-    let cache_path = Path::new(path);
-    let Some(parent) = cache_path.parent() else {
-        return Err(format!("missing parent for {}", cache_path.display()));
-    };
-    std::fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(cache_path)
-        .map_err(|e| format!("open {}: {e}", cache_path.display()))?;
-    writeln!(file, "{line}").map_err(|e| format!("write {}: {e}", cache_path.display()))
+    named_cache::remember_named_model_skin(Path::new(NAMED_MODEL_CACHE_PATH), name, skin_fdids)
 }
 
 #[cfg(test)]
@@ -502,6 +445,8 @@ mod tests {
 
     #[test]
     fn cached_named_model_fdid_for_wow_path_uses_filename_cache() {
+        remember_named_model_fdid_for_wow_path("character/human/male/humanmale_hd.m2", 1011653);
+        remember_named_model_fdid_for_wow_path("character/human/male/humanmale_hd00.skin", 1012983);
         assert_eq!(
             cached_named_model_fdid_for_wow_path("character/human/male/humanmale_hd.m2"),
             Some(1011653)
