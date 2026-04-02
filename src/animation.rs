@@ -8,7 +8,7 @@ use super::game_state::GameState;
 use bevy::prelude::*;
 
 use super::m2_spawn::RuntimeM2PointLight;
-pub use billboard::{compute_bone_stages, propagate_spherical_billboards};
+pub use billboard::propagate_spherical_billboards;
 
 /// Marker component for bone entities, storing their local pivot relative to the parent bone.
 #[derive(Component)]

@@ -25,25 +25,30 @@ impl Plugin for ParticlePlugin {
 /// Marker for a particle emitter entity.
 ///
 /// The effect asset is built lazily in `register_pending_particle_effects`
-/// once `GlobalTransform` is available, so the inherited model scale is
+/// once `GlobalTransform` is available, so the model/root scale is
 /// automatically baked into particle size, spawn radius, and velocity.
 #[derive(Component)]
 pub struct ParticleEmitterComp {
     pub emitter: M2ParticleEmitter,
     pub bone_entity: Option<Entity>,
+    pub scale_source: Entity,
     /// Optional texture handle to attach via `EffectMaterial`.
     pending_texture: Option<Handle<Image>>,
 }
 
-/// System: build `EffectAsset` from emitter data + inherited `GlobalTransform`
-/// scale, then register as `ParticleEffect`.
+/// System: build `EffectAsset` from emitter data + model/root scale, then
+/// register as `ParticleEffect`.
 fn register_pending_particle_effects(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
-    query: Query<(Entity, &ParticleEmitterComp, &GlobalTransform), Without<ParticleEffect>>,
+    query: Query<(Entity, &ParticleEmitterComp), Without<ParticleEffect>>,
+    global_transforms: Query<&GlobalTransform>,
 ) {
-    for (entity, comp, global_tf) in &query {
-        let model_scale = global_tf.compute_transform().scale.x;
+    for (entity, comp) in &query {
+        let model_scale = global_transforms
+            .get(comp.scale_source)
+            .map(|tf| tf.compute_transform().scale.x)
+            .unwrap_or(1.0);
         let asset = build_effect_asset(&comp.emitter, model_scale);
         let handle = effects.add(asset);
         let mut ec = commands.entity(entity);
@@ -88,6 +93,7 @@ fn spawn_single_emitter(
             ParticleEmitterComp {
                 emitter: em.clone(),
                 bone_entity,
+                scale_source: parent,
                 pending_texture,
             },
             Transform::from_translation(local_offset),
