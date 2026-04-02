@@ -7,6 +7,8 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::outfit_data::{DisplayInfoResolved, DisplayMaterialTextures};
 
+#[path = "world_db_outfit_links.rs"]
+mod outfit_links_cache;
 #[path = "world_db_zone_names.rs"]
 mod zone_name_cache;
 
@@ -189,83 +191,7 @@ fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<boo
 }
 
 pub fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
-    let cache_path = outfit_links_cache_path();
-    let csv_paths = required_outfit_csv_paths(data_dir);
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("create {}: {err}", parent.display()))?;
-    }
-    let _ = std::fs::remove_file(&cache_path);
-    let conn = Connection::open(&cache_path)
-        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    conn.execute_batch(
-        "BEGIN;
-         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
-         CREATE TABLE starter_outfits (
-             race_id INTEGER NOT NULL,
-             class_id INTEGER NOT NULL,
-             sex_id INTEGER NOT NULL,
-             item_order INTEGER NOT NULL,
-             item_id INTEGER NOT NULL
-         );
-         CREATE TABLE item_modified_appearance_map (
-             item_id INTEGER PRIMARY KEY,
-             appearance_id INTEGER NOT NULL
-         );
-         CREATE TABLE item_appearance_map (
-             appearance_id INTEGER PRIMARY KEY,
-             display_info_id INTEGER NOT NULL
-         );
-         CREATE TABLE display_info (
-             id INTEGER PRIMARY KEY,
-             model_res_0 INTEGER NOT NULL,
-             model_res_1 INTEGER NOT NULL,
-             model_mat_res_0 INTEGER NOT NULL,
-             model_mat_res_1 INTEGER NOT NULL,
-             geoset_group_0 INTEGER NOT NULL,
-             geoset_group_1 INTEGER NOT NULL,
-             geoset_group_2 INTEGER NOT NULL,
-             helmet_vis_0 INTEGER NOT NULL,
-             helmet_vis_1 INTEGER NOT NULL
-         );
-         CREATE TABLE material_to_texture (
-             material_resource_id INTEGER PRIMARY KEY,
-             texture_fdid INTEGER NOT NULL
-         );
-         CREATE TABLE display_material_textures (
-             display_info_id INTEGER NOT NULL,
-             component_section INTEGER NOT NULL,
-             texture_fdid INTEGER NOT NULL,
-             PRIMARY KEY (display_info_id, component_section, texture_fdid)
-         );
-         CREATE TABLE model_to_fdid (
-             model_resource_id INTEGER NOT NULL,
-             model_order INTEGER NOT NULL,
-             file_data_id INTEGER NOT NULL,
-             PRIMARY KEY (model_resource_id, model_order)
-         );",
-    )
-    .map_err(|err| format!("init outfit_links cache: {err}"))?;
-
-    let mut source_insert = conn
-        .prepare("INSERT INTO source_files (source, mtime_secs) VALUES (?1, ?2)")
-        .map_err(|err| format!("prepare source_files insert: {err}"))?;
-    for path in &csv_paths {
-        source_insert
-            .execute((path.to_string_lossy().to_string(), csv_mtime(path)?))
-            .map_err(|err| format!("insert source_files {}: {err}", path.display()))?;
-    }
-
-    populate_starter_outfits(&conn, &csv_paths[0])?;
-    populate_item_modified_appearance_map(&conn, &csv_paths[1])?;
-    populate_item_appearance_map(&conn, &csv_paths[2])?;
-    populate_display_info(&conn, &csv_paths[3])?;
-    populate_material_to_texture(&conn, &csv_paths[4])?;
-    populate_display_material_textures(&conn, &csv_paths[5])?;
-    populate_model_to_fdid(&conn, &csv_paths[6])?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit outfit_links cache: {err}"))?;
-    Ok(cache_path)
+    outfit_links_cache::import_outfit_links_cache(data_dir)
 }
 
 fn populate_starter_outfits(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -666,22 +592,7 @@ fn populate_model_to_fdid(conn: &Connection, path: &Path) -> Result<(), String> 
 }
 
 fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBuf, String> {
-    let cache_path = outfit_links_cache_path();
-    if !cache_path.exists() {
-        return Err(format!(
-            "{} missing; run `cargo run --bin outfit_links_cache_import` to build it",
-            cache_path.display()
-        ));
-    }
-    let csv_paths = required_outfit_csv_paths(data_dir);
-    let conn = open_read_only(&cache_path)?;
-    if !outfit_cache_is_fresh(&conn, &csv_paths)? {
-        return Err(format!(
-            "{} is stale; run `cargo run --bin outfit_links_cache_import` to rebuild it",
-            cache_path.display()
-        ));
-    }
-    Ok(cache_path)
+    outfit_links_cache::imported_outfit_links_cache_path(data_dir)
 }
 
 pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits, String> {
