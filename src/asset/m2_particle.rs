@@ -460,6 +460,10 @@ fn apply_visual_defaults(emitter: &mut M2ParticleEmitter, visuals: EmitterVisual
 }
 
 fn default_emitter_state() -> M2ParticleEmitter {
+    emitter_shell()
+}
+
+fn emitter_shell() -> M2ParticleEmitter {
     M2ParticleEmitter {
         flags: 0,
         position: [0.0; 3],
