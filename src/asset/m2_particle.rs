@@ -43,6 +43,15 @@ pub struct M2ParticleEmitter {
 
 use super::m2::{read_f32, read_u16, read_u32};
 
+fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
+    let bytes: [u8; 2] = data
+        .get(off..off + 2)
+        .ok_or_else(|| format!("read_i16 out of bounds at offset {off:#x}"))?
+        .try_into()
+        .unwrap();
+    Ok(i16::from_le_bytes(bytes))
+}
+
 /// Read the first float from a static M2Track (Cata+ indirect M2Arrays).
 /// The outer M2Array points to inner M2Arrays (one per anim sequence).
 /// Each inner M2Array's first 4 bytes hold the float value directly.
@@ -83,8 +92,8 @@ fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
     let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
     let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
     for (i, opacity) in opacities.iter_mut().enumerate().take(count.min(3)) {
-        *opacity = read_u16(md20, base + i * 2)
-            .map(|v| v as f32 / 32767.0)
+        *opacity = read_i16(md20, base + i * 2)
+            .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
             .unwrap_or(1.0);
     }
     opacities
@@ -243,5 +252,25 @@ mod tests {
         assert!(em.emission_rate > 19.0, "rate={}", em.emission_rate);
         assert!(em.colors[0][0] > 200.0, "start red={}", em.colors[0][0]);
         assert!(em.opacity[1] > 0.9, "mid opacity={}", em.opacity[1]);
+    }
+
+    #[test]
+    fn opacity_values_use_signed_fixed16() {
+        let mut md20 = vec![0u8; 8];
+        let emitter = [
+            0, 0, 0, 0, 0, 0, 0, 0, // timestamps
+            2, 0, 0, 0, // count
+            0, 0, 0, 0, // offset placeholder
+        ];
+        let values_offset = md20.len();
+        md20.extend_from_slice(&(-1_i16).to_le_bytes());
+        md20.extend_from_slice(&(16384_i16).to_le_bytes());
+        let mut emitter = emitter;
+        emitter[12..16].copy_from_slice(&(values_offset as u32).to_le_bytes());
+
+        let opacities = read_opacity_values(&md20, &emitter, 0);
+
+        assert_eq!(opacities[0], 0.0);
+        assert!((opacities[1] - (16384.0 / 32767.0)).abs() < 0.0001);
     }
 }

@@ -332,8 +332,10 @@ fn build_speed_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> WriterExpr {
 
 fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::AlphaMode {
     match blend_type {
-        4..=6 => bevy_hanabi::AlphaMode::Add,
+        0 => bevy_hanabi::AlphaMode::Opaque,
         1 => bevy_hanabi::AlphaMode::Mask(mask_cutoff),
+        2 | 3 | 7 => bevy_hanabi::AlphaMode::Blend,
+        4..=6 => bevy_hanabi::AlphaMode::Add,
         _ => bevy_hanabi::AlphaMode::Blend,
     }
 }
@@ -383,10 +385,11 @@ fn load_emitter_texture(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::Vec3;
+    use bevy_hanabi::{AlphaMode, ExprWriter};
 
     use super::{
-        build_effect_asset, build_expr_modifiers, emitter_rate_scale, emitter_spawn_radius,
-        emitter_translation, is_fire_effect,
+        build_effect_asset, build_expr_modifiers, emitter_alpha_mode, emitter_rate_scale,
+        emitter_spawn_radius, emitter_translation, is_fire_effect,
     };
     use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
@@ -495,6 +498,38 @@ mod tests {
 
         assert!(!is_fire_effect(&emitter));
         assert_eq!(emitter_rate_scale(&emitter), 1.0);
+    }
+
+    #[test]
+    fn particle_blend_type_zero_is_opaque() {
+        let writer = ExprWriter::new();
+        let alpha_mode = emitter_alpha_mode(0, writer.lit(0.5_f32).expr());
+
+        assert!(matches!(alpha_mode, AlphaMode::Opaque));
+    }
+
+    #[test]
+    fn particle_blend_type_one_uses_alpha_key() {
+        let writer = ExprWriter::new();
+        let alpha_mode = emitter_alpha_mode(1, writer.lit(0.5_f32).expr());
+
+        assert!(matches!(alpha_mode, AlphaMode::Mask(_)));
+    }
+
+    #[test]
+    fn particle_blend_type_three_uses_alpha_blend() {
+        let writer = ExprWriter::new();
+        let alpha_mode = emitter_alpha_mode(3, writer.lit(0.5_f32).expr());
+
+        assert!(matches!(alpha_mode, AlphaMode::Blend));
+    }
+
+    #[test]
+    fn particle_blend_type_four_is_additive() {
+        let writer = ExprWriter::new();
+        let alpha_mode = emitter_alpha_mode(4, writer.lit(0.5_f32).expr());
+
+        assert!(matches!(alpha_mode, AlphaMode::Add));
     }
 
     #[test]
