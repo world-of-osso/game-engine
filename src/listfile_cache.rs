@@ -4,6 +4,7 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OpenFlags};
 
+#[cfg(test)]
 use crate::listfile::CachedListfile;
 
 const COMMUNITY_LISTFILE_CACHE_PATH: &str = "community-listfile.sqlite";
@@ -12,6 +13,7 @@ pub(crate) fn cache_path() -> PathBuf {
     crate::paths::shared_data_path(COMMUNITY_LISTFILE_CACHE_PATH)
 }
 
+#[cfg(test)]
 pub(crate) fn load_local_cache(cache_path: &Path) -> Result<CachedListfile, String> {
     if !cache_path.exists() {
         return Ok(CachedListfile::default());
@@ -77,6 +79,56 @@ pub(crate) fn remember_local_cache_entry(
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit local_listfile_entries cache: {err}"))?;
     Ok(())
+}
+
+pub(crate) fn lookup_local_fdid(cache_path: &Path, fdid: u32) -> Result<Option<String>, String> {
+    if !cache_path.exists() {
+        return Ok(None);
+    }
+    let conn = open_local_cache(cache_path)?;
+    conn.query_row(
+        "SELECT path FROM local_listfile_entries WHERE fdid = ?1",
+        [fdid],
+        |row| row.get::<_, String>(0),
+    )
+    .map(Some)
+    .or_else(|err| match err {
+        rusqlite::Error::QueryReturnedNoRows => Ok(None),
+        _ => Err(format!(
+            "query local_listfile_entries by fdid {fdid}: {err}"
+        )),
+    })
+}
+
+pub(crate) fn lookup_local_path(
+    cache_path: &Path,
+    path: &str,
+) -> Result<Option<(u32, String)>, String> {
+    if !cache_path.exists() {
+        return Ok(None);
+    }
+    let conn = open_local_cache(cache_path)?;
+    let normalized = path.to_ascii_lowercase();
+    conn.query_row(
+        "SELECT fdid, path FROM local_listfile_entries WHERE lower_path = ?1",
+        [normalized],
+        |row| Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?)),
+    )
+    .map(Some)
+    .or_else(|err| match err {
+        rusqlite::Error::QueryReturnedNoRows => Ok(None),
+        _ => Err(format!(
+            "query local_listfile_entries by path `{path}`: {err}"
+        )),
+    })
+}
+
+fn open_local_cache(cache_path: &Path) -> Result<Connection, String> {
+    Connection::open_with_flags(
+        cache_path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|err| format!("open {}: {err}", cache_path.display()))
 }
 
 pub(crate) fn lookup_fdid(

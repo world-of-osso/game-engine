@@ -38,22 +38,11 @@ impl Listfile {
         community_cache_path: PathBuf,
         local_cache_path: PathBuf,
     ) -> Self {
-        let local = match listfile_cache::load_local_cache(&local_cache_path) {
-            Ok(cache) => cache,
-            Err(err) => {
-                eprintln!("Failed to load local listfile cache: {err}");
-                CachedListfile::default()
-            }
-        };
-        eprintln!(
-            "Loaded local listfile cache: {} entries",
-            local.by_fdid.len()
-        );
         Self {
             community_path,
             community_cache_path,
             local_cache_path,
-            local: Mutex::new(local),
+            local: Mutex::new(CachedListfile::default()),
         }
     }
 
@@ -61,20 +50,27 @@ impl Listfile {
         if let Some(path) = self.local.lock().unwrap().by_fdid.get(&fdid).copied() {
             return Some(path);
         }
+        if let Some(path) = self.lookup_local_fdid(fdid) {
+            return Some(path);
+        }
+        self.lookup_community_fdid(fdid)
+    }
+
+    fn lookup_community_fdid(&self, fdid: u32) -> Option<&'static str> {
         let path = match listfile_cache::lookup_fdid(
             &self.community_cache_path,
             &self.community_path,
             fdid,
         ) {
-            Ok(Some(path)) => Box::leak(path.into_boxed_str()) as &'static str,
-            Ok(None) => return None,
+            Ok(path) => path?,
             Err(err) => {
                 eprintln!("Failed listfile fdid lookup {fdid}: {err}");
                 return None;
             }
         };
-        self.remember(fdid, path);
-        Some(path)
+        let leaked = Box::leak(path.into_boxed_str()) as &'static str;
+        self.remember(fdid, leaked);
+        Some(leaked)
     }
 
     fn lookup_path(&self, path: &str) -> Option<u32> {
@@ -82,38 +78,78 @@ impl Listfile {
         if let Some(fdid) = self.local.lock().unwrap().by_path.get(&normalized).copied() {
             return Some(fdid);
         }
-        let (fdid, resolved_path) = match listfile_cache::lookup_path(
-            &self.community_cache_path,
-            &self.community_path,
-            path,
-        ) {
-            Ok(Some(row)) => row,
-            Ok(None) => return None,
-            Err(err) => {
-                eprintln!("Failed listfile path lookup `{path}`: {err}");
-                return None;
-            }
-        };
+        if let Some(fdid) = self.lookup_local_path(path) {
+            return Some(fdid);
+        }
+        self.lookup_community_path(path)
+    }
+
+    fn lookup_community_path(&self, path: &str) -> Option<u32> {
+        let (fdid, resolved_path) = self.resolve_community_path(path)?;
         let path = Box::leak(resolved_path.into_boxed_str()) as &'static str;
         self.remember(fdid, path);
         Some(fdid)
     }
 
+    fn resolve_community_path(&self, path: &str) -> Option<(u32, String)> {
+        match listfile_cache::lookup_path(&self.community_cache_path, &self.community_path, path) {
+            Ok(row) => row,
+            Err(err) => {
+                eprintln!("Failed listfile path lookup `{path}`: {err}");
+                None
+            }
+        }
+    }
+
+    fn lookup_local_fdid(&self, fdid: u32) -> Option<&'static str> {
+        let path = match listfile_cache::lookup_local_fdid(&self.local_cache_path, fdid) {
+            Ok(path) => path?,
+            Err(err) => {
+                eprintln!("Failed local listfile fdid lookup {fdid}: {err}");
+                return None;
+            }
+        };
+        let leaked = Box::leak(path.into_boxed_str()) as &'static str;
+        self.remember_in_memory(fdid, leaked);
+        Some(leaked)
+    }
+
+    fn lookup_local_path(&self, path: &str) -> Option<u32> {
+        let (fdid, resolved_path) =
+            match listfile_cache::lookup_local_path(&self.local_cache_path, path) {
+                Ok(row) => row?,
+                Err(err) => {
+                    eprintln!("Failed local listfile path lookup `{path}`: {err}");
+                    return None;
+                }
+            };
+        let leaked = Box::leak(resolved_path.into_boxed_str()) as &'static str;
+        self.remember_in_memory(fdid, leaked);
+        Some(fdid)
+    }
+
     fn remember(&self, fdid: u32, path: &'static str) {
-        let normalized = path.to_ascii_lowercase();
-        let mut local = self.local.lock().unwrap();
-        let known_fdid = local.by_fdid.contains_key(&fdid);
-        let known_path = local.by_path.contains_key(&normalized);
-        if known_fdid && known_path {
+        if self.remember_in_memory(fdid, path) {
             return;
         }
-        local.by_fdid.entry(fdid).or_insert(path);
-        local.by_path.entry(normalized).or_insert(fdid);
         if let Err(err) =
             listfile_cache::remember_local_cache_entry(&self.local_cache_path, fdid, path)
         {
             eprintln!("Failed to persist listfile cache entry {fdid}: {err}");
         }
+    }
+
+    fn remember_in_memory(&self, fdid: u32, path: &'static str) -> bool {
+        let normalized = path.to_ascii_lowercase();
+        let mut local = self.local.lock().unwrap();
+        let known_fdid = local.by_fdid.contains_key(&fdid);
+        let known_path = local.by_path.contains_key(&normalized);
+        if known_fdid && known_path {
+            return true;
+        }
+        local.by_fdid.entry(fdid).or_insert(path);
+        local.by_path.entry(normalized).or_insert(fdid);
+        false
     }
 }
 
@@ -143,6 +179,7 @@ mod tests {
 
         let community_cache = test_dir.join("community.sqlite");
         let listfile = Listfile::new(community.clone(), community_cache.clone(), local.clone());
+        assert!(listfile.local.lock().unwrap().by_fdid.is_empty());
         assert_eq!(
             listfile.lookup_path("world/maps/test/test_1_2.adt"),
             Some(123)
@@ -179,10 +216,16 @@ mod tests {
         let community = test_dir.join("community-fdid-only.csv");
         let local = test_dir.join("local-cache-fdid-only.sqlite");
         let _ = std::fs::remove_file(&local);
-        std::fs::write(&community, "456;creature/test/test.m2\n").unwrap();
+        std::fs::write(
+            &community,
+            "456;creature/test/test.m2
+",
+        )
+        .unwrap();
 
         let community_cache = test_dir.join("community-fdid-only.sqlite");
         let listfile = Listfile::new(community.clone(), community_cache.clone(), local.clone());
+        assert!(listfile.local.lock().unwrap().by_fdid.is_empty());
         assert_eq!(listfile.lookup_fdid(456), Some("creature/test/test.m2"));
         let persisted = listfile_cache::load_local_cache(&local).unwrap();
         assert_eq!(
@@ -194,6 +237,30 @@ mod tests {
         let cached_only = Listfile::new(community, community_cache, local.clone());
         assert_eq!(cached_only.lookup_fdid(456), Some("creature/test/test.m2"));
         assert_eq!(cached_only.lookup_path("creature/test/test.m2"), Some(456));
+
+        let _ = std::fs::remove_file(local);
+    }
+
+    #[test]
+    fn local_sqlite_cache_is_loaded_on_demand() {
+        let test_dir = Path::new("target/test-artifacts/listfile");
+        std::fs::create_dir_all(test_dir).unwrap();
+        let community = test_dir.join("community-on-demand.csv");
+        let local = test_dir.join("local-cache-on-demand.sqlite");
+        let _ = std::fs::remove_file(&local);
+        std::fs::write(&community, "").unwrap();
+        listfile_cache::remember_local_cache_entry(&local, 789, "world/test/on_demand.m2").unwrap();
+
+        let community_cache = test_dir.join("community-on-demand.sqlite");
+        let listfile = Listfile::new(community, community_cache, local.clone());
+        assert!(listfile.local.lock().unwrap().by_fdid.is_empty());
+
+        assert_eq!(listfile.lookup_fdid(789), Some("world/test/on_demand.m2"));
+        assert_eq!(listfile.lookup_path("world/test/on_demand.m2"), Some(789));
+        assert_eq!(
+            listfile.local.lock().unwrap().by_fdid.get(&789).copied(),
+            Some("world/test/on_demand.m2")
+        );
 
         let _ = std::fs::remove_file(local);
     }
