@@ -113,6 +113,16 @@ pub(crate) fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
     Ok(u16::from_le_bytes(bytes))
 }
 
+pub(crate) const FIXED16_SCALE: f32 = 32767.0;
+
+pub(crate) fn fixed16_to_f32(raw: i16) -> f32 {
+    raw as f32 / FIXED16_SCALE
+}
+
+pub(crate) fn unorm16_to_f32(raw: u16) -> f32 {
+    (raw as f32 / FIXED16_SCALE).clamp(0.0, 1.0)
+}
+
 pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
     let mut ska1 = None;

@@ -4,6 +4,7 @@
 use bevy::prelude::Mesh;
 
 use super::super::m2_anim;
+use super::super::m2_format::fixed16_to_f32;
 use super::super::m2_texture;
 use super::{
     M2Material, M2RenderBatch, M2TextureUnit, M2Vertex, SkinData, TextureTables, build_batch_mesh,
@@ -35,13 +36,13 @@ impl BatchOpacity<'_> {
             .transparencies
             .get(track_idx.max(0) as usize)
             .and_then(|t| m2_anim::evaluate_i16_track(t, 0, 0))
-            .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+            .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
             .unwrap_or(1.0);
         let color_opacity = usize::try_from(unit.color_index)
             .ok()
             .and_then(|idx| self.color_tracks.get(idx))
             .and_then(|tracks| m2_anim::evaluate_i16_track(&tracks.opacity, 0, 0))
-            .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+            .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
             .unwrap_or(1.0);
         transparency * color_opacity
     }

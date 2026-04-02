@@ -20,6 +20,8 @@
 //!   0x38: scale AnimBlock (20 bytes, skipped)
 //!   0x4C: pivot [f32; 3] (12 bytes, WoW coordinates)
 
+use super::m2_format::FIXED16_SCALE;
+
 fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
@@ -430,7 +432,7 @@ pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, S
 
 /// Unpack a WoW packed i16 quaternion to a Bevy Quat with coordinate conversion.
 /// WoW packs rotation as [i16; 4] (x, y, z, w).
-/// Unpack: (raw < 0 ? raw + 32768 : raw - 32767) / 32767.0
+/// Unpack: (raw < 0 ? raw + 32768 : raw - 32767) / FIXED16_SCALE
 /// WoW→Bevy axis permutation: same as positions (x, y, z) → (x, z, -y),
 /// applied to quaternion imaginary part: (qx, qy, qz, qw) → (qx, qz, -qy, qw).
 pub fn unpack_rotation(packed: &[i16; 4]) -> [f32; 4] {
@@ -443,9 +445,9 @@ pub fn unpack_rotation(packed: &[i16; 4]) -> [f32; 4] {
 
 fn unpack_quat_component(raw: i16) -> f32 {
     if raw < 0 {
-        (raw as f32 + 32768.0) / 32767.0
+        (raw as f32 + 32768.0) / FIXED16_SCALE
     } else {
-        (raw as f32 - 32767.0) / 32767.0
+        (raw as f32 - FIXED16_SCALE) / FIXED16_SCALE
     }
 }
 

@@ -9,6 +9,8 @@
 #[path = "m2_particle_defaults.rs"]
 mod defaults;
 
+use super::m2_format::{fixed16_to_f32, unorm16_to_f32};
+
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
 pub struct M2ParticleEmitter {
@@ -160,7 +162,7 @@ fn read_normalized_timestamps(md20: &[u8], emitter: &[u8], off: usize) -> Vec<f3
     for i in 0..count {
         timestamps.push(
             read_u16(md20, base + i * 2)
-                .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+                .map(unorm16_to_f32)
                 .unwrap_or(0.0),
         );
     }
@@ -218,7 +220,7 @@ fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
     let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
     for (i, opacity) in opacities.iter_mut().enumerate().take(count.min(3)) {
         *opacity = read_i16(md20, base + i * 2)
-            .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+            .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
             .unwrap_or(1.0);
     }
     opacities
@@ -227,7 +229,7 @@ fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
 fn read_opacity_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, f32)> {
     read_fake_animblock_keys(md20, emitter, off, 2, |md20, value_offset| {
         read_i16(md20, value_offset)
-            .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
+            .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
             .unwrap_or(1.0)
     })
 }
@@ -283,7 +285,7 @@ fn read_midpoint(md20: &[u8], emitter: &[u8], off: usize) -> f32 {
         return 0.5;
     }
     read_u16(md20, offset + 2)
-        .map(|v| v as f32 / 32767.0)
+        .map(unorm16_to_f32)
         .unwrap_or(0.5)
 }
 
