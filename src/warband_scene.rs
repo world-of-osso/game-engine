@@ -147,6 +147,10 @@ impl WarbandSceneEntry {
         }
     }
 
+    pub fn authored_light_params_id(&self) -> Option<u32> {
+        crate::light_lookup::resolve_light_params_id(self.map_id, self.position)
+    }
+
     pub fn skybox_model_wow_path(&self) -> Option<&'static str> {
         match self.texture_kit {
             5671 | 5672 | 5673 | 5674 | 5675 | 5676 => {

@@ -1,6 +1,6 @@
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
-use bevy::render::render_resource::{AsBindGroup, Face, RenderPipelineDescriptor, ShaderType};
+use bevy::render::render_resource::{AsBindGroup, RenderPipelineDescriptor, ShaderType};
 use bevy::shader::ShaderRef;
 
 use crate::m2_effect_material::alpha_mode_for_blend;
@@ -35,7 +35,7 @@ impl Material for SkyboxM2Material {
         _layout: &MeshVertexBufferLayoutRef,
         _key: bevy::pbr::MaterialPipelineKey<Self>,
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
-        descriptor.primitive.cull_mode = Some(Face::Front);
+        descriptor.primitive.cull_mode = None;
         if let Some(ds) = descriptor.depth_stencil.as_mut() {
             ds.depth_write_enabled = false;
         }

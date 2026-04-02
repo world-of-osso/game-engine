@@ -62,6 +62,7 @@ mod ground;
 mod health_bar;
 mod inworld_scene_tree;
 mod inworld_selection_debug_screen;
+mod light_lookup;
 mod loading_screen;
 mod login_screen;
 mod login_screen_helpers;

@@ -359,15 +359,19 @@ fn collect_displayed_nodes(
     if let Some(entity) = node.entity
         && supports_displayed_flag(&node.props)
     {
-        let is_displayed = node_is_displayed(
-            entity,
-            camera,
-            camera_transform,
-            global_transforms,
-            parent_query,
-            aabb_query,
-            ray_cast,
-        );
+        let is_displayed = if uses_presence_display_heuristic(&node.props) {
+            true
+        } else {
+            node_is_displayed(
+                entity,
+                camera,
+                camera_transform,
+                global_transforms,
+                parent_query,
+                aabb_query,
+                ray_cast,
+            )
+        };
         displayed.insert(entity, is_displayed);
     }
     for child in &node.children {
@@ -382,6 +386,13 @@ fn collect_displayed_nodes(
             displayed,
         );
     }
+}
+
+fn uses_presence_display_heuristic(props: &NodeProps) -> bool {
+    matches!(
+        props,
+        NodeProps::Object { kind, .. } if kind == "Skybox"
+    )
 }
 
 fn active_camera<'a>(
@@ -581,6 +592,18 @@ fn format_model_assets(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn skybox_nodes_use_presence_display_heuristic() {
+        assert!(uses_presence_display_heuristic(&NodeProps::Object {
+            kind: "Skybox".into(),
+            model: "data/models/skyboxes/costalislandskybox.m2".into(),
+        }));
+        assert!(!uses_presence_display_heuristic(&NodeProps::Object {
+            kind: "WMO".into(),
+            model: "world/wmo/test.wmo".into(),
+        }));
+    }
 
     #[test]
     fn build_scene_snapshot_formats_skybox_object_path() {

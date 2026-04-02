@@ -127,11 +127,13 @@ fn setup_scene(
         );
         return;
     };
+    let authored_light_params = scene.authored_light_params_id();
     info!(
-        "skybox_debug_scene: resolved scene {} ({}) to skybox {}",
+        "skybox_debug_scene: resolved scene {} ({}) to skybox {} (LightParamsID={:?})",
         scene.id,
         scene.name,
-        path.display()
+        path.display(),
+        authored_light_params
     );
     commands.entity(spawned.root).insert((
         SkyboxDebugScene,

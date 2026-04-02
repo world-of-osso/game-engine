@@ -553,15 +553,14 @@ fn load_batch_material(
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
-    mut skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
+    _skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
     force_skybox_material: bool,
 ) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
     if force_skybox_material
-        && let Some(materials) = skybox_materials.as_deref_mut()
-        && let Some(mat) = try_load_skybox_material(batch, &texture_dir, images, materials)
+        && let Some(mat) = try_load_textured_skybox_material(batch, &texture_dir, images, materials)
     {
-        return BatchMaterial::Skybox(mat);
+        return BatchMaterial::Standard(mat);
     }
     if should_use_effect_material(batch)
         && let Some(mat) = try_load_effect_material(batch, &texture_dir, images, effect_materials)
@@ -578,8 +577,12 @@ fn load_batch_material(
         }
     }
     let color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()];
-    if force_skybox_material && let Some(materials) = skybox_materials.as_deref_mut() {
-        return BatchMaterial::Skybox(materials.add(skybox_m2_material(None, Some(color), batch)));
+    if force_skybox_material {
+        return BatchMaterial::Standard(materials.add(skybox_standard_material(
+            None,
+            Some(color),
+            batch,
+        )));
     }
     BatchMaterial::Standard(materials.add(m2_material(None, Some(color), batch)))
 }
@@ -660,6 +663,25 @@ fn try_load_skybox_material(
     Some(materials.add(skybox_m2_material(Some(image), None, batch)))
 }
 
+fn try_load_textured_skybox_material(
+    batch: &asset::m2::M2RenderBatch,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+    materials: &mut Assets<StandardMaterial>,
+) -> Option<Handle<StandardMaterial>> {
+    let fdid = batch.texture_fdid?;
+    let blp_path = asset::asset_cache::texture(fdid)
+        .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
+    if !blp_path.exists() {
+        return None;
+    }
+    let image =
+        crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
+            .map_err(|e| eprintln!("{e}"))
+            .ok()?;
+    Some(materials.add(skybox_standard_material(Some(image), None, batch)))
+}
+
 fn load_repeat_texture(
     fdid: u32,
     texture_dir: &Path,
@@ -722,6 +744,23 @@ pub fn skybox_m2_material(
         },
         base_texture: texture.unwrap_or_default(),
         blend_mode: batch.blend_mode,
+    }
+}
+
+pub fn skybox_standard_material(
+    texture: Option<Handle<Image>>,
+    color: Option<Color>,
+    batch: &asset::m2::M2RenderBatch,
+) -> StandardMaterial {
+    StandardMaterial {
+        base_color_texture: texture,
+        base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
+        emissive: LinearRgba::WHITE,
+        unlit: true,
+        cull_mode: None,
+        double_sided: true,
+        alpha_mode: m2_effect_material::alpha_mode_for_blend(batch.blend_mode),
+        ..default()
     }
 }
 
