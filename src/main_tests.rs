@@ -56,6 +56,11 @@ fn parse_screen_alias_matches_state_parser() {
         .expect("expected loading");
     assert_eq!(parsed, game_state::GameState::Loading);
 
+    let parsed = parse_state_arg(&args(&["--screen", "skyboxdebug"]))
+        .expect("expected valid parse")
+        .expect("expected skyboxdebug");
+    assert_eq!(parsed, game_state::GameState::SkyboxDebug);
+
     let parsed = parse_state_arg(&args(&["--screen", "trashbutton"]))
         .expect("expected valid parse")
         .expect("expected trashbutton");
@@ -332,6 +337,14 @@ fn parse_screen_arg_preserves_loading_variant() {
         .expect("valid parse")
         .expect("expected loading variant");
     assert_eq!(parsed, game_engine::game_state_enum::ScreenArg::Loading);
+}
+
+#[test]
+fn parse_screen_arg_preserves_skyboxdebug_variant() {
+    let parsed = parse_screen_arg(&args(&["--screen", "skyboxdebug"]))
+        .expect("valid parse")
+        .expect("expected skyboxdebug variant");
+    assert_eq!(parsed, game_engine::game_state_enum::ScreenArg::SkyboxDebug);
 }
 
 #[test]

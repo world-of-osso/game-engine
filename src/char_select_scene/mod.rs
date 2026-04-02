@@ -9,7 +9,6 @@ use std::time::Instant;
 
 use bevy::camera::ClearColorConfig;
 use bevy::input::mouse::AccumulatedMouseMotion;
-use bevy::light::GeneratedEnvironmentMapLight;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
@@ -32,7 +31,6 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
-use crate::sky::{self, SkyMaterial};
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::warband_scene;
@@ -67,7 +65,6 @@ const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
 const CHAR_SELECT_FOG_START: f32 = 140.0;
 const CHAR_SELECT_FOG_END: f32 = 220.0;
-const CHAR_SELECT_ENV_MAP_INTENSITY: f32 = 70.0;
 const CHAR_SELECT_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
 const CHAR_SELECT_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
 const CHAR_SELECT_FOG_LIGHT_COLOR: Color = Color::srgb(0.35, 0.38, 0.42);
@@ -92,6 +89,10 @@ pub(super) struct CharSelectModelRoot;
 struct CharSelectModelWrapper;
 #[derive(Component)]
 struct CharSelectModelCharacter(u64);
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+pub(super) struct CharSelectSkybox {
+    pub(super) path: PathBuf,
+}
 
 /// Tracks which character is currently displayed as a 3D model.
 #[derive(Resource, Default)]
@@ -119,7 +120,6 @@ pub(super) struct AppliedCharacterAppearance {
 pub(super) struct CharSelectRenderAssets<'w> {
     pub(super) meshes: ResMut<'w, Assets<Mesh>>,
     pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
-    pub(super) sky_materials: ResMut<'w, Assets<SkyMaterial>>,
     pub(super) effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     pub(super) terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
     pub(super) water_materials: ResMut<'w, Assets<WaterMaterial>>,
@@ -141,6 +141,7 @@ impl Plugin for CharSelectScenePlugin {
             (
                 sync_char_select_model,
                 sync_selected_character_appearance,
+                skybox::sync_char_select_skybox,
                 scene_systems::sync_warband_scene_switch,
                 scene_systems::spawn_pending_warband_supplemental_terrain,
                 char_select_orbit_camera,
@@ -274,6 +275,7 @@ fn spawn_char_select_camera(
 mod background;
 mod lighting;
 mod scene_systems;
+mod skybox;
 
 fn char_select_orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -493,21 +495,18 @@ fn setup_char_select_scene(
     );
     let camera_elapsed = camera_start.elapsed();
     let sky_light_start = Instant::now();
-    let sky_dome = sky::spawn_sky_dome(
+    let camera_translation = camera_params(scene_entry, placement.as_ref(), presentation).0;
+    background::spawn_skybox(
         &mut commands,
         &mut assets.meshes,
-        &mut assets.sky_materials,
+        &mut assets.materials,
+        &mut assets.effect_materials,
         &mut assets.images,
-        camera_entity,
+        &mut assets.inv_bp,
+        &creature_display_map,
+        scene_entry,
+        camera_translation,
     );
-    commands.entity(sky_dome).insert(Visibility::Hidden);
-    commands.entity(camera_entity).insert((
-        char_select_fog(),
-        GeneratedEnvironmentMapLight {
-            intensity: CHAR_SELECT_ENV_MAP_INTENSITY,
-            ..default()
-        },
-    ));
     let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
     let sky_light_elapsed = sky_light_start.elapsed();
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);

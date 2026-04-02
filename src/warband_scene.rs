@@ -146,6 +146,15 @@ impl WarbandSceneEntry {
             _ => None,
         }
     }
+
+    pub fn skybox_model_wow_path(&self) -> Option<&'static str> {
+        match self.texture_kit {
+            5671 | 5672 | 5673 | 5674 | 5675 | 5676 => {
+                Some("environments/stars/costalislandskybox.m2")
+            }
+            _ => None,
+        }
+    }
 }
 
 impl WarbandScenePlacement {
@@ -172,6 +181,14 @@ pub fn ensure_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     let map_name = scene.map_name();
     let (tile_y, tile_x) = scene.tile_coords();
     ensure_adt_tile(&map_name, tile_y, tile_x)
+}
+
+pub fn ensure_warband_skybox(scene: &WarbandSceneEntry) -> Option<PathBuf> {
+    let wow_path = scene.skybox_model_wow_path()?;
+    let filename = Path::new(wow_path).file_name()?;
+    let local = PathBuf::from("data/models/skyboxes").join(filename);
+    let fdid = game_engine::listfile::lookup_path(wow_path)?;
+    asset_cache::file_at_path(fdid, &local)
 }
 
 /// Return the local root ADT path for a warband scene if it is already cached on disk.
@@ -479,6 +496,19 @@ mod tests {
                 .any(|path| path.ends_with("data/terrain/2703_31_36.adt")),
             "expected waterfall supplemental tile to remain included"
         );
+    }
+
+    #[test]
+    fn active_warband_scenes_have_skybox_mappings() {
+        let warband = WarbandScenes::load();
+        for scene in &warband.scenes {
+            assert!(
+                scene.skybox_model_wow_path().is_some(),
+                "scene {} ({}) should map to a skybox model",
+                scene.id,
+                scene.name
+            );
+        }
     }
 
     #[test]

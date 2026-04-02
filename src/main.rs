@@ -88,6 +88,7 @@ mod selection_debug_screen;
 mod sky;
 mod sky_lightdata;
 mod sky_material;
+mod skybox_debug_scene;
 mod sound;
 mod sound_footsteps;
 mod sound_music_catalog;
@@ -623,6 +624,9 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     match initial_state {
         Some(game_state::GameState::DebugCharacter) => {
             app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
+        }
+        Some(game_state::GameState::SkyboxDebug) => {
+            app.add_plugins(skybox_debug_scene::SkyboxDebugScenePlugin);
         }
         Some(game_state::GameState::ParticleDebug) => {
             app.add_plugins(particle_debug_scene::ParticleDebugScenePlugin);

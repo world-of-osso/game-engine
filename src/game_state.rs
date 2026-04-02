@@ -62,6 +62,7 @@ fn register_state_transitions(app: &mut App, has_server: bool) {
         on_enter_inworld_selection_debug,
     );
     app.add_systems(OnEnter(GameState::DebugCharacter), on_enter_debug_character);
+    app.add_systems(OnEnter(GameState::SkyboxDebug), on_enter_skybox_debug);
     app.add_systems(OnEnter(GameState::CampsitePopup), on_enter_campsite_popup);
     app.add_systems(OnEnter(GameState::Loading), on_enter_loading);
     app.add_systems(OnEnter(GameState::TrashButton), on_enter_trash_button);
@@ -142,6 +143,10 @@ fn on_enter_inworld_selection_debug() {
 
 fn on_enter_debug_character() {
     info!("Entering DebugCharacter state");
+}
+
+fn on_enter_skybox_debug() {
+    info!("Entering SkyboxDebug state");
 }
 
 fn on_enter_campsite_popup() {
