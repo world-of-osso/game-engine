@@ -223,10 +223,11 @@ fn attach_m2_model_parts(
         lights,
         ..
     } = model;
-    let visual_root = m2_spawn::ensure_grounded_model_root(
+    let visual_root = visual_root_entity(
         commands,
         model_entity,
         m2_spawn::ground_offset_y(&batches),
+        force_skybox_material,
     );
     let spawn_assets = &mut m2_spawn::SpawnAssets {
         meshes,
@@ -260,6 +261,19 @@ fn attach_m2_model_parts(
         default_main_hand_torch,
     );
     m2_spawn::spawn_model_point_lights(commands, &lights, &skinning, visual_root, model_entity);
+}
+
+fn visual_root_entity(
+    commands: &mut Commands,
+    model_entity: Entity,
+    ground_offset_y: f32,
+    force_skybox_material: bool,
+) -> Entity {
+    if force_skybox_material {
+        model_entity
+    } else {
+        m2_spawn::ensure_grounded_model_root(commands, model_entity, ground_offset_y)
+    }
 }
 
 pub fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
@@ -366,4 +380,47 @@ pub fn attach_bone_pivots_and_player(
         transition: None,
     });
     Some(joints.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::visual_root_entity;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::*;
+
+    #[test]
+    fn skybox_visual_root_skips_grounding_even_with_nonzero_offset() {
+        let mut world = World::default();
+        let model_entity = world.spawn_empty().id();
+
+        let visual_root = world
+            .run_system_once(move |mut commands: Commands| {
+                visual_root_entity(&mut commands, model_entity, 12.5, true)
+            })
+            .expect("skybox visual root");
+        assert_eq!(visual_root, model_entity);
+
+        let rooted_children = world
+            .query::<&Name>()
+            .iter(&world)
+            .filter(|name| name.as_str() == "GroundedModelRoot")
+            .count();
+        assert_eq!(rooted_children, 0);
+    }
+
+    #[test]
+    fn non_skybox_visual_root_still_grounds_nonzero_offset_models() {
+        let mut world = World::default();
+        let model_entity = world.spawn_empty().id();
+
+        let grounded_root = world
+            .run_system_once(move |mut commands: Commands| {
+                visual_root_entity(&mut commands, model_entity, 12.5, false)
+            })
+            .expect("grounded visual root");
+        assert_ne!(grounded_root, model_entity);
+
+        let grounded_name = world.get::<Name>(grounded_root).map(Name::as_str);
+        assert_eq!(grounded_name, Some("GroundedModelRoot"));
+    }
 }
