@@ -14,29 +14,29 @@ use super::m2_texture;
 
 /// A texture layer definition from ChrModelTextureLayer.csv.
 #[derive(Debug, Clone)]
-struct TextureLayer {
-    texture_type: u32,
-    layer: u32,
-    blend_mode: u32,
-    section_bitmask: i64,
-    target_id: u16,
-    layout_id: u32,
+pub(crate) struct TextureLayer {
+    pub(crate) texture_type: u32,
+    pub(crate) layer: u32,
+    pub(crate) blend_mode: u32,
+    pub(crate) section_bitmask: i64,
+    pub(crate) target_id: u16,
+    pub(crate) layout_id: u32,
 }
 
 /// A texture section from CharComponentTextureSections.csv.
 #[derive(Debug, Clone, Copy)]
-struct TextureSection {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
+pub(crate) struct TextureSection {
+    pub(crate) x: u32,
+    pub(crate) y: u32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 /// Texture layout dimensions from CharComponentTextureLayouts.csv.
 #[derive(Debug, Clone, Copy)]
-struct TextureLayout {
-    width: u32,
-    height: u32,
+pub(crate) struct TextureLayout {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -76,9 +76,8 @@ impl CharTextureData {
     }
 
     fn try_load(data_dir: &Path) -> Result<Self, String> {
-        let layers = parse_texture_layers(&data_dir.join("ChrModelTextureLayer.csv"))?;
-        let sections = parse_texture_sections(&data_dir.join("CharComponentTextureSections.csv"))?;
-        let layouts = parse_texture_layouts(&data_dir.join("CharComponentTextureLayouts.csv"))?;
+        let (layers, sections, layouts) =
+            crate::char_texture_cache::load_char_texture_data(data_dir)?;
         Ok(Self {
             layers,
             sections,
@@ -173,7 +172,7 @@ impl CharTextureData {
         active_layers
             .into_iter()
             .filter_map(|layer| material_by_target.get(&layer.target_id).copied())
-            .last()
+            .next_back()
     }
 
     fn runtime_target_texture(
@@ -651,7 +650,7 @@ mod tests {
 
     #[test]
     fn hd_glove_item_sections_change_runtime_body_atlas_pixels() {
-        let data = CharTextureData::load(Path::new("data"));
+        let data = load_test_data();
 
         let base = data
             .composite_model_textures(&[], &[], 103)
@@ -684,7 +683,7 @@ mod tests {
 
     #[test]
     fn loud_hd_glove_changes_pixels_at_sampled_glove_uv() {
-        let data = CharTextureData::load(Path::new("data"));
+        let data = load_test_data();
 
         let base = data
             .composite_model_textures(&[], &[], 103)
@@ -711,7 +710,7 @@ mod tests {
 
     #[test]
     fn hd_boot_item_sections_change_runtime_body_atlas_pixels() {
-        let data = CharTextureData::load(Path::new("data"));
+        let data = load_test_data();
 
         let base = data
             .composite_model_textures(&[], &[], 103)
@@ -744,7 +743,7 @@ mod tests {
 
     #[test]
     fn loud_hd_boot_changes_pixels_at_sampled_boot_uv() {
-        let data = CharTextureData::load(Path::new("data"));
+        let data = load_test_data();
 
         let base = data
             .composite_model_textures(&[], &[], 103)
@@ -788,129 +787,9 @@ fn scale_to(src: &[u8], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> (Vec<
     (out, dst_w, dst_h)
 }
 
-// --- CSV parsing ---
-
-fn read_csv(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>), String> {
-    let data =
-        std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
-    let mut lines = data.lines();
-    let header_line = lines.next().ok_or("empty CSV")?;
-    let headers = parse_csv_line(header_line);
-    let rows: Vec<_> = lines.map(parse_csv_line).collect();
-    Ok((headers, rows))
-}
-
-fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut cur = String::new();
-    let mut in_quotes = false;
-    let chars: Vec<char> = line.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        match chars[i] {
-            '"' => {
-                if in_quotes && i + 1 < chars.len() && chars[i + 1] == '"' {
-                    cur.push('"');
-                    i += 1;
-                } else {
-                    in_quotes = !in_quotes;
-                }
-            }
-            ',' if !in_quotes => {
-                out.push(cur.trim().to_string());
-                cur.clear();
-            }
-            c => cur.push(c),
-        }
-        i += 1;
-    }
-    out.push(cur.trim().to_string());
-    out
-}
-
-fn col(headers: &[String], name: &str) -> Result<usize, String> {
-    headers
-        .iter()
-        .position(|h| h == name)
-        .ok_or_else(|| format!("missing column {name}"))
-}
-
-fn field_u32(row: &[String], idx: usize) -> u32 {
-    row.get(idx)
-        .and_then(|s| {
-            s.parse::<u32>()
-                .ok()
-                .or_else(|| s.parse::<i32>().ok().map(|v| v as u32))
-        })
-        .unwrap_or(0)
-}
-
-fn field_i64(row: &[String], idx: usize) -> i64 {
-    row.get(idx).and_then(|s| s.parse().ok()).unwrap_or(0)
-}
-
-fn parse_texture_layers(path: &Path) -> Result<Vec<TextureLayer>, String> {
-    let (h, rows) = read_csv(path)?;
-    let texture_type_col = col(&h, "TextureType")?;
-    let layer_col = col(&h, "Layer")?;
-    let blend_col = col(&h, "BlendMode")?;
-    let mask_col = col(&h, "TextureSectionTypeBitMask")?;
-    let target_col = col(&h, "ChrModelTextureTargetID_0")?;
-    let layout_col = col(&h, "CharComponentTextureLayoutsID")?;
-
-    let mut out = Vec::new();
-    for row in &rows {
-        out.push(TextureLayer {
-            texture_type: field_u32(row, texture_type_col),
-            layer: field_u32(row, layer_col),
-            blend_mode: field_u32(row, blend_col),
-            section_bitmask: field_i64(row, mask_col),
-            target_id: field_u32(row, target_col) as u16,
-            layout_id: field_u32(row, layout_col),
-        });
-    }
-    Ok(out)
-}
-
-fn parse_texture_sections(path: &Path) -> Result<HashMap<(u32, u32), TextureSection>, String> {
-    let (h, rows) = read_csv(path)?;
-    let layout_col = col(&h, "CharComponentTextureLayoutID")?;
-    let section_col = col(&h, "SectionType")?;
-    let x_col = col(&h, "X")?;
-    let y_col = col(&h, "Y")?;
-    let w_col = col(&h, "Width")?;
-    let h_col = col(&h, "Height")?;
-
-    let mut out = HashMap::new();
-    for row in &rows {
-        out.insert(
-            (field_u32(row, layout_col), field_u32(row, section_col)),
-            TextureSection {
-                x: field_u32(row, x_col),
-                y: field_u32(row, y_col),
-                width: field_u32(row, w_col),
-                height: field_u32(row, h_col),
-            },
-        );
-    }
-    Ok(out)
-}
-
-fn parse_texture_layouts(path: &Path) -> Result<HashMap<u32, TextureLayout>, String> {
-    let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
-    let w_col = col(&h, "Width")?;
-    let h_col = col(&h, "Height")?;
-
-    let mut out = HashMap::new();
-    for row in &rows {
-        out.insert(
-            field_u32(row, id_col),
-            TextureLayout {
-                width: field_u32(row, w_col),
-                height: field_u32(row, h_col),
-            },
-        );
-    }
-    Ok(out)
+#[cfg(test)]
+fn load_test_data() -> CharTextureData {
+    crate::char_texture_cache::import_char_texture_cache(Path::new("data"))
+        .expect("import char texture cache");
+    CharTextureData::load(Path::new("data"))
 }

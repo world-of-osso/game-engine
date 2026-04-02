@@ -3,6 +3,7 @@ extern crate self as game_engine;
 pub mod asset;
 pub mod auction_house;
 pub mod char_create_data;
+pub mod char_texture_cache;
 pub mod character_export;
 pub mod culling;
 pub mod customization_cache;
