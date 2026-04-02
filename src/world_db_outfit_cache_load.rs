@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+#[cfg(test)]
 use rusqlite::Connection;
 
-use crate::outfit_data::{DisplayInfoResolved, DisplayMaterialTextures};
+#[cfg(test)]
+use crate::outfit_data::DisplayInfoResolved;
+#[cfg(test)]
+use crate::outfit_data::DisplayMaterialTextures;
 
 pub(super) fn load_cached_char_start_outfits(
     data_dir: &Path,
@@ -77,9 +81,8 @@ pub(super) fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32
     Ok(map)
 }
 
-pub(super) fn load_material_to_texture_map(
-    conn: &Connection,
-) -> Result<HashMap<u32, u32>, String> {
+#[cfg(test)]
+pub(super) fn load_material_to_texture_map(conn: &Connection) -> Result<HashMap<u32, u32>, String> {
     let mut stmt = conn
         .prepare("SELECT material_resource_id, texture_fdid FROM material_to_texture")
         .map_err(|err| format!("prepare material_to_texture lookup: {err}"))?;
@@ -95,6 +98,7 @@ pub(super) fn load_material_to_texture_map(
     Ok(map)
 }
 
+#[cfg(test)]
 pub(super) fn load_cached_display_resources(
     data_dir: &Path,
 ) -> Result<super::CachedDisplayResources, String> {
@@ -112,6 +116,7 @@ pub(super) fn load_cached_display_resources(
     })
 }
 
+#[cfg(test)]
 fn load_display_info_map(conn: &Connection) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
     let mut stmt = conn
         .prepare(
@@ -148,6 +153,7 @@ fn load_display_info_map(conn: &Connection) -> Result<HashMap<u32, DisplayInfoRe
     Ok(display_info)
 }
 
+#[cfg(test)]
 fn build_display_info_row(
     model_resources: [u32; 2],
     model_material_resources: [u32; 2],
@@ -163,10 +169,18 @@ fn build_display_info_row(
         model_resource_columns: model_resources,
         model_material_resource_columns: model_material_resources,
         helmet_geoset_vis_ids: collect(helmet_vis_ids),
-        geoset_groups: [geoset_groups[0], geoset_groups[1], geoset_groups[2], 0, 0, 0],
+        geoset_groups: [
+            geoset_groups[0],
+            geoset_groups[1],
+            geoset_groups[2],
+            0,
+            0,
+            0,
+        ],
     }
 }
 
+#[cfg(test)]
 fn load_display_materials_map(conn: &Connection) -> Result<HashMap<u32, Vec<(u8, u32)>>, String> {
     let mut stmt = conn
         .prepare(
@@ -196,6 +210,7 @@ fn load_display_materials_map(conn: &Connection) -> Result<HashMap<u32, Vec<(u8,
     Ok(direct)
 }
 
+#[cfg(test)]
 fn load_model_to_fdids_map(conn: &Connection) -> Result<HashMap<u32, Vec<u32>>, String> {
     let mut stmt = conn
         .prepare(

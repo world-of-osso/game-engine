@@ -5,20 +5,25 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OpenFlags};
 
-use crate::outfit_data::{DisplayInfoResolved, DisplayMaterialTextures};
+use crate::outfit_data::DisplayInfoResolved;
+#[cfg(test)]
+use crate::outfit_data::DisplayMaterialTextures;
 
-#[path = "world_db_outfit_links.rs"]
-mod outfit_links_cache;
-#[path = "world_db_outfit_resolve.rs"]
-mod outfit_resolve;
 #[path = "world_db_outfit_cache_load.rs"]
 mod outfit_cache_load;
+#[path = "world_db_outfit_links.rs"]
+mod outfit_links_cache;
+#[path = "world_db_outfit_query.rs"]
+mod outfit_query;
+#[path = "world_db_outfit_resolve.rs"]
+mod outfit_resolve;
 #[path = "world_db_zone_names.rs"]
 mod zone_name_cache;
 
 type OutfitKey = (u8, u8, u8);
 type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 
+#[cfg(test)]
 pub(crate) struct CachedDisplayResources {
     pub display_info: HashMap<u32, DisplayInfoResolved>,
     pub material_to_texture: HashMap<u32, u32>,
@@ -612,6 +617,41 @@ pub fn resolve_cached_outfit_display_ids(
     outfit_resolve::resolve_cached_outfit_display_ids(data_dir, race, class, sex)
 }
 
+pub(crate) fn load_cached_display_info(
+    data_dir: &Path,
+    display_info_id: u32,
+) -> Result<Option<DisplayInfoResolved>, String> {
+    outfit_query::load_cached_display_info(data_dir, display_info_id)
+}
+
+pub(crate) fn load_cached_material_texture_fdid(
+    data_dir: &Path,
+    material_resource_id: u32,
+) -> Result<Option<u32>, String> {
+    outfit_query::load_cached_material_texture_fdid(data_dir, material_resource_id)
+}
+
+pub(crate) fn load_cached_model_fdids(
+    data_dir: &Path,
+    model_resource_id: u32,
+) -> Result<Vec<u32>, String> {
+    outfit_query::load_cached_model_fdids(data_dir, model_resource_id)
+}
+
+pub(crate) fn resolve_cached_skin_fdids_for_model_fdid(
+    data_dir: &Path,
+    model_fdid: u32,
+) -> Result<Option<[u32; 3]>, String> {
+    outfit_query::resolve_cached_skin_fdids_for_model_fdid(data_dir, model_fdid)
+}
+
+pub(crate) fn resolve_cached_skin_fdids_for_model_name(
+    data_dir: &Path,
+    model_name: &str,
+) -> Result<Option<[u32; 3]>, String> {
+    outfit_query::resolve_cached_skin_fdids_for_model_name(data_dir, model_name)
+}
+
 pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
     outfit_cache_load::load_cached_item_modified_appearance(data_dir)
 }
@@ -620,6 +660,7 @@ pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>,
     outfit_cache_load::load_cached_item_appearance(data_dir)
 }
 
+#[cfg(test)]
 pub(crate) fn load_cached_display_resources(
     data_dir: &Path,
 ) -> Result<CachedDisplayResources, String> {

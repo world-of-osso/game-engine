@@ -26,8 +26,8 @@ fn outfit_links_load_from_cache() {
     let data_dir = Path::new("data");
     import_outfit_links_cache(data_dir).expect("import outfit links cache");
     let outfits = load_cached_char_start_outfits(data_dir).expect("load starter_outfits cache");
-    let item_to_appearance =
-        load_cached_item_modified_appearance(data_dir).expect("load item_modified_appearance cache");
+    let item_to_appearance = load_cached_item_modified_appearance(data_dir)
+        .expect("load item_modified_appearance cache");
     let appearance_to_display =
         load_cached_item_appearance(data_dir).expect("load item_appearance cache");
 
@@ -52,6 +52,7 @@ fn display_resources_load_from_cache() {
     let resources = load_cached_display_resources(data_dir).expect("load display resources cache");
     assert!(!resources.display_info.is_empty());
     assert!(!resources.material_to_texture.is_empty());
+    assert!(!resources.display_materials.direct.is_empty());
     assert!(!resources.model_to_fdids.is_empty());
 }
 
