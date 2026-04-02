@@ -271,7 +271,12 @@ fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
 }
 
 fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
-    let visuals = default_visual_values();
+    let mut emitter = zeroed_emitter_from_header(header);
+    apply_default_visuals(&mut emitter, default_visual_values());
+    emitter
+}
+
+fn zeroed_emitter_from_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
     M2ParticleEmitter {
         flags: header.flags,
         position: header.position,
@@ -292,17 +297,27 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         area_length: 0.0,
         area_width: 0.0,
         drag: 0.0,
-        colors: visuals.colors,
+        colors: [[0.0; 3]; 3],
         color_keys: Vec::new(),
-        opacity: visuals.opacity,
+        opacity: [1.0; 3],
         opacity_keys: Vec::new(),
-        scales: visuals.scales,
+        scales: [[1.0; 2]; 3],
         scale_keys: Vec::new(),
-        head_cell_track: visuals.head_cell_track,
-        tail_cell_track: visuals.tail_cell_track,
-        burst_multiplier: visuals.burst_multiplier,
-        mid_point: visuals.mid_point,
+        head_cell_track: [0; 3],
+        tail_cell_track: [0; 3],
+        burst_multiplier: 1.0,
+        mid_point: 0.5,
     }
+}
+
+fn apply_default_visuals(emitter: &mut M2ParticleEmitter, visuals: VisualDefaults) {
+    emitter.colors = visuals.colors;
+    emitter.opacity = visuals.opacity;
+    emitter.scales = visuals.scales;
+    emitter.head_cell_track = visuals.head_cell_track;
+    emitter.tail_cell_track = visuals.tail_cell_track;
+    emitter.burst_multiplier = visuals.burst_multiplier;
+    emitter.mid_point = visuals.mid_point;
 }
 
 /// Fill M2Track-based dynamic values on an emitter.
