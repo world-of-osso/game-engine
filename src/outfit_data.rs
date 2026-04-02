@@ -6,9 +6,6 @@ use std::sync::OnceLock;
 use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
 use bevy::prelude::*;
 
-#[path = "outfit_data_parse.rs"]
-mod parse;
-
 /// Result of resolving a starter outfit for a (race, class, sex) combo.
 #[derive(Debug, Clone, Default)]
 pub struct OutfitResult {
@@ -362,10 +359,7 @@ fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
         display_info: merge_display_materials(cached.display_info, cached.display_materials),
         material_to_texture: cached.material_to_texture,
         model_to_fdids: cached.model_to_fdids,
-        race_prefix: crate::world_db::load_chr_race_prefixes().or_else(|err| {
-            info!("Falling back to ChrRaces.csv for race prefixes: {err}");
-            parse::parse_race_prefix(&data_dir.join("ChrRaces.csv"))
-        })?,
+        race_prefix: crate::world_db::load_chr_race_prefixes()?,
         helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
     })
 }
