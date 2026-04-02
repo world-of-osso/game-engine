@@ -3,6 +3,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+#[path = "listfile_cache.rs"]
+mod listfile_cache;
+
 static LISTFILE: OnceLock<Listfile> = OnceLock::new();
 
 #[derive(Default)]
@@ -13,9 +16,9 @@ struct CachedListfile {
 
 struct Listfile {
     community_path: PathBuf,
+    community_cache_path: PathBuf,
     local_cache_path: PathBuf,
     local: Mutex<CachedListfile>,
-    community: OnceLock<CachedListfile>,
 }
 
 /// Get the global listfile index. Loads only the small local cache immediately;
@@ -24,13 +27,18 @@ fn get() -> &'static Listfile {
     LISTFILE.get_or_init(|| {
         Listfile::new(
             crate::paths::resolve_data_path("community-listfile.csv"),
+            listfile_cache::cache_path(),
             crate::paths::shared_data_path("local-listfile-cache.csv"),
         )
     })
 }
 
 impl Listfile {
-    fn new(community_path: PathBuf, local_cache_path: PathBuf) -> Self {
+    fn new(
+        community_path: PathBuf,
+        community_cache_path: PathBuf,
+        local_cache_path: PathBuf,
+    ) -> Self {
         let local = match load_listfile(&local_cache_path) {
             Ok(cache) => cache,
             Err(err) => {
@@ -44,31 +52,28 @@ impl Listfile {
         );
         Self {
             community_path,
+            community_cache_path,
             local_cache_path,
             local: Mutex::new(local),
-            community: OnceLock::new(),
         }
-    }
-
-    fn community(&self) -> &CachedListfile {
-        self.community
-            .get_or_init(|| match load_listfile(&self.community_path) {
-                Ok(listfile) => {
-                    eprintln!("Loaded listfile: {} entries", listfile.by_fdid.len());
-                    listfile
-                }
-                Err(err) => {
-                    eprintln!("Failed to load listfile: {err}");
-                    CachedListfile::default()
-                }
-            })
     }
 
     fn lookup_fdid(&self, fdid: u32) -> Option<&'static str> {
         if let Some(path) = self.local.lock().unwrap().by_fdid.get(&fdid).copied() {
             return Some(path);
         }
-        let path = self.community().by_fdid.get(&fdid).copied()?;
+        let path = match listfile_cache::lookup_fdid(
+            &self.community_cache_path,
+            &self.community_path,
+            fdid,
+        ) {
+            Ok(Some(path)) => Box::leak(path.into_boxed_str()) as &'static str,
+            Ok(None) => return None,
+            Err(err) => {
+                eprintln!("Failed listfile fdid lookup {fdid}: {err}");
+                return None;
+            }
+        };
         self.remember(fdid, path);
         Some(path)
     }
@@ -78,16 +83,19 @@ impl Listfile {
         if let Some(fdid) = self.local.lock().unwrap().by_path.get(&normalized).copied() {
             return Some(fdid);
         }
-        let fdid = self.community().by_path.get(&normalized).copied()?;
-        let path = self
-            .community()
-            .by_fdid
-            .get(&fdid)
-            .copied()
-            .unwrap_or_else(|| {
-                let leaked = Box::leak(path.to_owned().into_boxed_str());
-                leaked as &'static str
-            });
+        let (fdid, resolved_path) = match listfile_cache::lookup_path(
+            &self.community_cache_path,
+            &self.community_path,
+            path,
+        ) {
+            Ok(Some(row)) => row,
+            Ok(None) => return None,
+            Err(err) => {
+                eprintln!("Failed listfile path lookup `{path}`: {err}");
+                return None;
+            }
+        };
+        let path = Box::leak(resolved_path.into_boxed_str()) as &'static str;
         self.remember(fdid, path);
         Some(fdid)
     }
@@ -171,7 +179,8 @@ mod tests {
         let _ = std::fs::remove_file(&local);
         std::fs::write(&community, "123;world/maps/test/test_1_2.adt\n").unwrap();
 
-        let listfile = Listfile::new(community.clone(), local.clone());
+        let community_cache = test_dir.join("community.sqlite");
+        let listfile = Listfile::new(community.clone(), community_cache.clone(), local.clone());
         assert_eq!(
             listfile.lookup_path("world/maps/test/test_1_2.adt"),
             Some(123)
@@ -185,7 +194,7 @@ mod tests {
         assert_eq!(persisted, "123;world/maps/test/test_1_2.adt\n");
 
         std::fs::remove_file(&community).unwrap();
-        let cached_only = Listfile::new(community, local.clone());
+        let cached_only = Listfile::new(community, community_cache, local.clone());
         assert_eq!(
             cached_only.lookup_path("world/maps/test/test_1_2.adt"),
             Some(123)
@@ -207,13 +216,14 @@ mod tests {
         let _ = std::fs::remove_file(&local);
         std::fs::write(&community, "456;creature/test/test.m2\n").unwrap();
 
-        let listfile = Listfile::new(community.clone(), local.clone());
+        let community_cache = test_dir.join("community-fdid-only.sqlite");
+        let listfile = Listfile::new(community.clone(), community_cache.clone(), local.clone());
         assert_eq!(listfile.lookup_fdid(456), Some("creature/test/test.m2"));
         let persisted = std::fs::read_to_string(&local).unwrap();
         assert_eq!(persisted, "456;creature/test/test.m2\n");
 
         std::fs::remove_file(&community).unwrap();
-        let cached_only = Listfile::new(community, local.clone());
+        let cached_only = Listfile::new(community, community_cache, local.clone());
         assert_eq!(cached_only.lookup_fdid(456), Some("creature/test/test.m2"));
         assert_eq!(cached_only.lookup_path("creature/test/test.m2"), Some(456));
 
