@@ -370,32 +370,32 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                     y: {-level_y},
                 }
             }
-            {bar_block(
-                format!("{prefix}HealthBar"),
-                bar_x,
-                bar_y,
-                bar_w,
-                BAR_H,
-                health_bg,
-                health_fill,
-                state.health_fill_width,
-                state.health_text.as_str(),
-                health_text_x,
-                false,
-            )}
-            {bar_block(
-                format!("{prefix}ManaBar"),
-                mana_x,
-                mana_y,
-                mana_w,
-                MANA_H,
-                MANA_BG,
-                MANA_FILL,
-                state.mana_fill_width,
-                state.mana_text.as_str(),
-                mana_text_x,
-                mana_hidden,
-            )}
+            {bar_block(BarBlockSpec {
+                name: format!("{prefix}HealthBar"),
+                x: bar_x,
+                y: bar_y,
+                width: bar_w,
+                height: BAR_H,
+                bg_color: health_bg,
+                fill_color: health_fill,
+                fill_width: state.health_fill_width,
+                value_text: state.health_text.as_str(),
+                text_x: health_text_x,
+                hidden: false,
+            })}
+            {bar_block(BarBlockSpec {
+                name: format!("{prefix}ManaBar"),
+                x: mana_x,
+                y: mana_y,
+                width: mana_w,
+                height: MANA_H,
+                bg_color: MANA_BG,
+                fill_color: MANA_FILL,
+                fill_width: state.mana_fill_width,
+                value_text: state.mana_text.as_str(),
+                text_x: mana_text_x,
+                hidden: mana_hidden,
+            })}
             {contextual_icons(prefix, player_side)}
         }
     }
@@ -612,19 +612,34 @@ fn portrait_centered_marker(
     }
 }
 
-fn bar_block(
+struct BarBlockSpec<'a> {
     name: String,
     x: f32,
     y: f32,
     width: f32,
     height: f32,
-    bg_color: &str,
-    fill_color: &str,
+    bg_color: &'a str,
+    fill_color: &'a str,
     fill_width: f32,
-    value_text: &str,
+    value_text: &'a str,
     text_x: f32,
     hidden: bool,
-) -> Element {
+}
+
+fn bar_block(spec: BarBlockSpec<'_>) -> Element {
+    let BarBlockSpec {
+        name,
+        x,
+        y,
+        width,
+        height,
+        bg_color,
+        fill_color,
+        fill_width,
+        value_text,
+        text_x,
+        hidden,
+    } = spec;
     let frame_name = dyn_name(name);
     let fill_name = dyn_name(format!("{}Fill", frame_name.0));
     let text_name = dyn_name(format!("{}Text", frame_name.0));

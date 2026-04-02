@@ -57,6 +57,18 @@ const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
 const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
 const EMITTER_CATA_SIZE: usize = 0x178;
 
+type VisualDefaults = (
+    [[f32; 3]; 3],
+    [f32; 3],
+    [[f32; 2]; 3],
+    [u16; 3],
+    [u16; 3],
+    f32,
+    f32,
+);
+
+type EmitterHeaderCore = (u32, [f32; 3], u16, u16, u8, u8, u16, u16);
+
 fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
     let bytes: [u8; 2] = data
         .get(off..off + 2)
@@ -76,15 +88,7 @@ fn read_u16_values(md20: &[u8], emitter: &[u8], off: usize) -> [u16; 3] {
     values
 }
 
-fn default_visual_values() -> (
-    [[f32; 3]; 3],
-    [f32; 3],
-    [[f32; 2]; 3],
-    [u16; 3],
-    [u16; 3],
-    f32,
-    f32,
-) {
+fn default_visual_values() -> VisualDefaults {
     (
         [[0.0; 3]; 3],
         [1.0; 3],
@@ -175,9 +179,7 @@ fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
     parse_emitter_header_core(em).map(build_emitter_header)
 }
 
-fn parse_emitter_header_core(
-    em: &[u8],
-) -> Result<(u32, [f32; 3], u16, u16, u8, u8, u16, u16), String> {
+fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
     Ok((
         read_u32(em, 0x04)?,
         [

@@ -87,10 +87,7 @@ fn resolve_texture_anims(
     texture_animations: &[m2_anim::TextureAnimTracks],
     uv_animation_lookup: &[i16],
     unit: &M2TextureUnit,
-) -> (
-    Option<m2_anim::AnimTrack<[f32; 3]>>,
-    Option<m2_anim::AnimTrack<[f32; 3]>>,
-) {
+) -> TextureAnimPair {
     let resolve = |id: u16| {
         uv_animation_lookup
             .get(id as usize)
@@ -107,6 +104,11 @@ fn resolve_texture_anims(
     };
     (anim_1, anim_2)
 }
+
+type TextureAnimPair = (
+    Option<m2_anim::AnimTrack<[f32; 3]>>,
+    Option<m2_anim::AnimTrack<[f32; 3]>>,
+);
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_one_batch(

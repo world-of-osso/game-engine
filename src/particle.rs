@@ -162,15 +162,76 @@ fn build_flipbook_sprite_index(
         return None;
     }
     let total = (em.tile_rows as i32) * (em.tile_cols as i32);
-    let age = writer.attr(Attribute::AGE);
-    let lifetime = writer.attr(Attribute::LIFETIME);
-    let frame = (age / lifetime * writer.lit(total as f32))
-        .cast(ScalarType::Int)
-        .rem(writer.lit(total));
+    let frame = if let Some(track) = active_cell_track(em) {
+        build_cell_track_sprite_index(writer, track, em.mid_point, total)
+    } else {
+        let age = writer.attr(Attribute::AGE);
+        let lifetime = writer.attr(Attribute::LIFETIME);
+        (age / lifetime * writer.lit(total as f32))
+            .cast(ScalarType::Int)
+            .rem(writer.lit(total))
+    };
     Some(SetAttributeModifier::new(
         Attribute::SPRITE_INDEX,
         frame.expr(),
     ))
+}
+
+fn active_cell_track(em: &M2ParticleEmitter) -> Option<[u16; 3]> {
+    if em.head_cell_track.iter().any(|&cell| cell != 0) {
+        Some(em.head_cell_track)
+    } else if em.tail_cell_track.iter().any(|&cell| cell != 0) {
+        Some(em.tail_cell_track)
+    } else {
+        None
+    }
+}
+
+fn build_cell_track_sprite_index(
+    writer: &ExprWriter,
+    track: [u16; 3],
+    mid_point: f32,
+    total_cells: i32,
+) -> WriterExpr {
+    let age = writer.attr(Attribute::AGE);
+    let lifetime = writer.attr(Attribute::LIFETIME);
+    let zero = writer.lit(0.0_f32);
+    let one = writer.lit(1.0_f32);
+    let age_ratio = (age / lifetime).clamp(zero.clone(), one.clone());
+    let mid = writer.lit(mid_point.clamp(0.01, 0.99));
+    let first_t = (age_ratio.clone() / mid.clone()).clamp(zero.clone(), one.clone());
+    let second_t = ((age_ratio.clone() - mid.clone()) / (one.clone() - mid.clone()))
+        .clamp(zero.clone(), one.clone());
+    let first = writer
+        .lit(track[0] as f32)
+        .mix(writer.lit(track[1] as f32), first_t);
+    let second = writer
+        .lit(track[1] as f32)
+        .mix(writer.lit(track[2] as f32), second_t);
+    let cell = first
+        .mix(second, age_ratio.ge(mid).cast(ScalarType::Float))
+        .clamp(zero, writer.lit((total_cells - 1).max(0) as f32));
+    cell.cast(ScalarType::Int)
+}
+
+fn sample_cell_track_frame(
+    track: [u16; 3],
+    mid_point: f32,
+    age_ratio: f32,
+    total_cells: u32,
+) -> u32 {
+    let mid = mid_point.clamp(0.01, 0.99);
+    let t = age_ratio.clamp(0.0, 1.0);
+    let frame = if t < mid {
+        let segment_t = (t / mid).clamp(0.0, 1.0);
+        (track[0] as f32) + ((track[1] as f32) - (track[0] as f32)) * segment_t
+    } else {
+        let segment_t = ((t - mid) / (1.0 - mid)).clamp(0.0, 1.0);
+        (track[1] as f32) + ((track[2] as f32) - (track[1] as f32)) * segment_t
+    };
+    frame
+        .floor()
+        .clamp(0.0, total_cells.saturating_sub(1) as f32) as u32
 }
 
 fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
@@ -398,8 +459,9 @@ mod tests {
     use bevy_hanabi::{AlphaMode, ExprWriter};
 
     use super::{
-        build_effect_asset, build_expr_modifiers, build_size_gradient, emitter_alpha_mode,
-        emitter_rate_scale, emitter_spawn_radius, emitter_translation, is_fire_effect,
+        active_cell_track, build_effect_asset, build_expr_modifiers, build_size_gradient,
+        emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius, emitter_translation,
+        is_fire_effect, sample_cell_track_frame,
     };
     use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
@@ -525,6 +587,33 @@ mod tests {
         assert_eq!(keys[0].value, Vec3::splat(0.25));
         assert_eq!(keys[1].value, Vec3::splat(0.5));
         assert_eq!(keys[2].value, Vec3::splat(0.125));
+    }
+
+    #[test]
+    fn active_cell_track_prefers_head_track() {
+        let mut emitter = sample_emitter();
+        emitter.head_cell_track = [2, 4, 6];
+        emitter.tail_cell_track = [7, 8, 9];
+
+        assert_eq!(active_cell_track(&emitter), Some([2, 4, 6]));
+    }
+
+    #[test]
+    fn active_cell_track_falls_back_to_tail_track() {
+        let mut emitter = sample_emitter();
+        emitter.tail_cell_track = [3, 5, 7];
+
+        assert_eq!(active_cell_track(&emitter), Some([3, 5, 7]));
+    }
+
+    #[test]
+    fn sample_cell_track_frame_uses_midpoint_segments() {
+        let track = [2, 6, 10];
+
+        assert_eq!(sample_cell_track_frame(track, 0.25, 0.0, 16), 2);
+        assert_eq!(sample_cell_track_frame(track, 0.25, 0.25, 16), 6);
+        assert_eq!(sample_cell_track_frame(track, 0.25, 0.625, 16), 8);
+        assert_eq!(sample_cell_track_frame(track, 0.25, 1.0, 16), 10);
     }
 
     #[test]
