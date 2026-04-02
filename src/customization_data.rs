@@ -9,8 +9,6 @@ use std::sync::{Arc, OnceLock};
 
 use bevy::prelude::*;
 
-#[path = "customization_csv.rs"]
-mod csv;
 #[path = "customization_data_support.rs"]
 mod support;
 
@@ -505,209 +503,58 @@ fn resolve_choice_elements(
 
 // --- CSV parsing (manual, no csv crate) ---
 
-struct RawData {
-    chr_models: Vec<RawChrModel>,
-    options: Vec<RawOption>,
-    choices: Vec<RawChoice>,
-    elements: Vec<RawElement>,
-    materials: HashMap<u32, RawMaterial>,
-    geosets: HashMap<u32, RawGeoset>,
-    hair_geosets: HashMap<(u32, u16, u16), bool>,
-    texture_fdids: HashMap<u32, u32>,
+pub(crate) struct RawData {
+    pub(crate) chr_models: Vec<RawChrModel>,
+    pub(crate) options: Vec<RawOption>,
+    pub(crate) choices: Vec<RawChoice>,
+    pub(crate) elements: Vec<RawElement>,
+    pub(crate) materials: HashMap<u32, RawMaterial>,
+    pub(crate) geosets: HashMap<u32, RawGeoset>,
+    pub(crate) hair_geosets: HashMap<(u32, u16, u16), bool>,
+    pub(crate) texture_fdids: HashMap<u32, u32>,
 }
 
 impl RawData {
     fn parse(data_dir: &Path) -> Result<Self, String> {
-        Ok(Self {
-            chr_models: parse_chr_models(&data_dir.join("ChrModel.csv"))?,
-            options: parse_options(&data_dir.join("ChrCustomizationOption.csv"))?,
-            choices: parse_choices(&data_dir.join("ChrCustomizationChoice.csv"))?,
-            elements: parse_elements(&data_dir.join("ChrCustomizationElement.csv"))?,
-            materials: parse_materials(&data_dir.join("ChrCustomizationMaterial.csv"))?,
-            geosets: parse_geosets(&data_dir.join("ChrCustomizationGeoset.csv"))?,
-            hair_geosets: parse_hair_geosets(&data_dir.join("CharHairGeosets.csv"))?,
-            texture_fdids: parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?,
-        })
+        crate::customization_cache::load_customization_raw_data(data_dir)
     }
 }
 
-struct RawChrModel {
-    id: u32,
-    layout_id: u32,
-    customize_scale: f32,
-    camera_distance_offset: f32,
+pub(crate) struct RawChrModel {
+    pub(crate) id: u32,
+    pub(crate) layout_id: u32,
+    pub(crate) customize_scale: f32,
+    pub(crate) camera_distance_offset: f32,
 }
-struct RawOption {
-    id: u32,
-    name: String,
-    chr_model_id: u32,
+pub(crate) struct RawOption {
+    pub(crate) id: u32,
+    pub(crate) name: String,
+    pub(crate) chr_model_id: u32,
 }
-struct RawChoice {
-    id: u32,
-    option_id: u32,
-    name: String,
-    requirement_id: u32,
-    order_index: u32,
+pub(crate) struct RawChoice {
+    pub(crate) id: u32,
+    pub(crate) option_id: u32,
+    pub(crate) name: String,
+    pub(crate) requirement_id: u32,
+    pub(crate) order_index: u32,
 }
-struct RawElement {
-    choice_id: u32,
-    related_choice_id: u32,
-    geoset_id: u32,
-    material_id: u32,
+pub(crate) struct RawElement {
+    pub(crate) choice_id: u32,
+    pub(crate) related_choice_id: u32,
+    pub(crate) geoset_id: u32,
+    pub(crate) material_id: u32,
 }
-struct RawMaterial {
-    texture_target_id: u16,
-    material_resources_id: u32,
+pub(crate) struct RawMaterial {
+    pub(crate) texture_target_id: u16,
+    pub(crate) material_resources_id: u32,
 }
-struct RawGeoset {
-    geoset_type: u16,
-    geoset_id: u16,
+pub(crate) struct RawGeoset {
+    pub(crate) geoset_type: u16,
+    pub(crate) geoset_id: u16,
 }
 
-fn chr_model_id_for_hair_row(race: u8, sex: u8) -> Option<u32> {
+pub(crate) fn chr_model_id_for_hair_row(race: u8, sex: u8) -> Option<u32> {
     race_sex_to_chr_model_id(race, sex)
-}
-
-fn parse_chr_models(path: &Path) -> Result<Vec<RawChrModel>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let id = csv::col_idx(&h, "ID")?;
-    let layout = csv::col_idx(&h, "CharComponentTextureLayoutID")?;
-    let customize_scale = csv::col_idx(&h, "CustomizeScale")?;
-    let camera_distance_offset = csv::col_idx(&h, "CameraDistanceOffset")?;
-    Ok(rows
-        .iter()
-        .map(|r| RawChrModel {
-            id: csv::field_u32(r, id),
-            layout_id: csv::field_u32(r, layout),
-            customize_scale: csv::field_f32(r, customize_scale),
-            camera_distance_offset: csv::field_f32(r, camera_distance_offset),
-        })
-        .collect())
-}
-
-fn parse_options(path: &Path) -> Result<Vec<RawOption>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let id = csv::col_idx(&h, "ID")?;
-    let name = csv::col_idx(&h, "Name_lang")?;
-    let model = csv::col_idx(&h, "ChrModelID")?;
-    Ok(rows
-        .iter()
-        .map(|r| RawOption {
-            id: csv::field_u32(r, id),
-            name: csv::field_str(r, name),
-            chr_model_id: csv::field_u32(r, model),
-        })
-        .collect())
-}
-
-fn parse_choices(path: &Path) -> Result<Vec<RawChoice>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let name = csv::col_idx(&h, "Name_lang")?;
-    let id = csv::col_idx(&h, "ID")?;
-    let opt = csv::col_idx(&h, "ChrCustomizationOptionID")?;
-    let requirement = csv::col_idx(&h, "ChrCustomizationReqID")?;
-    let order = csv::col_idx(&h, "OrderIndex")?;
-    Ok(rows
-        .iter()
-        .map(|r| RawChoice {
-            name: csv::field_str(r, name),
-            id: csv::field_u32(r, id),
-            option_id: csv::field_u32(r, opt),
-            requirement_id: csv::field_u32(r, requirement),
-            order_index: csv::field_u32(r, order),
-        })
-        .collect())
-}
-
-fn parse_elements(path: &Path) -> Result<Vec<RawElement>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let choice = csv::col_idx(&h, "ChrCustomizationChoiceID")?;
-    let related_choice = csv::col_idx(&h, "RelatedChrCustomizationChoiceID")?;
-    let geoset = csv::col_idx(&h, "ChrCustomizationGeosetID")?;
-    let material = csv::col_idx(&h, "ChrCustomizationMaterialID")?;
-    Ok(rows
-        .iter()
-        .map(|r| RawElement {
-            choice_id: csv::field_u32(r, choice),
-            related_choice_id: csv::field_u32(r, related_choice),
-            geoset_id: csv::field_u32(r, geoset),
-            material_id: csv::field_u32(r, material),
-        })
-        .collect())
-}
-
-fn parse_materials(path: &Path) -> Result<HashMap<u32, RawMaterial>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let id = csv::col_idx(&h, "ID")?;
-    let target = csv::col_idx(&h, "ChrModelTextureTargetID")?;
-    let res = csv::col_idx(&h, "MaterialResourcesID")?;
-    Ok(rows
-        .iter()
-        .map(|r| {
-            let k = csv::field_u32(r, id);
-            let v = RawMaterial {
-                texture_target_id: csv::field_u32(r, target) as u16,
-                material_resources_id: csv::field_u32(r, res),
-            };
-            (k, v)
-        })
-        .collect())
-}
-
-fn parse_geosets(path: &Path) -> Result<HashMap<u32, RawGeoset>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let id = csv::col_idx(&h, "ID")?;
-    let gtype = csv::col_idx(&h, "GeosetType")?;
-    let gid = csv::col_idx(&h, "GeosetID")?;
-    Ok(rows
-        .iter()
-        .map(|r| {
-            (
-                csv::field_u32(r, id),
-                RawGeoset {
-                    geoset_type: csv::field_u32(r, gtype) as u16,
-                    geoset_id: csv::field_u32(r, gid) as u16,
-                },
-            )
-        })
-        .collect())
-}
-
-fn parse_hair_geosets(path: &Path) -> Result<HashMap<(u32, u16, u16), bool>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let race = csv::col_idx(&h, "RaceID")?;
-    let sex = csv::col_idx(&h, "SexID")?;
-    let gtype = csv::col_idx(&h, "GeosetType")?;
-    let gid = csv::col_idx(&h, "GeosetID")?;
-    let shows_scalp = csv::col_idx(&h, "Showscalp")?;
-    let mut hair_geosets = HashMap::new();
-    for row in &rows {
-        let Some(model_id) = chr_model_id_for_hair_row(
-            csv::field_u32(row, race) as u8,
-            csv::field_u32(row, sex) as u8,
-        ) else {
-            continue;
-        };
-        hair_geosets.insert(
-            (
-                model_id,
-                csv::field_u32(row, gtype) as u16,
-                csv::field_u32(row, gid) as u16,
-            ),
-            csv::field_u32(row, shows_scalp) != 0,
-        );
-    }
-    Ok(hair_geosets)
-}
-
-fn parse_texture_file_data(path: &Path) -> Result<HashMap<u32, u32>, String> {
-    let (h, rows) = csv::read_csv(path)?;
-    let fdid = csv::col_idx(&h, "FileDataID")?;
-    let res = csv::col_idx(&h, "MaterialResourcesID")?;
-    Ok(rows
-        .iter()
-        .map(|r| (csv::field_u32(r, res), csv::field_u32(r, fdid)))
-        .collect())
 }
 
 #[cfg(test)]
