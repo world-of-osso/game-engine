@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OpenFlags};
@@ -149,17 +148,19 @@ pub(crate) fn load_chr_race_prefixes() -> Result<HashMap<u8, String>, String> {
     Ok(prefixes)
 }
 
-fn rebuild_zone_name_cache(cache_path: &Path) -> Result<(), String> {
+pub fn import_zone_name_cache() -> Result<PathBuf, String> {
+    let cache_path = zone_names_cache_path();
     let csv_path = area_table_csv_path();
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
-    let _ = std::fs::remove_file(cache_path);
-    let conn = Connection::open(cache_path)
+    let _ = std::fs::remove_file(&cache_path);
+    let conn = Connection::open(&cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     conn.execute_batch(
         "BEGIN;
+         DROP TABLE IF EXISTS area_names;
          CREATE TABLE area_names (
              id INTEGER PRIMARY KEY,
              name TEXT NOT NULL
@@ -209,20 +210,7 @@ fn rebuild_zone_name_cache(cache_path: &Path) -> Result<(), String> {
 
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit area_names cache: {err}"))?;
-    Ok(())
-}
-
-fn ensure_zone_name_cache() -> Result<PathBuf, String> {
-    static CACHE_INIT: OnceLock<Result<PathBuf, String>> = OnceLock::new();
-    CACHE_INIT
-        .get_or_init(|| {
-            let cache_path = zone_names_cache_path();
-            if !cache_path.exists() {
-                rebuild_zone_name_cache(&cache_path)?;
-            }
-            Ok(cache_path)
-        })
-        .clone()
+    Ok(cache_path)
 }
 
 pub fn load_zone_name(id: u32) -> Result<Option<String>, String> {
@@ -239,18 +227,14 @@ pub fn load_zone_name(id: u32) -> Result<Option<String>, String> {
         }
     }
 
-    let cache_path = ensure_zone_name_cache()?;
-    match query(&cache_path, id) {
-        Ok(name) => Ok(name),
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
-            rebuild_zone_name_cache(&cache_path)?;
-            query(&cache_path, id)
-                .map_err(|err| format!("query area_names {id} after rebuild: {err}"))
-        }
-        Err(err) => Err(format!("query area_names {id}: {err}")),
+    let cache_path = zone_names_cache_path();
+    if !cache_path.exists() {
+        return Err(format!(
+            "{} missing; run `cargo run --bin zone_name_cache_import` to build it",
+            cache_path.display()
+        ));
     }
+    query(&cache_path, id).map_err(|err| format!("query area_names {id}: {err}"))
 }
 
 fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
@@ -282,14 +266,15 @@ fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<boo
     Ok(true)
 }
 
-fn rebuild_outfit_links_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
+pub fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
+    let cache_path = outfit_links_cache_path();
     let csv_paths = required_outfit_csv_paths(data_dir);
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
-    let _ = std::fs::remove_file(cache_path);
-    let conn = Connection::open(cache_path)
+    let _ = std::fs::remove_file(&cache_path);
+    let conn = Connection::open(&cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     conn.execute_batch(
         "BEGIN;
@@ -358,7 +343,7 @@ fn rebuild_outfit_links_cache(cache_path: &Path, data_dir: &Path) -> Result<(), 
     populate_model_to_fdid(&conn, &csv_paths[6])?;
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit outfit_links cache: {err}"))?;
-    Ok(())
+    Ok(cache_path)
 }
 
 fn populate_starter_outfits(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -758,23 +743,27 @@ fn populate_model_to_fdid(conn: &Connection, path: &Path) -> Result<(), String> 
     Ok(())
 }
 
-fn ensure_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
+fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = outfit_links_cache_path();
+    if !cache_path.exists() {
+        return Err(format!(
+            "{} missing; run `cargo run --bin outfit_links_cache_import` to build it",
+            cache_path.display()
+        ));
+    }
     let csv_paths = required_outfit_csv_paths(data_dir);
-    let stale = if cache_path.exists() {
-        let conn = open_read_only(&cache_path)?;
-        !outfit_cache_is_fresh(&conn, &csv_paths)?
-    } else {
-        true
-    };
-    if stale {
-        rebuild_outfit_links_cache(&cache_path, data_dir)?;
+    let conn = open_read_only(&cache_path)?;
+    if !outfit_cache_is_fresh(&conn, &csv_paths)? {
+        return Err(format!(
+            "{} is stale; run `cargo run --bin outfit_links_cache_import` to rebuild it",
+            cache_path.display()
+        ));
     }
     Ok(cache_path)
 }
 
 pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits, String> {
-    let cache_path = ensure_outfit_links_cache(data_dir)?;
+    let cache_path = imported_outfit_links_cache_path(data_dir)?;
     let conn = open_read_only(&cache_path)?;
     let mut stmt = conn
         .prepare(
@@ -806,7 +795,7 @@ pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits,
 }
 
 pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
-    let cache_path = ensure_outfit_links_cache(data_dir)?;
+    let cache_path = imported_outfit_links_cache_path(data_dir)?;
     let conn = open_read_only(&cache_path)?;
     let mut stmt = conn
         .prepare("SELECT item_id, appearance_id FROM item_modified_appearance_map")
@@ -824,7 +813,7 @@ pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u
 }
 
 pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
-    let cache_path = ensure_outfit_links_cache(data_dir)?;
+    let cache_path = imported_outfit_links_cache_path(data_dir)?;
     let conn = open_read_only(&cache_path)?;
     let mut stmt = conn
         .prepare("SELECT appearance_id, display_info_id FROM item_appearance_map")
@@ -844,7 +833,7 @@ pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>,
 pub(crate) fn load_cached_display_resources(
     data_dir: &Path,
 ) -> Result<CachedDisplayResources, String> {
-    let cache_path = ensure_outfit_links_cache(data_dir)?;
+    let cache_path = imported_outfit_links_cache_path(data_dir)?;
     let conn = open_read_only(&cache_path)?;
 
     let mut display_info_stmt = conn
@@ -949,7 +938,8 @@ pub(crate) fn load_cached_display_resources(
 #[cfg(test)]
 mod tests {
     use super::{
-        load_cached_char_start_outfits, load_cached_display_resources, load_cached_item_appearance,
+        import_outfit_links_cache, import_zone_name_cache, load_cached_char_start_outfits,
+        load_cached_display_resources, load_cached_item_appearance,
         load_cached_item_modified_appearance, load_chr_race_prefixes, load_zone_name,
     };
     use std::path::Path;
@@ -962,6 +952,7 @@ mod tests {
 
     #[test]
     fn zone_name_loads_from_area_table_cache() {
+        import_zone_name_cache().expect("import zone name cache");
         assert_eq!(
             load_zone_name(12).expect("load zone name"),
             Some("Elwynn Forest".to_string())
@@ -971,6 +962,7 @@ mod tests {
     #[test]
     fn outfit_links_load_from_cache() {
         let data_dir = Path::new("data");
+        import_outfit_links_cache(data_dir).expect("import outfit links cache");
         let outfits = load_cached_char_start_outfits(data_dir).expect("load starter_outfits cache");
         let item_to_appearance = load_cached_item_modified_appearance(data_dir)
             .expect("load item_modified_appearance cache");
@@ -994,6 +986,7 @@ mod tests {
     #[test]
     fn display_resources_load_from_cache() {
         let data_dir = Path::new("data");
+        import_outfit_links_cache(data_dir).expect("import outfit links cache");
         let resources =
             load_cached_display_resources(data_dir).expect("load display resources cache");
         assert!(!resources.display_info.is_empty());

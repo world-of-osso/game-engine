@@ -673,6 +673,7 @@ mod tests {
 
     #[test]
     fn zone_id_to_name_known() {
+        game_engine::world_db::import_zone_name_cache().expect("import zone name cache");
         assert_eq!(zone_id_to_name(12), "Elwynn Forest");
         assert_eq!(zone_id_to_name(1519), "Stormwind City");
     }
