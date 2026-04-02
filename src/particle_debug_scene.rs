@@ -181,49 +181,69 @@ fn format_emitter_lines(
     vec![
         format!(""),
         format!("Emitter #{index}"),
-        format!(
-            "blend={} type={} particle={} head_tail={} bone={} tex={:?}",
-            emitter.blend_type,
-            emitter.emitter_type,
-            emitter.particle_type,
-            emitter.head_or_tail,
-            emitter.bone_index,
-            emitter.texture_fdid
-        ),
-        format!(
-            "life={:.3} +/- {:.3} rate={:.3} speed={:.3} +/- {:.3}",
-            emitter.lifespan,
-            emitter.lifespan_variation,
-            emitter.emission_rate,
-            emitter.emission_speed,
-            emitter.speed_variation
-        ),
-        format!(
-            "gravity={:.3} drag={:.3} area=({:.3}, {:.3}) tiles={}x{}",
-            emitter.gravity,
-            emitter.drag,
-            emitter.area_length,
-            emitter.area_width,
-            emitter.tile_rows,
-            emitter.tile_cols
-        ),
-        format!(
-            "opacity={:?} color_keys={} opacity_keys={} scale_keys={}",
-            emitter.opacity,
-            emitter.color_keys.len(),
-            emitter.opacity_keys.len(),
-            emitter.scale_keys.len()
-        ),
-        format!(
-            "burst={:.3} mid={:.3} twinkle=({:.3}, {:.3}, {:.3}, {:.3})",
-            emitter.burst_multiplier,
-            emitter.mid_point,
-            emitter.twinkle_speed,
-            emitter.twinkle_percent,
-            emitter.twinkle_scale_min,
-            emitter.twinkle_scale_max
-        ),
+        format_emitter_identity_line(emitter),
+        format_emitter_motion_line(emitter),
+        format_emitter_area_line(emitter),
+        format_emitter_key_counts_line(emitter),
+        format_emitter_twinkle_line(emitter),
     ]
+}
+
+fn format_emitter_identity_line(emitter: &asset::m2_particle::M2ParticleEmitter) -> String {
+    format!(
+        "blend={} type={} particle={} head_tail={} bone={} tex={:?}",
+        emitter.blend_type,
+        emitter.emitter_type,
+        emitter.particle_type,
+        emitter.head_or_tail,
+        emitter.bone_index,
+        emitter.texture_fdid
+    )
+}
+
+fn format_emitter_motion_line(emitter: &asset::m2_particle::M2ParticleEmitter) -> String {
+    format!(
+        "life={:.3} +/- {:.3} rate={:.3} speed={:.3} +/- {:.3}",
+        emitter.lifespan,
+        emitter.lifespan_variation,
+        emitter.emission_rate,
+        emitter.emission_speed,
+        emitter.speed_variation
+    )
+}
+
+fn format_emitter_area_line(emitter: &asset::m2_particle::M2ParticleEmitter) -> String {
+    format!(
+        "gravity={:.3} drag={:.3} area=({:.3}, {:.3}) tiles={}x{}",
+        emitter.gravity,
+        emitter.drag,
+        emitter.area_length,
+        emitter.area_width,
+        emitter.tile_rows,
+        emitter.tile_cols
+    )
+}
+
+fn format_emitter_key_counts_line(emitter: &asset::m2_particle::M2ParticleEmitter) -> String {
+    format!(
+        "opacity={:?} color_keys={} opacity_keys={} scale_keys={}",
+        emitter.opacity,
+        emitter.color_keys.len(),
+        emitter.opacity_keys.len(),
+        emitter.scale_keys.len()
+    )
+}
+
+fn format_emitter_twinkle_line(emitter: &asset::m2_particle::M2ParticleEmitter) -> String {
+    format!(
+        "burst={:.3} mid={:.3} twinkle=({:.3}, {:.3}, {:.3}, {:.3})",
+        emitter.burst_multiplier,
+        emitter.mid_point,
+        emitter.twinkle_speed,
+        emitter.twinkle_percent,
+        emitter.twinkle_scale_min,
+        emitter.twinkle_scale_max
+    )
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<ParticleDebugScene>>) {
