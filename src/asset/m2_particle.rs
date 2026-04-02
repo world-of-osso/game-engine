@@ -33,6 +33,8 @@ pub struct M2ParticleEmitter {
     pub drag: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
+    /// Full FakeAnimBlock color keys as (normalized time, RGB 0–255).
+    pub color_keys: Vec<(f32, [f32; 3])>,
     /// Opacity over lifetime: start, mid, end (0–1).
     pub opacity: [f32; 3],
     /// Full FakeAnimBlock opacity keys as (normalized time, opacity 0–1).
@@ -150,6 +152,23 @@ fn read_color_values(md20: &[u8], emitter: &[u8], off: usize) -> [[f32; 3]; 3] {
     colors
 }
 
+fn read_color_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, [f32; 3])> {
+    let timestamps = read_normalized_timestamps(md20, emitter, off);
+    let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
+    let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
+    let mut keys = Vec::with_capacity(count.min(timestamps.len()));
+    for (i, time) in timestamps.into_iter().enumerate().take(count) {
+        let o = base + i * 12;
+        let color = [
+            read_f32(md20, o).unwrap_or(0.0),
+            read_f32(md20, o + 4).unwrap_or(0.0),
+            read_f32(md20, o + 8).unwrap_or(0.0),
+        ];
+        keys.push((time, color));
+    }
+    keys
+}
+
 /// Read FakeAnimBlock opacity values (3 × signed Fixed16, clamped to 0–1).
 fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
     let mut opacities = [1.0f32; 3];
@@ -261,6 +280,7 @@ fn build_emitter_header(
         area_width: 0.0,
         drag: 0.0,
         colors,
+        color_keys: Vec::new(),
         opacity,
         opacity_keys: Vec::new(),
         scales,
@@ -289,6 +309,7 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
 fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.mid_point = read_midpoint(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
     em.colors = read_color_values(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
+    em.color_keys = read_color_keys(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
     em.opacity = read_opacity_values(md20, data, EMITTER_VISUAL_OPACITY_OFFSET);
     em.opacity_keys = read_opacity_keys(md20, data, EMITTER_VISUAL_OPACITY_OFFSET);
     em.scales = read_scale_values(md20, data, EMITTER_VISUAL_SCALE_OFFSET);
@@ -392,6 +413,43 @@ mod tests {
 
         assert_eq!(opacities[0], 0.0);
         assert!((opacities[1] - (16384.0 / 32767.0)).abs() < 0.0001);
+    }
+
+    #[test]
+    fn color_keys_preserve_full_fake_animblock_timeline() {
+        let mut md20 = vec![0u8; 96];
+        let mut emitter = vec![0u8; 16];
+
+        emitter[0..4].copy_from_slice(&(4u32).to_le_bytes());
+        emitter[4..8].copy_from_slice(&(32u32).to_le_bytes());
+        emitter[8..12].copy_from_slice(&(4u32).to_le_bytes());
+        emitter[12..16].copy_from_slice(&(40u32).to_le_bytes());
+
+        for (idx, time) in [0u16, 8192, 16384, 32767].into_iter().enumerate() {
+            md20[32 + idx * 2..34 + idx * 2].copy_from_slice(&time.to_le_bytes());
+        }
+        let colors = [
+            [1.0f32, 2.0, 3.0],
+            [4.0f32, 5.0, 6.0],
+            [7.0f32, 8.0, 9.0],
+            [10.0f32, 11.0, 12.0],
+        ];
+        for (idx, color) in colors.into_iter().enumerate() {
+            let base = 40 + idx * 12;
+            md20[base..base + 4].copy_from_slice(&color[0].to_le_bytes());
+            md20[base + 4..base + 8].copy_from_slice(&color[1].to_le_bytes());
+            md20[base + 8..base + 12].copy_from_slice(&color[2].to_le_bytes());
+        }
+
+        let keys = read_color_keys(&md20, &emitter, 0);
+
+        assert_eq!(keys.len(), 4);
+        assert_eq!(keys[0], (0.0, [1.0, 2.0, 3.0]));
+        assert!((keys[1].0 - (8192.0 / 32767.0)).abs() < 0.0001);
+        assert_eq!(keys[1].1, [4.0, 5.0, 6.0]);
+        assert!((keys[2].0 - (16384.0 / 32767.0)).abs() < 0.0001);
+        assert_eq!(keys[2].1, [7.0, 8.0, 9.0]);
+        assert_eq!(keys[3], (1.0, [10.0, 11.0, 12.0]));
     }
 
     #[test]

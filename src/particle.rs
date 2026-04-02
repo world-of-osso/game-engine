@@ -402,8 +402,8 @@ fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::A
 }
 
 fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
-    if em.opacity_keys.len() >= 2 {
-        return build_fake_animblock_opacity_gradient(em);
+    if em.color_keys.len() >= 2 || em.opacity_keys.len() >= 2 {
+        return build_fake_animblock_gradient(em);
     }
     build_simple_color_gradient(em)
 }
@@ -428,16 +428,36 @@ fn build_simple_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<
     g
 }
 
-fn build_fake_animblock_opacity_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
+fn build_fake_animblock_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
     let mut g = bevy_hanabi::Gradient::new();
-    for &(time, opacity) in &em.opacity_keys {
+    for time in fake_animblock_gradient_times(em) {
         let color = sample_fake_animblock_color(em, time);
+        let opacity = sample_fake_animblock_opacity(em, time);
         g.add_key(time, Vec4::new(color.x, color.y, color.z, opacity));
     }
     g
 }
 
+fn fake_animblock_gradient_times(em: &M2ParticleEmitter) -> Vec<f32> {
+    let mut times: Vec<f32> = em
+        .color_keys
+        .iter()
+        .map(|&(time, _)| time)
+        .chain(em.opacity_keys.iter().map(|&(time, _)| time))
+        .collect();
+    times.sort_by(|a, b| a.total_cmp(b));
+    times.dedup_by(|a, b| (*a - *b).abs() < 0.0001);
+    if times.is_empty() {
+        vec![0.0, em.mid_point.clamp(0.01, 0.99), 1.0]
+    } else {
+        times
+    }
+}
+
 fn sample_fake_animblock_color(em: &M2ParticleEmitter, time: f32) -> Vec3 {
+    if em.color_keys.len() >= 2 {
+        return sample_keyed_color(&em.color_keys, time);
+    }
     let t = time.clamp(0.0, 1.0);
     let mid = em.mid_point.clamp(0.01, 0.99);
     let c0 = Vec3::new(
@@ -460,6 +480,55 @@ fn sample_fake_animblock_color(em: &M2ParticleEmitter, time: f32) -> Vec3 {
     } else {
         c1.lerp(c2, ((t - mid) / (1.0 - mid)).clamp(0.0, 1.0))
     }
+}
+
+fn sample_keyed_color(keys: &[(f32, [f32; 3])], time: f32) -> Vec3 {
+    let t = time.clamp(0.0, 1.0);
+    if t <= keys[0].0 {
+        return vec3_from_rgb255(keys[0].1);
+    }
+    for window in keys.windows(2) {
+        let [(start_t, start_c), (end_t, end_c)] = [window[0], window[1]];
+        if t <= end_t {
+            let span = (end_t - start_t).max(0.0001);
+            let factor = ((t - start_t) / span).clamp(0.0, 1.0);
+            return vec3_from_rgb255(start_c).lerp(vec3_from_rgb255(end_c), factor);
+        }
+    }
+    vec3_from_rgb255(keys[keys.len() - 1].1)
+}
+
+fn sample_fake_animblock_opacity(em: &M2ParticleEmitter, time: f32) -> f32 {
+    if em.opacity_keys.len() >= 2 {
+        return sample_keyed_opacity(&em.opacity_keys, time);
+    }
+    let t = time.clamp(0.0, 1.0);
+    let mid = em.mid_point.clamp(0.01, 0.99);
+    if t < mid {
+        em.opacity[0] + (em.opacity[1] - em.opacity[0]) * (t / mid).clamp(0.0, 1.0)
+    } else {
+        em.opacity[1] + (em.opacity[2] - em.opacity[1]) * ((t - mid) / (1.0 - mid)).clamp(0.0, 1.0)
+    }
+}
+
+fn sample_keyed_opacity(keys: &[(f32, f32)], time: f32) -> f32 {
+    let t = time.clamp(0.0, 1.0);
+    if t <= keys[0].0 {
+        return keys[0].1;
+    }
+    for window in keys.windows(2) {
+        let [(start_t, start_o), (end_t, end_o)] = [window[0], window[1]];
+        if t <= end_t {
+            let span = (end_t - start_t).max(0.0001);
+            let factor = ((t - start_t) / span).clamp(0.0, 1.0);
+            return start_o + (end_o - start_o) * factor;
+        }
+    }
+    keys[keys.len() - 1].1
+}
+
+fn vec3_from_rgb255(color: [f32; 3]) -> Vec3 {
+    Vec3::new(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0)
 }
 
 fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi::Gradient<Vec3> {
@@ -529,6 +598,7 @@ mod tests {
             area_width: 0.1,
             drag: 0.0,
             colors: [[255.0, 128.0, 64.0]; 3],
+            color_keys: Vec::new(),
             opacity: [1.0, 1.0, 0.0],
             opacity_keys: Vec::new(),
             scales: [[0.1, 0.1], [0.2, 0.2], [0.05, 0.05]],
@@ -653,7 +723,32 @@ mod tests {
         assert!((keys[2].value.z - 0.5).abs() < 0.0001);
         assert_eq!(keys[2].value.w, 0.8);
         assert_eq!(keys[3].ratio(), 1.0);
-        assert_eq!(keys[3].value.w, 0.2);
+        assert!((keys[3].value.w - 0.2).abs() < 0.0001);
+    }
+
+    #[test]
+    fn color_gradient_merges_color_and_opacity_key_times() {
+        let mut emitter = sample_emitter();
+        emitter.color_keys = vec![
+            (0.0, [255.0, 0.0, 0.0]),
+            (0.5, [0.0, 255.0, 0.0]),
+            (1.0, [0.0, 0.0, 255.0]),
+        ];
+        emitter.opacity_keys = vec![(0.0, 0.2), (0.25, 0.4), (1.0, 0.8)];
+
+        let gradient = build_color_gradient(&emitter);
+        let keys = gradient.keys();
+
+        assert_eq!(keys.len(), 4);
+        assert_eq!(keys[0].ratio(), 0.0);
+        assert!((keys[1].ratio() - 0.25).abs() < 0.0001);
+        assert!((keys[2].ratio() - 0.5).abs() < 0.0001);
+        assert_eq!(keys[3].ratio(), 1.0);
+        assert!((keys[1].value.x - 0.5).abs() < 0.0001);
+        assert!((keys[1].value.y - 0.5).abs() < 0.0001);
+        assert_eq!(keys[1].value.w, 0.4);
+        assert_eq!(keys[2].value.y, 1.0);
+        assert!((keys[2].value.w - 0.53333336).abs() < 0.0001);
     }
 
     #[test]
