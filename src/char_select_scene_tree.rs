@@ -190,6 +190,18 @@ pub fn wmo_scene_node(entity: Entity, model: String) -> SceneNode {
     }
 }
 
+pub fn skybox_scene_node(entity: Entity, model: String) -> SceneNode {
+    SceneNode {
+        label: "Skybox".into(),
+        entity: Some(entity),
+        props: NodeProps::Object {
+            kind: "Skybox".into(),
+            model,
+        },
+        children: vec![],
+    }
+}
+
 pub fn character_scene_node(
     entity: Entity,
     model: String,
@@ -276,5 +288,27 @@ pub fn build_scene_tree(children: Vec<SceneNode>) -> SceneTree {
             props: NodeProps::Scene,
             children,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skybox_scene_node_uses_skybox_object_kind() {
+        let entity = Entity::from_raw_u32(42).expect("valid entity id");
+        let node = skybox_scene_node(entity, "data/models/sky.m2".into());
+
+        assert_eq!(node.label, "Skybox");
+        assert_eq!(node.entity, Some(entity));
+        assert_eq!(
+            node.props,
+            NodeProps::Object {
+                kind: "Skybox".into(),
+                model: "data/models/sky.m2".into(),
+            }
+        );
+        assert!(node.children.is_empty());
     }
 }

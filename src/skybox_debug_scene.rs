@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
 use crate::creature_display;
 use crate::game_state::GameState;
@@ -126,12 +127,42 @@ fn setup_scene(
         );
         return;
     };
+    info!(
+        "skybox_debug_scene: resolved scene {} ({}) to skybox {}",
+        scene.id,
+        scene.name,
+        path.display()
+    );
     commands.entity(spawned.root).insert((
         SkyboxDebugScene,
         SkyboxDebugSkybox,
         Name::new(format!("SkyboxDebug:{}", path.display())),
     ));
     commands.entity(spawned.model_root).insert(SkyboxDebugScene);
+    commands.insert_resource(SceneTree {
+        root: SceneNode {
+            label: "SkyboxDebugScene".into(),
+            entity: None,
+            props: NodeProps::Scene,
+            children: vec![
+                SceneNode {
+                    label: "Camera".into(),
+                    entity: None,
+                    props: NodeProps::Camera { fov: 60.0 },
+                    children: vec![],
+                },
+                SceneNode {
+                    label: "Skybox".into(),
+                    entity: Some(spawned.root),
+                    props: NodeProps::Object {
+                        kind: "Skybox".into(),
+                        model: path.display().to_string(),
+                    },
+                    children: vec![],
+                },
+            ],
+        },
+    });
 }
 
 fn sync_skybox_to_camera(
@@ -147,6 +178,7 @@ fn sync_skybox_to_camera(
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<SkyboxDebugScene>>) {
+    commands.remove_resource::<SceneTree>();
     for entity in &query {
         commands.entity(entity).despawn();
     }

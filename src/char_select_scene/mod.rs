@@ -470,7 +470,7 @@ fn setup_char_select_scene(
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
     let background_start = Instant::now();
-    let bg_node = background::spawn(
+    let mut bg_node = background::spawn(
         &mut commands,
         &mut assets.meshes,
         &mut assets.materials,
@@ -498,7 +498,7 @@ fn setup_char_select_scene(
     let camera_elapsed = camera_start.elapsed();
     let sky_light_start = Instant::now();
     let camera_translation = camera_params(scene_entry, placement.as_ref(), presentation).0;
-    background::spawn_skybox(
+    let skybox_entity = background::spawn_skybox(
         &mut commands,
         &mut assets.meshes,
         &mut assets.materials,
@@ -510,6 +510,14 @@ fn setup_char_select_scene(
         scene_entry,
         camera_translation,
     );
+    if let Some((entity, path)) =
+        skybox_entity.zip(scene_entry.and_then(crate::warband_scene::ensure_warband_skybox))
+    {
+        bg_node.children.push(scene_tree::skybox_scene_node(
+            entity,
+            path.display().to_string(),
+        ));
+    }
     let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
     let sky_light_elapsed = sky_light_start.elapsed();
     let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);

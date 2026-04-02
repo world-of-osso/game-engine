@@ -577,3 +577,42 @@ fn format_model_assets(
     }
     parts.concat()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_scene_snapshot_formats_skybox_object_path() {
+        let snapshot = SceneSnapshot {
+            root: SceneSnapshotNode {
+                label: "SkyboxDebugScene".into(),
+                transform: None,
+                props: NodeProps::Scene,
+                children: vec![SceneSnapshotNode {
+                    label: "Skybox".into(),
+                    transform: Some(SceneNodeTransform {
+                        translation: [0.0, 2.1, 7.4],
+                        rotation: [0.0, 0.0, 0.0, 1.0],
+                        scale: [1.0, 1.0, 1.0],
+                    }),
+                    props: NodeProps::Object {
+                        kind: "Skybox".into(),
+                        model: "data/models/skyboxes/costalislandskybox.m2".into(),
+                    },
+                    children: vec![],
+                }],
+            },
+        };
+
+        let formatted = build_scene_snapshot(&snapshot);
+
+        assert!(formatted.contains("SkyboxDebugScene"));
+        assert!(
+            formatted.contains(
+                "Skybox Skybox \"data/models/skyboxes/costalislandskybox.m2\" @ (0.0, 2.1, 7.4)"
+            ),
+            "formatted snapshot missing skybox line: {formatted}"
+        );
+    }
+}
