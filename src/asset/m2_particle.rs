@@ -7,7 +7,6 @@
 
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct M2ParticleEmitter {
     pub flags: u32,
     /// Position in WoW coordinates (relative to bone).
@@ -63,17 +62,26 @@ const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
 const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
 const EMITTER_CATA_SIZE: usize = 0x178;
 
-type VisualDefaults = (
-    [[f32; 3]; 3],
-    [f32; 3],
-    [[f32; 2]; 3],
-    [u16; 3],
-    [u16; 3],
-    f32,
-    f32,
-);
+struct VisualDefaults {
+    colors: [[f32; 3]; 3],
+    opacity: [f32; 3],
+    scales: [[f32; 2]; 3],
+    head_cell_track: [u16; 3],
+    tail_cell_track: [u16; 3],
+    burst_multiplier: f32,
+    mid_point: f32,
+}
 
-type EmitterHeaderCore = (u32, [f32; 3], u16, u16, u8, u8, u16, u16);
+struct EmitterHeaderCore {
+    flags: u32,
+    position: [f32; 3],
+    bone_index: u16,
+    texture_index: u16,
+    blend_type: u8,
+    emitter_type: u8,
+    tile_rows: u16,
+    tile_cols: u16,
+}
 
 fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
     let bytes: [u8; 2] = data
@@ -109,15 +117,15 @@ fn read_normalized_timestamps(md20: &[u8], emitter: &[u8], off: usize) -> Vec<f3
 }
 
 fn default_visual_values() -> VisualDefaults {
-    (
-        [[0.0; 3]; 3],
-        [1.0; 3],
-        [[1.0; 2]; 3],
-        [0; 3],
-        [0; 3],
-        1.0,
-        0.5,
-    )
+    VisualDefaults {
+        colors: [[0.0; 3]; 3],
+        opacity: [1.0; 3],
+        scales: [[1.0; 2]; 3],
+        head_cell_track: [0; 3],
+        tail_cell_track: [0; 3],
+        burst_multiplier: 1.0,
+        mid_point: 0.5,
+    }
 }
 
 /// Read the first float from a static M2Track (Cata+ indirect M2Arrays).
@@ -155,20 +163,13 @@ fn read_color_values(md20: &[u8], emitter: &[u8], off: usize) -> [[f32; 3]; 3] {
 }
 
 fn read_color_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, [f32; 3])> {
-    let timestamps = read_normalized_timestamps(md20, emitter, off);
-    let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
-    let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
-    let mut keys = Vec::with_capacity(count.min(timestamps.len()));
-    for (i, time) in timestamps.into_iter().enumerate().take(count) {
-        let o = base + i * 12;
-        let color = [
-            read_f32(md20, o).unwrap_or(0.0),
-            read_f32(md20, o + 4).unwrap_or(0.0),
-            read_f32(md20, o + 8).unwrap_or(0.0),
-        ];
-        keys.push((time, color));
-    }
-    keys
+    read_fake_animblock_keys(md20, emitter, off, 12, |md20, value_offset| {
+        [
+            read_f32(md20, value_offset).unwrap_or(0.0),
+            read_f32(md20, value_offset + 4).unwrap_or(0.0),
+            read_f32(md20, value_offset + 8).unwrap_or(0.0),
+        ]
+    })
 }
 
 /// Read FakeAnimBlock opacity values (3 × signed Fixed16, clamped to 0–1).
@@ -185,17 +186,11 @@ fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
 }
 
 fn read_opacity_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, f32)> {
-    let timestamps = read_normalized_timestamps(md20, emitter, off);
-    let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
-    let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
-    let mut keys = Vec::with_capacity(count.min(timestamps.len()));
-    for (i, time) in timestamps.into_iter().enumerate().take(count) {
-        let opacity = read_i16(md20, base + i * 2)
+    read_fake_animblock_keys(md20, emitter, off, 2, |md20, value_offset| {
+        read_i16(md20, value_offset)
             .map(|v| (v as f32 / 32767.0).clamp(0.0, 1.0))
-            .unwrap_or(1.0);
-        keys.push((time, opacity));
-    }
-    keys
+            .unwrap_or(1.0)
+    })
 }
 
 /// Read FakeAnimBlock scale values (3 × [f32; 2]).
@@ -214,17 +209,29 @@ fn read_scale_values(md20: &[u8], emitter: &[u8], off: usize) -> [[f32; 2]; 3] {
 }
 
 fn read_scale_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, [f32; 2])> {
+    read_fake_animblock_keys(md20, emitter, off, 8, |md20, value_offset| {
+        [
+            read_f32(md20, value_offset).unwrap_or(1.0),
+            read_f32(md20, value_offset + 4).unwrap_or(1.0),
+        ]
+    })
+}
+
+fn read_fake_animblock_keys<T>(
+    md20: &[u8],
+    emitter: &[u8],
+    off: usize,
+    value_stride: usize,
+    read_value: impl Fn(&[u8], usize) -> T,
+) -> Vec<(f32, T)> {
     let timestamps = read_normalized_timestamps(md20, emitter, off);
     let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
     let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
-    let mut keys = Vec::with_capacity(count.min(timestamps.len()));
-    for (i, time) in timestamps.into_iter().enumerate().take(count) {
-        let o = base + i * 8;
-        let scale = [
-            read_f32(md20, o).unwrap_or(1.0),
-            read_f32(md20, o + 4).unwrap_or(1.0),
-        ];
-        keys.push((time, scale));
+    let key_count = count.min(timestamps.len());
+    let mut keys = Vec::with_capacity(key_count);
+    for (i, time) in timestamps.into_iter().enumerate().take(key_count) {
+        let value_offset = base + i * value_stride;
+        keys.push((time, read_value(md20, value_offset)));
     }
     keys
 }
@@ -247,46 +254,34 @@ fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
 }
 
 fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
-    Ok((
-        read_u32(em, 0x04)?,
-        [
+    Ok(EmitterHeaderCore {
+        flags: read_u32(em, 0x04)?,
+        position: [
             read_f32(em, 0x08)?,
             read_f32(em, 0x0C)?,
             read_f32(em, 0x10)?,
         ],
-        read_u16(em, 0x14)?,
-        read_u16(em, 0x16)? & 0x1F,
-        em[0x28],
-        em[0x29],
-        read_u16(em, 0x30)?,
-        read_u16(em, 0x32)?,
-    ))
+        bone_index: read_u16(em, 0x14)?,
+        texture_index: read_u16(em, 0x16)? & 0x1F,
+        blend_type: em[0x28],
+        emitter_type: em[0x29],
+        tile_rows: read_u16(em, 0x30)?,
+        tile_cols: read_u16(em, 0x32)?,
+    })
 }
 
-fn build_emitter_header(
-    (flags, position, bone_index, texture_index, blend_type, emitter_type, tile_rows, tile_cols): (
-        u32,
-        [f32; 3],
-        u16,
-        u16,
-        u8,
-        u8,
-        u16,
-        u16,
-    ),
-) -> M2ParticleEmitter {
-    let (colors, opacity, scales, head_cell_track, tail_cell_track, burst_multiplier, mid_point) =
-        default_visual_values();
+fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
+    let visuals = default_visual_values();
     M2ParticleEmitter {
-        flags,
-        position,
-        bone_index,
-        texture_index,
+        flags: header.flags,
+        position: header.position,
+        bone_index: header.bone_index,
+        texture_index: header.texture_index,
         texture_fdid: None,
-        blend_type,
-        emitter_type,
-        tile_rows,
-        tile_cols,
+        blend_type: header.blend_type,
+        emitter_type: header.emitter_type,
+        tile_rows: header.tile_rows,
+        tile_cols: header.tile_cols,
         emission_speed: 0.0,
         speed_variation: 0.0,
         vertical_range: 0.0,
@@ -297,16 +292,16 @@ fn build_emitter_header(
         area_length: 0.0,
         area_width: 0.0,
         drag: 0.0,
-        colors,
+        colors: visuals.colors,
         color_keys: Vec::new(),
-        opacity,
+        opacity: visuals.opacity,
         opacity_keys: Vec::new(),
-        scales,
+        scales: visuals.scales,
         scale_keys: Vec::new(),
-        head_cell_track,
-        tail_cell_track,
-        burst_multiplier,
-        mid_point,
+        head_cell_track: visuals.head_cell_track,
+        tail_cell_track: visuals.tail_cell_track,
+        burst_multiplier: visuals.burst_multiplier,
+        mid_point: visuals.mid_point,
     }
 }
 

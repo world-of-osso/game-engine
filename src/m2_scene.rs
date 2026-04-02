@@ -52,8 +52,6 @@ pub fn attach_equipment_to_model(
 #[allow(clippy::too_many_arguments)]
 fn spawn_anim_and_particles(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     bones: &[M2Bone],
     sequences: Vec<M2AnimSequence>,
@@ -70,8 +68,6 @@ fn spawn_anim_and_particles(
         attach_bone_pivots_and_player(commands, bones, &sequences, skinning, model_entity);
     spawn_particle_emitters(
         commands,
-        meshes,
-        materials,
         images,
         &particle_emitters,
         bones,
@@ -98,8 +94,6 @@ fn spawn_anim_and_particles(
 
 fn spawn_particle_emitters(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     particle_emitters: &[M2ParticleEmitter],
     bones: &[M2Bone],
@@ -112,8 +106,6 @@ fn spawn_particle_emitters(
     let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
     particle::spawn_emitters(
         commands,
-        meshes,
-        materials,
         images,
         particle_emitters,
         bones,
@@ -255,8 +247,6 @@ fn attach_m2_model_parts(
     );
     spawn_anim_and_particles(
         commands,
-        meshes,
-        materials,
         images,
         &bones,
         sequences,

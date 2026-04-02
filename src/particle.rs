@@ -62,16 +62,14 @@ fn register_pending_particle_effects(
 /// Spawn emitter entities for an M2 model's particle emitters.
 pub fn spawn_emitters(
     commands: &mut Commands,
-    _meshes: &mut Assets<Mesh>,
-    _materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
-    _bones: &[M2Bone],
+    bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
     for em in emitters {
-        spawn_single_emitter(commands, images, em, _bones, bone_entities, parent);
+        spawn_single_emitter(commands, images, em, bones, bone_entities, parent);
     }
 }
 
@@ -212,26 +210,6 @@ fn build_cell_track_sprite_index(
         .mix(second, age_ratio.ge(mid).cast(ScalarType::Float))
         .clamp(zero, writer.lit((total_cells - 1).max(0) as f32));
     cell.cast(ScalarType::Int)
-}
-
-fn sample_cell_track_frame(
-    track: [u16; 3],
-    mid_point: f32,
-    age_ratio: f32,
-    total_cells: u32,
-) -> u32 {
-    let mid = mid_point.clamp(0.01, 0.99);
-    let t = age_ratio.clamp(0.0, 1.0);
-    let frame = if t < mid {
-        let segment_t = (t / mid).clamp(0.0, 1.0);
-        (track[0] as f32) + ((track[1] as f32) - (track[0] as f32)) * segment_t
-    } else {
-        let segment_t = ((t - mid) / (1.0 - mid)).clamp(0.0, 1.0);
-        (track[1] as f32) + ((track[2] as f32) - (track[1] as f32)) * segment_t
-    };
-    frame
-        .floor()
-        .clamp(0.0, total_cells.saturating_sub(1) as f32) as u32
 }
 
 fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {

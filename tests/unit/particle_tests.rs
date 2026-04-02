@@ -4,7 +4,7 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::{
     active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, is_fire_effect, sample_cell_track_frame,
+    emitter_translation, is_fire_effect,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -51,6 +51,26 @@ fn sample_bone(pivot: [f32; 3]) -> M2Bone {
         submesh_id: 0,
         pivot,
     }
+}
+
+fn sample_cell_track_frame(
+    track: [u16; 3],
+    mid_point: f32,
+    age_ratio: f32,
+    total_cells: u32,
+) -> u32 {
+    let mid = mid_point.clamp(0.01, 0.99);
+    let t = age_ratio.clamp(0.0, 1.0);
+    let frame = if t < mid {
+        let segment_t = (t / mid).clamp(0.0, 1.0);
+        (track[0] as f32) + ((track[1] as f32) - (track[0] as f32)) * segment_t
+    } else {
+        let segment_t = ((t - mid) / (1.0 - mid)).clamp(0.0, 1.0);
+        (track[1] as f32) + ((track[2] as f32) - (track[1] as f32)) * segment_t
+    };
+    frame
+        .floor()
+        .clamp(0.0, total_cells.saturating_sub(1) as f32) as u32
 }
 
 #[test]
