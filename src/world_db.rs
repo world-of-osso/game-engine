@@ -7,6 +7,9 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::outfit_data::{DisplayInfoResolved, DisplayMaterialTextures};
 
+#[path = "world_db_zone_names.rs"]
+mod zone_name_cache;
+
 type OutfitKey = (u8, u8, u8);
 type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 
@@ -149,92 +152,11 @@ pub(crate) fn load_chr_race_prefixes() -> Result<HashMap<u8, String>, String> {
 }
 
 pub fn import_zone_name_cache() -> Result<PathBuf, String> {
-    let cache_path = zone_names_cache_path();
-    let csv_path = area_table_csv_path();
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("create {}: {err}", parent.display()))?;
-    }
-    let _ = std::fs::remove_file(&cache_path);
-    let conn = Connection::open(&cache_path)
-        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    conn.execute_batch(
-        "BEGIN;
-         DROP TABLE IF EXISTS area_names;
-         CREATE TABLE area_names (
-             id INTEGER PRIMARY KEY,
-             name TEXT NOT NULL
-         );",
-    )
-    .map_err(|err| format!("init area_names cache: {err}"))?;
-
-    let mut reader = open_reader(&csv_path)?;
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", csv_path.display()))?;
-    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    let id_col = header_index(&headers, "ID", &csv_path)?;
-    let name_col = header_index(&headers, "AreaName_lang", &csv_path)?;
-    let mut insert = conn
-        .prepare("INSERT OR REPLACE INTO area_names (id, name) VALUES (?1, ?2)")
-        .map_err(|err| format!("prepare area_names insert: {err}"))?;
-
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", csv_path.display()))?
-            == 0
-        {
-            break;
-        }
-        let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let Some(id) = fields
-            .get(id_col)
-            .and_then(|value| value.parse::<u32>().ok())
-        else {
-            continue;
-        };
-        let Some(name) = fields.get(name_col).map(String::as_str) else {
-            continue;
-        };
-        if id == 0 || name.is_empty() {
-            continue;
-        }
-        insert
-            .execute((id, name))
-            .map_err(|err| format!("insert area_names row {id}: {err}"))?;
-    }
-
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit area_names cache: {err}"))?;
-    Ok(cache_path)
+    zone_name_cache::import_zone_name_cache()
 }
 
 pub fn load_zone_name(id: u32) -> Result<Option<String>, String> {
-    fn query(cache_path: &Path, id: u32) -> Result<Option<String>, rusqlite::Error> {
-        let conn = Connection::open_with_flags(
-            cache_path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
-        let mut stmt = conn.prepare("SELECT name FROM area_names WHERE id = ?1 LIMIT 1")?;
-        match stmt.query_row([id], |row| row.get::<_, String>(0)) {
-            Ok(name) => Ok(Some(name)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(err) => Err(err),
-        }
-    }
-
-    let cache_path = zone_names_cache_path();
-    if !cache_path.exists() {
-        return Err(format!(
-            "{} missing; run `cargo run --bin zone_name_cache_import` to build it",
-            cache_path.display()
-        ));
-    }
-    query(&cache_path, id).map_err(|err| format!("query area_names {id}: {err}"))
+    zone_name_cache::load_zone_name(id)
 }
 
 fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
