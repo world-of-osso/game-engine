@@ -1,8 +1,6 @@
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
-use bevy::render::render_resource::{
-    AsBindGroup, CompareFunction, RenderPipelineDescriptor, ShaderType,
-};
+use bevy::render::render_resource::{AsBindGroup, RenderPipelineDescriptor, ShaderType};
 use bevy::shader::ShaderRef;
 
 use crate::m2_effect_material::alpha_mode_for_blend;
@@ -55,7 +53,6 @@ fn configure_skybox_pipeline(descriptor: &mut RenderPipelineDescriptor) {
     descriptor.primitive.cull_mode = None;
     if let Some(ds) = descriptor.depth_stencil.as_mut() {
         ds.depth_write_enabled = false;
-        ds.depth_compare = CompareFunction::Always;
     }
 }
 
@@ -117,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn configure_skybox_pipeline_disables_culling_and_depth_writes() {
+    fn configure_skybox_pipeline_disables_culling_and_preserves_depth_compare() {
         let mut descriptor = bevy::render::render_resource::RenderPipelineDescriptor {
             vertex: VertexState::default(),
             primitive: PrimitiveState {
@@ -153,7 +150,7 @@ mod tests {
         assert_eq!(descriptor.primitive.cull_mode, None);
         let depth = descriptor.depth_stencil.unwrap();
         assert!(!depth.depth_write_enabled);
-        assert_eq!(depth.depth_compare, CompareFunction::Always);
+        assert_eq!(depth.depth_compare, CompareFunction::LessEqual);
     }
 
     #[test]
