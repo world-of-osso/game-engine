@@ -8,6 +8,9 @@ use crate::asset::asset_cache;
 use crate::asset::m2::wow_to_bevy;
 use crate::terrain_tile::TILE_SIZE;
 
+#[path = "warband_scene_cache.rs"]
+mod cache;
+
 /// A single warband scene entry (parsed from WarbandScene.csv).
 #[derive(Debug, Clone)]
 pub struct WarbandSceneEntry {
@@ -61,10 +64,22 @@ pub struct WarbandScenes {
 
 impl WarbandScenes {
     pub fn load() -> Self {
-        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
-        let placements = load_placements(Path::new("data/WarbandScenePlacement.csv"));
-        let placement_options =
-            load_placement_options(Path::new("data/WarbandScenePlacementOption.csv"));
+        let (scenes, placements, placement_options) = match cache::load_cached_warband_scenes(
+            Path::new("data/WarbandScene.csv"),
+            Path::new("data/WarbandScenePlacement.csv"),
+            Path::new("data/WarbandScenePlacementOption.csv"),
+        ) {
+            Ok(data) => data,
+            Err(err) => {
+                eprintln!("Failed to load warband scene cache: {err}");
+                cache::load_warband_scenes_uncached(
+                    Path::new("data/WarbandScene.csv"),
+                    Path::new("data/WarbandScenePlacement.csv"),
+                    Path::new("data/WarbandScenePlacementOption.csv"),
+                )
+                .unwrap_or_default()
+            }
+        };
         Self {
             scenes,
             placements,
@@ -267,25 +282,6 @@ fn ensure_adt_tile(map_name: &str, tile_y: u32, tile_x: u32) -> Option<PathBuf> 
     Some(local)
 }
 
-fn load_scenes(path: &Path) -> Vec<WarbandSceneEntry> {
-    let Ok(data) = std::fs::read_to_string(path) else {
-        eprintln!("WarbandScene.csv not found at {}", path.display());
-        return Vec::new();
-    };
-    let mut scenes = Vec::new();
-    for line in data.lines().skip(1) {
-        if let Some(entry) = parse_scene_line(line) {
-            // Filter out test entries: Flags field has bit 1 or 2 set (values 1,3,7),
-            // or ID >= 99.
-            if entry.id >= 99 {
-                continue;
-            }
-            scenes.push(entry);
-        }
-    }
-    scenes
-}
-
 fn parse_scene_line(line: &str) -> Option<WarbandSceneEntry> {
     // CSV with quoted strings: Name_lang,Description_lang,Position_0..2,LookAt_0..2,ID,MapID,Fov,...,Flags,...
     let fields = parse_csv_fields(line);
@@ -317,20 +313,6 @@ fn parse_scene_line(line: &str) -> Option<WarbandSceneEntry> {
     })
 }
 
-fn load_placements(path: &Path) -> Vec<WarbandScenePlacement> {
-    let Ok(data) = std::fs::read_to_string(path) else {
-        eprintln!("WarbandScenePlacement.csv not found at {}", path.display());
-        return Vec::new();
-    };
-    let mut placements = Vec::new();
-    for line in data.lines().skip(1) {
-        if let Some(entry) = parse_placement_line(line) {
-            placements.push(entry);
-        }
-    }
-    placements
-}
-
 fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> {
     // Position_0,Position_1,Position_2,ID,WarbandSceneID,SlotType,Rotation,Scale,...,SlotID,...
     let fields: Vec<&str> = line.split(',').collect();
@@ -349,20 +331,6 @@ fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> {
         rotation: fields[6].parse().ok()?,
         slot_id: fields[11].parse().ok()?,
     })
-}
-
-fn load_placement_options(path: &Path) -> Vec<WarbandScenePlacementOption> {
-    let Ok(data) = std::fs::read_to_string(path) else {
-        eprintln!(
-            "WarbandScenePlacementOption.csv not found at {}",
-            path.display()
-        );
-        return Vec::new();
-    };
-    data.lines()
-        .skip(1)
-        .filter_map(parse_placement_option_line)
-        .collect()
 }
 
 fn parse_placement_option_line(line: &str) -> Option<WarbandScenePlacementOption> {
@@ -399,6 +367,36 @@ fn parse_csv_fields(line: &str) -> Vec<String> {
     }
     fields.push(current);
     fields
+}
+
+fn load_scenes(path: &Path) -> Vec<WarbandSceneEntry> {
+    cache::load_warband_scenes_uncached(
+        path,
+        Path::new("data/WarbandScenePlacement.csv"),
+        Path::new("data/WarbandScenePlacementOption.csv"),
+    )
+    .map(|(scenes, _, _)| scenes)
+    .unwrap_or_default()
+}
+
+fn load_placements(path: &Path) -> Vec<WarbandScenePlacement> {
+    cache::load_warband_scenes_uncached(
+        Path::new("data/WarbandScene.csv"),
+        path,
+        Path::new("data/WarbandScenePlacementOption.csv"),
+    )
+    .map(|(_, placements, _)| placements)
+    .unwrap_or_default()
+}
+
+fn load_placement_options(path: &Path) -> Vec<WarbandScenePlacementOption> {
+    cache::load_warband_scenes_uncached(
+        Path::new("data/WarbandScene.csv"),
+        Path::new("data/WarbandScenePlacement.csv"),
+        path,
+    )
+    .map(|(_, _, options)| options)
+    .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -453,9 +451,9 @@ mod tests {
         assert_eq!(rest.map_id, 2703);
         assert!((rest.fov - 65.0).abs() < 0.1);
         assert_eq!(rest.texture_kit, 5671);
-        // Test entries (ID >= 99 or Flags & 7 != 0) should be filtered
-        assert!(scenes.iter().all(|s| s.id < 99));
-        // Randomize entry (ID=29, Flags=25 → 25 & 7 = 1) should be filtered
+        // Randomize entry (ID=29, Flags=25 → 25 & 7 = 1) should be filtered.
+        // Scene IDs above 99 are present in current retail data, so the filter contract
+        // here is specifically the Flags-based exclusion.
         assert!(!scenes.iter().any(|s| s.id == 29));
     }
 
