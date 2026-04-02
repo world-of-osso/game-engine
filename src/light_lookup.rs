@@ -1,6 +1,9 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+#[path = "light_lookup_cache.rs"]
+mod cache;
+
 const LIGHT_PARAMS_DB2_FDID: u32 = 1_334_669;
 const LIGHT_SKYBOX_DB2_FDID: u32 = 1_308_501;
 const LIGHT_PARAMS_LAYOUT_HASH: u32 = 0xCAE3_94E7;
@@ -105,7 +108,15 @@ fn cached_light_skybox_fdids() -> &'static [(u32, u32)] {
 }
 
 fn cached_lights() -> &'static [LightEntry] {
-    LIGHTS.get_or_init(|| load_lights(Path::new("data/Light.csv")))
+    LIGHTS.get_or_init(
+        || match cache::load_light_entries(Path::new("data/Light.csv")) {
+            Ok(rows) => rows,
+            Err(err) => {
+                eprintln!("Failed to load Light.csv cache: {err}");
+                cache::load_light_entries_uncached(Path::new("data/Light.csv")).unwrap_or_default()
+            }
+        },
+    )
 }
 
 fn resolve_light_params_ids(map_id: u32, wow_position: [f32; 3]) -> Option<[u32; 8]> {
@@ -190,47 +201,6 @@ fn score_light_row(row: &LightEntry, wow_position: [f32; 3]) -> Option<f32> {
         return None;
     }
     Some(distance)
-}
-
-fn load_lights(path: &Path) -> Vec<LightEntry> {
-    let Ok(data) = std::fs::read_to_string(path) else {
-        eprintln!("Light.csv not found at {}", path.display());
-        return Vec::new();
-    };
-    let mut rows = Vec::new();
-    for line in data.lines().skip(1) {
-        if let Some(row) = parse_light_line(line) {
-            rows.push(row);
-        }
-    }
-    rows
-}
-
-fn parse_light_line(line: &str) -> Option<LightEntry> {
-    let fields: Vec<&str> = line.split(',').collect();
-    if fields.len() < 15 {
-        return None;
-    }
-    Some(LightEntry {
-        id: fields[0].parse().ok()?,
-        position: [
-            fields[1].parse().ok()?,
-            fields[2].parse().ok()?,
-            fields[3].parse().ok()?,
-        ],
-        falloff_end: fields[5].parse().ok()?,
-        map_id: fields[6].parse().ok()?,
-        light_params_ids: [
-            fields[7].parse().ok()?,
-            fields[8].parse().ok()?,
-            fields[9].parse().ok()?,
-            fields[10].parse().ok()?,
-            fields[11].parse().ok()?,
-            fields[12].parse().ok()?,
-            fields[13].parse().ok()?,
-            fields[14].parse().ok()?,
-        ],
-    })
 }
 
 #[derive(Clone, Copy, Debug, Default)]
