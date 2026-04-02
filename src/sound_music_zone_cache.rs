@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -20,6 +21,12 @@ fn open_read_only(path: &Path) -> Result<Connection, String> {
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .map_err(|err| format!("open {}: {err}", path.display()))
+}
+
+fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
+    let file =
+        std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
+    Ok(BufReader::new(file))
 }
 
 fn parse_csv_line(line: &str) -> Vec<String> {
@@ -84,11 +91,12 @@ fn rebuild_cache(cache_path: &Path) -> Result<(), String> {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
-    let _ = std::fs::remove_file(cache_path);
     let conn = Connection::open(cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     conn.execute_batch(
         "BEGIN;
+         DROP TABLE IF EXISTS source_files;
+         DROP TABLE IF EXISTS zone_music_links;
          CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
          CREATE TABLE zone_music_links (
              file_data_id INTEGER NOT NULL,
@@ -106,33 +114,56 @@ fn rebuild_cache(cache_path: &Path) -> Result<(), String> {
         ),
     )
     .map_err(|err| format!("insert source_files row: {err}"))?;
-
-    let contents = std::fs::read_to_string(&source_path)
-        .map_err(|err| format!("read {}: {err}", source_path.display()))?;
-    let mut insert = conn
-        .prepare("INSERT OR IGNORE INTO zone_music_links (file_data_id, area_id) VALUES (?1, ?2)")
-        .map_err(|err| format!("prepare zone_music_links insert: {err}"))?;
-    for (line_idx, line) in contents.lines().enumerate() {
-        if line_idx == 0 || line.is_empty() {
-            continue;
-        }
-        let fields = parse_csv_line(line);
-        if fields.len() < 12 || fields[2] != "1" {
-            continue;
-        }
-        let Ok(file_data_id) = fields[0].parse::<u32>() else {
-            continue;
-        };
-        let Ok(area_id) = fields[9].parse::<u32>() else {
-            continue;
-        };
-        insert.execute((file_data_id, area_id)).map_err(|err| {
-            format!("insert zone_music_links row ({file_data_id}, {area_id}): {err}")
-        })?;
-    }
+    import_zone_music_rows(&conn, &source_path)?;
 
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit music_zone_links cache: {err}"))?;
+    Ok(())
+}
+
+fn import_zone_music_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
+    let mut reader = open_reader(source_path)?;
+    let mut insert = conn
+        .prepare("INSERT OR IGNORE INTO zone_music_links (file_data_id, area_id) VALUES (?1, ?2)")
+        .map_err(|err| format!("prepare zone_music_links insert: {err}"))?;
+    let mut line = String::new();
+    let mut line_idx = 0usize;
+    loop {
+        line.clear();
+        if reader
+            .read_line(&mut line)
+            .map_err(|err| format!("read {} row: {err}", source_path.display()))?
+            == 0
+        {
+            break;
+        }
+        import_zone_music_row(&mut insert, line_idx, line.trim_end_matches(['\r', '\n']))?;
+        line_idx += 1;
+    }
+    Ok(())
+}
+
+fn import_zone_music_row(
+    insert: &mut rusqlite::Statement<'_>,
+    line_idx: usize,
+    line: &str,
+) -> Result<(), String> {
+    if line_idx == 0 || line.is_empty() {
+        return Ok(());
+    }
+    let fields = parse_csv_line(line);
+    if fields.len() < 12 || fields[2] != "1" {
+        return Ok(());
+    }
+    let Ok(file_data_id) = fields[0].parse::<u32>() else {
+        return Ok(());
+    };
+    let Ok(area_id) = fields[9].parse::<u32>() else {
+        return Ok(());
+    };
+    insert
+        .execute((file_data_id, area_id))
+        .map_err(|err| format!("insert zone_music_links row ({file_data_id}, {area_id}): {err}"))?;
     Ok(())
 }
 
@@ -198,5 +229,21 @@ mod tests {
         track_index_by_fdid.insert(936344, 7usize);
         let by_zone = load_zone_music_catalog(&track_index_by_fdid).expect("load zone music cache");
         assert_eq!(by_zone.get(&7210), Some(&vec![7]));
+    }
+
+    #[test]
+    fn sound_music_zone_cache_import_reuses_fresh_cache() {
+        let cache_path = import_sound_music_zone_cache().expect("import music zone cache");
+        let before = std::fs::metadata(&cache_path)
+            .expect("stat music zone cache")
+            .modified()
+            .expect("music zone cache mtime");
+        let reused_path = import_sound_music_zone_cache().expect("reuse music zone cache");
+        let after = std::fs::metadata(&reused_path)
+            .expect("stat reused music zone cache")
+            .modified()
+            .expect("reused music zone cache mtime");
+        assert_eq!(cache_path, reused_path);
+        assert_eq!(before, after);
     }
 }
