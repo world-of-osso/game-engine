@@ -47,6 +47,7 @@ pub struct WmoRootData {
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
+    pub skybox_wow_path: Option<String>,
 }
 
 /// A portal polygon (doorway/opening between groups).
@@ -117,6 +118,7 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     let mut portals = Vec::new();
     let mut portal_refs = Vec::new();
     let mut group_infos = Vec::new();
+    let mut skybox_wow_path = None;
     let mut portal_vertices: Vec<[f32; 3]> = Vec::new();
     let mut mopt_raw: Vec<(u16, u16)> = Vec::new();
 
@@ -131,6 +133,7 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
             &mut mopt_raw,
             &mut portal_refs,
             &mut group_infos,
+            &mut skybox_wow_path,
             &mut portal_vertices,
         )?;
     }
@@ -142,6 +145,7 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
         portals,
         portal_refs,
         group_infos,
+        skybox_wow_path,
     })
 }
 
@@ -155,6 +159,7 @@ fn apply_root_chunk(
     mopt_raw: &mut Vec<(u16, u16)>,
     portal_refs: &mut Vec<WmoPortalRef>,
     group_infos: &mut Vec<WmoGroupInfo>,
+    skybox_wow_path: &mut Option<String>,
     portal_vertices: &mut Vec<[f32; 3]>,
 ) -> Result<(), String> {
     match tag {
@@ -173,9 +178,19 @@ fn apply_root_chunk(
         }
         b"RPOM" => *portal_refs = parse_mopr(payload)?,
         b"IGOM" => *group_infos = parse_mogi(payload)?,
+        b"BSOM" => *skybox_wow_path = parse_c_string(payload),
         _ => {}
     }
     Ok(())
+}
+
+fn parse_c_string(data: &[u8]) -> Option<String> {
+    let nul = data.iter().position(|&b| b == 0).unwrap_or(data.len());
+    let bytes = &data[..nul];
+    if bytes.is_empty() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(bytes).into_owned())
 }
 
 /// Parse MOMT chunk: 64 bytes per material entry.
@@ -600,6 +615,37 @@ mod tests {
         let mats = parse_momt(&data).unwrap();
         assert_eq!(mats.len(), 1);
         assert_eq!(mats[0].texture_fdid, 0);
+    }
+
+    #[test]
+    fn parse_root_chunk_reads_mosb_skybox_name() {
+        let mut n_groups = 0;
+        let mut materials = Vec::new();
+        let mut portals = Vec::new();
+        let mut portal_refs = Vec::new();
+        let mut group_infos = Vec::new();
+        let mut skybox_wow_path = None;
+        let mut portal_vertices = Vec::new();
+        let mut mopt_raw = Vec::new();
+
+        apply_root_chunk(
+            b"BSOM",
+            b"environments/stars/deathskybox.m2\0",
+            &mut n_groups,
+            &mut materials,
+            &mut portals,
+            &mut mopt_raw,
+            &mut portal_refs,
+            &mut group_infos,
+            &mut skybox_wow_path,
+            &mut portal_vertices,
+        )
+        .expect("parse MOSB chunk");
+
+        assert_eq!(
+            skybox_wow_path.as_deref(),
+            Some("environments/stars/deathskybox.m2")
+        );
     }
 
     #[test]

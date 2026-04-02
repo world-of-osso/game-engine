@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use game_engine::culling::{Wmo, WmoGroup};
 
 use crate::creature_display;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -38,6 +39,53 @@ fn ensure_skybox_wow_path(wow_path: &str) -> Option<PathBuf> {
     let local = PathBuf::from("data/models/skyboxes").join(filename);
     let fdid = game_engine::listfile::lookup_path(wow_path)?;
     crate::asset::asset_cache::file_at_path(fdid, &local)
+}
+
+fn point_inside_wmo_group(local_point: Vec3, group: &WmoGroup) -> bool {
+    local_point.x >= group.bbox_min.x
+        && local_point.y >= group.bbox_min.y
+        && local_point.z >= group.bbox_min.z
+        && local_point.x <= group.bbox_max.x
+        && local_point.y <= group.bbox_max.y
+        && local_point.z <= group.bbox_max.z
+}
+
+pub(super) fn active_wmo_local_skybox_wow_path(
+    camera_translation: Vec3,
+    wmo_q: &Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &crate::terrain_objects::WmoLocalSkybox,
+        ),
+        With<Wmo>,
+    >,
+    wmo_group_q: &Query<(&WmoGroup, &ChildOf)>,
+) -> Option<String> {
+    let mut best: Option<(f32, String)> = None;
+
+    for (wmo_entity, wmo_transform, skybox) in wmo_q.iter() {
+        let local_camera = wmo_transform
+            .affine()
+            .inverse()
+            .transform_point3(camera_translation);
+        let contains_camera = wmo_group_q.iter().any(|(group, child_of)| {
+            child_of.parent() == wmo_entity && point_inside_wmo_group(local_camera, group)
+        });
+        if !contains_camera {
+            continue;
+        }
+
+        let distance_sq = wmo_transform
+            .translation()
+            .distance_squared(camera_translation);
+        match &best {
+            Some((best_distance_sq, _)) if distance_sq >= *best_distance_sq => {}
+            _ => best = Some((distance_sq, skybox.wow_path.clone())),
+        }
+    }
+
+    best.map(|(_, wow_path)| wow_path)
 }
 
 fn resolve_inworld_skybox_path(map_id: u32, bevy_position: Vec3) -> Option<PathBuf> {
@@ -150,6 +198,15 @@ pub(super) fn sync_inworld_authored_skybox(
     player_q: Query<&Transform, (With<crate::camera::Player>, With<LocalPlayer>)>,
     camera_q: Query<(&Camera, &Transform), With<Camera3d>>,
     skybox_q: Query<(Entity, &InWorldSkybox)>,
+    wmo_q: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &crate::terrain_objects::WmoLocalSkybox,
+        ),
+        With<Wmo>,
+    >,
+    wmo_group_q: Query<(&WmoGroup, &ChildOf)>,
     current_zone: Res<CurrentZone>,
 ) {
     let Some(camera_translation) = active_camera_translation(&camera_q) else {
@@ -157,7 +214,10 @@ pub(super) fn sync_inworld_authored_skybox(
     };
     let anchor_pos = resolve_inworld_camera_anchor(&player_q, camera_translation);
     let map_id = resolve_inworld_map_id(&adt_manager, &current_zone);
-    let desired_path = resolve_inworld_skybox_path(map_id, anchor_pos);
+    let desired_path = active_wmo_local_skybox_wow_path(camera_translation, &wmo_q, &wmo_group_q)
+        .as_deref()
+        .and_then(ensure_skybox_wow_path)
+        .or_else(|| resolve_inworld_skybox_path(map_id, anchor_pos));
     let has_existing_skybox = skybox_q.iter().next().is_some();
 
     if let Some(path) = desired_path.as_deref()

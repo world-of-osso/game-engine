@@ -1,9 +1,16 @@
 use std::path::{Path, PathBuf};
 
-use super::inworld_skybox::{bevy_to_wow_position, resolve_inworld_map_id, should_replace_skybox};
+use bevy::ecs::system::SystemState;
+
+use super::inworld_skybox::{
+    active_wmo_local_skybox_wow_path, bevy_to_wow_position, resolve_inworld_map_id,
+    should_replace_skybox,
+};
 use super::*;
 use crate::networking::CurrentZone;
 use crate::terrain::AdtManager;
+use crate::terrain_objects::WmoLocalSkybox;
+use game_engine::culling::{Wmo, WmoGroup};
 
 #[test]
 fn game_time_to_clock() {
@@ -135,4 +142,55 @@ fn should_replace_skybox_detects_path_changes() {
 
     assert!(should_replace_skybox(None, Some(desired)));
     assert!(!should_replace_skybox(None, None));
+}
+
+#[test]
+fn active_wmo_local_skybox_prefers_nearest_containing_wmo() {
+    let mut world = World::default();
+    let far_wmo = world
+        .spawn((
+            Wmo,
+            GlobalTransform::from_translation(Vec3::new(50.0, 0.0, 0.0)),
+            WmoLocalSkybox {
+                wow_path: "world/far/far_skybox.m2".to_string(),
+            },
+        ))
+        .id();
+    world.spawn((
+        WmoGroup {
+            group_index: 0,
+            bbox_min: Vec3::splat(-100.0),
+            bbox_max: Vec3::splat(100.0),
+        },
+        ChildOf(far_wmo),
+    ));
+
+    let near_wmo = world
+        .spawn((
+            Wmo,
+            GlobalTransform::from_translation(Vec3::ZERO),
+            WmoLocalSkybox {
+                wow_path: "world/near/near_skybox.m2".to_string(),
+            },
+        ))
+        .id();
+    world.spawn((
+        WmoGroup {
+            group_index: 0,
+            bbox_min: Vec3::splat(-5.0),
+            bbox_max: Vec3::splat(5.0),
+        },
+        ChildOf(near_wmo),
+    ));
+
+    let mut system_state = SystemState::<(
+        Query<(Entity, &GlobalTransform, &WmoLocalSkybox), With<Wmo>>,
+        Query<(&WmoGroup, &ChildOf)>,
+    )>::new(&mut world);
+    let (wmo_query, group_query) = system_state.get(&world);
+
+    let skybox =
+        active_wmo_local_skybox_wow_path(Vec3::new(1.0, 1.0, 1.0), &wmo_query, &group_query);
+
+    assert_eq!(skybox.as_deref(), Some("world/near/near_skybox.m2"));
 }

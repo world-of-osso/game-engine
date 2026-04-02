@@ -27,6 +27,11 @@ pub struct SpawnedWmoRoot {
     pub model: String,
 }
 
+#[derive(Component, Clone)]
+pub struct WmoLocalSkybox {
+    pub wow_path: String,
+}
+
 #[derive(Default)]
 pub struct SpawnedFogVolumes {
     pub entities: Vec<Entity>,
@@ -554,7 +559,13 @@ fn try_spawn_wmo(
     let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
     let transform = wmo_transform(placement, tile_y, tile_x);
     let portal_graph = build_portal_graph(&root);
-    let root_entity = spawn_wmo_root_entity(commands, root_fdid, transform, portal_graph);
+    let root_entity = spawn_wmo_root_entity(
+        commands,
+        root_fdid,
+        transform,
+        portal_graph,
+        root.skybox_wow_path.as_deref(),
+    );
 
     let group_count = spawn_wmo_groups(
         commands,
@@ -583,16 +594,21 @@ fn spawn_wmo_root_entity(
     root_fdid: u32,
     transform: Transform,
     portal_graph: game_engine::culling::WmoPortalGraph,
+    skybox_wow_path: Option<&str>,
 ) -> Entity {
-    commands
-        .spawn((
-            Name::new(format!("wmo_{root_fdid}")),
-            transform,
-            Visibility::default(),
-            game_engine::culling::Wmo,
-            portal_graph,
-        ))
-        .id()
+    let mut entity = commands.spawn((
+        Name::new(format!("wmo_{root_fdid}")),
+        transform,
+        Visibility::default(),
+        game_engine::culling::Wmo,
+        portal_graph,
+    ));
+    if let Some(wow_path) = skybox_wow_path {
+        entity.insert(WmoLocalSkybox {
+            wow_path: wow_path.to_string(),
+        });
+    }
+    entity.id()
 }
 
 /// Spawn all WMO groups as children. Returns count of successfully spawned groups.
