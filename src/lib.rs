@@ -21,6 +21,7 @@ pub mod paths;
 pub mod scene_tree;
 pub mod screenshot;
 pub mod skybox_validation;
+pub mod sound_music_zone_cache;
 pub mod status;
 pub mod targeting;
 pub mod ui;

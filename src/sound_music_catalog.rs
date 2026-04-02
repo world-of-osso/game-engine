@@ -1,22 +1,21 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+
+#[cfg(test)]
+use std::collections::HashSet;
 
 pub fn load_zone_music_catalog(
     track_index_by_fdid: &HashMap<u32, usize>,
 ) -> HashMap<u32, Vec<usize>> {
-    let Ok(contents) = std::fs::read_to_string("data/music_zone_links.csv") else {
-        return HashMap::new();
-    };
-    let mut by_zone: HashMap<u32, Vec<usize>> = HashMap::new();
-    let mut seen: HashMap<u32, HashSet<usize>> = HashMap::new();
-    for (line_idx, line) in contents.lines().enumerate() {
-        if line_idx == 0 || line.is_empty() {
-            continue;
+    match game_engine::sound_music_zone_cache::load_zone_music_catalog(track_index_by_fdid) {
+        Ok(by_zone) => by_zone,
+        Err(err) => {
+            eprintln!("Failed to load music zone catalog: {err}");
+            HashMap::new()
         }
-        insert_zone_music_link(line, track_index_by_fdid, &mut by_zone, &mut seen);
     }
-    by_zone
 }
 
+#[cfg(test)]
 fn insert_zone_music_link(
     line: &str,
     track_index_by_fdid: &HashMap<u32, usize>,
@@ -41,6 +40,7 @@ fn insert_zone_music_link(
     }
 }
 
+#[cfg(test)]
 fn parse_csv_line(line: &str) -> Vec<String> {
     let mut fields = Vec::new();
     let mut current = String::new();
