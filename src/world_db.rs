@@ -11,6 +11,8 @@ use crate::outfit_data::{DisplayInfoResolved, DisplayMaterialTextures};
 mod outfit_links_cache;
 #[path = "world_db_outfit_resolve.rs"]
 mod outfit_resolve;
+#[path = "world_db_outfit_cache_load.rs"]
+mod outfit_cache_load;
 #[path = "world_db_zone_names.rs"]
 mod zone_name_cache;
 
@@ -598,35 +600,7 @@ fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBuf, String> 
 }
 
 pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits, String> {
-    let cache_path = imported_outfit_links_cache_path(data_dir)?;
-    let conn = open_read_only(&cache_path)?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT race_id, class_id, sex_id, item_id
-             FROM starter_outfits
-             ORDER BY race_id, class_id, sex_id, item_order",
-        )
-        .map_err(|err| format!("prepare starter_outfits lookup: {err}"))?;
-    let rows = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, u8>(0)?,
-                row.get::<_, u8>(1)?,
-                row.get::<_, u8>(2)?,
-                row.get::<_, u32>(3)?,
-            ))
-        })
-        .map_err(|err| format!("query starter_outfits: {err}"))?;
-    let mut outfits = HashMap::new();
-    for row in rows {
-        let (race, class, sex, item_id) =
-            row.map_err(|err| format!("read starter_outfits row: {err}"))?;
-        outfits
-            .entry((race, class, sex))
-            .or_insert_with(Vec::new)
-            .push(item_id);
-    }
-    Ok(outfits)
+    outfit_cache_load::load_cached_char_start_outfits(data_dir)
 }
 
 pub fn resolve_cached_outfit_display_ids(
@@ -639,215 +613,19 @@ pub fn resolve_cached_outfit_display_ids(
 }
 
 pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
-    let cache_path = imported_outfit_links_cache_path(data_dir)?;
-    let conn = open_read_only(&cache_path)?;
-    let mut stmt = conn
-        .prepare("SELECT item_id, appearance_id FROM item_modified_appearance_map")
-        .map_err(|err| format!("prepare item_modified_appearance_map lookup: {err}"))?;
-    let rows = stmt
-        .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, u32>(1)?)))
-        .map_err(|err| format!("query item_modified_appearance_map: {err}"))?;
-    let mut map = HashMap::new();
-    for row in rows {
-        let (item_id, appearance_id) =
-            row.map_err(|err| format!("read item_modified_appearance_map row: {err}"))?;
-        map.insert(item_id, appearance_id);
-    }
-    Ok(map)
+    outfit_cache_load::load_cached_item_modified_appearance(data_dir)
 }
 
 pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
-    let cache_path = imported_outfit_links_cache_path(data_dir)?;
-    let conn = open_read_only(&cache_path)?;
-    let mut stmt = conn
-        .prepare("SELECT appearance_id, display_info_id FROM item_appearance_map")
-        .map_err(|err| format!("prepare item_appearance_map lookup: {err}"))?;
-    let rows = stmt
-        .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, u32>(1)?)))
-        .map_err(|err| format!("query item_appearance_map: {err}"))?;
-    let mut map = HashMap::new();
-    for row in rows {
-        let (appearance_id, display_info_id) =
-            row.map_err(|err| format!("read item_appearance_map row: {err}"))?;
-        map.insert(appearance_id, display_info_id);
-    }
-    Ok(map)
+    outfit_cache_load::load_cached_item_appearance(data_dir)
 }
 
 pub(crate) fn load_cached_display_resources(
     data_dir: &Path,
 ) -> Result<CachedDisplayResources, String> {
-    let cache_path = imported_outfit_links_cache_path(data_dir)?;
-    let conn = open_read_only(&cache_path)?;
-
-    let mut display_info_stmt = conn
-        .prepare(
-            "SELECT id, model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
-                    geoset_group_0, geoset_group_1, geoset_group_2, helmet_vis_0, helmet_vis_1
-             FROM display_info",
-        )
-        .map_err(|err| format!("prepare display_info lookup: {err}"))?;
-    let display_rows = display_info_stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, u32>(0)?,
-                row.get::<_, u32>(1)?,
-                row.get::<_, u32>(2)?,
-                row.get::<_, u32>(3)?,
-                row.get::<_, u32>(4)?,
-                row.get::<_, i16>(5)?,
-                row.get::<_, i16>(6)?,
-                row.get::<_, i16>(7)?,
-                row.get::<_, u32>(8)?,
-                row.get::<_, u32>(9)?,
-            ))
-        })
-        .map_err(|err| format!("query display_info: {err}"))?;
-    let mut display_info = HashMap::new();
-    for row in display_rows {
-        let (id, mr0, mr1, mm0, mm1, gg0, gg1, gg2, hv0, hv1) =
-            row.map_err(|err| format!("read display_info row: {err}"))?;
-        let collect = |values: [u32; 2]| values.into_iter().filter(|v| *v != 0).collect::<Vec<_>>();
-        display_info.insert(
-            id,
-            DisplayInfoResolved {
-                item_textures: Vec::new(),
-                geoset_overrides: Vec::new(),
-                model_resource_ids: collect([mr0, mr1]),
-                model_material_resource_ids: collect([mm0, mm1]),
-                model_resource_columns: [mr0, mr1],
-                model_material_resource_columns: [mm0, mm1],
-                helmet_geoset_vis_ids: collect([hv0, hv1]),
-                geoset_groups: [gg0, gg1, gg2, 0, 0, 0],
-            },
-        );
-    }
-
-    let material_to_texture = load_material_to_texture_map(&conn)?;
-
-    let mut display_materials_stmt = conn
-        .prepare(
-            "SELECT display_info_id, component_section, texture_fdid
-             FROM display_material_textures
-             ORDER BY display_info_id, component_section, texture_fdid",
-        )
-        .map_err(|err| format!("prepare display_material_textures lookup: {err}"))?;
-    let display_material_rows = display_materials_stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, u32>(0)?,
-                row.get::<_, u8>(1)?,
-                row.get::<_, u32>(2)?,
-            ))
-        })
-        .map_err(|err| format!("query display_material_textures: {err}"))?;
-    let mut direct = HashMap::new();
-    for row in display_material_rows {
-        let (display_info_id, component_section, texture_fdid) =
-            row.map_err(|err| format!("read display_material_textures row: {err}"))?;
-        direct
-            .entry(display_info_id)
-            .or_insert_with(Vec::new)
-            .push((component_section, texture_fdid));
-    }
-
-    let mut model_stmt = conn
-        .prepare(
-            "SELECT model_resource_id, file_data_id
-             FROM model_to_fdid
-             ORDER BY model_resource_id, model_order",
-        )
-        .map_err(|err| format!("prepare model_to_fdid lookup: {err}"))?;
-    let model_rows = model_stmt
-        .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, u32>(1)?)))
-        .map_err(|err| format!("query model_to_fdid: {err}"))?;
-    let mut model_to_fdids = HashMap::new();
-    for row in model_rows {
-        let (model_resource_id, file_data_id) =
-            row.map_err(|err| format!("read model_to_fdid row: {err}"))?;
-        model_to_fdids
-            .entry(model_resource_id)
-            .or_insert_with(Vec::new)
-            .push(file_data_id);
-    }
-
-    Ok(CachedDisplayResources {
-        display_info,
-        material_to_texture,
-        display_materials: DisplayMaterialTextures { direct },
-        model_to_fdids,
-    })
+    outfit_cache_load::load_cached_display_resources(data_dir)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        import_outfit_links_cache, import_zone_name_cache, load_cached_char_start_outfits,
-        load_cached_display_resources, load_cached_item_appearance,
-        load_cached_item_modified_appearance, load_chr_race_prefixes, load_zone_name,
-        resolve_cached_outfit_display_ids,
-    };
-    use std::path::Path;
-
-    #[test]
-    fn chr_race_prefixes_load_from_world_db() {
-        let prefixes = load_chr_race_prefixes().expect("load chr_races prefixes from world.db");
-        assert_eq!(prefixes.get(&1).map(String::as_str), Some("hu"));
-    }
-
-    #[test]
-    fn zone_name_loads_from_area_table_cache() {
-        import_zone_name_cache().expect("import zone name cache");
-        assert_eq!(
-            load_zone_name(12).expect("load zone name"),
-            Some("Elwynn Forest".to_string())
-        );
-    }
-
-    #[test]
-    fn outfit_links_load_from_cache() {
-        let data_dir = Path::new("data");
-        import_outfit_links_cache(data_dir).expect("import outfit links cache");
-        let outfits = load_cached_char_start_outfits(data_dir).expect("load starter_outfits cache");
-        let item_to_appearance = load_cached_item_modified_appearance(data_dir)
-            .expect("load item_modified_appearance cache");
-        let appearance_to_display =
-            load_cached_item_appearance(data_dir).expect("load item_appearance cache");
-
-        assert!(
-            !outfits.is_empty(),
-            "starter_outfits cache should not be empty"
-        );
-        assert!(
-            !item_to_appearance.is_empty(),
-            "item_modified_appearance cache should not be empty"
-        );
-        assert!(
-            !appearance_to_display.is_empty(),
-            "item_appearance cache should not be empty"
-        );
-    }
-
-    #[test]
-    fn display_resources_load_from_cache() {
-        let data_dir = Path::new("data");
-        import_outfit_links_cache(data_dir).expect("import outfit links cache");
-        let resources =
-            load_cached_display_resources(data_dir).expect("load display resources cache");
-        assert!(!resources.display_info.is_empty());
-        assert!(!resources.material_to_texture.is_empty());
-        assert!(!resources.model_to_fdids.is_empty());
-    }
-
-    #[test]
-    fn resolve_outfit_display_ids_loads_from_cache() {
-        let data_dir = Path::new("data");
-        import_outfit_links_cache(data_dir).expect("import outfit links cache");
-        let display_ids =
-            resolve_cached_outfit_display_ids(data_dir, 1, 1, 0).expect("resolve outfit displays");
-        assert!(
-            !display_ids.is_empty(),
-            "starter outfit display lookup should not be empty"
-        );
-    }
-}
+#[path = "world_db_tests.rs"]
+mod tests;
