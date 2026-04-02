@@ -24,6 +24,11 @@ fn parse_torch_particle_emitter() {
     assert!(em.emission_rate > 19.0, "rate={}", em.emission_rate);
     assert!(em.colors[0][0] > 200.0, "start red={}", em.colors[0][0]);
     assert!(em.opacity[1] > 0.9, "mid opacity={}", em.opacity[1]);
+    assert!(
+        em.opacity[2] <= 0.001,
+        "torch authored end opacity already fades to zero: {:?}",
+        em.opacity
+    );
     assert!(em.burst_multiplier > 0.9, "burst={}", em.burst_multiplier);
 }
 
