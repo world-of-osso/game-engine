@@ -7,6 +7,10 @@ use std::path::PathBuf;
 
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
+use bevy_hanabi::{
+    BoxedModifier, ExprError, Modifier, ModifierContext, RenderContext, RenderModifier,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
@@ -133,6 +137,7 @@ struct ExprModifiers {
     drag: Option<LinearDragModifier>,
     flipbook_sprite_index: Option<SetAttributeModifier>,
     texture: Option<ParticleTextureModifier>,
+    twinkle: Option<TwinkleSizeModifier>,
     alpha_mode: bevy_hanabi::AlphaMode,
     orient_rotation: Option<ExprHandle>,
     module: Module,
@@ -149,6 +154,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         texture_slot: writer.lit(0u32).expr(),
         sample_mapping: ImageSampleMapping::Modulate,
     });
+    let twinkle = build_twinkle_modifier(em);
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
     let orient_rotation = build_orient_rotation_expr(em, &writer);
     let mut module = writer.finish();
@@ -161,6 +167,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         drag,
         flipbook_sprite_index,
         texture,
+        twinkle,
         alpha_mode,
         orient_rotation,
         module,
@@ -272,6 +279,9 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
     if let Some(tex) = m.texture {
         effect = effect.render(tex);
     }
+    if let Some(twinkle) = m.twinkle {
+        effect = effect.render(twinkle);
+    }
     if em.tile_rows > 1 || em.tile_cols > 1 {
         effect = effect.render(FlipbookModifier {
             sprite_grid_size: UVec2::new(em.tile_cols as u32, em.tile_rows as u32),
@@ -325,6 +335,12 @@ fn assemble_effect(
     if let Some(angular_velocity) = init.angular_velocity {
         effect = effect.init(angular_velocity);
     }
+    if let Some(twinkle_phase) = init.twinkle_phase {
+        effect = effect.init(twinkle_phase);
+    }
+    if let Some(twinkle_enabled) = init.twinkle_enabled {
+        effect = effect.init(twinkle_enabled);
+    }
     effect
 }
 
@@ -351,6 +367,8 @@ struct InitModifiers {
     vel: SetAttributeModifier,
     rotation: Option<SetAttributeModifier>,
     angular_velocity: Option<SetAttributeModifier>,
+    twinkle_phase: Option<SetAttributeModifier>,
+    twinkle_enabled: Option<SetAttributeModifier>,
 }
 
 fn build_init_modifiers(
@@ -369,6 +387,8 @@ fn build_init_modifiers(
         vel,
         rotation: build_initial_rotation_modifier(em, writer),
         angular_velocity: build_angular_velocity_modifier(em, writer),
+        twinkle_phase: build_twinkle_phase_modifier(em, writer),
+        twinkle_enabled: build_twinkle_enabled_modifier(em, writer),
     }
 }
 
@@ -401,6 +421,32 @@ fn build_angular_velocity_modifier(
 ) -> Option<SetAttributeModifier> {
     authored_spin_expr(em, writer, em.spin, em.spin_variation)
         .map(|expr| SetAttributeModifier::new(Attribute::F32_1, expr))
+}
+
+fn build_twinkle_phase_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
+    has_authored_twinkle(em).then(|| {
+        SetAttributeModifier::new(
+            Attribute::F32_2,
+            (writer.rand(ScalarType::Float) * writer.lit(std::f32::consts::TAU)).expr(),
+        )
+    })
+}
+
+fn build_twinkle_enabled_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
+    if !has_authored_twinkle(em) {
+        return None;
+    }
+    let enabled = writer
+        .rand(ScalarType::Float)
+        .lt(writer.lit(em.twinkle_percent.clamp(0.0, 1.0)))
+        .cast(ScalarType::Float);
+    Some(SetAttributeModifier::new(Attribute::F32_3, enabled.expr()))
 }
 
 fn authored_spin_expr(
@@ -440,6 +486,20 @@ fn has_authored_spin(em: &M2ParticleEmitter) -> bool {
 
 fn has_authored_wind(em: &M2ParticleEmitter) -> bool {
     em.wind_time > 0.0 && em.wind_vector.iter().any(|&value| value != 0.0)
+}
+
+fn has_authored_twinkle(em: &M2ParticleEmitter) -> bool {
+    em.twinkle_speed > 0.0
+        && em.twinkle_percent > 0.0
+        && (em.twinkle_scale_min != 1.0 || em.twinkle_scale_max != 1.0)
+}
+
+fn build_twinkle_modifier(em: &M2ParticleEmitter) -> Option<TwinkleSizeModifier> {
+    has_authored_twinkle(em).then(|| TwinkleSizeModifier {
+        speed_radians: em.twinkle_speed.max(0.0) * std::f32::consts::TAU,
+        scale_min: em.twinkle_scale_min.max(0.0),
+        scale_max: em.twinkle_scale_max.max(em.twinkle_scale_min.max(0.0)),
+    })
 }
 
 fn wind_accel_bevy(em: &M2ParticleEmitter, model_scale: f32) -> Vec3 {
@@ -672,6 +732,79 @@ fn size_key_value(
 
 fn is_trail_particle(em: &M2ParticleEmitter) -> bool {
     em.particle_type == PARTICLE_TYPE_TRAIL
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+struct TwinkleSizeModifier {
+    speed_radians: f32,
+    scale_min: f32,
+    scale_max: f32,
+}
+
+#[typetag::serde]
+impl Modifier for TwinkleSizeModifier {
+    fn context(&self) -> ModifierContext {
+        ModifierContext::Render
+    }
+
+    fn as_render(&self) -> Option<&dyn RenderModifier> {
+        Some(self)
+    }
+
+    fn as_render_mut(&mut self) -> Option<&mut dyn RenderModifier> {
+        Some(self)
+    }
+
+    fn attributes(&self) -> &[Attribute] {
+        &[Attribute::AGE, Attribute::F32_2, Attribute::F32_3]
+    }
+
+    fn boxed_clone(&self) -> BoxedModifier {
+        Box::new(self.clone())
+    }
+
+    fn apply(
+        &self,
+        _module: &mut Module,
+        context: &mut bevy_hanabi::ShaderWriter,
+    ) -> Result<(), ExprError> {
+        Err(ExprError::InvalidModifierContext(
+            context.modifier_context(),
+            ModifierContext::Render,
+        ))
+    }
+}
+
+#[typetag::serde]
+impl RenderModifier for TwinkleSizeModifier {
+    fn apply_render(
+        &self,
+        _module: &mut Module,
+        context: &mut RenderContext,
+    ) -> Result<(), ExprError> {
+        context.vertex_code += &format!(
+            "let twinkle_wave = sin(particle.{age} * {speed} + particle.{phase});\n\
+             let twinkle_mix = twinkle_wave * 0.5 + 0.5;\n\
+             let twinkle_scale = mix({min_scale}, {max_scale}, twinkle_mix);\n\
+             let twinkle_factor = mix(1.0, twinkle_scale, particle.{enabled});\n\
+             size = vec3<f32>(size.x * twinkle_factor, size.y * twinkle_factor, size.z);\n",
+            age = Attribute::AGE.name(),
+            speed = self.speed_radians,
+            phase = Attribute::F32_2.name(),
+            min_scale = self.scale_min,
+            max_scale = self.scale_max,
+            enabled = Attribute::F32_3.name(),
+        );
+        Ok(())
+    }
+
+    fn boxed_render_clone(&self) -> Box<dyn RenderModifier> {
+        Box::new(self.clone())
+    }
+
+    fn as_modifier(&self) -> &dyn Modifier {
+        self
+    }
 }
 
 fn load_emitter_texture(

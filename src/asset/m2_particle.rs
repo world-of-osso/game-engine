@@ -61,6 +61,14 @@ pub struct M2ParticleEmitter {
     pub scales: [[f32; 2]; 3],
     /// Full FakeAnimBlock scale keys as (normalized time, [x, y]).
     pub scale_keys: Vec<(f32, [f32; 2])>,
+    /// Twinkle pulse frequency in cycles per second.
+    pub twinkle_speed: f32,
+    /// Chance for a particle to participate in the twinkle pulse.
+    pub twinkle_percent: f32,
+    /// Minimum twinkle scale multiplier.
+    pub twinkle_scale_min: f32,
+    /// Maximum twinkle scale multiplier.
+    pub twinkle_scale_max: f32,
     /// Simple flipbook cell track used by some emitters for head particles.
     pub head_cell_track: [u16; 3],
     /// Simple flipbook cell track used by some emitters for tail particles.
@@ -77,6 +85,10 @@ const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
 const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
 const EMITTER_LIFESPAN_VARIATION_OFFSET: usize = 0xAC;
+const EMITTER_TWINKLE_SPEED_OFFSET: usize = 0x164;
+const EMITTER_TWINKLE_PERCENT_OFFSET: usize = 0x168;
+const EMITTER_TWINKLE_SCALE_MIN_OFFSET: usize = 0x16C;
+const EMITTER_TWINKLE_SCALE_MAX_OFFSET: usize = 0x170;
 const EMITTER_HEAD_CELL_TRACK_OFFSET: usize = 0x13C;
 const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
 const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
@@ -315,6 +327,10 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         opacity_keys: Vec::new(),
         scales: [[1.0; 2]; 3],
         scale_keys: Vec::new(),
+        twinkle_speed: 0.0,
+        twinkle_percent: 0.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
         head_cell_track: [0; 3],
         tail_cell_track: [0; 3],
         burst_multiplier: 1.0,
@@ -356,6 +372,10 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.opacity_keys = read_opacity_keys(md20, data, EMITTER_VISUAL_OPACITY_OFFSET);
     em.scales = read_scale_values(md20, data, EMITTER_VISUAL_SCALE_OFFSET);
     em.scale_keys = read_scale_keys(md20, data, EMITTER_VISUAL_SCALE_OFFSET);
+    em.twinkle_speed = read_f32(data, EMITTER_TWINKLE_SPEED_OFFSET).unwrap_or(0.0);
+    em.twinkle_percent = read_f32(data, EMITTER_TWINKLE_PERCENT_OFFSET).unwrap_or(0.0);
+    em.twinkle_scale_min = read_f32(data, EMITTER_TWINKLE_SCALE_MIN_OFFSET).unwrap_or(1.0);
+    em.twinkle_scale_max = read_f32(data, EMITTER_TWINKLE_SCALE_MAX_OFFSET).unwrap_or(1.0);
     em.head_cell_track = read_u16_values(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
     em.tail_cell_track = read_u16_values(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
     em.burst_multiplier = match read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0) {
@@ -643,6 +663,27 @@ mod tests {
         fill_track_values(&mut parsed, &md20, &md20);
 
         assert!((parsed.lifespan_variation - 0.4).abs() < 0.0001);
+    }
+
+    #[test]
+    fn parses_twinkle_fields_from_272_suffix() {
+        let mut md20 = vec![0u8; 0x1ec];
+        md20[EMITTER_TWINKLE_SPEED_OFFSET..EMITTER_TWINKLE_SPEED_OFFSET + 4]
+            .copy_from_slice(&(2.0_f32).to_le_bytes());
+        md20[EMITTER_TWINKLE_PERCENT_OFFSET..EMITTER_TWINKLE_PERCENT_OFFSET + 4]
+            .copy_from_slice(&(0.75_f32).to_le_bytes());
+        md20[EMITTER_TWINKLE_SCALE_MIN_OFFSET..EMITTER_TWINKLE_SCALE_MIN_OFFSET + 4]
+            .copy_from_slice(&(0.5_f32).to_le_bytes());
+        md20[EMITTER_TWINKLE_SCALE_MAX_OFFSET..EMITTER_TWINKLE_SCALE_MAX_OFFSET + 4]
+            .copy_from_slice(&(1.5_f32).to_le_bytes());
+
+        let mut parsed = parse_emitter_header(&md20).unwrap();
+        fill_visual_values(&mut parsed, &md20, &md20);
+
+        assert!((parsed.twinkle_speed - 2.0).abs() < 0.0001);
+        assert!((parsed.twinkle_percent - 0.75).abs() < 0.0001);
+        assert!((parsed.twinkle_scale_min - 0.5).abs() < 0.0001);
+        assert!((parsed.twinkle_scale_max - 1.5).abs() < 0.0001);
     }
 
     #[test]

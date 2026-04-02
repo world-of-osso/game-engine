@@ -4,8 +4,8 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::{
     active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, has_authored_spin, has_authored_wind, is_fire_effect, lifetime_range,
-    orient_mode, wind_accel_bevy, wind_strength_at_age,
+    emitter_translation, has_authored_spin, has_authored_twinkle, has_authored_wind,
+    is_fire_effect, lifetime_range, orient_mode, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
@@ -46,6 +46,10 @@ fn sample_emitter() -> M2ParticleEmitter {
         opacity_keys: Vec::new(),
         scales: [[0.1, 0.1], [0.2, 0.2], [0.05, 0.05]],
         scale_keys: Vec::new(),
+        twinkle_speed: 0.0,
+        twinkle_percent: 0.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
         head_cell_track: [0, 0, 0],
         tail_cell_track: [0, 0, 0],
         burst_multiplier: 1.0,
@@ -224,6 +228,38 @@ fn trail_particles_orient_along_velocity() {
     emitter.particle_type = 1;
 
     assert!(matches!(orient_mode(&emitter), OrientMode::AlongVelocity));
+}
+
+#[test]
+fn twinkle_emitters_declare_size_pulse_modifiers() {
+    let mut emitter = sample_emitter();
+    emitter.twinkle_speed = 3.0;
+    emitter.twinkle_percent = 0.8;
+    emitter.twinkle_scale_min = 0.5;
+    emitter.twinkle_scale_max = 1.5;
+
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(has_authored_twinkle(&emitter));
+    assert!(modifiers.twinkle.is_some());
+    assert!(modifiers.init.twinkle_phase.is_some());
+    assert!(modifiers.init.twinkle_enabled.is_some());
+}
+
+#[test]
+fn zero_percent_twinkle_does_not_enable_pulse() {
+    let mut emitter = sample_emitter();
+    emitter.twinkle_speed = 3.0;
+    emitter.twinkle_percent = 0.0;
+    emitter.twinkle_scale_min = 0.5;
+    emitter.twinkle_scale_max = 1.5;
+
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(!has_authored_twinkle(&emitter));
+    assert!(modifiers.twinkle.is_none());
+    assert!(modifiers.init.twinkle_phase.is_none());
+    assert!(modifiers.init.twinkle_enabled.is_none());
 }
 
 #[test]
