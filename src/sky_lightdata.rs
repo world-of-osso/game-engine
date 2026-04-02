@@ -1,9 +1,13 @@
 //! LightData keyframe loading and sky color interpolation.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use bevy::prelude::Color;
 use serde::Deserialize;
+
+#[path = "sky_lightdata_cache.rs"]
+mod cache;
 
 /// One keyframe row filtered to a single LightParamID.
 #[derive(Debug, Clone)]
@@ -133,25 +137,14 @@ fn parse_csv_fallback_light_row(
     })
 }
 
-fn load_light_data_csv_fallback(path: &str, param_id: u32) -> Vec<LightDataRow> {
-    let contents = match std::fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Failed to read fallback {path}: {e}");
-            return Vec::new();
+fn load_light_data_csv_fallback(path: &Path, param_id: u32) -> Vec<LightDataRow> {
+    match cache::load_light_data_csv_fallback(path, param_id) {
+        Ok(rows) => rows,
+        Err(err) => {
+            eprintln!("Failed to load fallback {} cache: {err}", path.display());
+            cache::load_light_data_csv_fallback_uncached(path, param_id).unwrap_or_default()
         }
-    };
-    let mut lines = contents.lines();
-    let header = match lines.next() {
-        Some(h) => h,
-        None => return Vec::new(),
-    };
-    let ci = resolve_csv_fallback_column_indices(header);
-    let mut rows: Vec<LightDataRow> = lines
-        .filter_map(|l| parse_csv_fallback_light_row(l, &ci, param_id))
-        .collect();
-    rows.sort_by(|a, b| a.time.total_cmp(&b.time));
-    rows
+    }
 }
 
 /// Load LightData.ron rows for a specific LightParamID, with CSV fallback.
@@ -163,7 +156,7 @@ pub fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
             if let Some(base) = path.strip_suffix(".ron") {
                 let csv_path = format!("{base}.csv");
                 eprintln!("Falling back to legacy CSV: {csv_path}");
-                return load_light_data_csv_fallback(&csv_path, param_id);
+                return load_light_data_csv_fallback(Path::new(&csv_path), param_id);
             }
             Vec::new()
         }
