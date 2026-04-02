@@ -469,6 +469,20 @@ fn emitter_shell() -> M2ParticleEmitter {
 
 fn emitter_shell_state() -> M2ParticleEmitter {
     M2ParticleEmitter {
+        tile_rows: 1,
+        tile_cols: 1,
+        opacity: [1.0; 3],
+        scales: [[1.0; 2]; 3],
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
+        burst_multiplier: 1.0,
+        mid_point: 0.5,
+        ..emitter_zero_state()
+    }
+}
+
+fn emitter_zero_state() -> M2ParticleEmitter {
+    M2ParticleEmitter {
         flags: 0,
         position: [0.0; 3],
         bone_index: 0,
@@ -478,8 +492,8 @@ fn emitter_shell_state() -> M2ParticleEmitter {
         emitter_type: 0,
         particle_type: 0,
         head_or_tail: 0,
-        tile_rows: 1,
-        tile_cols: 1,
+        tile_rows: 0,
+        tile_cols: 0,
         emission_speed: 0.0,
         speed_variation: 0.0,
         vertical_range: 0.0,
@@ -499,18 +513,18 @@ fn emitter_shell_state() -> M2ParticleEmitter {
         wind_time: 0.0,
         colors: [[0.0; 3]; 3],
         color_keys: Vec::new(),
-        opacity: [1.0; 3],
+        opacity: [0.0; 3],
         opacity_keys: Vec::new(),
-        scales: [[1.0; 2]; 3],
+        scales: [[0.0; 2]; 3],
         scale_keys: Vec::new(),
         twinkle_speed: 0.0,
         twinkle_percent: 0.0,
-        twinkle_scale_min: 1.0,
-        twinkle_scale_max: 1.0,
+        twinkle_scale_min: 0.0,
+        twinkle_scale_max: 0.0,
         head_cell_track: [0; 3],
         tail_cell_track: [0; 3],
-        burst_multiplier: 1.0,
-        mid_point: 0.5,
+        burst_multiplier: 0.0,
+        mid_point: 0.0,
     }
 }
 
