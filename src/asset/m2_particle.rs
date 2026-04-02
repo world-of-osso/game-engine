@@ -464,6 +464,10 @@ fn default_emitter_state() -> M2ParticleEmitter {
 }
 
 fn emitter_shell() -> M2ParticleEmitter {
+    emitter_shell_state()
+}
+
+fn emitter_shell_state() -> M2ParticleEmitter {
     M2ParticleEmitter {
         flags: 0,
         position: [0.0; 3],
