@@ -341,6 +341,35 @@ struct MeshSpawnContext<'a> {
     visible: bool,
 }
 
+fn spawn_mesh_with_context<M: Asset>(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    material: Handle<M>,
+    batch: asset::m2::M2RenderBatch,
+    context: &MeshSpawnContext<'_>,
+    spawn: impl FnOnce(
+        &mut Commands,
+        &mut Assets<Mesh>,
+        Handle<M>,
+        asset::m2::M2RenderBatch,
+        Entity,
+        &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+        usize,
+        bool,
+    ),
+) {
+    spawn(
+        commands,
+        meshes,
+        material,
+        batch,
+        context.parent,
+        context.skinning,
+        context.batch_index,
+        context.visible,
+    );
+}
+
 fn spawn_mesh_with_material(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -349,35 +378,29 @@ fn spawn_mesh_with_material(
     batch: asset::m2::M2RenderBatch,
 ) {
     match mat {
-        BatchMaterial::Standard(mat) => spawn_skinned_mesh_standard(
+        BatchMaterial::Standard(mat) => spawn_mesh_with_context(
             commands,
             meshes,
             mat,
             batch,
-            context.parent,
-            context.skinning,
-            context.batch_index,
-            context.visible,
+            context,
+            spawn_skinned_mesh_standard,
         ),
-        BatchMaterial::Effect(mat) => spawn_skinned_mesh_effect(
+        BatchMaterial::Effect(mat) => spawn_mesh_with_context(
             commands,
             meshes,
             mat,
             batch,
-            context.parent,
-            context.skinning,
-            context.batch_index,
-            context.visible,
+            context,
+            spawn_skinned_mesh_effect,
         ),
-        BatchMaterial::Skybox(mat) => spawn_skinned_mesh_skybox(
+        BatchMaterial::Skybox(mat) => spawn_mesh_with_context(
             commands,
             meshes,
             mat,
             batch,
-            context.parent,
-            context.skinning,
-            context.batch_index,
-            context.visible,
+            context,
+            spawn_skinned_mesh_skybox,
         ),
     }
 }
