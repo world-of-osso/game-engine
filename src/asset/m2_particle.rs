@@ -9,7 +9,10 @@
 #[path = "m2_particle_defaults.rs"]
 mod defaults;
 
-use super::m2_format::{fixed16_to_f32, unorm16_to_f32};
+use super::m2_format::{
+    MD20_PARTICLE_EMITTERS_COUNT_OFFSET, MD20_PARTICLE_EMITTERS_DATA_OFFSET, MD20_VERSION_OFFSET,
+    fixed16_to_f32, unorm16_to_f32,
+};
 
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
@@ -411,12 +414,12 @@ pub fn resolve_texture_fdids(emitters: &mut [M2ParticleEmitter], txid: &[u32]) {
 
 /// Parse all particle emitters from the MD20 header (M2Array at offset 0x128).
 pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
-    if md20.len() < 0x130 {
+    if md20.len() < MD20_PARTICLE_EMITTERS_DATA_OFFSET + 4 {
         return Vec::new();
     }
-    let version = read_u32(md20, 0x4).unwrap_or(0);
-    let count = read_u32(md20, 0x128).unwrap_or(0) as usize;
-    let offset = read_u32(md20, 0x12C).unwrap_or(0) as usize;
+    let version = read_u32(md20, MD20_VERSION_OFFSET).unwrap_or(0);
+    let count = read_u32(md20, MD20_PARTICLE_EMITTERS_COUNT_OFFSET).unwrap_or(0) as usize;
+    let offset = read_u32(md20, MD20_PARTICLE_EMITTERS_DATA_OFFSET).unwrap_or(0) as usize;
     if count == 0 {
         return Vec::new();
     }

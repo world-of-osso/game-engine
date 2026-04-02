@@ -11,7 +11,10 @@
 //!   0x08: position [f32; 3] — offset relative to bone, WoW coordinates
 //!   0x14: AnimBlock (20 bytes, skipped)
 
-use super::m2_format::{read_f32, read_u16, read_u32};
+use super::m2_format::{
+    MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET, MD20_ATTACHMENT_LOOKUP_DATA_OFFSET,
+    MD20_ATTACHMENTS_COUNT_OFFSET, MD20_ATTACHMENTS_DATA_OFFSET, read_f32, read_u16, read_u32,
+};
 
 /// An attachment point on an M2 model (e.g., hand, back, shoulder).
 #[derive(Debug, Clone)]
@@ -26,11 +29,11 @@ pub struct M2Attachment {
 
 /// Parse M2Attachment entries from MD20 offset 0xD8.
 pub fn parse_attachments(md20: &[u8]) -> Result<Vec<M2Attachment>, String> {
-    if md20.len() < 0xE0 {
+    if md20.len() < MD20_ATTACHMENTS_DATA_OFFSET + 4 {
         return Ok(Vec::new());
     }
-    let count = read_u32(md20, 0xD8)? as usize;
-    let offset = read_u32(md20, 0xDC)? as usize;
+    let count = read_u32(md20, MD20_ATTACHMENTS_COUNT_OFFSET)? as usize;
+    let offset = read_u32(md20, MD20_ATTACHMENTS_DATA_OFFSET)? as usize;
     let mut attachments = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * 40;
@@ -77,11 +80,11 @@ pub fn parse_ska1_attachments(ska1: &[u8]) -> Result<Vec<M2Attachment>, String> 
 
 /// Parse attachment lookup table from MD20 offset 0xE0 (array of i16).
 pub fn parse_attachment_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
-    if md20.len() < 0xE8 {
+    if md20.len() < MD20_ATTACHMENT_LOOKUP_DATA_OFFSET + 4 {
         return Ok(Vec::new());
     }
-    let count = read_u32(md20, 0xE0)? as usize;
-    let offset = read_u32(md20, 0xE4)? as usize;
+    let count = read_u32(md20, MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET)? as usize;
+    let offset = read_u32(md20, MD20_ATTACHMENT_LOOKUP_DATA_OFFSET)? as usize;
     let mut lookup = Vec::with_capacity(count);
     for i in 0..count {
         let off = offset + i * 2;
