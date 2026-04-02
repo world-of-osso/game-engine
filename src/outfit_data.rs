@@ -23,19 +23,19 @@ pub struct OutfitResult {
 }
 
 #[derive(Debug, Clone, Default)]
-struct DisplayInfoResolved {
-    item_textures: Vec<(u8, u32)>,
-    geoset_overrides: Vec<(u16, u16)>,
-    model_resource_ids: Vec<u32>,
-    model_material_resource_ids: Vec<u32>,
-    model_resource_columns: [u32; 2],
-    model_material_resource_columns: [u32; 2],
-    helmet_geoset_vis_ids: Vec<u32>,
-    geoset_groups: [i16; 6],
+pub(crate) struct DisplayInfoResolved {
+    pub item_textures: Vec<(u8, u32)>,
+    pub geoset_overrides: Vec<(u16, u16)>,
+    pub model_resource_ids: Vec<u32>,
+    pub model_material_resource_ids: Vec<u32>,
+    pub model_resource_columns: [u32; 2],
+    pub model_material_resource_columns: [u32; 2],
+    pub helmet_geoset_vis_ids: Vec<u32>,
+    pub geoset_groups: [i16; 6],
 }
 
-struct DisplayMaterialTextures {
-    direct: HashMap<u32, Vec<(u8, u32)>>,
+pub(crate) struct DisplayMaterialTextures {
+    pub direct: HashMap<u32, Vec<(u8, u32)>>,
 }
 
 #[derive(Debug, Default)]
@@ -357,17 +357,11 @@ struct DisplayResources {
 }
 
 fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
-    let base_display_info = parse::parse_item_display_info(&data_dir.join("ItemDisplayInfo.csv"))?;
-    let material_to_texture =
-        parse::parse_texture_file_data(&data_dir.join("TextureFileData.csv"))?;
-    let display_materials = parse::parse_item_display_info_material_res(
-        &data_dir.join("ItemDisplayInfoMaterialRes.csv"),
-        &material_to_texture,
-    )?;
+    let cached = crate::world_db::load_cached_display_resources(data_dir)?;
     Ok(DisplayResources {
-        display_info: merge_display_materials(base_display_info, display_materials),
-        material_to_texture,
-        model_to_fdids: parse::parse_model_file_data(&data_dir.join("ModelFileData.csv"))?,
+        display_info: merge_display_materials(cached.display_info, cached.display_materials),
+        material_to_texture: cached.material_to_texture,
+        model_to_fdids: cached.model_to_fdids,
         race_prefix: crate::world_db::load_chr_race_prefixes().or_else(|err| {
             info!("Falling back to ChrRaces.csv for race prefixes: {err}");
             parse::parse_race_prefix(&data_dir.join("ChrRaces.csv"))
