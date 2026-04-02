@@ -370,7 +370,10 @@ fn load_display_resources(data_dir: &Path) -> Result<DisplayResources, String> {
         display_info: merge_display_materials(base_display_info, display_materials),
         material_to_texture,
         model_to_fdids: parse::parse_model_file_data(&data_dir.join("ModelFileData.csv"))?,
-        race_prefix: parse::parse_race_prefix(&data_dir.join("ChrRaces.csv"))?,
+        race_prefix: crate::world_db::load_chr_race_prefixes().or_else(|err| {
+            info!("Falling back to ChrRaces.csv for race prefixes: {err}");
+            parse::parse_race_prefix(&data_dir.join("ChrRaces.csv"))
+        })?,
         helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
     })
 }
