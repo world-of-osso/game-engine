@@ -86,7 +86,7 @@ fn read_color_values(md20: &[u8], emitter: &[u8], off: usize) -> [[f32; 3]; 3] {
     colors
 }
 
-/// Read FakeAnimBlock opacity values (3 × u16, mapped to 0–1 range).
+/// Read FakeAnimBlock opacity values (3 × signed Fixed16, clamped to 0–1).
 fn read_opacity_values(md20: &[u8], emitter: &[u8], off: usize) -> [f32; 3] {
     let mut opacities = [1.0f32; 3];
     let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
