@@ -14,6 +14,13 @@ use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
 };
 
+mod inworld_skybox;
+
+use self::inworld_skybox::{
+    sync_inworld_authored_skybox, sync_inworld_skybox_to_camera, teardown_inworld_skybox,
+    update_inworld_skybox_transition,
+};
+
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 
 // ---------------------------------------------------------------------------
@@ -505,7 +512,17 @@ fn register_inworld_systems(app: &mut App) {
     let iw = in_state(GameState::InWorld);
     app.add_systems(Update, advance_game_time.run_if(iw.clone()));
     register_sky_visual_systems(app);
-    app.add_systems(Update, time_speed_controls.run_if(iw));
+    app.add_systems(
+        Update,
+        (
+            sync_inworld_authored_skybox,
+            update_inworld_skybox_transition.after(sync_inworld_authored_skybox),
+            sync_inworld_skybox_to_camera.after(update_inworld_skybox_transition),
+            time_speed_controls,
+        )
+            .run_if(iw),
+    );
+    app.add_systems(OnExit(GameState::InWorld), teardown_inworld_skybox);
 }
 
 fn register_sky_visual_systems(app: &mut App) {
@@ -561,96 +578,4 @@ impl Plugin for SkyPlugin {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn game_time_to_clock() {
-        assert_eq!(format_game_clock(1440.0), "12:00");
-        assert_eq!(format_game_clock(720.0), "06:00");
-        assert_eq!(format_game_clock(0.0), "00:00");
-        assert_eq!(format_game_clock(2880.0), "00:00");
-        assert_eq!(format_game_clock(2160.0), "18:00");
-        assert_eq!(format_game_clock(780.0), "06:30");
-    }
-
-    #[test]
-    fn char_select_fog_is_not_overwritten_by_sky_updates() {
-        let mut app = App::new();
-        let initial_charselect_fog = Color::srgb(0.18, 0.2, 0.23);
-        let initial_world_fog = Color::BLACK;
-        let sky_smog = Color::srgb(0.7, 0.8, 0.9);
-        let sky_band2 = Color::srgb(0.4, 0.5, 0.6);
-
-        app.insert_resource(GameTime {
-            minutes: 100.0,
-            speed: 0.0,
-        });
-        app.insert_resource(LightKeyframes(vec![LightDataRow {
-            time: 0.0,
-            direct_color: Color::WHITE,
-            ambient_color: Color::WHITE,
-            sky_top: Color::WHITE,
-            sky_middle: Color::WHITE,
-            sky_band1: Color::WHITE,
-            sky_band2,
-            sky_smog,
-            fog_color: Color::WHITE,
-        }]));
-        let charselect_entity = app
-            .world_mut()
-            .spawn((
-                CharSelectScene,
-                DistanceFog {
-                    color: initial_charselect_fog,
-                    directional_light_color: initial_charselect_fog,
-                    directional_light_exponent: 8.0,
-                    falloff: FogFalloff::Linear {
-                        start: 140.0,
-                        end: 220.0,
-                    },
-                },
-            ))
-            .id();
-        let world_entity = app
-            .world_mut()
-            .spawn(DistanceFog {
-                color: initial_world_fog,
-                directional_light_color: initial_world_fog,
-                directional_light_exponent: 8.0,
-                falloff: FogFalloff::Linear {
-                    start: 1.0,
-                    end: 2.0,
-                },
-            })
-            .id();
-        app.add_systems(Update, update_fog);
-
-        app.update();
-
-        let charselect_fog = app
-            .world()
-            .entity(charselect_entity)
-            .get::<DistanceFog>()
-            .expect("char select fog");
-        let world_fog = app
-            .world()
-            .entity(world_entity)
-            .get::<DistanceFog>()
-            .expect("world fog");
-
-        assert_eq!(
-            charselect_fog.color.to_srgba(),
-            initial_charselect_fog.to_srgba()
-        );
-        assert_eq!(
-            charselect_fog.directional_light_color.to_srgba(),
-            initial_charselect_fog.to_srgba()
-        );
-        assert_eq!(world_fog.color.to_srgba(), sky_smog.to_srgba());
-        assert_eq!(
-            world_fog.directional_light_color.to_srgba(),
-            sky_band2.to_srgba()
-        );
-    }
-}
+mod tests;

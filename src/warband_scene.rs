@@ -635,6 +635,22 @@ mod tests {
     }
 
     #[test]
+    fn authored_star_skyboxes_override_shared_star_fallback() {
+        let warband = WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .expect("known scene");
+
+        assert_eq!(scene.texture_kit, 5671);
+        assert_eq!(
+            scene.skybox_model_wow_path(),
+            Some("environments/stars/deathskybox.m2")
+        );
+    }
+
+    #[test]
     fn solo_character_placement_uses_first_authored_character_slot() {
         let warband = WarbandScenes::load();
         let rest = warband

@@ -21,6 +21,47 @@ static LIGHTS: OnceLock<Vec<LightEntry>> = OnceLock::new();
 static LIGHT_PARAMS_SKYBOX_IDS: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
 static LIGHT_SKYBOX_FDIDS: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
 
+pub fn map_name_to_id(map_name: &str) -> Option<u32> {
+    let normalized = normalize_map_name(map_name);
+    if let Ok(id) = normalized.parse() {
+        return Some(id);
+    }
+    match normalized.as_str() {
+        "azeroth" => Some(0),
+        "kalimdor" => Some(1),
+        "expansion01" | "outland" => Some(530),
+        "northrend" => Some(571),
+        "deepholm" => Some(646),
+        "pandaria" => Some(870),
+        "draenor" => Some(1116),
+        "brokenisles" | "brokenshorecontinent" => Some(1220),
+        "argus" => Some(1669),
+        "kultiras" | "kultirascontinent" => Some(1643),
+        "zandalar" => Some(1642),
+        "zandalarcontinentfinale" => Some(1642),
+        "nazjatar" => Some(1355),
+        "shadowlands" => Some(2222),
+        "dragonisles" => Some(2444),
+        "khazalgar" => Some(2552),
+        _ => None,
+    }
+}
+
+fn normalize_map_name(map_name: &str) -> String {
+    let normalized = map_name.trim().replace('\\', "/").to_ascii_lowercase();
+    let map_segment = normalized
+        .split("world/maps/")
+        .nth(1)
+        .and_then(|tail| tail.split('/').next())
+        .filter(|segment| !segment.is_empty())
+        .unwrap_or(normalized.as_str());
+
+    map_segment
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .collect()
+}
+
 pub fn resolve_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u32> {
     resolve_light_params_ids(map_id, wow_position)?
         .into_iter()
@@ -455,8 +496,8 @@ fn read_le_u32(bytes: &[u8], offset: usize) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        resolve_light_params_id, resolve_light_skybox_fdid, resolve_light_skybox_id,
-        resolve_light_skybox_wow_path, resolve_skybox_light_params_id,
+        map_name_to_id, resolve_light_params_id, resolve_light_skybox_fdid,
+        resolve_light_skybox_id, resolve_light_skybox_wow_path, resolve_skybox_light_params_id,
     };
 
     #[test]
@@ -566,5 +607,23 @@ mod tests {
             resolve_light_skybox_wow_path(653),
             Some("environments/stars/11xp_cloudsky01.m2")
         );
+    }
+
+    #[test]
+    fn common_world_map_names_map_to_expected_ids() {
+        assert_eq!(map_name_to_id("azeroth"), Some(0));
+        assert_eq!(map_name_to_id("kalimdor"), Some(1));
+        assert_eq!(map_name_to_id("expansion01"), Some(530));
+        assert_eq!(map_name_to_id("outland"), Some(530));
+        assert_eq!(map_name_to_id("northrend"), Some(571));
+        assert_eq!(map_name_to_id("Kul_Tiras"), Some(1643));
+        assert_eq!(
+            map_name_to_id("world/maps/kultiras/kultiras_32_32.adt"),
+            Some(1643)
+        );
+        assert_eq!(map_name_to_id("ZandalarContinentFinale"), Some(1642));
+        assert_eq!(map_name_to_id("Khaz Algar"), Some(2552));
+        assert_eq!(map_name_to_id("2703"), Some(2703));
+        assert_eq!(map_name_to_id("unknown_map_name"), None);
     }
 }

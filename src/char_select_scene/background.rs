@@ -134,6 +134,7 @@ pub fn spawn_skybox(
         &m2_path,
         Transform::from_translation(camera_translation),
         creature_display_map,
+        None,
     )?;
     commands.entity(spawned.root).insert((
         CharSelectScene,

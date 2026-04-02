@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use bevy::camera::visibility::NoFrustumCulling;
+use bevy::light::{NotShadowCaster, NotShadowReceiver};
 use bevy::mesh::VertexAttributeValues;
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::prelude::*;
@@ -74,6 +76,7 @@ pub fn spawn_m2_on_entity_filtered(
         &model.bones,
         grounded_root,
         false,
+        None,
     );
     true
 }
@@ -109,7 +112,7 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
         names,
     );
     for (i, batch) in batches.into_iter().enumerate() {
-        spawn_batch_mesh(commands, assets, batch, entity, &skinning, i, false);
+        spawn_batch_mesh(commands, assets, batch, entity, &skinning, i, false, None);
     }
     true
 }
@@ -237,6 +240,7 @@ pub fn attach_m2_batches(
     bones: &[asset::m2_anim::M2Bone],
     root: Entity,
     force_skybox_material: bool,
+    skybox_color: Option<Color>,
 ) -> SkinningResult {
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
@@ -248,6 +252,7 @@ pub fn attach_m2_batches(
             &skinning,
             i,
             force_skybox_material,
+            skybox_color,
         );
     }
     skinning
@@ -305,6 +310,7 @@ fn spawn_batch_mesh(
     skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
     batch_index: usize,
     force_skybox_material: bool,
+    skybox_color: Option<Color>,
 ) {
     let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
     let mat = load_batch_material(
@@ -315,6 +321,7 @@ fn spawn_batch_mesh(
         assets.effect_materials,
         assets.skybox_materials.as_deref_mut(),
         force_skybox_material,
+        skybox_color,
     );
     spawn_mesh_with_material(
         commands,
@@ -482,6 +489,9 @@ fn spawn_skinned_mesh_skybox(
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
         Name::new(format!("Mesh[{batch_index}]")),
+        NoFrustumCulling,
+        NotShadowCaster,
+        NotShadowReceiver,
         vis,
     ));
     spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
@@ -553,14 +563,17 @@ fn load_batch_material(
     images: &mut Assets<Image>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
-    _skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
+    skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
     force_skybox_material: bool,
+    skybox_color: Option<Color>,
 ) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
     if force_skybox_material
-        && let Some(mat) = try_load_textured_skybox_material(batch, &texture_dir, images, materials)
+        && let Some(mat) = skybox_materials.and_then(|materials| {
+            try_load_skybox_material(batch, &texture_dir, images, materials, skybox_color)
+        })
     {
-        return BatchMaterial::Standard(mat);
+        return BatchMaterial::Skybox(mat);
     }
     if should_use_effect_material(batch)
         && let Some(mat) = try_load_effect_material(batch, &texture_dir, images, effect_materials)
@@ -649,6 +662,7 @@ fn try_load_skybox_material(
     texture_dir: &Path,
     images: &mut Assets<Image>,
     materials: &mut Assets<SkyboxM2Material>,
+    color: Option<Color>,
 ) -> Option<Handle<SkyboxM2Material>> {
     let fdid = batch.texture_fdid?;
     let blp_path = asset::asset_cache::texture(fdid)
@@ -660,7 +674,7 @@ fn try_load_skybox_material(
         crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
             .map_err(|e| eprintln!("{e}"))
             .ok()?;
-    Some(materials.add(skybox_m2_material(Some(image), None, batch)))
+    Some(materials.add(skybox_m2_material(Some(image), color, batch)))
 }
 
 fn try_load_textured_skybox_material(

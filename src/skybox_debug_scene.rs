@@ -24,6 +24,9 @@ struct SkyboxDebugScene;
 #[derive(Component)]
 struct SkyboxDebugSkybox;
 
+#[derive(Component)]
+struct SkyboxDebugDepthProbe;
+
 pub struct SkyboxDebugScenePlugin;
 
 impl Plugin for SkyboxDebugScenePlugin {
@@ -104,6 +107,22 @@ fn setup_scene(
         Transform::from_xyz(0.0, 0.05, 0.0),
     ));
 
+    let depth_probe = commands
+        .spawn((
+            Name::new("SkyboxDebugDepthProbe"),
+            SkyboxDebugScene,
+            SkyboxDebugDepthProbe,
+            Mesh3d(meshes.add(Cuboid::new(0.7, 1.5, 0.7))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(1.0, 0.0, 1.0),
+                emissive: Color::srgb(1.0, 0.0, 1.0).into(),
+                unlit: true,
+                ..default()
+            })),
+            Transform::from_xyz(0.0, 0.85, 2.2),
+        ))
+        .id();
+
     let resolved = resolve_debug_skybox(scene, override_spec.as_deref().copied());
     let Some(resolved) = resolved else {
         match scene {
@@ -128,6 +147,7 @@ fn setup_scene(
         &path,
         Transform::from_translation(eye),
         &creature_display_map,
+        None,
     ) else {
         warn!(
             "skybox_debug_scene: failed to spawn skybox model at {}",
@@ -172,6 +192,7 @@ fn setup_scene(
                     },
                     children: vec![],
                 },
+                depth_probe_scene_node(depth_probe),
             ],
         },
     });
@@ -180,6 +201,18 @@ fn setup_scene(
 struct ResolvedDebugSkybox {
     path: std::path::PathBuf,
     source: String,
+}
+
+fn depth_probe_scene_node(entity: Entity) -> SceneNode {
+    SceneNode {
+        label: "DepthProbe".into(),
+        entity: Some(entity),
+        props: NodeProps::Object {
+            kind: "DepthProbe".into(),
+            model: "cuboid".into(),
+        },
+        children: vec![],
+    }
 }
 
 fn resolve_debug_skybox(
@@ -244,7 +277,9 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<SkyboxDebugS
 
 #[cfg(test)]
 mod tests {
-    use super::{SkyboxDebugOverride, resolve_debug_skybox};
+    use super::{SkyboxDebugOverride, depth_probe_scene_node, resolve_debug_skybox};
+    use bevy::prelude::Entity;
+    use game_engine::scene_tree::NodeProps;
 
     #[test]
     fn debug_override_resolves_light_skybox_id() {
@@ -273,5 +308,21 @@ mod tests {
             resolved.path.display()
         );
         assert_eq!(resolved.source, "forced SkyboxFileDataID=5412968");
+    }
+
+    #[test]
+    fn depth_probe_scene_node_uses_depth_probe_object_kind() {
+        let entity = Entity::PLACEHOLDER;
+        let node = depth_probe_scene_node(entity);
+
+        assert_eq!(node.label, "DepthProbe");
+        assert_eq!(node.entity, Some(entity));
+        match node.props {
+            NodeProps::Object { kind, model } => {
+                assert_eq!(kind, "DepthProbe");
+                assert_eq!(model, "cuboid");
+            }
+            other => panic!("expected object props, got {other:?}"),
+        }
     }
 }

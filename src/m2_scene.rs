@@ -17,6 +17,14 @@ use crate::m2_spawn;
 use crate::particle;
 use crate::skybox_m2_material::SkyboxM2Material;
 
+mod static_spawn;
+
+#[allow(unused_imports)]
+pub use self::static_spawn::{
+    SpawnedAnimatedStaticM2, spawn_animated_static_m2, spawn_animated_static_m2_parts,
+    spawn_animated_static_m2_parts_with_skin_fdids, spawn_animated_static_skybox_m2_parts,
+};
+
 /// Attach equipment (attachment points + default main-hand torch) to a model entity.
 pub fn attach_equipment_to_model(
     commands: &mut Commands,
@@ -161,6 +169,7 @@ pub fn spawn_m2_model(
         model_entity,
         true,
         false,
+        None,
     );
 }
 
@@ -191,6 +200,7 @@ pub fn spawn_full_m2_on_entity(
         entity,
         false,
         false,
+        None,
     );
     true
 }
@@ -208,6 +218,7 @@ fn attach_m2_model_parts(
     model_entity: Entity,
     default_main_hand_torch: bool,
     force_skybox_material: bool,
+    skybox_color: Option<Color>,
 ) {
     let asset::m2::M2Model {
         batches,
@@ -240,6 +251,7 @@ fn attach_m2_model_parts(
         &bones,
         visual_root,
         force_skybox_material,
+        skybox_color,
     );
     spawn_anim_and_particles(
         commands,
@@ -331,176 +343,6 @@ pub fn spawn_static_m2(
         commands.entity(root).despawn();
         None
     }
-}
-
-/// Spawn a static M2 model that still carries animation data.
-pub struct SpawnedAnimatedStaticM2 {
-    pub root: Entity,
-    pub model_root: Entity,
-}
-
-/// Spawn a static M2 model that still carries animation data.
-#[allow(clippy::too_many_arguments)]
-pub fn spawn_animated_static_m2_parts(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    transform: Transform,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-) -> Option<SpawnedAnimatedStaticM2> {
-    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
-        return None;
-    };
-    spawn_animated_static_m2_parts_from_model(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        None,
-        images,
-        skinned_mesh_inverse_bindposes,
-        m2_path,
-        transform,
-        model,
-        false,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn spawn_animated_static_skybox_m2_parts(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    skybox_materials: &mut Assets<SkyboxM2Material>,
-    images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    transform: Transform,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-) -> Option<SpawnedAnimatedStaticM2> {
-    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
-        return None;
-    };
-    spawn_animated_static_m2_parts_from_model(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        Some(skybox_materials),
-        images,
-        skinned_mesh_inverse_bindposes,
-        m2_path,
-        transform,
-        model,
-        true,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn spawn_animated_static_m2_parts_with_skin_fdids(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    transform: Transform,
-    skin_fdids: &[u32; 3],
-) -> Option<SpawnedAnimatedStaticM2> {
-    let Some(model) = load_m2_model_with_skin_fdids(m2_path, skin_fdids) else {
-        return None;
-    };
-    spawn_animated_static_m2_parts_from_model(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        None,
-        images,
-        skinned_mesh_inverse_bindposes,
-        m2_path,
-        transform,
-        model,
-        false,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn spawn_animated_static_m2_parts_from_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
-    images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    transform: Transform,
-    model: asset::m2::M2Model,
-    force_skybox_material: bool,
-) -> Option<SpawnedAnimatedStaticM2> {
-    let name = m2_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("prop");
-    let root = commands
-        .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
-        .id();
-    let model_root = commands
-        .spawn((
-            Name::new(format!("{name}ModelRoot")),
-            Transform::IDENTITY,
-            Visibility::default(),
-        ))
-        .id();
-    commands.entity(model_root).insert(ChildOf(root));
-    attach_m2_model_parts(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        skybox_materials,
-        images,
-        skinned_mesh_inverse_bindposes,
-        model,
-        model_root,
-        false,
-        force_skybox_material,
-    );
-    Some(SpawnedAnimatedStaticM2 { root, model_root })
-}
-
-/// Spawn a static M2 model that still carries animation data.
-#[allow(clippy::too_many_arguments)]
-pub fn spawn_animated_static_m2(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    transform: Transform,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-) -> Option<Entity> {
-    spawn_animated_static_m2_parts(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        skinned_mesh_inverse_bindposes,
-        m2_path,
-        transform,
-        creature_display_map,
-    )
-    .map(|spawned| spawned.root)
 }
 
 /// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.

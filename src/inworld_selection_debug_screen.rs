@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use crate::creature_display;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
+use crate::networking::CurrentZone;
 use crate::target::{TargetCircleStyle, available_circle_styles};
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -19,6 +20,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::char_select_input::{cursor_pos, find_clicked_action};
 use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
+use crate::skybox_m2_material::SkyboxM2Material;
 
 #[derive(Component)]
 struct InWorldSelectionDebugScene;
@@ -142,7 +144,9 @@ fn setup_inworld_selection_debug_scene(
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut skybox_materials: ResMut<Assets<SkyboxM2Material>>,
     creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    current_zone: Res<CurrentZone>,
     mut current_target: ResMut<CurrentTarget>,
 ) {
     commands.insert_resource(ClearColor(Color::srgb(0.03, 0.04, 0.06)));
@@ -153,6 +157,17 @@ fn setup_inworld_selection_debug_scene(
     });
     spawn_debug_camera(&mut commands);
     spawn_debug_light(&mut commands);
+    let _ = spawn_debug_skybox(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut effect_materials,
+        &mut skybox_materials,
+        &mut images,
+        &mut inverse_bindposes,
+        &creature_display_map,
+        current_zone.zone_id,
+    );
     spawn_debug_ground(&mut commands, &mut meshes, &mut materials);
     current_target.0 = spawn_debug_wolf(
         &mut commands,
@@ -204,6 +219,68 @@ fn spawn_debug_ground(
             ..default()
         })),
     ));
+}
+
+fn spawn_debug_skybox(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    skybox_materials: &mut Assets<SkyboxM2Material>,
+    images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    map_id: u32,
+) -> Option<Entity> {
+    let skybox_path = ensure_inworld_selection_debug_skybox(map_id, Vec3::new(0.0, 0.0, 0.0))
+        .unwrap_or_else(|| std::path::PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"));
+    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        skybox_materials,
+        images,
+        inverse_bindposes,
+        &skybox_path,
+        Transform::default(),
+        creature_display_map,
+        None,
+    )?;
+    commands.entity(spawned.root).insert((
+        InWorldSelectionDebugScene,
+        Name::new("InWorldSelectionDebugSkybox"),
+    ));
+    commands
+        .entity(spawned.model_root)
+        .insert(InWorldSelectionDebugScene);
+    Some(spawned.root)
+}
+
+fn ensure_inworld_selection_debug_skybox(
+    map_id: u32,
+    bevy_position: Vec3,
+) -> Option<std::path::PathBuf> {
+    let wow_position = bevy_to_wow_position(bevy_position);
+    let light_params_id =
+        crate::light_lookup::resolve_skybox_light_params_id(map_id, wow_position)?;
+    let light_skybox_id = crate::light_lookup::resolve_light_skybox_id(light_params_id)?;
+    let wow_path = crate::light_lookup::resolve_light_skybox_wow_path(light_skybox_id)?;
+    ensure_skybox_model_path(wow_path)
+}
+
+fn bevy_to_wow_position(pos: Vec3) -> [f32; 3] {
+    [pos.x, -pos.z, pos.y]
+}
+
+fn ensure_skybox_model_path(wow_path: &'static str) -> Option<std::path::PathBuf> {
+    if !wow_path.ends_with(".m2") {
+        return None;
+    }
+    let filename = std::path::Path::new(wow_path).file_name()?;
+    let local = std::path::PathBuf::from("data/models/skyboxes").join(filename);
+    let fdid = game_engine::listfile::lookup_path(wow_path)?;
+    crate::asset::asset_cache::file_at_path(fdid, &local)
 }
 
 fn spawn_debug_wolf(
