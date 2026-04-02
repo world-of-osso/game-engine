@@ -141,7 +141,7 @@ struct ExprModifiers {
 fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifiers {
     let writer = ExprWriter::new();
     let init = build_init_modifiers(em, &writer, model_scale);
-    let gravity = AccelModifier::new(writer.lit(Vec3::new(0.0, -em.gravity, 0.0)).expr());
+    let gravity = build_accel_modifier(em, &writer, model_scale);
     let drag = (em.drag > 0.0).then(|| LinearDragModifier::new(writer.lit(em.drag).expr()));
     let flipbook_sprite_index = build_flipbook_sprite_index(em, &writer);
     let mask_cutoff = writer.lit(0.5_f32).expr();
@@ -165,6 +165,24 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         orient_rotation,
         module,
     }
+}
+
+fn build_accel_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    model_scale: f32,
+) -> AccelModifier {
+    let gravity = writer.lit(Vec3::new(0.0, -em.gravity, 0.0));
+    if !has_authored_wind(em) {
+        return AccelModifier::new(gravity.expr());
+    }
+    let age = writer.attr(Attribute::AGE);
+    let wind_active = writer
+        .lit(em.wind_time.max(0.0))
+        .ge(age)
+        .cast(ScalarType::Float);
+    let wind = writer.lit(wind_accel_bevy(em, model_scale)) * wind_active;
+    AccelModifier::new((gravity + wind).expr())
 }
 
 fn build_flipbook_sprite_index(
@@ -403,6 +421,23 @@ fn has_authored_spin(em: &M2ParticleEmitter) -> bool {
         || em.base_spin_variation != 0.0
         || em.spin != 0.0
         || em.spin_variation != 0.0
+}
+
+fn has_authored_wind(em: &M2ParticleEmitter) -> bool {
+    em.wind_time > 0.0 && em.wind_vector.iter().any(|&value| value != 0.0)
+}
+
+fn wind_accel_bevy(em: &M2ParticleEmitter, model_scale: f32) -> Vec3 {
+    let [x, y, z] = em.wind_vector;
+    Vec3::from(wow_to_bevy(x, y, z)) * model_scale
+}
+
+fn wind_strength_at_age(age: f32, wind_time: f32) -> f32 {
+    if wind_time > 0.0 && age <= wind_time {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 fn build_position_modifier(

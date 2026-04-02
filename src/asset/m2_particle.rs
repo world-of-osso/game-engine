@@ -43,6 +43,10 @@ pub struct M2ParticleEmitter {
     pub spin: f32,
     /// Random variation applied to angular velocity.
     pub spin_variation: f32,
+    /// Additional wind acceleration vector in WoW coordinates.
+    pub wind_vector: [f32; 3],
+    /// Duration in seconds for which wind affects newly spawned particles.
+    pub wind_time: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
     /// Full FakeAnimBlock color keys as (normalized time, RGB 0–255).
@@ -77,6 +81,8 @@ const EMITTER_BASE_SPIN_OFFSET: usize = 0x178;
 const EMITTER_BASE_SPIN_VARIATION_OFFSET: usize = 0x17C;
 const EMITTER_SPIN_OFFSET: usize = 0x180;
 const EMITTER_SPIN_VARIATION_OFFSET: usize = 0x184;
+const EMITTER_WIND_VECTOR_OFFSET: usize = 0x1A0;
+const EMITTER_WIND_TIME_OFFSET: usize = 0x1AC;
 const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
 const EMITTER_272_STRIDE: usize = 0x1EC;
 
@@ -297,6 +303,8 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         base_spin_variation: 0.0,
         spin: 0.0,
         spin_variation: 0.0,
+        wind_vector: [0.0; 3],
+        wind_time: 0.0,
         colors: [[0.0; 3]; 3],
         color_keys: Vec::new(),
         opacity: [1.0; 3],
@@ -326,6 +334,12 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.base_spin_variation = read_f32(data, EMITTER_BASE_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
     em.spin = read_f32(data, EMITTER_SPIN_OFFSET).unwrap_or(0.0);
     em.spin_variation = read_f32(data, EMITTER_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
+    em.wind_vector = [
+        read_f32(data, EMITTER_WIND_VECTOR_OFFSET).unwrap_or(0.0),
+        read_f32(data, EMITTER_WIND_VECTOR_OFFSET + 4).unwrap_or(0.0),
+        read_f32(data, EMITTER_WIND_VECTOR_OFFSET + 8).unwrap_or(0.0),
+    ];
+    em.wind_time = read_f32(data, EMITTER_WIND_TIME_OFFSET).unwrap_or(0.0);
 }
 
 /// Fill FakeAnimBlock visual values (color, opacity, scale).
@@ -612,6 +626,25 @@ mod tests {
         assert!((parsed.base_spin_variation - 1.5).abs() < 0.0001);
         assert!((parsed.spin - 0.75).abs() < 0.0001);
         assert!((parsed.spin_variation - 0.5).abs() < 0.0001);
+    }
+
+    #[test]
+    fn parses_wind_fields_from_272_suffix() {
+        let mut md20 = vec![0u8; 0x1ec];
+        md20[EMITTER_WIND_VECTOR_OFFSET..EMITTER_WIND_VECTOR_OFFSET + 4]
+            .copy_from_slice(&(1.0_f32).to_le_bytes());
+        md20[EMITTER_WIND_VECTOR_OFFSET + 4..EMITTER_WIND_VECTOR_OFFSET + 8]
+            .copy_from_slice(&(2.0_f32).to_le_bytes());
+        md20[EMITTER_WIND_VECTOR_OFFSET + 8..EMITTER_WIND_VECTOR_OFFSET + 12]
+            .copy_from_slice(&(3.0_f32).to_le_bytes());
+        md20[EMITTER_WIND_TIME_OFFSET..EMITTER_WIND_TIME_OFFSET + 4]
+            .copy_from_slice(&(4.5_f32).to_le_bytes());
+
+        let mut parsed = parse_emitter_header(&md20).unwrap();
+        fill_track_values(&mut parsed, &md20, &md20);
+
+        assert_eq!(parsed.wind_vector, [1.0, 2.0, 3.0]);
+        assert!((parsed.wind_time - 4.5).abs() < 0.0001);
     }
 
     #[test]

@@ -4,7 +4,8 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::{
     active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, has_authored_spin, is_fire_effect, orient_mode,
+    emitter_translation, has_authored_spin, has_authored_wind, is_fire_effect, orient_mode,
+    wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
@@ -36,6 +37,8 @@ fn sample_emitter() -> M2ParticleEmitter {
         base_spin_variation: 0.0,
         spin: 0.0,
         spin_variation: 0.0,
+        wind_vector: [0.0, 0.0, 0.0],
+        wind_time: 0.0,
         colors: [[255.0, 128.0, 64.0]; 3],
         color_keys: Vec::new(),
         opacity: [1.0, 1.0, 0.0],
@@ -216,6 +219,24 @@ fn spin_emitters_declare_authored_rotation() {
     assert!(modifiers.orient_rotation.is_some());
     assert!(modifiers.init.rotation.is_some());
     assert!(modifiers.init.angular_velocity.is_some());
+}
+
+#[test]
+fn wind_vector_maps_to_bevy_axes_and_scale() {
+    let mut emitter = sample_emitter();
+    emitter.wind_vector = [1.0, 2.0, 3.0];
+    emitter.wind_time = 2.0;
+
+    assert!(has_authored_wind(&emitter));
+    assert_eq!(wind_accel_bevy(&emitter, 1.5), Vec3::new(1.5, 4.5, -3.0));
+}
+
+#[test]
+fn wind_strength_stops_after_wind_time() {
+    assert_eq!(wind_strength_at_age(0.0, 1.5), 1.0);
+    assert_eq!(wind_strength_at_age(1.5, 1.5), 1.0);
+    assert_eq!(wind_strength_at_age(1.5001, 1.5), 0.0);
+    assert_eq!(wind_strength_at_age(0.5, 0.0), 0.0);
 }
 
 #[test]
