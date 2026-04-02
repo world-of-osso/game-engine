@@ -4,10 +4,79 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OpenFlags};
 
+use crate::listfile::CachedListfile;
+
 const COMMUNITY_LISTFILE_CACHE_PATH: &str = "community-listfile.sqlite";
 
 pub(crate) fn cache_path() -> PathBuf {
     crate::paths::shared_data_path(COMMUNITY_LISTFILE_CACHE_PATH)
+}
+
+pub(crate) fn load_local_cache(cache_path: &Path) -> Result<CachedListfile, String> {
+    if !cache_path.exists() {
+        return Ok(CachedListfile::default());
+    }
+    let conn = Connection::open_with_flags(
+        cache_path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
+    let mut stmt = match conn.prepare("SELECT fdid, path FROM local_listfile_entries ORDER BY fdid")
+    {
+        Ok(stmt) => stmt,
+        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+            if message.contains("no such table") =>
+        {
+            return Ok(CachedListfile::default());
+        }
+        Err(err) => return Err(format!("prepare local_listfile_entries query: {err}")),
+    };
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|err| format!("query local_listfile_entries: {err}"))?;
+    let mut by_fdid = std::collections::HashMap::new();
+    let mut by_path = std::collections::HashMap::new();
+    for row in rows {
+        let (fdid, path) = row.map_err(|err| format!("read local_listfile_entries row: {err}"))?;
+        let leaked = Box::leak(path.into_boxed_str()) as &'static str;
+        by_fdid.insert(fdid, leaked);
+        by_path.insert(leaked.to_ascii_lowercase(), fdid);
+    }
+    Ok(CachedListfile { by_fdid, by_path })
+}
+
+pub(crate) fn remember_local_cache_entry(
+    cache_path: &Path,
+    fdid: u32,
+    path: &str,
+) -> Result<(), String> {
+    let Some(parent) = cache_path.parent() else {
+        return Err(format!("missing parent for {}", cache_path.display()));
+    };
+    std::fs::create_dir_all(parent).map_err(|err| format!("create {}: {err}", parent.display()))?;
+    let conn = Connection::open(cache_path)
+        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
+    conn.execute_batch(
+        "BEGIN;
+         CREATE TABLE IF NOT EXISTS local_listfile_entries (
+             fdid INTEGER PRIMARY KEY,
+             path TEXT NOT NULL,
+             lower_path TEXT NOT NULL
+         );
+         CREATE UNIQUE INDEX IF NOT EXISTS idx_local_listfile_entries_lower_path
+         ON local_listfile_entries(lower_path);",
+    )
+    .map_err(|err| format!("init local_listfile_entries cache: {err}"))?;
+    conn.execute(
+        "INSERT OR REPLACE INTO local_listfile_entries (fdid, path, lower_path) VALUES (?1, ?2, ?3)",
+        (fdid, path, path.to_ascii_lowercase()),
+    )
+    .map_err(|err| format!("insert local_listfile_entries row {fdid}: {err}"))?;
+    conn.execute_batch("COMMIT;")
+        .map_err(|err| format!("commit local_listfile_entries cache: {err}"))?;
+    Ok(())
 }
 
 pub(crate) fn lookup_fdid(

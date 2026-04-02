@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 #[path = "listfile_cache.rs"]
@@ -28,7 +27,7 @@ fn get() -> &'static Listfile {
         Listfile::new(
             crate::paths::resolve_data_path("community-listfile.csv"),
             listfile_cache::cache_path(),
-            crate::paths::shared_data_path("local-listfile-cache.csv"),
+            crate::paths::shared_data_path("local-listfile-cache.sqlite"),
         )
     })
 }
@@ -39,7 +38,7 @@ impl Listfile {
         community_cache_path: PathBuf,
         local_cache_path: PathBuf,
     ) -> Self {
-        let local = match load_listfile(&local_cache_path) {
+        let local = match listfile_cache::load_local_cache(&local_cache_path) {
             Ok(cache) => cache,
             Err(err) => {
                 eprintln!("Failed to load local listfile cache: {err}");
@@ -110,7 +109,9 @@ impl Listfile {
         }
         local.by_fdid.entry(fdid).or_insert(path);
         local.by_path.entry(normalized).or_insert(fdid);
-        if let Err(err) = append_cache_entry(&self.local_cache_path, fdid, path) {
+        if let Err(err) =
+            listfile_cache::remember_local_cache_entry(&self.local_cache_path, fdid, path)
+        {
             eprintln!("Failed to persist listfile cache entry {fdid}: {err}");
         }
     }
@@ -126,56 +127,17 @@ pub fn lookup_path(path: &str) -> Option<u32> {
     get().lookup_path(path)
 }
 
-fn load_listfile(csv_path: &Path) -> Result<CachedListfile, String> {
-    match std::fs::read_to_string(csv_path) {
-        Ok(data) => Ok(parse_listfile(&data)),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(CachedListfile::default()),
-        Err(err) => Err(format!("read {}: {err}", csv_path.display())),
-    }
-}
-
-fn parse_listfile(data: &str) -> CachedListfile {
-    let mut by_fdid = HashMap::new();
-    let mut by_path = HashMap::new();
-
-    for line in data.lines() {
-        let Some((fdid_str, path)) = line.split_once(';') else {
-            continue;
-        };
-        let Ok(fdid) = fdid_str.parse::<u32>() else {
-            continue;
-        };
-        let leaked = Box::leak(path.to_owned().into_boxed_str()) as &'static str;
-        by_fdid.insert(fdid, leaked);
-        by_path.insert(path.to_ascii_lowercase(), fdid);
-    }
-
-    CachedListfile { by_fdid, by_path }
-}
-
-fn append_cache_entry(cache_path: &Path, fdid: u32, path: &str) -> Result<(), String> {
-    let Some(parent) = cache_path.parent() else {
-        return Err(format!("missing parent for {}", cache_path.display()));
-    };
-    std::fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(cache_path)
-        .map_err(|e| format!("open {}: {e}", cache_path.display()))?;
-    writeln!(file, "{fdid};{path}").map_err(|e| format!("write {}: {e}", cache_path.display()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn persists_lookup_results_in_local_cache() {
         let test_dir = Path::new("target/test-artifacts/listfile");
         std::fs::create_dir_all(test_dir).unwrap();
         let community = test_dir.join("community.csv");
-        let local = test_dir.join("local-cache.csv");
+        let local = test_dir.join("local-cache.sqlite");
         let _ = std::fs::remove_file(&local);
         std::fs::write(&community, "123;world/maps/test/test_1_2.adt\n").unwrap();
 
@@ -190,8 +152,11 @@ mod tests {
             Some("world/maps/test/test_1_2.adt")
         );
 
-        let persisted = std::fs::read_to_string(&local).unwrap();
-        assert_eq!(persisted, "123;world/maps/test/test_1_2.adt\n");
+        let persisted = listfile_cache::load_local_cache(&local).unwrap();
+        assert_eq!(
+            persisted.by_fdid.get(&123).copied(),
+            Some("world/maps/test/test_1_2.adt")
+        );
 
         std::fs::remove_file(&community).unwrap();
         let cached_only = Listfile::new(community, community_cache, local.clone());
@@ -212,15 +177,18 @@ mod tests {
         let test_dir = Path::new("target/test-artifacts/listfile");
         std::fs::create_dir_all(test_dir).unwrap();
         let community = test_dir.join("community-fdid-only.csv");
-        let local = test_dir.join("local-cache-fdid-only.csv");
+        let local = test_dir.join("local-cache-fdid-only.sqlite");
         let _ = std::fs::remove_file(&local);
         std::fs::write(&community, "456;creature/test/test.m2\n").unwrap();
 
         let community_cache = test_dir.join("community-fdid-only.sqlite");
         let listfile = Listfile::new(community.clone(), community_cache.clone(), local.clone());
         assert_eq!(listfile.lookup_fdid(456), Some("creature/test/test.m2"));
-        let persisted = std::fs::read_to_string(&local).unwrap();
-        assert_eq!(persisted, "456;creature/test/test.m2\n");
+        let persisted = listfile_cache::load_local_cache(&local).unwrap();
+        assert_eq!(
+            persisted.by_fdid.get(&456).copied(),
+            Some("creature/test/test.m2")
+        );
 
         std::fs::remove_file(&community).unwrap();
         let cached_only = Listfile::new(community, community_cache, local.clone());
