@@ -541,9 +541,9 @@ impl Plugin for EquipmentPlugin {
 }
 
 #[cfg(test)]
-#[path = "equipment_tests.rs"]
+#[path = "../tests/unit/equipment_tests.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "equipment_live_tests.rs"]
+#[path = "../tests/unit/equipment_live_tests.rs"]
 mod live_tests;

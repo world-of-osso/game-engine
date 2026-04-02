@@ -668,5 +668,5 @@ pub(crate) fn load_cached_display_resources(
 }
 
 #[cfg(test)]
-#[path = "world_db_tests.rs"]
+#[path = "../tests/unit/world_db_tests.rs"]
 mod tests;

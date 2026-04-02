@@ -8,6 +8,7 @@ use rusqlite::{Connection, OpenFlags};
 use crate::warband_scene::{WarbandSceneEntry, WarbandScenePlacement, WarbandScenePlacementOption};
 
 const WARBAND_SCENE_CACHE_PATH: &str = "cache/warband_scene.sqlite";
+const CACHE_SCHEMA_VERSION: i64 = 1;
 
 type WarbandSceneData = (
     Vec<WarbandSceneEntry>,
@@ -156,6 +157,9 @@ fn collect_rows<T>(
 }
 
 fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, String> {
+    if !cache_schema_is_current(conn)? {
+        return Ok(false);
+    }
     let mut stmt = match conn.prepare("SELECT path, mtime FROM source_files") {
         Ok(stmt) => stmt,
         Err(rusqlite::Error::SqliteFailure(_, Some(message)))
@@ -184,6 +188,22 @@ fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, S
     Ok(true)
 }
 
+fn cache_schema_is_current(conn: &Connection) -> Result<bool, String> {
+    let version = match conn.query_row("SELECT version FROM cache_metadata LIMIT 1", [], |row| {
+        row.get::<_, i64>(0)
+    }) {
+        Ok(version) => version,
+        Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(false),
+        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+            if message.contains("no such table") =>
+        {
+            return Ok(false);
+        }
+        Err(err) => return Err(format!("query cache_metadata: {err}")),
+    };
+    Ok(version == CACHE_SCHEMA_VERSION)
+}
+
 fn rebuild_cache(
     conn: &Connection,
     scene_csv: &Path,
@@ -200,55 +220,16 @@ fn rebuild_cache(
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "BEGIN;
-         DROP TABLE IF EXISTS source_files;
-         DROP TABLE IF EXISTS warband_scenes;
-         DROP TABLE IF EXISTS warband_scene_placements;
-         DROP TABLE IF EXISTS warband_scene_placement_options;
-         CREATE TABLE source_files (
-             path TEXT PRIMARY KEY,
-             mtime INTEGER NOT NULL
-         );
-         CREATE TABLE warband_scenes (
-             id INTEGER PRIMARY KEY,
-             name TEXT NOT NULL,
-             description TEXT NOT NULL,
-             pos_x REAL NOT NULL,
-             pos_y REAL NOT NULL,
-             pos_z REAL NOT NULL,
-             look_x REAL NOT NULL,
-             look_y REAL NOT NULL,
-             look_z REAL NOT NULL,
-             map_id INTEGER NOT NULL,
-             fov REAL NOT NULL,
-             texture_kit INTEGER NOT NULL
-         );
-         CREATE TABLE warband_scene_placements (
-             id INTEGER PRIMARY KEY,
-             scene_id INTEGER NOT NULL,
-             slot_type INTEGER NOT NULL,
-             pos_x REAL NOT NULL,
-             pos_y REAL NOT NULL,
-             pos_z REAL NOT NULL,
-             rotation REAL NOT NULL,
-             slot_id INTEGER NOT NULL
-         );
-         CREATE TABLE warband_scene_placement_options (
-             placement_id INTEGER NOT NULL,
-             layout_key INTEGER NOT NULL,
-             pos_x REAL NOT NULL,
-             pos_y REAL NOT NULL,
-             pos_z REAL NOT NULL,
-             orientation REAL NOT NULL,
-             scale REAL NOT NULL,
-             PRIMARY KEY (placement_id, layout_key)
-         );",
-    )
-    .map_err(|err| format!("init warband scene cache: {err}"))
+    conn.execute_batch(cache_schema_sql())
+        .map_err(|err| format!("init warband scene cache: {err}"))
 }
 
 fn record_source_files(conn: &Connection, source_paths: &[PathBuf]) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO cache_metadata (id, version) VALUES (1, ?1)",
+        [CACHE_SCHEMA_VERSION],
+    )
+    .map_err(|err| format!("record cache schema version: {err}"))?;
     let mut insert = conn
         .prepare("INSERT OR REPLACE INTO source_files (path, mtime) VALUES (?1, ?2)")
         .map_err(|err| format!("prepare source_files insert: {err}"))?;
@@ -261,129 +242,172 @@ fn record_source_files(conn: &Connection, source_paths: &[PathBuf]) -> Result<()
 }
 
 fn import_scene_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
-    let mut reader = open_reader(source_path)?;
-    skip_header(&mut reader, source_path)?;
-    let mut insert = conn
-        .prepare(
-            "INSERT OR REPLACE INTO warband_scenes
-             (id, name, description, pos_x, pos_y, pos_z, look_x, look_y, look_z, map_id, fov, texture_kit)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-        )
-        .map_err(|err| format!("prepare warband_scenes insert: {err}"))?;
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", source_path.display()))?
-            == 0
-        {
-            break;
-        }
-        let Some(scene) = super::parse_scene_line(line.trim_end_matches(['\r', '\n'])) else {
-            continue;
-        };
-        insert
-            .execute((
-                scene.id,
-                scene.name,
-                scene.description,
-                scene.position[0],
-                scene.position[1],
-                scene.position[2],
-                scene.look_at[0],
-                scene.look_at[1],
-                scene.look_at[2],
-                scene.map_id,
-                scene.fov,
-                scene.texture_kit,
-            ))
-            .map_err(|err| format!("insert warband scene row {}: {err}", scene.id))?;
+    let scenes = load_scene_rows(source_path)?;
+    let mut insert = prepare_scene_insert(conn)?;
+    for scene in &scenes {
+        insert_scene_row(&mut insert, scene)?;
     }
     Ok(())
 }
 
 fn import_placement_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
-    let mut reader = open_reader(source_path)?;
-    skip_header(&mut reader, source_path)?;
-    let mut insert = conn
-        .prepare(
-            "INSERT OR REPLACE INTO warband_scene_placements
-             (id, scene_id, slot_type, pos_x, pos_y, pos_z, rotation, slot_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        )
-        .map_err(|err| format!("prepare warband_scene_placements insert: {err}"))?;
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", source_path.display()))?
-            == 0
-        {
-            break;
-        }
-        let Some(placement) = super::parse_placement_line(line.trim_end_matches(['\r', '\n']))
-        else {
-            continue;
-        };
-        insert
-            .execute((
-                placement.id,
-                placement.scene_id,
-                placement.slot_type,
-                placement.position[0],
-                placement.position[1],
-                placement.position[2],
-                placement.rotation,
-                placement.slot_id,
-            ))
-            .map_err(|err| format!("insert warband placement row {}: {err}", placement.id))?;
+    let placements = load_placement_rows(source_path)?;
+    let mut insert = prepare_placement_insert(conn)?;
+    for placement in &placements {
+        insert_placement_row(&mut insert, placement)?;
     }
     Ok(())
 }
 
 fn import_placement_option_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
-    let mut reader = open_reader(source_path)?;
-    skip_header(&mut reader, source_path)?;
-    let mut insert = conn
-        .prepare(
-            "INSERT OR REPLACE INTO warband_scene_placement_options
-             (placement_id, layout_key, pos_x, pos_y, pos_z, orientation, scale)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        )
-        .map_err(|err| format!("prepare warband_scene_placement_options insert: {err}"))?;
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", source_path.display()))?
-            == 0
-        {
-            break;
-        }
-        let Some(option) = super::parse_placement_option_line(line.trim_end_matches(['\r', '\n']))
-        else {
-            continue;
-        };
-        insert
-            .execute((
-                option.placement_id,
-                option.layout_key,
-                option.position[0],
-                option.position[1],
-                option.position[2],
-                option.orientation,
-                option.scale,
-            ))
-            .map_err(|err| {
-                format!(
-                    "insert warband placement option row {}:{}: {err}",
-                    option.placement_id, option.layout_key
-                )
-            })?;
+    let options = load_placement_option_rows(source_path)?;
+    let mut insert = prepare_placement_option_insert(conn)?;
+    for option in &options {
+        insert_placement_option_row(&mut insert, option)?;
     }
+    Ok(())
+}
+
+fn cache_schema_sql() -> &'static str {
+    "BEGIN;
+     DROP TABLE IF EXISTS source_files;
+     DROP TABLE IF EXISTS cache_metadata;
+     DROP TABLE IF EXISTS warband_scenes;
+     DROP TABLE IF EXISTS warband_scene_placements;
+     DROP TABLE IF EXISTS warband_scene_placement_options;
+     CREATE TABLE cache_metadata (
+         id INTEGER PRIMARY KEY CHECK (id = 1),
+         version INTEGER NOT NULL
+     );
+     CREATE TABLE source_files (
+         path TEXT PRIMARY KEY,
+         mtime INTEGER NOT NULL
+     );
+     CREATE TABLE warband_scenes (
+         id INTEGER PRIMARY KEY,
+         name TEXT NOT NULL,
+         description TEXT NOT NULL,
+         pos_x REAL NOT NULL,
+         pos_y REAL NOT NULL,
+         pos_z REAL NOT NULL,
+         look_x REAL NOT NULL,
+         look_y REAL NOT NULL,
+         look_z REAL NOT NULL,
+         map_id INTEGER NOT NULL,
+         fov REAL NOT NULL,
+         texture_kit INTEGER NOT NULL
+     );
+     CREATE TABLE warband_scene_placements (
+         id INTEGER PRIMARY KEY,
+         scene_id INTEGER NOT NULL,
+         slot_type INTEGER NOT NULL,
+         pos_x REAL NOT NULL,
+         pos_y REAL NOT NULL,
+         pos_z REAL NOT NULL,
+         rotation REAL NOT NULL,
+         slot_id INTEGER NOT NULL
+     );
+     CREATE TABLE warband_scene_placement_options (
+         placement_id INTEGER NOT NULL,
+         layout_key INTEGER NOT NULL,
+         pos_x REAL NOT NULL,
+         pos_y REAL NOT NULL,
+         pos_z REAL NOT NULL,
+         orientation REAL NOT NULL,
+         scale REAL NOT NULL,
+         PRIMARY KEY (placement_id, layout_key)
+     );"
+}
+
+fn prepare_scene_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
+    conn.prepare(
+        "INSERT OR REPLACE INTO warband_scenes
+         (id, name, description, pos_x, pos_y, pos_z, look_x, look_y, look_z, map_id, fov, texture_kit)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+    )
+    .map_err(|err| format!("prepare warband_scenes insert: {err}"))
+}
+
+fn insert_scene_row(
+    insert: &mut rusqlite::Statement<'_>,
+    scene: &WarbandSceneEntry,
+) -> Result<(), String> {
+    insert
+        .execute((
+            scene.id,
+            &scene.name,
+            &scene.description,
+            scene.position[0],
+            scene.position[1],
+            scene.position[2],
+            scene.look_at[0],
+            scene.look_at[1],
+            scene.look_at[2],
+            scene.map_id,
+            scene.fov,
+            scene.texture_kit,
+        ))
+        .map_err(|err| format!("insert warband scene row {}: {err}", scene.id))?;
+    Ok(())
+}
+
+fn prepare_placement_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
+    conn.prepare(
+        "INSERT OR REPLACE INTO warband_scene_placements
+         (id, scene_id, slot_type, pos_x, pos_y, pos_z, rotation, slot_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    )
+    .map_err(|err| format!("prepare warband_scene_placements insert: {err}"))
+}
+
+fn insert_placement_row(
+    insert: &mut rusqlite::Statement<'_>,
+    placement: &WarbandScenePlacement,
+) -> Result<(), String> {
+    insert
+        .execute((
+            placement.id,
+            placement.scene_id,
+            placement.slot_type,
+            placement.position[0],
+            placement.position[1],
+            placement.position[2],
+            placement.rotation,
+            placement.slot_id,
+        ))
+        .map_err(|err| format!("insert warband placement row {}: {err}", placement.id))?;
+    Ok(())
+}
+
+fn prepare_placement_option_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
+    conn.prepare(
+        "INSERT OR REPLACE INTO warband_scene_placement_options
+         (placement_id, layout_key, pos_x, pos_y, pos_z, orientation, scale)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    )
+    .map_err(|err| format!("prepare warband_scene_placement_options insert: {err}"))
+}
+
+fn insert_placement_option_row(
+    insert: &mut rusqlite::Statement<'_>,
+    option: &WarbandScenePlacementOption,
+) -> Result<(), String> {
+    insert
+        .execute((
+            option.placement_id,
+            option.layout_key,
+            option.position[0],
+            option.position[1],
+            option.position[2],
+            option.orientation,
+            option.scale,
+        ))
+        .map_err(|err| {
+            format!(
+                "insert warband placement option row {}:{}: {err}",
+                option.placement_id, option.layout_key
+            )
+        })?;
     Ok(())
 }
 

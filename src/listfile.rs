@@ -164,5 +164,5 @@ pub fn lookup_path(path: &str) -> Option<u32> {
 }
 
 #[cfg(test)]
-#[path = "listfile_tests.rs"]
+#[path = "../tests/unit/listfile_tests.rs"]
 mod tests;

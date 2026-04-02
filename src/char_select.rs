@@ -345,5 +345,5 @@ fn auto_enter_world(
 }
 
 #[cfg(test)]
-#[path = "char_select_tests.rs"]
+#[path = "../tests/unit/char_select_tests.rs"]
 mod tests;

@@ -589,5 +589,5 @@ pub fn evaluate_u8_track(track: &AnimTrack<u8>, seq_idx: usize, time_ms: u32) ->
 }
 
 #[cfg(test)]
-#[path = "m2_anim_tests.rs"]
+#[path = "../../tests/unit/asset/m2_anim_tests.rs"]
 mod tests;

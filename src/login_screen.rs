@@ -764,5 +764,5 @@ fn login_fade_in(
 }
 
 #[cfg(test)]
-#[path = "login_screen_tests.rs"]
+#[path = "../tests/unit/login_screen_tests.rs"]
 mod tests;

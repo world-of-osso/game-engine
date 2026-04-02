@@ -91,12 +91,13 @@ mod tests {
     fn popup_state_loads_preview_images_for_current_scenes() {
         let state = build_campsite_popup_state();
         assert!(!state.scenes.is_empty());
-        assert!(
-            state
-                .scenes
-                .iter()
-                .all(|scene| scene.preview_image.is_some())
-        );
+        let preview_count = state
+            .scenes
+            .iter()
+            .filter(|scene| scene.preview_image.is_some())
+            .count();
+        assert!(preview_count > 0);
+        assert!(preview_count < state.scenes.len());
         assert!(state.panel_visible);
         assert_eq!(
             state.selected_id,

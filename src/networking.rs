@@ -691,5 +691,5 @@ fn update_reconnect_overlay(
 }
 
 #[cfg(test)]
-#[path = "networking_tests.rs"]
+#[path = "../tests/unit/networking_tests.rs"]
 mod tests;

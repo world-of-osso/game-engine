@@ -569,5 +569,5 @@ fn load_emitter_texture(
 }
 
 #[cfg(test)]
-#[path = "particle_tests.rs"]
+#[path = "../tests/unit/particle_tests.rs"]
 mod tests;

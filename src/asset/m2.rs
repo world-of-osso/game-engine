@@ -748,17 +748,17 @@ pub(crate) fn build_render_batches(
 }
 
 #[cfg(test)]
-#[path = "m2_tests.rs"]
+#[path = "../../tests/unit/asset/m2_tests.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "m2_debug_tests.rs"]
+#[path = "../../tests/unit/asset/m2_debug_tests.rs"]
 mod debug_tests;
 
 #[cfg(test)]
-#[path = "m2_jaw_debug_tests.rs"]
+#[path = "../../tests/unit/asset/m2_jaw_debug_tests.rs"]
 mod jaw_debug_tests;
 
 #[cfg(test)]
-#[path = "m2_runtime_head_tests.rs"]
+#[path = "../../tests/unit/asset/m2_runtime_head_tests.rs"]
 mod runtime_head_tests;

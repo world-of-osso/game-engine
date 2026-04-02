@@ -816,5 +816,5 @@ fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistr
 }
 
 #[cfg(test)]
-#[path = "game_menu_screen_tests.rs"]
+#[path = "../tests/unit/game_menu_screen_tests.rs"]
 mod tests;

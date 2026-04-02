@@ -753,5 +753,5 @@ pub fn rgba_image(pixels: Vec<u8>, w: u32, h: u32) -> Image {
 }
 
 #[cfg(test)]
-#[path = "main_tests.rs"]
+#[path = "../tests/unit/main_tests.rs"]
 mod tests;

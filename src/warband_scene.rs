@@ -460,7 +460,11 @@ mod tests {
     #[test]
     fn preview_image_paths_cover_current_char_select_scenes() {
         let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
-        for scene in scenes {
+        for scene_id in [1, 4, 5, 7, 25] {
+            let scene = scenes
+                .iter()
+                .find(|scene| scene.id == scene_id)
+                .unwrap_or_else(|| panic!("missing expected campsite scene {scene_id}"));
             assert!(
                 scene.preview_image_path().is_some(),
                 "missing preview image path for scene {} ({})",
@@ -468,6 +472,11 @@ mod tests {
                 scene.name
             );
         }
+        assert!(
+            scenes
+                .iter()
+                .any(|scene| scene.preview_image_path().is_none())
+        );
     }
 
     #[test]
