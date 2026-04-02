@@ -114,6 +114,23 @@ struct EmitterHeaderCore {
     tile_cols: u16,
 }
 
+impl Default for EmitterHeaderCore {
+    fn default() -> Self {
+        Self {
+            flags: 0,
+            position: [0.0; 3],
+            bone_index: 0,
+            texture_index: 0,
+            blend_type: 0,
+            emitter_type: 0,
+            particle_type: 0,
+            head_or_tail: 0,
+            tile_rows: 0,
+            tile_cols: 0,
+        }
+    }
+}
+
 fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
     let bytes: [u8; 2] = data
         .get(off..off + 2)
@@ -373,51 +390,63 @@ impl Default for EmitterVisualDefaults {
     }
 }
 
-fn base_emitter_defaults() -> M2ParticleEmitter {
+fn emitter_from_parts(
+    header: EmitterHeaderCore,
+    tracks: EmitterTrackDefaults,
+    visuals: EmitterVisualDefaults,
+) -> M2ParticleEmitter {
     M2ParticleEmitter {
-        flags: 0,
-        position: [0.0; 3],
-        bone_index: 0,
-        texture_index: 0,
+        flags: header.flags,
+        position: header.position,
+        bone_index: header.bone_index,
+        texture_index: header.texture_index,
         texture_fdid: None,
-        blend_type: 0,
-        emitter_type: 0,
-        particle_type: 0,
-        head_or_tail: 0,
-        tile_rows: 0,
-        tile_cols: 0,
-        emission_speed: 0.0,
-        speed_variation: 0.0,
-        vertical_range: 0.0,
-        horizontal_range: 0.0,
-        gravity: 0.0,
-        lifespan: 0.0,
-        lifespan_variation: 0.0,
-        emission_rate: 0.0,
-        area_length: 0.0,
-        area_width: 0.0,
-        drag: 0.0,
-        base_spin: 0.0,
-        base_spin_variation: 0.0,
-        spin: 0.0,
-        spin_variation: 0.0,
-        wind_vector: [0.0; 3],
-        wind_time: 0.0,
-        colors: [[0.0; 3]; 3],
-        color_keys: Vec::new(),
-        opacity: [1.0; 3],
-        opacity_keys: Vec::new(),
-        scales: [[1.0; 2]; 3],
-        scale_keys: Vec::new(),
-        twinkle_speed: 0.0,
-        twinkle_percent: 0.0,
-        twinkle_scale_min: 1.0,
-        twinkle_scale_max: 1.0,
-        head_cell_track: [0; 3],
-        tail_cell_track: [0; 3],
-        burst_multiplier: 1.0,
-        mid_point: 0.5,
+        blend_type: header.blend_type,
+        emitter_type: header.emitter_type,
+        particle_type: header.particle_type,
+        head_or_tail: header.head_or_tail,
+        tile_rows: header.tile_rows,
+        tile_cols: header.tile_cols,
+        emission_speed: tracks.emission_speed,
+        speed_variation: tracks.speed_variation,
+        vertical_range: tracks.vertical_range,
+        horizontal_range: tracks.horizontal_range,
+        gravity: tracks.gravity,
+        lifespan: tracks.lifespan,
+        lifespan_variation: tracks.lifespan_variation,
+        emission_rate: tracks.emission_rate,
+        area_length: tracks.area_length,
+        area_width: tracks.area_width,
+        drag: tracks.drag,
+        base_spin: tracks.base_spin,
+        base_spin_variation: tracks.base_spin_variation,
+        spin: tracks.spin,
+        spin_variation: tracks.spin_variation,
+        wind_vector: tracks.wind_vector,
+        wind_time: tracks.wind_time,
+        colors: visuals.colors,
+        color_keys: visuals.color_keys,
+        opacity: visuals.opacity,
+        opacity_keys: visuals.opacity_keys,
+        scales: visuals.scales,
+        scale_keys: visuals.scale_keys,
+        twinkle_speed: visuals.twinkle_speed,
+        twinkle_percent: visuals.twinkle_percent,
+        twinkle_scale_min: visuals.twinkle_scale_min,
+        twinkle_scale_max: visuals.twinkle_scale_max,
+        head_cell_track: visuals.head_cell_track,
+        tail_cell_track: visuals.tail_cell_track,
+        burst_multiplier: visuals.burst_multiplier,
+        mid_point: visuals.mid_point,
     }
+}
+
+fn base_emitter_defaults() -> M2ParticleEmitter {
+    emitter_from_parts(
+        EmitterHeaderCore::default(),
+        EmitterTrackDefaults::default(),
+        EmitterVisualDefaults::default(),
+    )
 }
 
 fn apply_track_defaults(emitter: &mut M2ParticleEmitter, tracks: EmitterTrackDefaults) {
@@ -466,24 +495,12 @@ impl Default for M2ParticleEmitter {
     }
 }
 
-fn emitter_defaults() -> M2ParticleEmitter {
-    M2ParticleEmitter::default()
-}
-
 fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
-    M2ParticleEmitter {
-        flags: header.flags,
-        position: header.position,
-        bone_index: header.bone_index,
-        texture_index: header.texture_index,
-        blend_type: header.blend_type,
-        emitter_type: header.emitter_type,
-        particle_type: header.particle_type,
-        head_or_tail: header.head_or_tail,
-        tile_rows: header.tile_rows,
-        tile_cols: header.tile_cols,
-        ..emitter_defaults()
-    }
+    emitter_from_parts(
+        header,
+        EmitterTrackDefaults::default(),
+        EmitterVisualDefaults::default(),
+    )
 }
 
 /// Fill M2Track-based dynamic values on an emitter.
