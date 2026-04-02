@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::{Assets, AudioSource, Handle};
 
+#[path = "sound_footstep_cache.rs"]
+mod cache;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FootstepCreature {
     HumanoidSmall,
@@ -128,12 +131,17 @@ impl LoadedFootstepCatalog {
 
 pub fn load_wow_footstep_catalog(audio_assets: &mut Assets<AudioSource>) -> LoadedFootstepCatalog {
     let mut loaded = LoadedFootstepCatalog::default();
-    let Ok(listfile) = std::fs::read_to_string("data/community-listfile.csv") else {
-        return loaded;
-    };
     let mut counts = HashMap::new();
-    for (fdid, path) in parse_listfile_lines(&listfile) {
-        try_push_catalog_entry(audio_assets, &mut loaded, &mut counts, fdid, path);
+    let rows = match cache::load_cached_footstep_rows(Path::new("data/community-listfile.csv")) {
+        Ok(rows) => rows,
+        Err(err) => {
+            eprintln!("Failed to load footstep listfile cache: {err}");
+            cache::load_footstep_rows_uncached(Path::new("data/community-listfile.csv"))
+                .unwrap_or_default()
+        }
+    };
+    for (fdid, path) in rows {
+        try_push_catalog_entry(audio_assets, &mut loaded, &mut counts, fdid, &path);
     }
     loaded
 }
