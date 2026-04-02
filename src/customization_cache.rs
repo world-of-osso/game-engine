@@ -141,11 +141,19 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
-    let _ = std::fs::remove_file(cache_path);
     let conn = Connection::open(cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     conn.execute_batch(
         "BEGIN;
+         DROP TABLE IF EXISTS source_files;
+         DROP TABLE IF EXISTS chr_models;
+         DROP TABLE IF EXISTS options;
+         DROP TABLE IF EXISTS choices;
+         DROP TABLE IF EXISTS elements;
+         DROP TABLE IF EXISTS materials;
+         DROP TABLE IF EXISTS geosets;
+         DROP TABLE IF EXISTS hair_geosets;
+         DROP TABLE IF EXISTS texture_fdids;
          CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
          CREATE TABLE chr_models (
              id INTEGER PRIMARY KEY,
@@ -606,5 +614,23 @@ mod tests {
         assert!(!raw.geosets.is_empty());
         assert!(!raw.hair_geosets.is_empty());
         assert!(!raw.texture_fdids.is_empty());
+    }
+
+    #[test]
+    fn customization_cache_import_reuses_fresh_cache() {
+        let cache_path =
+            import_customization_cache(Path::new("data")).expect("import customization cache");
+        let before = std::fs::metadata(&cache_path)
+            .expect("stat customization cache")
+            .modified()
+            .expect("customization cache mtime");
+        let reused_path =
+            import_customization_cache(Path::new("data")).expect("reuse customization cache");
+        let after = std::fs::metadata(&reused_path)
+            .expect("stat reused customization cache")
+            .modified()
+            .expect("reused customization cache mtime");
+        assert_eq!(cache_path, reused_path);
+        assert_eq!(before, after);
     }
 }
