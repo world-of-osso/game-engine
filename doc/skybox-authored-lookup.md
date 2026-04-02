@@ -76,11 +76,11 @@ scene 4
 
 - Char select and `skyboxdebug` both use the same authored lookup path first.
 - If authored lookup fails, they fall back to the shared WoW skybox model above.
-- The renderer currently uses a safe unlit `StandardMaterial` skybox path, not a final WoW-specific shader path.
+- The renderer now uses the dedicated `SkyboxM2Material` path for authored lookups. It disables depth writes/comparison and shadow/prepass participation, and should be treated as the default skybox render mode for current debugging and char-select validation.
 
 ## Next Work
 
 - tighten `Light.csv` to `LightParams.db2` mapping for unresolved scenes
 - expand authored row coverage beyond the currently verified path
 - tune skybox depth and fog behavior against reference clients
-- later, reuse active light-volume-driven skybox selection for in-world scenes
+- later, reuse active light-volume-driven skybox selection for in-world scenes and in-world debug scenes
