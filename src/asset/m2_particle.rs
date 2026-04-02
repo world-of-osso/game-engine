@@ -128,6 +128,7 @@ const EMITTER_SPIN_OFFSET: usize = 0x180;
 const EMITTER_SPIN_VARIATION_OFFSET: usize = 0x184;
 const EMITTER_WIND_VECTOR_OFFSET: usize = 0x1A0;
 const EMITTER_WIND_TIME_OFFSET: usize = 0x1AC;
+const DEFAULT_MID_POINT: f32 = 0.5;
 const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
 const EMITTER_272_STRIDE: usize = 0x1EC;
 
@@ -306,12 +307,13 @@ fn read_fake_animblock_keys<T>(
 fn read_midpoint(md20: &[u8], emitter: &[u8], off: usize) -> f32 {
     let count = read_u32(emitter, off).unwrap_or(0);
     let offset = read_u32(emitter, off + 4).unwrap_or(0) as usize;
+    // The midpoint is authored as the second timestamp in the 3-point FakeAnimBlock curve.
     if count < 2 {
-        return 0.5;
+        return DEFAULT_MID_POINT;
     }
     read_u16(md20, offset + 2)
         .map(unorm16_to_f32)
-        .unwrap_or(0.5)
+        .unwrap_or(DEFAULT_MID_POINT)
 }
 
 /// Parse static emitter fields (id through tile dimensions) at offset within MD20.
