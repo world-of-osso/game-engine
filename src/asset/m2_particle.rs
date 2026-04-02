@@ -527,6 +527,12 @@ fn zeroed_emitter_tail() -> M2ParticleEmitter {
         spin_variation: 0.0,
         wind_vector: [0.0; 3],
         wind_time: 0.0,
+        ..zeroed_emitter_visuals()
+    }
+}
+
+fn zeroed_emitter_visuals() -> M2ParticleEmitter {
+    M2ParticleEmitter {
         colors: [[0.0; 3]; 3],
         color_keys: Vec::new(),
         opacity: [0.0; 3],
