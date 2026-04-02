@@ -457,7 +457,7 @@ fn update_zone_name(
     let name = zone_id_to_name(zone.zone_id);
     if let Some(frame) = ui.registry.get_mut(frames.zone_name) {
         if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
-            fs.text = name.to_string();
+            fs.text = name;
         }
     }
 }
