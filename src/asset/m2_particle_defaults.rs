@@ -146,6 +146,12 @@ fn base_zeroed_emitter_tail() -> M2ParticleEmitter {
         area_length: 0.0,
         area_width: 0.0,
         drag: 0.0,
+        ..base_zeroed_emitter_visuals()
+    }
+}
+
+fn base_zeroed_emitter_visuals() -> M2ParticleEmitter {
+    M2ParticleEmitter {
         base_spin: 0.0,
         base_spin_variation: 0.0,
         spin: 0.0,
