@@ -1,7 +1,7 @@
 //! M2 model light parser (MD20 lights block at 0x108).
 
-use super::m2::{read_f32, read_u16, read_u32};
 use super::m2_anim::{AnimTrack, evaluate_f32_track, evaluate_u8_track, evaluate_vec3_track};
+use super::m2_format::{read_f32, read_u16, read_u32};
 
 const MD20_LIGHTS_OFFSET: usize = 0x108;
 const M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS: usize = 0x9C;

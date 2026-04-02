@@ -11,7 +11,7 @@
 //!   0x08: position [f32; 3] — offset relative to bone, WoW coordinates
 //!   0x14: AnimBlock (20 bytes, skipped)
 
-use super::m2::{read_f32, read_u16, read_u32};
+use super::m2_format::{read_f32, read_u16, read_u32};
 
 /// An attachment point on an M2 model (e.g., hand, back, shoulder).
 #[derive(Debug, Clone)]

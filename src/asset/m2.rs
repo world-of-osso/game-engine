@@ -8,19 +8,17 @@ pub use super::m2_texture::{first_hardcoded_texture, resolve_batch_texture};
 
 #[path = "m2_batch.rs"]
 mod m2_batch;
-#[path = "m2_format/mod.rs"]
-mod m2_format;
 #[path = "m2_loader.rs"]
 pub(crate) mod m2_loader;
 
-pub use m2_format::ensure_primary_skin_path;
+pub use super::m2_format::ensure_primary_skin_path;
 #[cfg(test)]
-pub(crate) use m2_format::parse_skin_full;
-pub(crate) use m2_format::{
+pub(crate) use super::m2_format::parse_skin_full;
+pub(crate) use super::m2_format::{
     M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
     load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_texture_lookup,
     parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
-    parse_uv_animation_lookup, parse_vertices, read_f32, read_u16, read_u32, resolve_indices,
+    parse_uv_animation_lookup, parse_vertices, read_u32, resolve_indices,
 };
 pub use m2_loader::{load_m2, load_m2_uncached};
 

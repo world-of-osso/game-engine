@@ -82,7 +82,7 @@ pub struct M2ParticleEmitter {
     pub mid_point: f32,
 }
 
-use super::m2::{read_f32, read_u16, read_u32};
+use super::m2_format::{read_f32, read_u16, read_u32};
 
 const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
