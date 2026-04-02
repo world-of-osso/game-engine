@@ -1,10 +1,11 @@
 use std::f32::consts::PI;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::outfit_data::OutfitData;
 
+use crate::asset;
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -38,6 +39,10 @@ fn setup_scene(
 ) {
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
+    spawn_emitter_overlay(
+        &mut commands,
+        &resolved_skin_fdids(Path::new(TORCH_M2), &creature_display_map, &outfit_data),
+    );
     spawn_torch(
         &mut commands,
         &mut meshes,
@@ -97,10 +102,7 @@ fn spawn_torch(
         eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
         return;
     }
-    let skin_fdids = outfit_data
-        .resolve_item_model_skin_fdids_for_model_path(&path)
-        .or_else(|| creature_display_map.resolve_skin_fdids_for_model_path(&path))
-        .unwrap_or([0, 0, 0]);
+    let skin_fdids = resolved_skin_fdids(&path, creature_display_map, outfit_data);
     m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
         commands,
         meshes,
@@ -114,8 +116,143 @@ fn spawn_torch(
     );
 }
 
+fn resolved_skin_fdids(
+    path: &Path,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+    outfit_data: &OutfitData,
+) -> [u32; 3] {
+    outfit_data
+        .resolve_item_model_skin_fdids_for_model_path(path)
+        .or_else(|| creature_display_map.resolve_skin_fdids_for_model_path(path))
+        .unwrap_or([0, 0, 0])
+}
+
+fn spawn_emitter_overlay(commands: &mut Commands, skin_fdids: &[u32; 3]) {
+    let path = PathBuf::from(TORCH_M2);
+    let text = match load_emitter_overlay_text(&path, skin_fdids) {
+        Ok(text) => text,
+        Err(error) => format!("particle debug overlay failed\n{error}"),
+    };
+    commands.spawn((
+        Name::new("ParticleDebugOverlay"),
+        ParticleDebugScene,
+        Text::new(text),
+        TextFont {
+            font_size: 15.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        BackgroundColor(Color::srgba(0.02, 0.02, 0.02, 0.82)),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            left: Val::Px(12.0),
+            width: Val::Px(520.0),
+            padding: UiRect::all(Val::Px(10.0)),
+            ..default()
+        },
+    ));
+}
+
+fn load_emitter_overlay_text(path: &Path, skin_fdids: &[u32; 3]) -> Result<String, String> {
+    let model = asset::m2::load_m2_uncached(path, skin_fdids)
+        .map_err(|error| format!("failed to load {}: {error}", path.display()))?;
+    Ok(format_particle_overlay(&model.particle_emitters))
+}
+
+fn format_particle_overlay(emitters: &[asset::m2_particle::M2ParticleEmitter]) -> String {
+    if emitters.is_empty() {
+        return "Particle Debug\nNo particle emitters".to_string();
+    }
+    let mut lines = vec![
+        "Particle Debug".to_string(),
+        format!("Emitters: {}", emitters.len()),
+    ];
+    for (index, emitter) in emitters.iter().enumerate() {
+        lines.extend(format_emitter_lines(index, emitter));
+    }
+    lines.join("\n")
+}
+
+fn format_emitter_lines(
+    index: usize,
+    emitter: &asset::m2_particle::M2ParticleEmitter,
+) -> Vec<String> {
+    vec![
+        format!(""),
+        format!("Emitter #{index}"),
+        format!(
+            "blend={} type={} particle={} head_tail={} bone={} tex={:?}",
+            emitter.blend_type,
+            emitter.emitter_type,
+            emitter.particle_type,
+            emitter.head_or_tail,
+            emitter.bone_index,
+            emitter.texture_fdid
+        ),
+        format!(
+            "life={:.3} +/- {:.3} rate={:.3} speed={:.3} +/- {:.3}",
+            emitter.lifespan,
+            emitter.lifespan_variation,
+            emitter.emission_rate,
+            emitter.emission_speed,
+            emitter.speed_variation
+        ),
+        format!(
+            "gravity={:.3} drag={:.3} area=({:.3}, {:.3}) tiles={}x{}",
+            emitter.gravity,
+            emitter.drag,
+            emitter.area_length,
+            emitter.area_width,
+            emitter.tile_rows,
+            emitter.tile_cols
+        ),
+        format!(
+            "opacity={:?} color_keys={} opacity_keys={} scale_keys={}",
+            emitter.opacity,
+            emitter.color_keys.len(),
+            emitter.opacity_keys.len(),
+            emitter.scale_keys.len()
+        ),
+        format!(
+            "burst={:.3} mid={:.3} twinkle=({:.3}, {:.3}, {:.3}, {:.3})",
+            emitter.burst_multiplier,
+            emitter.mid_point,
+            emitter.twinkle_speed,
+            emitter.twinkle_percent,
+            emitter.twinkle_scale_min,
+            emitter.twinkle_scale_max
+        ),
+    ]
+}
+
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<ParticleDebugScene>>) {
     for entity in &query {
         commands.entity(entity).despawn();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_particle_overlay;
+    use crate::asset::m2_particle::M2ParticleEmitter;
+
+    #[test]
+    fn particle_overlay_lists_key_emitter_fields() {
+        let emitter = M2ParticleEmitter {
+            blend_type: 4,
+            lifespan: 1.25,
+            emission_rate: 12.0,
+            texture_fdid: Some(145513),
+            ..Default::default()
+        };
+
+        let text = format_particle_overlay(&[emitter]);
+
+        assert!(text.contains("Particle Debug"));
+        assert!(text.contains("Emitters: 1"));
+        assert!(text.contains("blend=4"));
+        assert!(text.contains("life=1.250"));
+        assert!(text.contains("tex=Some(145513)"));
     }
 }
