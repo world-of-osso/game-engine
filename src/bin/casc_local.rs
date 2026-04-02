@@ -11,11 +11,11 @@ use cascette_client_storage::storage::ArchiveManager;
 use cascette_crypto::EncodingKey;
 use cascette_crypto::TactKeyStore;
 use cascette_formats::blte::BlteFile;
+use game_engine::listfile;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
 const CACHE_DIR: &str = "data/casc";
-const LISTFILE_PATH: &str = "data/community-listfile.csv";
 const LOCAL_CASC_HEADER_SIZE: usize = 30;
 const EXTERNAL_TACT_KEYS_PATH: &str = "data/tactkeys/WoW.txt";
 
@@ -189,20 +189,40 @@ fn decode_archive_entry_with_keys(
 }
 
 fn resolve_filename(fdid: u32) -> String {
-    let ext = resolve_extension(fdid, Path::new(LISTFILE_PATH));
+    let ext = resolve_extension(fdid);
     format!("{fdid}.{ext}")
 }
 
-fn resolve_extension(fdid: u32, listfile: &Path) -> String {
-    if let Ok(content) = std::fs::read_to_string(listfile) {
-        let prefix = format!("{fdid};");
-        for line in content.lines() {
-            if let Some(path) = line.strip_prefix(&prefix)
-                && let Some(ext) = path.rsplit('.').next()
-            {
-                return ext.to_lowercase();
-            }
-        }
+fn resolve_extension(fdid: u32) -> String {
+    if let Some(path) = listfile::lookup_fdid(fdid)
+        && let Some(ext) = extension_from_listfile_path(path)
+    {
+        return ext;
     }
     "dat".to_string()
+}
+
+fn extension_from_listfile_path(path: &str) -> Option<String> {
+    path.rsplit('.').next().map(|ext| ext.to_ascii_lowercase())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extension_from_listfile_path;
+
+    #[test]
+    fn resolves_extension_from_listfile_path_case_insensitively() {
+        assert_eq!(
+            extension_from_listfile_path("World/Maps/Test/Tile_1_2.ADT"),
+            Some("adt".to_string())
+        );
+    }
+
+    #[test]
+    fn resolves_extension_from_multi_dot_listfile_path() {
+        assert_eq!(
+            extension_from_listfile_path("spells/test.texture.BLP"),
+            Some("blp".to_string())
+        );
+    }
 }
