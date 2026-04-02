@@ -532,22 +532,27 @@ fn vec3_from_rgb255(color: [f32; 3]) -> Vec3 {
 }
 
 fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi::Gradient<Vec3> {
-    let mid = em.mid_point.clamp(0.01, 0.99);
     let burst = em.burst_multiplier.max(0.0);
     let mut g = bevy_hanabi::Gradient::new();
-    g.add_key(
-        0.0,
-        Vec3::splat(em.scales[0][0].max(0.01) * burst * model_scale),
-    );
-    g.add_key(
-        mid,
-        Vec3::splat(em.scales[1][0].max(0.01) * burst * model_scale),
-    );
-    g.add_key(
-        1.0,
-        Vec3::splat(em.scales[2][0].max(0.01) * burst * model_scale),
-    );
+    if em.scale_keys.len() >= 2 {
+        for &(time, scale) in &em.scale_keys {
+            g.add_key(time, size_key_value(scale, burst, model_scale));
+        }
+        return g;
+    }
+    let mid = em.mid_point.clamp(0.01, 0.99);
+    g.add_key(0.0, size_key_value(em.scales[0], burst, model_scale));
+    g.add_key(mid, size_key_value(em.scales[1], burst, model_scale));
+    g.add_key(1.0, size_key_value(em.scales[2], burst, model_scale));
     g
+}
+
+fn size_key_value(scale: [f32; 2], burst: f32, model_scale: f32) -> Vec3 {
+    Vec3::new(
+        scale[0].max(0.01) * burst * model_scale,
+        scale[1].max(0.01) * burst * model_scale,
+        1.0,
+    )
 }
 
 fn load_emitter_texture(
@@ -602,6 +607,7 @@ mod tests {
             opacity: [1.0, 1.0, 0.0],
             opacity_keys: Vec::new(),
             scales: [[0.1, 0.1], [0.2, 0.2], [0.05, 0.05]],
+            scale_keys: Vec::new(),
             head_cell_track: [0, 0, 0],
             tail_cell_track: [0, 0, 0],
             burst_multiplier: 1.0,
@@ -696,9 +702,38 @@ mod tests {
         let keys = gradient.keys();
 
         assert_eq!(keys.len(), 3);
-        assert_eq!(keys[0].value, Vec3::splat(0.25));
-        assert_eq!(keys[1].value, Vec3::splat(0.5));
-        assert_eq!(keys[2].value, Vec3::splat(0.125));
+        assert_eq!(keys[0].value, Vec3::new(0.25, 0.25, 1.0));
+        assert_eq!(keys[1].value, Vec3::new(0.5, 0.5, 1.0));
+        assert_eq!(keys[2].value, Vec3::new(0.125, 0.125, 1.0));
+    }
+
+    #[test]
+    fn size_gradient_uses_full_scale_key_timeline_when_present() {
+        let mut emitter = sample_emitter();
+        emitter.scale_keys = vec![
+            (0.0, [0.1, 0.2]),
+            (0.25, [0.3, 0.4]),
+            (0.75, [0.5, 0.6]),
+            (1.0, [0.7, 0.8]),
+        ];
+        emitter.burst_multiplier = 2.0;
+
+        let gradient = build_size_gradient(&emitter, 1.5);
+        let keys = gradient.keys();
+
+        assert_eq!(keys.len(), 4);
+        assert_eq!(keys[0].ratio(), 0.0);
+        assert_eq!(keys[0].value, Vec3::new(0.3, 0.6, 1.0));
+        assert!((keys[1].ratio() - 0.25).abs() < 0.0001);
+        assert!((keys[1].value.x - 0.9).abs() < 0.0001);
+        assert!((keys[1].value.y - 1.2).abs() < 0.0001);
+        assert_eq!(keys[1].value.z, 1.0);
+        assert!((keys[2].ratio() - 0.75).abs() < 0.0001);
+        assert!((keys[2].value.x - 1.5).abs() < 0.0001);
+        assert!((keys[2].value.y - 1.8).abs() < 0.0001);
+        assert_eq!(keys[2].value.z, 1.0);
+        assert_eq!(keys[3].ratio(), 1.0);
+        assert_eq!(keys[3].value, Vec3::new(2.1, 2.4, 1.0));
     }
 
     #[test]
