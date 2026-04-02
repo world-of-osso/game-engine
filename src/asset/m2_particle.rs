@@ -37,11 +37,25 @@ pub struct M2ParticleEmitter {
     pub opacity: [f32; 3],
     /// Scale over lifetime: start, mid, end (x,y pairs).
     pub scales: [[f32; 2]; 3],
+    /// Simple flipbook cell track used by some emitters for head particles.
+    pub head_cell_track: [u16; 3],
+    /// Simple flipbook cell track used by some emitters for tail particles.
+    pub tail_cell_track: [u16; 3],
+    /// Additional size multiplier baked into the emitter definition.
+    pub burst_multiplier: f32,
     /// Midpoint (0–1) between start→mid vs mid→end interpolation.
     pub mid_point: f32,
 }
 
 use super::m2::{read_f32, read_u16, read_u32};
+
+const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
+const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
+const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
+const EMITTER_HEAD_CELL_TRACK_OFFSET: usize = 0x13C;
+const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
+const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
+const EMITTER_CATA_SIZE: usize = 0x178;
 
 fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
     let bytes: [u8; 2] = data
@@ -50,6 +64,36 @@ fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
         .try_into()
         .unwrap();
     Ok(i16::from_le_bytes(bytes))
+}
+
+fn read_u16_values(md20: &[u8], emitter: &[u8], off: usize) -> [u16; 3] {
+    let mut values = [0u16; 3];
+    let count = read_u32(emitter, off + 8).unwrap_or(0) as usize;
+    let base = read_u32(emitter, off + 12).unwrap_or(0) as usize;
+    for (i, value) in values.iter_mut().enumerate().take(count.min(3)) {
+        *value = read_u16(md20, base + i * 2).unwrap_or(0);
+    }
+    values
+}
+
+fn default_visual_values() -> (
+    [[f32; 3]; 3],
+    [f32; 3],
+    [[f32; 2]; 3],
+    [u16; 3],
+    [u16; 3],
+    f32,
+    f32,
+) {
+    (
+        [[0.0; 3]; 3],
+        [1.0; 3],
+        [[1.0; 2]; 3],
+        [0; 3],
+        [0; 3],
+        1.0,
+        0.5,
+    )
 }
 
 /// Read the first float from a static M2Track (Cata+ indirect M2Arrays).
@@ -128,20 +172,52 @@ fn read_midpoint(md20: &[u8], emitter: &[u8], off: usize) -> f32 {
 
 /// Parse static emitter fields (id through tile dimensions) at offset within MD20.
 fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
-    Ok(M2ParticleEmitter {
-        flags: read_u32(em, 0x04)?,
-        position: [
+    parse_emitter_header_core(em).map(build_emitter_header)
+}
+
+fn parse_emitter_header_core(
+    em: &[u8],
+) -> Result<(u32, [f32; 3], u16, u16, u8, u8, u16, u16), String> {
+    Ok((
+        read_u32(em, 0x04)?,
+        [
             read_f32(em, 0x08)?,
             read_f32(em, 0x0C)?,
             read_f32(em, 0x10)?,
         ],
-        bone_index: read_u16(em, 0x14)?,
-        texture_index: read_u16(em, 0x16)? & 0x1F,
+        read_u16(em, 0x14)?,
+        read_u16(em, 0x16)? & 0x1F,
+        em[0x28],
+        em[0x29],
+        read_u16(em, 0x30)?,
+        read_u16(em, 0x32)?,
+    ))
+}
+
+fn build_emitter_header(
+    (flags, position, bone_index, texture_index, blend_type, emitter_type, tile_rows, tile_cols): (
+        u32,
+        [f32; 3],
+        u16,
+        u16,
+        u8,
+        u8,
+        u16,
+        u16,
+    ),
+) -> M2ParticleEmitter {
+    let (colors, opacity, scales, head_cell_track, tail_cell_track, burst_multiplier, mid_point) =
+        default_visual_values();
+    M2ParticleEmitter {
+        flags,
+        position,
+        bone_index,
+        texture_index,
         texture_fdid: None,
-        blend_type: em[0x28],
-        emitter_type: em[0x29],
-        tile_rows: read_u16(em, 0x30)?,
-        tile_cols: read_u16(em, 0x32)?,
+        blend_type,
+        emitter_type,
+        tile_rows,
+        tile_cols,
         emission_speed: 0.0,
         speed_variation: 0.0,
         vertical_range: 0.0,
@@ -152,11 +228,14 @@ fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
         area_length: 0.0,
         area_width: 0.0,
         drag: 0.0,
-        colors: [[0.0; 3]; 3],
-        opacity: [1.0; 3],
-        scales: [[1.0; 2]; 3],
-        mid_point: 0.5,
-    })
+        colors,
+        opacity,
+        scales,
+        head_cell_track,
+        tail_cell_track,
+        burst_multiplier,
+        mid_point,
+    }
 }
 
 /// Fill M2Track-based dynamic values on an emitter.
@@ -175,10 +254,16 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
 
 /// Fill FakeAnimBlock visual values (color, opacity, scale).
 fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
-    em.mid_point = read_midpoint(md20, data, 0x104);
-    em.colors = read_color_values(md20, data, 0x104);
-    em.opacity = read_opacity_values(md20, data, 0x114);
-    em.scales = read_scale_values(md20, data, 0x124);
+    em.mid_point = read_midpoint(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
+    em.colors = read_color_values(md20, data, EMITTER_VISUAL_COLOR_OFFSET);
+    em.opacity = read_opacity_values(md20, data, EMITTER_VISUAL_OPACITY_OFFSET);
+    em.scales = read_scale_values(md20, data, EMITTER_VISUAL_SCALE_OFFSET);
+    em.head_cell_track = read_u16_values(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
+    em.tail_cell_track = read_u16_values(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
+    em.burst_multiplier = match read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0) {
+        value if value > 0.0 => value,
+        _ => 1.0,
+    };
 }
 
 /// Parse a single particle emitter from the MD20 blob.
@@ -186,7 +271,7 @@ fn parse_emitter(md20: &[u8], offset: usize) -> Result<M2ParticleEmitter, String
     let data = md20
         .get(offset..)
         .ok_or_else(|| format!("Emitter out of bounds at {offset:#x}"))?;
-    if data.len() < 0x134 {
+    if data.len() < EMITTER_CATA_SIZE {
         return Err("Emitter data too short".into());
     }
     let mut em = parse_emitter_header(data)?;
@@ -252,6 +337,7 @@ mod tests {
         assert!(em.emission_rate > 19.0, "rate={}", em.emission_rate);
         assert!(em.colors[0][0] > 200.0, "start red={}", em.colors[0][0]);
         assert!(em.opacity[1] > 0.9, "mid opacity={}", em.opacity[1]);
+        assert!(em.burst_multiplier > 0.9, "burst={}", em.burst_multiplier);
     }
 
     #[test]
@@ -272,5 +358,30 @@ mod tests {
 
         assert_eq!(opacities[0], 0.0);
         assert!((opacities[1] - (16384.0 / 32767.0)).abs() < 0.0001);
+    }
+
+    #[test]
+    fn parses_head_tail_tracks_and_burst_multiplier() {
+        let mut md20 = vec![0u8; 0x180];
+        let mut emitter = vec![0u8; 0x178];
+
+        let head_offset = 0x40usize;
+        md20[head_offset..head_offset + 6].copy_from_slice(&[1, 0, 2, 0, 3, 0]);
+        emitter[0x13C + 8..0x13C + 12].copy_from_slice(&(3u32).to_le_bytes());
+        emitter[0x13C + 12..0x13C + 16].copy_from_slice(&(head_offset as u32).to_le_bytes());
+
+        let tail_offset = 0x50usize;
+        md20[tail_offset..tail_offset + 6].copy_from_slice(&[4, 0, 5, 0, 6, 0]);
+        emitter[0x14C + 8..0x14C + 12].copy_from_slice(&(3u32).to_le_bytes());
+        emitter[0x14C + 12..0x14C + 16].copy_from_slice(&(tail_offset as u32).to_le_bytes());
+
+        emitter[0x174..0x178].copy_from_slice(&(1.75_f32).to_le_bytes());
+
+        let mut parsed = parse_emitter_header(&emitter).unwrap();
+        fill_visual_values(&mut parsed, &md20, &emitter);
+
+        assert_eq!(parsed.head_cell_track, [1, 2, 3]);
+        assert_eq!(parsed.tail_cell_track, [4, 5, 6]);
+        assert!((parsed.burst_multiplier - 1.75).abs() < 0.0001);
     }
 }

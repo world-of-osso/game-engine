@@ -362,10 +362,20 @@ fn build_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
 
 fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi::Gradient<Vec3> {
     let mid = em.mid_point.clamp(0.01, 0.99);
+    let burst = em.burst_multiplier.max(0.0);
     let mut g = bevy_hanabi::Gradient::new();
-    g.add_key(0.0, Vec3::splat(em.scales[0][0].max(0.01) * model_scale));
-    g.add_key(mid, Vec3::splat(em.scales[1][0].max(0.01) * model_scale));
-    g.add_key(1.0, Vec3::splat(em.scales[2][0].max(0.01) * model_scale));
+    g.add_key(
+        0.0,
+        Vec3::splat(em.scales[0][0].max(0.01) * burst * model_scale),
+    );
+    g.add_key(
+        mid,
+        Vec3::splat(em.scales[1][0].max(0.01) * burst * model_scale),
+    );
+    g.add_key(
+        1.0,
+        Vec3::splat(em.scales[2][0].max(0.01) * burst * model_scale),
+    );
     g
 }
 
@@ -388,8 +398,8 @@ mod tests {
     use bevy_hanabi::{AlphaMode, ExprWriter};
 
     use super::{
-        build_effect_asset, build_expr_modifiers, emitter_alpha_mode, emitter_rate_scale,
-        emitter_spawn_radius, emitter_translation, is_fire_effect,
+        build_effect_asset, build_expr_modifiers, build_size_gradient, emitter_alpha_mode,
+        emitter_rate_scale, emitter_spawn_radius, emitter_translation, is_fire_effect,
     };
     use crate::asset::m2_anim::M2Bone;
     use crate::asset::m2_particle::M2ParticleEmitter;
@@ -418,6 +428,9 @@ mod tests {
             colors: [[255.0, 128.0, 64.0]; 3],
             opacity: [1.0, 1.0, 0.0],
             scales: [[0.1, 0.1], [0.2, 0.2], [0.05, 0.05]],
+            head_cell_track: [0, 0, 0],
+            tail_cell_track: [0, 0, 0],
+            burst_multiplier: 1.0,
             mid_point: 0.5,
         }
     }
@@ -498,6 +511,20 @@ mod tests {
 
         assert!(!is_fire_effect(&emitter));
         assert_eq!(emitter_rate_scale(&emitter), 1.0);
+    }
+
+    #[test]
+    fn burst_multiplier_scales_particle_size_gradient() {
+        let mut emitter = sample_emitter();
+        emitter.burst_multiplier = 2.5;
+
+        let gradient = build_size_gradient(&emitter, 1.0);
+        let keys = gradient.keys();
+
+        assert_eq!(keys.len(), 3);
+        assert_eq!(keys[0].value, Vec3::splat(0.25));
+        assert_eq!(keys[1].value, Vec3::splat(0.5));
+        assert_eq!(keys[2].value, Vec3::splat(0.125));
     }
 
     #[test]
