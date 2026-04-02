@@ -87,11 +87,9 @@ impl OutfitData {
     }
 
     fn try_load(data_dir: &Path) -> Result<LoadedOutfitData, String> {
-        let outfits = parse::parse_char_start_outfits(&data_dir.join("CharStartOutfit.csv"))?;
-        let item_to_appearance =
-            parse::parse_item_modified_appearance(&data_dir.join("ItemModifiedAppearance.csv"))?;
-        let appearance_to_display =
-            parse::parse_item_appearance(&data_dir.join("ItemAppearance.csv"))?;
+        let outfits = crate::world_db::load_cached_char_start_outfits(data_dir)?;
+        let item_to_appearance = crate::world_db::load_cached_item_modified_appearance(data_dir)?;
+        let appearance_to_display = crate::world_db::load_cached_item_appearance(data_dir)?;
         let display_resources = load_display_resources(data_dir)?;
         let data = LoadedOutfitData {
             outfits,

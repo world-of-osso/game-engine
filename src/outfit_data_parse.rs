@@ -5,69 +5,6 @@ use std::path::Path;
 
 use super::{DisplayInfoResolved, DisplayMaterialTextures};
 
-type OutfitKey = (u8, u8, u8);
-
-pub fn parse_char_start_outfits(path: &Path) -> Result<HashMap<OutfitKey, Vec<u32>>, String> {
-    let (h, rows) = read_csv(path)?;
-    let race_col = col(&h, "RaceID")?;
-    let class_col = col(&h, "ClassID")?;
-    let sex_col = col(&h, "SexID")?;
-
-    let item_cols: Vec<_> = (0..12)
-        .map(|i| col(&h, &format!("ItemID_{i}")))
-        .collect::<Result<_, _>>()?;
-
-    let mut outfits = HashMap::new();
-    for row in &rows {
-        let key = (
-            field_u32(row, race_col) as u8,
-            field_u32(row, class_col) as u8,
-            field_u32(row, sex_col) as u8,
-        );
-        let items = item_cols
-            .iter()
-            .map(|&c| field_u32(row, c))
-            .filter(|&item_id| item_id != 0 && item_id != 6948)
-            .collect::<Vec<_>>();
-        outfits.insert(key, items);
-    }
-    Ok(outfits)
-}
-
-pub fn parse_item_modified_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
-    let (h, rows) = read_csv(path)?;
-    let item_col = col(&h, "ItemID")?;
-    let appearance_col = col(&h, "ItemAppearanceID")?;
-
-    let mut map = HashMap::new();
-    for row in &rows {
-        let item_id = field_u32(row, item_col);
-        let appearance_id = field_u32(row, appearance_col);
-        if item_id == 0 || appearance_id == 0 {
-            continue;
-        }
-        map.entry(item_id).or_insert(appearance_id);
-    }
-    Ok(map)
-}
-
-pub fn parse_item_appearance(path: &Path) -> Result<HashMap<u32, u32>, String> {
-    let (h, rows) = read_csv(path)?;
-    let id_col = col(&h, "ID")?;
-    let display_info_col = col(&h, "ItemDisplayInfoID")?;
-
-    let mut map = HashMap::new();
-    for row in &rows {
-        let id = field_u32(row, id_col);
-        let display_info_id = field_u32(row, display_info_col);
-        if id == 0 || display_info_id == 0 {
-            continue;
-        }
-        map.insert(id, display_info_id);
-    }
-    Ok(map)
-}
-
 pub fn parse_item_display_info(path: &Path) -> Result<HashMap<u32, DisplayInfoResolved>, String> {
     let (h, rows) = read_csv(path)?;
     let columns = ItemDisplayInfoColumns::from_headers(&h)?;
