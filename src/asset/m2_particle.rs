@@ -482,6 +482,10 @@ fn emitter_shell_state() -> M2ParticleEmitter {
 }
 
 fn emitter_zero_state() -> M2ParticleEmitter {
+    zeroed_emitter_base()
+}
+
+fn zeroed_emitter_base() -> M2ParticleEmitter {
     M2ParticleEmitter {
         flags: 0,
         position: [0.0; 3],
