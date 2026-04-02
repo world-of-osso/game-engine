@@ -1,3 +1,8 @@
+//! Pure M2 format parsing namespace.
+//!
+//! This module exposes the parser-only M2 submodules under `asset::m2_format::*`
+//! and keeps the low-level binary decoding helpers here, with no Bevy deps.
+
 use std::path::{Path, PathBuf};
 
 pub mod m2_anim {
