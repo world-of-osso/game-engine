@@ -373,54 +373,96 @@ impl Default for EmitterVisualDefaults {
     }
 }
 
+fn base_emitter_defaults() -> M2ParticleEmitter {
+    M2ParticleEmitter {
+        flags: 0,
+        position: [0.0; 3],
+        bone_index: 0,
+        texture_index: 0,
+        texture_fdid: None,
+        blend_type: 0,
+        emitter_type: 0,
+        particle_type: 0,
+        head_or_tail: 0,
+        tile_rows: 0,
+        tile_cols: 0,
+        emission_speed: 0.0,
+        speed_variation: 0.0,
+        vertical_range: 0.0,
+        horizontal_range: 0.0,
+        gravity: 0.0,
+        lifespan: 0.0,
+        lifespan_variation: 0.0,
+        emission_rate: 0.0,
+        area_length: 0.0,
+        area_width: 0.0,
+        drag: 0.0,
+        base_spin: 0.0,
+        base_spin_variation: 0.0,
+        spin: 0.0,
+        spin_variation: 0.0,
+        wind_vector: [0.0; 3],
+        wind_time: 0.0,
+        colors: [[0.0; 3]; 3],
+        color_keys: Vec::new(),
+        opacity: [1.0; 3],
+        opacity_keys: Vec::new(),
+        scales: [[1.0; 2]; 3],
+        scale_keys: Vec::new(),
+        twinkle_speed: 0.0,
+        twinkle_percent: 0.0,
+        twinkle_scale_min: 1.0,
+        twinkle_scale_max: 1.0,
+        head_cell_track: [0; 3],
+        tail_cell_track: [0; 3],
+        burst_multiplier: 1.0,
+        mid_point: 0.5,
+    }
+}
+
+fn apply_track_defaults(emitter: &mut M2ParticleEmitter, tracks: EmitterTrackDefaults) {
+    emitter.emission_speed = tracks.emission_speed;
+    emitter.speed_variation = tracks.speed_variation;
+    emitter.vertical_range = tracks.vertical_range;
+    emitter.horizontal_range = tracks.horizontal_range;
+    emitter.gravity = tracks.gravity;
+    emitter.lifespan = tracks.lifespan;
+    emitter.lifespan_variation = tracks.lifespan_variation;
+    emitter.emission_rate = tracks.emission_rate;
+    emitter.area_length = tracks.area_length;
+    emitter.area_width = tracks.area_width;
+    emitter.drag = tracks.drag;
+    emitter.base_spin = tracks.base_spin;
+    emitter.base_spin_variation = tracks.base_spin_variation;
+    emitter.spin = tracks.spin;
+    emitter.spin_variation = tracks.spin_variation;
+    emitter.wind_vector = tracks.wind_vector;
+    emitter.wind_time = tracks.wind_time;
+}
+
+fn apply_visual_defaults(emitter: &mut M2ParticleEmitter, visuals: EmitterVisualDefaults) {
+    emitter.colors = visuals.colors;
+    emitter.color_keys = visuals.color_keys;
+    emitter.opacity = visuals.opacity;
+    emitter.opacity_keys = visuals.opacity_keys;
+    emitter.scales = visuals.scales;
+    emitter.scale_keys = visuals.scale_keys;
+    emitter.twinkle_speed = visuals.twinkle_speed;
+    emitter.twinkle_percent = visuals.twinkle_percent;
+    emitter.twinkle_scale_min = visuals.twinkle_scale_min;
+    emitter.twinkle_scale_max = visuals.twinkle_scale_max;
+    emitter.head_cell_track = visuals.head_cell_track;
+    emitter.tail_cell_track = visuals.tail_cell_track;
+    emitter.burst_multiplier = visuals.burst_multiplier;
+    emitter.mid_point = visuals.mid_point;
+}
+
 impl Default for M2ParticleEmitter {
     fn default() -> Self {
-        let tracks = EmitterTrackDefaults::default();
-        let visuals = EmitterVisualDefaults::default();
-        Self {
-            flags: 0,
-            position: [0.0; 3],
-            bone_index: 0,
-            texture_index: 0,
-            texture_fdid: None,
-            blend_type: 0,
-            emitter_type: 0,
-            particle_type: 0,
-            head_or_tail: 0,
-            tile_rows: 0,
-            tile_cols: 0,
-            emission_speed: tracks.emission_speed,
-            speed_variation: tracks.speed_variation,
-            vertical_range: tracks.vertical_range,
-            horizontal_range: tracks.horizontal_range,
-            gravity: tracks.gravity,
-            lifespan: tracks.lifespan,
-            lifespan_variation: tracks.lifespan_variation,
-            emission_rate: tracks.emission_rate,
-            area_length: tracks.area_length,
-            area_width: tracks.area_width,
-            drag: tracks.drag,
-            base_spin: tracks.base_spin,
-            base_spin_variation: tracks.base_spin_variation,
-            spin: tracks.spin,
-            spin_variation: tracks.spin_variation,
-            wind_vector: tracks.wind_vector,
-            wind_time: tracks.wind_time,
-            colors: visuals.colors,
-            color_keys: visuals.color_keys,
-            opacity: visuals.opacity,
-            opacity_keys: visuals.opacity_keys,
-            scales: visuals.scales,
-            scale_keys: visuals.scale_keys,
-            twinkle_speed: visuals.twinkle_speed,
-            twinkle_percent: visuals.twinkle_percent,
-            twinkle_scale_min: visuals.twinkle_scale_min,
-            twinkle_scale_max: visuals.twinkle_scale_max,
-            head_cell_track: visuals.head_cell_track,
-            tail_cell_track: visuals.tail_cell_track,
-            burst_multiplier: visuals.burst_multiplier,
-            mid_point: visuals.mid_point,
-        }
+        let mut emitter = base_emitter_defaults();
+        apply_track_defaults(&mut emitter, EmitterTrackDefaults::default());
+        apply_visual_defaults(&mut emitter, EmitterVisualDefaults::default());
+        emitter
     }
 }
 
