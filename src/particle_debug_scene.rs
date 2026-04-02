@@ -146,8 +146,9 @@ fn spawn_emitter_overlay(commands: &mut Commands, skin_fdids: &[u32; 3]) {
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(12.0),
-            left: Val::Px(12.0),
+            right: Val::Px(12.0),
             width: Val::Px(520.0),
+            max_width: Val::Percent(42.0),
             padding: UiRect::all(Val::Px(10.0)),
             ..default()
         },
