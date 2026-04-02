@@ -31,6 +31,8 @@ pub struct M2ParticleEmitter {
     pub horizontal_range: f32,
     pub gravity: f32,
     pub lifespan: f32,
+    /// Symmetric +/- lifetime variation around `lifespan`.
+    pub lifespan_variation: f32,
     pub emission_rate: f32,
     pub area_length: f32,
     pub area_width: f32,
@@ -74,6 +76,7 @@ use super::m2::{read_f32, read_u16, read_u32};
 const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
 const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
+const EMITTER_LIFESPAN_VARIATION_OFFSET: usize = 0xAC;
 const EMITTER_HEAD_CELL_TRACK_OFFSET: usize = 0x13C;
 const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
 const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
@@ -295,6 +298,7 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         horizontal_range: 0.0,
         gravity: 0.0,
         lifespan: 0.0,
+        lifespan_variation: 0.0,
         emission_rate: 0.0,
         area_length: 0.0,
         area_width: 0.0,
@@ -326,6 +330,7 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.horizontal_range = read_track_static_f32(md20, data, 0x70);
     em.gravity = read_track_static_f32(md20, data, 0x84);
     em.lifespan = read_track_static_f32(md20, data, 0x98);
+    em.lifespan_variation = read_f32(data, EMITTER_LIFESPAN_VARIATION_OFFSET).unwrap_or(0.0);
     em.emission_rate = read_track_static_f32(md20, data, 0xB0);
     em.area_length = read_track_static_f32(md20, data, 0xC8);
     em.area_width = read_track_static_f32(md20, data, 0xDC);
@@ -626,6 +631,18 @@ mod tests {
         assert!((parsed.base_spin_variation - 1.5).abs() < 0.0001);
         assert!((parsed.spin - 0.75).abs() < 0.0001);
         assert!((parsed.spin_variation - 0.5).abs() < 0.0001);
+    }
+
+    #[test]
+    fn parses_lifespan_variation_from_272_suffix() {
+        let mut md20 = vec![0u8; 0x1ec];
+        md20[EMITTER_LIFESPAN_VARIATION_OFFSET..EMITTER_LIFESPAN_VARIATION_OFFSET + 4]
+            .copy_from_slice(&(0.4_f32).to_le_bytes());
+
+        let mut parsed = parse_emitter_header(&md20).unwrap();
+        fill_track_values(&mut parsed, &md20, &md20);
+
+        assert!((parsed.lifespan_variation - 0.4).abs() < 0.0001);
     }
 
     #[test]

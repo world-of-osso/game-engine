@@ -248,7 +248,8 @@ fn build_cell_track_sprite_index(
 fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
     let m = build_expr_modifiers(em, model_scale);
     let emission_rate = (em.emission_rate * emitter_rate_scale(em)).max(0.1);
-    let max_particles = ((emission_rate * em.lifespan) as u32).clamp(16, 4096);
+    let (_, max_lifetime) = lifetime_range(em);
+    let max_particles = ((emission_rate * max_lifetime) as u32).clamp(16, 4096);
     let spawner = SpawnerSettings::rate(emission_rate.into());
 
     let mut effect = assemble_effect(
@@ -358,8 +359,7 @@ fn build_init_modifiers(
     model_scale: f32,
 ) -> InitModifiers {
     let age = SetAttributeModifier::new(Attribute::AGE, writer.lit(0.0).expr());
-    let lifetime =
-        SetAttributeModifier::new(Attribute::LIFETIME, writer.lit(em.lifespan.max(0.1)).expr());
+    let lifetime = SetAttributeModifier::new(Attribute::LIFETIME, build_lifetime_expr(em, writer));
     let pos = build_position_modifier(em, writer, model_scale);
     let vel = build_velocity_modifier(em, writer, model_scale);
     InitModifiers {
@@ -370,6 +370,21 @@ fn build_init_modifiers(
         rotation: build_initial_rotation_modifier(em, writer),
         angular_velocity: build_angular_velocity_modifier(em, writer),
     }
+}
+
+fn build_lifetime_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> ExprHandle {
+    let (min_lifetime, max_lifetime) = lifetime_range(em);
+    if (max_lifetime - min_lifetime).abs() < f32::EPSILON {
+        return writer.lit(max_lifetime).expr();
+    }
+    let span = max_lifetime - min_lifetime;
+    (writer.rand(ScalarType::Float) * writer.lit(span) + writer.lit(min_lifetime)).expr()
+}
+
+fn lifetime_range(em: &M2ParticleEmitter) -> (f32, f32) {
+    let base = em.lifespan.max(0.1);
+    let variation = em.lifespan_variation.max(0.0);
+    ((base - variation).max(0.1), (base + variation).max(0.1))
 }
 
 fn build_initial_rotation_modifier(

@@ -4,8 +4,8 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::{
     active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, has_authored_spin, has_authored_wind, is_fire_effect, orient_mode,
-    wind_accel_bevy, wind_strength_at_age,
+    emitter_translation, has_authored_spin, has_authored_wind, is_fire_effect, lifetime_range,
+    orient_mode, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
@@ -29,6 +29,7 @@ fn sample_emitter() -> M2ParticleEmitter {
         horizontal_range: std::f32::consts::TAU,
         gravity: 0.0,
         lifespan: 1.0,
+        lifespan_variation: 0.0,
         emission_rate: 20.0,
         area_length: 0.1,
         area_width: 0.1,
@@ -197,6 +198,24 @@ fn trail_particles_stretch_length_over_lifetime() {
     assert!((keys[1].value.x - 2.0).abs() < 0.0001);
     assert!((keys[2].value.x - 3.65).abs() < 0.0001);
     assert!((keys[2].value.y - 0.05).abs() < 0.0001);
+}
+
+#[test]
+fn lifetime_range_expands_symmetrically_from_authored_variation() {
+    let mut emitter = sample_emitter();
+    emitter.lifespan = 2.0;
+    emitter.lifespan_variation = 0.75;
+
+    assert_eq!(lifetime_range(&emitter), (1.25, 2.75));
+}
+
+#[test]
+fn lifetime_range_clamps_non_positive_results() {
+    let mut emitter = sample_emitter();
+    emitter.lifespan = 0.05;
+    emitter.lifespan_variation = 1.0;
+
+    assert_eq!(lifetime_range(&emitter), (0.1, 1.1));
 }
 
 #[test]
