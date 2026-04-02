@@ -35,6 +35,14 @@ pub struct M2ParticleEmitter {
     pub area_length: f32,
     pub area_width: f32,
     pub drag: f32,
+    /// Base in-plane rotation in radians.
+    pub base_spin: f32,
+    /// Random variation applied to base in-plane rotation.
+    pub base_spin_variation: f32,
+    /// Angular velocity in radians/second.
+    pub spin: f32,
+    /// Random variation applied to angular velocity.
+    pub spin_variation: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
     /// Full FakeAnimBlock color keys as (normalized time, RGB 0–255).
@@ -65,6 +73,10 @@ const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
 const EMITTER_HEAD_CELL_TRACK_OFFSET: usize = 0x13C;
 const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
 const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
+const EMITTER_BASE_SPIN_OFFSET: usize = 0x178;
+const EMITTER_BASE_SPIN_VARIATION_OFFSET: usize = 0x17C;
+const EMITTER_SPIN_OFFSET: usize = 0x180;
+const EMITTER_SPIN_VARIATION_OFFSET: usize = 0x184;
 const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
 const EMITTER_272_STRIDE: usize = 0x1EC;
 
@@ -281,6 +293,10 @@ fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         area_length: 0.0,
         area_width: 0.0,
         drag: 0.0,
+        base_spin: 0.0,
+        base_spin_variation: 0.0,
+        spin: 0.0,
+        spin_variation: 0.0,
         colors: [[0.0; 3]; 3],
         color_keys: Vec::new(),
         opacity: [1.0; 3],
@@ -306,6 +322,10 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.area_length = read_track_static_f32(md20, data, 0xC8);
     em.area_width = read_track_static_f32(md20, data, 0xDC);
     em.drag = read_track_static_f32(md20, data, 0xF0);
+    em.base_spin = read_f32(data, EMITTER_BASE_SPIN_OFFSET).unwrap_or(0.0);
+    em.base_spin_variation = read_f32(data, EMITTER_BASE_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
+    em.spin = read_f32(data, EMITTER_SPIN_OFFSET).unwrap_or(0.0);
+    em.spin_variation = read_f32(data, EMITTER_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
 }
 
 /// Fill FakeAnimBlock visual values (color, opacity, scale).
@@ -443,6 +463,9 @@ mod tests {
         assert_eq!(emitters[0].blend_type, 2);
         assert_eq!(emitters[0].tile_rows, 2);
         assert_eq!(emitters[0].tile_cols, 4);
+        assert!((emitters[0].base_spin_variation - std::f32::consts::TAU).abs() < 0.0001);
+        assert!((emitters[0].spin - 0.87266463).abs() < 0.0001);
+        assert!((emitters[0].spin_variation - 0.08726646).abs() < 0.0001);
         assert_eq!(emitters[3].emitter_type, 2);
         assert_eq!(emitters[3].tile_rows, 2);
         assert_eq!(emitters[3].tile_cols, 2);
@@ -568,6 +591,27 @@ mod tests {
 
         assert_eq!(parsed.particle_type, 1);
         assert_eq!(parsed.head_or_tail, 2);
+    }
+
+    #[test]
+    fn parses_spin_fields_from_272_suffix() {
+        let mut md20 = vec![0u8; 0x1ec];
+        md20[EMITTER_BASE_SPIN_OFFSET..EMITTER_BASE_SPIN_OFFSET + 4]
+            .copy_from_slice(&(0.25_f32).to_le_bytes());
+        md20[EMITTER_BASE_SPIN_VARIATION_OFFSET..EMITTER_BASE_SPIN_VARIATION_OFFSET + 4]
+            .copy_from_slice(&(1.5_f32).to_le_bytes());
+        md20[EMITTER_SPIN_OFFSET..EMITTER_SPIN_OFFSET + 4]
+            .copy_from_slice(&(0.75_f32).to_le_bytes());
+        md20[EMITTER_SPIN_VARIATION_OFFSET..EMITTER_SPIN_VARIATION_OFFSET + 4]
+            .copy_from_slice(&(0.5_f32).to_le_bytes());
+
+        let mut parsed = parse_emitter_header(&md20).unwrap();
+        fill_track_values(&mut parsed, &md20, &md20);
+
+        assert!((parsed.base_spin - 0.25).abs() < 0.0001);
+        assert!((parsed.base_spin_variation - 1.5).abs() < 0.0001);
+        assert!((parsed.spin - 0.75).abs() < 0.0001);
+        assert!((parsed.spin_variation - 0.5).abs() < 0.0001);
     }
 
     #[test]

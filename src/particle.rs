@@ -134,6 +134,7 @@ struct ExprModifiers {
     flipbook_sprite_index: Option<SetAttributeModifier>,
     texture: Option<ParticleTextureModifier>,
     alpha_mode: bevy_hanabi::AlphaMode,
+    orient_rotation: Option<ExprHandle>,
     module: Module,
 }
 
@@ -149,6 +150,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         sample_mapping: ImageSampleMapping::Modulate,
     });
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
+    let orient_rotation = build_orient_rotation_expr(em, &writer);
     let mut module = writer.finish();
     if texture.is_some() {
         module.add_texture_slot("color");
@@ -160,6 +162,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         flipbook_sprite_index,
         texture,
         alpha_mode,
+        orient_rotation,
         module,
     }
 }
@@ -238,6 +241,7 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
         m.alpha_mode,
         m.init,
         m.gravity,
+        m.orient_rotation,
         model_scale,
     );
     if let Some(drag) = m.drag {
@@ -273,9 +277,15 @@ fn assemble_effect(
     alpha_mode: bevy_hanabi::AlphaMode,
     init: InitModifiers,
     gravity: AccelModifier,
+    orient_rotation: Option<ExprHandle>,
     model_scale: f32,
 ) -> EffectAsset {
-    EffectAsset::new(max_particles, spawner, module)
+    let orient = if let Some(rotation) = orient_rotation {
+        OrientModifier::new(orient_mode(em)).with_rotation(rotation)
+    } else {
+        OrientModifier::new(orient_mode(em))
+    };
+    let mut effect = EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
         .with_alpha_mode(alpha_mode)
         .with_simulation_space(SimulationSpace::Global)
@@ -289,7 +299,14 @@ fn assemble_effect(
             gradient: build_size_gradient(em, model_scale),
             screen_space_size: false,
         })
-        .render(OrientModifier::new(orient_mode(em)))
+        .render(orient);
+    if let Some(rotation) = init.rotation {
+        effect = effect.init(rotation);
+    }
+    if let Some(angular_velocity) = init.angular_velocity {
+        effect = effect.init(angular_velocity);
+    }
+    effect
 }
 
 fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
@@ -313,6 +330,8 @@ struct InitModifiers {
     lifetime: SetAttributeModifier,
     pos: SetPositionSphereModifier,
     vel: SetAttributeModifier,
+    rotation: Option<SetAttributeModifier>,
+    angular_velocity: Option<SetAttributeModifier>,
 }
 
 fn build_init_modifiers(
@@ -330,7 +349,60 @@ fn build_init_modifiers(
         lifetime,
         pos,
         vel,
+        rotation: build_initial_rotation_modifier(em, writer),
+        angular_velocity: build_angular_velocity_modifier(em, writer),
     }
+}
+
+fn build_initial_rotation_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
+    authored_spin_expr(em, writer, em.base_spin, em.base_spin_variation)
+        .map(|expr| SetAttributeModifier::new(Attribute::F32_0, expr))
+}
+
+fn build_angular_velocity_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
+    authored_spin_expr(em, writer, em.spin, em.spin_variation)
+        .map(|expr| SetAttributeModifier::new(Attribute::F32_1, expr))
+}
+
+fn authored_spin_expr(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    base: f32,
+    variation: f32,
+) -> Option<ExprHandle> {
+    if !has_authored_spin(em) {
+        return None;
+    }
+    if variation > 0.0 {
+        let offset =
+            writer.rand(ScalarType::Float) * writer.lit(variation * 2.0) - writer.lit(variation);
+        Some((writer.lit(base) + offset).expr())
+    } else {
+        Some(writer.lit(base).expr())
+    }
+}
+
+fn build_orient_rotation_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> Option<ExprHandle> {
+    if !has_authored_spin(em) {
+        return None;
+    }
+    let angle = writer.attr(Attribute::F32_0);
+    let angular_velocity = writer.attr(Attribute::F32_1);
+    let age = writer.attr(Attribute::AGE);
+    Some((angle + angular_velocity * age).expr())
+}
+
+fn has_authored_spin(em: &M2ParticleEmitter) -> bool {
+    em.base_spin != 0.0
+        || em.base_spin_variation != 0.0
+        || em.spin != 0.0
+        || em.spin_variation != 0.0
 }
 
 fn build_position_modifier(

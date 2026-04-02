@@ -4,7 +4,7 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::{
     active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, is_fire_effect, orient_mode,
+    emitter_translation, has_authored_spin, is_fire_effect, orient_mode,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
@@ -32,6 +32,10 @@ fn sample_emitter() -> M2ParticleEmitter {
         area_length: 0.1,
         area_width: 0.1,
         drag: 0.0,
+        base_spin: 0.0,
+        base_spin_variation: 0.0,
+        spin: 0.0,
+        spin_variation: 0.0,
         colors: [[255.0, 128.0, 64.0]; 3],
         color_keys: Vec::new(),
         opacity: [1.0, 1.0, 0.0],
@@ -198,6 +202,20 @@ fn trail_particles_orient_along_velocity() {
     emitter.particle_type = 1;
 
     assert!(matches!(orient_mode(&emitter), OrientMode::AlongVelocity));
+}
+
+#[test]
+fn spin_emitters_declare_authored_rotation() {
+    let mut emitter = sample_emitter();
+    emitter.base_spin_variation = std::f32::consts::TAU;
+    emitter.spin = 0.8;
+
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(has_authored_spin(&emitter));
+    assert!(modifiers.orient_rotation.is_some());
+    assert!(modifiers.init.rotation.is_some());
+    assert!(modifiers.init.angular_velocity.is_some());
 }
 
 #[test]
