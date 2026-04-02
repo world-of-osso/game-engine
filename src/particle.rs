@@ -13,6 +13,16 @@ use crate::asset::m2::wow_to_bevy;
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
 
+const PARTICLE_FLAG_ALONG_VELOCITY: u32 = 0x08;
+const BLEND_OPAQUE: u8 = 0;
+const BLEND_ALPHA_KEY: u8 = 1;
+const BLEND_ALPHA: u8 = 2;
+const BLEND_ALPHA_3: u8 = 3;
+const BLEND_ADD: u8 = 4;
+const BLEND_ADD_ALPHA: u8 = 5;
+const BLEND_MOD: u8 = 6;
+const BLEND_MOD2X: u8 = 7;
+
 pub struct ParticlePlugin;
 
 impl Plugin for ParticlePlugin {
@@ -102,7 +112,7 @@ fn spawn_single_emitter(
 
 /// Emitter position relative to its parent bone.
 fn emitter_local_offset(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
-    let pos = emitter_translation(em, bones);
+    let pos = emitter_translation(em);
     let bone_pivot = bones
         .get(em.bone_index as usize)
         .map(|b| Vec3::new(b.pivot[0], b.pivot[2], -b.pivot[1]))
@@ -110,7 +120,7 @@ fn emitter_local_offset(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
     pos - bone_pivot
 }
 
-fn emitter_translation(em: &M2ParticleEmitter, _bones: &[M2Bone]) -> Vec3 {
+fn emitter_translation(em: &M2ParticleEmitter) -> Vec3 {
     let pos = em.position;
     Vec3::from(wow_to_bevy(pos[0], pos[1], pos[2]))
 }
@@ -281,7 +291,7 @@ fn assemble_effect(
 }
 
 fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
-    if em.flags & 0x08 != 0 {
+    if em.flags & PARTICLE_FLAG_ALONG_VELOCITY != 0 {
         OrientMode::AlongVelocity
     } else {
         OrientMode::FaceCameraPosition
@@ -371,10 +381,10 @@ fn build_speed_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> WriterExpr {
 
 fn emitter_alpha_mode(blend_type: u8, mask_cutoff: ExprHandle) -> bevy_hanabi::AlphaMode {
     match blend_type {
-        0 => bevy_hanabi::AlphaMode::Opaque,
-        1 => bevy_hanabi::AlphaMode::Mask(mask_cutoff),
-        2 | 3 | 7 => bevy_hanabi::AlphaMode::Blend,
-        4..=6 => bevy_hanabi::AlphaMode::Add,
+        BLEND_OPAQUE => bevy_hanabi::AlphaMode::Opaque,
+        BLEND_ALPHA_KEY => bevy_hanabi::AlphaMode::Mask(mask_cutoff),
+        BLEND_ALPHA | BLEND_ALPHA_3 | BLEND_MOD2X => bevy_hanabi::AlphaMode::Blend,
+        BLEND_ADD | BLEND_ADD_ALPHA | BLEND_MOD => bevy_hanabi::AlphaMode::Add,
         _ => bevy_hanabi::AlphaMode::Blend,
     }
 }
@@ -391,18 +401,9 @@ fn build_simple_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<
     let [o0, o1, o2] = em.opacity;
     let mid = em.mid_point.clamp(0.01, 0.99);
     let mut g = bevy_hanabi::Gradient::new();
-    g.add_key(
-        0.0,
-        Vec4::new(c0[0] / 255.0, c0[1] / 255.0, c0[2] / 255.0, o0),
-    );
-    g.add_key(
-        mid,
-        Vec4::new(c1[0] / 255.0, c1[1] / 255.0, c1[2] / 255.0, o1),
-    );
-    g.add_key(
-        1.0,
-        Vec4::new(c2[0] / 255.0, c2[1] / 255.0, c2[2] / 255.0, o2),
-    );
+    g.add_key(0.0, vec4_with_alpha(c0, o0));
+    g.add_key(mid, vec4_with_alpha(c1, o1));
+    g.add_key(1.0, vec4_with_alpha(c2, o2));
     g
 }
 
@@ -438,21 +439,9 @@ fn sample_fake_animblock_color(em: &M2ParticleEmitter, time: f32) -> Vec3 {
     }
     let t = time.clamp(0.0, 1.0);
     let mid = em.mid_point.clamp(0.01, 0.99);
-    let c0 = Vec3::new(
-        em.colors[0][0] / 255.0,
-        em.colors[0][1] / 255.0,
-        em.colors[0][2] / 255.0,
-    );
-    let c1 = Vec3::new(
-        em.colors[1][0] / 255.0,
-        em.colors[1][1] / 255.0,
-        em.colors[1][2] / 255.0,
-    );
-    let c2 = Vec3::new(
-        em.colors[2][0] / 255.0,
-        em.colors[2][1] / 255.0,
-        em.colors[2][2] / 255.0,
-    );
+    let c0 = vec3_from_rgb255(em.colors[0]);
+    let c1 = vec3_from_rgb255(em.colors[1]);
+    let c2 = vec3_from_rgb255(em.colors[2]);
     if t < mid {
         c0.lerp(c1, (t / mid).clamp(0.0, 1.0))
     } else {
@@ -507,6 +496,11 @@ fn sample_keyed_opacity(keys: &[(f32, f32)], time: f32) -> f32 {
 
 fn vec3_from_rgb255(color: [f32; 3]) -> Vec3 {
     Vec3::new(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0)
+}
+
+fn vec4_with_alpha(color: [f32; 3], alpha: f32) -> Vec4 {
+    let color = vec3_from_rgb255(color);
+    Vec4::new(color.x, color.y, color.z, alpha)
 }
 
 fn build_size_gradient(em: &M2ParticleEmitter, model_scale: f32) -> bevy_hanabi::Gradient<Vec3> {

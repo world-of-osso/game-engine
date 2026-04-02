@@ -6,7 +6,6 @@ use super::{
     build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
     emitter_translation, is_fire_effect,
 };
-use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
 
 fn sample_emitter() -> M2ParticleEmitter {
@@ -40,16 +39,6 @@ fn sample_emitter() -> M2ParticleEmitter {
         tail_cell_track: [0, 0, 0],
         burst_multiplier: 1.0,
         mid_point: 0.5,
-    }
-}
-
-fn sample_bone(pivot: [f32; 3]) -> M2Bone {
-    M2Bone {
-        key_bone_id: 0,
-        flags: 0,
-        parent_bone_id: -1,
-        submesh_id: 0,
-        pivot,
     }
 }
 
@@ -96,9 +85,8 @@ fn untextured_emitters_do_not_declare_hanabi_texture_slot() {
 fn emitter_translation_uses_raw_model_position() {
     let mut emitter = sample_emitter();
     emitter.position = [1.0, 2.0, 3.0];
-    let bones = vec![sample_bone([0.25, 0.5, 0.75])];
 
-    let translation = emitter_translation(&emitter, &bones);
+    let translation = emitter_translation(&emitter);
 
     assert_eq!(translation, Vec3::new(1.0, 3.0, -2.0));
 }
@@ -304,7 +292,7 @@ fn torch_emitter_translation_matches_particle_position() {
     let model = crate::asset::m2::load_m2_uncached(path, &skin_fdids).unwrap();
     let emitter = model.particle_emitters.into_iter().next().unwrap();
 
-    let translation = emitter_translation(&emitter, &model.bones);
+    let translation = emitter_translation(&emitter);
 
     let expected = Vec3::new(0.63709766, -0.07413276, 0.0009614461);
     assert!(

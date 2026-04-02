@@ -3,7 +3,8 @@
 //! Parses particle emitter blocks from the MD20 header at offset 0x128.
 //! Each emitter has static properties + AnimBlock tracks for dynamic values.
 //!
-//! Cata+ (version >= 272) layout per emitter — see wowdev.wiki/M2#Particle_emitters.
+//! The parsed fields live in the first `0x178` bytes of the 272-era particle
+//! emitter struct, but local 272/274 assets use the larger `0x1EC` stride.
 
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
@@ -60,17 +61,8 @@ const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
 const EMITTER_HEAD_CELL_TRACK_OFFSET: usize = 0x13C;
 const EMITTER_TAIL_CELL_TRACK_OFFSET: usize = 0x14C;
 const EMITTER_BURST_MULTIPLIER_OFFSET: usize = 0x174;
-const EMITTER_CATA_SIZE: usize = 0x178;
-
-struct VisualDefaults {
-    colors: [[f32; 3]; 3],
-    opacity: [f32; 3],
-    scales: [[f32; 2]; 3],
-    head_cell_track: [u16; 3],
-    tail_cell_track: [u16; 3],
-    burst_multiplier: f32,
-    mid_point: f32,
-}
+const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
+const EMITTER_272_STRIDE: usize = 0x1EC;
 
 struct EmitterHeaderCore {
     flags: u32,
@@ -114,18 +106,6 @@ fn read_normalized_timestamps(md20: &[u8], emitter: &[u8], off: usize) -> Vec<f3
         );
     }
     timestamps
-}
-
-fn default_visual_values() -> VisualDefaults {
-    VisualDefaults {
-        colors: [[0.0; 3]; 3],
-        opacity: [1.0; 3],
-        scales: [[1.0; 2]; 3],
-        head_cell_track: [0; 3],
-        tail_cell_track: [0; 3],
-        burst_multiplier: 1.0,
-        mid_point: 0.5,
-    }
 }
 
 /// Read the first float from a static M2Track (Cata+ indirect M2Arrays).
@@ -271,12 +251,6 @@ fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
 }
 
 fn build_emitter_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
-    let mut emitter = zeroed_emitter_from_header(header);
-    apply_default_visuals(&mut emitter, default_visual_values());
-    emitter
-}
-
-fn zeroed_emitter_from_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
     M2ParticleEmitter {
         flags: header.flags,
         position: header.position,
@@ -308,16 +282,6 @@ fn zeroed_emitter_from_header(header: EmitterHeaderCore) -> M2ParticleEmitter {
         burst_multiplier: 1.0,
         mid_point: 0.5,
     }
-}
-
-fn apply_default_visuals(emitter: &mut M2ParticleEmitter, visuals: VisualDefaults) {
-    emitter.colors = visuals.colors;
-    emitter.opacity = visuals.opacity;
-    emitter.scales = visuals.scales;
-    emitter.head_cell_track = visuals.head_cell_track;
-    emitter.tail_cell_track = visuals.tail_cell_track;
-    emitter.burst_multiplier = visuals.burst_multiplier;
-    emitter.mid_point = visuals.mid_point;
 }
 
 /// Fill M2Track-based dynamic values on an emitter.
@@ -356,7 +320,7 @@ fn parse_emitter(md20: &[u8], offset: usize) -> Result<M2ParticleEmitter, String
     let data = md20
         .get(offset..)
         .ok_or_else(|| format!("Emitter out of bounds at {offset:#x}"))?;
-    if data.len() < EMITTER_CATA_SIZE {
+    if data.len() < EMITTER_PARSED_PREFIX_SIZE {
         return Err("Emitter data too short".into());
     }
     let mut em = parse_emitter_header(data)?;
@@ -378,12 +342,13 @@ pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
     if md20.len() < 0x130 {
         return Vec::new();
     }
+    let version = read_u32(md20, 0x4).unwrap_or(0);
     let count = read_u32(md20, 0x128).unwrap_or(0) as usize;
     let offset = read_u32(md20, 0x12C).unwrap_or(0) as usize;
     if count == 0 {
         return Vec::new();
     }
-    let stride = 476; // Cata+ emitter struct size
+    let stride = emitter_stride(version);
     let mut emitters = Vec::with_capacity(count);
     for i in 0..count {
         match parse_emitter(md20, offset + i * stride) {
@@ -392,6 +357,14 @@ pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
         }
     }
     emitters
+}
+
+fn emitter_stride(version: u32) -> usize {
+    if version >= 272 {
+        EMITTER_272_STRIDE
+    } else {
+        EMITTER_PARSED_PREFIX_SIZE
+    }
 }
 
 #[cfg(test)]
@@ -423,6 +396,46 @@ mod tests {
         assert!(em.colors[0][0] > 200.0, "start red={}", em.colors[0][0]);
         assert!(em.opacity[1] > 0.9, "mid opacity={}", em.opacity[1]);
         assert!(em.burst_multiplier > 0.9, "burst={}", em.burst_multiplier);
+    }
+
+    #[test]
+    fn parse_272_particle_emitters_use_full_stride() {
+        let path = std::path::Path::new("data/models/390126.m2");
+        if !path.exists() {
+            return;
+        }
+        let data = std::fs::read(path).unwrap();
+        let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
+        let md20 = &data[8..8 + md20_size];
+
+        let emitters = parse_particle_emitters(md20);
+
+        assert_eq!(emitters.len(), 3);
+        assert_eq!(emitters[1].blend_type, 4);
+        assert_eq!(emitters[1].emitter_type, 1);
+        assert_eq!(emitters[1].tile_rows, 4);
+        assert_eq!(emitters[1].tile_cols, 4);
+    }
+
+    #[test]
+    fn parse_274_particle_emitters_use_full_stride() {
+        let path = std::path::Path::new("data/models/5152423.m2");
+        if !path.exists() {
+            return;
+        }
+        let data = std::fs::read(path).unwrap();
+        let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
+        let md20 = &data[8..8 + md20_size];
+
+        let emitters = parse_particle_emitters(md20);
+
+        assert_eq!(emitters.len(), 5);
+        assert_eq!(emitters[0].blend_type, 2);
+        assert_eq!(emitters[0].tile_rows, 2);
+        assert_eq!(emitters[0].tile_cols, 4);
+        assert_eq!(emitters[3].emitter_type, 2);
+        assert_eq!(emitters[3].tile_rows, 2);
+        assert_eq!(emitters[3].tile_cols, 2);
     }
 
     #[test]
