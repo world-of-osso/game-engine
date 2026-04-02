@@ -86,10 +86,32 @@ pub struct M2ParticleEmitter {
 
 use super::m2_format::{read_f32, read_u16, read_u32};
 
+const EMITTER_FLAGS_OFFSET: usize = 0x04;
+const EMITTER_POSITION_OFFSET: usize = 0x08;
+const EMITTER_POSITION_Y_OFFSET: usize = 0x0C;
+const EMITTER_POSITION_Z_OFFSET: usize = 0x10;
+const EMITTER_BONE_INDEX_OFFSET: usize = 0x14;
+const EMITTER_TEXTURE_INDEX_OFFSET: usize = 0x16;
+const EMITTER_BLEND_TYPE_OFFSET: usize = 0x28;
+const EMITTER_TYPE_OFFSET: usize = 0x29;
+const EMITTER_PARTICLE_TYPE_OFFSET: usize = 0x2A;
+const EMITTER_HEAD_OR_TAIL_OFFSET: usize = 0x2B;
+const EMITTER_TILE_ROWS_OFFSET: usize = 0x30;
+const EMITTER_TILE_COLS_OFFSET: usize = 0x32;
+const EMITTER_EMISSION_SPEED_OFFSET: usize = 0x34;
+const EMITTER_SPEED_VARIATION_OFFSET: usize = 0x48;
+const EMITTER_VERTICAL_RANGE_OFFSET: usize = 0x5C;
+const EMITTER_HORIZONTAL_RANGE_OFFSET: usize = 0x70;
+const EMITTER_GRAVITY_OFFSET: usize = 0x84;
+const EMITTER_LIFESPAN_OFFSET: usize = 0x98;
+const EMITTER_LIFESPAN_VARIATION_OFFSET: usize = 0xAC;
+const EMITTER_EMISSION_RATE_OFFSET: usize = 0xB0;
+const EMITTER_AREA_LENGTH_OFFSET: usize = 0xC8;
+const EMITTER_AREA_WIDTH_OFFSET: usize = 0xDC;
+const EMITTER_DRAG_OFFSET: usize = 0xF0;
 const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
 const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
-const EMITTER_LIFESPAN_VARIATION_OFFSET: usize = 0xAC;
 const EMITTER_TWINKLE_SPEED_OFFSET: usize = 0x164;
 const EMITTER_TWINKLE_PERCENT_OFFSET: usize = 0x168;
 const EMITTER_TWINKLE_SCALE_MIN_OFFSET: usize = 0x16C;
@@ -296,20 +318,20 @@ fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
 
 fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
     Ok(EmitterHeaderCore {
-        flags: read_u32(em, 0x04)?,
+        flags: read_u32(em, EMITTER_FLAGS_OFFSET)?,
         position: [
-            read_f32(em, 0x08)?,
-            read_f32(em, 0x0C)?,
-            read_f32(em, 0x10)?,
+            read_f32(em, EMITTER_POSITION_OFFSET)?,
+            read_f32(em, EMITTER_POSITION_Y_OFFSET)?,
+            read_f32(em, EMITTER_POSITION_Z_OFFSET)?,
         ],
-        bone_index: read_u16(em, 0x14)?,
-        texture_index: read_u16(em, 0x16)? & 0x1F,
-        blend_type: em[0x28],
-        emitter_type: em[0x29],
-        particle_type: em[0x2A],
-        head_or_tail: em[0x2B],
-        tile_rows: read_u16(em, 0x30)?,
-        tile_cols: read_u16(em, 0x32)?,
+        bone_index: read_u16(em, EMITTER_BONE_INDEX_OFFSET)?,
+        texture_index: read_u16(em, EMITTER_TEXTURE_INDEX_OFFSET)? & 0x1F,
+        blend_type: em[EMITTER_BLEND_TYPE_OFFSET],
+        emitter_type: em[EMITTER_TYPE_OFFSET],
+        particle_type: em[EMITTER_PARTICLE_TYPE_OFFSET],
+        head_or_tail: em[EMITTER_HEAD_OR_TAIL_OFFSET],
+        tile_rows: read_u16(em, EMITTER_TILE_ROWS_OFFSET)?,
+        tile_cols: read_u16(em, EMITTER_TILE_COLS_OFFSET)?,
     })
 }
 
@@ -321,17 +343,17 @@ impl Default for M2ParticleEmitter {
 
 /// Fill M2Track-based dynamic values on an emitter.
 fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
-    em.emission_speed = read_track_static_f32(md20, data, 0x34);
-    em.speed_variation = read_track_static_f32(md20, data, 0x48);
-    em.vertical_range = read_track_static_f32(md20, data, 0x5C);
-    em.horizontal_range = read_track_static_f32(md20, data, 0x70);
-    em.gravity = read_track_static_f32(md20, data, 0x84);
-    em.lifespan = read_track_static_f32(md20, data, 0x98);
+    em.emission_speed = read_track_static_f32(md20, data, EMITTER_EMISSION_SPEED_OFFSET);
+    em.speed_variation = read_track_static_f32(md20, data, EMITTER_SPEED_VARIATION_OFFSET);
+    em.vertical_range = read_track_static_f32(md20, data, EMITTER_VERTICAL_RANGE_OFFSET);
+    em.horizontal_range = read_track_static_f32(md20, data, EMITTER_HORIZONTAL_RANGE_OFFSET);
+    em.gravity = read_track_static_f32(md20, data, EMITTER_GRAVITY_OFFSET);
+    em.lifespan = read_track_static_f32(md20, data, EMITTER_LIFESPAN_OFFSET);
     em.lifespan_variation = read_f32(data, EMITTER_LIFESPAN_VARIATION_OFFSET).unwrap_or(0.0);
-    em.emission_rate = read_track_static_f32(md20, data, 0xB0);
-    em.area_length = read_track_static_f32(md20, data, 0xC8);
-    em.area_width = read_track_static_f32(md20, data, 0xDC);
-    em.drag = read_track_static_f32(md20, data, 0xF0);
+    em.emission_rate = read_track_static_f32(md20, data, EMITTER_EMISSION_RATE_OFFSET);
+    em.area_length = read_track_static_f32(md20, data, EMITTER_AREA_LENGTH_OFFSET);
+    em.area_width = read_track_static_f32(md20, data, EMITTER_AREA_WIDTH_OFFSET);
+    em.drag = read_track_static_f32(md20, data, EMITTER_DRAG_OFFSET);
     em.base_spin = read_f32(data, EMITTER_BASE_SPIN_OFFSET).unwrap_or(0.0);
     em.base_spin_variation = read_f32(data, EMITTER_BASE_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
     em.spin = read_f32(data, EMITTER_SPIN_OFFSET).unwrap_or(0.0);
