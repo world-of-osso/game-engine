@@ -323,28 +323,28 @@ fn spawn_batch_mesh(
         force_skybox_material,
         skybox_color,
     );
-    spawn_mesh_with_material(
-        commands,
-        assets.meshes,
-        mat,
-        batch,
-        root,
+    let mut context = MeshSpawnContext {
+        parent: root,
         skinning,
         batch_index,
         visible,
-    );
+    };
+    spawn_mesh_with_material(commands, assets.meshes, &mut context, mat, batch);
 }
 
-#[allow(clippy::too_many_arguments)]
+struct MeshSpawnContext<'a> {
+    parent: Entity,
+    skinning: &'a Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
+    batch_index: usize,
+    visible: bool,
+}
+
 fn spawn_mesh_with_material(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
+    context: &mut MeshSpawnContext<'_>,
     mat: BatchMaterial,
     batch: asset::m2::M2RenderBatch,
-    root: Entity,
-    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
-    batch_index: usize,
-    visible: bool,
 ) {
     match mat {
         BatchMaterial::Standard(mat) => spawn_skinned_mesh_standard(
@@ -352,30 +352,30 @@ fn spawn_mesh_with_material(
             meshes,
             mat,
             batch,
-            root,
-            skinning,
-            batch_index,
-            visible,
+            context.parent,
+            context.skinning,
+            context.batch_index,
+            context.visible,
         ),
         BatchMaterial::Effect(mat) => spawn_skinned_mesh_effect(
             commands,
             meshes,
             mat,
             batch,
-            root,
-            skinning,
-            batch_index,
-            visible,
+            context.parent,
+            context.skinning,
+            context.batch_index,
+            context.visible,
         ),
         BatchMaterial::Skybox(mat) => spawn_skinned_mesh_skybox(
             commands,
             meshes,
             mat,
             batch,
-            root,
-            skinning,
-            batch_index,
-            visible,
+            context.parent,
+            context.skinning,
+            context.batch_index,
+            context.visible,
         ),
     }
 }
