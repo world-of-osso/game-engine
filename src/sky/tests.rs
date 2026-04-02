@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use bevy::ecs::system::SystemState;
 
 use super::inworld_skybox::{
-    active_wmo_local_skybox_wow_path, bevy_to_wow_position, resolve_inworld_map_id,
-    should_replace_skybox,
+    InWorldSkybox, InWorldSkyboxPhase, active_wmo_local_skybox_wow_path, bevy_to_wow_position,
+    resolve_inworld_map_id, should_replace_skybox, sync_inworld_skybox_to_camera,
 };
 use super::*;
 use crate::networking::CurrentZone;
@@ -193,4 +193,39 @@ fn active_wmo_local_skybox_prefers_nearest_containing_wmo() {
         active_wmo_local_skybox_wow_path(Vec3::new(1.0, 1.0, 1.0), &wmo_query, &group_query);
 
     assert_eq!(skybox.as_deref(), Some("world/near/near_skybox.m2"));
+}
+
+#[test]
+fn sync_inworld_skybox_to_camera_moves_skybox_without_query_conflict() {
+    let mut app = App::new();
+    app.add_systems(Update, sync_inworld_skybox_to_camera);
+
+    app.world_mut().spawn((
+        Camera3d::default(),
+        Camera {
+            is_active: true,
+            ..Default::default()
+        },
+        Transform::from_translation(Vec3::new(4.0, 5.0, 6.0)),
+    ));
+
+    let skybox = app
+        .world_mut()
+        .spawn((
+            InWorldSkybox {
+                path: PathBuf::from("data/models/skyboxes/test.m2"),
+                phase: InWorldSkyboxPhase::Steady,
+                elapsed: 0.0,
+            },
+            Transform::from_translation(Vec3::ZERO),
+        ))
+        .id();
+
+    app.update();
+
+    let transform = app
+        .world()
+        .get::<Transform>(skybox)
+        .expect("skybox transform");
+    assert_eq!(transform.translation, Vec3::new(4.0, 5.0, 6.0));
 }

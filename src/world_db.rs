@@ -9,6 +9,8 @@ use crate::outfit_data::{DisplayInfoResolved, DisplayMaterialTextures};
 
 #[path = "world_db_outfit_links.rs"]
 mod outfit_links_cache;
+#[path = "world_db_outfit_resolve.rs"]
+mod outfit_resolve;
 #[path = "world_db_zone_names.rs"]
 mod zone_name_cache;
 
@@ -627,6 +629,15 @@ pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits,
     Ok(outfits)
 }
 
+pub fn resolve_cached_outfit_display_ids(
+    data_dir: &Path,
+    race: u8,
+    class: u8,
+    sex: u8,
+) -> Result<Vec<u32>, String> {
+    outfit_resolve::resolve_cached_outfit_display_ids(data_dir, race, class, sex)
+}
+
 pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
     let cache_path = imported_outfit_links_cache_path(data_dir)?;
     let conn = open_read_only(&cache_path)?;
@@ -774,6 +785,7 @@ mod tests {
         import_outfit_links_cache, import_zone_name_cache, load_cached_char_start_outfits,
         load_cached_display_resources, load_cached_item_appearance,
         load_cached_item_modified_appearance, load_chr_race_prefixes, load_zone_name,
+        resolve_cached_outfit_display_ids,
     };
     use std::path::Path;
 
@@ -825,5 +837,17 @@ mod tests {
         assert!(!resources.display_info.is_empty());
         assert!(!resources.material_to_texture.is_empty());
         assert!(!resources.model_to_fdids.is_empty());
+    }
+
+    #[test]
+    fn resolve_outfit_display_ids_loads_from_cache() {
+        let data_dir = Path::new("data");
+        import_outfit_links_cache(data_dir).expect("import outfit links cache");
+        let display_ids =
+            resolve_cached_outfit_display_ids(data_dir, 1, 1, 0).expect("resolve outfit displays");
+        assert!(
+            !display_ids.is_empty(),
+            "starter outfit display lookup should not be empty"
+        );
     }
 }

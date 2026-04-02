@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use bevy::ecs::query::QueryFilter;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::culling::{Wmo, WmoGroup};
@@ -115,8 +116,8 @@ fn resolve_inworld_camera_anchor(
     }
 }
 
-fn active_camera_translation(
-    camera_q: &Query<(&Camera, &Transform), With<Camera3d>>,
+fn active_camera_translation<F: QueryFilter>(
+    camera_q: &Query<(&Camera, &Transform), F>,
 ) -> Option<Vec3> {
     camera_q
         .iter()
@@ -265,7 +266,7 @@ pub(super) fn sync_inworld_authored_skybox(
 }
 
 pub(super) fn sync_inworld_skybox_to_camera(
-    camera_q: Query<(&Camera, &Transform), With<Camera3d>>,
+    camera_q: Query<(&Camera, &Transform), (With<Camera3d>, Without<InWorldSkybox>)>,
     mut skybox_q: Query<&mut Transform, With<InWorldSkybox>>,
 ) {
     let Some(camera_translation) = active_camera_translation(&camera_q) else {

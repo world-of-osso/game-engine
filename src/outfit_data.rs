@@ -37,12 +37,6 @@ pub(crate) struct DisplayMaterialTextures {
 
 #[derive(Debug, Default)]
 struct LoadedOutfitData {
-    /// (race, class, sex) -> starter item ids
-    outfits: HashMap<(u8, u8, u8), Vec<u32>>,
-    /// ItemID -> ItemAppearanceID (first match / lowest order encountered)
-    item_to_appearance: HashMap<u32, u32>,
-    /// ItemAppearanceID -> ItemDisplayInfoID
-    appearance_to_display: HashMap<u32, u32>,
     /// ItemDisplayInfoID -> resolved display data
     display_info: HashMap<u32, DisplayInfoResolved>,
     /// MaterialResourcesID -> first diffuse texture FileDataID
@@ -84,14 +78,8 @@ impl OutfitData {
     }
 
     fn try_load(data_dir: &Path) -> Result<LoadedOutfitData, String> {
-        let outfits = crate::world_db::load_cached_char_start_outfits(data_dir)?;
-        let item_to_appearance = crate::world_db::load_cached_item_modified_appearance(data_dir)?;
-        let appearance_to_display = crate::world_db::load_cached_item_appearance(data_dir)?;
         let display_resources = load_display_resources(data_dir)?;
         let data = LoadedOutfitData {
-            outfits,
-            item_to_appearance,
-            appearance_to_display,
             display_info: display_resources.display_info,
             material_to_texture: display_resources.material_to_texture,
             model_to_fdids: display_resources.model_to_fdids,
@@ -99,10 +87,10 @@ impl OutfitData {
             helmet_geoset_rules: display_resources.helmet_geoset_rules,
         };
         info!(
-            "OutfitData loaded: {} outfits, {} item appearances, {} display infos",
-            data.outfits.len(),
-            data.item_to_appearance.len(),
-            data.display_info.len()
+            "OutfitData loaded: {} display infos, {} material mappings, {} model mappings",
+            data.display_info.len(),
+            data.material_to_texture.len(),
+            data.model_to_fdids.len()
         );
         Ok(data)
     }
@@ -111,10 +99,15 @@ impl OutfitData {
         let Some(data) = self.loaded() else {
             return OutfitResult::default();
         };
-        let Some(item_ids) = data.outfits.get(&(race, class, sex)) else {
+        let Ok(display_ids) =
+            crate::world_db::resolve_cached_outfit_display_ids(&self.data_dir, race, class, sex)
+        else {
             return OutfitResult::default();
         };
-        self.resolve_item_ids(data, item_ids)
+        if display_ids.is_empty() {
+            return OutfitResult::default();
+        }
+        self.resolve_display_infos(data, display_ids)
     }
 
     pub fn resolve_display_info(&self, display_info_id: u32) -> OutfitResult {
@@ -273,16 +266,6 @@ impl OutfitData {
             return Vec::new();
         };
         collect_helmet_hide_geoset_groups(data, display, race)
-    }
-
-    fn resolve_item_ids(&self, data: &LoadedOutfitData, item_ids: &[u32]) -> OutfitResult {
-        let display_ids = item_ids
-            .iter()
-            .filter_map(|item_id| data.item_to_appearance.get(item_id))
-            .filter_map(|appearance_id| data.appearance_to_display.get(appearance_id))
-            .copied()
-            .collect::<Vec<_>>();
-        self.resolve_display_infos(data, display_ids)
     }
 
     fn resolve_display_infos(
