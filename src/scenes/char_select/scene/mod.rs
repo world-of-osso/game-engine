@@ -100,6 +100,14 @@ struct SceneSetupSelection {
     presentation: ModelPresentation,
 }
 
+struct ModelSyncSelection {
+    desired_id: Option<u64>,
+    scene_entry: Option<WarbandSceneEntry>,
+    placement: Option<WarbandScenePlacement>,
+    presentation: ModelPresentation,
+    char_tf: Transform,
+}
+
 struct SceneSetupLighting {
     camera_entity: Entity,
     fov: f32,
@@ -598,23 +606,28 @@ fn log_scene_setup_timings(total_start: Instant, timings: SceneSetupTimings) {
 }
 
 fn sync_char_select_model(mut params: CharSelectModelSyncParams) {
-    let desired = selected_scene_character_id(&params.char_list, params.selected.0);
-    if params.displayed.0 == desired {
+    let selection = resolve_model_sync_selection(&params);
+    if params.displayed.0 == selection.desired_id {
         return;
     }
-    for entity in params.current_model.iter() {
-        params.commands.entity(entity).despawn();
-    }
+    despawn_current_char_select_model(&mut params);
+    params.displayed.0 = spawn_synced_char_select_model(&mut params, &selection);
+    sync_char_select_camera_after_model(&mut params, &selection);
+}
+
+fn resolve_model_sync_selection(params: &CharSelectModelSyncParams<'_, '_>) -> ModelSyncSelection {
+    let desired_id = selected_scene_character_id(&params.char_list, params.selected.0);
     let presentation = selected_character_presentation(
         &params.customization_db,
         &params.char_list,
         params.selected.0,
     );
-    let scene = background::find_scene_entry(&params.warband, &params.selected_scene);
+    let scene_entry =
+        background::find_scene_entry(&params.warband, &params.selected_scene).cloned();
     let placement = params
         .warband
         .as_ref()
-        .zip(scene)
+        .zip(scene_entry.as_ref())
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let char_tf = resolve_char_transform(
         &params.warband,
@@ -622,26 +635,49 @@ fn sync_char_select_model(mut params: CharSelectModelSyncParams) {
         Some(&params.heightmap),
         presentation,
     );
-    params.displayed.0 = {
-        let mut spawn_ctx = CharSelectModelSpawnContext {
-            commands: &mut params.commands,
-            assets: &mut params.assets,
-            creature_display_map: &params.creature_display_map,
-        };
-        spawn_selected_model(
-            &mut spawn_ctx,
-            &params.char_list,
-            params.selected.0,
-            char_tf,
-        )
+    ModelSyncSelection {
+        desired_id,
+        scene_entry,
+        placement,
+        presentation,
+        char_tf,
     }
-    .map(|(id, _)| id);
-    if let Some(scene) = scene {
+}
+
+fn despawn_current_char_select_model(params: &mut CharSelectModelSyncParams<'_, '_>) {
+    for entity in params.current_model.iter() {
+        params.commands.entity(entity).despawn();
+    }
+}
+
+fn spawn_synced_char_select_model(
+    params: &mut CharSelectModelSyncParams<'_, '_>,
+    selection: &ModelSyncSelection,
+) -> Option<u64> {
+    let mut spawn_ctx = CharSelectModelSpawnContext {
+        commands: &mut params.commands,
+        assets: &mut params.assets,
+        creature_display_map: &params.creature_display_map,
+    };
+    spawn_selected_model(
+        &mut spawn_ctx,
+        &params.char_list,
+        params.selected.0,
+        selection.char_tf,
+    )
+    .map(|(id, _)| id)
+}
+
+fn sync_char_select_camera_after_model(
+    params: &mut CharSelectModelSyncParams<'_, '_>,
+    selection: &ModelSyncSelection,
+) {
+    if let Some(scene) = selection.scene_entry.as_ref() {
         camera::update_camera_for_scene(
             scene,
-            placement.as_ref(),
+            selection.placement.as_ref(),
             Some(&params.heightmap),
-            presentation,
+            selection.presentation,
             &mut params.camera_query,
         );
     }
