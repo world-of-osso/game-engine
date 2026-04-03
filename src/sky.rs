@@ -8,8 +8,8 @@ use bevy::render::render_resource::{
     Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension,
 };
 
-use crate::char_select_scene::CharSelectScene;
 use crate::game_state::GameState;
+use crate::scenes::char_select::scene::CharSelectScene;
 use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
 };

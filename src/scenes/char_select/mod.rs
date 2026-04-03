@@ -19,9 +19,11 @@ use crate::game_state::GameState;
 use crate::networking::CharacterList;
 
 pub mod input;
+pub mod scene;
 pub mod scene_tree;
 
 use input::CharSelectClickEvent;
+pub use scene::CharSelectScenePlugin;
 
 const REALM_NAME: &str = "World of Osso";
 

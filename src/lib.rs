@@ -19,6 +19,7 @@ pub mod listfile;
 pub mod mail;
 pub mod outfit_data;
 pub mod paths;
+#[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
 pub mod screenshot;
 #[path = "scenes/skybox_debug/validation.rs"]

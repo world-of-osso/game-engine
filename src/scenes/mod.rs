@@ -1,10 +1,15 @@
+pub mod campsite;
 pub mod char_create;
 pub mod char_select;
+pub mod dump_tree;
 pub mod game_menu;
 pub mod geoset_debug;
+pub mod inworld_tree;
 pub mod loading;
 pub mod login;
 pub mod particle_debug;
+pub mod scene_tree;
 pub mod selection_debug;
+pub mod setup;
 pub mod skybox_debug;
 pub mod warband;

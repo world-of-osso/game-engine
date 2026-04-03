@@ -319,6 +319,6 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
-#[path = "dump_scene_tree.rs"]
+#[path = "scenes/dump_tree.rs"]
 mod dump_scene_tree;
 pub use dump_scene_tree::{build_scene_snapshot, build_scene_tree};

@@ -15,7 +15,7 @@ use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::orbit_camera::OrbitCamera;
-use crate::scene_setup::DEFAULT_M2;
+use crate::scenes::setup::DEFAULT_M2;
 use shared::components::{
     CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
 };

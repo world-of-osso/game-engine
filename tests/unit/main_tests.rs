@@ -350,7 +350,7 @@ fn resolved_initial_state_keeps_parsed_rewritten_state() {
 
 #[test]
 fn startup_scene_loading_only_runs_for_explicit_assets() {
-    use crate::scene_setup::should_load_explicit_scene_at_startup;
+    use crate::scenes::setup::should_load_explicit_scene_at_startup;
     use std::path::Path;
     assert!(!should_load_explicit_scene_at_startup(false, None));
     assert!(should_load_explicit_scene_at_startup(

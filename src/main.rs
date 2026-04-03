@@ -38,8 +38,6 @@ mod asset {
     pub use game_engine::asset::*;
 }
 mod camera;
-mod campsite_popup_screen;
-mod char_select_scene;
 mod character_customization;
 mod character_models;
 mod cli_args;
@@ -52,7 +50,6 @@ mod equipment_appearance;
 mod game_state;
 mod ground;
 mod health_bar;
-mod inworld_scene_tree;
 mod light_lookup;
 mod m2_effect_material;
 mod m2_scene;
@@ -70,7 +67,6 @@ mod networking_reconnect;
 mod orbit_camera;
 mod particle;
 mod process_limits;
-mod scene_setup;
 mod scenes;
 mod screen_auto_login;
 mod sky;
@@ -102,7 +98,7 @@ use animation::AnimationPlugin;
 use camera::WowCameraPlugin;
 use cli_args::*;
 use collision::CollisionPlugin;
-use scene_setup::{setup_default_world_scene, setup_explicit_asset_scene};
+use scenes::setup::{setup_default_world_scene, setup_explicit_asset_scene};
 use terrain::AdtStreamingPlugin;
 
 #[derive(Resource)]
@@ -630,12 +626,12 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::login::LoginScreenPlugin,
         scenes::loading::LoadingScreenPlugin,
         scenes::char_select::CharSelectPlugin,
-        char_select_scene::CharSelectScenePlugin,
+        scenes::char_select::CharSelectScenePlugin,
         scenes::selection_debug::SelectionDebugScreenPlugin,
         scenes::selection_debug::InWorldSelectionDebugScreenPlugin,
         scenes::char_create::CharCreatePlugin,
         scenes::char_create::CharCreateScenePlugin,
-        campsite_popup_screen::CampsitePopupScreenPlugin,
+        scenes::campsite::CampsitePopupScreenPlugin,
         scenes::game_menu::GameMenuScreenPlugin,
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,

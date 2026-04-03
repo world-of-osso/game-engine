@@ -5,7 +5,7 @@ use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::picking::prelude::MeshRayCastSettings;
 use bevy::prelude::*;
 
-use crate::scene_tree::{
+use game_engine::scene_tree::{
     NodeProps, SceneNode, SceneNodeTransform, SceneSnapshot, SceneSnapshotNode, SceneTree,
 };
 

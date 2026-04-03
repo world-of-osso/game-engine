@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 
-use crate::char_select_scene::background;
-use crate::char_select_scene::{CharSelectOrbit, CharSelectRenderAssets, CharSelectSkybox};
 use crate::creature_display;
+use crate::scenes::char_select::scene::background;
+use crate::scenes::char_select::scene::{
+    CharSelectOrbit, CharSelectRenderAssets, CharSelectSkybox,
+};
 use crate::scenes::warband::{SelectedWarbandScene, WarbandScenes};
 
 #[allow(clippy::too_many_arguments)]

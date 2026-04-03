@@ -144,7 +144,7 @@ impl Plugin for NetworkPlugin {
         register_net_resources(app);
         register_net_systems(app);
         register_net_observers(app);
-        app.add_plugins(crate::inworld_scene_tree::InWorldSceneTreePlugin);
+        app.add_plugins(crate::scenes::inworld_tree::InWorldSceneTreePlugin);
     }
 }
 
