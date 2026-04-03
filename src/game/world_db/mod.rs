@@ -602,6 +602,27 @@ fn populate_display_material_textures(conn: &Connection, path: &Path) -> Result<
     let mut insert = conn.prepare(
         "INSERT OR IGNORE INTO display_material_textures (display_info_id, component_section, texture_fdid) VALUES (?1, ?2, ?3)"
     ).map_err(|err| format!("prepare display_material_textures insert: {err}"))?;
+    insert_display_material_texture_rows(
+        &mut reader,
+        path,
+        component_col,
+        material_col,
+        display_info_col,
+        &material_to_texture,
+        &mut insert,
+    )?;
+    Ok(())
+}
+
+fn insert_display_material_texture_rows(
+    reader: &mut dyn BufRead,
+    path: &Path,
+    component_col: usize,
+    material_col: usize,
+    display_info_col: usize,
+    material_to_texture: &HashMap<u32, u32>,
+    insert: &mut Statement<'_>,
+) -> Result<(), String> {
     let mut seen = HashSet::new();
     let mut line = String::new();
     loop {
