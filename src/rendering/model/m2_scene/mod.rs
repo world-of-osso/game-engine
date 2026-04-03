@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::animation::{
@@ -15,10 +14,8 @@ use crate::asset::{
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::creature_display;
 use crate::equipment;
-use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::particle;
-use crate::skybox_m2_material::SkyboxM2Material;
 
 mod static_spawn;
 
@@ -26,6 +23,21 @@ pub struct M2SceneSpawnContext<'a, 'w, 's> {
     pub commands: &'a mut Commands<'w, 's>,
     pub assets: m2_spawn::SpawnAssets<'a>,
     pub creature_display_map: &'a creature_display::CreatureDisplayMap,
+}
+
+struct M2SceneAttachOptions {
+    default_main_hand_torch: bool,
+    force_skybox_material: bool,
+    skybox_color: Option<Color>,
+}
+
+struct M2SceneAnimPayload {
+    bones: Vec<M2Bone>,
+    sequences: Vec<M2AnimSequence>,
+    bone_tracks: Vec<BoneAnimTracks>,
+    particle_emitters: Vec<M2ParticleEmitter>,
+    attachments: Vec<m2_attach::M2Attachment>,
+    attachment_lookup: Vec<i16>,
 }
 
 #[allow(unused_imports)]
@@ -58,42 +70,43 @@ pub fn attach_equipment_to_model(
     commands.entity(model_entity).insert((attach_pts, equip));
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_anim_and_particles(
-    commands: &mut Commands,
-    images: &mut Assets<Image>,
-    bones: &[M2Bone],
-    sequences: Vec<M2AnimSequence>,
-    bone_tracks: Vec<BoneAnimTracks>,
-    particle_emitters: Vec<M2ParticleEmitter>,
-    attachments: Vec<m2_attach::M2Attachment>,
-    attachment_lookup: Vec<i16>,
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    payload: M2SceneAnimPayload,
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,
     visual_root: Entity,
     default_main_hand_torch: bool,
 ) {
-    let joint_entities =
-        attach_bone_pivots_and_player(commands, bones, &sequences, skinning, model_entity);
-    spawn_particle_emitters(
-        commands,
-        images,
-        &particle_emitters,
+    let M2SceneAnimPayload {
         bones,
+        sequences,
+        bone_tracks,
+        particle_emitters,
+        attachments,
+        attachment_lookup,
+    } = payload;
+    let joint_entities =
+        attach_bone_pivots_and_player(ctx.commands, &bones, &sequences, skinning, model_entity);
+    spawn_particle_emitters(
+        ctx.commands,
+        ctx.assets.images,
+        &particle_emitters,
+        &bones,
         skinning,
         visual_root,
     );
     if let Some(joints) = joint_entities {
-        commands.entity(model_entity).insert(M2AnimData {
-            spherical_billboards: crate::animation::propagate_spherical_billboards(bones),
-            bones: bones.to_vec(),
+        ctx.commands.entity(model_entity).insert(M2AnimData {
+            spherical_billboards: crate::animation::propagate_spherical_billboards(&bones),
+            bones,
             sequences,
             bone_tracks,
             joint_entities: joints,
         });
     }
     attach_equipment_to_model(
-        commands,
+        ctx.commands,
         model_entity,
         &attachments,
         &attachment_lookup,
@@ -144,82 +157,49 @@ fn load_m2_model_with_skin_fdids(
         .ok()
 }
 
-pub fn spawn_m2_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-) {
-    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
+pub fn spawn_m2_model(ctx: &mut M2SceneSpawnContext<'_, '_, '_>, m2_path: &Path) {
+    let Some(model) = load_m2_model(m2_path, ctx.creature_display_map) else {
         return;
     };
-    let model_entity = spawn_player_root(commands, m2_path);
+    let model_entity = spawn_player_root(ctx.commands, m2_path);
     attach_m2_model_parts(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        None,
-        images,
-        inv_bp,
+        ctx,
         model,
         model_entity,
-        true,
-        false,
-        None,
+        M2SceneAttachOptions {
+            default_main_hand_torch: true,
+            force_skybox_material: false,
+            skybox_color: None,
+        },
     );
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_full_m2_on_entity(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
     m2_path: &Path,
-    creature_display_map: &creature_display::CreatureDisplayMap,
     entity: Entity,
 ) -> bool {
-    let Some(model) = load_m2_model(m2_path, creature_display_map) else {
+    let Some(model) = load_m2_model(m2_path, ctx.creature_display_map) else {
         return false;
     };
     attach_m2_model_parts(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        None,
-        images,
-        inv_bp,
+        ctx,
         model,
         entity,
-        false,
-        false,
-        None,
+        M2SceneAttachOptions {
+            default_main_hand_torch: false,
+            force_skybox_material: false,
+            skybox_color: None,
+        },
     );
     true
 }
 
-#[allow(clippy::too_many_arguments)]
 fn attach_m2_model_parts(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
     model: asset::m2::M2Model,
     model_entity: Entity,
-    default_main_hand_torch: bool,
-    force_skybox_material: bool,
-    skybox_color: Option<Color>,
+    options: M2SceneAttachOptions,
 ) {
     let asset::m2::M2Model {
         batches,
@@ -232,23 +212,20 @@ fn attach_m2_model_parts(
         lights,
         ..
     } = model;
+    let M2SceneAttachOptions {
+        default_main_hand_torch,
+        force_skybox_material,
+        skybox_color,
+    } = options;
     let visual_root = visual_root_entity(
-        commands,
+        ctx.commands,
         model_entity,
         m2_spawn::ground_offset_y(&batches),
         force_skybox_material,
     );
-    let spawn_assets = &mut m2_spawn::SpawnAssets {
-        meshes,
-        materials,
-        effect_materials,
-        skybox_materials,
-        images,
-        inverse_bindposes: inv_bp,
-    };
     let skinning = m2_spawn::attach_m2_batches(
-        commands,
-        spawn_assets,
+        ctx.commands,
+        &mut ctx.assets,
         batches,
         &bones,
         visual_root,
@@ -256,20 +233,21 @@ fn attach_m2_model_parts(
         skybox_color,
     );
     spawn_anim_and_particles(
-        commands,
-        images,
-        &bones,
-        sequences,
-        bone_tracks,
-        particle_emitters,
-        attachments,
-        attachment_lookup,
+        ctx,
+        M2SceneAnimPayload {
+            bones,
+            sequences,
+            bone_tracks,
+            particle_emitters,
+            attachments,
+            attachment_lookup,
+        },
         &skinning,
         model_entity,
         visual_root,
         default_main_hand_torch,
     );
-    m2_spawn::spawn_model_point_lights(commands, &lights, &skinning, visual_root, model_entity);
+    m2_spawn::spawn_model_point_lights(ctx.commands, &lights, &skinning, visual_root, model_entity);
 }
 
 fn visual_root_entity(
@@ -305,55 +283,44 @@ pub fn spawn_player_root(commands: &mut Commands, m2_path: &Path) -> Entity {
 }
 
 /// Spawn a static (non-player) M2 model as a scene prop.
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_static_m2(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    skinned_mesh_inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
     m2_path: &Path,
     transform: Transform,
-    creature_display_map: &creature_display::CreatureDisplayMap,
 ) -> Option<Entity> {
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("prop");
-    let root = commands
+    let root = ctx
+        .commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
     // Keep the visual skeleton/meshes under an identity child so Bevy skinning
     // computes world_from_local from the actor root only once.
-    let model_root = commands
+    let model_root = ctx
+        .commands
         .spawn((
             Name::new(format!("{name}ModelRoot")),
             Transform::IDENTITY,
             Visibility::default(),
         ))
         .id();
-    commands.entity(model_root).insert(ChildOf(root));
-    let skin_fdids = creature_display_map
+    ctx.commands.entity(model_root).insert(ChildOf(root));
+    let skin_fdids = ctx
+        .creature_display_map
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
     if m2_spawn::spawn_m2_on_entity(
-        commands,
-        &mut m2_spawn::SpawnAssets {
-            meshes,
-            materials,
-            effect_materials,
-            skybox_materials: None,
-            images,
-            inverse_bindposes: skinned_mesh_inverse_bindposes,
-        },
+        ctx.commands,
+        &mut ctx.assets,
         m2_path,
         model_root,
         &skin_fdids,
     ) {
         Some(root)
     } else {
-        commands.entity(root).despawn();
+        ctx.commands.entity(root).despawn();
         None
     }
 }

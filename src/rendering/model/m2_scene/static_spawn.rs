@@ -78,19 +78,16 @@ fn spawn_animated_static_m2_parts_from_model(
     } else {
         None
     };
+    ctx.assets.skybox_materials = skybox_materials;
     attach_m2_model_parts(
-        ctx.commands,
-        &mut ctx.assets.meshes,
-        &mut ctx.assets.materials,
-        &mut ctx.assets.effect_materials,
-        skybox_materials,
-        &mut ctx.assets.images,
-        &mut ctx.assets.inverse_bindposes,
+        ctx,
         model,
         model_root,
-        false,
-        force_skybox_material,
-        skybox_color,
+        super::M2SceneAttachOptions {
+            default_main_hand_torch: false,
+            force_skybox_material,
+            skybox_color,
+        },
     );
     Some(SpawnedAnimatedStaticM2 { root, model_root })
 }

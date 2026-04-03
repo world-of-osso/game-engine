@@ -174,30 +174,36 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
     fn spawn_default_character_if_present(&mut self) {
         let m2_path = paths::resolve_data_path("models/humanmale_hd.m2");
         if m2_path.exists() {
-            m2_scene::spawn_m2_model(
-                self.commands,
-                self.meshes,
-                self.materials,
-                self.effect_materials,
-                self.images,
-                self.inverse_bp,
-                &m2_path,
-                self.creature_display_map,
-            );
+            let mut ctx = m2_scene::M2SceneSpawnContext {
+                commands: self.commands,
+                assets: crate::m2_spawn::SpawnAssets {
+                    meshes: self.meshes,
+                    materials: self.materials,
+                    effect_materials: self.effect_materials,
+                    skybox_materials: None,
+                    images: self.images,
+                    inverse_bindposes: self.inverse_bp,
+                },
+                creature_display_map: self.creature_display_map,
+            };
+            m2_scene::spawn_m2_model(&mut ctx, &m2_path);
         }
     }
 
     fn spawn_m2_scene(&mut self, m2_path: &Path) {
-        m2_scene::spawn_m2_model(
-            self.commands,
-            self.meshes,
-            self.materials,
-            self.effect_materials,
-            self.images,
-            self.inverse_bp,
-            m2_path,
-            self.creature_display_map,
-        );
+        let mut ctx = m2_scene::M2SceneSpawnContext {
+            commands: self.commands,
+            assets: crate::m2_spawn::SpawnAssets {
+                meshes: self.meshes,
+                materials: self.materials,
+                effect_materials: self.effect_materials,
+                skybox_materials: None,
+                images: self.images,
+                inverse_bindposes: self.inverse_bp,
+            },
+            creature_display_map: self.creature_display_map,
+        };
+        m2_scene::spawn_m2_model(&mut ctx, m2_path);
         ground::spawn_ground_clutter(
             self.commands,
             self.meshes,

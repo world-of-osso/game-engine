@@ -137,7 +137,6 @@ fn attach_player_model(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn try_spawn_player_m2(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -152,17 +151,19 @@ fn try_spawn_player_m2(
     let Some(model_path) = resolve_player_model_path(player) else {
         return false;
     };
-    let spawned = crate::m2_scene::spawn_full_m2_on_entity(
+    let mut ctx = crate::m2_scene::M2SceneSpawnContext {
         commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        &model_path,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: None,
+            images,
+            inverse_bindposes: inv_bp,
+        },
         creature_display_map,
-        entity,
-    );
+    };
+    let spawned = crate::m2_scene::spawn_full_m2_on_entity(&mut ctx, &model_path, entity);
     if spawned {
         commands.entity(entity).insert(ResolvedModelAssetInfo {
             model_path: model_path.display().to_string(),

@@ -170,16 +170,18 @@ fn spawn_herb_clutter(
         let transform = Transform::from_xyz(x, 0.0, z)
             .with_rotation(Quat::from_rotation_y(yaw))
             .with_scale(Vec3::splat(0.3));
-        m2_scene::spawn_static_m2(
+        let mut ctx = m2_scene::M2SceneSpawnContext {
             commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inverse_bindposes,
-            herb_path,
-            transform,
+            assets: crate::m2_spawn::SpawnAssets {
+                meshes,
+                materials,
+                effect_materials,
+                skybox_materials: None,
+                images,
+                inverse_bindposes,
+            },
             creature_display_map,
-        );
+        };
+        m2_scene::spawn_static_m2(&mut ctx, herb_path, transform);
     }
 }
