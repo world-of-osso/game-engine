@@ -239,16 +239,7 @@ pub(crate) fn build_render_batches(
     has_bones: bool,
     skin_fdids: &[u32; 3],
 ) -> Result<Vec<M2RenderBatch>, String> {
-    let vertices = parse_vertices(md20)?;
-    let tex_types = parse_texture_types(md20)?;
-    let tex_lookup = parse_texture_lookup(md20)?;
-    let texture_unit_lookup = parse_texture_unit_lookup(md20)?;
-    let materials = parse_materials(md20)?;
-    let color_tracks = super::m2_anim::parse_color_tracks(md20)?;
-    let transparencies = super::m2_anim::parse_transparency_tracks(md20)?;
-    let transparency_lookup = parse_transparency_lookup(md20)?;
-    let texture_animations = super::m2_anim::parse_texture_animations(md20)?;
-    let uv_animation_lookup = parse_uv_animation_lookup(md20)?;
+    let parsed = parse_batch_inputs(md20)?;
     let skin = load_skin_data(path, &chunks.sfid);
     if !chunks.sfid.is_empty() && skin.is_none() {
         return Err(format!(
@@ -258,8 +249,8 @@ pub(crate) fn build_render_batches(
         ));
     }
     let tex = TextureTables {
-        tex_lookup: &tex_lookup,
-        tex_types: &tex_types,
+        tex_lookup: &parsed.tex_lookup,
+        tex_types: &parsed.tex_types,
         txid,
         skin_fdids,
     };
@@ -268,22 +259,50 @@ pub(crate) fn build_render_batches(
         && !skin.batches.is_empty()
     {
         m2_batch::build_batched_model(
-            &vertices,
+            &parsed.vertices,
             skin,
-            &materials,
+            &parsed.materials,
             &tex,
-            &color_tracks,
-            &transparencies,
-            &transparency_lookup,
-            &texture_animations,
-            &uv_animation_lookup,
-            &texture_unit_lookup,
+            &parsed.color_tracks,
+            &parsed.transparencies,
+            &parsed.transparency_lookup,
+            &parsed.texture_animations,
+            &parsed.uv_animation_lookup,
+            &parsed.texture_unit_lookup,
             has_bones,
             chunks.skid.is_some(),
         )
     } else {
-        m2_batch::build_fallback_batch(&vertices, skin, &tex_types, txid)
+        m2_batch::build_fallback_batch(&parsed.vertices, skin, &parsed.tex_types, txid)
     }
+}
+
+struct ParsedBatchInputs {
+    vertices: Vec<M2Vertex>,
+    tex_types: Vec<u32>,
+    tex_lookup: Vec<u16>,
+    texture_unit_lookup: Vec<i16>,
+    materials: Vec<M2Material>,
+    color_tracks: Vec<super::m2_anim::ColorAnimTracks>,
+    transparencies: Vec<super::m2_anim::AnimTrack<i16>>,
+    transparency_lookup: Vec<i16>,
+    texture_animations: Vec<super::m2_anim::TextureAnimTracks>,
+    uv_animation_lookup: Vec<i16>,
+}
+
+fn parse_batch_inputs(md20: &[u8]) -> Result<ParsedBatchInputs, String> {
+    Ok(ParsedBatchInputs {
+        vertices: parse_vertices(md20)?,
+        tex_types: parse_texture_types(md20)?,
+        tex_lookup: parse_texture_lookup(md20)?,
+        texture_unit_lookup: parse_texture_unit_lookup(md20)?,
+        materials: parse_materials(md20)?,
+        color_tracks: super::m2_anim::parse_color_tracks(md20)?,
+        transparencies: super::m2_anim::parse_transparency_tracks(md20)?,
+        transparency_lookup: parse_transparency_lookup(md20)?,
+        texture_animations: super::m2_anim::parse_texture_animations(md20)?,
+        uv_animation_lookup: parse_uv_animation_lookup(md20)?,
+    })
 }
 
 #[cfg(test)]
