@@ -252,11 +252,11 @@ fn assert_inworld_reconnect_state(app: &App, client: Entity, replicated: Entity)
     );
     assert!(
         app.world()
-            .contains_resource::<crate::char_select::AutoEnterWorld>()
+            .contains_resource::<crate::scenes::char_select::AutoEnterWorld>()
     );
     assert_eq!(
         app.world()
-            .resource::<crate::char_select::PreselectedCharName>()
+            .resource::<crate::scenes::char_select::PreselectedCharName>()
             .0,
         "Theron"
     );

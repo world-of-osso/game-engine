@@ -41,10 +41,7 @@ mod camera;
 mod campsite_popup_screen;
 mod char_create;
 mod char_create_scene;
-mod char_select;
-mod char_select_input;
 mod char_select_scene;
-mod char_select_scene_tree;
 mod character_customization;
 mod character_models;
 mod cli_args;
@@ -387,7 +384,7 @@ fn run_app(
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     if parsed.auto_enter_world {
-        app.insert_resource(char_select::AutoEnterWorld);
+        app.insert_resource(scenes::char_select::AutoEnterWorld);
     }
     app.run();
 }
@@ -403,7 +400,7 @@ fn insert_startup_resources(
         ));
     }
     if let Some(name) = parse_char_arg(args) {
-        app.insert_resource(char_select::PreselectedCharName(name));
+        app.insert_resource(scenes::char_select::PreselectedCharName(name));
     }
     insert_screen_resources(app, args);
     insert_data_resources(app);
@@ -643,7 +640,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         networking::NetworkPlugin,
         scenes::login::LoginScreenPlugin,
         loading_screen::LoadingScreenPlugin,
-        char_select::CharSelectPlugin,
+        scenes::char_select::CharSelectPlugin,
         char_select_scene::CharSelectScenePlugin,
         selection_debug_screen::SelectionDebugScreenPlugin,
         inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin,

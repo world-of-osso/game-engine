@@ -15,10 +15,13 @@ use game_engine::ui_resource;
 use shared::protocol::CharacterListEntry;
 use ui_toolkit::screen::Screen;
 
-use crate::char_select_input;
-use crate::char_select_input::CharSelectClickEvent;
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
+
+pub mod input;
+pub mod scene_tree;
+
+use input::CharSelectClickEvent;
 
 const REALM_NAME: &str = "World of Osso";
 
@@ -78,10 +81,10 @@ impl Plugin for CharSelectPlugin {
         app.add_systems(
             Update,
             (
-                char_select_input::char_select_mouse_input,
-                char_select_input::char_select_keyboard_input,
-                char_select_input::char_select_run_automation,
-                char_select_input::dispatch_char_select_action,
+                input::char_select_mouse_input,
+                input::char_select_keyboard_input,
+                input::char_select_run_automation,
+                input::dispatch_char_select_action,
                 char_select_update_visuals,
                 report_char_select_ready,
                 auto_enter_world,
@@ -340,10 +343,10 @@ fn auto_enter_world(
     if auto.is_none() {
         return;
     }
-    char_select_input::try_enter_world(&selected, &char_list, &mut senders);
+    input::try_enter_world(&selected, &char_list, &mut senders);
     commands.remove_resource::<AutoEnterWorld>();
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/char_select_tests.rs"]
+#[path = "../../../tests/unit/char_select_tests.rs"]
 mod tests;

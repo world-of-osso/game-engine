@@ -3,9 +3,11 @@
 use bevy::prelude::*;
 use game_engine::customization_data::CustomizationDb;
 
-use crate::char_select::SelectedCharIndex;
-use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain};
 use crate::networking_auth::CharacterList;
+use crate::scenes::char_select::SelectedCharIndex;
+use crate::scenes::char_select::scene_tree::{
+    self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain,
+};
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::warband_scene::{self, SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
 

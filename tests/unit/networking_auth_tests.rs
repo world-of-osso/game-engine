@@ -50,11 +50,11 @@ fn build_login_test_app(
     app.insert_resource(AuthToken(None));
     app.init_resource::<AuthUiFeedback>();
     app.insert_resource(CharacterList(chars));
-    app.init_resource::<crate::char_select::SelectedCharIndex>();
+    app.init_resource::<crate::scenes::char_select::SelectedCharIndex>();
     app.init_resource::<NextState<GameState>>();
     app.insert_resource(reconnect);
     if auto_enter {
-        app.insert_resource(crate::char_select::AutoEnterWorld);
+        app.insert_resource(crate::scenes::char_select::AutoEnterWorld);
     }
     app
 }
@@ -64,8 +64,8 @@ fn run_handle_login_response(app: &mut App, resp: LoginResponse) {
         move |mut auth_token: ResMut<AuthToken>,
               mut auth_feedback: ResMut<AuthUiFeedback>,
               mut char_list: ResMut<CharacterList>,
-              auto_enter_world: Option<Res<crate::char_select::AutoEnterWorld>>,
-              mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
+              auto_enter_world: Option<Res<crate::scenes::char_select::AutoEnterWorld>>,
+              mut selected_char_idx: ResMut<crate::scenes::char_select::SelectedCharIndex>,
               mut next_state: ResMut<NextState<GameState>>,
               mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
               mut reconnect: ResMut<crate::networking::ReconnectState>,

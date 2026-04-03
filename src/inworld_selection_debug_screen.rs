@@ -17,9 +17,9 @@ use game_engine::ui::screens::inworld_selection_debug_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
-use crate::char_select_input::{cursor_pos, find_clicked_action};
 use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
+use crate::scenes::char_select::input::{cursor_pos, find_clicked_action};
 use crate::skybox_m2_material::SkyboxM2Material;
 
 #[derive(Component)]

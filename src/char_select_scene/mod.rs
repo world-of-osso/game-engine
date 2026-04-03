@@ -17,8 +17,6 @@ use game_engine::customization_data::{CustomizationDb, ModelPresentation};
 use game_engine::outfit_data::OutfitData;
 use shared::protocol::CharacterListEntry;
 
-use crate::char_select::SelectedCharIndex;
-use crate::char_select_scene_tree::{self as scene_tree, ActiveWarbandSceneId};
 use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
@@ -31,6 +29,8 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scene_setup::DEFAULT_M2;
+use crate::scenes::char_select::SelectedCharIndex;
+use crate::scenes::char_select::scene_tree::{self as scene_tree, ActiveWarbandSceneId};
 use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;

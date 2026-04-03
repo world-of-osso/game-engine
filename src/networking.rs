@@ -538,9 +538,9 @@ fn handle_inworld_disconnect(
         return;
     };
     if let Some(name) = selected.as_deref().and_then(|s| s.character_name.clone()) {
-        commands.insert_resource(crate::char_select::PreselectedCharName(name));
+        commands.insert_resource(crate::scenes::char_select::PreselectedCharName(name));
     }
-    commands.insert_resource(crate::char_select::AutoEnterWorld);
+    commands.insert_resource(crate::scenes::char_select::AutoEnterWorld);
     commands.insert_resource(LoginMode::Login);
     commands.insert_resource(LoginUsername(String::new()));
     commands.insert_resource(LoginPassword(String::new()));

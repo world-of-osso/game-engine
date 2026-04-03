@@ -201,10 +201,10 @@ pub fn receive_login_response(
     mut auth_token: ResMut<AuthToken>,
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
-    auto_enter_world: Option<Res<crate::char_select::AutoEnterWorld>>,
-    preselected: Option<Res<crate::char_select::PreselectedCharName>>,
+    auto_enter_world: Option<Res<crate::scenes::char_select::AutoEnterWorld>>,
+    preselected: Option<Res<crate::scenes::char_select::PreselectedCharName>>,
     startup_screen_target: Option<Res<crate::game_state::StartupScreenTarget>>,
-    mut selected_char_idx: ResMut<crate::char_select::SelectedCharIndex>,
+    mut selected_char_idx: ResMut<crate::scenes::char_select::SelectedCharIndex>,
     mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
@@ -238,10 +238,10 @@ fn handle_login_response(
     auth_token: &mut AuthToken,
     auth_feedback: &mut AuthUiFeedback,
     char_list: &mut CharacterList,
-    auto_enter_world: Option<&Res<crate::char_select::AutoEnterWorld>>,
-    preselected: Option<&Res<crate::char_select::PreselectedCharName>>,
+    auto_enter_world: Option<&Res<crate::scenes::char_select::AutoEnterWorld>>,
+    preselected: Option<&Res<crate::scenes::char_select::PreselectedCharName>>,
     startup_screen_target: Option<&Res<crate::game_state::StartupScreenTarget>>,
-    selected_char_idx: &mut crate::char_select::SelectedCharIndex,
+    selected_char_idx: &mut crate::scenes::char_select::SelectedCharIndex,
     select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
     next_state: &mut NextState<GameState>,
     reconnect: Option<&mut crate::networking::ReconnectState>,
@@ -279,7 +279,7 @@ fn handle_login_response(
         selected_char_idx.0 = action.selected_idx;
         if let Some(character_id) = action.enter_world_character_id {
             send_enter_world(character_id, select_senders);
-            commands.remove_resource::<crate::char_select::AutoEnterWorld>();
+            commands.remove_resource::<crate::scenes::char_select::AutoEnterWorld>();
         }
         if let Some(state) = action.next_state {
             clear_reconnect_if_not_entering_world(reconnect, true);
@@ -549,7 +549,7 @@ pub fn receive_enter_world_response(
     mut receivers: Query<&mut MessageReceiver<EnterWorldResponse>>,
     mut selected: ResMut<SelectedCharacterId>,
     char_list: Res<CharacterList>,
-    char_idx: Res<crate::char_select::SelectedCharIndex>,
+    char_idx: Res<crate::scenes::char_select::SelectedCharIndex>,
     state: Res<State<GameState>>,
     mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -585,7 +585,7 @@ pub fn receive_enter_world_response(
 fn apply_enter_world(
     selected: &mut SelectedCharacterId,
     char_list: &CharacterList,
-    char_idx: &crate::char_select::SelectedCharIndex,
+    char_idx: &crate::scenes::char_select::SelectedCharIndex,
 ) {
     if let Some(entry) = char_idx.0.and_then(|i| char_list.0.get(i)) {
         selected.character_id = Some(entry.character_id);

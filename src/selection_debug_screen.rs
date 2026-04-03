@@ -8,8 +8,8 @@ use game_engine::ui::screens::selection_debug_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
-use crate::char_select_input::{cursor_pos, find_clicked_action};
 use crate::game_state::GameState;
+use crate::scenes::char_select::input::{cursor_pos, find_clicked_action};
 
 #[derive(Debug, Clone, Resource)]
 struct SelectionDebugModel {

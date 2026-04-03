@@ -9,9 +9,11 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::CharSelectAction;
 use shared::protocol::{AuthChannel, DeleteCharacter, SelectCharacter};
 
-use crate::char_select::{CampsitePanelVisible, CharSelectFocus, CharSelectUi, SelectedCharIndex};
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
+use crate::scenes::char_select::{
+    CampsitePanelVisible, CharSelectFocus, CharSelectUi, SelectedCharIndex,
+};
 
 #[derive(Message)]
 pub(crate) struct CharSelectClickEvent(pub String);
