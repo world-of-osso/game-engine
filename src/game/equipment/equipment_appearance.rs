@@ -240,48 +240,75 @@ fn apply_slot_geoset_overrides(
     outfit_data: &OutfitData,
     display: &mut OutfitResult,
 ) {
+    if let Some(overrides) = slot_geoset_overrides(slot, display_info_id, outfit_data) {
+        apply_geoset_overrides(display, overrides);
+    }
+}
+
+fn slot_geoset_overrides(
+    slot: EquipmentVisualSlot,
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+) -> Option<Vec<(u16, u16)>> {
     match slot {
         EquipmentVisualSlot::Chest => {
-            if let Some(variant) = outfit_data.chest_geoset_variant(display_info_id) {
-                apply_geoset_overrides(display, vec![(22, variant)]);
-            }
+            single_geoset_override(22, outfit_data.chest_geoset_variant(display_info_id))
         }
         EquipmentVisualSlot::Hands => {
-            if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
-                apply_geoset_overrides(display, vec![(4, variant)]);
-            }
+            single_geoset_override(4, outfit_data.hand_geoset_variant(display_info_id))
         }
         EquipmentVisualSlot::Waist => {
-            if let Some(variant) = outfit_data.hand_geoset_variant(display_info_id) {
-                apply_geoset_overrides(display, vec![(18, variant)]);
-            }
+            single_geoset_override(18, outfit_data.hand_geoset_variant(display_info_id))
         }
-        EquipmentVisualSlot::Legs => {
-            let mut overrides = Vec::new();
-            if let Some(variant) = outfit_data.pants_geoset_variant(display_info_id) {
-                overrides.push((11, variant));
-            }
-            if let Some(variant) = outfit_data.kneepad_geoset_variant(display_info_id) {
-                overrides.push((9, variant));
-            }
-            if let Some(variant) = outfit_data.trouser_geoset_variant(display_info_id) {
-                overrides.push((13, variant));
-            }
-            if !overrides.is_empty() {
-                apply_geoset_overrides(display, overrides);
-            }
-        }
+        EquipmentVisualSlot::Legs => leg_geoset_overrides(display_info_id, outfit_data),
         EquipmentVisualSlot::Back => {
-            if let Some(variant) = outfit_data.cape_geoset_variant(display_info_id) {
-                apply_geoset_overrides(display, vec![(15, variant)]);
-            }
+            single_geoset_override(15, outfit_data.cape_geoset_variant(display_info_id))
         }
-        EquipmentVisualSlot::Feet => {
-            if let Some(variant) = outfit_data.boot_geoset_variant(display_info_id) {
-                apply_geoset_overrides(display, vec![(5, variant), (20, variant)]);
-            }
-        }
-        _ => {}
+        EquipmentVisualSlot::Feet => foot_geoset_overrides(display_info_id, outfit_data),
+        _ => None,
+    }
+}
+
+fn single_geoset_override(group: u16, variant: Option<u16>) -> Option<Vec<(u16, u16)>> {
+    variant.map(|value| vec![(group, value)])
+}
+
+fn leg_geoset_overrides(display_info_id: u32, outfit_data: &OutfitData) -> Option<Vec<(u16, u16)>> {
+    let mut overrides = Vec::new();
+    push_optional_geoset_override(
+        &mut overrides,
+        11,
+        outfit_data.pants_geoset_variant(display_info_id),
+    );
+    push_optional_geoset_override(
+        &mut overrides,
+        9,
+        outfit_data.kneepad_geoset_variant(display_info_id),
+    );
+    push_optional_geoset_override(
+        &mut overrides,
+        13,
+        outfit_data.trouser_geoset_variant(display_info_id),
+    );
+    (!overrides.is_empty()).then_some(overrides)
+}
+
+fn foot_geoset_overrides(
+    display_info_id: u32,
+    outfit_data: &OutfitData,
+) -> Option<Vec<(u16, u16)>> {
+    outfit_data
+        .boot_geoset_variant(display_info_id)
+        .map(|variant| vec![(5, variant), (20, variant)])
+}
+
+fn push_optional_geoset_override(
+    overrides: &mut Vec<(u16, u16)>,
+    group: u16,
+    variant: Option<u16>,
+) {
+    if let Some(value) = variant {
+        overrides.push((group, value));
     }
 }
 
