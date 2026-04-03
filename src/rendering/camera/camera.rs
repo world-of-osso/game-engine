@@ -1,19 +1,21 @@
 use std::collections::HashSet;
 
-use bevy::anti_alias::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
-use bevy::camera::MainPassResolutionOverride;
-use bevy::core_pipeline::{prepass::DepthPrepass, tonemapping::Tonemapping};
+use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
-use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 
-use crate::client_options::GraphicsOptions;
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::input_bindings::{InputAction, InputBindings};
+
+#[path = "camera_post_process.rs"]
+mod camera_post_process;
+
+pub(crate) use camera_post_process::additive_particle_glow_tonemapping;
+use camera_post_process::sync_camera_graphics_post_process;
 
 /// Recursively collect all descendant entities into the set.
 fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut HashSet<Entity>) {
@@ -126,114 +128,6 @@ impl Default for WowCamera {
             follow_speed: 10.0,
             zoom_speed: 8.0,
             collided: false,
-        }
-    }
-}
-
-pub(crate) fn additive_particle_glow_tonemapping() -> Tonemapping {
-    Tonemapping::TonyMcMapface
-}
-
-fn additive_particle_glow_bloom(graphics: &GraphicsOptions) -> Option<Bloom> {
-    graphics.bloom_enabled.then_some(Bloom {
-        intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
-        low_frequency_boost: 0.7,
-        low_frequency_boost_curvature: 0.95,
-        high_pass_frequency: 1.0,
-        prefilter: BloomPrefilter {
-            threshold: 0.65,
-            threshold_softness: 0.1,
-        },
-        composite_mode: BloomCompositeMode::Additive,
-        max_mip_dimension: Bloom::OLD_SCHOOL.max_mip_dimension,
-        scale: Vec2::ONE,
-    })
-}
-
-fn scaled_main_pass_resolution(target_size: UVec2, render_scale: f32) -> Option<UVec2> {
-    let render_scale = render_scale.clamp(0.5, 1.0);
-    if render_scale >= 0.999 {
-        return None;
-    }
-    let scaled = (target_size.as_vec2() * render_scale).floor().as_uvec2();
-    let scaled = UVec2::new(
-        scaled.x.clamp(1, target_size.x.saturating_sub(1).max(1)),
-        scaled.y.clamp(1, target_size.y.saturating_sub(1).max(1)),
-    );
-    if scaled == target_size {
-        None
-    } else {
-        Some(scaled)
-    }
-}
-
-fn sync_camera_graphics_post_process(
-    graphics: Res<GraphicsOptions>,
-    mut commands: Commands,
-    mut cameras: Query<
-        (
-            Entity,
-            &Camera,
-            Option<&mut Bloom>,
-            Option<&mut MainPassResolutionOverride>,
-            Option<&mut ContrastAdaptiveSharpening>,
-        ),
-        With<Camera3d>,
-    >,
-) {
-    let desired = additive_particle_glow_bloom(&graphics);
-    for (entity, camera, bloom, resolution_override, cas) in &mut cameras {
-        match (desired.clone(), bloom) {
-            (Some(target), Some(mut existing)) => {
-                *existing = target;
-            }
-            (Some(target), None) => {
-                commands.entity(entity).insert(target);
-            }
-            (None, Some(_)) => {
-                commands.entity(entity).remove::<Bloom>();
-            }
-            (None, None) => {}
-        }
-
-        let desired_resolution = camera
-            .physical_target_size()
-            .and_then(|size| scaled_main_pass_resolution(size, graphics.render_scale));
-        match (desired_resolution, resolution_override) {
-            (Some(target), Some(mut existing)) => existing.0 = target,
-            (Some(target), None) => {
-                commands
-                    .entity(entity)
-                    .insert(MainPassResolutionOverride(target));
-            }
-            (None, Some(_)) => {
-                commands
-                    .entity(entity)
-                    .remove::<MainPassResolutionOverride>();
-            }
-            (None, None) => {}
-        }
-
-        let cas_enabled = graphics.render_scale < 0.999;
-        match (cas_enabled, cas) {
-            (true, Some(mut existing)) => {
-                existing.enabled = true;
-                existing.sharpening_strength = 0.6;
-                existing.denoise = false;
-            }
-            (true, None) => {
-                commands.entity(entity).insert(ContrastAdaptiveSharpening {
-                    enabled: true,
-                    sharpening_strength: 0.6,
-                    denoise: false,
-                });
-            }
-            (false, Some(_)) => {
-                commands
-                    .entity(entity)
-                    .remove::<ContrastAdaptiveSharpening>();
-            }
-            (false, None) => {}
         }
     }
 }
@@ -728,69 +622,6 @@ mod tests {
     }
 
     #[test]
-    fn spawn_wow_camera_uses_particle_glow_tonemapping() {
-        let mut world = World::new();
-        let entity = spawn_wow_camera(&mut world.commands());
-        world.flush();
-
-        let tonemapping = world
-            .entity(entity)
-            .get::<Tonemapping>()
-            .copied()
-            .expect("expected tonemapping on wow camera");
-        assert_eq!(tonemapping, Tonemapping::TonyMcMapface);
-    }
-
-    #[test]
-    fn graphics_options_build_additive_particle_bloom() {
-        let bloom = additive_particle_glow_bloom(&GraphicsOptions {
-            particle_density: 100,
-            render_scale: 1.0,
-            bloom_enabled: true,
-            bloom_intensity: 0.12,
-        })
-        .expect("expected bloom");
-
-        assert_eq!(bloom.composite_mode, BloomCompositeMode::Additive);
-        assert!((bloom.intensity - 0.12).abs() < f32::EPSILON);
-        assert!((bloom.prefilter.threshold - 0.65).abs() < f32::EPSILON);
-        assert!((bloom.prefilter.threshold_softness - 0.1).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn disabled_graphics_bloom_returns_none() {
-        assert!(
-            additive_particle_glow_bloom(&GraphicsOptions {
-                particle_density: 100,
-                render_scale: 1.0,
-                bloom_enabled: false,
-                bloom_intensity: 0.12,
-            })
-            .is_none()
-        );
-    }
-
-    #[test]
-    fn native_render_scale_disables_main_pass_override() {
-        assert_eq!(
-            scaled_main_pass_resolution(UVec2::new(1920, 1080), 1.0),
-            None
-        );
-    }
-
-    #[test]
-    fn reduced_render_scale_produces_smaller_main_pass_resolution() {
-        assert_eq!(
-            scaled_main_pass_resolution(UVec2::new(1920, 1080), 0.75),
-            Some(UVec2::new(1440, 810))
-        );
-        assert_eq!(
-            scaled_main_pass_resolution(UVec2::new(1920, 1080), 0.67),
-            Some(UVec2::new(1286, 723))
-        );
-    }
-
-    #[test]
     fn test_smooth_follow_lerps() {
         // Given current pos far from target, lerp should move partway
         let current = Vec3::new(0.0, 5.0, 10.0);
@@ -910,3 +741,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/camera_post_process_tests.rs"]
+mod post_process_tests;
