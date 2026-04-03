@@ -33,7 +33,6 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
     Ok(f32::from_le_bytes(bytes))
 }
 
-#[allow(dead_code)]
 pub struct WmoRootData {
     pub n_groups: u32,
     pub materials: Vec<WmoMaterialDef>,
@@ -43,27 +42,23 @@ pub struct WmoRootData {
     pub skybox_wow_path: Option<String>,
 }
 
-#[allow(dead_code)]
 pub struct WmoPortal {
     pub vertices: Vec<[f32; 3]>,
     pub normal: [f32; 3],
 }
 
-#[allow(dead_code)]
 pub struct WmoPortalRef {
     pub portal_index: u16,
     pub group_index: u16,
     pub side: i16,
 }
 
-#[allow(dead_code)]
 pub struct WmoGroupInfo {
     pub flags: u32,
     pub bbox_min: [f32; 3],
     pub bbox_max: [f32; 3],
 }
 
-#[allow(dead_code)]
 pub struct WmoMaterialDef {
     pub texture_fdid: u32,
     pub texture_2_fdid: u32,
