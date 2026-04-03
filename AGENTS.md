@@ -8,25 +8,54 @@ Bevy 0.18 3D engine rebuilding the WoW client. Renders M2 models, terrain, and e
 
 ```
 src/
-├── main.rs          # Bevy App: camera, lights, ground plane, M2/ADT dispatch
-├── lib.rs           # Re-exports dump + ipc + scene_tree
-├── terrain.rs       # ADT terrain spawning (spawn_adt, camera positioning)
+├── main.rs              # Bevy App entry point, plugin registration
+├── lib.rs               # Re-exports dump + ipc + scene_tree
 ├── asset/
-│   ├── mod.rs       # Re-exports blp + m2 + adt modules
-│   ├── adt.rs       # ADT terrain parser: MCNK heightmaps → Bevy meshes
-│   ├── blp.rs       # BLP texture → Bevy Image (image-blp, 1-bit alpha fix)
-│   └── m2.rs        # Custom MD21 chunked M2 parser + TXID texture FDIDs (no external crate)
-├── ipc/
-│   ├── mod.rs       # Unix socket IPC server (peercred-ipc)
-│   └── plugin.rs    # Bevy plugin bridging IPC commands to ECS
-├── scene_tree.rs    # SceneTree resource: semantic scene nodes (Character, Camera, Lights, etc.)
-└── dump.rs          # Entity hierarchy dump + scene tree formatting
+│   ├── mod.rs           # Re-exports format parsers + asset cache
+│   ├── blp.rs           # BLP texture → Bevy Image (image-blp)
+│   ├── m2.rs            # M2 Bevy mesh building (render batches)
+│   ├── m2_format/       # Pure M2 parser (no Bevy deps)
+│   │   ├── mod.rs       # MD21 chunk parser, read utils, vertex/material parsing
+│   │   ├── m2_anim.rs   # Bone, animation sequence, track evaluation
+│   │   ├── m2_particle.rs # Particle emitter parser (FakeAnimBlock)
+│   │   ├── m2_attach.rs # Attachment point parser
+│   │   ├── m2_light.rs  # M2 light parser
+│   │   └── m2_bone_names.rs # Bone name lookup
+│   ├── adt_format/      # Pure ADT parser (no Bevy deps)
+│   │   ├── mod.rs       # MCNK heightmaps, normals
+│   │   ├── adt_tex.rs   # Texture layer compositing
+│   │   └── adt_obj.rs   # Doodad/WMO placement (MDDF/MODF)
+│   ├── wmo_format/      # Pure WMO parser (no Bevy deps)
+│   └── asset_cache.rs   # FDID → disk cache via AssetResolver trait
+├── rendering/
+│   ├── model/           # M2 spawning, materials, animation
+│   ├── particles/       # GPU particles via bevy_hanabi
+│   ├── terrain/         # ADT terrain rendering, LOD, materials
+│   ├── skybox/          # Sky rendering, light data, sky materials
+│   ├── character/       # Character models, customization, texture compositing
+│   ├── camera/          # Camera, orbit camera, culling
+│   ├── lighting/        # Light volume lookup
+│   └── ui/              # Nameplates, health bars, minimap, action bar
+├── scenes/
+│   ├── login/           # Login screen + helpers
+│   ├── char_select/     # Character select (UI + 3D scene + warband + campsite)
+│   ├── char_create/     # Character creation
+│   ├── game_menu/       # In-game menu
+│   ├── loading/         # Loading screen
+│   ├── particle_debug/  # Particle debug scene
+│   ├── skybox_debug/    # Skybox debug scene
+│   ├── geoset_debug/    # Geoset debug scene
+│   └── selection_debug/ # Selection debug screens
+├── game/
+│   ├── networking/      # Auth, player/NPC sync, reconnect
+│   ├── equipment/       # Equipment, transmog, outfit data
+│   ├── creatures/       # Creature display info, named models
+│   ├── world_db/        # SQLite world data (outfits, zones)
+│   └── state/           # Game state, client options
+├── sound/               # Footsteps, music catalog, zone music
+├── ipc/                 # Unix socket IPC server + Bevy plugin
+└── ui/                  # UI toolkit (rsx!, screens, widgets)
 ```
-
-## Dependencies
-
-- `bevy = "0.18"` — Engine, ECS, renderer (with `bevy_dev_tools` for FPS overlay)
-- `image-blp = "1"` — BLP decoding (same version as wow-ui-sim)
 
 ## Dev
 
@@ -83,7 +112,7 @@ src/
 - `data/terrain/` — ADT terrain files
 - `data/casc/root.bin` + `encoding.bin` — CASC resolution tables (~250MB, from `casc-extract init`). **Never delete — expensive to regenerate.**
 - WoW install: `/syncthing/World of Warcraft/` — full install synced from Windows (CASC at `Data/`, retail at `_retail_/`)
-- **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `doc/casc-extraction.md`.
+- **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `docs/casc-extraction.md`.
 - **Gotcha: item material textures** — some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData`, not from the same path as attached runtime M2 textures. Auto-extraction is not fully reliable for every such path yet. If an item geoset/model shows untextured, verify the resolved texture FDID exists under `data/textures/` and extract it manually with `cargo run --bin casc-local -- <fdid> -o data/textures` before assuming the render path is wrong.
 
 ## Test Assets
