@@ -11,6 +11,8 @@ use crate::sound_footsteps::{
 };
 use game_engine::input_bindings::{InputAction, InputBindings};
 
+mod runtime_music;
+
 pub struct SoundPlugin;
 
 impl Plugin for SoundPlugin {
@@ -19,11 +21,16 @@ impl Plugin for SoundPlugin {
             .insert_resource(MusicPlaybackState::default())
             .add_systems(
                 Startup,
-                (load_sound_assets, spawn_ambient_sound, spawn_music_sound).chain(),
+                (
+                    load_sound_assets,
+                    spawn_ambient_sound,
+                    runtime_music::spawn_music_sound,
+                )
+                    .chain(),
             )
             .add_systems(Update, toggle_mute)
             .add_systems(Update, update_audio_volumes)
-            .add_systems(Update, maintain_music_playback)
+            .add_systems(Update, runtime_music::maintain_music_playback)
             .add_systems(Update, attach_footstep_tracker)
             .add_systems(Update, footstep_trigger.after(attach_footstep_tracker));
     }
@@ -135,34 +142,6 @@ fn spawn_ambient_sound(
     ));
 }
 
-fn spawn_music_sound(
-    mut commands: Commands,
-    sound_assets: Res<SoundAssets>,
-    settings: Res<SoundSettings>,
-    current_zone: Option<Res<crate::networking::CurrentZone>>,
-    mut state: ResMut<MusicPlaybackState>,
-) {
-    if !settings.music_enabled {
-        return;
-    }
-    if let Some((handle, name, looped, zone_id)) =
-        next_music_track(&sound_assets, current_zone.as_deref(), &mut state)
-    {
-        let playback = if looped {
-            PlaybackSettings::LOOP.with_volume(Volume::Linear(compute_music_volume(&settings)))
-        } else {
-            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(compute_music_volume(&settings)))
-        };
-        commands.spawn((
-            MusicSound,
-            AudioPlayer::<AudioSource>::new(handle),
-            playback,
-        ));
-        state.active_track_name = Some(name);
-        state.active_zone_id = zone_id;
-    }
-}
-
 fn compute_ambient_volume(settings: &SoundSettings) -> f32 {
     if settings.muted {
         0.0
@@ -171,7 +150,7 @@ fn compute_ambient_volume(settings: &SoundSettings) -> f32 {
     }
 }
 
-fn compute_music_volume(settings: &SoundSettings) -> f32 {
+pub(super) fn compute_music_volume(settings: &SoundSettings) -> f32 {
     if settings.muted || !settings.music_enabled {
         0.0
     } else {
@@ -220,63 +199,6 @@ fn update_audio_volumes(
     for mut sink in &mut music_sinks {
         sink.set_volume(Volume::Linear(music_volume));
     }
-}
-
-fn maintain_music_playback(
-    mut commands: Commands,
-    sound_assets: Res<SoundAssets>,
-    settings: Res<SoundSettings>,
-    current_zone: Option<Res<crate::networking::CurrentZone>>,
-    mut state: ResMut<MusicPlaybackState>,
-    music_query: Query<Entity, With<MusicSound>>,
-) {
-    if !settings.music_enabled {
-        clear_music_entities(&mut commands, &music_query);
-        clear_active_music_state(&mut state);
-        return;
-    }
-    let desired_zone_id = desired_zone_id(current_zone.as_deref());
-    if state.active_zone_id != desired_zone_id && !music_query.is_empty() {
-        clear_music_entities(&mut commands, &music_query);
-        clear_active_music_state(&mut state);
-        return;
-    }
-    if !music_query.is_empty() {
-        return;
-    }
-    if let Some((handle, name, looped, zone_id)) =
-        next_music_track(&sound_assets, current_zone.as_deref(), &mut state)
-    {
-        let playback = if looped {
-            PlaybackSettings::LOOP.with_volume(Volume::Linear(compute_music_volume(&settings)))
-        } else {
-            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(compute_music_volume(&settings)))
-        };
-        commands.spawn((
-            MusicSound,
-            AudioPlayer::<AudioSource>::new(handle),
-            playback,
-        ));
-        state.active_track_name = Some(name);
-        state.active_zone_id = zone_id;
-    }
-}
-
-fn clear_music_entities(commands: &mut Commands, music_query: &Query<Entity, With<MusicSound>>) {
-    for entity in music_query {
-        commands.entity(entity).despawn();
-    }
-}
-
-fn clear_active_music_state(state: &mut MusicPlaybackState) {
-    state.active_track_name = None;
-    state.active_zone_id = None;
-}
-
-fn desired_zone_id(current_zone: Option<&crate::networking::CurrentZone>) -> Option<u32> {
-    current_zone
-        .map(|zone| zone.zone_id)
-        .filter(|zone_id| *zone_id != 0)
 }
 
 #[allow(clippy::type_complexity)]
@@ -394,52 +316,6 @@ fn footstep_volume_scale(movement: FootstepMovement) -> f32 {
         FootstepMovement::Run => 1.0,
         FootstepMovement::Strafe | FootstepMovement::Backpedal => 0.8,
     }
-}
-
-fn next_music_track(
-    sound_assets: &SoundAssets,
-    current_zone: Option<&crate::networking::CurrentZone>,
-    state: &mut MusicPlaybackState,
-) -> Option<(Handle<AudioSource>, String, bool, Option<u32>)> {
-    if let Some(zone_track) =
-        next_zone_music_track(sound_assets, desired_zone_id(current_zone), state)
-    {
-        return Some(zone_track);
-    }
-    if !sound_assets.music_tracks.is_empty() {
-        let idx = state.next_track_idx % sound_assets.music_tracks.len();
-        state.next_track_idx = state.next_track_idx.wrapping_add(1);
-        let track = &sound_assets.music_tracks[idx];
-        return Some((track.handle.clone(), track.name.clone(), false, None));
-    }
-    Some((
-        sound_assets.music_loop_fallback.clone(),
-        "procedural-fallback".to_string(),
-        true,
-        None,
-    ))
-}
-
-fn next_zone_music_track(
-    sound_assets: &SoundAssets,
-    zone_id: Option<u32>,
-    state: &mut MusicPlaybackState,
-) -> Option<(Handle<AudioSource>, String, bool, Option<u32>)> {
-    let zone_id = zone_id?;
-    let track_indices = sound_assets.music_tracks_by_zone.get(&zone_id)?;
-    if track_indices.is_empty() {
-        return None;
-    }
-    let next_idx = state.next_zone_track_idx.entry(zone_id).or_default();
-    let track_idx = track_indices[*next_idx % track_indices.len()];
-    *next_idx = next_idx.wrapping_add(1);
-    let track = &sound_assets.music_tracks[track_idx];
-    Some((
-        track.handle.clone(),
-        format!("zone:{zone_id}:{}", track.name),
-        false,
-        Some(zone_id),
-    ))
 }
 
 fn load_external_music_tracks(
