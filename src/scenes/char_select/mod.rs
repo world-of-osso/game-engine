@@ -18,6 +18,7 @@ use ui_toolkit::screen::Screen;
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
 
+pub mod campsite;
 pub mod input;
 pub mod scene;
 pub mod scene_tree;

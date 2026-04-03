@@ -634,7 +634,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::selection_debug::InWorldSelectionDebugScreenPlugin,
         scenes::char_create::CharCreatePlugin,
         scenes::char_create::CharCreateScenePlugin,
-        scenes::campsite::CampsitePopupScreenPlugin,
+        scenes::char_select::campsite::CampsitePopupScreenPlugin,
         scenes::game_menu::GameMenuScreenPlugin,
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,

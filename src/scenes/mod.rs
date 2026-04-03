@@ -1,4 +1,3 @@
-pub mod campsite;
 pub mod char_create;
 pub mod char_select;
 pub mod dump_tree;
