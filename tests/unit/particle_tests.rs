@@ -1,14 +1,16 @@
-use bevy::prelude::Vec3;
+use bevy::prelude::{Entity, Vec3};
 use bevy_hanabi::{AlphaMode, ExprWriter};
 
 use super::visuals::has_authored_size_variation;
 use super::{
     FlipbookSpriteMode, PositionInitModifier, active_cell_track, build_color_gradient,
     build_effect_asset, build_expr_modifiers, build_position_modifier, build_size_gradient,
-    emitter_alpha_mode, emitter_spawn_radius, emitter_translation, flipbook_sprite_mode,
+    emitter_alpha_mode, emitter_parent_entity, emitter_scale_source, emitter_spawn_offset,
+    emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale, flipbook_sprite_mode,
     has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range, orient_mode,
     scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
+use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
 use crate::client_options::GraphicsOptions;
 use bevy_hanabi::OrientMode;
@@ -225,6 +227,51 @@ fn point_emitters_do_not_expand_spawn_radius() {
     emitter.area_width = 0.2;
 
     assert_eq!(emitter_spawn_radius(&emitter), 0.0);
+}
+
+#[test]
+fn world_space_emitters_skip_bone_parent_transform() {
+    let mut emitter = sample_emitter();
+    emitter.flags = 0x0000_0200;
+    emitter.position = [1.0, 2.0, 3.0];
+    emitter.bone_index = 0;
+    let bones = vec![M2Bone {
+        key_bone_id: 0,
+        flags: 0,
+        parent_bone_id: -1,
+        submesh_id: 0,
+        pivot: [4.0, 5.0, 6.0],
+    }];
+
+    let offset = emitter_spawn_offset(&emitter, &bones);
+
+    assert_eq!(offset, emitter_translation(&emitter));
+}
+
+#[test]
+fn world_space_emitters_use_model_parent_even_with_bone_entity() {
+    let mut emitter = sample_emitter();
+    emitter.flags = 0x0000_0200;
+
+    let parent = Entity::from_bits(11);
+    let bone = Some(Entity::from_bits(22));
+
+    assert_eq!(emitter_parent_entity(&emitter, bone, parent), parent);
+}
+
+#[test]
+fn bone_scale_uses_bone_entity_only_without_world_space() {
+    let mut emitter = sample_emitter();
+    let parent = Entity::from_bits(11);
+    let bone = Some(Entity::from_bits(22));
+
+    emitter.flags = 0x0000_0400;
+    assert!(emitter_uses_bone_scale(&emitter));
+    assert_eq!(emitter_scale_source(&emitter, bone, parent), bone.unwrap());
+
+    emitter.flags = 0x0000_0600;
+    assert!(!emitter_uses_bone_scale(&emitter));
+    assert_eq!(emitter_scale_source(&emitter, bone, parent), parent);
 }
 
 #[test]

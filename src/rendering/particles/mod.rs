@@ -21,6 +21,8 @@ use visuals::{
 
 const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
 const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
+const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x0000_0200;
+const PARTICLE_FLAG_BONE_SCALE: u32 = 0x0000_0400;
 const BLEND_OPAQUE: u8 = 0;
 const BLEND_ALPHA_KEY: u8 = 1;
 const BLEND_ALPHA: u8 = 2;
@@ -107,21 +109,53 @@ fn spawn_single_emitter(
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
-    let parent_entity = bone_entity.unwrap_or(parent);
-    let local_offset = emitter_local_offset(em, bones);
+    let parent_entity = emitter_parent_entity(em, bone_entity, parent);
+    let local_offset = emitter_spawn_offset(em, bones);
     commands
         .spawn((
             Name::new("ParticleEmitter"),
             ParticleEmitterComp {
                 emitter: em.clone(),
                 bone_entity,
-                scale_source: parent,
+                scale_source: emitter_scale_source(em, bone_entity, parent),
                 pending_texture,
             },
             Transform::from_translation(local_offset),
             Visibility::default(),
         ))
         .set_parent_in_place(parent_entity);
+}
+
+fn emitter_parent_entity(
+    em: &M2ParticleEmitter,
+    bone_entity: Option<Entity>,
+    parent: Entity,
+) -> Entity {
+    if emitter_uses_world_space(em) {
+        parent
+    } else {
+        bone_entity.unwrap_or(parent)
+    }
+}
+
+fn emitter_scale_source(
+    em: &M2ParticleEmitter,
+    bone_entity: Option<Entity>,
+    parent: Entity,
+) -> Entity {
+    if emitter_uses_bone_scale(em) {
+        bone_entity.unwrap_or(parent)
+    } else {
+        parent
+    }
+}
+
+fn emitter_spawn_offset(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
+    if emitter_uses_world_space(em) {
+        emitter_translation(em)
+    } else {
+        emitter_local_offset(em, bones)
+    }
 }
 
 /// Emitter position relative to its parent bone.
@@ -137,6 +171,14 @@ fn emitter_local_offset(em: &M2ParticleEmitter, bones: &[M2Bone]) -> Vec3 {
 fn emitter_translation(em: &M2ParticleEmitter) -> Vec3 {
     let pos = em.position;
     Vec3::from(wow_to_bevy(pos[0], pos[1], pos[2]))
+}
+
+fn emitter_uses_world_space(em: &M2ParticleEmitter) -> bool {
+    em.flags & PARTICLE_FLAG_WORLD_SPACE != 0
+}
+
+fn emitter_uses_bone_scale(em: &M2ParticleEmitter) -> bool {
+    em.flags & (PARTICLE_FLAG_WORLD_SPACE | PARTICLE_FLAG_BONE_SCALE) == PARTICLE_FLAG_BONE_SCALE
 }
 
 struct ExprModifiers {
