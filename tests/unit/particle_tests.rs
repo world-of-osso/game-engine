@@ -3,11 +3,11 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 
 use super::visuals::has_authored_size_variation;
 use super::{
-    FlipbookSpriteMode, active_cell_track, build_color_gradient, build_effect_asset,
-    build_expr_modifiers, build_size_gradient, emitter_alpha_mode, emitter_spawn_radius,
-    emitter_translation, flipbook_sprite_mode, has_authored_spin, has_authored_twinkle,
-    has_authored_wind, lifetime_range, orient_mode, scaled_emission_rate, wind_accel_bevy,
-    wind_strength_at_age,
+    FlipbookSpriteMode, PositionInitModifier, active_cell_track, build_color_gradient,
+    build_effect_asset, build_expr_modifiers, build_position_modifier, build_size_gradient,
+    emitter_alpha_mode, emitter_spawn_radius, emitter_translation, flipbook_sprite_mode,
+    has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range, orient_mode,
+    scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use crate::client_options::GraphicsOptions;
@@ -193,17 +193,29 @@ fn emitter_translation_uses_raw_model_position() {
 }
 
 #[test]
-fn sphere_emitters_use_area_as_spawn_radius() {
+fn sphere_emitters_use_max_area_as_spawn_radius() {
     let mut emitter = sample_emitter();
-    emitter.emitter_type = 1;
+    emitter.emitter_type = 2;
     emitter.area_length = 0.4;
     emitter.area_width = 0.2;
 
-    assert_eq!(emitter_spawn_radius(&emitter), 0.2);
+    assert_eq!(emitter_spawn_radius(&emitter), 0.4);
 }
 
 #[test]
-fn non_sphere_emitters_do_not_expand_spawn_radius() {
+fn plane_emitters_use_attribute_position_modifier() {
+    let mut emitter = sample_emitter();
+    let writer = ExprWriter::new();
+    emitter.area_length = 0.4;
+    emitter.area_width = 0.2;
+
+    let position = build_position_modifier(&emitter, &writer, 1.0);
+
+    assert!(matches!(position, PositionInitModifier::Attribute(_)));
+}
+
+#[test]
+fn point_emitters_do_not_expand_spawn_radius() {
     let mut emitter = sample_emitter();
     emitter.emitter_type = 0;
     emitter.area_length = 0.4;

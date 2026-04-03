@@ -351,7 +351,6 @@ fn assemble_effect(
         .with_simulation_space(SimulationSpace::Global)
         .init(init.age)
         .init(init.lifetime)
-        .init(init.pos)
         .init(init.vel)
         .update(gravity)
         .render(build_color_render_modifier(em))
@@ -360,6 +359,10 @@ fn assemble_effect(
             screen_space_size: false,
         })
         .render(orient);
+    effect = match init.pos {
+        PositionInitModifier::Attribute(pos) => effect.init(pos),
+        PositionInitModifier::Sphere(pos) => effect.init(pos),
+    };
     if let Some(rotation) = init.rotation {
         effect = effect.init(rotation);
     }
@@ -397,13 +400,18 @@ fn build_color_render_modifier(em: &M2ParticleEmitter) -> ColorOverLifetimeModif
 struct InitModifiers {
     age: SetAttributeModifier,
     lifetime: SetAttributeModifier,
-    pos: SetPositionSphereModifier,
+    pos: PositionInitModifier,
     vel: SetAttributeModifier,
     rotation: Option<SetAttributeModifier>,
     angular_velocity: Option<SetAttributeModifier>,
     twinkle_phase: Option<SetAttributeModifier>,
     twinkle_enabled: Option<SetAttributeModifier>,
     size_variation: Option<SetAttributeModifier>,
+}
+
+enum PositionInitModifier {
+    Attribute(SetAttributeModifier),
+    Sphere(SetPositionSphereModifier),
 }
 
 fn build_init_modifiers(
@@ -582,21 +590,42 @@ fn build_position_modifier(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
     model_scale: f32,
-) -> SetPositionSphereModifier {
-    let radius = emitter_spawn_radius(em) * model_scale;
-    SetPositionSphereModifier {
-        center: writer.lit(Vec3::ZERO).expr(),
-        radius: writer.lit(radius).expr(),
-        dimension: ShapeDimension::Volume,
+) -> PositionInitModifier {
+    match em.emitter_type {
+        1 => PositionInitModifier::Attribute(SetAttributeModifier::new(
+            Attribute::POSITION,
+            build_plane_position_expr(em, writer, model_scale),
+        )),
+        2 => PositionInitModifier::Sphere(SetPositionSphereModifier {
+            center: writer.lit(Vec3::ZERO).expr(),
+            radius: writer.lit(emitter_spawn_radius(em) * model_scale).expr(),
+            dimension: ShapeDimension::Volume,
+        }),
+        _ => PositionInitModifier::Attribute(SetAttributeModifier::new(
+            Attribute::POSITION,
+            writer.lit(Vec3::ZERO).expr(),
+        )),
     }
 }
 
 fn emitter_spawn_radius(em: &M2ParticleEmitter) -> f32 {
-    if em.emitter_type == 1 && (em.area_length > 0.0 || em.area_width > 0.0) {
-        (em.area_length.max(em.area_width) * 0.5).max(0.01)
+    if em.emitter_type == 2 && (em.area_length > 0.0 || em.area_width > 0.0) {
+        em.area_length.max(em.area_width).max(0.01)
     } else {
         0.0
     }
+}
+
+fn build_plane_position_expr(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    model_scale: f32,
+) -> ExprHandle {
+    let half_length = writer.lit(em.area_length.max(0.0) * model_scale);
+    let half_width = writer.lit(em.area_width.max(0.0) * model_scale);
+    let x = writer.rand(ScalarType::Float) * half_length.clone() * writer.lit(2.0) - half_length;
+    let z = writer.rand(ScalarType::Float) * half_width.clone() * writer.lit(2.0) - half_width;
+    x.vec3(writer.lit(0.0), z).expr()
 }
 
 fn build_velocity_modifier(
