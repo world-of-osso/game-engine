@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use lightyear::prelude::*;
@@ -27,6 +28,62 @@ use game_engine::outfit_data::OutfitData;
 pub(crate) struct AppliedPlayerAppearance {
     pub(crate) selection: CharacterCustomizationSelection,
     pub(crate) equipment: NetEquipmentAppearance,
+}
+
+struct PlayerModelSpawnContext<'a, 'w, 's> {
+    commands: &'a mut Commands<'w, 's>,
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
+    images: &'a mut Assets<Image>,
+    inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &'a CreatureDisplayMap,
+}
+
+#[derive(SystemParam)]
+pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    customization_db: Res<'w, CustomizationDb>,
+    char_tex: Res<'w, CharTextureData>,
+    outfit_data: Res<'w, OutfitData>,
+    player_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static NetPlayer,
+            Option<&'static NetEquipmentAppearance>,
+            Option<&'static AppliedPlayerAppearance>,
+            Option<&'static Children>,
+        ),
+        With<ReplicatedVisualEntity>,
+    >,
+    parent_query: Query<'w, 's, &'static ChildOf>,
+    geoset_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static crate::m2_spawn::GeosetMesh,
+            &'static ChildOf,
+        ),
+    >,
+    visibility_query: Query<'w, 's, &'static mut Visibility>,
+    equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
+    material_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static MeshMaterial3d<StandardMaterial>,
+            Option<&'static crate::m2_spawn::GeosetMesh>,
+            Option<&'static crate::m2_spawn::BatchTextureType>,
+            &'static ChildOf,
+        ),
+    >,
+    equipment_query: Query<'w, 's, &'static mut crate::equipment::Equipment>,
+    images: ResMut<'w, Assets<Image>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
 }
 
 /// Convert local MovementState + CharacterFacing into a world-space direction vector.
@@ -91,81 +148,56 @@ pub(crate) fn spawn_replicated_player(
         InterpolationTarget { target: position },
         RotationTarget { yaw },
     ));
-    attach_player_model(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-        &creature_display_map,
-        entity,
-        player,
-        is_local,
-    );
+    let mut ctx = PlayerModelSpawnContext {
+        commands: &mut commands,
+        meshes: &mut meshes,
+        materials: &mut materials,
+        effect_materials: &mut effect_materials,
+        images: &mut images,
+        inv_bp: &mut inv_bp,
+        creature_display_map: &creature_display_map,
+    };
+    attach_player_model(&mut ctx, entity, player, is_local);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn attach_player_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &CreatureDisplayMap,
+    ctx: &mut PlayerModelSpawnContext<'_, '_, '_>,
     entity: Entity,
     player: &NetPlayer,
     is_local: bool,
 ) {
-    let model_spawned = try_spawn_player_m2(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        creature_display_map,
-        entity,
-        player,
-    );
+    let model_spawned = try_spawn_player_m2(ctx, entity, player);
     if !model_spawned {
-        let (capsule, material) = build_player_capsule(meshes, materials, is_local);
-        commands
+        let (capsule, material) = build_player_capsule(ctx.meshes, ctx.materials, is_local);
+        ctx.commands
             .entity(entity)
             .insert((Mesh3d(capsule), MeshMaterial3d(material)));
     }
 }
 
 fn try_spawn_player_m2(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &CreatureDisplayMap,
+    ctx: &mut PlayerModelSpawnContext<'_, '_, '_>,
     entity: Entity,
     player: &NetPlayer,
 ) -> bool {
     let Some(model_path) = resolve_player_model_path(player) else {
         return false;
     };
-    let mut ctx = crate::m2_scene::M2SceneSpawnContext {
-        commands,
+    let mut m2_ctx = crate::m2_scene::M2SceneSpawnContext {
+        commands: ctx.commands,
         assets: crate::m2_spawn::SpawnAssets {
-            meshes,
-            materials,
-            effect_materials,
+            meshes: ctx.meshes,
+            materials: ctx.materials,
+            effect_materials: ctx.effect_materials,
             skybox_materials: None,
-            images,
-            inverse_bindposes: inv_bp,
+            images: ctx.images,
+            inverse_bindposes: ctx.inv_bp,
         },
-        creature_display_map,
+        creature_display_map: ctx.creature_display_map,
     };
-    let spawned = crate::m2_scene::spawn_full_m2_on_entity(&mut ctx, &model_path, entity);
+    let spawned = crate::m2_scene::spawn_full_m2_on_entity(&mut m2_ctx, &model_path, entity);
     if spawned {
-        commands.entity(entity).insert(ResolvedModelAssetInfo {
+        ctx.commands.entity(entity).insert(ResolvedModelAssetInfo {
             model_path: model_path.display().to_string(),
             skin_path: crate::asset::m2::ensure_primary_skin_path(&model_path)
                 .map(|p| p.display().to_string()),
@@ -208,38 +240,11 @@ pub(crate) fn resolve_player_model_path(player: &NetPlayer) -> Option<PathBuf> {
     race_model_wow_path(player.race, player.appearance.sex).and_then(ensure_named_model_bundle)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn sync_replicated_player_customization(
-    mut commands: Commands,
-    customization_db: Res<CustomizationDb>,
-    char_tex: Res<CharTextureData>,
-    outfit_data: Res<OutfitData>,
-    player_query: Query<
-        (
-            Entity,
-            &NetPlayer,
-            Option<&NetEquipmentAppearance>,
-            Option<&AppliedPlayerAppearance>,
-            Option<&Children>,
-        ),
-        With<ReplicatedVisualEntity>,
-    >,
-    parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
-    mut visibility_query: Query<&mut Visibility>,
-    equipment_item_query: Query<(), With<EquipmentItem>>,
-    material_query: Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&crate::m2_spawn::GeosetMesh>,
-        Option<&crate::m2_spawn::BatchTextureType>,
-        &ChildOf,
-    )>,
-    mut equipment_query: Query<&mut crate::equipment::Equipment>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut params: ReplicatedPlayerCustomizationParams,
 ) {
-    for (entity, player, equipment_appearance, applied, children) in &player_query {
+    let mut pending = Vec::new();
+    for (entity, player, equipment_appearance, applied, children) in &params.player_query {
         let selection = net_player_customization_selection(player);
         let equipment_snapshot = equipment_appearance.cloned().unwrap_or_default();
         if applied.is_some_and(|a| a.selection == selection && a.equipment == equipment_snapshot) {
@@ -248,77 +253,49 @@ pub(crate) fn sync_replicated_player_customization(
         if children.is_none_or(|c| c.is_empty()) {
             continue;
         }
-        apply_player_customization_for_entity(
-            &mut commands,
-            entity,
-            selection,
-            equipment_snapshot,
-            &customization_db,
-            &char_tex,
-            &outfit_data,
-            &parent_query,
-            &geoset_query,
-            &mut visibility_query,
-            &equipment_item_query,
-            &material_query,
-            &mut equipment_query,
-            &mut images,
-            &mut materials,
-        );
+        pending.push((entity, selection, equipment_snapshot));
+    }
+    for (entity, selection, equipment_snapshot) in pending {
+        apply_player_customization_for_entity(&mut params, entity, selection, equipment_snapshot);
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn apply_player_customization_for_entity(
-    commands: &mut Commands,
+    params: &mut ReplicatedPlayerCustomizationParams,
     entity: Entity,
     selection: CharacterCustomizationSelection,
     equipment_snapshot: NetEquipmentAppearance,
-    customization_db: &CustomizationDb,
-    char_tex: &CharTextureData,
-    outfit_data: &OutfitData,
-    parent_query: &Query<&ChildOf>,
-    geoset_query: &Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
-    visibility_query: &mut Query<&mut Visibility>,
-    equipment_item_query: &Query<(), With<EquipmentItem>>,
-    material_query: &Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&crate::m2_spawn::GeosetMesh>,
-        Option<&crate::m2_spawn::BatchTextureType>,
-        &ChildOf,
-    )>,
-    equipment_query: &mut Query<&mut crate::equipment::Equipment>,
-    images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
 ) {
     let resolved_equipment = equipment_appearance::resolve_equipment_appearance(
         &equipment_snapshot,
-        outfit_data,
+        &params.outfit_data,
         selection.race,
         selection.sex,
     );
     crate::character_customization::apply_character_customization(
         selection,
-        customization_db,
-        char_tex,
+        &params.customization_db,
+        &params.char_tex,
         Some(&resolved_equipment),
         entity,
-        images,
-        materials,
-        parent_query,
-        geoset_query,
-        visibility_query,
-        equipment_item_query,
-        material_query,
+        &mut params.images,
+        &mut params.materials,
+        &params.parent_query,
+        &params.geoset_query,
+        &mut params.visibility_query,
+        &params.equipment_item_query,
+        &params.material_query,
     );
-    if let Ok(mut equipment) = equipment_query.get_mut(entity) {
+    if let Ok(mut equipment) = params.equipment_query.get_mut(entity) {
         equipment_appearance::apply_runtime_equipment(&mut equipment, &resolved_equipment);
     }
-    commands.entity(entity).insert(AppliedPlayerAppearance {
-        selection,
-        equipment: equipment_snapshot,
-    });
+    params
+        .commands
+        .entity(entity)
+        .insert(AppliedPlayerAppearance {
+            selection,
+            equipment: equipment_snapshot,
+        });
 }
 
 pub(crate) fn is_local_player_entity(
