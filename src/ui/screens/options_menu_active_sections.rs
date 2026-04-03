@@ -60,40 +60,7 @@ pub fn sound_body(sound: &SoundOptionsView) -> Element {
 }
 
 pub fn graphics_body(graphics: &GraphicsOptionsView) -> Element {
-    content_stack(
-        [
-            slider_row(
-                "render_scale",
-                "Render Scale",
-                graphics.render_scale,
-                0.5,
-                1.0,
-            ),
-            options_menu_sections::info_row(
-                "render_scale_presets",
-                "Presets",
-                "Native 1.00 • Quality 0.75 • Balanced 0.67 • Performance 0.50",
-            ),
-            toggle_row("bloom_enabled", "Enable Bloom", graphics.bloom_enabled),
-            slider_row(
-                "bloom_intensity",
-                "Bloom Intensity",
-                graphics.bloom_intensity,
-                0.0,
-                1.0,
-            ),
-            slider_row(
-                "particle_density",
-                "Particle Density",
-                graphics.particle_density,
-                10.0,
-                100.0,
-            ),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
+    content_stack(graphics_items(graphics))
 }
 
 pub fn camera_body(camera: &CameraOptionsView) -> Element {
@@ -210,6 +177,41 @@ fn sound_items(sound: &SoundOptionsView) -> Element {
             sound.effects_volume,
             0.0,
             1.0,
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn graphics_items(graphics: &GraphicsOptionsView) -> Element {
+    [
+        slider_row(
+            "render_scale",
+            "Render Scale",
+            graphics.render_scale,
+            0.5,
+            1.0,
+        ),
+        options_menu_sections::info_row(
+            "render_scale_presets",
+            "Presets",
+            "Native 1.00 • Quality 0.75 • Balanced 0.67 • Performance 0.50",
+        ),
+        toggle_row("bloom_enabled", "Enable Bloom", graphics.bloom_enabled),
+        slider_row(
+            "bloom_intensity",
+            "Bloom Intensity",
+            graphics.bloom_intensity,
+            0.0,
+            1.0,
+        ),
+        slider_row(
+            "particle_density",
+            "Particle Density",
+            graphics.particle_density,
+            10.0,
+            100.0,
         ),
     ]
     .into_iter()
