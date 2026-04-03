@@ -53,6 +53,7 @@ mod equipment_appearance;
 mod game_state;
 mod ground;
 mod health_bar;
+#[path = "rendering/lighting/light_lookup.rs"]
 mod light_lookup;
 mod m2_effect_material;
 mod m2_scene;
