@@ -8,7 +8,6 @@ const CHUNK_HEADER_SIZE: usize = 8;
 const SKIN_HEADER_SIZE: usize = 44;
 const U16_ARRAY_HEADER_STRIDE: usize = 4;
 const M2_ARRAY_HEADER_SIZE: usize = 8;
-const LOOKUP_ENTRY_SIZE_I16: usize = 2;
 const LOOKUP_ENTRY_SIZE_U32: usize = 4;
 const MD20_TRANSPARENCY_LOOKUP_COUNT_OFFSET: usize = 0x90;
 const MD20_UV_ANIMATION_LOOKUP_COUNT_OFFSET: usize = 0x98;
@@ -202,6 +201,18 @@ where
     Ok(entries)
 }
 
+fn read_m2_array<T>(md20: &[u8], header_off: usize, label: &str) -> Result<Vec<T>, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    if md20.len() < header_off + M2_ARRAY_HEADER_SIZE {
+        return Ok(Vec::new());
+    }
+    let count = read_u32(md20, header_off)? as usize;
+    let offset = read_u32(md20, header_off + U16_ARRAY_HEADER_STRIDE)? as usize;
+    parse_binrw_entries(md20, offset, count, label)
+}
+
 pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
     let mut ska1 = None;
@@ -240,9 +251,7 @@ pub(crate) fn parse_vertices(md20: &[u8]) -> Result<Vec<M2Vertex>, String> {
     if md20.len() < super::MD20_VERTICES_DATA_OFFSET + 4 {
         return Err("MD20 header too short for vertices".into());
     }
-    let count = read_u32(md20, super::MD20_VERTICES_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, super::MD20_VERTICES_DATA_OFFSET)? as usize;
-    parse_binrw_entries(md20, offset, count, "vertex")
+    read_m2_array(md20, super::MD20_VERTICES_COUNT_OFFSET, "vertex")
 }
 
 pub(crate) fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
@@ -327,26 +336,18 @@ fn parse_texture_units(
 }
 
 pub(crate) fn parse_texture_types(md20: &[u8]) -> Result<Vec<u32>, String> {
-    if md20.len() < super::MD20_TEXTURES_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, super::MD20_TEXTURES_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, super::MD20_TEXTURES_DATA_OFFSET)? as usize;
-    Ok(
-        parse_binrw_entries::<M2TextureTypeEntry>(md20, offset, count, "texture type")?
-            .into_iter()
-            .map(|entry| entry.texture_type)
-            .collect(),
-    )
+    Ok(read_m2_array::<M2TextureTypeEntry>(
+        md20,
+        super::MD20_TEXTURES_COUNT_OFFSET,
+        "texture type",
+    )?
+    .into_iter()
+    .map(|entry| entry.texture_type)
+    .collect())
 }
 
 pub(crate) fn parse_materials(md20: &[u8]) -> Result<Vec<M2Material>, String> {
-    if md20.len() < super::MD20_MATERIALS_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, super::MD20_MATERIALS_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, super::MD20_MATERIALS_DATA_OFFSET)? as usize;
-    parse_binrw_entries(md20, offset, count, "material")
+    read_m2_array(md20, super::MD20_MATERIALS_COUNT_OFFSET, "material")
 }
 
 pub(crate) fn parse_txid(data: &[u8]) -> Vec<u32> {
@@ -356,40 +357,23 @@ pub(crate) fn parse_txid(data: &[u8]) -> Vec<u32> {
 }
 
 pub(crate) fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
-    if md20.len() < super::MD20_TEXTURE_LOOKUP_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, super::MD20_TEXTURE_LOOKUP_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, super::MD20_TEXTURE_LOOKUP_DATA_OFFSET)? as usize;
-    parse_binrw_entries(md20, offset, count, "texture lookup")
+    read_m2_array(
+        md20,
+        super::MD20_TEXTURE_LOOKUP_COUNT_OFFSET,
+        "texture lookup",
+    )
 }
 
 pub(crate) fn parse_texture_unit_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
-    if md20.len() < super::MD20_TEXTURE_UNIT_LOOKUP_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, super::MD20_TEXTURE_UNIT_LOOKUP_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, super::MD20_TEXTURE_UNIT_LOOKUP_DATA_OFFSET)? as usize;
-    let mut lookup = Vec::with_capacity(count);
-    for i in 0..count {
-        let off = offset + i * LOOKUP_ENTRY_SIZE_I16;
-        let bytes: [u8; 2] = md20
-            .get(off..off + 2)
-            .ok_or_else(|| format!("texture unit lookup {i} out of bounds at {off:#x}"))?
-            .try_into()
-            .unwrap();
-        lookup.push(i16::from_le_bytes(bytes));
-    }
-    Ok(lookup)
+    read_m2_array(
+        md20,
+        super::MD20_TEXTURE_UNIT_LOOKUP_COUNT_OFFSET,
+        "texture unit lookup",
+    )
 }
 
 fn parse_i16_lookup(md20: &[u8], header_off: usize, label: &str) -> Result<Vec<i16>, String> {
-    if md20.len() < header_off + M2_ARRAY_HEADER_SIZE {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, header_off)? as usize;
-    let offset = read_u32(md20, header_off + U16_ARRAY_HEADER_STRIDE)? as usize;
-    parse_binrw_entries(md20, offset, count, &format!("{label} lookup"))
+    read_m2_array(md20, header_off, &format!("{label} lookup"))
 }
 
 pub(crate) fn parse_transparency_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
