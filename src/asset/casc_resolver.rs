@@ -170,37 +170,6 @@ fn load_tact_keys() -> TactKeyStore {
     keys
 }
 
-/// Ensure a BLP texture exists at `data/textures/{fdid}.blp`.
-pub(super) fn ensure_texture_cached(fdid: u32) -> Option<PathBuf> {
-    ensure_file(fdid, "textures", "blp")
-}
-
-/// Ensure an M2 model exists at `data/models/{fdid}.m2`.
-pub(super) fn ensure_model_cached(fdid: u32) -> Option<PathBuf> {
-    ensure_file(fdid, "models", "m2")
-}
-
-fn ensure_file(fdid: u32, dir: &str, ext: &str) -> Option<PathBuf> {
-    let path = crate::paths::shared_data_path(dir).join(format!("{fdid}.{ext}"));
-    if path.exists() {
-        return Some(path);
-    }
-    eprintln!(
-        "asset-cache miss: fdid {fdid} not cached at {}, extracting from local CASC",
-        path.display()
-    );
-    match extract_fdid_to_path(fdid, &path) {
-        Ok(path) => Some(path),
-        Err(err) => {
-            eprintln!(
-                "asset-cache extraction failed: fdid {fdid} -> {}: {err}",
-                path.display()
-            );
-            None
-        }
-    }
-}
-
 /// Ensure a CASC asset exists at the requested output path.
 pub(super) fn ensure_file_cached_at_path(fdid: u32, out_path: &Path) -> Option<PathBuf> {
     let shared_path = crate::paths::remap_to_shared_data_path(out_path);

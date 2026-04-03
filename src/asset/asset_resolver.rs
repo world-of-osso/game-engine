@@ -1,10 +1,13 @@
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 pub trait AssetResolver: Send + Sync {
     fn resolve_bytes(&self, fdid: u32) -> Option<Vec<u8>>;
     fn ensure_cached(&self, fdid: u32, out_path: &Path) -> Option<PathBuf>;
     fn resolve_path(&self, fdid: u32) -> Option<String>;
 }
+
+static ASSET_RESOLVER: OnceLock<Box<dyn AssetResolver>> = OnceLock::new();
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CascAssetResolver;
@@ -21,6 +24,12 @@ impl AssetResolver for CascAssetResolver {
     fn resolve_path(&self, fdid: u32) -> Option<String> {
         crate::listfile::lookup_fdid(fdid).map(str::to_owned)
     }
+}
+
+pub fn resolver() -> &'static dyn AssetResolver {
+    ASSET_RESOLVER
+        .get_or_init(|| Box::new(CascAssetResolver))
+        .as_ref()
 }
 
 #[cfg(test)]
