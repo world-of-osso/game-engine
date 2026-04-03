@@ -113,6 +113,7 @@ pub struct ModelParticleEmitterComp {
     pub bone_entity: Option<Entity>,
     pub scale_source: Entity,
     pub spawn_mode: ParticleSpawnMode,
+    pub spawn_source: ParticleSpawnSource,
     pub requested_model_path: String,
     pub resolved_model_path: Option<PathBuf>,
 }
@@ -280,6 +281,10 @@ fn tick_model_particle_emitters(
         let Some(model_path) = emitter.resolved_model_path.as_deref() else {
             continue;
         };
+        // Child model-particle emitters are currently attached to the parent
+        // emitter origin, not each live parent particle. Hanabi's GPU child
+        // spawn events are not readable back on CPU, so this remains an
+        // approximation until we have a full CPU-side child-particle runtime.
         let spawn_count = model_particle_spawn_count(
             &emitter.emitter,
             emitter.spawn_mode,
@@ -391,6 +396,7 @@ fn spawn_single_emitter(
             local_offset,
             emitter_scale_source(em, bone_entity, parent),
             spawn_mode,
+            ParticleSpawnSource::Standalone,
         );
         return;
     }
@@ -424,6 +430,7 @@ fn spawn_model_particle_emitter(
     local_offset: Vec3,
     scale_source: Entity,
     spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
 ) {
     let requested_model_path = em.particle_model_filename.clone().unwrap_or_default();
     commands
@@ -434,6 +441,7 @@ fn spawn_model_particle_emitter(
                 bone_entity,
                 scale_source,
                 spawn_mode,
+                spawn_source,
                 resolved_model_path: resolve_particle_model_path(&requested_model_path),
                 requested_model_path,
             },
@@ -455,16 +463,14 @@ fn spawn_child_emitter_effects(
     else {
         return;
     };
-    for child_emitter in &child_emitters {
-        spawn_child_emitter_effect(
-            commands,
-            images,
-            child_emitter,
-            &child_bones,
-            parent_effect_entity,
-            scale_source,
-        );
-    }
+    spawn_loaded_child_emitters(
+        commands,
+        images,
+        &child_emitters,
+        &child_bones,
+        parent_effect_entity,
+        scale_source,
+    );
 }
 
 fn spawn_child_emitter_effect(
@@ -492,6 +498,39 @@ fn spawn_child_emitter_effect(
         Transform::from_translation(local_offset),
         Visibility::default(),
     ));
+}
+
+fn spawn_loaded_child_emitters(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    child_emitters: &[M2ParticleEmitter],
+    child_bones: &[M2Bone],
+    parent_effect_entity: Entity,
+    scale_source: Entity,
+) {
+    for child_emitter in child_emitters {
+        if emitter_uses_model_particles(child_emitter) {
+            spawn_model_particle_emitter(
+                commands,
+                child_emitter,
+                None,
+                parent_effect_entity,
+                emitter_spawn_offset(child_emitter, child_bones),
+                scale_source,
+                ParticleSpawnMode::Continuous,
+                ParticleSpawnSource::ChildFromParentParticles,
+            );
+        } else {
+            spawn_child_emitter_effect(
+                commands,
+                images,
+                child_emitter,
+                child_bones,
+                parent_effect_entity,
+                scale_source,
+            );
+        }
+    }
 }
 
 fn load_child_particle_emitters(em: &M2ParticleEmitter) -> Vec<M2ParticleEmitter> {
