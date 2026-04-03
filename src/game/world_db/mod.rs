@@ -563,27 +563,14 @@ fn collect_material_texture_rows(
             break;
         }
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let file_data_id = fields
-            .get(file_data_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let usage_type = fields
-            .get(usage_type_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let material_resource_id = fields
-            .get(material_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        if file_data_id == 0 || material_resource_id == 0 {
-            continue;
-        }
-        fallback.entry(material_resource_id).or_insert(file_data_id);
-        if usage_type == 0 {
-            preferred
-                .entry(material_resource_id)
-                .or_insert(file_data_id);
-        }
+        record_material_texture_row(
+            &fields,
+            file_data_col,
+            usage_type_col,
+            material_col,
+            &mut preferred,
+            &mut fallback,
+        );
     }
     for (material_resource_id, file_data_id) in fallback {
         preferred
@@ -591,6 +578,37 @@ fn collect_material_texture_rows(
             .or_insert(file_data_id);
     }
     Ok(preferred)
+}
+
+fn record_material_texture_row(
+    fields: &[String],
+    file_data_col: usize,
+    usage_type_col: usize,
+    material_col: usize,
+    preferred: &mut HashMap<u32, u32>,
+    fallback: &mut HashMap<u32, u32>,
+) {
+    let file_data_id = fields
+        .get(file_data_col)
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0);
+    let usage_type = fields
+        .get(usage_type_col)
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0);
+    let material_resource_id = fields
+        .get(material_col)
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0);
+    if file_data_id == 0 || material_resource_id == 0 {
+        return;
+    }
+    fallback.entry(material_resource_id).or_insert(file_data_id);
+    if usage_type == 0 {
+        preferred
+            .entry(material_resource_id)
+            .or_insert(file_data_id);
+    }
 }
 
 fn load_material_to_texture_map(conn: &Connection) -> Result<HashMap<u32, u32>, String> {
