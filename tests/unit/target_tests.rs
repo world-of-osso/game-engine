@@ -28,8 +28,7 @@ fn test_target_circle_style_default_is_fat_ring() {
 
 #[test]
 fn test_tab_cycles_targets() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+    let mut app = game_engine::test_harness::headless_app();
     app.init_resource::<CurrentTarget>();
 
     let _player = app
@@ -63,8 +62,7 @@ fn test_tab_cycles_targets() {
 
 #[test]
 fn test_escape_clears_target() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+    let mut app = game_engine::test_harness::headless_app();
     app.init_resource::<CurrentTarget>();
     app.init_resource::<ButtonInput<KeyCode>>();
     app.add_systems(Update, clear_target);
@@ -75,7 +73,7 @@ fn test_escape_clears_target() {
     app.world_mut()
         .resource_mut::<ButtonInput<KeyCode>>()
         .press(KeyCode::Escape);
-    app.update();
+    game_engine::test_harness::run_updates(&mut app, 1);
 
     let target = app.world().resource::<CurrentTarget>();
     assert_eq!(target.0, None);
@@ -83,8 +81,7 @@ fn test_escape_clears_target() {
 
 #[test]
 fn test_target_circle_follows_entity() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+    let mut app = game_engine::test_harness::headless_app();
     app.init_resource::<CurrentTarget>();
 
     let target = app
@@ -107,7 +104,7 @@ fn test_target_circle_follows_entity() {
 
     app.world_mut().resource_mut::<CurrentTarget>().0 = Some(target);
     app.add_systems(Update, target_visuals::update_target_circle);
-    app.update();
+    game_engine::test_harness::run_updates(&mut app, 1);
 
     let circle_pos = app
         .world()

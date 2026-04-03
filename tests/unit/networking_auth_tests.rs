@@ -45,8 +45,7 @@ fn build_login_test_app(
     reconnect: crate::networking::ReconnectState,
     auto_enter: bool,
 ) -> App {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+    let mut app = game_engine::test_harness::headless_app();
     app.insert_resource(AuthToken(None));
     app.init_resource::<AuthUiFeedback>();
     app.insert_resource(CharacterList(chars));
