@@ -1,3 +1,8 @@
+use std::io::Cursor;
+use std::mem::size_of;
+
+use binrw::BinRead;
+
 use super::adt::ChunkIter;
 
 pub struct DoodadPlacement {
@@ -63,6 +68,32 @@ struct Obj0Chunks {
     modf: Option<Vec<u8>>,
 }
 
+#[derive(BinRead)]
+#[br(little)]
+struct MddfEntry {
+    name_id: u32,
+    unique_id: u32,
+    position: [f32; 3],
+    rotation: [f32; 3],
+    scale_raw: u16,
+    flags: u16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct ModfEntry {
+    name_id: u32,
+    unique_id: u32,
+    position: [f32; 3],
+    rotation: [f32; 3],
+    _lower_bounds: [f32; 3],
+    _upper_bounds: [f32; 3],
+    flags: u16,
+    doodad_set: u16,
+    name_set: u16,
+    scale_raw: u16,
+}
+
 fn collect_obj0_chunks(data: &[u8]) -> Result<Obj0Chunks, String> {
     let mut c = Obj0Chunks {
         mmdx: Vec::new(),
@@ -112,45 +143,18 @@ fn string_at_offset(table: &[u8], offset: u32) -> Option<String> {
     Some(String::from_utf8_lossy(&table[start..start + end]).into_owned())
 }
 
-fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_u16 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u16::from_le_bytes(bytes))
-}
-
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_u32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_f32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(f32::from_le_bytes(bytes))
-}
-
-fn read_placement_transform(data: &[u8], base: usize) -> Result<([f32; 3], [f32; 3]), String> {
-    let position = [
-        read_f32(data, base + 8)?,
-        read_f32(data, base + 12)?,
-        read_f32(data, base + 16)?,
-    ];
-    let rotation = [
-        read_f32(data, base + 20)?,
-        read_f32(data, base + 24)?,
-        read_f32(data, base + 28)?,
-    ];
-    Ok((position, rotation))
+fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    let end = offset
+        .checked_add(size_of::<T>())
+        .ok_or_else(|| format!("{label} end offset overflow"))?;
+    let slice = data
+        .get(offset..end)
+        .ok_or_else(|| format!("{label} out of bounds at {offset:#x}"))?;
+    T::read_le(&mut Cursor::new(slice))
+        .map_err(|err| format!("{label} parse failed at {offset:#x}: {err}"))
 }
 
 const MDDF_FLAG_FILEDATAID: u16 = 0x40;
@@ -175,20 +179,16 @@ fn parse_mddf_entry(
     string_table: &[u8],
     offset_table: &[u32],
 ) -> Result<DoodadPlacement, String> {
-    let name_id = read_u32(data, base)?;
-    let unique_id = read_u32(data, base + 4)?;
-    let (position, rotation) = read_placement_transform(data, base)?;
-    let scale_raw = read_u16(data, base + 32)?;
-    let flags = read_u16(data, base + 34)?;
-    let (fdid, path) = resolve_doodad(name_id, flags, string_table, offset_table);
+    let entry: MddfEntry = parse_binrw_value(data, base, "MDDF entry")?;
+    let (fdid, path) = resolve_doodad(entry.name_id, entry.flags, string_table, offset_table);
 
     Ok(DoodadPlacement {
-        name_id,
-        unique_id,
-        position,
-        rotation,
-        scale: scale_raw as f32 / 1024.0,
-        flags,
+        name_id: entry.name_id,
+        unique_id: entry.unique_id,
+        position: entry.position,
+        rotation: entry.rotation,
+        scale: entry.scale_raw as f32 / 1024.0,
+        flags: entry.flags,
         fdid,
         path,
     })
@@ -199,9 +199,9 @@ fn parse_mddf(
     string_table: &[u8],
     offset_table: &[u32],
 ) -> Result<Vec<DoodadPlacement>, String> {
-    let count = data.len() / 36;
+    let count = data.len() / size_of::<MddfEntry>();
     (0..count)
-        .map(|i| parse_mddf_entry(data, i * 36, string_table, offset_table))
+        .map(|i| parse_mddf_entry(data, i * size_of::<MddfEntry>(), string_table, offset_table))
         .collect()
 }
 
@@ -228,28 +228,22 @@ fn parse_modf_entry(
     string_table: &[u8],
     offset_table: &[u32],
 ) -> Result<WmoPlacement, String> {
-    let name_id = read_u32(data, base)?;
-    let unique_id = read_u32(data, base + 4)?;
-    let (position, rotation) = read_placement_transform(data, base)?;
-    let flags = read_u16(data, base + 56)?;
-    let doodad_set = read_u16(data, base + 58)?;
-    let name_set = read_u16(data, base + 60)?;
-    let scale_raw = read_u16(data, base + 62)?;
-    let (fdid, path) = resolve_wmo(name_id, flags, string_table, offset_table);
-    let scale = if (flags & MODF_FLAG_HAS_SCALE) != 0 {
-        scale_raw as f32 / 1024.0
+    let entry: ModfEntry = parse_binrw_value(data, base, "MODF entry")?;
+    let (fdid, path) = resolve_wmo(entry.name_id, entry.flags, string_table, offset_table);
+    let scale = if (entry.flags & MODF_FLAG_HAS_SCALE) != 0 {
+        entry.scale_raw as f32 / 1024.0
     } else {
         1.0
     };
 
     Ok(WmoPlacement {
-        name_id,
-        unique_id,
-        position,
-        rotation,
-        flags,
-        _doodad_set: doodad_set,
-        _name_set: name_set,
+        name_id: entry.name_id,
+        unique_id: entry.unique_id,
+        position: entry.position,
+        rotation: entry.rotation,
+        flags: entry.flags,
+        _doodad_set: entry.doodad_set,
+        _name_set: entry.name_set,
         scale,
         fdid,
         path,
@@ -261,9 +255,9 @@ fn parse_modf(
     string_table: &[u8],
     offset_table: &[u32],
 ) -> Result<Vec<WmoPlacement>, String> {
-    let count = data.len() / 64;
+    let count = data.len() / size_of::<ModfEntry>();
     (0..count)
-        .map(|i| parse_modf_entry(data, i * 64, string_table, offset_table))
+        .map(|i| parse_modf_entry(data, i * size_of::<ModfEntry>(), string_table, offset_table))
         .collect()
 }
 

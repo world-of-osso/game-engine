@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::io::Cursor;
+use std::mem::size_of;
 
 use super::adt_tex::{AdtWaterData, parse_mh2o};
+use binrw::BinRead;
 
 pub const CHUNK_SIZE: f32 = 100.0 / 3.0;
 pub const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0;
@@ -27,6 +30,35 @@ pub(crate) struct McnkData {
     pub pos: [f32; 3],
     pub heights: [f32; MCVT_COUNT],
     pub normals: [[f32; 3]; MCVT_COUNT],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct McnkHeader {
+    _flags: u32,
+    index_x: u32,
+    index_y: u32,
+    _n_layers: u32,
+    _n_doodad_refs: u32,
+    _holes_high_res: u64,
+    _ofs_mcvt: u32,
+    _ofs_mcnr: u32,
+    _ofs_mcly: u32,
+    _ofs_mcrf: u32,
+    _ofs_mcal: u32,
+    _size_mcal: u32,
+    _ofs_mcsh: u32,
+    _size_mcsh: u32,
+    _area_id: u32,
+    _n_map_obj_refs: u32,
+    _holes_low_res: u16,
+    _unknown_but_used: u16,
+    _low_quality_texture_map: u64,
+    _no_effect_doodad: u64,
+    _unknown_tail: [u8; 16],
+    pos_y: f32,
+    pos_x: f32,
+    pos_z: f32,
 }
 
 pub(crate) struct ParsedAdtData {
@@ -61,6 +93,20 @@ fn read_i8(data: &[u8], off: usize) -> Result<i8, String> {
         .copied()
         .map(|b| b as i8)
         .ok_or_else(|| format!("read_i8 out of bounds at {off:#x}"))
+}
+
+fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    let end = offset
+        .checked_add(size_of::<T>())
+        .ok_or_else(|| format!("{label} end offset overflow"))?;
+    let slice = data
+        .get(offset..end)
+        .ok_or_else(|| format!("{label} out of bounds at {offset:#x}"))?;
+    T::read_le(&mut Cursor::new(slice))
+        .map_err(|err| format!("{label} parse failed at {offset:#x}: {err}"))
 }
 
 pub struct ChunkIter<'a> {
@@ -143,20 +189,15 @@ fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
 }
 
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
-    if payload.len() < 128 {
+    if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
     }
-    let index_x = read_u32(payload, 0x04)?;
-    let index_y = read_u32(payload, 0x08)?;
-    let pos = [
-        read_f32(payload, 0x6c)?,
-        read_f32(payload, 0x68)?,
-        read_f32(payload, 0x70)?,
-    ];
+    let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
+    let pos = [header.pos_x, header.pos_y, header.pos_z];
     let (heights, normals) = parse_mcnk_subchunks(&payload[128..])?;
     Ok(McnkData {
-        index_x,
-        index_y,
+        index_x: header.index_x,
+        index_y: header.index_y,
         pos,
         heights,
         normals,

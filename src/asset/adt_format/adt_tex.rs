@@ -1,5 +1,10 @@
 //! ADT _tex0.adt and MH2O water parsing.
 
+use std::io::Cursor;
+use std::mem::size_of;
+
+use binrw::BinRead;
+
 use super::adt::ChunkIter;
 
 pub struct TextureLayer {
@@ -17,6 +22,38 @@ pub struct AdtTexData {
     pub chunk_layers: Vec<ChunkTexLayers>,
 }
 
+#[derive(BinRead)]
+#[br(little)]
+struct MclyEntry {
+    texture_index: u32,
+    flags: u32,
+    offset_in_mcal: u32,
+    _effect_id: u32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct LiquidInstanceHeader {
+    liquid_type: u16,
+    liquid_object: u16,
+    min_height: f32,
+    max_height: f32,
+    x_offset: u8,
+    y_offset: u8,
+    width: u8,
+    height: u8,
+    exists_offset: u32,
+    vertex_offset: u32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct Mh2oChunkHeader {
+    instance_offset: u32,
+    layer_count: u32,
+    _attributes_offset: u32,
+}
+
 fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
@@ -26,15 +63,6 @@ fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     Ok(u32::from_le_bytes(bytes))
 }
 
-fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_u16 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u16::from_le_bytes(bytes))
-}
-
 fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
@@ -42,6 +70,20 @@ fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
         .try_into()
         .unwrap();
     Ok(f32::from_le_bytes(bytes))
+}
+
+fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    let end = offset
+        .checked_add(size_of::<T>())
+        .ok_or_else(|| format!("{label} end offset overflow"))?;
+    let slice = data
+        .get(offset..end)
+        .ok_or_else(|| format!("{label} out of bounds at {offset:#x}"))?;
+    T::read_le(&mut Cursor::new(slice))
+        .map_err(|err| format!("{label} parse failed at {offset:#x}: {err}"))
 }
 
 fn rle_fill(
@@ -148,17 +190,15 @@ fn read_layer_alpha_map(
 }
 
 fn build_texture_layers(mcly: &[u8], mcal: &[u8]) -> Result<Vec<TextureLayer>, String> {
-    let layer_count = mcly.len() / 16;
+    let layer_count = mcly.len() / size_of::<MclyEntry>();
     let mut layers = Vec::with_capacity(layer_count);
     for i in 0..layer_count {
-        let base = i * 16;
-        let texture_index = read_u32(mcly, base)?;
-        let flags = read_u32(mcly, base + 0x04)?;
-        let offset_in_mcal = read_u32(mcly, base + 0x08)? as usize;
-        let alpha_map = read_layer_alpha_map(flags, offset_in_mcal, mcal, i)?;
+        let base = i * size_of::<MclyEntry>();
+        let entry: MclyEntry = parse_binrw_value(mcly, base, "MCLY entry")?;
+        let alpha_map = read_layer_alpha_map(entry.flags, entry.offset_in_mcal as usize, mcal, i)?;
         layers.push(TextureLayer {
-            texture_index,
-            _flags: flags,
+            texture_index: entry.texture_index,
+            _flags: entry.flags,
             alpha_map,
         });
     }
@@ -278,33 +318,34 @@ fn read_vertex_heights(
 }
 
 fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, String> {
-    if off + 24 > payload.len() {
+    if off + size_of::<LiquidInstanceHeader>() > payload.len() {
         return Err(format!(
             "SLiquidInstance out of bounds at {off:#x} (payload len {:#x})",
             payload.len()
         ));
     }
-    let liquid_type = read_u16(payload, off)?;
-    let liquid_object = read_u16(payload, off + 2)?;
-    let min_height = read_f32(payload, off + 4)?;
-    let max_height = read_f32(payload, off + 8)?;
-    let x_offset = payload[off + 12];
-    let y_offset = payload[off + 13];
-    let width = payload[off + 14];
-    let height = payload[off + 15];
-    let exists_offset = read_u32(payload, off + 16)? as usize;
-    let vertex_offset = read_u32(payload, off + 20)? as usize;
+    let header: LiquidInstanceHeader = parse_binrw_value(payload, off, "SLiquidInstance")?;
     Ok(WaterLayer {
-        liquid_type,
-        liquid_object,
-        min_height,
-        max_height,
-        x_offset,
-        y_offset,
-        width,
-        height,
-        exists: read_exists_bitmask(payload, exists_offset, width, height)?,
-        vertex_heights: read_vertex_heights(payload, vertex_offset, width, height)?,
+        liquid_type: header.liquid_type,
+        liquid_object: header.liquid_object,
+        min_height: header.min_height,
+        max_height: header.max_height,
+        x_offset: header.x_offset,
+        y_offset: header.y_offset,
+        width: header.width,
+        height: header.height,
+        exists: read_exists_bitmask(
+            payload,
+            header.exists_offset as usize,
+            header.width,
+            header.height,
+        )?,
+        vertex_heights: read_vertex_heights(
+            payload,
+            header.vertex_offset as usize,
+            header.width,
+            header.height,
+        )?,
     })
 }
 
@@ -320,21 +361,19 @@ pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
 
     let mut chunks = Vec::with_capacity(CHUNK_COUNT);
     for i in 0..CHUNK_COUNT {
-        let base = i * 12;
-        let instance_offset = read_u32(payload, base)? as usize;
-        let layer_count = read_u32(payload, base + 4)? as usize;
-        let _attributes_offset = read_u32(payload, base + 8)? as usize;
+        let base = i * size_of::<Mh2oChunkHeader>();
+        let header: Mh2oChunkHeader = parse_binrw_value(payload, base, "MH2O chunk header")?;
 
-        if instance_offset == 0 || layer_count == 0 {
+        if header.instance_offset == 0 || header.layer_count == 0 {
             chunks.push(ChunkWater { layers: Vec::new() });
             continue;
         }
 
-        let mut layers = Vec::with_capacity(layer_count);
-        for layer_idx in 0..layer_count {
+        let mut layers = Vec::with_capacity(header.layer_count as usize);
+        for layer_idx in 0..header.layer_count as usize {
             layers.push(parse_liquid_instance(
                 payload,
-                instance_offset + layer_idx * 24,
+                header.instance_offset as usize + layer_idx * size_of::<LiquidInstanceHeader>(),
             )?);
         }
         chunks.push(ChunkWater { layers });
