@@ -50,7 +50,6 @@ mod dump_systems;
 mod equipment;
 mod equipment_appearance;
 mod game_state;
-mod geoset_debug_scene;
 mod ground;
 mod health_bar;
 mod inworld_scene_tree;
@@ -646,7 +645,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     ));
     match initial_state {
         Some(game_state::GameState::DebugCharacter) => {
-            app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
+            app.add_plugins(scenes::geoset_debug::DebugCharacterScenePlugin);
         }
         Some(game_state::GameState::SkyboxDebug) => {
             app.add_plugins(scenes::skybox_debug::SkyboxDebugScenePlugin);
