@@ -7,12 +7,15 @@ pub mod char_create_data;
 pub mod character_export;
 pub mod dump;
 pub mod game_state_enum;
+#[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
 pub mod input_bindings;
 pub mod ipc;
+#[path = "game/equipment/item_info.rs"]
 pub mod item_info;
 pub mod listfile;
 pub mod mail;
+#[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
 pub mod paths;
 #[path = "scenes/scene_tree.rs"]

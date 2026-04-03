@@ -15,31 +15,31 @@ pub struct RuntimeModelAppearance {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_cloak_tests.rs"]
+#[path = "../../../tests/unit/equipment_cloak_tests.rs"]
 mod cloak_tests;
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_chest_tests.rs"]
+#[path = "../../../tests/unit/equipment_chest_tests.rs"]
 mod chest_tests;
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_feet_tests.rs"]
+#[path = "../../../tests/unit/equipment_feet_tests.rs"]
 mod feet_tests;
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_hands_tests.rs"]
+#[path = "../../../tests/unit/equipment_hands_tests.rs"]
 mod hands_tests;
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_legs_tests.rs"]
+#[path = "../../../tests/unit/equipment_legs_tests.rs"]
 mod legs_tests;
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_waist_tests.rs"]
+#[path = "../../../tests/unit/equipment_waist_tests.rs"]
 mod waist_tests;
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_shoulder_tests.rs"]
+#[path = "../../../tests/unit/equipment_shoulder_tests.rs"]
 mod shoulder_tests;
 
 #[derive(Debug, Clone, Default)]
@@ -615,5 +615,5 @@ fn ensure_item_component_textures(display: &OutfitResult) {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/equipment_appearance_tests.rs"]
+#[path = "../../../tests/unit/equipment_appearance_tests.rs"]
 mod tests;

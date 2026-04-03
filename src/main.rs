@@ -40,7 +40,9 @@ mod client_options;
 mod collision;
 mod creature_display;
 mod dump_systems;
+#[path = "game/equipment/equipment.rs"]
 mod equipment;
+#[path = "game/equipment/equipment_appearance.rs"]
 mod equipment_appearance;
 mod game_state;
 #[path = "game/networking/mod.rs"]
