@@ -39,8 +39,6 @@ mod asset {
 }
 mod camera;
 mod campsite_popup_screen;
-mod char_create;
-mod char_create_scene;
 mod char_select_scene;
 mod character_customization;
 mod character_models;
@@ -428,7 +426,7 @@ fn insert_screen_resources(app: &mut App, args: &[String]) {
                 screen,
                 game_engine::game_state_enum::ScreenArg::CharCreateCustomize
             ) {
-                app.insert_resource(char_create::StartupCharCreateMode(
+                app.insert_resource(scenes::char_create::StartupCharCreateMode(
                     game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
                 ));
             }
@@ -644,8 +642,8 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         char_select_scene::CharSelectScenePlugin,
         selection_debug_screen::SelectionDebugScreenPlugin,
         inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin,
-        char_create::CharCreatePlugin,
-        char_create_scene::CharCreateScenePlugin,
+        scenes::char_create::CharCreatePlugin,
+        scenes::char_create::CharCreateScenePlugin,
         campsite_popup_screen::CampsitePopupScreenPlugin,
         game_menu_screen::GameMenuScreenPlugin,
         trash_button_screen::TrashButtonScreenPlugin,

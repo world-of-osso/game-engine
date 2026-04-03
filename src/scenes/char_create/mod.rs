@@ -21,14 +21,18 @@ use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
 use crate::scenes::login::helpers;
-#[path = "char_create_appearance.rs"]
-mod appearance_logic;
 use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, set_button_hovered,
 };
+
+mod appearance;
+pub mod scene;
+
+use appearance as appearance_logic;
+pub use scene::CharCreateScenePlugin;
 
 const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
