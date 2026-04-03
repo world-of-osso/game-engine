@@ -40,6 +40,7 @@ pub(super) const PARTICLE_FLAG_FOLLOW_POSITION: u32 = 0x0008_0000;
 pub(super) const PARTICLE_FLAG_RANDOM_TEXTURE: u32 = 0x0010_0000;
 pub(super) const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
 pub(super) const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
+pub(super) const PARTICLE_FLAG_NO_GLOBAL_SCALE: u32 = 0x1000_0000;
 pub(super) const PARTICLE_FLAG_WIND_DYNAMIC: u32 = 0x4000_0000;
 pub(super) const PARTICLE_FLAG_WIND_ENABLED: u32 = 0x8000_0000;
 const BLEND_OPAQUE: u8 = 0;
@@ -1141,7 +1142,12 @@ fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32
     // WoW samples `base + rand * variation` per emission step. Hanabi exposes
     // only a constant rate, so use the expected mean rate here.
     let mean_rate = em.emission_rate + em.emission_rate_variation.max(0.0) * 0.5;
-    (mean_rate * particle_density_multiplier.clamp(0.1, 1.0)).max(0.1)
+    let global_scale = if em.flags & PARTICLE_FLAG_NO_GLOBAL_SCALE != 0 {
+        1.0
+    } else {
+        particle_density_multiplier.clamp(0.1, 1.0)
+    };
+    (mean_rate * global_scale).max(0.1)
 }
 
 fn assemble_effect(
