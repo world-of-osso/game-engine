@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 use std::path::PathBuf;
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
@@ -253,16 +254,15 @@ fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
         })
 }
 
-#[allow(clippy::too_many_arguments)]
+struct DebugCharacterSpawnContext<'a, 'w, 's> {
+    commands: &'a mut Commands<'w, 's>,
+    assets: crate::m2_spawn::SpawnAssets<'a>,
+    creature_display_map: &'a creature_display::CreatureDisplayMap,
+    config: &'a DebugCharacterConfig,
+}
+
 fn spawn_debug_character_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    config: &DebugCharacterConfig,
+    ctx: &mut DebugCharacterSpawnContext<'_, '_, '_>,
     x: f32,
     head_display: u32,
     hands_display: u32,
@@ -271,41 +271,41 @@ fn spawn_debug_character_model(
     feet_display: u32,
     name: &str,
 ) {
-    let Some(model_path) = resolve_model_path(config.race, config.sex) else {
+    let Some(model_path) = resolve_model_path(ctx.config.race, ctx.config.sex) else {
         return;
     };
-    let mut ctx = m2_scene::M2SceneSpawnContext {
-        commands,
+    let mut spawn_ctx = m2_scene::M2SceneSpawnContext {
+        commands: ctx.commands,
         assets: crate::m2_spawn::SpawnAssets {
-            meshes,
-            materials,
-            effect_materials,
+            meshes: ctx.assets.meshes,
+            materials: ctx.assets.materials,
+            effect_materials: ctx.assets.effect_materials,
             skybox_materials: None,
-            images,
-            inverse_bindposes: inv_bp,
+            images: ctx.assets.images,
+            inverse_bindposes: ctx.assets.inverse_bindposes,
         },
-        creature_display_map,
+        creature_display_map: ctx.creature_display_map,
     };
     let Some(spawned) =
-        m2_scene::spawn_animated_static_m2_parts(&mut ctx, &model_path, model_transform(x))
+        m2_scene::spawn_animated_static_m2_parts(&mut spawn_ctx, &model_path, model_transform(x))
     else {
         return;
     };
-    commands
+    ctx.commands
         .entity(spawned.root)
         .insert((DebugCharacterScene, Name::new(name.to_string())));
-    commands.entity(spawned.model_root).insert((
+    ctx.commands.entity(spawned.model_root).insert((
         DebugCharacterScene,
         DebugCharacterModelRoot,
         CharacterRenderRequest {
             selection: CharacterCustomizationSelection {
-                race: config.race,
-                class: config.class,
-                sex: config.sex,
-                appearance: config.appearance,
+                race: ctx.config.race,
+                class: ctx.config.class,
+                sex: ctx.config.sex,
+                appearance: ctx.config.appearance,
             },
             equipment_appearance: debug_equipment_appearance(
-                config,
+                ctx.config,
                 head_display,
                 hands_display,
                 waist_display,
@@ -349,34 +349,10 @@ fn debug_sides(config: &DebugCharacterConfig) -> [DebugCharacterSide; 2] {
     ]
 }
 
-#[allow(clippy::too_many_arguments)]
-fn spawn_debug_pair(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    config: &DebugCharacterConfig,
-) {
-    for side in &debug_sides(config) {
+fn spawn_debug_pair(ctx: &mut DebugCharacterSpawnContext<'_, '_, '_>) {
+    for side in &debug_sides(ctx.config) {
         spawn_debug_character_model(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inv_bp,
-            creature_display_map,
-            config,
-            side.x,
-            side.head,
-            side.hands,
-            side.waist,
-            side.legs,
-            side.feet,
-            side.name,
+            ctx, side.x, side.head, side.hands, side.waist, side.legs, side.feet, side.name,
         );
     }
 }
@@ -400,31 +376,41 @@ fn log_debug_config(config: &DebugCharacterConfig) {
     );
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    config: Res<DebugCharacterConfig>,
-) {
-    log_debug_config(&config);
-    spawn_camera(&mut commands);
-    spawn_lighting(&mut commands);
-    spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    spawn_debug_pair(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-        &creature_display_map,
-        &config,
+#[derive(SystemParam)]
+struct DebugCharacterSceneParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    config: Res<'w, DebugCharacterConfig>,
+}
+
+fn setup_scene(mut params: DebugCharacterSceneParams) {
+    log_debug_config(&params.config);
+    spawn_camera(&mut params.commands);
+    spawn_lighting(&mut params.commands);
+    spawn_ground(
+        &mut params.commands,
+        &mut params.meshes,
+        &mut params.materials,
+        &mut params.images,
     );
+    spawn_debug_pair(&mut DebugCharacterSpawnContext {
+        commands: &mut params.commands,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes: &mut params.meshes,
+            materials: &mut params.materials,
+            effect_materials: &mut params.effect_materials,
+            skybox_materials: None,
+            images: &mut params.images,
+            inverse_bindposes: &mut params.inv_bp,
+        },
+        creature_display_map: &params.creature_display_map,
+        config: &params.config,
+    });
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<DebugCharacterScene>>) {
