@@ -6,6 +6,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::asset::char_texture::CharTextureData;
@@ -84,6 +85,91 @@ pub(super) struct CharSelectRenderAssets<'w> {
     pub(super) inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
 }
 
+struct CharSelectModelSpawnContext<'a, 'w, 's> {
+    commands: &'a mut Commands<'w, 's>,
+    assets: &'a mut CharSelectRenderAssets<'w>,
+    creature_display_map: &'a creature_display::CreatureDisplayMap,
+}
+
+#[derive(SystemParam)]
+struct CharSelectSceneSetupParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    assets: CharSelectRenderAssets<'w>,
+    heightmap: ResMut<'w, TerrainHeightmap>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    customization_db: Res<'w, CustomizationDb>,
+    char_list: Res<'w, CharacterList>,
+    selected: Res<'w, SelectedCharIndex>,
+    displayed: ResMut<'w, DisplayedCharacterId>,
+    active_scene: ResMut<'w, ActiveWarbandSceneId>,
+    pending_supplemental: ResMut<'w, PendingSupplementalWarbandScene>,
+    warband: Option<Res<'w, WarbandScenes>>,
+    selected_scene: Option<Res<'w, SelectedWarbandScene>>,
+}
+
+#[derive(SystemParam)]
+struct CharSelectModelSyncParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    assets: CharSelectRenderAssets<'w>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    customization_db: Res<'w, CustomizationDb>,
+    heightmap: Res<'w, TerrainHeightmap>,
+    char_list: Res<'w, CharacterList>,
+    selected: Res<'w, SelectedCharIndex>,
+    current_model: Query<'w, 's, Entity, With<CharSelectModelWrapper>>,
+    displayed: ResMut<'w, DisplayedCharacterId>,
+    warband: Option<Res<'w, WarbandScenes>>,
+    selected_scene: Option<Res<'w, SelectedWarbandScene>>,
+    camera_query: Query<
+        'w,
+        's,
+        (
+            &'static mut Transform,
+            &'static mut camera::CharSelectOrbit,
+            &'static mut Projection,
+        ),
+        (With<CharSelectScene>, Without<CharSelectModelRoot>),
+    >,
+}
+
+#[derive(SystemParam)]
+struct CharSelectAppearanceSyncParams<'w, 's> {
+    customization_db: Res<'w, CustomizationDb>,
+    char_tex: Res<'w, CharTextureData>,
+    outfit_data: Res<'w, OutfitData>,
+    char_list: Res<'w, CharacterList>,
+    selected: Res<'w, SelectedCharIndex>,
+    displayed_appearance: ResMut<'w, DisplayedCharacterAppearance>,
+    root_query:
+        Query<'w, 's, (Entity, &'static CharSelectModelCharacter), With<CharSelectModelRoot>>,
+    parent_query: Query<'w, 's, &'static ChildOf>,
+    geoset_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static crate::m2_spawn::GeosetMesh,
+            &'static ChildOf,
+        ),
+    >,
+    visibility_query: Query<'w, 's, &'static mut Visibility>,
+    equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
+    material_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static MeshMaterial3d<StandardMaterial>,
+            Option<&'static crate::m2_spawn::GeosetMesh>,
+            Option<&'static crate::m2_spawn::BatchTextureType>,
+            &'static ChildOf,
+        ),
+    >,
+    equipment_query: Query<'w, 's, &'static mut crate::equipment::Equipment>,
+    images: ResMut<'w, Assets<Image>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+}
+
 pub struct CharSelectScenePlugin;
 
 impl Plugin for CharSelectScenePlugin {
@@ -118,34 +204,27 @@ mod lighting;
 mod scene_systems;
 mod skybox;
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_char_select_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    ctx: &mut CharSelectModelSpawnContext<'_, '_, '_>,
     m2_path: &Path,
-    creature_display_map: &creature_display::CreatureDisplayMap,
     char_transform: Transform,
 ) -> Option<(Entity, Entity)> {
     let spawned = m2_scene::spawn_animated_static_m2_parts(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
+        ctx.commands,
+        &mut ctx.assets.meshes,
+        &mut ctx.assets.materials,
+        &mut ctx.assets.effect_materials,
+        &mut ctx.assets.images,
+        &mut ctx.assets.inv_bp,
         m2_path,
         char_transform,
-        creature_display_map,
+        ctx.creature_display_map,
     );
     let spawned = spawned?;
-    commands
+    ctx.commands
         .entity(spawned.root)
         .insert((CharSelectScene, CharSelectModelWrapper));
-    commands
+    ctx.commands
         .entity(spawned.model_root)
         .insert(CharSelectModelRoot);
     Some((spawned.root, spawned.model_root))
@@ -263,39 +342,30 @@ pub(super) fn resolve_char_select_model_path(
         })
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_char_select_scene(
-    mut commands: Commands,
-    mut assets: CharSelectRenderAssets,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    customization_db: Res<CustomizationDb>,
-    char_list: Res<CharacterList>,
-    selected: Res<SelectedCharIndex>,
-    mut displayed: ResMut<DisplayedCharacterId>,
-    mut active_scene: ResMut<ActiveWarbandSceneId>,
-    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
-    warband: Option<Res<WarbandScenes>>,
-    selected_scene: Option<Res<SelectedWarbandScene>>,
-) {
+fn setup_char_select_scene(mut params: CharSelectSceneSetupParams) {
     let total_start = Instant::now();
-    let scene_entry = background::find_scene_entry(&warband, &selected_scene);
-    let placement = warband
+    let scene_entry = background::find_scene_entry(&params.warband, &params.selected_scene);
+    let placement = params
+        .warband
         .as_ref()
         .zip(scene_entry)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
-    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
+    let presentation = selected_character_presentation(
+        &params.customization_db,
+        &params.char_list,
+        params.selected.0,
+    );
     let background_start = Instant::now();
     let mut background_ctx = background::WarbandBackgroundSpawnContext {
-        commands: &mut commands,
-        meshes: &mut assets.meshes,
-        materials: &mut assets.materials,
-        effect_materials: &mut assets.effect_materials,
-        terrain_materials: &mut assets.terrain_materials,
-        water_materials: &mut assets.water_materials,
-        images: &mut assets.images,
-        inv_bp: &mut assets.inv_bp,
-        heightmap: &mut heightmap,
+        commands: &mut params.commands,
+        meshes: &mut params.assets.meshes,
+        materials: &mut params.assets.materials,
+        effect_materials: &mut params.assets.effect_materials,
+        terrain_materials: &mut params.assets.terrain_materials,
+        water_materials: &mut params.assets.water_materials,
+        images: &mut params.assets.images,
+        inv_bp: &mut params.assets.inv_bp,
+        heightmap: &mut params.heightmap,
     };
     let mut bg_node = background::spawn(
         &mut background_ctx,
@@ -303,15 +373,15 @@ fn setup_char_select_scene(
         placement
             .as_ref()
             .map(|placement| placement.bevy_position()),
-        &mut active_scene,
+        &mut params.active_scene,
     );
     let background_elapsed = background_start.elapsed();
     let camera_start = Instant::now();
     let camera_entity = camera::spawn_char_select_camera(
-        &mut commands,
+        &mut params.commands,
         scene_entry,
         placement.as_ref(),
-        Some(&heightmap),
+        Some(&params.heightmap),
         presentation,
     );
     let camera_elapsed = camera_start.elapsed();
@@ -319,14 +389,14 @@ fn setup_char_select_scene(
     let camera_translation = camera::camera_params(scene_entry, placement.as_ref(), presentation).0;
     let skybox_entity = {
         let mut skybox_ctx = background::WarbandSkyboxSpawnContext {
-            commands: &mut commands,
-            meshes: &mut assets.meshes,
-            materials: &mut assets.materials,
-            effect_materials: &mut assets.effect_materials,
-            skybox_materials: &mut assets.skybox_materials,
-            images: &mut assets.images,
-            inv_bp: &mut assets.inv_bp,
-            creature_display_map: &creature_display_map,
+            commands: &mut params.commands,
+            meshes: &mut params.assets.meshes,
+            materials: &mut params.assets.materials,
+            effect_materials: &mut params.assets.effect_materials,
+            skybox_materials: &mut params.assets.skybox_materials,
+            images: &mut params.assets.images,
+            inv_bp: &mut params.assets.inv_bp,
+            creature_display_map: &params.creature_display_map,
         };
         background::spawn_skybox(&mut skybox_ctx, scene_entry, camera_translation)
     };
@@ -338,31 +408,43 @@ fn setup_char_select_scene(
             path.display().to_string(),
         ));
     }
-    let dir = lighting::spawn(&mut commands, scene_entry, placement.as_ref(), presentation);
-    let sky_light_elapsed = sky_light_start.elapsed();
-    let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
-    let model_start = Instant::now();
-    let result = spawn_selected_model(
-        &mut commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        &creature_display_map,
-        &char_list,
-        selected.0,
-        char_tf,
+    let dir = lighting::spawn(
+        &mut params.commands,
+        scene_entry,
+        placement.as_ref(),
+        presentation,
     );
+    let sky_light_elapsed = sky_light_start.elapsed();
+    let char_tf = resolve_char_transform(
+        &params.warband,
+        &params.selected_scene,
+        Some(&params.heightmap),
+        presentation,
+    );
+    let model_start = Instant::now();
+    let result = {
+        let mut spawn_ctx = CharSelectModelSpawnContext {
+            commands: &mut params.commands,
+            assets: &mut params.assets,
+            creature_display_map: &params.creature_display_map,
+        };
+        spawn_selected_model(
+            &mut spawn_ctx,
+            &params.char_list,
+            params.selected.0,
+            char_tf,
+        )
+    };
     let model_elapsed = model_start.elapsed();
     let mut children = vec![bg_node];
     if let Some((_, entity)) = &result {
-        let (race, gender, model) = scene_systems::char_info_strings(&char_list, selected.0);
+        let (race, gender, model) =
+            scene_systems::char_info_strings(&params.char_list, params.selected.0);
         children.push(scene_tree::character_scene_node(
             *entity, model, race, gender,
         ));
     }
-    displayed.0 = result.map(|(id, _)| id);
+    params.displayed.0 = result.map(|(id, _)| id);
     let fov = camera::camera_params(scene_entry, placement.as_ref(), presentation).2;
     children.extend(scene_tree::light_scene_nodes(
         camera_entity,
@@ -371,13 +453,16 @@ fn setup_char_select_scene(
         lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS,
         dir,
     ));
-    commands.insert_resource(scene_tree::build_scene_tree(children));
-    pending_supplemental.scene_id = scene_entry
+    params
+        .commands
+        .insert_resource(scene_tree::build_scene_tree(children));
+    params.pending_supplemental.scene_id = scene_entry
         .filter(|scene| {
             !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty()
         })
         .map(|scene| scene.id);
-    pending_supplemental.wait_for_next_frame = pending_supplemental.scene_id.is_some();
+    params.pending_supplemental.wait_for_next_frame =
+        params.pending_supplemental.scene_id.is_some();
     info!(
         "setup_char_select_scene finished in {:.3}s (background={:.3}s camera={:.3}s sky+light={:.3}s model={:.3}s)",
         total_start.elapsed().as_secs_f32(),
@@ -388,95 +473,62 @@ fn setup_char_select_scene(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
-fn sync_char_select_model(
-    mut commands: Commands,
-    mut assets: CharSelectRenderAssets,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    customization_db: Res<CustomizationDb>,
-    heightmap: Res<TerrainHeightmap>,
-    char_list: Res<CharacterList>,
-    selected: Res<SelectedCharIndex>,
-    current_model: Query<Entity, With<CharSelectModelWrapper>>,
-    mut displayed: ResMut<DisplayedCharacterId>,
-    warband: Option<Res<WarbandScenes>>,
-    selected_scene: Option<Res<SelectedWarbandScene>>,
-    mut camera_query: Query<
-        (
-            &mut Transform,
-            &mut camera::CharSelectOrbit,
-            &mut Projection,
-        ),
-        (With<CharSelectScene>, Without<CharSelectModelRoot>),
-    >,
-) {
-    let desired = selected_scene_character_id(&char_list, selected.0);
-    if displayed.0 == desired {
+fn sync_char_select_model(mut params: CharSelectModelSyncParams) {
+    let desired = selected_scene_character_id(&params.char_list, params.selected.0);
+    if params.displayed.0 == desired {
         return;
     }
-    for entity in current_model.iter() {
-        commands.entity(entity).despawn();
+    for entity in params.current_model.iter() {
+        params.commands.entity(entity).despawn();
     }
-    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
-    let scene = background::find_scene_entry(&warband, &selected_scene);
-    let placement = warband
+    let presentation = selected_character_presentation(
+        &params.customization_db,
+        &params.char_list,
+        params.selected.0,
+    );
+    let scene = background::find_scene_entry(&params.warband, &params.selected_scene);
+    let placement = params
+        .warband
         .as_ref()
         .zip(scene)
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
-    let char_tf = resolve_char_transform(&warband, &selected_scene, Some(&heightmap), presentation);
-    displayed.0 = spawn_selected_model(
-        &mut commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        &creature_display_map,
-        &char_list,
-        selected.0,
-        char_tf,
-    )
+    let char_tf = resolve_char_transform(
+        &params.warband,
+        &params.selected_scene,
+        Some(&params.heightmap),
+        presentation,
+    );
+    params.displayed.0 = {
+        let mut spawn_ctx = CharSelectModelSpawnContext {
+            commands: &mut params.commands,
+            assets: &mut params.assets,
+            creature_display_map: &params.creature_display_map,
+        };
+        spawn_selected_model(
+            &mut spawn_ctx,
+            &params.char_list,
+            params.selected.0,
+            char_tf,
+        )
+    }
     .map(|(id, _)| id);
     if let Some(scene) = scene {
         camera::update_camera_for_scene(
             scene,
             placement.as_ref(),
-            Some(&heightmap),
+            Some(&params.heightmap),
             presentation,
-            &mut camera_query,
+            &mut params.camera_query,
         );
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn sync_selected_character_appearance(
-    customization_db: Res<CustomizationDb>,
-    char_tex: Res<CharTextureData>,
-    outfit_data: Res<OutfitData>,
-    char_list: Res<CharacterList>,
-    selected: Res<SelectedCharIndex>,
-    mut displayed_appearance: ResMut<DisplayedCharacterAppearance>,
-    root_query: Query<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>,
-    parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
-    mut visibility_query: Query<&mut Visibility>,
-    equipment_item_query: Query<(), With<EquipmentItem>>,
-    material_query: Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&crate::m2_spawn::GeosetMesh>,
-        Option<&crate::m2_spawn::BatchTextureType>,
-        &ChildOf,
-    )>,
-    mut equipment_query: Query<&mut crate::equipment::Equipment>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let Some(character) = selected_scene_character(&char_list, selected.0) else {
-        displayed_appearance.0 = None;
+fn sync_selected_character_appearance(mut params: CharSelectAppearanceSyncParams) {
+    let Some(character) = selected_scene_character(&params.char_list, params.selected.0) else {
+        params.displayed_appearance.0 = None;
         return;
     };
-    let Ok((root, root_character)) = root_query.single() else {
+    let Ok((root, root_character)) = params.root_query.single() else {
         return;
     };
     if root_character.0 != character.character_id {
@@ -489,12 +541,12 @@ fn sync_selected_character_appearance(
         appearance: character.appearance,
         equipment_appearance: character.equipment_appearance.clone(),
     };
-    if displayed_appearance.0 == Some(desired.clone()) {
+    if params.displayed_appearance.0 == Some(desired.clone()) {
         return;
     }
     let resolved_equipment = resolve_equipment_appearance(
         &character.equipment_appearance,
-        &outfit_data,
+        &params.outfit_data,
         character.race,
         character.appearance.sex,
     );
@@ -505,33 +557,26 @@ fn sync_selected_character_appearance(
             sex: character.appearance.sex,
             appearance: character.appearance,
         },
-        &customization_db,
-        &char_tex,
+        &params.customization_db,
+        &params.char_tex,
         Some(&resolved_equipment),
         root,
-        &mut images,
-        &mut materials,
-        &parent_query,
-        &geoset_query,
-        &mut visibility_query,
-        &equipment_item_query,
-        &material_query,
+        &mut params.images,
+        &mut params.materials,
+        &params.parent_query,
+        &params.geoset_query,
+        &mut params.visibility_query,
+        &params.equipment_item_query,
+        &params.material_query,
     );
-    if let Ok(mut equipment) = equipment_query.get_mut(root) {
+    if let Ok(mut equipment) = params.equipment_query.get_mut(root) {
         apply_runtime_equipment(&mut equipment, &resolved_equipment);
     }
-    displayed_appearance.0 = Some(desired);
+    params.displayed_appearance.0 = Some(desired);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_selected_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
+    ctx: &mut CharSelectModelSpawnContext<'_, '_, '_>,
     char_list: &CharacterList,
     selected: Option<usize>,
     char_transform: Transform,
@@ -540,19 +585,9 @@ fn spawn_selected_model(
     if !model_path.exists() {
         return None;
     }
-    let (_, model_entity) = spawn_char_select_model(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        &model_path,
-        creature_display_map,
-        char_transform,
-    )?;
+    let (_, model_entity) = spawn_char_select_model(ctx, &model_path, char_transform)?;
     let char_id = selected_scene_character_id(char_list, selected)?;
-    commands
+    ctx.commands
         .entity(model_entity)
         .insert(CharSelectModelCharacter(char_id));
     Some((char_id, model_entity))
