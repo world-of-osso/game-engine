@@ -37,6 +37,7 @@ mod asset {
 }
 mod cli_args;
 mod collision;
+mod csv_util;
 mod dump_systems;
 mod game;
 mod process_limits;

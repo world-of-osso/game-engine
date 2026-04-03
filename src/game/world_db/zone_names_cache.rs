@@ -1,6 +1,7 @@
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
+use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
 use rusqlite::{Connection, OpenFlags};
 
 pub(super) fn import_zone_name_cache() -> Result<PathBuf, String> {
@@ -92,7 +93,7 @@ fn import_zone_rows(conn: &Connection, csv_path: &Path) -> Result<(), String> {
     reader
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", csv_path.display()))?;
-    let headers = super::parse_csv_line(header.trim_end_matches(['\r', '\n']));
+    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
     let id_col = super::header_index(&headers, "ID", csv_path)?;
     let name_col = super::header_index(&headers, "AreaName_lang", csv_path)?;
     let mut insert = conn
@@ -124,7 +125,7 @@ fn insert_zone_row(
     id_col: usize,
     name_col: usize,
 ) -> Result<(), String> {
-    let fields = super::parse_csv_line(line);
+    let fields = parse_csv_line(line);
     let Some(id) = fields
         .get(id_col)
         .and_then(|value| value.parse::<u32>().ok())

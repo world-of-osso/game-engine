@@ -6,6 +6,7 @@ use bevy::prelude::*;
 
 use crate::asset::asset_cache;
 use crate::asset::m2::wow_to_bevy;
+use crate::csv_util::parse_csv_line as parse_csv_fields;
 use crate::terrain_tile::TILE_SIZE;
 
 #[path = "cache.rs"]
@@ -349,24 +350,6 @@ fn parse_placement_option_line(line: &str) -> Option<WarbandScenePlacementOption
         orientation: fields[6].parse().ok()?,
         scale: fields[7].parse().ok()?,
     })
-}
-
-/// Parse a CSV line respecting quoted fields.
-fn parse_csv_fields(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    for ch in line.chars() {
-        match ch {
-            '"' => in_quotes = !in_quotes,
-            ',' if !in_quotes => {
-                fields.push(std::mem::take(&mut current));
-            }
-            _ => current.push(ch),
-        }
-    }
-    fields.push(current);
-    fields
 }
 
 fn load_scenes(path: &Path) -> Vec<WarbandSceneEntry> {

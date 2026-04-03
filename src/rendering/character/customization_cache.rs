@@ -5,6 +5,7 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OpenFlags};
 
+use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
 use crate::customization_data::{
     RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial, RawOption,
     chr_model_id_for_hair_row,
@@ -38,32 +39,6 @@ fn open_read_only(path: &Path) -> Result<Connection, String> {
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .map_err(|err| format!("open {}: {err}", path.display()))
-}
-
-fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    let mut chars = line.chars().peekable();
-    while let Some(ch) = chars.next() {
-        match ch {
-            '"' => {
-                if in_quotes && chars.peek() == Some(&'"') {
-                    current.push('"');
-                    chars.next();
-                } else {
-                    in_quotes = !in_quotes;
-                }
-            }
-            ',' if !in_quotes => {
-                fields.push(current.trim().to_string());
-                current.clear();
-            }
-            _ => current.push(ch),
-        }
-    }
-    fields.push(current.trim().to_string());
-    fields
 }
 
 fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {

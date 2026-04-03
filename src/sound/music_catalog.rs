@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 #[cfg(test)]
+use crate::csv_util::parse_csv_line;
+#[cfg(test)]
 use std::collections::HashSet;
 
 pub fn load_zone_music_catalog(
@@ -38,34 +40,6 @@ fn insert_zone_music_link(
     if seen.entry(area_id).or_default().insert(track_idx) {
         by_zone.entry(area_id).or_default().push(track_idx);
     }
-}
-
-#[cfg(test)]
-fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut chars = line.chars().peekable();
-    let mut in_quotes = false;
-
-    while let Some(ch) = chars.next() {
-        match ch {
-            '"' => {
-                if in_quotes && chars.peek() == Some(&'"') {
-                    current.push('"');
-                    chars.next();
-                } else {
-                    in_quotes = !in_quotes;
-                }
-            }
-            ',' if !in_quotes => {
-                fields.push(current);
-                current = String::new();
-            }
-            _ => current.push(ch),
-        }
-    }
-    fields.push(current);
-    fields
 }
 
 #[cfg(test)]

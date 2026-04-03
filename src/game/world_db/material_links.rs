@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
 use std::path::Path;
 
+use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
 use rusqlite::{Connection, Statement};
 
 pub(super) fn populate_material_to_texture(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -10,7 +11,7 @@ pub(super) fn populate_material_to_texture(conn: &Connection, path: &Path) -> Re
     reader
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = super::parse_csv_line(header.trim_end_matches(['\r', '\n']));
+    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
     let file_data_col = super::header_index(&headers, "FileDataID", path)?;
     let usage_type_col = super::header_index(&headers, "UsageType", path)?;
     let material_col = super::header_index(&headers, "MaterialResourcesID", path)?;
@@ -53,7 +54,7 @@ fn collect_material_texture_rows(
         {
             break;
         }
-        let fields = super::parse_csv_line(line.trim_end_matches(['\r', '\n']));
+        let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
         record_material_texture_row(
             &fields,
             file_data_col,
@@ -128,7 +129,7 @@ pub(super) fn populate_display_material_textures(
     reader
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = super::parse_csv_line(header.trim_end_matches(['\r', '\n']));
+    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
     let component_col = super::header_index(&headers, "ComponentSection", path)?;
     let material_col = super::header_index(&headers, "MaterialResourcesID", path)?;
     let display_info_col = super::header_index(&headers, "ItemDisplayInfoID", path)?;
@@ -169,7 +170,7 @@ fn insert_display_material_texture_rows(
         {
             break;
         }
-        let fields = super::parse_csv_line(line.trim_end_matches(['\r', '\n']));
+        let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
         let display_info_id = fields
             .get(display_info_col)
             .and_then(|v| v.parse::<u32>().ok())
