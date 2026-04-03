@@ -88,15 +88,21 @@ pub struct ParticleEmitterComp {
 fn register_pending_particle_effects(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
-    query: Query<(Entity, &ParticleEmitterComp), Without<ParticleEffect>>,
+    mut query: Query<(Entity, &mut Transform, &ParticleEmitterComp), Without<ParticleEffect>>,
     global_transforms: Query<&GlobalTransform>,
     graphics: Option<Res<GraphicsOptions>>,
+    terrain: Option<Res<crate::terrain_heightmap::TerrainHeightmap>>,
 ) {
     let particle_density_multiplier = graphics
         .as_deref()
         .map(GraphicsOptions::particle_density_multiplier)
         .unwrap_or(1.0);
-    for (entity, comp) in &query {
+    for (entity, mut transform, comp) in &mut query {
+        if let Some(projected_y) =
+            projected_particle_spawn_y(entity, comp, &global_transforms, terrain.as_deref())
+        {
+            transform.translation.y += projected_y;
+        }
         let model_scale = global_transforms
             .get(comp.scale_source)
             .map(|tf| tf.compute_transform().scale.x)
@@ -117,6 +123,20 @@ fn register_pending_particle_effects(
             ec.insert(PendingParticleBurst { armed: true });
         }
     }
+}
+
+fn projected_particle_spawn_y(
+    entity: Entity,
+    comp: &ParticleEmitterComp,
+    global_transforms: &Query<&GlobalTransform>,
+    terrain: Option<&crate::terrain_heightmap::TerrainHeightmap>,
+) -> Option<f32> {
+    if !emitter_uses_project_particle(&comp.emitter) {
+        return None;
+    }
+    let current = global_transforms.get(entity).ok()?.translation();
+    let terrain_y = terrain?.height_at(current.x, current.z)?;
+    Some(terrain_y - current.y)
 }
 
 fn trigger_pending_particle_bursts(
@@ -255,6 +275,10 @@ fn emitter_uses_world_space(em: &M2ParticleEmitter) -> bool {
 
 fn emitter_uses_follow_position(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_FOLLOW_POSITION != 0
+}
+
+fn emitter_uses_project_particle(em: &M2ParticleEmitter) -> bool {
+    em.flags & PARTICLE_FLAG_PROJECT_PARTICLE != 0 && !emitter_uses_world_space(em)
 }
 
 fn emitter_uses_bone_scale(em: &M2ParticleEmitter) -> bool {

@@ -1,4 +1,5 @@
-use bevy::prelude::{Entity, Vec3};
+use bevy::ecs::system::RunSystemOnce;
+use bevy::prelude::{App, Entity, GlobalTransform, Vec3};
 use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 
 use super::visuals::has_authored_size_variation;
@@ -11,13 +12,15 @@ use super::{
     build_expr_modifiers, build_position_modifier, build_size_gradient, emitter_alpha_mode,
     emitter_parent_entity, emitter_scale_source, emitter_simulation_space, emitter_spawn_offset,
     emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
-    emitter_uses_follow_position, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
-    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
-    orient_mode, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+    emitter_uses_follow_position, emitter_uses_project_particle,
+    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
+    has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range, orient_mode,
+    projected_particle_spawn_y, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
 use crate::client_options::GraphicsOptions;
+use crate::terrain_heightmap::TerrainHeightmap;
 use bevy_hanabi::OrientMode;
 
 struct SampleMotionDefaults {
@@ -295,6 +298,62 @@ fn world_space_emitters_use_model_parent_even_with_bone_entity() {
     let bone = Some(Entity::from_bits(22));
 
     assert_eq!(emitter_parent_entity(&emitter, bone, parent), parent);
+}
+
+#[test]
+fn project_particle_is_disabled_for_world_space_emitters() {
+    let mut emitter = sample_emitter();
+    emitter.flags = super::PARTICLE_FLAG_PROJECT_PARTICLE;
+    assert!(emitter_uses_project_particle(&emitter));
+
+    emitter.flags |= PARTICLE_FLAG_WORLD_SPACE;
+    assert!(!emitter_uses_project_particle(&emitter));
+}
+
+#[test]
+fn project_particle_snaps_spawn_height_to_loaded_terrain() {
+    let data =
+        std::fs::read("data/terrain/azeroth_32_48.adt").expect("expected test ADT terrain tile");
+    let adt = crate::asset::adt::load_adt(&data).expect("expected ADT to parse");
+    let mut heightmap = TerrainHeightmap::default();
+    heightmap.insert_tile(32, 48, &adt);
+
+    let [bx, _by, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+    let terrain_y = heightmap
+        .height_at(bx, bz)
+        .expect("expected terrain height at reference point");
+
+    let mut app = App::new();
+    let entity = app
+        .world_mut()
+        .spawn(GlobalTransform::from_translation(Vec3::new(
+            bx,
+            terrain_y - 8.0,
+            bz,
+        )))
+        .id();
+    let mut emitter = sample_emitter();
+    emitter.flags = super::PARTICLE_FLAG_PROJECT_PARTICLE;
+    let comp = super::ParticleEmitterComp {
+        emitter,
+        bone_entity: None,
+        scale_source: entity,
+        spawn_mode: ParticleSpawnMode::Continuous,
+        pending_texture: None,
+    };
+
+    let delta = app
+        .world_mut()
+        .run_system_once(move |query: bevy::prelude::Query<&GlobalTransform>| {
+            projected_particle_spawn_y(entity, &comp, &query, Some(&heightmap))
+                .expect("projected particle should snap to terrain")
+        })
+        .expect("system should run");
+
+    assert!(
+        (delta - 8.0).abs() < 0.01,
+        "delta={delta} terrain_y={terrain_y}"
+    );
 }
 
 #[test]
