@@ -391,62 +391,94 @@ fn spawn_equipment_slot(
     m2_path: &Path,
     skin_fdids: [u32; 3],
 ) -> Option<Entity> {
-    let use_bound_joints = matches!(
+    let use_bound_joints = slot_uses_bound_joints(slot, m2_path);
+    let (parent_entity, base_offset) =
+        resolve_equipment_parent(ctx, slot, m2_path, use_bound_joints)?;
+    validate_equipment_model_path(ctx.warned, slot, m2_path)?;
+
+    let mut transform = ctx.transforms.resolve(slot, m2_path);
+    transform.translation += base_offset;
+    let item_root = spawn_equipment_root(ctx.commands, slot, m2_path, parent_entity, transform);
+    finalize_equipment_slot_spawn(ctx, slot, m2_path, skin_fdids, item_root, use_bound_joints)
+}
+
+fn slot_uses_bound_joints(slot: EquipmentSlot, m2_path: &Path) -> bool {
+    matches!(
         slot,
         EquipmentSlot::Chest | EquipmentSlot::Hands | EquipmentSlot::Legs | EquipmentSlot::Feet
-    ) || (matches!(slot, EquipmentSlot::Head)
-        && is_collection_model(m2_path));
-    let (parent_entity, base_offset) = if use_bound_joints {
-        (
+    ) || (matches!(slot, EquipmentSlot::Head) && is_collection_model(m2_path))
+}
+
+fn resolve_equipment_parent(
+    ctx: &mut EquipmentSpawnContext<'_, '_, '_>,
+    slot: EquipmentSlot,
+    m2_path: &Path,
+    use_bound_joints: bool,
+) -> Option<(Entity, Vec3)> {
+    if use_bound_joints {
+        return Some((
             bound_visual_root(ctx.owner, ctx.joint_entities, ctx.parents),
             Vec3::ZERO,
-        )
-    } else {
-        let att_id = slot_attachment_id(slot);
-        let Some(&(bone_idx, base_offset)) = ctx.attach_points.points.get(&att_id) else {
-            warn_once(
-                ctx.warned,
-                format!(
-                    "missing attachment {att_id} for slot {slot:?} on {:?}",
-                    ctx.owner
-                ),
-            );
-            return None;
-        };
+        ));
+    }
 
-        let Some(&joint) = ctx.joint_entities.get(bone_idx as usize) else {
-            warn_once(
-                ctx.warned,
-                format!(
-                    "missing bone {bone_idx} for slot {slot:?} on {:?}",
-                    ctx.owner
-                ),
-            );
-            return None;
-        };
-        (joint, base_offset)
-    };
-
-    if !m2_path.exists() {
+    let att_id = slot_attachment_id(slot);
+    let Some(&(bone_idx, base_offset)) = ctx.attach_points.points.get(&att_id) else {
         warn_once(
             ctx.warned,
             format!(
-                "equipment model missing for slot {slot:?}: {}",
-                m2_path.display()
+                "missing attachment {att_id} for slot {slot:?} on {:?}",
+                ctx.owner
             ),
         );
         return None;
+    };
+
+    let Some(&joint) = ctx.joint_entities.get(bone_idx as usize) else {
+        warn_once(
+            ctx.warned,
+            format!(
+                "missing bone {bone_idx} for slot {slot:?} on {:?}",
+                ctx.owner
+            ),
+        );
+        return None;
+    };
+    let _ = m2_path;
+    Some((joint, base_offset))
+}
+
+fn validate_equipment_model_path(
+    warned: &mut HashSet<String>,
+    slot: EquipmentSlot,
+    m2_path: &Path,
+) -> Option<()> {
+    if m2_path.exists() {
+        return Some(());
     }
 
+    warn_once(
+        warned,
+        format!(
+            "equipment model missing for slot {slot:?}: {}",
+            m2_path.display()
+        ),
+    );
+    None
+}
+
+fn spawn_equipment_root(
+    commands: &mut Commands,
+    slot: EquipmentSlot,
+    m2_path: &Path,
+    parent_entity: Entity,
+    transform: Transform,
+) -> Entity {
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("item");
-    let mut transform = ctx.transforms.resolve(slot, m2_path);
-    transform.translation += base_offset;
-
-    let item_root = ctx
-        .commands
+    commands
         .spawn((
             Name::new(format!("equip_{name}")),
             EquipmentItem { _slot: slot },
@@ -454,10 +486,44 @@ fn spawn_equipment_slot(
             Visibility::default(),
             ChildOf(parent_entity),
         ))
-        .id();
+        .id()
+}
 
-    let spawned = if use_bound_joints {
-        m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
+fn finalize_equipment_slot_spawn(
+    ctx: &mut EquipmentSpawnContext<'_, '_, '_>,
+    slot: EquipmentSlot,
+    m2_path: &Path,
+    skin_fdids: [u32; 3],
+    item_root: Entity,
+    use_bound_joints: bool,
+) -> Option<Entity> {
+    let spawned =
+        spawn_equipment_model(ctx, slot, m2_path, skin_fdids, item_root, use_bound_joints);
+    if spawned {
+        return Some(item_root);
+    }
+
+    ctx.commands.entity(item_root).despawn();
+    warn_once(
+        ctx.warned,
+        format!(
+            "failed loading equipment model for slot {slot:?}: {}",
+            m2_path.display()
+        ),
+    );
+    None
+}
+
+fn spawn_equipment_model(
+    ctx: &mut EquipmentSpawnContext<'_, '_, '_>,
+    slot: EquipmentSlot,
+    m2_path: &Path,
+    skin_fdids: [u32; 3],
+    item_root: Entity,
+    use_bound_joints: bool,
+) -> bool {
+    if use_bound_joints {
+        return m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
             ctx.commands,
             &mut ctx.assets,
             m2_path,
@@ -466,31 +532,17 @@ fn spawn_equipment_slot(
             |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
             ctx.joint_entities,
             ctx.names,
-        )
-    } else {
-        m2_spawn::spawn_m2_on_entity_filtered(
-            ctx.commands,
-            &mut ctx.assets,
-            m2_path,
-            item_root,
-            &skin_fdids,
-            |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
-        )
-    };
-
-    if !spawned {
-        ctx.commands.entity(item_root).despawn();
-        warn_once(
-            ctx.warned,
-            format!(
-                "failed loading equipment model for slot {slot:?}: {}",
-                m2_path.display()
-            ),
         );
-        return None;
     }
 
-    Some(item_root)
+    m2_spawn::spawn_m2_on_entity_filtered(
+        ctx.commands,
+        &mut ctx.assets,
+        m2_path,
+        item_root,
+        &skin_fdids,
+        |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
+    )
 }
 
 fn bound_visual_root(
