@@ -79,7 +79,6 @@ mod selection_debug_screen;
 mod sky;
 mod sky_lightdata;
 mod sky_material;
-mod skybox_debug_scene;
 mod skybox_m2_material;
 mod sound;
 mod sound_footsteps;
@@ -238,7 +237,7 @@ struct ParsedArgs {
 
 fn parse_skybox_debug_override(
     args: &[String],
-) -> Result<Option<skybox_debug_scene::SkyboxDebugOverride>, String> {
+) -> Result<Option<scenes::skybox_debug::SkyboxDebugOverride>, String> {
     let skybox_fdid = parse_u32_flag(args, "--skybox-fdid")?;
     let light_skybox_id = parse_u32_flag(args, "--light-skybox-id")?;
     match (skybox_fdid, light_skybox_id) {
@@ -247,10 +246,10 @@ fn parse_skybox_debug_override(
                 .to_string(),
         ),
         (Some(fdid), None) => Ok(Some(
-            skybox_debug_scene::SkyboxDebugOverride::SkyboxFileDataId(fdid),
+            scenes::skybox_debug::SkyboxDebugOverride::SkyboxFileDataId(fdid),
         )),
         (None, Some(id)) => Ok(Some(
-            skybox_debug_scene::SkyboxDebugOverride::LightSkyboxId(id),
+            scenes::skybox_debug::SkyboxDebugOverride::LightSkyboxId(id),
         )),
         (None, None) => Ok(None),
     }
@@ -650,7 +649,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
             app.add_plugins(geoset_debug_scene::DebugCharacterScenePlugin);
         }
         Some(game_state::GameState::SkyboxDebug) => {
-            app.add_plugins(skybox_debug_scene::SkyboxDebugScenePlugin);
+            app.add_plugins(scenes::skybox_debug::SkyboxDebugScenePlugin);
         }
         Some(game_state::GameState::ParticleDebug) => {
             app.add_plugins(scenes::particle_debug::ParticleDebugScenePlugin);

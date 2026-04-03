@@ -123,7 +123,7 @@ fn parse_skybox_debug_override_accepts_skybox_fdid() {
         .expect("expected valid parse");
     assert_eq!(
         parsed,
-        Some(crate::skybox_debug_scene::SkyboxDebugOverride::SkyboxFileDataId(5_412_968))
+        Some(crate::scenes::skybox_debug::SkyboxDebugOverride::SkyboxFileDataId(5_412_968))
     );
 }
 
@@ -133,7 +133,7 @@ fn parse_skybox_debug_override_accepts_light_skybox_id() {
         .expect("expected valid parse");
     assert_eq!(
         parsed,
-        Some(crate::skybox_debug_scene::SkyboxDebugOverride::LightSkyboxId(653))
+        Some(crate::scenes::skybox_debug::SkyboxDebugOverride::LightSkyboxId(653))
     );
 }
 

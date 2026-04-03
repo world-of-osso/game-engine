@@ -21,6 +21,7 @@ pub mod outfit_data;
 pub mod paths;
 pub mod scene_tree;
 pub mod screenshot;
+#[path = "scenes/skybox_debug/validation.rs"]
 pub mod skybox_validation;
 pub mod sound_music_zone_cache;
 pub mod status;
