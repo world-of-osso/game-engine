@@ -70,9 +70,13 @@ mod particle;
 mod process_limits;
 mod scenes;
 mod screen_auto_login;
+#[path = "rendering/skybox/mod.rs"]
 mod sky;
+#[path = "rendering/skybox/sky_lightdata.rs"]
 mod sky_lightdata;
+#[path = "rendering/skybox/sky_material.rs"]
 mod sky_material;
+#[path = "rendering/skybox/skybox_m2_material.rs"]
 mod skybox_m2_material;
 mod sound;
 mod sound_footsteps;
