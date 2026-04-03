@@ -8,8 +8,8 @@ use crate::scenes::char_select::SelectedCharIndex;
 use crate::scenes::char_select::scene_tree::{
     self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain,
 };
+use crate::scenes::warband::{SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
 use crate::terrain_heightmap::TerrainHeightmap;
-use crate::warband_scene::{self, SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
 
 use super::{
     CharSelectModelRoot, CharSelectOrbit, CharSelectRenderAssets, CharSelectScene,
@@ -97,7 +97,8 @@ pub(super) fn sync_warband_scene_switch(
         &mut camera_query,
     );
     active_scene.0 = Some(sel.scene_id);
-    let has_supplemental = !warband_scene::supplemental_terrain_tile_coords(scene).is_empty();
+    let has_supplemental =
+        !crate::scenes::warband::supplemental_terrain_tile_coords(scene).is_empty();
     update_pending_scene(&mut pending_supplemental, sel.scene_id, has_supplemental);
 }
 

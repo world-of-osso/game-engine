@@ -5,11 +5,11 @@ use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
 use crate::char_select_scene::CharSelectScene;
 use crate::m2_effect_material::M2EffectMaterial;
+use crate::scenes::warband;
 use crate::terrain;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::terrain_objects;
-use crate::warband_scene;
 use crate::water_material::WaterMaterial;
 
 /// Marker for terrain entities in char-select (for selective teardown on scene switch).
@@ -41,10 +41,10 @@ pub fn spawn_warband_terrain(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
-    scene: &warband_scene::WarbandSceneEntry,
+    scene: &warband::WarbandSceneEntry,
     focus: Vec3,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let Some(adt_path) = warband_scene::ensure_warband_terrain(scene) else {
+    let Some(adt_path) = warband::ensure_warband_terrain(scene) else {
         return None;
     };
     let root_entity = commands
@@ -117,11 +117,11 @@ pub fn spawn_warband_supplemental_terrain(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
-    scene: &warband_scene::WarbandSceneEntry,
+    scene: &warband::WarbandSceneEntry,
     root_entity: Entity,
 ) -> usize {
     let mut doodad_count = 0;
-    for (tile_y, tile_x) in warband_scene::supplemental_terrain_tile_coords(scene) {
+    for (tile_y, tile_x) in warband::supplemental_terrain_tile_coords(scene) {
         let adt_path = std::path::PathBuf::from(format!(
             "data/terrain/{}_{}_{}.adt",
             scene.map_name(),

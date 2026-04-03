@@ -94,7 +94,6 @@ mod terrain_objects;
 mod terrain_tile;
 mod trash_button_screen;
 mod unit_frames;
-mod warband_scene;
 mod water_material;
 mod wow_cursor;
 mod zone_names;
@@ -447,9 +446,9 @@ fn insert_data_resources(app: &mut App) {
     app.insert_resource(game_engine::outfit_data::OutfitData::load(Path::new(
         "data",
     )));
-    let warband = warband_scene::WarbandScenes::load();
+    let warband = scenes::warband::WarbandScenes::load();
     if let Some(first) = warband.scenes.first() {
-        app.insert_resource(warband_scene::SelectedWarbandScene { scene_id: first.id });
+        app.insert_resource(scenes::warband::SelectedWarbandScene { scene_id: first.id });
     }
     app.insert_resource(warband);
 }

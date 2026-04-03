@@ -7,3 +7,4 @@ pub mod login;
 pub mod particle_debug;
 pub mod selection_debug;
 pub mod skybox_debug;
+pub mod warband;

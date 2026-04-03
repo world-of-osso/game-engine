@@ -8,10 +8,10 @@ use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::scenes::char_select::scene_tree::{self as scene_tree, ActiveWarbandSceneId};
+use crate::scenes::warband::{SelectedWarbandScene, WarbandScenes};
 use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
-use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
 use crate::water_material::WaterMaterial;
 
 use super::{CharSelectScene, CharSelectSkybox};
@@ -54,7 +54,7 @@ fn spawn_tagged_ground(
 pub fn find_scene_entry<'a>(
     warband: &'a Option<Res<WarbandScenes>>,
     selected: &Option<Res<SelectedWarbandScene>>,
-) -> Option<&'a crate::warband_scene::WarbandSceneEntry> {
+) -> Option<&'a crate::scenes::warband::WarbandSceneEntry> {
     warband
         .as_ref()
         .zip(selected.as_ref())
@@ -72,7 +72,7 @@ pub fn spawn(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: &mut TerrainHeightmap,
-    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
     focus: Option<Vec3>,
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
@@ -119,10 +119,10 @@ pub fn spawn_skybox(
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     creature_display_map: &crate::creature_display::CreatureDisplayMap,
-    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
+    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
     camera_translation: Vec3,
 ) -> Option<Entity> {
-    let m2_path = crate::warband_scene::ensure_warband_skybox(scene?)?;
+    let m2_path = crate::scenes::warband::ensure_warband_skybox(scene?)?;
     let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
         commands,
         meshes,

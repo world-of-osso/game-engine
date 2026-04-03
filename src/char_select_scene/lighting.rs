@@ -13,8 +13,8 @@ const CAMPFIRE_LIGHT_RADIUS: f32 = 0.55;
 
 pub fn spawn(
     commands: &mut Commands,
-    scene: Option<&crate::warband_scene::WarbandSceneEntry>,
-    placement: Option<&crate::warband_scene::WarbandScenePlacement>,
+    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
+    placement: Option<&crate::scenes::warband::WarbandScenePlacement>,
     presentation: ModelPresentation,
 ) -> Entity {
     commands.insert_resource(GlobalAmbientLight {

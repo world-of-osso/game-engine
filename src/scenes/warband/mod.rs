@@ -8,7 +8,7 @@ use crate::asset::asset_cache;
 use crate::asset::m2::wow_to_bevy;
 use crate::terrain_tile::TILE_SIZE;
 
-#[path = "warband_scene_cache.rs"]
+#[path = "cache.rs"]
 mod cache;
 
 /// A single warband scene entry (parsed from WarbandScene.csv).

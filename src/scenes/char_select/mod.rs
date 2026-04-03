@@ -316,7 +316,7 @@ fn compute_status_text(chars: &[CharacterListEntry], selected: Option<usize>) ->
 }
 
 pub(crate) fn build_campsite_state(panel_visible: bool) -> CampsiteState {
-    let warband = crate::warband_scene::WarbandScenes::load();
+    let warband = crate::scenes::warband::WarbandScenes::load();
     let selected_id = warband.scenes.first().map(|s| s.id);
     CampsiteState {
         scenes: warband

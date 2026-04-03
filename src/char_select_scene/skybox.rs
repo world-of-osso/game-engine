@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::char_select_scene::background;
 use crate::char_select_scene::{CharSelectOrbit, CharSelectRenderAssets, CharSelectSkybox};
 use crate::creature_display;
-use crate::warband_scene::{SelectedWarbandScene, WarbandScenes};
+use crate::scenes::warband::{SelectedWarbandScene, WarbandScenes};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn sync_char_select_skybox(
@@ -19,7 +19,7 @@ pub(super) fn sync_char_select_skybox(
         return;
     };
     let scene = background::find_scene_entry(&warband, &selected_scene);
-    let desired_path = scene.and_then(crate::warband_scene::ensure_warband_skybox);
+    let desired_path = scene.and_then(crate::scenes::warband::ensure_warband_skybox);
     let current = skybox_query
         .iter()
         .next()

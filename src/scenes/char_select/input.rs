@@ -169,7 +169,7 @@ pub(crate) fn dispatch_char_select_action(
     mut del_senders: Query<&mut MessageSender<DeleteCharacter>>,
     char_list: Res<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut selected_scene: Option<ResMut<crate::warband_scene::SelectedWarbandScene>>,
+    mut selected_scene: Option<ResMut<crate::scenes::warband::SelectedWarbandScene>>,
     mut ui: ResMut<UiState>,
     mut _commands: Commands,
 ) {

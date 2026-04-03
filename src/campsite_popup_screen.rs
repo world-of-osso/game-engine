@@ -53,7 +53,7 @@ fn build_campsite_popup_ui(
 }
 
 fn build_campsite_popup_state() -> CampsiteState {
-    let warband = crate::warband_scene::WarbandScenes::load();
+    let warband = crate::scenes::warband::WarbandScenes::load();
     let selected_id = warband.scenes.first().map(|scene| scene.id);
     CampsiteState {
         scenes: warband

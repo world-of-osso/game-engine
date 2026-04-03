@@ -5,7 +5,9 @@ use std::time::UNIX_EPOCH;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
 
-use crate::warband_scene::{WarbandSceneEntry, WarbandScenePlacement, WarbandScenePlacementOption};
+use crate::scenes::warband::{
+    WarbandSceneEntry, WarbandScenePlacement, WarbandScenePlacementOption,
+};
 
 const WARBAND_SCENE_CACHE_PATH: &str = "cache/warband_scene.sqlite";
 const CACHE_SCHEMA_VERSION: i64 = 1;
