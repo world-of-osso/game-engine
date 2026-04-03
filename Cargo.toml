@@ -66,6 +66,13 @@ casc-tools = [
   "dep:cascette-formats",
 ]
 
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "parser_benches"
+harness = false
+
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
 
