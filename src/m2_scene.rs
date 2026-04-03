@@ -7,8 +7,11 @@ use crate::animation::{
     BonePivot, M2_BONE_SPHERICAL_BILLBOARD, M2AnimData, M2AnimPlayer, SphericalBillboard,
 };
 use crate::asset;
-use crate::asset::m2_anim::{BoneAnimTracks, M2AnimSequence, M2Bone};
-use crate::asset::m2_particle::M2ParticleEmitter;
+use crate::asset::{
+    m2_anim::{BoneAnimTracks, M2AnimSequence, M2Bone},
+    m2_attach,
+    m2_particle::M2ParticleEmitter,
+};
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::creature_display;
 use crate::equipment;
@@ -29,7 +32,7 @@ pub use self::static_spawn::{
 pub fn attach_equipment_to_model(
     commands: &mut Commands,
     model_entity: Entity,
-    attachments: &[asset::m2_attach::M2Attachment],
+    attachments: &[m2_attach::M2Attachment],
     attachment_lookup: &[i16],
     default_main_hand_torch: bool,
 ) {
@@ -57,7 +60,7 @@ fn spawn_anim_and_particles(
     sequences: Vec<M2AnimSequence>,
     bone_tracks: Vec<BoneAnimTracks>,
     particle_emitters: Vec<M2ParticleEmitter>,
-    attachments: Vec<asset::m2_attach::M2Attachment>,
+    attachments: Vec<m2_attach::M2Attachment>,
     attachment_lookup: Vec<i16>,
     skinning: &m2_spawn::SkinningResult,
     model_entity: Entity,

@@ -13,8 +13,7 @@ use bevy_hanabi::prelude::*;
 
 use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
-use crate::asset::m2_anim::M2Bone;
-use crate::asset::m2_particle::M2ParticleEmitter;
+use crate::asset::{m2_anim::M2Bone, m2_particle::M2ParticleEmitter};
 use visuals::{
     TwinkleSizeModifier, build_color_gradient, build_size_gradient, has_authored_twinkle,
 };

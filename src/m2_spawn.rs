@@ -7,6 +7,7 @@ use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::prelude::*;
 
 use crate::asset;
+use crate::asset::{m2_anim, m2_bone_names, m2_light};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::skybox_m2_material::SkyboxM2Material;
 
@@ -163,12 +164,12 @@ pub type SkinningResult = Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entit
 /// Runtime data linking a spawned point light to its M2 light definition and animation owner.
 #[derive(Component)]
 pub struct RuntimeM2PointLight {
-    pub light: asset::m2_light::M2Light,
+    pub light: m2_light::M2Light,
     pub anim_owner: Entity,
 }
 
 fn point_light_parent(
-    light: &asset::m2_light::M2Light,
+    light: &m2_light::M2Light,
     skinning: &SkinningResult,
     root: Entity,
 ) -> Entity {
@@ -181,7 +182,7 @@ fn point_light_parent(
         .unwrap_or(root)
 }
 
-fn authored_point_light(authored: &asset::m2_light::EvaluatedLight) -> PointLight {
+fn authored_point_light(authored: &m2_light::EvaluatedLight) -> PointLight {
     PointLight {
         color: Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]),
         intensity: authored.intensity,
@@ -194,19 +195,19 @@ fn authored_point_light(authored: &asset::m2_light::EvaluatedLight) -> PointLigh
 
 pub fn spawn_model_point_lights(
     commands: &mut Commands,
-    lights: &[asset::m2_light::M2Light],
+    lights: &[m2_light::M2Light],
     skinning: &SkinningResult,
     root: Entity,
     anim_owner: Entity,
 ) {
     for (index, light) in lights
         .iter()
-        .filter(|l| l.light_type == asset::m2_light::M2_LIGHT_TYPE_POINT)
+        .filter(|l| l.light_type == m2_light::M2_LIGHT_TYPE_POINT)
         .enumerate()
     {
         let parent = point_light_parent(light, skinning, root);
         let pos = asset::m2::wow_to_bevy(light.position[0], light.position[1], light.position[2]);
-        let authored = asset::m2_light::evaluate_light(light, 0, 0);
+        let authored = m2_light::evaluate_light(light, 0, 0);
         let vis = if authored.visible {
             Visibility::Inherited
         } else {
@@ -239,7 +240,7 @@ pub fn attach_m2_batches(
     commands: &mut Commands,
     assets: &mut SpawnAssets<'_>,
     batches: Vec<asset::m2::M2RenderBatch>,
-    bones: &[asset::m2_anim::M2Bone],
+    bones: &[m2_anim::M2Bone],
     root: Entity,
     force_skybox_material: bool,
     skybox_color: Option<Color>,
@@ -263,7 +264,7 @@ pub fn attach_m2_batches(
 fn bind_existing_skeleton(
     commands: &mut Commands,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    bones: &[asset::m2_anim::M2Bone],
+    bones: &[m2_anim::M2Bone],
     model_entity: Entity,
     target_joints: &[Entity],
     names: &Query<&Name>,
@@ -282,7 +283,7 @@ fn bind_existing_skeleton(
         .collect::<std::collections::HashMap<_, _>>();
     let mut mapped_joints = Vec::with_capacity(bones.len());
     for (i, bone) in bones.iter().enumerate() {
-        let bone_name = asset::m2_bone_names::bone_display_name(bone.key_bone_id, i);
+        let bone_name = m2_bone_names::bone_display_name(bone.key_bone_id, i);
         if let Some(entity) = named_targets.get(&bone_name) {
             mapped_joints.push(*entity);
             continue;
@@ -526,7 +527,7 @@ fn spawn_skinned_mesh_skybox(
 fn spawn_skeleton(
     commands: &mut Commands,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    bones: &[asset::m2_anim::M2Bone],
+    bones: &[m2_anim::M2Bone],
     model_entity: Entity,
 ) -> Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)> {
     if bones.is_empty() {
@@ -540,7 +541,7 @@ fn spawn_skeleton(
                 .spawn((
                     Transform::IDENTITY,
                     Visibility::default(),
-                    Name::new(asset::m2_bone_names::bone_display_name(bone.key_bone_id, i)),
+                    Name::new(m2_bone_names::bone_display_name(bone.key_bone_id, i)),
                 ))
                 .id()
         })
@@ -561,7 +562,7 @@ fn spawn_skeleton(
     Some((inv_bp, joint_entities))
 }
 
-fn build_inverse_bind_poses(bones: &[asset::m2_anim::M2Bone]) -> Vec<Mat4> {
+fn build_inverse_bind_poses(bones: &[m2_anim::M2Bone]) -> Vec<Mat4> {
     bones
         .iter()
         .map(|bone| {
