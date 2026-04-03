@@ -86,57 +86,57 @@ pub fn queue_ipc_request(
     request: &Request,
     respond: mpsc::Sender<Response>,
 ) -> bool {
+    if handle_auction_status_request(state, request, &respond) {
+        return true;
+    }
+    let Some((action, kind)) = auction_ipc_action(request) else {
+        return false;
+    };
+    enqueue_auction_request(state, action, kind, respond)
+}
+
+fn handle_auction_status_request(
+    state: &AuctionHouseState,
+    request: &Request,
+    respond: &mpsc::Sender<Response>,
+) -> bool {
     match request {
         Request::AuctionStatus => {
             let _ = respond.send(Response::Text(format_status(state)));
             true
         }
-        Request::AuctionOpen => push(state, Action::Open, ReplyKind::Open, respond),
-        Request::AuctionBrowse { query } => push(
-            state,
-            Action::Browse(query.clone()),
-            ReplyKind::Browse,
-            respond,
-        ),
-        Request::AuctionOwned => push(state, Action::Owned, ReplyKind::Owned, respond),
-        Request::AuctionBids => push(state, Action::Bids, ReplyKind::Bids, respond),
-        Request::AuctionInventory => push(state, Action::Inventory, ReplyKind::Inventory, respond),
-        Request::AuctionMailbox => push(state, Action::Mailbox, ReplyKind::Mailbox, respond),
-        Request::AuctionCreate { create } => push(
-            state,
-            Action::Create(create.clone()),
-            ReplyKind::Operation,
-            respond,
-        ),
-        Request::AuctionBid { bid } => push(
-            state,
-            Action::Bid(bid.clone()),
-            ReplyKind::Operation,
-            respond,
-        ),
-        Request::AuctionBuyout { buyout } => push(
-            state,
-            Action::Buyout(buyout.clone()),
-            ReplyKind::Operation,
-            respond,
-        ),
-        Request::AuctionCancel { cancel } => push(
-            state,
-            Action::Cancel(cancel.clone()),
-            ReplyKind::Operation,
-            respond,
-        ),
-        Request::AuctionClaimMail { claim } => push(
-            state,
-            Action::Claim(claim.clone()),
-            ReplyKind::Operation,
-            respond,
-        ),
         _ => false,
     }
 }
 
-fn push(
+fn auction_ipc_action(request: &Request) -> Option<(Action, ReplyKind)> {
+    match request {
+        Request::AuctionOpen => Some((Action::Open, ReplyKind::Open)),
+        Request::AuctionBrowse { query } => {
+            Some((Action::Browse(query.clone()), ReplyKind::Browse))
+        }
+        Request::AuctionOwned => Some((Action::Owned, ReplyKind::Owned)),
+        Request::AuctionBids => Some((Action::Bids, ReplyKind::Bids)),
+        Request::AuctionInventory => Some((Action::Inventory, ReplyKind::Inventory)),
+        Request::AuctionMailbox => Some((Action::Mailbox, ReplyKind::Mailbox)),
+        Request::AuctionCreate { create } => {
+            Some((Action::Create(create.clone()), ReplyKind::Operation))
+        }
+        Request::AuctionBid { bid } => Some((Action::Bid(bid.clone()), ReplyKind::Operation)),
+        Request::AuctionBuyout { buyout } => {
+            Some((Action::Buyout(buyout.clone()), ReplyKind::Operation))
+        }
+        Request::AuctionCancel { cancel } => {
+            Some((Action::Cancel(cancel.clone()), ReplyKind::Operation))
+        }
+        Request::AuctionClaimMail { claim } => {
+            Some((Action::Claim(claim.clone()), ReplyKind::Operation))
+        }
+        _ => None,
+    }
+}
+
+fn enqueue_auction_request(
     state: &mut AuctionHouseState,
     action: Action,
     kind: ReplyKind,
