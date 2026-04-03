@@ -477,6 +477,20 @@ fn dispatch_login_action(
             params.server_hostname,
             commands,
         ),
+        other => handle_local_login_action(ui, login, focus, params, commands, exit, other),
+    }
+}
+
+fn handle_local_login_action(
+    ui: &mut UiState,
+    login: &LoginUi,
+    focus: &mut LoginFocus,
+    params: &mut ConnectParams<'_>,
+    commands: &mut Commands,
+    exit: Option<&mut MessageWriter<AppExit>>,
+    action: Option<LoginAction>,
+) {
+    match action {
         Some(LoginAction::CreateAccount) => {
             toggle_login_mode(params.login_mode, &mut ui.registry, login);
             params.status.0.clear();
@@ -493,6 +507,7 @@ fn dispatch_login_action(
                 exit.write(AppExit::Success);
             }
         }
+        Some(LoginAction::Connect | LoginAction::Reconnect) => unreachable!(),
         None => {
             focus.0 = None;
         }
