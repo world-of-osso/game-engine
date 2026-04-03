@@ -245,6 +245,34 @@ fn parses_tail_length_from_272_suffix() {
 }
 
 #[test]
+fn parses_z_source_track_from_272_suffix() {
+    let mut md20 = vec![0u8; 0x1ec];
+    let mut emitter = vec![0u8; 0x1ec];
+    let z_source_offset = 0x40usize;
+    md20[z_source_offset..z_source_offset + 4].copy_from_slice(&(1.25_f32).to_le_bytes());
+    emitter[EMITTER_Z_SOURCE_OFFSET + 12..EMITTER_Z_SOURCE_OFFSET + 16]
+        .copy_from_slice(&(1u32).to_le_bytes());
+    emitter[EMITTER_Z_SOURCE_OFFSET + 16..EMITTER_Z_SOURCE_OFFSET + 20]
+        .copy_from_slice(&(z_source_offset as u32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    fill_track_values(&mut parsed, &md20, &emitter);
+
+    assert!((parsed.z_source - 1.25).abs() < 0.0001);
+}
+
+#[test]
+fn parses_drag_from_272_suffix_float_slot() {
+    let mut md20 = vec![0u8; 0x1ec];
+    md20[EMITTER_DRAG_OFFSET..EMITTER_DRAG_OFFSET + 4].copy_from_slice(&(0.35_f32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&md20).unwrap();
+    fill_track_values(&mut parsed, &md20, &md20);
+
+    assert!((parsed.drag - 0.35).abs() < 0.0001);
+}
+
+#[test]
 fn parses_size_variation_fields_from_272_suffix() {
     let mut md20 = vec![0u8; 0x1ec];
     md20[EMITTER_SCALE_VARIATION_OFFSET..EMITTER_SCALE_VARIATION_OFFSET + 4]

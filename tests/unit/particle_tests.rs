@@ -1,5 +1,5 @@
 use bevy::prelude::{Entity, Vec3};
-use bevy_hanabi::{AlphaMode, ExprWriter};
+use bevy_hanabi::{AlphaMode, Attribute, ExprWriter};
 
 use super::visuals::has_authored_size_variation;
 use super::{
@@ -27,6 +27,7 @@ struct SampleMotionDefaults {
     emission_rate: f32,
     area_length: f32,
     area_width: f32,
+    z_source: f32,
     tail_length: f32,
     drag: f32,
     base_spin: f32,
@@ -67,6 +68,7 @@ fn sample_motion_defaults() -> SampleMotionDefaults {
         emission_rate: 20.0,
         area_length: 0.1,
         area_width: 0.1,
+        z_source: 0.0,
         tail_length: 1.0,
         drag: 0.0,
         base_spin: 0.0,
@@ -124,6 +126,7 @@ fn apply_sample_motion_defaults(emitter: &mut M2ParticleEmitter, motion: SampleM
     emitter.emission_rate = motion.emission_rate;
     emitter.area_length = motion.area_length;
     emitter.area_width = motion.area_width;
+    emitter.z_source = motion.z_source;
     emitter.tail_length = motion.tail_length;
     emitter.drag = motion.drag;
     emitter.base_spin = motion.base_spin;
@@ -220,6 +223,19 @@ fn plane_emitters_use_attribute_position_modifier() {
     let position = build_position_modifier(&emitter, &writer, 1.0);
 
     assert!(matches!(position, PositionInitModifier::Attribute(_)));
+}
+
+#[test]
+fn z_source_emitters_still_use_position_attribute_spawn() {
+    let mut emitter = sample_emitter();
+    emitter.z_source = 2.5;
+    let writer = ExprWriter::new();
+
+    let position = build_position_modifier(&emitter, &writer, 1.0);
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(matches!(position, PositionInitModifier::Attribute(_)));
+    assert!(modifiers.init.vel.attribute == Attribute::VELOCITY);
 }
 
 #[test]

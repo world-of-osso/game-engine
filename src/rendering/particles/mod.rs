@@ -681,6 +681,9 @@ fn build_velocity_modifier(
     model_scale: f32,
 ) -> SetAttributeModifier {
     let speed = build_speed_expr(em, writer) * writer.lit(model_scale);
+    if em.z_source > 0.0 {
+        return build_z_source_velocity_modifier(em, writer, speed);
+    }
     // Cone: yaw random over horizontal_range, pitch = random within vertical_range
     let yaw = writer.rand(ScalarType::Float) * writer.lit(em.horizontal_range);
     let pitch = writer.rand(ScalarType::Float) * writer.lit(em.vertical_range);
@@ -690,6 +693,17 @@ fn build_velocity_modifier(
     let vy = cos_p * speed.clone();
     let vz = sin_p * yaw.sin() * speed;
     SetAttributeModifier::new(Attribute::VELOCITY, vx.vec3(vy, vz).expr())
+}
+
+fn build_z_source_velocity_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    speed: WriterExpr,
+) -> SetAttributeModifier {
+    let pos = writer.attr(Attribute::POSITION);
+    let source = writer.lit(Vec3::new(0.0, 0.0, em.z_source));
+    let direction = (pos - source).normalized();
+    SetAttributeModifier::new(Attribute::VELOCITY, (direction * speed).expr())
 }
 
 fn build_speed_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> WriterExpr {
