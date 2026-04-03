@@ -204,6 +204,13 @@ fn sound_items(sound: &SoundOptionsView) -> Element {
             0.0,
             1.0,
         ),
+        slider_row(
+            "effects_volume",
+            "Effects Volume",
+            sound.effects_volume,
+            0.0,
+            1.0,
+        ),
     ]
     .into_iter()
     .flatten()

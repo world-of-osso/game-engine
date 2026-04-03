@@ -40,6 +40,7 @@ impl Plugin for SoundPlugin {
 pub struct SoundSettings {
     pub master_volume: f32,
     pub ambient_volume: f32,
+    pub effects_volume: f32,
     pub music_volume: f32,
     pub music_enabled: bool,
     pub muted: bool,
@@ -50,6 +51,7 @@ impl Default for SoundSettings {
         Self {
             master_volume: 1.0,
             ambient_volume: 0.3,
+            effects_volume: 0.8,
             music_volume: 0.45,
             music_enabled: true,
             muted: false,
@@ -303,7 +305,7 @@ fn play_footstep(
             FootstepMovement::Run => sound_assets.footstep_heavy.clone(),
             _ => sound_assets.footstep_light.clone(),
         });
-    let volume = settings.master_volume * footstep_volume_scale(request.movement);
+    let volume = compute_effects_volume(settings) * footstep_volume_scale(request.movement);
     commands.spawn((
         AudioPlayer::<AudioSource>::new(handle),
         PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
@@ -563,6 +565,7 @@ mod tests {
         let s = SoundSettings::default();
         assert!(!s.muted);
         assert_eq!(s.master_volume, 1.0);
+        assert_eq!(s.effects_volume, 0.8);
     }
 
     #[test]
@@ -600,6 +603,25 @@ mod tests {
     }
 
     #[test]
+    fn effects_volume_uses_master_and_effects_slider() {
+        let s = SoundSettings {
+            master_volume: 0.5,
+            effects_volume: 0.4,
+            ..Default::default()
+        };
+        assert!((compute_effects_volume(&s) - 0.2).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn effects_volume_muted() {
+        let s = SoundSettings {
+            muted: true,
+            ..Default::default()
+        };
+        assert_eq!(compute_effects_volume(&s), 0.0);
+    }
+
+    #[test]
     fn movement_anim_detection() {
         assert!(is_movement_anim(4)); // walk
         assert!(is_movement_anim(5)); // run
@@ -615,5 +637,12 @@ mod tests {
         let tracker = FootstepTracker::default();
         assert_eq!(tracker.last_half, 0);
         assert_eq!(tracker.last_seq_idx, 0);
+    }
+}
+fn compute_effects_volume(settings: &SoundSettings) -> f32 {
+    if settings.muted {
+        0.0
+    } else {
+        settings.effects_volume * settings.master_volume
     }
 }

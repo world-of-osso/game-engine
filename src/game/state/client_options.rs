@@ -197,6 +197,7 @@ impl Default for ClientOptionsFile {
 struct SoundOptionsFile {
     master_volume: f32,
     ambient_volume: f32,
+    effects_volume: f32,
     music_volume: f32,
     music_enabled: bool,
     muted: bool,
@@ -213,6 +214,7 @@ impl SoundOptionsFile {
         Self {
             master_volume: settings.master_volume,
             ambient_volume: settings.ambient_volume,
+            effects_volume: settings.effects_volume,
             music_volume: settings.music_volume,
             music_enabled: settings.music_enabled,
             muted: settings.muted,
@@ -223,6 +225,7 @@ impl SoundOptionsFile {
         SoundSettings {
             master_volume: self.master_volume,
             ambient_volume: self.ambient_volume,
+            effects_volume: self.effects_volume,
             music_volume: self.music_volume,
             music_enabled: self.music_enabled,
             muted: self.muted,

@@ -142,6 +142,7 @@ pub struct SoundOptionsView {
     pub master_volume: f32,
     pub music_volume: f32,
     pub ambient_volume: f32,
+    pub effects_volume: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

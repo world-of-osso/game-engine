@@ -342,6 +342,7 @@ fn snapshot_sound_settings(snapshot: &ApplySnapshot) -> SoundSettings {
     SoundSettings {
         master_volume: snapshot.sound.master_volume,
         ambient_volume: snapshot.sound.ambient_volume,
+        effects_volume: snapshot.sound.effects_volume,
         music_volume: snapshot.sound.music_volume,
         music_enabled: snapshot.sound.music_enabled,
         muted: snapshot.sound.muted,

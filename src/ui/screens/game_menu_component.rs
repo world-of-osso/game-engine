@@ -233,6 +233,7 @@ mod tests {
             master_volume: 0.8,
             music_volume: 0.4,
             ambient_volume: 0.3,
+            effects_volume: 0.8,
         }
     }
 

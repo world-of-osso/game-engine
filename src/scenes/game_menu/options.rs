@@ -26,6 +26,7 @@ pub enum SliderField {
     MasterVolume,
     MusicVolume,
     AmbientVolume,
+    EffectsVolume,
     LookSensitivity,
     ZoomSpeed,
     FollowSpeed,
@@ -65,6 +66,7 @@ pub struct SoundDraft {
     pub master_volume: f32,
     pub music_volume: f32,
     pub ambient_volume: f32,
+    pub effects_volume: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +122,7 @@ pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
             master_volume: sound.master_volume,
             music_volume: sound.music_volume,
             ambient_volume: sound.ambient_volume,
+            effects_volume: sound.effects_volume,
         }
     } else {
         let defaults = SoundSettings::default();
@@ -129,6 +132,7 @@ pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
             master_volume: defaults.master_volume,
             music_volume: defaults.music_volume,
             ambient_volume: defaults.ambient_volume,
+            effects_volume: defaults.effects_volume,
         }
     }
 }
@@ -200,6 +204,7 @@ fn sound_view(draft: &SoundDraft) -> SoundOptionsView {
         master_volume: draft.master_volume,
         music_volume: draft.music_volume,
         ambient_volume: draft.ambient_volume,
+        effects_volume: draft.effects_volume,
     }
 }
 
@@ -258,6 +263,7 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
         "master_volume" => Some(SliderField::MasterVolume),
         "music_volume" => Some(SliderField::MusicVolume),
         "ambient_volume" => Some(SliderField::AmbientVolume),
+        "effects_volume" => Some(SliderField::EffectsVolume),
         "look_sensitivity" => Some(SliderField::LookSensitivity),
         "zoom_speed" => Some(SliderField::ZoomSpeed),
         "follow_speed" => Some(SliderField::FollowSpeed),
@@ -272,9 +278,10 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
         SliderField::ParticleDensity => (10.0, 100.0),
         SliderField::RenderScale => (0.5, 1.0),
         SliderField::BloomIntensity => (0.0, 1.0),
-        SliderField::MasterVolume | SliderField::MusicVolume | SliderField::AmbientVolume => {
-            (0.0, 1.0)
-        }
+        SliderField::MasterVolume
+        | SliderField::MusicVolume
+        | SliderField::AmbientVolume
+        | SliderField::EffectsVolume => (0.0, 1.0),
         SliderField::LookSensitivity => (0.002, 0.03),
         SliderField::ZoomSpeed | SliderField::FollowSpeed => (2.0, 20.0),
         SliderField::MinDistance => (1.0, 10.0),
@@ -290,6 +297,7 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
         SliderField::MusicVolume => model.draft_sound.music_volume = value,
         SliderField::AmbientVolume => model.draft_sound.ambient_volume = value,
+        SliderField::EffectsVolume => model.draft_sound.effects_volume = value,
         SliderField::LookSensitivity => model.draft_camera.look_sensitivity = value,
         SliderField::ZoomSpeed => model.draft_camera.zoom_speed = value,
         SliderField::FollowSpeed => model.draft_camera.follow_speed = value,
@@ -389,6 +397,10 @@ fn apply_sound_step(key: &str, step: f32, sound: &mut SoundDraft) -> bool {
             sound.ambient_volume = clamp_step(sound.ambient_volume, 0.05 * step, 0.0, 1.0);
             true
         }
+        "effects_volume" => {
+            sound.effects_volume = clamp_step(sound.effects_volume, 0.05 * step, 0.0, 1.0);
+            true
+        }
         _ => false,
     }
 }
@@ -478,6 +490,7 @@ pub fn apply_sound_snapshot(sound: &mut SoundSettings, draft: &SoundDraft) {
     sound.master_volume = draft.master_volume;
     sound.music_volume = draft.music_volume;
     sound.ambient_volume = draft.ambient_volume;
+    sound.effects_volume = draft.effects_volume;
 }
 
 pub fn apply_camera_snapshot(camera: &mut CameraOptions, draft: &CameraDraft) {
