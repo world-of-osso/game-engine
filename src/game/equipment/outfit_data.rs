@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -378,23 +378,32 @@ impl OutfitData {
         data: &LoadedOutfitData,
         display: &DisplayInfoResolved,
     ) {
+        let mut seen_item_textures = result.item_textures.iter().copied().collect::<HashSet<_>>();
         for &(component_section, fdid) in &display.item_textures {
-            if !result.item_textures.contains(&(component_section, fdid)) {
+            if seen_item_textures.insert((component_section, fdid)) {
                 result.item_textures.push((component_section, fdid));
             }
         }
+
+        let mut seen_geoset_overrides = result
+            .geoset_overrides
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
         for &pair in &display.geoset_overrides {
-            if !result.geoset_overrides.contains(&pair) {
+            if seen_geoset_overrides.insert(pair) {
                 result.geoset_overrides.push(pair);
             }
         }
+
+        let mut seen_model_fdids = result.model_fdids.iter().copied().collect::<HashSet<_>>();
         for &model_resource_id in &display.model_resource_ids {
             let Some(model_fdid) = self.model_fdids(data, model_resource_id).first().copied()
             else {
                 continue;
             };
             let pair = (model_resource_id, model_fdid);
-            if !result.model_fdids.contains(&pair) {
+            if seen_model_fdids.insert(pair) {
                 result.model_fdids.push(pair);
             }
         }
