@@ -59,9 +59,7 @@
 
 #### Phase 4: Functional Categories
 
-- [ ] Implement live `Sound` settings: mute, music enabled, master/music/ambient/footstep volume.
-- [ ] Implement live `Camera` settings: look sensitivity, invert Y, zoom speed, follow speed, min/max distance.
-- [ ] Implement live `HUD` / `Interface` settings backed by explicit visibility/toggle resources for minimap, action bars, target frame, nameplates, health bars, and FPS overlay.
+- Sound/Camera/HUD settings moved to PLAN.md
 - [ ] Add broad but initially partial categories for graphics, controls, accessibility, keybindings, macros, addons/social, support/about, and advanced/debug.
 - [ ] Replace hardcoded in-world gameplay keys with a persisted `InputBindings` model loaded through client options.
 - [ ] Build an interactive Keybindings editor with section tabs, rebind/cancel/clear flow, and conflict swap behavior.
@@ -90,9 +88,7 @@
 - [ ] Move more tile-finalization work off the main thread, especially first-use texture decode/extract and heavy doodad/WMO spawn paths.
 - [ ] Profile and reduce minimap recomposite cost while moving; current composite/crop path rewrites image buffers whenever the player's minimap pixel changes.
 - [x] Particle effects from M2 data (bevy_hanabi GPU particles, textured, color/size gradients).
-- [ ] Particle Phase 2: parse drag from M2 emitter, add `LinearDragModifier`. Use area_length/area_width in position modifiers.
-- [ ] Particle Phase 3: flipbook animation — `FlipbookModifier` driven by age/lifetime to cycle texture atlas frames.
-- [ ] Particle Phase 4: velocity-oriented particles — `OrientModifier(AlongVelocity)` when tail flag set.
+- Particle Phases 2-4 moved to PLAN.md
 - [ ] Refactor app startup: each screen should own its full App configuration instead of main.rs building a monolithic app with all plugins always registered. Debug scenes (particledebug, debugcharacter) should not load game networking, login UI, etc.
 - [ ] Cross-tile ADT stitching: raw MCNK heights differ by up to 50 units at tile borders (same as intra-tile). Need to stitch border chunks when adjacent tiles are loaded. See `adt_seam_tests.rs` for diagnostics.
 - [ ] Find the root cause of the white/grey terrain bands in the in-world ADT renderer.
