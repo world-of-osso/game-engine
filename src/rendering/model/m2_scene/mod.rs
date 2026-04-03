@@ -375,41 +375,56 @@ pub fn spawn_static_m2(
     m2_path: &Path,
     transform: Transform,
 ) -> Option<Entity> {
+    let (root, model_root) = spawn_static_model_root(ctx.commands, m2_path, transform);
+    if spawn_static_model_on_entity(ctx, m2_path, model_root) {
+        Some(root)
+    } else {
+        ctx.commands.entity(root).despawn();
+        None
+    }
+}
+
+fn spawn_static_model_root(
+    commands: &mut Commands,
+    m2_path: &Path,
+    transform: Transform,
+) -> (Entity, Entity) {
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("prop");
-    let root = ctx
-        .commands
+    let root = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
     // Keep the visual skeleton/meshes under an identity child so Bevy skinning
     // computes world_from_local from the actor root only once.
-    let model_root = ctx
-        .commands
+    let model_root = commands
         .spawn((
             Name::new(format!("{name}ModelRoot")),
             Transform::IDENTITY,
             Visibility::default(),
         ))
         .id();
-    ctx.commands.entity(model_root).insert(ChildOf(root));
+    commands.entity(model_root).insert(ChildOf(root));
+    (root, model_root)
+}
+
+fn spawn_static_model_on_entity(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    m2_path: &Path,
+    model_root: Entity,
+) -> bool {
     let skin_fdids = ctx
         .creature_display_map
         .resolve_skin_fdids_for_model_path(m2_path)
         .unwrap_or([0, 0, 0]);
-    if m2_spawn::spawn_m2_on_entity(
+    m2_spawn::spawn_m2_on_entity(
         ctx.commands,
         &mut ctx.assets,
         m2_path,
         model_root,
         &skin_fdids,
-    ) {
-        Some(root)
-    } else {
-        ctx.commands.entity(root).despawn();
-        None
-    }
+    )
 }
 
 /// Attach BonePivot components to joint entities and insert M2AnimPlayer on the model.
