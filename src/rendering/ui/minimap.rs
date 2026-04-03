@@ -56,7 +56,7 @@ impl Default for LastMinimapPixel {
 }
 
 /// Holds the composite image handle displayed on screen.
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct MinimapComposite {
     pub handle: Handle<Image>,
 }
@@ -71,6 +71,15 @@ struct MinimapFrames {
     arrow: u64,
     zone_name: u64,
     coords: u64,
+}
+
+struct MinimapCompositeState {
+    composite: MinimapComposite,
+    px_x: usize,
+    px_y: usize,
+    player_row: u32,
+    player_col: u32,
+    comp_size: usize,
 }
 
 pub struct MinimapPlugin;
@@ -289,46 +298,71 @@ fn update_minimap_composite(
     mut images: ResMut<Assets<Image>>,
     mut last: ResMut<LastMinimapPixel>,
 ) {
-    let Ok(player_tf) = player_q.single() else {
+    let Some(state) = current_minimap_composite_state(&player_q, composite_res) else {
         return;
     };
-    let Some(composite_res) = composite_res else {
-        return;
-    };
-    let bx = player_tf.translation.x;
-    let bz = player_tf.translation.z;
-    let (player_row, player_col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
-    let comp_size = MINIMAP_COMPOSITE_SIZE as usize;
-    let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
 
     if !composite_needs_update(
         &last,
-        px_x,
-        px_y,
-        player_row,
-        player_col,
+        state.px_x,
+        state.px_y,
+        state.player_row,
+        state.player_col,
         minimap.generated.len(),
     ) {
         return;
     }
 
     recomposite(
-        &minimap, &images, &mut last, player_row, player_col, comp_size,
+        &minimap,
+        &images,
+        &mut last,
+        state.player_row,
+        state.player_col,
+        state.comp_size,
     );
-    last.px_x = px_x;
-    last.px_y = px_y;
-    last.tile_row = player_row;
-    last.tile_col = player_col;
-    last.tile_generation = minimap.generated.len();
-
+    update_last_minimap_pixel(&mut last, &state, minimap.generated.len());
     apply_circular_crop(
-        &composite_res,
+        &state.composite,
         &mut images,
         &last.composite_buf,
-        comp_size,
+        state.comp_size,
+        state.px_x,
+        state.px_y,
+    );
+}
+
+fn current_minimap_composite_state(
+    player_q: &Query<&Transform, With<crate::camera::Player>>,
+    composite_res: Option<Res<MinimapComposite>>,
+) -> Option<MinimapCompositeState> {
+    let player_tf = player_q.single().ok()?;
+    let composite = composite_res?.into_inner().clone();
+    let bx = player_tf.translation.x;
+    let bz = player_tf.translation.z;
+    let (player_row, player_col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
+    let comp_size = MINIMAP_COMPOSITE_SIZE as usize;
+    let (px_x, px_y) = player_pixel_in_composite(bx, bz, player_row, player_col, comp_size);
+    Some(MinimapCompositeState {
+        composite,
         px_x,
         px_y,
-    );
+        player_row,
+        player_col,
+        comp_size,
+    })
+}
+
+fn update_last_minimap_pixel(
+    last: &mut LastMinimapPixel,
+    state: &MinimapCompositeState,
+    tile_generation: usize,
+) {
+    last.px_x = state.px_x;
+    last.px_y = state.px_y;
+    last.tile_row = state.player_row;
+    last.tile_col = state.player_col;
+    last.tile_generation = tile_generation;
 }
 
 fn composite_needs_update(
