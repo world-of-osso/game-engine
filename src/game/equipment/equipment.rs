@@ -289,26 +289,15 @@ pub fn sync_equipment(mut params: EquipmentSyncParams) {
         );
 
         for (&slot, path) in &equipment.slots {
-            if path.as_os_str().is_empty() {
+            let Some(skin_fdids) = desired_equipment_skin_fdids(
+                equipment,
+                &rendered,
+                &params.existing_items,
+                slot,
+                path,
+            ) else {
                 continue;
-            }
-
-            let skin_fdids = equipment
-                .slot_skin_fdids
-                .get(&slot)
-                .copied()
-                .unwrap_or([0, 0, 0]);
-            let should_respawn = match rendered.slots.get(&slot) {
-                Some(item) => {
-                    item.path != *path
-                        || item.skin_fdids != skin_fdids
-                        || params.existing_items.get(item.entity).is_err()
-                }
-                None => true,
             };
-            if !should_respawn {
-                continue;
-            }
 
             if let Some(existing) = rendered.slots.remove(&slot) {
                 params.commands.entity(existing.entity).despawn();
@@ -344,11 +333,48 @@ pub fn sync_equipment(mut params: EquipmentSyncParams) {
                 slot,
                 RenderedItem {
                     entity: spawned,
-                    path: path.clone(),
+                    path: path.to_path_buf(),
                     skin_fdids,
                 },
             );
         }
+    }
+}
+
+fn desired_equipment_skin_fdids(
+    equipment: &Equipment,
+    rendered: &RenderedEquipment,
+    existing_items: &Query<(), With<EquipmentItem>>,
+    slot: EquipmentSlot,
+    path: &Path,
+) -> Option<[u32; 3]> {
+    if path.as_os_str().is_empty() {
+        return None;
+    }
+
+    let skin_fdids = equipment
+        .slot_skin_fdids
+        .get(&slot)
+        .copied()
+        .unwrap_or([0, 0, 0]);
+    equipment_slot_needs_respawn(rendered, existing_items, slot, path, skin_fdids)
+        .then_some(skin_fdids)
+}
+
+fn equipment_slot_needs_respawn(
+    rendered: &RenderedEquipment,
+    existing_items: &Query<(), With<EquipmentItem>>,
+    slot: EquipmentSlot,
+    path: &Path,
+    skin_fdids: [u32; 3],
+) -> bool {
+    match rendered.slots.get(&slot) {
+        Some(item) => {
+            item.path != path
+                || item.skin_fdids != skin_fdids
+                || existing_items.get(item.entity).is_err()
+        }
+        None => true,
     }
 }
 
