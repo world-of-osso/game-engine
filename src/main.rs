@@ -71,7 +71,6 @@ mod networking_player;
 mod networking_reconnect;
 mod orbit_camera;
 mod particle;
-mod particle_debug_scene;
 mod process_limits;
 mod scene_setup;
 mod scenes;
@@ -654,7 +653,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
             app.add_plugins(skybox_debug_scene::SkyboxDebugScenePlugin);
         }
         Some(game_state::GameState::ParticleDebug) => {
-            app.add_plugins(particle_debug_scene::ParticleDebugScenePlugin);
+            app.add_plugins(scenes::particle_debug::ParticleDebugScenePlugin);
         }
         _ => {}
     }

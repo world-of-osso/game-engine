@@ -3,3 +3,4 @@ pub mod char_select;
 pub mod game_menu;
 pub mod loading;
 pub mod login;
+pub mod particle_debug;
