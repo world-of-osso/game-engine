@@ -240,14 +240,7 @@ pub(crate) fn build_render_batches(
     skin_fdids: &[u32; 3],
 ) -> Result<Vec<M2RenderBatch>, String> {
     let parsed = parse_batch_inputs(md20)?;
-    let skin = load_skin_data(path, &chunks.sfid);
-    if !chunks.sfid.is_empty() && skin.is_none() {
-        return Err(format!(
-            "Missing external skin for {} (SFID {:?})",
-            path.display(),
-            chunks.sfid
-        ));
-    }
+    let skin = load_skin_data_checked(path, &chunks.sfid)?;
     let tex = TextureTables {
         tex_lookup: &parsed.tex_lookup,
         tex_types: &parsed.tex_types,
@@ -275,6 +268,18 @@ pub(crate) fn build_render_batches(
     } else {
         m2_batch::build_fallback_batch(&parsed.vertices, skin, &parsed.tex_types, txid)
     }
+}
+
+fn load_skin_data_checked(path: &Path, sfid: &[u32]) -> Result<Option<SkinData>, String> {
+    let skin = load_skin_data(path, sfid);
+    if !sfid.is_empty() && skin.is_none() {
+        return Err(format!(
+            "Missing external skin for {} (SFID {:?})",
+            path.display(),
+            sfid
+        ));
+    }
+    Ok(skin)
 }
 
 struct ParsedBatchInputs {
