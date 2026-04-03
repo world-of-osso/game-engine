@@ -450,11 +450,23 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         ));
     }
     let conn = open_read_only(&cache_path)?;
+    Ok(RawData {
+        chr_models: load_chr_models(&conn)?,
+        options: load_options(&conn)?,
+        choices: load_choices(&conn)?,
+        elements: load_elements(&conn)?,
+        materials: load_materials(&conn)?,
+        geosets: load_geosets(&conn)?,
+        hair_geosets: load_hair_geosets(&conn)?,
+        texture_fdids: load_texture_fdids(&conn)?,
+    })
+}
 
+fn load_chr_models(conn: &Connection) -> Result<Vec<RawChrModel>, String> {
     let mut chr_models_stmt = conn
         .prepare("SELECT id, layout_id, customize_scale, camera_distance_offset FROM chr_models ORDER BY id")
         .map_err(|err| format!("prepare chr_models lookup: {err}"))?;
-    let chr_models = chr_models_stmt
+    chr_models_stmt
         .query_map([], |row| {
             Ok(RawChrModel {
                 id: row.get(0)?,
@@ -465,12 +477,14 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query chr_models: {err}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| format!("read chr_models row: {err}"))?;
+        .map_err(|err| format!("read chr_models row: {err}"))
+}
 
+fn load_options(conn: &Connection) -> Result<Vec<RawOption>, String> {
     let mut options_stmt = conn
         .prepare("SELECT id, name, chr_model_id FROM options ORDER BY id")
         .map_err(|err| format!("prepare options lookup: {err}"))?;
-    let options = options_stmt
+    options_stmt
         .query_map([], |row| {
             Ok(RawOption {
                 id: row.get(0)?,
@@ -480,12 +494,14 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query options: {err}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| format!("read options row: {err}"))?;
+        .map_err(|err| format!("read options row: {err}"))
+}
 
+fn load_choices(conn: &Connection) -> Result<Vec<RawChoice>, String> {
     let mut choices_stmt = conn
         .prepare("SELECT id, option_id, name, requirement_id, order_index FROM choices ORDER BY id")
         .map_err(|err| format!("prepare choices lookup: {err}"))?;
-    let choices = choices_stmt
+    choices_stmt
         .query_map([], |row| {
             Ok(RawChoice {
                 id: row.get(0)?,
@@ -497,12 +513,14 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query choices: {err}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| format!("read choices row: {err}"))?;
+        .map_err(|err| format!("read choices row: {err}"))
+}
 
+fn load_elements(conn: &Connection) -> Result<Vec<RawElement>, String> {
     let mut elements_stmt = conn
         .prepare("SELECT choice_id, related_choice_id, geoset_id, material_id FROM elements")
         .map_err(|err| format!("prepare elements lookup: {err}"))?;
-    let elements = elements_stmt
+    elements_stmt
         .query_map([], |row| {
             Ok(RawElement {
                 choice_id: row.get(0)?,
@@ -513,12 +531,14 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query elements: {err}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| format!("read elements row: {err}"))?;
+        .map_err(|err| format!("read elements row: {err}"))
+}
 
+fn load_materials(conn: &Connection) -> Result<HashMap<u32, RawMaterial>, String> {
     let mut materials_stmt = conn
         .prepare("SELECT id, texture_target_id, material_resources_id FROM materials")
         .map_err(|err| format!("prepare materials lookup: {err}"))?;
-    let materials = materials_stmt
+    materials_stmt
         .query_map([], |row| {
             Ok((
                 row.get::<_, u32>(0)?,
@@ -530,12 +550,14 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query materials: {err}"))?
         .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read materials row: {err}"))?;
+        .map_err(|err| format!("read materials row: {err}"))
+}
 
+fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
     let mut geosets_stmt = conn
         .prepare("SELECT id, geoset_type, geoset_id FROM geosets")
         .map_err(|err| format!("prepare geosets lookup: {err}"))?;
-    let geosets = geosets_stmt
+    geosets_stmt
         .query_map([], |row| {
             Ok((
                 row.get::<_, u32>(0)?,
@@ -547,12 +569,14 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query geosets: {err}"))?
         .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read geosets row: {err}"))?;
+        .map_err(|err| format!("read geosets row: {err}"))
+}
 
+fn load_hair_geosets(conn: &Connection) -> Result<HashMap<HairGeosetKey, bool>, String> {
     let mut hair_stmt = conn
         .prepare("SELECT model_id, geoset_type, geoset_id, shows_scalp FROM hair_geosets")
         .map_err(|err| format!("prepare hair_geosets lookup: {err}"))?;
-    let hair_geosets = hair_stmt
+    hair_stmt
         .query_map([], |row| {
             Ok((
                 (
@@ -565,27 +589,18 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
         })
         .map_err(|err| format!("query hair_geosets: {err}"))?
         .collect::<Result<HashMap<HairGeosetKey, bool>, _>>()
-        .map_err(|err| format!("read hair_geosets row: {err}"))?;
+        .map_err(|err| format!("read hair_geosets row: {err}"))
+}
 
+fn load_texture_fdids(conn: &Connection) -> Result<HashMap<u32, u32>, String> {
     let mut texture_stmt = conn
         .prepare("SELECT material_resources_id, file_data_id FROM texture_fdids")
         .map_err(|err| format!("prepare texture_fdids lookup: {err}"))?;
-    let texture_fdids = texture_stmt
+    texture_stmt
         .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, u32>(1)?)))
         .map_err(|err| format!("query texture_fdids: {err}"))?
         .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read texture_fdids row: {err}"))?;
-
-    Ok(RawData {
-        chr_models,
-        options,
-        choices,
-        elements,
-        materials,
-        geosets,
-        hair_geosets,
-        texture_fdids,
-    })
+        .map_err(|err| format!("read texture_fdids row: {err}"))
 }
 
 #[cfg(test)]
