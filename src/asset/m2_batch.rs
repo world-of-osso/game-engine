@@ -111,50 +111,59 @@ type TextureAnimPair = (
     Option<m2_anim::AnimTrack<[f32; 3]>>,
 );
 
-#[allow(clippy::too_many_arguments)]
+pub(super) struct BatchBuildContext<'a> {
+    pub(super) vertices: &'a [M2Vertex],
+    pub(super) skin: &'a SkinData,
+    pub(super) materials: &'a [M2Material],
+    pub(super) tex: &'a TextureTables<'a>,
+    pub(super) color_tracks: &'a [m2_anim::ColorAnimTracks],
+    pub(super) transparencies: &'a [m2_anim::AnimTrack<i16>],
+    pub(super) transparency_lookup: &'a [i16],
+    pub(super) texture_animations: &'a [m2_anim::TextureAnimTracks],
+    pub(super) uv_animation_lookup: &'a [i16],
+    pub(super) texture_unit_lookup: &'a [i16],
+    pub(super) has_bones: bool,
+    pub(super) is_hd: bool,
+}
+
 pub(super) fn build_one_batch(
-    vertices: &[M2Vertex],
-    skin: &SkinData,
-    materials: &[M2Material],
-    tex: &TextureTables<'_>,
-    color_tracks: &[m2_anim::ColorAnimTracks],
-    transparencies: &[m2_anim::AnimTrack<i16>],
-    transparency_lookup: &[i16],
-    texture_animations: &[m2_anim::TextureAnimTracks],
-    uv_animation_lookup: &[i16],
-    texture_unit_lookup: &[i16],
-    has_bones: bool,
-    is_hd: bool,
+    ctx: &BatchBuildContext<'_>,
     unit: &M2TextureUnit,
 ) -> Result<Option<M2RenderBatch>, String> {
     let sub_idx = unit.submesh_index as usize;
-    if sub_idx >= skin.submeshes.len() {
+    if sub_idx >= ctx.skin.submeshes.len() {
         return Err(format!(
             "Batch submesh_index {sub_idx} >= submesh count {}",
-            skin.submeshes.len()
+            ctx.skin.submeshes.len()
         ));
     }
-    let sub = &skin.submeshes[sub_idx];
-    let mesh = build_batch_mesh(vertices, &skin.lookup, &skin.indices, sub, has_bones);
-    let texture_type = m2_texture::batch_texture_type(unit, tex.tex_lookup, tex.tex_types);
+    let sub = &ctx.skin.submeshes[sub_idx];
+    let mesh = build_batch_mesh(
+        ctx.vertices,
+        &ctx.skin.lookup,
+        &ctx.skin.indices,
+        sub,
+        ctx.has_bones,
+    );
+    let texture_type = m2_texture::batch_texture_type(unit, ctx.tex.tex_lookup, ctx.tex.tex_types);
     let (texture_fdid, texture_2_fdid, overlays) =
-        m2_texture::resolve_batch_fdid_and_overlays(unit, tex, is_hd);
+        m2_texture::resolve_batch_fdid_and_overlays(unit, ctx.tex, ctx.is_hd);
     let opacity = BatchOpacity {
-        color_tracks,
-        transparencies,
-        transparency_lookup,
+        color_tracks: ctx.color_tracks,
+        transparencies: ctx.transparencies,
+        transparency_lookup: ctx.transparency_lookup,
     };
     let transparency = opacity.evaluate(unit);
     if transparency <= 0.0 {
         return Ok(None);
     }
     let (texture_anim, texture_anim_2) =
-        resolve_texture_anims(texture_animations, uv_animation_lookup, unit);
+        resolve_texture_anims(ctx.texture_animations, ctx.uv_animation_lookup, unit);
     let uv_flags = BatchUvFlags {
-        texture_unit_lookup,
+        texture_unit_lookup: ctx.texture_unit_lookup,
     };
     let (use_uv_2_1, use_uv_2_2, use_env_map_2) = uv_flags.evaluate(unit, &mesh, texture_2_fdid);
-    let mat = materials.get(unit.render_flags_index as usize);
+    let mat = ctx.materials.get(unit.render_flags_index as usize);
     Ok(Some(M2RenderBatch {
         mesh,
         texture_fdid,
@@ -175,38 +184,12 @@ pub(super) fn build_one_batch(
     }))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn build_batched_model(
-    vertices: &[M2Vertex],
-    skin: &SkinData,
-    materials: &[M2Material],
-    tex: &TextureTables<'_>,
-    color_tracks: &[m2_anim::ColorAnimTracks],
-    transparencies: &[m2_anim::AnimTrack<i16>],
-    transparency_lookup: &[i16],
-    texture_animations: &[m2_anim::TextureAnimTracks],
-    uv_animation_lookup: &[i16],
-    texture_unit_lookup: &[i16],
-    has_bones: bool,
-    is_hd: bool,
+    ctx: &BatchBuildContext<'_>,
 ) -> Result<Vec<M2RenderBatch>, String> {
-    let mut batches = Vec::with_capacity(skin.batches.len());
-    for unit in &skin.batches {
-        let batch = build_one_batch(
-            vertices,
-            skin,
-            materials,
-            tex,
-            color_tracks,
-            transparencies,
-            transparency_lookup,
-            texture_animations,
-            uv_animation_lookup,
-            texture_unit_lookup,
-            has_bones,
-            is_hd,
-            unit,
-        )?;
+    let mut batches = Vec::with_capacity(ctx.skin.batches.len());
+    for unit in &ctx.skin.batches {
+        let batch = build_one_batch(ctx, unit)?;
         if let Some(batch) = batch {
             batches.push(batch);
         }

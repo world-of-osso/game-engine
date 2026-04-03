@@ -251,20 +251,20 @@ pub(crate) fn build_render_batches(
         && !skin.submeshes.is_empty()
         && !skin.batches.is_empty()
     {
-        m2_batch::build_batched_model(
-            &parsed.vertices,
+        m2_batch::build_batched_model(&m2_batch::BatchBuildContext {
+            vertices: &parsed.vertices,
             skin,
-            &parsed.materials,
-            &tex,
-            &parsed.color_tracks,
-            &parsed.transparencies,
-            &parsed.transparency_lookup,
-            &parsed.texture_animations,
-            &parsed.uv_animation_lookup,
-            &parsed.texture_unit_lookup,
+            materials: &parsed.materials,
+            tex: &tex,
+            color_tracks: &parsed.color_tracks,
+            transparencies: &parsed.transparencies,
+            transparency_lookup: &parsed.transparency_lookup,
+            texture_animations: &parsed.texture_animations,
+            uv_animation_lookup: &parsed.uv_animation_lookup,
+            texture_unit_lookup: &parsed.texture_unit_lookup,
             has_bones,
-            chunks.skid.is_some(),
-        )
+            is_hd: chunks.skid.is_some(),
+        })
     } else {
         m2_batch::build_fallback_batch(&parsed.vertices, skin, &parsed.tex_types, txid)
     }
