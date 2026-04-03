@@ -4,10 +4,9 @@ use bevy_hanabi::{AlphaMode, ExprWriter};
 use super::visuals::has_authored_size_variation;
 use super::{
     FlipbookSpriteMode, active_cell_track, build_color_gradient, build_effect_asset,
-    build_expr_modifiers, build_size_gradient, emitter_alpha_mode, emitter_rate_scale,
-    emitter_spawn_radius, emitter_translation, flipbook_sprite_mode, has_authored_spin,
-    has_authored_twinkle, has_authored_wind, is_fire_effect, lifetime_range, orient_mode,
-    wind_accel_bevy, wind_strength_at_age,
+    build_expr_modifiers, build_size_gradient, emitter_alpha_mode, emitter_spawn_radius,
+    emitter_translation, flipbook_sprite_mode, has_authored_spin, has_authored_twinkle,
+    has_authored_wind, lifetime_range, orient_mode, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
@@ -209,24 +208,6 @@ fn non_sphere_emitters_do_not_expand_spawn_radius() {
     emitter.area_width = 0.2;
 
     assert_eq!(emitter_spawn_radius(&emitter), 0.0);
-}
-
-#[test]
-fn fire_emitters_keep_authored_rate_scale() {
-    let mut emitter = sample_emitter();
-    emitter.texture_fdid = Some(145513);
-
-    assert!(is_fire_effect(&emitter));
-    assert_eq!(emitter_rate_scale(&emitter), 1.0);
-}
-
-#[test]
-fn non_fire_emitters_keep_default_rate_scale() {
-    let mut emitter = sample_emitter();
-    emitter.texture_fdid = None;
-
-    assert!(!is_fire_effect(&emitter));
-    assert_eq!(emitter_rate_scale(&emitter), 1.0);
 }
 
 #[test]

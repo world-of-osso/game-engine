@@ -273,7 +273,7 @@ fn build_cell_track_sprite_index(
 
 fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
     let m = build_expr_modifiers(em, model_scale);
-    let emission_rate = (em.emission_rate * emitter_rate_scale(em)).max(0.1);
+    let emission_rate = em.emission_rate.max(0.1);
     let (_, max_lifetime) = lifetime_range(em);
     let max_particles = ((emission_rate * max_lifetime) as u32).clamp(16, 4096);
     // WoW emits particles via an accumulator (`rate * dt + carry`) and can vary
@@ -313,15 +313,6 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
         });
     }
     effect
-}
-
-fn emitter_rate_scale(em: &M2ParticleEmitter) -> f32 {
-    let _ = em;
-    1.0
-}
-
-fn is_fire_effect(em: &M2ParticleEmitter) -> bool {
-    em.texture_fdid.is_some() && em.blend_type >= 4 && (em.tile_rows > 1 || em.tile_cols > 1)
 }
 
 fn assemble_effect(
