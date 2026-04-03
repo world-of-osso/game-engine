@@ -10,6 +10,13 @@ pub struct SkyUniforms {
     pub sky_band1: Vec4,
     pub sky_band2: Vec4,
     pub sky_smog: Vec4,
+    pub sun_color: Vec4,
+    pub sun_halo_color: Vec4,
+    pub cloud_emissive_color: Vec4,
+    pub cloud_layer1_ambient_color: Vec4,
+    pub cloud_layer2_ambient_color: Vec4,
+    pub sun_direction: Vec4,
+    pub cloud_params: Vec4,
 }
 
 impl Default for SkyUniforms {
@@ -20,6 +27,13 @@ impl Default for SkyUniforms {
             sky_band1: Vec4::ONE,
             sky_band2: Vec4::ONE,
             sky_smog: Vec4::ONE,
+            sun_color: Vec4::ONE,
+            sun_halo_color: Vec4::ONE,
+            cloud_emissive_color: Vec4::ZERO,
+            cloud_layer1_ambient_color: Vec4::ZERO,
+            cloud_layer2_ambient_color: Vec4::ZERO,
+            sun_direction: Vec4::new(0.0, 1.0, 0.0, 0.0),
+            cloud_params: Vec4::new(0.0, 0.0, 0.0, 0.0),
         }
     }
 }
@@ -29,6 +43,9 @@ impl Default for SkyUniforms {
 pub struct SkyMaterial {
     #[uniform(0)]
     pub uniforms: SkyUniforms,
+    #[texture(1)]
+    #[sampler(2)]
+    pub cloud_texture: Handle<Image>,
 }
 
 impl Material for SkyMaterial {

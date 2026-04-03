@@ -38,6 +38,7 @@ pub struct SceneSetupSystemParams<'w, 's> {
     water_mats: ResMut<'w, Assets<water_material::WaterMaterial>>,
     sky_mats: ResMut<'w, Assets<sky::SkyMaterial>>,
     images: ResMut<'w, Assets<Image>>,
+    cloud_maps: Res<'w, sky::cloud_texture::ProceduralCloudMaps>,
     inverse_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
     heightmap: ResMut<'w, TerrainHeightmap>,
     adt_manager: ResMut<'w, AdtManager>,
@@ -54,6 +55,7 @@ struct SceneSetupContext<'a, 'w, 's> {
     water_mats: &'a mut Assets<water_material::WaterMaterial>,
     sky_mats: &'a mut Assets<sky::SkyMaterial>,
     images: &'a mut Assets<Image>,
+    cloud_maps: &'a sky::cloud_texture::ProceduralCloudMaps,
     inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: &'a mut TerrainHeightmap,
     adt_manager: &'a mut AdtManager,
@@ -71,6 +73,7 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
             water_mats: &mut params.water_mats,
             sky_mats: &mut params.sky_mats,
             images: &mut params.images,
+            cloud_maps: &params.cloud_maps,
             inverse_bp: &mut params.inverse_bp,
             heightmap: &mut params.heightmap,
             adt_manager: &mut params.adt_manager,
@@ -87,6 +90,7 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
             self.materials,
             self.sky_mats,
             self.images,
+            self.cloud_maps.active_handle(),
             is_terrain,
         );
         match asset_path {
@@ -244,6 +248,7 @@ pub fn spawn_scene_environment(
     materials: &mut Assets<StandardMaterial>,
     sky_materials: &mut Assets<sky::SkyMaterial>,
     images: &mut Assets<Image>,
+    cloud_texture: Handle<Image>,
     is_terrain: bool,
 ) -> Entity {
     let camera = crate::camera::spawn_wow_camera(commands);
@@ -260,7 +265,14 @@ pub fn spawn_scene_environment(
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
     ));
-    sky::spawn_sky_dome(commands, meshes, sky_materials, images, camera);
+    sky::spawn_sky_dome(
+        commands,
+        meshes,
+        sky_materials,
+        images,
+        camera,
+        cloud_texture,
+    );
     if !is_terrain {
         ground::spawn_ground_plane(commands, meshes, materials, images);
     }

@@ -15,11 +15,17 @@ use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
 };
 
+#[path = "cloud_texture.rs"]
+pub mod cloud_texture;
 mod inworld_skybox;
 
 use self::inworld_skybox::{
     sync_inworld_authored_skybox, sync_inworld_skybox_to_camera, teardown_inworld_skybox,
     update_inworld_skybox_transition,
+};
+use cloud_texture::{
+    ProceduralCloudMaps, create_procedural_cloud_maps, generate_procedural_cloud_image,
+    next_cloud_buffer_index,
 };
 
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
@@ -154,10 +160,12 @@ pub fn spawn_sky_dome(
     sky_materials: &mut Assets<SkyMaterial>,
     images: &mut Assets<Image>,
     camera_entity: Entity,
+    cloud_texture: Handle<Image>,
 ) -> Entity {
     let mesh = build_sky_dome_mesh(900.0, 32);
     let material = sky_materials.add(SkyMaterial {
         uniforms: SkyUniforms::default(),
+        cloud_texture,
     });
     let dome = commands
         .spawn((
@@ -227,7 +235,12 @@ fn update_sky_colors(
     }
     *last_minutes = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
-    update_sky_dome_material(&visuals.sky_dome_q, &mut visuals.sky_materials, &colors);
+    update_sky_dome_material(
+        &visuals.sky_dome_q,
+        &mut visuals.sky_materials,
+        &colors,
+        game_time.minutes,
+    );
     sync_lights(&mut visuals.dir_lights, &mut visuals.ambient_q, &colors);
     sync_water_sky_color(&mut visuals.water_materials, &colors);
 }
@@ -236,7 +249,10 @@ fn update_sky_dome_material(
     sky_dome_q: &Query<&MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
     sky_materials: &mut Assets<SkyMaterial>,
     colors: &SkyColorSet,
+    minutes: f32,
 ) {
+    let sun_direction = (sun_rotation(minutes) * Vec3::NEG_Z).normalize_or_zero();
+    let cloud_scroll = Vec2::new(minutes * 0.00012, minutes * 0.00004);
     for mat_handle in sky_dome_q.iter() {
         if let Some(mat) = sky_materials.get_mut(mat_handle) {
             mat.uniforms.sky_top = color_to_vec4(colors.sky_top);
@@ -244,6 +260,17 @@ fn update_sky_dome_material(
             mat.uniforms.sky_band1 = color_to_vec4(colors.sky_band1);
             mat.uniforms.sky_band2 = color_to_vec4(colors.sky_band2);
             mat.uniforms.sky_smog = color_to_vec4(colors.sky_smog);
+            mat.uniforms.sun_color = color_to_vec4(colors.sun_color);
+            mat.uniforms.sun_halo_color = color_to_vec4(colors.sun_halo_color);
+            mat.uniforms.cloud_emissive_color = color_to_vec4(colors.cloud_emissive_color);
+            mat.uniforms.cloud_layer1_ambient_color =
+                color_to_vec4(colors.cloud_layer1_ambient_color);
+            mat.uniforms.cloud_layer2_ambient_color =
+                color_to_vec4(colors.cloud_layer2_ambient_color);
+            mat.uniforms.sun_direction =
+                Vec4::new(sun_direction.x, sun_direction.y, sun_direction.z, 0.0);
+            mat.uniforms.cloud_params =
+                Vec4::new(colors.cloud_density, cloud_scroll.x, cloud_scroll.y, 0.0);
         }
     }
 }
@@ -268,6 +295,36 @@ fn sync_water_sky_color(
     let sky_vec4 = color_to_vec4(colors.sky_band2);
     for (_id, mat) in water_materials.iter_mut() {
         mat.settings.sky_color = sky_vec4;
+    }
+}
+
+fn init_procedural_cloud_maps(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    commands.insert_resource(create_procedural_cloud_maps(&mut images));
+}
+
+fn update_procedural_cloud_maps(
+    time: Res<Time>,
+    mut cloud_maps: ResMut<ProceduralCloudMaps>,
+    mut images: ResMut<Assets<Image>>,
+    sky_dome_q: Query<&MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
+    mut sky_materials: ResMut<Assets<SkyMaterial>>,
+) {
+    if !cloud_maps.regen_timer.tick(time.delta()).just_finished() {
+        return;
+    }
+
+    let next_index = next_cloud_buffer_index(cloud_maps.active_index);
+    let next_handle = cloud_maps.handles[next_index].clone();
+    if let Some(image) = images.get_mut(&next_handle) {
+        *image = generate_procedural_cloud_image(cloud_maps.next_seed);
+    }
+    cloud_maps.next_seed = cloud_maps.next_seed.wrapping_add(1);
+    cloud_maps.active_index = next_index;
+
+    for mat_handle in sky_dome_q.iter() {
+        if let Some(mat) = sky_materials.get_mut(mat_handle) {
+            mat.cloud_texture = next_handle.clone();
+        }
     }
 }
 
@@ -576,6 +633,10 @@ fn register_sky_visual_systems(app: &mut App) {
     )
     .add_systems(
         Update,
+        update_procedural_cloud_maps.run_if(sky_scene_active),
+    )
+    .add_systems(
+        Update,
         update_time_display.after(advance_game_time).run_if(iw),
     );
 }
@@ -590,6 +651,7 @@ impl Plugin for SkyPlugin {
         app.add_plugins(MaterialPlugin::<SkyMaterial>::default())
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
+            .add_systems(Startup, init_procedural_cloud_maps)
             .add_systems(Startup, spawn_time_display)
             .add_systems(OnEnter(GameState::InWorld), show_time_display)
             .add_systems(OnExit(GameState::InWorld), hide_time_display);

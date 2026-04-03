@@ -179,6 +179,7 @@ fn spawn_world_environment(
     mut meshes: ResMut<Assets<Mesh>>,
     mut sky_materials: ResMut<Assets<sky::SkyMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    cloud_maps: Res<sky::cloud_texture::ProceduralCloudMaps>,
     camera_q: Query<Entity, With<WowCamera>>,
 ) {
     let camera = camera_q
@@ -205,6 +206,7 @@ fn spawn_world_environment(
         &mut sky_materials,
         &mut images,
         camera,
+        cloud_maps.active_handle(),
     );
 }
 
