@@ -1,4 +1,8 @@
 use super::*;
+use std::path::Path;
+use std::time::{Duration, Instant};
+
+use bevy::ecs::system::SystemState;
 
 fn flat_grid(
     index_x: u32,
@@ -159,4 +163,105 @@ fn bootstrap_terrain_streaming_uses_local_player_tile_when_server_did_not_seed_i
     assert_eq!(adt_manager.initial_tile, (32, 48));
     assert_eq!(adt_manager.server_requested.len(), 1);
     assert!(adt_manager.server_requested.contains(&(32, 48)));
+}
+
+#[test]
+#[ignore = "benchmark-style integration test; run explicitly"]
+fn bench_terrain_spawn_headless() {
+    let adt_path = Path::new("data/terrain/azeroth_32_48.adt");
+    if !adt_path.exists() {
+        println!(
+            "Skipping terrain spawn benchmark: missing {}",
+            adt_path.display()
+        );
+        return;
+    }
+    let iterations = 5_usize;
+    let (elapsed, chunk_entities, terrain_materials, images) =
+        measure_headless_terrain_spawn(adt_path, iterations);
+    let average = elapsed.div_f64(iterations as f64);
+    println!(
+        "terrain_spawn_headless[azeroth_32_48] iterations={iterations} total_ms={:.2} avg_ms={:.2} chunk_entities={chunk_entities} terrain_materials={terrain_materials} images={images}",
+        elapsed.as_secs_f64() * 1000.0,
+        average.as_secs_f64() * 1000.0,
+    );
+    assert!(
+        chunk_entities > 0,
+        "expected spawned terrain chunk entities"
+    );
+    assert!(terrain_materials > 0, "expected built terrain materials");
+    assert!(images > 0, "expected loaded terrain/water images");
+}
+
+fn measure_headless_terrain_spawn(
+    adt_path: &Path,
+    iterations: usize,
+) -> (Duration, usize, usize, usize) {
+    let mut final_chunk_entities = 0;
+    let mut final_terrain_materials = 0;
+    let mut final_images = 0;
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let mut app = game_engine::test_harness::headless_app_with(configure_terrain_benchmark_app);
+        let root = spawn_headless_terrain_tile(&mut app, adt_path);
+        final_chunk_entities = spawned_entity_count(app.world(), root);
+        final_terrain_materials = app.world().resource::<Assets<TerrainMaterial>>().len();
+        final_images = app.world().resource::<Assets<Image>>().len();
+        assert!(
+            final_chunk_entities > 0,
+            "expected spawned terrain descendants during benchmark"
+        );
+    }
+    (
+        start.elapsed(),
+        final_chunk_entities,
+        final_terrain_materials,
+        final_images,
+    )
+}
+
+fn configure_terrain_benchmark_app(app: &mut App) {
+    app.add_plugins(bevy::transform::TransformPlugin);
+    app.insert_resource(Assets::<Mesh>::default());
+    app.insert_resource(Assets::<TerrainMaterial>::default());
+    app.insert_resource(Assets::<WaterMaterial>::default());
+    app.insert_resource(Assets::<Image>::default());
+}
+
+fn spawn_headless_terrain_tile(app: &mut App, adt_path: &Path) -> Entity {
+    let world = app.world_mut();
+    let mut state: SystemState<(
+        Commands,
+        ResMut<Assets<Mesh>>,
+        ResMut<Assets<TerrainMaterial>>,
+        ResMut<Assets<WaterMaterial>>,
+        ResMut<Assets<Image>>,
+    )> = SystemState::new(world);
+    let (mut commands, mut meshes, mut terrain_materials, mut water_materials, mut images) =
+        state.get_mut(world);
+    let mut assets = TerrainOnlySpawnAssets {
+        commands: &mut commands,
+        meshes: &mut meshes,
+        terrain_materials: &mut terrain_materials,
+        water_materials: &mut water_materials,
+        images: &mut images,
+    };
+    let mut heightmap = TerrainHeightmap::default();
+    let spawned = spawn_adt_terrain_only(&mut assets, &mut heightmap, adt_path)
+        .expect("spawn benchmark terrain tile");
+    state.apply(world);
+    app.update();
+    spawned.root_entity
+}
+
+fn spawned_entity_count(world: &World, root: Entity) -> usize {
+    let mut count = 1;
+    let mut stack = vec![root];
+    while let Some(entity) = stack.pop() {
+        if let Some(children) = world.get::<Children>(entity) {
+            count += children.len();
+            stack.extend(children.iter());
+        }
+    }
+    count
 }
