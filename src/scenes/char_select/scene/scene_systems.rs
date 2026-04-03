@@ -15,8 +15,9 @@ use crate::terrain_heightmap::TerrainHeightmap;
 use super::camera::{CharSelectOrbit, update_camera_for_scene};
 use super::{
     CharSelectModelRoot, CharSelectRenderAssets, CharSelectScene, DisplayedCharacterAppearance,
-    DisplayedCharacterId, PendingSupplementalWarbandScene, resolve_char_select_model_path,
-    selected_character_presentation, selected_scene_character, selected_scene_placement,
+    DisplayedCharacterId, ModelPresentation, PendingSupplementalWarbandScene,
+    resolve_char_select_model_path, selected_character_presentation, selected_scene_character,
+    selected_scene_placement,
 };
 
 fn spawn_scene_warband_terrain(
@@ -93,53 +94,71 @@ pub(super) struct CharSelectSupplementalTerrainParams<'w, 's> {
 }
 
 pub(super) fn sync_warband_scene_switch(mut params: CharSelectSceneSwitchParams) {
-    let Some(warband) = params.warband.as_ref() else {
+    let Some(scene_switch) = resolve_scene_switch(&params) else {
         return;
     };
-    let Some(sel) = params.selected_scene.as_ref() else {
-        return;
-    };
-    if params.active_scene.0 == Some(sel.scene_id) {
-        return;
+    for entity in params.terrain_query.iter() {
+        params.commands.entity(entity).despawn();
     }
-    let Some(scene) = warband.scenes.iter().find(|s| s.id == sel.scene_id) else {
-        return;
-    };
+    let focus_pos = scene_switch
+        .placement
+        .as_ref()
+        .map(|p| p.bevy_position())
+        .unwrap_or_else(|| scene_switch.scene.bevy_look_at());
+    spawn_scene_warband_terrain(
+        &mut params.commands,
+        &mut params.assets,
+        &mut params.heightmap,
+        &scene_switch.scene,
+        focus_pos,
+    );
+    update_camera_for_scene(
+        &scene_switch.scene,
+        scene_switch.placement.as_ref(),
+        Some(&params.heightmap),
+        scene_switch.presentation,
+        &mut params.camera_query,
+    );
+    params.active_scene.0 = Some(scene_switch.scene_id);
+    let has_supplemental =
+        !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(&scene_switch.scene)
+            .is_empty();
+    update_pending_scene(
+        &mut params.pending_supplemental,
+        scene_switch.scene_id,
+        has_supplemental,
+    );
+}
+
+struct SceneSwitchData {
+    scene_id: u32,
+    scene: WarbandSceneEntry,
+    placement: Option<crate::scenes::char_select::warband::WarbandScenePlacement>,
+    presentation: ModelPresentation,
+}
+
+fn resolve_scene_switch(params: &CharSelectSceneSwitchParams<'_, '_>) -> Option<SceneSwitchData> {
+    let warband = params.warband.as_ref()?;
+    let sel = params.selected_scene.as_ref()?;
+    if params.active_scene.0 == Some(sel.scene_id) {
+        return None;
+    }
+    let scene = warband
+        .scenes
+        .iter()
+        .find(|scene| scene.id == sel.scene_id)?;
     let placement = selected_scene_placement(warband, scene);
     let presentation = selected_character_presentation(
         &params.customization_db,
         &params.char_list,
         params.selected.0,
     );
-    for entity in params.terrain_query.iter() {
-        params.commands.entity(entity).despawn();
-    }
-    let focus_pos = placement
-        .as_ref()
-        .map(|p| p.bevy_position())
-        .unwrap_or_else(|| scene.bevy_look_at());
-    spawn_scene_warband_terrain(
-        &mut params.commands,
-        &mut params.assets,
-        &mut params.heightmap,
-        scene,
-        focus_pos,
-    );
-    update_camera_for_scene(
-        scene,
-        placement.as_ref(),
-        Some(&params.heightmap),
+    Some(SceneSwitchData {
+        scene_id: sel.scene_id,
+        scene: scene.clone(),
+        placement,
         presentation,
-        &mut params.camera_query,
-    );
-    params.active_scene.0 = Some(sel.scene_id);
-    let has_supplemental =
-        !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty();
-    update_pending_scene(
-        &mut params.pending_supplemental,
-        sel.scene_id,
-        has_supplemental,
-    );
+    })
 }
 
 fn is_pending_scene_valid(
