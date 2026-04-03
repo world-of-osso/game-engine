@@ -2,11 +2,11 @@
 pub mod billboard;
 
 use super::camera::{MoveDirection, MovementState};
-use super::game_state::GameState;
 use crate::asset::m2_anim::{
     BoneAnimTracks, M2AnimSequence, M2Bone, evaluate_rotation_track, evaluate_vec3_track,
 };
 use crate::asset::m2_light;
+use crate::game_state::GameState;
 use bevy::prelude::*;
 
 use super::m2_spawn::RuntimeM2PointLight;

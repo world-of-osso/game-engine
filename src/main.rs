@@ -30,21 +30,11 @@ use std::{
     time::Duration,
 };
 
-#[path = "rendering/ui/action_bar.rs"]
-mod action_bar;
-#[path = "rendering/model/animation.rs"]
-mod animation;
 mod asset {
     // Re-export the library asset module so process-global state such as the CASC
     // resolver OnceLock is shared instead of compiled into the binary twice.
     pub use game_engine::asset::*;
 }
-#[path = "rendering/camera/camera.rs"]
-mod camera;
-#[path = "rendering/character/character_customization.rs"]
-mod character_customization;
-#[path = "rendering/character/character_models.rs"]
-mod character_models;
 mod cli_args;
 mod client_options;
 mod collision;
@@ -53,80 +43,32 @@ mod dump_systems;
 mod equipment;
 mod equipment_appearance;
 mod game_state;
-#[path = "rendering/terrain/ground.rs"]
-mod ground;
-#[path = "rendering/ui/health_bar.rs"]
-mod health_bar;
-#[path = "rendering/lighting/light_lookup.rs"]
-mod light_lookup;
-#[path = "rendering/model/m2_effect_material.rs"]
-mod m2_effect_material;
-#[path = "rendering/model/m2_scene/mod.rs"]
-mod m2_scene;
-#[path = "rendering/model/m2_spawn.rs"]
-pub mod m2_spawn;
-#[path = "rendering/character/m2_texture_composite.rs"]
-mod m2_texture_composite;
-#[path = "rendering/ui/minimap.rs"]
-mod minimap;
-#[path = "rendering/ui/minimap_render.rs"]
-mod minimap_render;
-#[path = "rendering/ui/nameplate.rs"]
-mod nameplate;
 mod networking;
 mod networking_auth;
 mod networking_messages;
 mod networking_npc;
 mod networking_player;
 mod networking_reconnect;
-#[path = "rendering/camera/orbit_camera.rs"]
-mod orbit_camera;
-#[path = "rendering/particles/mod.rs"]
-mod particle;
 mod process_limits;
+mod rendering;
 mod scenes;
 mod screen_auto_login;
-#[path = "rendering/skybox/mod.rs"]
-mod sky;
-#[path = "rendering/skybox/sky_lightdata.rs"]
-mod sky_lightdata;
-#[path = "rendering/skybox/sky_material.rs"]
-mod sky_material;
-#[path = "rendering/skybox/skybox_m2_material.rs"]
-mod skybox_m2_material;
 mod sound;
 mod sound_footsteps;
 mod sound_music_catalog;
 mod status_asset_stats;
 mod status_sync;
-#[path = "rendering/ui/target.rs"]
-mod target;
-#[path = "rendering/terrain/terrain.rs"]
-mod terrain;
-#[path = "rendering/terrain/terrain_heightmap.rs"]
-mod terrain_heightmap;
-#[path = "rendering/terrain/terrain_load_limits.rs"]
-mod terrain_load_limits;
-#[path = "rendering/terrain/terrain_load_progress.rs"]
-mod terrain_load_progress;
-#[path = "rendering/terrain/terrain_lod.rs"]
-mod terrain_lod;
-#[path = "rendering/terrain/terrain_material.rs"]
-mod terrain_material;
-#[path = "rendering/terrain/terrain_memory_debug.rs"]
-mod terrain_memory_debug;
-#[path = "rendering/terrain/terrain_objects.rs"]
-mod terrain_objects;
-#[path = "rendering/terrain/terrain_tile.rs"]
-mod terrain_tile;
 mod trash_button_screen;
-#[path = "rendering/ui/unit_frames.rs"]
-mod unit_frames;
-#[path = "rendering/terrain/water_material.rs"]
-mod water_material;
-#[path = "rendering/ui/wow_cursor.rs"]
-mod wow_cursor;
 mod zone_names;
+
+pub use rendering::{
+    action_bar, animation, camera, character_customization, character_models, ground, health_bar,
+    light_lookup, m2_effect_material, m2_scene, m2_spawn, m2_texture_composite, minimap,
+    minimap_render, nameplate, orbit_camera, particle, sky, sky_lightdata, sky_material,
+    skybox_m2_material, target, terrain, terrain_heightmap, terrain_load_limits,
+    terrain_load_progress, terrain_lod, terrain_material, terrain_memory_debug, terrain_objects,
+    terrain_tile, unit_frames, water_material, wow_cursor,
+};
 
 use animation::AnimationPlugin;
 use camera::WowCameraPlugin;
