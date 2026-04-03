@@ -455,39 +455,76 @@ fn handle_disconnect_by_state(
     } = inputs;
     match *state.get() {
         crate::game_state::GameState::CharSelect => {
-            handle_charselect_disconnect(auth_token, reconnect, auth_feedback, commands);
+            handle_disconnect_from_charselect(auth_token, reconnect, auth_feedback, commands);
         }
-        crate::game_state::GameState::Login => {
-            info!("Disconnect handling: already in Login, surfacing connection-lost message");
-            auth_feedback.0 = Some("Connection lost.".to_string());
-        }
-        crate::game_state::GameState::InWorld => {
-            handle_inworld_disconnect(
-                auth_token,
-                selected,
-                reconnect,
-                auth_feedback,
-                next_state,
-                commands,
-                selected_name,
-            );
-        }
-        crate::game_state::GameState::Connecting => {
-            info!(
-                "Disconnect handling: ignoring transient disconnect while still connecting for client entity {:?}",
-                entity
-            );
-        }
-        _ => {
-            warn!(
-                "Disconnect handling: transitioning from {:?} to Login due to disconnect on client entity {:?}",
-                state.get(),
-                entity
-            );
-            auth_feedback.0 = Some("Connection lost.".to_string());
-            next_state.set(crate::game_state::GameState::Login);
-        }
+        crate::game_state::GameState::Login => handle_disconnect_from_login(auth_feedback),
+        crate::game_state::GameState::InWorld => handle_disconnect_from_inworld(
+            auth_token,
+            selected,
+            reconnect,
+            selected_name,
+            auth_feedback,
+            next_state,
+            commands,
+        ),
+        crate::game_state::GameState::Connecting => handle_disconnect_while_connecting(entity),
+        _ => handle_disconnect_to_login_fallback(state.get(), entity, auth_feedback, next_state),
     }
+}
+
+fn handle_disconnect_from_charselect(
+    auth_token: Option<Res<AuthToken>>,
+    reconnect: Option<ResMut<ReconnectState>>,
+    auth_feedback: &mut ResMut<AuthUiFeedback>,
+    commands: &mut Commands,
+) {
+    handle_charselect_disconnect(auth_token, reconnect, auth_feedback, commands);
+}
+
+fn handle_disconnect_from_login(auth_feedback: &mut ResMut<AuthUiFeedback>) {
+    info!("Disconnect handling: already in Login, surfacing connection-lost message");
+    auth_feedback.0 = Some("Connection lost.".to_string());
+}
+
+fn handle_disconnect_from_inworld(
+    auth_token: Option<Res<AuthToken>>,
+    selected: Option<Res<SelectedCharacterId>>,
+    reconnect: Option<ResMut<ReconnectState>>,
+    selected_name: Option<&str>,
+    auth_feedback: &mut ResMut<AuthUiFeedback>,
+    next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
+    commands: &mut Commands,
+) {
+    handle_inworld_disconnect(
+        auth_token,
+        selected,
+        reconnect,
+        auth_feedback,
+        next_state,
+        commands,
+        selected_name,
+    );
+}
+
+fn handle_disconnect_while_connecting(entity: Entity) {
+    info!(
+        "Disconnect handling: ignoring transient disconnect while still connecting for client entity {:?}",
+        entity
+    );
+}
+
+fn handle_disconnect_to_login_fallback(
+    state: &crate::game_state::GameState,
+    entity: Entity,
+    auth_feedback: &mut ResMut<AuthUiFeedback>,
+    next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
+) {
+    warn!(
+        "Disconnect handling: transitioning from {:?} to Login due to disconnect on client entity {:?}",
+        state, entity
+    );
+    auth_feedback.0 = Some("Connection lost.".to_string());
+    next_state.set(crate::game_state::GameState::Login);
 }
 
 fn handle_charselect_disconnect(
