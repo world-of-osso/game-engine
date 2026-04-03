@@ -64,8 +64,6 @@ mod inworld_scene_tree;
 mod inworld_selection_debug_screen;
 mod light_lookup;
 mod loading_screen;
-mod login_screen;
-mod login_screen_helpers;
 mod m2_effect_material;
 mod m2_scene;
 pub mod m2_spawn;
@@ -84,6 +82,7 @@ mod particle;
 mod particle_debug_scene;
 mod process_limits;
 mod scene_setup;
+mod scenes;
 mod screen_auto_login;
 mod selection_debug_screen;
 mod sky;
@@ -604,7 +603,7 @@ fn configure_server_resources(
         app.insert_resource(networking::ServerAddr(server.addr));
         app.insert_resource(networking::ServerHostname(server.hostname));
         if server.dev {
-            app.insert_resource(login_screen::DevServer);
+            app.insert_resource(scenes::login::DevServer);
         }
     }
     if let Some(state) = initial_state {
@@ -642,7 +641,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     app.add_plugins((
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
-        login_screen::LoginScreenPlugin,
+        scenes::login::LoginScreenPlugin,
         loading_screen::LoadingScreenPlugin,
         char_select::CharSelectPlugin,
         char_select_scene::CharSelectScenePlugin,
@@ -684,7 +683,7 @@ fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
         app.add_plugins(game_state::GameStatePlugin);
         if matches!(state, game_state::GameState::Login) {
             app.init_resource::<networking::AuthUiFeedback>();
-            app.add_plugins(login_screen::LoginScreenPlugin);
+            app.add_plugins(scenes::login::LoginScreenPlugin);
         } else if matches!(state, game_state::GameState::SelectionDebug) {
             app.add_plugins(selection_debug_screen::SelectionDebugScreenPlugin);
         } else if matches!(state, game_state::GameState::InWorldSelectionDebug) {

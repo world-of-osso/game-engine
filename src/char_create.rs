@@ -20,7 +20,7 @@ use shared::protocol::{AuthChannel, CreateCharacter, CreateCharacterResponse};
 use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
-use crate::login_screen_helpers as helpers;
+use crate::scenes::login::helpers;
 #[path = "char_create_appearance.rs"]
 mod appearance_logic;
 use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};

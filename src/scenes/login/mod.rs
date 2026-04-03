@@ -22,10 +22,9 @@ use game_engine::ui_resource;
 use crate::game_state::GameState;
 use crate::networking;
 
-#[path = "login_screen_connect.rs"]
 mod connect;
+pub mod helpers;
 
-use crate::login_screen_helpers as helpers;
 use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
 use helpers::{
@@ -764,5 +763,5 @@ fn login_fade_in(
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/login_screen_tests.rs"]
+#[path = "../../../tests/unit/login_screen_tests.rs"]
 mod tests;
