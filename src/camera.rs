@@ -202,7 +202,7 @@ fn camera_input(
     mouse_scroll: Res<AccumulatedMouseScroll>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     options: Res<crate::client_options::CameraOptions>,
     bindings: Res<InputBindings>,
     mut camera_q: Query<&mut WowCamera>,
@@ -331,7 +331,7 @@ fn player_movement(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     terrain: Option<Res<TerrainHeightmap>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
     mut player_q: Query<
         (

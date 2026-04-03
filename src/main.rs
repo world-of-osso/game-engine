@@ -49,8 +49,6 @@ mod creature_display;
 mod dump_systems;
 mod equipment;
 mod equipment_appearance;
-mod game_menu_options;
-mod game_menu_screen;
 mod game_state;
 mod geoset_debug_scene;
 mod ground;
@@ -432,7 +430,7 @@ fn insert_screen_resources(app: &mut App, args: &[String]) {
             }
         }
         Ok(Some(game_engine::game_state_enum::ScreenArg::OptionsMenu)) => {
-            app.insert_resource(game_menu_screen::StartupGameMenuView(
+            app.insert_resource(scenes::game_menu::StartupGameMenuView(
                 game_engine::ui::screens::game_menu_component::GameMenuView::Options,
             ));
         }
@@ -645,7 +643,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::char_create::CharCreatePlugin,
         scenes::char_create::CharCreateScenePlugin,
         campsite_popup_screen::CampsitePopupScreenPlugin,
-        game_menu_screen::GameMenuScreenPlugin,
+        scenes::game_menu::GameMenuScreenPlugin,
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));

@@ -129,7 +129,7 @@ fn click_to_target(
     parent_query: Query<&ChildOf>,
     remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     mut current: ResMut<CurrentTarget>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
@@ -166,7 +166,7 @@ fn tab_target(
     player_q: Query<&Transform, With<Player>>,
     remote_q: Query<(Entity, &Transform), (With<RemoteEntity>, Without<Player>)>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
     mut current: ResMut<CurrentTarget>,
 ) {
@@ -330,7 +330,7 @@ fn self_target(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     player_q: Query<Entity, With<Player>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
     mut current: ResMut<CurrentTarget>,
 ) {

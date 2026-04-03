@@ -462,7 +462,7 @@ fn dispatch_login_action(
             params.status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            crate::game_menu_screen::open_game_menu(
+            crate::scenes::game_menu::open_game_menu(
                 ui,
                 commands,
                 crate::game_state::GameState::Login,

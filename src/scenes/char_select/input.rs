@@ -53,7 +53,7 @@ pub(crate) fn char_select_keyboard_input(
             continue;
         }
         if event.key_code == KeyCode::Escape {
-            crate::game_menu_screen::open_game_menu(
+            crate::scenes::game_menu::open_game_menu(
                 &mut ui,
                 &mut commands,
                 crate::game_state::GameState::CharSelect,
@@ -188,7 +188,7 @@ pub(crate) fn dispatch_char_select_action(
             }
             Some(CharSelectAction::Back) => next_state.set(GameState::Login),
             Some(CharSelectAction::Menu) => {
-                crate::game_menu_screen::open_game_menu(
+                crate::scenes::game_menu::open_game_menu(
                     &mut ui,
                     &mut _commands,
                     crate::game_state::GameState::CharSelect,

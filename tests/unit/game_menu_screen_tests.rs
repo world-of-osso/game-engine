@@ -1,5 +1,5 @@
 use super::*;
-use crate::game_menu_options::HudDraft;
+use crate::scenes::game_menu::options::HudDraft;
 use game_engine::ui::{event::EventBus, plugin::UiState};
 
 #[test]

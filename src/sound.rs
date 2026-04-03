@@ -182,7 +182,7 @@ fn compute_music_volume(settings: &SoundSettings) -> f32 {
 fn toggle_mute(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
-    modal_open: Option<Res<crate::game_menu_screen::UiModalOpen>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
     mut settings: ResMut<SoundSettings>,
     mut ambient_sinks: Query<&mut AudioSink, With<AmbientSound>>,

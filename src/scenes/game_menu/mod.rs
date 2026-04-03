@@ -15,7 +15,8 @@ use game_engine::ui::screens::options_menu_component::{
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::client_options::{self, CameraOptions, ClientOptionsUiState, HudOptions};
-use crate::game_menu_options::{
+use crate::game_state::GameState;
+use crate::scenes::game_menu::options::{
     ApplySnapshot, BindingCapture, DragCapture, OverlayModel, SliderField, apply_camera_snapshot,
     apply_hud_snapshot, apply_slider_value, apply_snapshot, apply_sound_snapshot, apply_step,
     apply_toggle, build_view_model, camera_draft, current_capture_action, hud_draft,
@@ -23,9 +24,10 @@ use crate::game_menu_options::{
     parse_category_action, parse_slider_action, parse_step_action, parse_toggle_action,
     reset_category_defaults, slider_bounds, sound_draft,
 };
-use crate::game_state::GameState;
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::{BindingSection, InputBinding, InputBindings};
+
+pub mod options;
 
 const DRAG_THRESHOLD: f32 = 4.0;
 const OPTIONS_W: f32 = 860.0;
@@ -160,9 +162,9 @@ fn build_overlay_model(
 fn overlay_runtime_drafts(
     world: &mut World,
 ) -> (
-    crate::game_menu_options::SoundDraft,
-    crate::game_menu_options::CameraDraft,
-    crate::game_menu_options::HudDraft,
+    options::SoundDraft,
+    options::CameraDraft,
+    options::HudDraft,
     InputBindings,
 ) {
     let sound = world.get_resource::<SoundSettings>();
@@ -717,7 +719,7 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
     }
 }
 
-fn apply_ui_hud_visibility(world: &mut World, hud: &crate::game_menu_options::HudDraft) {
+fn apply_ui_hud_visibility(world: &mut World, hud: &options::HudDraft) {
     let current_state = world
         .get_resource::<State<GameState>>()
         .map(|state| *state.get())
@@ -731,7 +733,7 @@ fn apply_ui_hud_visibility(world: &mut World, hud: &crate::game_menu_options::Hu
 fn apply_ui_hud_visibility_for_state(
     reg: &mut FrameRegistry,
     current_state: GameState,
-    hud: &crate::game_menu_options::HudDraft,
+    hud: &options::HudDraft,
 ) {
     let in_world = current_state == GameState::InWorld;
     set_named_frames_visible(
@@ -816,5 +818,5 @@ fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistr
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/game_menu_screen_tests.rs"]
+#[path = "../../../tests/unit/game_menu_screen_tests.rs"]
 mod tests;

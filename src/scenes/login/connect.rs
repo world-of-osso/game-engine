@@ -275,7 +275,7 @@ fn dispatch_click(
             status.0.clear();
         }
         Some(LoginAction::Menu) => {
-            crate::game_menu_screen::open_game_menu(ui, commands, GameState::Login);
+            crate::scenes::game_menu::open_game_menu(ui, commands, GameState::Login);
         }
         Some(LoginAction::Exit) => {}
         None if ui.registry.focused_frame == Some(frame_id) => {}
