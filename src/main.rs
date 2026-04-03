@@ -53,12 +53,7 @@ mod process_limits;
 mod rendering;
 mod scenes;
 mod screen_auto_login;
-#[path = "sound/runtime.rs"]
 mod sound;
-#[path = "sound/footsteps.rs"]
-mod sound_footsteps;
-#[path = "sound/music_catalog.rs"]
-mod sound_music_catalog;
 mod status_asset_stats;
 mod status_sync;
 mod trash_button_screen;
@@ -79,6 +74,8 @@ use cli_args::*;
 use collision::CollisionPlugin;
 use scenes::setup::{setup_default_world_scene, setup_explicit_asset_scene};
 use terrain::AdtStreamingPlugin;
+
+pub use sound::{footsteps as sound_footsteps, music_catalog as sound_music_catalog};
 
 #[derive(Resource)]
 struct DumpTreeFlag;
