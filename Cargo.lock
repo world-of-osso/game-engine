@@ -470,6 +470,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "asset-resolver"
+version = "0.1.0"
+dependencies = [
+ "binrw",
+ "cascette-client-storage",
+ "cascette-crypto",
+ "cascette-formats",
+ "rusqlite",
+ "tokio",
+]
+
+[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3645,13 +3657,11 @@ version = "0.1.0"
 dependencies = [
  "ab_glyph",
  "arboard",
+ "asset-resolver",
  "bevy",
  "bevy_dylib",
  "bevy_hanabi",
  "binrw",
- "cascette-client-storage",
- "cascette-crypto",
- "cascette-formats",
  "clap",
  "directories",
  "game-api",

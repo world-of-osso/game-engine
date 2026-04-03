@@ -14,15 +14,15 @@ pub struct CascAssetResolver;
 
 impl AssetResolver for CascAssetResolver {
     fn resolve_bytes(&self, fdid: u32) -> Option<Vec<u8>> {
-        super::casc_resolver::resolve_bytes(fdid)
+        osso_asset_resolver::resolve_bytes(fdid)
     }
 
     fn ensure_cached(&self, fdid: u32, out_path: &Path) -> Option<PathBuf> {
-        super::casc_resolver::ensure_file_cached_at_path(fdid, out_path)
+        osso_asset_resolver::ensure_file_cached_at_path(fdid, out_path)
     }
 
     fn resolve_path(&self, fdid: u32) -> Option<String> {
-        crate::listfile::lookup_fdid(fdid).map(str::to_owned)
+        osso_asset_resolver::lookup_fdid(fdid).map(str::to_owned)
     }
 }
 

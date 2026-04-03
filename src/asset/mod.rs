@@ -6,7 +6,6 @@ pub mod adt_tex;
 pub mod asset_cache;
 pub mod asset_resolver;
 pub mod blp;
-mod casc_resolver;
 #[allow(dead_code)]
 pub mod char_texture;
 pub mod fogs_wdt;

@@ -20,13 +20,11 @@ half = "2"
 glob = { version = "0.3", optional = true }
 libc = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"] }
-cascette-client-storage = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", features = ["local-install"] }
-cascette-crypto = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
-cascette-formats = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b" }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
 ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
+osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver" }
 ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
