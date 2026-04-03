@@ -30,6 +30,18 @@ struct SkyboxDebugSkybox;
 #[derive(Component)]
 struct SkyboxDebugDepthProbe;
 
+struct SkyboxDebugSetup {
+    scene: Option<crate::scenes::char_select::warband::WarbandSceneEntry>,
+    focus: Vec3,
+    eye: Vec3,
+}
+
+struct SpawnedSkyboxDebug {
+    root: Entity,
+    path: std::path::PathBuf,
+    source: String,
+}
+
 pub struct SkyboxDebugScenePlugin;
 
 impl Plugin for SkyboxDebugScenePlugin {
@@ -59,6 +71,21 @@ struct SkyboxDebugSceneParams<'w, 's> {
 }
 
 fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
+    let setup = build_skybox_debug_setup(&params);
+    initialize_skybox_debug_scene(&mut commands, &setup);
+    let depth_probe = spawn_skybox_debug_reference_objects(
+        &mut commands,
+        &mut params.meshes,
+        &mut params.materials,
+    );
+    let Some(spawned) = spawn_debug_skybox(&mut commands, &mut params, &setup) else {
+        return;
+    };
+    log_debug_skybox_spawn(&setup, &spawned);
+    insert_skybox_debug_scene_tree(&mut commands, spawned, depth_probe);
+}
+
+fn build_skybox_debug_setup(params: &SkyboxDebugSceneParams<'_, '_>) -> SkyboxDebugSetup {
     let scene = params
         .selected_scene
         .as_ref()
@@ -69,28 +96,33 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
                 .iter()
                 .find(|scene| scene.id == selected.scene_id)
         })
-        .or_else(|| params.warband.scenes.first());
-
+        .or_else(|| params.warband.scenes.first())
+        .cloned();
     let focus = Vec3::new(0.0, 1.0, 0.0);
     let orbit = OrbitCamera::new(focus, 7.5);
-    let eye = orbit.eye_position();
+    SkyboxDebugSetup {
+        scene,
+        focus,
+        eye: orbit.eye_position(),
+    }
+}
 
+fn initialize_skybox_debug_scene(commands: &mut Commands, setup: &SkyboxDebugSetup) {
+    let orbit = OrbitCamera::new(setup.focus, 7.5);
     commands.insert_resource(ClearColor(Color::BLACK));
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 60.0,
         ..default()
     });
-
     commands.spawn((
         Name::new("SkyboxDebugCamera"),
         SkyboxDebugScene,
         Camera3d::default(),
         additive_particle_glow_tonemapping(),
-        Transform::from_translation(eye).looking_at(focus, Vec3::Y),
+        Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
         orbit,
     ));
-
     commands.spawn((
         Name::new("SkyboxDebugLight"),
         SkyboxDebugScene,
@@ -101,16 +133,18 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 5.0, PI / 6.0, 0.0)),
     ));
+}
 
+fn spawn_skybox_debug_reference_objects(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) -> Entity {
     commands.spawn((
         Name::new("SkyboxDebugReferencePlane"),
         SkyboxDebugScene,
-        Mesh3d(
-            params
-                .meshes
-                .add(Plane3d::default().mesh().size(1.8, 1.8).build()),
-        ),
-        MeshMaterial3d(params.materials.add(StandardMaterial {
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(1.8, 1.8).build())),
+        MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::srgba(0.85, 0.72, 0.42, 0.18),
             unlit: true,
             alpha_mode: AlphaMode::Blend,
@@ -119,13 +153,13 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
         Transform::from_xyz(0.0, 0.05, 0.0),
     ));
 
-    let depth_probe = commands
+    commands
         .spawn((
             Name::new("SkyboxDebugDepthProbe"),
             SkyboxDebugScene,
             SkyboxDebugDepthProbe,
-            Mesh3d(params.meshes.add(Cuboid::new(0.7, 1.5, 0.7))),
-            MeshMaterial3d(params.materials.add(StandardMaterial {
+            Mesh3d(meshes.add(Cuboid::new(0.7, 1.5, 0.7))),
+            MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: Color::srgb(1.0, 0.0, 1.0),
                 emissive: Color::srgb(1.0, 0.0, 1.0).into(),
                 unlit: true,
@@ -133,23 +167,24 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
             })),
             Transform::from_xyz(0.0, 0.85, 2.2),
         ))
-        .id();
+        .id()
+}
 
-    let resolved = resolve_debug_skybox(scene, params.override_spec.as_deref().copied());
+fn spawn_debug_skybox(
+    commands: &mut Commands,
+    params: &mut SkyboxDebugSceneParams<'_, '_>,
+    setup: &SkyboxDebugSetup,
+) -> Option<SpawnedSkyboxDebug> {
+    let resolved = resolve_debug_skybox(
+        setup.scene.as_ref(),
+        params.override_spec.as_deref().copied(),
+    );
     let Some(resolved) = resolved else {
-        match scene {
-            Some(scene) => warn!(
-                "skybox_debug_scene: failed to resolve skybox model for scene {} ({})",
-                scene.id, scene.name
-            ),
-            None => warn!("skybox_debug_scene: no warband scene available for skybox selection"),
-        }
-        return;
+        warn_missing_debug_skybox(setup.scene.as_ref());
+        return None;
     };
-    let path = resolved.path;
-
     let mut ctx = m2_scene::M2SceneSpawnContext {
-        commands: &mut commands,
+        commands,
         assets: crate::m2_spawn::SpawnAssets {
             meshes: &mut params.meshes,
             materials: &mut params.materials,
@@ -162,32 +197,68 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
     };
     let Some(spawned) = m2_scene::spawn_animated_static_skybox_m2_parts(
         &mut ctx,
-        &path,
-        Transform::from_translation(eye),
+        &resolved.path,
+        Transform::from_translation(setup.eye),
         None,
     ) else {
         warn!(
             "skybox_debug_scene: failed to spawn skybox model at {}",
-            path.display()
+            resolved.path.display()
         );
-        return;
+        return None;
     };
-    let authored_light_params = scene.and_then(|scene| scene.authored_light_params_id());
-    let authored_light_skybox = scene.and_then(|scene| scene.authored_light_skybox_id());
-    info!(
-        "skybox_debug_scene: resolved skybox {} via {} (scene={:?}, LightParamsID={:?}, LightSkyboxID={:?})",
-        path.display(),
-        resolved.source,
-        scene.map(|scene| (scene.id, scene.name.as_str())),
-        authored_light_params,
-        authored_light_skybox
-    );
     commands.entity(spawned.root).insert((
         SkyboxDebugScene,
         SkyboxDebugSkybox,
-        Name::new(format!("SkyboxDebug:{}", path.display())),
+        Name::new(format!("SkyboxDebug:{}", resolved.path.display())),
     ));
     commands.entity(spawned.model_root).insert(SkyboxDebugScene);
+    Some(SpawnedSkyboxDebug {
+        root: spawned.root,
+        path: resolved.path,
+        source: resolved.source,
+    })
+}
+
+fn warn_missing_debug_skybox(
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
+) {
+    match scene {
+        Some(scene) => warn!(
+            "skybox_debug_scene: failed to resolve skybox model for scene {} ({})",
+            scene.id, scene.name
+        ),
+        None => warn!("skybox_debug_scene: no warband scene available for skybox selection"),
+    }
+}
+
+fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug) {
+    let authored_light_params = setup
+        .scene
+        .as_ref()
+        .and_then(|scene| scene.authored_light_params_id());
+    let authored_light_skybox = setup
+        .scene
+        .as_ref()
+        .and_then(|scene| scene.authored_light_skybox_id());
+    info!(
+        "skybox_debug_scene: resolved skybox {} via {} (scene={:?}, LightParamsID={:?}, LightSkyboxID={:?})",
+        spawned.path.display(),
+        spawned.source,
+        setup
+            .scene
+            .as_ref()
+            .map(|scene| (scene.id, scene.name.as_str())),
+        authored_light_params,
+        authored_light_skybox
+    );
+}
+
+fn insert_skybox_debug_scene_tree(
+    commands: &mut Commands,
+    spawned: SpawnedSkyboxDebug,
+    depth_probe: Entity,
+) {
     commands.insert_resource(SceneTree {
         root: SceneNode {
             label: "SkyboxDebugScene".into(),
@@ -205,7 +276,7 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
                     entity: Some(spawned.root),
                     props: NodeProps::Object {
                         kind: "Skybox".into(),
-                        model: path.display().to_string(),
+                        model: spawned.path.display().to_string(),
                     },
                     children: vec![],
                 },

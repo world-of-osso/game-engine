@@ -38,7 +38,7 @@ pub struct SceneSetupSystemParams<'w, 's> {
     water_mats: ResMut<'w, Assets<water_material::WaterMaterial>>,
     sky_mats: ResMut<'w, Assets<sky::SkyMaterial>>,
     images: ResMut<'w, Assets<Image>>,
-    cloud_maps: Res<'w, sky::cloud_texture::ProceduralCloudMaps>,
+    cloud_maps: Option<Res<'w, sky::cloud_texture::ProceduralCloudMaps>>,
     inverse_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
     heightmap: ResMut<'w, TerrainHeightmap>,
     adt_manager: ResMut<'w, AdtManager>,
@@ -64,6 +64,10 @@ struct SceneSetupContext<'a, 'w, 's> {
 
 impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
     fn from_system_params(params: &'a mut SceneSetupSystemParams<'w, 's>) -> Self {
+        let cloud_maps = params
+            .cloud_maps
+            .as_deref()
+            .expect("ProceduralCloudMaps resource must be initialized before scene setup");
         Self {
             commands: &mut params.commands,
             meshes: &mut params.meshes,
@@ -73,7 +77,7 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
             water_mats: &mut params.water_mats,
             sky_mats: &mut params.sky_mats,
             images: &mut params.images,
-            cloud_maps: &params.cloud_maps,
+            cloud_maps,
             inverse_bp: &mut params.inverse_bp,
             heightmap: &mut params.heightmap,
             adt_manager: &mut params.adt_manager,
