@@ -5,6 +5,7 @@ use game_engine::asset::adt::{load_adt_for_tile, load_adt_tex0};
 use game_engine::asset::adt_format::adt_obj::load_adt_obj0;
 use game_engine::asset::blp::load_blp_rgba;
 use game_engine::asset::m2::load_m2_uncached;
+use game_engine::asset::m2_particle::parse_particle_emitters;
 use game_engine::asset::wmo::{load_wmo_group, load_wmo_root};
 use game_engine::csv_util::{parse_csv_line, parse_csv_line_trimmed};
 
@@ -147,12 +148,48 @@ fn bench_wmo_parsing(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_particle_emitter_parsing(c: &mut Criterion) {
+    let cases = [("torch", Path::new("data/models/145513.m2"))];
+    let mut group = c.benchmark_group("asset::m2_particle::parse_particle_emitters");
+    for (label, path) in cases {
+        assert!(
+            path.exists(),
+            "missing benchmark particle model {}",
+            path.display()
+        );
+        let model_bytes = std::fs::read(path).expect("read benchmark particle model");
+        let md20 = find_md21_chunk(&model_bytes).expect("benchmark particle model md21");
+        group.bench_with_input(BenchmarkId::from_parameter(label), &md20, |b, md20| {
+            b.iter(|| parse_particle_emitters(md20));
+        });
+    }
+    group.finish();
+}
+
+fn find_md21_chunk(data: &[u8]) -> Option<&[u8]> {
+    let mut off = 0;
+    while off + 8 <= data.len() {
+        let tag = &data[off..off + 4];
+        let size = u32::from_le_bytes(data[off + 4..off + 8].try_into().ok()?) as usize;
+        let end = off + 8 + size;
+        if end > data.len() {
+            return None;
+        }
+        if tag == b"MD21" {
+            return Some(&data[off + 8..end]);
+        }
+        off = end;
+    }
+    None
+}
+
 criterion_group!(
     parser_benches,
     bench_csv_parsers,
     bench_m2_loading,
     bench_blp_loading,
     bench_adt_parsing,
-    bench_wmo_parsing
+    bench_wmo_parsing,
+    bench_particle_emitter_parsing
 );
 criterion_main!(parser_benches);
