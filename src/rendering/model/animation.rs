@@ -1,3 +1,4 @@
+#[path = "animation/billboard.rs"]
 pub mod billboard;
 
 use super::camera::{MoveDirection, MovementState};
@@ -414,5 +415,5 @@ impl Plugin for AnimationPlugin {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/animation_tests.rs"]
+#[path = "../../../tests/unit/animation_tests.rs"]
 mod tests;

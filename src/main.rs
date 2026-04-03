@@ -31,6 +31,7 @@ use std::{
 };
 
 mod action_bar;
+#[path = "rendering/model/animation.rs"]
 mod animation;
 mod asset {
     // Re-export the library asset module so process-global state such as the CASC
@@ -55,8 +56,11 @@ mod ground;
 mod health_bar;
 #[path = "rendering/lighting/light_lookup.rs"]
 mod light_lookup;
+#[path = "rendering/model/m2_effect_material.rs"]
 mod m2_effect_material;
+#[path = "rendering/model/m2_scene/mod.rs"]
 mod m2_scene;
+#[path = "rendering/model/m2_spawn.rs"]
 pub mod m2_spawn;
 #[path = "rendering/character/m2_texture_composite.rs"]
 mod m2_texture_composite;
