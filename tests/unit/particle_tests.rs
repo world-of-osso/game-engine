@@ -1,6 +1,9 @@
 use bevy::asset::Assets;
 use bevy::ecs::system::RunSystemOnce;
-use bevy::prelude::{App, Entity, GlobalTransform, Image, Quat, Transform, Vec3};
+use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+use bevy::prelude::{
+    App, Entity, GlobalTransform, Image, Mesh, Quat, StandardMaterial, Time, Transform, Vec3,
+};
 use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 
 use super::visuals::has_authored_size_variation;
@@ -19,12 +22,14 @@ use super::{
     emitter_uses_model_particles, emitter_uses_project_particle,
     emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
     has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
-    lifetime_range, orient_mode, projected_particle_spawn_y, scaled_emission_rate, spawn_emitters,
-    wind_accel_bevy, wind_strength_at_age,
+    lifetime_range, model_particle_spawn_count, orient_mode, projected_particle_spawn_y,
+    scaled_emission_rate, spawn_emitters, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
 use crate::client_options::GraphicsOptions;
+use crate::creature_display::CreatureDisplayMap;
+use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain_heightmap::TerrainHeightmap;
 use bevy_hanabi::OrientMode;
 
@@ -475,6 +480,107 @@ fn model_particle_emitters_skip_hanabi_quad_spawn_path() {
             .iter(app.world())
             .count(),
         1
+    );
+}
+
+#[test]
+fn continuous_model_particle_spawner_accumulates_fractional_rate() {
+    let emitter = sample_emitter();
+    let mut runtime = super::ModelParticleEmitterRuntime::default();
+
+    let first = model_particle_spawn_count(
+        &emitter,
+        ParticleSpawnMode::Continuous,
+        1.0,
+        0.01,
+        &mut runtime,
+    );
+    let second = model_particle_spawn_count(
+        &emitter,
+        ParticleSpawnMode::Continuous,
+        1.0,
+        0.05,
+        &mut runtime,
+    );
+
+    assert_eq!(first, 0);
+    assert_eq!(second, 1);
+}
+
+#[test]
+fn burst_model_particle_spawner_fires_only_once() {
+    let emitter = sample_emitter();
+    let mut runtime = super::ModelParticleEmitterRuntime::default();
+
+    let first = model_particle_spawn_count(
+        &emitter,
+        ParticleSpawnMode::BurstOnce,
+        1.0,
+        0.0,
+        &mut runtime,
+    );
+    let second = model_particle_spawn_count(
+        &emitter,
+        ParticleSpawnMode::BurstOnce,
+        1.0,
+        0.0,
+        &mut runtime,
+    );
+
+    assert_eq!(first, 20);
+    assert_eq!(second, 0);
+}
+
+#[test]
+fn model_particle_runtime_spawns_static_m2_instance() {
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<Mesh>>();
+    app.world_mut().init_resource::<Assets<StandardMaterial>>();
+    app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
+    app.world_mut().init_resource::<Assets<Image>>();
+    app.world_mut()
+        .init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+    app.world_mut().insert_resource(CreatureDisplayMap);
+    app.world_mut().insert_resource(Time::<()>::default());
+
+    let emitter = {
+        let mut emitter = sample_emitter();
+        emitter.particle_model_filename = Some("data/models/club_1h_torch_a_01.m2".to_string());
+        emitter
+    };
+    let emitter_entity = app
+        .world_mut()
+        .spawn((
+            GlobalTransform::IDENTITY,
+            Transform::IDENTITY,
+            super::ModelParticleEmitterComp {
+                emitter,
+                bone_entity: None,
+                scale_source: Entity::PLACEHOLDER,
+                spawn_mode: ParticleSpawnMode::BurstOnce,
+                requested_model_path: "data/models/club_1h_torch_a_01.m2".to_string(),
+                resolved_model_path: Some("data/models/club_1h_torch_a_01.m2".into()),
+            },
+            super::ModelParticleEmitterRuntime::default(),
+        ))
+        .id();
+    app.world_mut()
+        .entity_mut(emitter_entity)
+        .get_mut::<super::ModelParticleEmitterComp>()
+        .unwrap()
+        .scale_source = emitter_entity;
+
+    app.world_mut()
+        .run_system_once(super::tick_model_particle_emitters)
+        .expect("model particle tick should run");
+    app.world_mut().flush();
+
+    assert!(
+        app.world_mut()
+            .query::<&super::ModelParticleInstance>()
+            .iter(app.world())
+            .count()
+            > 0
     );
 }
 
