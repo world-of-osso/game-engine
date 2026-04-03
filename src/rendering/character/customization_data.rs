@@ -15,29 +15,40 @@ mod support;
 /// Hardcoded (race, sex) -> ChrModelID mapping.
 /// Derived from ChrModel.csv: IDs 1-22 cover the 11 original races (male=odd, female=even).
 fn race_sex_to_chr_model_id(race: u8, sex: u8) -> Option<u32> {
-    let race_index: u32 = match race {
-        1 => 0,                                            // Human
-        2 => 1,                                            // Orc
-        3 => 2,                                            // Dwarf
-        4 => 3,                                            // NightElf
-        5 => 4,                                            // Undead
-        6 => 5,                                            // Tauren
-        7 => 6,                                            // Gnome
-        8 => 7,                                            // Troll
-        9 => 8,                                            // Goblin
-        10 => 9,                                           // BloodElf
-        11 => 10,                                          // Draenei
-        22 => return Some(if sex == 0 { 43 } else { 44 }), // Worgen
-        25 => return Some(if sex == 0 { 47 } else { 48 }), // Pandaren
-        27 => return Some(if sex == 0 { 37 } else { 38 }), // Nightborne
-        28 => return Some(if sex == 0 { 39 } else { 40 }), // Highmountain Tauren
-        29 => return Some(if sex == 0 { 33 } else { 34 }), // Void Elf
-        30 => return Some(if sex == 0 { 35 } else { 36 }), // Lightforged Draenei
-        31 => return Some(if sex == 0 { 31 } else { 32 }), // Zandalari Troll
-        34 => return Some(if sex == 0 { 41 } else { 42 }), // Dark Iron Dwarf
-        35 => return Some(if sex == 0 { 53 } else { 54 }), // Vulpera
-        36 => return Some(if sex == 0 { 45 } else { 46 }), // Mag'har Orc
-        37 => return Some(if sex == 0 { 55 } else { 56 }), // Mechagnome
+    allied_race_chr_model_id(race, sex).or_else(|| base_race_chr_model_id(race, sex))
+}
+
+fn allied_race_chr_model_id(race: u8, sex: u8) -> Option<u32> {
+    let (male, female) = match race {
+        22 => (43, 44), // Worgen
+        25 => (47, 48), // Pandaren
+        27 => (37, 38), // Nightborne
+        28 => (39, 40), // Highmountain Tauren
+        29 => (33, 34), // Void Elf
+        30 => (35, 36), // Lightforged Draenei
+        31 => (31, 32), // Zandalari Troll
+        34 => (41, 42), // Dark Iron Dwarf
+        35 => (53, 54), // Vulpera
+        36 => (45, 46), // Mag'har Orc
+        37 => (55, 56), // Mechagnome
+        _ => return None,
+    };
+    Some(if sex == 0 { male } else { female })
+}
+
+fn base_race_chr_model_id(race: u8, sex: u8) -> Option<u32> {
+    let race_index = match race {
+        1 => 0,   // Human
+        2 => 1,   // Orc
+        3 => 2,   // Dwarf
+        4 => 3,   // NightElf
+        5 => 4,   // Undead
+        6 => 5,   // Tauren
+        7 => 6,   // Gnome
+        8 => 7,   // Troll
+        9 => 8,   // Goblin
+        10 => 9,  // BloodElf
+        11 => 10, // Draenei
         _ => return None,
     };
     Some(race_index * 2 + sex as u32 + 1)
