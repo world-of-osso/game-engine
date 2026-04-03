@@ -249,54 +249,106 @@ fn handle_login_response(
     commands: &mut Commands,
 ) {
     if resp.success {
-        save_auth_token(&resp.token, server);
-        info!(
-            "Auth flow: saved new auth token to {}",
-            auth_token_path(server).display()
+        handle_login_success(
+            resp,
+            auth_token,
+            auth_feedback,
+            char_list,
+            auto_enter_world,
+            preselected,
+            startup_screen_target,
+            selected_char_idx,
+            select_senders,
+            next_state,
+            reconnect,
+            server,
+            commands,
         );
-        auth_token.0 = Some(resp.token);
-        auth_feedback.0 = None;
-        char_list.0 = resp.characters;
-        info!(
-            "Login success, {} characters, token={}",
-            char_list.0.len(),
-            token_debug_label(auth_token.0.as_deref()),
-        );
-        let action = decide_login_success_action(
-            &char_list.0,
-            preselected.map(|name| name.0.as_str()),
-            auto_enter_world.is_some(),
-            startup_screen_target.map(|target| target.0),
-        );
-        info!(
-            "Post-login action: selected_idx={:?} auto_enter={} enter_world_character_id={:?} next_state={:?} preselected={:?}",
-            action.selected_idx,
-            auto_enter_world.is_some(),
-            action.enter_world_character_id,
-            action.next_state,
-            preselected.map(|name| name.0.as_str()),
-        );
-        selected_char_idx.0 = action.selected_idx;
-        if let Some(character_id) = action.enter_world_character_id {
-            send_enter_world(character_id, select_senders);
-            commands.remove_resource::<crate::scenes::char_select::AutoEnterWorld>();
-        }
-        if let Some(state) = action.next_state {
-            clear_reconnect_if_not_entering_world(reconnect, true);
-            next_state.set(state);
-        }
     } else {
-        let err = resp.error.unwrap_or_default();
-        error!(
-            "Login failed: {err}; preselected={:?} auto_enter={}",
-            preselected.map(|name| name.0.as_str()),
-            auto_enter_world.is_some(),
+        handle_login_failure(
+            resp.error,
+            auth_feedback,
+            auto_enter_world,
+            preselected,
+            next_state,
+            reconnect,
+            commands,
         );
-        commands.queue(crate::networking_reconnect::reset_network_world);
-        auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
-        clear_reconnect_if_not_entering_world(reconnect, false);
-        next_state.set(GameState::Login);
     }
+}
+
+fn handle_login_success(
+    resp: LoginResponse,
+    auth_token: &mut AuthToken,
+    auth_feedback: &mut AuthUiFeedback,
+    char_list: &mut CharacterList,
+    auto_enter_world: Option<&Res<crate::scenes::char_select::AutoEnterWorld>>,
+    preselected: Option<&Res<crate::scenes::char_select::PreselectedCharName>>,
+    startup_screen_target: Option<&Res<crate::game_state::StartupScreenTarget>>,
+    selected_char_idx: &mut crate::scenes::char_select::SelectedCharIndex,
+    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    next_state: &mut NextState<GameState>,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    server: Option<&str>,
+    commands: &mut Commands,
+) {
+    save_auth_token(&resp.token, server);
+    info!(
+        "Auth flow: saved new auth token to {}",
+        auth_token_path(server).display()
+    );
+    auth_token.0 = Some(resp.token);
+    auth_feedback.0 = None;
+    char_list.0 = resp.characters;
+    info!(
+        "Login success, {} characters, token={}",
+        char_list.0.len(),
+        token_debug_label(auth_token.0.as_deref()),
+    );
+    let action = decide_login_success_action(
+        &char_list.0,
+        preselected.map(|name| name.0.as_str()),
+        auto_enter_world.is_some(),
+        startup_screen_target.map(|target| target.0),
+    );
+    info!(
+        "Post-login action: selected_idx={:?} auto_enter={} enter_world_character_id={:?} next_state={:?} preselected={:?}",
+        action.selected_idx,
+        auto_enter_world.is_some(),
+        action.enter_world_character_id,
+        action.next_state,
+        preselected.map(|name| name.0.as_str()),
+    );
+    selected_char_idx.0 = action.selected_idx;
+    if let Some(character_id) = action.enter_world_character_id {
+        send_enter_world(character_id, select_senders);
+        commands.remove_resource::<crate::scenes::char_select::AutoEnterWorld>();
+    }
+    if let Some(state) = action.next_state {
+        clear_reconnect_if_not_entering_world(reconnect, true);
+        next_state.set(state);
+    }
+}
+
+fn handle_login_failure(
+    error: Option<String>,
+    auth_feedback: &mut AuthUiFeedback,
+    auto_enter_world: Option<&Res<crate::scenes::char_select::AutoEnterWorld>>,
+    preselected: Option<&Res<crate::scenes::char_select::PreselectedCharName>>,
+    next_state: &mut NextState<GameState>,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    commands: &mut Commands,
+) {
+    let err = error.unwrap_or_default();
+    error!(
+        "Login failed: {err}; preselected={:?} auto_enter={}",
+        preselected.map(|name| name.0.as_str()),
+        auto_enter_world.is_some(),
+    );
+    commands.queue(crate::networking_reconnect::reset_network_world);
+    auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
+    clear_reconnect_if_not_entering_world(reconnect, false);
+    next_state.set(GameState::Login);
 }
 
 fn clear_reconnect_if_not_entering_world(
