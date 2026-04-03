@@ -9,6 +9,7 @@ use crate::asset;
 use crate::asset::{
     m2_anim::{BoneAnimTracks, M2AnimSequence, M2Bone},
     m2_attach,
+    m2_light::M2Light,
     m2_particle::M2ParticleEmitter,
 };
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -38,6 +39,16 @@ struct M2SceneAnimPayload {
     particle_emitters: Vec<M2ParticleEmitter>,
     attachments: Vec<m2_attach::M2Attachment>,
     attachment_lookup: Vec<i16>,
+}
+
+struct M2SceneVisuals {
+    batches: Vec<asset::m2::M2RenderBatch>,
+    lights: Vec<M2Light>,
+}
+
+struct M2SceneAttachedVisuals {
+    visual_root: Entity,
+    skinning: m2_spawn::SkinningResult,
 }
 
 #[allow(unused_imports)]
@@ -235,6 +246,20 @@ fn attach_m2_model_parts(
     model_entity: Entity,
     options: M2SceneAttachOptions,
 ) {
+    let (visuals, payload) = split_m2_scene_model(model);
+    let attached =
+        attach_m2_scene_visuals(ctx, model_entity, visuals.batches, &payload.bones, &options);
+    spawn_m2_scene_runtime(
+        ctx,
+        payload,
+        attached,
+        model_entity,
+        &visuals.lights,
+        options.default_main_hand_torch,
+    );
+}
+
+fn split_m2_scene_model(model: asset::m2::M2Model) -> (M2SceneVisuals, M2SceneAnimPayload) {
     let asset::m2::M2Model {
         batches,
         bones,
@@ -246,28 +271,8 @@ fn attach_m2_model_parts(
         lights,
         ..
     } = model;
-    let M2SceneAttachOptions {
-        default_main_hand_torch,
-        force_skybox_material,
-        skybox_color,
-    } = options;
-    let visual_root = visual_root_entity(
-        ctx.commands,
-        model_entity,
-        m2_spawn::ground_offset_y(&batches),
-        force_skybox_material,
-    );
-    let skinning = m2_spawn::attach_m2_batches(
-        ctx.commands,
-        &mut ctx.assets,
-        batches,
-        &bones,
-        visual_root,
-        force_skybox_material,
-        skybox_color,
-    );
-    spawn_anim_and_particles(
-        ctx,
+    (
+        M2SceneVisuals { batches, lights },
         M2SceneAnimPayload {
             bones,
             sequences,
@@ -276,12 +281,60 @@ fn attach_m2_model_parts(
             attachments,
             attachment_lookup,
         },
-        &skinning,
+    )
+}
+
+fn attach_m2_scene_visuals(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    model_entity: Entity,
+    batches: Vec<asset::m2::M2RenderBatch>,
+    bones: &[M2Bone],
+    options: &M2SceneAttachOptions,
+) -> M2SceneAttachedVisuals {
+    let visual_root = visual_root_entity(
+        ctx.commands,
         model_entity,
+        m2_spawn::ground_offset_y(&batches),
+        options.force_skybox_material,
+    );
+    let skinning = m2_spawn::attach_m2_batches(
+        ctx.commands,
+        &mut ctx.assets,
+        batches,
+        bones,
         visual_root,
+        options.force_skybox_material,
+        options.skybox_color,
+    );
+    M2SceneAttachedVisuals {
+        visual_root,
+        skinning,
+    }
+}
+
+fn spawn_m2_scene_runtime(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    payload: M2SceneAnimPayload,
+    attached: M2SceneAttachedVisuals,
+    model_entity: Entity,
+    lights: &[M2Light],
+    default_main_hand_torch: bool,
+) {
+    spawn_anim_and_particles(
+        ctx,
+        payload,
+        &attached.skinning,
+        model_entity,
+        attached.visual_root,
         default_main_hand_torch,
     );
-    m2_spawn::spawn_model_point_lights(ctx.commands, &lights, &skinning, visual_root, model_entity);
+    m2_spawn::spawn_model_point_lights(
+        ctx.commands,
+        lights,
+        &attached.skinning,
+        attached.visual_root,
+        model_entity,
+    );
 }
 
 fn visual_root_entity(
