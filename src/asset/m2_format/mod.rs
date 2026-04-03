@@ -5,25 +5,11 @@
 
 use std::path::{Path, PathBuf};
 
-pub mod m2_anim {
-    pub use super::super::m2_anim::*;
-}
-
-pub mod m2_attach {
-    pub use super::super::m2_attach::*;
-}
-
-pub mod m2_bone_names {
-    pub use super::super::m2_bone_names::*;
-}
-
-pub mod m2_light {
-    pub use super::super::m2_light::*;
-}
-
-pub mod m2_particle {
-    pub use super::super::m2_particle::*;
-}
+pub mod m2_anim;
+pub mod m2_attach;
+pub mod m2_bone_names;
+pub mod m2_light;
+pub mod m2_particle;
 
 pub(crate) struct M2Vertex {
     pub position: [f32; 3],
