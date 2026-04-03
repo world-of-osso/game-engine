@@ -107,16 +107,6 @@ src/
 - **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `docs/casc-extraction.md`.
 - **Gotcha: item material textures** — some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData`, not from the same path as attached runtime M2 textures. Auto-extraction is not fully reliable for every such path yet. If an item geoset/model shows untextured, verify the resolved texture FDID exists under `data/textures/` and extract it manually with `cargo run --bin casc-local -- <fdid> -o data/textures` before assuming the render path is wrong.
 
-## Test Assets
-
-- M2: `data/models/club_1h_torch_a_01.m2` — **textured** item model (FDID 145513 + 198077)
-- BLP: `data/textures/145513.blp` + `198077.blp` — torch flame/glow textures
-- M2: `data/models/humanmale.m2` + `humanmale00.skin` — legacy character model (minimal hair, 142KB)
-- M2: `data/models/humanmale_hd.m2` + `humanmale_hd00.skin` — **HD character model** (FDID 1011653, 11MB, 113 submeshes, full hairstyles)
-- M2: `data/models/boar.m2` — creature model (runtime creature skin, no hardcoded BLPs)
-- ADT: `data/terrain/azeroth_32_48.adt` — Elwynn Forest terrain tile (FDID 778027, 350KB, 256 MCNK chunks)
-- BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client (not model textures)
-
 ## ADT Terrain
 
 - Split files: root `.adt` (heights/normals), `_tex0.adt` (texture layers), `_obj0.adt` (doodads/WMOs)
