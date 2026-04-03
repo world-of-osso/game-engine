@@ -62,6 +62,18 @@ pub fn sound_body(sound: &SoundOptionsView) -> Element {
 pub fn graphics_body(graphics: &GraphicsOptionsView) -> Element {
     content_stack(
         [
+            slider_row(
+                "render_scale",
+                "Render Scale",
+                graphics.render_scale,
+                0.5,
+                1.0,
+            ),
+            options_menu_sections::info_row(
+                "render_scale_presets",
+                "Presets",
+                "Native 1.00 • Quality 0.75 • Balanced 0.67 • Performance 0.50",
+            ),
             toggle_row("bloom_enabled", "Enable Bloom", graphics.bloom_enabled),
             slider_row(
                 "bloom_intensity",

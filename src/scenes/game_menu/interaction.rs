@@ -269,6 +269,7 @@ fn slider_rect(slider: SliderField, reg: &FrameRegistry) -> Option<ui_toolkit::l
 fn slider_widget_name(slider: SliderField) -> &'static str {
     match slider {
         SliderField::ParticleDensity => "Sliderparticle_density",
+        SliderField::RenderScale => "Sliderrender_scale",
         SliderField::BloomIntensity => "Sliderbloom_intensity",
         SliderField::MasterVolume => "Slidermaster_volume",
         SliderField::MusicVolume => "Slidermusic_volume",
@@ -284,6 +285,7 @@ fn slider_widget_name(slider: SliderField) -> &'static str {
 fn slider_row(slider: SliderField) -> f32 {
     match slider {
         SliderField::ParticleDensity => 3.0,
+        SliderField::RenderScale => 1.0,
         SliderField::BloomIntensity => 2.0,
         SliderField::MasterVolume => 2.0,
         SliderField::MusicVolume => 3.0,

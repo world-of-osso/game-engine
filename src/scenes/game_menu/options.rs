@@ -21,6 +21,7 @@ pub enum DragCapture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
     ParticleDensity,
+    RenderScale,
     BloomIntensity,
     MasterVolume,
     MusicVolume,
@@ -69,6 +70,7 @@ pub struct SoundDraft {
 #[derive(Debug, Clone)]
 pub struct GraphicsDraft {
     pub particle_density: f32,
+    pub render_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }
@@ -134,6 +136,7 @@ pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
 pub fn graphics_draft(graphics: &GraphicsOptions) -> GraphicsDraft {
     GraphicsDraft {
         particle_density: graphics.particle_density as f32,
+        render_scale: graphics.render_scale,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity,
     }
@@ -184,6 +187,7 @@ pub fn build_view_model(model: &OverlayModel) -> GameMenuViewModel {
 fn graphics_view(draft: &GraphicsDraft) -> GraphicsOptionsView {
     GraphicsOptionsView {
         particle_density: draft.particle_density,
+        render_scale: draft.render_scale,
         bloom_enabled: draft.bloom_enabled,
         bloom_intensity: draft.bloom_intensity,
     }
@@ -249,6 +253,7 @@ fn bindings_view(
 pub fn parse_slider_action(action: &str) -> Option<SliderField> {
     match action.strip_prefix("options_slider:")? {
         "particle_density" => Some(SliderField::ParticleDensity),
+        "render_scale" => Some(SliderField::RenderScale),
         "bloom_intensity" => Some(SliderField::BloomIntensity),
         "master_volume" => Some(SliderField::MasterVolume),
         "music_volume" => Some(SliderField::MusicVolume),
@@ -265,6 +270,7 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
     match field {
         SliderField::ParticleDensity => (10.0, 100.0),
+        SliderField::RenderScale => (0.5, 1.0),
         SliderField::BloomIntensity => (0.0, 1.0),
         SliderField::MasterVolume | SliderField::MusicVolume | SliderField::AmbientVolume => {
             (0.0, 1.0)
@@ -279,6 +285,7 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
 pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayModel) {
     match field {
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
+        SliderField::RenderScale => model.draft_graphics.render_scale = value,
         SliderField::BloomIntensity => model.draft_graphics.bloom_intensity = value,
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
         SliderField::MusicVolume => model.draft_sound.music_volume = value,
@@ -349,6 +356,10 @@ pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
                 100.0,
             )
             .round()
+        }
+        "render_scale" => {
+            model.draft_graphics.render_scale =
+                clamp_step(model.draft_graphics.render_scale, 0.05 * step, 0.5, 1.0)
         }
         "bloom_intensity" => {
             model.draft_graphics.bloom_intensity =
@@ -449,6 +460,7 @@ pub fn apply_snapshot(model: &mut OverlayModel) -> ApplySnapshot {
 
 pub fn apply_graphics_snapshot(graphics: &mut GraphicsOptions, draft: &GraphicsDraft) {
     graphics.particle_density = draft.particle_density.round().clamp(10.0, 100.0) as u8;
+    graphics.render_scale = draft.render_scale.clamp(0.5, 1.0);
     graphics.bloom_enabled = draft.bloom_enabled;
     graphics.bloom_intensity = draft.bloom_intensity.clamp(0.0, 1.0);
 }

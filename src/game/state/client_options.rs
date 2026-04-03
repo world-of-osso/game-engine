@@ -81,6 +81,7 @@ impl CameraOptions {
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GraphicsOptions {
     pub particle_density: u8,
+    pub render_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }
@@ -89,6 +90,7 @@ impl Default for GraphicsOptions {
     fn default() -> Self {
         Self {
             particle_density: 100,
+            render_scale: 1.0,
             bloom_enabled: true,
             bloom_intensity: 0.08,
         }
@@ -99,6 +101,7 @@ impl GraphicsOptions {
     fn from_file(file: &GraphicsOptionsFile) -> Self {
         Self {
             particle_density: file.particle_density.clamp(10, 100),
+            render_scale: file.render_scale.clamp(0.5, 1.0),
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
         }
@@ -241,6 +244,8 @@ struct CameraOptionsFile {
 struct GraphicsOptionsFile {
     #[serde(default = "default_particle_density", rename = "particleDensity")]
     particle_density: u8,
+    #[serde(default = "default_render_scale", rename = "renderScale")]
+    render_scale: f32,
     #[serde(default = "default_bloom_enabled", rename = "bloomEnabled")]
     bloom_enabled: bool,
     #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
@@ -251,6 +256,7 @@ impl Default for GraphicsOptionsFile {
     fn default() -> Self {
         Self {
             particle_density: default_particle_density(),
+            render_scale: default_render_scale(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
         }
@@ -350,6 +356,7 @@ fn build_options_file(
         },
         graphics: GraphicsOptionsFile {
             particle_density: graphics.particle_density.clamp(10, 100),
+            render_scale: graphics.render_scale.clamp(0.5, 1.0),
             bloom_enabled: graphics.bloom_enabled,
             bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
         },
@@ -369,6 +376,10 @@ fn build_options_file(
 
 const fn default_particle_density() -> u8 {
     100
+}
+
+const fn default_render_scale() -> f32 {
+    1.0
 }
 
 const fn default_bloom_enabled() -> bool {
@@ -495,6 +506,7 @@ mod tests {
     fn graphics_defaults_use_full_particle_density() {
         let defaults = GraphicsOptions::default();
         assert_eq!(defaults.particle_density, 100);
+        assert!((defaults.render_scale - 1.0).abs() < 0.0001);
         assert!(defaults.bloom_enabled);
         assert!((defaults.bloom_intensity - 0.08).abs() < 0.0001);
         assert!((defaults.particle_density_multiplier() - 1.0).abs() < 0.0001);
@@ -505,6 +517,7 @@ mod tests {
         let file = ClientOptionsFile {
             graphics: GraphicsOptionsFile {
                 particle_density: 80,
+                render_scale: 0.67,
                 bloom_enabled: false,
                 bloom_intensity: 0.12,
             },
@@ -514,6 +527,7 @@ mod tests {
         let serialized = ron::ser::to_string(&file).unwrap();
 
         assert!(serialized.contains("particleDensity:80"));
+        assert!(serialized.contains("renderScale:0.67"));
         assert!(serialized.contains("bloomEnabled:false"));
         assert!(serialized.contains("bloomIntensity:0.12"));
     }

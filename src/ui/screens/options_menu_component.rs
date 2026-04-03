@@ -130,6 +130,7 @@ impl OptionsCategory {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphicsOptionsView {
     pub particle_density: f32,
+    pub render_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }
