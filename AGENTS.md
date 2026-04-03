@@ -73,19 +73,15 @@ src/
   - `ping` — Check if instance is alive
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
 - `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
-- `./run-tests.sh` — cargo test + clippy + dx fmt
-- `dx fmt` — Auto-format RSX macro blocks (enforced in run-tests.sh via `dx fmt --check`)
+- `./run-tests.sh` — cargo test + clippy
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
-- Edition 2024, rust-version 1.89
 - `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 
 ## Editing Workflow
 
-- Use `apply_patch` for manual code edits in this repo.
-- If `apply_patch` is blocked by file-size or function-size limits, refactor first so the edit can still be made with `apply_patch`; do not stop at the blocker.
 - `data/` is effectively a different repo/cache tree for this project. Do not stage or commit files under `data/` from this repo unless the user explicitly asks for that exact path.
 - After `cargo fmt`, immediately check `git status --short`.
 - Formatter changes count as your changes.
@@ -98,10 +94,6 @@ src/
 - The `rsx!` macro expects `FrameName` (has `.0` field) for `name:` attrs. For dynamic names, use a `DynName(String)` wrapper.
 - `!bool_expr` doesn't work inside `rsx!` — pre-compute negations as `let hide = !visible;` before the macro call.
 - Post-setup (editbox backdrops, nine-slice textures) happens after first `screen.sync()` since RSX attrs don't cover all frame properties yet.
-
-## Project Skills
-
-- `./.codex/skills/wow-adt-terrain-objects/SKILL.md` — Use for ADT terrain split files, doodad/MDDF placement, WMO/MODF placement, object LOD, portal/culling, and placement-debugging work. Keep low-level format knowledge there instead of expanding this file.
 
 ## Data Assets
 
@@ -122,7 +114,6 @@ src/
 - M2: `data/models/humanmale.m2` + `humanmale00.skin` — legacy character model (minimal hair, 142KB)
 - M2: `data/models/humanmale_hd.m2` + `humanmale_hd00.skin` — **HD character model** (FDID 1011653, 11MB, 113 submeshes, full hairstyles)
 - M2: `data/models/boar.m2` — creature model (runtime creature skin, no hardcoded BLPs)
-- M2: `/syncthing/Sync/Projects/wow/reference-addons.new/TomTom/Images/Arrow.m2` (2.9KB, legacy format, no TXID)
 - ADT: `data/terrain/azeroth_32_48.adt` — Elwynn Forest terrain tile (FDID 778027, 350KB, 256 MCNK chunks)
 - BLP: `~/Projects/wow/Interface/` — 137K UI textures from WoW client (not model textures)
 
@@ -136,19 +127,16 @@ src/
 
 - Animation transitions must always crossfade smoothly — never snap between poses. Use `blend_time` from M2 sequence data with a minimum of 150ms for movement transitions.
 - When re-transitioning mid-blend (e.g. quick direction changes), preserve blend progress so the outgoing pose weight is continuous. Resetting to 0 causes visible pops.
-- WoW animation IDs: Stand=0, Walk=4, Run=5, ShuffleLeft=11, ShuffleRight=12, WalkBackwards=13, JumpStart=37, Jump=38, JumpEnd=39
+- WoW animation IDs: see `ANIM_*` constants in `src/rendering/model/animation.rs`
 
 ## Related
 
-- casc_resolver: `src/asset/casc_resolver.rs` — Extracts assets from local WoW CASC storage via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
-- casc-extract: `https://github.com/Osso/casc-extract` — CLI to regenerate `data/casc/` files from Blizzard CDN. Clone to /tmp, point deps at `~/Repos/cascette-rs`, run `cargo run -- init`.
+- asset_resolver: `src/asset/asset_resolver.rs` — AssetResolver trait for CASC extraction via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - WMVx: `~/Repos/WMVx` — WoW Model Viewer X (C++ reference for M2/BLP loading)
 - wow_client: `~/Repos/wow_client` — C++ WoW client reimplementation/reference
 - WoWDBDefs: https://github.com/wowdev/WoWDBDefs — Primary reference for DB2/DBC schema definitions, layout hashes, and DBMeta-derived field layouts for WoW client data
 - wow_messages (WoWee): https://github.com/gtker/wow_messages — Rust WoW protocol/format crates
-- cascette-rs: `~/Repos/cascette-rs` — Rust CASC/NGDP protocol implementation (used by casc-extract)
-- CASCLib: https://github.com/ladislav-zezula/CascLib — C library for reading CASC storage (WoW asset extraction)
 - noggit3: https://github.com/wowdev/noggit3 — Open-source WoW map editor/reference for terrain, WMO, and world data handling
 - wowmapview 0.5: https://sourceforge.net/projects/wowmapview/ — C++ WoW map viewer (ADT/WMO/M2 rendering reference)
 - WoWee client: https://github.com/Kelsidavis/WoWee — C++ open-source WoW client reimplementation (OpenGL, Vanilla/TBC/WotLK, MIT). Reportedly AI-generated.
@@ -158,4 +146,3 @@ src/
 - WebWowViewerCpp: https://github.com/Deamon87/WebWowViewerCpp — C++/Vulkan WoW map/model renderer (powers wow.tools map viewer)
 - warcraft-rs: https://github.com/wowemulation-dev/warcraft-rs — Rust crate collection for WoW formats (MPQ, ADT, M2, WMO, DBC)
 - game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
-- Future: game-engine as a full standalone client renderer + game-server authoritative backend
