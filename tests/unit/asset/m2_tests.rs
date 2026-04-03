@@ -2,6 +2,7 @@ use super::*;
 use crate::asset::asset_cache;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::Mesh;
+use std::fs;
 use std::path::Path;
 
 /// Build a minimal MD21 chunked file with the given MD20 blob.
@@ -181,6 +182,24 @@ fn parse_chunks_captures_txid() {
     let chunks = parse_chunks(&data).unwrap();
     assert_eq!(chunks.md20, &md20);
     assert_eq!(chunks.txid.unwrap(), &txid_data);
+}
+
+#[test]
+fn m2_format_modules_do_not_import_bevy() {
+    let dir = Path::new("src/asset/m2_format");
+    let entries = fs::read_dir(dir).expect("m2_format dir should exist");
+    for entry in entries {
+        let path = entry.expect("dir entry").path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
+            continue;
+        }
+        let contents = fs::read_to_string(&path).expect("module should be readable");
+        assert!(
+            !contents.contains("bevy::"),
+            "{} should not import bevy",
+            path.display()
+        );
+    }
 }
 
 #[test]
