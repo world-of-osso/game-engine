@@ -89,7 +89,6 @@ pub fn insert_text_into_editbox(reg: &mut FrameRegistry, id: u64, text: &str) {
     }
 }
 
-#[allow(dead_code)]
 pub fn set_editbox_text(reg: &mut FrameRegistry, id: u64, text: &str) {
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         eb.text = text.to_string();
@@ -139,22 +138,14 @@ pub fn frame_or_ancestor_matches(reg: &FrameRegistry, mut frame_id: u64, target_
 
 // --- Button visual helpers ---
 
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_REGULAR_UP_ATLAS: &str = "defaultbutton-nineslice-up";
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_REGULAR_PRESSED_ATLAS: &str = "defaultbutton-nineslice-pressed";
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_REGULAR_HIGHLIGHT_ATLAS: &str = "defaultbutton-nineslice-highlight";
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_REGULAR_DISABLED_ATLAS: &str = "defaultbutton-nineslice-disabled";
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_REGULAR_RAW: &str = "output/imagegen/button-dark-bronze-regular.ktx2";
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_KNOTWORK: &str = "output/imagegen/button-carved-bronze-knotwork.ktx2";
-#[allow(dead_code)]
 const LOGIN_BUTTON_GENERATED_WALNUT: &str = "output/imagegen/button-walnut-bronze-framed.ktx2";
 
-#[allow(dead_code)]
 pub fn set_button_atlases(
     reg: &mut FrameRegistry,
     id: u64,
@@ -171,7 +162,6 @@ pub fn set_button_atlases(
     }
 }
 
-#[allow(dead_code)]
 pub fn set_button_files(
     reg: &mut FrameRegistry,
     id: u64,
@@ -194,7 +184,6 @@ pub fn set_button_hovered(reg: &mut FrameRegistry, id: u64, hovered: bool) {
     }
 }
 
-#[allow(dead_code)]
 pub fn set_login_primary_button_textures(reg: &mut FrameRegistry, id: u64) {
     match selected_generated_login_button_path() {
         Some(path) => set_button_files(reg, id, path, path, path, path),
@@ -209,7 +198,6 @@ pub fn set_login_primary_button_textures(reg: &mut FrameRegistry, id: u64) {
     }
 }
 
-#[allow(dead_code)]
 fn selected_generated_login_button_path() -> Option<&'static str> {
     match std::env::var("LOGIN_BUTTON_VARIANT").ok().as_deref() {
         Some("regular") => Some(LOGIN_BUTTON_GENERATED_REGULAR_RAW),
