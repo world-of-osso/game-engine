@@ -6,7 +6,8 @@ use bevy_hanabi::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    PARTICLE_FLAG_CLAMP_TAIL_TO_AGE, PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_TAIL_PARTICLES,
+    PARTICLE_FLAG_CLAMP_TAIL_TO_AGE, PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_OFFSET_BY_SPIN,
+    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_TAIL_PARTICLES,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 
@@ -57,6 +58,14 @@ pub(crate) fn has_authored_twinkle(em: &M2ParticleEmitter) -> bool {
 pub(crate) fn has_authored_size_variation(em: &M2ParticleEmitter) -> bool {
     em.scale_variation != 0.0
         || (em.flags & PARTICLE_FLAG_SIZE_VARIATION_2D != 0 && em.scale_variation_y != 0.0)
+}
+
+pub(crate) fn build_offset_by_spin_modifier(
+    em: &M2ParticleEmitter,
+) -> Option<OffsetBySpinModifier> {
+    (em.flags & PARTICLE_FLAG_OFFSET_BY_SPIN != 0).then_some(OffsetBySpinModifier {
+        negate_spin: em.flags & PARTICLE_FLAG_NEGATE_SPIN != 0,
+    })
 }
 
 fn build_simple_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
@@ -203,6 +212,11 @@ pub(crate) struct TwinkleSizeModifier {
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub(crate) struct SizeVariationModifier;
 
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub(crate) struct OffsetBySpinModifier {
+    pub(crate) negate_spin: bool,
+}
+
 #[typetag::serde]
 impl Modifier for SizeVariationModifier {
     fn context(&self) -> ModifierContext {
@@ -247,6 +261,86 @@ impl RenderModifier for SizeVariationModifier {
         context.vertex_code += &format!(
             "size = vec3<f32>(size.x * particle.{scale}.x, size.y * particle.{scale}.y, size.z);\n",
             scale = Attribute::F32X2_0.name(),
+        );
+        Ok(())
+    }
+
+    fn boxed_render_clone(&self) -> Box<dyn RenderModifier> {
+        Box::new(self.clone())
+    }
+
+    fn as_modifier(&self) -> &dyn Modifier {
+        self
+    }
+}
+
+#[typetag::serde]
+impl Modifier for OffsetBySpinModifier {
+    fn context(&self) -> ModifierContext {
+        ModifierContext::Render
+    }
+
+    fn as_render(&self) -> Option<&dyn RenderModifier> {
+        Some(self)
+    }
+
+    fn as_render_mut(&mut self) -> Option<&mut dyn RenderModifier> {
+        Some(self)
+    }
+
+    fn attributes(&self) -> &[Attribute] {
+        if self.negate_spin {
+            &[
+                Attribute::F32_0,
+                Attribute::F32_1,
+                Attribute::AGE,
+                Attribute::F32X2_1,
+            ]
+        } else {
+            &[Attribute::F32_0, Attribute::F32_1, Attribute::AGE]
+        }
+    }
+
+    fn boxed_clone(&self) -> BoxedModifier {
+        Box::new(self.clone())
+    }
+
+    fn apply(
+        &self,
+        _module: &mut Module,
+        context: &mut bevy_hanabi::ShaderWriter,
+    ) -> Result<(), ExprError> {
+        Err(ExprError::InvalidModifierContext(
+            context.modifier_context(),
+            ModifierContext::Render,
+        ))
+    }
+}
+
+#[typetag::serde]
+impl RenderModifier for OffsetBySpinModifier {
+    fn apply_render(
+        &self,
+        _module: &mut Module,
+        context: &mut RenderContext,
+    ) -> Result<(), ExprError> {
+        let negate_spin = if self.negate_spin {
+            format!(
+                "rotation = rotation * particle.{}.x;\n",
+                Attribute::F32X2_1.name()
+            )
+        } else {
+            String::new()
+        };
+        context.vertex_code += &format!(
+            "var rotation = particle.{base_spin} + particle.{spin} * particle.{age};\n\
+             {negate_spin}\
+             let spin_offset = vec2<f32>(-sin(rotation), cos(rotation)) * (size.y * 0.5);\n\
+             position += axis_x * spin_offset.x + axis_y * spin_offset.y;\n",
+            base_spin = Attribute::F32_0.name(),
+            spin = Attribute::F32_1.name(),
+            age = Attribute::AGE.name(),
+            negate_spin = negate_spin,
         );
         Ok(())
     }

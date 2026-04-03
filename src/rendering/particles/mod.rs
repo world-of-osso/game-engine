@@ -21,8 +21,9 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::m2_spawn;
 use visuals::{
-    SizeVariationModifier, TwinkleSizeModifier, build_color_gradient, build_size_gradient,
-    has_authored_size_variation, has_authored_twinkle,
+    SizeVariationModifier, TwinkleSizeModifier, build_color_gradient,
+    build_offset_by_spin_modifier, build_size_gradient, has_authored_size_variation,
+    has_authored_twinkle,
 };
 
 // CParticleEmitter / retail runtime particle flag values.
@@ -41,6 +42,7 @@ pub(super) const PARTICLE_FLAG_RANDOM_TEXTURE: u32 = 0x0010_0000;
 pub(super) const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
 pub(super) const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
 pub(super) const PARTICLE_FLAG_NO_GLOBAL_SCALE: u32 = 0x1000_0000;
+pub(super) const PARTICLE_FLAG_OFFSET_BY_SPIN: u32 = 0x2000_0000;
 pub(super) const PARTICLE_FLAG_WIND_DYNAMIC: u32 = 0x4000_0000;
 pub(super) const PARTICLE_FLAG_WIND_ENABLED: u32 = 0x8000_0000;
 const BLEND_OPAQUE: u8 = 0;
@@ -1091,6 +1093,9 @@ fn build_effect_asset_with_mode(
     }
     if let Some(size_variation) = m.size_variation {
         effect = effect.render(size_variation);
+    }
+    if let Some(offset_by_spin) = build_offset_by_spin_modifier(em) {
+        effect = effect.render(offset_by_spin);
     }
     if em.tile_rows > 1 || em.tile_cols > 1 {
         effect = effect.render(FlipbookModifier {

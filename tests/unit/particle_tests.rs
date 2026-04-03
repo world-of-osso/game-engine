@@ -6,24 +6,25 @@ use bevy::prelude::{
 };
 use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 
-use super::visuals::has_authored_size_variation;
+use super::visuals::{build_offset_by_spin_modifier, has_authored_size_variation};
 use super::{
     FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
     PARTICLE_FLAG_INHERIT_POSITION, PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_NEGATE_SPIN,
-    PARTICLE_FLAG_NO_GLOBAL_SCALE, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
-    PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
-    PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
-    PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource, PositionInitModifier,
-    active_cell_track, build_color_gradient, build_effect_asset, build_effect_asset_with_mode,
-    build_expr_modifiers, build_position_modifier, build_size_gradient, child_emitter_event_count,
-    emitter_alpha_mode, emitter_parent_entity, emitter_scale_source, emitter_simulation_space,
-    emitter_spawn_offset, emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
-    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
-    emitter_uses_model_particles, emitter_uses_project_particle,
-    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
-    has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
-    lifetime_range, model_particle_spawn_count, orient_mode, projected_particle_spawn_y,
-    scaled_emission_rate, spawn_emitters, wind_accel_bevy, wind_strength_at_age,
+    PARTICLE_FLAG_NO_GLOBAL_SCALE, PARTICLE_FLAG_OFFSET_BY_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE,
+    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES,
+    PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED,
+    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource,
+    PositionInitModifier, active_cell_track, build_color_gradient, build_effect_asset,
+    build_effect_asset_with_mode, build_expr_modifiers, build_position_modifier,
+    build_size_gradient, child_emitter_event_count, emitter_alpha_mode, emitter_parent_entity,
+    emitter_scale_source, emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius,
+    emitter_translation, emitter_uses_bone_scale, emitter_uses_follow_position,
+    emitter_uses_inherit_position, emitter_uses_inherit_velocity, emitter_uses_model_particles,
+    emitter_uses_project_particle, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
+    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind,
+    inherit_position_back_delta_local, lifetime_range, model_particle_spawn_count, orient_mode,
+    projected_particle_spawn_y, scaled_emission_rate, spawn_emitters, wind_accel_bevy,
+    wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -756,6 +757,24 @@ fn no_global_scale_flag_skips_particle_density_multiplier() {
         (scaled_emission_rate(&emitter, graphics.particle_density_multiplier()) - 22.0).abs()
             < 0.0001
     );
+}
+
+#[test]
+fn offset_by_spin_flag_declares_render_offset_modifier() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_OFFSET_BY_SPIN;
+
+    assert!(build_offset_by_spin_modifier(&emitter).is_some());
+}
+
+#[test]
+fn offset_by_spin_modifier_tracks_negate_spin_flag() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_OFFSET_BY_SPIN | PARTICLE_FLAG_NEGATE_SPIN;
+
+    let modifier = build_offset_by_spin_modifier(&emitter).expect("modifier");
+
+    assert!(modifier.negate_spin);
 }
 
 #[test]
