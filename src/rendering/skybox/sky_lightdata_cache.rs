@@ -4,7 +4,7 @@ use std::time::UNIX_EPOCH;
 
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
-use rusqlite::{Connection, OpenFlags, params};
+use rusqlite::{Connection, OpenFlags, params_from_iter};
 
 use crate::sky_lightdata::{LightDataRow, decode_bgr32};
 
@@ -247,6 +247,38 @@ fn insert_row(
     if fields.len() <= columns.iter().copied().max().unwrap_or(0) {
         return Ok(());
     }
+    let (param_id, time) = parse_row_identity(&fields, columns, line, source_path)?;
+    let values = build_insert_row_values(&fields, columns, param_id, time);
+    insert
+        .execute(params_from_iter(values))
+        .map_err(|err| format!("insert light_data_rows row {param_id}:{time}: {err}"))?;
+    Ok(())
+}
+
+fn parse_row_identity(
+    fields: &[&str],
+    columns: &[usize; 26],
+    line: &str,
+    source_path: &Path,
+) -> Result<(u32, f32), String> {
+    let param_id = fields[columns[0]].parse::<u32>().map_err(|err| {
+        format!(
+            "parse {} param id row `{line}`: {err}",
+            source_path.display()
+        )
+    })?;
+    let time = fields[columns[1]]
+        .parse::<f32>()
+        .map_err(|err| format!("parse {} time row `{line}`: {err}", source_path.display()))?;
+    Ok((param_id, time))
+}
+
+fn build_insert_row_values<'a>(
+    fields: &'a [&'a str],
+    columns: &[usize; 26],
+    param_id: u32,
+    time: f32,
+) -> Vec<rusqlite::types::Value> {
     let p = |i: usize| -> u32 {
         fields
             .get(columns[i])
@@ -259,46 +291,34 @@ fn insert_row(
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0)
     };
-    let param_id = fields[columns[0]].parse::<u32>().map_err(|err| {
-        format!(
-            "parse {} param id row `{line}`: {err}",
-            source_path.display()
-        )
-    })?;
-    let time = fields[columns[1]]
-        .parse::<f32>()
-        .map_err(|err| format!("parse {} time row `{line}`: {err}", source_path.display()))?;
-    insert
-        .execute(params![
-            param_id,
-            time,
-            p(2),
-            p(3),
-            p(4),
-            p(5),
-            p(6),
-            p(7),
-            p(8),
-            p(9),
-            p(10),
-            p(11),
-            p(12),
-            p(13),
-            p(14),
-            p(15),
-            p(16),
-            p(17),
-            p(18),
-            p(19),
-            pf(20),
-            pf(20) * pf(21),
-            pf(22),
-            pf(23),
-            pf(24),
-            pf(25),
-        ])
-        .map_err(|err| format!("insert light_data_rows row {param_id}:{time}: {err}"))?;
-    Ok(())
+    vec![
+        param_id.into(),
+        time.into(),
+        p(2).into(),
+        p(3).into(),
+        p(4).into(),
+        p(5).into(),
+        p(6).into(),
+        p(7).into(),
+        p(8).into(),
+        p(9).into(),
+        p(10).into(),
+        p(11).into(),
+        p(12).into(),
+        p(13).into(),
+        p(14).into(),
+        p(15).into(),
+        p(16).into(),
+        p(17).into(),
+        p(18).into(),
+        p(19).into(),
+        pf(20).into(),
+        (pf(20) * pf(21)).into(),
+        pf(22).into(),
+        pf(23).into(),
+        pf(24).into(),
+        pf(25).into(),
+    ]
 }
 
 fn record_metadata(conn: &Connection, source_path: &Path) -> Result<(), String> {
