@@ -299,7 +299,13 @@ pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCach
         ));
     }
     let conn = open_read_only(&cache_path)?;
+    let layers = load_layers(&conn)?;
+    let sections = load_sections(&conn)?;
+    let layouts = load_layouts(&conn)?;
+    Ok((layers, sections, layouts))
+}
 
+fn load_layers(conn: &Connection) -> Result<Vec<TextureLayer>, String> {
     let mut layers_stmt = conn
         .prepare(
             "SELECT texture_type, layer, blend_mode, section_bitmask, target_id, layout_id
@@ -307,7 +313,7 @@ pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCach
              ORDER BY layout_id, texture_type, layer",
         )
         .map_err(|err| format!("prepare layers lookup: {err}"))?;
-    let layers = layers_stmt
+    layers_stmt
         .query_map([], |row| {
             Ok(TextureLayer {
                 texture_type: row.get(0)?,
@@ -320,12 +326,14 @@ pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCach
         })
         .map_err(|err| format!("query layers: {err}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| format!("read layers row: {err}"))?;
+        .map_err(|err| format!("read layers row: {err}"))
+}
 
+fn load_sections(conn: &Connection) -> Result<HashMap<(u32, u32), TextureSection>, String> {
     let mut sections_stmt = conn
         .prepare("SELECT layout_id, section_type, x, y, width, height FROM sections")
         .map_err(|err| format!("prepare sections lookup: {err}"))?;
-    let sections = sections_stmt
+    sections_stmt
         .query_map([], |row| {
             Ok((
                 (row.get::<_, u32>(0)?, row.get::<_, u32>(1)?),
@@ -339,12 +347,14 @@ pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCach
         })
         .map_err(|err| format!("query sections: {err}"))?
         .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read sections row: {err}"))?;
+        .map_err(|err| format!("read sections row: {err}"))
+}
 
+fn load_layouts(conn: &Connection) -> Result<HashMap<u32, TextureLayout>, String> {
     let mut layouts_stmt = conn
         .prepare("SELECT id, width, height FROM layouts")
         .map_err(|err| format!("prepare layouts lookup: {err}"))?;
-    let layouts = layouts_stmt
+    layouts_stmt
         .query_map([], |row| {
             Ok((
                 row.get::<_, u32>(0)?,
@@ -356,9 +366,7 @@ pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCach
         })
         .map_err(|err| format!("query layouts: {err}"))?
         .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read layouts row: {err}"))?;
-
-    Ok((layers, sections, layouts))
+        .map_err(|err| format!("read layouts row: {err}"))
 }
 
 #[cfg(test)]
