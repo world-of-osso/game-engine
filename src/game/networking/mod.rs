@@ -419,29 +419,40 @@ fn handle_client_disconnected(
     );
     handle_disconnect_by_state(
         &state,
-        auth_token,
-        selected,
-        reconnect,
+        DisconnectInputs {
+            auth_token,
+            selected,
+            reconnect,
+            selected_name: selected_name.as_deref(),
+        },
         &mut auth_feedback,
         &mut next_state,
         &mut commands,
         trigger.entity,
-        selected_name.as_deref(),
     );
 }
 
-#[allow(clippy::too_many_arguments)]
+struct DisconnectInputs<'a, 'b, 'c, 'd> {
+    auth_token: Option<Res<'a, AuthToken>>,
+    selected: Option<Res<'b, SelectedCharacterId>>,
+    reconnect: Option<ResMut<'c, ReconnectState>>,
+    selected_name: Option<&'d str>,
+}
+
 fn handle_disconnect_by_state(
     state: &Res<State<crate::game_state::GameState>>,
-    auth_token: Option<Res<AuthToken>>,
-    selected: Option<Res<SelectedCharacterId>>,
-    reconnect: Option<ResMut<ReconnectState>>,
+    inputs: DisconnectInputs<'_, '_, '_, '_>,
     auth_feedback: &mut ResMut<AuthUiFeedback>,
     next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
     commands: &mut Commands,
     entity: Entity,
-    selected_name: Option<&str>,
 ) {
+    let DisconnectInputs {
+        auth_token,
+        selected,
+        reconnect,
+        selected_name,
+    } = inputs;
     match *state.get() {
         crate::game_state::GameState::CharSelect => {
             handle_charselect_disconnect(auth_token, reconnect, auth_feedback, commands);
