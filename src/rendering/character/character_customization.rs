@@ -194,48 +194,94 @@ fn apply_base_skin_and_overlay_textures(
         &ChildOf,
     )>,
 ) {
+    let Some(replacements) = build_replacement_texture_handles(
+        selection,
+        customization_db,
+        char_tex,
+        overlay_set,
+        merged_cape_texture_fdid,
+        images,
+    ) else {
+        return;
+    };
+    apply_replacement_textures_to_materials(
+        root,
+        materials,
+        parent_query,
+        material_query,
+        &replacements,
+    );
+}
+
+struct ReplacementTextureHandles {
+    body: Handle<Image>,
+    head: Option<Handle<Image>>,
+    hair: Option<Handle<Image>>,
+    eye: Option<Handle<Image>>,
+    cape: Option<Handle<Image>>,
+}
+
+fn build_replacement_texture_handles(
+    selection: CharacterCustomizationSelection,
+    customization_db: &CustomizationDb,
+    char_tex: &CharTextureData,
+    overlay_set: &game_engine::outfit_data::OutfitResult,
+    merged_cape_texture_fdid: Option<u32>,
+    images: &mut Assets<Image>,
+) -> Option<ReplacementTextureHandles> {
     let all_materials = collect_appearance_materials(selection, customization_db);
     if all_materials.is_empty() {
-        return;
+        return None;
     }
-    let Some(layout_id) = customization_db.layout_id(selection.race, selection.sex) else {
-        return;
-    };
-    let Some(composited) =
-        char_tex.composite_model_textures(&all_materials, &overlay_set.item_textures, layout_id)
-    else {
-        return;
-    };
+    let layout_id = customization_db.layout_id(selection.race, selection.sex)?;
+    let composited =
+        char_tex.composite_model_textures(&all_materials, &overlay_set.item_textures, layout_id)?;
     let (body_pixels, body_w, body_h) = composited.body;
-    let body_handle = images.add(crate::rgba_image(body_pixels, body_w, body_h));
-    let head_handle = composited
-        .head
-        .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
-    let hair_handle = composited
-        .hair
-        .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height)));
-    let eye_handle = char_tex
-        .replacement_texture_fdid(&all_materials, layout_id, 19)
-        .and_then(crate::asset::asset_cache::texture)
-        .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
-        .map(|image| images.add(image));
-    let cape_handle = merged_cape_texture_fdid
-        .and_then(crate::asset::asset_cache::texture)
-        .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
-        .map(|image| images.add(image));
+    Some(ReplacementTextureHandles {
+        body: images.add(crate::rgba_image(body_pixels, body_w, body_h)),
+        head: composited
+            .head
+            .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height))),
+        hair: composited
+            .hair
+            .map(|(pixels, width, height)| images.add(crate::rgba_image(pixels, width, height))),
+        eye: char_tex
+            .replacement_texture_fdid(&all_materials, layout_id, 19)
+            .and_then(crate::asset::asset_cache::texture)
+            .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
+            .map(|image| images.add(image)),
+        cape: merged_cape_texture_fdid
+            .and_then(crate::asset::asset_cache::texture)
+            .and_then(|path| crate::asset::blp::load_blp_to_image(&path).ok())
+            .map(|image| images.add(image)),
+    })
+}
+
+fn apply_replacement_textures_to_materials(
+    root: Entity,
+    materials: &mut Assets<StandardMaterial>,
+    parent_query: &Query<&ChildOf>,
+    material_query: &Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&GeosetMesh>,
+        Option<&BatchTextureType>,
+        &ChildOf,
+    )>,
+    replacements: &ReplacementTextureHandles,
+) {
     for (entity, mat_handle, _geoset_mesh, batch_texture_type, _) in material_query.iter() {
         if !is_descendant_of(entity, root, parent_query) {
             continue;
         }
-        let replacement = replacement_texture_for_batch(
+        let Some(replacement) = replacement_texture_for_batch(
             batch_texture_type.map(|t| t.0),
-            &body_handle,
-            head_handle.as_ref(),
-            hair_handle.as_ref(),
-            eye_handle.as_ref(),
-            cape_handle.as_ref(),
-        );
-        let Some(replacement) = replacement else {
+            &replacements.body,
+            replacements.head.as_ref(),
+            replacements.hair.as_ref(),
+            replacements.eye.as_ref(),
+            replacements.cape.as_ref(),
+        ) else {
             continue;
         };
         if let Some(mat) = materials.get_mut(&mat_handle.0) {
