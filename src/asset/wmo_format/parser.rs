@@ -1,37 +1,8 @@
+use std::io::Cursor;
+
+use binrw::BinRead;
+
 use crate::asset::adt::ChunkIter;
-
-fn read_u8(data: &[u8], off: usize) -> Result<u8, String> {
-    data.get(off)
-        .copied()
-        .ok_or_else(|| format!("read_u8 out of bounds at {off:#x}"))
-}
-
-fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_u16 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u16::from_le_bytes(bytes))
-}
-
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_u32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_f32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(f32::from_le_bytes(bytes))
-}
 
 pub struct WmoRootData {
     pub n_groups: u32,
@@ -85,6 +56,91 @@ pub struct RawBatch {
     pub material_id: u16,
 }
 
+const MOHD_HEADER_SIZE: usize = 64;
+const MOMT_ENTRY_SIZE: usize = 64;
+const MOPT_ENTRY_SIZE: usize = 20;
+const MOPR_ENTRY_SIZE: usize = 8;
+const MOGI_ENTRY_SIZE: usize = 32;
+const VEC3_ENTRY_SIZE: usize = 12;
+const VEC2_ENTRY_SIZE: usize = 8;
+const MOBA_ENTRY_SIZE: usize = 24;
+
+#[derive(BinRead)]
+#[br(little)]
+struct MohdHeader {
+    _n_materials: u32,
+    n_groups: u32,
+    _n_portals: u32,
+    _n_lights: u32,
+    _n_models: u32,
+    _n_doodads: u32,
+    _n_sets: u32,
+    _ambient_color: u32,
+    _wmo_id: u32,
+    _bbox_min: [f32; 3],
+    _bbox_max: [f32; 3],
+    _flags: u16,
+    _n_lod: u16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoMaterialDef {
+    flags: u32,
+    shader: u32,
+    blend_mode: u32,
+    texture_fdid: u32,
+    _sidn_emissive_color: u32,
+    _frame_sidn_runtime_data: [u32; 2],
+    texture_2_fdid: u32,
+    _diff_color: u32,
+    texture_3_fdid: u32,
+    _color_2: u32,
+    _terrain_type: u32,
+    _texture_3_flags: u32,
+    _run_time_data: [u32; 3],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoPortal {
+    start_vertex: u16,
+    vert_count: u16,
+    normal: [f32; 3],
+    _unknown: f32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoPortalRef {
+    portal_index: u16,
+    group_index: u16,
+    side: i16,
+    _padding: u16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoGroupInfo {
+    flags: u32,
+    bbox_min: [f32; 3],
+    bbox_max: [f32; 3],
+    _name_offset: u32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawBatchEntry {
+    _possible_box_1: [u8; 10],
+    material_id_large: u16,
+    start_index: u32,
+    count: u16,
+    min_index: u16,
+    max_index: u16,
+    _possible_box_2: u8,
+    material_id_small: u8,
+}
+
 pub const MOGP_HEADER_SIZE: usize = 68;
 
 pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
@@ -92,6 +148,39 @@ pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
 }
 
 type PortalsAndRanges = (Vec<WmoPortal>, Vec<(u16, u16)>);
+
+fn parse_binrw_entries<T>(data: &[u8], entry_size: usize, label: &str) -> Result<Vec<T>, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    let count = data.len() / entry_size;
+    let byte_len = count
+        .checked_mul(entry_size)
+        .ok_or_else(|| format!("{label} byte length overflow"))?;
+    let slice = data
+        .get(..byte_len)
+        .ok_or_else(|| format!("{label} data out of bounds"))?;
+    let mut cursor = Cursor::new(slice);
+    let mut entries = Vec::with_capacity(count);
+    for i in 0..count {
+        entries.push(
+            T::read_le(&mut cursor).map_err(|err| {
+                format!("{label} {i} parse failed at {:#x}: {err}", i * entry_size)
+            })?,
+        );
+    }
+    Ok(entries)
+}
+
+fn parse_binrw_value<T>(data: &[u8], byte_len: usize, label: &str) -> Result<T, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    let slice = data
+        .get(..byte_len)
+        .ok_or_else(|| format!("{label} too small: {} bytes", data.len()))?;
+    T::read_le(&mut Cursor::new(slice)).map_err(|err| format!("{label} parse failed: {err}"))
+}
 
 pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     let mut n_groups = 0u32;
@@ -150,10 +239,8 @@ fn apply_root_chunk(
 ) -> Result<(), String> {
     match tag {
         b"DHOM" => {
-            if payload.len() < 64 {
-                return Err(format!("MOHD too small: {} bytes", payload.len()));
-            }
-            *state.n_groups = read_u32(payload, 4)?;
+            let header: MohdHeader = parse_binrw_value(payload, MOHD_HEADER_SIZE, "MOHD")?;
+            *state.n_groups = header.n_groups;
         }
         b"TMOM" => *state.materials = parse_momt(payload)?,
         b"VPOM" => *state.portal_vertices = parse_vec3_array(payload)?,
@@ -180,46 +267,31 @@ fn parse_c_string(data: &[u8]) -> Option<String> {
 }
 
 pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
-    let count = data.len() / 64;
-    let mut mats = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 64;
-        let flags = read_u32(data, base)?;
-        let shader = read_u32(data, base + 4)?;
-        let blend_mode = read_u32(data, base + 8)?;
-        let texture_fdid = read_u32(data, base + 0x0C)?;
-        let texture_2_fdid = read_u32(data, base + 0x18)?;
-        let texture_3_fdid = read_u32(data, base + 0x24)?;
-        mats.push(WmoMaterialDef {
-            texture_fdid,
-            texture_2_fdid,
-            texture_3_fdid,
-            flags,
-            blend_mode,
-            shader,
-        });
-    }
-    Ok(mats)
+    Ok(
+        parse_binrw_entries::<RawWmoMaterialDef>(data, MOMT_ENTRY_SIZE, "MOMT")?
+            .into_iter()
+            .map(|mat| WmoMaterialDef {
+                texture_fdid: mat.texture_fdid,
+                texture_2_fdid: mat.texture_2_fdid,
+                texture_3_fdid: mat.texture_3_fdid,
+                flags: mat.flags,
+                blend_mode: mat.blend_mode,
+                shader: mat.shader,
+            })
+            .collect(),
+    )
 }
 
 fn parse_mopt(data: &[u8]) -> Result<PortalsAndRanges, String> {
-    let count = data.len() / 20;
-    let mut portals = Vec::with_capacity(count);
-    let mut ranges = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 20;
-        let start_vertex = read_u16(data, base)?;
-        let vert_count = read_u16(data, base + 2)?;
-        let normal = [
-            read_f32(data, base + 4)?,
-            read_f32(data, base + 8)?,
-            read_f32(data, base + 12)?,
-        ];
+    let raw = parse_binrw_entries::<RawWmoPortal>(data, MOPT_ENTRY_SIZE, "MOPT")?;
+    let mut portals = Vec::with_capacity(raw.len());
+    let mut ranges = Vec::with_capacity(raw.len());
+    for portal in raw {
         portals.push(WmoPortal {
             vertices: Vec::new(),
-            normal,
+            normal: portal.normal,
         });
-        ranges.push((start_vertex, vert_count));
+        ranges.push((portal.start_vertex, portal.vert_count));
     }
     Ok((portals, ranges))
 }
@@ -239,45 +311,29 @@ fn resolve_portal_vertices(
 }
 
 fn parse_mopr(data: &[u8]) -> Result<Vec<WmoPortalRef>, String> {
-    let count = data.len() / 8;
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 8;
-        let portal_index = read_u16(data, base)?;
-        let group_index = read_u16(data, base + 2)?;
-        let side = read_u16(data, base + 4)? as i16;
-        out.push(WmoPortalRef {
-            portal_index,
-            group_index,
-            side,
-        });
-    }
-    Ok(out)
+    Ok(
+        parse_binrw_entries::<RawWmoPortalRef>(data, MOPR_ENTRY_SIZE, "MOPR")?
+            .into_iter()
+            .map(|portal_ref| WmoPortalRef {
+                portal_index: portal_ref.portal_index,
+                group_index: portal_ref.group_index,
+                side: portal_ref.side,
+            })
+            .collect(),
+    )
 }
 
 fn parse_mogi(data: &[u8]) -> Result<Vec<WmoGroupInfo>, String> {
-    let count = data.len() / 32;
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 32;
-        let flags = read_u32(data, base)?;
-        let bbox_min = [
-            read_f32(data, base + 4)?,
-            read_f32(data, base + 8)?,
-            read_f32(data, base + 12)?,
-        ];
-        let bbox_max = [
-            read_f32(data, base + 16)?,
-            read_f32(data, base + 20)?,
-            read_f32(data, base + 24)?,
-        ];
-        out.push(WmoGroupInfo {
-            flags,
-            bbox_min,
-            bbox_max,
-        });
-    }
-    Ok(out)
+    Ok(
+        parse_binrw_entries::<RawWmoGroupInfo>(data, MOGI_ENTRY_SIZE, "MOGI")?
+            .into_iter()
+            .map(|group| WmoGroupInfo {
+                flags: group.flags,
+                bbox_min: group.bbox_min,
+                bbox_max: group.bbox_max,
+            })
+            .collect(),
+    )
 }
 
 pub fn find_mogp(data: &[u8]) -> Result<&[u8], String> {
@@ -329,27 +385,11 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
 }
 
 fn parse_vec3_array(data: &[u8]) -> Result<Vec<[f32; 3]>, String> {
-    let count = data.len() / 12;
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 12;
-        out.push([
-            read_f32(data, base)?,
-            read_f32(data, base + 4)?,
-            read_f32(data, base + 8)?,
-        ]);
-    }
-    Ok(out)
+    parse_binrw_entries(data, VEC3_ENTRY_SIZE, "vec3 array")
 }
 
 fn parse_vec2_array(data: &[u8]) -> Result<Vec<[f32; 2]>, String> {
-    let count = data.len() / 8;
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 8;
-        out.push([read_f32(data, base)?, read_f32(data, base + 4)?]);
-    }
-    Ok(out)
+    parse_binrw_entries(data, VEC2_ENTRY_SIZE, "vec2 array")
 }
 
 fn parse_u16_array(data: &[u8]) -> Vec<u16> {
@@ -372,30 +412,25 @@ fn parse_mocv(data: &[u8]) -> Vec<[f32; 4]> {
 }
 
 pub fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
-    let count = data.len() / 24;
-    let mut batches = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = i * 24;
-        let material_id_large = read_u16(data, base + 0x0A)?;
-        let start_index = read_u32(data, base + 0x0C)?;
-        let count = read_u16(data, base + 0x10)?;
-        let min_index = read_u16(data, base + 0x12)?;
-        let max_index = read_u16(data, base + 0x14)?;
-        let material_id_small = read_u8(data, base + 0x17)?;
-        let material_id = if material_id_small == 0xFF {
-            material_id_large
-        } else {
-            material_id_small as u16
-        };
-        batches.push(RawBatch {
-            start_index,
-            count,
-            min_index,
-            max_index,
-            material_id,
-        });
-    }
-    Ok(batches)
+    Ok(
+        parse_binrw_entries::<RawBatchEntry>(data, MOBA_ENTRY_SIZE, "MOBA")?
+            .into_iter()
+            .map(|batch| {
+                let material_id = if batch.material_id_small == 0xFF {
+                    batch.material_id_large
+                } else {
+                    batch.material_id_small as u16
+                };
+                RawBatch {
+                    start_index: batch.start_index,
+                    count: batch.count,
+                    min_index: batch.min_index,
+                    max_index: batch.max_index,
+                    material_id,
+                }
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
