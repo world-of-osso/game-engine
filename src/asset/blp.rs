@@ -157,38 +157,80 @@ pub fn blit_region(
     dst_x: u32,
     dst_y: u32,
 ) {
+    let geometry = BlitGeometry {
+        base_w,
+        ov_w,
+        dst_x,
+        dst_y,
+    };
     for row in 0..ov_h {
         for col in 0..ov_w {
-            let bx = dst_x + col;
-            let by = dst_y + row;
-            if bx >= base_w {
+            let Some((bi, oi)) = geometry.pixel_indices(base, overlay, row, col) else {
                 continue;
-            }
-            let bi = ((by * base_w + bx) * 4) as usize;
-            let oi = ((row * ov_w + col) * 4) as usize;
-            if bi + 3 >= base.len() || oi + 3 >= overlay.len() {
-                continue;
-            }
-            let alpha = overlay[oi + 3] as u16;
-            if alpha == 0 {
-                continue;
-            }
-            if alpha == 255 {
-                base[bi] = overlay[oi];
-                base[bi + 1] = overlay[oi + 1];
-                base[bi + 2] = overlay[oi + 2];
-                base[bi + 3] = 255;
-            } else {
-                let inv = 255 - alpha;
-                base[bi] = ((alpha * overlay[oi] as u16 + inv * base[bi] as u16) / 255) as u8;
-                base[bi + 1] =
-                    ((alpha * overlay[oi + 1] as u16 + inv * base[bi + 1] as u16) / 255) as u8;
-                base[bi + 2] =
-                    ((alpha * overlay[oi + 2] as u16 + inv * base[bi + 2] as u16) / 255) as u8;
-                base[bi + 3] = base[bi + 3].max(overlay[oi + 3]);
-            }
+            };
+            blend_overlay_pixel(base, overlay, bi, oi);
         }
     }
+}
+
+struct BlitGeometry {
+    base_w: u32,
+    ov_w: u32,
+    dst_x: u32,
+    dst_y: u32,
+}
+
+impl BlitGeometry {
+    fn pixel_indices(
+        &self,
+        base: &[u8],
+        overlay: &[u8],
+        row: u32,
+        col: u32,
+    ) -> Option<(usize, usize)> {
+        let bx = self.dst_x + col;
+        if bx >= self.base_w {
+            return None;
+        }
+        let by = self.dst_y + row;
+        let bi = ((by * self.base_w + bx) * 4) as usize;
+        let oi = ((row * self.ov_w + col) * 4) as usize;
+        ((bi + 3) < base.len() && (oi + 3) < overlay.len()).then_some((bi, oi))
+    }
+}
+
+fn blend_overlay_pixel(base: &mut [u8], overlay: &[u8], bi: usize, oi: usize) {
+    let alpha = overlay[oi + 3];
+    match alpha {
+        0 => {}
+        255 => copy_opaque_overlay_pixel(base, overlay, bi, oi),
+        _ => blend_translucent_overlay_pixel(base, overlay, bi, oi, alpha as u16),
+    }
+}
+
+fn copy_opaque_overlay_pixel(base: &mut [u8], overlay: &[u8], bi: usize, oi: usize) {
+    base[bi] = overlay[oi];
+    base[bi + 1] = overlay[oi + 1];
+    base[bi + 2] = overlay[oi + 2];
+    base[bi + 3] = 255;
+}
+
+fn blend_translucent_overlay_pixel(
+    base: &mut [u8],
+    overlay: &[u8],
+    bi: usize,
+    oi: usize,
+    alpha: u16,
+) {
+    let inv = 255 - alpha;
+    base[bi] = blend_channel(alpha, inv, overlay[oi], base[bi]);
+    base[bi + 1] = blend_channel(alpha, inv, overlay[oi + 1], base[bi + 1]);
+    base[bi + 2] = blend_channel(alpha, inv, overlay[oi + 2], base[bi + 2]);
+    base[bi + 3] = base[bi + 3].max(overlay[oi + 3]);
+}
+
+fn blend_channel(alpha: u16, inv: u16, overlay: u8, base: u8) -> u8 {
+    ((alpha * overlay as u16 + inv * base as u16) / 255) as u8
 }
 
 fn fix_1bit_alpha(pixels: &mut [u8]) {
