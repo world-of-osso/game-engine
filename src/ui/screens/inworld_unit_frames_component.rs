@@ -353,6 +353,17 @@ fn player_contextual_icons(prefix: &str) -> Element {
 
 fn target_contextual_icons(prefix: &str) -> Element {
     [
+        target_left_status_icons(prefix),
+        target_portrait_overlay_icons(prefix),
+        target_right_badge_icons(prefix),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn target_left_status_icons(prefix: &str) -> Element {
+    [
         anchored_marker(
             format!("{prefix}ReputationColor"),
             TARGET_REPUTATION.x,
@@ -373,6 +384,14 @@ fn target_contextual_icons(prefix: &str) -> Element {
             TARGET_LEADER.x,
             TARGET_LEADER.y,
         ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn target_portrait_overlay_icons(prefix: &str) -> Element {
+    [
         portrait_centered_marker(
             format!("{prefix}RaidTargetIcon"),
             AnchorPoint::Top,
@@ -382,6 +401,14 @@ fn target_contextual_icons(prefix: &str) -> Element {
         portrait_centered_marker(format!("{prefix}BossIcon"), AnchorPoint::Bottom, 0.0, 0.0),
         portrait_centered_marker(format!("{prefix}QuestIcon"), AnchorPoint::Bottom, 0.0, 0.0),
         anchored_top_marker(format!("{prefix}PvpIcon"), FRAME_W - 26.0, PLAYER_PVP.y),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn target_right_badge_icons(prefix: &str) -> Element {
+    [
         sized_marker(
             format!("{prefix}PrestigePortrait"),
             TARGET_PRESTIGE.x,
