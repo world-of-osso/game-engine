@@ -1,42 +1,20 @@
+use std::io::Cursor;
+use std::mem::size_of;
 use std::path::{Path, PathBuf};
+
+use binrw::BinRead;
 
 const CHUNK_HEADER_SIZE: usize = 8;
 const SKIN_HEADER_SIZE: usize = 44;
-const VERTEX_ENTRY_SIZE: usize = 48;
-const VERTEX_POSITION_OFFSET: usize = 0;
-const VERTEX_BONE_WEIGHTS_OFFSET: usize = 12;
-const VERTEX_BONE_INDICES_OFFSET: usize = 16;
-const VERTEX_NORMAL_OFFSET: usize = 20;
-const VERTEX_TEX_COORDS_OFFSET: usize = 32;
-const VERTEX_TEX_COORDS_2_OFFSET: usize = 40;
 const U16_ARRAY_HEADER_STRIDE: usize = 4;
-const U16_ENTRY_SIZE: usize = 2;
 const M2_ARRAY_HEADER_SIZE: usize = 8;
-const SUBMESH_ENTRY_SIZE: usize = 48;
-const SUBMESH_MESH_PART_ID_OFFSET: usize = 0;
-const SUBMESH_VERTEX_START_OFFSET: usize = 4;
-const SUBMESH_VERTEX_COUNT_OFFSET: usize = 6;
-const SUBMESH_INDEX_COUNT_OFFSET: usize = 10;
-const TEXTURE_UNIT_ENTRY_SIZE: usize = 24;
-const TEXTURE_UNIT_PRIORITY_PLANE_OFFSET: usize = 1;
-const TEXTURE_UNIT_SHADER_ID_OFFSET: usize = 2;
-const TEXTURE_UNIT_SUBMESH_INDEX_OFFSET: usize = 4;
-const TEXTURE_UNIT_COLOR_INDEX_OFFSET: usize = 8;
-const TEXTURE_UNIT_RENDER_FLAGS_INDEX_OFFSET: usize = 10;
-const TEXTURE_UNIT_MATERIAL_LAYER_OFFSET: usize = 12;
-const TEXTURE_UNIT_TEXTURE_COUNT_OFFSET: usize = 14;
-const TEXTURE_UNIT_TEXTURE_ID_OFFSET: usize = 16;
-const TEXTURE_UNIT_TEXTURE_COORD_INDEX_OFFSET: usize = 18;
-const TEXTURE_UNIT_TRANSPARENCY_INDEX_OFFSET: usize = 20;
-const TEXTURE_UNIT_TEXTURE_ANIMATION_ID_OFFSET: usize = 22;
-const TEXTURE_TYPE_ENTRY_SIZE: usize = 16;
-const MATERIAL_ENTRY_SIZE: usize = 4;
-const MATERIAL_BLEND_MODE_OFFSET: usize = 2;
 const LOOKUP_ENTRY_SIZE_I16: usize = 2;
 const LOOKUP_ENTRY_SIZE_U32: usize = 4;
 const MD20_TRANSPARENCY_LOOKUP_COUNT_OFFSET: usize = 0x90;
 const MD20_UV_ANIMATION_LOOKUP_COUNT_OFFSET: usize = 0x98;
 
+#[derive(BinRead)]
+#[br(little)]
 pub(crate) struct M2Vertex {
     pub position: [f32; 3],
     pub bone_weights: [u8; 4],
@@ -54,6 +32,31 @@ pub(crate) struct M2Submesh {
     pub triangle_count: u16,
 }
 
+#[derive(BinRead)]
+#[br(little)]
+struct RawM2Submesh {
+    mesh_part_id: u16,
+    _level: u16,
+    vertex_start: u16,
+    vertex_count: u16,
+    _triangle_start: u16,
+    triangle_count: u16,
+    _bone_count: u16,
+    _bone_combo_index: u16,
+    _bone_influences: u16,
+    _root_bone: u16,
+    _center_mass: [f32; 3],
+    _sort_center_position: [f32; 3],
+    _sort_radius: f32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+pub(crate) struct M2Material {
+    pub flags: u16,
+    pub blend_mode: u16,
+}
+
 pub struct M2TextureUnit {
     pub flags: u8,
     pub priority_plane: i8,
@@ -69,9 +72,31 @@ pub struct M2TextureUnit {
     pub texture_animation_id: u16,
 }
 
-pub(crate) struct M2Material {
-    pub flags: u16,
-    pub blend_mode: u16,
+#[derive(BinRead)]
+#[br(little)]
+struct RawM2TextureUnit {
+    flags: u8,
+    priority_plane: i8,
+    shader_id: u16,
+    submesh_index: u16,
+    _submesh_index2: u16,
+    color_index: i16,
+    render_flags_index: u16,
+    material_layer: u16,
+    texture_count: u16,
+    texture_id: u16,
+    texture_coord_index: u16,
+    transparency_index: u16,
+    texture_animation_id: u16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct M2TextureTypeEntry {
+    texture_type: u32,
+    _flags: u32,
+    _filename_length: u32,
+    _filename_offset: u32,
 }
 
 pub(crate) struct SkinData {
@@ -130,6 +155,37 @@ pub(crate) fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
     Ok(u16::from_le_bytes(bytes))
 }
 
+fn parse_binrw_entries<T>(
+    data: &[u8],
+    offset: usize,
+    count: usize,
+    label: &str,
+) -> Result<Vec<T>, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    let byte_len = count
+        .checked_mul(size_of::<T>())
+        .ok_or_else(|| format!("{label} byte length overflow"))?;
+    let end = offset
+        .checked_add(byte_len)
+        .ok_or_else(|| format!("{label} end offset overflow"))?;
+    let slice = data
+        .get(offset..end)
+        .ok_or_else(|| format!("{label} data out of bounds at {offset:#x}"))?;
+    let mut cursor = Cursor::new(slice);
+    let mut entries = Vec::with_capacity(count);
+    for i in 0..count {
+        entries.push(T::read_le(&mut cursor).map_err(|err| {
+            format!(
+                "{label} {i} parse failed at {:#x}: {err}",
+                offset + i * size_of::<T>()
+            )
+        })?);
+    }
+    Ok(entries)
+}
+
 pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
     let mut ska1 = None;
@@ -164,52 +220,13 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     })
 }
 
-fn parse_one_vertex(md20: &[u8], i: usize, base: usize) -> Result<M2Vertex, String> {
-    let bw = md20
-        .get(base + VERTEX_BONE_WEIGHTS_OFFSET..base + VERTEX_BONE_INDICES_OFFSET)
-        .ok_or_else(|| format!("Vertex {i} bone_weights out of bounds at {base:#x}"))?;
-    let bi = md20
-        .get(base + VERTEX_BONE_INDICES_OFFSET..base + VERTEX_NORMAL_OFFSET)
-        .ok_or_else(|| format!("Vertex {i} bone_indices out of bounds at {base:#x}"))?;
-    Ok(M2Vertex {
-        position: [
-            read_f32(md20, base + VERTEX_POSITION_OFFSET)?,
-            read_f32(md20, base + VERTEX_POSITION_OFFSET + 4)?,
-            read_f32(md20, base + VERTEX_POSITION_OFFSET + 8)?,
-        ],
-        bone_weights: bw.try_into().unwrap(),
-        bone_indices: bi.try_into().unwrap(),
-        normal: [
-            read_f32(md20, base + VERTEX_NORMAL_OFFSET)?,
-            read_f32(md20, base + VERTEX_NORMAL_OFFSET + 4)?,
-            read_f32(md20, base + VERTEX_NORMAL_OFFSET + 8)?,
-        ],
-        tex_coords: [
-            read_f32(md20, base + VERTEX_TEX_COORDS_OFFSET)?,
-            read_f32(md20, base + VERTEX_TEX_COORDS_OFFSET + 4)?,
-        ],
-        tex_coords_2: [
-            read_f32(md20, base + VERTEX_TEX_COORDS_2_OFFSET)?,
-            read_f32(md20, base + VERTEX_TEX_COORDS_2_OFFSET + 4)?,
-        ],
-    })
-}
-
 pub(crate) fn parse_vertices(md20: &[u8]) -> Result<Vec<M2Vertex>, String> {
     if md20.len() < super::MD20_VERTICES_DATA_OFFSET + 4 {
         return Err("MD20 header too short for vertices".into());
     }
     let count = read_u32(md20, super::MD20_VERTICES_COUNT_OFFSET)? as usize;
     let offset = read_u32(md20, super::MD20_VERTICES_DATA_OFFSET)? as usize;
-    let mut vertices = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = offset + i * VERTEX_ENTRY_SIZE;
-        if base + VERTEX_ENTRY_SIZE > md20.len() {
-            return Err(format!("Vertex {i} out of bounds at offset {base:#x}"));
-        }
-        vertices.push(parse_one_vertex(md20, i, base)?);
-    }
-    Ok(vertices)
+    parse_binrw_entries(md20, offset, count, "vertex")
 }
 
 pub(crate) fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
@@ -235,30 +252,22 @@ pub(crate) fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
 fn parse_u16_array(data: &[u8], header_off: usize) -> Result<Vec<u16>, String> {
     let count = read_u32(data, header_off)? as usize;
     let offset = read_u32(data, header_off + U16_ARRAY_HEADER_STRIDE)? as usize;
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        out.push(read_u16(data, offset + i * U16_ENTRY_SIZE)?);
-    }
-    Ok(out)
+    parse_binrw_entries(data, offset, count, "u16 array")
 }
 
 fn parse_submeshes(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2Submesh>, String> {
-    let mut subs = Vec::with_capacity(count);
+    let raw = parse_binrw_entries::<RawM2Submesh>(data, offset, count, "submesh")?;
+    let mut subs = Vec::with_capacity(raw.len());
     let mut cumulative_index = 0u32;
-    for i in 0..count {
-        let base = offset + i * SUBMESH_ENTRY_SIZE;
-        if base + SUBMESH_ENTRY_SIZE > data.len() {
-            return Err(format!("Submesh {i} out of bounds at {base:#x}"));
-        }
-        let index_count = read_u16(data, base + SUBMESH_INDEX_COUNT_OFFSET)?;
+    for submesh in raw {
         subs.push(M2Submesh {
-            mesh_part_id: read_u16(data, base + SUBMESH_MESH_PART_ID_OFFSET)?,
-            vertex_start: read_u16(data, base + SUBMESH_VERTEX_START_OFFSET)?,
-            vertex_count: read_u16(data, base + SUBMESH_VERTEX_COUNT_OFFSET)?,
+            mesh_part_id: submesh.mesh_part_id,
+            vertex_start: submesh.vertex_start,
+            vertex_count: submesh.vertex_count,
             triangle_start: cumulative_index,
-            triangle_count: index_count,
+            triangle_count: submesh.triangle_count,
         });
-        cumulative_index += index_count as u32;
+        cumulative_index += submesh.triangle_count as u32;
     }
     Ok(subs)
 }
@@ -268,28 +277,25 @@ fn parse_texture_units(
     offset: usize,
     count: usize,
 ) -> Result<Vec<M2TextureUnit>, String> {
-    let mut units = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = offset + i * TEXTURE_UNIT_ENTRY_SIZE;
-        if base + TEXTURE_UNIT_ENTRY_SIZE > data.len() {
-            return Err(format!("TextureUnit {i} out of bounds at {base:#x}"));
-        }
-        units.push(M2TextureUnit {
-            flags: data[base],
-            priority_plane: data[base + TEXTURE_UNIT_PRIORITY_PLANE_OFFSET] as i8,
-            shader_id: read_u16(data, base + TEXTURE_UNIT_SHADER_ID_OFFSET)?,
-            submesh_index: read_u16(data, base + TEXTURE_UNIT_SUBMESH_INDEX_OFFSET)?,
-            color_index: read_u16(data, base + TEXTURE_UNIT_COLOR_INDEX_OFFSET)? as i16,
-            render_flags_index: read_u16(data, base + TEXTURE_UNIT_RENDER_FLAGS_INDEX_OFFSET)?,
-            material_layer: read_u16(data, base + TEXTURE_UNIT_MATERIAL_LAYER_OFFSET)?,
-            texture_count: read_u16(data, base + TEXTURE_UNIT_TEXTURE_COUNT_OFFSET)?,
-            texture_id: read_u16(data, base + TEXTURE_UNIT_TEXTURE_ID_OFFSET)?,
-            texture_coord_index: read_u16(data, base + TEXTURE_UNIT_TEXTURE_COORD_INDEX_OFFSET)?,
-            transparency_index: read_u16(data, base + TEXTURE_UNIT_TRANSPARENCY_INDEX_OFFSET)?,
-            texture_animation_id: read_u16(data, base + TEXTURE_UNIT_TEXTURE_ANIMATION_ID_OFFSET)?,
-        });
-    }
-    Ok(units)
+    Ok(
+        parse_binrw_entries::<RawM2TextureUnit>(data, offset, count, "texture unit")?
+            .into_iter()
+            .map(|unit| M2TextureUnit {
+                flags: unit.flags,
+                priority_plane: unit.priority_plane,
+                shader_id: unit.shader_id,
+                submesh_index: unit.submesh_index,
+                color_index: unit.color_index,
+                render_flags_index: unit.render_flags_index,
+                material_layer: unit.material_layer,
+                texture_count: unit.texture_count,
+                texture_id: unit.texture_id,
+                texture_coord_index: unit.texture_coord_index,
+                transparency_index: unit.transparency_index,
+                texture_animation_id: unit.texture_animation_id,
+            })
+            .collect(),
+    )
 }
 
 pub(crate) fn parse_texture_types(md20: &[u8]) -> Result<Vec<u32>, String> {
@@ -298,15 +304,12 @@ pub(crate) fn parse_texture_types(md20: &[u8]) -> Result<Vec<u32>, String> {
     }
     let count = read_u32(md20, super::MD20_TEXTURES_COUNT_OFFSET)? as usize;
     let offset = read_u32(md20, super::MD20_TEXTURES_DATA_OFFSET)? as usize;
-    let mut types = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = offset + i * TEXTURE_TYPE_ENTRY_SIZE;
-        if base + TEXTURE_TYPE_ENTRY_SIZE > md20.len() {
-            return Err(format!("Texture entry {i} out of bounds at {base:#x}"));
-        }
-        types.push(read_u32(md20, base)?);
-    }
-    Ok(types)
+    Ok(
+        parse_binrw_entries::<M2TextureTypeEntry>(md20, offset, count, "texture type")?
+            .into_iter()
+            .map(|entry| entry.texture_type)
+            .collect(),
+    )
 }
 
 pub(crate) fn parse_materials(md20: &[u8]) -> Result<Vec<M2Material>, String> {
@@ -315,15 +318,7 @@ pub(crate) fn parse_materials(md20: &[u8]) -> Result<Vec<M2Material>, String> {
     }
     let count = read_u32(md20, super::MD20_MATERIALS_COUNT_OFFSET)? as usize;
     let offset = read_u32(md20, super::MD20_MATERIALS_DATA_OFFSET)? as usize;
-    let mut mats = Vec::with_capacity(count);
-    for i in 0..count {
-        let base = offset + i * MATERIAL_ENTRY_SIZE;
-        mats.push(M2Material {
-            flags: read_u16(md20, base)?,
-            blend_mode: read_u16(md20, base + MATERIAL_BLEND_MODE_OFFSET)?,
-        });
-    }
-    Ok(mats)
+    parse_binrw_entries(md20, offset, count, "material")
 }
 
 pub(crate) fn parse_txid(data: &[u8]) -> Vec<u32> {
@@ -338,11 +333,7 @@ pub(crate) fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
     }
     let count = read_u32(md20, super::MD20_TEXTURE_LOOKUP_COUNT_OFFSET)? as usize;
     let offset = read_u32(md20, super::MD20_TEXTURE_LOOKUP_DATA_OFFSET)? as usize;
-    let mut lookup = Vec::with_capacity(count);
-    for i in 0..count {
-        lookup.push(read_u16(md20, offset + i * U16_ENTRY_SIZE)?);
-    }
-    Ok(lookup)
+    parse_binrw_entries(md20, offset, count, "texture lookup")
 }
 
 pub(crate) fn parse_texture_unit_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
@@ -370,17 +361,7 @@ fn parse_i16_lookup(md20: &[u8], header_off: usize, label: &str) -> Result<Vec<i
     }
     let count = read_u32(md20, header_off)? as usize;
     let offset = read_u32(md20, header_off + U16_ARRAY_HEADER_STRIDE)? as usize;
-    let mut lookup = Vec::with_capacity(count);
-    for i in 0..count {
-        let off = offset + i * LOOKUP_ENTRY_SIZE_I16;
-        let bytes: [u8; 2] = md20
-            .get(off..off + 2)
-            .ok_or_else(|| format!("{label} lookup {i} out of bounds at {off:#x}"))?
-            .try_into()
-            .unwrap();
-        lookup.push(i16::from_le_bytes(bytes));
-    }
-    Ok(lookup)
+    parse_binrw_entries(md20, offset, count, &format!("{label} lookup"))
 }
 
 pub(crate) fn parse_transparency_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
