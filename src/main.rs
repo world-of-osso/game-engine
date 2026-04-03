@@ -46,6 +46,7 @@ mod dump_systems;
 mod equipment;
 #[path = "game/equipment/equipment_appearance.rs"]
 mod equipment_appearance;
+mod game;
 #[path = "game/state/game_state.rs"]
 mod game_state;
 #[path = "game/networking/mod.rs"]
