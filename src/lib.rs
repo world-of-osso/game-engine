@@ -5,6 +5,10 @@ pub mod auction_house;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
 pub mod character_export;
+#[path = "rendering/character/character_models.rs"]
+pub mod character_models;
+#[path = "game/creatures/creature_display.rs"]
+pub mod creature_display;
 pub mod dump;
 pub mod game_state_enum;
 #[path = "game/equipment/helmet_geoset_data.rs"]

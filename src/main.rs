@@ -38,6 +38,7 @@ mod asset {
 mod cli_args;
 mod client_options;
 mod collision;
+#[path = "game/creatures/creature_display.rs"]
 mod creature_display;
 mod dump_systems;
 #[path = "game/equipment/equipment.rs"]

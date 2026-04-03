@@ -95,6 +95,10 @@ impl CreatureDisplayMap {
         self.entries.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     /// Load from `data/` directory CSVs, logging results. Returns empty map if files missing.
     pub fn load_from_data_dir() -> Self {
         let di = Path::new("data/CreatureDisplayInfo.csv");
