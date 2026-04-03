@@ -203,7 +203,7 @@ fn configure_live_test_app(app: &mut App) {
 }
 
 fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::SpawnedAnimatedStaticM2 {
-    let creature_display_map = CreatureDisplayMap::load_from_data_dir();
+    let creature_display_map = CreatureDisplayMap;
     let world = app.world_mut();
     let mut state: SystemState<(
         Commands,

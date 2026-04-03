@@ -23,96 +23,105 @@ struct DisplayInfoColumns {
     tex_var: [usize; 3],
 }
 
-pub(crate) fn load_creature_display_entries(
-    display_info_path: &Path,
-    model_data_path: &Path,
-) -> Result<HashMap<u32, CreatureDisplay>, String> {
-    let cache_path = ensure_creature_display_cache(display_info_path, model_data_path)?;
-    load_entries_from_sqlite(&cache_path)
+pub(crate) fn creature_display_cache_path() -> PathBuf {
+    paths::shared_data_path(CREATURE_DISPLAY_CACHE_PATH)
 }
 
-pub(crate) fn load_creature_display_entries_uncached(
-    display_info_path: &Path,
-    model_data_path: &Path,
-) -> Result<HashMap<u32, CreatureDisplay>, String> {
-    let model_data = parse_model_data(model_data_path)?;
-    let mut reader = open_reader(display_info_path)?;
-    let cols = read_display_columns(&mut reader, display_info_path)?;
-    let mut entries = HashMap::new();
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", display_info_path.display()))?
-            == 0
-        {
-            break;
-        }
-        if let Some((display_id, entry)) =
-            parse_display_entry(line.trim_end_matches(['\r', '\n']), &cols, &model_data)
-        {
-            entries.insert(display_id, entry);
-        }
+pub(crate) fn import_creature_display_cache() -> Result<PathBuf, String> {
+    let di = paths::resolve_data_path("CreatureDisplayInfo.csv");
+    let md = paths::resolve_data_path("CreatureModelData.csv");
+    if !di.exists() || !md.exists() {
+        return Err(format!(
+            "Creature display CSVs not found: {} / {}",
+            di.display(),
+            md.display()
+        ));
     }
-    Ok(entries)
-}
 
-fn load_entries_from_sqlite(cache_path: &Path) -> Result<HashMap<u32, CreatureDisplay>, String> {
-    let conn = Connection::open_with_flags(
-        cache_path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli
-             FROM creature_displays",
-        )
-        .map_err(|err| format!("prepare creature_displays query: {err}"))?;
-    let rows = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, u32>(0)?,
-                CreatureDisplay {
-                    model_fdid: row.get(1)?,
-                    skin_fdids: [row.get(2)?, row.get(3)?, row.get(4)?],
-                    scale_milli: row.get(5)?,
-                },
-            ))
-        })
-        .map_err(|err| format!("query creature_displays: {err}"))?;
-
-    let mut entries = HashMap::new();
-    for row in rows {
-        let (display_id, entry) =
-            row.map_err(|err| format!("read creature_displays row: {err}"))?;
-        entries.insert(display_id, entry);
-    }
-    Ok(entries)
-}
-
-fn ensure_creature_display_cache(
-    display_info_path: &Path,
-    model_data_path: &Path,
-) -> Result<PathBuf, String> {
-    let cache_path = paths::shared_data_path(CREATURE_DISPLAY_CACHE_PATH);
+    let cache_path = creature_display_cache_path();
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
 
-    let source_paths = [
-        display_info_path.to_path_buf(),
-        model_data_path.to_path_buf(),
-    ];
+    let source_paths = [di.clone(), md.clone()];
+    if cache_path.exists() {
+        let conn = open_read_only(&cache_path)?;
+        if cache_is_fresh(&conn, &source_paths)? {
+            return Ok(cache_path);
+        }
+    }
+
     let conn = Connection::open(&cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    if !cache_is_fresh(&conn, &source_paths)? {
-        rebuild_cache(&conn, display_info_path, model_data_path)?;
-        record_source_files(&conn, &source_paths)?;
-    }
+    rebuild_cache(&conn, &di, &md)?;
+    build_preferred_skins(&conn)?;
+    record_source_files(&conn, &source_paths)?;
     Ok(cache_path)
+}
+
+pub(crate) fn query_display(display_id: u32) -> Option<CreatureDisplay> {
+    let cache_path = creature_display_cache_path();
+    let conn = open_read_only(&cache_path).ok()?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli
+             FROM creature_displays WHERE display_id = ?1",
+        )
+        .ok()?;
+    stmt.query_row([display_id], |row| {
+        Ok(CreatureDisplay {
+            model_fdid: row.get(0)?,
+            skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?],
+            scale_milli: row.get(4)?,
+        })
+    })
+    .ok()
+}
+
+pub(crate) fn query_preferred_skins(model_fdid: u32) -> Option<[u32; 3]> {
+    let cache_path = creature_display_cache_path();
+    let conn = open_read_only(&cache_path).ok()?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT skin_fdid_0, skin_fdid_1, skin_fdid_2
+             FROM preferred_skins WHERE model_fdid = ?1",
+        )
+        .ok()?;
+    stmt.query_row([model_fdid], |row| {
+        Ok([row.get(0)?, row.get(1)?, row.get(2)?])
+    })
+    .ok()
+}
+
+/// Return all distinct model FDIDs in the cache.
+///
+/// Used by the named-model fallback path to match local filenames against
+/// listfile entries. Only called once per unique model name (result is cached
+/// in named-model-lookups.sqlite).
+pub(crate) fn query_distinct_model_fdids() -> Vec<u32> {
+    let cache_path = creature_display_cache_path();
+    let conn = match open_read_only(&cache_path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut stmt = match conn.prepare("SELECT DISTINCT model_fdid FROM creature_displays") {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let rows = match stmt.query_map([], |row| row.get::<_, u32>(0)) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    rows.filter_map(|r| r.ok()).collect()
+}
+
+fn open_read_only(path: &Path) -> Result<Connection, String> {
+    Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|err| format!("open {}: {err}", path.display()))
 }
 
 fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, String> {
@@ -125,6 +134,13 @@ fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, S
         }
         Err(err) => return Err(format!("prepare source_files query: {err}")),
     };
+    // Also check that preferred_skins table exists (older caches lack it).
+    if conn
+        .prepare("SELECT 1 FROM preferred_skins LIMIT 0")
+        .is_err()
+    {
+        return Ok(false);
+    }
     let rows = stmt
         .query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
@@ -152,9 +168,36 @@ fn rebuild_cache(
     init_cache_schema(conn)?;
     let model_data = parse_model_data(model_data_path)?;
     import_display_rows(conn, display_info_path, &model_data)?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit creature display cache: {err}"))?;
     Ok(())
+}
+
+fn build_preferred_skins(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "INSERT INTO preferred_skins (model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2)
+         SELECT model_fdid,
+                skin_fdid_0, skin_fdid_1, skin_fdid_2
+         FROM (
+             SELECT model_fdid,
+                    skin_fdid_0, skin_fdid_1, skin_fdid_2,
+                    (CASE WHEN skin_fdid_0 != 0 THEN 1 ELSE 0 END
+                   + CASE WHEN skin_fdid_1 != 0 THEN 1 ELSE 0 END
+                   + CASE WHEN skin_fdid_2 != 0 THEN 1 ELSE 0 END) AS filled,
+                    display_id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY model_fdid
+                        ORDER BY
+                            (CASE WHEN skin_fdid_0 != 0 THEN 1 ELSE 0 END
+                           + CASE WHEN skin_fdid_1 != 0 THEN 1 ELSE 0 END
+                           + CASE WHEN skin_fdid_2 != 0 THEN 1 ELSE 0 END) DESC,
+                            display_id ASC
+                    ) AS rn
+             FROM creature_displays
+             WHERE skin_fdid_0 != 0 OR skin_fdid_1 != 0 OR skin_fdid_2 != 0
+         )
+         WHERE rn = 1;
+         COMMIT;",
+    )
+    .map_err(|err| format!("build preferred_skins: {err}"))
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
@@ -162,6 +205,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
         "BEGIN;
          DROP TABLE IF EXISTS source_files;
          DROP TABLE IF EXISTS creature_displays;
+         DROP TABLE IF EXISTS preferred_skins;
          CREATE TABLE source_files (
              path TEXT PRIMARY KEY,
              mtime INTEGER NOT NULL
@@ -173,6 +217,14 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              skin_fdid_1 INTEGER NOT NULL,
              skin_fdid_2 INTEGER NOT NULL,
              scale_milli INTEGER NOT NULL
+         );
+         CREATE INDEX idx_creature_displays_model_fdid
+             ON creature_displays(model_fdid);
+         CREATE TABLE preferred_skins (
+             model_fdid INTEGER PRIMARY KEY,
+             skin_fdid_0 INTEGER NOT NULL,
+             skin_fdid_1 INTEGER NOT NULL,
+             skin_fdid_2 INTEGER NOT NULL
          );",
     )
     .map_err(|err| format!("init creature display cache: {err}"))
@@ -422,27 +474,62 @@ mod tests {
     }
 
     #[test]
-    fn load_creature_display_entries_uses_cache_backed_join() {
+    fn import_and_query_creature_display() {
         let dir = temp_test_dir("creature-display-cache");
         let display_path = dir.join("CreatureDisplayInfo.csv");
         let model_path = dir.join("CreatureModelData.csv");
         std::fs::write(
             &display_path,
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2\n4,7,1,11,12,0\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2\n4,7,1,11,12,0\n5,7,1,21,22,23\n",
         )
         .unwrap();
         std::fs::write(&model_path, "ID,FileDataID,ModelScale\n7,9001,1.25\n").unwrap();
 
-        let entries = load_creature_display_entries(&display_path, &model_path).unwrap();
+        let cache_path = dir.join("creature_display.sqlite");
+        let conn = Connection::open(&cache_path).unwrap();
+        rebuild_cache(&conn, &display_path, &model_path).unwrap();
+        build_preferred_skins(&conn).unwrap();
+        drop(conn);
 
+        let conn = open_read_only(&cache_path).unwrap();
+
+        // Query by display_id
+        let mut stmt = conn
+            .prepare(
+                "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli
+                 FROM creature_displays WHERE display_id = ?1",
+            )
+            .unwrap();
+        let entry = stmt
+            .query_row([4u32], |row| {
+                Ok(CreatureDisplay {
+                    model_fdid: row.get(0)?,
+                    skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?],
+                    scale_milli: row.get(4)?,
+                })
+            })
+            .unwrap();
         assert_eq!(
-            entries.get(&4),
-            Some(&CreatureDisplay {
+            entry,
+            CreatureDisplay {
                 model_fdid: 9001,
                 skin_fdids: [11, 12, 0],
                 scale_milli: 1250,
-            })
+            }
         );
+
+        // Preferred skins: display_id=5 has 3 filled slots vs display_id=4 with 2
+        let mut stmt = conn
+            .prepare(
+                "SELECT skin_fdid_0, skin_fdid_1, skin_fdid_2
+                 FROM preferred_skins WHERE model_fdid = ?1",
+            )
+            .unwrap();
+        let skins: [u32; 3] = stmt
+            .query_row([9001u32], |row| Ok([row.get(0)?, row.get(1)?, row.get(2)?]))
+            .unwrap();
+        assert_eq!(skins, [21, 22, 23]);
+
         let _ = std::fs::remove_dir_all(dir);
     }
 }

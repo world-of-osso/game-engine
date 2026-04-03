@@ -402,7 +402,7 @@ fn insert_screen_resources(app: &mut App, args: &[String]) {
 }
 
 fn insert_data_resources(app: &mut App) {
-    app.insert_resource(creature_display::CreatureDisplayMap::load_from_data_dir());
+    app.insert_resource(creature_display::CreatureDisplayMap);
     app.insert_resource(game_engine::customization_data::CustomizationDb::load(
         Path::new("data"),
     ));
