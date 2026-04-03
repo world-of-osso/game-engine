@@ -120,8 +120,8 @@ fn import_rows(conn: &Connection, csv_paths: &[PathBuf; 7]) -> Result<(), String
     super::populate_item_modified_appearance_map(conn, &csv_paths[1])?;
     super::populate_item_appearance_map(conn, &csv_paths[2])?;
     super::populate_display_info(conn, &csv_paths[3])?;
-    super::populate_material_to_texture(conn, &csv_paths[4])?;
-    super::populate_display_material_textures(conn, &csv_paths[5])?;
+    super::material_links::populate_material_to_texture(conn, &csv_paths[4])?;
+    super::material_links::populate_display_material_textures(conn, &csv_paths[5])?;
     super::populate_model_to_fdid(conn, &csv_paths[6])?;
     Ok(())
 }
