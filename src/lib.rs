@@ -18,6 +18,7 @@ pub mod paths;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
 pub mod screenshot;
+#[path = "sound/music_zone_cache.rs"]
 pub mod sound_music_zone_cache;
 pub mod status;
 pub mod ui;

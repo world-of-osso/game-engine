@@ -53,8 +53,11 @@ mod process_limits;
 mod rendering;
 mod scenes;
 mod screen_auto_login;
+#[path = "sound/runtime.rs"]
 mod sound;
+#[path = "sound/footsteps.rs"]
 mod sound_footsteps;
+#[path = "sound/music_catalog.rs"]
 mod sound_music_catalog;
 mod status_asset_stats;
 mod status_sync;

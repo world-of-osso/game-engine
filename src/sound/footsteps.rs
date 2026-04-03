@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::{Assets, AudioSource, Handle};
 
-#[path = "sound_footstep_cache.rs"]
+#[path = "footstep_cache.rs"]
 mod cache;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
