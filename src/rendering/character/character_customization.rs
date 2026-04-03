@@ -720,5 +720,5 @@ fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/character_customization_tests.rs"]
+#[path = "../../../tests/unit/character_customization_tests.rs"]
 mod tests;

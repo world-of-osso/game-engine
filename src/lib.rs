@@ -4,10 +4,13 @@ pub mod asset;
 pub mod auction_house;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
+#[path = "rendering/character/char_texture_cache.rs"]
 pub mod char_texture_cache;
 pub mod character_export;
 pub mod culling;
+#[path = "rendering/character/customization_cache.rs"]
 pub mod customization_cache;
+#[path = "rendering/character/customization_data.rs"]
 pub mod customization_data;
 pub mod dump;
 pub mod game_state_enum;

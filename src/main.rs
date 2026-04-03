@@ -38,7 +38,9 @@ mod asset {
     pub use game_engine::asset::*;
 }
 mod camera;
+#[path = "rendering/character/character_customization.rs"]
 mod character_customization;
+#[path = "rendering/character/character_models.rs"]
 mod character_models;
 mod cli_args;
 mod client_options;
@@ -54,6 +56,7 @@ mod light_lookup;
 mod m2_effect_material;
 mod m2_scene;
 pub mod m2_spawn;
+#[path = "rendering/character/m2_texture_composite.rs"]
 mod m2_texture_composite;
 mod minimap;
 mod minimap_render;

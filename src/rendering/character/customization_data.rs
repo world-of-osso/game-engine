@@ -558,5 +558,5 @@ pub(crate) fn chr_model_id_for_hair_row(race: u8, sex: u8) -> Option<u32> {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/customization_data_tests.rs"]
+#[path = "../../../tests/unit/customization_data_tests.rs"]
 mod tests;
