@@ -28,6 +28,8 @@ pub struct UnitFrameState {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct InWorldUnitFramesState {
+    pub show_player_frame: bool,
+    pub show_target_frame: bool,
     pub player: UnitFrameState,
     pub target: Option<UnitFrameState>,
 }
@@ -36,14 +38,14 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<InWorldUnitFramesState>()
         .expect("InWorldUnitFramesState must be in SharedContext");
-    let hide_target = state.target.is_none();
+    let hide_target = state.target.is_none() || !state.show_target_frame;
     rsx! {
         r#frame {
             name: "InWorldUnitFramesRoot",
             stretch: true,
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
-            {player_frame(&state.player)}
+            {player_frame(&state.player, state.show_player_frame)}
             r#frame {
                 name: "TargetFrame",
                 width: FRAME_W,
@@ -65,13 +67,14 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn player_frame(state: &UnitFrameState) -> Element {
+fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
     rsx! {
         r#frame {
             name: "PlayerFrame",
             width: FRAME_W,
             height: FRAME_H,
             strata: FrameStrata::Dialog,
+            hidden: {!visible},
                 anchor {
                     point: AnchorPoint::BottomLeft,
                     relative_point: AnchorPoint::BottomLeft,

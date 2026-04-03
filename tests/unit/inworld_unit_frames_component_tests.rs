@@ -201,6 +201,8 @@ fn unit_frames_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     shared.insert(InWorldUnitFramesState {
+        show_player_frame: true,
+        show_target_frame: true,
         player: UnitFrameState {
             name: "Player".to_string(),
             level_text: "10".to_string(),

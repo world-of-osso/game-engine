@@ -8,6 +8,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
+use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::minimap_render::{
     blit_image, create_arrow_image, create_blank_image, create_border_image, crop_with_circle,
@@ -87,6 +88,7 @@ fn register_minimap_systems(app: &mut App) {
     app.add_systems(Startup, create_minimap_frames)
         .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
         .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
+        .add_systems(Update, sync_minimap_visibility)
         .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
         .add_systems(
             Update,
@@ -203,6 +205,18 @@ fn hide_minimap_hud(mut ui: ResMut<UiState>, frames: Option<Res<MinimapFrames>>)
     if let Some(frames) = frames {
         set_hud_visibility(&mut ui, &frames, false);
     }
+}
+
+fn sync_minimap_visibility(
+    mut ui: ResMut<UiState>,
+    frames: Option<Res<MinimapFrames>>,
+    game_state: Res<State<GameState>>,
+    hud_visibility: Option<Res<HudVisibilityToggles>>,
+) {
+    let Some(frames) = frames else { return };
+    let visible = *game_state.get() == GameState::InWorld
+        && hud_visibility.is_none_or(|toggles| toggles.show_minimap);
+    set_hud_visibility(&mut ui, &frames, visible);
 }
 
 /// Rotate minimap image by camera yaw (WoW-style rotating minimap).

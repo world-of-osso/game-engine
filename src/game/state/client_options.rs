@@ -23,6 +23,9 @@ impl Plugin for ClientOptionsPlugin {
             .insert_resource(CameraOptions::from_file(&loaded.camera))
             .insert_resource(GraphicsOptions::from_file(&loaded.graphics))
             .insert_resource(HudOptions::from_file(&loaded.hud))
+            .insert_resource(HudVisibilityToggles::from_hud_options(
+                &HudOptions::from_file(&loaded.hud),
+            ))
             .insert_resource(loaded.bindings.clone())
             .insert_resource(ClientOptionsUiState {
                 modal_offset: loaded.modal_offset,
@@ -32,7 +35,10 @@ impl Plugin for ClientOptionsPlugin {
                 file: loaded,
                 applied: false,
             })
-            .add_systems(Update, apply_loaded_client_options);
+            .add_systems(
+                Update,
+                (apply_loaded_client_options, sync_hud_visibility_toggles),
+            );
     }
 }
 
@@ -144,6 +150,39 @@ impl HudOptions {
             show_health_bars: file.show_health_bars,
             show_target_marker: file.show_target_marker,
             show_fps_overlay: file.show_fps_overlay,
+        }
+    }
+}
+
+#[derive(Resource, Debug, Clone, PartialEq, Eq)]
+pub struct HudVisibilityToggles {
+    pub show_minimap: bool,
+    pub show_action_bars: bool,
+    pub show_player_frame: bool,
+    pub show_target_frame: bool,
+    pub show_nameplates: bool,
+    pub show_health_bars: bool,
+    pub show_fps_overlay: bool,
+    pub show_target_marker: bool,
+}
+
+impl Default for HudVisibilityToggles {
+    fn default() -> Self {
+        Self::from_hud_options(&HudOptions::default())
+    }
+}
+
+impl HudVisibilityToggles {
+    pub fn from_hud_options(hud: &HudOptions) -> Self {
+        Self {
+            show_minimap: hud.show_minimap,
+            show_action_bars: hud.show_action_bars,
+            show_player_frame: hud.show_health_bars,
+            show_target_frame: hud.show_health_bars,
+            show_nameplates: hud.show_nameplates,
+            show_health_bars: hud.show_health_bars,
+            show_fps_overlay: hud.show_fps_overlay,
+            show_target_marker: hud.show_target_marker,
         }
     }
 }
@@ -469,6 +508,23 @@ fn apply_loaded_client_options(
     loaded.applied = true;
 }
 
+fn sync_hud_visibility_toggles(
+    hud: Res<HudOptions>,
+    mut toggles: ResMut<HudVisibilityToggles>,
+    mut fps: Option<ResMut<FpsOverlayConfig>>,
+) {
+    if !hud.is_changed() {
+        return;
+    }
+    let next = HudVisibilityToggles::from_hud_options(&hud);
+    if *toggles != next {
+        *toggles = next.clone();
+    }
+    if let Some(fps) = fps.as_mut() {
+        apply_fps_overlay_visibility(fps.as_mut(), next.show_fps_overlay);
+    }
+}
+
 pub fn apply_fps_overlay_visibility(fps: &mut FpsOverlayConfig, visible: bool) {
     fps.enabled = visible;
     fps.frame_time_graph_config.enabled = visible;
@@ -503,6 +559,26 @@ mod tests {
         assert!(defaults.show_minimap);
         assert!(defaults.show_action_bars);
         assert!(defaults.show_target_marker);
+    }
+
+    #[test]
+    fn hud_visibility_toggles_follow_hud_options() {
+        let toggles = HudVisibilityToggles::from_hud_options(&HudOptions {
+            show_minimap: false,
+            show_action_bars: true,
+            show_nameplates: false,
+            show_health_bars: false,
+            show_target_marker: true,
+            show_fps_overlay: false,
+        });
+        assert!(!toggles.show_minimap);
+        assert!(toggles.show_action_bars);
+        assert!(!toggles.show_player_frame);
+        assert!(!toggles.show_target_frame);
+        assert!(!toggles.show_nameplates);
+        assert!(!toggles.show_health_bars);
+        assert!(toggles.show_target_marker);
+        assert!(!toggles.show_fps_overlay);
     }
 
     #[test]

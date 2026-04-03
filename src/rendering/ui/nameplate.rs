@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use shared::components::{Npc, Player as NetPlayer};
 
+use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 
 pub struct NameplatePlugin;
@@ -11,7 +12,11 @@ impl Plugin for NameplatePlugin {
         app.add_observer(spawn_npc_nameplate);
         app.add_systems(
             Update,
-            (billboard_nameplates, fade_nameplates_by_distance)
+            (
+                sync_nameplate_visibility,
+                billboard_nameplates,
+                fade_nameplates_by_distance,
+            )
                 .run_if(in_state(GameState::InWorld)),
         );
     }
@@ -87,8 +92,23 @@ fn spawn_nameplate_entity(
             },
             TextColor(color),
             Transform::from_xyz(0.0, y_offset, 0.0).with_scale(Vec3::splat(TEXT_SCALE)),
+            Visibility::default(),
         ))
         .id()
+}
+
+fn sync_nameplate_visibility(
+    hud_visibility: Option<Res<HudVisibilityToggles>>,
+    mut query: Query<&mut Visibility, With<Nameplate>>,
+) {
+    let visible = hud_visibility.is_none_or(|toggles| toggles.show_nameplates);
+    for mut visibility in &mut query {
+        *visibility = if visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
 }
 
 /// Rotate nameplates to always face the camera (billboard effect).

@@ -9,6 +9,7 @@ use game_engine::ui::screens::inworld_hud_component;
 use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
 
@@ -70,7 +71,12 @@ impl Plugin for ActionBarPlugin {
         app.add_systems(OnExit(GameState::InWorld), teardown_action_bars);
         app.add_systems(
             Update,
-            (toggle_edit_mode, update_action_bar_slot_flash).run_if(in_state(GameState::InWorld)),
+            (
+                toggle_edit_mode,
+                update_action_bar_slot_flash,
+                sync_action_bar_visibility,
+            )
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }
@@ -149,6 +155,19 @@ fn update_action_bar_slot_flash(
         };
         set_bg(&mut ui.registry, bars.main_slots[index], color);
     }
+}
+
+fn sync_action_bar_visibility(
+    mut ui: ResMut<UiState>,
+    bars: Option<Res<ActionBarsUi>>,
+    edit: Option<Res<ActionBarEditState>>,
+    hud_visibility: Option<Res<HudVisibilityToggles>>,
+) {
+    let (Some(bars), Some(edit)) = (bars, edit) else {
+        return;
+    };
+    let visible = hud_visibility.is_none_or(|toggles| toggles.show_action_bars);
+    set_action_bar_visibility(&mut ui.registry, &bars, &edit, visible);
 }
 
 fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
@@ -280,6 +299,23 @@ fn apply_edit_mode(reg: &mut FrameRegistry, bars: &ActionBarsUi, edit: &ActionBa
     update_labels(reg, &bars.labels, edit.enabled);
     update_extra_bar_visibility(reg, bars, edit.enabled);
     update_root_backgrounds(reg, bars, edit.enabled);
+    reg.set_hidden(bars.guide_v, true);
+    reg.set_hidden(bars.guide_h, true);
+}
+
+fn set_action_bar_visibility(
+    reg: &mut FrameRegistry,
+    bars: &ActionBarsUi,
+    edit: &ActionBarEditState,
+    visible: bool,
+) {
+    for &id in &bars.roots {
+        reg.set_hidden(id, !visible);
+    }
+    reg.set_hidden(bars.edit_banner, !visible || !edit.enabled);
+    for &id in &bars.labels {
+        reg.set_hidden(id, !visible || !edit.enabled);
+    }
     reg.set_hidden(bars.guide_v, true);
     reg.set_hidden(bars.guide_h, true);
 }

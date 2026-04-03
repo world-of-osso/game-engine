@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use shared::components::{Health as NetHealth, Mana as NetMana, Npc, Player as NetPlayer};
 
+use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use game_engine::status::CharacterStatsSnapshot;
@@ -60,6 +61,7 @@ fn build_inworld_unit_frames_ui(
     entity_query: Query<UnitComponents>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
     current_target: Res<CurrentTarget>,
+    hud_visibility: Option<Res<HudVisibilityToggles>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_state(
@@ -67,6 +69,7 @@ fn build_inworld_unit_frames_ui(
         &current_target,
         &player_query,
         &entity_query,
+        hud_visibility.as_deref(),
     );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
@@ -106,6 +109,7 @@ fn sync_inworld_unit_frames_ui(
     entity_query: Query<UnitComponents>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
     current_target: Res<CurrentTarget>,
+    hud_visibility: Option<Res<HudVisibilityToggles>>,
 ) {
     let (Some(mut screen_wrap), Some(mut last_model)) = (screen_wrap.take(), last_model.take())
     else {
@@ -116,6 +120,7 @@ fn sync_inworld_unit_frames_ui(
         &current_target,
         &player_query,
         &entity_query,
+        hud_visibility.as_deref(),
     );
     if last_model.0 == state {
         return;
@@ -131,7 +136,9 @@ fn build_state(
     current_target: &CurrentTarget,
     player_query: &Query<UnitComponents, With<LocalPlayer>>,
     entity_query: &Query<UnitComponents>,
+    hud_visibility: Option<&HudVisibilityToggles>,
 ) -> InWorldUnitFramesState {
+    let visibility = hud_visibility.cloned().unwrap_or_default();
     let player = player_query
         .iter()
         .next()
@@ -141,7 +148,12 @@ fn build_state(
         .0
         .and_then(|entity| entity_query.get(entity).ok())
         .map(build_target_state);
-    InWorldUnitFramesState { player, target }
+    InWorldUnitFramesState {
+        show_player_frame: visibility.show_player_frame,
+        show_target_frame: visibility.show_target_frame,
+        player,
+        target,
+    }
 }
 
 fn build_player_state(
@@ -242,6 +254,7 @@ mod tests {
             focused_frame: None,
         });
         app.insert_resource(CurrentTarget::default());
+        app.insert_resource(HudVisibilityToggles::default());
         app.add_plugins(InWorldUnitFramesPlugin);
         let player = app
             .world_mut()
@@ -280,6 +293,16 @@ mod tests {
         assert!(
             !target_frame_hidden(&app),
             "target frame should unhide after self-targeting the local player"
+        );
+
+        app.world_mut()
+            .resource_mut::<HudVisibilityToggles>()
+            .show_target_frame = false;
+        app.update();
+
+        assert!(
+            target_frame_hidden(&app),
+            "target frame should hide when HUD toggle is off"
         );
     }
 

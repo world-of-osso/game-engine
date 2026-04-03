@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use shared::components::Health;
 
+use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 
 pub struct HealthBarPlugin;
@@ -10,7 +11,12 @@ impl Plugin for HealthBarPlugin {
         app.add_observer(spawn_health_bars);
         app.add_systems(
             Update,
-            (update_health_bars, billboard_health_bars).run_if(in_state(GameState::InWorld)),
+            (
+                sync_health_bar_visibility,
+                update_health_bars,
+                billboard_health_bars,
+            )
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }
@@ -212,6 +218,20 @@ fn billboard_health_bars(
         if dir.length_squared() > 0.001 {
             transform.look_to(Dir3::new(dir).unwrap_or(Dir3::Z), Dir3::Y);
         }
+    }
+}
+
+fn sync_health_bar_visibility(
+    hud_visibility: Option<Res<HudVisibilityToggles>>,
+    mut query: Query<&mut Visibility, With<HealthBar>>,
+) {
+    let visible = hud_visibility.is_none_or(|toggles| toggles.show_health_bars);
+    for mut visibility in &mut query {
+        *visibility = if visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 
