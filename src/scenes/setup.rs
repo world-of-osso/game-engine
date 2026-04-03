@@ -3,6 +3,7 @@
 use std::f32::consts::PI;
 use std::path::Path;
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
@@ -27,286 +28,201 @@ pub fn should_load_explicit_scene_at_startup(server_mode: bool, asset_path: Opti
     !server_mode && asset_path.is_some()
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn setup_world_scene(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
-    water_mats: &mut Assets<water_material::WaterMaterial>,
-    sky_mats: &mut Assets<sky::SkyMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
-    adt_manager: &mut AdtManager,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    asset_path: Option<&Path>,
-) {
-    let is_terrain = asset_path.is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
-        || asset_path.is_none();
-    let camera = spawn_scene_environment(commands, meshes, materials, sky_mats, images, is_terrain);
-    match asset_path {
-        Some(p) if p.extension().is_some_and(|e| e == "adt") => {
-            let center = spawn_terrain(
-                commands,
-                meshes,
-                materials,
-                effect_materials,
-                terrain_mats,
-                water_mats,
-                images,
-                inverse_bp,
-                heightmap,
-                adt_manager,
-                camera,
-                p,
+#[derive(SystemParam)]
+pub struct SceneSetupSystemParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    terrain_mats: ResMut<'w, Assets<terrain_material::TerrainMaterial>>,
+    water_mats: ResMut<'w, Assets<water_material::WaterMaterial>>,
+    sky_mats: ResMut<'w, Assets<sky::SkyMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inverse_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    heightmap: ResMut<'w, TerrainHeightmap>,
+    adt_manager: ResMut<'w, AdtManager>,
+    server_addr: Option<Res<'w, networking::ServerAddr>>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+}
+
+struct SceneSetupContext<'a, 'w, 's> {
+    commands: &'a mut Commands<'w, 's>,
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
+    terrain_mats: &'a mut Assets<terrain_material::TerrainMaterial>,
+    water_mats: &'a mut Assets<water_material::WaterMaterial>,
+    sky_mats: &'a mut Assets<sky::SkyMaterial>,
+    images: &'a mut Assets<Image>,
+    inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: &'a mut TerrainHeightmap,
+    adt_manager: &'a mut AdtManager,
+    creature_display_map: &'a creature_display::CreatureDisplayMap,
+}
+
+impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
+    fn from_system_params(params: &'a mut SceneSetupSystemParams<'w, 's>) -> Self {
+        Self {
+            commands: &mut params.commands,
+            meshes: &mut params.meshes,
+            materials: &mut params.materials,
+            effect_materials: &mut params.effect_materials,
+            terrain_mats: &mut params.terrain_mats,
+            water_mats: &mut params.water_mats,
+            sky_mats: &mut params.sky_mats,
+            images: &mut params.images,
+            inverse_bp: &mut params.inverse_bp,
+            heightmap: &mut params.heightmap,
+            adt_manager: &mut params.adt_manager,
+            creature_display_map: &params.creature_display_map,
+        }
+    }
+
+    fn setup_world_scene(&mut self, asset_path: Option<&Path>) {
+        let is_terrain = asset_path.is_some_and(|p| p.extension().is_some_and(|e| e == "adt"))
+            || asset_path.is_none();
+        let camera = spawn_scene_environment(
+            self.commands,
+            self.meshes,
+            self.materials,
+            self.sky_mats,
+            self.images,
+            is_terrain,
+        );
+        match asset_path {
+            Some(p) if p.extension().is_some_and(|e| e == "adt") => {
+                let center = self.spawn_terrain(camera, p);
+                self.spawn_default_character_if_present();
+                if let Some(pos) = center {
+                    set_player_position(self.commands, pos);
+                }
+            }
+            Some(p) => self.spawn_m2_scene(p),
+            None => self.spawn_default_scene(),
+        }
+    }
+
+    fn spawn_terrain(&mut self, camera: Entity, adt_path: &Path) -> Option<Vec3> {
+        match terrain::spawn_adt(
+            self.commands,
+            self.meshes,
+            self.materials,
+            self.effect_materials,
+            self.terrain_mats,
+            self.water_mats,
+            self.images,
+            self.inverse_bp,
+            self.heightmap,
+            adt_path,
+        ) {
+            Ok(result) => {
+                self.commands.entity(camera).insert(result.camera);
+                self.adt_manager.map_name = result.map_name;
+                self.adt_manager.initial_tile = (result.tile_y, result.tile_x);
+                self.adt_manager
+                    .loaded
+                    .insert((result.tile_y, result.tile_x), result.root_entity);
+                Some(result.center)
+            }
+            Err(e) => {
+                eprintln!("ADT load error: {e}");
+                None
+            }
+        }
+    }
+
+    fn spawn_default_scene(&mut self) {
+        let center = self.load_default_terrain();
+        self.spawn_default_character_if_present();
+        if let Some(pos) = center {
+            set_player_position(self.commands, pos);
+        }
+    }
+
+    fn load_default_terrain(&mut self) -> Option<Vec3> {
+        let adt_path = paths::resolve_data_path("terrain/azeroth_32_48.adt");
+        if !adt_path.exists() {
+            return None;
+        }
+        match terrain::spawn_adt(
+            self.commands,
+            self.meshes,
+            self.materials,
+            self.effect_materials,
+            self.terrain_mats,
+            self.water_mats,
+            self.images,
+            self.inverse_bp,
+            self.heightmap,
+            &adt_path,
+        ) {
+            Ok(result) => {
+                self.adt_manager.map_name = result.map_name;
+                self.adt_manager.initial_tile = (result.tile_y, result.tile_x);
+                self.adt_manager
+                    .loaded
+                    .insert((result.tile_y, result.tile_x), result.root_entity);
+                Some(result.center)
+            }
+            Err(e) => {
+                eprintln!("ADT load error: {e}");
+                None
+            }
+        }
+    }
+
+    fn spawn_default_character_if_present(&mut self) {
+        let m2_path = paths::resolve_data_path("models/humanmale_hd.m2");
+        if m2_path.exists() {
+            m2_scene::spawn_m2_model(
+                self.commands,
+                self.meshes,
+                self.materials,
+                self.effect_materials,
+                self.images,
+                self.inverse_bp,
+                &m2_path,
+                self.creature_display_map,
             );
-            let m2_path = paths::resolve_data_path("models/humanmale_hd.m2");
-            if m2_path.exists() {
-                m2_scene::spawn_m2_model(
-                    commands,
-                    meshes,
-                    materials,
-                    effect_materials,
-                    images,
-                    inverse_bp,
-                    &m2_path,
-                    creature_display_map,
-                );
-            }
-            if let Some(pos) = center {
-                set_player_position(commands, pos);
-            }
-        }
-        Some(p) => spawn_m2_scene(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inverse_bp,
-            p,
-            creature_display_map,
-        ),
-        None => spawn_default_scene(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            terrain_mats,
-            water_mats,
-            images,
-            inverse_bp,
-            heightmap,
-            adt_manager,
-            creature_display_map,
-        ),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn setup_explicit_asset_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut terrain_mats: ResMut<Assets<terrain_material::TerrainMaterial>>,
-    mut water_mats: ResMut<Assets<water_material::WaterMaterial>>,
-    mut sky_mats: ResMut<Assets<sky::SkyMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    mut adt_manager: ResMut<AdtManager>,
-    server_addr: Option<Res<networking::ServerAddr>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-) {
-    let asset_path = crate::parse_asset_path();
-    if !should_load_explicit_scene_at_startup(server_addr.is_some(), asset_path.as_deref()) {
-        return;
-    }
-    setup_world_scene(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut terrain_mats,
-        &mut water_mats,
-        &mut sky_mats,
-        &mut images,
-        &mut inverse_bp,
-        &mut heightmap,
-        &mut adt_manager,
-        &creature_display_map,
-        asset_path.as_deref(),
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn setup_default_world_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut terrain_mats: ResMut<Assets<terrain_material::TerrainMaterial>>,
-    mut water_mats: ResMut<Assets<water_material::WaterMaterial>>,
-    mut sky_mats: ResMut<Assets<sky::SkyMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    mut adt_manager: ResMut<AdtManager>,
-    server_addr: Option<Res<networking::ServerAddr>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-) {
-    if server_addr.is_some() || crate::parse_asset_path().is_some() {
-        return;
-    }
-    setup_world_scene(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut terrain_mats,
-        &mut water_mats,
-        &mut sky_mats,
-        &mut images,
-        &mut inverse_bp,
-        &mut heightmap,
-        &mut adt_manager,
-        &creature_display_map,
-        None,
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-fn spawn_terrain(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
-    water_mats: &mut Assets<water_material::WaterMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
-    adt_manager: &mut AdtManager,
-    camera: Entity,
-    adt_path: &Path,
-) -> Option<Vec3> {
-    match terrain::spawn_adt(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        terrain_mats,
-        water_mats,
-        images,
-        inverse_bp,
-        heightmap,
-        adt_path,
-    ) {
-        Ok(result) => {
-            commands.entity(camera).insert(result.camera);
-            adt_manager.map_name = result.map_name;
-            adt_manager.initial_tile = (result.tile_y, result.tile_x);
-            adt_manager
-                .loaded
-                .insert((result.tile_y, result.tile_x), result.root_entity);
-            Some(result.center)
-        }
-        Err(e) => {
-            eprintln!("ADT load error: {e}");
-            None
         }
     }
-}
 
-#[allow(clippy::too_many_arguments)]
-fn load_default_terrain(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
-    water_mats: &mut Assets<water_material::WaterMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
-    adt_manager: &mut AdtManager,
-) -> Option<Vec3> {
-    let adt_path = paths::resolve_data_path("terrain/azeroth_32_48.adt");
-    if !adt_path.exists() {
-        return None;
-    }
-    match terrain::spawn_adt(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        terrain_mats,
-        water_mats,
-        images,
-        inverse_bp,
-        heightmap,
-        &adt_path,
-    ) {
-        Ok(result) => {
-            adt_manager.map_name = result.map_name;
-            adt_manager.initial_tile = (result.tile_y, result.tile_x);
-            adt_manager
-                .loaded
-                .insert((result.tile_y, result.tile_x), result.root_entity);
-            Some(result.center)
-        }
-        Err(e) => {
-            eprintln!("ADT load error: {e}");
-            None
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn spawn_default_scene(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_mats: &mut Assets<terrain_material::TerrainMaterial>,
-    water_mats: &mut Assets<water_material::WaterMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
-    adt_manager: &mut AdtManager,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-) {
-    let center = load_default_terrain(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        terrain_mats,
-        water_mats,
-        images,
-        inverse_bp,
-        heightmap,
-        adt_manager,
-    );
-    let m2_path = paths::resolve_data_path("models/humanmale_hd.m2");
-    if m2_path.exists() {
+    fn spawn_m2_scene(&mut self, m2_path: &Path) {
         m2_scene::spawn_m2_model(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inverse_bp,
-            &m2_path,
-            creature_display_map,
+            self.commands,
+            self.meshes,
+            self.materials,
+            self.effect_materials,
+            self.images,
+            self.inverse_bp,
+            m2_path,
+            self.creature_display_map,
+        );
+        ground::spawn_ground_clutter(
+            self.commands,
+            self.meshes,
+            self.materials,
+            self.effect_materials,
+            self.images,
+            self.inverse_bp,
+            self.creature_display_map,
         );
     }
-    if let Some(pos) = center {
-        set_player_position(commands, pos);
+}
+
+pub fn setup_explicit_asset_scene(mut params: SceneSetupSystemParams) {
+    let asset_path = crate::parse_asset_path();
+    if !should_load_explicit_scene_at_startup(params.server_addr.is_some(), asset_path.as_deref()) {
+        return;
     }
+    SceneSetupContext::from_system_params(&mut params).setup_world_scene(asset_path.as_deref());
+}
+
+pub fn setup_default_world_scene(mut params: SceneSetupSystemParams) {
+    if params.server_addr.is_some() || crate::parse_asset_path().is_some() {
+        return;
+    }
+    SceneSetupContext::from_system_params(&mut params).setup_world_scene(None);
 }
 
 pub fn set_player_position(commands: &mut Commands, pos: Vec3) {
@@ -316,37 +232,6 @@ pub fn set_player_position(commands: &mut Commands, pos: Vec3) {
             xf.translation = pos;
         }
     });
-}
-
-fn spawn_m2_scene(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
-    m2_path: &Path,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-) {
-    m2_scene::spawn_m2_model(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inverse_bindposes,
-        m2_path,
-        creature_display_map,
-    );
-    ground::spawn_ground_clutter(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inverse_bindposes,
-        creature_display_map,
-    );
 }
 
 pub fn spawn_scene_environment(
