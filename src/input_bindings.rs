@@ -3,6 +3,70 @@ use std::collections::BTreeMap;
 use bevy::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+const LETTER_KEYS: [(&str, KeyCode); 26] = [
+    ("A", KeyCode::KeyA),
+    ("B", KeyCode::KeyB),
+    ("C", KeyCode::KeyC),
+    ("D", KeyCode::KeyD),
+    ("E", KeyCode::KeyE),
+    ("F", KeyCode::KeyF),
+    ("G", KeyCode::KeyG),
+    ("H", KeyCode::KeyH),
+    ("I", KeyCode::KeyI),
+    ("J", KeyCode::KeyJ),
+    ("K", KeyCode::KeyK),
+    ("L", KeyCode::KeyL),
+    ("M", KeyCode::KeyM),
+    ("N", KeyCode::KeyN),
+    ("O", KeyCode::KeyO),
+    ("P", KeyCode::KeyP),
+    ("Q", KeyCode::KeyQ),
+    ("R", KeyCode::KeyR),
+    ("S", KeyCode::KeyS),
+    ("T", KeyCode::KeyT),
+    ("U", KeyCode::KeyU),
+    ("V", KeyCode::KeyV),
+    ("W", KeyCode::KeyW),
+    ("X", KeyCode::KeyX),
+    ("Y", KeyCode::KeyY),
+    ("Z", KeyCode::KeyZ),
+];
+
+const DIGIT_KEYS: [(&str, KeyCode); 10] = [
+    ("0", KeyCode::Digit0),
+    ("1", KeyCode::Digit1),
+    ("2", KeyCode::Digit2),
+    ("3", KeyCode::Digit3),
+    ("4", KeyCode::Digit4),
+    ("5", KeyCode::Digit5),
+    ("6", KeyCode::Digit6),
+    ("7", KeyCode::Digit7),
+    ("8", KeyCode::Digit8),
+    ("9", KeyCode::Digit9),
+];
+
+const FUNCTION_KEYS: [(&str, KeyCode); 12] = [
+    ("F1", KeyCode::F1),
+    ("F2", KeyCode::F2),
+    ("F3", KeyCode::F3),
+    ("F4", KeyCode::F4),
+    ("F5", KeyCode::F5),
+    ("F6", KeyCode::F6),
+    ("F7", KeyCode::F7),
+    ("F8", KeyCode::F8),
+    ("F9", KeyCode::F9),
+    ("F10", KeyCode::F10),
+    ("F11", KeyCode::F11),
+    ("F12", KeyCode::F12),
+];
+
+struct InputActionMeta {
+    key: &'static str,
+    label: &'static str,
+    section: BindingSection,
+    default_binding: Option<InputBinding>,
+}
+
 #[derive(
     Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Copy,
 )]
@@ -70,36 +134,7 @@ impl InputAction {
     ];
 
     pub fn key(self) -> &'static str {
-        match self {
-            Self::MoveForward => "move_forward",
-            Self::MoveBackward => "move_backward",
-            Self::StrafeLeft => "strafe_left",
-            Self::StrafeRight => "strafe_right",
-            Self::Jump => "jump",
-            Self::RunToggle => "run_toggle",
-            Self::AutoRun => "auto_run",
-            Self::TurnLeft => "turn_left",
-            Self::TurnRight => "turn_right",
-            Self::PitchUp => "pitch_up",
-            Self::PitchDown => "pitch_down",
-            Self::ZoomIn => "zoom_in",
-            Self::ZoomOut => "zoom_out",
-            Self::TargetNearest => "target_nearest",
-            Self::TargetSelf => "target_self",
-            Self::ActionSlot1 => "action_slot_1",
-            Self::ActionSlot2 => "action_slot_2",
-            Self::ActionSlot3 => "action_slot_3",
-            Self::ActionSlot4 => "action_slot_4",
-            Self::ActionSlot5 => "action_slot_5",
-            Self::ActionSlot6 => "action_slot_6",
-            Self::ActionSlot7 => "action_slot_7",
-            Self::ActionSlot8 => "action_slot_8",
-            Self::ActionSlot9 => "action_slot_9",
-            Self::ActionSlot10 => "action_slot_10",
-            Self::ActionSlot11 => "action_slot_11",
-            Self::ActionSlot12 => "action_slot_12",
-            Self::ToggleMute => "toggle_mute",
-        }
+        self.meta().key
     }
 
     pub fn from_key(key: &str) -> Option<Self> {
@@ -137,100 +172,127 @@ impl InputAction {
     }
 
     pub fn label(self) -> &'static str {
-        match self {
-            Self::MoveForward => "Move Forward",
-            Self::MoveBackward => "Move Backward",
-            Self::StrafeLeft => "Strafe Left",
-            Self::StrafeRight => "Strafe Right",
-            Self::Jump => "Jump",
-            Self::RunToggle => "Run / Walk Toggle",
-            Self::AutoRun => "Auto-Run",
-            Self::TurnLeft => "Turn Left",
-            Self::TurnRight => "Turn Right",
-            Self::PitchUp => "Pitch Up",
-            Self::PitchDown => "Pitch Down",
-            Self::ZoomIn => "Zoom In",
-            Self::ZoomOut => "Zoom Out",
-            Self::TargetNearest => "Target Nearest",
-            Self::TargetSelf => "Target Self",
-            Self::ActionSlot1 => "Action Button 1",
-            Self::ActionSlot2 => "Action Button 2",
-            Self::ActionSlot3 => "Action Button 3",
-            Self::ActionSlot4 => "Action Button 4",
-            Self::ActionSlot5 => "Action Button 5",
-            Self::ActionSlot6 => "Action Button 6",
-            Self::ActionSlot7 => "Action Button 7",
-            Self::ActionSlot8 => "Action Button 8",
-            Self::ActionSlot9 => "Action Button 9",
-            Self::ActionSlot10 => "Action Button 10",
-            Self::ActionSlot11 => "Action Button 11",
-            Self::ActionSlot12 => "Action Button 12",
-            Self::ToggleMute => "Toggle Mute",
-        }
+        self.meta().label
     }
 
     pub fn section(self) -> BindingSection {
-        match self {
-            Self::MoveForward
-            | Self::MoveBackward
-            | Self::StrafeLeft
-            | Self::StrafeRight
-            | Self::Jump
-            | Self::RunToggle
-            | Self::AutoRun => BindingSection::Movement,
-            Self::TurnLeft
-            | Self::TurnRight
-            | Self::PitchUp
-            | Self::PitchDown
-            | Self::ZoomIn
-            | Self::ZoomOut => BindingSection::Camera,
-            Self::TargetNearest | Self::TargetSelf => BindingSection::Targeting,
-            Self::ActionSlot1
-            | Self::ActionSlot2
-            | Self::ActionSlot3
-            | Self::ActionSlot4
-            | Self::ActionSlot5
-            | Self::ActionSlot6
-            | Self::ActionSlot7
-            | Self::ActionSlot8
-            | Self::ActionSlot9
-            | Self::ActionSlot10
-            | Self::ActionSlot11
-            | Self::ActionSlot12 => BindingSection::ActionBar,
-            Self::ToggleMute => BindingSection::Audio,
-        }
+        self.meta().section
     }
 
     pub fn default_binding(self) -> Option<InputBinding> {
+        self.meta().default_binding
+    }
+
+    fn meta(self) -> InputActionMeta {
         match self {
-            Self::MoveForward => Some(InputBinding::Keyboard(KeyCode::KeyW)),
-            Self::MoveBackward => Some(InputBinding::Keyboard(KeyCode::KeyS)),
-            Self::StrafeLeft => Some(InputBinding::Keyboard(KeyCode::KeyA)),
-            Self::StrafeRight => Some(InputBinding::Keyboard(KeyCode::KeyD)),
-            Self::Jump => Some(InputBinding::Keyboard(KeyCode::Space)),
-            Self::RunToggle => Some(InputBinding::Keyboard(KeyCode::KeyZ)),
-            Self::AutoRun => None,
-            Self::TurnLeft => Some(InputBinding::Keyboard(KeyCode::ArrowLeft)),
-            Self::TurnRight => Some(InputBinding::Keyboard(KeyCode::ArrowRight)),
-            Self::PitchUp => Some(InputBinding::Keyboard(KeyCode::ArrowUp)),
-            Self::PitchDown => Some(InputBinding::Keyboard(KeyCode::ArrowDown)),
-            Self::ZoomIn => Some(InputBinding::Keyboard(KeyCode::PageUp)),
-            Self::ZoomOut => Some(InputBinding::Keyboard(KeyCode::PageDown)),
-            Self::TargetNearest => Some(InputBinding::Keyboard(KeyCode::Tab)),
-            Self::TargetSelf => Some(InputBinding::Keyboard(KeyCode::F1)),
-            Self::ActionSlot1 => Some(InputBinding::Keyboard(KeyCode::Digit1)),
-            Self::ActionSlot2 => Some(InputBinding::Keyboard(KeyCode::Digit2)),
-            Self::ActionSlot3 => Some(InputBinding::Keyboard(KeyCode::Digit3)),
-            Self::ActionSlot4 => Some(InputBinding::Keyboard(KeyCode::Digit4)),
-            Self::ActionSlot5 => Some(InputBinding::Keyboard(KeyCode::Digit5)),
-            Self::ActionSlot6 => Some(InputBinding::Keyboard(KeyCode::Digit6)),
-            Self::ActionSlot7 => Some(InputBinding::Keyboard(KeyCode::Digit7)),
-            Self::ActionSlot8 => Some(InputBinding::Keyboard(KeyCode::Digit8)),
-            Self::ActionSlot9 => Some(InputBinding::Keyboard(KeyCode::Digit9)),
-            Self::ActionSlot10 => Some(InputBinding::Keyboard(KeyCode::Digit0)),
-            Self::ActionSlot11 => Some(InputBinding::Keyboard(KeyCode::Minus)),
-            Self::ActionSlot12 => Some(InputBinding::Keyboard(KeyCode::Equal)),
-            Self::ToggleMute => Some(InputBinding::Keyboard(KeyCode::KeyM)),
+            Self::MoveForward => InputActionMeta {
+                key: "move_forward",
+                label: "Move Forward",
+                section: BindingSection::Movement,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyW)),
+            },
+            Self::MoveBackward => InputActionMeta {
+                key: "move_backward",
+                label: "Move Backward",
+                section: BindingSection::Movement,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyS)),
+            },
+            Self::StrafeLeft => InputActionMeta {
+                key: "strafe_left",
+                label: "Strafe Left",
+                section: BindingSection::Movement,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyA)),
+            },
+            Self::StrafeRight => InputActionMeta {
+                key: "strafe_right",
+                label: "Strafe Right",
+                section: BindingSection::Movement,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyD)),
+            },
+            Self::Jump => InputActionMeta {
+                key: "jump",
+                label: "Jump",
+                section: BindingSection::Movement,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::Space)),
+            },
+            Self::RunToggle => InputActionMeta {
+                key: "run_toggle",
+                label: "Run / Walk Toggle",
+                section: BindingSection::Movement,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyZ)),
+            },
+            Self::AutoRun => InputActionMeta {
+                key: "auto_run",
+                label: "Auto-Run",
+                section: BindingSection::Movement,
+                default_binding: None,
+            },
+            Self::TurnLeft => InputActionMeta {
+                key: "turn_left",
+                label: "Turn Left",
+                section: BindingSection::Camera,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowLeft)),
+            },
+            Self::TurnRight => InputActionMeta {
+                key: "turn_right",
+                label: "Turn Right",
+                section: BindingSection::Camera,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowRight)),
+            },
+            Self::PitchUp => InputActionMeta {
+                key: "pitch_up",
+                label: "Pitch Up",
+                section: BindingSection::Camera,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowUp)),
+            },
+            Self::PitchDown => InputActionMeta {
+                key: "pitch_down",
+                label: "Pitch Down",
+                section: BindingSection::Camera,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowDown)),
+            },
+            Self::ZoomIn => InputActionMeta {
+                key: "zoom_in",
+                label: "Zoom In",
+                section: BindingSection::Camera,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::PageUp)),
+            },
+            Self::ZoomOut => InputActionMeta {
+                key: "zoom_out",
+                label: "Zoom Out",
+                section: BindingSection::Camera,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::PageDown)),
+            },
+            Self::TargetNearest => InputActionMeta {
+                key: "target_nearest",
+                label: "Target Nearest",
+                section: BindingSection::Targeting,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::Tab)),
+            },
+            Self::TargetSelf => InputActionMeta {
+                key: "target_self",
+                label: "Target Self",
+                section: BindingSection::Targeting,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::F1)),
+            },
+            Self::ActionSlot1 => action_slot_meta(1, Self::ActionSlot1, KeyCode::Digit1),
+            Self::ActionSlot2 => action_slot_meta(2, Self::ActionSlot2, KeyCode::Digit2),
+            Self::ActionSlot3 => action_slot_meta(3, Self::ActionSlot3, KeyCode::Digit3),
+            Self::ActionSlot4 => action_slot_meta(4, Self::ActionSlot4, KeyCode::Digit4),
+            Self::ActionSlot5 => action_slot_meta(5, Self::ActionSlot5, KeyCode::Digit5),
+            Self::ActionSlot6 => action_slot_meta(6, Self::ActionSlot6, KeyCode::Digit6),
+            Self::ActionSlot7 => action_slot_meta(7, Self::ActionSlot7, KeyCode::Digit7),
+            Self::ActionSlot8 => action_slot_meta(8, Self::ActionSlot8, KeyCode::Digit8),
+            Self::ActionSlot9 => action_slot_meta(9, Self::ActionSlot9, KeyCode::Digit9),
+            Self::ActionSlot10 => action_slot_meta(10, Self::ActionSlot10, KeyCode::Digit0),
+            Self::ActionSlot11 => action_slot_meta(11, Self::ActionSlot11, KeyCode::Minus),
+            Self::ActionSlot12 => action_slot_meta(12, Self::ActionSlot12, KeyCode::Equal),
+            Self::ToggleMute => InputActionMeta {
+                key: "toggle_mute",
+                label: "Toggle Mute",
+                section: BindingSection::Audio,
+                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyM)),
+            },
         }
     }
 }
@@ -401,6 +463,30 @@ impl InputBindings {
     }
 }
 
+fn action_slot_meta(slot: u8, _action: InputAction, default_key: KeyCode) -> InputActionMeta {
+    let (key, label) = match slot {
+        1 => ("action_slot_1", "Action Button 1"),
+        2 => ("action_slot_2", "Action Button 2"),
+        3 => ("action_slot_3", "Action Button 3"),
+        4 => ("action_slot_4", "Action Button 4"),
+        5 => ("action_slot_5", "Action Button 5"),
+        6 => ("action_slot_6", "Action Button 6"),
+        7 => ("action_slot_7", "Action Button 7"),
+        8 => ("action_slot_8", "Action Button 8"),
+        9 => ("action_slot_9", "Action Button 9"),
+        10 => ("action_slot_10", "Action Button 10"),
+        11 => ("action_slot_11", "Action Button 11"),
+        12 => ("action_slot_12", "Action Button 12"),
+        _ => unreachable!("unsupported action slot"),
+    };
+    InputActionMeta {
+        key,
+        label,
+        section: BindingSection::ActionBar,
+        default_binding: Some(InputBinding::Keyboard(default_key)),
+    }
+}
+
 pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
     match section {
         BindingSection::Movement => &[
@@ -486,45 +572,10 @@ fn key_short_label(key: KeyCode) -> Option<&'static str> {
 }
 
 fn key_alpha_numeric_label(key: KeyCode) -> Option<&'static str> {
-    match key {
-        KeyCode::KeyA => Some("A"),
-        KeyCode::KeyB => Some("B"),
-        KeyCode::KeyC => Some("C"),
-        KeyCode::KeyD => Some("D"),
-        KeyCode::KeyE => Some("E"),
-        KeyCode::KeyF => Some("F"),
-        KeyCode::KeyG => Some("G"),
-        KeyCode::KeyH => Some("H"),
-        KeyCode::KeyI => Some("I"),
-        KeyCode::KeyJ => Some("J"),
-        KeyCode::KeyK => Some("K"),
-        KeyCode::KeyL => Some("L"),
-        KeyCode::KeyM => Some("M"),
-        KeyCode::KeyN => Some("N"),
-        KeyCode::KeyO => Some("O"),
-        KeyCode::KeyP => Some("P"),
-        KeyCode::KeyQ => Some("Q"),
-        KeyCode::KeyR => Some("R"),
-        KeyCode::KeyS => Some("S"),
-        KeyCode::KeyT => Some("T"),
-        KeyCode::KeyU => Some("U"),
-        KeyCode::KeyV => Some("V"),
-        KeyCode::KeyW => Some("W"),
-        KeyCode::KeyX => Some("X"),
-        KeyCode::KeyY => Some("Y"),
-        KeyCode::KeyZ => Some("Z"),
-        KeyCode::Digit0 => Some("0"),
-        KeyCode::Digit1 => Some("1"),
-        KeyCode::Digit2 => Some("2"),
-        KeyCode::Digit3 => Some("3"),
-        KeyCode::Digit4 => Some("4"),
-        KeyCode::Digit5 => Some("5"),
-        KeyCode::Digit6 => Some("6"),
-        KeyCode::Digit7 => Some("7"),
-        KeyCode::Digit8 => Some("8"),
-        KeyCode::Digit9 => Some("9"),
-        _ => None,
-    }
+    LETTER_KEYS
+        .iter()
+        .chain(DIGIT_KEYS.iter())
+        .find_map(|(label, code)| (*code == key).then_some(*label))
 }
 
 fn mouse_button_display(button: MouseButton) -> String {
@@ -546,70 +597,23 @@ fn parse_key_code(token: &str) -> Option<KeyCode> {
 }
 
 fn parse_letter_key(token: &str) -> Option<KeyCode> {
-    match token.strip_prefix("Key")? {
-        "A" => Some(KeyCode::KeyA),
-        "B" => Some(KeyCode::KeyB),
-        "C" => Some(KeyCode::KeyC),
-        "D" => Some(KeyCode::KeyD),
-        "E" => Some(KeyCode::KeyE),
-        "F" => Some(KeyCode::KeyF),
-        "G" => Some(KeyCode::KeyG),
-        "H" => Some(KeyCode::KeyH),
-        "I" => Some(KeyCode::KeyI),
-        "J" => Some(KeyCode::KeyJ),
-        "K" => Some(KeyCode::KeyK),
-        "L" => Some(KeyCode::KeyL),
-        "M" => Some(KeyCode::KeyM),
-        "N" => Some(KeyCode::KeyN),
-        "O" => Some(KeyCode::KeyO),
-        "P" => Some(KeyCode::KeyP),
-        "Q" => Some(KeyCode::KeyQ),
-        "R" => Some(KeyCode::KeyR),
-        "S" => Some(KeyCode::KeyS),
-        "T" => Some(KeyCode::KeyT),
-        "U" => Some(KeyCode::KeyU),
-        "V" => Some(KeyCode::KeyV),
-        "W" => Some(KeyCode::KeyW),
-        "X" => Some(KeyCode::KeyX),
-        "Y" => Some(KeyCode::KeyY),
-        "Z" => Some(KeyCode::KeyZ),
-        _ => None,
-    }
+    let token = token.strip_prefix("Key")?;
+    lookup_named_key(token, &LETTER_KEYS)
 }
 
 fn parse_digit_key(token: &str) -> Option<KeyCode> {
-    match token.strip_prefix("Digit")? {
-        "0" => Some(KeyCode::Digit0),
-        "1" => Some(KeyCode::Digit1),
-        "2" => Some(KeyCode::Digit2),
-        "3" => Some(KeyCode::Digit3),
-        "4" => Some(KeyCode::Digit4),
-        "5" => Some(KeyCode::Digit5),
-        "6" => Some(KeyCode::Digit6),
-        "7" => Some(KeyCode::Digit7),
-        "8" => Some(KeyCode::Digit8),
-        "9" => Some(KeyCode::Digit9),
-        _ => None,
-    }
+    let token = token.strip_prefix("Digit")?;
+    lookup_named_key(token, &DIGIT_KEYS)
 }
 
 fn parse_function_key(token: &str) -> Option<KeyCode> {
-    let number = token.strip_prefix('F')?.parse::<u8>().ok()?;
-    match number {
-        1 => Some(KeyCode::F1),
-        2 => Some(KeyCode::F2),
-        3 => Some(KeyCode::F3),
-        4 => Some(KeyCode::F4),
-        5 => Some(KeyCode::F5),
-        6 => Some(KeyCode::F6),
-        7 => Some(KeyCode::F7),
-        8 => Some(KeyCode::F8),
-        9 => Some(KeyCode::F9),
-        10 => Some(KeyCode::F10),
-        11 => Some(KeyCode::F11),
-        12 => Some(KeyCode::F12),
-        _ => None,
-    }
+    lookup_named_key(token, &FUNCTION_KEYS)
+}
+
+fn lookup_named_key(token: &str, entries: &[(&str, KeyCode)]) -> Option<KeyCode> {
+    entries
+        .iter()
+        .find_map(|(name, code)| (*name == token).then_some(*code))
 }
 
 fn parse_named_key(token: &str) -> Option<KeyCode> {
