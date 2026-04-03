@@ -595,5 +595,5 @@ fn apply_enter_world(
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/networking_auth_tests.rs"]
+#[path = "../../../tests/unit/networking_auth_tests.rs"]
 mod tests;

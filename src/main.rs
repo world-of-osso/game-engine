@@ -43,11 +43,17 @@ mod dump_systems;
 mod equipment;
 mod equipment_appearance;
 mod game_state;
+#[path = "game/networking/mod.rs"]
 mod networking;
+#[path = "game/networking/auth.rs"]
 mod networking_auth;
+#[path = "game/networking/messages.rs"]
 mod networking_messages;
+#[path = "game/networking/npc.rs"]
 mod networking_npc;
+#[path = "game/networking/player.rs"]
 mod networking_player;
+#[path = "game/networking/reconnect.rs"]
 mod networking_reconnect;
 mod process_limits;
 mod rendering;
