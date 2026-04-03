@@ -23,6 +23,7 @@ use visuals::{
 pub(super) const PARTICLE_FLAG_TAIL_PARTICLES: u32 = 0x0000_0008;
 pub(super) const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x0000_0200;
 pub(super) const PARTICLE_FLAG_BONE_SCALE: u32 = 0x0000_0400;
+pub(super) const PARTICLE_FLAG_INHERIT_POSITION: u32 = 0x0000_2000;
 pub(super) const PARTICLE_FLAG_SPHERE_INVERT: u32 = 0x0000_1000;
 pub(super) const PARTICLE_FLAG_XY_QUAD: u32 = 0x0000_4000;
 pub(super) const PARTICLE_FLAG_NEGATE_SPIN: u32 = 0x0001_0000;
@@ -44,6 +45,7 @@ const BLEND_MOD: u8 = 6;
 const BLEND_MOD2X: u8 = 7;
 const PARTICLE_TYPE_TRAIL: u8 = 1;
 const TRAIL_LENGTH_FACTOR: f32 = 0.6;
+const INHERIT_POSITION_BACK_DELTA_PROPERTY: &str = "inherit_position_back_delta";
 
 pub struct ParticlePlugin;
 
@@ -53,6 +55,7 @@ impl Plugin for ParticlePlugin {
             Update,
             (
                 register_pending_particle_effects,
+                sync_inherit_position_properties,
                 trigger_pending_particle_bursts,
             ),
         );
@@ -68,6 +71,11 @@ pub enum ParticleSpawnMode {
 #[derive(Component, Default)]
 pub struct PendingParticleBurst {
     pub armed: bool,
+}
+
+#[derive(Component)]
+struct InheritPositionMotionState {
+    previous_world_position: Vec3,
 }
 
 /// Marker for a particle emitter entity.
@@ -121,9 +129,48 @@ fn register_pending_particle_effects(
         if let Some(tex) = comp.pending_texture.clone() {
             ec.insert(EffectMaterial { images: vec![tex] });
         }
+        if emitter_uses_inherit_position(&comp.emitter) {
+            let current_world_position = global_transforms
+                .get(entity)
+                .map(GlobalTransform::translation)
+                .unwrap_or(Vec3::ZERO);
+            ec.insert(EffectProperties::default().with_properties([(
+                INHERIT_POSITION_BACK_DELTA_PROPERTY.to_string(),
+                Vec3::ZERO.into(),
+            )]));
+            ec.insert(InheritPositionMotionState {
+                previous_world_position: current_world_position,
+            });
+        }
         if comp.spawn_mode == ParticleSpawnMode::BurstOnce {
             ec.insert(PendingParticleBurst { armed: true });
         }
+    }
+}
+
+fn sync_inherit_position_properties(
+    mut query: Query<
+        (
+            &GlobalTransform,
+            &mut EffectProperties,
+            &mut InheritPositionMotionState,
+        ),
+        With<ParticleEmitterComp>,
+    >,
+) {
+    for (global_transform, properties, mut motion_state) in &mut query {
+        let current_world_position = global_transform.translation();
+        let back_delta = inherit_position_back_delta_local(
+            motion_state.previous_world_position,
+            current_world_position,
+            global_transform,
+        );
+        let _ = EffectProperties::set_if_changed(
+            properties,
+            INHERIT_POSITION_BACK_DELTA_PROPERTY,
+            back_delta.into(),
+        );
+        motion_state.previous_world_position = current_world_position;
     }
 }
 
@@ -279,6 +326,10 @@ fn emitter_uses_follow_position(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_FOLLOW_POSITION != 0
 }
 
+fn emitter_uses_inherit_position(em: &M2ParticleEmitter) -> bool {
+    em.flags & PARTICLE_FLAG_INHERIT_POSITION != 0
+}
+
 fn emitter_uses_project_particle(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_PROJECT_PARTICLE != 0 && !emitter_uses_world_space(em)
 }
@@ -296,6 +347,17 @@ fn emitter_simulation_space(em: &M2ParticleEmitter) -> SimulationSpace {
     } else {
         SimulationSpace::Global
     }
+}
+
+fn inherit_position_back_delta_local(
+    previous_world_position: Vec3,
+    current_world_position: Vec3,
+    current_global_transform: &GlobalTransform,
+) -> Vec3 {
+    current_global_transform
+        .affine()
+        .inverse()
+        .transform_vector3(previous_world_position - current_world_position)
 }
 
 fn emitter_uses_sphere_invert_velocity(em: &M2ParticleEmitter) -> bool {
@@ -854,7 +916,11 @@ fn build_position_modifier(
     match em.emitter_type {
         1 => PositionInitModifier::Attribute(SetAttributeModifier::new(
             Attribute::POSITION,
-            build_plane_position_expr(em, writer, model_scale),
+            build_inherit_position_expr(
+                em,
+                writer,
+                build_plane_position_expr(em, writer, model_scale),
+            ),
         )),
         2 => PositionInitModifier::Sphere(SetPositionSphereModifier {
             center: writer.lit(Vec3::ZERO).expr(),
@@ -863,9 +929,22 @@ fn build_position_modifier(
         }),
         _ => PositionInitModifier::Attribute(SetAttributeModifier::new(
             Attribute::POSITION,
-            writer.lit(Vec3::ZERO).expr(),
+            build_inherit_position_expr(em, writer, writer.lit(Vec3::ZERO)),
         )),
     }
+}
+
+fn build_inherit_position_expr(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+    base_position: WriterExpr,
+) -> ExprHandle {
+    if !emitter_uses_inherit_position(em) {
+        return base_position.expr();
+    }
+    let back_delta = writer.add_property(INHERIT_POSITION_BACK_DELTA_PROPERTY, Vec3::ZERO.into());
+    let offset = writer.rand(ScalarType::Float) * writer.prop(back_delta);
+    (base_position + offset).expr()
 }
 
 fn emitter_spawn_radius(em: &M2ParticleEmitter) -> f32 {
@@ -880,12 +959,12 @@ fn build_plane_position_expr(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
     model_scale: f32,
-) -> ExprHandle {
+) -> WriterExpr {
     let half_length = writer.lit(em.area_length.max(0.0) * model_scale);
     let half_width = writer.lit(em.area_width.max(0.0) * model_scale);
     let x = writer.rand(ScalarType::Float) * half_length.clone() * writer.lit(2.0) - half_length;
     let z = writer.rand(ScalarType::Float) * half_width.clone() * writer.lit(2.0) - half_width;
-    x.vec3(writer.lit(0.0), z).expr()
+    x.vec3(writer.lit(0.0), z)
 }
 
 fn build_velocity_modifier(

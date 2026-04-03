@@ -1,21 +1,22 @@
 use bevy::ecs::system::RunSystemOnce;
-use bevy::prelude::{App, Entity, GlobalTransform, Vec3};
+use bevy::prelude::{App, Entity, GlobalTransform, Quat, Transform, Vec3};
 use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 
 use super::visuals::has_authored_size_variation;
 use super::{
     FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
-    PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
-    PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
-    PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
-    PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, PositionInitModifier, active_cell_track,
-    build_color_gradient, build_effect_asset, build_effect_asset_with_mode, build_expr_modifiers,
-    build_position_modifier, build_size_gradient, emitter_alpha_mode, emitter_parent_entity,
-    emitter_scale_source, emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius,
-    emitter_translation, emitter_uses_bone_scale, emitter_uses_follow_position,
-    emitter_uses_project_particle, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
-    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
-    orient_mode, projected_particle_spawn_y, scaled_emission_rate, wind_accel_bevy,
+    PARTICLE_FLAG_INHERIT_POSITION, PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE,
+    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES,
+    PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED,
+    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, PositionInitModifier,
+    active_cell_track, build_color_gradient, build_effect_asset, build_effect_asset_with_mode,
+    build_expr_modifiers, build_position_modifier, build_size_gradient, emitter_alpha_mode,
+    emitter_parent_entity, emitter_scale_source, emitter_simulation_space, emitter_spawn_offset,
+    emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
+    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_project_particle,
+    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
+    has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
+    lifetime_range, orient_mode, projected_particle_spawn_y, scaled_emission_rate, wind_accel_bevy,
     wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
@@ -397,11 +398,42 @@ fn follow_position_emitters_use_local_simulation_space() {
 }
 
 #[test]
+fn inherit_position_flag_is_detected_separately_from_follow_position() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_INHERIT_POSITION;
+
+    assert!(emitter_uses_inherit_position(&emitter));
+    assert!(!emitter_uses_follow_position(&emitter));
+
+    let effect = build_effect_asset(&emitter, 1.0, 1.0);
+    assert!(
+        effect
+            .properties()
+            .iter()
+            .any(|property| property.name() == "inherit_position_back_delta")
+    );
+}
+
+#[test]
 fn default_emitters_use_global_simulation_space() {
     let emitter = sample_emitter();
 
     assert!(!emitter_uses_follow_position(&emitter));
     assert_eq!(emitter_simulation_space(&emitter), SimulationSpace::Global);
+}
+
+#[test]
+fn inherit_position_back_delta_maps_world_segment_into_local_space() {
+    let global = GlobalTransform::from(
+        Transform::from_translation(Vec3::new(10.0, 5.0, -3.0))
+            .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
+    );
+    let previous = Vec3::new(8.0, 5.0, -3.0);
+    let current = Vec3::new(10.0, 5.0, -3.0);
+
+    let back_delta = inherit_position_back_delta_local(previous, current, &global);
+
+    assert!((back_delta - Vec3::new(0.0, 0.0, -2.0)).length() < 0.0001);
 }
 
 #[test]
