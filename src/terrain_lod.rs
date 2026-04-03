@@ -3,7 +3,7 @@
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
-use crate::asset::adt_obj;
+use crate::asset::adt_format::adt_obj;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain::{AdtManager, DoodadLod};
 use crate::terrain_heightmap::TerrainHeightmap;

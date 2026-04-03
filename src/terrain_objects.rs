@@ -8,7 +8,7 @@ use bevy::math::Mat3;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
-use crate::asset::{adt_obj, blp, fogs_wdt, wmo};
+use crate::asset::{adt_format::adt_obj, blp, fogs_wdt, wmo};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 

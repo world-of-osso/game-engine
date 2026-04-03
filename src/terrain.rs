@@ -7,7 +7,7 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::asset::adt::{self};
-use crate::asset::adt_obj;
+use crate::asset::adt_format::adt_obj;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -627,11 +627,11 @@ mod tests {
             flat_grid(8, 8, 0.0, 0.0, 8.0),
             flat_grid(8, 7, 0.0, -adt::CHUNK_SIZE, 12.0),
         ]);
-        adt.water = Some(crate::asset::adt_tex::AdtWaterData {
+        adt.water = Some(crate::asset::adt::AdtWaterData {
             chunks: (0..256)
-                .map(|i| crate::asset::adt_tex::ChunkWater {
+                .map(|i| crate::asset::adt::ChunkWater {
                     layers: if i == 0 {
-                        vec![crate::asset::adt_tex::WaterLayer {
+                        vec![crate::asset::adt::WaterLayer {
                             liquid_type: 0,
                             liquid_object: 0,
                             min_height: 0.0,

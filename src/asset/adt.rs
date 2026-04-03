@@ -1,34 +1,12 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
-use std::collections::HashMap;
 
-pub use super::adt_tex::{
-    AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, build_water_mesh, load_adt_tex0,
+pub use super::adt_format::adt::{CHUNK_SIZE, ChunkHeightGrid, ChunkIter, UNIT_SIZE, vertex_index};
+pub use super::adt_format::adt_tex::{
+    AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, TextureLayer, WaterLayer, load_adt_tex0,
     parse_mh2o,
 };
 use super::m2::wow_to_bevy;
-
-pub const CHUNK_SIZE: f32 = 100.0 / 3.0; // 33.333... yards per MCNK side
-
-type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
-type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
-pub const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0; // distance between outer vertices
-const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
-const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
-
-/// Number of vertices in one MCNK height grid (9×9 outer + 8×8 inner).
-const MCVT_COUNT: usize = 145;
-
-/// Per-chunk height data for runtime terrain collision queries.
-#[derive(Clone)]
-pub struct ChunkHeightGrid {
-    pub index_x: u32,
-    pub index_y: u32,
-    pub origin_x: f32, // Bevy X of chunk corner (= WoW pos[1])
-    pub origin_z: f32, // Bevy Z of chunk corner (= -WoW pos[0])
-    pub base_y: f32,   // WoW pos[2], heights are relative to this
-    pub heights: [f32; 145],
-}
 
 #[allow(dead_code)]
 pub struct McnkMesh {
@@ -40,257 +18,24 @@ pub struct McnkMesh {
 pub struct AdtData {
     pub chunks: Vec<McnkMesh>,
     pub height_grids: Vec<ChunkHeightGrid>,
-    /// Bevy-space position at the terrain center (surface height, not bounding box center).
     pub center_surface: [f32; 3],
-    /// Raw WoW [Y, X, Z] position from each MCNK (for water mesh positioning).
     pub chunk_positions: Vec<[f32; 3]>,
-    /// Parsed MH2O water data (if present in the ADT).
     pub water: Option<AdtWaterData>,
-    /// MH2O parse error captured while keeping terrain loadable.
     pub water_error: Option<String>,
 }
 
-// ── primitive readers ────────────────────────────────────────────────────────
+type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
+type WaterGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_u32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_f32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(f32::from_le_bytes(bytes))
-}
-
-fn read_i8(data: &[u8], off: usize) -> Result<i8, String> {
-    data.get(off)
-        .copied()
-        .map(|b| b as i8)
-        .ok_or_else(|| format!("read_i8 out of bounds at {off:#x}"))
-}
-
-// ── chunk iteration ──────────────────────────────────────────────────────────
-
-/// Iterator over IFF-style chunks: reversed 4CC tag + u32 LE size + payload.
-pub struct ChunkIter<'a> {
-    data: &'a [u8],
-    off: usize,
-}
-
-impl<'a> ChunkIter<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data, off: 0 }
-    }
-}
-
-impl<'a> Iterator for ChunkIter<'a> {
-    type Item = Result<(&'a [u8; 4], &'a [u8]), String>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.off + 8 > self.data.len() {
-            return None;
-        }
-        let tag: &[u8; 4] = self.data[self.off..self.off + 4].try_into().unwrap();
-        let size = match read_u32(self.data, self.off + 4) {
-            Ok(s) => s as usize,
-            Err(e) => return Some(Err(e)),
-        };
-        let payload_start = self.off + 8;
-        let payload_end = payload_start + size;
-        if payload_end > self.data.len() {
-            return Some(Err(format!(
-                "chunk {:?} truncated at {:#x}",
-                std::str::from_utf8(tag).unwrap_or("????"),
-                self.off,
-            )));
-        }
-        self.off = payload_end;
-        Some(Ok((tag, &self.data[payload_start..payload_end])))
-    }
-}
-
-// ── MCVT / MCNR parsing ──────────────────────────────────────────────────────
-
-/// Parse MCVT payload → 145 height floats.
-fn parse_mcvt(payload: &[u8]) -> Result<[f32; MCVT_COUNT], String> {
-    if payload.len() < MCVT_COUNT * 4 {
-        return Err(format!(
-            "MCVT too small: {} bytes (need {})",
-            payload.len(),
-            MCVT_COUNT * 4
-        ));
-    }
-    let mut heights = [0.0f32; MCVT_COUNT];
-    for (i, h) in heights.iter_mut().enumerate() {
-        *h = read_f32(payload, i * 4)?;
-    }
-    Ok(heights)
-}
-
-/// Parse MCNR payload → 145 normals as unit [f32;3].
-fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
-    if payload.len() < MCVT_COUNT * 3 {
-        return Err(format!(
-            "MCNR too small: {} bytes (need {})",
-            payload.len(),
-            MCVT_COUNT * 3
-        ));
-    }
-    let mut normals = [[0.0f32; 3]; MCVT_COUNT];
-    for (i, n) in normals.iter_mut().enumerate() {
-        // MCNR bytes are stored as [X, Z, Y] (not [X, Y, Z])
-        let nx = read_i8(payload, i * 3)? as f32 / 127.0; // X_wow
-        let nz = read_i8(payload, i * 3 + 1)? as f32 / 127.0; // Z_wow
-        let ny = read_i8(payload, i * 3 + 2)? as f32 / 127.0; // Y_wow
-        // wow_to_bevy expects (X_wow, Y_wow, Z_wow)
-        let mut normal = wow_to_bevy(nx, ny, nz);
-        let len = (normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]).sqrt();
-        if len > 0.0001 {
-            normal[0] /= len;
-            normal[1] /= len;
-            normal[2] /= len;
-        } else {
-            normal = [0.0, 1.0, 0.0];
-        }
-        *n = normal;
-    }
-    Ok(normals)
-}
-
-// ── MCNK parsing ─────────────────────────────────────────────────────────────
-
-struct McnkData {
-    index_x: u32,
-    index_y: u32,
-    pos: [f32; 3], // WoW world-space corner position stored as [Y, X, Z]
-    heights: [f32; MCVT_COUNT],
-    normals: [[f32; 3]; MCVT_COUNT],
-}
-
-/// Parse a single MCNK chunk payload (128-byte header + sub-chunks).
-fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
-    if payload.len() < 128 {
-        return Err(format!("MCNK payload too small: {} bytes", payload.len()));
-    }
-    let index_x = read_u32(payload, 0x04)?;
-    let index_y = read_u32(payload, 0x08)?;
-    // Despite older notes claiming [Y, X, Z], live ADTs in our test data decode
-    // correctly only when the first two floats are swapped into [Y, X, Z] here.
-    let pos = [
-        read_f32(payload, 0x6c)?,
-        read_f32(payload, 0x68)?,
-        read_f32(payload, 0x70)?,
-    ];
-    let (heights, normals) = parse_mcnk_subchunks(&payload[128..])?;
-    Ok(McnkData {
-        index_x,
-        index_y,
-        pos,
-        heights,
-        normals,
-    })
-}
-
-/// Scan sub-chunks after the MCNK 128-byte header for TVCM and RNCM.
-fn parse_mcnk_subchunks(sub: &[u8]) -> Result<([f32; MCVT_COUNT], [[f32; 3]; MCVT_COUNT]), String> {
-    let mut heights = None;
-    let mut normals = None;
-    for chunk in ChunkIter::new(sub) {
-        let (tag, payload) = chunk?;
-        match tag {
-            b"TVCM" => heights = Some(parse_mcvt(payload)?),
-            b"RNCM" => normals = Some(parse_mcnr(payload)?),
-            _ => {}
-        }
-        if heights.is_some() && normals.is_some() {
-            break;
-        }
-    }
-    let heights = heights.ok_or("MCNK missing TVCM sub-chunk")?;
-    let normals = normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
-    Ok((heights, normals))
-}
-
-// ── vertex position computation ───────────────────────────────────────────────
-
-/// Return the index of a vertex in the flat 145-element array.
-pub fn vertex_index(grid_row: usize, col: usize) -> usize {
-    let r_outer = grid_row / 2;
-    if grid_row.is_multiple_of(2) {
-        r_outer * 17 + col
-    } else {
-        r_outer * 17 + 9 + col
-    }
-}
-
-#[allow(dead_code)]
-/// Compute Bevy-space world position for one vertex in the 145-element grid.
-fn vertex_position(
-    grid_row: usize,
-    col: usize,
-    pos: [f32; 3],
-    heights: &[f32; MCVT_COUNT],
-) -> [f32; 3] {
-    vertex_position_from_origin(grid_row, col, pos[1], -pos[0], pos[2], heights)
-}
-
-fn vertex_position_from_origin(
-    grid_row: usize,
-    col: usize,
-    origin_x: f32,
-    origin_z: f32,
-    base_y: f32,
-    heights: &[f32; MCVT_COUNT],
-) -> [f32; 3] {
-    let idx = vertex_index(grid_row, col);
-    let r = (grid_row / 2) as f32;
-    let c = col as f32;
-    let (bx, bz) = if grid_row.is_multiple_of(2) {
-        (origin_x - c * UNIT_SIZE, origin_z + r * UNIT_SIZE)
-    } else {
-        (
-            origin_x - c * UNIT_SIZE - HALF_UNIT,
-            origin_z + r * UNIT_SIZE + HALF_UNIT,
-        )
-    };
-    [bx, base_y + heights[idx], bz]
-}
-
-// ── mesh building ─────────────────────────────────────────────────────────────
-
-fn tile_origin_bevy(tile_y: u32, tile_x: u32) -> (f32, f32) {
-    let center = 32.0 * TILE_SIZE;
-    let origin_x = center - tile_x as f32 * TILE_SIZE;
-    let origin_z = tile_y as f32 * TILE_SIZE - center;
-    (origin_x, origin_z)
-}
-
-fn chunk_origin_bevy(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> (f32, f32) {
-    if let Some((tile_y, tile_x)) = tile_coords {
-        let (tile_origin_x, tile_origin_z) = tile_origin_bevy(tile_y, tile_x);
-        (
-            tile_origin_x - chunk.index_y as f32 * CHUNK_SIZE,
-            tile_origin_z + chunk.index_x as f32 * CHUNK_SIZE,
-        )
-    } else {
-        (chunk.pos[1], -chunk.pos[0])
-    }
-}
-
-fn build_mcnk_geometry(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> McnkGeometry {
-    let mut positions = Vec::with_capacity(MCVT_COUNT);
-    let mut normals_out = Vec::with_capacity(MCVT_COUNT);
-    let mut uvs = Vec::with_capacity(MCVT_COUNT);
-    let (origin_x, origin_z) = chunk_origin_bevy(chunk, tile_coords);
-    for i in 0..MCVT_COUNT {
+fn build_mcnk_geometry(
+    chunk: &super::adt_format::adt::McnkData,
+    tile_coords: Option<(u32, u32)>,
+) -> McnkGeometry {
+    let mut positions = Vec::with_capacity(145);
+    let mut normals_out = Vec::with_capacity(145);
+    let mut uvs = Vec::with_capacity(145);
+    let (origin_x, origin_z) = super::adt_format::adt::chunk_origin_bevy(chunk, tile_coords);
+    for i in 0..145 {
         let pair = i / 17;
         let rem = i % 17;
         let (grid_row, col) = if rem < 9 {
@@ -298,7 +43,7 @@ fn build_mcnk_geometry(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> Mcn
         } else {
             (pair * 2 + 1, rem - 9)
         };
-        positions.push(vertex_position_from_origin(
+        positions.push(super::adt_format::adt::vertex_position_from_origin(
             grid_row,
             col,
             origin_x,
@@ -317,8 +62,7 @@ fn build_mcnk_geometry(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> Mcn
         };
         uvs.push(uv);
     }
-    let indices = build_mcnk_indices();
-    (positions, normals_out, uvs, indices)
+    (positions, normals_out, uvs, build_mcnk_indices())
 }
 
 fn build_mcnk_indices() -> Vec<u32> {
@@ -339,7 +83,10 @@ fn build_mcnk_indices() -> Vec<u32> {
     indices
 }
 
-fn build_mcnk_mesh(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> Mesh {
+fn build_mcnk_mesh(
+    chunk: &super::adt_format::adt::McnkData,
+    tile_coords: Option<(u32, u32)>,
+) -> Mesh {
     let (positions, normals, uvs, indices) = build_mcnk_geometry(chunk, tile_coords);
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -352,495 +99,136 @@ fn build_mcnk_mesh(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> Mesh {
     mesh
 }
 
-// ── top-level parser ──────────────────────────────────────────────────────────
-
-fn build_height_grids(
-    parsed: &[McnkData],
+fn build_chunks(
+    parsed: &[super::adt_format::adt::McnkData],
     tile_coords: Option<(u32, u32)>,
-) -> Vec<ChunkHeightGrid> {
+) -> Vec<McnkMesh> {
     parsed
         .iter()
-        .map(|d| ChunkHeightGrid {
-            index_x: d.index_x,
-            index_y: d.index_y,
-            origin_x: chunk_origin_bevy(d, tile_coords).0,
-            origin_z: chunk_origin_bevy(d, tile_coords).1,
-            base_y: d.pos[2],
-            heights: d.heights,
+        .map(|chunk| McnkMesh {
+            mesh: build_mcnk_mesh(chunk, tile_coords),
+            index_x: chunk.index_x,
+            index_y: chunk.index_y,
         })
         .collect()
 }
 
-fn build_chunks(parsed: &[McnkData], tile_coords: Option<(u32, u32)>) -> Vec<McnkMesh> {
-    parsed
-        .iter()
-        .map(|d| McnkMesh {
-            mesh: build_mcnk_mesh(d, tile_coords),
-            index_x: d.index_x,
-            index_y: d.index_y,
-        })
-        .collect()
+const WATER_STEP: f32 = CHUNK_SIZE / 8.0;
+
+fn quad_exists(layer: &WaterLayer, row: usize, col: usize) -> bool {
+    row < 8 && col < 8 && ((layer.exists[row] >> col) & 1 != 0)
 }
 
-const SEAM_SMOOTHING_RINGS: &[(usize, f32)] = &[];
-
-fn stitch_chunk_edges(parsed: &mut [McnkData]) {
-    let indices: HashMap<(u32, u32), usize> = parsed
-        .iter()
-        .enumerate()
-        .map(|(i, chunk)| ((chunk.index_x, chunk.index_y), i))
-        .collect();
-
-    for i in 0..parsed.len() {
-        let (index_x, index_y) = (parsed[i].index_x, parsed[i].index_y);
-        if let Some(&neighbor) = indices.get(&(index_x, index_y + 1)) {
-            stitch_vertical_border(parsed, i, neighbor);
-        }
-        if let Some(&neighbor) = indices.get(&(index_x + 1, index_y)) {
-            stitch_horizontal_border(parsed, i, neighbor);
-        }
+fn water_height(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
+    if layer.vertex_heights.is_empty() {
+        return layer.min_height;
     }
-
-    stitch_chunk_corners(parsed, &indices);
+    let w = layer.width as usize + 1;
+    layer
+        .vertex_heights
+        .get(vert_row * w + vert_col)
+        .copied()
+        .unwrap_or(layer.min_height)
 }
 
-fn stitch_horizontal_border(parsed: &mut [McnkData], top: usize, bottom: usize) {
-    let (top_chunk, bottom_chunk) = split_two_mut(parsed, top, bottom);
-    for col in 0..=8 {
-        let stitched = average_height_pair(
-            top_chunk.pos[2],
-            &mut top_chunk.heights,
-            vertex_index(16, col),
-            bottom_chunk.pos[2],
-            &mut bottom_chunk.heights,
-            vertex_index(0, col),
-        );
-        smooth_horizontal_interior(top_chunk, bottom_chunk, col, stitched);
-    }
-}
-
-fn stitch_vertical_border(parsed: &mut [McnkData], left: usize, right: usize) {
-    let (left_chunk, right_chunk) = split_two_mut(parsed, left, right);
-    for row in 0..=8 {
-        let stitched = average_height_pair(
-            left_chunk.pos[2],
-            &mut left_chunk.heights,
-            vertex_index(row * 2, 8),
-            right_chunk.pos[2],
-            &mut right_chunk.heights,
-            vertex_index(row * 2, 0),
-        );
-        smooth_vertical_interior(left_chunk, right_chunk, row, stitched);
-    }
-}
-
-fn stitch_chunk_corners(parsed: &mut [McnkData], indices: &HashMap<(u32, u32), usize>) {
-    for (&(index_x, index_y), &top_left) in indices {
-        let Some(&top_right) = indices.get(&(index_x, index_y + 1)) else {
-            continue;
-        };
-        let Some(&bottom_left) = indices.get(&(index_x + 1, index_y)) else {
-            continue;
-        };
-        let Some(&bottom_right) = indices.get(&(index_x + 1, index_y + 1)) else {
-            continue;
-        };
-        average_height_quad(
-            parsed,
-            [
-                (top_left, vertex_index(16, 8)),
-                (top_right, vertex_index(16, 0)),
-                (bottom_left, vertex_index(0, 8)),
-                (bottom_right, vertex_index(0, 0)),
-            ],
-        );
-    }
-}
-
-fn split_two_mut<T>(slice: &mut [T], a: usize, b: usize) -> (&mut T, &mut T) {
-    assert!(a != b, "indices must be distinct");
-    if a < b {
-        let (left, right) = slice.split_at_mut(b);
-        (&mut left[a], &mut right[0])
-    } else {
-        let (left, right) = slice.split_at_mut(a);
-        (&mut right[0], &mut left[b])
-    }
-}
-
-fn average_height_pair(
-    base_a: f32,
-    heights_a: &mut [f32; MCVT_COUNT],
-    idx_a: usize,
-    base_b: f32,
-    heights_b: &mut [f32; MCVT_COUNT],
-    idx_b: usize,
-) -> f32 {
-    let absolute_a = base_a + heights_a[idx_a];
-    let absolute_b = base_b + heights_b[idx_b];
-    let avg = (absolute_a + absolute_b) * 0.5;
-    heights_a[idx_a] = avg - base_a;
-    heights_b[idx_b] = avg - base_b;
-    avg
-}
-
-fn average_height_quad(parsed: &mut [McnkData], vertices: [(usize, usize); 4]) {
-    let average = vertices
-        .iter()
-        .map(|&(chunk_idx, vertex_idx)| {
-            parsed[chunk_idx].pos[2] + parsed[chunk_idx].heights[vertex_idx]
-        })
-        .sum::<f32>()
-        / vertices.len() as f32;
-
-    for (chunk_idx, vertex_idx) in vertices {
-        let chunk = &mut parsed[chunk_idx];
-        chunk.heights[vertex_idx] = average - chunk.pos[2];
-    }
-}
-
-fn smooth_horizontal_interior(
-    top_chunk: &mut McnkData,
-    bottom_chunk: &mut McnkData,
-    col: usize,
-    stitched_height: f32,
-) {
-    if col == 0 || col == 8 {
-        return;
-    }
-    for &(ring, weight) in SEAM_SMOOTHING_RINGS {
-        if ring > 8 {
-            break;
-        }
-        blend_absolute_height(
-            top_chunk,
-            vertex_index(16 - ring * 2, col),
-            stitched_height,
-            weight,
-        );
-        blend_absolute_height(
-            bottom_chunk,
-            vertex_index(ring * 2, col),
-            stitched_height,
-            weight,
-        );
-    }
-}
-
-fn smooth_vertical_interior(
-    left_chunk: &mut McnkData,
-    right_chunk: &mut McnkData,
+fn emit_water_quad(
+    chunk_pos: [f32; 3],
+    layer: &WaterLayer,
     row: usize,
-    stitched_height: f32,
+    col: usize,
+    positions: &mut Vec<[f32; 3]>,
+    normals: &mut Vec<[f32; 3]>,
+    uvs: &mut Vec<[f32; 2]>,
 ) {
-    if row == 0 || row == 8 {
-        return;
+    let abs_row = layer.y_offset as usize + row;
+    let abs_col = layer.x_offset as usize + col;
+    for (dr, dc) in [(0, 0), (0, 1), (1, 0), (1, 1)] {
+        let r = abs_row + dr;
+        let c = abs_col + dc;
+        let wz = water_height(layer, row + dr, col + dc);
+        let wx = chunk_pos[1] - c as f32 * WATER_STEP;
+        let wy = chunk_pos[0] - r as f32 * WATER_STEP;
+        positions.push(wow_to_bevy(wx, wy, wz));
+        normals.push([0.0, 1.0, 0.0]);
+        uvs.push([c as f32 / 8.0, r as f32 / 8.0]);
     }
-    for &(ring, weight) in SEAM_SMOOTHING_RINGS {
-        if ring > 8 {
-            break;
+}
+
+fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometry {
+    let w = layer.width as usize;
+    let h = layer.height as usize;
+    let max_quads = w * h;
+    let mut positions = Vec::with_capacity(max_quads * 4);
+    let mut normals = Vec::with_capacity(max_quads * 4);
+    let mut uvs = Vec::with_capacity(max_quads * 4);
+    let mut indices = Vec::with_capacity(max_quads * 6);
+    for row in 0..h {
+        for col in 0..w {
+            if !quad_exists(layer, row, col) {
+                continue;
+            }
+            let base_idx = positions.len() as u32;
+            emit_water_quad(
+                chunk_pos,
+                layer,
+                row,
+                col,
+                &mut positions,
+                &mut normals,
+                &mut uvs,
+            );
+            indices.extend_from_slice(&[
+                base_idx,
+                base_idx + 1,
+                base_idx + 2,
+                base_idx + 2,
+                base_idx + 1,
+                base_idx + 3,
+            ]);
         }
-        blend_absolute_height(
-            left_chunk,
-            vertex_index(row * 2, 8 - ring),
-            stitched_height,
-            weight,
-        );
-        blend_absolute_height(
-            right_chunk,
-            vertex_index(row * 2, ring),
-            stitched_height,
-            weight,
-        );
     }
+    (positions, normals, uvs, indices)
 }
 
-fn blend_absolute_height(chunk: &mut McnkData, vertex_idx: usize, target_height: f32, weight: f32) {
-    let current = chunk.pos[2] + chunk.heights[vertex_idx];
-    let blended = current + (target_height - current) * weight;
-    chunk.heights[vertex_idx] = blended - chunk.pos[2];
+pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
+    let (positions, normals, uvs, indices) = build_water_geometry(chunk_pos, layer);
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_indices(Indices::U32(indices));
+    mesh
 }
 
-fn center_surface_position(chunks: &[McnkData], tile_coords: Option<(u32, u32)>) -> [f32; 3] {
-    let center_chunk = chunks
-        .iter()
-        .find(|c| c.index_x == 8 && c.index_y == 8)
-        .unwrap_or(&chunks[chunks.len() / 2]);
-    let (origin_x, origin_z) = chunk_origin_bevy(center_chunk, tile_coords);
-    vertex_position_from_origin(
-        9,
-        4,
-        origin_x,
-        origin_z,
-        center_chunk.pos[2],
-        &center_chunk.heights,
+pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
+    load_adt_inner(super::adt_format::adt::load_adt_parsed(data)?, None)
+}
+
+pub fn load_adt_for_tile(data: &[u8], tile_y: u32, tile_x: u32) -> Result<AdtData, String> {
+    load_adt_inner(
+        super::adt_format::adt::load_adt_for_tile_parsed(data, tile_y, tile_x)?,
+        Some((tile_y, tile_x)),
     )
 }
 
-fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
-    let mut mcnks = Vec::with_capacity(256);
-    let mut mh2o = None;
-    for chunk in ChunkIter::new(data) {
-        let (tag, payload) = chunk?;
-        match tag {
-            b"KNCM" => mcnks.push(payload),
-            b"O2HM" => mh2o = Some(payload),
-            _ => {}
-        }
-    }
-    if mcnks.is_empty() {
-        return Err("No KNCM (MCNK) chunks found in ADT file".to_string());
-    }
-    Ok((mcnks, mh2o))
-}
-
-#[allow(dead_code)]
-/// Parse an ADT file and return all 256 MCNK terrain meshes.
-pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
-    load_adt_inner(data, true, None)
-}
-
-/// Parse an ADT file using explicit tile coordinates for horizontal chunk placement.
-pub fn load_adt_for_tile(data: &[u8], tile_y: u32, tile_x: u32) -> Result<AdtData, String> {
-    load_adt_inner(data, true, Some((tile_y, tile_x)))
-}
-
-/// Parse an ADT without edge stitching (for cross-tile border analysis).
 #[cfg(test)]
 pub(crate) fn load_adt_raw(data: &[u8]) -> Result<AdtData, String> {
-    load_adt_inner(data, false, None)
+    load_adt_inner(super::adt_format::adt::load_adt_raw(data)?, None)
 }
 
 fn load_adt_inner(
-    data: &[u8],
-    stitch: bool,
+    parsed: super::adt_format::adt::ParsedAdtData,
     tile_coords: Option<(u32, u32)>,
 ) -> Result<AdtData, String> {
-    let (mcnk_payloads, mh2o_payload) = collect_adt_chunks(data)?;
-    let mut parsed: Vec<McnkData> = mcnk_payloads
-        .into_iter()
-        .map(parse_mcnk)
-        .collect::<Result<Vec<_>, String>>()?;
-    if stitch {
-        stitch_chunk_edges(&mut parsed);
-    }
-    let center_surface = center_surface_position(&parsed, tile_coords);
-    let chunk_positions = parsed.iter().map(|d| d.pos).collect();
-    let height_grids = build_height_grids(&parsed, tile_coords);
-    let chunks = build_chunks(&parsed, tile_coords);
-    let (water, water_error) = match mh2o_payload {
-        Some(payload) => match parse_mh2o(payload) {
-            Ok(water) => (Some(water), None),
-            Err(err) => (None, Some(err)),
-        },
-        None => (None, None),
-    };
     Ok(AdtData {
-        chunks,
-        height_grids,
-        center_surface,
-        chunk_positions,
-        water,
-        water_error,
+        chunks: build_chunks(&parsed.chunks, tile_coords),
+        height_grids: parsed.height_grids,
+        center_surface: parsed.center_surface,
+        chunk_positions: parsed.chunk_positions,
+        water: parsed.water,
+        water_error: parsed.water_error,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::iter;
-
-    fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
-        let center = 32.0 * CHUNK_SIZE * 16.0;
-        let row = ((center + bz) / (CHUNK_SIZE * 16.0)).floor() as i32;
-        let col = ((center - bx) / (CHUNK_SIZE * 16.0)).floor() as i32;
-        (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
-    }
-
-    fn wrap_chunk(tag: [u8; 4], payload: Vec<u8>) -> Vec<u8> {
-        let mut out = Vec::with_capacity(8 + payload.len());
-        out.extend_from_slice(&tag);
-        out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
-        out.extend_from_slice(&payload);
-        out
-    }
-
-    fn minimal_mcnk_payload() -> Vec<u8> {
-        let mut payload = vec![0u8; 128];
-        payload[0x04..0x08].copy_from_slice(&0u32.to_le_bytes());
-        payload[0x08..0x0c].copy_from_slice(&0u32.to_le_bytes());
-        payload[0x68..0x6c].copy_from_slice(&0.0f32.to_le_bytes());
-        payload[0x6c..0x70].copy_from_slice(&0.0f32.to_le_bytes());
-        payload[0x70..0x74].copy_from_slice(&0.0f32.to_le_bytes());
-
-        let heights = vec![0u8; MCVT_COUNT * 4];
-        payload.extend(wrap_chunk(*b"TVCM", heights));
-        payload
-    }
-
-    fn malformed_mh2o_payload() -> Vec<u8> {
-        const HEADER_SIZE: usize = 256 * 12;
-        let mut payload = vec![0u8; HEADER_SIZE + 24];
-        payload[0..4].copy_from_slice(&(HEADER_SIZE as u32).to_le_bytes());
-        payload[4..8].copy_from_slice(&1u32.to_le_bytes());
-
-        let layer = &mut payload[HEADER_SIZE..HEADER_SIZE + 24];
-        layer[14] = 8; // width
-        layer[15] = 8; // height
-        layer[20..24].copy_from_slice(&((HEADER_SIZE + 1) as u32).to_le_bytes());
-        payload
-    }
-
-    #[test]
-    fn parsed_tile_center_maps_back_to_named_adt_tile() {
-        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
-            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
-        let adt = load_adt(&data).expect("expected ADT to parse");
-        let center = adt.center_surface;
-
-        assert_eq!(
-            bevy_to_tile_coords(center[0], center[2]),
-            (32, 48),
-            "parsed terrain coordinates should map back to the ADT filename tile"
-        );
-    }
-
-    #[test]
-    fn tile_coord_placement_maps_back_to_named_adt_tile() {
-        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
-            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
-        let adt = load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
-        let center = adt.center_surface;
-
-        assert_eq!(
-            bevy_to_tile_coords(center[0], center[2]),
-            (32, 48),
-            "tile-coordinate placement should keep the parsed terrain on the named ADT tile"
-        );
-    }
-
-    #[test]
-    fn tile_coord_placement_uses_chunk_indices_for_horizontal_origins() {
-        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
-            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
-        let adt = load_adt_for_tile(&data, 32, 48).expect("expected ADT to parse");
-
-        let by_index: HashMap<(u32, u32), &ChunkHeightGrid> = adt
-            .height_grids
-            .iter()
-            .map(|grid| ((grid.index_x, grid.index_y), grid))
-            .collect();
-
-        for ((index_x, index_y), expected_x, expected_z) in [
-            ((0, 0), -8533.333, 0.0),
-            ((8, 9), -8833.333, 266.666),
-            ((15, 15), -9033.333, 500.0),
-        ] {
-            let grid = by_index.get(&(index_x, index_y)).expect("chunk grid");
-            assert!(
-                (grid.origin_x - expected_x).abs() < 0.01,
-                "chunk ({index_x},{index_y}) origin_x mismatch: {} vs {expected_x}",
-                grid.origin_x
-            );
-            assert!(
-                (grid.origin_z - expected_z).abs() < 0.01,
-                "chunk ({index_x},{index_y}) origin_z mismatch: {} vs {expected_z}",
-                grid.origin_z
-            );
-        }
-    }
-
-    fn absolute_height(grid: &ChunkHeightGrid, grid_row: usize, col: usize) -> f32 {
-        grid.base_y + grid.heights[vertex_index(grid_row, col)]
-    }
-
-    #[test]
-    fn stitched_adjacent_chunk_edges_match_on_real_adt() {
-        let data = std::fs::read("data/terrain/azeroth_32_48.adt")
-            .expect("expected test ADT data/terrain/azeroth_32_48.adt");
-        let adt = load_adt(&data).expect("expected ADT to parse");
-
-        let by_index: HashMap<(u32, u32), &ChunkHeightGrid> = adt
-            .height_grids
-            .iter()
-            .map(|grid| ((grid.index_x, grid.index_y), grid))
-            .collect();
-
-        let a = by_index.get(&(8, 8)).expect("center chunk");
-        let right = by_index.get(&(8, 9)).expect("east neighbor");
-        let below = by_index.get(&(9, 8)).expect("south neighbor");
-
-        for col in 0..=8 {
-            let a_h = absolute_height(a, 16, col);
-            let b_h = absolute_height(below, 0, col);
-            assert!(
-                (a_h - b_h).abs() < 0.001,
-                "south seam mismatch at col {col}: {a_h} vs {b_h}"
-            );
-        }
-
-        for row in 0..=8 {
-            let a_h = absolute_height(a, row * 2, 8);
-            let b_h = absolute_height(right, row * 2, 0);
-            assert!(
-                (a_h - b_h).abs() < 0.001,
-                "east seam mismatch at row {row}: {a_h} vs {b_h}"
-            );
-        }
-    }
-
-    fn minimal_adt_with_mh2o(mh2o_payload: Vec<u8>) -> Vec<u8> {
-        iter::empty()
-            .chain(wrap_chunk(*b"KNCM", minimal_mcnk_payload()))
-            .chain(wrap_chunk(*b"O2HM", mh2o_payload))
-            .collect()
-    }
-
-    #[test]
-    fn mcnr_normal_swizzle() {
-        let mut payload = vec![0u8; MCVT_COUNT * 3];
-        payload[0] = 0;
-        payload[1] = 127;
-        payload[2] = 0;
-        let normals = parse_mcnr(&payload).unwrap();
-        let n = normals[0];
-        assert!((n[0]).abs() < 0.01, "X should be ~0, got {}", n[0]);
-        assert!((n[1] - 1.0).abs() < 0.01, "Y should be ~1, got {}", n[1]);
-        assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
-    }
-
-    #[test]
-    fn mcnr_tilted_normal() {
-        let mut payload = vec![0u8; MCVT_COUNT * 3];
-        payload[0] = 90;
-        payload[1] = 90;
-        payload[2] = 0;
-        let normals = parse_mcnr(&payload).unwrap();
-        let n = normals[0];
-        let raw = 90.0f32 / 127.0f32;
-        let expected_xz = raw / (raw * raw * 2.0f32).sqrt();
-        assert!(
-            (n[0] - expected_xz).abs() < 0.01,
-            "X should be ~{expected_xz}, got {}",
-            n[0]
-        );
-        assert!(
-            (n[1] - expected_xz).abs() < 0.01,
-            "Y should be ~{expected_xz}, got {}",
-            n[1]
-        );
-        assert!((n[2]).abs() < 0.01, "Z should be ~0, got {}", n[2]);
-    }
-
-    #[test]
-    fn load_adt_ignores_malformed_mh2o() {
-        let data = minimal_adt_with_mh2o(malformed_mh2o_payload());
-        let adt = load_adt(&data).expect("terrain should still load when MH2O is malformed");
-
-        assert_eq!(adt.chunks.len(), 1);
-        assert!(
-            adt.water.is_none(),
-            "malformed MH2O should be ignored instead of aborting terrain load"
-        );
-    }
 }

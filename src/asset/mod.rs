@@ -1,8 +1,5 @@
 pub mod adt;
-pub mod adt_obj;
-#[cfg(test)]
-mod adt_seam_tests;
-pub mod adt_tex;
+pub mod adt_format;
 pub mod asset_cache;
 pub mod asset_resolver;
 pub mod blp;
@@ -14,4 +11,5 @@ pub mod m2_format;
 pub mod m2_texture;
 pub mod wmo;
 
+pub use adt_format::{adt_obj, adt_tex};
 pub use m2_format::{m2_anim, m2_attach, m2_bone_names, m2_light, m2_particle};
