@@ -113,14 +113,16 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
         apply_root_chunk(
             tag,
             payload,
-            &mut n_groups,
-            &mut materials,
-            &mut portals,
-            &mut mopt_raw,
-            &mut portal_refs,
-            &mut group_infos,
-            &mut skybox_wow_path,
-            &mut portal_vertices,
+            &mut WmoRootChunkState {
+                n_groups: &mut n_groups,
+                materials: &mut materials,
+                portals: &mut portals,
+                mopt_raw: &mut mopt_raw,
+                portal_refs: &mut portal_refs,
+                group_infos: &mut group_infos,
+                skybox_wow_path: &mut skybox_wow_path,
+                portal_vertices: &mut portal_vertices,
+            },
         )?;
     }
 
@@ -135,36 +137,39 @@ pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     })
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn apply_root_chunk(
+struct WmoRootChunkState<'a> {
+    n_groups: &'a mut u32,
+    materials: &'a mut Vec<WmoMaterialDef>,
+    portals: &'a mut Vec<WmoPortal>,
+    mopt_raw: &'a mut Vec<(u16, u16)>,
+    portal_refs: &'a mut Vec<WmoPortalRef>,
+    group_infos: &'a mut Vec<WmoGroupInfo>,
+    skybox_wow_path: &'a mut Option<String>,
+    portal_vertices: &'a mut Vec<[f32; 3]>,
+}
+
+fn apply_root_chunk(
     tag: &[u8],
     payload: &[u8],
-    n_groups: &mut u32,
-    materials: &mut Vec<WmoMaterialDef>,
-    portals: &mut Vec<WmoPortal>,
-    mopt_raw: &mut Vec<(u16, u16)>,
-    portal_refs: &mut Vec<WmoPortalRef>,
-    group_infos: &mut Vec<WmoGroupInfo>,
-    skybox_wow_path: &mut Option<String>,
-    portal_vertices: &mut Vec<[f32; 3]>,
+    state: &mut WmoRootChunkState<'_>,
 ) -> Result<(), String> {
     match tag {
         b"DHOM" => {
             if payload.len() < 64 {
                 return Err(format!("MOHD too small: {} bytes", payload.len()));
             }
-            *n_groups = read_u32(payload, 4)?;
+            *state.n_groups = read_u32(payload, 4)?;
         }
-        b"TMOM" => *materials = parse_momt(payload)?,
-        b"VPOM" => *portal_vertices = parse_vec3_array(payload)?,
+        b"TMOM" => *state.materials = parse_momt(payload)?,
+        b"VPOM" => *state.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
-            *portals = p;
-            *mopt_raw = raw;
+            *state.portals = p;
+            *state.mopt_raw = raw;
         }
-        b"RPOM" => *portal_refs = parse_mopr(payload)?,
-        b"IGOM" => *group_infos = parse_mogi(payload)?,
-        b"BSOM" => *skybox_wow_path = parse_c_string(payload),
+        b"RPOM" => *state.portal_refs = parse_mopr(payload)?,
+        b"IGOM" => *state.group_infos = parse_mogi(payload)?,
+        b"BSOM" => *state.skybox_wow_path = parse_c_string(payload),
         _ => {}
     }
     Ok(())
@@ -424,14 +429,16 @@ mod tests {
         apply_root_chunk(
             b"BSOM",
             b"environments/stars/deathskybox.m2\0",
-            &mut n_groups,
-            &mut materials,
-            &mut portals,
-            &mut mopt_raw,
-            &mut portal_refs,
-            &mut group_infos,
-            &mut skybox_wow_path,
-            &mut portal_vertices,
+            &mut WmoRootChunkState {
+                n_groups: &mut n_groups,
+                materials: &mut materials,
+                portals: &mut portals,
+                mopt_raw: &mut mopt_raw,
+                portal_refs: &mut portal_refs,
+                group_infos: &mut group_infos,
+                skybox_wow_path: &mut skybox_wow_path,
+                portal_vertices: &mut portal_vertices,
+            },
         )
         .expect("parse MOSB chunk");
 
