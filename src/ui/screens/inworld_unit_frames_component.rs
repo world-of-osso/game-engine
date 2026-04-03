@@ -90,34 +90,62 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
     unit_frame_shell("Target", state, false)
 }
 
+struct UnitFrameNames {
+    container: DynName,
+    shell: DynName,
+    portrait: DynName,
+    name: DynName,
+    level: DynName,
+}
+
+struct UnitFrameVisuals<'a> {
+    frame: &'a FrameConfig,
+    health_bg: &'static str,
+    health_fill: &'static str,
+    mana_hidden: bool,
+}
+
+fn build_unit_frame_names(prefix: &str) -> UnitFrameNames {
+    UnitFrameNames {
+        container: dyn_name(format!("{prefix}FrameContainer")),
+        shell: dyn_name(format!("{prefix}FrameTexture")),
+        portrait: dyn_name(format!("{prefix}Portrait")),
+        name: dyn_name(format!("{prefix}Name")),
+        level: dyn_name(format!("{prefix}LevelText")),
+    }
+}
+
+fn unit_frame_visuals<'a>(state: &UnitFrameState, player_side: bool) -> UnitFrameVisuals<'a> {
+    UnitFrameVisuals {
+        frame: if player_side {
+            &PLAYER_FRAME_CONFIG
+        } else {
+            &TARGET_FRAME_CONFIG
+        },
+        health_bg: if player_side {
+            PLAYER_HEALTH_BG
+        } else {
+            TARGET_HEALTH_BG
+        },
+        health_fill: if player_side {
+            PLAYER_HEALTH_FILL
+        } else {
+            TARGET_HEALTH_FILL
+        },
+        mana_hidden: !state.has_mana,
+    }
+}
+
 fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> Element {
-    let container_name = dyn_name(format!("{prefix}FrameContainer"));
-    let shell_name = dyn_name(format!("{prefix}FrameTexture"));
-    let portrait_name = dyn_name(format!("{prefix}Portrait"));
-    let name_name = dyn_name(format!("{prefix}Name"));
-    let level_name = dyn_name(format!("{prefix}LevelText"));
-    let frame = if player_side {
-        &PLAYER_FRAME_CONFIG
-    } else {
-        &TARGET_FRAME_CONFIG
-    };
-    let health_bg = if player_side {
-        PLAYER_HEALTH_BG
-    } else {
-        TARGET_HEALTH_BG
-    };
-    let health_fill = if player_side {
-        PLAYER_HEALTH_FILL
-    } else {
-        TARGET_HEALTH_FILL
-    };
-    let mana_hidden = !state.has_mana;
+    let names = build_unit_frame_names(prefix);
+    let visuals = unit_frame_visuals(state, player_side);
+    let frame = visuals.frame;
     rsx! {
         r#frame {
-            name: container_name,
+            name: names.container,
             stretch: true,
             texture {
-                name: shell_name,
+                name: names.shell,
                 width: frame.shell.width,
                 height: frame.shell.height,
                 texture_file: frame.shell.texture,
@@ -129,7 +157,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 }
             }
             r#frame {
-                name: portrait_name,
+                name: names.portrait,
                 width: frame.portrait.width,
                 height: frame.portrait.height,
                 background_color: PORTRAIT_BG,
@@ -141,7 +169,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 }
             }
             fontstring {
-                name: name_name,
+                name: names.name,
                 width: frame.name.width,
                 height: 12.0,
                 text: {state.name.as_str()},
@@ -159,7 +187,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 }
             }
             fontstring {
-                name: level_name,
+                name: names.level,
                 width: frame.level.width,
                 height: 12.0,
                 text: {state.level_text.as_str()},
@@ -182,8 +210,8 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 y: frame.health_bar.y,
                 width: frame.health_bar.width,
                 height: BAR_H,
-                bg_color: health_bg,
-                fill_color: health_fill,
+                bg_color: visuals.health_bg,
+                fill_color: visuals.health_fill,
                 fill_width: state.health_fill_width,
                 value_text: state.health_text.as_str(),
                 text_x: frame.health_bar.text_x,
@@ -200,7 +228,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
                 fill_width: state.mana_fill_width,
                 value_text: state.mana_text.as_str(),
                 text_x: frame.mana_bar.text_x,
-                hidden: mana_hidden,
+                hidden: visuals.mana_hidden,
             })}
             {contextual_icons(prefix, player_side)}
         }
