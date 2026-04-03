@@ -1,5 +1,6 @@
 //! Warband scene switch, supplemental terrain, teardown, and utility systems.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::customization_data::CustomizationDb;
 
@@ -53,53 +54,90 @@ fn update_pending_scene(
     pending.wait_for_next_frame = pending.scene_id.is_some();
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(super) fn sync_warband_scene_switch(
-    mut commands: Commands,
-    mut assets: CharSelectRenderAssets,
-    mut active_scene: ResMut<ActiveWarbandSceneId>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    customization_db: Res<CustomizationDb>,
-    char_list: Res<CharacterList>,
-    selected: Res<SelectedCharIndex>,
-    warband: Option<Res<WarbandScenes>>,
-    selected_scene: Option<Res<SelectedWarbandScene>>,
-    terrain_query: Query<Entity, With<CharSelectTerrain>>,
-    mut camera_query: Query<
-        (&mut Transform, &mut CharSelectOrbit, &mut Projection),
+#[derive(SystemParam)]
+pub(super) struct CharSelectSceneSwitchParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    assets: CharSelectRenderAssets<'w>,
+    active_scene: ResMut<'w, ActiveWarbandSceneId>,
+    heightmap: ResMut<'w, TerrainHeightmap>,
+    customization_db: Res<'w, CustomizationDb>,
+    char_list: Res<'w, CharacterList>,
+    selected: Res<'w, SelectedCharIndex>,
+    warband: Option<Res<'w, WarbandScenes>>,
+    selected_scene: Option<Res<'w, SelectedWarbandScene>>,
+    terrain_query: Query<'w, 's, Entity, With<CharSelectTerrain>>,
+    camera_query: Query<
+        'w,
+        's,
+        (
+            &'static mut Transform,
+            &'static mut CharSelectOrbit,
+            &'static mut Projection,
+        ),
         (With<CharSelectScene>, Without<CharSelectModelRoot>),
     >,
-    mut pending_supplemental: ResMut<PendingSupplementalWarbandScene>,
-) {
-    let Some(warband) = warband else { return };
-    let Some(sel) = selected_scene else { return };
-    if active_scene.0 == Some(sel.scene_id) {
+    pending_supplemental: ResMut<'w, PendingSupplementalWarbandScene>,
+}
+
+#[derive(SystemParam)]
+pub(super) struct CharSelectSupplementalTerrainParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    assets: CharSelectRenderAssets<'w>,
+    pending: ResMut<'w, PendingSupplementalWarbandScene>,
+    active_scene: Res<'w, ActiveWarbandSceneId>,
+    heightmap: ResMut<'w, TerrainHeightmap>,
+    warband: Option<Res<'w, WarbandScenes>>,
+    terrain_query: Query<'w, 's, Entity, With<CharSelectTerrain>>,
+}
+
+pub(super) fn sync_warband_scene_switch(mut params: CharSelectSceneSwitchParams) {
+    let Some(warband) = params.warband.as_ref() else {
+        return;
+    };
+    let Some(sel) = params.selected_scene.as_ref() else {
+        return;
+    };
+    if params.active_scene.0 == Some(sel.scene_id) {
         return;
     }
     let Some(scene) = warband.scenes.iter().find(|s| s.id == sel.scene_id) else {
         return;
     };
-    let placement = selected_scene_placement(&warband, scene);
-    let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
-    for entity in terrain_query.iter() {
-        commands.entity(entity).despawn();
+    let placement = selected_scene_placement(warband, scene);
+    let presentation = selected_character_presentation(
+        &params.customization_db,
+        &params.char_list,
+        params.selected.0,
+    );
+    for entity in params.terrain_query.iter() {
+        params.commands.entity(entity).despawn();
     }
     let focus_pos = placement
         .as_ref()
         .map(|p| p.bevy_position())
         .unwrap_or_else(|| scene.bevy_look_at());
-    spawn_scene_warband_terrain(&mut commands, &mut assets, &mut heightmap, scene, focus_pos);
+    spawn_scene_warband_terrain(
+        &mut params.commands,
+        &mut params.assets,
+        &mut params.heightmap,
+        scene,
+        focus_pos,
+    );
     update_camera_for_scene(
         scene,
         placement.as_ref(),
-        Some(&heightmap),
+        Some(&params.heightmap),
         presentation,
-        &mut camera_query,
+        &mut params.camera_query,
     );
-    active_scene.0 = Some(sel.scene_id);
+    params.active_scene.0 = Some(sel.scene_id);
     let has_supplemental =
         !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty();
-    update_pending_scene(&mut pending_supplemental, sel.scene_id, has_supplemental);
+    update_pending_scene(
+        &mut params.pending_supplemental,
+        sel.scene_id,
+        has_supplemental,
+    );
 }
 
 fn is_pending_scene_valid(
@@ -135,46 +173,41 @@ fn do_spawn_supplemental(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn spawn_pending_warband_supplemental_terrain(
-    mut commands: Commands,
-    mut assets: CharSelectRenderAssets,
-    mut pending: ResMut<PendingSupplementalWarbandScene>,
-    active_scene: Res<ActiveWarbandSceneId>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-    warband: Option<Res<WarbandScenes>>,
-    terrain_query: Query<Entity, With<CharSelectTerrain>>,
+    mut params: CharSelectSupplementalTerrainParams,
 ) {
-    let Some(scene_id) = pending.scene_id else {
+    let Some(scene_id) = params.pending.scene_id else {
         return;
     };
-    if pending.wait_for_next_frame {
-        pending.wait_for_next_frame = false;
+    if params.pending.wait_for_next_frame {
+        params.pending.wait_for_next_frame = false;
         return;
     }
-    if is_pending_scene_valid(&pending, &active_scene).is_none() {
-        pending.scene_id = None;
-        pending.wait_for_next_frame = false;
+    if is_pending_scene_valid(&params.pending, &params.active_scene).is_none() {
+        params.pending.scene_id = None;
+        params.pending.wait_for_next_frame = false;
         return;
     }
-    let Some(warband) = warband else { return };
+    let Some(warband) = params.warband.as_ref() else {
+        return;
+    };
     let Some(scene) = warband.scenes.iter().find(|scene| scene.id == scene_id) else {
-        pending.scene_id = None;
-        pending.wait_for_next_frame = false;
+        params.pending.scene_id = None;
+        params.pending.wait_for_next_frame = false;
         return;
     };
-    let Ok(root_entity) = terrain_query.single() else {
+    let Ok(root_entity) = params.terrain_query.single() else {
         return;
     };
     do_spawn_supplemental(
-        &mut commands,
-        &mut assets,
-        &mut heightmap,
+        &mut params.commands,
+        &mut params.assets,
+        &mut params.heightmap,
         scene,
         root_entity,
     );
-    pending.scene_id = None;
-    pending.wait_for_next_frame = false;
+    params.pending.scene_id = None;
+    params.pending.wait_for_next_frame = false;
 }
 
 pub(super) fn teardown_char_select_scene(

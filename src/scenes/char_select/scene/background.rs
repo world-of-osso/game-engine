@@ -16,6 +16,29 @@ use crate::water_material::WaterMaterial;
 
 use super::{CharSelectScene, CharSelectSkybox};
 
+pub(super) struct WarbandBackgroundSpawnContext<'a, 'w, 's> {
+    pub(super) commands: &'a mut Commands<'w, 's>,
+    pub(super) meshes: &'a mut Assets<Mesh>,
+    pub(super) materials: &'a mut Assets<StandardMaterial>,
+    pub(super) effect_materials: &'a mut Assets<M2EffectMaterial>,
+    pub(super) terrain_materials: &'a mut Assets<TerrainMaterial>,
+    pub(super) water_materials: &'a mut Assets<WaterMaterial>,
+    pub(super) images: &'a mut Assets<Image>,
+    pub(super) inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
+    pub(super) heightmap: &'a mut TerrainHeightmap,
+}
+
+pub(super) struct WarbandSkyboxSpawnContext<'a, 'w, 's> {
+    pub(super) commands: &'a mut Commands<'w, 's>,
+    pub(super) meshes: &'a mut Assets<Mesh>,
+    pub(super) materials: &'a mut Assets<StandardMaterial>,
+    pub(super) effect_materials: &'a mut Assets<M2EffectMaterial>,
+    pub(super) skybox_materials: &'a mut Assets<SkyboxM2Material>,
+    pub(super) images: &'a mut Assets<Image>,
+    pub(super) inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
+    pub(super) creature_display_map: &'a crate::creature_display::CreatureDisplayMap,
+}
+
 fn spawn_tagged_ground(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -61,32 +84,23 @@ pub fn find_scene_entry<'a>(
         .and_then(|(w, sel)| w.scenes.iter().find(|s| s.id == sel.scene_id))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn spawn(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
+    ctx: &mut WarbandBackgroundSpawnContext<'_, '_, '_>,
     scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
     focus: Option<Vec3>,
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
     if let Some(s) = scene
         && let Some(result) = scene_tree::spawn_warband_terrain(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            terrain_materials,
-            water_materials,
-            images,
-            inv_bp,
-            heightmap,
+            ctx.commands,
+            ctx.meshes,
+            ctx.materials,
+            ctx.effect_materials,
+            ctx.terrain_materials,
+            ctx.water_materials,
+            ctx.images,
+            ctx.inv_bp,
+            ctx.heightmap,
             s,
             focus.unwrap_or_else(|| s.bevy_look_at()),
         )
@@ -105,43 +119,37 @@ pub fn spawn(
             wmos,
         );
     }
-    let ground = spawn_tagged_ground(commands, meshes, materials, images);
+    let ground = spawn_tagged_ground(ctx.commands, ctx.meshes, ctx.materials, ctx.images);
     scene_tree::background_scene_node(ground, "ground", 0, vec![])
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_skybox(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    skybox_materials: &mut Assets<SkyboxM2Material>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &crate::creature_display::CreatureDisplayMap,
+    ctx: &mut WarbandSkyboxSpawnContext<'_, '_, '_>,
     scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
     camera_translation: Vec3,
 ) -> Option<Entity> {
     let m2_path = crate::scenes::char_select::warband::ensure_warband_skybox(scene?)?;
     let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        skybox_materials,
-        images,
-        inv_bp,
+        ctx.commands,
+        ctx.meshes,
+        ctx.materials,
+        ctx.effect_materials,
+        ctx.skybox_materials,
+        ctx.images,
+        ctx.inv_bp,
         &m2_path,
         Transform::from_translation(camera_translation),
-        creature_display_map,
+        ctx.creature_display_map,
         None,
     )?;
-    commands.entity(spawned.root).insert((
+    ctx.commands.entity(spawned.root).insert((
         CharSelectScene,
         CharSelectSkybox {
             path: m2_path.clone(),
         },
     ));
-    commands.entity(spawned.model_root).insert(CharSelectScene);
+    ctx.commands
+        .entity(spawned.model_root)
+        .insert(CharSelectScene);
     Some(spawned.root)
 }

@@ -286,16 +286,19 @@ fn setup_char_select_scene(
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let presentation = selected_character_presentation(&customization_db, &char_list, selected.0);
     let background_start = Instant::now();
+    let mut background_ctx = background::WarbandBackgroundSpawnContext {
+        commands: &mut commands,
+        meshes: &mut assets.meshes,
+        materials: &mut assets.materials,
+        effect_materials: &mut assets.effect_materials,
+        terrain_materials: &mut assets.terrain_materials,
+        water_materials: &mut assets.water_materials,
+        images: &mut assets.images,
+        inv_bp: &mut assets.inv_bp,
+        heightmap: &mut heightmap,
+    };
     let mut bg_node = background::spawn(
-        &mut commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.terrain_materials,
-        &mut assets.water_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        &mut heightmap,
+        &mut background_ctx,
         scene_entry,
         placement
             .as_ref()
@@ -314,18 +317,19 @@ fn setup_char_select_scene(
     let camera_elapsed = camera_start.elapsed();
     let sky_light_start = Instant::now();
     let camera_translation = camera::camera_params(scene_entry, placement.as_ref(), presentation).0;
-    let skybox_entity = background::spawn_skybox(
-        &mut commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.skybox_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        &creature_display_map,
-        scene_entry,
-        camera_translation,
-    );
+    let skybox_entity = {
+        let mut skybox_ctx = background::WarbandSkyboxSpawnContext {
+            commands: &mut commands,
+            meshes: &mut assets.meshes,
+            materials: &mut assets.materials,
+            effect_materials: &mut assets.effect_materials,
+            skybox_materials: &mut assets.skybox_materials,
+            images: &mut assets.images,
+            inv_bp: &mut assets.inv_bp,
+            creature_display_map: &creature_display_map,
+        };
+        background::spawn_skybox(&mut skybox_ctx, scene_entry, camera_translation)
+    };
     if let Some((entity, path)) = skybox_entity
         .zip(scene_entry.and_then(crate::scenes::char_select::warband::ensure_warband_skybox))
     {
