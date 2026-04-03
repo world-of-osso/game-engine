@@ -342,6 +342,12 @@ struct MeshSpawnContext<'a> {
     visible: bool,
 }
 
+struct MeshComponentContext<'a> {
+    texture_type: Option<u32>,
+    mesh_part_id: u16,
+    spawn: &'a MeshSpawnContext<'a>,
+}
+
 fn spawn_mesh_with_context<M: Asset>(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -353,22 +359,10 @@ fn spawn_mesh_with_context<M: Asset>(
         &mut Assets<Mesh>,
         Handle<M>,
         asset::m2::M2RenderBatch,
-        Entity,
-        &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
-        usize,
-        bool,
+        &MeshSpawnContext<'_>,
     ),
 ) {
-    spawn(
-        commands,
-        meshes,
-        material,
-        batch,
-        context.parent,
-        context.skinning,
-        context.batch_index,
-        context.visible,
-    );
+    spawn(commands, meshes, material, batch, context);
 }
 
 fn spawn_mesh_with_material(
@@ -406,20 +400,13 @@ fn spawn_mesh_with_material(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn spawn_common_mesh_components(
-    cmd: &mut EntityCommands,
-    texture_type: Option<u32>,
-    mesh_part_id: u16,
-    parent: Entity,
-    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
-) {
-    cmd.insert(GeosetMesh(mesh_part_id));
-    if let Some(texture_type) = texture_type {
+fn spawn_common_mesh_components(cmd: &mut EntityCommands, context: &MeshComponentContext<'_>) {
+    cmd.insert(GeosetMesh(context.mesh_part_id));
+    if let Some(texture_type) = context.texture_type {
         cmd.insert(BatchTextureType(texture_type));
     }
-    cmd.set_parent_in_place(parent);
-    if let Some((inv_bp, joints)) = skinning {
+    cmd.set_parent_in_place(context.spawn.parent);
+    if let Some((inv_bp, joints)) = context.spawn.skinning {
         cmd.insert(SkinnedMesh {
             inverse_bindposes: inv_bp.clone(),
             joints: joints.clone(),
@@ -427,16 +414,12 @@ fn spawn_common_mesh_components(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_skinned_mesh_standard(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     material: Handle<StandardMaterial>,
     batch: asset::m2::M2RenderBatch,
-    parent: Entity,
-    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
-    batch_index: usize,
-    visible: bool,
+    spawn: &MeshSpawnContext<'_>,
 ) {
     let asset::m2::M2RenderBatch {
         mesh,
@@ -444,7 +427,7 @@ fn spawn_skinned_mesh_standard(
         mesh_part_id,
         ..
     } = batch;
-    let vis = if visible {
+    let vis = if spawn.visible {
         Visibility::Inherited
     } else {
         Visibility::Hidden
@@ -452,22 +435,23 @@ fn spawn_skinned_mesh_standard(
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
-        Name::new(format!("Mesh[{batch_index}]")),
+        Name::new(format!("Mesh[{}]", spawn.batch_index)),
         vis,
     ));
-    spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
+    let component_context = MeshComponentContext {
+        texture_type,
+        mesh_part_id,
+        spawn,
+    };
+    spawn_common_mesh_components(&mut cmd, &component_context);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_skinned_mesh_effect(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     material: Handle<M2EffectMaterial>,
     batch: asset::m2::M2RenderBatch,
-    parent: Entity,
-    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
-    batch_index: usize,
-    visible: bool,
+    spawn: &MeshSpawnContext<'_>,
 ) {
     let asset::m2::M2RenderBatch {
         mesh,
@@ -475,7 +459,7 @@ fn spawn_skinned_mesh_effect(
         mesh_part_id,
         ..
     } = batch;
-    let vis = if visible {
+    let vis = if spawn.visible {
         Visibility::Inherited
     } else {
         Visibility::Hidden
@@ -483,22 +467,23 @@ fn spawn_skinned_mesh_effect(
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
-        Name::new(format!("Mesh[{batch_index}]")),
+        Name::new(format!("Mesh[{}]", spawn.batch_index)),
         vis,
     ));
-    spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
+    let component_context = MeshComponentContext {
+        texture_type,
+        mesh_part_id,
+        spawn,
+    };
+    spawn_common_mesh_components(&mut cmd, &component_context);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_skinned_mesh_skybox(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     material: Handle<SkyboxM2Material>,
     batch: asset::m2::M2RenderBatch,
-    parent: Entity,
-    skinning: &Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>,
-    batch_index: usize,
-    visible: bool,
+    spawn: &MeshSpawnContext<'_>,
 ) {
     let asset::m2::M2RenderBatch {
         mesh,
@@ -506,7 +491,7 @@ fn spawn_skinned_mesh_skybox(
         mesh_part_id,
         ..
     } = batch;
-    let vis = if visible {
+    let vis = if spawn.visible {
         Visibility::Inherited
     } else {
         Visibility::Hidden
@@ -514,13 +499,18 @@ fn spawn_skinned_mesh_skybox(
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
-        Name::new(format!("Mesh[{batch_index}]")),
+        Name::new(format!("Mesh[{}]", spawn.batch_index)),
         NoFrustumCulling,
         NotShadowCaster,
         NotShadowReceiver,
         vis,
     ));
-    spawn_common_mesh_components(&mut cmd, texture_type, mesh_part_id, parent, skinning);
+    let component_context = MeshComponentContext {
+        texture_type,
+        mesh_part_id,
+        spawn,
+    };
+    spawn_common_mesh_components(&mut cmd, &component_context);
 }
 
 /// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
