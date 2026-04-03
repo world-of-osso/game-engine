@@ -56,7 +56,6 @@ mod health_bar;
 mod inworld_scene_tree;
 mod inworld_selection_debug_screen;
 mod light_lookup;
-mod loading_screen;
 mod m2_effect_material;
 mod m2_scene;
 pub mod m2_spawn;
@@ -635,7 +634,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
         scenes::login::LoginScreenPlugin,
-        loading_screen::LoadingScreenPlugin,
+        scenes::loading::LoadingScreenPlugin,
         scenes::char_select::CharSelectPlugin,
         char_select_scene::CharSelectScenePlugin,
         selection_debug_screen::SelectionDebugScreenPlugin,
