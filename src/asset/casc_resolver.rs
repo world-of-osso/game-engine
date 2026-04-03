@@ -223,6 +223,46 @@ pub(super) fn ensure_file_cached_at_path(fdid: u32, out_path: &Path) -> Option<P
     }
 }
 
+pub(super) fn resolve_bytes(fdid: u32) -> Option<Vec<u8>> {
+    let casc = match get_casc() {
+        Ok(casc) => casc,
+        Err(err) => {
+            eprintln!("asset-cache byte resolve failed: fdid {fdid}: {err}");
+            return None;
+        }
+    };
+    if let Err(err) = casc.ensure_initialized() {
+        eprintln!("asset-cache byte resolve failed: fdid {fdid}: {err}");
+        return None;
+    }
+
+    let content_key = match casc.resolver.resolve_file_data_id(fdid) {
+        Some(content_key) => content_key,
+        None => {
+            eprintln!("asset-cache byte resolve failed: fdid {fdid}: missing content key");
+            return None;
+        }
+    };
+    let encoding_key = match casc.resolver.resolve_content_key(&content_key) {
+        Some(encoding_key) => encoding_key,
+        None => {
+            eprintln!(
+                "asset-cache byte resolve failed: fdid {fdid}: missing encoding key for content {content_key}"
+            );
+            return None;
+        }
+    };
+    match casc.read_file_by_encoding_key(&encoding_key) {
+        Ok(data) => Some(data),
+        Err(err) => {
+            eprintln!(
+                "asset-cache byte resolve failed: fdid {fdid} via encoding key {encoding_key}: {err}"
+            );
+            None
+        }
+    }
+}
+
 fn extract_fdid_to_path(fdid: u32, out_path: &Path) -> Result<PathBuf, String> {
     let casc = get_casc()?;
     casc.ensure_initialized()?;

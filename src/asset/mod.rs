@@ -4,6 +4,7 @@ pub mod adt_obj;
 mod adt_seam_tests;
 pub mod adt_tex;
 pub mod asset_cache;
+pub mod asset_resolver;
 pub mod blp;
 mod casc_resolver;
 #[allow(dead_code)]
