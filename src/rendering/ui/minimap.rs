@@ -129,52 +129,66 @@ fn create_minimap_frames(
     ));
     let border_handle = images.add(create_border_image(MINIMAP_DISPLAY_SIZE as usize));
     let arrow_handle = images.add(create_arrow_image());
-    let shared = SharedContext::new();
-    let mut screen = Screen::new(inworld_hud_component::minimap_screen);
-    screen.sync(&shared, &mut ui.registry);
-
-    let cluster = resolve_frame_id(&ui.registry, "MinimapCluster");
-    let header = resolve_frame_id(&ui.registry, "MinimapHeader");
-    let display = resolve_frame_id(&ui.registry, "MinimapDisplay");
-    let border = resolve_frame_id(&ui.registry, "MinimapBorder");
-    let arrow = resolve_frame_id(&ui.registry, "MinimapArrow");
-    let zone_name = resolve_frame_id(&ui.registry, "MinimapZoneName");
-    let coords = resolve_frame_id(&ui.registry, "MinimapCoords");
-
-    if let Some(frame) = ui.registry.get_mut(display) {
-        frame.widget_data = Some(WidgetData::Texture(TextureData {
-            source: TextureSource::Dynamic(composite_handle.clone()),
-            ..TextureData::default()
-        }));
-    }
-    if let Some(frame) = ui.registry.get_mut(border) {
-        frame.widget_data = Some(WidgetData::Texture(TextureData {
-            source: TextureSource::Dynamic(border_handle),
-            ..TextureData::default()
-        }));
-    }
-    if let Some(frame) = ui.registry.get_mut(arrow) {
-        frame.widget_data = Some(WidgetData::Texture(TextureData {
-            source: TextureSource::Dynamic(arrow_handle),
-            ..TextureData::default()
-        }));
-    }
-    for id in [cluster, header, display, border, arrow, zone_name, coords] {
+    let frames = build_minimap_screen(&mut ui.registry);
+    assign_minimap_textures(
+        &mut ui.registry,
+        &frames,
+        composite_handle.clone(),
+        border_handle,
+        arrow_handle,
+    );
+    for id in [
+        frames.cluster,
+        frames.header,
+        frames.display,
+        frames.border,
+        frames.arrow,
+        frames.zone_name,
+        frames.coords,
+    ] {
         set_initial_visibility(&mut ui.registry, id);
     }
 
     commands.insert_resource(MinimapComposite {
         handle: composite_handle,
     });
-    commands.insert_resource(MinimapFrames {
-        cluster,
-        header,
-        display,
-        border,
-        arrow,
-        zone_name,
-        coords,
-    });
+    commands.insert_resource(frames);
+}
+
+fn build_minimap_screen(registry: &mut FrameRegistry) -> MinimapFrames {
+    let shared = SharedContext::new();
+    let mut screen = Screen::new(inworld_hud_component::minimap_screen);
+    screen.sync(&shared, registry);
+    MinimapFrames {
+        cluster: resolve_frame_id(registry, "MinimapCluster"),
+        header: resolve_frame_id(registry, "MinimapHeader"),
+        display: resolve_frame_id(registry, "MinimapDisplay"),
+        border: resolve_frame_id(registry, "MinimapBorder"),
+        arrow: resolve_frame_id(registry, "MinimapArrow"),
+        zone_name: resolve_frame_id(registry, "MinimapZoneName"),
+        coords: resolve_frame_id(registry, "MinimapCoords"),
+    }
+}
+
+fn assign_minimap_textures(
+    registry: &mut FrameRegistry,
+    frames: &MinimapFrames,
+    composite_handle: Handle<Image>,
+    border_handle: Handle<Image>,
+    arrow_handle: Handle<Image>,
+) {
+    set_minimap_texture(registry, frames.display, composite_handle);
+    set_minimap_texture(registry, frames.border, border_handle);
+    set_minimap_texture(registry, frames.arrow, arrow_handle);
+}
+
+fn set_minimap_texture(registry: &mut FrameRegistry, frame_id: u64, handle: Handle<Image>) {
+    if let Some(frame) = registry.get_mut(frame_id) {
+        frame.widget_data = Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Dynamic(handle),
+            ..TextureData::default()
+        }));
+    }
 }
 
 fn set_hud_visibility(ui: &mut UiState, frames: &MinimapFrames, visible: bool) {
