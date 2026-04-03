@@ -47,11 +47,27 @@ pub fn spawn_warband_terrain(
     scene: &warband::WarbandSceneEntry,
     focus: Vec3,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let Some(adt_path) = warband::ensure_warband_terrain(scene) else {
-        return None;
+    let adt_path = warband::ensure_warband_terrain(scene)?;
+    let root_entity = spawn_warband_terrain_root(ctx.commands);
+    let result = match spawn_warband_terrain_tile(ctx, &adt_path) {
+        Some(result) => result,
+        None => {
+            ctx.commands.entity(root_entity).despawn();
+            return None;
+        }
     };
-    let root_entity = ctx
-        .commands
+    attach_warband_terrain_root(ctx.commands, root_entity, result.root_entity);
+    let (doodad_count, wmo_entities) =
+        spawn_warband_primary_objects(ctx, &adt_path, focus, result.tile_y, result.tile_x);
+    Some(WarbandTerrainSpawnResult {
+        root_entity,
+        doodad_count,
+        wmo_entities,
+    })
+}
+
+fn spawn_warband_terrain_root(commands: &mut Commands) -> Entity {
+    commands
         .spawn((
             Name::new("WarbandTerrain"),
             CharSelectScene,
@@ -59,9 +75,13 @@ pub fn spawn_warband_terrain(
             Transform::default(),
             Visibility::default(),
         ))
-        .id();
-    let mut doodad_count = 0;
-    let mut wmo_entities = Vec::new();
+        .id()
+}
+
+fn spawn_warband_terrain_tile(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    adt_path: &std::path::Path,
+) -> Option<terrain::AdtSpawnResult> {
     let mut terrain_assets = terrain::TerrainOnlySpawnAssets {
         commands: ctx.commands,
         meshes: ctx.meshes,
@@ -69,46 +89,49 @@ pub fn spawn_warband_terrain(
         water_materials: ctx.water_materials,
         images: ctx.images,
     };
-    let Ok(result) = terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, &adt_path)
-    else {
-        ctx.commands.entity(root_entity).despawn();
-        return None;
-    };
-    ctx.commands
-        .entity(root_entity)
-        .add_child(result.root_entity);
-    if let Some(obj_data) = terrain_objects::load_obj0(&adt_path) {
-        let spawned_objects = terrain_objects::spawn_nearby_campsite_objects(
-            ctx.commands,
-            ctx.meshes,
-            ctx.materials,
-            ctx.effect_materials,
-            ctx.images,
-            ctx.inv_bp,
-            Some(ctx.heightmap),
-            result.tile_y,
-            result.tile_x,
-            &obj_data,
-            focus,
-            CHAR_SELECT_PRIMARY_DOODAD_RADIUS,
-            CHAR_SELECT_PRIMARY_WMO_RADIUS,
-        );
-        doodad_count += spawned_objects.doodads.len();
-        wmo_entities.extend(
-            spawned_objects
-                .wmos
-                .iter()
-                .map(|wmo| (wmo.entity, wmo.model.clone())),
-        );
-    }
-    ctx.commands
+    terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, adt_path).ok()
+}
+
+fn attach_warband_terrain_root(commands: &mut Commands, root_entity: Entity, terrain_root: Entity) {
+    commands.entity(root_entity).add_child(terrain_root);
+    commands
         .entity(root_entity)
         .insert((CharSelectScene, CharSelectTerrain));
-    Some(WarbandTerrainSpawnResult {
-        root_entity,
-        doodad_count,
-        wmo_entities,
-    })
+}
+
+fn spawn_warband_primary_objects(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    adt_path: &std::path::Path,
+    focus: Vec3,
+    tile_y: u32,
+    tile_x: u32,
+) -> (usize, Vec<(Entity, String)>) {
+    let Some(obj_data) = terrain_objects::load_obj0(adt_path) else {
+        return (0, Vec::new());
+    };
+    let spawned_objects = terrain_objects::spawn_nearby_campsite_objects(
+        ctx.commands,
+        ctx.meshes,
+        ctx.materials,
+        ctx.effect_materials,
+        ctx.images,
+        ctx.inv_bp,
+        Some(ctx.heightmap),
+        tile_y,
+        tile_x,
+        &obj_data,
+        focus,
+        CHAR_SELECT_PRIMARY_DOODAD_RADIUS,
+        CHAR_SELECT_PRIMARY_WMO_RADIUS,
+    );
+    (
+        spawned_objects.doodads.len(),
+        spawned_objects
+            .wmos
+            .iter()
+            .map(|wmo| (wmo.entity, wmo.model.clone()))
+            .collect(),
+    )
 }
 
 pub fn spawn_warband_supplemental_terrain(
