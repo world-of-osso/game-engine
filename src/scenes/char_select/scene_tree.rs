@@ -62,16 +62,15 @@ pub fn spawn_warband_terrain(
         .id();
     let mut doodad_count = 0;
     let mut wmo_entities = Vec::new();
-    let Ok(result) = terrain::spawn_adt_terrain_only(
-        ctx.commands,
-        ctx.meshes,
-        ctx.materials,
-        ctx.terrain_materials,
-        ctx.water_materials,
-        ctx.images,
-        ctx.heightmap,
-        &adt_path,
-    ) else {
+    let mut terrain_assets = terrain::TerrainOnlySpawnAssets {
+        commands: ctx.commands,
+        meshes: ctx.meshes,
+        terrain_materials: ctx.terrain_materials,
+        water_materials: ctx.water_materials,
+        images: ctx.images,
+    };
+    let Ok(result) = terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, &adt_path)
+    else {
         ctx.commands.entity(root_entity).despawn();
         return None;
     };
@@ -125,16 +124,16 @@ pub fn spawn_warband_supplemental_terrain(
             tile_y,
             tile_x
         ));
-        let Ok(result) = terrain::spawn_adt_terrain_only(
-            ctx.commands,
-            ctx.meshes,
-            ctx.materials,
-            ctx.terrain_materials,
-            ctx.water_materials,
-            ctx.images,
-            ctx.heightmap,
-            &adt_path,
-        ) else {
+        let mut terrain_assets = terrain::TerrainOnlySpawnAssets {
+            commands: ctx.commands,
+            meshes: ctx.meshes,
+            terrain_materials: ctx.terrain_materials,
+            water_materials: ctx.water_materials,
+            images: ctx.images,
+        };
+        let Ok(result) =
+            terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, &adt_path)
+        else {
             continue;
         };
         ctx.commands

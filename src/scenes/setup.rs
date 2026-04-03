@@ -103,18 +103,17 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
     }
 
     fn spawn_terrain(&mut self, camera: Entity, adt_path: &Path) -> Option<Vec3> {
-        match terrain::spawn_adt(
-            self.commands,
-            self.meshes,
-            self.materials,
-            self.effect_materials,
-            self.terrain_mats,
-            self.water_mats,
-            self.images,
-            self.inverse_bp,
-            self.heightmap,
-            adt_path,
-        ) {
+        let mut assets = terrain::AdtSpawnAssets {
+            commands: self.commands,
+            meshes: self.meshes,
+            materials: self.materials,
+            effect_materials: self.effect_materials,
+            terrain_materials: self.terrain_mats,
+            water_materials: self.water_mats,
+            images: self.images,
+            inverse_bp: self.inverse_bp,
+        };
+        match terrain::spawn_adt(&mut assets, self.heightmap, adt_path) {
             Ok(result) => {
                 self.commands.entity(camera).insert(result.camera);
                 self.adt_manager.map_name = result.map_name;
@@ -144,18 +143,17 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
         if !adt_path.exists() {
             return None;
         }
-        match terrain::spawn_adt(
-            self.commands,
-            self.meshes,
-            self.materials,
-            self.effect_materials,
-            self.terrain_mats,
-            self.water_mats,
-            self.images,
-            self.inverse_bp,
-            self.heightmap,
-            &adt_path,
-        ) {
+        let mut assets = terrain::AdtSpawnAssets {
+            commands: self.commands,
+            meshes: self.meshes,
+            materials: self.materials,
+            effect_materials: self.effect_materials,
+            terrain_materials: self.terrain_mats,
+            water_materials: self.water_mats,
+            images: self.images,
+            inverse_bp: self.inverse_bp,
+        };
+        match terrain::spawn_adt(&mut assets, self.heightmap, &adt_path) {
             Ok(result) => {
                 self.adt_manager.map_name = result.map_name;
                 self.adt_manager.initial_tile = (result.tile_y, result.tile_x);

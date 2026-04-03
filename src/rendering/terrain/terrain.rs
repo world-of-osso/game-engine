@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, mpsc};
 
+use bevy::ecs::system::SystemParam;
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -142,17 +143,42 @@ pub struct AdtSpawnResult {
     pub map_name: String,
 }
 
+pub struct AdtSpawnAssets<'a, 'w, 's> {
+    pub commands: &'a mut Commands<'w, 's>,
+    pub meshes: &'a mut Assets<Mesh>,
+    pub materials: &'a mut Assets<StandardMaterial>,
+    pub effect_materials: &'a mut Assets<M2EffectMaterial>,
+    pub terrain_materials: &'a mut Assets<TerrainMaterial>,
+    pub water_materials: &'a mut Assets<WaterMaterial>,
+    pub images: &'a mut Assets<Image>,
+    pub inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
+}
+
+pub struct TerrainOnlySpawnAssets<'a, 'w, 's> {
+    pub commands: &'a mut Commands<'w, 's>,
+    pub meshes: &'a mut Assets<Mesh>,
+    pub terrain_materials: &'a mut Assets<TerrainMaterial>,
+    pub water_materials: &'a mut Assets<WaterMaterial>,
+    pub images: &'a mut Assets<Image>,
+}
+
+#[derive(SystemParam)]
+struct LoadedTileSpawnParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    terrain_mats: ResMut<'w, Assets<TerrainMaterial>>,
+    water_mats: ResMut<'w, Assets<WaterMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inverse_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    adt_manager: ResMut<'w, AdtManager>,
+    heightmap: ResMut<'w, TerrainHeightmap>,
+}
+
 /// Load an ADT file, build meshes, and spawn them into the Bevy scene.
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_adt(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    assets: &mut AdtSpawnAssets<'_, '_, '_>,
     heightmap: &mut TerrainHeightmap,
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
@@ -166,14 +192,14 @@ pub fn spawn_adt(
     let obj_data = terrain_objects::load_obj0(adt_path);
 
     let mut refs = SpawnRefs {
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        terrain_materials,
-        water_materials,
-        images,
-        inverse_bp,
+        commands: assets.commands,
+        meshes: assets.meshes,
+        materials: assets.materials,
+        effect_materials: assets.effect_materials,
+        terrain_materials: assets.terrain_materials,
+        water_materials: assets.water_materials,
+        images: assets.images,
+        inverse_bp: assets.inverse_bp,
     };
     let root = spawn_terrain_chunks(&mut refs, adt_path, &adt_data, tex_data.as_ref(), &tile);
     heightmap.register_tile(tile_y, tile_x, &adt_data, tex_data.as_ref());
@@ -231,14 +257,8 @@ pub fn spawn_adt(
 ///
 /// This avoids the expensive doodad/WMO path and is used by the fast
 /// char-select background so the screen becomes visible quickly.
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_adt_terrain_only(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    _materials: &mut Assets<StandardMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
+    assets: &mut TerrainOnlySpawnAssets<'_, '_, '_>,
     heightmap: &mut TerrainHeightmap,
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
@@ -251,16 +271,28 @@ pub fn spawn_adt_terrain_only(
     let tex_data = load_tex0(adt_path);
     let ground_images = tex_data
         .as_ref()
-        .map(|td| terrain_material::load_ground_images(images, td, adt_path));
+        .map(|td| terrain_material::load_ground_images(assets.images, td, adt_path));
     eprintln!("build_terrain_materials {}", adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
-        terrain_materials,
-        images,
+        assets.terrain_materials,
+        assets.images,
         tex_data.as_ref(),
         ground_images.as_deref(),
     );
-    let root = spawn_chunk_entities(commands, meshes, &chunk_materials, &adt_data, &tile);
-    spawn_water(commands, meshes, water_materials, images, &adt_data);
+    let root = spawn_chunk_entities(
+        assets.commands,
+        assets.meshes,
+        &chunk_materials,
+        &adt_data,
+        &tile,
+    );
+    spawn_water(
+        assets.commands,
+        assets.meshes,
+        assets.water_materials,
+        assets.images,
+        &adt_data,
+    );
     heightmap.register_tile(tile_y, tile_x, &adt_data, tex_data.as_ref());
     log_adt_spawn(&adt_data, adt_path);
 
@@ -353,35 +385,28 @@ fn adt_streaming_system(
 }
 
 /// Receive parsed tiles from background threads and spawn entities.
-#[allow(clippy::too_many_arguments)]
-fn receive_loaded_tiles(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut terrain_mats: ResMut<Assets<TerrainMaterial>>,
-    mut water_mats: ResMut<Assets<WaterMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    mut adt_manager: ResMut<AdtManager>,
-    mut heightmap: ResMut<TerrainHeightmap>,
-) {
+fn receive_loaded_tiles(mut params: LoadedTileSpawnParams) {
     let results: Vec<_> = {
-        let rx = adt_manager.tile_rx.lock().unwrap();
+        let rx = params.adt_manager.tile_rx.lock().unwrap();
         rx.try_iter().collect()
     };
     let mut refs = SpawnRefs {
-        commands: &mut commands,
-        meshes: &mut meshes,
-        materials: &mut materials,
-        effect_materials: &mut effect_materials,
-        terrain_materials: &mut terrain_mats,
-        water_materials: &mut water_mats,
-        images: &mut images,
-        inverse_bp: &mut inverse_bp,
+        commands: &mut params.commands,
+        meshes: &mut params.meshes,
+        materials: &mut params.materials,
+        effect_materials: &mut params.effect_materials,
+        terrain_materials: &mut params.terrain_mats,
+        water_materials: &mut params.water_mats,
+        images: &mut params.images,
+        inverse_bp: &mut params.inverse_bp,
     };
     for result in results {
-        handle_tile_result(&mut refs, &mut adt_manager, &mut heightmap, result);
+        handle_tile_result(
+            &mut refs,
+            &mut params.adt_manager,
+            &mut params.heightmap,
+            result,
+        );
     }
 }
 
