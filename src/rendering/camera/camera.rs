@@ -358,32 +358,13 @@ fn player_movement(
         return;
     };
 
-    if modal_open.is_some() {
-        movement.autorun = false;
-        movement.direction = MoveDirection::None;
+    if close_player_movement_for_modal(modal_open.as_deref(), &mut movement) {
         return;
     }
 
-    if bindings.is_just_pressed(InputAction::AutoRun, &keys, &mouse_buttons) {
-        movement.autorun = !movement.autorun;
-    }
-    if bindings.is_pressed(InputAction::MoveBackward, &keys, &mouse_buttons) {
-        movement.autorun = false;
-    }
-
-    let (direction, anim_dir) =
-        compute_movement_input(&keys, &mouse_buttons, &bindings, movement.autorun, facing);
-    movement.direction = anim_dir;
-
-    if bindings.is_just_pressed(InputAction::RunToggle, &keys, &mouse_buttons) {
-        movement.running = !movement.running;
-    }
-
-    let speed = if movement.running {
-        RUN_SPEED
-    } else {
-        WALK_SPEED
-    };
+    sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
+    let (direction, speed) =
+        resolve_player_movement_state(&keys, &mouse_buttons, &bindings, &mut movement, facing);
     apply_horizontal_movement(HorizontalMovementContext {
         transform: &mut transform,
         movement: &mut movement,
@@ -398,6 +379,53 @@ fn player_movement(
     });
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
+}
+
+fn close_player_movement_for_modal(
+    modal_open: Option<&crate::scenes::game_menu::UiModalOpen>,
+    movement: &mut MovementState,
+) -> bool {
+    if modal_open.is_none() {
+        return false;
+    }
+    movement.autorun = false;
+    movement.direction = MoveDirection::None;
+    true
+}
+
+fn sync_player_movement_toggles(
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    bindings: &InputBindings,
+    movement: &mut MovementState,
+) {
+    if bindings.is_just_pressed(InputAction::AutoRun, keys, mouse_buttons) {
+        movement.autorun = !movement.autorun;
+    }
+    if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
+        movement.autorun = false;
+    }
+    if bindings.is_just_pressed(InputAction::RunToggle, keys, mouse_buttons) {
+        movement.running = !movement.running;
+    }
+}
+
+fn resolve_player_movement_state(
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    bindings: &InputBindings,
+    movement: &mut MovementState,
+    facing: &CharacterFacing,
+) -> (Vec3, f32) {
+    let (direction, anim_dir) =
+        compute_movement_input(keys, mouse_buttons, bindings, movement.autorun, facing);
+    movement.direction = anim_dir;
+    let speed = if movement.running {
+        RUN_SPEED
+    } else {
+        WALK_SPEED
+    };
+    (direction, speed)
 }
 
 struct HorizontalMovementContext<'a> {
