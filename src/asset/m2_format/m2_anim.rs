@@ -134,7 +134,6 @@ pub fn parse_bones(md20: &[u8]) -> Result<Vec<M2Bone>, String> {
 }
 
 /// Verify that all parent_bone_id values are -1 or a valid index.
-#[allow(dead_code)]
 pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
     for (i, bone) in bones.iter().enumerate() {
         if bone.parent_bone_id >= 0 {
@@ -150,7 +149,6 @@ pub fn validate_bone_hierarchy(bones: &[M2Bone]) -> Result<(), String> {
     Ok(())
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct M2AnimSequence {
     pub id: u16,
@@ -234,7 +232,6 @@ pub fn parse_global_sequences(md20: &[u8]) -> Result<Vec<u32>, String> {
 
 /// A single animation track: keyframes for one transform component of one bone.
 /// `sequences[i]` holds the keyframe data for animation sequence `i`.
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct AnimTrack<T> {
     pub interpolation_type: u16,
@@ -252,7 +249,6 @@ pub struct BoneAnimTracks {
 }
 
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct TextureAnimTracks {
     pub translation: AnimTrack<[f32; 3]>,
     pub rotation: AnimTrack<[i16; 4]>,
@@ -260,7 +256,6 @@ pub struct TextureAnimTracks {
 }
 
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct ColorAnimTracks {
     pub color: AnimTrack<[f32; 3]>,
     pub opacity: AnimTrack<i16>,
