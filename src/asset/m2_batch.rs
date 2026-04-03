@@ -3,13 +3,13 @@
 
 use bevy::prelude::Mesh;
 
-use super::super::m2_anim;
-use super::super::m2_format::fixed16_to_f32;
-use super::super::m2_texture;
 use super::{
     M2Material, M2RenderBatch, M2TextureUnit, M2Vertex, SkinData, TextureTables, build_batch_mesh,
     build_mesh, mesh_has_meaningful_uv1, resolve_indices,
 };
+use crate::asset::m2_anim;
+use crate::asset::m2_format::fixed16_to_f32;
+use crate::asset::m2_texture;
 
 fn texture_looks_like_environment_map(fdid: Option<u32>) -> bool {
     let Some(path) = fdid.and_then(game_engine::listfile::lookup_fdid) else {

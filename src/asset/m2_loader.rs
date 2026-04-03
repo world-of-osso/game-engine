@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
+use crate::asset::{m2_attach, m2_light, m2_particle};
+
 use super::{M2Chunks, M2Model, ModelCacheKey, build_render_batches, parse_chunks, parse_txid};
 
 fn find_chunk<'a>(data: &'a [u8], needle: &[u8; 4]) -> Option<&'a [u8]> {
@@ -24,47 +26,41 @@ fn find_chunk<'a>(data: &'a [u8], needle: &[u8; 4]) -> Option<&'a [u8]> {
     None
 }
 
-fn load_attachment_data(
-    chunks: &M2Chunks<'_>,
-) -> (Vec<super::super::m2_attach::M2Attachment>, Vec<i16>) {
+fn load_attachment_data(chunks: &M2Chunks<'_>) -> (Vec<m2_attach::M2Attachment>, Vec<i16>) {
     let attachments = chunks
         .ska1
-        .map(super::super::m2_attach::parse_ska1_attachments)
+        .map(m2_attach::parse_ska1_attachments)
         .transpose()
         .unwrap_or_default()
         .filter(|parsed| !parsed.is_empty())
-        .unwrap_or_else(|| {
-            super::super::m2_attach::parse_attachments(chunks.md20).unwrap_or_default()
-        });
+        .unwrap_or_else(|| m2_attach::parse_attachments(chunks.md20).unwrap_or_default());
     let attachment_lookup = chunks
         .ska1
-        .map(super::super::m2_attach::parse_ska1_attachment_lookup)
+        .map(m2_attach::parse_ska1_attachment_lookup)
         .transpose()
         .unwrap_or_default()
         .filter(|parsed| !parsed.is_empty())
-        .unwrap_or_else(|| {
-            super::super::m2_attach::parse_attachment_lookup(chunks.md20).unwrap_or_default()
-        });
+        .unwrap_or_else(|| m2_attach::parse_attachment_lookup(chunks.md20).unwrap_or_default());
     (attachments, attachment_lookup)
 }
 
 fn load_skel_attachment_data(
     skel_path: &Path,
-) -> Result<(Vec<super::super::m2_attach::M2Attachment>, Vec<i16>), String> {
+) -> Result<(Vec<m2_attach::M2Attachment>, Vec<i16>), String> {
     let data = std::fs::read(skel_path).map_err(|e| format!("Failed to read .skel file: {e}"))?;
     let Some(ska1) = find_chunk(&data, b"SKA1") else {
         return Ok((Vec::new(), Vec::new()));
     };
     Ok((
-        super::super::m2_attach::parse_ska1_attachments(ska1)?,
-        super::super::m2_attach::parse_ska1_attachment_lookup(ska1)?,
+        m2_attach::parse_ska1_attachments(ska1)?,
+        m2_attach::parse_ska1_attachment_lookup(ska1)?,
     ))
 }
 
 fn load_model_attachment_data(
     path: &Path,
     chunks: &M2Chunks<'_>,
-) -> (Vec<super::super::m2_attach::M2Attachment>, Vec<i16>) {
+) -> (Vec<m2_attach::M2Attachment>, Vec<i16>) {
     if !path.starts_with("data/models") {
         return load_attachment_data(chunks);
     }
@@ -94,10 +90,10 @@ pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, S
         !anim.bones.is_empty(),
         skin_fdids,
     )?;
-    let mut particles = super::super::m2_particle::parse_particle_emitters(chunks.md20);
-    super::super::m2_particle::resolve_texture_fdids(&mut particles, &txid);
+    let mut particles = m2_particle::parse_particle_emitters(chunks.md20);
+    m2_particle::resolve_texture_fdids(&mut particles, &txid);
     let (attachments, attachment_lookup) = load_model_attachment_data(path, &chunks);
-    let lights = super::super::m2_light::parse_lights(chunks.md20);
+    let lights = m2_light::parse_lights(chunks.md20);
     Ok(M2Model {
         batches,
         bones: anim.bones,
