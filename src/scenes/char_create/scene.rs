@@ -5,6 +5,7 @@
 use std::f32::consts::{FRAC_PI_8, PI};
 use std::path::PathBuf;
 
+use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -191,73 +192,99 @@ fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
         })
 }
 
-#[allow(clippy::too_many_arguments)]
-fn spawn_race_model(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    race: u8,
-    sex: u8,
-    visible: bool,
-) -> Option<Entity> {
-    let model_path = resolve_model_path(race, sex)?;
-    let entity = m2_scene::spawn_animated_static_m2(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        &model_path,
-        model_transform(),
-        creature_display_map,
-    )?;
-    let vis = if visible {
-        Visibility::Inherited
-    } else {
-        Visibility::Hidden
-    };
-    commands
-        .entity(entity)
-        .insert((CharCreateScene, CharCreateModelRoot, ModelSex(sex), vis));
-    Some(entity)
+#[derive(SystemParam)]
+struct CharCreateSpawnParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
 }
 
-/// Spawn both sex models for a race, returning the entities.
-#[allow(clippy::too_many_arguments)]
-fn spawn_race_pair(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    race: u8,
-    active_sex: u8,
-) -> Vec<(u8, Entity)> {
-    let mut models = Vec::new();
-    for sex in [0u8, 1] {
-        if let Some(e) = spawn_race_model(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inv_bp,
-            creature_display_map,
-            race,
-            sex,
-            sex == active_sex,
-        ) {
-            models.push((sex, e));
+#[derive(SystemParam)]
+struct CharCreateAppearanceParams<'w, 's> {
+    cust_db: Res<'w, CustomizationDb>,
+    char_tex: Res<'w, CharTextureData>,
+    images: ResMut<'w, Assets<Image>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    parent_query: Query<'w, 's, &'static ChildOf>,
+    geoset_query: Query<'w, 's, (Entity, &'static GeosetMesh, &'static ChildOf)>,
+    visibility_query: Query<'w, 's, &'static mut Visibility>,
+    equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
+    material_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static MeshMaterial3d<StandardMaterial>,
+            Option<&'static crate::m2_spawn::GeosetMesh>,
+            Option<&'static crate::m2_spawn::BatchTextureType>,
+            &'static ChildOf,
+        ),
+    >,
+}
+
+struct CharCreateSpawnContext<'a, 'w, 's> {
+    commands: &'a mut Commands<'w, 's>,
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
+    images: &'a mut Assets<Image>,
+    inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
+    creature_display_map: &'a creature_display::CreatureDisplayMap,
+}
+
+impl<'a, 'w, 's> CharCreateSpawnContext<'a, 'w, 's> {
+    fn from_params(params: &'a mut CharCreateSpawnParams<'w, 's>) -> Self {
+        Self {
+            commands: &mut params.commands,
+            meshes: &mut params.meshes,
+            materials: &mut params.materials,
+            effect_materials: &mut params.effect_materials,
+            images: &mut params.images,
+            inv_bp: &mut params.inv_bp,
+            creature_display_map: &params.creature_display_map,
         }
     }
-    models
+
+    fn spawn_race_model(&mut self, race: u8, sex: u8, visible: bool) -> Option<Entity> {
+        let model_path = resolve_model_path(race, sex)?;
+        let entity = m2_scene::spawn_animated_static_m2(
+            self.commands,
+            self.meshes,
+            self.materials,
+            self.effect_materials,
+            self.images,
+            self.inv_bp,
+            &model_path,
+            model_transform(),
+            self.creature_display_map,
+        )?;
+        let vis = if visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        self.commands.entity(entity).insert((
+            CharCreateScene,
+            CharCreateModelRoot,
+            ModelSex(sex),
+            vis,
+        ));
+        Some(entity)
+    }
+
+    fn spawn_race_pair(&mut self, race: u8, active_sex: u8) -> Vec<(u8, Entity)> {
+        let mut models = Vec::new();
+        for sex in [0u8, 1] {
+            if let Some(entity) = self.spawn_race_model(race, sex, sex == active_sex) {
+                models.push((sex, entity));
+            }
+        }
+        models
+    }
 }
 
 fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
@@ -270,45 +297,23 @@ fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
     displayed.last_class = None;
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    mut displayed: ResMut<DisplayedModels>,
-) {
-    spawn_camera(&mut commands);
-    spawn_lighting(&mut commands);
-    spawn_ground(&mut commands, &mut meshes, &mut materials, &mut images);
-    let models = spawn_race_pair(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-        &creature_display_map,
-        1,
-        0,
+fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<DisplayedModels>) {
+    spawn_camera(&mut spawn.commands);
+    spawn_lighting(&mut spawn.commands);
+    spawn_ground(
+        &mut spawn.commands,
+        &mut spawn.meshes,
+        &mut spawn.materials,
+        &mut spawn.images,
     );
+    let models = CharCreateSpawnContext::from_params(&mut spawn).spawn_race_pair(1, 0);
     displayed.race = Some(1);
     displayed.active_sex = 0;
     displayed.models = models;
 }
 
-#[allow(clippy::too_many_arguments)]
 fn sync_model(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
+    mut spawn: CharCreateSpawnParams,
     state: Option<Res<CharCreateState>>,
     mut model_vis: Query<(&ModelSex, &mut Visibility)>,
     mut displayed: ResMut<DisplayedModels>,
@@ -320,18 +325,9 @@ fn sync_model(
         return;
     }
     if race_changed {
-        despawn_models(&mut commands, &mut displayed);
-        let models = spawn_race_pair(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut effect_materials,
-            &mut images,
-            &mut inv_bp,
-            &creature_display_map,
-            state.selected_race,
-            state.selected_sex,
-        );
+        despawn_models(&mut spawn.commands, &mut displayed);
+        let models = CharCreateSpawnContext::from_params(&mut spawn)
+            .spawn_race_pair(state.selected_race, state.selected_sex);
         displayed.race = Some(state.selected_race);
         displayed.active_sex = state.selected_sex;
         displayed.models = models;
@@ -351,25 +347,10 @@ fn update_visibility(model_vis: &mut Query<(&ModelSex, &mut Visibility)>, active
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn sync_appearance(
     state: Option<Res<CharCreateState>>,
-    cust_db: Res<CustomizationDb>,
-    char_tex: Res<CharTextureData>,
+    mut appearance_params: CharCreateAppearanceParams,
     mut displayed: ResMut<DisplayedModels>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
-    mut visibility_query: Query<&mut Visibility>,
-    equipment_item_query: Query<(), With<EquipmentItem>>,
-    material_query: Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&crate::m2_spawn::GeosetMesh>,
-        Option<&crate::m2_spawn::BatchTextureType>,
-        &ChildOf,
-    )>,
 ) {
     let Some(state) = state else { return };
     let appearance = state.appearance;
@@ -395,17 +376,17 @@ fn sync_appearance(
             sex: state.selected_sex,
             appearance,
         },
-        &cust_db,
-        &char_tex,
+        &appearance_params.cust_db,
+        &appearance_params.char_tex,
         None,
         root,
-        &mut images,
-        &mut materials,
-        &parent_query,
-        &geoset_query,
-        &mut visibility_query,
-        &equipment_item_query,
-        &material_query,
+        &mut appearance_params.images,
+        &mut appearance_params.materials,
+        &appearance_params.parent_query,
+        &appearance_params.geoset_query,
+        &mut appearance_params.visibility_query,
+        &appearance_params.equipment_item_query,
+        &appearance_params.material_query,
     );
 }
 
