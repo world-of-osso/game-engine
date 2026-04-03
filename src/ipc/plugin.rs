@@ -229,59 +229,75 @@ fn dispatch(
 /// Returns true if the request was handled.
 fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
     match &cmd.request {
-        Request::Ping => {
-            let _ = cmd.respond.send(Response::Pong);
-        }
-        Request::Screenshot => {
-            scene
-                .commands
-                .spawn(Screenshot::primary_window())
-                .insert(ScreenshotReply(cmd.respond.clone()))
-                .observe(on_screenshot_captured);
-        }
-        Request::DumpTree { filter } => {
-            let tree =
-                crate::dump::build_tree(&scene.tree_query, &scene.parent_query, filter.as_deref());
-            let _ = cmd.respond.send(Response::Tree(tree));
-        }
-        Request::DumpUiTree { filter } => {
-            let tree = crate::dump::build_ui_tree(&scene.ui_state.registry, filter.as_deref());
-            let _ = cmd.respond.send(Response::Tree(tree));
-        }
-        Request::DumpScene { filter: _ } => {
-            let text = match &scene.scene_tree {
-                Some(tree) => crate::dump::build_scene_tree(
-                    tree,
-                    &scene.transform_query,
-                    &scene.global_transform_query,
-                    &scene.parent_query,
-                    &scene.aabb_query,
-                    &scene.camera_query,
-                    &mut scene.ray_cast,
-                ),
-                None => "(no scene tree)".into(),
-            };
-            let _ = cmd.respond.send(Response::Tree(text));
-        }
-        Request::ExportScene { output_path } => {
-            let result = match &scene.scene_tree {
-                Some(tree) => {
-                    let snapshot =
-                        crate::scene_tree::snapshot_scene_tree(tree, &scene.transform_query);
-                    crate::scene_tree::write_scene_snapshot_file(Path::new(output_path), &snapshot)
-                        .map(|_| format!("scene exported to {output_path}"))
-                }
-                None => Err("no scene tree available to export".into()),
-            };
-            let response = match result {
-                Ok(message) => Response::Text(message),
-                Err(error) => Response::Error(error),
-            };
-            let _ = cmd.respond.send(response);
-        }
+        Request::Ping => reply_scene_ping(cmd),
+        Request::Screenshot => queue_scene_screenshot(cmd, scene),
+        Request::DumpTree { filter } => reply_scene_tree_dump(cmd, scene, filter.as_deref()),
+        Request::DumpUiTree { filter } => reply_scene_ui_tree_dump(cmd, scene, filter.as_deref()),
+        Request::DumpScene { filter: _ } => reply_scene_dump(cmd, scene),
+        Request::ExportScene { output_path } => reply_scene_export(cmd, scene, output_path),
         _ => return false,
     }
     true
+}
+
+fn reply_scene_ping(cmd: &Command) {
+    let _ = cmd.respond.send(Response::Pong);
+}
+
+fn queue_scene_screenshot(cmd: &Command, scene: &mut SceneParams) {
+    scene
+        .commands
+        .spawn(Screenshot::primary_window())
+        .insert(ScreenshotReply(cmd.respond.clone()))
+        .observe(on_screenshot_captured);
+}
+
+fn reply_scene_tree_dump(cmd: &Command, scene: &SceneParams, filter: Option<&str>) {
+    let tree = crate::dump::build_tree(&scene.tree_query, &scene.parent_query, filter);
+    let _ = cmd.respond.send(Response::Tree(tree));
+}
+
+fn reply_scene_ui_tree_dump(cmd: &Command, scene: &SceneParams, filter: Option<&str>) {
+    let tree = crate::dump::build_ui_tree(&scene.ui_state.registry, filter);
+    let _ = cmd.respond.send(Response::Tree(tree));
+}
+
+fn reply_scene_dump(cmd: &Command, scene: &mut SceneParams) {
+    let text = build_scene_dump_text(scene);
+    let _ = cmd.respond.send(Response::Tree(text));
+}
+
+fn build_scene_dump_text(scene: &mut SceneParams) -> String {
+    match &scene.scene_tree {
+        Some(tree) => crate::dump::build_scene_tree(
+            tree,
+            &scene.transform_query,
+            &scene.global_transform_query,
+            &scene.parent_query,
+            &scene.aabb_query,
+            &scene.camera_query,
+            &mut scene.ray_cast,
+        ),
+        None => "(no scene tree)".into(),
+    }
+}
+
+fn reply_scene_export(cmd: &Command, scene: &SceneParams, output_path: &str) {
+    let response = match export_scene(scene, output_path) {
+        Ok(message) => Response::Text(message),
+        Err(error) => Response::Error(error),
+    };
+    let _ = cmd.respond.send(response);
+}
+
+fn export_scene(scene: &SceneParams, output_path: &str) -> Result<String, String> {
+    let tree = scene
+        .scene_tree
+        .as_ref()
+        .ok_or_else(|| "no scene tree available to export".to_string())?;
+    let snapshot = crate::scene_tree::snapshot_scene_tree(tree, &scene.transform_query);
+    crate::scene_tree::write_scene_snapshot_file(Path::new(output_path), &snapshot)
+        .map(|_| format!("scene exported to {output_path}"))
 }
 
 /// Returns true if the request was handled.
