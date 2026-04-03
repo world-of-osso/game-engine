@@ -99,6 +99,22 @@ struct M2TextureTypeEntry {
     _filename_offset: u32,
 }
 
+#[derive(BinRead)]
+#[br(little)]
+struct SkinHeader {
+    _magic: [u8; 4],
+    lookup_count: u32,
+    lookup_offset: u32,
+    indices_count: u32,
+    indices_offset: u32,
+    _bone_indices_count: u32,
+    _bone_indices_offset: u32,
+    submesh_count: u32,
+    submesh_offset: u32,
+    batch_count: u32,
+    batch_offset: u32,
+}
+
 pub(crate) struct SkinData {
     pub lookup: Vec<u16>,
     pub indices: Vec<u16>,
@@ -233,14 +249,28 @@ pub(crate) fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
     if data.len() < SKIN_HEADER_SIZE || &data[0..4] != b"SKIN" {
         return Err("Invalid skin file (bad magic)".into());
     }
-    let lookup = parse_u16_array(data, 4)?;
-    let indices = parse_u16_array(data, 12)?;
-    let sub_count = read_u32(data, 28)? as usize;
-    let sub_offset = read_u32(data, 32)? as usize;
-    let batch_count = read_u32(data, 36)? as usize;
-    let batch_offset = read_u32(data, 40)? as usize;
-    let submeshes = parse_submeshes(data, sub_offset, sub_count)?;
-    let batches = parse_texture_units(data, batch_offset, batch_count)?;
+    let header: SkinHeader = SkinHeader::read_le(&mut Cursor::new(&data[..SKIN_HEADER_SIZE]))
+        .map_err(|err| format!("SKIN header parse failed: {err}"))?;
+    let lookup = parse_u16_entries(
+        data,
+        header.lookup_offset as usize,
+        header.lookup_count as usize,
+    )?;
+    let indices = parse_u16_entries(
+        data,
+        header.indices_offset as usize,
+        header.indices_count as usize,
+    )?;
+    let submeshes = parse_submeshes(
+        data,
+        header.submesh_offset as usize,
+        header.submesh_count as usize,
+    )?;
+    let batches = parse_texture_units(
+        data,
+        header.batch_offset as usize,
+        header.batch_count as usize,
+    )?;
     Ok(SkinData {
         lookup,
         indices,
@@ -249,9 +279,7 @@ pub(crate) fn parse_skin_full(data: &[u8]) -> Result<SkinData, String> {
     })
 }
 
-fn parse_u16_array(data: &[u8], header_off: usize) -> Result<Vec<u16>, String> {
-    let count = read_u32(data, header_off)? as usize;
-    let offset = read_u32(data, header_off + U16_ARRAY_HEADER_STRIDE)? as usize;
+fn parse_u16_entries(data: &[u8], offset: usize, count: usize) -> Result<Vec<u16>, String> {
     parse_binrw_entries(data, offset, count, "u16 array")
 }
 
