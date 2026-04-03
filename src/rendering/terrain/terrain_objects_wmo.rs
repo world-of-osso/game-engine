@@ -331,45 +331,77 @@ fn wmo_batch_material(
     material_index: u16,
     has_vertex_color: bool,
 ) -> Handle<StandardMaterial> {
-    let mat_def = root.materials.get(material_index as usize);
-    let texture_fdid = mat_def.map(|m| m.texture_fdid).unwrap_or(0);
-    let texture_2_fdid = mat_def.map(|m| m.texture_2_fdid).unwrap_or(0);
-    let texture_3_fdid = mat_def.map(|m| m.texture_3_fdid).unwrap_or(0);
-    let blend_mode = mat_def.map(|m| m.blend_mode).unwrap_or(0);
-    let flags = mat_def.map(|m| m.flags).unwrap_or(0);
-    let shader = mat_def.map(|m| m.shader).unwrap_or(0);
-
-    if texture_fdid > 0 {
-        match crate::asset::asset_cache::texture(texture_fdid) {
-            Some(blp_path) => {
-                match load_wmo_material_image(&blp_path, texture_2_fdid, texture_3_fdid, images) {
-                    Ok(image) => {
-                        return materials.add(wmo_standard_material(
-                            Some(image),
-                            blend_mode,
-                            flags,
-                            has_vertex_color,
-                        ));
-                    }
-                    Err(err) => {
-                        eprintln!(
-                            "WMO texture decode failed for material {material_index} shader {shader} FDID {texture_fdid}: {err}"
-                        );
-                    }
-                }
-            }
-            None => {
-                let label = game_engine::listfile::lookup_fdid(texture_fdid).unwrap_or("unknown");
-                eprintln!("WMO texture extract failed for FDID {texture_fdid}: {label}");
-            }
-        }
-    }
+    let material_props = wmo_material_props(root, material_index);
+    let image = load_wmo_batch_material_image(images, material_index, &material_props);
     materials.add(wmo_standard_material(
-        None,
-        blend_mode,
-        flags,
+        image,
+        material_props.blend_mode,
+        material_props.flags,
         has_vertex_color,
     ))
+}
+
+struct WmoMaterialProps {
+    texture_fdid: u32,
+    texture_2_fdid: u32,
+    texture_3_fdid: u32,
+    blend_mode: u32,
+    flags: u32,
+    shader: u32,
+}
+
+fn wmo_material_props(root: &wmo::WmoRootData, material_index: u16) -> WmoMaterialProps {
+    let mat_def = root.materials.get(material_index as usize);
+    WmoMaterialProps {
+        texture_fdid: mat_def.map(|m| m.texture_fdid).unwrap_or(0),
+        texture_2_fdid: mat_def.map(|m| m.texture_2_fdid).unwrap_or(0),
+        texture_3_fdid: mat_def.map(|m| m.texture_3_fdid).unwrap_or(0),
+        blend_mode: mat_def.map(|m| m.blend_mode).unwrap_or(0),
+        flags: mat_def.map(|m| m.flags).unwrap_or(0),
+        shader: mat_def.map(|m| m.shader).unwrap_or(0),
+    }
+}
+
+fn load_wmo_batch_material_image(
+    images: &mut Assets<Image>,
+    material_index: u16,
+    material_props: &WmoMaterialProps,
+) -> Option<Handle<Image>> {
+    if material_props.texture_fdid == 0 {
+        return None;
+    }
+    let Some(blp_path) = crate::asset::asset_cache::texture(material_props.texture_fdid) else {
+        log_wmo_texture_extract_failure(material_props.texture_fdid);
+        return None;
+    };
+    match load_wmo_material_image(
+        &blp_path,
+        material_props.texture_2_fdid,
+        material_props.texture_3_fdid,
+        images,
+    ) {
+        Ok(image) => Some(image),
+        Err(err) => {
+            log_wmo_texture_decode_failure(material_index, material_props, &err);
+            None
+        }
+    }
+}
+
+fn log_wmo_texture_decode_failure(
+    material_index: u16,
+    material_props: &WmoMaterialProps,
+    err: &str,
+) {
+    eprintln!(
+        "WMO texture decode failed for material {material_index} shader {} FDID {}: {err}",
+        material_props.shader, material_props.texture_fdid
+    );
+}
+
+fn log_wmo_texture_extract_failure(texture_fdid: u32) {
+    let label = game_engine::listfile::lookup_fdid(texture_fdid).unwrap_or("unknown");
+    eprintln!("WMO texture extract failed for FDID {texture_fdid}: {label}");
 }
 
 fn load_wmo_material_image(
