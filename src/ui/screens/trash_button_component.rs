@@ -31,71 +31,86 @@ pub fn trash_icon_button(
     onclick: impl Display,
     anchor: ButtonAnchor,
 ) -> Element {
+    let icon = trash_icon_texture(name, icon_name);
     if let Some(relative_to) = anchor.relative_to {
-        rsx! {
-            button {
-                name,
-                width: 46.0,
-                height: 42.0,
-                text: "",
-                font_size: 14.0,
-                onclick,
-                button_atlas_up: BUTTON_ATLAS_UP,
-                button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-                button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-                button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-                anchor {
-                    point: anchor.point,
-                    relative_to,
-                    relative_point: anchor.relative_point,
-                    x: {anchor.x.to_string()},
-                    y: {anchor.y.to_string()},
-                }
-                texture {
-                    name: icon_name,
-                    width: 24.0,
-                    height: 24.0,
-                    frame_level: 100.0,
-                    texture_file: DELETE_ICON_FILE,
-                    anchor {
-                        point: AnchorPoint::Center,
-                        relative_to: name,
-                        relative_point: AnchorPoint::Center,
-                    }
-                }
-            }
-        }
+        trash_icon_button_with_relative_anchor(name, onclick, anchor, relative_to, icon)
     } else {
-        rsx! {
-            button {
-                name,
-                width: 46.0,
-                height: 42.0,
-                text: "",
-                font_size: 14.0,
-                onclick,
-                button_atlas_up: BUTTON_ATLAS_UP,
-                button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-                button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-                button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-                anchor {
-                    point: anchor.point,
-                    relative_point: anchor.relative_point,
-                    x: {anchor.x.to_string()},
-                    y: {anchor.y.to_string()},
-                }
-                texture {
-                    name: icon_name,
-                    width: 24.0,
-                    height: 24.0,
-                    frame_level: 100.0,
-                    texture_file: DELETE_ICON_FILE,
-                    anchor {
-                        point: AnchorPoint::Center,
-                        relative_to: name,
-                        relative_point: AnchorPoint::Center,
-                    }
-                }
+        trash_icon_button_without_relative_anchor(name, onclick, anchor, icon)
+    }
+}
+
+fn trash_icon_button_with_relative_anchor(
+    name: FrameName,
+    onclick: impl Display,
+    anchor: ButtonAnchor,
+    relative_to: FrameName,
+    icon: Element,
+) -> Element {
+    rsx! {
+        button {
+            name,
+            width: 46.0,
+            height: 42.0,
+            text: "",
+            font_size: 14.0,
+            onclick,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            anchor {
+                point: anchor.point,
+                relative_to,
+                relative_point: anchor.relative_point,
+                x: {anchor.x.to_string()},
+                y: {anchor.y.to_string()},
+            }
+            {icon}
+        }
+    }
+}
+
+fn trash_icon_button_without_relative_anchor(
+    name: FrameName,
+    onclick: impl Display,
+    anchor: ButtonAnchor,
+    icon: Element,
+) -> Element {
+    rsx! {
+        button {
+            name,
+            width: 46.0,
+            height: 42.0,
+            text: "",
+            font_size: 14.0,
+            onclick,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            anchor {
+                point: anchor.point,
+                relative_point: anchor.relative_point,
+                x: {anchor.x.to_string()},
+                y: {anchor.y.to_string()},
+            }
+            {icon}
+        }
+    }
+}
+
+fn trash_icon_texture(button_name: FrameName, icon_name: FrameName) -> Element {
+    rsx! {
+        texture {
+            name: icon_name,
+            width: 24.0,
+            height: 24.0,
+            frame_level: 100.0,
+            texture_file: DELETE_ICON_FILE,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_to: button_name,
+                relative_point: AnchorPoint::Center,
             }
         }
     }
