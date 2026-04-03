@@ -46,6 +46,10 @@ mod tests {
         fn resolve_path(&self, fdid: u32) -> Option<String> {
             Some(format!("dummy/{fdid}"))
         }
+
+        fn lookup_path(&self, path: &str) -> Option<u32> {
+            path.strip_prefix("dummy/")?.parse().ok()
+        }
     }
 
     #[test]

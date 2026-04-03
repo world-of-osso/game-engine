@@ -20,11 +20,14 @@ half = "2"
 glob = { version = "0.3", optional = true }
 libc = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"] }
+cascette-client-storage = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", features = ["local-install"], optional = true }
+cascette-crypto = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", optional = true }
+cascette-formats = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", optional = true }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
 ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
-osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver" }
+osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver", default-features = false, optional = true }
 ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -44,11 +47,24 @@ required-features = ["ipc"]
 [[bin]]
 name = "casc-local"
 path = "src/bin/casc_local.rs"
+required-features = ["casc-tools"]
+
+[[bin]]
+name = "casc_refresh"
+path = "src/bin/casc_refresh.rs"
+required-features = ["casc-tools"]
 
 [features]
-default = ["ipc"]
+default = ["ipc", "casc"]
 dev = ["bevy_dylib"]
 ipc = ["peercred-ipc", "libc", "glob"]
+casc = ["dep:osso_asset_resolver", "osso_asset_resolver/casc"]
+casc-tools = [
+  "casc",
+  "dep:cascette-client-storage",
+  "dep:cascette-crypto",
+  "dep:cascette-formats",
+]
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
