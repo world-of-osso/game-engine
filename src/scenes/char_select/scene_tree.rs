@@ -26,28 +26,32 @@ pub struct WarbandTerrainSpawnResult {
     pub wmo_entities: Vec<(Entity, String)>,
 }
 
+pub struct WarbandTerrainSpawnContext<'a, 'w, 's> {
+    pub commands: &'a mut Commands<'w, 's>,
+    pub meshes: &'a mut Assets<Mesh>,
+    pub materials: &'a mut Assets<StandardMaterial>,
+    pub effect_materials: &'a mut Assets<M2EffectMaterial>,
+    pub terrain_materials: &'a mut Assets<TerrainMaterial>,
+    pub water_materials: &'a mut Assets<WaterMaterial>,
+    pub images: &'a mut Assets<Image>,
+    pub inv_bp: &'a mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
+    pub heightmap: &'a mut TerrainHeightmap,
+}
+
 const CHAR_SELECT_PRIMARY_DOODAD_RADIUS: f32 = 75.0;
 const CHAR_SELECT_PRIMARY_WMO_RADIUS: f32 = 120.0;
 
 /// Spawn warband scene terrain from ADT tiles extracted via CASC.
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_warband_terrain(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
     scene: &warband::WarbandSceneEntry,
     focus: Vec3,
 ) -> Option<WarbandTerrainSpawnResult> {
     let Some(adt_path) = warband::ensure_warband_terrain(scene) else {
         return None;
     };
-    let root_entity = commands
+    let root_entity = ctx
+        .commands
         .spawn((
             Name::new("WarbandTerrain"),
             CharSelectScene,
@@ -59,28 +63,30 @@ pub fn spawn_warband_terrain(
     let mut doodad_count = 0;
     let mut wmo_entities = Vec::new();
     let Ok(result) = terrain::spawn_adt_terrain_only(
-        commands,
-        meshes,
-        materials,
-        terrain_materials,
-        water_materials,
-        images,
-        heightmap,
+        ctx.commands,
+        ctx.meshes,
+        ctx.materials,
+        ctx.terrain_materials,
+        ctx.water_materials,
+        ctx.images,
+        ctx.heightmap,
         &adt_path,
     ) else {
-        commands.entity(root_entity).despawn();
+        ctx.commands.entity(root_entity).despawn();
         return None;
     };
-    commands.entity(root_entity).add_child(result.root_entity);
+    ctx.commands
+        .entity(root_entity)
+        .add_child(result.root_entity);
     if let Some(obj_data) = terrain_objects::load_obj0(&adt_path) {
         let spawned_objects = terrain_objects::spawn_nearby_campsite_objects(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inv_bp,
-            Some(heightmap),
+            ctx.commands,
+            ctx.meshes,
+            ctx.materials,
+            ctx.effect_materials,
+            ctx.images,
+            ctx.inv_bp,
+            Some(ctx.heightmap),
             result.tile_y,
             result.tile_x,
             &obj_data,
@@ -96,7 +102,7 @@ pub fn spawn_warband_terrain(
                 .map(|wmo| (wmo.entity, wmo.model.clone())),
         );
     }
-    commands
+    ctx.commands
         .entity(root_entity)
         .insert((CharSelectScene, CharSelectTerrain));
     Some(WarbandTerrainSpawnResult {
@@ -106,17 +112,8 @@ pub fn spawn_warband_terrain(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_warband_supplemental_terrain(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    terrain_materials: &mut Assets<TerrainMaterial>,
-    water_materials: &mut Assets<WaterMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>,
-    heightmap: &mut TerrainHeightmap,
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
     scene: &warband::WarbandSceneEntry,
     root_entity: Entity,
 ) -> usize {
@@ -129,27 +126,29 @@ pub fn spawn_warband_supplemental_terrain(
             tile_x
         ));
         let Ok(result) = terrain::spawn_adt_terrain_only(
-            commands,
-            meshes,
-            materials,
-            terrain_materials,
-            water_materials,
-            images,
-            heightmap,
+            ctx.commands,
+            ctx.meshes,
+            ctx.materials,
+            ctx.terrain_materials,
+            ctx.water_materials,
+            ctx.images,
+            ctx.heightmap,
             &adt_path,
         ) else {
             continue;
         };
-        commands.entity(root_entity).add_child(result.root_entity);
+        ctx.commands
+            .entity(root_entity)
+            .add_child(result.root_entity);
         if let Some(obj_data) = terrain_objects::load_obj0(&adt_path) {
             doodad_count += terrain_objects::spawn_waterfall_backdrop_doodads(
-                commands,
-                meshes,
-                materials,
-                effect_materials,
-                images,
-                inv_bp,
-                Some(heightmap),
+                ctx.commands,
+                ctx.meshes,
+                ctx.materials,
+                ctx.effect_materials,
+                ctx.images,
+                ctx.inv_bp,
+                Some(ctx.heightmap),
                 result.tile_y,
                 result.tile_x,
                 &obj_data,

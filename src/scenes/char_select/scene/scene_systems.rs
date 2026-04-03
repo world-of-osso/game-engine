@@ -27,15 +27,17 @@ fn spawn_scene_warband_terrain(
     focus_pos: Vec3,
 ) {
     let _ = scene_tree::spawn_warband_terrain(
-        commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.terrain_materials,
-        &mut assets.water_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        heightmap,
+        &mut scene_tree::WarbandTerrainSpawnContext {
+            commands,
+            meshes: &mut assets.meshes,
+            materials: &mut assets.materials,
+            effect_materials: &mut assets.effect_materials,
+            terrain_materials: &mut assets.terrain_materials,
+            water_materials: &mut assets.water_materials,
+            images: &mut assets.images,
+            inv_bp: &mut assets.inv_bp,
+            heightmap,
+        },
         scene,
         focus_pos,
     );
@@ -159,15 +161,17 @@ fn do_spawn_supplemental(
     root_entity: Entity,
 ) {
     scene_tree::spawn_warband_supplemental_terrain(
-        commands,
-        &mut assets.meshes,
-        &mut assets.materials,
-        &mut assets.effect_materials,
-        &mut assets.terrain_materials,
-        &mut assets.water_materials,
-        &mut assets.images,
-        &mut assets.inv_bp,
-        heightmap,
+        &mut scene_tree::WarbandTerrainSpawnContext {
+            commands,
+            meshes: &mut assets.meshes,
+            materials: &mut assets.materials,
+            effect_materials: &mut assets.effect_materials,
+            terrain_materials: &mut assets.terrain_materials,
+            water_materials: &mut assets.water_materials,
+            images: &mut assets.images,
+            inv_bp: &mut assets.inv_bp,
+            heightmap,
+        },
         scene,
         root_entity,
     );

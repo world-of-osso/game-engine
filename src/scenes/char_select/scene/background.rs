@@ -92,15 +92,17 @@ pub fn spawn(
 ) -> game_engine::scene_tree::SceneNode {
     if let Some(s) = scene
         && let Some(result) = scene_tree::spawn_warband_terrain(
-            ctx.commands,
-            ctx.meshes,
-            ctx.materials,
-            ctx.effect_materials,
-            ctx.terrain_materials,
-            ctx.water_materials,
-            ctx.images,
-            ctx.inv_bp,
-            ctx.heightmap,
+            &mut scene_tree::WarbandTerrainSpawnContext {
+                commands: ctx.commands,
+                meshes: ctx.meshes,
+                materials: ctx.materials,
+                effect_materials: ctx.effect_materials,
+                terrain_materials: ctx.terrain_materials,
+                water_materials: ctx.water_materials,
+                images: ctx.images,
+                inv_bp: ctx.inv_bp,
+                heightmap: ctx.heightmap,
+            },
             s,
             focus.unwrap_or_else(|| s.bevy_look_at()),
         )
