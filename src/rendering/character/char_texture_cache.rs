@@ -152,12 +152,33 @@ where
 
 fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     let csv_paths = source_paths(data_dir);
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("create {}: {err}", parent.display()))?;
-    }
+    let conn = init_cache_db(cache_path)?;
+
+    record_source_files(&conn, &csv_paths)?;
+    populate_layers(&conn, &csv_paths[0])?;
+    populate_sections(&conn, &csv_paths[1])?;
+    populate_layouts(&conn, &csv_paths[2])?;
+    conn.execute_batch("COMMIT;")
+        .map_err(|err| format!("commit char texture cache: {err}"))?;
+    Ok(())
+}
+
+fn init_cache_db(cache_path: &Path) -> Result<Connection, String> {
+    create_cache_parent_dir(cache_path)?;
     let conn = Connection::open(cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
+    init_cache_schema(&conn)?;
+    Ok(conn)
+}
+
+fn create_cache_parent_dir(cache_path: &Path) -> Result<(), String> {
+    let Some(parent) = cache_path.parent() else {
+        return Ok(());
+    };
+    std::fs::create_dir_all(parent).map_err(|err| format!("create {}: {err}", parent.display()))
+}
+
+fn init_cache_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "BEGIN;
          DROP TABLE IF EXISTS source_files;
@@ -188,15 +209,7 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
              height INTEGER NOT NULL
          );",
     )
-    .map_err(|err| format!("init char texture cache: {err}"))?;
-
-    record_source_files(&conn, &csv_paths)?;
-    populate_layers(&conn, &csv_paths[0])?;
-    populate_sections(&conn, &csv_paths[1])?;
-    populate_layouts(&conn, &csv_paths[2])?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit char texture cache: {err}"))?;
-    Ok(())
+    .map_err(|err| format!("init char texture cache: {err}"))
 }
 
 fn populate_layers(conn: &Connection, path: &Path) -> Result<(), String> {
