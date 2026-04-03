@@ -320,3 +320,7 @@ mod jaw_debug_tests;
 #[cfg(test)]
 #[path = "../../tests/unit/asset/m2_runtime_head_tests.rs"]
 mod runtime_head_tests;
+
+#[cfg(test)]
+#[path = "../../tests/unit/asset/m2_runtime_model_tests.rs"]
+mod runtime_model_tests;
