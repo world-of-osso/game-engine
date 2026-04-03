@@ -56,6 +56,22 @@ fn spawn_animated_static_m2_parts_from_model(
     force_skybox_material: bool,
     skybox_color: Option<Color>,
 ) -> Option<SpawnedAnimatedStaticM2> {
+    let spawned = spawn_static_model_entities(ctx, m2_path, transform);
+    sync_static_skybox_materials(ctx, force_skybox_material);
+    attach_m2_model_parts(
+        ctx,
+        model,
+        spawned.model_root,
+        static_attach_options(force_skybox_material, skybox_color),
+    );
+    Some(spawned)
+}
+
+fn spawn_static_model_entities(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    m2_path: &Path,
+    transform: Transform,
+) -> SpawnedAnimatedStaticM2 {
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -73,23 +89,30 @@ fn spawn_animated_static_m2_parts_from_model(
         ))
         .id();
     ctx.commands.entity(model_root).insert(ChildOf(root));
+    SpawnedAnimatedStaticM2 { root, model_root }
+}
+
+fn sync_static_skybox_materials(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    force_skybox_material: bool,
+) {
     let skybox_materials = if force_skybox_material {
         ctx.assets.skybox_materials.take()
     } else {
         None
     };
     ctx.assets.skybox_materials = skybox_materials;
-    attach_m2_model_parts(
-        ctx,
-        model,
-        model_root,
-        super::M2SceneAttachOptions {
-            default_main_hand_torch: false,
-            force_skybox_material,
-            skybox_color,
-        },
-    );
-    Some(SpawnedAnimatedStaticM2 { root, model_root })
+}
+
+fn static_attach_options(
+    force_skybox_material: bool,
+    skybox_color: Option<Color>,
+) -> super::M2SceneAttachOptions {
+    super::M2SceneAttachOptions {
+        default_main_hand_torch: false,
+        force_skybox_material,
+        skybox_color,
+    }
 }
 
 /// Spawn a static M2 model that still carries animation data.
