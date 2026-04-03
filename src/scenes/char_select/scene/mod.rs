@@ -30,8 +30,8 @@ use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scenes::char_select::SelectedCharIndex;
 use crate::scenes::char_select::scene_tree::{self as scene_tree, ActiveWarbandSceneId};
+use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
 use crate::scenes::setup::DEFAULT_M2;
-use crate::scenes::warband::{SelectedWarbandScene, WarbandScenes};
 use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
@@ -157,8 +157,8 @@ impl Plugin for CharSelectScenePlugin {
 }
 
 fn single_character_focus(
-    _scene: &crate::scenes::warband::WarbandSceneEntry,
-    placement: &crate::scenes::warband::WarbandScenePlacement,
+    _scene: &crate::scenes::char_select::warband::WarbandSceneEntry,
+    placement: &crate::scenes::char_select::warband::WarbandScenePlacement,
     presentation: ModelPresentation,
 ) -> Vec3 {
     let char_pos = placement.bevy_position();
@@ -167,8 +167,8 @@ fn single_character_focus(
 }
 
 fn camera_params(
-    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
-    placement: Option<&crate::scenes::warband::WarbandScenePlacement>,
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
+    placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
     presentation: ModelPresentation,
 ) -> (Vec3, Vec3, f32) {
     if let Some(s) = scene {
@@ -246,8 +246,8 @@ fn clamp_char_select_eye(eye: Vec3, heightmap: Option<&TerrainHeightmap>) -> Vec
 
 fn spawn_char_select_camera(
     commands: &mut Commands,
-    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
-    placement: Option<&crate::scenes::warband::WarbandScenePlacement>,
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
+    placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
     heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
 ) -> Entity {
@@ -335,8 +335,8 @@ fn spawn_char_select_model(
 }
 
 fn single_character_rotation(
-    scene: &crate::scenes::warband::WarbandSceneEntry,
-    placement: &crate::scenes::warband::WarbandScenePlacement,
+    scene: &crate::scenes::char_select::warband::WarbandSceneEntry,
+    placement: &crate::scenes::char_select::warband::WarbandScenePlacement,
     presentation: ModelPresentation,
 ) -> Quat {
     let (eye, _, _) = camera_params(Some(scene), Some(placement), presentation);
@@ -350,8 +350,8 @@ fn single_character_rotation(
 }
 
 fn character_transform(
-    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
-    placement: Option<&crate::scenes::warband::WarbandScenePlacement>,
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
+    placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
     heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
 ) -> Transform {
@@ -394,8 +394,8 @@ fn selected_character_presentation(
 
 fn selected_scene_placement<'a>(
     warband: &'a WarbandScenes,
-    scene: &crate::scenes::warband::WarbandSceneEntry,
-) -> Option<crate::scenes::warband::WarbandScenePlacement> {
+    scene: &crate::scenes::char_select::warband::WarbandSceneEntry,
+) -> Option<crate::scenes::char_select::warband::WarbandScenePlacement> {
     warband
         .solo_character_placement(scene)
         .or_else(|| warband.first_character_placement(scene.id).cloned())
@@ -509,8 +509,8 @@ fn setup_char_select_scene(
         scene_entry,
         camera_translation,
     );
-    if let Some((entity, path)) =
-        skybox_entity.zip(scene_entry.and_then(crate::scenes::warband::ensure_warband_skybox))
+    if let Some((entity, path)) = skybox_entity
+        .zip(scene_entry.and_then(crate::scenes::char_select::warband::ensure_warband_skybox))
     {
         bg_node.children.push(scene_tree::skybox_scene_node(
             entity,
@@ -552,7 +552,9 @@ fn setup_char_select_scene(
     ));
     commands.insert_resource(scene_tree::build_scene_tree(children));
     pending_supplemental.scene_id = scene_entry
-        .filter(|scene| !crate::scenes::warband::supplemental_terrain_tile_coords(scene).is_empty())
+        .filter(|scene| {
+            !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty()
+        })
         .map(|scene| scene.id);
     pending_supplemental.wait_for_next_frame = pending_supplemental.scene_id.is_some();
     info!(
@@ -732,8 +734,8 @@ fn spawn_selected_model(
 }
 
 pub(super) fn update_camera_for_scene(
-    scene: &crate::scenes::warband::WarbandSceneEntry,
-    placement: Option<&crate::scenes::warband::WarbandScenePlacement>,
+    scene: &crate::scenes::char_select::warband::WarbandSceneEntry,
+    placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
     heightmap: Option<&TerrainHeightmap>,
     presentation: ModelPresentation,
     camera_query: &mut Query<

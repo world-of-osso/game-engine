@@ -8,7 +8,7 @@ use crate::scenes::char_select::SelectedCharIndex;
 use crate::scenes::char_select::scene_tree::{
     self as scene_tree, ActiveWarbandSceneId, CharSelectTerrain,
 };
-use crate::scenes::warband::{SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
+use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
 use crate::terrain_heightmap::TerrainHeightmap;
 
 use super::{
@@ -98,7 +98,7 @@ pub(super) fn sync_warband_scene_switch(
     );
     active_scene.0 = Some(sel.scene_id);
     let has_supplemental =
-        !crate::scenes::warband::supplemental_terrain_tile_coords(scene).is_empty();
+        !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty();
     update_pending_scene(&mut pending_supplemental, sel.scene_id, has_supplemental);
 }
 

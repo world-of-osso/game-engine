@@ -5,7 +5,7 @@ use std::time::UNIX_EPOCH;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
 
-use crate::scenes::warband::{
+use crate::scenes::char_select::warband::{
     WarbandSceneEntry, WarbandScenePlacement, WarbandScenePlacementOption,
 };
 

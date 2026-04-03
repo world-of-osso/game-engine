@@ -12,4 +12,3 @@ pub mod scene_tree;
 pub mod selection_debug;
 pub mod setup;
 pub mod skybox_debug;
-pub mod warband;

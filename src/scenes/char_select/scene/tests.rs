@@ -69,7 +69,7 @@ fn race_model_wow_path_covers_known_playable_races_and_sex() {
 
 #[test]
 fn camera_params_center_focused_placement_horizontally() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
@@ -90,7 +90,7 @@ fn camera_params_center_focused_placement_horizontally() {
 
 #[test]
 fn camera_params_use_tighter_single_character_framing() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
@@ -113,7 +113,7 @@ fn camera_params_use_tighter_single_character_framing() {
 
 #[test]
 fn camera_params_use_model_center_height_for_single_character_focus() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
@@ -138,7 +138,7 @@ fn camera_params_use_model_center_height_for_single_character_focus() {
 
 #[test]
 fn camera_params_preserve_authored_vertical_offset_for_single_character_eye() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
@@ -163,15 +163,15 @@ fn camera_params_preserve_authored_vertical_offset_for_single_character_eye() {
 
 #[test]
 fn character_transform_snaps_character_up_to_warband_terrain() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
         .find(|scene| scene.id == 1)
         .expect("Adventurer's Rest");
     let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-    let adt_path =
-        crate::scenes::warband::ensure_warband_terrain(scene).expect("expected warband terrain");
+    let adt_path = crate::scenes::char_select::warband::ensure_warband_terrain(scene)
+        .expect("expected warband terrain");
     let data = std::fs::read(&adt_path).expect("expected ADT data");
     let adt = crate::asset::adt::load_adt(&data).expect("expected ADT parse");
     let mut heightmap = TerrainHeightmap::default();
@@ -218,7 +218,7 @@ fn clamp_char_select_eye_keeps_camera_above_terrain() {
 
 #[test]
 fn focused_placement_rotation_faces_camera_reasonably() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
@@ -239,7 +239,7 @@ fn focused_placement_rotation_faces_camera_reasonably() {
 
 #[test]
 fn camera_params_apply_model_distance_offset() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()
@@ -273,7 +273,7 @@ fn orbit_from_eye_focus_preserves_initial_yaw() {
 
 #[test]
 fn focused_placement_rotation_faces_camera_tightly() {
-    let warband = crate::scenes::warband::WarbandScenes::load();
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
         .iter()

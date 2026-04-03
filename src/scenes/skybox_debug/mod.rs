@@ -9,7 +9,7 @@ use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::orbit_camera::OrbitCamera;
-use crate::scenes::warband::{SelectedWarbandScene, WarbandScenes};
+use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
 use crate::skybox_m2_material::SkyboxM2Material;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
@@ -216,7 +216,7 @@ fn depth_probe_scene_node(entity: Entity) -> SceneNode {
 }
 
 fn resolve_debug_skybox(
-    scene: Option<&crate::scenes::warband::WarbandSceneEntry>,
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
     override_spec: Option<SkyboxDebugOverride>,
 ) -> Option<ResolvedDebugSkybox> {
     match override_spec {
@@ -239,7 +239,7 @@ fn resolve_debug_skybox(
         None => {
             let scene = scene?;
             Some(ResolvedDebugSkybox {
-                path: crate::scenes::warband::ensure_warband_skybox(scene)?,
+                path: crate::scenes::char_select::warband::ensure_warband_skybox(scene)?,
                 source: format!("warband scene {} ({})", scene.id, scene.name),
             })
         }

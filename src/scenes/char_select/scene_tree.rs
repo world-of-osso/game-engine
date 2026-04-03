@@ -5,7 +5,7 @@ use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::scenes::char_select::scene::CharSelectScene;
-use crate::scenes::warband;
+use crate::scenes::char_select::warband;
 use crate::terrain;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;

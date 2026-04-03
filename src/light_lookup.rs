@@ -472,7 +472,7 @@ mod tests {
 
     #[test]
     fn authored_light_lookup_matches_ohnahran_scene() {
-        let scene = crate::scenes::warband::WarbandScenes::load()
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 4)
@@ -485,7 +485,7 @@ mod tests {
 
     #[test]
     fn authored_light_lookup_matches_freywold_scene() {
-        let scene = crate::scenes::warband::WarbandScenes::load()
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 7)
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn authored_skybox_params_lookup_uses_alternate_param_slots() {
-        let scene = crate::scenes::warband::WarbandScenes::load()
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 4)
@@ -511,7 +511,7 @@ mod tests {
 
     #[test]
     fn authored_skybox_params_lookup_can_fall_back_to_global_light_rows() {
-        let scene = crate::scenes::warband::WarbandScenes::load()
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 1)
@@ -524,7 +524,7 @@ mod tests {
 
     #[test]
     fn primary_light_params_id_can_be_missing_while_alternate_slot_resolves_skybox() {
-        let scene = crate::scenes::warband::WarbandScenes::load()
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 4)
@@ -543,7 +543,7 @@ mod tests {
 
     #[test]
     fn primary_light_params_id_can_exist_but_later_slot_supplies_the_skybox() {
-        let scene = crate::scenes::warband::WarbandScenes::load()
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 25)
