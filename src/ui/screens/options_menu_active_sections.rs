@@ -47,6 +47,7 @@ const KEYBINDING_TAB_LABEL_Y_ACTIVE: f32 = -3.0;
 const KEYBINDING_TAB_TEXT_IDLE: &str = "0.85,0.78,0.61,1.0";
 const KEYBINDING_TAB_TEXT_ACTIVE: &str = "0.96,0.84,0.56,1.0";
 
+#[derive(Clone)]
 struct DynName(String);
 
 impl fmt::Display for DynName {
@@ -304,39 +305,14 @@ fn keybinding_section_button(section: BindingSection, active: bool) -> Element {
     let names = keybinding_section_tab_names(section);
     let visuals = keybinding_section_tab_visuals(active);
     let width = keybinding_section_tab_width(&label);
+    let frame_name = names.frame.clone();
     rsx! {
         r#frame {
-            name: {names.frame},
+            name: {frame_name},
             width: {width},
             height: KEYBINDING_TAB_H,
-            button {
-                name: {names.button},
-                stretch: true,
-                text: "",
-                font_size: KEYBINDING_TAB_FONT_SIZE,
-                onclick: {&action},
-                button_atlas_up: visuals.atlas_up,
-                button_atlas_pressed: visuals.atlas_pressed,
-                button_atlas_highlight: visuals.atlas_highlight,
-                button_atlas_disabled: "defaultbutton-nineslice-disabled",
-            }
-            fontstring {
-                name: {names.label},
-                width: {width},
-                height: KEYBINDING_TAB_H,
-                text: {&label},
-                font: "FrizQuadrata",
-                font_size: KEYBINDING_TAB_FONT_SIZE,
-                font_color: visuals.text_color,
-                shadow_color: "0.0,0.0,0.0,1.0",
-                shadow_offset: "1,-1",
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                    y: {visuals.text_y},
-                }
-            }
+            {keybinding_section_tab_button(&names, &visuals, &action)}
+            {keybinding_section_tab_label(&names, &visuals, &label, width)}
         }
     }
 }
@@ -393,6 +369,55 @@ fn keybinding_section_tab_width(label: &str) -> f32 {
     let (text_width, _) =
         measure_text(label, GameFont::FrizQuadrata, KEYBINDING_TAB_FONT_SIZE).unwrap_or((0.0, 0.0));
     (text_width + KEYBINDING_TAB_SIDE_PADDING).ceil().max(10.0)
+}
+
+fn keybinding_section_tab_button(
+    names: &KeybindingSectionTabNames,
+    visuals: &KeybindingSectionTabVisuals,
+    action: &str,
+) -> Element {
+    let button_name = names.button.clone();
+    rsx! {
+        button {
+            name: {button_name},
+            stretch: true,
+            text: "",
+            font_size: KEYBINDING_TAB_FONT_SIZE,
+            onclick: {action},
+            button_atlas_up: visuals.atlas_up,
+            button_atlas_pressed: visuals.atlas_pressed,
+            button_atlas_highlight: visuals.atlas_highlight,
+            button_atlas_disabled: "defaultbutton-nineslice-disabled",
+        }
+    }
+}
+
+fn keybinding_section_tab_label(
+    names: &KeybindingSectionTabNames,
+    visuals: &KeybindingSectionTabVisuals,
+    label: &str,
+    width: f32,
+) -> Element {
+    let label_name = names.label.clone();
+    rsx! {
+        fontstring {
+            name: {label_name},
+            width: {width},
+            height: KEYBINDING_TAB_H,
+            text: {label},
+            font: "FrizQuadrata",
+            font_size: KEYBINDING_TAB_FONT_SIZE,
+            font_color: visuals.text_color,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+                y: {visuals.text_y},
+            }
+        }
+    }
 }
 
 fn keybinding_rows(bindings: &KeybindingsView) -> Element {
