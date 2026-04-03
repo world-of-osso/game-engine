@@ -96,8 +96,33 @@ fn spawn_anim_and_particles(
         skinning,
         visual_root,
     );
+    insert_anim_data_if_present(
+        ctx.commands,
+        model_entity,
+        joint_entities,
+        bones,
+        sequences,
+        bone_tracks,
+    );
+    attach_anim_equipment(
+        ctx.commands,
+        model_entity,
+        &attachments,
+        &attachment_lookup,
+        default_main_hand_torch,
+    );
+}
+
+fn insert_anim_data_if_present(
+    commands: &mut Commands,
+    model_entity: Entity,
+    joint_entities: Option<Vec<Entity>>,
+    bones: Vec<M2Bone>,
+    sequences: Vec<M2AnimSequence>,
+    bone_tracks: Vec<BoneAnimTracks>,
+) {
     if let Some(joints) = joint_entities {
-        ctx.commands.entity(model_entity).insert(M2AnimData {
+        commands.entity(model_entity).insert(M2AnimData {
             spherical_billboards: crate::animation::propagate_spherical_billboards(&bones),
             bones,
             sequences,
@@ -105,11 +130,20 @@ fn spawn_anim_and_particles(
             joint_entities: joints,
         });
     }
+}
+
+fn attach_anim_equipment(
+    commands: &mut Commands,
+    model_entity: Entity,
+    attachments: &[m2_attach::M2Attachment],
+    attachment_lookup: &[i16],
+    default_main_hand_torch: bool,
+) {
     attach_equipment_to_model(
-        ctx.commands,
+        commands,
         model_entity,
-        &attachments,
-        &attachment_lookup,
+        attachments,
+        attachment_lookup,
         default_main_hand_torch,
     );
 }
