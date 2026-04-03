@@ -299,31 +299,11 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
 }
 
 fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
-    let camera = CameraOptions {
-        look_sensitivity: snapshot.camera.look_sensitivity,
-        invert_y: snapshot.camera.invert_y,
-        follow_speed: snapshot.camera.follow_speed,
-        zoom_speed: snapshot.camera.zoom_speed,
-        min_distance: snapshot.camera.min_distance,
-        max_distance: snapshot.camera.max_distance,
-    };
+    let camera = snapshot_camera_options(snapshot);
     let mut graphics = world.resource::<GraphicsOptions>().clone();
     apply_graphics_snapshot(&mut graphics, &snapshot.graphics);
-    let hud = HudOptions {
-        show_minimap: snapshot.hud.show_minimap,
-        show_action_bars: snapshot.hud.show_action_bars,
-        show_nameplates: snapshot.hud.show_nameplates,
-        show_health_bars: snapshot.hud.show_health_bars,
-        show_target_marker: snapshot.hud.show_target_marker,
-        show_fps_overlay: snapshot.hud.show_fps_overlay,
-    };
-    let sound = SoundSettings {
-        master_volume: snapshot.sound.master_volume,
-        ambient_volume: snapshot.sound.ambient_volume,
-        music_volume: snapshot.sound.music_volume,
-        music_enabled: snapshot.sound.music_enabled,
-        muted: snapshot.sound.muted,
-    };
+    let hud = snapshot_hud_options(snapshot);
+    let sound = snapshot_sound_settings(snapshot);
     if let Err(err) = client_options::save_client_options_values(
         &sound,
         &camera,
@@ -333,6 +313,38 @@ fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
         snapshot.modal_position,
     ) {
         warn!("{err}");
+    }
+}
+
+fn snapshot_camera_options(snapshot: &ApplySnapshot) -> CameraOptions {
+    CameraOptions {
+        look_sensitivity: snapshot.camera.look_sensitivity,
+        invert_y: snapshot.camera.invert_y,
+        follow_speed: snapshot.camera.follow_speed,
+        zoom_speed: snapshot.camera.zoom_speed,
+        min_distance: snapshot.camera.min_distance,
+        max_distance: snapshot.camera.max_distance,
+    }
+}
+
+fn snapshot_hud_options(snapshot: &ApplySnapshot) -> HudOptions {
+    HudOptions {
+        show_minimap: snapshot.hud.show_minimap,
+        show_action_bars: snapshot.hud.show_action_bars,
+        show_nameplates: snapshot.hud.show_nameplates,
+        show_health_bars: snapshot.hud.show_health_bars,
+        show_target_marker: snapshot.hud.show_target_marker,
+        show_fps_overlay: snapshot.hud.show_fps_overlay,
+    }
+}
+
+fn snapshot_sound_settings(snapshot: &ApplySnapshot) -> SoundSettings {
+    SoundSettings {
+        master_volume: snapshot.sound.master_volume,
+        ambient_volume: snapshot.sound.ambient_volume,
+        music_volume: snapshot.sound.music_volume,
+        music_enabled: snapshot.sound.music_enabled,
+        muted: snapshot.sound.muted,
     }
 }
 
