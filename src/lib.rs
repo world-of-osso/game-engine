@@ -30,6 +30,7 @@ pub mod screenshot;
 pub mod skybox_validation;
 pub mod sound_music_zone_cache;
 pub mod status;
+#[path = "rendering/ui/targeting.rs"]
 pub mod targeting;
 pub mod ui;
 pub mod world_db;

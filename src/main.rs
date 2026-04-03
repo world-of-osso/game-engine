@@ -30,6 +30,7 @@ use std::{
     time::Duration,
 };
 
+#[path = "rendering/ui/action_bar.rs"]
 mod action_bar;
 #[path = "rendering/model/animation.rs"]
 mod animation;
@@ -54,6 +55,7 @@ mod equipment_appearance;
 mod game_state;
 #[path = "rendering/terrain/ground.rs"]
 mod ground;
+#[path = "rendering/ui/health_bar.rs"]
 mod health_bar;
 #[path = "rendering/lighting/light_lookup.rs"]
 mod light_lookup;
@@ -65,8 +67,11 @@ mod m2_scene;
 pub mod m2_spawn;
 #[path = "rendering/character/m2_texture_composite.rs"]
 mod m2_texture_composite;
+#[path = "rendering/ui/minimap.rs"]
 mod minimap;
+#[path = "rendering/ui/minimap_render.rs"]
 mod minimap_render;
+#[path = "rendering/ui/nameplate.rs"]
 mod nameplate;
 mod networking;
 mod networking_auth;
@@ -94,6 +99,7 @@ mod sound_footsteps;
 mod sound_music_catalog;
 mod status_asset_stats;
 mod status_sync;
+#[path = "rendering/ui/target.rs"]
 mod target;
 #[path = "rendering/terrain/terrain.rs"]
 mod terrain;
@@ -114,9 +120,11 @@ mod terrain_objects;
 #[path = "rendering/terrain/terrain_tile.rs"]
 mod terrain_tile;
 mod trash_button_screen;
+#[path = "rendering/ui/unit_frames.rs"]
 mod unit_frames;
 #[path = "rendering/terrain/water_material.rs"]
 mod water_material;
+#[path = "rendering/ui/wow_cursor.rs"]
 mod wow_cursor;
 mod zone_names;
 
