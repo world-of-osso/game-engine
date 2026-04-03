@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, ModelPresentation};
 use game_engine::outfit_data::OutfitData;
+use game_engine::scene_tree::SceneNode;
 use shared::protocol::CharacterListEntry;
 
 use crate::character_customization::{
@@ -27,7 +28,9 @@ use crate::m2_scene;
 use crate::networking_auth::CharacterList;
 use crate::scenes::char_select::SelectedCharIndex;
 use crate::scenes::char_select::scene_tree::{self as scene_tree, ActiveWarbandSceneId};
-use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
+use crate::scenes::char_select::warband::{
+    SelectedWarbandScene, WarbandSceneEntry, WarbandScenePlacement, WarbandScenes,
+};
 use crate::scenes::setup::DEFAULT_M2;
 use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -89,6 +92,25 @@ struct CharSelectModelSpawnContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     assets: &'a mut CharSelectRenderAssets<'w>,
     creature_display_map: &'a creature_display::CreatureDisplayMap,
+}
+
+struct SceneSetupSelection {
+    scene_entry: Option<WarbandSceneEntry>,
+    placement: Option<WarbandScenePlacement>,
+    presentation: ModelPresentation,
+}
+
+struct SceneSetupLighting {
+    camera_entity: Entity,
+    fov: f32,
+    dir: Entity,
+}
+
+struct SceneSetupTimings {
+    background_elapsed: std::time::Duration,
+    camera_elapsed: std::time::Duration,
+    sky_light_elapsed: std::time::Duration,
+    model_elapsed: std::time::Duration,
 }
 
 #[derive(SystemParam)]
@@ -346,18 +368,54 @@ pub(super) fn resolve_char_select_model_path(
 
 fn setup_char_select_scene(mut params: CharSelectSceneSetupParams) {
     let total_start = Instant::now();
-    let scene_entry = background::find_scene_entry(&params.warband, &params.selected_scene);
+    let selection = resolve_scene_setup_selection(&params);
+    let (mut bg_node, background_elapsed) = spawn_scene_background(&mut params, &selection);
+    let (lighting, camera_elapsed, sky_light_elapsed) =
+        spawn_scene_camera_and_lighting(&mut params, &selection, &mut bg_node);
+    let char_tf = resolve_char_transform(
+        &params.warband,
+        &params.selected_scene,
+        Some(&params.heightmap),
+        selection.presentation,
+    );
+    let (result, model_elapsed) = spawn_scene_model(&mut params, char_tf);
+    finalize_scene_setup(&mut params, &selection, bg_node, lighting, result);
+    let timings = SceneSetupTimings {
+        background_elapsed,
+        camera_elapsed,
+        sky_light_elapsed,
+        model_elapsed,
+    };
+    log_scene_setup_timings(total_start, timings);
+}
+
+fn resolve_scene_setup_selection(
+    params: &CharSelectSceneSetupParams<'_, '_>,
+) -> SceneSetupSelection {
+    let scene_entry =
+        background::find_scene_entry(&params.warband, &params.selected_scene).cloned();
     let placement = params
         .warband
         .as_ref()
-        .zip(scene_entry)
+        .zip(scene_entry.as_ref())
         .and_then(|(warband, scene)| selected_scene_placement(warband, scene));
     let presentation = selected_character_presentation(
         &params.customization_db,
         &params.char_list,
         params.selected.0,
     );
-    let background_start = Instant::now();
+    SceneSetupSelection {
+        scene_entry,
+        placement,
+        presentation,
+    }
+}
+
+fn spawn_scene_background(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    selection: &SceneSetupSelection,
+) -> (SceneNode, std::time::Duration) {
+    let start = Instant::now();
     let mut background_ctx = background::WarbandBackgroundSpawnContext {
         commands: &mut params.commands,
         meshes: &mut params.assets.meshes,
@@ -369,26 +427,69 @@ fn setup_char_select_scene(mut params: CharSelectSceneSetupParams) {
         inv_bp: &mut params.assets.inv_bp,
         heightmap: &mut params.heightmap,
     };
-    let mut bg_node = background::spawn(
-        &mut background_ctx,
-        scene_entry,
-        placement
-            .as_ref()
-            .map(|placement| placement.bevy_position()),
-        &mut params.active_scene,
-    );
-    let background_elapsed = background_start.elapsed();
+    (
+        background::spawn(
+            &mut background_ctx,
+            selection.scene_entry.as_ref(),
+            selection
+                .placement
+                .as_ref()
+                .map(|placement| placement.bevy_position()),
+            &mut params.active_scene,
+        ),
+        start.elapsed(),
+    )
+}
+
+fn spawn_scene_camera_and_lighting(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    selection: &SceneSetupSelection,
+    bg_node: &mut SceneNode,
+) -> (SceneSetupLighting, std::time::Duration, std::time::Duration) {
     let camera_start = Instant::now();
     let camera_entity = camera::spawn_char_select_camera(
         &mut params.commands,
-        scene_entry,
-        placement.as_ref(),
+        selection.scene_entry.as_ref(),
+        selection.placement.as_ref(),
         Some(&params.heightmap),
-        presentation,
+        selection.presentation,
     );
     let camera_elapsed = camera_start.elapsed();
     let sky_light_start = Instant::now();
-    let camera_translation = camera::camera_params(scene_entry, placement.as_ref(), presentation).0;
+    let camera_params = camera::camera_params(
+        selection.scene_entry.as_ref(),
+        selection.placement.as_ref(),
+        selection.presentation,
+    );
+    attach_scene_skybox(
+        params,
+        selection.scene_entry.as_ref(),
+        camera_params.0,
+        bg_node,
+    );
+    let dir = lighting::spawn(
+        &mut params.commands,
+        selection.scene_entry.as_ref(),
+        selection.placement.as_ref(),
+        selection.presentation,
+    );
+    (
+        SceneSetupLighting {
+            camera_entity,
+            fov: camera_params.2,
+            dir,
+        },
+        camera_elapsed,
+        sky_light_start.elapsed(),
+    )
+}
+
+fn attach_scene_skybox(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    scene_entry: Option<&WarbandSceneEntry>,
+    camera_translation: Vec3,
+    bg_node: &mut SceneNode,
+) {
     let skybox_entity = {
         let mut skybox_ctx = background::WarbandSkyboxSpawnContext {
             commands: &mut params.commands,
@@ -410,68 +511,89 @@ fn setup_char_select_scene(mut params: CharSelectSceneSetupParams) {
             path.display().to_string(),
         ));
     }
-    let dir = lighting::spawn(
-        &mut params.commands,
-        scene_entry,
-        placement.as_ref(),
-        presentation,
-    );
-    let sky_light_elapsed = sky_light_start.elapsed();
-    let char_tf = resolve_char_transform(
-        &params.warband,
-        &params.selected_scene,
-        Some(&params.heightmap),
-        presentation,
-    );
-    let model_start = Instant::now();
-    let result = {
-        let mut spawn_ctx = CharSelectModelSpawnContext {
-            commands: &mut params.commands,
-            assets: &mut params.assets,
-            creature_display_map: &params.creature_display_map,
-        };
+}
+
+fn spawn_scene_model(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    char_tf: Transform,
+) -> (Option<(u64, Entity)>, std::time::Duration) {
+    let start = Instant::now();
+    let mut spawn_ctx = CharSelectModelSpawnContext {
+        commands: &mut params.commands,
+        assets: &mut params.assets,
+        creature_display_map: &params.creature_display_map,
+    };
+    (
         spawn_selected_model(
             &mut spawn_ctx,
             &params.char_list,
             params.selected.0,
             char_tf,
-        )
-    };
-    let model_elapsed = model_start.elapsed();
-    let mut children = vec![bg_node];
-    if let Some((_, entity)) = &result {
-        let (race, gender, model) =
-            scene_systems::char_info_strings(&params.char_list, params.selected.0);
-        children.push(scene_tree::character_scene_node(
-            *entity, model, race, gender,
-        ));
-    }
-    params.displayed.0 = result.map(|(id, _)| id);
-    let fov = camera::camera_params(scene_entry, placement.as_ref(), presentation).2;
-    children.extend(scene_tree::light_scene_nodes(
-        camera_entity,
-        fov,
-        None,
-        lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS,
-        dir,
-    ));
+        ),
+        start.elapsed(),
+    )
+}
+
+fn finalize_scene_setup(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    selection: &SceneSetupSelection,
+    bg_node: SceneNode,
+    lighting: SceneSetupLighting,
+    result: Option<(u64, Entity)>,
+) {
+    params.displayed.0 = result.as_ref().map(|(id, _)| *id);
+    let children = build_scene_setup_children(
+        params,
+        bg_node,
+        &lighting,
+        result.as_ref().map(|(_, entity)| *entity),
+    );
     params
         .commands
         .insert_resource(scene_tree::build_scene_tree(children));
-    params.pending_supplemental.scene_id = scene_entry
+    params.pending_supplemental.scene_id = selection
+        .scene_entry
+        .as_ref()
         .filter(|scene| {
             !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty()
         })
         .map(|scene| scene.id);
     params.pending_supplemental.wait_for_next_frame =
         params.pending_supplemental.scene_id.is_some();
+}
+
+fn build_scene_setup_children(
+    params: &CharSelectSceneSetupParams<'_, '_>,
+    bg_node: SceneNode,
+    lighting: &SceneSetupLighting,
+    model_entity: Option<Entity>,
+) -> Vec<SceneNode> {
+    let mut children = vec![bg_node];
+    if let Some(entity) = model_entity {
+        let (race, gender, model) =
+            scene_systems::char_info_strings(&params.char_list, params.selected.0);
+        children.push(scene_tree::character_scene_node(
+            entity, model, race, gender,
+        ));
+    }
+    children.extend(scene_tree::light_scene_nodes(
+        lighting.camera_entity,
+        lighting.fov,
+        None,
+        lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS,
+        lighting.dir,
+    ));
+    children
+}
+
+fn log_scene_setup_timings(total_start: Instant, timings: SceneSetupTimings) {
     info!(
         "setup_char_select_scene finished in {:.3}s (background={:.3}s camera={:.3}s sky+light={:.3}s model={:.3}s)",
         total_start.elapsed().as_secs_f32(),
-        background_elapsed.as_secs_f32(),
-        camera_elapsed.as_secs_f32(),
-        sky_light_elapsed.as_secs_f32(),
-        model_elapsed.as_secs_f32(),
+        timings.background_elapsed.as_secs_f32(),
+        timings.camera_elapsed.as_secs_f32(),
+        timings.sky_light_elapsed.as_secs_f32(),
+        timings.model_elapsed.as_secs_f32(),
     );
 }
 
