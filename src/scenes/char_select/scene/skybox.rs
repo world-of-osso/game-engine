@@ -1,5 +1,6 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use std::path::PathBuf;
 
 use crate::creature_display;
 use crate::scenes::char_select::scene::background;
@@ -19,25 +20,21 @@ pub(super) struct CharSelectSkyboxSyncParams<'w, 's> {
 }
 
 pub(super) fn sync_char_select_skybox(mut params: CharSelectSkyboxSyncParams) {
-    let Ok(camera_transform) = params.camera_query.single() else {
+    let Ok(camera_translation) = params
+        .camera_query
+        .single()
+        .map(|transform| transform.translation)
+    else {
         return;
     };
-    let scene = background::find_scene_entry(&params.warband, &params.selected_scene);
-    let desired_path = scene.and_then(crate::scenes::char_select::warband::ensure_warband_skybox);
-    let current = params
-        .skybox_query
-        .iter()
-        .next()
-        .map(|(entity, skybox, transform)| (entity, skybox.path.clone(), transform.translation));
+    let desired_path = background::find_scene_entry(&params.warband, &params.selected_scene)
+        .and_then(crate::scenes::char_select::warband::ensure_warband_skybox);
+    let current = current_skybox_state(&params);
 
-    if let Some((entity, current_path, _)) = &current
-        && desired_path.as_ref() != Some(current_path)
-    {
-        params.commands.entity(*entity).despawn();
-    }
+    despawn_replaced_skybox(&mut params, &current, desired_path.as_ref());
 
-    if current.as_ref().map(|(_, path, _)| path) != desired_path.as_ref() && desired_path.is_some()
-    {
+    if should_spawn_skybox(&current, desired_path.as_ref()) {
+        let scene = background::find_scene_entry(&params.warband, &params.selected_scene);
         let mut spawn_ctx = background::WarbandSkyboxSpawnContext {
             commands: &mut params.commands,
             meshes: &mut params.assets.meshes,
@@ -48,16 +45,52 @@ pub(super) fn sync_char_select_skybox(mut params: CharSelectSkyboxSyncParams) {
             inv_bp: &mut params.assets.inv_bp,
             creature_display_map: &params.creature_display_map,
         };
-        background::spawn_skybox(&mut spawn_ctx, scene, camera_transform.translation);
+        background::spawn_skybox(&mut spawn_ctx, scene, camera_translation);
         return;
     }
 
+    sync_existing_skybox_translation(&mut params, camera_translation);
+}
+
+fn current_skybox_state(
+    params: &CharSelectSkyboxSyncParams<'_, '_>,
+) -> Option<(Entity, PathBuf, Vec3)> {
+    params
+        .skybox_query
+        .iter()
+        .next()
+        .map(|(entity, skybox, transform)| (entity, skybox.path.clone(), transform.translation))
+}
+
+fn despawn_replaced_skybox(
+    params: &mut CharSelectSkyboxSyncParams<'_, '_>,
+    current: &Option<(Entity, PathBuf, Vec3)>,
+    desired_path: Option<&PathBuf>,
+) {
+    if let Some((entity, current_path, _)) = current
+        && desired_path != Some(current_path)
+    {
+        params.commands.entity(*entity).despawn();
+    }
+}
+
+fn should_spawn_skybox(
+    current: &Option<(Entity, PathBuf, Vec3)>,
+    desired_path: Option<&PathBuf>,
+) -> bool {
+    current.as_ref().map(|(_, path, _)| path) != desired_path && desired_path.is_some()
+}
+
+fn sync_existing_skybox_translation(
+    params: &mut CharSelectSkyboxSyncParams<'_, '_>,
+    camera_translation: Vec3,
+) {
     for (entity, _, transform) in params.skybox_query.iter() {
-        if transform.translation != camera_transform.translation {
+        if transform.translation != camera_translation {
             params
                 .commands
                 .entity(entity)
-                .insert(Transform::from_translation(camera_transform.translation));
+                .insert(Transform::from_translation(camera_translation));
         }
     }
 }
