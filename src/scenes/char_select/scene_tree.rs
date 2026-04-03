@@ -47,35 +47,121 @@ pub fn spawn_warband_terrain(
     scene: &warband::WarbandSceneEntry,
     focus: Vec3,
 ) -> Option<WarbandTerrainSpawnResult> {
-    let adt_path = warband::ensure_warband_terrain(scene)?;
     let root_entity = spawn_warband_terrain_root(ctx.commands);
-    let result = match spawn_warband_terrain_tile(ctx, &adt_path) {
-        Some(result) => result,
-        None => {
-            ctx.commands.entity(root_entity).despawn();
-            return None;
-        }
+    let primary = spawn_warband_primary_terrain(ctx, scene, root_entity)?;
+    Some(finalize_warband_terrain_spawn(ctx, primary, focus))
+}
+
+struct WarbandPrimaryTerrain {
+    adt_path: std::path::PathBuf,
+    root_entity: Entity,
+    terrain: terrain::AdtSpawnResult,
+}
+
+fn spawn_warband_primary_terrain(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    scene: &warband::WarbandSceneEntry,
+    root_entity: Entity,
+) -> Option<WarbandPrimaryTerrain> {
+    let adt_path = warband::ensure_warband_terrain(scene)?;
+    let Some(terrain) = spawn_warband_terrain_tile(ctx, &adt_path) else {
+        ctx.commands.entity(root_entity).despawn();
+        return None;
     };
-    attach_warband_terrain_root(ctx.commands, root_entity, result.root_entity);
-    let (doodad_count, wmo_entities) =
-        spawn_warband_primary_objects(ctx, &adt_path, focus, result.tile_y, result.tile_x);
-    Some(WarbandTerrainSpawnResult {
+    Some(WarbandPrimaryTerrain {
+        adt_path,
         root_entity,
-        doodad_count,
-        wmo_entities,
+        terrain,
     })
 }
 
-fn spawn_warband_terrain_root(commands: &mut Commands) -> Entity {
+fn finalize_warband_terrain_spawn(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    primary: WarbandPrimaryTerrain,
+    focus: Vec3,
+) -> WarbandTerrainSpawnResult {
+    attach_warband_terrain_root(
+        ctx.commands,
+        primary.root_entity,
+        primary.terrain.root_entity,
+    );
+    let (doodad_count, wmo_entities) = spawn_warband_primary_objects(
+        ctx,
+        &primary.adt_path,
+        focus,
+        primary.terrain.tile_y,
+        primary.terrain.tile_x,
+    );
+    WarbandTerrainSpawnResult {
+        root_entity: primary.root_entity,
+        doodad_count,
+        wmo_entities,
+    }
+}
+
+fn spawn_warband_primary_objects(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    adt_path: &std::path::Path,
+    focus: Vec3,
+    tile_y: u32,
+    tile_x: u32,
+) -> (usize, Vec<(Entity, String)>) {
+    let Some(obj_data) = load_warband_primary_object_data(adt_path) else {
+        return (0, Vec::new());
+    };
+    build_warband_primary_object_result(spawn_warband_primary_nearby_objects(
+        ctx, &obj_data, focus, tile_y, tile_x,
+    ))
+}
+
+fn load_warband_primary_object_data(
+    adt_path: &std::path::Path,
+) -> Option<crate::asset::adt_format::adt_obj::AdtObjData> {
+    terrain_objects::load_obj0(adt_path)
+}
+
+fn spawn_warband_primary_nearby_objects(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    obj_data: &crate::asset::adt_format::adt_obj::AdtObjData,
+    focus: Vec3,
+    tile_y: u32,
+    tile_x: u32,
+) -> terrain_objects::SpawnedTerrainObjects {
+    terrain_objects::spawn_nearby_campsite_objects(
+        ctx.commands,
+        ctx.meshes,
+        ctx.materials,
+        ctx.effect_materials,
+        ctx.images,
+        ctx.inv_bp,
+        Some(ctx.heightmap),
+        tile_y,
+        tile_x,
+        obj_data,
+        focus,
+        CHAR_SELECT_PRIMARY_DOODAD_RADIUS,
+        CHAR_SELECT_PRIMARY_WMO_RADIUS,
+    )
+}
+
+fn build_warband_primary_object_result(
+    spawned_objects: terrain_objects::SpawnedTerrainObjects,
+) -> (usize, Vec<(Entity, String)>) {
+    (
+        spawned_objects.doodads.len(),
+        spawned_objects
+            .wmos
+            .iter()
+            .map(|wmo| (wmo.entity, wmo.model.clone()))
+            .collect(),
+    )
+}
+
+fn attach_warband_terrain_root(commands: &mut Commands, root_entity: Entity, terrain_root: Entity) {
+    commands.entity(root_entity).add_child(terrain_root);
     commands
-        .spawn((
-            Name::new("WarbandTerrain"),
-            CharSelectScene,
-            CharSelectTerrain,
-            Transform::default(),
-            Visibility::default(),
-        ))
-        .id()
+        .entity(root_entity)
+        .insert((CharSelectScene, CharSelectTerrain));
 }
 
 fn spawn_warband_terrain_tile(
@@ -92,46 +178,16 @@ fn spawn_warband_terrain_tile(
     terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, adt_path).ok()
 }
 
-fn attach_warband_terrain_root(commands: &mut Commands, root_entity: Entity, terrain_root: Entity) {
-    commands.entity(root_entity).add_child(terrain_root);
+fn spawn_warband_terrain_root(commands: &mut Commands) -> Entity {
     commands
-        .entity(root_entity)
-        .insert((CharSelectScene, CharSelectTerrain));
-}
-
-fn spawn_warband_primary_objects(
-    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
-    adt_path: &std::path::Path,
-    focus: Vec3,
-    tile_y: u32,
-    tile_x: u32,
-) -> (usize, Vec<(Entity, String)>) {
-    let Some(obj_data) = terrain_objects::load_obj0(adt_path) else {
-        return (0, Vec::new());
-    };
-    let spawned_objects = terrain_objects::spawn_nearby_campsite_objects(
-        ctx.commands,
-        ctx.meshes,
-        ctx.materials,
-        ctx.effect_materials,
-        ctx.images,
-        ctx.inv_bp,
-        Some(ctx.heightmap),
-        tile_y,
-        tile_x,
-        &obj_data,
-        focus,
-        CHAR_SELECT_PRIMARY_DOODAD_RADIUS,
-        CHAR_SELECT_PRIMARY_WMO_RADIUS,
-    );
-    (
-        spawned_objects.doodads.len(),
-        spawned_objects
-            .wmos
-            .iter()
-            .map(|wmo| (wmo.entity, wmo.model.clone()))
-            .collect(),
-    )
+        .spawn((
+            Name::new("WarbandTerrain"),
+            CharSelectScene,
+            CharSelectTerrain,
+            Transform::default(),
+            Visibility::default(),
+        ))
+        .id()
 }
 
 pub fn spawn_warband_supplemental_terrain(
