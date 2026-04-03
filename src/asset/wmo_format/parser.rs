@@ -183,42 +183,30 @@ where
 }
 
 pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
-    let mut n_groups = 0u32;
-    let mut materials = Vec::new();
-    let mut portals = Vec::new();
-    let mut portal_refs = Vec::new();
-    let mut group_infos = Vec::new();
-    let mut skybox_wow_path = None;
-    let mut portal_vertices: Vec<[f32; 3]> = Vec::new();
-    let mut mopt_raw: Vec<(u16, u16)> = Vec::new();
+    let mut accum = WmoRootAccum::default();
+    let mut state = accum.state();
+    load_wmo_root_chunks(data, &mut state)?;
+    Ok(finalize_wmo_root_data(accum))
+}
 
+fn load_wmo_root_chunks(data: &[u8], state: &mut WmoRootChunkState<'_>) -> Result<(), String> {
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
-        apply_root_chunk(
-            tag,
-            payload,
-            &mut WmoRootChunkState {
-                n_groups: &mut n_groups,
-                materials: &mut materials,
-                portals: &mut portals,
-                mopt_raw: &mut mopt_raw,
-                portal_refs: &mut portal_refs,
-                group_infos: &mut group_infos,
-                skybox_wow_path: &mut skybox_wow_path,
-                portal_vertices: &mut portal_vertices,
-            },
-        )?;
+        apply_root_chunk(tag, payload, state)?;
     }
+    Ok(())
+}
 
-    resolve_portal_vertices(&mut portals, &mopt_raw, &portal_vertices);
-    Ok(WmoRootData {
-        n_groups,
-        materials,
-        portals,
-        portal_refs,
-        group_infos,
-        skybox_wow_path,
-    })
+fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
+    resolve_portal_vertices(&mut accum.portals, &accum.mopt_raw, &accum.portal_vertices);
+    WmoRootData {
+        n_groups: accum.n_groups,
+        materials: accum.materials,
+        portals: accum.portals,
+        portal_refs: accum.portal_refs,
+        group_infos: accum.group_infos,
+        skybox_wow_path: accum.skybox_wow_path,
+    }
 }
 
 struct WmoRootChunkState<'a> {
@@ -230,6 +218,33 @@ struct WmoRootChunkState<'a> {
     group_infos: &'a mut Vec<WmoGroupInfo>,
     skybox_wow_path: &'a mut Option<String>,
     portal_vertices: &'a mut Vec<[f32; 3]>,
+}
+
+#[derive(Default)]
+struct WmoRootAccum {
+    n_groups: u32,
+    materials: Vec<WmoMaterialDef>,
+    portals: Vec<WmoPortal>,
+    mopt_raw: Vec<(u16, u16)>,
+    portal_refs: Vec<WmoPortalRef>,
+    group_infos: Vec<WmoGroupInfo>,
+    skybox_wow_path: Option<String>,
+    portal_vertices: Vec<[f32; 3]>,
+}
+
+impl WmoRootAccum {
+    fn state(&mut self) -> WmoRootChunkState<'_> {
+        WmoRootChunkState {
+            n_groups: &mut self.n_groups,
+            materials: &mut self.materials,
+            portals: &mut self.portals,
+            mopt_raw: &mut self.mopt_raw,
+            portal_refs: &mut self.portal_refs,
+            group_infos: &mut self.group_infos,
+            skybox_wow_path: &mut self.skybox_wow_path,
+            portal_vertices: &mut self.portal_vertices,
+        }
+    }
 }
 
 fn apply_root_chunk(
