@@ -238,9 +238,9 @@ fn burst_multiplier_scales_particle_size_gradient() {
     let keys = gradient.keys();
 
     assert_eq!(keys.len(), 3);
-    assert_eq!(keys[0].value, Vec3::new(0.25, 0.25, 1.0));
-    assert_eq!(keys[1].value, Vec3::new(0.5, 0.5, 1.0));
-    assert_eq!(keys[2].value, Vec3::new(0.125, 0.125, 1.0));
+    assert_eq!(keys[0].value, Vec3::new(0.5, 0.5, 1.0));
+    assert_eq!(keys[1].value, Vec3::new(1.0, 1.0, 1.0));
+    assert_eq!(keys[2].value, Vec3::new(0.25, 0.25, 1.0));
 }
 
 #[test]
@@ -259,17 +259,17 @@ fn size_gradient_uses_full_scale_key_timeline_when_present() {
 
     assert_eq!(keys.len(), 4);
     assert_eq!(keys[0].ratio(), 0.0);
-    assert_eq!(keys[0].value, Vec3::new(0.3, 0.6, 1.0));
+    assert_eq!(keys[0].value, Vec3::new(0.6, 1.2, 1.0));
     assert!((keys[1].ratio() - 0.25).abs() < 0.0001);
-    assert!((keys[1].value.x - 0.9).abs() < 0.0001);
-    assert!((keys[1].value.y - 1.2).abs() < 0.0001);
+    assert!((keys[1].value.x - 1.8).abs() < 0.0001);
+    assert!((keys[1].value.y - 2.4).abs() < 0.0001);
     assert_eq!(keys[1].value.z, 1.0);
     assert!((keys[2].ratio() - 0.75).abs() < 0.0001);
-    assert!((keys[2].value.x - 1.5).abs() < 0.0001);
-    assert!((keys[2].value.y - 1.8).abs() < 0.0001);
+    assert!((keys[2].value.x - 3.0).abs() < 0.0001);
+    assert!((keys[2].value.y - 3.6).abs() < 0.0001);
     assert_eq!(keys[2].value.z, 1.0);
     assert_eq!(keys[3].ratio(), 1.0);
-    assert_eq!(keys[3].value, Vec3::new(2.1, 2.4, 1.0));
+    assert_eq!(keys[3].value, Vec3::new(4.2, 4.8, 1.0));
 }
 
 #[test]
@@ -283,10 +283,10 @@ fn trail_particles_stretch_length_over_lifetime() {
     let keys = gradient.keys();
 
     assert_eq!(keys.len(), 3);
-    assert!((keys[0].value.x - 0.1).abs() < 0.0001);
-    assert!((keys[1].value.x - 2.0).abs() < 0.0001);
-    assert!((keys[2].value.x - 3.65).abs() < 0.0001);
-    assert!((keys[2].value.y - 0.05).abs() < 0.0001);
+    assert!((keys[0].value.x - 0.2).abs() < 0.0001);
+    assert!((keys[1].value.x - 2.2).abs() < 0.0001);
+    assert!((keys[2].value.x - 3.7).abs() < 0.0001);
+    assert!((keys[2].value.y - 0.1).abs() < 0.0001);
 }
 
 #[test]
