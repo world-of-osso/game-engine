@@ -462,42 +462,57 @@ fn resolve_choice_elements(
     indexed: &IndexedData<'_>,
     raw: &RawData,
 ) -> ChoiceElements {
-    let mut materials = Vec::new();
-    let mut related_materials = Vec::new();
-    let mut geosets = Vec::new();
-    let mut related_geosets = Vec::new();
     let Some(elements) = indexed.elements_by_choice.get(&choice_id) else {
-        return (materials, related_materials, geosets, related_geosets);
+        return (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     };
-    for el in elements {
-        if el.material_id > 0
-            && let Some(mat) = raw.materials.get(&el.material_id)
-            && let Some(&fdid) = raw.texture_fdids.get(&mat.material_resources_id)
-        {
-            if el.related_choice_id > 0 {
-                related_materials.push(ChoiceMaterial {
+
+    let (related_materials, materials): (Vec<_>, Vec<_>) = elements
+        .iter()
+        .filter_map(|el| {
+            let mat = raw.materials.get(&el.material_id)?;
+            let &fdid = raw.texture_fdids.get(&mat.material_resources_id)?;
+            Some((
+                el.related_choice_id > 0,
+                ChoiceMaterial {
                     related_choice_id: el.related_choice_id,
                     target_id: mat.texture_target_id,
                     fdid,
-                });
-            } else {
-                materials.push((mat.texture_target_id, fdid));
-            }
-        }
-        if el.geoset_id > 0
-            && let Some(geo) = raw.geosets.get(&el.geoset_id)
-        {
-            if el.related_choice_id > 0 {
-                related_geosets.push(ChoiceGeoset {
+                },
+            ))
+        })
+        .partition(|(is_related, _)| *is_related);
+    let related_materials = related_materials
+        .into_iter()
+        .map(|(_, material)| material)
+        .collect();
+    let materials = materials
+        .into_iter()
+        .map(|(_, material)| (material.target_id, material.fdid))
+        .collect();
+
+    let (related_geosets, geosets): (Vec<_>, Vec<_>) = elements
+        .iter()
+        .filter_map(|el| {
+            let geo = raw.geosets.get(&el.geoset_id)?;
+            Some((
+                el.related_choice_id > 0,
+                ChoiceGeoset {
                     related_choice_id: el.related_choice_id,
                     geoset_type: geo.geoset_type,
                     geoset_id: geo.geoset_id,
-                });
-            } else {
-                geosets.push((geo.geoset_type, geo.geoset_id));
-            }
-        }
-    }
+                },
+            ))
+        })
+        .partition(|(is_related, _)| *is_related);
+    let related_geosets = related_geosets
+        .into_iter()
+        .map(|(_, geoset)| geoset)
+        .collect();
+    let geosets = geosets
+        .into_iter()
+        .map(|(_, geoset)| (geoset.geoset_type, geoset.geoset_id))
+        .collect();
+
     (materials, related_materials, geosets, related_geosets)
 }
 
