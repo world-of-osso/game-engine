@@ -108,15 +108,45 @@ fn record_source_files(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), S
 fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     let csv_paths = required_csv_paths(data_dir);
     let texture_file_data = texture_file_data_path(data_dir);
-    let mut all_sources = csv_paths.to_vec();
-    all_sources.push(texture_file_data.clone());
+    let all_sources = rebuild_source_paths(&csv_paths, &texture_file_data);
+    let conn = init_cache_db(cache_path)?;
 
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("create {}: {err}", parent.display()))?;
-    }
+    record_source_files(&conn, &all_sources)?;
+    populate_chr_models(&conn, &csv_paths[0])?;
+    populate_options(&conn, &csv_paths[1])?;
+    populate_choices(&conn, &csv_paths[2])?;
+    populate_elements(&conn, &csv_paths[3])?;
+    populate_materials(&conn, &csv_paths[4])?;
+    populate_geosets(&conn, &csv_paths[5])?;
+    populate_hair_geosets(&conn, &csv_paths[6])?;
+    populate_texture_fdids(&conn, &texture_file_data)?;
+    conn.execute_batch("COMMIT;")
+        .map_err(|err| format!("commit customization cache: {err}"))?;
+    Ok(())
+}
+
+fn rebuild_source_paths(csv_paths: &[PathBuf; 7], texture_file_data: &Path) -> Vec<PathBuf> {
+    let mut all_sources = csv_paths.to_vec();
+    all_sources.push(texture_file_data.to_path_buf());
+    all_sources
+}
+
+fn init_cache_db(cache_path: &Path) -> Result<Connection, String> {
+    create_cache_parent_dir(cache_path)?;
     let conn = Connection::open(cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
+    init_cache_schema(&conn)?;
+    Ok(conn)
+}
+
+fn create_cache_parent_dir(cache_path: &Path) -> Result<(), String> {
+    let Some(parent) = cache_path.parent() else {
+        return Ok(());
+    };
+    std::fs::create_dir_all(parent).map_err(|err| format!("create {}: {err}", parent.display()))
+}
+
+fn init_cache_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "BEGIN;
          DROP TABLE IF EXISTS source_files;
@@ -175,20 +205,7 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
              file_data_id INTEGER NOT NULL
          );",
     )
-    .map_err(|err| format!("init customization cache: {err}"))?;
-
-    record_source_files(&conn, &all_sources)?;
-    populate_chr_models(&conn, &csv_paths[0])?;
-    populate_options(&conn, &csv_paths[1])?;
-    populate_choices(&conn, &csv_paths[2])?;
-    populate_elements(&conn, &csv_paths[3])?;
-    populate_materials(&conn, &csv_paths[4])?;
-    populate_geosets(&conn, &csv_paths[5])?;
-    populate_hair_geosets(&conn, &csv_paths[6])?;
-    populate_texture_fdids(&conn, &texture_file_data)?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit customization cache: {err}"))?;
-    Ok(())
+    .map_err(|err| format!("init customization cache: {err}"))
 }
 
 fn insert_simple_rows<T, F>(
