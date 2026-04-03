@@ -61,10 +61,11 @@ pub fn create_border_image(size: usize) -> Image {
 pub fn create_arrow_image() -> Image {
     let size = 16usize;
     let mut data = vec![0u8; size * size * 4];
+    let triangle = [[8.0, 2.0], [3.0, 13.0], [12.0, 13.0]];
 
     for y in 0..size {
         for x in 0..size {
-            if point_in_triangle(x as f32, y as f32, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0) {
+            if point_in_triangle([x as f32, y as f32], triangle) {
                 let i = (y * size + x) * 4;
                 data[i] = 255;
                 data[i + 1] = 220;
@@ -88,17 +89,9 @@ pub fn create_arrow_image() -> Image {
 }
 
 /// Check if point (px, py) is inside triangle defined by three vertices.
-#[allow(clippy::too_many_arguments)]
-pub fn point_in_triangle(
-    px: f32,
-    py: f32,
-    x1: f32,
-    y1: f32,
-    x2: f32,
-    y2: f32,
-    x3: f32,
-    y3: f32,
-) -> bool {
+pub fn point_in_triangle(point: [f32; 2], triangle: [[f32; 2]; 3]) -> bool {
+    let [px, py] = point;
+    let [[x1, y1], [x2, y2], [x3, y3]] = triangle;
     let d1 = (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
     let d2 = (px - x3) * (y2 - y3) - (x2 - x3) * (py - y3);
     let d3 = (px - x1) * (y3 - y1) - (x3 - x1) * (py - y1);

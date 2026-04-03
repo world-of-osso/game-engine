@@ -583,11 +583,13 @@ fn delete_char_button() -> Element {
         DELETE_CHAR_BUTTON,
         FrameName("DeleteCharIcon"),
         CharSelectAction::DeleteChar,
-        AnchorPoint::BottomRight,
-        Some(CHAR_LIST_PANEL),
-        AnchorPoint::BottomRight,
-        -18.0,
-        64.0,
+        crate::ui::screens::trash_button_component::ButtonAnchor {
+            point: AnchorPoint::BottomRight,
+            relative_to: Some(CHAR_LIST_PANEL),
+            relative_point: AnchorPoint::BottomRight,
+            x: -18.0,
+            y: 64.0,
+        },
     )
 }
 

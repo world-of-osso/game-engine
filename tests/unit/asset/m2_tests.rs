@@ -55,9 +55,7 @@ fn compute_skin_offsets(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
-fn write_skin_header(
-    skin: &mut [u8],
+struct SkinHeaderLayout {
     lookup_offset: u32,
     indices_offset: u32,
     sub_offset: u32,
@@ -66,51 +64,49 @@ fn write_skin_header(
     indices_len: usize,
     submesh_len: usize,
     batch_len: usize,
-) {
-    skin[0..4].copy_from_slice(b"SKIN");
-    skin[4..8].copy_from_slice(&(lookup_len as u32).to_le_bytes());
-    skin[8..12].copy_from_slice(&lookup_offset.to_le_bytes());
-    skin[12..16].copy_from_slice(&(indices_len as u32).to_le_bytes());
-    skin[16..20].copy_from_slice(&indices_offset.to_le_bytes());
-    skin[28..32].copy_from_slice(&(submesh_len as u32).to_le_bytes());
-    skin[32..36].copy_from_slice(&sub_offset.to_le_bytes());
-    skin[36..40].copy_from_slice(&(batch_len as u32).to_le_bytes());
-    skin[40..44].copy_from_slice(&batch_offset.to_le_bytes());
 }
 
-#[allow(clippy::too_many_arguments)]
-fn write_skin_data(
-    skin: &mut [u8],
-    lookup: &[u16],
-    indices: &[u16],
-    submeshes: &[(u16, u16, u16, u16)],
-    batches: &[(u16, u16, u16, u16)],
-    lookup_offset: u32,
-    indices_offset: u32,
-    sub_offset: u32,
-    batch_offset: u32,
-) {
-    let lookup_offset = lookup_offset as usize;
-    let indices_offset = indices_offset as usize;
-    let sub_offset = sub_offset as usize;
-    let batch_offset = batch_offset as usize;
+fn write_skin_header(skin: &mut [u8], layout: &SkinHeaderLayout) {
+    skin[0..4].copy_from_slice(b"SKIN");
+    skin[4..8].copy_from_slice(&(layout.lookup_len as u32).to_le_bytes());
+    skin[8..12].copy_from_slice(&layout.lookup_offset.to_le_bytes());
+    skin[12..16].copy_from_slice(&(layout.indices_len as u32).to_le_bytes());
+    skin[16..20].copy_from_slice(&layout.indices_offset.to_le_bytes());
+    skin[28..32].copy_from_slice(&(layout.submesh_len as u32).to_le_bytes());
+    skin[32..36].copy_from_slice(&layout.sub_offset.to_le_bytes());
+    skin[36..40].copy_from_slice(&(layout.batch_len as u32).to_le_bytes());
+    skin[40..44].copy_from_slice(&layout.batch_offset.to_le_bytes());
+}
 
-    for (i, &v) in lookup.iter().enumerate() {
+struct SkinData<'a> {
+    lookup: &'a [u16],
+    indices: &'a [u16],
+    submeshes: &'a [(u16, u16, u16, u16)],
+    batches: &'a [(u16, u16, u16, u16)],
+}
+
+fn write_skin_data(skin: &mut [u8], data: &SkinData<'_>, layout: &SkinHeaderLayout) {
+    let lookup_offset = layout.lookup_offset as usize;
+    let indices_offset = layout.indices_offset as usize;
+    let sub_offset = layout.sub_offset as usize;
+    let batch_offset = layout.batch_offset as usize;
+
+    for (i, &v) in data.lookup.iter().enumerate() {
         let off = lookup_offset + i * 2;
         skin[off..off + 2].copy_from_slice(&v.to_le_bytes());
     }
-    for (i, &v) in indices.iter().enumerate() {
+    for (i, &v) in data.indices.iter().enumerate() {
         let off = indices_offset + i * 2;
         skin[off..off + 2].copy_from_slice(&v.to_le_bytes());
     }
-    for (i, &(vs, vc, ts, tc)) in submeshes.iter().enumerate() {
+    for (i, &(vs, vc, ts, tc)) in data.submeshes.iter().enumerate() {
         let base = sub_offset + i * 48;
         skin[base + 4..base + 6].copy_from_slice(&vs.to_le_bytes());
         skin[base + 6..base + 8].copy_from_slice(&vc.to_le_bytes());
         skin[base + 8..base + 10].copy_from_slice(&ts.to_le_bytes());
         skin[base + 10..base + 12].copy_from_slice(&tc.to_le_bytes());
     }
-    for (i, &(sub_idx, tex_id, shader_id, texture_count)) in batches.iter().enumerate() {
+    for (i, &(sub_idx, tex_id, shader_id, texture_count)) in data.batches.iter().enumerate() {
         let base = batch_offset + i * 24;
         skin[base + 2..base + 4].copy_from_slice(&shader_id.to_le_bytes());
         skin[base + 4..base + 6].copy_from_slice(&sub_idx.to_le_bytes());
@@ -128,30 +124,26 @@ fn build_skin(
 ) -> Vec<u8> {
     let (lookup_offset, indices_offset, sub_offset, batch_offset, total) =
         compute_skin_offsets(lookup.len(), indices.len(), submeshes.len(), batches.len());
-
-    let mut skin = vec![0u8; total as usize];
-    write_skin_header(
-        &mut skin,
+    let layout = SkinHeaderLayout {
         lookup_offset,
         indices_offset,
         sub_offset,
         batch_offset,
-        lookup.len(),
-        indices.len(),
-        submeshes.len(),
-        batches.len(),
-    );
-    write_skin_data(
-        &mut skin,
+        lookup_len: lookup.len(),
+        indices_len: indices.len(),
+        submesh_len: submeshes.len(),
+        batch_len: batches.len(),
+    };
+    let data = SkinData {
         lookup,
         indices,
         submeshes,
         batches,
-        lookup_offset,
-        indices_offset,
-        sub_offset,
-        batch_offset,
-    );
+    };
+
+    let mut skin = vec![0u8; total as usize];
+    write_skin_header(&mut skin, &layout);
+    write_skin_data(&mut skin, &data, &layout);
 
     skin
 }

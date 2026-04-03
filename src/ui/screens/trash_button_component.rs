@@ -17,18 +17,21 @@ pub const TRASH_BUTTON_ROOT: FrameName = FrameName("TrashButtonRoot");
 pub const TRASH_BUTTON: FrameName = FrameName("TrashButton");
 pub const TRASH_BUTTON_ICON: FrameName = FrameName("TrashButtonIcon");
 
-#[allow(clippy::too_many_arguments)]
+pub struct ButtonAnchor {
+    pub point: AnchorPoint,
+    pub relative_to: Option<FrameName>,
+    pub relative_point: AnchorPoint,
+    pub x: f32,
+    pub y: f32,
+}
+
 pub fn trash_icon_button(
     name: FrameName,
     icon_name: FrameName,
     onclick: impl Display,
-    point: AnchorPoint,
-    relative_to: Option<FrameName>,
-    relative_point: AnchorPoint,
-    x: f32,
-    y: f32,
+    anchor: ButtonAnchor,
 ) -> Element {
-    if let Some(relative_to) = relative_to {
+    if let Some(relative_to) = anchor.relative_to {
         rsx! {
             button {
                 name,
@@ -42,11 +45,11 @@ pub fn trash_icon_button(
                 button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
                 button_atlas_disabled: BUTTON_ATLAS_DISABLED,
                 anchor {
-                    point,
+                    point: anchor.point,
                     relative_to,
-                    relative_point,
-                    x: {x.to_string()},
-                    y: {y.to_string()},
+                    relative_point: anchor.relative_point,
+                    x: {anchor.x.to_string()},
+                    y: {anchor.y.to_string()},
                 }
                 texture {
                     name: icon_name,
@@ -76,10 +79,10 @@ pub fn trash_icon_button(
                 button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
                 button_atlas_disabled: BUTTON_ATLAS_DISABLED,
                 anchor {
-                    point,
-                    relative_point,
-                    x: {x.to_string()},
-                    y: {y.to_string()},
+                    point: anchor.point,
+                    relative_point: anchor.relative_point,
+                    x: {anchor.x.to_string()},
+                    y: {anchor.y.to_string()},
                 }
                 texture {
                     name: icon_name,
@@ -110,11 +113,13 @@ pub fn trash_button_screen(_shared: &SharedContext) -> Element {
                     TRASH_BUTTON,
                     TRASH_BUTTON_ICON,
                     "noop",
-                    AnchorPoint::Center,
-                    None,
-                    AnchorPoint::Center,
-                    0.0,
-                    0.0,
+                    ButtonAnchor {
+                        point: AnchorPoint::Center,
+                        relative_to: None,
+                        relative_point: AnchorPoint::Center,
+                        x: 0.0,
+                        y: 0.0,
+                    },
                 )
             }
         }

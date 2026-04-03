@@ -1,5 +1,7 @@
 use std::f32::consts::PI;
+use std::marker::PhantomData;
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
@@ -41,29 +43,33 @@ impl Plugin for SkyboxDebugScenePlugin {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut skybox_materials: ResMut<Assets<SkyboxM2Material>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    warband: Res<WarbandScenes>,
-    selected_scene: Option<Res<SelectedWarbandScene>>,
-    override_spec: Option<Res<SkyboxDebugOverride>>,
-) {
-    let scene = selected_scene
+#[derive(SystemParam)]
+struct SkyboxDebugSceneParams<'w, 's> {
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    warband: Res<'w, WarbandScenes>,
+    selected_scene: Option<Res<'w, SelectedWarbandScene>>,
+    override_spec: Option<Res<'w, SkyboxDebugOverride>>,
+    marker: PhantomData<&'s ()>,
+}
+
+fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
+    let scene = params
+        .selected_scene
         .as_ref()
         .and_then(|selected| {
-            warband
+            params
+                .warband
                 .scenes
                 .iter()
                 .find(|scene| scene.id == selected.scene_id)
         })
-        .or_else(|| warband.scenes.first());
+        .or_else(|| params.warband.scenes.first());
 
     let focus = Vec3::new(0.0, 1.0, 0.0);
     let orbit = OrbitCamera::new(focus, 7.5);
@@ -99,8 +105,12 @@ fn setup_scene(
     commands.spawn((
         Name::new("SkyboxDebugReferencePlane"),
         SkyboxDebugScene,
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(1.8, 1.8).build())),
-        MeshMaterial3d(materials.add(StandardMaterial {
+        Mesh3d(
+            params
+                .meshes
+                .add(Plane3d::default().mesh().size(1.8, 1.8).build()),
+        ),
+        MeshMaterial3d(params.materials.add(StandardMaterial {
             base_color: Color::srgba(0.85, 0.72, 0.42, 0.18),
             unlit: true,
             alpha_mode: AlphaMode::Blend,
@@ -114,8 +124,8 @@ fn setup_scene(
             Name::new("SkyboxDebugDepthProbe"),
             SkyboxDebugScene,
             SkyboxDebugDepthProbe,
-            Mesh3d(meshes.add(Cuboid::new(0.7, 1.5, 0.7))),
-            MeshMaterial3d(materials.add(StandardMaterial {
+            Mesh3d(params.meshes.add(Cuboid::new(0.7, 1.5, 0.7))),
+            MeshMaterial3d(params.materials.add(StandardMaterial {
                 base_color: Color::srgb(1.0, 0.0, 1.0),
                 emissive: Color::srgb(1.0, 0.0, 1.0).into(),
                 unlit: true,
@@ -125,7 +135,7 @@ fn setup_scene(
         ))
         .id();
 
-    let resolved = resolve_debug_skybox(scene, override_spec.as_deref().copied());
+    let resolved = resolve_debug_skybox(scene, params.override_spec.as_deref().copied());
     let Some(resolved) = resolved else {
         match scene {
             Some(scene) => warn!(
@@ -141,14 +151,14 @@ fn setup_scene(
     let mut ctx = m2_scene::M2SceneSpawnContext {
         commands: &mut commands,
         assets: crate::m2_spawn::SpawnAssets {
-            meshes: &mut meshes,
-            materials: &mut materials,
-            effect_materials: &mut effect_materials,
-            skybox_materials: Some(&mut skybox_materials),
-            images: &mut images,
-            inverse_bindposes: &mut inv_bp,
+            meshes: &mut params.meshes,
+            materials: &mut params.materials,
+            effect_materials: &mut params.effect_materials,
+            skybox_materials: Some(&mut params.skybox_materials),
+            images: &mut params.images,
+            inverse_bindposes: &mut params.inv_bp,
         },
-        creature_display_map: &creature_display_map,
+        creature_display_map: &params.creature_display_map,
     };
     let Some(spawned) = m2_scene::spawn_animated_static_skybox_m2_parts(
         &mut ctx,

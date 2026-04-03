@@ -60,23 +60,23 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
 
     inject_layout_rects(
         &mut reg,
-        login.root,
-        login.username_input,
-        login.password_input,
-        login.connect_button,
-        login.reconnect_button,
-        login.create_account_button,
-        login.menu_button,
-        login.exit_button,
-        login.status_text,
+        LoginLayoutIds {
+            root: login.root,
+            username_input: login.username_input,
+            password_input: login.password_input,
+            connect_button: login.connect_button,
+            reconnect_button: login.reconnect_button,
+            create_account_button: login.create_account_button,
+            menu_button: login.menu_button,
+            exit_button: login.exit_button,
+            status_text: login.status_text,
+        },
     );
 
     (reg, login)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn inject_layout_rects(
-    reg: &mut FrameRegistry,
+struct LoginLayoutIds {
     root: u64,
     username_input: u64,
     password_input: u64,
@@ -86,7 +86,9 @@ fn inject_layout_rects(
     menu_button: u64,
     exit_button: u64,
     status_text: u64,
-) {
+}
+
+fn inject_layout_rects(reg: &mut FrameRegistry, ids: LoginLayoutIds) {
     use game_engine::ui::layout::LayoutRect;
     let set_rect = |reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32| {
         if let Some(f) = reg.get_mut(id) {
@@ -100,17 +102,17 @@ fn inject_layout_rects(
             f.height = Dimension::Fixed(h);
         }
     };
-    set_rect(reg, root, 0.0, 0.0, 1920.0, 1080.0);
-    set_rect(reg, username_input, 800.0, 400.0, 320.0, 42.0);
-    set_rect(reg, password_input, 800.0, 460.0, 320.0, 42.0);
-    set_rect(reg, connect_button, 800.0, 522.0, 250.0, 66.0);
-    if let Some(reconnect_button) = reconnect_button {
+    set_rect(reg, ids.root, 0.0, 0.0, 1920.0, 1080.0);
+    set_rect(reg, ids.username_input, 800.0, 400.0, 320.0, 42.0);
+    set_rect(reg, ids.password_input, 800.0, 460.0, 320.0, 42.0);
+    set_rect(reg, ids.connect_button, 800.0, 522.0, 250.0, 66.0);
+    if let Some(reconnect_button) = ids.reconnect_button {
         set_rect(reg, reconnect_button, 800.0, 522.0, 250.0, 66.0);
     }
-    set_rect(reg, create_account_button, 860.0, 630.0, 200.0, 32.0);
-    set_rect(reg, menu_button, 860.0, 672.0, 200.0, 32.0);
-    set_rect(reg, exit_button, 1700.0, 980.0, 200.0, 32.0);
-    set_rect(reg, status_text, 800.0, 620.0, 320.0, 24.0);
+    set_rect(reg, ids.create_account_button, 860.0, 630.0, 200.0, 32.0);
+    set_rect(reg, ids.menu_button, 860.0, 672.0, 200.0, 32.0);
+    set_rect(reg, ids.exit_button, 1700.0, 980.0, 200.0, 32.0);
+    set_rect(reg, ids.status_text, 800.0, 620.0, 320.0, 24.0);
 }
 
 fn set_editbox_text_for_test(reg: &mut FrameRegistry, id: u64, text: &str) {

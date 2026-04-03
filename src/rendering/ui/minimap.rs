@@ -536,13 +536,17 @@ mod tests {
 
     #[test]
     fn triangle_center_inside() {
-        assert!(point_in_triangle(8.0, 8.0, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0));
+        assert!(point_in_triangle(
+            [8.0, 8.0],
+            [[8.0, 2.0], [3.0, 13.0], [12.0, 13.0]]
+        ));
     }
 
     #[test]
     fn triangle_outside() {
         assert!(!point_in_triangle(
-            0.0, 0.0, 8.0, 2.0, 3.0, 13.0, 12.0, 13.0
+            [0.0, 0.0],
+            [[8.0, 2.0], [3.0, 13.0], [12.0, 13.0]],
         ));
     }
 
