@@ -14,10 +14,12 @@ use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
 use crate::asset::{m2_anim::M2Bone, m2_particle::M2ParticleEmitter};
 use visuals::{
-    TwinkleSizeModifier, build_color_gradient, build_size_gradient, has_authored_twinkle,
+    SizeVariationModifier, TwinkleSizeModifier, build_color_gradient, build_size_gradient,
+    has_authored_size_variation, has_authored_twinkle,
 };
 
 const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
+const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
 const BLEND_OPAQUE: u8 = 0;
 const BLEND_ALPHA_KEY: u8 = 1;
 const BLEND_ALPHA: u8 = 2;
@@ -138,6 +140,7 @@ struct ExprModifiers {
     flipbook_sprite_index: Option<SetAttributeModifier>,
     texture: Option<ParticleTextureModifier>,
     twinkle: Option<TwinkleSizeModifier>,
+    size_variation: Option<SizeVariationModifier>,
     alpha_mode: bevy_hanabi::AlphaMode,
     orient_rotation: Option<ExprHandle>,
     module: Module,
@@ -155,6 +158,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         sample_mapping: ImageSampleMapping::Modulate,
     });
     let twinkle = build_twinkle_modifier(em);
+    let size_variation = build_size_variation_modifier(em);
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
     let orient_rotation = build_orient_rotation_expr(em, &writer);
     let mut module = writer.finish();
@@ -168,6 +172,7 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         flipbook_sprite_index,
         texture,
         twinkle,
+        size_variation,
         alpha_mode,
         orient_rotation,
         module,
@@ -271,6 +276,9 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
     let emission_rate = (em.emission_rate * emitter_rate_scale(em)).max(0.1);
     let (_, max_lifetime) = lifetime_range(em);
     let max_particles = ((emission_rate * max_lifetime) as u32).clamp(16, 4096);
+    // WoW emits particles via an accumulator (`rate * dt + carry`) and can vary
+    // the instantaneous spawn rate per tick. Hanabi only gives us a steady rate
+    // spawner here, so this remains an approximation even after the torch fixes.
     let spawner = SpawnerSettings::rate(emission_rate.into());
 
     let mut effect = assemble_effect(
@@ -295,6 +303,9 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
     }
     if let Some(twinkle) = m.twinkle {
         effect = effect.render(twinkle);
+    }
+    if let Some(size_variation) = m.size_variation {
+        effect = effect.render(size_variation);
     }
     if em.tile_rows > 1 || em.tile_cols > 1 {
         effect = effect.render(FlipbookModifier {
@@ -356,6 +367,9 @@ fn assemble_effect(
     if let Some(twinkle_enabled) = init.twinkle_enabled {
         effect = effect.init(twinkle_enabled);
     }
+    if let Some(size_variation) = init.size_variation {
+        effect = effect.init(size_variation);
+    }
     effect
 }
 
@@ -384,6 +398,7 @@ struct InitModifiers {
     angular_velocity: Option<SetAttributeModifier>,
     twinkle_phase: Option<SetAttributeModifier>,
     twinkle_enabled: Option<SetAttributeModifier>,
+    size_variation: Option<SetAttributeModifier>,
 }
 
 fn build_init_modifiers(
@@ -404,6 +419,7 @@ fn build_init_modifiers(
         angular_velocity: build_angular_velocity_modifier(em, writer),
         twinkle_phase: build_twinkle_phase_modifier(em, writer),
         twinkle_enabled: build_twinkle_enabled_modifier(em, writer),
+        size_variation: build_size_variation_modifier_attr(em, writer),
     }
 }
 
@@ -464,6 +480,26 @@ fn build_twinkle_enabled_modifier(
     Some(SetAttributeModifier::new(Attribute::F32_3, enabled.expr()))
 }
 
+fn build_size_variation_modifier_attr(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
+    if !has_authored_size_variation(em) {
+        return None;
+    }
+    let authored_y = if em.flags & PARTICLE_FLAG_SIZE_VARIATION_2D != 0 {
+        em.scale_variation_y
+    } else {
+        em.scale_variation
+    };
+    let x = size_variation_expr(em.scale_variation, writer)?;
+    let y = size_variation_expr(authored_y, writer)?;
+    Some(SetAttributeModifier::new(
+        Attribute::F32X2_0,
+        x.vec2(y).expr(),
+    ))
+}
+
 fn authored_spin_expr(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
@@ -480,6 +516,15 @@ fn authored_spin_expr(
     } else {
         Some(writer.lit(base).expr())
     }
+}
+
+fn size_variation_expr(variation: f32, writer: &ExprWriter) -> Option<WriterExpr> {
+    if variation == 0.0 {
+        return None;
+    }
+    let random = writer.rand(ScalarType::Float) * writer.lit(2.0) - writer.lit(1.0);
+    let scale = (writer.lit(1.0) + random * writer.lit(variation)).max(writer.lit(0.01));
+    Some(scale)
 }
 
 fn build_orient_rotation_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> Option<ExprHandle> {
@@ -509,6 +554,10 @@ fn build_twinkle_modifier(em: &M2ParticleEmitter) -> Option<TwinkleSizeModifier>
         scale_min: em.twinkle_scale_min.max(0.0),
         scale_max: em.twinkle_scale_max.max(em.twinkle_scale_min.max(0.0)),
     })
+}
+
+fn build_size_variation_modifier(em: &M2ParticleEmitter) -> Option<SizeVariationModifier> {
+    has_authored_size_variation(em).then_some(SizeVariationModifier)
 }
 
 fn wind_accel_bevy(em: &M2ParticleEmitter, model_scale: f32) -> Vec3 {

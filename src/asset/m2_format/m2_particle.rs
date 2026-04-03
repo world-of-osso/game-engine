@@ -45,6 +45,10 @@ pub struct M2ParticleEmitter {
     pub area_length: f32,
     pub area_width: f32,
     pub drag: f32,
+    /// Uniform X variation factor used for per-particle size jitter.
+    pub scale_variation: f32,
+    /// Y-only variation factor when `PROP_SIZE_VARIATION_2D` is set.
+    pub scale_variation_y: f32,
     /// Base in-plane rotation in radians.
     pub base_spin: f32,
     /// Random variation applied to base in-plane rotation.
@@ -114,6 +118,8 @@ const EMITTER_AREA_WIDTH_OFFSET: usize = 0xDC;
 const EMITTER_DRAG_OFFSET: usize = 0xF0;
 const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
+const EMITTER_SCALE_VARIATION_OFFSET: usize = 0x118;
+const EMITTER_SCALE_VARIATION_Y_OFFSET: usize = 0x11C;
 const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
 const EMITTER_TWINKLE_SPEED_OFFSET: usize = 0x164;
 const EMITTER_TWINKLE_PERCENT_OFFSET: usize = 0x168;
@@ -359,6 +365,8 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.area_length = read_track_static_f32(md20, data, EMITTER_AREA_LENGTH_OFFSET);
     em.area_width = read_track_static_f32(md20, data, EMITTER_AREA_WIDTH_OFFSET);
     em.drag = read_track_static_f32(md20, data, EMITTER_DRAG_OFFSET);
+    em.scale_variation = read_f32(data, EMITTER_SCALE_VARIATION_OFFSET).unwrap_or(0.0);
+    em.scale_variation_y = read_f32(data, EMITTER_SCALE_VARIATION_Y_OFFSET).unwrap_or(0.0);
     em.base_spin = read_f32(data, EMITTER_BASE_SPIN_OFFSET).unwrap_or(0.0);
     em.base_spin_variation = read_f32(data, EMITTER_BASE_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
     em.spin = read_f32(data, EMITTER_SPIN_OFFSET).unwrap_or(0.0);

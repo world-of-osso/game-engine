@@ -1,6 +1,7 @@
 use bevy::prelude::Vec3;
 use bevy_hanabi::{AlphaMode, ExprWriter};
 
+use super::visuals::has_authored_size_variation;
 use super::{
     FlipbookSpriteMode, active_cell_track, build_color_gradient, build_effect_asset,
     build_expr_modifiers, build_size_gradient, emitter_alpha_mode, emitter_rate_scale,
@@ -347,6 +348,20 @@ fn twinkle_emitters_declare_size_pulse_modifiers() {
     assert!(modifiers.twinkle.is_some());
     assert!(modifiers.init.twinkle_phase.is_some());
     assert!(modifiers.init.twinkle_enabled.is_some());
+}
+
+#[test]
+fn size_variation_emitters_declare_per_particle_scale_modifiers() {
+    let mut emitter = sample_emitter();
+    emitter.scale_variation = 0.4;
+    emitter.flags |= 0x0080_0000;
+    emitter.scale_variation_y = 0.2;
+
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(has_authored_size_variation(&emitter));
+    assert!(modifiers.size_variation.is_some());
+    assert!(modifiers.init.size_variation.is_some());
 }
 
 #[test]

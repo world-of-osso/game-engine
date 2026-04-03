@@ -51,6 +51,10 @@ pub(crate) fn has_authored_twinkle(em: &M2ParticleEmitter) -> bool {
         && (em.twinkle_scale_min != 1.0 || em.twinkle_scale_max != 1.0)
 }
 
+pub(crate) fn has_authored_size_variation(em: &M2ParticleEmitter) -> bool {
+    em.scale_variation != 0.0 || (em.flags & 0x0080_0000 != 0 && em.scale_variation_y != 0.0)
+}
+
 fn build_simple_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
     let [c0, c1, c2] = em.colors;
     let [o0, o1, o2] = em.opacity;
@@ -181,6 +185,66 @@ pub(crate) struct TwinkleSizeModifier {
     pub(crate) speed_radians: f32,
     pub(crate) scale_min: f32,
     pub(crate) scale_max: f32,
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+pub(crate) struct SizeVariationModifier;
+
+#[typetag::serde]
+impl Modifier for SizeVariationModifier {
+    fn context(&self) -> ModifierContext {
+        ModifierContext::Render
+    }
+
+    fn as_render(&self) -> Option<&dyn RenderModifier> {
+        Some(self)
+    }
+
+    fn as_render_mut(&mut self) -> Option<&mut dyn RenderModifier> {
+        Some(self)
+    }
+
+    fn attributes(&self) -> &[Attribute] {
+        &[Attribute::F32X2_0]
+    }
+
+    fn boxed_clone(&self) -> BoxedModifier {
+        Box::new(self.clone())
+    }
+
+    fn apply(
+        &self,
+        _module: &mut Module,
+        context: &mut bevy_hanabi::ShaderWriter,
+    ) -> Result<(), ExprError> {
+        Err(ExprError::InvalidModifierContext(
+            context.modifier_context(),
+            ModifierContext::Render,
+        ))
+    }
+}
+
+#[typetag::serde]
+impl RenderModifier for SizeVariationModifier {
+    fn apply_render(
+        &self,
+        _module: &mut Module,
+        context: &mut RenderContext,
+    ) -> Result<(), ExprError> {
+        context.vertex_code += &format!(
+            "size = vec3<f32>(size.x * particle.{scale}.x, size.y * particle.{scale}.y, size.z);\n",
+            scale = Attribute::F32X2_0.name(),
+        );
+        Ok(())
+    }
+
+    fn boxed_render_clone(&self) -> Box<dyn RenderModifier> {
+        Box::new(self.clone())
+    }
+
+    fn as_modifier(&self) -> &dyn Modifier {
+        self
+    }
 }
 
 #[typetag::serde]

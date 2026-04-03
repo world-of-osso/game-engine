@@ -22,6 +22,21 @@ fn parse_torch_particle_emitter() {
     assert!(em.emission_speed > 0.5, "speed={}", em.emission_speed);
     assert!(em.lifespan > 0.7, "lifespan={}", em.lifespan);
     assert!(em.emission_rate > 19.0, "rate={}", em.emission_rate);
+    assert_eq!(
+        em.head_cell_track,
+        [0, 7, 8],
+        "torch uses an authored head cell track"
+    );
+    assert_eq!(
+        em.tail_cell_track,
+        [0, 0, 0],
+        "torch has no authored tail cell track"
+    );
+    assert_eq!(
+        em.flags & 0x0010_0000,
+        0,
+        "torch does not use RANDOM_TEXTURE, so sprite selection comes from the authored head track"
+    );
     assert!(em.colors[0][0] > 200.0, "start red={}", em.colors[0][0]);
     assert!(em.opacity[1] > 0.9, "mid opacity={}", em.opacity[1]);
     assert!(
@@ -215,6 +230,21 @@ fn parses_spin_fields_from_272_suffix() {
     assert!((parsed.base_spin_variation - 1.5).abs() < 0.0001);
     assert!((parsed.spin - 0.75).abs() < 0.0001);
     assert!((parsed.spin_variation - 0.5).abs() < 0.0001);
+}
+
+#[test]
+fn parses_size_variation_fields_from_272_suffix() {
+    let mut md20 = vec![0u8; 0x1ec];
+    md20[EMITTER_SCALE_VARIATION_OFFSET..EMITTER_SCALE_VARIATION_OFFSET + 4]
+        .copy_from_slice(&(0.4_f32).to_le_bytes());
+    md20[EMITTER_SCALE_VARIATION_Y_OFFSET..EMITTER_SCALE_VARIATION_Y_OFFSET + 4]
+        .copy_from_slice(&(0.2_f32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&md20).unwrap();
+    fill_track_values(&mut parsed, &md20, &md20);
+
+    assert!((parsed.scale_variation - 0.4).abs() < 0.0001);
+    assert!((parsed.scale_variation_y - 0.2).abs() < 0.0001);
 }
 
 #[test]

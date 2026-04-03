@@ -25,6 +25,8 @@ macro_rules! zeroed_emitter {
             area_length: 0.0,
             area_width: 0.0,
             drag: 0.0,
+            scale_variation: 0.0,
+            scale_variation_y: 0.0,
             base_spin: 0.0,
             base_spin_variation: 0.0,
             spin: 0.0,
@@ -61,6 +63,8 @@ struct EmitterTrackDefaults {
     area_length: f32,
     area_width: f32,
     drag: f32,
+    scale_variation: f32,
+    scale_variation_y: f32,
     base_spin: f32,
     base_spin_variation: f32,
     spin: f32,
@@ -83,6 +87,8 @@ impl Default for EmitterTrackDefaults {
             area_length: 0.0,
             area_width: 0.0,
             drag: 0.0,
+            scale_variation: 0.0,
+            scale_variation_y: 0.0,
             base_spin: 0.0,
             base_spin_variation: 0.0,
             spin: 0.0,
@@ -194,6 +200,8 @@ fn apply_track_defaults(emitter: &mut M2ParticleEmitter, tracks: EmitterTrackDef
     emitter.area_length = tracks.area_length;
     emitter.area_width = tracks.area_width;
     emitter.drag = tracks.drag;
+    emitter.scale_variation = tracks.scale_variation;
+    emitter.scale_variation_y = tracks.scale_variation_y;
     emitter.base_spin = tracks.base_spin;
     emitter.base_spin_variation = tracks.base_spin_variation;
     emitter.spin = tracks.spin;
