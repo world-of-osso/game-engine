@@ -32,6 +32,8 @@ pub(super) const PARTICLE_FLAG_FOLLOW_POSITION: u32 = 0x0008_0000;
 pub(super) const PARTICLE_FLAG_RANDOM_TEXTURE: u32 = 0x0010_0000;
 pub(super) const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
 pub(super) const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
+pub(super) const PARTICLE_FLAG_WIND_DYNAMIC: u32 = 0x4000_0000;
+pub(super) const PARTICLE_FLAG_WIND_ENABLED: u32 = 0x8000_0000;
 const BLEND_OPAQUE: u8 = 0;
 const BLEND_ALPHA_KEY: u8 = 1;
 const BLEND_ALPHA: u8 = 2;
@@ -807,7 +809,10 @@ fn has_authored_spin(em: &M2ParticleEmitter) -> bool {
 }
 
 fn has_authored_wind(em: &M2ParticleEmitter) -> bool {
-    em.wind_time > 0.0 && em.wind_vector.iter().any(|&value| value != 0.0)
+    em.flags & PARTICLE_FLAG_WIND_ENABLED != 0
+        && em.flags & PARTICLE_FLAG_WIND_DYNAMIC == 0
+        && em.wind_time > 0.0
+        && em.wind_vector.iter().any(|&value| value != 0.0)
 }
 
 fn build_twinkle_modifier(em: &M2ParticleEmitter) -> Option<TwinkleSizeModifier> {

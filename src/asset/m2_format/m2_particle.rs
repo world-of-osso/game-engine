@@ -67,6 +67,14 @@ pub struct M2ParticleEmitter {
     pub wind_vector: [f32; 3],
     /// Duration in seconds for which wind affects newly spawned particles.
     pub wind_time: f32,
+    /// Follow-speed pair used by FOLLOW_POSITION emitters.
+    pub follow_speed1: f32,
+    /// Follow-scale paired with `follow_speed1`.
+    pub follow_scale1: f32,
+    /// Second follow-speed control point.
+    pub follow_speed2: f32,
+    /// Follow-scale paired with `follow_speed2`.
+    pub follow_scale2: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
     /// Full FakeAnimBlock color keys as (normalized time, RGB 0–255).
@@ -143,6 +151,10 @@ const EMITTER_SPIN_OFFSET: usize = 0x180;
 const EMITTER_SPIN_VARIATION_OFFSET: usize = 0x184;
 const EMITTER_WIND_VECTOR_OFFSET: usize = 0x1A0;
 const EMITTER_WIND_TIME_OFFSET: usize = 0x1AC;
+const EMITTER_FOLLOW_SPEED1_OFFSET: usize = 0x1B0;
+const EMITTER_FOLLOW_SCALE1_OFFSET: usize = 0x1B4;
+const EMITTER_FOLLOW_SPEED2_OFFSET: usize = 0x1B8;
+const EMITTER_FOLLOW_SCALE2_OFFSET: usize = 0x1BC;
 const DEFAULT_MID_POINT: f32 = 0.5;
 const PARTICLE_FLAG_COMPRESSED_GRAVITY: u32 = 0x0080_0000;
 const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
@@ -444,6 +456,10 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
         read_f32(data, EMITTER_WIND_VECTOR_OFFSET + 8).unwrap_or(0.0),
     ];
     em.wind_time = read_f32(data, EMITTER_WIND_TIME_OFFSET).unwrap_or(0.0);
+    em.follow_speed1 = read_f32(data, EMITTER_FOLLOW_SPEED1_OFFSET).unwrap_or(0.0);
+    em.follow_scale1 = read_f32(data, EMITTER_FOLLOW_SCALE1_OFFSET).unwrap_or(0.0);
+    em.follow_speed2 = read_f32(data, EMITTER_FOLLOW_SPEED2_OFFSET).unwrap_or(0.0);
+    em.follow_scale2 = read_f32(data, EMITTER_FOLLOW_SCALE2_OFFSET).unwrap_or(0.0);
 }
 
 /// Fill FakeAnimBlock visual values (color, opacity, scale).

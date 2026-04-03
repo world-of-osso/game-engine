@@ -37,6 +37,10 @@ macro_rules! zeroed_emitter {
             spin_variation: 0.0,
             wind_vector: [0.0; 3],
             wind_time: 0.0,
+            follow_speed1: 0.0,
+            follow_scale1: 0.0,
+            follow_speed2: 0.0,
+            follow_scale2: 0.0,
             colors: [[0.0; 3]; 3],
             color_keys: Vec::new(),
             opacity: [0.0; 3],
@@ -79,6 +83,10 @@ struct EmitterTrackDefaults {
     spin_variation: f32,
     wind_vector: [f32; 3],
     wind_time: f32,
+    follow_speed1: f32,
+    follow_scale1: f32,
+    follow_speed2: f32,
+    follow_scale2: f32,
 }
 
 impl Default for EmitterTrackDefaults {
@@ -107,6 +115,10 @@ impl Default for EmitterTrackDefaults {
             spin_variation: 0.0,
             wind_vector: [0.0; 3],
             wind_time: 0.0,
+            follow_speed1: 0.0,
+            follow_scale1: 0.0,
+            follow_speed2: 0.0,
+            follow_scale2: 0.0,
         }
     }
 }
@@ -224,6 +236,10 @@ fn apply_track_defaults(emitter: &mut M2ParticleEmitter, tracks: EmitterTrackDef
     emitter.spin_variation = tracks.spin_variation;
     emitter.wind_vector = tracks.wind_vector;
     emitter.wind_time = tracks.wind_time;
+    emitter.follow_speed1 = tracks.follow_speed1;
+    emitter.follow_scale1 = tracks.follow_scale1;
+    emitter.follow_speed2 = tracks.follow_speed2;
+    emitter.follow_scale2 = tracks.follow_scale2;
 }
 
 fn apply_visual_defaults(emitter: &mut M2ParticleEmitter, visuals: EmitterVisualDefaults) {

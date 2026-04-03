@@ -7,15 +7,16 @@ use super::{
     FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
     PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
     PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
-    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, PositionInitModifier,
-    active_cell_track, build_color_gradient, build_effect_asset, build_effect_asset_with_mode,
-    build_expr_modifiers, build_position_modifier, build_size_gradient, emitter_alpha_mode,
-    emitter_parent_entity, emitter_scale_source, emitter_simulation_space, emitter_spawn_offset,
-    emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
-    emitter_uses_follow_position, emitter_uses_project_particle,
-    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
-    has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range, orient_mode,
-    projected_particle_spawn_y, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+    PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
+    PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, PositionInitModifier, active_cell_track,
+    build_color_gradient, build_effect_asset, build_effect_asset_with_mode, build_expr_modifiers,
+    build_position_modifier, build_size_gradient, emitter_alpha_mode, emitter_parent_entity,
+    emitter_scale_source, emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius,
+    emitter_translation, emitter_uses_bone_scale, emitter_uses_follow_position,
+    emitter_uses_project_particle, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
+    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
+    orient_mode, projected_particle_spawn_y, scaled_emission_rate, wind_accel_bevy,
+    wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -45,6 +46,10 @@ struct SampleMotionDefaults {
     spin_variation: f32,
     wind_vector: [f32; 3],
     wind_time: f32,
+    follow_speed1: f32,
+    follow_scale1: f32,
+    follow_speed2: f32,
+    follow_scale2: f32,
 }
 
 struct SampleVisualDefaults {
@@ -87,6 +92,10 @@ fn sample_motion_defaults() -> SampleMotionDefaults {
         spin_variation: 0.0,
         wind_vector: [0.0, 0.0, 0.0],
         wind_time: 0.0,
+        follow_speed1: 0.0,
+        follow_scale1: 0.0,
+        follow_speed2: 0.0,
+        follow_scale2: 0.0,
     }
 }
 
@@ -146,6 +155,10 @@ fn apply_sample_motion_defaults(emitter: &mut M2ParticleEmitter, motion: SampleM
     emitter.spin_variation = motion.spin_variation;
     emitter.wind_vector = motion.wind_vector;
     emitter.wind_time = motion.wind_time;
+    emitter.follow_speed1 = motion.follow_speed1;
+    emitter.follow_scale1 = motion.follow_scale1;
+    emitter.follow_speed2 = motion.follow_speed2;
+    emitter.follow_scale2 = motion.follow_scale2;
 }
 
 fn apply_sample_visual_defaults(emitter: &mut M2ParticleEmitter, visuals: SampleVisualDefaults) {
@@ -676,11 +689,22 @@ fn negate_spin_flag_allocates_stable_spin_sign_attribute() {
 #[test]
 fn wind_vector_maps_to_bevy_axes_and_scale() {
     let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_WIND_ENABLED;
     emitter.wind_vector = [1.0, 2.0, 3.0];
     emitter.wind_time = 2.0;
 
     assert!(has_authored_wind(&emitter));
     assert_eq!(wind_accel_bevy(&emitter, 1.5), Vec3::new(1.5, 4.5, -3.0));
+}
+
+#[test]
+fn dynamic_wind_flag_disables_static_wind_path() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_WIND_ENABLED | PARTICLE_FLAG_WIND_DYNAMIC;
+    emitter.wind_vector = [1.0, 2.0, 3.0];
+    emitter.wind_time = 2.0;
+
+    assert!(!has_authored_wind(&emitter));
 }
 
 #[test]

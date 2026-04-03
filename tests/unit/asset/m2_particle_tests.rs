@@ -391,6 +391,27 @@ fn parses_wind_fields_from_272_suffix() {
 }
 
 #[test]
+fn parses_follow_fields_from_272_suffix() {
+    let mut md20 = vec![0u8; 0x1ec];
+    md20[EMITTER_FOLLOW_SPEED1_OFFSET..EMITTER_FOLLOW_SPEED1_OFFSET + 4]
+        .copy_from_slice(&(2.0_f32).to_le_bytes());
+    md20[EMITTER_FOLLOW_SCALE1_OFFSET..EMITTER_FOLLOW_SCALE1_OFFSET + 4]
+        .copy_from_slice(&(0.25_f32).to_le_bytes());
+    md20[EMITTER_FOLLOW_SPEED2_OFFSET..EMITTER_FOLLOW_SPEED2_OFFSET + 4]
+        .copy_from_slice(&(6.0_f32).to_le_bytes());
+    md20[EMITTER_FOLLOW_SCALE2_OFFSET..EMITTER_FOLLOW_SCALE2_OFFSET + 4]
+        .copy_from_slice(&(0.75_f32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&md20).unwrap();
+    fill_track_values(&mut parsed, &md20, &md20);
+
+    assert!((parsed.follow_speed1 - 2.0).abs() < 0.0001);
+    assert!((parsed.follow_scale1 - 0.25).abs() < 0.0001);
+    assert!((parsed.follow_speed2 - 6.0).abs() < 0.0001);
+    assert!((parsed.follow_scale2 - 0.75).abs() < 0.0001);
+}
+
+#[test]
 fn scale_keys_preserve_full_fake_animblock_timeline() {
     let mut md20 = vec![0u8; 96];
     let mut emitter = vec![0u8; 16];
