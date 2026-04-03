@@ -65,6 +65,7 @@ mod networking_npc;
 mod networking_player;
 mod networking_reconnect;
 mod orbit_camera;
+#[path = "rendering/particles/mod.rs"]
 mod particle;
 mod process_limits;
 mod scenes;

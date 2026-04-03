@@ -3,7 +3,6 @@
 //! Each M2 emitter is translated to a bevy_hanabi `EffectAsset` and spawned as
 //! a `ParticleEffect` entity parented to the model (or its bone).
 
-#[path = "particle_visuals.rs"]
 mod visuals;
 
 use std::path::PathBuf;
@@ -586,5 +585,5 @@ fn load_emitter_texture(
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/particle_tests.rs"]
+#[path = "../../../tests/unit/particle_tests.rs"]
 mod tests;
