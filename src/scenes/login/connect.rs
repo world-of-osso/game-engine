@@ -228,13 +228,7 @@ fn click_login_frame(
         server_hostname,
         commands,
     } = ctx;
-    recompute_layouts(&mut ui.registry);
-    let frame_id = ui
-        .registry
-        .get_by_name(frame_name)
-        .ok_or_else(|| format!("unknown login frame '{frame_name}'"))?;
-    let action = ui.registry.click_frame(frame_id);
-    focus.0 = ui.registry.focused_frame;
+    let (frame_id, action) = resolve_clicked_login_frame(ui, focus, frame_name)?;
     dispatch_click(
         LoginAutomationContext {
             ui,
@@ -252,6 +246,21 @@ fn click_login_frame(
         frame_name,
         frame_id,
     )
+}
+
+fn resolve_clicked_login_frame(
+    ui: &mut UiState,
+    focus: &mut LoginFocus,
+    frame_name: &str,
+) -> Result<(u64, Option<String>), String> {
+    recompute_layouts(&mut ui.registry);
+    let frame_id = ui
+        .registry
+        .get_by_name(frame_name)
+        .ok_or_else(|| format!("unknown login frame '{frame_name}'"))?;
+    let action = ui.registry.click_frame(frame_id);
+    focus.0 = ui.registry.focused_frame;
+    Ok((frame_id, action))
 }
 
 fn dispatch_click(
