@@ -53,7 +53,6 @@ mod game_state;
 mod ground;
 mod health_bar;
 mod inworld_scene_tree;
-mod inworld_selection_debug_screen;
 mod light_lookup;
 mod m2_effect_material;
 mod m2_scene;
@@ -74,7 +73,6 @@ mod process_limits;
 mod scene_setup;
 mod scenes;
 mod screen_auto_login;
-mod selection_debug_screen;
 mod sky;
 mod sky_lightdata;
 mod sky_material;
@@ -634,8 +632,8 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::loading::LoadingScreenPlugin,
         scenes::char_select::CharSelectPlugin,
         char_select_scene::CharSelectScenePlugin,
-        selection_debug_screen::SelectionDebugScreenPlugin,
-        inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin,
+        scenes::selection_debug::SelectionDebugScreenPlugin,
+        scenes::selection_debug::InWorldSelectionDebugScreenPlugin,
         scenes::char_create::CharCreatePlugin,
         scenes::char_create::CharCreateScenePlugin,
         campsite_popup_screen::CampsitePopupScreenPlugin,
@@ -674,9 +672,9 @@ fn run_headless_ui_dump_app(initial_state: Option<game_state::GameState>) {
             app.init_resource::<networking::AuthUiFeedback>();
             app.add_plugins(scenes::login::LoginScreenPlugin);
         } else if matches!(state, game_state::GameState::SelectionDebug) {
-            app.add_plugins(selection_debug_screen::SelectionDebugScreenPlugin);
+            app.add_plugins(scenes::selection_debug::SelectionDebugScreenPlugin);
         } else if matches!(state, game_state::GameState::InWorldSelectionDebug) {
-            app.add_plugins(inworld_selection_debug_screen::InWorldSelectionDebugScreenPlugin);
+            app.add_plugins(scenes::selection_debug::InWorldSelectionDebugScreenPlugin);
         }
     }
     app.add_systems(PostStartup, dump_systems::headless_dump_ui_tree_immediate);

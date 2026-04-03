@@ -11,6 +11,10 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game_state::GameState;
 use crate::scenes::char_select::input::{cursor_pos, find_clicked_action};
 
+pub mod inworld;
+
+pub use inworld::InWorldSelectionDebugScreenPlugin;
+
 #[derive(Debug, Clone, Resource)]
 struct SelectionDebugModel {
     entries: Vec<SelectionDebugEntry>,
