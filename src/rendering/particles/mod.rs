@@ -1144,46 +1144,103 @@ fn build_effect_asset_with_mode(
     spawn_source: ParticleSpawnSource,
     child_emitters: &[M2ParticleEmitter],
 ) -> EffectAsset {
-    let m = build_expr_modifiers(em, model_scale);
+    let ExprModifiers {
+        init,
+        gravity,
+        drag,
+        flipbook_sprite_index_init,
+        flipbook_sprite_index_update,
+        texture,
+        twinkle,
+        size_variation,
+        alpha_mode,
+        orient_rotation,
+        module,
+    } = build_expr_modifiers(em, model_scale);
+    let setup = build_effect_runtime_setup(
+        em,
+        particle_density_multiplier,
+        spawn_mode,
+        spawn_source,
+        child_emitters,
+    );
+    let effect = assemble_effect(
+        em,
+        module,
+        setup.spawner,
+        setup.max_particles,
+        alpha_mode,
+        init,
+        gravity,
+        orient_rotation,
+        model_scale,
+        spawn_source,
+        setup.child_event_counts,
+    );
+    apply_effect_runtime_modifiers(
+        effect,
+        em,
+        drag,
+        flipbook_sprite_index_init,
+        flipbook_sprite_index_update,
+        texture,
+        twinkle,
+        size_variation,
+    )
+}
+
+struct EffectRuntimeSetup {
+    spawner: SpawnerSettings,
+    max_particles: u32,
+    child_event_counts: Vec<u32>,
+}
+
+fn build_effect_runtime_setup(
+    em: &M2ParticleEmitter,
+    particle_density_multiplier: f32,
+    spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+    child_emitters: &[M2ParticleEmitter],
+) -> EffectRuntimeSetup {
     let emission_rate = scaled_emission_rate(em, particle_density_multiplier);
     let (_, max_lifetime) = lifetime_range(em);
     let burst_count = emission_rate.max(0.0);
-    let child_event_counts: Vec<u32> = child_emitters
-        .iter()
-        .map(|child| child_emitter_event_count(child, particle_density_multiplier))
-        .collect();
-    let max_particles = max_particles(emission_rate, max_lifetime, burst_count, spawn_source);
-    let spawner = build_spawner_settings(emission_rate, spawn_mode, spawn_source);
+    EffectRuntimeSetup {
+        spawner: build_spawner_settings(emission_rate, spawn_mode, spawn_source),
+        max_particles: max_particles(emission_rate, max_lifetime, burst_count, spawn_source),
+        child_event_counts: child_emitters
+            .iter()
+            .map(|child| child_emitter_event_count(child, particle_density_multiplier))
+            .collect(),
+    }
+}
 
-    let mut effect = assemble_effect(
-        em,
-        m.module,
-        spawner,
-        max_particles,
-        m.alpha_mode,
-        m.init,
-        m.gravity,
-        m.orient_rotation,
-        model_scale,
-        spawn_source,
-        child_event_counts,
-    );
-    if let Some(sprite_idx) = m.flipbook_sprite_index_init {
+fn apply_effect_runtime_modifiers(
+    mut effect: EffectAsset,
+    em: &M2ParticleEmitter,
+    drag: Option<LinearDragModifier>,
+    flipbook_sprite_index_init: Option<SetAttributeModifier>,
+    flipbook_sprite_index_update: Option<SetAttributeModifier>,
+    texture: Option<ParticleTextureModifier>,
+    twinkle: Option<TwinkleSizeModifier>,
+    size_variation: Option<SizeVariationModifier>,
+) -> EffectAsset {
+    if let Some(sprite_idx) = flipbook_sprite_index_init {
         effect = effect.init(sprite_idx);
     }
-    if let Some(drag) = m.drag {
+    if let Some(drag) = drag {
         effect = effect.update(drag);
     }
-    if let Some(sprite_idx) = m.flipbook_sprite_index_update {
+    if let Some(sprite_idx) = flipbook_sprite_index_update {
         effect = effect.update(sprite_idx);
     }
-    if let Some(tex) = m.texture {
+    if let Some(tex) = texture {
         effect = effect.render(tex);
     }
-    if let Some(twinkle) = m.twinkle {
+    if let Some(twinkle) = twinkle {
         effect = effect.render(twinkle);
     }
-    if let Some(size_variation) = m.size_variation {
+    if let Some(size_variation) = size_variation {
         effect = effect.render(size_variation);
     }
     if let Some(offset_by_spin) = build_offset_by_spin_modifier(em) {
