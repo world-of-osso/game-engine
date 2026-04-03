@@ -384,35 +384,48 @@ fn player_movement(
     } else {
         WALK_SPEED
     };
-    apply_horizontal_movement(
-        &mut transform,
-        &mut movement,
-        &mut physics,
-        &keys,
-        &mouse_buttons,
-        &bindings,
+    apply_horizontal_movement(HorizontalMovementContext {
+        transform: &mut transform,
+        movement: &mut movement,
+        physics: &mut physics,
+        keys: &keys,
+        mouse_buttons: &mouse_buttons,
+        bindings: &bindings,
         direction,
         speed,
-        time.delta_secs(),
-        terrain.as_deref(),
-    );
+        dt: time.delta_secs(),
+        terrain: terrain.as_deref(),
+    });
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
 }
 
-#[allow(clippy::too_many_arguments)]
-fn apply_horizontal_movement(
-    transform: &mut Transform,
-    movement: &mut MovementState,
-    physics: &mut CharacterPhysics,
-    keys: &ButtonInput<KeyCode>,
-    mouse_buttons: &ButtonInput<MouseButton>,
-    bindings: &InputBindings,
+struct HorizontalMovementContext<'a> {
+    transform: &'a mut Transform,
+    movement: &'a mut MovementState,
+    physics: &'a mut CharacterPhysics,
+    keys: &'a ButtonInput<KeyCode>,
+    mouse_buttons: &'a ButtonInput<MouseButton>,
+    bindings: &'a InputBindings,
     direction: Vec3,
     speed: f32,
     dt: f32,
-    terrain: Option<&TerrainHeightmap>,
-) {
+    terrain: Option<&'a TerrainHeightmap>,
+}
+
+fn apply_horizontal_movement(ctx: HorizontalMovementContext<'_>) {
+    let HorizontalMovementContext {
+        transform,
+        movement,
+        physics,
+        keys,
+        mouse_buttons,
+        bindings,
+        direction,
+        speed,
+        dt,
+        terrain,
+    } = ctx;
     if direction.length_squared() > 0.0 {
         let dir = direction.normalize();
         let proposed = transform.translation + dir * speed * dt;
@@ -722,18 +735,18 @@ mod tests {
         let mouse_buttons = ButtonInput::<MouseButton>::default();
         let bindings = InputBindings::default();
 
-        apply_horizontal_movement(
-            &mut transform,
-            &mut movement,
-            &mut physics,
-            &keys,
-            &mouse_buttons,
-            &bindings,
-            Vec3::ZERO,
-            0.0,
-            0.0,
-            Some(&heightmap),
-        );
+        apply_horizontal_movement(HorizontalMovementContext {
+            transform: &mut transform,
+            movement: &mut movement,
+            physics: &mut physics,
+            keys: &keys,
+            mouse_buttons: &mouse_buttons,
+            bindings: &bindings,
+            direction: Vec3::ZERO,
+            speed: 0.0,
+            dt: 0.0,
+            terrain: Some(&heightmap),
+        });
 
         assert!(
             movement.jumping,
