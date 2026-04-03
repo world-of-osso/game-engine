@@ -539,32 +539,64 @@ fn configure_server_resources(
     initial_state: Option<game_state::GameState>,
     startup_login: Option<(String, String)>,
 ) {
+    add_optional_sound_plugin(app, enable_sound);
+    let server_arg = resolve_server_arg(server_arg, initial_state);
+    insert_server_resources(app, server_arg);
+    insert_initial_state_resource(app, initial_state);
+    insert_startup_login_resources(app, startup_login);
+}
+
+fn add_optional_sound_plugin(app: &mut App, enable_sound: bool) {
     if enable_sound {
         app.add_plugins(sound::SoundPlugin);
     }
-    let server_arg = server_arg.or_else(|| {
-        if initial_state == Some(game_state::GameState::Connecting) {
-            match cli_args::default_server_arg() {
-                Ok(server) => Some(server),
-                Err(err) => {
-                    eprintln!("{err}");
-                    std::process::exit(1);
-                }
-            }
-        } else {
-            None
-        }
-    });
-    if let Some(server) = server_arg {
-        app.insert_resource(networking::ServerAddr(server.addr));
-        app.insert_resource(networking::ServerHostname(server.hostname));
-        if server.dev {
-            app.insert_resource(scenes::login::DevServer);
+}
+
+fn resolve_server_arg(
+    server_arg: Option<cli_args::ServerArg>,
+    initial_state: Option<game_state::GameState>,
+) -> Option<cli_args::ServerArg> {
+    server_arg.or_else(|| default_connecting_server_arg(initial_state))
+}
+
+fn default_connecting_server_arg(
+    initial_state: Option<game_state::GameState>,
+) -> Option<cli_args::ServerArg> {
+    if initial_state == Some(game_state::GameState::Connecting) {
+        Some(load_default_server_arg())
+    } else {
+        None
+    }
+}
+
+fn load_default_server_arg() -> cli_args::ServerArg {
+    match cli_args::default_server_arg() {
+        Ok(server) => server,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
         }
     }
+}
+
+fn insert_server_resources(app: &mut App, server_arg: Option<cli_args::ServerArg>) {
+    let Some(server) = server_arg else {
+        return;
+    };
+    app.insert_resource(networking::ServerAddr(server.addr));
+    app.insert_resource(networking::ServerHostname(server.hostname));
+    if server.dev {
+        app.insert_resource(scenes::login::DevServer);
+    }
+}
+
+fn insert_initial_state_resource(app: &mut App, initial_state: Option<game_state::GameState>) {
     if let Some(state) = initial_state {
         app.insert_resource(game_state::InitialGameState(state));
     }
+}
+
+fn insert_startup_login_resources(app: &mut App, startup_login: Option<(String, String)>) {
     if let Some((username, password)) = startup_login {
         app.insert_resource(networking::LoginUsername(username));
         app.insert_resource(networking::LoginPassword(password));
