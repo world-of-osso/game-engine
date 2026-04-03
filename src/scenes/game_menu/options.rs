@@ -347,63 +347,70 @@ pub fn parse_toggle_action(action: &str) -> Option<&str> {
 
 pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
     let step = delta as f32;
+    if apply_graphics_step(key, step, &mut model.draft_graphics) {
+        return;
+    }
+    if apply_sound_step(key, step, &mut model.draft_sound) {
+        return;
+    }
+    apply_camera_step(key, step, &mut model.draft_camera);
+}
+
+fn apply_graphics_step(key: &str, step: f32, graphics: &mut GraphicsDraft) -> bool {
     match key {
         "particle_density" => {
-            model.draft_graphics.particle_density = clamp_step(
-                model.draft_graphics.particle_density,
-                5.0 * step,
-                10.0,
-                100.0,
-            )
-            .round()
+            graphics.particle_density =
+                clamp_step(graphics.particle_density, 5.0 * step, 10.0, 100.0).round();
+            true
         }
         "render_scale" => {
-            model.draft_graphics.render_scale =
-                clamp_step(model.draft_graphics.render_scale, 0.05 * step, 0.5, 1.0)
+            graphics.render_scale = clamp_step(graphics.render_scale, 0.05 * step, 0.5, 1.0);
+            true
         }
         "bloom_intensity" => {
-            model.draft_graphics.bloom_intensity =
-                clamp_step(model.draft_graphics.bloom_intensity, 0.05 * step, 0.0, 1.0)
+            graphics.bloom_intensity = clamp_step(graphics.bloom_intensity, 0.05 * step, 0.0, 1.0);
+            true
         }
+        _ => false,
+    }
+}
+
+fn apply_sound_step(key: &str, step: f32, sound: &mut SoundDraft) -> bool {
+    match key {
         "master_volume" => {
-            model.draft_sound.master_volume =
-                clamp_step(model.draft_sound.master_volume, 0.05 * step, 0.0, 1.0)
+            sound.master_volume = clamp_step(sound.master_volume, 0.05 * step, 0.0, 1.0);
+            true
         }
         "music_volume" => {
-            model.draft_sound.music_volume =
-                clamp_step(model.draft_sound.music_volume, 0.05 * step, 0.0, 1.0)
+            sound.music_volume = clamp_step(sound.music_volume, 0.05 * step, 0.0, 1.0);
+            true
         }
         "ambient_volume" => {
-            model.draft_sound.ambient_volume =
-                clamp_step(model.draft_sound.ambient_volume, 0.05 * step, 0.0, 1.0)
+            sound.ambient_volume = clamp_step(sound.ambient_volume, 0.05 * step, 0.0, 1.0);
+            true
         }
+        _ => false,
+    }
+}
+
+fn apply_camera_step(key: &str, step: f32, camera: &mut CameraDraft) {
+    match key {
         "look_sensitivity" => {
-            model.draft_camera.look_sensitivity = clamp_step(
-                model.draft_camera.look_sensitivity,
-                0.001 * step,
-                0.002,
-                0.03,
-            )
+            camera.look_sensitivity = clamp_step(camera.look_sensitivity, 0.001 * step, 0.002, 0.03)
         }
-        "zoom_speed" => {
-            model.draft_camera.zoom_speed =
-                clamp_step(model.draft_camera.zoom_speed, 0.5 * step, 2.0, 20.0)
-        }
+        "zoom_speed" => camera.zoom_speed = clamp_step(camera.zoom_speed, 0.5 * step, 2.0, 20.0),
         "follow_speed" => {
-            model.draft_camera.follow_speed =
-                clamp_step(model.draft_camera.follow_speed, 0.5 * step, 2.0, 20.0)
+            camera.follow_speed = clamp_step(camera.follow_speed, 0.5 * step, 2.0, 20.0)
         }
         "min_distance" => {
-            model.draft_camera.min_distance =
-                clamp_step(model.draft_camera.min_distance, 0.5 * step, 1.0, 10.0)
+            camera.min_distance = clamp_step(camera.min_distance, 0.5 * step, 1.0, 10.0)
         }
         "max_distance" => {
-            model.draft_camera.max_distance =
-                clamp_step(model.draft_camera.max_distance, 1.0 * step, 10.0, 60.0)
+            camera.max_distance = clamp_step(camera.max_distance, 1.0 * step, 10.0, 60.0)
         }
-        _ => {}
+        _ => return,
     }
-    normalize_camera_limits(&mut model.draft_camera);
+    normalize_camera_limits(camera);
 }
 
 pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
