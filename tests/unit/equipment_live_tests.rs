@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use bevy::ecs::system::SystemState;
 use bevy::mesh::VertexAttributeValues;
@@ -148,8 +149,7 @@ fn setup_live_helm_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'st
     if !character_path.exists() || !helm_path.exists() {
         return None;
     }
-    let mut app = App::new();
-    configure_live_test_app(&mut app);
+    let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
     Some((spawned, helm_path, app))
 }
@@ -162,8 +162,7 @@ fn setup_live_chest_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'s
     if !character_path.exists() || !chest_path.exists() {
         return None;
     }
-    let mut app = App::new();
-    configure_live_test_app(&mut app);
+    let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
     Some((spawned, chest_path, app))
 }
@@ -176,18 +175,13 @@ fn setup_live_feet_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'st
     if !character_path.exists() || !feet_path.exists() {
         return None;
     }
-    let mut app = App::new();
-    configure_live_test_app(&mut app);
+    let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
     Some((spawned, feet_path, app))
 }
 
 fn configure_live_test_app(app: &mut App) {
-    app.add_plugins((
-        MinimalPlugins,
-        bevy::state::app::StatesPlugin,
-        TransformPlugin,
-    ));
+    app.add_plugins((bevy::state::app::StatesPlugin, TransformPlugin));
     app.insert_state(GameState::CharSelect);
     app.add_plugins(AnimationPlugin);
     app.insert_resource(Assets::<Mesh>::default());
@@ -200,6 +194,57 @@ fn configure_live_test_app(app: &mut App) {
         Update,
         (attach_rendered_equipment_state, sync_equipment).chain(),
     );
+}
+
+#[test]
+#[ignore = "benchmark-style integration test; run explicitly"]
+fn bench_m2_spawn_pipeline_headless() {
+    let cases = [
+        ("torch", Path::new("data/models/145513.m2"), 10_usize),
+        (
+            "humanmale_hd",
+            Path::new("data/models/humanmale_hd.m2"),
+            5_usize,
+        ),
+    ];
+    for (label, model_path, iterations) in cases {
+        if !model_path.exists() {
+            println!("Skipping {label}: missing {}", model_path.display());
+            continue;
+        }
+        let (elapsed, entities) = measure_headless_m2_spawn_pipeline(model_path, iterations);
+        let average = elapsed.div_f64(iterations as f64);
+        println!(
+            "m2_spawn_pipeline[{label}] iterations={iterations} total_ms={:.2} avg_ms={:.2} spawned_entities={entities}",
+            elapsed.as_secs_f64() * 1000.0,
+            average.as_secs_f64() * 1000.0,
+        );
+        assert!(entities > 0, "expected spawned entities for {label}");
+    }
+}
+
+fn measure_headless_m2_spawn_pipeline(model_path: &Path, iterations: usize) -> (Duration, usize) {
+    let mut final_entity_count = 0;
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
+        let spawned = spawn_live_character(&mut app, model_path);
+        final_entity_count = spawned_entity_count(app.world(), spawned.model_root);
+        assert!(final_entity_count > 0, "expected spawned model descendants");
+    }
+    (start.elapsed(), final_entity_count)
+}
+
+fn spawned_entity_count(world: &World, root: Entity) -> usize {
+    let mut count = 1;
+    let mut stack = vec![root];
+    while let Some(entity) = stack.pop() {
+        if let Some(children) = world.get::<Children>(entity) {
+            count += children.len();
+            stack.extend(children.iter());
+        }
+    }
+    count
 }
 
 fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::SpawnedAnimatedStaticM2 {
