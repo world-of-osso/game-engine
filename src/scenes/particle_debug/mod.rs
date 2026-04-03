@@ -1,6 +1,8 @@
 use std::f32::consts::PI;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::outfit_data::OutfitData;
@@ -27,32 +29,43 @@ impl Plugin for ParticleDebugScenePlugin {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    outfit_data: Res<OutfitData>,
-) {
+#[derive(SystemParam)]
+struct ParticleDebugSceneParams<'w, 's> {
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    outfit_data: Res<'w, OutfitData>,
+    marker: PhantomData<&'s ()>,
+}
+
+fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_emitter_overlay(
         &mut commands,
-        &resolved_skin_fdids(Path::new(TORCH_M2), &creature_display_map, &outfit_data),
+        &resolved_skin_fdids(
+            Path::new(TORCH_M2),
+            &params.creature_display_map,
+            &params.outfit_data,
+        ),
     );
     spawn_torch(
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-        &creature_display_map,
-        &outfit_data,
+        ParticleDebugTorchContext {
+            assets: crate::m2_spawn::SpawnAssets {
+                meshes: &mut params.meshes,
+                materials: &mut params.materials,
+                effect_materials: &mut params.effect_materials,
+                skybox_materials: None,
+                images: &mut params.images,
+                inverse_bindposes: &mut params.inv_bp,
+            },
+            creature_display_map: &params.creature_display_map,
+            outfit_data: &params.outfit_data,
+        },
     );
 }
 
@@ -88,17 +101,18 @@ fn spawn_lighting(commands: &mut Commands) {
     ));
 }
 
-#[allow(clippy::too_many_arguments)]
-fn spawn_torch(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    creature_display_map: &creature_display::CreatureDisplayMap,
-    outfit_data: &OutfitData,
-) {
+struct ParticleDebugTorchContext<'a> {
+    assets: crate::m2_spawn::SpawnAssets<'a>,
+    creature_display_map: &'a creature_display::CreatureDisplayMap,
+    outfit_data: &'a OutfitData,
+}
+
+fn spawn_torch(commands: &mut Commands, ctx: ParticleDebugTorchContext<'_>) {
+    let ParticleDebugTorchContext {
+        assets,
+        creature_display_map,
+        outfit_data,
+    } = ctx;
     let path = PathBuf::from(TORCH_M2);
     if !path.exists() {
         eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
@@ -107,14 +121,7 @@ fn spawn_torch(
     let skin_fdids = resolved_skin_fdids(&path, creature_display_map, outfit_data);
     let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        assets: crate::m2_spawn::SpawnAssets {
-            meshes,
-            materials,
-            effect_materials,
-            skybox_materials: None,
-            images,
-            inverse_bindposes: inv_bp,
-        },
+        assets,
         creature_display_map,
     };
     m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
