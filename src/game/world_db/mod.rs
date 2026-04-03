@@ -266,18 +266,30 @@ fn insert_starter_outfit_rows(
             .get(sex_col)
             .and_then(|v| v.parse::<u8>().ok())
             .unwrap_or(0);
-        for (item_order, &column) in item_cols.iter().enumerate() {
-            let item_id = fields
-                .get(column)
-                .and_then(|v| v.parse::<u32>().ok())
-                .unwrap_or(0);
-            if item_id == 0 || item_id == 6948 {
-                continue;
-            }
-            insert
-                .execute((race_id, class_id, sex_id, item_order as u32, item_id))
-                .map_err(|err| format!("insert starter_outfits row: {err}"))?;
+        insert_starter_outfit_items(insert, &fields, item_cols, race_id, class_id, sex_id)?;
+    }
+    Ok(())
+}
+
+fn insert_starter_outfit_items(
+    insert: &mut Statement<'_>,
+    fields: &[String],
+    item_cols: &[usize],
+    race_id: u8,
+    class_id: u8,
+    sex_id: u8,
+) -> Result<(), String> {
+    for (item_order, &column) in item_cols.iter().enumerate() {
+        let item_id = fields
+            .get(column)
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        if item_id == 0 || item_id == 6948 {
+            continue;
         }
+        insert
+            .execute((race_id, class_id, sex_id, item_order as u32, item_id))
+            .map_err(|err| format!("insert starter_outfits row: {err}"))?;
     }
     Ok(())
 }
