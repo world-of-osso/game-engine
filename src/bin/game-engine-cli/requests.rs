@@ -195,28 +195,29 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     Ok(request)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn auction_browse_request(
-    text: String,
-    page: u32,
-    page_size: u32,
-    min_level: Option<u16>,
-    max_level: Option<u16>,
-    quality: Option<u8>,
-    sort: String,
-    dir: String,
-) -> Result<Request, String> {
+pub struct AuctionBrowseRequestArgs {
+    pub text: String,
+    pub page: u32,
+    pub page_size: u32,
+    pub min_level: Option<u16>,
+    pub max_level: Option<u16>,
+    pub quality: Option<u8>,
+    pub sort: String,
+    pub dir: String,
+}
+
+pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request, String> {
     Ok(Request::AuctionBrowse {
         query: AuctionSearchQuery {
-            text,
-            page,
-            page_size,
-            min_level,
-            max_level,
-            quality,
+            text: args.text,
+            page: args.page,
+            page_size: args.page_size,
+            min_level: args.min_level,
+            max_level: args.max_level,
+            quality: args.quality,
             usable_only: false,
-            sort_field: parse_sort_field(&sort)?,
-            sort_dir: parse_sort_dir(&dir)?,
+            sort_field: parse_sort_field(&args.sort)?,
+            sort_dir: parse_sort_dir(&args.dir)?,
         },
     })
 }
@@ -252,9 +253,16 @@ pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
             quality,
             sort,
             dir,
-        } => auction_browse_request(
-            text, page, page_size, min_level, max_level, quality, sort, dir,
-        ),
+        } => auction_browse_request(AuctionBrowseRequestArgs {
+            text,
+            page,
+            page_size,
+            min_level,
+            max_level,
+            quality,
+            sort,
+            dir,
+        }),
         AuctionCmd::Owned => Ok(Request::AuctionOwned),
         AuctionCmd::Bids => Ok(Request::AuctionBids),
         AuctionCmd::Inventory => Ok(Request::AuctionInventory),
