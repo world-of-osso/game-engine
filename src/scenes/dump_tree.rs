@@ -140,11 +140,13 @@ fn format_player_props(label: &str, props: &NodeProps, pos: &str, displayed: &st
         label,
         name,
         *is_local,
-        model_path,
-        skin_path,
-        *display_scale,
-        pos,
-        displayed,
+        ModelDisplayInfo {
+            model_path,
+            skin_path,
+            display_scale: *display_scale,
+            pos,
+            displayed,
+        },
     )
 }
 
@@ -163,11 +165,13 @@ fn format_npc_props(label: &str, props: &NodeProps, pos: &str, displayed: &str) 
         label,
         name,
         *display_id,
-        model_path,
-        skin_path,
-        *display_scale,
-        pos,
-        displayed,
+        ModelDisplayInfo {
+            model_path,
+            skin_path,
+            display_scale: *display_scale,
+            pos,
+            displayed,
+        },
     )
 }
 
@@ -286,38 +290,42 @@ fn format_equipment_slot(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+struct ModelDisplayInfo<'a> {
+    model_path: &'a Option<String>,
+    skin_path: &'a Option<String>,
+    display_scale: Option<f32>,
+    pos: &'a str,
+    displayed: &'a str,
+}
+
 fn format_player_node(
     label: &str,
     name: &str,
     is_local: bool,
-    model_path: &Option<String>,
-    skin_path: &Option<String>,
-    display_scale: Option<f32>,
-    pos: &str,
-    displayed: &str,
+    info: ModelDisplayInfo<'_>,
 ) -> String {
     let tag = if is_local { " (local)" } else { "" };
-    let assets = format_model_assets(model_path, skin_path, display_scale);
-    format!("{label} \"{name}\"{tag}{assets}{pos}{displayed}")
+    let assets = format_model_assets(info.model_path, info.skin_path, info.display_scale);
+    format!(
+        "{label} \"{name}\"{tag}{assets}{}{}",
+        info.pos, info.displayed
+    )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn format_npc_node(
     label: &str,
     name: &str,
     display_id: Option<u32>,
-    model_path: &Option<String>,
-    skin_path: &Option<String>,
-    display_scale: Option<f32>,
-    pos: &str,
-    displayed: &str,
+    info: ModelDisplayInfo<'_>,
 ) -> String {
     let disp = display_id
         .map(|d| format!(" display={d}"))
         .unwrap_or_default();
-    let assets = format_model_assets(model_path, skin_path, display_scale);
-    format!("{label} \"{name}\"{disp}{assets}{pos}{displayed}")
+    let assets = format_model_assets(info.model_path, info.skin_path, info.display_scale);
+    format!(
+        "{label} \"{name}\"{disp}{assets}{}{}",
+        info.pos, info.displayed
+    )
 }
 
 fn compute_displayed_nodes(
@@ -334,8 +342,7 @@ fn compute_displayed_nodes(
     let mut displayed = HashMap::new();
     collect_displayed_nodes(
         &tree.root,
-        camera,
-        camera_transform,
+        (camera, camera_transform),
         global_transforms,
         parent_query,
         aabb_query,
@@ -345,11 +352,9 @@ fn compute_displayed_nodes(
     displayed
 }
 
-#[allow(clippy::too_many_arguments)]
 fn collect_displayed_nodes(
     node: &SceneNode,
-    camera: &Camera,
-    camera_transform: &GlobalTransform,
+    camera: (&Camera, &GlobalTransform),
     global_transforms: &Query<&GlobalTransform>,
     parent_query: &Query<&ChildOf>,
     aabb_query: &Query<(Entity, &Aabb, &GlobalTransform)>,
@@ -364,8 +369,8 @@ fn collect_displayed_nodes(
         } else {
             node_is_displayed(
                 entity,
-                camera,
-                camera_transform,
+                camera.0,
+                camera.1,
                 global_transforms,
                 parent_query,
                 aabb_query,
@@ -378,7 +383,6 @@ fn collect_displayed_nodes(
         collect_displayed_nodes(
             child,
             camera,
-            camera_transform,
             global_transforms,
             parent_query,
             aabb_query,
