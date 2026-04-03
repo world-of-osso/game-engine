@@ -5,6 +5,19 @@
 //!
 //! The parsed fields live in the first `0x178` bytes of the 272-era particle
 //! emitter struct, but local 272/274 assets use the larger `0x1EC` stride.
+//!
+//! Important: the local retail 272/274 particle emitters we actually parse do
+//! not match the alternate Legion/BfA early-header layout modeled by some
+//! third-party references. The real asset bytes still use the legacy header
+//! offsets below:
+//! - geometry/recursion filename arrays at `0x18..0x28`
+//! - blend/type/head-tail bytes at `0x28..0x2B`
+//! - tile rows/cols at `0x30..0x34`
+//!
+//! The suffix after `0x178` is present on 272/274 assets, but until we have a
+//! byte-accurate local layout for those newer fields we keep the early header
+//! on the proven legacy offsets and treat any modern multi-texture parsing as a
+//! separate follow-up.
 
 #[path = "../m2_particle_defaults.rs"]
 mod defaults;

@@ -91,6 +91,44 @@ fn parse_274_particle_emitters_use_full_stride() {
 }
 
 #[test]
+fn parse_274_particle_emitters_keep_legacy_header_offsets() {
+    let path = std::path::Path::new("data/models/5152423.m2");
+    if !path.exists() {
+        return;
+    }
+    let data = std::fs::read(path).unwrap();
+    let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
+    let md20 = &data[8..8 + md20_size];
+    let emitters_offset = u32::from_le_bytes(md20[0x12C..0x130].try_into().unwrap()) as usize;
+    let emitter = &md20[emitters_offset..emitters_offset + 0x1EC];
+
+    assert_eq!(
+        u32::from_le_bytes(emitter[0x18..0x1C].try_into().unwrap()),
+        0,
+        "274 emitter keeps legacy geometry filename count at 0x18"
+    );
+    assert_eq!(
+        u32::from_le_bytes(emitter[0x20..0x24].try_into().unwrap()),
+        0,
+        "274 emitter keeps legacy recursion filename count at 0x20"
+    );
+    assert_eq!(emitter[0x28], 2, "blend type still lives at 0x28");
+    assert_eq!(emitter[0x29], 1, "emitter type still lives at 0x29");
+    assert_eq!(emitter[0x2A], 0, "particle type still lives at 0x2A");
+    assert_eq!(emitter[0x2B], 0, "head/tail still lives at 0x2B");
+    assert_eq!(
+        u16::from_le_bytes(emitter[0x30..0x32].try_into().unwrap()),
+        2,
+        "tile rows still live at 0x30"
+    );
+    assert_eq!(
+        u16::from_le_bytes(emitter[0x32..0x34].try_into().unwrap()),
+        4,
+        "tile cols still live at 0x32"
+    );
+}
+
+#[test]
 fn opacity_values_use_signed_fixed16() {
     let mut md20 = vec![0u8; 8];
     let emitter = [
