@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use bevy::camera::primitives::Frustum;
+use bevy::ecs::query::QueryFilter;
 use bevy::prelude::*;
 
 use crate::game_state_enum::GameState;
@@ -93,42 +94,65 @@ fn distance_cull_system(
     let Ok(cam) = camera_q.single() else { return };
     let cam_pos = cam.translation;
 
-    if cam_pos.distance_squared(last_pos.0) < config.update_threshold_sq {
+    if should_skip_cull_update(cam_pos, &mut last_pos, &config) {
         return;
     }
+
+    update_chunk_visibility(cam_pos, config.chunk_distance_sq, &mut chunks);
+    update_transform_visibility(cam_pos, config.doodad_distance_sq, &mut doodads);
+    update_transform_visibility(cam_pos, config.wmo_distance_sq, &mut wmos);
+}
+
+fn should_skip_cull_update(
+    cam_pos: Vec3,
+    last_pos: &mut LastCullPosition,
+    config: &CullingConfig,
+) -> bool {
+    if cam_pos.distance_squared(last_pos.0) < config.update_threshold_sq {
+        return true;
+    }
     last_pos.0 = cam_pos;
+    false
+}
 
-    for (chunk, mut vis) in &mut chunks {
-        let desired = if cam_pos.distance_squared(chunk.world_center) < config.chunk_distance_sq {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-        if *vis != desired {
-            *vis = desired;
-        }
+fn update_chunk_visibility(
+    cam_pos: Vec3,
+    max_distance_sq: f32,
+    chunks: &mut Query<(&TerrainChunk, &mut Visibility)>,
+) {
+    for (chunk, mut vis) in chunks {
+        apply_distance_visibility(
+            cam_pos.distance_squared(chunk.world_center),
+            max_distance_sq,
+            &mut vis,
+        );
     }
+}
 
-    for (tf, mut vis) in &mut doodads {
-        let desired = if cam_pos.distance_squared(tf.translation) < config.doodad_distance_sq {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-        if *vis != desired {
-            *vis = desired;
-        }
+fn update_transform_visibility<F>(
+    cam_pos: Vec3,
+    max_distance_sq: f32,
+    query: &mut Query<(&Transform, &mut Visibility), F>,
+) where
+    F: QueryFilter,
+{
+    for (tf, mut vis) in query {
+        apply_distance_visibility(
+            cam_pos.distance_squared(tf.translation),
+            max_distance_sq,
+            &mut vis,
+        );
     }
+}
 
-    for (tf, mut vis) in &mut wmos {
-        let desired = if cam_pos.distance_squared(tf.translation) < config.wmo_distance_sq {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-        if *vis != desired {
-            *vis = desired;
-        }
+fn apply_distance_visibility(distance_sq: f32, max_distance_sq: f32, vis: &mut Visibility) {
+    let desired = if distance_sq < max_distance_sq {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+    if *vis != desired {
+        *vis = desired;
     }
 }
 
