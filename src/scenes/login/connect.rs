@@ -159,6 +159,32 @@ pub fn run_login_automation_action(
     ctx: LoginAutomationContext<'_, '_, '_>,
     action: &UiAutomationAction,
 ) -> Result<(), String> {
+    match action {
+        UiAutomationAction::ClickFrame(name) => click_login_frame(ctx, name),
+        UiAutomationAction::TypeText(text) => type_login_automation_text(ctx, text),
+        UiAutomationAction::PressKey(key) => press_login_automation_key(ctx, *key),
+        _ => Ok(()),
+    }
+}
+
+fn type_login_automation_text(
+    ctx: LoginAutomationContext<'_, '_, '_>,
+    text: &str,
+) -> Result<(), String> {
+    let LoginAutomationContext { ui, focus, .. } = ctx;
+    let fid = focus
+        .0
+        .ok_or("automation type requires a focused edit box")?;
+    for ch in text.chars() {
+        insert_char_into_editbox(&mut ui.registry, fid, &ch.to_string());
+    }
+    Ok(())
+}
+
+fn press_login_automation_key(
+    ctx: LoginAutomationContext<'_, '_, '_>,
+    key: bevy::input::keyboard::KeyCode,
+) -> Result<(), String> {
     let LoginAutomationContext {
         ui,
         login,
@@ -166,53 +192,24 @@ pub fn run_login_automation_action(
         next_state,
         status,
         login_mode,
-        auth_token,
         server_addr,
         server_hostname,
         commands,
+        ..
     } = ctx;
-    match action {
-        UiAutomationAction::ClickFrame(name) => click_login_frame(
-            LoginAutomationContext {
-                ui,
-                login,
-                focus,
-                next_state,
-                status,
-                login_mode,
-                auth_token,
-                server_addr,
-                server_hostname,
-                commands,
-            },
-            name,
-        ),
-        UiAutomationAction::TypeText(text) => {
-            let fid = focus
-                .0
-                .ok_or("automation type requires a focused edit box")?;
-            for ch in text.chars() {
-                insert_char_into_editbox(&mut ui.registry, fid, &ch.to_string());
-            }
-            Ok(())
-        }
-        UiAutomationAction::PressKey(key) => {
-            let fid = focus
-                .0
-                .ok_or("automation key press requires a focused frame")?;
-            let p = LoginKeyParams {
-                login,
-                status,
-                next_state,
-                mode: login_mode,
-                server_addr,
-                server_hostname,
-            };
-            handle_login_key(*key, fid, ui, p, commands);
-            Ok(())
-        }
-        _ => Ok(()),
-    }
+    let fid = focus
+        .0
+        .ok_or("automation key press requires a focused frame")?;
+    let p = LoginKeyParams {
+        login,
+        status,
+        next_state,
+        mode: login_mode,
+        server_addr,
+        server_hostname,
+    };
+    handle_login_key(key, fid, ui, p, commands);
+    Ok(())
 }
 
 fn click_login_frame(
