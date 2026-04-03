@@ -197,44 +197,64 @@ pub fn spawn_warband_supplemental_terrain(
 ) -> usize {
     let mut doodad_count = 0;
     for (tile_y, tile_x) in warband::supplemental_terrain_tile_coords(scene) {
-        let adt_path = std::path::PathBuf::from(format!(
-            "data/terrain/{}_{}_{}.adt",
-            scene.map_name(),
-            tile_y,
-            tile_x
-        ));
-        let mut terrain_assets = terrain::TerrainOnlySpawnAssets {
-            commands: ctx.commands,
-            meshes: ctx.meshes,
-            terrain_materials: ctx.terrain_materials,
-            water_materials: ctx.water_materials,
-            images: ctx.images,
-        };
-        let Ok(result) =
-            terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, &adt_path)
-        else {
+        let adt_path = supplemental_terrain_path(scene, tile_y, tile_x);
+        let Some(result) = spawn_warband_supplemental_tile(ctx, &adt_path) else {
             continue;
         };
-        ctx.commands
-            .entity(root_entity)
-            .add_child(result.root_entity);
-        if let Some(obj_data) = terrain_objects::load_obj0(&adt_path) {
-            doodad_count += terrain_objects::spawn_waterfall_backdrop_doodads(
-                ctx.commands,
-                ctx.meshes,
-                ctx.materials,
-                ctx.effect_materials,
-                ctx.images,
-                ctx.inv_bp,
-                Some(ctx.heightmap),
-                result.tile_y,
-                result.tile_x,
-                &obj_data,
-            )
-            .len();
-        }
+        attach_warband_terrain_root(ctx.commands, root_entity, result.root_entity);
+        doodad_count += spawn_warband_supplemental_doodads(ctx, &adt_path, &result);
     }
     doodad_count
+}
+
+fn supplemental_terrain_path(
+    scene: &warband::WarbandSceneEntry,
+    tile_y: u32,
+    tile_x: u32,
+) -> std::path::PathBuf {
+    std::path::PathBuf::from(format!(
+        "data/terrain/{}_{}_{}.adt",
+        scene.map_name(),
+        tile_y,
+        tile_x
+    ))
+}
+
+fn spawn_warband_supplemental_tile(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    adt_path: &std::path::Path,
+) -> Option<terrain::AdtSpawnResult> {
+    let mut terrain_assets = terrain::TerrainOnlySpawnAssets {
+        commands: ctx.commands,
+        meshes: ctx.meshes,
+        terrain_materials: ctx.terrain_materials,
+        water_materials: ctx.water_materials,
+        images: ctx.images,
+    };
+    terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, adt_path).ok()
+}
+
+fn spawn_warband_supplemental_doodads(
+    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
+    adt_path: &std::path::Path,
+    result: &terrain::AdtSpawnResult,
+) -> usize {
+    let Some(obj_data) = terrain_objects::load_obj0(adt_path) else {
+        return 0;
+    };
+    terrain_objects::spawn_waterfall_backdrop_doodads(
+        ctx.commands,
+        ctx.meshes,
+        ctx.materials,
+        ctx.effect_materials,
+        ctx.images,
+        ctx.inv_bp,
+        Some(ctx.heightmap),
+        result.tile_y,
+        result.tile_x,
+        &obj_data,
+    )
+    .len()
 }
 
 /// Build the background scene node (terrain or fallback ground).
