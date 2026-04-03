@@ -3,14 +3,15 @@ use bevy_hanabi::{AlphaMode, Attribute, ExprWriter};
 
 use super::visuals::has_authored_size_variation;
 use super::{
-    FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_SIZE_VARIATION_2D,
+    FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
+    PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
     PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WORLD_SPACE,
-    PositionInitModifier, active_cell_track, build_color_gradient, build_effect_asset,
-    build_expr_modifiers, build_position_modifier, build_size_gradient, emitter_alpha_mode,
-    emitter_parent_entity, emitter_scale_source, emitter_spawn_offset, emitter_spawn_radius,
-    emitter_translation, emitter_uses_bone_scale, flipbook_sprite_mode, gravity_accel_bevy,
-    has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range, orient_mode,
-    scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+    PARTICLE_FLAG_XY_QUAD, PositionInitModifier, active_cell_track, build_color_gradient,
+    build_effect_asset, build_expr_modifiers, build_position_modifier, build_size_gradient,
+    emitter_alpha_mode, emitter_parent_entity, emitter_scale_source, emitter_spawn_offset,
+    emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale, flipbook_sprite_mode,
+    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
+    orient_mode, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -407,6 +408,23 @@ fn tail_particle_flag_uses_authored_tail_length_multiplier() {
 }
 
 #[test]
+fn clamp_tail_to_age_limits_tail_growth_until_tail_length() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_TAIL_PARTICLES | PARTICLE_FLAG_CLAMP_TAIL_TO_AGE;
+    emitter.emission_speed = 3.0;
+    emitter.tail_length = 2.0;
+    emitter.lifespan = 4.0;
+
+    let gradient = build_size_gradient(&emitter, 1.0);
+    let keys = gradient.keys();
+
+    assert_eq!(keys.len(), 3);
+    assert!((keys[0].value.x - 0.2).abs() < 0.0001);
+    assert!((keys[1].value.x - 6.4).abs() < 0.0001);
+    assert!((keys[2].value.x - 6.1).abs() < 0.0001);
+}
+
+#[test]
 fn lifetime_range_expands_symmetrically_from_authored_variation() {
     let mut emitter = sample_emitter();
     emitter.lifespan = 2.0;
@@ -438,6 +456,17 @@ fn velocity_orient_flag_orients_particles_along_velocity() {
     emitter.flags = PARTICLE_FLAG_VELOCITY_ORIENT;
 
     assert!(matches!(orient_mode(&emitter), OrientMode::AlongVelocity));
+}
+
+#[test]
+fn xy_quad_flag_uses_parallel_camera_depth_plane() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_XY_QUAD;
+
+    assert!(matches!(
+        orient_mode(&emitter),
+        OrientMode::ParallelCameraDepthPlane
+    ));
 }
 
 #[test]
@@ -523,6 +552,19 @@ fn spin_emitters_declare_authored_rotation() {
 
     assert!(has_authored_spin(&emitter));
     assert!(modifiers.orient_rotation.is_some());
+    assert!(modifiers.init.rotation.is_some());
+    assert!(modifiers.init.angular_velocity.is_some());
+}
+
+#[test]
+fn negate_spin_flag_allocates_stable_spin_sign_attribute() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_NEGATE_SPIN;
+    emitter.spin = 0.8;
+
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(modifiers.init.spin_sign.is_some());
     assert!(modifiers.init.rotation.is_some());
     assert!(modifiers.init.angular_velocity.is_some());
 }
@@ -627,6 +669,17 @@ fn atlas_emitters_without_authored_cell_track_use_first_cell() {
     assert_eq!(
         flipbook_sprite_mode(&emitter),
         Some(FlipbookSpriteMode::FirstCell)
+    );
+}
+
+#[test]
+fn atlas_emitters_with_random_texture_use_random_cell_mode() {
+    let mut emitter = sample_emitter();
+    emitter.flags |= PARTICLE_FLAG_RANDOM_TEXTURE;
+
+    assert_eq!(
+        flipbook_sprite_mode(&emitter),
+        Some(FlipbookSpriteMode::RandomCell)
     );
 }
 

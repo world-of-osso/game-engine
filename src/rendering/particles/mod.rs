@@ -193,7 +193,8 @@ struct ExprModifiers {
     init: InitModifiers,
     gravity: AccelModifier,
     drag: Option<LinearDragModifier>,
-    flipbook_sprite_index: Option<SetAttributeModifier>,
+    flipbook_sprite_index_init: Option<SetAttributeModifier>,
+    flipbook_sprite_index_update: Option<SetAttributeModifier>,
     texture: Option<ParticleTextureModifier>,
     twinkle: Option<TwinkleSizeModifier>,
     size_variation: Option<SizeVariationModifier>,
@@ -207,7 +208,8 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
     let init = build_init_modifiers(em, &writer, model_scale);
     let gravity = build_accel_modifier(em, &writer, model_scale);
     let drag = (em.drag > 0.0).then(|| LinearDragModifier::new(writer.lit(em.drag).expr()));
-    let flipbook_sprite_index = build_flipbook_sprite_index(em, &writer);
+    let (flipbook_sprite_index_init, flipbook_sprite_index_update) =
+        build_flipbook_sprite_index_modifiers(em, &writer);
     let mask_cutoff = writer.lit(0.5_f32).expr();
     let texture = em.texture_fdid.map(|_| ParticleTextureModifier {
         texture_slot: writer.lit(0u32).expr(),
@@ -225,7 +227,8 @@ fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifie
         init,
         gravity,
         drag,
-        flipbook_sprite_index,
+        flipbook_sprite_index_init,
+        flipbook_sprite_index_update,
         texture,
         twinkle,
         size_variation,
@@ -253,28 +256,42 @@ fn build_accel_modifier(
     AccelModifier::new((gravity + wind).expr())
 }
 
-fn build_flipbook_sprite_index(
+fn build_flipbook_sprite_index_modifiers(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
-) -> Option<SetAttributeModifier> {
+) -> (Option<SetAttributeModifier>, Option<SetAttributeModifier>) {
     let total = (em.tile_rows as i32) * (em.tile_cols as i32);
     let frame = match flipbook_sprite_mode(em) {
         Some(FlipbookSpriteMode::CellTrack(track)) => {
-            build_cell_track_sprite_index(writer, track, em.mid_point, total)
+            let frame = build_cell_track_sprite_index(writer, track, em.mid_point, total);
+            return (
+                None,
+                Some(SetAttributeModifier::new(
+                    Attribute::SPRITE_INDEX,
+                    frame.expr(),
+                )),
+            );
         }
         Some(FlipbookSpriteMode::FirstCell) => writer.lit(0),
-        None => return None,
+        Some(FlipbookSpriteMode::RandomCell) => {
+            (writer.rand(ScalarType::Float) * writer.lit(total as f32)).floor()
+        }
+        None => return (None, None),
     };
-    Some(SetAttributeModifier::new(
-        Attribute::SPRITE_INDEX,
-        frame.expr(),
-    ))
+    (
+        Some(SetAttributeModifier::new(
+            Attribute::SPRITE_INDEX,
+            frame.expr(),
+        )),
+        None,
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FlipbookSpriteMode {
     FirstCell,
     CellTrack([u16; 3]),
+    RandomCell,
 }
 
 fn flipbook_sprite_mode(em: &M2ParticleEmitter) -> Option<FlipbookSpriteMode> {
@@ -283,6 +300,9 @@ fn flipbook_sprite_mode(em: &M2ParticleEmitter) -> Option<FlipbookSpriteMode> {
     }
     if let Some(track) = active_cell_track(em) {
         return Some(FlipbookSpriteMode::CellTrack(track));
+    }
+    if em.flags & PARTICLE_FLAG_RANDOM_TEXTURE != 0 {
+        return Some(FlipbookSpriteMode::RandomCell);
     }
     // WoW keeps atlas emitters on the first cell unless an authored cell track
     // or RANDOM_TEXTURE path overrides it. We should not invent a lifetime-wide
@@ -352,10 +372,13 @@ fn build_effect_asset(
         m.orient_rotation,
         model_scale,
     );
+    if let Some(sprite_idx) = m.flipbook_sprite_index_init {
+        effect = effect.init(sprite_idx);
+    }
     if let Some(drag) = m.drag {
         effect = effect.update(drag);
     }
-    if let Some(sprite_idx) = m.flipbook_sprite_index {
+    if let Some(sprite_idx) = m.flipbook_sprite_index_update {
         effect = effect.update(sprite_idx);
     }
     if let Some(tex) = m.texture {
@@ -422,6 +445,9 @@ fn assemble_effect(
     if let Some(angular_velocity) = init.angular_velocity {
         effect = effect.init(angular_velocity);
     }
+    if let Some(spin_sign) = init.spin_sign {
+        effect = effect.init(spin_sign);
+    }
     if let Some(twinkle_phase) = init.twinkle_phase {
         effect = effect.init(twinkle_phase);
     }
@@ -437,6 +463,8 @@ fn assemble_effect(
 fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
     if is_trail_particle(em) || em.flags & PARTICLE_FLAG_VELOCITY_ORIENT != 0 {
         OrientMode::AlongVelocity
+    } else if em.flags & PARTICLE_FLAG_XY_QUAD != 0 {
+        OrientMode::ParallelCameraDepthPlane
     } else {
         OrientMode::FaceCameraPosition
     }
@@ -457,6 +485,7 @@ struct InitModifiers {
     vel: SetAttributeModifier,
     rotation: Option<SetAttributeModifier>,
     angular_velocity: Option<SetAttributeModifier>,
+    spin_sign: Option<SetAttributeModifier>,
     twinkle_phase: Option<SetAttributeModifier>,
     twinkle_enabled: Option<SetAttributeModifier>,
     size_variation: Option<SetAttributeModifier>,
@@ -483,6 +512,7 @@ fn build_init_modifiers(
         vel,
         rotation: build_initial_rotation_modifier(em, writer),
         angular_velocity: build_angular_velocity_modifier(em, writer),
+        spin_sign: build_spin_sign_modifier(em, writer),
         twinkle_phase: build_twinkle_phase_modifier(em, writer),
         twinkle_enabled: build_twinkle_seed_modifier(em, writer),
         size_variation: build_size_variation_modifier_attr(em, writer),
@@ -583,6 +613,24 @@ fn authored_spin_expr(
     }
 }
 
+fn build_spin_sign_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<SetAttributeModifier> {
+    if em.flags & PARTICLE_FLAG_NEGATE_SPIN == 0 || !has_authored_spin(em) {
+        return None;
+    }
+    let negate = writer
+        .rand(ScalarType::Float)
+        .lt(writer.lit(0.5))
+        .cast(ScalarType::Float);
+    let sign = writer.lit(1.0) - negate * writer.lit(2.0);
+    Some(SetAttributeModifier::new(
+        Attribute::F32X2_1,
+        sign.vec2(writer.lit(0.0)).expr(),
+    ))
+}
+
 fn size_variation_expr(variation: f32, writer: &ExprWriter) -> Option<WriterExpr> {
     if variation == 0.0 {
         return None;
@@ -599,7 +647,13 @@ fn build_orient_rotation_expr(em: &M2ParticleEmitter, writer: &ExprWriter) -> Op
     let angle = writer.attr(Attribute::F32_0);
     let angular_velocity = writer.attr(Attribute::F32_1);
     let age = writer.attr(Attribute::AGE);
-    Some((angle + angular_velocity * age).expr())
+    let rotation = angle + angular_velocity * age;
+    if em.flags & PARTICLE_FLAG_NEGATE_SPIN != 0 {
+        let sign = writer.attr(Attribute::F32X2_1).x();
+        Some((rotation * sign).expr())
+    } else {
+        Some(rotation.expr())
+    }
 }
 
 fn has_authored_spin(em: &M2ParticleEmitter) -> bool {

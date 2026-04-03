@@ -5,7 +5,9 @@ use bevy_hanabi::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_TAIL_PARTICLES};
+use super::{
+    PARTICLE_FLAG_CLAMP_TAIL_TO_AGE, PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_TAIL_PARTICLES,
+};
 use crate::asset::m2_particle::M2ParticleEmitter;
 
 const PARTICLE_TYPE_TRAIL: u8 = 1;
@@ -174,7 +176,12 @@ fn size_key_value(
     let width = scale[0].max(0.01) * WOW_PARTICLE_HALF_EXTENT_SCALE * burst * model_scale;
     let height = scale[1].max(0.01) * WOW_PARTICLE_HALF_EXTENT_SCALE * burst * model_scale;
     if em.flags & PARTICLE_FLAG_TAIL_PARTICLES != 0 {
-        let tail_length = em.emission_speed.max(0.0) * em.tail_length.max(0.0);
+        let tail_age = if em.flags & PARTICLE_FLAG_CLAMP_TAIL_TO_AGE != 0 {
+            (time * em.lifespan.max(0.0)).min(em.tail_length.max(0.0))
+        } else {
+            em.tail_length.max(0.0)
+        };
+        let tail_length = em.emission_speed.max(0.0) * tail_age;
         Vec3::new(width + tail_length * model_scale, height, 1.0)
     } else if em.particle_type == PARTICLE_TYPE_TRAIL {
         let trail_length =
