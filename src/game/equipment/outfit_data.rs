@@ -446,13 +446,14 @@ fn collect_helmet_hide_geoset_groups(
 ) -> Vec<u16> {
     let race_bit = playable_race_bit_selection(race);
     let mut hidden = Vec::new();
+    let mut seen = HashSet::new();
     for vis_id in &display.helmet_geoset_vis_ids {
         let Some(rules) = data.helmet_geoset_rules.get(vis_id) else {
             continue;
         };
         for rule in rules {
             if helmet_geoset_rule_matches(*rule, race, race_bit)
-                && !hidden.contains(&rule.hide_geoset_group)
+                && seen.insert(rule.hide_geoset_group)
             {
                 hidden.push(rule.hide_geoset_group);
             }
