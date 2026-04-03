@@ -1217,6 +1217,18 @@ fn assemble_effect(
     spawn_source: ParticleSpawnSource,
     child_event_counts: Vec<u32>,
 ) -> EffectAsset {
+    let InitModifiers {
+        age,
+        lifetime,
+        pos,
+        vel,
+        rotation,
+        angular_velocity,
+        spin_sign,
+        twinkle_phase,
+        twinkle_enabled,
+        size_variation,
+    } = init;
     let orient = if let Some(rotation) = orient_rotation {
         OrientModifier::new(orient_mode(em)).with_rotation(rotation)
     } else {
@@ -1226,21 +1238,68 @@ fn assemble_effect(
         .into_iter()
         .map(|count| module.lit(count))
         .collect();
-    let mut effect = EffectAsset::new(max_particles, spawner, module)
+    let effect = build_base_effect(
+        em,
+        module,
+        spawner,
+        max_particles,
+        alpha_mode,
+        age,
+        lifetime,
+        vel,
+        gravity,
+        orient,
+        model_scale,
+    );
+    let effect = add_position_and_inherit_init(effect, em, pos, spawn_source);
+    let effect = add_optional_init_modifiers(
+        effect,
+        rotation,
+        angular_velocity,
+        spin_sign,
+        twinkle_phase,
+        twinkle_enabled,
+        size_variation,
+    );
+    add_child_spawn_events(effect, child_event_count_exprs)
+}
+
+fn build_base_effect(
+    em: &M2ParticleEmitter,
+    module: Module,
+    spawner: SpawnerSettings,
+    max_particles: u32,
+    alpha_mode: bevy_hanabi::AlphaMode,
+    age: SetAttributeModifier,
+    lifetime: SetAttributeModifier,
+    vel: SetAttributeModifier,
+    gravity: AccelModifier,
+    orient: OrientModifier,
+    model_scale: f32,
+) -> EffectAsset {
+    EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
         .with_alpha_mode(alpha_mode)
         .with_simulation_space(emitter_simulation_space(em))
-        .init(init.age)
-        .init(init.lifetime)
-        .init(init.vel)
+        .init(age)
+        .init(lifetime)
+        .init(vel)
         .update(gravity)
         .render(build_color_render_modifier(em))
         .render(SizeOverLifetimeModifier {
             gradient: build_size_gradient(em, model_scale),
             screen_space_size: false,
         })
-        .render(orient);
-    effect = match init.pos {
+        .render(orient)
+}
+
+fn add_position_and_inherit_init(
+    mut effect: EffectAsset,
+    em: &M2ParticleEmitter,
+    pos: PositionInitModifier,
+    spawn_source: ParticleSpawnSource,
+) -> EffectAsset {
+    effect = match pos {
         PositionInitModifier::Attribute(pos) => effect.init(pos),
         PositionInitModifier::Sphere(pos) => effect.init(pos),
     };
@@ -1250,24 +1309,43 @@ fn assemble_effect(
             effect = effect.init(InheritAttributeModifier::new(Attribute::VELOCITY));
         }
     }
-    if let Some(rotation) = init.rotation {
+    effect
+}
+
+fn add_optional_init_modifiers(
+    mut effect: EffectAsset,
+    rotation: Option<SetAttributeModifier>,
+    angular_velocity: Option<SetAttributeModifier>,
+    spin_sign: Option<SetAttributeModifier>,
+    twinkle_phase: Option<SetAttributeModifier>,
+    twinkle_enabled: Option<SetAttributeModifier>,
+    size_variation: Option<SetAttributeModifier>,
+) -> EffectAsset {
+    if let Some(rotation) = rotation {
         effect = effect.init(rotation);
     }
-    if let Some(angular_velocity) = init.angular_velocity {
+    if let Some(angular_velocity) = angular_velocity {
         effect = effect.init(angular_velocity);
     }
-    if let Some(spin_sign) = init.spin_sign {
+    if let Some(spin_sign) = spin_sign {
         effect = effect.init(spin_sign);
     }
-    if let Some(twinkle_phase) = init.twinkle_phase {
+    if let Some(twinkle_phase) = twinkle_phase {
         effect = effect.init(twinkle_phase);
     }
-    if let Some(twinkle_enabled) = init.twinkle_enabled {
+    if let Some(twinkle_enabled) = twinkle_enabled {
         effect = effect.init(twinkle_enabled);
     }
-    if let Some(size_variation) = init.size_variation {
+    if let Some(size_variation) = size_variation {
         effect = effect.init(size_variation);
     }
+    effect
+}
+
+fn add_child_spawn_events(
+    mut effect: EffectAsset,
+    child_event_count_exprs: Vec<ExprHandle>,
+) -> EffectAsset {
     for (child_index, count_expr) in child_event_count_exprs.into_iter().enumerate() {
         effect = effect.update(EmitSpawnEventModifier {
             condition: EventEmitCondition::Always,
