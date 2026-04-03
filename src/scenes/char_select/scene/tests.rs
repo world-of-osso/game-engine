@@ -1,3 +1,7 @@
+use super::camera::{
+    CHAR_SELECT_CAMERA_GROUND_CLEARANCE, camera_params, clamp_char_select_eye, orbit_eye,
+    orbit_from_eye_focus,
+};
 use super::*;
 use crate::networking_auth::CharacterList;
 use shared::components::{CharacterAppearance, EquipmentAppearance};

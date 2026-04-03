@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use game_engine::customization_data::ModelPresentation;
 
-use super::camera_params;
+use super::camera::camera_params;
 
 pub(crate) const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 150.0;
 const CHAR_SELECT_AMBIENT_COLOR: Color = Color::srgb(0.92, 0.80, 0.60);
