@@ -597,18 +597,21 @@ fn login_run_automation(
         return;
     }
     let result = run_login_automation_action(
-        &mut ui,
-        login,
-        &mut focus,
-        &mut cp.next_state,
-        &mut cp.status,
-        &mut cp.login_mode,
-        &cp.auth_token,
-        cp.server_addr.as_ref().map(|addr| addr.0),
-        cp.server_hostname
-            .as_ref()
-            .map(|hostname| hostname.0.as_str()),
-        &mut cp.commands,
+        crate::scenes::login::connect::LoginAutomationContext {
+            ui: &mut ui,
+            login,
+            focus: &mut focus,
+            next_state: &mut cp.next_state,
+            status: &mut cp.status,
+            login_mode: &mut cp.login_mode,
+            auth_token: &cp.auth_token,
+            server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+            server_hostname: cp
+                .server_hostname
+                .as_ref()
+                .map(|hostname| hostname.0.as_str()),
+            commands: &mut cp.commands,
+        },
         &action,
     );
     queue.pop();

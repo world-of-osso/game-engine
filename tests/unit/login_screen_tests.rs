@@ -151,16 +151,18 @@ fn automation_click_focuses_username_editbox() {
     {
         let mut commands = system_state.get_mut(&mut world);
         run_login_automation_action(
-            &mut ui,
-            &login,
-            &mut focus,
-            &mut next_state,
-            &mut status,
-            &mut login_mode,
-            &auth_token,
-            None,
-            None,
-            &mut commands,
+            crate::scenes::login::connect::LoginAutomationContext {
+                ui: &mut ui,
+                login: &login,
+                focus: &mut focus,
+                next_state: &mut next_state,
+                status: &mut status,
+                login_mode: &mut login_mode,
+                auth_token: &auth_token,
+                server_addr: None,
+                server_hostname: None,
+                commands: &mut commands,
+            },
             &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
         )
         .expect("automation click should succeed");
@@ -205,16 +207,18 @@ fn automation_type_uses_login_editbox_code_path() {
     {
         let mut commands = system_state.get_mut(&mut world);
         run_login_automation_action(
-            &mut ui,
-            &login,
-            &mut focus,
-            &mut next_state,
-            &mut status,
-            &mut login_mode,
-            &auth_token,
-            None,
-            None,
-            &mut commands,
+            crate::scenes::login::connect::LoginAutomationContext {
+                ui: &mut ui,
+                login: &login,
+                focus: &mut focus,
+                next_state: &mut next_state,
+                status: &mut status,
+                login_mode: &mut login_mode,
+                auth_token: &auth_token,
+                server_addr: None,
+                server_hostname: None,
+                commands: &mut commands,
+            },
             &UiAutomationAction::TypeText("alice".to_string()),
         )
         .expect("automation typing should succeed");
@@ -323,7 +327,18 @@ fn run_login_actions(
 ) {
     for action in actions {
         run_login_automation_action(
-            ui, login, focus, next_state, status, login_mode, auth_token, None, None, commands,
+            crate::scenes::login::connect::LoginAutomationContext {
+                ui,
+                login,
+                focus,
+                next_state,
+                status,
+                login_mode,
+                auth_token,
+                server_addr: None,
+                server_hostname: None,
+                commands,
+            },
             action,
         )
         .expect("automation action should succeed");

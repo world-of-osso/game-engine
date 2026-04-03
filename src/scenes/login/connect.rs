@@ -142,32 +142,49 @@ pub fn sync_button_states(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+pub(crate) struct LoginAutomationContext<'a, 'w, 's> {
+    pub(crate) ui: &'a mut UiState,
+    pub(crate) login: &'a LoginUi,
+    pub(crate) focus: &'a mut LoginFocus,
+    pub(crate) next_state: &'a mut NextState<GameState>,
+    pub(crate) status: &'a mut LoginStatus,
+    pub(crate) login_mode: &'a mut networking::LoginMode,
+    pub(crate) auth_token: &'a networking::AuthToken,
+    pub(crate) server_addr: Option<std::net::SocketAddr>,
+    pub(crate) server_hostname: Option<&'a str>,
+    pub(crate) commands: &'a mut Commands<'w, 's>,
+}
+
 pub fn run_login_automation_action(
-    ui: &mut UiState,
-    login: &LoginUi,
-    focus: &mut LoginFocus,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
-    server_hostname: Option<&str>,
-    commands: &mut Commands,
+    ctx: LoginAutomationContext<'_, '_, '_>,
     action: &UiAutomationAction,
 ) -> Result<(), String> {
+    let LoginAutomationContext {
+        ui,
+        login,
+        focus,
+        next_state,
+        status,
+        login_mode,
+        auth_token,
+        server_addr,
+        server_hostname,
+        commands,
+    } = ctx;
     match action {
         UiAutomationAction::ClickFrame(name) => click_login_frame(
-            ui,
-            login,
-            focus,
-            next_state,
-            status,
-            login_mode,
-            auth_token,
-            server_addr,
-            server_hostname,
-            commands,
+            LoginAutomationContext {
+                ui,
+                login,
+                focus,
+                next_state,
+                status,
+                login_mode,
+                auth_token,
+                server_addr,
+                server_hostname,
+                commands,
+            },
             name,
         ),
         UiAutomationAction::TypeText(text) => {
@@ -198,20 +215,22 @@ pub fn run_login_automation_action(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn click_login_frame(
-    ui: &mut UiState,
-    login: &LoginUi,
-    focus: &mut LoginFocus,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
-    server_hostname: Option<&str>,
-    commands: &mut Commands,
+    ctx: LoginAutomationContext<'_, '_, '_>,
     frame_name: &str,
 ) -> Result<(), String> {
+    let LoginAutomationContext {
+        ui,
+        login,
+        focus,
+        next_state,
+        status,
+        login_mode,
+        auth_token,
+        server_addr,
+        server_hostname,
+        commands,
+    } = ctx;
     recompute_layouts(&mut ui.registry);
     let frame_id = ui
         .registry
@@ -220,8 +239,34 @@ fn click_login_frame(
     let action = ui.registry.click_frame(frame_id);
     focus.0 = ui.registry.focused_frame;
     dispatch_click(
+        LoginAutomationContext {
+            ui,
+            login,
+            focus,
+            next_state,
+            status,
+            login_mode,
+            auth_token,
+            server_addr,
+            server_hostname,
+            commands,
+        },
+        action.as_deref(),
+        frame_name,
+        frame_id,
+    )
+}
+
+fn dispatch_click(
+    ctx: LoginAutomationContext<'_, '_, '_>,
+    action: Option<&str>,
+    frame_name: &str,
+    frame_id: u64,
+) -> Result<(), String> {
+    let LoginAutomationContext {
         ui,
         login,
+        focus: _,
         next_state,
         status,
         login_mode,
@@ -229,27 +274,7 @@ fn click_login_frame(
         server_addr,
         server_hostname,
         commands,
-        action.as_deref(),
-        frame_name,
-        frame_id,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn dispatch_click(
-    ui: &mut UiState,
-    login: &LoginUi,
-    next_state: &mut NextState<GameState>,
-    status: &mut LoginStatus,
-    login_mode: &mut networking::LoginMode,
-    auth_token: &networking::AuthToken,
-    server_addr: Option<std::net::SocketAddr>,
-    server_hostname: Option<&str>,
-    commands: &mut Commands,
-    action: Option<&str>,
-    frame_name: &str,
-    frame_id: u64,
-) -> Result<(), String> {
+    } = ctx;
     match action.and_then(LoginAction::parse) {
         Some(LoginAction::Connect) => try_connect(
             &ui.registry,
