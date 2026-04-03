@@ -108,6 +108,12 @@ struct ModelSyncSelection {
     char_tf: Transform,
 }
 
+struct AppearanceSyncSelection {
+    root: Entity,
+    desired: AppliedCharacterAppearance,
+    character: CharacterListEntry,
+}
+
 struct SceneSetupLighting {
     camera_entity: Entity,
     fov: f32,
@@ -684,43 +690,63 @@ fn sync_char_select_camera_after_model(
 }
 
 fn sync_selected_character_appearance(mut params: CharSelectAppearanceSyncParams) {
-    let Some(character) = selected_scene_character(&params.char_list, params.selected.0) else {
+    let Some(selection) = resolve_appearance_sync_selection(&mut params) else {
         params.displayed_appearance.0 = None;
         return;
     };
-    let Ok((root, root_character)) = params.root_query.single() else {
-        return;
-    };
-    if root_character.0 != character.character_id {
+    if params.displayed_appearance.0 == Some(selection.desired.clone()) {
         return;
     }
-    let desired = AppliedCharacterAppearance {
+    apply_selected_character_appearance(&mut params, &selection);
+    params.displayed_appearance.0 = Some(selection.desired);
+}
+
+fn resolve_appearance_sync_selection(
+    params: &mut CharSelectAppearanceSyncParams<'_, '_>,
+) -> Option<AppearanceSyncSelection> {
+    let character = selected_scene_character(&params.char_list, params.selected.0)?.clone();
+    let (root, root_character) = params.root_query.single().ok()?;
+    if root_character.0 != character.character_id {
+        return None;
+    }
+    Some(AppearanceSyncSelection {
+        root,
+        desired: desired_character_appearance(&character),
+        character,
+    })
+}
+
+fn desired_character_appearance(character: &CharacterListEntry) -> AppliedCharacterAppearance {
+    AppliedCharacterAppearance {
         character_id: character.character_id,
         race: character.race,
         class: character.class,
         appearance: character.appearance,
         equipment_appearance: character.equipment_appearance.clone(),
-    };
-    if params.displayed_appearance.0 == Some(desired.clone()) {
-        return;
     }
+}
+
+fn apply_selected_character_appearance(
+    params: &mut CharSelectAppearanceSyncParams<'_, '_>,
+    selection: &AppearanceSyncSelection,
+) {
     let resolved_equipment = resolve_equipment_appearance(
-        &character.equipment_appearance,
+        &selection.character.equipment_appearance,
         &params.outfit_data,
-        character.race,
-        character.appearance.sex,
+        selection.character.race,
+        selection.character.appearance.sex,
     );
     apply_character_customization(
         CharacterCustomizationSelection {
-            race: character.race,
-            class: character.class,
-            sex: character.appearance.sex,
-            appearance: character.appearance,
+            race: selection.character.race,
+            class: selection.character.class,
+            sex: selection.character.appearance.sex,
+            appearance: selection.character.appearance,
         },
         &params.customization_db,
         &params.char_tex,
         Some(&resolved_equipment),
-        root,
+        selection.root,
         &mut params.images,
         &mut params.materials,
         &params.parent_query,
@@ -729,10 +755,9 @@ fn sync_selected_character_appearance(mut params: CharSelectAppearanceSyncParams
         &params.equipment_item_query,
         &params.material_query,
     );
-    if let Ok(mut equipment) = params.equipment_query.get_mut(root) {
+    if let Ok(mut equipment) = params.equipment_query.get_mut(selection.root) {
         apply_runtime_equipment(&mut equipment, &resolved_equipment);
     }
-    params.displayed_appearance.0 = Some(desired);
 }
 
 fn spawn_selected_model(
