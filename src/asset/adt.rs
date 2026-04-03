@@ -8,7 +8,6 @@ pub use super::adt_format::adt_tex::{
 };
 use super::m2::wow_to_bevy;
 
-#[allow(dead_code)]
 pub struct McnkMesh {
     pub mesh: Mesh,
     pub index_x: u32,

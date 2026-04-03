@@ -1,6 +1,5 @@
 use super::adt::ChunkIter;
 
-#[allow(dead_code)]
 pub struct DoodadPlacement {
     pub name_id: u32,
     pub unique_id: u32,
@@ -12,17 +11,14 @@ pub struct DoodadPlacement {
     pub path: Option<String>,
 }
 
-#[allow(dead_code)]
 pub struct WmoPlacement {
     pub name_id: u32,
     pub unique_id: u32,
     pub position: [f32; 3],
     pub rotation: [f32; 3],
     pub flags: u16,
-    #[allow(dead_code)]
-    pub doodad_set: u16,
-    #[allow(dead_code)]
-    pub name_set: u16,
+    pub _doodad_set: u16,
+    pub _name_set: u16,
     pub scale: f32,
     pub fdid: Option<u32>,
     pub path: Option<String>,
@@ -252,8 +248,8 @@ fn parse_modf_entry(
         position,
         rotation,
         flags,
-        doodad_set,
-        name_set,
+        _doodad_set: doodad_set,
+        _name_set: name_set,
         scale,
         fdid,
         path,

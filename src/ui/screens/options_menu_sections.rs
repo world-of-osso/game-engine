@@ -69,34 +69,6 @@ pub fn accessibility_body() -> Element {
     )
 }
 
-#[allow(dead_code)]
-pub fn keybindings_body() -> Element {
-    section_stack(
-        [
-            info_row("bindings_move_forward", "Move Forward", "W"),
-            info_row("bindings_move_backward", "Move Backward", "S"),
-            info_row("bindings_move_left", "Strafe Left", "A"),
-            info_row("bindings_move_right", "Strafe Right", "D"),
-            info_row("bindings_jump", "Jump", "Space"),
-            info_row("bindings_run_toggle", "Run / Walk Toggle", "Z"),
-            info_row(
-                "bindings_mouse_move",
-                "Move Forward (Mouse)",
-                "Left + Right Mouse",
-            ),
-            info_row("bindings_autorun", "Auto-Run", "Unbound"),
-            info_row(
-                "bindings_note",
-                "Status",
-                "Movement bindings reflect current gameplay input; rebinding UI comes next",
-            ),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
-}
-
 pub fn macros_body() -> Element {
     section_stack(
         [

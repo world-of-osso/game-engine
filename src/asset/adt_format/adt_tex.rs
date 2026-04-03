@@ -209,7 +209,6 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
     })
 }
 
-#[allow(dead_code)]
 pub struct WaterLayer {
     pub liquid_type: u16,
     pub liquid_object: u16,

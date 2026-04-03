@@ -126,7 +126,6 @@ impl Default for AdtManager {
     }
 }
 
-#[allow(dead_code)]
 /// Result of spawning an ADT: camera and ground position for placing models.
 pub struct AdtSpawnResult {
     pub camera: Transform,

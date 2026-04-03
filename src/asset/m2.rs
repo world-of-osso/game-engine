@@ -64,7 +64,6 @@ pub struct M2RenderBatch {
     pub mesh_part_id: u16,
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct M2Model {
     pub batches: Vec<M2RenderBatch>,

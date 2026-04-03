@@ -20,7 +20,6 @@ pub struct LightDataRow {
     pub sky_band1: Color,
     pub sky_band2: Color,
     pub sky_smog: Color,
-    #[allow(dead_code)]
     pub fog_color: Color,
 }
 
@@ -61,7 +60,6 @@ pub struct SkyColorSet {
     pub sky_smog: Color,
     pub direct_color: Color,
     pub ambient_color: Color,
-    #[allow(dead_code)]
     pub fog_color: Color,
 }
 

@@ -100,20 +100,6 @@ pub fn point_in_triangle(point: [f32; 2], triangle: [[f32; 2]; 3]) -> bool {
     !(has_neg && has_pos)
 }
 
-/// Build a dark-background composite buffer (comp_size x comp_size RGBA).
-#[allow(dead_code)]
-pub fn build_dark_composite(comp_size: usize) -> Vec<u8> {
-    let mut composite = vec![0u8; comp_size * comp_size * 4];
-    for i in 0..(comp_size * comp_size) {
-        let off = i * 4;
-        composite[off] = 20;
-        composite[off + 1] = 20;
-        composite[off + 2] = 20;
-        composite[off + 3] = 255;
-    }
-    composite
-}
-
 /// Copy one tile image (src_w x src_w RGBA) into the composite at (off_x, off_y).
 pub fn blit_image(
     dst: &mut [u8],
