@@ -25,6 +25,7 @@ struct SampleMotionDefaults {
     lifespan: f32,
     lifespan_variation: f32,
     emission_rate: f32,
+    emission_rate_variation: f32,
     area_length: f32,
     area_width: f32,
     z_source: f32,
@@ -66,6 +67,7 @@ fn sample_motion_defaults() -> SampleMotionDefaults {
         lifespan: 1.0,
         lifespan_variation: 0.0,
         emission_rate: 20.0,
+        emission_rate_variation: 0.0,
         area_length: 0.1,
         area_width: 0.1,
         z_source: 0.0,
@@ -124,6 +126,7 @@ fn apply_sample_motion_defaults(emitter: &mut M2ParticleEmitter, motion: SampleM
     emitter.lifespan = motion.lifespan;
     emitter.lifespan_variation = motion.lifespan_variation;
     emitter.emission_rate = motion.emission_rate;
+    emitter.emission_rate_variation = motion.emission_rate_variation;
     emitter.area_length = motion.area_length;
     emitter.area_width = motion.area_width;
     emitter.z_source = motion.z_source;
@@ -309,7 +312,8 @@ fn burst_multiplier_scales_particle_size_gradient() {
 
 #[test]
 fn particle_density_scales_emission_rate() {
-    let emitter = sample_emitter();
+    let mut emitter = sample_emitter();
+    emitter.emission_rate_variation = 4.0;
     let graphics = GraphicsOptions {
         particle_density: 50,
         render_scale: 1.0,
@@ -317,20 +321,21 @@ fn particle_density_scales_emission_rate() {
     };
 
     assert!(
-        (scaled_emission_rate(&emitter, graphics.particle_density_multiplier()) - 10.0).abs()
+        (scaled_emission_rate(&emitter, graphics.particle_density_multiplier()) - 11.0).abs()
             < 0.0001
     );
 }
 
 #[test]
 fn particle_density_defaults_to_full_rate() {
-    let emitter = sample_emitter();
+    let mut emitter = sample_emitter();
+    emitter.emission_rate_variation = 4.0;
 
     assert!(
         (scaled_emission_rate(
             &emitter,
             GraphicsOptions::default().particle_density_multiplier()
-        ) - 20.0)
+        ) - 22.0)
             .abs()
             < 0.0001
     );

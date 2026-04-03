@@ -368,7 +368,10 @@ fn build_effect_asset(
 }
 
 fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> f32 {
-    (em.emission_rate * particle_density_multiplier.clamp(0.1, 1.0)).max(0.1)
+    // WoW samples `base + rand * variation` per emission step. Hanabi exposes
+    // only a constant rate, so use the expected mean rate here.
+    let mean_rate = em.emission_rate + em.emission_rate_variation.max(0.0) * 0.5;
+    (mean_rate * particle_density_multiplier.clamp(0.1, 1.0)).max(0.1)
 }
 
 fn assemble_effect(

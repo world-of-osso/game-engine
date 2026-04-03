@@ -23,6 +23,7 @@ macro_rules! zeroed_emitter {
             lifespan: 0.0,
             lifespan_variation: 0.0,
             emission_rate: 0.0,
+            emission_rate_variation: 0.0,
             area_length: 0.0,
             area_width: 0.0,
             z_source: 0.0,
@@ -64,6 +65,7 @@ struct EmitterTrackDefaults {
     lifespan: f32,
     lifespan_variation: f32,
     emission_rate: f32,
+    emission_rate_variation: f32,
     area_length: f32,
     area_width: f32,
     z_source: f32,
@@ -91,6 +93,7 @@ impl Default for EmitterTrackDefaults {
             lifespan: 0.0,
             lifespan_variation: 0.0,
             emission_rate: 0.0,
+            emission_rate_variation: 0.0,
             area_length: 0.0,
             area_width: 0.0,
             z_source: 0.0,
@@ -207,6 +210,7 @@ fn apply_track_defaults(emitter: &mut M2ParticleEmitter, tracks: EmitterTrackDef
     emitter.lifespan = tracks.lifespan;
     emitter.lifespan_variation = tracks.lifespan_variation;
     emitter.emission_rate = tracks.emission_rate;
+    emitter.emission_rate_variation = tracks.emission_rate_variation;
     emitter.area_length = tracks.area_length;
     emitter.area_width = tracks.area_width;
     emitter.z_source = tracks.z_source;

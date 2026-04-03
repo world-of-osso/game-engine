@@ -44,6 +44,7 @@ pub struct M2ParticleEmitter {
     /// Symmetric +/- lifetime variation around `lifespan`.
     pub lifespan_variation: f32,
     pub emission_rate: f32,
+    pub emission_rate_variation: f32,
     pub area_length: f32,
     pub area_width: f32,
     pub z_source: f32,
@@ -118,6 +119,7 @@ const EMITTER_GRAVITY_OFFSET: usize = 0x84;
 const EMITTER_LIFESPAN_OFFSET: usize = 0x98;
 const EMITTER_LIFESPAN_VARIATION_OFFSET: usize = 0xAC;
 const EMITTER_EMISSION_RATE_OFFSET: usize = 0xB0;
+const EMITTER_EMISSION_RATE_VARIATION_OFFSET: usize = 0xC4;
 const EMITTER_AREA_LENGTH_OFFSET: usize = 0xC8;
 const EMITTER_AREA_WIDTH_OFFSET: usize = 0xDC;
 const EMITTER_Z_SOURCE_OFFSET: usize = 0xF0;
@@ -423,6 +425,8 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.lifespan = read_track_static_f32(md20, data, EMITTER_LIFESPAN_OFFSET);
     em.lifespan_variation = read_f32(data, EMITTER_LIFESPAN_VARIATION_OFFSET).unwrap_or(0.0);
     em.emission_rate = read_track_static_f32(md20, data, EMITTER_EMISSION_RATE_OFFSET);
+    em.emission_rate_variation =
+        read_f32(data, EMITTER_EMISSION_RATE_VARIATION_OFFSET).unwrap_or(0.0);
     em.area_length = read_track_static_f32(md20, data, EMITTER_AREA_LENGTH_OFFSET);
     em.area_width = read_track_static_f32(md20, data, EMITTER_AREA_WIDTH_OFFSET);
     em.z_source = read_track_static_f32(md20, data, EMITTER_Z_SOURCE_OFFSET);

@@ -300,6 +300,18 @@ fn parses_lifespan_variation_from_272_suffix() {
 }
 
 #[test]
+fn parses_emission_rate_variation_from_272_suffix() {
+    let mut md20 = vec![0u8; 0x1ec];
+    md20[EMITTER_EMISSION_RATE_VARIATION_OFFSET..EMITTER_EMISSION_RATE_VARIATION_OFFSET + 4]
+        .copy_from_slice(&(0.6_f32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&md20).unwrap();
+    fill_track_values(&mut parsed, &md20, &md20);
+
+    assert!((parsed.emission_rate_variation - 0.6).abs() < 0.0001);
+}
+
+#[test]
 fn parses_uncompressed_gravity_as_negative_wow_z() {
     let mut md20 = vec![0u8; 0x1ec];
     let mut emitter = vec![0u8; 0x1ec];
