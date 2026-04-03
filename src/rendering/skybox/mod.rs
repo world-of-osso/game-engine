@@ -1,6 +1,7 @@
 use std::f32::consts::{FRAC_PI_2, TAU};
 
 use bevy::asset::RenderAssetUsages;
+use bevy::ecs::system::SystemParam;
 use bevy::light::GeneratedEnvironmentMapLight;
 use bevy::pbr::{DistanceFog, FogFalloff, MaterialPlugin};
 use bevy::prelude::*;
@@ -188,15 +189,19 @@ fn color_to_vec4(c: Color) -> Vec4 {
     Vec4::new(lin.red, lin.green, lin.blue, 1.0)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[derive(SystemParam)]
+struct SkyVisualParams<'w, 's> {
+    sky_dome_q: Query<'w, 's, &'static MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
+    sky_materials: ResMut<'w, Assets<SkyMaterial>>,
+    dir_lights: Query<'w, 's, &'static mut DirectionalLight>,
+    ambient_q: Query<'w, 's, &'static mut AmbientLight>,
+    water_materials: ResMut<'w, Assets<crate::water_material::WaterMaterial>>,
+}
+
 fn update_sky_colors(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
-    sky_dome_q: Query<&MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
-    mut sky_materials: ResMut<Assets<SkyMaterial>>,
-    mut dir_lights: Query<&mut DirectionalLight>,
-    mut ambient_q: Query<&mut AmbientLight>,
-    mut water_materials: ResMut<Assets<crate::water_material::WaterMaterial>>,
+    mut visuals: SkyVisualParams,
     mut last_minutes: Local<f32>,
 ) {
     if (game_time.minutes - *last_minutes).abs() < 0.01 {
@@ -204,9 +209,9 @@ fn update_sky_colors(
     }
     *last_minutes = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
-    update_sky_dome_material(&sky_dome_q, &mut sky_materials, &colors);
-    sync_lights(&mut dir_lights, &mut ambient_q, &colors);
-    sync_water_sky_color(&mut water_materials, &colors);
+    update_sky_dome_material(&visuals.sky_dome_q, &mut visuals.sky_materials, &colors);
+    sync_lights(&mut visuals.dir_lights, &mut visuals.ambient_q, &colors);
+    sync_water_sky_color(&mut visuals.water_materials, &colors);
 }
 
 fn update_sky_dome_material(
