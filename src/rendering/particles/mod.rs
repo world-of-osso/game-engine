@@ -23,6 +23,7 @@ use visuals::{
 pub(super) const PARTICLE_FLAG_TAIL_PARTICLES: u32 = 0x0000_0008;
 pub(super) const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x0000_0200;
 pub(super) const PARTICLE_FLAG_BONE_SCALE: u32 = 0x0000_0400;
+pub(super) const PARTICLE_FLAG_INHERIT_VELOCITY: u32 = 0x0000_0800;
 pub(super) const PARTICLE_FLAG_INHERIT_POSITION: u32 = 0x0000_2000;
 pub(super) const PARTICLE_FLAG_SPHERE_INVERT: u32 = 0x0000_1000;
 pub(super) const PARTICLE_FLAG_XY_QUAD: u32 = 0x0000_4000;
@@ -46,6 +47,7 @@ const BLEND_MOD2X: u8 = 7;
 const PARTICLE_TYPE_TRAIL: u8 = 1;
 const TRAIL_LENGTH_FACTOR: f32 = 0.6;
 const INHERIT_POSITION_BACK_DELTA_PROPERTY: &str = "inherit_position_back_delta";
+const CHILD_EMITTER_FPS_APPROXIMATION: f32 = 60.0;
 
 pub struct ParticlePlugin;
 
@@ -89,8 +91,17 @@ pub struct ParticleEmitterComp {
     pub bone_entity: Option<Entity>,
     pub scale_source: Entity,
     pub spawn_mode: ParticleSpawnMode,
+    pub spawn_source: ParticleSpawnSource,
+    pub child_emitters: Vec<M2ParticleEmitter>,
+    pub effect_parent: Option<Entity>,
     /// Optional texture handle to attach via `EffectMaterial`.
     pending_texture: Option<Handle<Image>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParticleSpawnSource {
+    Standalone,
+    ChildFromParentParticles,
 }
 
 /// System: build `EffectAsset` from emitter data + model/root scale, then
@@ -122,10 +133,15 @@ fn register_pending_particle_effects(
             model_scale,
             particle_density_multiplier,
             comp.spawn_mode,
+            comp.spawn_source,
+            &comp.child_emitters,
         );
         let handle = effects.add(asset);
         let mut ec = commands.entity(entity);
         ec.insert(ParticleEffect::new(handle));
+        if let Some(parent_effect) = comp.effect_parent {
+            ec.insert(EffectParent::new(parent_effect));
+        }
         if let Some(tex) = comp.pending_texture.clone() {
             ec.insert(EffectMaterial { images: vec![tex] });
         }
@@ -255,7 +271,7 @@ fn spawn_single_emitter(
     let pending_texture = load_emitter_texture(em, images);
     let parent_entity = emitter_parent_entity(em, bone_entity, parent);
     let local_offset = emitter_spawn_offset(em, bones);
-    commands
+    let emitter_entity = commands
         .spawn((
             Name::new("ParticleEmitter"),
             ParticleEmitterComp {
@@ -263,12 +279,94 @@ fn spawn_single_emitter(
                 bone_entity,
                 scale_source: emitter_scale_source(em, bone_entity, parent),
                 spawn_mode,
+                spawn_source: ParticleSpawnSource::Standalone,
+                child_emitters: load_child_particle_emitters(em),
+                effect_parent: None,
                 pending_texture,
             },
             Transform::from_translation(local_offset),
             Visibility::default(),
         ))
-        .set_parent_in_place(parent_entity);
+        .set_parent_in_place(parent_entity)
+        .id();
+    spawn_child_emitter_effects(commands, images, em, emitter_entity, parent);
+}
+
+fn spawn_child_emitter_effects(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    emitter: &M2ParticleEmitter,
+    parent_effect_entity: Entity,
+    scale_source: Entity,
+) {
+    let Some((child_emitters, child_bones)) = load_child_particle_emitters_and_bones(emitter)
+    else {
+        return;
+    };
+    for child_emitter in &child_emitters {
+        spawn_child_emitter_effect(
+            commands,
+            images,
+            child_emitter,
+            &child_bones,
+            parent_effect_entity,
+            scale_source,
+        );
+    }
+}
+
+fn spawn_child_emitter_effect(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    em: &M2ParticleEmitter,
+    bones: &[M2Bone],
+    parent_effect_entity: Entity,
+    scale_source: Entity,
+) {
+    let pending_texture = load_emitter_texture(em, images);
+    let local_offset = emitter_spawn_offset(em, bones);
+    commands.spawn((
+        Name::new("ChildParticleEmitter"),
+        ParticleEmitterComp {
+            emitter: em.clone(),
+            bone_entity: None,
+            scale_source,
+            spawn_mode: ParticleSpawnMode::Continuous,
+            spawn_source: ParticleSpawnSource::ChildFromParentParticles,
+            child_emitters: Vec::new(),
+            effect_parent: Some(parent_effect_entity),
+            pending_texture,
+        },
+        Transform::from_translation(local_offset),
+        Visibility::default(),
+    ));
+}
+
+fn load_child_particle_emitters(em: &M2ParticleEmitter) -> Vec<M2ParticleEmitter> {
+    load_child_particle_emitters_and_bones(em)
+        .map(|(emitters, _)| emitters)
+        .unwrap_or_default()
+}
+
+fn load_child_particle_emitters_and_bones(
+    em: &M2ParticleEmitter,
+) -> Option<(Vec<M2ParticleEmitter>, Vec<M2Bone>)> {
+    let child_path =
+        resolve_child_emitter_model_path(em.child_emitters_model_filename.as_deref()?)?;
+    let child_model = crate::asset::m2::load_m2(&child_path, &[0, 0, 0]).ok()?;
+    if child_model.particle_emitters.is_empty() {
+        return None;
+    }
+    Some((child_model.particle_emitters, child_model.bones))
+}
+
+fn resolve_child_emitter_model_path(path: &str) -> Option<PathBuf> {
+    let direct = PathBuf::from(path);
+    if direct.exists() {
+        return Some(direct);
+    }
+    let fdid = game_engine::listfile::lookup_path(path)?;
+    crate::asset::asset_cache::model(fdid)
 }
 
 fn emitter_parent_entity(
@@ -328,6 +426,10 @@ fn emitter_uses_follow_position(em: &M2ParticleEmitter) -> bool {
 
 fn emitter_uses_inherit_position(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_INHERIT_POSITION != 0
+}
+
+fn emitter_uses_inherit_velocity(em: &M2ParticleEmitter) -> bool {
+    em.flags & PARTICLE_FLAG_INHERIT_VELOCITY != 0
 }
 
 fn emitter_uses_project_particle(em: &M2ParticleEmitter) -> bool {
@@ -532,6 +634,8 @@ fn build_effect_asset(
         model_scale,
         particle_density_multiplier,
         ParticleSpawnMode::Continuous,
+        ParticleSpawnSource::Standalone,
+        &[],
     )
 }
 
@@ -540,14 +644,19 @@ fn build_effect_asset_with_mode(
     model_scale: f32,
     particle_density_multiplier: f32,
     spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+    child_emitters: &[M2ParticleEmitter],
 ) -> EffectAsset {
     let m = build_expr_modifiers(em, model_scale);
     let emission_rate = scaled_emission_rate(em, particle_density_multiplier);
     let (_, max_lifetime) = lifetime_range(em);
     let burst_count = emission_rate.max(0.0);
-    let max_particles =
-        (((emission_rate * max_lifetime).max(burst_count)).ceil() as u32).clamp(16, 4096);
-    let spawner = build_spawner_settings(emission_rate, spawn_mode);
+    let child_event_counts: Vec<u32> = child_emitters
+        .iter()
+        .map(|child| child_emitter_event_count(child, particle_density_multiplier))
+        .collect();
+    let max_particles = max_particles(emission_rate, max_lifetime, burst_count, spawn_source);
+    let spawner = build_spawner_settings(emission_rate, spawn_mode, spawn_source);
 
     let mut effect = assemble_effect(
         em,
@@ -559,6 +668,8 @@ fn build_effect_asset_with_mode(
         m.gravity,
         m.orient_rotation,
         model_scale,
+        spawn_source,
+        child_event_counts,
     );
     if let Some(sprite_idx) = m.flipbook_sprite_index_init {
         effect = effect.init(sprite_idx);
@@ -586,7 +697,14 @@ fn build_effect_asset_with_mode(
     effect
 }
 
-fn build_spawner_settings(emission_rate: f32, spawn_mode: ParticleSpawnMode) -> SpawnerSettings {
+fn build_spawner_settings(
+    emission_rate: f32,
+    spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+) -> SpawnerSettings {
+    if spawn_source == ParticleSpawnSource::ChildFromParentParticles {
+        return SpawnerSettings::default();
+    }
     match spawn_mode {
         ParticleSpawnMode::Continuous => {
             // WoW emits particles via an accumulator (`rate * dt + carry`) and
@@ -605,6 +723,18 @@ fn build_spawner_settings(emission_rate: f32, spawn_mode: ParticleSpawnMode) -> 
     }
 }
 
+fn max_particles(
+    emission_rate: f32,
+    max_lifetime: f32,
+    burst_count: f32,
+    spawn_source: ParticleSpawnSource,
+) -> u32 {
+    if spawn_source == ParticleSpawnSource::ChildFromParentParticles {
+        return 4096;
+    }
+    (((emission_rate * max_lifetime).max(burst_count)).ceil() as u32).clamp(16, 4096)
+}
+
 fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> f32 {
     // WoW samples `base + rand * variation` per emission step. Hanabi exposes
     // only a constant rate, so use the expected mean rate here.
@@ -614,7 +744,7 @@ fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32
 
 fn assemble_effect(
     em: &M2ParticleEmitter,
-    module: Module,
+    mut module: Module,
     spawner: SpawnerSettings,
     max_particles: u32,
     alpha_mode: bevy_hanabi::AlphaMode,
@@ -622,12 +752,18 @@ fn assemble_effect(
     gravity: AccelModifier,
     orient_rotation: Option<ExprHandle>,
     model_scale: f32,
+    spawn_source: ParticleSpawnSource,
+    child_event_counts: Vec<u32>,
 ) -> EffectAsset {
     let orient = if let Some(rotation) = orient_rotation {
         OrientModifier::new(orient_mode(em)).with_rotation(rotation)
     } else {
         OrientModifier::new(orient_mode(em))
     };
+    let child_event_count_exprs: Vec<ExprHandle> = child_event_counts
+        .into_iter()
+        .map(|count| module.lit(count))
+        .collect();
     let mut effect = EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
         .with_alpha_mode(alpha_mode)
@@ -646,6 +782,12 @@ fn assemble_effect(
         PositionInitModifier::Attribute(pos) => effect.init(pos),
         PositionInitModifier::Sphere(pos) => effect.init(pos),
     };
+    if spawn_source == ParticleSpawnSource::ChildFromParentParticles {
+        effect = effect.init(InheritAttributeModifier::new(Attribute::POSITION));
+        if emitter_uses_inherit_velocity(em) {
+            effect = effect.init(InheritAttributeModifier::new(Attribute::VELOCITY));
+        }
+    }
     if let Some(rotation) = init.rotation {
         effect = effect.init(rotation);
     }
@@ -664,7 +806,20 @@ fn assemble_effect(
     if let Some(size_variation) = init.size_variation {
         effect = effect.init(size_variation);
     }
+    for (child_index, count_expr) in child_event_count_exprs.into_iter().enumerate() {
+        effect = effect.update(EmitSpawnEventModifier {
+            condition: EventEmitCondition::Always,
+            count: count_expr,
+            child_index: child_index as u32,
+        });
+    }
     effect
+}
+
+fn child_emitter_event_count(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> u32 {
+    let per_frame =
+        scaled_emission_rate(em, particle_density_multiplier) / CHILD_EMITTER_FPS_APPROXIMATION;
+    per_frame.ceil().max(1.0) as u32
 }
 
 fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {

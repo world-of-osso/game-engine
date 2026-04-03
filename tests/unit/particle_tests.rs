@@ -5,19 +5,20 @@ use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 use super::visuals::has_authored_size_variation;
 use super::{
     FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
-    PARTICLE_FLAG_INHERIT_POSITION, PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE,
-    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES,
-    PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED,
-    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, PositionInitModifier,
-    active_cell_track, build_color_gradient, build_effect_asset, build_effect_asset_with_mode,
-    build_expr_modifiers, build_position_modifier, build_size_gradient, emitter_alpha_mode,
+    PARTICLE_FLAG_INHERIT_POSITION, PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_NEGATE_SPIN,
+    PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_SPHERE_INVERT,
+    PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WIND_DYNAMIC,
+    PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD,
+    ParticleSpawnMode, ParticleSpawnSource, PositionInitModifier, active_cell_track,
+    build_color_gradient, build_effect_asset, build_effect_asset_with_mode, build_expr_modifiers,
+    build_position_modifier, build_size_gradient, child_emitter_event_count, emitter_alpha_mode,
     emitter_parent_entity, emitter_scale_source, emitter_simulation_space, emitter_spawn_offset,
     emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
-    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_project_particle,
-    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
-    has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
-    lifetime_range, orient_mode, projected_particle_spawn_y, scaled_emission_rate, wind_accel_bevy,
-    wind_strength_at_age,
+    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
+    emitter_uses_project_particle, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
+    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind,
+    inherit_position_back_delta_local, lifetime_range, orient_mode, projected_particle_spawn_y,
+    scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -214,7 +215,14 @@ fn textured_emitters_declare_hanabi_texture_slot() {
 fn burst_once_spawn_mode_builds_once_spawner() {
     let emitter = sample_emitter();
 
-    let asset = build_effect_asset_with_mode(&emitter, 1.0, 1.0, ParticleSpawnMode::BurstOnce);
+    let asset = build_effect_asset_with_mode(
+        &emitter,
+        1.0,
+        1.0,
+        ParticleSpawnMode::BurstOnce,
+        ParticleSpawnSource::Standalone,
+        &[],
+    );
 
     assert!(asset.spawner.is_once());
     assert!(asset.spawner.starts_active());
@@ -353,6 +361,9 @@ fn project_particle_snaps_spawn_height_to_loaded_terrain() {
         bone_entity: None,
         scale_source: entity,
         spawn_mode: ParticleSpawnMode::Continuous,
+        spawn_source: ParticleSpawnSource::Standalone,
+        child_emitters: Vec::new(),
+        effect_parent: None,
         pending_texture: None,
     };
 
@@ -412,6 +423,55 @@ fn inherit_position_flag_is_detected_separately_from_follow_position() {
             .iter()
             .any(|property| property.name() == "inherit_position_back_delta")
     );
+}
+
+#[test]
+fn inherit_velocity_flag_is_detected_for_child_emitters() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_INHERIT_VELOCITY;
+
+    assert!(emitter_uses_inherit_velocity(&emitter));
+}
+
+#[test]
+fn child_particle_effects_use_gpu_parent_events() {
+    let emitter = sample_emitter();
+    let asset = build_effect_asset_with_mode(
+        &emitter,
+        1.0,
+        1.0,
+        ParticleSpawnMode::Continuous,
+        ParticleSpawnSource::ChildFromParentParticles,
+        &[],
+    );
+
+    assert_eq!(asset.spawner, bevy_hanabi::SpawnerSettings::default());
+}
+
+#[test]
+fn parent_particle_effects_emit_spawn_events_for_child_emitters() {
+    let parent = sample_emitter();
+    let mut child = sample_emitter();
+    child.emission_rate = 90.0;
+
+    let asset = build_effect_asset_with_mode(
+        &parent,
+        1.0,
+        1.0,
+        ParticleSpawnMode::Continuous,
+        ParticleSpawnSource::Standalone,
+        &[child],
+    );
+
+    assert_eq!(asset.update_modifiers().count(), 2);
+}
+
+#[test]
+fn child_emitter_event_count_uses_per_frame_approximation() {
+    let mut child = sample_emitter();
+    child.emission_rate = 90.0;
+
+    assert_eq!(child_emitter_event_count(&child, 1.0), 2);
 }
 
 #[test]
