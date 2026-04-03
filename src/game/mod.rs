@@ -1,47 +1,30 @@
-pub(crate) mod client_options {
-    pub(crate) use crate::client_options::*;
-}
+#[path = "state/client_options.rs"]
+pub(crate) mod client_options;
 
-pub(crate) mod creature_display {
-    pub(crate) use crate::creature_display::*;
-}
+#[path = "creatures/creature_display.rs"]
+pub(crate) mod creature_display;
 
-pub(crate) mod equipment {
-    pub(crate) use crate::equipment::*;
-}
+#[path = "equipment/equipment.rs"]
+pub(crate) mod equipment;
 
-pub(crate) mod equipment_appearance {
-    pub(crate) use crate::equipment_appearance::*;
-}
+#[path = "equipment/equipment_appearance.rs"]
+pub(crate) mod equipment_appearance;
 
-pub(crate) mod game_state {
-    pub(crate) use crate::game_state::*;
-}
+#[path = "state/game_state.rs"]
+pub(crate) mod game_state;
 
-pub(crate) mod networking {
-    pub(crate) use crate::networking::*;
-}
+#[path = "networking/mod.rs"]
+pub(crate) mod networking;
+#[path = "networking/auth.rs"]
+pub(crate) mod networking_auth;
+#[path = "networking/messages.rs"]
+pub(crate) mod networking_messages;
+#[path = "networking/npc.rs"]
+pub(crate) mod networking_npc;
+#[path = "networking/player.rs"]
+pub(crate) mod networking_player;
+#[path = "networking/reconnect.rs"]
+pub(crate) mod networking_reconnect;
 
-pub(crate) mod networking_auth {
-    pub(crate) use crate::networking_auth::*;
-}
-
-pub(crate) mod networking_messages {
-    pub(crate) use crate::networking_messages::*;
-}
-
-pub(crate) mod networking_npc {
-    pub(crate) use crate::networking_npc::*;
-}
-
-pub(crate) mod networking_player {
-    pub(crate) use crate::networking_player::*;
-}
-
-pub(crate) mod networking_reconnect {
-    pub(crate) use crate::networking_reconnect::*;
-}
-
-pub(crate) mod zone_names {
-    pub(crate) use crate::zone_names::*;
-}
+#[path = "world_db/zone_names.rs"]
+pub(crate) mod zone_names;

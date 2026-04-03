@@ -36,31 +36,9 @@ mod asset {
     pub use game_engine::asset::*;
 }
 mod cli_args;
-#[path = "game/state/client_options.rs"]
-mod client_options;
 mod collision;
-#[path = "game/creatures/creature_display.rs"]
-mod creature_display;
 mod dump_systems;
-#[path = "game/equipment/equipment.rs"]
-mod equipment;
-#[path = "game/equipment/equipment_appearance.rs"]
-mod equipment_appearance;
 mod game;
-#[path = "game/state/game_state.rs"]
-mod game_state;
-#[path = "game/networking/mod.rs"]
-mod networking;
-#[path = "game/networking/auth.rs"]
-mod networking_auth;
-#[path = "game/networking/messages.rs"]
-mod networking_messages;
-#[path = "game/networking/npc.rs"]
-mod networking_npc;
-#[path = "game/networking/player.rs"]
-mod networking_player;
-#[path = "game/networking/reconnect.rs"]
-mod networking_reconnect;
 mod process_limits;
 mod rendering;
 mod scenes;
@@ -69,9 +47,12 @@ mod sound;
 mod status_asset_stats;
 mod status_sync;
 mod trash_button_screen;
-#[path = "game/world_db/zone_names.rs"]
-mod zone_names;
 
+pub(crate) use game::{
+    client_options, creature_display, equipment, equipment_appearance, game_state, networking,
+    networking_auth, networking_messages, networking_npc, networking_player, networking_reconnect,
+    zone_names,
+};
 pub use rendering::{
     action_bar, animation, camera, character_customization, character_models, ground, health_bar,
     light_lookup, m2_effect_material, m2_scene, m2_spawn, m2_texture_composite, minimap,
