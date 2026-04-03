@@ -7,8 +7,8 @@ use super::{
     build_effect_asset, build_expr_modifiers, build_position_modifier, build_size_gradient,
     emitter_alpha_mode, emitter_parent_entity, emitter_scale_source, emitter_spawn_offset,
     emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale, flipbook_sprite_mode,
-    has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range, orient_mode,
-    scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
+    orient_mode, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -21,6 +21,7 @@ struct SampleMotionDefaults {
     vertical_range: f32,
     horizontal_range: f32,
     gravity: f32,
+    gravity_vector: [f32; 3],
     lifespan: f32,
     lifespan_variation: f32,
     emission_rate: f32,
@@ -60,6 +61,7 @@ fn sample_motion_defaults() -> SampleMotionDefaults {
         vertical_range: 0.1,
         horizontal_range: std::f32::consts::TAU,
         gravity: 0.0,
+        gravity_vector: [0.0, 0.0, 0.0],
         lifespan: 1.0,
         lifespan_variation: 0.0,
         emission_rate: 20.0,
@@ -116,6 +118,7 @@ fn apply_sample_motion_defaults(emitter: &mut M2ParticleEmitter, motion: SampleM
     emitter.vertical_range = motion.vertical_range;
     emitter.horizontal_range = motion.horizontal_range;
     emitter.gravity = motion.gravity;
+    emitter.gravity_vector = motion.gravity_vector;
     emitter.lifespan = motion.lifespan;
     emitter.lifespan_variation = motion.lifespan_variation;
     emitter.emission_rate = motion.emission_rate;
@@ -493,6 +496,14 @@ fn wind_vector_maps_to_bevy_axes_and_scale() {
 
     assert!(has_authored_wind(&emitter));
     assert_eq!(wind_accel_bevy(&emitter, 1.5), Vec3::new(1.5, 4.5, -3.0));
+}
+
+#[test]
+fn gravity_vector_maps_to_bevy_axes() {
+    let mut emitter = sample_emitter();
+    emitter.gravity_vector = [1.0, 2.0, -3.0];
+
+    assert_eq!(gravity_accel_bevy(&emitter), Vec3::new(1.0, -3.0, -2.0));
 }
 
 #[test]

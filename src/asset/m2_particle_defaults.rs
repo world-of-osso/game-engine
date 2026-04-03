@@ -19,6 +19,7 @@ macro_rules! zeroed_emitter {
             vertical_range: 0.0,
             horizontal_range: 0.0,
             gravity: 0.0,
+            gravity_vector: [0.0; 3],
             lifespan: 0.0,
             lifespan_variation: 0.0,
             emission_rate: 0.0,
@@ -58,6 +59,7 @@ struct EmitterTrackDefaults {
     vertical_range: f32,
     horizontal_range: f32,
     gravity: f32,
+    gravity_vector: [f32; 3],
     lifespan: f32,
     lifespan_variation: f32,
     emission_rate: f32,
@@ -83,6 +85,7 @@ impl Default for EmitterTrackDefaults {
             vertical_range: 0.0,
             horizontal_range: 0.0,
             gravity: 0.0,
+            gravity_vector: [0.0; 3],
             lifespan: 0.0,
             lifespan_variation: 0.0,
             emission_rate: 0.0,
@@ -197,6 +200,7 @@ fn apply_track_defaults(emitter: &mut M2ParticleEmitter, tracks: EmitterTrackDef
     emitter.vertical_range = tracks.vertical_range;
     emitter.horizontal_range = tracks.horizontal_range;
     emitter.gravity = tracks.gravity;
+    emitter.gravity_vector = tracks.gravity_vector;
     emitter.lifespan = tracks.lifespan;
     emitter.lifespan_variation = tracks.lifespan_variation;
     emitter.emission_rate = tracks.emission_rate;

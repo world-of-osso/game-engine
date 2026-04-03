@@ -232,7 +232,7 @@ fn build_accel_modifier(
     writer: &ExprWriter,
     model_scale: f32,
 ) -> AccelModifier {
-    let gravity = writer.lit(Vec3::new(0.0, -em.gravity, 0.0));
+    let gravity = writer.lit(gravity_accel_bevy(em));
     if !has_authored_wind(em) {
         return AccelModifier::new(gravity.expr());
     }
@@ -618,6 +618,11 @@ fn build_size_variation_modifier(em: &M2ParticleEmitter) -> Option<SizeVariation
 fn wind_accel_bevy(em: &M2ParticleEmitter, model_scale: f32) -> Vec3 {
     let [x, y, z] = em.wind_vector;
     Vec3::from(wow_to_bevy(x, y, z)) * model_scale
+}
+
+fn gravity_accel_bevy(em: &M2ParticleEmitter) -> Vec3 {
+    let [x, y, z] = em.gravity_vector;
+    Vec3::from(wow_to_bevy(x, y, z))
 }
 
 fn wind_strength_at_age(age: f32, wind_time: f32) -> f32 {

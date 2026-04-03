@@ -38,6 +38,8 @@ pub struct M2ParticleEmitter {
     pub vertical_range: f32,
     pub horizontal_range: f32,
     pub gravity: f32,
+    /// Gravity / acceleration vector in raw WoW coordinates.
+    pub gravity_vector: [f32; 3],
     pub lifespan: f32,
     /// Symmetric +/- lifetime variation around `lifespan`.
     pub lifespan_variation: f32,
@@ -138,6 +140,7 @@ const EMITTER_SPIN_VARIATION_OFFSET: usize = 0x184;
 const EMITTER_WIND_VECTOR_OFFSET: usize = 0x1A0;
 const EMITTER_WIND_TIME_OFFSET: usize = 0x1AC;
 const DEFAULT_MID_POINT: f32 = 0.5;
+const PARTICLE_FLAG_COMPRESSED_GRAVITY: u32 = 0x0080_0000;
 const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
 const EMITTER_272_STRIDE: usize = 0x1EC;
 
@@ -208,18 +211,69 @@ fn read_normalized_timestamps(md20: &[u8], emitter: &[u8], off: usize) -> Vec<f3
 /// The outer M2Array points to inner M2Arrays (one per anim sequence).
 /// Each inner M2Array's first 4 bytes hold the float value directly.
 fn read_track_static_f32(md20: &[u8], emitter: &[u8], track_offset: usize) -> f32 {
+    read_f32_track_value(md20, emitter, track_offset)
+}
+
+fn read_track_static_bytes4(md20: &[u8], emitter: &[u8], track_offset: usize) -> [u8; 4] {
     let outer_count = read_u32(emitter, track_offset + 12).unwrap_or(0);
     let outer_offset = read_u32(emitter, track_offset + 16).unwrap_or(0) as usize;
     if outer_count == 0 || outer_offset + 8 > md20.len() {
-        return 0.0;
+        return [0; 4];
     }
-    // Inner M2Array: {count, offset} — dereference to get actual float data.
     let inner_offset = read_u32(md20, outer_offset + 4).unwrap_or(0) as usize;
     if inner_offset == 0 {
-        // Static track: float stored directly at outer_offset.
-        return read_f32(md20, outer_offset).unwrap_or(0.0);
+        return md20
+            .get(outer_offset..outer_offset + 4)
+            .and_then(|bytes| bytes.try_into().ok())
+            .unwrap_or([0; 4]);
     }
-    read_f32(md20, inner_offset).unwrap_or(0.0)
+    md20.get(inner_offset..inner_offset + 4)
+        .and_then(|bytes| bytes.try_into().ok())
+        .unwrap_or([0; 4])
+}
+
+fn read_f32_track_value(md20: &[u8], emitter: &[u8], track_offset: usize) -> f32 {
+    f32::from_le_bytes(read_track_static_bytes4(md20, emitter, track_offset))
+}
+
+fn uses_compressed_gravity(emitter: &[u8]) -> bool {
+    let flags = read_u32(emitter, EMITTER_FLAGS_OFFSET).unwrap_or(0);
+    let scale_variation_y = read_f32(emitter, EMITTER_SCALE_VARIATION_Y_OFFSET).unwrap_or(0.0);
+    // wowdev documents 0x00800000 as compressed gravity, while retail runtime
+    // references reuse that bit for 2D size variation. Treat it as compressed
+    // gravity only when there is no authored Y variation to preserve the known
+    // size-variation behavior.
+    flags & PARTICLE_FLAG_COMPRESSED_GRAVITY != 0 && scale_variation_y == 0.0
+}
+
+fn decode_compressed_particle_gravity(value: [u8; 4]) -> [f32; 3] {
+    let x = value[0] as i8 as f32;
+    let y = value[1] as i8 as f32;
+    let z = i16::from_le_bytes([value[2], value[3]]) as f32;
+    let mut dir = [x / 128.0, y / 128.0, 0.0];
+    let xy_sq = (dir[0] * dir[0] + dir[1] * dir[1]).min(1.0);
+    let mut z_dir = (1.0 - xy_sq).sqrt();
+    let mut mag = z * 0.042_386_48;
+    if mag < 0.0 {
+        z_dir = -z_dir;
+        mag = -mag;
+    }
+    dir[2] = z_dir;
+    [dir[0] * mag, dir[1] * mag, dir[2] * mag]
+}
+
+fn read_track_static_gravity(md20: &[u8], emitter: &[u8], track_offset: usize) -> (f32, [f32; 3]) {
+    if uses_compressed_gravity(emitter) {
+        let gravity = decode_compressed_particle_gravity(read_track_static_bytes4(
+            md20,
+            emitter,
+            track_offset,
+        ));
+        (gravity[2].abs(), gravity)
+    } else {
+        let gravity = read_f32_track_value(md20, emitter, track_offset);
+        (gravity, [0.0, 0.0, -gravity])
+    }
 }
 
 /// Read FakeAnimBlock color values (3 × RGB as C3Vector floats 0–255).
@@ -361,7 +415,9 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.speed_variation = read_track_static_f32(md20, data, EMITTER_SPEED_VARIATION_OFFSET);
     em.vertical_range = read_track_static_f32(md20, data, EMITTER_VERTICAL_RANGE_OFFSET);
     em.horizontal_range = read_track_static_f32(md20, data, EMITTER_HORIZONTAL_RANGE_OFFSET);
-    em.gravity = read_track_static_f32(md20, data, EMITTER_GRAVITY_OFFSET);
+    let (gravity, gravity_vector) = read_track_static_gravity(md20, data, EMITTER_GRAVITY_OFFSET);
+    em.gravity = gravity;
+    em.gravity_vector = gravity_vector;
     em.lifespan = read_track_static_f32(md20, data, EMITTER_LIFESPAN_OFFSET);
     em.lifespan_variation = read_f32(data, EMITTER_LIFESPAN_VARIATION_OFFSET).unwrap_or(0.0);
     em.emission_rate = read_track_static_f32(md20, data, EMITTER_EMISSION_RATE_OFFSET);

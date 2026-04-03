@@ -272,6 +272,45 @@ fn parses_lifespan_variation_from_272_suffix() {
 }
 
 #[test]
+fn parses_uncompressed_gravity_as_negative_wow_z() {
+    let mut md20 = vec![0u8; 0x1ec];
+    let mut emitter = vec![0u8; 0x1ec];
+    let gravity_offset = 0x40usize;
+    md20[gravity_offset..gravity_offset + 4].copy_from_slice(&(2.0_f32).to_le_bytes());
+    emitter[EMITTER_GRAVITY_OFFSET + 12..EMITTER_GRAVITY_OFFSET + 16]
+        .copy_from_slice(&(1u32).to_le_bytes());
+    emitter[EMITTER_GRAVITY_OFFSET + 16..EMITTER_GRAVITY_OFFSET + 20]
+        .copy_from_slice(&(gravity_offset as u32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    fill_track_values(&mut parsed, &md20, &emitter);
+
+    assert!((parsed.gravity - 2.0).abs() < 0.0001);
+    assert_eq!(parsed.gravity_vector, [0.0, 0.0, -2.0]);
+}
+
+#[test]
+fn parses_compressed_gravity_vector() {
+    let mut md20 = vec![0u8; 0x1ec];
+    let mut emitter = vec![0u8; 0x1ec];
+    emitter[EMITTER_FLAGS_OFFSET..EMITTER_FLAGS_OFFSET + 4]
+        .copy_from_slice(&(0x0080_0000u32).to_le_bytes());
+    let gravity_offset = 0x40usize;
+    md20[gravity_offset..gravity_offset + 4].copy_from_slice(&[64, 0, 100, 0]);
+    emitter[EMITTER_GRAVITY_OFFSET + 12..EMITTER_GRAVITY_OFFSET + 16]
+        .copy_from_slice(&(1u32).to_le_bytes());
+    emitter[EMITTER_GRAVITY_OFFSET + 16..EMITTER_GRAVITY_OFFSET + 20]
+        .copy_from_slice(&(gravity_offset as u32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    fill_track_values(&mut parsed, &md20, &emitter);
+
+    assert!((parsed.gravity_vector[0] - 2.119324).abs() < 0.0001);
+    assert!((parsed.gravity_vector[1] - 0.0).abs() < 0.0001);
+    assert!((parsed.gravity_vector[2] - 3.670643).abs() < 0.0002);
+}
+
+#[test]
 fn parses_twinkle_fields_from_272_suffix() {
     let mut md20 = vec![0u8; 0x1ec];
     md20[EMITTER_TWINKLE_SPEED_OFFSET..EMITTER_TWINKLE_SPEED_OFFSET + 4]
