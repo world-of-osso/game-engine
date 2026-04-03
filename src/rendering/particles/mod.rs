@@ -56,6 +56,7 @@ const BLEND_MOD2X: u8 = 7;
 const PARTICLE_TYPE_TRAIL: u8 = 1;
 const TRAIL_LENGTH_FACTOR: f32 = 0.6;
 const INHERIT_POSITION_BACK_DELTA_PROPERTY: &str = "inherit_position_back_delta";
+const DYNAMIC_WIND_ACCEL_PROPERTY: &str = "dynamic_wind_accel";
 const CHILD_EMITTER_FPS_APPROXIMATION: f32 = 60.0;
 const MODEL_PARTICLE_MIN_SPEED: f32 = 0.0;
 
@@ -63,16 +64,32 @@ pub struct ParticlePlugin;
 
 impl Plugin for ParticlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(HanabiPlugin).add_systems(
-            Update,
-            (
-                register_pending_particle_effects,
-                sync_inherit_position_properties,
-                trigger_pending_particle_bursts,
-                tick_model_particle_emitters,
-                simulate_model_particle_instances,
-            ),
-        );
+        app.init_resource::<DynamicParticleWind>()
+            .add_plugins(HanabiPlugin)
+            .add_systems(
+                Update,
+                (
+                    register_pending_particle_effects,
+                    sync_inherit_position_properties,
+                    sync_dynamic_wind_properties,
+                    trigger_pending_particle_bursts,
+                    tick_model_particle_emitters,
+                    simulate_model_particle_instances,
+                ),
+            );
+    }
+}
+
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct DynamicParticleWind {
+    pub effect_space_accel: Vec3,
+}
+
+impl Default for DynamicParticleWind {
+    fn default() -> Self {
+        Self {
+            effect_space_accel: Vec3::ZERO,
+        }
     }
 }
 
@@ -208,6 +225,11 @@ fn register_pending_particle_effects(
                 previous_world_position: current_world_position,
             });
         }
+        if emitter_uses_dynamic_wind(&comp.emitter) {
+            let properties = EffectProperties::default()
+                .with_properties([(DYNAMIC_WIND_ACCEL_PROPERTY.to_string(), Vec3::ZERO.into())]);
+            ec.insert(properties);
+        }
         if comp.spawn_mode == ParticleSpawnMode::BurstOnce {
             ec.insert(PendingParticleBurst { armed: true });
         }
@@ -237,6 +259,25 @@ fn sync_inherit_position_properties(
             back_delta.into(),
         );
         motion_state.previous_world_position = current_world_position;
+    }
+}
+
+fn sync_dynamic_wind_properties(
+    dynamic_wind: Res<DynamicParticleWind>,
+    mut query: Query<(&ParticleEmitterComp, &mut EffectProperties)>,
+) {
+    if !dynamic_wind.is_changed() {
+        return;
+    }
+    for (comp, properties) in &mut query {
+        if !emitter_uses_dynamic_wind(&comp.emitter) {
+            continue;
+        }
+        let _ = EffectProperties::set_if_changed(
+            properties,
+            DYNAMIC_WIND_ACCEL_PROPERTY,
+            dynamic_wind.effect_space_accel.into(),
+        );
     }
 }
 
@@ -627,6 +668,10 @@ fn emitter_uses_follow_position(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_FOLLOW_POSITION != 0
 }
 
+fn emitter_uses_dynamic_wind(em: &M2ParticleEmitter) -> bool {
+    em.flags & PARTICLE_FLAG_WIND_ENABLED != 0 && em.flags & PARTICLE_FLAG_WIND_DYNAMIC != 0
+}
+
 fn emitter_uses_inherit_position(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_INHERIT_POSITION != 0
 }
@@ -926,6 +971,10 @@ fn build_accel_modifier(
     model_scale: f32,
 ) -> AccelModifier {
     let gravity = writer.lit(gravity_accel_bevy(em));
+    if emitter_uses_dynamic_wind(em) {
+        let dynamic_wind = writer.add_property(DYNAMIC_WIND_ACCEL_PROPERTY, Vec3::ZERO.into());
+        return AccelModifier::new((gravity + writer.prop(dynamic_wind)).expr());
+    }
     if !has_authored_wind(em) {
         return AccelModifier::new(gravity.expr());
     }

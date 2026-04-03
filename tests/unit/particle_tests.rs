@@ -4,26 +4,28 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::{
     App, Entity, GlobalTransform, Image, Mesh, Quat, StandardMaterial, Time, Transform, Vec3,
 };
-use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
+use bevy_hanabi::{AlphaMode, Attribute, EffectProperties, ExprWriter, SimulationSpace, Value};
 
 use super::visuals::{build_offset_by_spin_modifier, has_authored_size_variation};
 use super::{
-    FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
-    PARTICLE_FLAG_INHERIT_POSITION, PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_NEGATE_SPIN,
-    PARTICLE_FLAG_NO_GLOBAL_SCALE, PARTICLE_FLAG_OFFSET_BY_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE,
-    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES,
-    PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED,
-    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource,
+    DYNAMIC_WIND_ACCEL_PROPERTY, DynamicParticleWind, FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE,
+    PARTICLE_FLAG_CLAMP_TAIL_TO_AGE, PARTICLE_FLAG_INHERIT_POSITION,
+    PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_NO_GLOBAL_SCALE,
+    PARTICLE_FLAG_OFFSET_BY_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
+    PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
+    PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
+    PARTICLE_FLAG_XY_QUAD, ParticleEmitterComp, ParticleSpawnMode, ParticleSpawnSource,
     PositionInitModifier, active_cell_track, build_color_gradient, build_effect_asset,
     build_effect_asset_with_mode, build_expr_modifiers, build_position_modifier,
     build_size_gradient, child_emitter_event_count, emitter_alpha_mode, emitter_parent_entity,
     emitter_scale_source, emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius,
-    emitter_translation, emitter_uses_bone_scale, emitter_uses_follow_position,
-    emitter_uses_inherit_position, emitter_uses_inherit_velocity, emitter_uses_model_particles,
-    emitter_uses_project_particle, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
-    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind,
-    inherit_position_back_delta_local, lifetime_range, model_particle_spawn_count, orient_mode,
-    projected_particle_spawn_y, scaled_emission_rate, spawn_emitters, wind_accel_bevy,
+    emitter_translation, emitter_uses_bone_scale, emitter_uses_dynamic_wind,
+    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
+    emitter_uses_model_particles, emitter_uses_project_particle,
+    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
+    has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
+    lifetime_range, model_particle_spawn_count, orient_mode, projected_particle_spawn_y,
+    scaled_emission_rate, spawn_emitters, sync_dynamic_wind_properties, wind_accel_bevy,
     wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
@@ -1021,6 +1023,57 @@ fn dynamic_wind_flag_disables_static_wind_path() {
     emitter.wind_time = 2.0;
 
     assert!(!has_authored_wind(&emitter));
+}
+
+#[test]
+fn dynamic_wind_flag_uses_dynamic_wind_path() {
+    let mut emitter = sample_emitter();
+    emitter.flags = PARTICLE_FLAG_WIND_ENABLED | PARTICLE_FLAG_WIND_DYNAMIC;
+
+    assert!(emitter_uses_dynamic_wind(&emitter));
+}
+
+#[test]
+fn sync_dynamic_wind_properties_updates_effect_property() {
+    let mut app = App::new();
+    app.insert_resource(DynamicParticleWind {
+        effect_space_accel: Vec3::new(1.0, 2.0, 3.0),
+    });
+    let entity = app
+        .world_mut()
+        .spawn((
+            ParticleEmitterComp {
+                emitter: {
+                    let mut emitter = sample_emitter();
+                    emitter.flags = PARTICLE_FLAG_WIND_ENABLED | PARTICLE_FLAG_WIND_DYNAMIC;
+                    emitter
+                },
+                bone_entity: None,
+                scale_source: Entity::PLACEHOLDER,
+                spawn_mode: ParticleSpawnMode::Continuous,
+                spawn_source: ParticleSpawnSource::Standalone,
+                child_emitters: Vec::new(),
+                effect_parent: None,
+                pending_texture: None,
+            },
+            EffectProperties::default()
+                .with_properties([(DYNAMIC_WIND_ACCEL_PROPERTY.to_string(), Vec3::ZERO.into())]),
+        ))
+        .id();
+
+    let _ = app
+        .world_mut()
+        .run_system_once(sync_dynamic_wind_properties);
+
+    let properties = app
+        .world()
+        .entity(entity)
+        .get::<EffectProperties>()
+        .unwrap();
+    assert_eq!(
+        properties.get_stored(DYNAMIC_WIND_ACCEL_PROPERTY),
+        Some(Value::from(Vec3::new(1.0, 2.0, 3.0)))
+    );
 }
 
 #[test]
