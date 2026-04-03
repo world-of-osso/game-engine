@@ -504,6 +504,31 @@ fn populate_material_to_texture(conn: &Connection, path: &Path) -> Result<(), St
     let file_data_col = header_index(&headers, "FileDataID", path)?;
     let usage_type_col = header_index(&headers, "UsageType", path)?;
     let material_col = header_index(&headers, "MaterialResourcesID", path)?;
+    let preferred = collect_material_texture_rows(
+        &mut reader,
+        path,
+        file_data_col,
+        usage_type_col,
+        material_col,
+    )?;
+    let mut insert = conn.prepare(
+        "INSERT OR REPLACE INTO material_to_texture (material_resource_id, texture_fdid) VALUES (?1, ?2)"
+    ).map_err(|err| format!("prepare material_to_texture insert: {err}"))?;
+    for (material_resource_id, texture_fdid) in preferred {
+        insert
+            .execute((material_resource_id, texture_fdid))
+            .map_err(|err| format!("insert material_to_texture row: {err}"))?;
+    }
+    Ok(())
+}
+
+fn collect_material_texture_rows(
+    reader: &mut dyn BufRead,
+    path: &Path,
+    file_data_col: usize,
+    usage_type_col: usize,
+    material_col: usize,
+) -> Result<HashMap<u32, u32>, String> {
     let mut preferred = HashMap::new();
     let mut fallback = HashMap::new();
     let mut line = String::new();
@@ -544,15 +569,7 @@ fn populate_material_to_texture(conn: &Connection, path: &Path) -> Result<(), St
             .entry(material_resource_id)
             .or_insert(file_data_id);
     }
-    let mut insert = conn.prepare(
-        "INSERT OR REPLACE INTO material_to_texture (material_resource_id, texture_fdid) VALUES (?1, ?2)"
-    ).map_err(|err| format!("prepare material_to_texture insert: {err}"))?;
-    for (material_resource_id, texture_fdid) in preferred {
-        insert
-            .execute((material_resource_id, texture_fdid))
-            .map_err(|err| format!("insert material_to_texture row: {err}"))?;
-    }
-    Ok(())
+    Ok(preferred)
 }
 
 fn load_material_to_texture_map(conn: &Connection) -> Result<HashMap<u32, u32>, String> {
