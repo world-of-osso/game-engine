@@ -5,6 +5,7 @@ use game_engine::asset::adt::{load_adt_for_tile, load_adt_tex0};
 use game_engine::asset::adt_format::adt_obj::load_adt_obj0;
 use game_engine::asset::blp::load_blp_rgba;
 use game_engine::asset::m2::load_m2_uncached;
+use game_engine::asset::wmo::{load_wmo_group, load_wmo_root};
 use game_engine::csv_util::{parse_csv_line, parse_csv_line_trimmed};
 
 fn bench_csv_parsers(c: &mut Criterion) {
@@ -109,11 +110,49 @@ fn bench_adt_parsing(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_wmo_parsing(c: &mut Criterion) {
+    let root_cases = [("charselect_root", Path::new("data/models/4214993.wmo"))];
+    let group_cases = [("abbey_group_000", Path::new("data/models/107075.wmo"))];
+    let mut group = c.benchmark_group("asset::wmo");
+    for (label, path) in root_cases {
+        assert!(
+            path.exists(),
+            "missing benchmark WMO root {}",
+            path.display()
+        );
+        let bytes = std::fs::read(path).expect("read benchmark WMO root");
+        group.bench_with_input(
+            BenchmarkId::new("load_wmo_root", label),
+            &bytes,
+            |b, bytes| {
+                b.iter(|| load_wmo_root(bytes).expect("parse benchmark WMO root"));
+            },
+        );
+    }
+    for (label, path) in group_cases {
+        assert!(
+            path.exists(),
+            "missing benchmark WMO group {}",
+            path.display()
+        );
+        let bytes = std::fs::read(path).expect("read benchmark WMO group");
+        group.bench_with_input(
+            BenchmarkId::new("load_wmo_group", label),
+            &bytes,
+            |b, bytes| {
+                b.iter(|| load_wmo_group(bytes).expect("parse benchmark WMO group"));
+            },
+        );
+    }
+    group.finish();
+}
+
 criterion_group!(
     parser_benches,
     bench_csv_parsers,
     bench_m2_loading,
     bench_blp_loading,
-    bench_adt_parsing
+    bench_adt_parsing,
+    bench_wmo_parsing
 );
 criterion_main!(parser_benches);
