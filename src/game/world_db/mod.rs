@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::{Connection, OpenFlags, Statement};
 
 use crate::outfit_data::DisplayInfoResolved;
 #[cfg(test)]
@@ -222,7 +222,27 @@ fn populate_starter_outfits(conn: &Connection, path: &Path) -> Result<(), String
              VALUES (?1, ?2, ?3, ?4, ?5)",
         )
         .map_err(|err| format!("prepare starter_outfits insert: {err}"))?;
+    insert_starter_outfit_rows(
+        &mut reader,
+        path,
+        race_col,
+        class_col,
+        sex_col,
+        &item_cols,
+        &mut insert,
+    )?;
+    Ok(())
+}
 
+fn insert_starter_outfit_rows(
+    reader: &mut dyn BufRead,
+    path: &Path,
+    race_col: usize,
+    class_col: usize,
+    sex_col: usize,
+    item_cols: &[usize],
+    insert: &mut Statement<'_>,
+) -> Result<(), String> {
     let mut line = String::new();
     loop {
         line.clear();
