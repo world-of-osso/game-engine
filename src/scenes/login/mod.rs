@@ -24,6 +24,10 @@ use crate::networking;
 
 mod connect;
 pub mod helpers;
+mod view;
+
+#[cfg(test)]
+pub(crate) use view::apply_post_setup;
 
 use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
@@ -172,11 +176,11 @@ pub(crate) fn build_login_ui(
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     status.0 = auth_feedback.0.take().unwrap_or_default();
 
-    let mut res = build_login_screen(&status);
+    let mut res = view::build_login_screen(&status);
     res.screen.sync(&res.shared, &mut ui.registry);
 
     let login = LoginUi::resolve(&ui.registry);
-    apply_post_setup(&mut ui.registry, &login);
+    view::apply_post_setup(&mut ui.registry, &login);
 
     if dev_server.is_some() {
         prefill_offline_credentials(&mut ui.registry, &login);
@@ -197,29 +201,6 @@ pub(crate) fn build_login_ui(
     commands.insert_resource(login);
 }
 
-fn build_login_screen(status: &LoginStatus) -> LoginScreenRes {
-    let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert::<SharedStatusText>(status.0.clone());
-    shared.insert::<SharedConnecting>(false);
-    let screen = Screen::new(login_screen);
-
-    LoginScreenRes { screen, shared }
-}
-
-fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
-    let (sw, sh) = (reg.screen_width, reg.screen_height);
-    if let Some(frame) = reg.get_mut(login.root) {
-        frame.width = Dimension::Fixed(sw);
-        frame.height = Dimension::Fixed(sh);
-    }
-    set_editbox_backdrop(reg, login.username_input);
-    set_editbox_backdrop(reg, login.password_input);
-    set_login_primary_button_textures(reg, login.connect_button);
-    if let Some(reconnect_button) = login.reconnect_button {
-        set_login_primary_button_textures(reg, reconnect_button);
-    }
-}
-
 fn teardown_login_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
@@ -232,38 +213,6 @@ fn teardown_login_ui(
     commands.remove_resource::<LoginUi>();
     commands.remove_resource::<LoginFadeIn>();
     ui.focused_frame = None;
-}
-
-fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.nine_slice = Some(NineSlice {
-            edge_size: 8.0,
-            part_textures: Some(common_input_border_part_textures()),
-            bg_color: EDITBOX_BG,
-            border_color: EDITBOX_BORDER,
-            ..Default::default()
-        });
-        if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
-            eb.text_insets = [12.0, 5.0, 8.0, 8.0];
-            eb.font = GameFont::ArialNarrow;
-            eb.text_color = GLUE_EDITBOX_TEXT_COLOR;
-        }
-    }
-}
-
-fn common_input_border_part_textures() -> [TextureSource; 9] {
-    let base = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
-    [
-        TextureSource::File(format!("{base}TL.blp")),
-        TextureSource::File(format!("{base}T.blp")),
-        TextureSource::File(format!("{base}TR.blp")),
-        TextureSource::File(format!("{base}L.blp")),
-        TextureSource::File(format!("{base}M.blp")),
-        TextureSource::File(format!("{base}R.blp")),
-        TextureSource::File(format!("{base}BL.blp")),
-        TextureSource::File(format!("{base}B.blp")),
-        TextureSource::File(format!("{base}BR.blp")),
-    ]
 }
 
 fn sync_editbox_focus_visual(reg: &mut FrameRegistry, id: u64, focused: bool) {
@@ -753,7 +702,7 @@ fn login_update_visuals(
     };
     ui.focused_frame = focus.0;
     sync_button_states(&mut ui.registry, login, &login_mode, &auth_token, &status);
-    sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
+    view::sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
     sync_editbox_focus_visual(
         &mut ui.registry,
         login.username_input,
@@ -764,19 +713,6 @@ fn login_update_visuals(
         login.password_input,
         focus.0 == Some(login.password_input),
     );
-}
-
-fn sync_login_status(
-    reg: &mut FrameRegistry,
-    screen_res: Option<&mut ResMut<LoginScreenResWrap>>,
-    status: &LoginStatus,
-) {
-    let Some(res) = screen_res else { return };
-    let inner = &mut res.0;
-    let connecting = status.0 == STATUS_CONNECTING;
-    inner.shared.insert::<SharedStatusText>(status.0.clone());
-    inner.shared.insert::<SharedConnecting>(connecting);
-    inner.screen.sync(&inner.shared, reg);
 }
 
 fn login_fade_in(
