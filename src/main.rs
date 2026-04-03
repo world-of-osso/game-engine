@@ -66,6 +66,7 @@ mod sound;
 mod status_asset_stats;
 mod status_sync;
 mod trash_button_screen;
+#[path = "game/world_db/zone_names.rs"]
 mod zone_names;
 
 pub use rendering::{

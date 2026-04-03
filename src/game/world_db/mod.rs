@@ -9,15 +9,15 @@ use crate::outfit_data::DisplayInfoResolved;
 #[cfg(test)]
 use crate::outfit_data::DisplayMaterialTextures;
 
-#[path = "world_db_outfit_cache_load.rs"]
+#[path = "outfit_cache_load.rs"]
 mod outfit_cache_load;
-#[path = "world_db_outfit_links.rs"]
+#[path = "outfit_links.rs"]
 mod outfit_links_cache;
-#[path = "world_db_outfit_query.rs"]
+#[path = "outfit_query.rs"]
 mod outfit_query;
-#[path = "world_db_outfit_resolve.rs"]
+#[path = "outfit_resolve.rs"]
 mod outfit_resolve;
-#[path = "world_db_zone_names.rs"]
+#[path = "zone_names_cache.rs"]
 mod zone_name_cache;
 
 type OutfitKey = (u8, u8, u8);
@@ -668,5 +668,5 @@ pub(crate) fn load_cached_display_resources(
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/world_db_tests.rs"]
+#[path = "../../../tests/unit/world_db_tests.rs"]
 mod tests;

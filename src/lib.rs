@@ -29,6 +29,7 @@ pub mod screenshot;
 pub mod sound_music_zone_cache;
 pub mod status;
 pub mod ui;
+#[path = "game/world_db/mod.rs"]
 pub mod world_db;
 
 #[path = "rendering/character/char_texture_cache.rs"]
