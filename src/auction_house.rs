@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::mpsc;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::protocol::{
@@ -148,34 +149,35 @@ fn push(
     true
 }
 
-#[allow(clippy::too_many_arguments)]
-fn send_pending_actions(
-    mut state: ResMut<AuctionHouseState>,
-    mut open_senders: Query<&mut MessageSender<OpenAuctionHouse>>,
-    mut browse_senders: Query<&mut MessageSender<QueryAuctions>>,
-    mut owned_senders: Query<&mut MessageSender<QueryOwnedAuctions>>,
-    mut bids_senders: Query<&mut MessageSender<QueryBidAuctions>>,
-    mut inventory_senders: Query<&mut MessageSender<QueryAuctionInventory>>,
-    mut mailbox_senders: Query<&mut MessageSender<QueryAuctionMailbox>>,
-    mut create_senders: Query<&mut MessageSender<CreateAuction>>,
-    mut bid_senders: Query<&mut MessageSender<PlaceBid>>,
-    mut buyout_senders: Query<&mut MessageSender<BuyoutAuction>>,
-    mut cancel_senders: Query<&mut MessageSender<CancelAuction>>,
-    mut claim_senders: Query<&mut MessageSender<ClaimAuctionMail>>,
-) {
+#[derive(SystemParam)]
+struct AuctionSenders<'w, 's> {
+    open_senders: Query<'w, 's, &'static mut MessageSender<OpenAuctionHouse>>,
+    browse_senders: Query<'w, 's, &'static mut MessageSender<QueryAuctions>>,
+    owned_senders: Query<'w, 's, &'static mut MessageSender<QueryOwnedAuctions>>,
+    bids_senders: Query<'w, 's, &'static mut MessageSender<QueryBidAuctions>>,
+    inventory_senders: Query<'w, 's, &'static mut MessageSender<QueryAuctionInventory>>,
+    mailbox_senders: Query<'w, 's, &'static mut MessageSender<QueryAuctionMailbox>>,
+    create_senders: Query<'w, 's, &'static mut MessageSender<CreateAuction>>,
+    bid_senders: Query<'w, 's, &'static mut MessageSender<PlaceBid>>,
+    buyout_senders: Query<'w, 's, &'static mut MessageSender<BuyoutAuction>>,
+    cancel_senders: Query<'w, 's, &'static mut MessageSender<CancelAuction>>,
+    claim_senders: Query<'w, 's, &'static mut MessageSender<ClaimAuctionMail>>,
+}
+
+fn send_pending_actions(mut state: ResMut<AuctionHouseState>, mut senders: AuctionSenders) {
     while let Some(pending) = state.pending_actions.pop_front() {
         let sent = match pending.action {
-            Action::Open => send_all(&mut open_senders, OpenAuctionHouse),
-            Action::Browse(query) => send_all(&mut browse_senders, QueryAuctions { query }),
-            Action::Owned => send_all(&mut owned_senders, QueryOwnedAuctions),
-            Action::Bids => send_all(&mut bids_senders, QueryBidAuctions),
-            Action::Inventory => send_all(&mut inventory_senders, QueryAuctionInventory),
-            Action::Mailbox => send_all(&mut mailbox_senders, QueryAuctionMailbox),
-            Action::Create(req) => send_all(&mut create_senders, req),
-            Action::Bid(req) => send_all(&mut bid_senders, req),
-            Action::Buyout(req) => send_all(&mut buyout_senders, req),
-            Action::Cancel(req) => send_all(&mut cancel_senders, req),
-            Action::Claim(req) => send_all(&mut claim_senders, req),
+            Action::Open => send_all(&mut senders.open_senders, OpenAuctionHouse),
+            Action::Browse(query) => send_all(&mut senders.browse_senders, QueryAuctions { query }),
+            Action::Owned => send_all(&mut senders.owned_senders, QueryOwnedAuctions),
+            Action::Bids => send_all(&mut senders.bids_senders, QueryBidAuctions),
+            Action::Inventory => send_all(&mut senders.inventory_senders, QueryAuctionInventory),
+            Action::Mailbox => send_all(&mut senders.mailbox_senders, QueryAuctionMailbox),
+            Action::Create(req) => send_all(&mut senders.create_senders, req),
+            Action::Bid(req) => send_all(&mut senders.bid_senders, req),
+            Action::Buyout(req) => send_all(&mut senders.buyout_senders, req),
+            Action::Cancel(req) => send_all(&mut senders.cancel_senders, req),
+            Action::Claim(req) => send_all(&mut senders.claim_senders, req),
         };
         if !sent {
             state.last_error = Some("auction house is unavailable: not connected".into());
