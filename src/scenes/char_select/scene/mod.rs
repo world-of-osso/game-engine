@@ -209,17 +209,19 @@ fn spawn_char_select_model(
     m2_path: &Path,
     char_transform: Transform,
 ) -> Option<(Entity, Entity)> {
-    let spawned = m2_scene::spawn_animated_static_m2_parts(
-        ctx.commands,
-        &mut ctx.assets.meshes,
-        &mut ctx.assets.materials,
-        &mut ctx.assets.effect_materials,
-        &mut ctx.assets.images,
-        &mut ctx.assets.inv_bp,
-        m2_path,
-        char_transform,
-        ctx.creature_display_map,
-    );
+    let mut spawn_ctx = m2_scene::M2SceneSpawnContext {
+        commands: ctx.commands,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes: &mut ctx.assets.meshes,
+            materials: &mut ctx.assets.materials,
+            effect_materials: &mut ctx.assets.effect_materials,
+            skybox_materials: None,
+            images: &mut ctx.assets.images,
+            inverse_bindposes: &mut ctx.assets.inv_bp,
+        },
+        creature_display_map: ctx.creature_display_map,
+    };
+    let spawned = m2_scene::spawn_animated_static_m2_parts(&mut spawn_ctx, m2_path, char_transform);
     let spawned = spawned?;
     ctx.commands
         .entity(spawned.root)

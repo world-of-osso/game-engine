@@ -274,17 +274,21 @@ fn spawn_debug_character_model(
     let Some(model_path) = resolve_model_path(config.race, config.sex) else {
         return;
     };
-    let Some(spawned) = m2_scene::spawn_animated_static_m2_parts(
+    let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        &model_path,
-        model_transform(x),
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: None,
+            images,
+            inverse_bindposes: inv_bp,
+        },
         creature_display_map,
-    ) else {
+    };
+    let Some(spawned) =
+        m2_scene::spawn_animated_static_m2_parts(&mut ctx, &model_path, model_transform(x))
+    else {
         return;
     };
     commands

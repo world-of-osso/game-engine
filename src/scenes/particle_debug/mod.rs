@@ -105,13 +105,20 @@ fn spawn_torch(
         return;
     }
     let skin_fdids = resolved_skin_fdids(&path, creature_display_map, outfit_data);
-    m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
+    let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: None,
+            images,
+            inverse_bindposes: inv_bp,
+        },
+        creature_display_map,
+    };
+    m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
+        &mut ctx,
         &path,
         Transform::IDENTITY,
         &skin_fdids,

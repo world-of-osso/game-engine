@@ -236,17 +236,22 @@ fn spawn_debug_skybox(
 ) -> Option<Entity> {
     let skybox_path = ensure_inworld_selection_debug_skybox(map_id, Vec3::new(0.0, 0.0, 0.0))
         .unwrap_or_else(|| std::path::PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"));
-    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
+    let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        meshes,
-        materials,
-        effect_materials,
-        skybox_materials,
-        images,
-        inverse_bindposes,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: Some(skybox_materials),
+            images,
+            inverse_bindposes,
+        },
+        creature_display_map,
+    };
+    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
+        &mut ctx,
         &skybox_path,
         Transform::default(),
-        creature_display_map,
         None,
     )?;
     commands.entity(spawned.root).insert((
@@ -295,17 +300,23 @@ fn spawn_debug_wolf(
     creature_display_map: &creature_display::CreatureDisplayMap,
 ) -> Option<Entity> {
     let wolf_path = std::path::Path::new("data/models/126487.m2");
-    let spawned = m2_scene::spawn_animated_static_m2_parts(
+    let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inverse_bindposes,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: None,
+            images,
+            inverse_bindposes,
+        },
+        creature_display_map,
+    };
+    let spawned = m2_scene::spawn_animated_static_m2_parts(
+        &mut ctx,
         wolf_path,
         Transform::from_xyz(0.0, 0.0, 0.0)
             .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
-        creature_display_map,
     )?;
     commands.entity(spawned.root).insert((
         InWorldSelectionDebugScene,

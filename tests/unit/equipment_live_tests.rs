@@ -215,16 +215,22 @@ fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::Spawn
     )> = SystemState::new(world);
     let (mut commands, mut meshes, mut materials, mut effect_materials, mut images, mut inv_bp) =
         state.get_mut(world);
+    let mut ctx = m2_scene::M2SceneSpawnContext {
+        commands: &mut commands,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes: &mut meshes,
+            materials: &mut materials,
+            effect_materials: &mut effect_materials,
+            skybox_materials: None,
+            images: &mut images,
+            inverse_bindposes: &mut inv_bp,
+        },
+        creature_display_map: &creature_display_map,
+    };
     let spawned = m2_scene::spawn_animated_static_m2_parts(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
+        &mut ctx,
         character_path,
         Transform::from_scale(Vec3::splat(1.1)),
-        &creature_display_map,
     )
     .expect("spawned humanmale_hd");
     state.apply(world);

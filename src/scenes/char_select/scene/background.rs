@@ -129,19 +129,26 @@ pub fn spawn_skybox(
     camera_translation: Vec3,
 ) -> Option<Entity> {
     let m2_path = crate::scenes::char_select::warband::ensure_warband_skybox(scene?)?;
-    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
-        ctx.commands,
-        ctx.meshes,
-        ctx.materials,
-        ctx.effect_materials,
-        ctx.skybox_materials,
-        ctx.images,
-        ctx.inv_bp,
-        &m2_path,
-        Transform::from_translation(camera_translation),
-        ctx.creature_display_map,
-        None,
-    )?;
+    let spawned = {
+        let mut spawn_ctx = m2_scene::M2SceneSpawnContext {
+            commands: ctx.commands,
+            assets: crate::m2_spawn::SpawnAssets {
+                meshes: ctx.meshes,
+                materials: ctx.materials,
+                effect_materials: ctx.effect_materials,
+                skybox_materials: Some(ctx.skybox_materials),
+                images: ctx.images,
+                inverse_bindposes: ctx.inv_bp,
+            },
+            creature_display_map: ctx.creature_display_map,
+        };
+        m2_scene::spawn_animated_static_skybox_m2_parts(
+            &mut spawn_ctx,
+            &m2_path,
+            Transform::from_translation(camera_translation),
+            None,
+        )?
+    };
     ctx.commands.entity(spawned.root).insert((
         CharSelectScene,
         CharSelectSkybox {

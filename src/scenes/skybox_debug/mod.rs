@@ -138,17 +138,22 @@ fn setup_scene(
     };
     let path = resolved.path;
 
+    let mut ctx = m2_scene::M2SceneSpawnContext {
+        commands: &mut commands,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes: &mut meshes,
+            materials: &mut materials,
+            effect_materials: &mut effect_materials,
+            skybox_materials: Some(&mut skybox_materials),
+            images: &mut images,
+            inverse_bindposes: &mut inv_bp,
+        },
+        creature_display_map: &creature_display_map,
+    };
     let Some(spawned) = m2_scene::spawn_animated_static_skybox_m2_parts(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut skybox_materials,
-        &mut images,
-        &mut inv_bp,
+        &mut ctx,
         &path,
         Transform::from_translation(eye),
-        &creature_display_map,
         None,
     ) else {
         warn!(

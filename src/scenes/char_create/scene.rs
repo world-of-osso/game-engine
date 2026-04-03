@@ -251,17 +251,21 @@ impl<'a, 'w, 's> CharCreateSpawnContext<'a, 'w, 's> {
 
     fn spawn_race_model(&mut self, race: u8, sex: u8, visible: bool) -> Option<Entity> {
         let model_path = resolve_model_path(race, sex)?;
-        let entity = m2_scene::spawn_animated_static_m2(
-            self.commands,
-            self.meshes,
-            self.materials,
-            self.effect_materials,
-            self.images,
-            self.inv_bp,
-            &model_path,
-            model_transform(),
-            self.creature_display_map,
-        )?;
+        let entity = {
+            let mut ctx = m2_scene::M2SceneSpawnContext {
+                commands: self.commands,
+                assets: crate::m2_spawn::SpawnAssets {
+                    meshes: self.meshes,
+                    materials: self.materials,
+                    effect_materials: self.effect_materials,
+                    skybox_materials: None,
+                    images: self.images,
+                    inverse_bindposes: self.inv_bp,
+                },
+                creature_display_map: self.creature_display_map,
+            };
+            m2_scene::spawn_animated_static_m2(&mut ctx, &model_path, model_transform())?
+        };
         let vis = if visible {
             Visibility::Inherited
         } else {

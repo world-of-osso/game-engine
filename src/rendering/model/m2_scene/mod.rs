@@ -22,6 +22,12 @@ use crate::skybox_m2_material::SkyboxM2Material;
 
 mod static_spawn;
 
+pub struct M2SceneSpawnContext<'a, 'w, 's> {
+    pub commands: &'a mut Commands<'w, 's>,
+    pub assets: m2_spawn::SpawnAssets<'a>,
+    pub creature_display_map: &'a creature_display::CreatureDisplayMap,
+}
+
 #[allow(unused_imports)]
 pub use self::static_spawn::{
     SpawnedAnimatedStaticM2, spawn_animated_static_m2, spawn_animated_static_m2_parts,

@@ -168,17 +168,22 @@ fn spawn_inworld_skybox(
     position: Vec3,
     initial_alpha: f32,
 ) -> Option<Entity> {
-    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
+    let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        meshes,
-        materials,
-        effect_materials,
-        skybox_materials,
-        images,
-        inverse_bp,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: Some(skybox_materials),
+            images,
+            inverse_bindposes: inverse_bp,
+        },
+        creature_display_map,
+    };
+    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
+        &mut ctx,
         path,
         Transform::from_translation(position),
-        creature_display_map,
         Some(Color::srgba(1.0, 1.0, 1.0, initial_alpha)),
     )?;
 
