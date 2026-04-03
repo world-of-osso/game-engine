@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use game_engine::asset::char_texture::CharTextureData;
@@ -29,6 +30,85 @@ pub(crate) struct CharacterRenderRequest {
 
 #[derive(Component, Clone, Debug, PartialEq, Eq)]
 struct AppliedCharacterRenderRequest(CharacterRenderRequest);
+
+#[derive(SystemParam)]
+struct CharacterRenderRequestParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    customization_db: Res<'w, CustomizationDb>,
+    char_tex: Res<'w, CharTextureData>,
+    outfit_data: Res<'w, game_engine::outfit_data::OutfitData>,
+    request_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static CharacterRenderRequest,
+            Option<&'static AppliedCharacterRenderRequest>,
+        ),
+    >,
+    parent_query: Query<'w, 's, &'static ChildOf>,
+    geoset_query: Query<'w, 's, (Entity, &'static GeosetMesh, &'static ChildOf)>,
+    visibility_query: Query<'w, 's, &'static mut Visibility>,
+    material_query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static MeshMaterial3d<StandardMaterial>,
+            Option<&'static GeosetMesh>,
+            Option<&'static BatchTextureType>,
+            &'static ChildOf,
+        ),
+    >,
+    equipment_query: Query<'w, 's, &'static mut Equipment>,
+    equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
+    images: ResMut<'w, Assets<Image>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+}
+
+struct CharacterRenderRequestContext<'a, 'w, 's> {
+    customization_db: &'a CustomizationDb,
+    char_tex: &'a CharTextureData,
+    outfit_data: &'a game_engine::outfit_data::OutfitData,
+    parent_query: &'a Query<'w, 's, &'static ChildOf>,
+    geoset_query: &'a Query<'w, 's, (Entity, &'static GeosetMesh, &'static ChildOf)>,
+    visibility_query: &'a mut Query<'w, 's, &'static mut Visibility>,
+    material_query: &'a Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static MeshMaterial3d<StandardMaterial>,
+            Option<&'static GeosetMesh>,
+            Option<&'static BatchTextureType>,
+            &'static ChildOf,
+        ),
+    >,
+    equipment_query: &'a mut Query<'w, 's, &'static mut Equipment>,
+    equipment_item_query: &'a Query<'w, 's, (), With<EquipmentItem>>,
+    images: &'a mut Assets<Image>,
+    materials: &'a mut Assets<StandardMaterial>,
+    commands: &'a mut Commands<'w, 's>,
+}
+
+impl<'a, 'w, 's> CharacterRenderRequestContext<'a, 'w, 's> {
+    fn from_params(params: &'a mut CharacterRenderRequestParams<'w, 's>) -> Self {
+        Self {
+            customization_db: &params.customization_db,
+            char_tex: &params.char_tex,
+            outfit_data: &params.outfit_data,
+            parent_query: &params.parent_query,
+            geoset_query: &params.geoset_query,
+            visibility_query: &mut params.visibility_query,
+            material_query: &params.material_query,
+            equipment_query: &mut params.equipment_query,
+            equipment_item_query: &params.equipment_item_query,
+            images: &mut params.images,
+            materials: &mut params.materials,
+            commands: &mut params.commands,
+        }
+    }
+}
 
 pub(crate) struct CharacterCustomizationPlugin;
 
@@ -293,112 +373,70 @@ pub(crate) fn collect_appearance_materials(
     all
 }
 
-#[allow(clippy::too_many_arguments)]
-fn sync_character_render_requests(
-    mut commands: Commands,
-    customization_db: Res<CustomizationDb>,
-    char_tex: Res<CharTextureData>,
-    outfit_data: Res<game_engine::outfit_data::OutfitData>,
-    request_query: Query<(
-        Entity,
-        &CharacterRenderRequest,
-        Option<&AppliedCharacterRenderRequest>,
-    )>,
-    parent_query: Query<&ChildOf>,
-    geoset_query: Query<(Entity, &GeosetMesh, &ChildOf)>,
-    mut visibility_query: Query<&mut Visibility>,
-    material_query: Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&GeosetMesh>,
-        Option<&BatchTextureType>,
-        &ChildOf,
-    )>,
-    mut equipment_query: Query<&mut Equipment>,
-    equipment_item_query: Query<(), With<EquipmentItem>>,
-    mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    for (entity, request, applied) in &request_query {
-        if applied.is_some_and(|applied| applied.0 == *request) {
+fn sync_character_render_requests(mut params: CharacterRenderRequestParams) {
+    let pending_requests = params
+        .request_query
+        .iter()
+        .map(|(entity, request, applied)| (entity, request.clone(), applied.cloned()))
+        .collect::<Vec<_>>();
+    for (entity, request, applied) in pending_requests {
+        if applied.is_some_and(|applied| applied.0 == request) {
             continue;
         }
-        if !character_render_targets_ready(entity, &parent_query, &geoset_query, &material_query) {
-            continue;
-        }
-        apply_character_render_request(
+        if !character_render_targets_ready(
             entity,
-            request,
-            &customization_db,
-            &char_tex,
-            &outfit_data,
-            &parent_query,
-            &geoset_query,
-            &mut visibility_query,
-            &material_query,
-            &mut equipment_query,
-            &equipment_item_query,
-            &mut images,
-            &mut materials,
-            &mut commands,
-        );
+            &params.parent_query,
+            &params.geoset_query,
+            &params.material_query,
+        ) {
+            continue;
+        }
+        let mut context = CharacterRenderRequestContext::from_params(&mut params);
+        apply_character_render_request(entity, &request, &mut context);
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn apply_character_render_request(
     entity: Entity,
     request: &CharacterRenderRequest,
-    customization_db: &CustomizationDb,
-    char_tex: &CharTextureData,
-    outfit_data: &game_engine::outfit_data::OutfitData,
-    parent_query: &Query<&ChildOf>,
-    geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
-    visibility_query: &mut Query<&mut Visibility>,
-    material_query: &Query<(
-        Entity,
-        &MeshMaterial3d<StandardMaterial>,
-        Option<&GeosetMesh>,
-        Option<&BatchTextureType>,
-        &ChildOf,
-    )>,
-    equipment_query: &mut Query<&mut Equipment>,
-    equipment_item_query: &Query<(), With<EquipmentItem>>,
-    images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
-    commands: &mut Commands,
+    context: &mut CharacterRenderRequestContext,
 ) {
     let resolved_equipment = resolve_equipment_appearance(
         &request.equipment_appearance,
-        outfit_data,
+        context.outfit_data,
         request.selection.race,
         request.selection.sex,
     );
     log_character_render_apply(entity, request, &resolved_equipment);
     apply_character_customization(
         request.selection,
-        customization_db,
-        char_tex,
+        context.customization_db,
+        context.char_tex,
         Some(&resolved_equipment),
         entity,
-        images,
-        materials,
-        parent_query,
-        geoset_query,
-        visibility_query,
-        equipment_item_query,
-        material_query,
+        context.images,
+        context.materials,
+        context.parent_query,
+        context.geoset_query,
+        context.visibility_query,
+        context.equipment_item_query,
+        context.material_query,
     );
     info!(
         "character visible geosets entity={entity:?} ids={:?}",
-        visible_geoset_ids_for_root(entity, parent_query, geoset_query, visibility_query)
+        visible_geoset_ids_for_root(
+            entity,
+            context.parent_query,
+            context.geoset_query,
+            context.visibility_query,
+        )
     );
     finalize_character_render(
         entity,
         request,
         &resolved_equipment,
-        equipment_query,
-        commands,
+        context.equipment_query,
+        context.commands,
     );
 }
 
