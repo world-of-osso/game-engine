@@ -8,6 +8,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use serde::Deserialize;
@@ -252,33 +253,39 @@ fn attach_rendered_equipment_state(
 }
 
 /// System: synchronize rendered equipment with desired slots.
-#[allow(clippy::too_many_arguments)]
-pub fn sync_equipment(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    transforms: Res<EquipmentTransforms>,
-    mut query: Query<(
-        Entity,
-        &Equipment,
-        &AttachmentPoints,
-        &M2AnimData,
-        &mut RenderedEquipment,
-    )>,
-    parents: Query<&ChildOf>,
-    names: Query<&Name>,
-    existing_items: Query<(), With<EquipmentItem>>,
-    mut warned: Local<HashSet<String>>,
-) {
-    for (owner, equipment, attach_points, anim_data, mut rendered) in &mut query {
+#[derive(SystemParam)]
+pub struct EquipmentSyncParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    transforms: Res<'w, EquipmentTransforms>,
+    query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static Equipment,
+            &'static AttachmentPoints,
+            &'static M2AnimData,
+            &'static mut RenderedEquipment,
+        ),
+    >,
+    parents: Query<'w, 's, &'static ChildOf>,
+    names: Query<'w, 's, &'static Name>,
+    existing_items: Query<'w, 's, (), With<EquipmentItem>>,
+    warned: Local<'s, HashSet<String>>,
+}
+
+pub fn sync_equipment(mut params: EquipmentSyncParams) {
+    for (owner, equipment, attach_points, anim_data, mut rendered) in &mut params.query {
         sync_removed_slots(
-            &mut commands,
+            &mut params.commands,
             &equipment.slots,
             &mut rendered,
-            &existing_items,
+            &params.existing_items,
         );
 
         for (&slot, path) in &equipment.slots {
@@ -295,7 +302,7 @@ pub fn sync_equipment(
                 Some(item) => {
                     item.path != *path
                         || item.skin_fdids != skin_fdids
-                        || existing_items.get(item.entity).is_err()
+                        || params.existing_items.get(item.entity).is_err()
                 }
                 None => true,
             };
@@ -304,26 +311,31 @@ pub fn sync_equipment(
             }
 
             if let Some(existing) = rendered.slots.remove(&slot) {
-                commands.entity(existing.entity).despawn();
+                params.commands.entity(existing.entity).despawn();
             }
 
             let Some(spawned) = spawn_equipment_slot(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                &mut effect_materials,
-                &mut images,
-                &mut inv_bp,
-                &anim_data.joint_entities,
-                &parents,
-                &names,
-                attach_points,
+                &mut EquipmentSpawnContext {
+                    commands: &mut params.commands,
+                    assets: crate::m2_spawn::SpawnAssets {
+                        meshes: &mut params.meshes,
+                        materials: &mut params.materials,
+                        effect_materials: &mut params.effect_materials,
+                        skybox_materials: None,
+                        images: &mut params.images,
+                        inverse_bindposes: &mut params.inv_bp,
+                    },
+                    joint_entities: &anim_data.joint_entities,
+                    parents: &params.parents,
+                    names: &params.names,
+                    attach_points,
+                    transforms: &params.transforms,
+                    warned: &mut params.warned,
+                    owner,
+                },
                 slot,
                 path,
                 skin_fdids,
-                &transforms,
-                &mut warned,
-                owner,
             ) else {
                 continue;
             };
@@ -361,24 +373,23 @@ fn sync_removed_slots(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+struct EquipmentSpawnContext<'a, 'w, 's> {
+    commands: &'a mut Commands<'w, 's>,
+    assets: crate::m2_spawn::SpawnAssets<'a>,
+    joint_entities: &'a [Entity],
+    parents: &'a Query<'w, 's, &'static ChildOf>,
+    names: &'a Query<'w, 's, &'static Name>,
+    attach_points: &'a AttachmentPoints,
+    transforms: &'a EquipmentTransforms,
+    warned: &'a mut HashSet<String>,
+    owner: Entity,
+}
+
 fn spawn_equipment_slot(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    joint_entities: &[Entity],
-    parents: &Query<&ChildOf>,
-    names: &Query<&Name>,
-    attach_points: &AttachmentPoints,
+    ctx: &mut EquipmentSpawnContext<'_, '_, '_>,
     slot: EquipmentSlot,
     m2_path: &Path,
     skin_fdids: [u32; 3],
-    transforms: &EquipmentTransforms,
-    warned: &mut HashSet<String>,
-    owner: Entity,
 ) -> Option<Entity> {
     let use_bound_joints = matches!(
         slot,
@@ -387,23 +398,29 @@ fn spawn_equipment_slot(
         && is_collection_model(m2_path));
     let (parent_entity, base_offset) = if use_bound_joints {
         (
-            bound_visual_root(owner, joint_entities, parents),
+            bound_visual_root(ctx.owner, ctx.joint_entities, ctx.parents),
             Vec3::ZERO,
         )
     } else {
         let att_id = slot_attachment_id(slot);
-        let Some(&(bone_idx, base_offset)) = attach_points.points.get(&att_id) else {
+        let Some(&(bone_idx, base_offset)) = ctx.attach_points.points.get(&att_id) else {
             warn_once(
-                warned,
-                format!("missing attachment {att_id} for slot {slot:?} on {owner:?}"),
+                ctx.warned,
+                format!(
+                    "missing attachment {att_id} for slot {slot:?} on {:?}",
+                    ctx.owner
+                ),
             );
             return None;
         };
 
-        let Some(&joint) = joint_entities.get(bone_idx as usize) else {
+        let Some(&joint) = ctx.joint_entities.get(bone_idx as usize) else {
             warn_once(
-                warned,
-                format!("missing bone {bone_idx} for slot {slot:?} on {owner:?}"),
+                ctx.warned,
+                format!(
+                    "missing bone {bone_idx} for slot {slot:?} on {:?}",
+                    ctx.owner
+                ),
             );
             return None;
         };
@@ -412,7 +429,7 @@ fn spawn_equipment_slot(
 
     if !m2_path.exists() {
         warn_once(
-            warned,
+            ctx.warned,
             format!(
                 "equipment model missing for slot {slot:?}: {}",
                 m2_path.display()
@@ -425,10 +442,11 @@ fn spawn_equipment_slot(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("item");
-    let mut transform = transforms.resolve(slot, m2_path);
+    let mut transform = ctx.transforms.resolve(slot, m2_path);
     transform.translation += base_offset;
 
-    let item_root = commands
+    let item_root = ctx
+        .commands
         .spawn((
             Name::new(format!("equip_{name}")),
             EquipmentItem { _slot: slot },
@@ -440,33 +458,19 @@ fn spawn_equipment_slot(
 
     let spawned = if use_bound_joints {
         m2_spawn::spawn_m2_on_entity_filtered_bound_to_existing_joints(
-            commands,
-            &mut m2_spawn::SpawnAssets {
-                meshes,
-                materials,
-                effect_materials,
-                skybox_materials: None,
-                images,
-                inverse_bindposes: inv_bp,
-            },
+            ctx.commands,
+            &mut ctx.assets,
             m2_path,
             item_root,
             &skin_fdids,
             |mesh_part_id| runtime_mesh_part_allowed(slot, mesh_part_id),
-            joint_entities,
-            names,
+            ctx.joint_entities,
+            ctx.names,
         )
     } else {
         m2_spawn::spawn_m2_on_entity_filtered(
-            commands,
-            &mut m2_spawn::SpawnAssets {
-                meshes,
-                materials,
-                effect_materials,
-                skybox_materials: None,
-                images,
-                inverse_bindposes: inv_bp,
-            },
+            ctx.commands,
+            &mut ctx.assets,
             m2_path,
             item_root,
             &skin_fdids,
@@ -475,9 +479,9 @@ fn spawn_equipment_slot(
     };
 
     if !spawned {
-        commands.entity(item_root).despawn();
+        ctx.commands.entity(item_root).despawn();
         warn_once(
-            warned,
+            ctx.warned,
             format!(
                 "failed loading equipment model for slot {slot:?}: {}",
                 m2_path.display()
