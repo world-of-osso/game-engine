@@ -185,96 +185,21 @@ impl InputAction {
 
     fn meta(self) -> InputActionMeta {
         match self {
-            Self::MoveForward => InputActionMeta {
-                key: "move_forward",
-                label: "Move Forward",
-                section: BindingSection::Movement,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyW)),
-            },
-            Self::MoveBackward => InputActionMeta {
-                key: "move_backward",
-                label: "Move Backward",
-                section: BindingSection::Movement,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyS)),
-            },
-            Self::StrafeLeft => InputActionMeta {
-                key: "strafe_left",
-                label: "Strafe Left",
-                section: BindingSection::Movement,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyA)),
-            },
-            Self::StrafeRight => InputActionMeta {
-                key: "strafe_right",
-                label: "Strafe Right",
-                section: BindingSection::Movement,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyD)),
-            },
-            Self::Jump => InputActionMeta {
-                key: "jump",
-                label: "Jump",
-                section: BindingSection::Movement,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::Space)),
-            },
-            Self::RunToggle => InputActionMeta {
-                key: "run_toggle",
-                label: "Run / Walk Toggle",
-                section: BindingSection::Movement,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyZ)),
-            },
-            Self::AutoRun => InputActionMeta {
-                key: "auto_run",
-                label: "Auto-Run",
-                section: BindingSection::Movement,
-                default_binding: None,
-            },
-            Self::TurnLeft => InputActionMeta {
-                key: "turn_left",
-                label: "Turn Left",
-                section: BindingSection::Camera,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowLeft)),
-            },
-            Self::TurnRight => InputActionMeta {
-                key: "turn_right",
-                label: "Turn Right",
-                section: BindingSection::Camera,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowRight)),
-            },
-            Self::PitchUp => InputActionMeta {
-                key: "pitch_up",
-                label: "Pitch Up",
-                section: BindingSection::Camera,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowUp)),
-            },
-            Self::PitchDown => InputActionMeta {
-                key: "pitch_down",
-                label: "Pitch Down",
-                section: BindingSection::Camera,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::ArrowDown)),
-            },
-            Self::ZoomIn => InputActionMeta {
-                key: "zoom_in",
-                label: "Zoom In",
-                section: BindingSection::Camera,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::PageUp)),
-            },
-            Self::ZoomOut => InputActionMeta {
-                key: "zoom_out",
-                label: "Zoom Out",
-                section: BindingSection::Camera,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::PageDown)),
-            },
-            Self::TargetNearest => InputActionMeta {
-                key: "target_nearest",
-                label: "Target Nearest",
-                section: BindingSection::Targeting,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::Tab)),
-            },
-            Self::TargetSelf => InputActionMeta {
-                key: "target_self",
-                label: "Target Self",
-                section: BindingSection::Targeting,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::F1)),
-            },
+            Self::MoveForward => movement_meta("move_forward", "Move Forward", KeyCode::KeyW),
+            Self::MoveBackward => movement_meta("move_backward", "Move Backward", KeyCode::KeyS),
+            Self::StrafeLeft => movement_meta("strafe_left", "Strafe Left", KeyCode::KeyA),
+            Self::StrafeRight => movement_meta("strafe_right", "Strafe Right", KeyCode::KeyD),
+            Self::Jump => movement_meta("jump", "Jump", KeyCode::Space),
+            Self::RunToggle => movement_meta("run_toggle", "Run / Walk Toggle", KeyCode::KeyZ),
+            Self::AutoRun => movement_meta_without_default("auto_run", "Auto-Run"),
+            Self::TurnLeft => camera_meta("turn_left", "Turn Left", KeyCode::ArrowLeft),
+            Self::TurnRight => camera_meta("turn_right", "Turn Right", KeyCode::ArrowRight),
+            Self::PitchUp => camera_meta("pitch_up", "Pitch Up", KeyCode::ArrowUp),
+            Self::PitchDown => camera_meta("pitch_down", "Pitch Down", KeyCode::ArrowDown),
+            Self::ZoomIn => camera_meta("zoom_in", "Zoom In", KeyCode::PageUp),
+            Self::ZoomOut => camera_meta("zoom_out", "Zoom Out", KeyCode::PageDown),
+            Self::TargetNearest => targeting_meta("target_nearest", "Target Nearest", KeyCode::Tab),
+            Self::TargetSelf => targeting_meta("target_self", "Target Self", KeyCode::F1),
             Self::ActionSlot1 => action_slot_meta(1, Self::ActionSlot1, KeyCode::Digit1),
             Self::ActionSlot2 => action_slot_meta(2, Self::ActionSlot2, KeyCode::Digit2),
             Self::ActionSlot3 => action_slot_meta(3, Self::ActionSlot3, KeyCode::Digit3),
@@ -287,12 +212,7 @@ impl InputAction {
             Self::ActionSlot10 => action_slot_meta(10, Self::ActionSlot10, KeyCode::Digit0),
             Self::ActionSlot11 => action_slot_meta(11, Self::ActionSlot11, KeyCode::Minus),
             Self::ActionSlot12 => action_slot_meta(12, Self::ActionSlot12, KeyCode::Equal),
-            Self::ToggleMute => InputActionMeta {
-                key: "toggle_mute",
-                label: "Toggle Mute",
-                section: BindingSection::Audio,
-                default_binding: Some(InputBinding::Keyboard(KeyCode::KeyM)),
-            },
+            Self::ToggleMute => audio_meta("toggle_mute", "Toggle Mute", KeyCode::KeyM),
         }
     }
 }
@@ -484,6 +404,60 @@ fn action_slot_meta(slot: u8, _action: InputAction, default_key: KeyCode) -> Inp
         label,
         section: BindingSection::ActionBar,
         default_binding: Some(InputBinding::Keyboard(default_key)),
+    }
+}
+
+fn movement_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
+    input_action_meta(
+        key,
+        label,
+        BindingSection::Movement,
+        Some(InputBinding::Keyboard(default_key)),
+    )
+}
+
+fn movement_meta_without_default(key: &'static str, label: &'static str) -> InputActionMeta {
+    input_action_meta(key, label, BindingSection::Movement, None)
+}
+
+fn camera_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
+    input_action_meta(
+        key,
+        label,
+        BindingSection::Camera,
+        Some(InputBinding::Keyboard(default_key)),
+    )
+}
+
+fn targeting_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
+    input_action_meta(
+        key,
+        label,
+        BindingSection::Targeting,
+        Some(InputBinding::Keyboard(default_key)),
+    )
+}
+
+fn audio_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
+    input_action_meta(
+        key,
+        label,
+        BindingSection::Audio,
+        Some(InputBinding::Keyboard(default_key)),
+    )
+}
+
+fn input_action_meta(
+    key: &'static str,
+    label: &'static str,
+    section: BindingSection,
+    default_binding: Option<InputBinding>,
+) -> InputActionMeta {
+    InputActionMeta {
+        key,
+        label,
+        section,
+        default_binding,
     }
 }
 
