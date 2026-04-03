@@ -141,6 +141,12 @@ fn build_sky_dome_mesh(radius: f32, lon_segments: u32) -> Mesh {
     mesh
 }
 
+fn fog_falloff_from_colors(colors: &SkyColorSet) -> FogFalloff {
+    let end = colors.fog_end.max(1.0);
+    let start = colors.fog_start.clamp(0.0, end - 0.001);
+    FogFalloff::Linear { start, end }
+}
+
 /// Spawn the sky dome as a child of the camera entity and set up fog + IBL.
 pub fn spawn_sky_dome(
     commands: &mut Commands,
@@ -169,7 +175,7 @@ pub fn spawn_sky_dome(
         color: default_colors.sky_smog,
         directional_light_color: default_colors.sky_band2,
         directional_light_exponent: 8.0,
-        falloff: FogFalloff::ExponentialSquared { density: 0.0008 },
+        falloff: fog_falloff_from_colors(&default_colors),
     });
     let cubemap = build_sky_cubemap(&default_colors);
     let cubemap_handle = images.add(cubemap);
@@ -318,6 +324,7 @@ fn update_fog(
     for mut fog in fog_q.iter_mut() {
         fog.color = colors.sky_smog;
         fog.directional_light_color = colors.sky_band2;
+        fog.falloff = fog_falloff_from_colors(&colors);
     }
 }
 

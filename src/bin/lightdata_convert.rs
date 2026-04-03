@@ -19,6 +19,12 @@ struct LightDataRow {
     sky_band2: u32,
     sky_smog: u32,
     fog_color: u32,
+    fog_end: f32,
+    fog_start: f32,
+    glow: f32,
+    cloud_density: f32,
+    unk1: f32,
+    unk2: f32,
 }
 
 fn main() {
@@ -77,7 +83,7 @@ fn convert_csv_to_ron(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-fn resolve_column_indices(header: &str) -> [usize; 10] {
+fn resolve_column_indices(header: &str) -> [usize; 16] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
@@ -92,10 +98,16 @@ fn resolve_column_indices(header: &str) -> [usize; 10] {
         idx("SkyBand2Color", 8),
         idx("SkySmogColor", 9),
         idx("SkyFogColor", 10),
+        idx("FogEnd", 21),
+        idx("FogScaler", 22),
+        idx("SunFogStrength", 40),
+        idx("CloudDensity", 31),
+        idx("Field_10_0_0_44649_042", 43),
+        idx("Field_12_0_0_63854_043", 44),
     ]
 }
 
-fn parse_row(line: &str, ci: &[usize; 10]) -> Option<(u32, LightDataRow)> {
+fn parse_row(line: &str, ci: &[usize; 16]) -> Option<(u32, LightDataRow)> {
     let fields: Vec<&str> = line.split(',').collect();
     let p_u32 = |i: usize| -> u32 {
         fields
@@ -121,6 +133,12 @@ fn parse_row(line: &str, ci: &[usize; 10]) -> Option<(u32, LightDataRow)> {
         sky_band2: p_u32(7),
         sky_smog: p_u32(8),
         fog_color: p_u32(9),
+        fog_end: p_f32(10),
+        fog_start: p_f32(10) * p_f32(11),
+        glow: p_f32(12),
+        cloud_density: p_f32(13),
+        unk1: p_f32(14),
+        unk2: p_f32(15),
     };
 
     Some((param_id, row))

@@ -21,6 +21,12 @@ pub struct LightDataRow {
     pub sky_band2: Color,
     pub sky_smog: Color,
     pub fog_color: Color,
+    pub fog_end: f32,
+    pub fog_start: f32,
+    pub glow: f32,
+    pub cloud_density: f32,
+    pub unk1: f32,
+    pub unk2: f32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +46,18 @@ struct LightDataSerializedRow {
     sky_smog: u32,
     #[serde(default)]
     fog_color: u32,
+    #[serde(default)]
+    fog_end: f32,
+    #[serde(default)]
+    fog_start: f32,
+    #[serde(default)]
+    glow: f32,
+    #[serde(default)]
+    cloud_density: f32,
+    #[serde(default)]
+    unk1: f32,
+    #[serde(default)]
+    unk2: f32,
 }
 
 /// Decode a BGR32 integer (as stored in LightData exports) to linear Color.
@@ -61,6 +79,12 @@ pub struct SkyColorSet {
     pub direct_color: Color,
     pub ambient_color: Color,
     pub fog_color: Color,
+    pub fog_end: f32,
+    pub fog_start: f32,
+    pub glow: f32,
+    pub cloud_density: f32,
+    pub unk1: f32,
+    pub unk2: f32,
 }
 
 fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
@@ -74,6 +98,12 @@ fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
         sky_band2: decode_bgr32(row.sky_band2),
         sky_smog: decode_bgr32(row.sky_smog),
         fog_color: decode_bgr32(row.fog_color),
+        fog_end: row.fog_end,
+        fog_start: row.fog_start,
+        glow: row.glow,
+        cloud_density: row.cloud_density,
+        unk1: row.unk1,
+        unk2: row.unk2,
     }
 }
 
@@ -93,7 +123,7 @@ fn load_light_data_ron(path: &str, param_id: u32) -> Result<Vec<LightDataRow>, S
 }
 
 /// Resolve CSV column indices for legacy LightData.csv fallback.
-fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 10] {
+fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 16] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
@@ -108,12 +138,18 @@ fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 10] {
         idx("SkyBand2Color", 8),
         idx("SkySmogColor", 9),
         idx("SkyFogColor", 10),
+        idx("FogEnd", 21),
+        idx("FogScaler", 22),
+        idx("SunFogStrength", 40),
+        idx("CloudDensity", 31),
+        idx("Field_10_0_0_44649_042", 43),
+        idx("Field_12_0_0_63854_043", 44),
     ]
 }
 
 fn parse_csv_fallback_light_row(
     line: &str,
-    ci: &[usize; 10],
+    ci: &[usize; 16],
     param_id: u32,
 ) -> Option<LightDataRow> {
     let fields: Vec<&str> = line.split(',').collect();
@@ -122,6 +158,12 @@ fn parse_csv_fallback_light_row(
         return None;
     }
     let p = |i: usize| -> u32 { fields.get(ci[i]).and_then(|s| s.parse().ok()).unwrap_or(0) };
+    let pf = |i: usize| -> f32 {
+        fields
+            .get(ci[i])
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0)
+    };
     Some(LightDataRow {
         time: p(1) as f32,
         direct_color: decode_bgr32(p(2)),
@@ -132,6 +174,12 @@ fn parse_csv_fallback_light_row(
         sky_band2: decode_bgr32(p(7)),
         sky_smog: decode_bgr32(p(8)),
         fog_color: decode_bgr32(p(9)),
+        fog_end: pf(10),
+        fog_start: pf(10) * pf(11),
+        glow: pf(12),
+        cloud_density: pf(13),
+        unk1: pf(14),
+        unk2: pf(15),
     })
 }
 
@@ -145,10 +193,24 @@ fn load_light_data_csv_fallback(path: &Path, param_id: u32) -> Vec<LightDataRow>
     }
 }
 
+fn rows_have_dynamic_fog_data(rows: &[LightDataRow]) -> bool {
+    rows.iter().any(|row| row.fog_end > 0.0)
+}
+
 /// Load LightData.ron rows for a specific LightParamID, with CSV fallback.
 pub fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
     match load_light_data_ron(path, param_id) {
-        Ok(rows) => rows,
+        Ok(rows) if rows_have_dynamic_fog_data(&rows) => rows,
+        Ok(rows) => {
+            if let Some(base) = path.strip_suffix(".ron") {
+                let csv_path = format!("{base}.csv");
+                let csv_rows = load_light_data_csv_fallback(Path::new(&csv_path), param_id);
+                if rows_have_dynamic_fog_data(&csv_rows) {
+                    return csv_rows;
+                }
+            }
+            rows
+        }
         Err(err) => {
             eprintln!("{err}");
             if let Some(base) = path.strip_suffix(".ron") {
@@ -183,6 +245,12 @@ pub fn default_sky_colors() -> SkyColorSet {
         direct_color: Color::WHITE,
         ambient_color: Color::linear_rgb(0.3, 0.3, 0.4),
         fog_color: Color::linear_rgb(0.7, 0.8, 0.9),
+        fog_end: 18000.0,
+        fog_start: 4500.0,
+        glow: 1.0,
+        cloud_density: 0.0,
+        unk1: 0.0,
+        unk2: 0.0,
     }
 }
 
@@ -196,6 +264,12 @@ fn lerp_rows(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
         direct_color: lerp_color(a.direct_color, b.direct_color, t),
         ambient_color: lerp_color(a.ambient_color, b.ambient_color, t),
         fog_color: lerp_color(a.fog_color, b.fog_color, t),
+        fog_end: a.fog_end + (b.fog_end - a.fog_end) * t,
+        fog_start: a.fog_start + (b.fog_start - a.fog_start) * t,
+        glow: a.glow + (b.glow - a.glow) * t,
+        cloud_density: a.cloud_density + (b.cloud_density - a.cloud_density) * t,
+        unk1: a.unk1 + (b.unk1 - a.unk1) * t,
+        unk2: a.unk2 + (b.unk2 - a.unk2) * t,
     }
 }
 
@@ -283,6 +357,12 @@ mod tests {
                 sky_band2: Color::BLACK,
                 sky_smog: Color::BLACK,
                 fog_color: Color::BLACK,
+                fog_end: 1000.0,
+                fog_start: 100.0,
+                glow: 0.0,
+                cloud_density: 0.0,
+                unk1: 0.0,
+                unk2: 0.0,
             },
             LightDataRow {
                 time: 1440.0,
@@ -294,11 +374,19 @@ mod tests {
                 sky_band2: Color::WHITE,
                 sky_smog: Color::WHITE,
                 fog_color: Color::WHITE,
+                fog_end: 2000.0,
+                fog_start: 200.0,
+                glow: 1.0,
+                cloud_density: 1.0,
+                unk1: 1.0,
+                unk2: 1.0,
             },
         ];
         let result = interpolate_colors(&rows, 720.0);
         let top = result.sky_top.to_linear();
         assert!((top.red - 0.5).abs() < 0.05);
+        assert!((result.fog_end - 1500.0).abs() < 0.01);
+        assert!((result.fog_start - 150.0).abs() < 0.01);
     }
 
     #[test]
@@ -308,5 +396,6 @@ mod tests {
         for w in rows.windows(2) {
             assert!(w[0].time <= w[1].time, "Rows should be sorted by time");
         }
+        assert!(rows.iter().any(|row| row.fog_end > 0.0));
     }
 }

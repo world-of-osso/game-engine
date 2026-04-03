@@ -52,6 +52,12 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
         sky_band2,
         sky_smog,
         fog_color: Color::WHITE,
+        fog_end: 1200.0,
+        fog_start: 300.0,
+        glow: 1.0,
+        cloud_density: 0.0,
+        unk1: 0.0,
+        unk2: 0.0,
     }]));
     let charselect_entity = app
         .world_mut()
@@ -108,6 +114,10 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
         world_fog.directional_light_color.to_srgba(),
         sky_band2.to_srgba()
     );
+    assert!(matches!(
+        world_fog.falloff,
+        FogFalloff::Linear { start, end } if (start - 300.0).abs() < 0.01 && (end - 1200.0).abs() < 0.01
+    ));
 }
 
 #[test]

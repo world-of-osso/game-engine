@@ -8,7 +8,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::sky_lightdata::{LightDataRow, decode_bgr32};
 
-const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback.sqlite";
+const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback_v2.sqlite";
 
 pub(crate) fn load_light_data_csv_fallback(
     path: &Path,
@@ -75,7 +75,8 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
     let mut stmt = conn
         .prepare(
             "SELECT time, direct_color, ambient_color, sky_top, sky_middle,
-                    sky_band1, sky_band2, sky_smog, fog_color
+                    sky_band1, sky_band2, sky_smog, fog_color,
+                    fog_end, fog_start, glow, cloud_density, unk1, unk2
              FROM light_data_rows
              WHERE param_id = ?1
              ORDER BY time",
@@ -93,6 +94,12 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
                 sky_band2: decode_bgr32(row.get(6)?),
                 sky_smog: decode_bgr32(row.get(7)?),
                 fog_color: decode_bgr32(row.get(8)?),
+                fog_end: row.get(9)?,
+                fog_start: row.get(10)?,
+                glow: row.get(11)?,
+                cloud_density: row.get(12)?,
+                unk1: row.get(13)?,
+                unk2: row.get(14)?,
             })
         })
         .map_err(|err| format!("query light_data_rows: {err}"))?;
@@ -152,6 +159,12 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              sky_band2 INTEGER NOT NULL,
              sky_smog INTEGER NOT NULL,
              fog_color INTEGER NOT NULL,
+             fog_end REAL NOT NULL,
+             fog_start REAL NOT NULL,
+             glow REAL NOT NULL,
+             cloud_density REAL NOT NULL,
+             unk1 REAL NOT NULL,
+             unk2 REAL NOT NULL,
              PRIMARY KEY (param_id, time)
          );",
     )
@@ -168,9 +181,10 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
     let mut insert = conn
         .prepare(
             "INSERT OR REPLACE INTO light_data_rows
-             (param_id, time, direct_color, ambient_color, sky_top, sky_middle,
-              sky_band1, sky_band2, sky_smog, fog_color)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+              (param_id, time, direct_color, ambient_color, sky_top, sky_middle,
+               sky_band1, sky_band2, sky_smog, fog_color,
+               fog_end, fog_start, glow, cloud_density, unk1, unk2)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         )
         .map_err(|err| format!("prepare light_data_rows insert: {err}"))?;
     let mut line = String::new();
@@ -196,7 +210,7 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
 fn insert_row(
     insert: &mut rusqlite::Statement<'_>,
     line: &str,
-    columns: &[usize; 10],
+    columns: &[usize; 16],
     source_path: &Path,
 ) -> Result<(), String> {
     let fields: Vec<&str> = line.split(',').collect();
@@ -208,6 +222,12 @@ fn insert_row(
             .get(columns[i])
             .and_then(|s| s.parse().ok())
             .unwrap_or(0)
+    };
+    let pf = |i: usize| -> f32 {
+        fields
+            .get(columns[i])
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0)
     };
     let param_id = fields[columns[0]].parse::<u32>().map_err(|err| {
         format!(
@@ -230,6 +250,12 @@ fn insert_row(
             p(7),
             p(8),
             p(9),
+            pf(10),
+            pf(10) * pf(11),
+            pf(12),
+            pf(13),
+            pf(14),
+            pf(15),
         ))
         .map_err(|err| format!("insert light_data_rows row {param_id}:{time}: {err}"))?;
     Ok(())
@@ -288,7 +314,7 @@ mod tests {
         let csv_path = dir.join("LightData.csv");
         std::fs::write(
             &csv_path,
-            "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor\n1,77,100,255,65280,16711680,255,255,255,255,255\n2,77,200,1,2,3,4,5,6,7,8\n3,88,300,9,10,11,12,13,14,15,16\n",
+            "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,ShadowOpacity,FogEnd,FogScaler,FogDensity,FogHeight,FogHeightScaler,FogHeightDensity,FogZScalar,MainFogStartDist,MainFogEndDist,SunFogAngle,CloudDensity,ColorGradingFileDataID,DarkerColorGradingFileDataID,HorizonAmbientColor,GroundAmbientColor,EndFogColor,EndFogColorDistance,FogStartOffset,SunFogColor,SunFogStrength,FogHeightColor,EndFogHeightColor,Field_10_0_0_44649_042,Field_12_0_0_63854_043,FogHeightCoefficients_0,FogHeightCoefficients_1,FogHeightCoefficients_2,FogHeightCoefficients_3,MainFogCoefficients_0,MainFogCoefficients_1,MainFogCoefficients_2,MainFogCoefficients_3,HeightDensityFogCoeff_0,HeightDensityFogCoeff_1,HeightDensityFogCoeff_2,HeightDensityFogCoeff_3\n1,77,100,255,65280,16711680,255,255,255,255,255,0,0,0,0,0,0,0,0,0,0,1000,0.25,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,1.5,0,0,2.5,3.5,0,0,0,0,0,0,0,0,0,0,0,0\n2,77,200,1,2,3,4,5,6,7,8,0,0,0,0,0,0,0,0,0,0,2000,0.5,0,0,0,0,0,0,0,0,0.75,0,0,0,0,0,0,0,0,2.0,0,0,4.5,5.5,0,0,0,0,0,0,0,0,0,0,0,0\n3,88,300,9,10,11,12,13,14,15,16,0,0,0,0,0,0,0,0,0,0,3000,0.75,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,2.5,0,0,6.5,7.5,0,0,0,0,0,0,0,0,0,0,0,0\n",
         )
         .unwrap();
 
@@ -299,6 +325,9 @@ mod tests {
         assert_eq!(rows[1].time, 200.0);
         let direct = rows[0].direct_color.to_linear();
         assert!((direct.red - 1.0).abs() < 0.01);
+        assert_eq!(rows[0].fog_end, 1000.0);
+        assert_eq!(rows[0].fog_start, 250.0);
+        assert_eq!(rows[0].glow, 1.5);
 
         let _ = std::fs::remove_dir_all(dir);
     }
