@@ -595,36 +595,57 @@ fn dispatch_overlay_action(
     commands: &mut Commands,
     state: &State<GameState>,
 ) {
+    if handle_overlay_parsed_action(action, overlay, commands) {
+        return;
+    }
+    handle_overlay_command_action(action, overlay, exit, commands, state);
+}
+
+fn handle_overlay_parsed_action(
+    action: &str,
+    overlay: &mut GameMenuOverlay,
+    commands: &mut Commands,
+) -> bool {
     if let Some(category) = parse_category_action(action) {
         overlay.model.category = category;
-        return;
+        return true;
     }
     if let Some(section) = parse_binding_section_action(action) {
         overlay.model.binding_section = section;
         overlay.model.binding_capture = BindingCapture::None;
-        return;
+        return true;
     }
     if let Some(action) = parse_binding_rebind_action(action) {
         overlay.model.binding_capture = BindingCapture::Armed(action);
-        return;
+        return true;
     }
     if let Some(action) = parse_binding_clear_action(action) {
         overlay.model.draft_bindings.clear(action);
         overlay.model.binding_capture = BindingCapture::None;
         queue_apply_current_options(overlay, commands);
-        return;
+        return true;
     }
     if let Some((key, delta)) = parse_step_action(action) {
         apply_step(key, delta, &mut overlay.model);
         queue_apply_current_options(overlay, commands);
-        return;
+        return true;
     }
     if let Some(key) = parse_toggle_action(action) {
         apply_toggle(key, &mut overlay.model);
         overlay.model.binding_capture = BindingCapture::None;
         queue_apply_current_options(overlay, commands);
-        return;
+        return true;
     }
+    false
+}
+
+fn handle_overlay_command_action(
+    action: &str,
+    overlay: &mut GameMenuOverlay,
+    exit: &mut MessageWriter<AppExit>,
+    commands: &mut Commands,
+    state: &State<GameState>,
+) {
     match action {
         ACTION_EXIT => {
             exit.write(AppExit::Success);
