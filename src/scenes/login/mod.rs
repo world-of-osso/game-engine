@@ -334,34 +334,54 @@ fn login_mouse_input(
     }
 
     if buttons.just_released(MouseButton::Left) {
-        let released_id = lp.pressed.0.take();
-        if let Some(id) = released_id {
-            reset_button_state(&mut lp.ui.registry, id);
-        }
-        if let (Some(id), Some(cursor)) = (released_id, cursor)
-            && hit_active_frame(&lp.ui, id, cursor.x, cursor.y)
-        {
-            let mut params = ConnectParams {
-                next_state: &mut cp.next_state,
-                status: &mut cp.status,
-                login_mode: &mut cp.login_mode,
-                auth_token: &cp.auth_token,
-                server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
-                server_hostname: cp
-                    .server_hostname
-                    .as_ref()
-                    .map(|hostname| hostname.0.as_str()),
-            };
-            handle_button_click(
-                &mut lp.ui,
-                login,
-                cursor,
-                &mut lp.focus,
-                &mut params,
-                &mut cp.commands,
-                Some(&mut exit),
-            );
-        }
+        handle_mouse_release(
+            &mut lp.ui,
+            &mut lp.focus,
+            &mut lp.pressed,
+            login,
+            &mut cp,
+            cursor,
+            &mut exit,
+        );
+    }
+}
+
+fn handle_mouse_release(
+    ui: &mut UiState,
+    focus: &mut LoginFocus,
+    pressed: &mut LoginPressedButton,
+    login: &LoginUi,
+    cp: &mut LoginConnectParams,
+    cursor: Option<Vec2>,
+    exit: &mut MessageWriter<AppExit>,
+) {
+    let released_id = pressed.0.take();
+    if let Some(id) = released_id {
+        reset_button_state(&mut ui.registry, id);
+    }
+    if let (Some(id), Some(cursor)) = (released_id, cursor)
+        && hit_active_frame(ui, id, cursor.x, cursor.y)
+    {
+        let mut params = ConnectParams {
+            next_state: &mut cp.next_state,
+            status: &mut cp.status,
+            login_mode: &mut cp.login_mode,
+            auth_token: &cp.auth_token,
+            server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
+            server_hostname: cp
+                .server_hostname
+                .as_ref()
+                .map(|hostname| hostname.0.as_str()),
+        };
+        handle_button_click(
+            ui,
+            login,
+            cursor,
+            focus,
+            &mut params,
+            &mut cp.commands,
+            Some(exit),
+        );
     }
 }
 
