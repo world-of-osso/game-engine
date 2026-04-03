@@ -6,6 +6,23 @@ use super::{read_f32, read_u16, read_u32};
 const MD20_LIGHTS_OFFSET: usize = 0x108;
 const M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS: usize = 0x9C;
 const M2_LIGHT_ENTRY_SIZE_CATA_PLUS: usize = 0xA4;
+const LIGHT_ENTRY_TYPE_OFFSET: usize = 0x00;
+const LIGHT_ENTRY_BONE_INDEX_OFFSET: usize = 0x02;
+const LIGHT_ENTRY_POSITION_OFFSET: usize = 0x04;
+const LIGHT_ENTRY_AMBIENT_COLOR_OFFSET: usize = 0x10;
+const LIGHT_ENTRY_AMBIENT_INTENSITY_OFFSET: usize = 0x24;
+const LIGHT_ENTRY_DIFFUSE_COLOR_OFFSET: usize = 0x38;
+const LIGHT_ENTRY_DIFFUSE_INTENSITY_OFFSET: usize = 0x4C;
+const LIGHT_ENTRY_ATTENUATION_START_OFFSET: usize = 0x60;
+const LIGHT_ENTRY_ATTENUATION_END_OFFSET: usize = 0x74;
+const LIGHT_ENTRY_VISIBILITY_OFFSET: usize = 0x88;
+const ANIM_BLOCK_GLOBAL_SEQUENCE_OFFSET: usize = 2;
+const ANIM_BLOCK_TIMESTAMPS_COUNT_OFFSET: usize = 4;
+const ANIM_BLOCK_TIMESTAMPS_OFFSET: usize = 8;
+const ANIM_BLOCK_VALUES_COUNT_OFFSET: usize = 12;
+const ANIM_BLOCK_VALUES_OFFSET: usize = 16;
+const M2_ARRAY_ENTRY_SIZE: usize = 8;
+const TIMESTAMP_ENTRY_SIZE: usize = 4;
 
 /// Point light entry type in M2 light records.
 pub const M2_LIGHT_TYPE_POINT: u16 = 1;
@@ -55,24 +72,27 @@ fn parse_anim_track<T: Copy>(
     parse_value: impl Fn(&[u8], usize) -> Option<T>,
 ) -> Option<AnimTrack<T>> {
     let interpolation_type = read_u16(md20, block_offset).ok()?;
-    let global_sequence = read_i16(md20, block_offset + 2)?;
-    let ts_outer_count = read_u32(md20, block_offset + 4).ok()? as usize;
-    let ts_outer_offset = read_u32(md20, block_offset + 8).ok()? as usize;
-    let keys_outer_count = read_u32(md20, block_offset + 12).ok()? as usize;
-    let keys_outer_offset = read_u32(md20, block_offset + 16).ok()? as usize;
+    let global_sequence = read_i16(md20, block_offset + ANIM_BLOCK_GLOBAL_SEQUENCE_OFFSET)?;
+    let ts_outer_count =
+        read_u32(md20, block_offset + ANIM_BLOCK_TIMESTAMPS_COUNT_OFFSET).ok()? as usize;
+    let ts_outer_offset =
+        read_u32(md20, block_offset + ANIM_BLOCK_TIMESTAMPS_OFFSET).ok()? as usize;
+    let keys_outer_count =
+        read_u32(md20, block_offset + ANIM_BLOCK_VALUES_COUNT_OFFSET).ok()? as usize;
+    let keys_outer_offset = read_u32(md20, block_offset + ANIM_BLOCK_VALUES_OFFSET).ok()? as usize;
     let seq_count = ts_outer_count.min(keys_outer_count);
     let mut sequences = Vec::with_capacity(seq_count);
     for i in 0..seq_count {
-        let ts_inner = ts_outer_offset + i * 8;
-        let val_inner = keys_outer_offset + i * 8;
+        let ts_inner = ts_outer_offset + i * M2_ARRAY_ENTRY_SIZE;
+        let val_inner = keys_outer_offset + i * M2_ARRAY_ENTRY_SIZE;
         let timestamps_count = read_u32(md20, ts_inner).ok()? as usize;
-        let timestamps_offset = read_u32(md20, ts_inner + 4).ok()? as usize;
+        let timestamps_offset = read_u32(md20, ts_inner + TIMESTAMP_ENTRY_SIZE).ok()? as usize;
         let values_count = read_u32(md20, val_inner).ok()? as usize;
-        let values_offset = read_u32(md20, val_inner + 4).ok()? as usize;
+        let values_offset = read_u32(md20, val_inner + TIMESTAMP_ENTRY_SIZE).ok()? as usize;
 
         let mut timestamps = Vec::with_capacity(timestamps_count);
         for j in 0..timestamps_count {
-            timestamps.push(read_u32(md20, timestamps_offset + j * 4).ok()?);
+            timestamps.push(read_u32(md20, timestamps_offset + j * TIMESTAMP_ENTRY_SIZE).ok()?);
         }
         let mut values = Vec::with_capacity(values_count);
         for j in 0..values_count {
@@ -100,7 +120,7 @@ fn parse_u8_track(md20: &[u8], block_offset: usize) -> Option<AnimTrack<u8>> {
 }
 
 fn light_entry_stride(md20: &[u8], lights_offset: usize, count: usize) -> Option<usize> {
-    let version = read_u32(md20, 4).unwrap_or(0);
+    let version = read_u32(md20, super::MD20_VERSION_OFFSET).unwrap_or(0);
     let preferred = if version >= 272 {
         [
             M2_LIGHT_ENTRY_SIZE_CATA_PLUS,
@@ -130,16 +150,16 @@ fn parse_light_entry(
         return None;
     }
     Some(M2Light {
-        light_type: read_u16(md20, base).ok()?,
-        bone_index: read_i16(md20, base + 2)?,
-        position: parse_vec3(md20, base + 4)?,
-        ambient_color: parse_vec3_track(md20, base + 0x10)?,
-        ambient_intensity: parse_f32_track(md20, base + 0x24)?,
-        diffuse_color: parse_vec3_track(md20, base + 0x38)?,
-        diffuse_intensity: parse_f32_track(md20, base + 0x4C)?,
-        attenuation_start: parse_f32_track(md20, base + 0x60)?,
-        attenuation_end: parse_f32_track(md20, base + 0x74)?,
-        visibility: parse_u8_track(md20, base + 0x88)?,
+        light_type: read_u16(md20, base + LIGHT_ENTRY_TYPE_OFFSET).ok()?,
+        bone_index: read_i16(md20, base + LIGHT_ENTRY_BONE_INDEX_OFFSET)?,
+        position: parse_vec3(md20, base + LIGHT_ENTRY_POSITION_OFFSET)?,
+        ambient_color: parse_vec3_track(md20, base + LIGHT_ENTRY_AMBIENT_COLOR_OFFSET)?,
+        ambient_intensity: parse_f32_track(md20, base + LIGHT_ENTRY_AMBIENT_INTENSITY_OFFSET)?,
+        diffuse_color: parse_vec3_track(md20, base + LIGHT_ENTRY_DIFFUSE_COLOR_OFFSET)?,
+        diffuse_intensity: parse_f32_track(md20, base + LIGHT_ENTRY_DIFFUSE_INTENSITY_OFFSET)?,
+        attenuation_start: parse_f32_track(md20, base + LIGHT_ENTRY_ATTENUATION_START_OFFSET)?,
+        attenuation_end: parse_f32_track(md20, base + LIGHT_ENTRY_ATTENUATION_END_OFFSET)?,
+        visibility: parse_u8_track(md20, base + LIGHT_ENTRY_VISIBILITY_OFFSET)?,
     })
 }
 

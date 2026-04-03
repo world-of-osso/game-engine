@@ -16,6 +16,13 @@ use super::{
     MD20_ATTACHMENTS_COUNT_OFFSET, MD20_ATTACHMENTS_DATA_OFFSET, read_f32, read_u16, read_u32,
 };
 
+const ATTACHMENT_ENTRY_SIZE: usize = 40;
+const ATTACHMENT_PARSED_SIZE: usize = 20;
+const ATTACHMENT_ID_OFFSET: usize = 0;
+const ATTACHMENT_BONE_OFFSET: usize = 4;
+const ATTACHMENT_POSITION_OFFSET: usize = 8;
+const ATTACHMENT_LOOKUP_ENTRY_SIZE: usize = 2;
+
 /// An attachment point on an M2 model (e.g., hand, back, shoulder).
 #[derive(Debug, Clone)]
 pub struct M2Attachment {
@@ -36,17 +43,17 @@ pub fn parse_attachments(md20: &[u8]) -> Result<Vec<M2Attachment>, String> {
     let offset = read_u32(md20, MD20_ATTACHMENTS_DATA_OFFSET)? as usize;
     let mut attachments = Vec::with_capacity(count);
     for i in 0..count {
-        let base = offset + i * 40;
-        if base + 20 > md20.len() {
+        let base = offset + i * ATTACHMENT_ENTRY_SIZE;
+        if base + ATTACHMENT_PARSED_SIZE > md20.len() {
             return Err(format!("Attachment {i} out of bounds at {base:#x}"));
         }
         attachments.push(M2Attachment {
-            id: read_u32(md20, base)?,
-            bone: read_u16(md20, base + 4)?,
+            id: read_u32(md20, base + ATTACHMENT_ID_OFFSET)?,
+            bone: read_u16(md20, base + ATTACHMENT_BONE_OFFSET)?,
             position: [
-                read_f32(md20, base + 8)?,
-                read_f32(md20, base + 12)?,
-                read_f32(md20, base + 16)?,
+                read_f32(md20, base + ATTACHMENT_POSITION_OFFSET)?,
+                read_f32(md20, base + ATTACHMENT_POSITION_OFFSET + 4)?,
+                read_f32(md20, base + ATTACHMENT_POSITION_OFFSET + 8)?,
             ],
         });
     }
@@ -61,17 +68,17 @@ pub fn parse_ska1_attachments(ska1: &[u8]) -> Result<Vec<M2Attachment>, String> 
     let offset = read_u32(ska1, 4)? as usize;
     let mut attachments = Vec::with_capacity(count);
     for i in 0..count {
-        let base = offset + i * 40;
-        if base + 20 > ska1.len() {
+        let base = offset + i * ATTACHMENT_ENTRY_SIZE;
+        if base + ATTACHMENT_PARSED_SIZE > ska1.len() {
             return Err(format!("SKA1 attachment {i} out of bounds at {base:#x}"));
         }
         attachments.push(M2Attachment {
-            id: read_u32(ska1, base)?,
-            bone: read_u16(ska1, base + 4)?,
+            id: read_u32(ska1, base + ATTACHMENT_ID_OFFSET)?,
+            bone: read_u16(ska1, base + ATTACHMENT_BONE_OFFSET)?,
             position: [
-                read_f32(ska1, base + 8)?,
-                read_f32(ska1, base + 12)?,
-                read_f32(ska1, base + 16)?,
+                read_f32(ska1, base + ATTACHMENT_POSITION_OFFSET)?,
+                read_f32(ska1, base + ATTACHMENT_POSITION_OFFSET + 4)?,
+                read_f32(ska1, base + ATTACHMENT_POSITION_OFFSET + 8)?,
             ],
         });
     }
@@ -87,7 +94,7 @@ pub fn parse_attachment_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
     let offset = read_u32(md20, MD20_ATTACHMENT_LOOKUP_DATA_OFFSET)? as usize;
     let mut lookup = Vec::with_capacity(count);
     for i in 0..count {
-        let off = offset + i * 2;
+        let off = offset + i * ATTACHMENT_LOOKUP_ENTRY_SIZE;
         if off + 2 > md20.len() {
             break;
         }
@@ -104,7 +111,7 @@ pub fn parse_ska1_attachment_lookup(ska1: &[u8]) -> Result<Vec<i16>, String> {
     let offset = read_u32(ska1, 12)? as usize;
     let mut lookup = Vec::with_capacity(count);
     for i in 0..count {
-        let off = offset + i * 2;
+        let off = offset + i * ATTACHMENT_LOOKUP_ENTRY_SIZE;
         if off + 2 > ska1.len() {
             break;
         }

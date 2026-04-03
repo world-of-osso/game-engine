@@ -28,6 +28,22 @@ use super::{
     MD20_TRANSPARENCY_DATA_OFFSET,
 };
 
+const BONE_SIZE: usize = 88;
+const BONE_FLAGS_OFFSET: usize = 0x04;
+const BONE_PARENT_BONE_ID_OFFSET: usize = 0x08;
+const BONE_SUBMESH_ID_OFFSET: usize = 0x0A;
+const BONE_TRANSLATION_BLOCK_OFFSET: usize = 0x10;
+const BONE_ROTATION_BLOCK_OFFSET: usize = 0x24;
+const BONE_SCALE_BLOCK_OFFSET: usize = 0x38;
+const BONE_PIVOT_OFFSET: usize = 0x4C;
+const SEQ_SIZE: usize = 64;
+const SEQ_VARIATION_ID_OFFSET: usize = 0x02;
+const SEQ_DURATION_OFFSET: usize = 0x04;
+const SEQ_MOVE_SPEED_OFFSET: usize = 0x08;
+const SEQ_FLAGS_OFFSET: usize = 0x0C;
+const SEQ_BLEND_TIME_OFFSET: usize = 0x1C;
+const SEQ_NEXT_ANIMATION_OFFSET: usize = 0x3C;
+
 fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
     let bytes: [u8; 4] = data
         .get(off..off + 4)
@@ -85,8 +101,6 @@ pub struct M2Bone {
 
 /// Parse `count` CompBone entries starting at `offset` in `data`.
 pub fn parse_bones_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2Bone>, String> {
-    const BONE_SIZE: usize = 88; // 0x58 bytes per CompBone
-
     let mut bones = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * BONE_SIZE;
@@ -95,13 +109,13 @@ pub fn parse_bones_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2
         }
         bones.push(M2Bone {
             key_bone_id: read_i32(data, base)?,
-            flags: read_u32(data, base + 0x04)?,
-            parent_bone_id: read_i16(data, base + 0x08)?,
-            submesh_id: read_u16(data, base + 0x0A)?,
+            flags: read_u32(data, base + BONE_FLAGS_OFFSET)?,
+            parent_bone_id: read_i16(data, base + BONE_PARENT_BONE_ID_OFFSET)?,
+            submesh_id: read_u16(data, base + BONE_SUBMESH_ID_OFFSET)?,
             pivot: [
-                read_f32(data, base + 0x4C)?,
-                read_f32(data, base + 0x50)?,
-                read_f32(data, base + 0x54)?,
+                read_f32(data, base + BONE_PIVOT_OFFSET)?,
+                read_f32(data, base + BONE_PIVOT_OFFSET + 4)?,
+                read_f32(data, base + BONE_PIVOT_OFFSET + 8)?,
             ],
         });
     }
@@ -154,7 +168,6 @@ pub fn parse_sequences_at(
     offset: usize,
     count: usize,
 ) -> Result<Vec<M2AnimSequence>, String> {
-    const SEQ_SIZE: usize = 64;
     let mut sequences = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * SEQ_SIZE;
@@ -163,12 +176,12 @@ pub fn parse_sequences_at(
         }
         sequences.push(M2AnimSequence {
             id: read_u16(data, base)?,
-            variation_id: read_u16(data, base + 0x02)?,
-            duration: read_u32(data, base + 0x04)?,
-            movespeed: read_f32(data, base + 0x08)?,
-            flags: read_u32(data, base + 0x0C)?,
-            blend_time: read_u16(data, base + 0x1C)?,
-            next_animation: read_i16(data, base + 0x3C)?,
+            variation_id: read_u16(data, base + SEQ_VARIATION_ID_OFFSET)?,
+            duration: read_u32(data, base + SEQ_DURATION_OFFSET)?,
+            movespeed: read_f32(data, base + SEQ_MOVE_SPEED_OFFSET)?,
+            flags: read_u32(data, base + SEQ_FLAGS_OFFSET)?,
+            blend_time: read_u16(data, base + SEQ_BLEND_TIME_OFFSET)?,
+            next_animation: read_i16(data, base + SEQ_NEXT_ANIMATION_OFFSET)?,
         });
     }
     Ok(sequences)
@@ -344,16 +357,21 @@ pub fn parse_bone_animations_at(
     offset: usize,
     count: usize,
 ) -> Result<Vec<BoneAnimTracks>, String> {
-    const BONE_SIZE: usize = 88;
     let mut tracks = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * BONE_SIZE;
         if base + BONE_SIZE > data.len() {
             return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
         }
-        let translation = parse_anim_track(data, base + 0x10, 12, parse_vec3)?;
-        let rotation = parse_anim_track(data, base + 0x24, 8, parse_quat_packed)?;
-        let scale = parse_anim_track(data, base + 0x38, 12, parse_vec3)?;
+        let translation =
+            parse_anim_track(data, base + BONE_TRANSLATION_BLOCK_OFFSET, 12, parse_vec3)?;
+        let rotation = parse_anim_track(
+            data,
+            base + BONE_ROTATION_BLOCK_OFFSET,
+            8,
+            parse_quat_packed,
+        )?;
+        let scale = parse_anim_track(data, base + BONE_SCALE_BLOCK_OFFSET, 12, parse_vec3)?;
         tracks.push(BoneAnimTracks {
             translation,
             rotation,
