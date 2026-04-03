@@ -168,6 +168,7 @@ fn bootstrap_terrain_streaming_uses_local_player_tile_when_server_did_not_seed_i
 #[test]
 #[ignore = "benchmark-style integration test; run explicitly"]
 fn bench_terrain_spawn_headless() {
+    const TERRAIN_SPAWN_P99_BUDGET_MS: f64 = 400.0;
     let adt_path = Path::new("data/terrain/azeroth_32_48.adt");
     if !adt_path.exists() {
         println!(
@@ -177,13 +178,16 @@ fn bench_terrain_spawn_headless() {
         return;
     }
     let iterations = 5_usize;
-    let (elapsed, chunk_entities, terrain_materials, images) =
+    let (samples, chunk_entities, terrain_materials, images) =
         measure_headless_terrain_spawn(adt_path, iterations);
+    let elapsed: Duration = samples.iter().copied().sum();
     let average = elapsed.div_f64(iterations as f64);
+    let p99 = game_engine::test_harness::p99_duration(&samples).expect("benchmark samples");
     println!(
-        "terrain_spawn_headless[azeroth_32_48] iterations={iterations} total_ms={:.2} avg_ms={:.2} chunk_entities={chunk_entities} terrain_materials={terrain_materials} images={images}",
+        "terrain_spawn_headless[azeroth_32_48] iterations={iterations} total_ms={:.2} avg_ms={:.2} p99_ms={:.2} chunk_entities={chunk_entities} terrain_materials={terrain_materials} images={images}",
         elapsed.as_secs_f64() * 1000.0,
         average.as_secs_f64() * 1000.0,
+        p99.as_secs_f64() * 1000.0,
     );
     assert!(
         chunk_entities > 0,
@@ -191,17 +195,23 @@ fn bench_terrain_spawn_headless() {
     );
     assert!(terrain_materials > 0, "expected built terrain materials");
     assert!(images > 0, "expected loaded terrain/water images");
+    assert!(
+        p99.as_secs_f64() * 1000.0 <= TERRAIN_SPAWN_P99_BUDGET_MS,
+        "expected terrain spawn p99 <= {TERRAIN_SPAWN_P99_BUDGET_MS:.2}ms, got {:.2}ms",
+        p99.as_secs_f64() * 1000.0,
+    );
 }
 
 fn measure_headless_terrain_spawn(
     adt_path: &Path,
     iterations: usize,
-) -> (Duration, usize, usize, usize) {
+) -> (Vec<Duration>, usize, usize, usize) {
+    let mut samples = Vec::with_capacity(iterations);
     let mut final_chunk_entities = 0;
     let mut final_terrain_materials = 0;
     let mut final_images = 0;
-    let start = Instant::now();
     for _ in 0..iterations {
+        let start = Instant::now();
         let mut app = game_engine::test_harness::headless_app_with(configure_terrain_benchmark_app);
         let root = spawn_headless_terrain_tile(&mut app, adt_path);
         final_chunk_entities = spawned_entity_count(app.world(), root);
@@ -211,9 +221,10 @@ fn measure_headless_terrain_spawn(
             final_chunk_entities > 0,
             "expected spawned terrain descendants during benchmark"
         );
+        samples.push(start.elapsed());
     }
     (
-        start.elapsed(),
+        samples,
         final_chunk_entities,
         final_terrain_materials,
         final_images,

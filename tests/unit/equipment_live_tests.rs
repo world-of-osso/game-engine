@@ -199,40 +199,61 @@ fn configure_live_test_app(app: &mut App) {
 #[test]
 #[ignore = "benchmark-style integration test; run explicitly"]
 fn bench_m2_spawn_pipeline_headless() {
+    const TORCH_P99_BUDGET_MS: f64 = 500.0;
+    const HUMAN_HD_P99_BUDGET_MS: f64 = 1_500.0;
     let cases = [
-        ("torch", Path::new("data/models/145513.m2"), 10_usize),
+        (
+            "torch",
+            Path::new("data/models/145513.m2"),
+            10_usize,
+            TORCH_P99_BUDGET_MS,
+        ),
         (
             "humanmale_hd",
             Path::new("data/models/humanmale_hd.m2"),
             5_usize,
+            HUMAN_HD_P99_BUDGET_MS,
         ),
     ];
-    for (label, model_path, iterations) in cases {
+    for (label, model_path, iterations, p99_budget_ms) in cases {
         if !model_path.exists() {
             println!("Skipping {label}: missing {}", model_path.display());
             continue;
         }
-        let (elapsed, entities) = measure_headless_m2_spawn_pipeline(model_path, iterations);
+        let (samples, entities) = measure_headless_m2_spawn_pipeline(model_path, iterations);
+        let elapsed: Duration = samples.iter().copied().sum();
         let average = elapsed.div_f64(iterations as f64);
+        let p99 = game_engine::test_harness::p99_duration(&samples).expect("benchmark samples");
         println!(
-            "m2_spawn_pipeline[{label}] iterations={iterations} total_ms={:.2} avg_ms={:.2} spawned_entities={entities}",
+            "m2_spawn_pipeline[{label}] iterations={iterations} total_ms={:.2} avg_ms={:.2} p99_ms={:.2} spawned_entities={entities}",
             elapsed.as_secs_f64() * 1000.0,
             average.as_secs_f64() * 1000.0,
+            p99.as_secs_f64() * 1000.0,
         );
         assert!(entities > 0, "expected spawned entities for {label}");
+        assert!(
+            p99.as_secs_f64() * 1000.0 <= p99_budget_ms,
+            "expected {label} p99 <= {p99_budget_ms:.2}ms, got {:.2}ms",
+            p99.as_secs_f64() * 1000.0,
+        );
     }
 }
 
-fn measure_headless_m2_spawn_pipeline(model_path: &Path, iterations: usize) -> (Duration, usize) {
+fn measure_headless_m2_spawn_pipeline(
+    model_path: &Path,
+    iterations: usize,
+) -> (Vec<Duration>, usize) {
+    let mut samples = Vec::with_capacity(iterations);
     let mut final_entity_count = 0;
-    let start = Instant::now();
     for _ in 0..iterations {
+        let start = Instant::now();
         let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
         let spawned = spawn_live_character(&mut app, model_path);
         final_entity_count = spawned_entity_count(app.world(), spawned.model_root);
         assert!(final_entity_count > 0, "expected spawned model descendants");
+        samples.push(start.elapsed());
     }
-    (start.elapsed(), final_entity_count)
+    (samples, final_entity_count)
 }
 
 fn spawned_entity_count(world: &World, root: Entity) -> usize {

@@ -229,6 +229,7 @@ fn benchmark_particle_model() -> Option<crate::asset::m2::M2Model> {
 #[test]
 #[ignore = "benchmark-style integration test; run explicitly"]
 fn bench_particle_heavy_scene_headless() {
+    const PARTICLE_HEAVY_SCENE_P99_BUDGET_MS: f64 = 2.0;
     let Some(model) = benchmark_particle_model() else {
         println!("Skipping particle-heavy benchmark: no multi-emitter benchmark model found");
         return;
@@ -295,9 +296,14 @@ fn bench_particle_heavy_scene_headless() {
         .count();
     assert_eq!(registered_before, total_emitters);
 
-    let start = Instant::now();
-    game_engine::test_harness::run_updates(&mut app, cycles);
-    let elapsed = start.elapsed();
+    let mut frame_samples = Vec::with_capacity(cycles);
+    for _ in 0..cycles {
+        let start = Instant::now();
+        app.update();
+        frame_samples.push(start.elapsed());
+    }
+    let elapsed: std::time::Duration = frame_samples.iter().copied().sum();
+    let p99 = game_engine::test_harness::p99_duration(&frame_samples).expect("frame samples");
 
     let active_effects = app
         .world_mut()
@@ -307,13 +313,19 @@ fn bench_particle_heavy_scene_headless() {
     assert_eq!(active_effects, total_emitters);
 
     println!(
-        "particle_heavy_scene_headless roots={} emitters_per_root={} total_emitters={} cycles={} total_ms={:.2} avg_frame_ms={:.2}",
+        "particle_heavy_scene_headless roots={} emitters_per_root={} total_emitters={} cycles={} total_ms={:.2} avg_frame_ms={:.2} p99_ms={:.2}",
         roots,
         emitters.len(),
         total_emitters,
         cycles,
         elapsed.as_secs_f64() * 1000.0,
         (elapsed.as_secs_f64() * 1000.0) / cycles as f64,
+        p99.as_secs_f64() * 1000.0,
+    );
+    assert!(
+        p99.as_secs_f64() * 1000.0 <= PARTICLE_HEAVY_SCENE_P99_BUDGET_MS,
+        "expected particle-heavy scene p99 <= {PARTICLE_HEAVY_SCENE_P99_BUDGET_MS:.2}ms, got {:.2}ms",
+        p99.as_secs_f64() * 1000.0,
     );
 }
 
