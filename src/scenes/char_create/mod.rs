@@ -353,8 +353,76 @@ fn build_class_availability(race: u8) -> Vec<(u8, &'static str, &'static str, bo
         .collect()
 }
 
+struct AppearanceLabels {
+    face: String,
+    hair_style: String,
+    facial_style: String,
+}
+
+struct AppearanceSwatches {
+    skin_colors: Vec<Option<[u8; 3]>>,
+    hair_colors: Vec<Option<[u8; 3]>>,
+}
+
+fn build_appearance_labels(
+    state: &CharCreateState,
+    cust_db: &CustomizationDb,
+    race: u8,
+    sex: u8,
+) -> AppearanceLabels {
+    AppearanceLabels {
+        face: choice_label(
+            cust_db,
+            race,
+            sex,
+            state.selected_class,
+            OptionType::Face,
+            state.appearance.face,
+        ),
+        hair_style: choice_label(
+            cust_db,
+            race,
+            sex,
+            state.selected_class,
+            OptionType::HairStyle,
+            state.appearance.hair_style,
+        ),
+        facial_style: choice_label(
+            cust_db,
+            race,
+            sex,
+            state.selected_class,
+            OptionType::FacialHair,
+            state.appearance.facial_style,
+        ),
+    }
+}
+
+fn choice_label(
+    cust_db: &CustomizationDb,
+    race: u8,
+    sex: u8,
+    class: u8,
+    option: OptionType,
+    selected: u8,
+) -> String {
+    cust_db
+        .choice_name_for_class(race, sex, class, option, selected)
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn build_appearance_swatches(cust_db: &CustomizationDb, race: u8, sex: u8) -> AppearanceSwatches {
+    AppearanceSwatches {
+        skin_colors: cust_db.all_swatch_colors(race, sex, OptionType::SkinColor),
+        hair_colors: cust_db.all_swatch_colors(race, sex, OptionType::HairColor),
+    }
+}
+
 fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCreateUiState {
     let (race, sex) = (state.selected_race, state.selected_sex);
+    let labels = build_appearance_labels(state, cust_db, race, sex);
+    let swatches = build_appearance_swatches(cust_db, race, sex);
     CharCreateUiState {
         mode: state.mode,
         selected_race: race,
@@ -365,38 +433,11 @@ fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCre
         hair_style: state.appearance.hair_style,
         hair_color: state.appearance.hair_color,
         facial_style: state.appearance.facial_style,
-        face_label: cust_db
-            .choice_name_for_class(
-                race,
-                sex,
-                state.selected_class,
-                OptionType::Face,
-                state.appearance.face,
-            )
-            .unwrap_or_default()
-            .to_string(),
-        hair_style_label: cust_db
-            .choice_name_for_class(
-                race,
-                sex,
-                state.selected_class,
-                OptionType::HairStyle,
-                state.appearance.hair_style,
-            )
-            .unwrap_or_default()
-            .to_string(),
-        facial_style_label: cust_db
-            .choice_name_for_class(
-                race,
-                sex,
-                state.selected_class,
-                OptionType::FacialHair,
-                state.appearance.facial_style,
-            )
-            .unwrap_or_default()
-            .to_string(),
-        skin_color_swatches: cust_db.all_swatch_colors(race, sex, OptionType::SkinColor),
-        hair_color_swatches: cust_db.all_swatch_colors(race, sex, OptionType::HairColor),
+        face_label: labels.face,
+        hair_style_label: labels.hair_style,
+        facial_style_label: labels.facial_style,
+        skin_color_swatches: swatches.skin_colors,
+        hair_color_swatches: swatches.hair_colors,
         open_dropdown: state.open_dropdown,
         name: String::new(),
         error_text: state.error_text.clone(),
