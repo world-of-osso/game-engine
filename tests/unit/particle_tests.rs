@@ -314,6 +314,25 @@ fn trail_particles_orient_along_velocity() {
 }
 
 #[test]
+fn velocity_orient_flag_orients_particles_along_velocity() {
+    let mut emitter = sample_emitter();
+    emitter.flags = 0x0020_0000;
+
+    assert!(matches!(orient_mode(&emitter), OrientMode::AlongVelocity));
+}
+
+#[test]
+fn tail_particles_flag_does_not_force_velocity_orient() {
+    let mut emitter = sample_emitter();
+    emitter.flags = 0x0000_0008;
+
+    assert!(matches!(
+        orient_mode(&emitter),
+        OrientMode::FaceCameraPosition
+    ));
+}
+
+#[test]
 fn twinkle_emitters_declare_size_pulse_modifiers() {
     let mut emitter = sample_emitter();
     emitter.twinkle_speed = 3.0;

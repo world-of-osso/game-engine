@@ -17,7 +17,7 @@ use visuals::{
     TwinkleSizeModifier, build_color_gradient, build_size_gradient, has_authored_twinkle,
 };
 
-const PARTICLE_FLAG_ALONG_VELOCITY: u32 = 0x08;
+const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
 const BLEND_OPAQUE: u8 = 0;
 const BLEND_ALPHA_KEY: u8 = 1;
 const BLEND_ALPHA: u8 = 2;
@@ -346,7 +346,7 @@ fn assemble_effect(
 }
 
 fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
-    if is_trail_particle(em) || em.flags & PARTICLE_FLAG_ALONG_VELOCITY != 0 {
+    if is_trail_particle(em) || em.flags & PARTICLE_FLAG_VELOCITY_ORIENT != 0 {
         OrientMode::AlongVelocity
     } else {
         OrientMode::FaceCameraPosition
