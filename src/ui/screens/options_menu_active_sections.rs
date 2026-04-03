@@ -10,8 +10,8 @@ use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 use crate::ui::anchor::AnchorPoint;
 
 use super::options_menu_component::{
-    CameraOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView, SoundOptionsView,
-    keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
+    CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
+    SoundOptionsView, keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
 };
 use super::options_menu_sections;
 use crate::input_bindings::BindingSection;
@@ -57,6 +57,31 @@ impl fmt::Display for DynName {
 
 pub fn sound_body(sound: &SoundOptionsView) -> Element {
     content_stack(sound_items(sound))
+}
+
+pub fn graphics_body(graphics: &GraphicsOptionsView) -> Element {
+    content_stack(
+        [
+            toggle_row("bloom_enabled", "Enable Bloom", graphics.bloom_enabled),
+            slider_row(
+                "bloom_intensity",
+                "Bloom Intensity",
+                graphics.bloom_intensity,
+                0.0,
+                1.0,
+            ),
+            slider_row(
+                "particle_density",
+                "Particle Density",
+                graphics.particle_density,
+                10.0,
+                100.0,
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
 }
 
 pub fn camera_body(camera: &CameraOptionsView) -> Element {

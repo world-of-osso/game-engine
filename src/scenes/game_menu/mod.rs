@@ -15,8 +15,8 @@ use crate::game_state::GameState;
 use crate::scenes::game_menu::interaction::handle_overlay_input;
 use crate::scenes::game_menu::options::{
     ApplySnapshot, BindingCapture, DragCapture, OverlayModel, apply_camera_snapshot,
-    apply_hud_snapshot, apply_snapshot, apply_sound_snapshot, build_view_model, camera_draft,
-    hud_draft, sound_draft,
+    apply_graphics_snapshot, apply_hud_snapshot, apply_snapshot, apply_sound_snapshot,
+    build_view_model, camera_draft, graphics_draft, hud_draft, sound_draft,
 };
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::{BindingSection, InputBindings};
@@ -122,7 +122,7 @@ fn build_overlay_model(
     game_state: GameState,
     startup_view: Option<GameMenuView>,
 ) -> OverlayModel {
-    let (sound_draft, camera_d, hud_d, bindings) = overlay_runtime_drafts(world);
+    let (graphics_d, sound_draft, camera_d, hud_d, bindings) = overlay_runtime_drafts(world);
     let ui_state = world.resource::<ClientOptionsUiState>();
     let registry = &world.resource::<UiState>().registry;
     let view = startup_view.unwrap_or(GameMenuView::MainMenu);
@@ -141,9 +141,11 @@ fn build_overlay_model(
         drag_offset: Vec2::ZERO,
         pressed_action: None,
         pressed_origin: Vec2::ZERO,
+        draft_graphics: graphics_d.clone(),
         draft_sound: sound_draft.clone(),
         draft_camera: camera_d.clone(),
         draft_hud: hud_d.clone(),
+        committed_graphics: graphics_d,
         committed_sound: sound_draft,
         committed_camera: camera_d,
         committed_hud: hud_d,
@@ -157,6 +159,7 @@ fn build_overlay_model(
 fn overlay_runtime_drafts(
     world: &mut World,
 ) -> (
+    options::GraphicsDraft,
     options::SoundDraft,
     options::CameraDraft,
     options::HudDraft,
@@ -164,12 +167,16 @@ fn overlay_runtime_drafts(
 ) {
     let sound = world.get_resource::<SoundSettings>();
     let camera = world.resource::<CameraOptions>();
+    let graphics = world.get_resource::<GraphicsOptions>();
     let hud = world.resource::<HudOptions>();
     let bindings = world
         .get_resource::<InputBindings>()
         .cloned()
         .unwrap_or_default();
     (
+        graphics
+            .map(graphics_draft)
+            .unwrap_or_else(|| graphics_draft(&GraphicsOptions::default())),
         sound_draft(sound.as_deref()),
         camera_draft(&camera),
         hud_draft(&hud),
@@ -267,6 +274,10 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
         "Applying options snapshot: muted={}, music_enabled={}",
         snapshot.sound.muted, snapshot.sound.music_enabled
     );
+    apply_graphics_snapshot(
+        &mut world.resource_mut::<GraphicsOptions>(),
+        &snapshot.graphics,
+    );
     if let Some(mut sound) = world.get_resource_mut::<SoundSettings>() {
         apply_sound_snapshot(&mut sound, &snapshot.sound);
         info!(
@@ -296,7 +307,8 @@ fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
         min_distance: snapshot.camera.min_distance,
         max_distance: snapshot.camera.max_distance,
     };
-    let graphics = world.resource::<GraphicsOptions>().clone();
+    let mut graphics = world.resource::<GraphicsOptions>().clone();
+    apply_graphics_snapshot(&mut graphics, &snapshot.graphics);
     let hud = HudOptions {
         show_minimap: snapshot.hud.show_minimap,
         show_action_bars: snapshot.hud.show_action_bars,

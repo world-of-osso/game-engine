@@ -19,33 +19,6 @@ impl fmt::Display for DynName {
     }
 }
 
-pub fn graphics_body() -> Element {
-    section_stack(
-        [
-            info_row("graphics_display", "Display Mode", "Windowed Fullscreen"),
-            info_row("graphics_scale", "Render Scale", "100% internal resolution"),
-            info_row(
-                "graphics_terrain",
-                "Terrain Distance",
-                "Balanced world draw distance",
-            ),
-            info_row(
-                "graphics_water",
-                "Water Quality",
-                "High fidelity surface shading",
-            ),
-            ghost_button_row(
-                "graphics_recommend",
-                "Apply Recommended",
-                "Hardware profile pass planned",
-            ),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
-}
-
 pub fn controls_body() -> Element {
     section_stack(
         [

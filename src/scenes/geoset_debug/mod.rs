@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
 use crate::asset;
+use crate::camera::additive_particle_glow_tonemapping;
 use crate::character_customization::{CharacterCustomizationSelection, CharacterRenderRequest};
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
@@ -180,6 +181,7 @@ fn spawn_camera(commands: &mut Commands) {
         Name::new("DebugCharacterCamera"),
         DebugCharacterScene,
         Camera3d::default(),
+        additive_particle_glow_tonemapping(),
         Transform::from_translation(eye).looking_at(focus, Vec3::Y),
         orbit,
     ));

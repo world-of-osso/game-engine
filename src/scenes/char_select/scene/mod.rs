@@ -17,6 +17,7 @@ use game_engine::customization_data::{CustomizationDb, ModelPresentation};
 use game_engine::outfit_data::OutfitData;
 use shared::protocol::CharacterListEntry;
 
+use crate::camera::additive_particle_glow_tonemapping;
 use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
@@ -258,6 +259,7 @@ fn spawn_char_select_camera(
             Name::new("CharSelectCamera"),
             CharSelectScene,
             Camera3d::default(),
+            additive_particle_glow_tonemapping(),
             Camera {
                 clear_color: ClearColorConfig::Custom(CHAR_SELECT_CLEAR_COLOR),
                 ..default()

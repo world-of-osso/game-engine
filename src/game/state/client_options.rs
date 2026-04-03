@@ -81,12 +81,16 @@ impl CameraOptions {
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GraphicsOptions {
     pub particle_density: u8,
+    pub bloom_enabled: bool,
+    pub bloom_intensity: f32,
 }
 
 impl Default for GraphicsOptions {
     fn default() -> Self {
         Self {
             particle_density: 100,
+            bloom_enabled: true,
+            bloom_intensity: 0.08,
         }
     }
 }
@@ -95,6 +99,8 @@ impl GraphicsOptions {
     fn from_file(file: &GraphicsOptionsFile) -> Self {
         Self {
             particle_density: file.particle_density.clamp(10, 100),
+            bloom_enabled: file.bloom_enabled,
+            bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
         }
     }
 
@@ -235,12 +241,18 @@ struct CameraOptionsFile {
 struct GraphicsOptionsFile {
     #[serde(default = "default_particle_density", rename = "particleDensity")]
     particle_density: u8,
+    #[serde(default = "default_bloom_enabled", rename = "bloomEnabled")]
+    bloom_enabled: bool,
+    #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
+    bloom_intensity: f32,
 }
 
 impl Default for GraphicsOptionsFile {
     fn default() -> Self {
         Self {
             particle_density: default_particle_density(),
+            bloom_enabled: default_bloom_enabled(),
+            bloom_intensity: default_bloom_intensity(),
         }
     }
 }
@@ -338,6 +350,8 @@ fn build_options_file(
         },
         graphics: GraphicsOptionsFile {
             particle_density: graphics.particle_density.clamp(10, 100),
+            bloom_enabled: graphics.bloom_enabled,
+            bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
         },
         hud: HudOptionsFile {
             show_minimap: hud.show_minimap,
@@ -355,6 +369,14 @@ fn build_options_file(
 
 const fn default_particle_density() -> u8 {
     100
+}
+
+const fn default_bloom_enabled() -> bool {
+    true
+}
+
+const fn default_bloom_intensity() -> f32 {
+    0.08
 }
 
 fn load_options_file() -> ClientOptionsFile {
@@ -473,6 +495,8 @@ mod tests {
     fn graphics_defaults_use_full_particle_density() {
         let defaults = GraphicsOptions::default();
         assert_eq!(defaults.particle_density, 100);
+        assert!(defaults.bloom_enabled);
+        assert!((defaults.bloom_intensity - 0.08).abs() < 0.0001);
         assert!((defaults.particle_density_multiplier() - 1.0).abs() < 0.0001);
     }
 
@@ -481,6 +505,8 @@ mod tests {
         let file = ClientOptionsFile {
             graphics: GraphicsOptionsFile {
                 particle_density: 80,
+                bloom_enabled: false,
+                bloom_intensity: 0.12,
             },
             ..ClientOptionsFile::default()
         };
@@ -488,6 +514,8 @@ mod tests {
         let serialized = ron::ser::to_string(&file).unwrap();
 
         assert!(serialized.contains("particleDensity:80"));
+        assert!(serialized.contains("bloomEnabled:false"));
+        assert!(serialized.contains("bloomIntensity:0.12"));
     }
 
     #[test]

@@ -128,6 +128,13 @@ impl OptionsCategory {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct GraphicsOptionsView {
+    pub particle_density: f32,
+    pub bloom_enabled: bool,
+    pub bloom_intensity: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct SoundOptionsView {
     pub muted: bool,
     pub music_enabled: bool,
@@ -176,6 +183,7 @@ pub struct KeybindingsView {
 pub struct OptionsViewModel {
     pub category: OptionsCategory,
     pub position: [f32; 2],
+    pub graphics: GraphicsOptionsView,
     pub sound: SoundOptionsView,
     pub camera: CameraOptionsView,
     pub hud: HudOptionsView,
@@ -425,7 +433,7 @@ fn content_header(category: OptionsCategory) -> Element {
 
 fn category_body(model: &OptionsViewModel) -> Element {
     match model.category {
-        OptionsCategory::Graphics => options_menu_sections::graphics_body(),
+        OptionsCategory::Graphics => options_menu_active_sections::graphics_body(&model.graphics),
         OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),

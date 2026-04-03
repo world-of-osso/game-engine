@@ -1,10 +1,12 @@
 use std::collections::HashSet;
 
-use bevy::core_pipeline::prepass::DepthPrepass;
+use bevy::core_pipeline::{prepass::DepthPrepass, tonemapping::Tonemapping};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
+use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 
+use crate::client_options::GraphicsOptions;
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
 use crate::sky::SkyDome;
@@ -26,6 +28,7 @@ pub struct WowCameraPlugin;
 impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<crate::client_options::CameraOptions>();
+        app.add_systems(Update, sync_particle_glow_bloom);
         app.add_systems(
             Update,
             (
@@ -125,11 +128,54 @@ impl Default for WowCamera {
     }
 }
 
+pub(crate) fn additive_particle_glow_tonemapping() -> Tonemapping {
+    Tonemapping::TonyMcMapface
+}
+
+fn additive_particle_glow_bloom(graphics: &GraphicsOptions) -> Option<Bloom> {
+    graphics.bloom_enabled.then_some(Bloom {
+        intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
+        low_frequency_boost: 0.7,
+        low_frequency_boost_curvature: 0.95,
+        high_pass_frequency: 1.0,
+        prefilter: BloomPrefilter {
+            threshold: 0.65,
+            threshold_softness: 0.1,
+        },
+        composite_mode: BloomCompositeMode::Additive,
+        max_mip_dimension: Bloom::OLD_SCHOOL.max_mip_dimension,
+        scale: Vec2::ONE,
+    })
+}
+
+fn sync_particle_glow_bloom(
+    graphics: Res<GraphicsOptions>,
+    mut commands: Commands,
+    mut cameras: Query<(Entity, Option<&mut Bloom>), With<Camera3d>>,
+) {
+    let desired = additive_particle_glow_bloom(&graphics);
+    for (entity, bloom) in &mut cameras {
+        match (desired.clone(), bloom) {
+            (Some(target), Some(mut existing)) => {
+                *existing = target;
+            }
+            (Some(target), None) => {
+                commands.entity(entity).insert(target);
+            }
+            (None, Some(_)) => {
+                commands.entity(entity).remove::<Bloom>();
+            }
+            (None, None) => {}
+        }
+    }
+}
+
 pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
     commands
         .spawn((
             Camera3d::default(),
             DepthPrepass,
+            additive_particle_glow_tonemapping(),
             Transform::default(),
             WowCamera::default(),
         ))
@@ -611,6 +657,47 @@ mod tests {
             grounded: true,
         };
         (transform, movement, physics)
+    }
+
+    #[test]
+    fn spawn_wow_camera_uses_particle_glow_tonemapping() {
+        let mut world = World::new();
+        let entity = spawn_wow_camera(&mut world.commands());
+        world.flush();
+
+        let tonemapping = world
+            .entity(entity)
+            .get::<Tonemapping>()
+            .copied()
+            .expect("expected tonemapping on wow camera");
+        assert_eq!(tonemapping, Tonemapping::TonyMcMapface);
+    }
+
+    #[test]
+    fn graphics_options_build_additive_particle_bloom() {
+        let bloom = additive_particle_glow_bloom(&GraphicsOptions {
+            particle_density: 100,
+            bloom_enabled: true,
+            bloom_intensity: 0.12,
+        })
+        .expect("expected bloom");
+
+        assert_eq!(bloom.composite_mode, BloomCompositeMode::Additive);
+        assert!((bloom.intensity - 0.12).abs() < f32::EPSILON);
+        assert!((bloom.prefilter.threshold - 0.65).abs() < f32::EPSILON);
+        assert!((bloom.prefilter.threshold_softness - 0.1).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn disabled_graphics_bloom_returns_none() {
+        assert!(
+            additive_particle_glow_bloom(&GraphicsOptions {
+                particle_density: 100,
+                bloom_enabled: false,
+                bloom_intensity: 0.12,
+            })
+            .is_none()
+        );
     }
 
     #[test]

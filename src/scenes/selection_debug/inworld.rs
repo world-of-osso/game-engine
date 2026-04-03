@@ -4,6 +4,7 @@ use bevy::input::keyboard::KeyboardInput;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
+use crate::camera::additive_particle_glow_tonemapping;
 use crate::creature_display;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
@@ -186,6 +187,7 @@ fn spawn_debug_camera(commands: &mut Commands) {
         InWorldSelectionDebugScene,
         Camera3d::default(),
         DepthPrepass,
+        additive_particle_glow_tonemapping(),
         Transform::from_xyz(-3.2, 2.6, 6.6).looking_at(Vec3::new(0.0, 1.0, 0.0), Vec3::Y),
     ));
 }

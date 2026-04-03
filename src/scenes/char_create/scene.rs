@@ -10,6 +10,7 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::asset;
+use crate::camera::additive_particle_glow_tonemapping;
 use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
@@ -88,6 +89,7 @@ fn spawn_camera(commands: &mut Commands) -> Entity {
             Name::new("CharCreateCamera"),
             CharCreateScene,
             Camera3d::default(),
+            additive_particle_glow_tonemapping(),
             Transform::from_translation(eye).looking_at(focus, Vec3::Y),
             CharCreateOrbit {
                 yaw: 0.0,

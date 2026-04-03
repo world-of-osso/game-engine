@@ -1,11 +1,11 @@
 use bevy::log::info;
 use game_engine::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
 use game_engine::ui::screens::options_menu_component::{
-    CameraOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView, OptionsCategory,
-    OptionsViewModel, SoundOptionsView,
+    CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
+    OptionsCategory, OptionsViewModel, SoundOptionsView,
 };
 
-use crate::client_options::{CameraOptions, HudOptions};
+use crate::client_options::{CameraOptions, GraphicsOptions, HudOptions};
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::{
     BindingSection, InputAction, InputBinding, InputBindings, actions_for_section,
@@ -20,6 +20,8 @@ pub enum DragCapture {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
+    ParticleDensity,
+    BloomIntensity,
     MasterVolume,
     MusicVolume,
     AmbientVolume,
@@ -41,9 +43,11 @@ pub struct OverlayModel {
     pub drag_offset: bevy::prelude::Vec2,
     pub pressed_action: Option<String>,
     pub pressed_origin: bevy::prelude::Vec2,
+    pub draft_graphics: GraphicsDraft,
     pub draft_sound: SoundDraft,
     pub draft_camera: CameraDraft,
     pub draft_hud: HudDraft,
+    pub committed_graphics: GraphicsDraft,
     pub committed_sound: SoundDraft,
     pub committed_camera: CameraDraft,
     pub committed_hud: HudDraft,
@@ -60,6 +64,13 @@ pub struct SoundDraft {
     pub master_volume: f32,
     pub music_volume: f32,
     pub ambient_volume: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GraphicsDraft {
+    pub particle_density: f32,
+    pub bloom_enabled: bool,
+    pub bloom_intensity: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -84,6 +95,7 @@ pub struct HudDraft {
 
 #[derive(Clone)]
 pub struct ApplySnapshot {
+    pub graphics: GraphicsDraft,
     pub sound: SoundDraft,
     pub camera: CameraDraft,
     pub hud: HudDraft,
@@ -119,6 +131,14 @@ pub fn sound_draft(sound: Option<&SoundSettings>) -> SoundDraft {
     }
 }
 
+pub fn graphics_draft(graphics: &GraphicsOptions) -> GraphicsDraft {
+    GraphicsDraft {
+        particle_density: graphics.particle_density as f32,
+        bloom_enabled: graphics.bloom_enabled,
+        bloom_intensity: graphics.bloom_intensity,
+    }
+}
+
 pub fn camera_draft(camera: &CameraOptions) -> CameraDraft {
     CameraDraft {
         look_sensitivity: camera.look_sensitivity,
@@ -148,6 +168,7 @@ pub fn build_view_model(model: &OverlayModel) -> GameMenuViewModel {
         options: OptionsViewModel {
             category: model.category,
             position: model.modal_position,
+            graphics: graphics_view(&model.draft_graphics),
             sound: sound_view(&model.draft_sound),
             camera: camera_view(&model.draft_camera),
             hud: hud_view(&model.draft_hud),
@@ -157,6 +178,14 @@ pub fn build_view_model(model: &OverlayModel) -> GameMenuViewModel {
                 current_capture_action(model.binding_capture),
             ),
         },
+    }
+}
+
+fn graphics_view(draft: &GraphicsDraft) -> GraphicsOptionsView {
+    GraphicsOptionsView {
+        particle_density: draft.particle_density,
+        bloom_enabled: draft.bloom_enabled,
+        bloom_intensity: draft.bloom_intensity,
     }
 }
 
@@ -219,6 +248,8 @@ fn bindings_view(
 
 pub fn parse_slider_action(action: &str) -> Option<SliderField> {
     match action.strip_prefix("options_slider:")? {
+        "particle_density" => Some(SliderField::ParticleDensity),
+        "bloom_intensity" => Some(SliderField::BloomIntensity),
         "master_volume" => Some(SliderField::MasterVolume),
         "music_volume" => Some(SliderField::MusicVolume),
         "ambient_volume" => Some(SliderField::AmbientVolume),
@@ -233,6 +264,8 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
 
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
     match field {
+        SliderField::ParticleDensity => (10.0, 100.0),
+        SliderField::BloomIntensity => (0.0, 1.0),
         SliderField::MasterVolume | SliderField::MusicVolume | SliderField::AmbientVolume => {
             (0.0, 1.0)
         }
@@ -245,6 +278,8 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
 
 pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayModel) {
     match field {
+        SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
+        SliderField::BloomIntensity => model.draft_graphics.bloom_intensity = value,
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
         SliderField::MusicVolume => model.draft_sound.music_volume = value,
         SliderField::AmbientVolume => model.draft_sound.ambient_volume = value,
@@ -306,6 +341,19 @@ pub fn parse_toggle_action(action: &str) -> Option<&str> {
 pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
     let step = delta as f32;
     match key {
+        "particle_density" => {
+            model.draft_graphics.particle_density = clamp_step(
+                model.draft_graphics.particle_density,
+                5.0 * step,
+                10.0,
+                100.0,
+            )
+            .round()
+        }
+        "bloom_intensity" => {
+            model.draft_graphics.bloom_intensity =
+                clamp_step(model.draft_graphics.bloom_intensity, 0.05 * step, 0.0, 1.0)
+        }
         "master_volume" => {
             model.draft_sound.master_volume =
                 clamp_step(model.draft_sound.master_volume, 0.05 * step, 0.0, 1.0)
@@ -349,6 +397,7 @@ pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
 
 pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
     match key {
+        "bloom_enabled" => model.draft_graphics.bloom_enabled = !model.draft_graphics.bloom_enabled,
         "muted" => {
             model.draft_sound.muted = !model.draft_sound.muted;
             info!("Options toggle: muted -> {}", model.draft_sound.muted);
@@ -369,6 +418,9 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
 
 pub fn reset_category_defaults(model: &mut OverlayModel) {
     match model.category {
+        OptionsCategory::Graphics => {
+            model.draft_graphics = graphics_draft(&GraphicsOptions::default())
+        }
         OptionsCategory::Sound => model.draft_sound = sound_draft(None),
         OptionsCategory::Camera => model.draft_camera = camera_draft(&CameraOptions::default()),
         OptionsCategory::Interface | OptionsCategory::Hud => {
@@ -380,17 +432,25 @@ pub fn reset_category_defaults(model: &mut OverlayModel) {
 }
 
 pub fn apply_snapshot(model: &mut OverlayModel) -> ApplySnapshot {
+    model.committed_graphics = model.draft_graphics.clone();
     model.committed_sound = model.draft_sound.clone();
     model.committed_camera = model.draft_camera.clone();
     model.committed_hud = model.draft_hud.clone();
     model.committed_bindings = model.draft_bindings.clone();
     ApplySnapshot {
+        graphics: model.draft_graphics.clone(),
         sound: model.draft_sound.clone(),
         camera: model.draft_camera.clone(),
         hud: model.draft_hud.clone(),
         bindings: model.draft_bindings.clone(),
         modal_position: model.modal_position,
     }
+}
+
+pub fn apply_graphics_snapshot(graphics: &mut GraphicsOptions, draft: &GraphicsDraft) {
+    graphics.particle_density = draft.particle_density.round().clamp(10.0, 100.0) as u8;
+    graphics.bloom_enabled = draft.bloom_enabled;
+    graphics.bloom_intensity = draft.bloom_intensity.clamp(0.0, 1.0);
 }
 
 pub fn apply_sound_snapshot(sound: &mut SoundSettings, draft: &SoundDraft) {

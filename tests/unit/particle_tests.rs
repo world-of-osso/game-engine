@@ -231,6 +231,7 @@ fn particle_density_scales_emission_rate() {
     let emitter = sample_emitter();
     let graphics = GraphicsOptions {
         particle_density: 50,
+        ..GraphicsOptions::default()
     };
 
     assert!(

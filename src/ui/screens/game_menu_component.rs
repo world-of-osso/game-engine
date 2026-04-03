@@ -197,8 +197,8 @@ mod tests {
     use super::*;
     use crate::input_bindings::{BindingSection, InputAction, InputBinding};
     use crate::ui::screens::options_menu_component::{
-        CameraOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView, OptionsCategory,
-        SoundOptionsView,
+        CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
+        OptionsCategory, SoundOptionsView,
     };
     use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::screen::Screen;
@@ -217,6 +217,7 @@ mod tests {
             options: OptionsViewModel {
                 category: OptionsCategory::Sound,
                 position: [500.0, 180.0],
+                graphics: graphics_view(),
                 sound: sound_view(),
                 camera: camera_view(),
                 hud: hud_view(),
@@ -232,6 +233,14 @@ mod tests {
             master_volume: 0.8,
             music_volume: 0.4,
             ambient_volume: 0.3,
+        }
+    }
+
+    fn graphics_view() -> GraphicsOptionsView {
+        GraphicsOptionsView {
+            particle_density: 100.0,
+            bloom_enabled: true,
+            bloom_intensity: 0.08,
         }
     }
 
