@@ -144,95 +144,148 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
         r#frame {
             name: names.container,
             stretch: true,
-            texture {
-                name: names.shell,
-                width: frame.shell.width,
-                height: frame.shell.height,
-                texture_file: frame.shell.texture,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                    x: frame.shell.anchor_x,
-                    y: frame.shell.anchor_y,
-                }
+            {unit_frame_shell_background(&names, frame)}
+            {unit_frame_shell_labels(&names, state, frame, player_side)}
+            {unit_frame_shell_bars(prefix, state, &visuals, frame)}
+            {contextual_icons(prefix, player_side)}
+        }
+    }
+}
+
+fn unit_frame_shell_background(names: &UnitFrameNames, frame: &FrameConfig) -> Element {
+    rsx! {
+        texture {
+            name: names.shell,
+            width: frame.shell.width,
+            height: frame.shell.height,
+            texture_file: frame.shell.texture,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+                x: frame.shell.anchor_x,
+                y: frame.shell.anchor_y,
             }
-            r#frame {
-                name: names.portrait,
-                width: frame.portrait.width,
-                height: frame.portrait.height,
-                background_color: PORTRAIT_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {frame.portrait.x},
-                    y: {-frame.portrait.y},
-                }
+        }
+        r#frame {
+            name: names.portrait,
+            width: frame.portrait.width,
+            height: frame.portrait.height,
+            background_color: PORTRAIT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {frame.portrait.x},
+                y: {-frame.portrait.y},
             }
-            fontstring {
-                name: names.name,
-                width: frame.name.width,
-                height: 12.0,
-                text: {state.name.as_str()},
-                font: UNIT_NAME_FONT,
-                font_size: UNIT_NAME_FONT_SIZE,
-                font_color: NAME_TEXT,
-                shadow_color: "0.0,0.0,0.0,1.0",
-                shadow_offset: "1,-1",
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {frame.name.x},
-                    y: {-frame.name.y},
-                }
+        }
+    }
+}
+
+fn unit_frame_shell_labels(
+    names: &UnitFrameNames,
+    state: &UnitFrameState,
+    frame: &FrameConfig,
+    player_side: bool,
+) -> Element {
+    rsx! {
+        fontstring {
+            name: names.name,
+            width: frame.name.width,
+            height: 12.0,
+            text: {state.name.as_str()},
+            font: UNIT_NAME_FONT,
+            font_size: UNIT_NAME_FONT_SIZE,
+            font_color: NAME_TEXT,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {frame.name.x},
+                y: {-frame.name.y},
             }
-            fontstring {
-                name: names.level,
-                width: frame.level.width,
-                height: 12.0,
-                text: {state.level_text.as_str()},
-                font: UNIT_NAME_FONT,
-                font_size: UNIT_LEVEL_FONT_SIZE,
-                font_color: GOLD_TEXT,
-                shadow_color: "0.0,0.0,0.0,1.0",
-                shadow_offset: "1,-1",
-                justify_h: if player_side { "RIGHT" } else { "CENTER" },
-                anchor {
-                    point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
-                    relative_point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
-                    x: {frame.level.x},
-                    y: {-frame.level.y},
-                }
+        }
+        fontstring {
+            name: names.level,
+            width: frame.level.width,
+            height: 12.0,
+            text: {state.level_text.as_str()},
+            font: UNIT_NAME_FONT,
+            font_size: UNIT_LEVEL_FONT_SIZE,
+            font_color: GOLD_TEXT,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: if player_side { "RIGHT" } else { "CENTER" },
+            anchor {
+                point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
+                relative_point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
+                x: {frame.level.x},
+                y: {-frame.level.y},
             }
-            {bar_block(BarBlockSpec {
+        }
+    }
+}
+
+fn unit_frame_shell_bars(
+    prefix: &str,
+    state: &UnitFrameState,
+    visuals: &UnitFrameVisuals,
+    frame: &FrameConfig,
+) -> Element {
+    rsx! {
+        {unit_frame_bar(
+            UnitFrameBarSpec {
                 name: format!("{prefix}HealthBar"),
-                x: frame.health_bar.x,
-                y: frame.health_bar.y,
-                width: frame.health_bar.width,
+                layout: &frame.health_bar,
                 height: BAR_H,
                 bg_color: visuals.health_bg,
                 fill_color: visuals.health_fill,
                 fill_width: state.health_fill_width,
                 value_text: state.health_text.as_str(),
-                text_x: frame.health_bar.text_x,
                 hidden: false,
-            })}
-            {bar_block(BarBlockSpec {
+            },
+        )}
+        {unit_frame_bar(
+            UnitFrameBarSpec {
                 name: format!("{prefix}ManaBar"),
-                x: frame.mana_bar.x,
-                y: frame.mana_bar.y,
-                width: frame.mana_bar.width,
+                layout: &frame.mana_bar,
                 height: MANA_H,
                 bg_color: MANA_BG,
                 fill_color: MANA_FILL,
                 fill_width: state.mana_fill_width,
                 value_text: state.mana_text.as_str(),
-                text_x: frame.mana_bar.text_x,
                 hidden: visuals.mana_hidden,
-            })}
-            {contextual_icons(prefix, player_side)}
-        }
+            },
+        )}
     }
+}
+
+struct UnitFrameBarSpec<'a> {
+    name: String,
+    layout: &'a BarConfig,
+    height: f32,
+    bg_color: &'a str,
+    fill_color: &'a str,
+    fill_width: f32,
+    value_text: &'a str,
+    hidden: bool,
+}
+
+fn unit_frame_bar(spec: UnitFrameBarSpec<'_>) -> Element {
+    bar_block(BarBlockSpec {
+        name: spec.name,
+        x: spec.layout.x,
+        y: spec.layout.y,
+        width: spec.layout.width,
+        height: spec.height,
+        bg_color: spec.bg_color,
+        fill_color: spec.fill_color,
+        fill_width: spec.fill_width,
+        value_text: spec.value_text,
+        text_x: spec.layout.text_x,
+        hidden: spec.hidden,
+    })
 }
 
 fn contextual_icons(prefix: &str, player_side: bool) -> Element {
