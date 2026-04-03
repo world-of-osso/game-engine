@@ -17,7 +17,6 @@ mod cache;
 pub struct WarbandSceneEntry {
     pub id: u32,
     pub name: String,
-    #[allow(dead_code)]
     pub description: String,
     /// WoW world position [X, Y, Z] for the camera.
     pub position: [f32; 3],
@@ -31,7 +30,6 @@ pub struct WarbandSceneEntry {
 /// Character placement slot within a warband scene.
 #[derive(Debug, Clone)]
 pub struct WarbandScenePlacement {
-    #[allow(dead_code)]
     pub id: u32,
     pub scene_id: u32,
     pub slot_type: u32,
@@ -44,13 +42,11 @@ pub struct WarbandScenePlacement {
 
 /// Optional authored overrides for a placement in alternate warband layouts.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct WarbandScenePlacementOption {
     pub placement_id: u32,
     pub layout_key: u32,
     pub position: [f32; 3],
     pub orientation: f32,
-    #[allow(dead_code)]
     pub scale: f32,
 }
 
@@ -59,13 +55,11 @@ pub struct WarbandScenePlacementOption {
 pub struct WarbandScenes {
     pub scenes: Vec<WarbandSceneEntry>,
     pub placements: Vec<WarbandScenePlacement>,
-    #[allow(dead_code)]
-    pub placement_options: Vec<WarbandScenePlacementOption>,
 }
 
 impl WarbandScenes {
     pub fn load() -> Self {
-        let (scenes, placements, placement_options) = match cache::load_cached_warband_scenes(
+        let (scenes, placements, _) = match cache::load_cached_warband_scenes(
             Path::new("data/WarbandScene.csv"),
             Path::new("data/WarbandScenePlacement.csv"),
             Path::new("data/WarbandScenePlacementOption.csv"),
@@ -81,11 +75,7 @@ impl WarbandScenes {
                 .unwrap_or_default()
             }
         };
-        Self {
-            scenes,
-            placements,
-            placement_options,
-        }
+        Self { scenes, placements }
     }
 
     /// Get the first character placement for a given scene (slot 0).
@@ -226,7 +216,7 @@ pub fn ensure_warband_skybox(scene: &WarbandSceneEntry) -> Option<PathBuf> {
 }
 
 /// Return the local root ADT path for a warband scene if it is already cached on disk.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn local_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     let map_name = scene.map_name();
     let (tile_y, tile_x) = scene.tile_coords();
@@ -244,7 +234,7 @@ pub fn supplemental_terrain_tile_coords(scene: &WarbandSceneEntry) -> Vec<(u32, 
 }
 
 /// Extract the specific set of ADT tiles needed for a warband scene background.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry) -> Vec<PathBuf> {
     let map_name = scene.map_name();
     let primary = scene.tile_coords();
