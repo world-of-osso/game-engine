@@ -7,6 +7,8 @@ macro_rules! zeroed_emitter {
             position: [0.0; 3],
             bone_index: 0,
             texture_index: 0,
+            particle_model_filename: None,
+            child_emitters_model_filename: None,
             texture_fdid: None,
             blend_type: 0,
             emitter_type: 0,
@@ -41,6 +43,7 @@ macro_rules! zeroed_emitter {
             follow_scale1: 0.0,
             follow_speed2: 0.0,
             follow_scale2: 0.0,
+            inherit_velocity_scale: 1.0,
             colors: [[0.0; 3]; 3],
             color_keys: Vec::new(),
             opacity: [0.0; 3],
@@ -204,6 +207,8 @@ fn apply_header_core(emitter: &mut M2ParticleEmitter, header: EmitterHeaderCore)
     emitter.position = header.position;
     emitter.bone_index = header.bone_index;
     emitter.texture_index = header.texture_index;
+    emitter.particle_model_filename = header.particle_model_filename;
+    emitter.child_emitters_model_filename = header.child_emitters_model_filename;
     emitter.blend_type = header.blend_type;
     emitter.emitter_type = header.emitter_type;
     emitter.particle_type = header.particle_type;

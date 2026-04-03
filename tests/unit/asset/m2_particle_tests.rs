@@ -192,7 +192,7 @@ fn parses_head_tail_tracks_and_burst_multiplier() {
 
     emitter[0x174..0x178].copy_from_slice(&(1.75_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    let mut parsed = parse_emitter_header(&emitter, &emitter).unwrap();
     fill_visual_values(&mut parsed, &md20, &emitter);
 
     assert_eq!(parsed.head_cell_track, [1, 2, 3]);
@@ -206,10 +206,47 @@ fn parses_particle_type_and_head_or_tail() {
     emitter[0x2A] = 1;
     emitter[0x2B] = 2;
 
-    let parsed = parse_emitter_header(&emitter).unwrap();
+    let parsed = parse_emitter_header(&emitter, &emitter).unwrap();
 
     assert_eq!(parsed.particle_type, 1);
     assert_eq!(parsed.head_or_tail, 2);
+}
+
+#[test]
+fn parses_particle_and_recursion_model_filenames() {
+    let mut md20 = vec![0u8; 0x80];
+    let mut emitter = vec![0u8; 0x178];
+    let particle_name = b"spells/torch_flame.m2\0";
+    let recursion_name = b"spells/torch_child.m2\0";
+    let particle_offset = 0x40usize;
+    let recursion_offset = particle_offset + particle_name.len();
+    md20[particle_offset..particle_offset + particle_name.len()].copy_from_slice(particle_name);
+    md20[recursion_offset..recursion_offset + recursion_name.len()].copy_from_slice(recursion_name);
+
+    emitter[0x18..0x1C].copy_from_slice(&(particle_name.len() as u32).to_le_bytes());
+    emitter[0x1C..0x20].copy_from_slice(&(particle_offset as u32).to_le_bytes());
+    emitter[0x20..0x24].copy_from_slice(&(recursion_name.len() as u32).to_le_bytes());
+    emitter[0x24..0x28].copy_from_slice(&(recursion_offset as u32).to_le_bytes());
+
+    let parsed = parse_emitter_header(&md20, &emitter).unwrap();
+
+    assert_eq!(
+        parsed.particle_model_filename.as_deref(),
+        Some("spells/torch_flame.m2")
+    );
+    assert_eq!(
+        parsed.child_emitters_model_filename.as_deref(),
+        Some("spells/torch_child.m2")
+    );
+}
+
+#[test]
+fn particle_emitters_default_inherit_velocity_scale_to_identity() {
+    let emitter = vec![0u8; 0x178];
+
+    let parsed = parse_emitter_header(&emitter, &emitter).unwrap();
+
+    assert!((parsed.inherit_velocity_scale - 1.0).abs() < 0.0001);
 }
 
 #[test]
@@ -223,7 +260,7 @@ fn parses_spin_fields_from_272_suffix() {
     md20[EMITTER_SPIN_VARIATION_OFFSET..EMITTER_SPIN_VARIATION_OFFSET + 4]
         .copy_from_slice(&(0.5_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.base_spin - 0.25).abs() < 0.0001);
@@ -238,7 +275,7 @@ fn parses_tail_length_from_272_suffix() {
     md20[EMITTER_TAIL_LENGTH_OFFSET..EMITTER_TAIL_LENGTH_OFFSET + 4]
         .copy_from_slice(&(2.5_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.tail_length - 2.5).abs() < 0.0001);
@@ -255,7 +292,7 @@ fn parses_z_source_track_from_272_suffix() {
     emitter[EMITTER_Z_SOURCE_OFFSET + 16..EMITTER_Z_SOURCE_OFFSET + 20]
         .copy_from_slice(&(z_source_offset as u32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &emitter).unwrap();
     fill_track_values(&mut parsed, &md20, &emitter);
 
     assert!((parsed.z_source - 1.25).abs() < 0.0001);
@@ -266,7 +303,7 @@ fn parses_drag_from_272_suffix_float_slot() {
     let mut md20 = vec![0u8; 0x1ec];
     md20[EMITTER_DRAG_OFFSET..EMITTER_DRAG_OFFSET + 4].copy_from_slice(&(0.35_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.drag - 0.35).abs() < 0.0001);
@@ -280,7 +317,7 @@ fn parses_size_variation_fields_from_272_suffix() {
     md20[EMITTER_SCALE_VARIATION_Y_OFFSET..EMITTER_SCALE_VARIATION_Y_OFFSET + 4]
         .copy_from_slice(&(0.2_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.scale_variation - 0.4).abs() < 0.0001);
@@ -293,7 +330,7 @@ fn parses_lifespan_variation_from_272_suffix() {
     md20[EMITTER_LIFESPAN_VARIATION_OFFSET..EMITTER_LIFESPAN_VARIATION_OFFSET + 4]
         .copy_from_slice(&(0.4_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.lifespan_variation - 0.4).abs() < 0.0001);
@@ -305,7 +342,7 @@ fn parses_emission_rate_variation_from_272_suffix() {
     md20[EMITTER_EMISSION_RATE_VARIATION_OFFSET..EMITTER_EMISSION_RATE_VARIATION_OFFSET + 4]
         .copy_from_slice(&(0.6_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.emission_rate_variation - 0.6).abs() < 0.0001);
@@ -322,7 +359,7 @@ fn parses_uncompressed_gravity_as_negative_wow_z() {
     emitter[EMITTER_GRAVITY_OFFSET + 16..EMITTER_GRAVITY_OFFSET + 20]
         .copy_from_slice(&(gravity_offset as u32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &emitter).unwrap();
     fill_track_values(&mut parsed, &md20, &emitter);
 
     assert!((parsed.gravity - 2.0).abs() < 0.0001);
@@ -342,7 +379,7 @@ fn parses_compressed_gravity_vector() {
     emitter[EMITTER_GRAVITY_OFFSET + 16..EMITTER_GRAVITY_OFFSET + 20]
         .copy_from_slice(&(gravity_offset as u32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&emitter).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &emitter).unwrap();
     fill_track_values(&mut parsed, &md20, &emitter);
 
     assert!((parsed.gravity_vector[0] - 2.119324).abs() < 0.0001);
@@ -362,7 +399,7 @@ fn parses_twinkle_fields_from_272_suffix() {
     md20[EMITTER_TWINKLE_SCALE_MAX_OFFSET..EMITTER_TWINKLE_SCALE_MAX_OFFSET + 4]
         .copy_from_slice(&(1.5_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_visual_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.twinkle_speed - 2.0).abs() < 0.0001);
@@ -383,7 +420,7 @@ fn parses_wind_fields_from_272_suffix() {
     md20[EMITTER_WIND_TIME_OFFSET..EMITTER_WIND_TIME_OFFSET + 4]
         .copy_from_slice(&(4.5_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert_eq!(parsed.wind_vector, [1.0, 2.0, 3.0]);
@@ -402,7 +439,7 @@ fn parses_follow_fields_from_272_suffix() {
     md20[EMITTER_FOLLOW_SCALE2_OFFSET..EMITTER_FOLLOW_SCALE2_OFFSET + 4]
         .copy_from_slice(&(0.75_f32).to_le_bytes());
 
-    let mut parsed = parse_emitter_header(&md20).unwrap();
+    let mut parsed = parse_emitter_header(&md20, &md20).unwrap();
     fill_track_values(&mut parsed, &md20, &md20);
 
     assert!((parsed.follow_speed1 - 2.0).abs() < 0.0001);

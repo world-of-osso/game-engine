@@ -22,6 +22,10 @@ pub struct M2ParticleEmitter {
     pub position: [f32; 3],
     pub bone_index: u16,
     pub texture_index: u16,
+    /// Optional per-particle spawned model filename.
+    pub particle_model_filename: Option<String>,
+    /// Optional recursion/child-emitter model filename.
+    pub child_emitters_model_filename: Option<String>,
     /// Resolved texture FileDataID (from TXID chunk).
     pub texture_fdid: Option<u32>,
     pub blend_type: u8,
@@ -75,6 +79,11 @@ pub struct M2ParticleEmitter {
     pub follow_speed2: f32,
     /// Follow-scale paired with `follow_speed2`.
     pub follow_scale2: f32,
+    /// Scale applied when inheriting parent particle velocity.
+    ///
+    /// Local runtime references default this to 1.0, but the local M2 file
+    /// layout references do not expose a persisted header field yet.
+    pub inherit_velocity_scale: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
     /// Full FakeAnimBlock color keys as (normalized time, RGB 0–255).
@@ -113,6 +122,10 @@ const EMITTER_POSITION_Y_OFFSET: usize = 0x0C;
 const EMITTER_POSITION_Z_OFFSET: usize = 0x10;
 const EMITTER_BONE_INDEX_OFFSET: usize = 0x14;
 const EMITTER_TEXTURE_INDEX_OFFSET: usize = 0x16;
+const EMITTER_GEOMETRY_MODEL_FILENAME_COUNT_OFFSET: usize = 0x18;
+const EMITTER_GEOMETRY_MODEL_FILENAME_DATA_OFFSET: usize = 0x1C;
+const EMITTER_RECURSION_MODEL_FILENAME_COUNT_OFFSET: usize = 0x20;
+const EMITTER_RECURSION_MODEL_FILENAME_DATA_OFFSET: usize = 0x24;
 const EMITTER_BLEND_TYPE_OFFSET: usize = 0x28;
 const EMITTER_TYPE_OFFSET: usize = 0x29;
 const EMITTER_PARTICLE_TYPE_OFFSET: usize = 0x2A;
@@ -165,6 +178,8 @@ struct EmitterHeaderCore {
     position: [f32; 3],
     bone_index: u16,
     texture_index: u16,
+    particle_model_filename: Option<String>,
+    child_emitters_model_filename: Option<String>,
     blend_type: u8,
     emitter_type: u8,
     particle_type: u8,
@@ -180,6 +195,8 @@ impl Default for EmitterHeaderCore {
             position: [0.0; 3],
             bone_index: 0,
             texture_index: 0,
+            particle_model_filename: None,
+            child_emitters_model_filename: None,
             blend_type: 0,
             emitter_type: 0,
             particle_type: 0,
@@ -207,6 +224,23 @@ fn read_u16_values(md20: &[u8], emitter: &[u8], off: usize) -> [u16; 3] {
         *value = read_u16(md20, base + i * 2).unwrap_or(0);
     }
     values
+}
+
+fn read_m2_cstring(
+    md20: &[u8],
+    emitter: &[u8],
+    count_off: usize,
+    data_off: usize,
+) -> Option<String> {
+    let count = read_u32(emitter, count_off).ok()? as usize;
+    let offset = read_u32(emitter, data_off).ok()? as usize;
+    if count == 0 {
+        return None;
+    }
+    let bytes = md20.get(offset..offset + count)?;
+    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+    let value = String::from_utf8_lossy(&bytes[..end]).trim().to_string();
+    (!value.is_empty()).then_some(value)
 }
 
 fn read_normalized_timestamps(md20: &[u8], emitter: &[u8], off: usize) -> Vec<f32> {
@@ -396,11 +430,11 @@ fn read_midpoint(md20: &[u8], emitter: &[u8], off: usize) -> f32 {
 }
 
 /// Parse static emitter fields (id through tile dimensions) at offset within MD20.
-fn parse_emitter_header(em: &[u8]) -> Result<M2ParticleEmitter, String> {
-    parse_emitter_header_core(em).map(defaults::build_emitter_header)
+fn parse_emitter_header(md20: &[u8], em: &[u8]) -> Result<M2ParticleEmitter, String> {
+    parse_emitter_header_core(md20, em).map(defaults::build_emitter_header)
 }
 
-fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
+fn parse_emitter_header_core(md20: &[u8], em: &[u8]) -> Result<EmitterHeaderCore, String> {
     Ok(EmitterHeaderCore {
         flags: read_u32(em, EMITTER_FLAGS_OFFSET)?,
         position: [
@@ -410,6 +444,18 @@ fn parse_emitter_header_core(em: &[u8]) -> Result<EmitterHeaderCore, String> {
         ],
         bone_index: read_u16(em, EMITTER_BONE_INDEX_OFFSET)?,
         texture_index: read_u16(em, EMITTER_TEXTURE_INDEX_OFFSET)? & 0x1F,
+        particle_model_filename: read_m2_cstring(
+            md20,
+            em,
+            EMITTER_GEOMETRY_MODEL_FILENAME_COUNT_OFFSET,
+            EMITTER_GEOMETRY_MODEL_FILENAME_DATA_OFFSET,
+        ),
+        child_emitters_model_filename: read_m2_cstring(
+            md20,
+            em,
+            EMITTER_RECURSION_MODEL_FILENAME_COUNT_OFFSET,
+            EMITTER_RECURSION_MODEL_FILENAME_DATA_OFFSET,
+        ),
         blend_type: em[EMITTER_BLEND_TYPE_OFFSET],
         emitter_type: em[EMITTER_TYPE_OFFSET],
         particle_type: em[EMITTER_PARTICLE_TYPE_OFFSET],
@@ -491,7 +537,7 @@ fn parse_emitter(md20: &[u8], offset: usize) -> Result<M2ParticleEmitter, String
     if data.len() < EMITTER_PARSED_PREFIX_SIZE {
         return Err("Emitter data too short".into());
     }
-    let mut em = parse_emitter_header(data)?;
+    let mut em = parse_emitter_header(md20, data)?;
     fill_track_values(&mut em, md20, data);
     fill_visual_values(&mut em, md20, data);
     Ok(em)
