@@ -47,9 +47,25 @@ pub struct ParticlePlugin;
 
 impl Plugin for ParticlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(HanabiPlugin)
-            .add_systems(Update, register_pending_particle_effects);
+        app.add_plugins(HanabiPlugin).add_systems(
+            Update,
+            (
+                register_pending_particle_effects,
+                trigger_pending_particle_bursts,
+            ),
+        );
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParticleSpawnMode {
+    Continuous,
+    BurstOnce,
+}
+
+#[derive(Component, Default)]
+pub struct PendingParticleBurst {
+    pub armed: bool,
 }
 
 /// Marker for a particle emitter entity.
@@ -62,6 +78,7 @@ pub struct ParticleEmitterComp {
     pub emitter: M2ParticleEmitter,
     pub bone_entity: Option<Entity>,
     pub scale_source: Entity,
+    pub spawn_mode: ParticleSpawnMode,
     /// Optional texture handle to attach via `EffectMaterial`.
     pending_texture: Option<Handle<Image>>,
 }
@@ -84,12 +101,31 @@ fn register_pending_particle_effects(
             .get(comp.scale_source)
             .map(|tf| tf.compute_transform().scale.x)
             .unwrap_or(1.0);
-        let asset = build_effect_asset(&comp.emitter, model_scale, particle_density_multiplier);
+        let asset = build_effect_asset_with_mode(
+            &comp.emitter,
+            model_scale,
+            particle_density_multiplier,
+            comp.spawn_mode,
+        );
         let handle = effects.add(asset);
         let mut ec = commands.entity(entity);
         ec.insert(ParticleEffect::new(handle));
         if let Some(tex) = comp.pending_texture.clone() {
             ec.insert(EffectMaterial { images: vec![tex] });
+        }
+        if comp.spawn_mode == ParticleSpawnMode::BurstOnce {
+            ec.insert(PendingParticleBurst { armed: true });
+        }
+    }
+}
+
+fn trigger_pending_particle_bursts(
+    mut query: Query<(&mut EffectSpawner, &mut PendingParticleBurst), With<ParticleEmitterComp>>,
+) {
+    for (mut spawner, mut pending) in &mut query {
+        if pending.armed {
+            spawner.reset();
+            pending.armed = false;
         }
     }
 }
@@ -104,7 +140,36 @@ pub fn spawn_emitters(
     parent: Entity,
 ) {
     for em in emitters {
-        spawn_single_emitter(commands, images, em, bones, bone_entities, parent);
+        spawn_single_emitter(
+            commands,
+            images,
+            em,
+            bones,
+            bone_entities,
+            parent,
+            ParticleSpawnMode::Continuous,
+        );
+    }
+}
+
+pub fn spawn_burst_emitters(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    emitters: &[M2ParticleEmitter],
+    bones: &[M2Bone],
+    bone_entities: Option<&[Entity]>,
+    parent: Entity,
+) {
+    for em in emitters {
+        spawn_single_emitter(
+            commands,
+            images,
+            em,
+            bones,
+            bone_entities,
+            parent,
+            ParticleSpawnMode::BurstOnce,
+        );
     }
 }
 
@@ -115,6 +180,7 @@ fn spawn_single_emitter(
     bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
+    spawn_mode: ParticleSpawnMode,
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
     let pending_texture = load_emitter_texture(em, images);
@@ -127,6 +193,7 @@ fn spawn_single_emitter(
                 emitter: em.clone(),
                 bone_entity,
                 scale_source: emitter_scale_source(em, bone_entity, parent),
+                spawn_mode,
                 pending_texture,
             },
             Transform::from_translation(local_offset),
@@ -372,14 +439,27 @@ fn build_effect_asset(
     model_scale: f32,
     particle_density_multiplier: f32,
 ) -> EffectAsset {
+    build_effect_asset_with_mode(
+        em,
+        model_scale,
+        particle_density_multiplier,
+        ParticleSpawnMode::Continuous,
+    )
+}
+
+fn build_effect_asset_with_mode(
+    em: &M2ParticleEmitter,
+    model_scale: f32,
+    particle_density_multiplier: f32,
+    spawn_mode: ParticleSpawnMode,
+) -> EffectAsset {
     let m = build_expr_modifiers(em, model_scale);
     let emission_rate = scaled_emission_rate(em, particle_density_multiplier);
     let (_, max_lifetime) = lifetime_range(em);
-    let max_particles = ((emission_rate * max_lifetime) as u32).clamp(16, 4096);
-    // WoW emits particles via an accumulator (`rate * dt + carry`) and can vary
-    // the instantaneous spawn rate per tick. Hanabi only gives us a steady rate
-    // spawner here, so this remains an approximation even after the torch fixes.
-    let spawner = SpawnerSettings::rate(emission_rate.into());
+    let burst_count = emission_rate.max(0.0);
+    let max_particles =
+        (((emission_rate * max_lifetime).max(burst_count)).ceil() as u32).clamp(16, 4096);
+    let spawner = build_spawner_settings(emission_rate, spawn_mode);
 
     let mut effect = assemble_effect(
         em,
@@ -416,6 +496,25 @@ fn build_effect_asset(
         });
     }
     effect
+}
+
+fn build_spawner_settings(emission_rate: f32, spawn_mode: ParticleSpawnMode) -> SpawnerSettings {
+    match spawn_mode {
+        ParticleSpawnMode::Continuous => {
+            // WoW emits particles via an accumulator (`rate * dt + carry`) and
+            // can vary the instantaneous spawn rate per tick. Hanabi only gives
+            // us a steady rate spawner here, so this remains an approximation.
+            SpawnerSettings::rate(emission_rate.into())
+        }
+        ParticleSpawnMode::BurstOnce => {
+            // WoW's PROP_BURST_EMIT is a one-shot runtime event, not a steady
+            // parsed emitter flag. Keep burst emitters dormant until the engine
+            // explicitly arms them, then fire a single-frame burst.
+            SpawnerSettings::once(emission_rate.max(0.0).into())
+                .with_starts_active(true)
+                .with_emit_on_start(false)
+        }
+    }
 }
 
 fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> f32 {

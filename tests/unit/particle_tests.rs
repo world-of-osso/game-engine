@@ -6,14 +6,14 @@ use super::{
     FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
     PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
     PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
-    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, PositionInitModifier, active_cell_track,
-    build_color_gradient, build_effect_asset, build_expr_modifiers, build_position_modifier,
-    build_size_gradient, emitter_alpha_mode, emitter_parent_entity, emitter_scale_source,
-    emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius, emitter_translation,
-    emitter_uses_bone_scale, emitter_uses_follow_position, emitter_uses_sphere_invert_velocity,
-    flipbook_sprite_mode, gravity_accel_bevy, has_authored_spin, has_authored_twinkle,
-    has_authored_wind, lifetime_range, orient_mode, scaled_emission_rate, wind_accel_bevy,
-    wind_strength_at_age,
+    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, PositionInitModifier,
+    active_cell_track, build_color_gradient, build_effect_asset, build_effect_asset_with_mode,
+    build_expr_modifiers, build_position_modifier, build_size_gradient, emitter_alpha_mode,
+    emitter_parent_entity, emitter_scale_source, emitter_simulation_space, emitter_spawn_offset,
+    emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
+    emitter_uses_follow_position, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
+    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
+    orient_mode, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -191,6 +191,17 @@ fn textured_emitters_declare_hanabi_texture_slot() {
 
     assert_eq!(asset.texture_layout().layout.len(), 1);
     assert_eq!(asset.texture_layout().layout[0].name, "color");
+}
+
+#[test]
+fn burst_once_spawn_mode_builds_once_spawner() {
+    let emitter = sample_emitter();
+
+    let asset = build_effect_asset_with_mode(&emitter, 1.0, 1.0, ParticleSpawnMode::BurstOnce);
+
+    assert!(asset.spawner.is_once());
+    assert!(asset.spawner.starts_active());
+    assert_eq!(asset.spawner.cycle_count(), 1);
 }
 
 #[test]
