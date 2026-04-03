@@ -156,48 +156,67 @@ fn log_wmo_spawn(root_fdid: u32, group_count: u32, root: &wmo::WmoRootData, tran
 }
 
 fn build_portal_graph(root: &wmo::WmoRootData) -> game_engine::culling::WmoPortalGraph {
-    let mut adjacency = vec![Vec::new(); root.n_groups as usize];
+    let refs_by_portal = collect_portal_group_refs(root);
+    let adjacency = build_portal_adjacency(root.n_groups, &refs_by_portal);
+    let portal_verts = collect_portal_vertices(root);
+
+    game_engine::culling::WmoPortalGraph {
+        adjacency,
+        portal_verts,
+    }
+}
+
+fn collect_portal_group_refs(root: &wmo::WmoRootData) -> Vec<Vec<u16>> {
     let mut refs_by_portal = vec![Vec::new(); root.portals.len()];
     for portal_ref in &root.portal_refs {
         if let Some(group_refs) = refs_by_portal.get_mut(portal_ref.portal_index as usize) {
             group_refs.push(portal_ref.group_index);
         }
     }
+    refs_by_portal
+}
 
+fn build_portal_adjacency(n_groups: u32, refs_by_portal: &[Vec<u16>]) -> Vec<Vec<(usize, u16)>> {
+    let mut adjacency = vec![Vec::new(); n_groups as usize];
     for (portal_idx, groups) in refs_by_portal.iter().enumerate() {
         if groups.len() < 2 {
             continue;
         }
         for &src in groups {
             if let Some(neighbors) = adjacency.get_mut(src as usize) {
-                for &dst in groups {
-                    if src != dst {
-                        neighbors.push((portal_idx, dst));
-                    }
-                }
+                add_portal_neighbors(neighbors, portal_idx, groups, src);
             }
         }
     }
+    adjacency
+}
 
-    let portal_verts = root
-        .portals
-        .iter()
-        .map(|portal| {
-            portal
-                .vertices
-                .iter()
-                .map(|vertex| {
-                    let [x, y, z] = *vertex;
-                    Vec3::from(crate::asset::wmo::wmo_local_to_bevy(x, y, z))
-                })
-                .collect()
-        })
-        .collect();
-
-    game_engine::culling::WmoPortalGraph {
-        adjacency,
-        portal_verts,
+fn add_portal_neighbors(
+    neighbors: &mut Vec<(usize, u16)>,
+    portal_idx: usize,
+    groups: &[u16],
+    src: u16,
+) {
+    for &dst in groups {
+        if src != dst {
+            neighbors.push((portal_idx, dst));
+        }
     }
+}
+
+fn collect_portal_vertices(root: &wmo::WmoRootData) -> Vec<Vec<Vec3>> {
+    root.portals.iter().map(portal_vertices).collect()
+}
+
+fn portal_vertices(portal: &wmo::WmoPortal) -> Vec<Vec3> {
+    portal
+        .vertices
+        .iter()
+        .map(|vertex| {
+            let [x, y, z] = *vertex;
+            Vec3::from(crate::asset::wmo::wmo_local_to_bevy(x, y, z))
+        })
+        .collect()
 }
 
 fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
