@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use bevy::ecs::query::QueryFilter;
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use game_engine::culling::{Wmo, WmoGroup};
@@ -190,50 +191,59 @@ fn spawn_inworld_skybox(
     Some(spawned.root)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(super) fn sync_inworld_authored_skybox(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut skybox_materials: ResMut<Assets<SkyboxM2Material>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
-    creature_display_map: Res<creature_display::CreatureDisplayMap>,
-    adt_manager: Res<AdtManager>,
-    player_q: Query<&Transform, (With<crate::camera::Player>, With<LocalPlayer>)>,
-    camera_q: Query<(&Camera, &Transform), With<Camera3d>>,
-    skybox_q: Query<(Entity, &InWorldSkybox)>,
+#[derive(SystemParam)]
+pub(super) struct InWorldSkyboxParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
+    images: ResMut<'w, Assets<Image>>,
+    inverse_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    adt_manager: Res<'w, AdtManager>,
+    player_q: Query<'w, 's, &'static Transform, (With<crate::camera::Player>, With<LocalPlayer>)>,
+    camera_q: Query<'w, 's, (&'static Camera, &'static Transform), With<Camera3d>>,
+    skybox_q: Query<'w, 's, (Entity, &'static InWorldSkybox)>,
     wmo_q: Query<
+        'w,
+        's,
         (
             Entity,
-            &GlobalTransform,
-            &crate::terrain_objects::WmoLocalSkybox,
+            &'static GlobalTransform,
+            &'static crate::terrain_objects::WmoLocalSkybox,
         ),
         With<Wmo>,
     >,
-    wmo_group_q: Query<(&WmoGroup, &ChildOf)>,
-    current_zone: Res<CurrentZone>,
-) {
-    let Some(camera_translation) = active_camera_translation(&camera_q) else {
+    wmo_group_q: Query<'w, 's, (&'static WmoGroup, &'static ChildOf)>,
+    current_zone: Res<'w, CurrentZone>,
+}
+
+pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
+    let Some(camera_translation) = active_camera_translation(&params.camera_q) else {
         return;
     };
-    let anchor_pos = resolve_inworld_camera_anchor(&player_q, camera_translation);
-    let map_id = resolve_inworld_map_id(&adt_manager, &current_zone);
-    let desired_path = active_wmo_local_skybox_wow_path(camera_translation, &wmo_q, &wmo_group_q)
-        .as_deref()
-        .and_then(ensure_skybox_wow_path)
-        .or_else(|| resolve_inworld_skybox_path(map_id, anchor_pos));
-    let has_existing_skybox = skybox_q.iter().next().is_some();
+    let anchor_pos = resolve_inworld_camera_anchor(&params.player_q, camera_translation);
+    let map_id = resolve_inworld_map_id(&params.adt_manager, &params.current_zone);
+    let desired_path =
+        active_wmo_local_skybox_wow_path(camera_translation, &params.wmo_q, &params.wmo_group_q)
+            .as_deref()
+            .and_then(ensure_skybox_wow_path)
+            .or_else(|| resolve_inworld_skybox_path(map_id, anchor_pos));
+    let has_existing_skybox = params.skybox_q.iter().next().is_some();
 
     if let Some(path) = desired_path.as_deref()
-        && has_active_inworld_skybox_path(&skybox_q, path)
+        && has_active_inworld_skybox_path(&params.skybox_q, path)
     {
-        mark_inworld_skyboxes_fading_out(&mut commands, &skybox_q, Some(path));
+        mark_inworld_skyboxes_fading_out(&mut params.commands, &params.skybox_q, Some(path));
         return;
     }
 
-    mark_inworld_skyboxes_fading_out(&mut commands, &skybox_q, desired_path.as_deref());
+    mark_inworld_skyboxes_fading_out(
+        &mut params.commands,
+        &params.skybox_q,
+        desired_path.as_deref(),
+    );
 
     let Some(path) = desired_path else {
         return;
@@ -249,21 +259,21 @@ pub(super) fn sync_inworld_authored_skybox(
         1.0
     };
     let Some(spawned_root) = spawn_inworld_skybox(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut skybox_materials,
-        &mut images,
-        &mut inverse_bp,
-        &creature_display_map,
+        &mut params.commands,
+        &mut params.meshes,
+        &mut params.materials,
+        &mut params.effect_materials,
+        &mut params.skybox_materials,
+        &mut params.images,
+        &mut params.inverse_bp,
+        &params.creature_display_map,
         &path,
         camera_translation,
         initial_alpha,
     ) else {
         return;
     };
-    commands.entity(spawned_root).insert(InWorldSkybox {
+    params.commands.entity(spawned_root).insert(InWorldSkybox {
         path,
         phase,
         elapsed: 0.0,
