@@ -4,6 +4,7 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use game_engine::asset::adt::{load_adt_for_tile, load_adt_tex0};
 use game_engine::asset::adt_format::adt_obj::load_adt_obj0;
 use game_engine::asset::blp::load_blp_rgba;
+use game_engine::asset::char_texture::CharTextureData;
 use game_engine::asset::m2::load_m2_uncached;
 use game_engine::asset::m2_particle::parse_particle_emitters;
 use game_engine::asset::wmo::{load_wmo_group, load_wmo_root};
@@ -188,6 +189,35 @@ fn bench_particle_effect_asset_build(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_character_texture_compositing(c: &mut Criterion) {
+    let data_dir = Path::new("data");
+    assert!(
+        data_dir.exists(),
+        "missing benchmark data dir {}",
+        data_dir.display()
+    );
+    let texture_data = CharTextureData::load(data_dir);
+    let cases = [
+        ("hd_base", Vec::<(u16, u32)>::new(), Vec::<(u8, u32)>::new()),
+        (
+            "hd_boot_overlay",
+            Vec::<(u16, u32)>::new(),
+            vec![(6, 155028), (7, 152769)],
+        ),
+    ];
+    let mut group = c.benchmark_group("asset::char_texture::composite_model_textures");
+    for (label, materials, item_textures) in &cases {
+        group.bench_with_input(BenchmarkId::from_parameter(label), label, |b, _| {
+            b.iter(|| {
+                texture_data
+                    .composite_model_textures(materials, item_textures, 103)
+                    .expect("benchmark composited character textures")
+            });
+        });
+    }
+    group.finish();
+}
+
 fn find_md21_chunk(data: &[u8]) -> Option<&[u8]> {
     let mut off = 0;
     while off + 8 <= data.len() {
@@ -213,6 +243,7 @@ criterion_group!(
     bench_adt_parsing,
     bench_wmo_parsing,
     bench_particle_emitter_parsing,
-    bench_particle_effect_asset_build
+    bench_particle_effect_asset_build,
+    bench_character_texture_compositing
 );
 criterion_main!(parser_benches);
