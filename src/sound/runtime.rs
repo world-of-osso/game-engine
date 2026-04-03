@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::f32::consts::TAU;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use bevy::audio::{AudioSinkPlayback, Volume};
 use bevy::prelude::*;
@@ -326,31 +326,52 @@ fn load_external_music_tracks(
     let mut tracks = Vec::new();
     let mut track_index_by_fdid = HashMap::new();
     for dir in ["data/sound/music", "data/music"] {
-        let path = Path::new(dir);
-        let Ok(entries) = std::fs::read_dir(path) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_file() || !is_supported_audio_file(&path) {
-                continue;
-            }
-            match std::fs::read(&path) {
-                Ok(bytes) => add_external_music_track(
-                    audio_assets,
-                    &mut tracks,
-                    &mut track_index_by_fdid,
-                    &path,
-                    bytes,
-                ),
-                Err(e) => {
-                    eprintln!("Failed to read music track {}: {e}", path.display());
-                }
-            }
-        }
+        load_external_music_tracks_from_dir(
+            audio_assets,
+            &mut tracks,
+            &mut track_index_by_fdid,
+            Path::new(dir),
+        );
     }
     let tracks_by_zone = crate::sound_music_catalog::load_zone_music_catalog(&track_index_by_fdid);
     (tracks, tracks_by_zone)
+}
+
+fn load_external_music_tracks_from_dir(
+    audio_assets: &mut Assets<AudioSource>,
+    tracks: &mut Vec<LoadedMusicTrack>,
+    track_index_by_fdid: &mut HashMap<u32, usize>,
+    dir: &Path,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        load_external_music_track_entry(audio_assets, tracks, track_index_by_fdid, entry.path());
+    }
+}
+
+fn load_external_music_track_entry(
+    audio_assets: &mut Assets<AudioSource>,
+    tracks: &mut Vec<LoadedMusicTrack>,
+    track_index_by_fdid: &mut HashMap<u32, usize>,
+    path: PathBuf,
+) {
+    if !is_loadable_music_track(&path) {
+        return;
+    }
+    match std::fs::read(&path) {
+        Ok(bytes) => {
+            add_external_music_track(audio_assets, tracks, track_index_by_fdid, &path, bytes)
+        }
+        Err(e) => {
+            eprintln!("Failed to read music track {}: {e}", path.display());
+        }
+    }
+}
+
+fn is_loadable_music_track(path: &Path) -> bool {
+    path.is_file() && is_supported_audio_file(path)
 }
 
 fn add_external_music_track(
