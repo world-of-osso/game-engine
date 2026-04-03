@@ -52,6 +52,7 @@ mod dump_systems;
 mod equipment;
 mod equipment_appearance;
 mod game_state;
+#[path = "rendering/terrain/ground.rs"]
 mod ground;
 mod health_bar;
 #[path = "rendering/lighting/light_lookup.rs"]
@@ -94,17 +95,27 @@ mod sound_music_catalog;
 mod status_asset_stats;
 mod status_sync;
 mod target;
+#[path = "rendering/terrain/terrain.rs"]
 mod terrain;
+#[path = "rendering/terrain/terrain_heightmap.rs"]
 mod terrain_heightmap;
+#[path = "rendering/terrain/terrain_load_limits.rs"]
 mod terrain_load_limits;
+#[path = "rendering/terrain/terrain_load_progress.rs"]
 mod terrain_load_progress;
+#[path = "rendering/terrain/terrain_lod.rs"]
 mod terrain_lod;
+#[path = "rendering/terrain/terrain_material.rs"]
 mod terrain_material;
+#[path = "rendering/terrain/terrain_memory_debug.rs"]
 mod terrain_memory_debug;
+#[path = "rendering/terrain/terrain_objects.rs"]
 mod terrain_objects;
+#[path = "rendering/terrain/terrain_tile.rs"]
 mod terrain_tile;
 mod trash_button_screen;
 mod unit_frames;
+#[path = "rendering/terrain/water_material.rs"]
 mod water_material;
 mod wow_cursor;
 mod zone_names;
