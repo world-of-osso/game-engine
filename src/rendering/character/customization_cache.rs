@@ -147,65 +147,80 @@ fn create_cache_parent_dir(cache_path: &Path) -> Result<(), String> {
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
+    conn.execute_batch(&build_customization_cache_schema_sql())
+        .map_err(|err| format!("init customization cache: {err}"))
+}
+
+fn build_customization_cache_schema_sql() -> String {
+    format!(
         "BEGIN;
-         DROP TABLE IF EXISTS source_files;
-         DROP TABLE IF EXISTS chr_models;
-         DROP TABLE IF EXISTS options;
-         DROP TABLE IF EXISTS choices;
-         DROP TABLE IF EXISTS elements;
-         DROP TABLE IF EXISTS materials;
-         DROP TABLE IF EXISTS geosets;
-         DROP TABLE IF EXISTS hair_geosets;
-         DROP TABLE IF EXISTS texture_fdids;
-         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
-         CREATE TABLE chr_models (
-             id INTEGER PRIMARY KEY,
-             layout_id INTEGER NOT NULL,
-             customize_scale REAL NOT NULL,
-             camera_distance_offset REAL NOT NULL
-         );
-         CREATE TABLE options (
-             id INTEGER PRIMARY KEY,
-             name TEXT NOT NULL,
-             chr_model_id INTEGER NOT NULL
-         );
-         CREATE TABLE choices (
-             id INTEGER PRIMARY KEY,
-             option_id INTEGER NOT NULL,
-             name TEXT NOT NULL,
-             requirement_id INTEGER NOT NULL,
-             order_index INTEGER NOT NULL
-         );
-         CREATE TABLE elements (
-             choice_id INTEGER NOT NULL,
-             related_choice_id INTEGER NOT NULL,
-             geoset_id INTEGER NOT NULL,
-             material_id INTEGER NOT NULL
-         );
-         CREATE TABLE materials (
-             id INTEGER PRIMARY KEY,
-             texture_target_id INTEGER NOT NULL,
-             material_resources_id INTEGER NOT NULL
-         );
-         CREATE TABLE geosets (
-             id INTEGER PRIMARY KEY,
-             geoset_type INTEGER NOT NULL,
-             geoset_id INTEGER NOT NULL
-         );
-         CREATE TABLE hair_geosets (
-             model_id INTEGER NOT NULL,
-             geoset_type INTEGER NOT NULL,
-             geoset_id INTEGER NOT NULL,
-             shows_scalp INTEGER NOT NULL,
-             PRIMARY KEY (model_id, geoset_type, geoset_id)
-         );
-         CREATE TABLE texture_fdids (
-             material_resources_id INTEGER PRIMARY KEY,
-             file_data_id INTEGER NOT NULL
-         );",
+         {drops}
+         {creates}
+         COMMIT;",
+        drops = customization_cache_drop_tables_sql(),
+        creates = customization_cache_create_tables_sql(),
     )
-    .map_err(|err| format!("init customization cache: {err}"))
+}
+
+fn customization_cache_drop_tables_sql() -> &'static str {
+    "DROP TABLE IF EXISTS source_files;
+     DROP TABLE IF EXISTS chr_models;
+     DROP TABLE IF EXISTS options;
+     DROP TABLE IF EXISTS choices;
+     DROP TABLE IF EXISTS elements;
+     DROP TABLE IF EXISTS materials;
+     DROP TABLE IF EXISTS geosets;
+     DROP TABLE IF EXISTS hair_geosets;
+     DROP TABLE IF EXISTS texture_fdids;"
+}
+
+fn customization_cache_create_tables_sql() -> &'static str {
+    "CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
+     CREATE TABLE chr_models (
+         id INTEGER PRIMARY KEY,
+         layout_id INTEGER NOT NULL,
+         customize_scale REAL NOT NULL,
+         camera_distance_offset REAL NOT NULL
+     );
+     CREATE TABLE options (
+         id INTEGER PRIMARY KEY,
+         name TEXT NOT NULL,
+         chr_model_id INTEGER NOT NULL
+     );
+     CREATE TABLE choices (
+         id INTEGER PRIMARY KEY,
+         option_id INTEGER NOT NULL,
+         name TEXT NOT NULL,
+         requirement_id INTEGER NOT NULL,
+         order_index INTEGER NOT NULL
+     );
+     CREATE TABLE elements (
+         choice_id INTEGER NOT NULL,
+         related_choice_id INTEGER NOT NULL,
+         geoset_id INTEGER NOT NULL,
+         material_id INTEGER NOT NULL
+     );
+     CREATE TABLE materials (
+         id INTEGER PRIMARY KEY,
+         texture_target_id INTEGER NOT NULL,
+         material_resources_id INTEGER NOT NULL
+     );
+     CREATE TABLE geosets (
+         id INTEGER PRIMARY KEY,
+         geoset_type INTEGER NOT NULL,
+         geoset_id INTEGER NOT NULL
+     );
+     CREATE TABLE hair_geosets (
+         model_id INTEGER NOT NULL,
+         geoset_type INTEGER NOT NULL,
+         geoset_id INTEGER NOT NULL,
+         shows_scalp INTEGER NOT NULL,
+         PRIMARY KEY (model_id, geoset_type, geoset_id)
+     );
+     CREATE TABLE texture_fdids (
+         material_resources_id INTEGER PRIMARY KEY,
+         file_data_id INTEGER NOT NULL
+     );"
 }
 
 fn insert_simple_rows<T, F>(
