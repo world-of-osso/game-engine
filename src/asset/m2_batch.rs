@@ -130,6 +130,33 @@ pub(super) fn build_one_batch(
     ctx: &BatchBuildContext<'_>,
     unit: &M2TextureUnit,
 ) -> Result<Option<M2RenderBatch>, String> {
+    let (sub, mesh) = build_batch_geometry(ctx, unit)?;
+    let texture = resolve_batch_texture(unit, ctx);
+    let opacity = build_batch_opacity(ctx);
+    let transparency = opacity.evaluate(unit);
+    if transparency <= 0.0 {
+        return Ok(None);
+    }
+    let texture_anims = resolve_batch_texture_anims(ctx, unit);
+    let uv_flags = resolve_batch_uv_flags(ctx, unit, &mesh, texture.texture_2_fdid);
+    Ok(Some(build_render_batch(
+        ctx,
+        BatchRenderInputs {
+            unit,
+            sub,
+            mesh,
+            texture,
+            transparency,
+            texture_anims,
+            uv_flags,
+        },
+    )))
+}
+
+fn build_batch_geometry<'a>(
+    ctx: &'a BatchBuildContext<'_>,
+    unit: &M2TextureUnit,
+) -> Result<(&'a super::M2Submesh, Mesh), String> {
     let sub_idx = unit.submesh_index as usize;
     if sub_idx >= ctx.skin.submeshes.len() {
         return Err(format!(
@@ -145,43 +172,87 @@ pub(super) fn build_one_batch(
         sub,
         ctx.has_bones,
     );
+    Ok((sub, mesh))
+}
+
+struct BatchTexture {
+    texture_type: Option<u32>,
+    texture_fdid: Option<u32>,
+    texture_2_fdid: Option<u32>,
+    overlays: Vec<super::TextureOverlay>,
+}
+
+fn resolve_batch_texture(unit: &M2TextureUnit, ctx: &BatchBuildContext<'_>) -> BatchTexture {
     let texture_type = m2_texture::batch_texture_type(unit, ctx.tex.tex_lookup, ctx.tex.tex_types);
     let (texture_fdid, texture_2_fdid, overlays) =
         m2_texture::resolve_batch_fdid_and_overlays(unit, ctx.tex, ctx.is_hd);
-    let opacity = BatchOpacity {
+    BatchTexture {
+        texture_type,
+        texture_fdid,
+        texture_2_fdid,
+        overlays,
+    }
+}
+
+fn build_batch_opacity<'a>(ctx: &'a BatchBuildContext<'_>) -> BatchOpacity<'a> {
+    BatchOpacity {
         color_tracks: ctx.color_tracks,
         transparencies: ctx.transparencies,
         transparency_lookup: ctx.transparency_lookup,
-    };
-    let transparency = opacity.evaluate(unit);
-    if transparency <= 0.0 {
-        return Ok(None);
     }
-    let (texture_anim, texture_anim_2) =
-        resolve_texture_anims(ctx.texture_animations, ctx.uv_animation_lookup, unit);
+}
+
+fn resolve_batch_texture_anims(
+    ctx: &BatchBuildContext<'_>,
+    unit: &M2TextureUnit,
+) -> TextureAnimPair {
+    resolve_texture_anims(ctx.texture_animations, ctx.uv_animation_lookup, unit)
+}
+
+fn resolve_batch_uv_flags(
+    ctx: &BatchBuildContext<'_>,
+    unit: &M2TextureUnit,
+    mesh: &Mesh,
+    texture_2_fdid: Option<u32>,
+) -> (bool, bool, bool) {
     let uv_flags = BatchUvFlags {
         texture_unit_lookup: ctx.texture_unit_lookup,
     };
-    let (use_uv_2_1, use_uv_2_2, use_env_map_2) = uv_flags.evaluate(unit, &mesh, texture_2_fdid);
-    let mat = ctx.materials.get(unit.render_flags_index as usize);
-    Ok(Some(M2RenderBatch {
-        mesh,
-        texture_fdid,
-        texture_2_fdid,
-        texture_type,
-        overlays,
+    uv_flags.evaluate(unit, mesh, texture_2_fdid)
+}
+
+struct BatchRenderInputs<'a> {
+    unit: &'a M2TextureUnit,
+    sub: &'a super::M2Submesh,
+    mesh: Mesh,
+    texture: BatchTexture,
+    transparency: f32,
+    texture_anims: TextureAnimPair,
+    uv_flags: (bool, bool, bool),
+}
+
+fn build_render_batch(ctx: &BatchBuildContext<'_>, inputs: BatchRenderInputs<'_>) -> M2RenderBatch {
+    let mat = ctx.materials.get(inputs.unit.render_flags_index as usize);
+    let (texture_anim, texture_anim_2) = inputs.texture_anims;
+    let (use_uv_2_1, use_uv_2_2, use_env_map_2) = inputs.uv_flags;
+    M2RenderBatch {
+        mesh: inputs.mesh,
+        texture_fdid: inputs.texture.texture_fdid,
+        texture_2_fdid: inputs.texture.texture_2_fdid,
+        texture_type: inputs.texture.texture_type,
+        overlays: inputs.texture.overlays,
         render_flags: mat.map(|m| m.flags).unwrap_or(0),
         blend_mode: mat.map(|m| m.blend_mode).unwrap_or(0),
-        transparency,
+        transparency: inputs.transparency,
         texture_anim,
         texture_anim_2,
         use_uv_2_1,
         use_uv_2_2,
         use_env_map_2,
-        shader_id: unit.shader_id,
-        texture_count: unit.texture_count,
-        mesh_part_id: sub.mesh_part_id,
-    }))
+        shader_id: inputs.unit.shader_id,
+        texture_count: inputs.unit.texture_count,
+        mesh_part_id: inputs.sub.mesh_part_id,
+    }
 }
 
 pub(super) fn build_batched_model(
