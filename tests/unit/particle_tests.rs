@@ -2,10 +2,11 @@ use bevy::prelude::Vec3;
 use bevy_hanabi::{AlphaMode, ExprWriter};
 
 use super::{
-    active_cell_track, build_color_gradient, build_effect_asset, build_expr_modifiers,
-    build_size_gradient, emitter_alpha_mode, emitter_rate_scale, emitter_spawn_radius,
-    emitter_translation, has_authored_spin, has_authored_twinkle, has_authored_wind,
-    is_fire_effect, lifetime_range, orient_mode, wind_accel_bevy, wind_strength_at_age,
+    FlipbookSpriteMode, active_cell_track, build_color_gradient, build_effect_asset,
+    build_expr_modifiers, build_size_gradient, emitter_alpha_mode, emitter_rate_scale,
+    emitter_spawn_radius, emitter_translation, flipbook_sprite_mode, has_authored_spin,
+    has_authored_twinkle, has_authored_wind, is_fire_effect, lifetime_range, orient_mode,
+    wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
 use bevy_hanabi::OrientMode;
@@ -461,6 +462,27 @@ fn active_cell_track_falls_back_to_tail_track() {
     emitter.tail_cell_track = [3, 5, 7];
 
     assert_eq!(active_cell_track(&emitter), Some([3, 5, 7]));
+}
+
+#[test]
+fn atlas_emitters_without_authored_cell_track_use_first_cell() {
+    let emitter = sample_emitter();
+
+    assert_eq!(
+        flipbook_sprite_mode(&emitter),
+        Some(FlipbookSpriteMode::FirstCell)
+    );
+}
+
+#[test]
+fn atlas_emitters_with_authored_cell_track_use_track_mode() {
+    let mut emitter = sample_emitter();
+    emitter.head_cell_track = [2, 4, 6];
+
+    assert_eq!(
+        flipbook_sprite_mode(&emitter),
+        Some(FlipbookSpriteMode::CellTrack([2, 4, 6]))
+    );
 }
 
 #[test]

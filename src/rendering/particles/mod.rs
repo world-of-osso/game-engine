@@ -196,23 +196,37 @@ fn build_flipbook_sprite_index(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
 ) -> Option<SetAttributeModifier> {
-    if em.tile_rows <= 1 && em.tile_cols <= 1 {
-        return None;
-    }
     let total = (em.tile_rows as i32) * (em.tile_cols as i32);
-    let frame = if let Some(track) = active_cell_track(em) {
-        build_cell_track_sprite_index(writer, track, em.mid_point, total)
-    } else {
-        let age = writer.attr(Attribute::AGE);
-        let lifetime = writer.attr(Attribute::LIFETIME);
-        (age / lifetime * writer.lit(total as f32))
-            .cast(ScalarType::Int)
-            .rem(writer.lit(total))
+    let frame = match flipbook_sprite_mode(em) {
+        Some(FlipbookSpriteMode::CellTrack(track)) => {
+            build_cell_track_sprite_index(writer, track, em.mid_point, total)
+        }
+        Some(FlipbookSpriteMode::FirstCell) => writer.lit(0),
+        None => return None,
     };
     Some(SetAttributeModifier::new(
         Attribute::SPRITE_INDEX,
         frame.expr(),
     ))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FlipbookSpriteMode {
+    FirstCell,
+    CellTrack([u16; 3]),
+}
+
+fn flipbook_sprite_mode(em: &M2ParticleEmitter) -> Option<FlipbookSpriteMode> {
+    if em.tile_rows <= 1 && em.tile_cols <= 1 {
+        return None;
+    }
+    if let Some(track) = active_cell_track(em) {
+        return Some(FlipbookSpriteMode::CellTrack(track));
+    }
+    // WoW keeps atlas emitters on the first cell unless an authored cell track
+    // or RANDOM_TEXTURE path overrides it. We should not invent a lifetime-wide
+    // flipbook animation for emitters with no cell track.
+    Some(FlipbookSpriteMode::FirstCell)
 }
 
 fn active_cell_track(em: &M2ParticleEmitter) -> Option<[u16; 3]> {
