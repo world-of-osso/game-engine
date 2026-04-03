@@ -49,8 +49,7 @@ pub(crate) fn build_size_gradient(
 
 pub(crate) fn has_authored_twinkle(em: &M2ParticleEmitter) -> bool {
     em.twinkle_speed > 0.0
-        && em.twinkle_percent > 0.0
-        && (em.twinkle_scale_min != 1.0 || em.twinkle_scale_max != 1.0)
+        && (em.twinkle_percent < 1.0 || em.twinkle_scale_min != 1.0 || em.twinkle_scale_max != 1.0)
 }
 
 pub(crate) fn has_authored_size_variation(em: &M2ParticleEmitter) -> bool {
@@ -187,7 +186,8 @@ fn size_key_value(
 
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 pub(crate) struct TwinkleSizeModifier {
-    pub(crate) speed_radians: f32,
+    pub(crate) speed_steps: f32,
+    pub(crate) visible_ratio: f32,
     pub(crate) scale_min: f32,
     pub(crate) scale_max: f32,
 }
@@ -294,17 +294,19 @@ impl RenderModifier for TwinkleSizeModifier {
         context: &mut RenderContext,
     ) -> Result<(), ExprError> {
         context.vertex_code += &format!(
-            "let twinkle_wave = sin(particle.{age} * {speed} + particle.{phase});\n\
-             let twinkle_mix = twinkle_wave * 0.5 + 0.5;\n\
-             let twinkle_scale = mix({min_scale}, {max_scale}, twinkle_mix);\n\
-             let twinkle_factor = mix(1.0, twinkle_scale, particle.{enabled});\n\
+            "let twinkle_step = floor(particle.{age} * {speed} + particle.{phase});\n\
+             let twinkle_hash = fract(sin(twinkle_step * 12.9898 + particle.{seed} * 78.233) * 43758.5453);\n\
+             let twinkle_visible = select(0.0, 1.0, twinkle_hash <= {visible_ratio});\n\
+             let twinkle_scale = twinkle_hash * ({max_scale} - {min_scale}) + {min_scale};\n\
+             let twinkle_factor = select(0.0, twinkle_scale, twinkle_visible > 0.0);\n\
              size = vec3<f32>(size.x * twinkle_factor, size.y * twinkle_factor, size.z);\n",
             age = Attribute::AGE.name(),
-            speed = self.speed_radians,
+            speed = self.speed_steps,
             phase = Attribute::F32_2.name(),
+            seed = Attribute::F32_3.name(),
+            visible_ratio = self.visible_ratio,
             min_scale = self.scale_min,
             max_scale = self.scale_max,
-            enabled = Attribute::F32_3.name(),
         );
         Ok(())
     }

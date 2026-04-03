@@ -473,7 +473,7 @@ fn build_init_modifiers(
         rotation: build_initial_rotation_modifier(em, writer),
         angular_velocity: build_angular_velocity_modifier(em, writer),
         twinkle_phase: build_twinkle_phase_modifier(em, writer),
-        twinkle_enabled: build_twinkle_enabled_modifier(em, writer),
+        twinkle_enabled: build_twinkle_seed_modifier(em, writer),
         size_variation: build_size_variation_modifier_attr(em, writer),
     }
 }
@@ -521,18 +521,17 @@ fn build_twinkle_phase_modifier(
     })
 }
 
-fn build_twinkle_enabled_modifier(
+fn build_twinkle_seed_modifier(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
 ) -> Option<SetAttributeModifier> {
     if !has_authored_twinkle(em) {
         return None;
     }
-    let enabled = writer
-        .rand(ScalarType::Float)
-        .lt(writer.lit(em.twinkle_percent.clamp(0.0, 1.0)))
-        .cast(ScalarType::Float);
-    Some(SetAttributeModifier::new(Attribute::F32_3, enabled.expr()))
+    Some(SetAttributeModifier::new(
+        Attribute::F32_3,
+        writer.rand(ScalarType::Float).expr(),
+    ))
 }
 
 fn build_size_variation_modifier_attr(
@@ -605,7 +604,8 @@ fn has_authored_wind(em: &M2ParticleEmitter) -> bool {
 
 fn build_twinkle_modifier(em: &M2ParticleEmitter) -> Option<TwinkleSizeModifier> {
     has_authored_twinkle(em).then(|| TwinkleSizeModifier {
-        speed_radians: em.twinkle_speed.max(0.0) * std::f32::consts::TAU,
+        speed_steps: em.twinkle_speed.max(0.0),
+        visible_ratio: em.twinkle_percent.clamp(0.0, 1.0),
         scale_min: em.twinkle_scale_min.max(0.0),
         scale_max: em.twinkle_scale_max.max(em.twinkle_scale_min.max(0.0)),
     })

@@ -429,7 +429,7 @@ fn tail_particles_flag_does_not_force_velocity_orient() {
 }
 
 #[test]
-fn twinkle_emitters_declare_size_pulse_modifiers() {
+fn twinkle_emitters_declare_blink_modifiers() {
     let mut emitter = sample_emitter();
     emitter.twinkle_speed = 3.0;
     emitter.twinkle_percent = 0.8;
@@ -459,7 +459,23 @@ fn size_variation_emitters_declare_per_particle_scale_modifiers() {
 }
 
 #[test]
-fn zero_percent_twinkle_does_not_enable_pulse() {
+fn full_visibility_identity_scale_disables_twinkle() {
+    let mut emitter = sample_emitter();
+    emitter.twinkle_speed = 3.0;
+    emitter.twinkle_percent = 1.0;
+    emitter.twinkle_scale_min = 1.0;
+    emitter.twinkle_scale_max = 1.0;
+
+    let modifiers = build_expr_modifiers(&emitter, 1.0);
+
+    assert!(!has_authored_twinkle(&emitter));
+    assert!(modifiers.twinkle.is_none());
+    assert!(modifiers.init.twinkle_phase.is_none());
+    assert!(modifiers.init.twinkle_enabled.is_none());
+}
+
+#[test]
+fn zero_visibility_twinkle_still_builds_blink_path() {
     let mut emitter = sample_emitter();
     emitter.twinkle_speed = 3.0;
     emitter.twinkle_percent = 0.0;
@@ -468,10 +484,10 @@ fn zero_percent_twinkle_does_not_enable_pulse() {
 
     let modifiers = build_expr_modifiers(&emitter, 1.0);
 
-    assert!(!has_authored_twinkle(&emitter));
-    assert!(modifiers.twinkle.is_none());
-    assert!(modifiers.init.twinkle_phase.is_none());
-    assert!(modifiers.init.twinkle_enabled.is_none());
+    assert!(has_authored_twinkle(&emitter));
+    assert!(modifiers.twinkle.is_some());
+    assert!(modifiers.init.twinkle_phase.is_some());
+    assert!(modifiers.init.twinkle_enabled.is_some());
 }
 
 #[test]
