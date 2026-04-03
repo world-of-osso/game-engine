@@ -1,5 +1,6 @@
+use bevy::asset::Assets;
 use bevy::ecs::system::RunSystemOnce;
-use bevy::prelude::{App, Entity, GlobalTransform, Quat, Transform, Vec3};
+use bevy::prelude::{App, Entity, GlobalTransform, Image, Quat, Transform, Vec3};
 use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 
 use super::visuals::has_authored_size_variation;
@@ -15,10 +16,11 @@ use super::{
     emitter_parent_entity, emitter_scale_source, emitter_simulation_space, emitter_spawn_offset,
     emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale,
     emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
-    emitter_uses_project_particle, emitter_uses_sphere_invert_velocity, flipbook_sprite_mode,
-    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind,
-    inherit_position_back_delta_local, lifetime_range, orient_mode, projected_particle_spawn_y,
-    scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+    emitter_uses_model_particles, emitter_uses_project_particle,
+    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
+    has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
+    lifetime_range, orient_mode, projected_particle_spawn_y, scaled_emission_rate, spawn_emitters,
+    wind_accel_bevy, wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -431,6 +433,49 @@ fn inherit_velocity_flag_is_detected_for_child_emitters() {
     emitter.flags = PARTICLE_FLAG_INHERIT_VELOCITY;
 
     assert!(emitter_uses_inherit_velocity(&emitter));
+}
+
+#[test]
+fn particle_model_filename_marks_model_particle_emitters() {
+    let mut emitter = sample_emitter();
+    emitter.particle_model_filename = Some("spells/torch_model_particle.m2".to_string());
+
+    assert!(emitter_uses_model_particles(&emitter));
+}
+
+#[test]
+fn model_particle_emitters_skip_hanabi_quad_spawn_path() {
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<Image>>();
+    let parent = app.world_mut().spawn_empty().id();
+    let mut emitter = sample_emitter();
+    emitter.particle_model_filename = Some("spells/torch_model_particle.m2".to_string());
+    let emitters = vec![emitter];
+
+    app.world_mut()
+        .run_system_once(
+            move |mut commands: bevy::prelude::Commands,
+                  mut images: bevy::prelude::ResMut<Assets<Image>>| {
+                spawn_emitters(&mut commands, &mut images, &emitters, &[], None, parent);
+            },
+        )
+        .expect("spawn system should run");
+    app.world_mut().flush();
+
+    assert_eq!(
+        app.world_mut()
+            .query::<&super::ParticleEmitterComp>()
+            .iter(app.world())
+            .count(),
+        0
+    );
+    assert_eq!(
+        app.world_mut()
+            .query::<&super::ModelParticleEmitterComp>()
+            .iter(app.world())
+            .count(),
+        1
+    );
 }
 
 #[test]

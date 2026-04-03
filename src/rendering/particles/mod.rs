@@ -98,6 +98,16 @@ pub struct ParticleEmitterComp {
     pending_texture: Option<Handle<Image>>,
 }
 
+#[derive(Component)]
+pub struct ModelParticleEmitterComp {
+    pub emitter: M2ParticleEmitter,
+    pub bone_entity: Option<Entity>,
+    pub scale_source: Entity,
+    pub spawn_mode: ParticleSpawnMode,
+    pub requested_model_path: String,
+    pub resolved_model_path: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParticleSpawnSource {
     Standalone,
@@ -268,9 +278,21 @@ fn spawn_single_emitter(
     spawn_mode: ParticleSpawnMode,
 ) {
     let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
-    let pending_texture = load_emitter_texture(em, images);
     let parent_entity = emitter_parent_entity(em, bone_entity, parent);
     let local_offset = emitter_spawn_offset(em, bones);
+    if emitter_uses_model_particles(em) {
+        spawn_model_particle_emitter(
+            commands,
+            em,
+            bone_entity,
+            parent_entity,
+            local_offset,
+            emitter_scale_source(em, bone_entity, parent),
+            spawn_mode,
+        );
+        return;
+    }
+    let pending_texture = load_emitter_texture(em, images);
     let emitter_entity = commands
         .spawn((
             Name::new("ParticleEmitter"),
@@ -290,6 +312,33 @@ fn spawn_single_emitter(
         .set_parent_in_place(parent_entity)
         .id();
     spawn_child_emitter_effects(commands, images, em, emitter_entity, parent);
+}
+
+fn spawn_model_particle_emitter(
+    commands: &mut Commands,
+    em: &M2ParticleEmitter,
+    bone_entity: Option<Entity>,
+    parent_entity: Entity,
+    local_offset: Vec3,
+    scale_source: Entity,
+    spawn_mode: ParticleSpawnMode,
+) {
+    let requested_model_path = em.particle_model_filename.clone().unwrap_or_default();
+    commands
+        .spawn((
+            Name::new("ModelParticleEmitter"),
+            ModelParticleEmitterComp {
+                emitter: em.clone(),
+                bone_entity,
+                scale_source,
+                spawn_mode,
+                resolved_model_path: resolve_particle_model_path(&requested_model_path),
+                requested_model_path,
+            },
+            Transform::from_translation(local_offset),
+            Visibility::default(),
+        ))
+        .set_parent_in_place(parent_entity);
 }
 
 fn spawn_child_emitter_effects(
@@ -369,6 +418,15 @@ fn resolve_child_emitter_model_path(path: &str) -> Option<PathBuf> {
     crate::asset::asset_cache::model(fdid)
 }
 
+fn resolve_particle_model_path(path: &str) -> Option<PathBuf> {
+    let direct = PathBuf::from(path);
+    if direct.exists() {
+        return Some(direct);
+    }
+    let fdid = game_engine::listfile::lookup_path(path)?;
+    crate::asset::asset_cache::model(fdid)
+}
+
 fn emitter_parent_entity(
     em: &M2ParticleEmitter,
     bone_entity: Option<Entity>,
@@ -430,6 +488,12 @@ fn emitter_uses_inherit_position(em: &M2ParticleEmitter) -> bool {
 
 fn emitter_uses_inherit_velocity(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_INHERIT_VELOCITY != 0
+}
+
+fn emitter_uses_model_particles(em: &M2ParticleEmitter) -> bool {
+    em.particle_model_filename
+        .as_deref()
+        .is_some_and(|path| !path.trim().is_empty())
 }
 
 fn emitter_uses_project_particle(em: &M2ParticleEmitter) -> bool {
