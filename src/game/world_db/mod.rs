@@ -399,16 +399,7 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", path.display()))?;
     let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    let id = header_index(&headers, "ID", path)?;
-    let model_res_0 = header_index(&headers, "ModelResourcesID_0", path)?;
-    let model_res_1 = header_index(&headers, "ModelResourcesID_1", path)?;
-    let model_mat_res_0 = header_index(&headers, "ModelMaterialResourcesID_0", path)?;
-    let model_mat_res_1 = header_index(&headers, "ModelMaterialResourcesID_1", path)?;
-    let geoset_group_0 = header_index(&headers, "GeosetGroup_0", path)?;
-    let geoset_group_1 = header_index(&headers, "GeosetGroup_1", path)?;
-    let geoset_group_2 = header_index(&headers, "GeosetGroup_2", path)?;
-    let helmet_vis_0 = header_index(&headers, "HelmetGeosetVis_0", path)?;
-    let helmet_vis_1 = header_index(&headers, "HelmetGeosetVis_1", path)?;
+    let columns = display_info_columns(&headers, path)?;
     let mut insert = conn
         .prepare(
             "INSERT OR REPLACE INTO display_info (
@@ -417,6 +408,44 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         )
         .map_err(|err| format!("prepare display_info insert: {err}"))?;
+    insert_display_info_rows(&mut reader, path, &columns, &mut insert)?;
+    Ok(())
+}
+
+struct DisplayInfoColumns {
+    id: usize,
+    model_res_0: usize,
+    model_res_1: usize,
+    model_mat_res_0: usize,
+    model_mat_res_1: usize,
+    geoset_group_0: usize,
+    geoset_group_1: usize,
+    geoset_group_2: usize,
+    helmet_vis_0: usize,
+    helmet_vis_1: usize,
+}
+
+fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoColumns, String> {
+    Ok(DisplayInfoColumns {
+        id: header_index(headers, "ID", path)?,
+        model_res_0: header_index(headers, "ModelResourcesID_0", path)?,
+        model_res_1: header_index(headers, "ModelResourcesID_1", path)?,
+        model_mat_res_0: header_index(headers, "ModelMaterialResourcesID_0", path)?,
+        model_mat_res_1: header_index(headers, "ModelMaterialResourcesID_1", path)?,
+        geoset_group_0: header_index(headers, "GeosetGroup_0", path)?,
+        geoset_group_1: header_index(headers, "GeosetGroup_1", path)?,
+        geoset_group_2: header_index(headers, "GeosetGroup_2", path)?,
+        helmet_vis_0: header_index(headers, "HelmetGeosetVis_0", path)?,
+        helmet_vis_1: header_index(headers, "HelmetGeosetVis_1", path)?,
+    })
+}
+
+fn insert_display_info_rows(
+    reader: &mut dyn BufRead,
+    path: &Path,
+    columns: &DisplayInfoColumns,
+    insert: &mut Statement<'_>,
+) -> Result<(), String> {
     let mut line = String::new();
     loop {
         line.clear();
@@ -429,7 +458,7 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
         }
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
         let display_id = fields
-            .get(id)
+            .get(columns.id)
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(0);
         if display_id == 0 {
@@ -450,15 +479,15 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
         insert
             .execute((
                 display_id,
-                get_u32(model_res_0),
-                get_u32(model_res_1),
-                get_u32(model_mat_res_0),
-                get_u32(model_mat_res_1),
-                get_i16(geoset_group_0),
-                get_i16(geoset_group_1),
-                get_i16(geoset_group_2),
-                get_u32(helmet_vis_0),
-                get_u32(helmet_vis_1),
+                get_u32(columns.model_res_0),
+                get_u32(columns.model_res_1),
+                get_u32(columns.model_mat_res_0),
+                get_u32(columns.model_mat_res_1),
+                get_i16(columns.geoset_group_0),
+                get_i16(columns.geoset_group_1),
+                get_i16(columns.geoset_group_2),
+                get_u32(columns.helmet_vis_0),
+                get_u32(columns.helmet_vis_1),
             ))
             .map_err(|err| format!("insert display_info row: {err}"))?;
     }
