@@ -36,6 +36,7 @@ mod asset {
     pub use game_engine::asset::*;
 }
 mod cli_args;
+#[path = "game/state/client_options.rs"]
 mod client_options;
 mod collision;
 #[path = "game/creatures/creature_display.rs"]
@@ -45,6 +46,7 @@ mod dump_systems;
 mod equipment;
 #[path = "game/equipment/equipment_appearance.rs"]
 mod equipment_appearance;
+#[path = "game/state/game_state.rs"]
 mod game_state;
 #[path = "game/networking/mod.rs"]
 mod networking;

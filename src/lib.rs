@@ -10,6 +10,7 @@ pub mod character_models;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
 pub mod dump;
+#[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 #[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
