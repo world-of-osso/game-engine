@@ -291,7 +291,8 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
 }
 
 fn emitter_rate_scale(em: &M2ParticleEmitter) -> f32 {
-    if is_fire_effect(em) { 4.0 } else { 1.0 }
+    let _ = em;
+    1.0
 }
 
 fn is_fire_effect(em: &M2ParticleEmitter) -> bool {

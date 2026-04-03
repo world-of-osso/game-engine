@@ -91,50 +91,53 @@ fn sample_visual_defaults() -> SampleVisualDefaults {
 fn sample_emitter() -> M2ParticleEmitter {
     let motion = sample_motion_defaults();
     let visuals = sample_visual_defaults();
-    M2ParticleEmitter {
-        flags: 0,
-        position: [0.0, 0.0, 0.0],
-        bone_index: 0,
-        texture_index: 0,
-        texture_fdid: None,
+    let mut emitter = M2ParticleEmitter {
         blend_type: 4,
         emitter_type: 1,
-        particle_type: 0,
-        head_or_tail: 0,
         tile_rows: 4,
         tile_cols: 4,
-        emission_speed: motion.emission_speed,
-        speed_variation: motion.speed_variation,
-        vertical_range: motion.vertical_range,
-        horizontal_range: motion.horizontal_range,
-        gravity: motion.gravity,
-        lifespan: motion.lifespan,
-        lifespan_variation: motion.lifespan_variation,
-        emission_rate: motion.emission_rate,
-        area_length: motion.area_length,
-        area_width: motion.area_width,
-        drag: motion.drag,
-        base_spin: motion.base_spin,
-        base_spin_variation: motion.base_spin_variation,
-        spin: motion.spin,
-        spin_variation: motion.spin_variation,
-        wind_vector: motion.wind_vector,
-        wind_time: motion.wind_time,
-        colors: visuals.colors,
-        color_keys: visuals.color_keys,
-        opacity: visuals.opacity,
-        opacity_keys: visuals.opacity_keys,
-        scales: visuals.scales,
-        scale_keys: visuals.scale_keys,
-        twinkle_speed: visuals.twinkle_speed,
-        twinkle_percent: visuals.twinkle_percent,
-        twinkle_scale_min: visuals.twinkle_scale_min,
-        twinkle_scale_max: visuals.twinkle_scale_max,
-        head_cell_track: visuals.head_cell_track,
-        tail_cell_track: visuals.tail_cell_track,
-        burst_multiplier: visuals.burst_multiplier,
-        mid_point: visuals.mid_point,
-    }
+        ..M2ParticleEmitter::default()
+    };
+    apply_sample_motion_defaults(&mut emitter, motion);
+    apply_sample_visual_defaults(&mut emitter, visuals);
+    emitter
+}
+
+fn apply_sample_motion_defaults(emitter: &mut M2ParticleEmitter, motion: SampleMotionDefaults) {
+    emitter.emission_speed = motion.emission_speed;
+    emitter.speed_variation = motion.speed_variation;
+    emitter.vertical_range = motion.vertical_range;
+    emitter.horizontal_range = motion.horizontal_range;
+    emitter.gravity = motion.gravity;
+    emitter.lifespan = motion.lifespan;
+    emitter.lifespan_variation = motion.lifespan_variation;
+    emitter.emission_rate = motion.emission_rate;
+    emitter.area_length = motion.area_length;
+    emitter.area_width = motion.area_width;
+    emitter.drag = motion.drag;
+    emitter.base_spin = motion.base_spin;
+    emitter.base_spin_variation = motion.base_spin_variation;
+    emitter.spin = motion.spin;
+    emitter.spin_variation = motion.spin_variation;
+    emitter.wind_vector = motion.wind_vector;
+    emitter.wind_time = motion.wind_time;
+}
+
+fn apply_sample_visual_defaults(emitter: &mut M2ParticleEmitter, visuals: SampleVisualDefaults) {
+    emitter.colors = visuals.colors;
+    emitter.color_keys = visuals.color_keys;
+    emitter.opacity = visuals.opacity;
+    emitter.opacity_keys = visuals.opacity_keys;
+    emitter.scales = visuals.scales;
+    emitter.scale_keys = visuals.scale_keys;
+    emitter.twinkle_speed = visuals.twinkle_speed;
+    emitter.twinkle_percent = visuals.twinkle_percent;
+    emitter.twinkle_scale_min = visuals.twinkle_scale_min;
+    emitter.twinkle_scale_max = visuals.twinkle_scale_max;
+    emitter.head_cell_track = visuals.head_cell_track;
+    emitter.tail_cell_track = visuals.tail_cell_track;
+    emitter.burst_multiplier = visuals.burst_multiplier;
+    emitter.mid_point = visuals.mid_point;
 }
 
 fn sample_cell_track_frame(
@@ -207,12 +210,12 @@ fn non_sphere_emitters_do_not_expand_spawn_radius() {
 }
 
 #[test]
-fn fire_emitters_use_four_x_rate_scale() {
+fn fire_emitters_keep_authored_rate_scale() {
     let mut emitter = sample_emitter();
     emitter.texture_fdid = Some(145513);
 
     assert!(is_fire_effect(&emitter));
-    assert_eq!(emitter_rate_scale(&emitter), 4.0);
+    assert_eq!(emitter_rate_scale(&emitter), 1.0);
 }
 
 #[test]
