@@ -44,6 +44,8 @@ pub struct M2ParticleEmitter {
     pub emission_rate: f32,
     pub area_length: f32,
     pub area_width: f32,
+    /// Tail-quad length scalar used by `PROP_TAIL_PARTICLES`.
+    pub tail_length: f32,
     pub drag: f32,
     /// Uniform X variation factor used for per-particle size jitter.
     pub scale_variation: f32,
@@ -115,6 +117,7 @@ const EMITTER_LIFESPAN_VARIATION_OFFSET: usize = 0xAC;
 const EMITTER_EMISSION_RATE_OFFSET: usize = 0xB0;
 const EMITTER_AREA_LENGTH_OFFSET: usize = 0xC8;
 const EMITTER_AREA_WIDTH_OFFSET: usize = 0xDC;
+const EMITTER_TAIL_LENGTH_OFFSET: usize = 0xE4;
 const EMITTER_DRAG_OFFSET: usize = 0xF0;
 const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
@@ -364,6 +367,7 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.emission_rate = read_track_static_f32(md20, data, EMITTER_EMISSION_RATE_OFFSET);
     em.area_length = read_track_static_f32(md20, data, EMITTER_AREA_LENGTH_OFFSET);
     em.area_width = read_track_static_f32(md20, data, EMITTER_AREA_WIDTH_OFFSET);
+    em.tail_length = read_f32(data, EMITTER_TAIL_LENGTH_OFFSET).unwrap_or(1.0);
     em.drag = read_track_static_f32(md20, data, EMITTER_DRAG_OFFSET);
     em.scale_variation = read_f32(data, EMITTER_SCALE_VARIATION_OFFSET).unwrap_or(0.0);
     em.scale_variation_y = read_f32(data, EMITTER_SCALE_VARIATION_Y_OFFSET).unwrap_or(0.0);

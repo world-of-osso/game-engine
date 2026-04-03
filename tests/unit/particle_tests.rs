@@ -24,6 +24,7 @@ struct SampleMotionDefaults {
     emission_rate: f32,
     area_length: f32,
     area_width: f32,
+    tail_length: f32,
     drag: f32,
     base_spin: f32,
     base_spin_variation: f32,
@@ -62,6 +63,7 @@ fn sample_motion_defaults() -> SampleMotionDefaults {
         emission_rate: 20.0,
         area_length: 0.1,
         area_width: 0.1,
+        tail_length: 1.0,
         drag: 0.0,
         base_spin: 0.0,
         base_spin_variation: 0.0,
@@ -117,6 +119,7 @@ fn apply_sample_motion_defaults(emitter: &mut M2ParticleEmitter, motion: SampleM
     emitter.emission_rate = motion.emission_rate;
     emitter.area_length = motion.area_length;
     emitter.area_width = motion.area_width;
+    emitter.tail_length = motion.tail_length;
     emitter.drag = motion.drag;
     emitter.base_spin = motion.base_spin;
     emitter.base_spin_variation = motion.base_spin_variation;
@@ -310,6 +313,23 @@ fn trail_particles_stretch_length_over_lifetime() {
     assert!((keys[0].value.x - 0.2).abs() < 0.0001);
     assert!((keys[1].value.x - 2.2).abs() < 0.0001);
     assert!((keys[2].value.x - 3.7).abs() < 0.0001);
+    assert!((keys[2].value.y - 0.1).abs() < 0.0001);
+}
+
+#[test]
+fn tail_particle_flag_uses_authored_tail_length_multiplier() {
+    let mut emitter = sample_emitter();
+    emitter.flags = 0x0000_0008;
+    emitter.emission_speed = 3.0;
+    emitter.tail_length = 2.0;
+
+    let gradient = build_size_gradient(&emitter, 1.0);
+    let keys = gradient.keys();
+
+    assert_eq!(keys.len(), 3);
+    assert!((keys[0].value.x - 6.2).abs() < 0.0001);
+    assert!((keys[1].value.x - 6.4).abs() < 0.0001);
+    assert!((keys[2].value.x - 6.1).abs() < 0.0001);
     assert!((keys[2].value.y - 0.1).abs() < 0.0001);
 }
 

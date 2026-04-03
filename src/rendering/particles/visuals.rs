@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::asset::m2_particle::M2ParticleEmitter;
 
 const PARTICLE_TYPE_TRAIL: u8 = 1;
+const PARTICLE_FLAG_TAIL_PARTICLES: u32 = 0x0000_0008;
 const TRAIL_LENGTH_FACTOR: f32 = 0.6;
 const WOW_PARTICLE_HALF_EXTENT_SCALE: f32 = 2.0;
 
@@ -172,7 +173,10 @@ fn size_key_value(
 ) -> Vec3 {
     let width = scale[0].max(0.01) * WOW_PARTICLE_HALF_EXTENT_SCALE * burst * model_scale;
     let height = scale[1].max(0.01) * WOW_PARTICLE_HALF_EXTENT_SCALE * burst * model_scale;
-    if em.particle_type == PARTICLE_TYPE_TRAIL {
+    if em.flags & PARTICLE_FLAG_TAIL_PARTICLES != 0 {
+        let tail_length = em.emission_speed.max(0.0) * em.tail_length.max(0.0);
+        Vec3::new(width + tail_length * model_scale, height, 1.0)
+    } else if em.particle_type == PARTICLE_TYPE_TRAIL {
         let trail_length =
             em.emission_speed.max(0.0) * em.lifespan.max(0.0) * TRAIL_LENGTH_FACTOR * time;
         Vec3::new(width + trail_length * model_scale, height, 1.0)

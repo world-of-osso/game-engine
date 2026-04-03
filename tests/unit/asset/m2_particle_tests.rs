@@ -233,6 +233,18 @@ fn parses_spin_fields_from_272_suffix() {
 }
 
 #[test]
+fn parses_tail_length_from_272_suffix() {
+    let mut md20 = vec![0u8; 0x1ec];
+    md20[EMITTER_TAIL_LENGTH_OFFSET..EMITTER_TAIL_LENGTH_OFFSET + 4]
+        .copy_from_slice(&(2.5_f32).to_le_bytes());
+
+    let mut parsed = parse_emitter_header(&md20).unwrap();
+    fill_track_values(&mut parsed, &md20, &md20);
+
+    assert!((parsed.tail_length - 2.5).abs() < 0.0001);
+}
+
+#[test]
 fn parses_size_variation_fields_from_272_suffix() {
     let mut md20 = vec![0u8; 0x1ec];
     md20[EMITTER_SCALE_VARIATION_OFFSET..EMITTER_SCALE_VARIATION_OFFSET + 4]
