@@ -358,20 +358,18 @@ fn sync_appearance(
 ) {
     let Some(state) = state else { return };
     let appearance = state.appearance;
-    let class_changed = displayed.last_class != Some(state.selected_class);
-    let appearance_changed = displayed.last_appearance.as_ref() != Some(&appearance);
-    let race_changed = displayed.race != Some(state.selected_race);
-    if !appearance_changed && !class_changed && !race_changed {
+    if !appearance_needs_sync(
+        &displayed,
+        state.selected_race,
+        state.selected_class,
+        &appearance,
+    ) {
         return;
     }
     displayed.last_appearance = Some(appearance);
     displayed.last_class = Some(state.selected_class);
 
-    let active_entity = displayed
-        .models
-        .iter()
-        .find(|(sex, _)| *sex == state.selected_sex)
-        .map(|(_, e)| *e);
+    let active_entity = active_model_entity(&displayed, state.selected_sex);
     let Some(root) = active_entity else { return };
     apply_character_customization(
         CharacterCustomizationSelection {
@@ -392,6 +390,25 @@ fn sync_appearance(
         &appearance_params.equipment_item_query,
         &appearance_params.material_query,
     );
+}
+
+fn appearance_needs_sync(
+    displayed: &DisplayedModels,
+    selected_race: u8,
+    selected_class: u8,
+    appearance: &CharacterAppearance,
+) -> bool {
+    displayed.last_class != Some(selected_class)
+        || displayed.last_appearance.as_ref() != Some(appearance)
+        || displayed.race != Some(selected_race)
+}
+
+fn active_model_entity(displayed: &DisplayedModels, selected_sex: u8) -> Option<Entity> {
+    displayed
+        .models
+        .iter()
+        .find(|(sex, _)| *sex == selected_sex)
+        .map(|(_, entity)| *entity)
 }
 
 fn teardown_scene(
