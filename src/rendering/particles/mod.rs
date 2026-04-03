@@ -23,6 +23,7 @@ use visuals::{
 pub(super) const PARTICLE_FLAG_TAIL_PARTICLES: u32 = 0x0000_0008;
 pub(super) const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x0000_0200;
 pub(super) const PARTICLE_FLAG_BONE_SCALE: u32 = 0x0000_0400;
+pub(super) const PARTICLE_FLAG_SPHERE_INVERT: u32 = 0x0000_1000;
 pub(super) const PARTICLE_FLAG_XY_QUAD: u32 = 0x0000_4000;
 pub(super) const PARTICLE_FLAG_NEGATE_SPIN: u32 = 0x0001_0000;
 pub(super) const PARTICLE_FLAG_CLAMP_TAIL_TO_AGE: u32 = 0x0002_0000;
@@ -185,8 +186,27 @@ fn emitter_uses_world_space(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_WORLD_SPACE != 0
 }
 
+fn emitter_uses_follow_position(em: &M2ParticleEmitter) -> bool {
+    em.flags & PARTICLE_FLAG_FOLLOW_POSITION != 0
+}
+
 fn emitter_uses_bone_scale(em: &M2ParticleEmitter) -> bool {
     em.flags & (PARTICLE_FLAG_WORLD_SPACE | PARTICLE_FLAG_BONE_SCALE) == PARTICLE_FLAG_BONE_SCALE
+}
+
+fn emitter_simulation_space(em: &M2ParticleEmitter) -> SimulationSpace {
+    if emitter_uses_follow_position(em) {
+        // WoW applies the emitter motion delta to live particles every update.
+        // Hanabi doesn't expose that delta directly, so local simulation is the
+        // closest match for follow-position emitters.
+        SimulationSpace::Local
+    } else {
+        SimulationSpace::Global
+    }
+}
+
+fn emitter_uses_sphere_invert_velocity(em: &M2ParticleEmitter) -> bool {
+    em.emitter_type == 2 && em.flags & PARTICLE_FLAG_SPHERE_INVERT != 0
 }
 
 struct ExprModifiers {
@@ -424,7 +444,7 @@ fn assemble_effect(
     let mut effect = EffectAsset::new(max_particles, spawner, module)
         .with_name("m2_particle")
         .with_alpha_mode(alpha_mode)
-        .with_simulation_space(SimulationSpace::Global)
+        .with_simulation_space(emitter_simulation_space(em))
         .init(init.age)
         .init(init.lifetime)
         .init(init.vel)
@@ -749,6 +769,9 @@ fn build_velocity_modifier(
     if em.z_source > 0.0 {
         return build_z_source_velocity_modifier(em, writer, speed);
     }
+    if emitter_uses_sphere_invert_velocity(em) {
+        return build_sphere_invert_velocity_modifier(writer, speed);
+    }
     // Cone: yaw random over horizontal_range, pitch = random within vertical_range
     let yaw = writer.rand(ScalarType::Float) * writer.lit(em.horizontal_range);
     let pitch = writer.rand(ScalarType::Float) * writer.lit(em.vertical_range);
@@ -758,6 +781,15 @@ fn build_velocity_modifier(
     let vy = cos_p * speed.clone();
     let vz = sin_p * yaw.sin() * speed;
     SetAttributeModifier::new(Attribute::VELOCITY, vx.vec3(vy, vz).expr())
+}
+
+fn build_sphere_invert_velocity_modifier(
+    writer: &ExprWriter,
+    speed: WriterExpr,
+) -> SetAttributeModifier {
+    let pos = writer.attr(Attribute::POSITION);
+    let inward = (writer.lit(Vec3::ZERO) - pos).normalized();
+    SetAttributeModifier::new(Attribute::VELOCITY, (inward * speed).expr())
 }
 
 fn build_z_source_velocity_modifier(

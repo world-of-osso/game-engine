@@ -1,17 +1,19 @@
 use bevy::prelude::{Entity, Vec3};
-use bevy_hanabi::{AlphaMode, Attribute, ExprWriter};
+use bevy_hanabi::{AlphaMode, Attribute, ExprWriter, SimulationSpace};
 
 use super::visuals::has_authored_size_variation;
 use super::{
     FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_CLAMP_TAIL_TO_AGE,
     PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
-    PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WORLD_SPACE,
-    PARTICLE_FLAG_XY_QUAD, PositionInitModifier, active_cell_track, build_color_gradient,
-    build_effect_asset, build_expr_modifiers, build_position_modifier, build_size_gradient,
-    emitter_alpha_mode, emitter_parent_entity, emitter_scale_source, emitter_spawn_offset,
-    emitter_spawn_radius, emitter_translation, emitter_uses_bone_scale, flipbook_sprite_mode,
-    gravity_accel_bevy, has_authored_spin, has_authored_twinkle, has_authored_wind, lifetime_range,
-    orient_mode, scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+    PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
+    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, PositionInitModifier, active_cell_track,
+    build_color_gradient, build_effect_asset, build_expr_modifiers, build_position_modifier,
+    build_size_gradient, emitter_alpha_mode, emitter_parent_entity, emitter_scale_source,
+    emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius, emitter_translation,
+    emitter_uses_bone_scale, emitter_uses_follow_position, emitter_uses_sphere_invert_velocity,
+    flipbook_sprite_mode, gravity_accel_bevy, has_authored_spin, has_authored_twinkle,
+    has_authored_wind, lifetime_range, orient_mode, scaled_emission_rate, wind_accel_bevy,
+    wind_strength_at_age,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -297,6 +299,38 @@ fn bone_scale_uses_bone_entity_only_without_world_space() {
     emitter.flags = PARTICLE_FLAG_WORLD_SPACE | PARTICLE_FLAG_BONE_SCALE;
     assert!(!emitter_uses_bone_scale(&emitter));
     assert_eq!(emitter_scale_source(&emitter, bone, parent), parent);
+}
+
+#[test]
+fn follow_position_emitters_use_local_simulation_space() {
+    let mut emitter = sample_emitter();
+    emitter.flags = super::PARTICLE_FLAG_FOLLOW_POSITION;
+
+    assert!(emitter_uses_follow_position(&emitter));
+    assert_eq!(emitter_simulation_space(&emitter), SimulationSpace::Local);
+
+    let effect = build_effect_asset(&emitter, 1.0, 1.0);
+    assert_eq!(effect.simulation_space, SimulationSpace::Local);
+}
+
+#[test]
+fn default_emitters_use_global_simulation_space() {
+    let emitter = sample_emitter();
+
+    assert!(!emitter_uses_follow_position(&emitter));
+    assert_eq!(emitter_simulation_space(&emitter), SimulationSpace::Global);
+}
+
+#[test]
+fn sphere_invert_flag_switches_sphere_emitters_to_implosion_velocity() {
+    let mut emitter = sample_emitter();
+    emitter.emitter_type = 2;
+    emitter.flags = PARTICLE_FLAG_SPHERE_INVERT;
+
+    assert!(emitter_uses_sphere_invert_velocity(&emitter));
+
+    emitter.emitter_type = 1;
+    assert!(!emitter_uses_sphere_invert_velocity(&emitter));
 }
 
 #[test]
