@@ -2,6 +2,7 @@ use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
+use crate::sqlite_util::is_missing_table_error;
 use rusqlite::{Connection, OpenFlags};
 
 pub(super) fn import_zone_name_cache() -> Result<PathBuf, String> {
@@ -41,9 +42,7 @@ pub(super) fn load_zone_name(id: u32) -> Result<Option<String>, String> {
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files LIMIT 1") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare area_names source_files lookup: {err}")),

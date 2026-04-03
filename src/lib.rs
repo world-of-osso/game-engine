@@ -29,6 +29,7 @@ pub mod scene_tree;
 pub mod screenshot;
 #[path = "sound/music_zone_cache.rs"]
 pub mod sound_music_zone_cache;
+pub mod sqlite_util;
 pub mod status;
 pub mod ui;
 #[path = "game/world_db/mod.rs"]

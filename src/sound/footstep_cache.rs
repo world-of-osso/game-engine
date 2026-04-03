@@ -2,6 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
 
@@ -69,9 +70,7 @@ fn load_rows_from_sqlite(cache_path: &Path) -> Result<Vec<(u32, String)>, String
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source_path, source_mtime FROM metadata LIMIT 1") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare metadata query: {err}")),

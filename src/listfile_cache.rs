@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OpenFlags};
+use crate::sqlite_util::is_missing_table_error;
 
 #[cfg(test)]
 use crate::listfile::CachedListfile;
@@ -26,9 +27,7 @@ pub(crate) fn load_local_cache(cache_path: &Path) -> Result<CachedListfile, Stri
     let mut stmt = match conn.prepare("SELECT fdid, path FROM local_listfile_entries ORDER BY fdid")
     {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(CachedListfile::default());
         }
         Err(err) => return Err(format!("prepare local_listfile_entries query: {err}")),
@@ -194,9 +193,7 @@ fn ensure_cache(cache_path: &Path, source_path: &Path) -> Result<PathBuf, String
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source_path, source_mtime FROM metadata LIMIT 1") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare metadata query: {err}")),

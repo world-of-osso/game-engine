@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use crate::csv_util::parse_csv_line;
+use crate::sqlite_util::is_missing_table_error;
 use rusqlite::{Connection, OpenFlags};
 
 type TracksByZone = HashMap<u32, Vec<usize>>;
@@ -44,9 +45,7 @@ fn csv_mtime(path: &Path) -> Result<i64, String> {
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare source_files lookup: {err}")),

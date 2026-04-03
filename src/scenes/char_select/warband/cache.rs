@@ -2,6 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
 
@@ -164,9 +165,7 @@ fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, S
     }
     let mut stmt = match conn.prepare("SELECT path, mtime FROM source_files") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare source_files query: {err}")),
@@ -196,9 +195,7 @@ fn cache_schema_is_current(conn: &Connection) -> Result<bool, String> {
     }) {
         Ok(version) => version,
         Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(false),
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("query cache_metadata: {err}")),

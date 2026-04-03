@@ -9,6 +9,7 @@ use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
 use crate::outfit_data::DisplayInfoResolved;
 #[cfg(test)]
 use crate::outfit_data::DisplayMaterialTextures;
+use crate::sqlite_util::is_missing_table_error;
 
 #[path = "material_links.rs"]
 mod material_links;
@@ -150,9 +151,7 @@ pub fn load_zone_name(id: u32) -> Result<Option<String>, String> {
 fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare source_files lookup: {err}")),

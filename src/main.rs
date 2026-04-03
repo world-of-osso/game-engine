@@ -45,6 +45,7 @@ mod rendering;
 mod scenes;
 mod screen_auto_login;
 mod sound;
+mod sqlite_util;
 mod status_asset_stats;
 mod status_sync;
 mod trash_button_screen;

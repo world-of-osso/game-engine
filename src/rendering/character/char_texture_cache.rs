@@ -7,6 +7,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::asset::char_texture::{TextureLayer, TextureLayout, TextureSection};
 use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
+use crate::sqlite_util::is_missing_table_error;
 
 type CharTextureCacheData = (
     Vec<TextureLayer>,
@@ -61,9 +62,7 @@ fn csv_mtime(path: &Path) -> Result<i64, String> {
 fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(false);
         }
         Err(err) => return Err(format!("prepare source_files lookup: {err}")),

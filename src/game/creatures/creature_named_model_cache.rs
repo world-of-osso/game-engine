@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
 
@@ -10,9 +11,7 @@ pub(crate) fn load_named_model_fdid_cache(
     let conn = open_cache(cache_path, true)?;
     let mut stmt = match conn.prepare("SELECT name, fdid FROM named_model_fdids") {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(HashMap::new());
         }
         Err(err) => return Err(format!("prepare named_model_fdids query: {err}")),
@@ -38,9 +37,7 @@ pub(crate) fn load_named_model_skin_cache(
         .prepare("SELECT name, skin_fdid_0, skin_fdid_1, skin_fdid_2 FROM named_model_skins")
     {
         Ok(stmt) => stmt,
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
+        Err(err) if is_missing_table_error(&err) => {
             return Ok(HashMap::new());
         }
         Err(err) => return Err(format!("prepare named_model_skins query: {err}")),
