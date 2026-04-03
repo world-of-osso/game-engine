@@ -86,6 +86,15 @@ fn push_ring(
     }
 }
 
+const SKY_DOME_LATITUDE_DEGREES: [f32; 10] =
+    [90.0, 55.0, 40.0, 25.0, 15.0, 4.0, 3.5, 0.0, -2.25, -90.0];
+
+fn sky_dome_latitudes_radians() -> impl Iterator<Item = f32> {
+    SKY_DOME_LATITUDE_DEGREES
+        .into_iter()
+        .map(|degrees| degrees.to_radians())
+}
+
 /// Generate triangle indices for the dome grid (reversed winding for inside-out).
 fn build_dome_indices(lon_segments: u32, lat_segments: u32) -> Vec<u32> {
     let mut indices = Vec::new();
@@ -99,14 +108,17 @@ fn build_dome_indices(lon_segments: u32, lat_segments: u32) -> Vec<u32> {
     indices
 }
 
-/// Build an inverted UV sphere (viewed from inside) covering upper hemisphere.
-fn build_sky_dome_mesh(radius: f32, lon_segments: u32, lat_segments: u32) -> Mesh {
+/// Build an inverted sky dome using the authored wow_client latitude rings,
+/// which intentionally concentrate geometry near the horizon.
+fn build_sky_dome_mesh(radius: f32, lon_segments: u32) -> Mesh {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    for lat in 0..=lat_segments {
-        let v = lat as f32 / lat_segments as f32;
-        let theta = std::f32::consts::PI * (0.55 - v * 0.55);
+    let latitudes: Vec<f32> = sky_dome_latitudes_radians().collect();
+    let lat_segments = latitudes.len().saturating_sub(1) as u32;
+    for (lat, latitude) in latitudes.iter().copied().enumerate() {
+        let v = lat as f32 / lat_segments.max(1) as f32;
+        let theta = FRAC_PI_2 - latitude;
         push_ring(
             &mut positions,
             &mut normals,
@@ -137,7 +149,7 @@ pub fn spawn_sky_dome(
     images: &mut Assets<Image>,
     camera_entity: Entity,
 ) -> Entity {
-    let mesh = build_sky_dome_mesh(900.0, 32, 16);
+    let mesh = build_sky_dome_mesh(900.0, 32);
     let material = sky_materials.add(SkyMaterial {
         uniforms: SkyUniforms::default(),
     });

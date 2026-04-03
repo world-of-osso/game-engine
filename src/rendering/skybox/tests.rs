@@ -229,3 +229,15 @@ fn sync_inworld_skybox_to_camera_moves_skybox_without_query_conflict() {
         .expect("skybox transform");
     assert_eq!(transform.translation, Vec3::new(4.0, 5.0, 6.0));
 }
+
+#[test]
+fn sky_dome_uses_wow_client_latitude_angles() {
+    let latitudes: Vec<f32> = sky_dome_latitudes_radians()
+        .map(|angle| angle.to_degrees())
+        .collect();
+
+    assert_eq!(
+        latitudes,
+        vec![90.0, 55.0, 40.0, 25.0, 15.0, 4.0, 3.5, 0.0, -2.25, -90.0]
+    );
+}
