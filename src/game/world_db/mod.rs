@@ -352,7 +352,17 @@ fn populate_item_appearance_map(conn: &Connection, path: &Path) -> Result<(), St
              VALUES (?1, ?2)",
         )
         .map_err(|err| format!("prepare item_appearance_map insert: {err}"))?;
+    insert_item_appearance_rows(&mut reader, path, id_col, display_info_col, &mut insert)?;
+    Ok(())
+}
 
+fn insert_item_appearance_rows(
+    reader: &mut dyn BufRead,
+    path: &Path,
+    id_col: usize,
+    display_info_col: usize,
+    insert: &mut Statement<'_>,
+) -> Result<(), String> {
     let mut line = String::new();
     loop {
         line.clear();
