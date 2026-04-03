@@ -7,6 +7,7 @@ pub mod char_create_data;
 #[path = "rendering/character/char_texture_cache.rs"]
 pub mod char_texture_cache;
 pub mod character_export;
+#[path = "rendering/camera/culling.rs"]
 pub mod culling;
 #[path = "rendering/character/customization_cache.rs"]
 pub mod customization_cache;

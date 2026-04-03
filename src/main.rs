@@ -37,6 +37,7 @@ mod asset {
     // resolver OnceLock is shared instead of compiled into the binary twice.
     pub use game_engine::asset::*;
 }
+#[path = "rendering/camera/camera.rs"]
 mod camera;
 #[path = "rendering/character/character_customization.rs"]
 mod character_customization;
@@ -67,6 +68,7 @@ mod networking_messages;
 mod networking_npc;
 mod networking_player;
 mod networking_reconnect;
+#[path = "rendering/camera/orbit_camera.rs"]
 mod orbit_camera;
 #[path = "rendering/particles/mod.rs"]
 mod particle;
