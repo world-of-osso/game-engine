@@ -19,6 +19,16 @@ struct LightDataRow {
     sky_band2: u32,
     sky_smog: u32,
     fog_color: u32,
+    sun_color: u32,
+    sun_halo_color: u32,
+    cloud_emissive_color: u32,
+    cloud_layer1_ambient_color: u32,
+    cloud_layer2_ambient_color: u32,
+    ocean_close_color: u32,
+    ocean_far_color: u32,
+    river_close_color: u32,
+    river_far_color: u32,
+    horizon_ambient_color: u32,
     fog_end: f32,
     fog_start: f32,
     glow: f32,
@@ -83,7 +93,7 @@ fn convert_csv_to_ron(input: &PathBuf, output: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-fn resolve_column_indices(header: &str) -> [usize; 16] {
+fn resolve_column_indices(header: &str) -> [usize; 26] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
@@ -98,6 +108,16 @@ fn resolve_column_indices(header: &str) -> [usize; 16] {
         idx("SkyBand2Color", 8),
         idx("SkySmogColor", 9),
         idx("SkyFogColor", 10),
+        idx("SunColor", 11),
+        idx("CloudSunColor", 12),
+        idx("CloudEmissiveColor", 13),
+        idx("CloudLayer1AmbientColor", 14),
+        idx("CloudLayer2AmbientColor", 15),
+        idx("OceanCloseColor", 16),
+        idx("OceanFarColor", 17),
+        idx("RiverCloseColor", 18),
+        idx("RiverFarColor", 19),
+        idx("HorizonAmbientColor", 34),
         idx("FogEnd", 21),
         idx("FogScaler", 22),
         idx("SunFogStrength", 40),
@@ -107,7 +127,7 @@ fn resolve_column_indices(header: &str) -> [usize; 16] {
     ]
 }
 
-fn parse_row(line: &str, ci: &[usize; 16]) -> Option<(u32, LightDataRow)> {
+fn parse_row(line: &str, ci: &[usize; 26]) -> Option<(u32, LightDataRow)> {
     let fields: Vec<&str> = line.split(',').collect();
     let p_u32 = |i: usize| -> u32 {
         fields
@@ -133,12 +153,22 @@ fn parse_row(line: &str, ci: &[usize; 16]) -> Option<(u32, LightDataRow)> {
         sky_band2: p_u32(7),
         sky_smog: p_u32(8),
         fog_color: p_u32(9),
-        fog_end: p_f32(10),
-        fog_start: p_f32(10) * p_f32(11),
-        glow: p_f32(12),
-        cloud_density: p_f32(13),
-        unk1: p_f32(14),
-        unk2: p_f32(15),
+        sun_color: p_u32(10),
+        sun_halo_color: p_u32(11),
+        cloud_emissive_color: p_u32(12),
+        cloud_layer1_ambient_color: p_u32(13),
+        cloud_layer2_ambient_color: p_u32(14),
+        ocean_close_color: p_u32(15),
+        ocean_far_color: p_u32(16),
+        river_close_color: p_u32(17),
+        river_far_color: p_u32(18),
+        horizon_ambient_color: p_u32(19),
+        fog_end: p_f32(20),
+        fog_start: p_f32(20) * p_f32(21),
+        glow: p_f32(22),
+        cloud_density: p_f32(23),
+        unk1: p_f32(24),
+        unk2: p_f32(25),
     };
 
     Some((param_id, row))

@@ -4,11 +4,11 @@ use std::time::UNIX_EPOCH;
 
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::{Connection, OpenFlags, params};
 
 use crate::sky_lightdata::{LightDataRow, decode_bgr32};
 
-const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback_v2.sqlite";
+const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback_v3.sqlite";
 
 pub(crate) fn load_light_data_csv_fallback(
     path: &Path,
@@ -76,6 +76,10 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
         .prepare(
             "SELECT time, direct_color, ambient_color, sky_top, sky_middle,
                     sky_band1, sky_band2, sky_smog, fog_color,
+                    sun_color, sun_halo_color, cloud_emissive_color,
+                    cloud_layer1_ambient_color, cloud_layer2_ambient_color,
+                    ocean_close_color, ocean_far_color,
+                    river_close_color, river_far_color, horizon_ambient_color,
                     fog_end, fog_start, glow, cloud_density, unk1, unk2
              FROM light_data_rows
              WHERE param_id = ?1
@@ -94,12 +98,22 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
                 sky_band2: decode_bgr32(row.get(6)?),
                 sky_smog: decode_bgr32(row.get(7)?),
                 fog_color: decode_bgr32(row.get(8)?),
-                fog_end: row.get(9)?,
-                fog_start: row.get(10)?,
-                glow: row.get(11)?,
-                cloud_density: row.get(12)?,
-                unk1: row.get(13)?,
-                unk2: row.get(14)?,
+                sun_color: decode_bgr32(row.get(9)?),
+                sun_halo_color: decode_bgr32(row.get(10)?),
+                cloud_emissive_color: decode_bgr32(row.get(11)?),
+                cloud_layer1_ambient_color: decode_bgr32(row.get(12)?),
+                cloud_layer2_ambient_color: decode_bgr32(row.get(13)?),
+                ocean_close_color: decode_bgr32(row.get(14)?),
+                ocean_far_color: decode_bgr32(row.get(15)?),
+                river_close_color: decode_bgr32(row.get(16)?),
+                river_far_color: decode_bgr32(row.get(17)?),
+                horizon_ambient_color: decode_bgr32(row.get(18)?),
+                fog_end: row.get(19)?,
+                fog_start: row.get(20)?,
+                glow: row.get(21)?,
+                cloud_density: row.get(22)?,
+                unk1: row.get(23)?,
+                unk2: row.get(24)?,
             })
         })
         .map_err(|err| format!("query light_data_rows: {err}"))?;
@@ -159,6 +173,16 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              sky_band2 INTEGER NOT NULL,
              sky_smog INTEGER NOT NULL,
              fog_color INTEGER NOT NULL,
+             sun_color INTEGER NOT NULL,
+             sun_halo_color INTEGER NOT NULL,
+             cloud_emissive_color INTEGER NOT NULL,
+             cloud_layer1_ambient_color INTEGER NOT NULL,
+             cloud_layer2_ambient_color INTEGER NOT NULL,
+             ocean_close_color INTEGER NOT NULL,
+             ocean_far_color INTEGER NOT NULL,
+             river_close_color INTEGER NOT NULL,
+             river_far_color INTEGER NOT NULL,
+             horizon_ambient_color INTEGER NOT NULL,
              fog_end REAL NOT NULL,
              fog_start REAL NOT NULL,
              glow REAL NOT NULL,
@@ -180,11 +204,15 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
     let columns = super::resolve_csv_fallback_column_indices(header.trim_end_matches(['\r', '\n']));
     let mut insert = conn
         .prepare(
-            "INSERT OR REPLACE INTO light_data_rows
+             "INSERT OR REPLACE INTO light_data_rows
               (param_id, time, direct_color, ambient_color, sky_top, sky_middle,
                sky_band1, sky_band2, sky_smog, fog_color,
+               sun_color, sun_halo_color, cloud_emissive_color,
+               cloud_layer1_ambient_color, cloud_layer2_ambient_color,
+               ocean_close_color, ocean_far_color,
+               river_close_color, river_far_color, horizon_ambient_color,
                fog_end, fog_start, glow, cloud_density, unk1, unk2)
-              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
         )
         .map_err(|err| format!("prepare light_data_rows insert: {err}"))?;
     let mut line = String::new();
@@ -210,7 +238,7 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
 fn insert_row(
     insert: &mut rusqlite::Statement<'_>,
     line: &str,
-    columns: &[usize; 16],
+    columns: &[usize; 26],
     source_path: &Path,
 ) -> Result<(), String> {
     let fields: Vec<&str> = line.split(',').collect();
@@ -239,7 +267,7 @@ fn insert_row(
         .parse::<f32>()
         .map_err(|err| format!("parse {} time row `{line}`: {err}", source_path.display()))?;
     insert
-        .execute((
+        .execute(params![
             param_id,
             time,
             p(2),
@@ -250,13 +278,23 @@ fn insert_row(
             p(7),
             p(8),
             p(9),
-            pf(10),
-            pf(10) * pf(11),
-            pf(12),
-            pf(13),
-            pf(14),
-            pf(15),
-        ))
+            p(10),
+            p(11),
+            p(12),
+            p(13),
+            p(14),
+            p(15),
+            p(16),
+            p(17),
+            p(18),
+            p(19),
+            pf(20),
+            pf(20) * pf(21),
+            pf(22),
+            pf(23),
+            pf(24),
+            pf(25),
+        ])
         .map_err(|err| format!("insert light_data_rows row {param_id}:{time}: {err}"))?;
     Ok(())
 }
@@ -314,7 +352,7 @@ mod tests {
         let csv_path = dir.join("LightData.csv");
         std::fs::write(
             &csv_path,
-            "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,ShadowOpacity,FogEnd,FogScaler,FogDensity,FogHeight,FogHeightScaler,FogHeightDensity,FogZScalar,MainFogStartDist,MainFogEndDist,SunFogAngle,CloudDensity,ColorGradingFileDataID,DarkerColorGradingFileDataID,HorizonAmbientColor,GroundAmbientColor,EndFogColor,EndFogColorDistance,FogStartOffset,SunFogColor,SunFogStrength,FogHeightColor,EndFogHeightColor,Field_10_0_0_44649_042,Field_12_0_0_63854_043,FogHeightCoefficients_0,FogHeightCoefficients_1,FogHeightCoefficients_2,FogHeightCoefficients_3,MainFogCoefficients_0,MainFogCoefficients_1,MainFogCoefficients_2,MainFogCoefficients_3,HeightDensityFogCoeff_0,HeightDensityFogCoeff_1,HeightDensityFogCoeff_2,HeightDensityFogCoeff_3\n1,77,100,255,65280,16711680,255,255,255,255,255,0,0,0,0,0,0,0,0,0,0,1000,0.25,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,1.5,0,0,2.5,3.5,0,0,0,0,0,0,0,0,0,0,0,0\n2,77,200,1,2,3,4,5,6,7,8,0,0,0,0,0,0,0,0,0,0,2000,0.5,0,0,0,0,0,0,0,0,0.75,0,0,0,0,0,0,0,0,2.0,0,0,4.5,5.5,0,0,0,0,0,0,0,0,0,0,0,0\n3,88,300,9,10,11,12,13,14,15,16,0,0,0,0,0,0,0,0,0,0,3000,0.75,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,2.5,0,0,6.5,7.5,0,0,0,0,0,0,0,0,0,0,0,0\n",
+            "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,ShadowOpacity,FogEnd,FogScaler,FogDensity,FogHeight,FogHeightScaler,FogHeightDensity,FogZScalar,MainFogStartDist,MainFogEndDist,SunFogAngle,CloudDensity,ColorGradingFileDataID,DarkerColorGradingFileDataID,HorizonAmbientColor,GroundAmbientColor,EndFogColor,EndFogColorDistance,FogStartOffset,SunFogColor,SunFogStrength,FogHeightColor,EndFogHeightColor,Field_10_0_0_44649_042,Field_12_0_0_63854_043,FogHeightCoefficients_0,FogHeightCoefficients_1,FogHeightCoefficients_2,FogHeightCoefficients_3,MainFogCoefficients_0,MainFogCoefficients_1,MainFogCoefficients_2,MainFogCoefficients_3,HeightDensityFogCoeff_0,HeightDensityFogCoeff_1,HeightDensityFogCoeff_2,HeightDensityFogCoeff_3\n1,77,100,255,65280,16711680,255,255,255,255,255,111,222,333,444,555,666,777,888,999,0,1000,0.25,0,0,0,0,0,0,0,0,0.5,0,0,1234,0,0,0,0,0,1.5,0,0,2.5,3.5,0,0,0,0,0,0,0,0,0,0,0,0\n2,77,200,1,2,3,4,5,6,7,8,12,23,34,45,56,67,78,89,90,0,2000,0.5,0,0,0,0,0,0,0,0,0.75,0,0,2345,0,0,0,0,0,2.0,0,0,4.5,5.5,0,0,0,0,0,0,0,0,0,0,0,0\n3,88,300,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,0,3000,0.75,0,0,0,0,0,0,0,0,1.0,0,0,3456,0,0,0,0,0,2.5,0,0,6.5,7.5,0,0,0,0,0,0,0,0,0,0,0,0\n",
         )
         .unwrap();
 
@@ -325,6 +363,8 @@ mod tests {
         assert_eq!(rows[1].time, 200.0);
         let direct = rows[0].direct_color.to_linear();
         assert!((direct.red - 1.0).abs() < 0.01);
+        let sun = rows[0].sun_color.to_linear();
+        assert!(sun.red > 0.0 || sun.green > 0.0 || sun.blue > 0.0);
         assert_eq!(rows[0].fog_end, 1000.0);
         assert_eq!(rows[0].fog_start, 250.0);
         assert_eq!(rows[0].glow, 1.5);

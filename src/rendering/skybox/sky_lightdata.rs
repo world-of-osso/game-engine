@@ -21,6 +21,16 @@ pub struct LightDataRow {
     pub sky_band2: Color,
     pub sky_smog: Color,
     pub fog_color: Color,
+    pub sun_color: Color,
+    pub sun_halo_color: Color,
+    pub cloud_emissive_color: Color,
+    pub cloud_layer1_ambient_color: Color,
+    pub cloud_layer2_ambient_color: Color,
+    pub ocean_close_color: Color,
+    pub ocean_far_color: Color,
+    pub river_close_color: Color,
+    pub river_far_color: Color,
+    pub horizon_ambient_color: Color,
     pub fog_end: f32,
     pub fog_start: f32,
     pub glow: f32,
@@ -46,6 +56,26 @@ struct LightDataSerializedRow {
     sky_smog: u32,
     #[serde(default)]
     fog_color: u32,
+    #[serde(default)]
+    sun_color: u32,
+    #[serde(default)]
+    sun_halo_color: u32,
+    #[serde(default)]
+    cloud_emissive_color: u32,
+    #[serde(default)]
+    cloud_layer1_ambient_color: u32,
+    #[serde(default)]
+    cloud_layer2_ambient_color: u32,
+    #[serde(default)]
+    ocean_close_color: u32,
+    #[serde(default)]
+    ocean_far_color: u32,
+    #[serde(default)]
+    river_close_color: u32,
+    #[serde(default)]
+    river_far_color: u32,
+    #[serde(default)]
+    horizon_ambient_color: u32,
     #[serde(default)]
     fog_end: f32,
     #[serde(default)]
@@ -79,6 +109,16 @@ pub struct SkyColorSet {
     pub direct_color: Color,
     pub ambient_color: Color,
     pub fog_color: Color,
+    pub sun_color: Color,
+    pub sun_halo_color: Color,
+    pub cloud_emissive_color: Color,
+    pub cloud_layer1_ambient_color: Color,
+    pub cloud_layer2_ambient_color: Color,
+    pub ocean_close_color: Color,
+    pub ocean_far_color: Color,
+    pub river_close_color: Color,
+    pub river_far_color: Color,
+    pub horizon_ambient_color: Color,
     pub fog_end: f32,
     pub fog_start: f32,
     pub glow: f32,
@@ -98,6 +138,16 @@ fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
         sky_band2: decode_bgr32(row.sky_band2),
         sky_smog: decode_bgr32(row.sky_smog),
         fog_color: decode_bgr32(row.fog_color),
+        sun_color: decode_bgr32(row.sun_color),
+        sun_halo_color: decode_bgr32(row.sun_halo_color),
+        cloud_emissive_color: decode_bgr32(row.cloud_emissive_color),
+        cloud_layer1_ambient_color: decode_bgr32(row.cloud_layer1_ambient_color),
+        cloud_layer2_ambient_color: decode_bgr32(row.cloud_layer2_ambient_color),
+        ocean_close_color: decode_bgr32(row.ocean_close_color),
+        ocean_far_color: decode_bgr32(row.ocean_far_color),
+        river_close_color: decode_bgr32(row.river_close_color),
+        river_far_color: decode_bgr32(row.river_far_color),
+        horizon_ambient_color: decode_bgr32(row.horizon_ambient_color),
         fog_end: row.fog_end,
         fog_start: row.fog_start,
         glow: row.glow,
@@ -123,7 +173,7 @@ fn load_light_data_ron(path: &str, param_id: u32) -> Result<Vec<LightDataRow>, S
 }
 
 /// Resolve CSV column indices for legacy LightData.csv fallback.
-fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 16] {
+fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 26] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
@@ -138,6 +188,16 @@ fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 16] {
         idx("SkyBand2Color", 8),
         idx("SkySmogColor", 9),
         idx("SkyFogColor", 10),
+        idx("SunColor", 11),
+        idx("CloudSunColor", 12),
+        idx("CloudEmissiveColor", 13),
+        idx("CloudLayer1AmbientColor", 14),
+        idx("CloudLayer2AmbientColor", 15),
+        idx("OceanCloseColor", 16),
+        idx("OceanFarColor", 17),
+        idx("RiverCloseColor", 18),
+        idx("RiverFarColor", 19),
+        idx("HorizonAmbientColor", 34),
         idx("FogEnd", 21),
         idx("FogScaler", 22),
         idx("SunFogStrength", 40),
@@ -149,7 +209,7 @@ fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 16] {
 
 fn parse_csv_fallback_light_row(
     line: &str,
-    ci: &[usize; 16],
+    ci: &[usize; 26],
     param_id: u32,
 ) -> Option<LightDataRow> {
     let fields: Vec<&str> = line.split(',').collect();
@@ -174,12 +234,22 @@ fn parse_csv_fallback_light_row(
         sky_band2: decode_bgr32(p(7)),
         sky_smog: decode_bgr32(p(8)),
         fog_color: decode_bgr32(p(9)),
-        fog_end: pf(10),
-        fog_start: pf(10) * pf(11),
-        glow: pf(12),
-        cloud_density: pf(13),
-        unk1: pf(14),
-        unk2: pf(15),
+        sun_color: decode_bgr32(p(10)),
+        sun_halo_color: decode_bgr32(p(11)),
+        cloud_emissive_color: decode_bgr32(p(12)),
+        cloud_layer1_ambient_color: decode_bgr32(p(13)),
+        cloud_layer2_ambient_color: decode_bgr32(p(14)),
+        ocean_close_color: decode_bgr32(p(15)),
+        ocean_far_color: decode_bgr32(p(16)),
+        river_close_color: decode_bgr32(p(17)),
+        river_far_color: decode_bgr32(p(18)),
+        horizon_ambient_color: decode_bgr32(p(19)),
+        fog_end: pf(20),
+        fog_start: pf(20) * pf(21),
+        glow: pf(22),
+        cloud_density: pf(23),
+        unk1: pf(24),
+        unk2: pf(25),
     })
 }
 
@@ -193,6 +263,21 @@ fn load_light_data_csv_fallback(path: &Path, param_id: u32) -> Vec<LightDataRow>
     }
 }
 
+fn rows_have_extended_color_data(rows: &[LightDataRow]) -> bool {
+    rows.iter().any(|row| {
+        row.sun_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.sun_halo_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.cloud_emissive_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.cloud_layer1_ambient_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.cloud_layer2_ambient_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.ocean_close_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.ocean_far_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.river_close_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.river_far_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.horizon_ambient_color.to_srgba() != Color::BLACK.to_srgba()
+    })
+}
+
 fn rows_have_dynamic_fog_data(rows: &[LightDataRow]) -> bool {
     rows.iter().any(|row| row.fog_end > 0.0)
 }
@@ -200,12 +285,15 @@ fn rows_have_dynamic_fog_data(rows: &[LightDataRow]) -> bool {
 /// Load LightData.ron rows for a specific LightParamID, with CSV fallback.
 pub fn load_light_data(path: &str, param_id: u32) -> Vec<LightDataRow> {
     match load_light_data_ron(path, param_id) {
-        Ok(rows) if rows_have_dynamic_fog_data(&rows) => rows,
+        Ok(rows) if rows_have_dynamic_fog_data(&rows) && rows_have_extended_color_data(&rows) => {
+            rows
+        }
         Ok(rows) => {
             if let Some(base) = path.strip_suffix(".ron") {
                 let csv_path = format!("{base}.csv");
                 let csv_rows = load_light_data_csv_fallback(Path::new(&csv_path), param_id);
-                if rows_have_dynamic_fog_data(&csv_rows) {
+                if rows_have_dynamic_fog_data(&csv_rows) || rows_have_extended_color_data(&csv_rows)
+                {
                     return csv_rows;
                 }
             }
@@ -245,6 +333,16 @@ pub fn default_sky_colors() -> SkyColorSet {
         direct_color: Color::WHITE,
         ambient_color: Color::linear_rgb(0.3, 0.3, 0.4),
         fog_color: Color::linear_rgb(0.7, 0.8, 0.9),
+        sun_color: Color::WHITE,
+        sun_halo_color: Color::linear_rgb(1.0, 0.95, 0.85),
+        cloud_emissive_color: Color::BLACK,
+        cloud_layer1_ambient_color: Color::BLACK,
+        cloud_layer2_ambient_color: Color::BLACK,
+        ocean_close_color: Color::linear_rgb(0.08, 0.16, 0.22),
+        ocean_far_color: Color::linear_rgb(0.04, 0.08, 0.14),
+        river_close_color: Color::linear_rgb(0.08, 0.16, 0.22),
+        river_far_color: Color::linear_rgb(0.04, 0.08, 0.14),
+        horizon_ambient_color: Color::linear_rgb(0.2, 0.25, 0.3),
         fog_end: 18000.0,
         fog_start: 4500.0,
         glow: 1.0,
@@ -264,6 +362,24 @@ fn lerp_rows(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
         direct_color: lerp_color(a.direct_color, b.direct_color, t),
         ambient_color: lerp_color(a.ambient_color, b.ambient_color, t),
         fog_color: lerp_color(a.fog_color, b.fog_color, t),
+        sun_color: lerp_color(a.sun_color, b.sun_color, t),
+        sun_halo_color: lerp_color(a.sun_halo_color, b.sun_halo_color, t),
+        cloud_emissive_color: lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t),
+        cloud_layer1_ambient_color: lerp_color(
+            a.cloud_layer1_ambient_color,
+            b.cloud_layer1_ambient_color,
+            t,
+        ),
+        cloud_layer2_ambient_color: lerp_color(
+            a.cloud_layer2_ambient_color,
+            b.cloud_layer2_ambient_color,
+            t,
+        ),
+        ocean_close_color: lerp_color(a.ocean_close_color, b.ocean_close_color, t),
+        ocean_far_color: lerp_color(a.ocean_far_color, b.ocean_far_color, t),
+        river_close_color: lerp_color(a.river_close_color, b.river_close_color, t),
+        river_far_color: lerp_color(a.river_far_color, b.river_far_color, t),
+        horizon_ambient_color: lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t),
         fog_end: a.fog_end + (b.fog_end - a.fog_end) * t,
         fog_start: a.fog_start + (b.fog_start - a.fog_start) * t,
         glow: a.glow + (b.glow - a.glow) * t,
@@ -357,6 +473,16 @@ mod tests {
                 sky_band2: Color::BLACK,
                 sky_smog: Color::BLACK,
                 fog_color: Color::BLACK,
+                sun_color: Color::BLACK,
+                sun_halo_color: Color::BLACK,
+                cloud_emissive_color: Color::BLACK,
+                cloud_layer1_ambient_color: Color::BLACK,
+                cloud_layer2_ambient_color: Color::BLACK,
+                ocean_close_color: Color::BLACK,
+                ocean_far_color: Color::BLACK,
+                river_close_color: Color::BLACK,
+                river_far_color: Color::BLACK,
+                horizon_ambient_color: Color::BLACK,
                 fog_end: 1000.0,
                 fog_start: 100.0,
                 glow: 0.0,
@@ -374,6 +500,16 @@ mod tests {
                 sky_band2: Color::WHITE,
                 sky_smog: Color::WHITE,
                 fog_color: Color::WHITE,
+                sun_color: Color::WHITE,
+                sun_halo_color: Color::WHITE,
+                cloud_emissive_color: Color::WHITE,
+                cloud_layer1_ambient_color: Color::WHITE,
+                cloud_layer2_ambient_color: Color::WHITE,
+                ocean_close_color: Color::WHITE,
+                ocean_far_color: Color::WHITE,
+                river_close_color: Color::WHITE,
+                river_far_color: Color::WHITE,
+                horizon_ambient_color: Color::WHITE,
                 fog_end: 2000.0,
                 fog_start: 200.0,
                 glow: 1.0,
@@ -385,6 +521,10 @@ mod tests {
         let result = interpolate_colors(&rows, 720.0);
         let top = result.sky_top.to_linear();
         assert!((top.red - 0.5).abs() < 0.05);
+        assert_eq!(
+            result.sun_color.to_srgba(),
+            Color::linear_rgb(0.5, 0.5, 0.5).to_srgba()
+        );
         assert!((result.fog_end - 1500.0).abs() < 0.01);
         assert!((result.fog_start - 150.0).abs() < 0.01);
     }
@@ -396,6 +536,7 @@ mod tests {
         for w in rows.windows(2) {
             assert!(w[0].time <= w[1].time, "Rows should be sorted by time");
         }
+        assert!(rows_have_extended_color_data(&rows));
         assert!(rows.iter().any(|row| row.fog_end > 0.0));
     }
 }
