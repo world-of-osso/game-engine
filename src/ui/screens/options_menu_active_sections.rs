@@ -292,65 +292,91 @@ fn keybinding_section_tabs(active: BindingSection) -> Element {
 fn keybinding_section_button(section: BindingSection, active: bool) -> Element {
     let label = section.title().to_string();
     let action = keybinding_section_action(section);
-    let frame_name = DynName(format!("KeybindingSection{}", section.key()));
-    let button_name = DynName(format!("KeybindingSection{}Button", section.key()));
-    let label_name = DynName(format!("KeybindingSection{}Label", section.key()));
+    let names = keybinding_section_tab_names(section);
+    let visuals = keybinding_section_tab_visuals(active);
     let width = keybinding_section_tab_width(&label);
-    let text_y = if active {
-        KEYBINDING_TAB_LABEL_Y_ACTIVE
-    } else {
-        KEYBINDING_TAB_LABEL_Y_IDLE
-    };
-    let atlas_up = if active {
-        "defaultbutton-nineslice-pressed"
-    } else {
-        "defaultbutton-nineslice-up"
-    };
-    let atlas_pressed = "defaultbutton-nineslice-pressed";
-    let atlas_highlight = if active {
-        "defaultbutton-nineslice-pressed"
-    } else {
-        "defaultbutton-nineslice-highlight"
-    };
-    let text_color = if active {
-        KEYBINDING_TAB_TEXT_ACTIVE
-    } else {
-        KEYBINDING_TAB_TEXT_IDLE
-    };
     rsx! {
         r#frame {
-            name: {frame_name},
+            name: {names.frame},
             width: {width},
             height: KEYBINDING_TAB_H,
             button {
-                name: {button_name},
+                name: {names.button},
                 stretch: true,
                 text: "",
                 font_size: KEYBINDING_TAB_FONT_SIZE,
                 onclick: {&action},
-                button_atlas_up: atlas_up,
-                button_atlas_pressed: atlas_pressed,
-                button_atlas_highlight: atlas_highlight,
+                button_atlas_up: visuals.atlas_up,
+                button_atlas_pressed: visuals.atlas_pressed,
+                button_atlas_highlight: visuals.atlas_highlight,
                 button_atlas_disabled: "defaultbutton-nineslice-disabled",
             }
             fontstring {
-                name: {label_name},
+                name: {names.label},
                 width: {width},
                 height: KEYBINDING_TAB_H,
                 text: {&label},
                 font: "FrizQuadrata",
                 font_size: KEYBINDING_TAB_FONT_SIZE,
-                font_color: text_color,
+                font_color: visuals.text_color,
                 shadow_color: "0.0,0.0,0.0,1.0",
                 shadow_offset: "1,-1",
                 justify_h: "CENTER",
                 anchor {
                     point: AnchorPoint::Center,
                     relative_point: AnchorPoint::Center,
-                    y: {text_y},
+                    y: {visuals.text_y},
                 }
             }
         }
+    }
+}
+
+struct KeybindingSectionTabNames {
+    frame: DynName,
+    button: DynName,
+    label: DynName,
+}
+
+fn keybinding_section_tab_names(section: BindingSection) -> KeybindingSectionTabNames {
+    KeybindingSectionTabNames {
+        frame: DynName(format!("KeybindingSection{}", section.key())),
+        button: DynName(format!("KeybindingSection{}Button", section.key())),
+        label: DynName(format!("KeybindingSection{}Label", section.key())),
+    }
+}
+
+struct KeybindingSectionTabVisuals {
+    text_y: f32,
+    atlas_up: &'static str,
+    atlas_pressed: &'static str,
+    atlas_highlight: &'static str,
+    text_color: &'static str,
+}
+
+fn keybinding_section_tab_visuals(active: bool) -> KeybindingSectionTabVisuals {
+    KeybindingSectionTabVisuals {
+        text_y: if active {
+            KEYBINDING_TAB_LABEL_Y_ACTIVE
+        } else {
+            KEYBINDING_TAB_LABEL_Y_IDLE
+        },
+        atlas_up: if active {
+            "defaultbutton-nineslice-pressed"
+        } else {
+            "defaultbutton-nineslice-up"
+        },
+        atlas_pressed: "defaultbutton-nineslice-pressed",
+        atlas_highlight: if active {
+            "defaultbutton-nineslice-pressed"
+        } else {
+            "defaultbutton-nineslice-highlight"
+        },
+        text_color: if active {
+            KEYBINDING_TAB_TEXT_ACTIVE
+        } else {
+            KEYBINDING_TAB_TEXT_IDLE
+        },
     }
 }
 
