@@ -50,36 +50,12 @@ pub fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
 }
 
 pub fn insert_text_into_editbox(reg: &mut FrameRegistry, id: u64, text: &str) {
-    let filtered: String = text.chars().filter(|c| !c.is_control()).collect();
+    let filtered = filter_editbox_input(text);
     if filtered.is_empty() {
         return;
     }
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
-        let mut insert = filtered;
-
-        if let Some(max_letters) = eb.max_letters {
-            let remaining = (max_letters as usize).saturating_sub(eb.text.chars().count());
-            if remaining == 0 {
-                return;
-            }
-            insert = insert.chars().take(remaining).collect();
-        }
-
-        if let Some(max_bytes) = eb.max_bytes {
-            let remaining = (max_bytes as usize).saturating_sub(eb.text.len());
-            if remaining == 0 {
-                return;
-            }
-            let mut truncated = String::new();
-            for ch in insert.chars() {
-                if truncated.len() + ch.len_utf8() > remaining {
-                    break;
-                }
-                truncated.push(ch);
-            }
-            insert = truncated;
-        }
-
+        let insert = clamp_editbox_insert(eb, filtered);
         if insert.is_empty() {
             return;
         }
@@ -87,6 +63,53 @@ pub fn insert_text_into_editbox(reg: &mut FrameRegistry, id: u64, text: &str) {
         eb.text.insert_str(eb.cursor_position, &insert);
         eb.cursor_position += insert.len();
     }
+}
+
+fn filter_editbox_input(text: &str) -> String {
+    text.chars().filter(|c| !c.is_control()).collect()
+}
+
+fn clamp_editbox_insert(
+    eb: &game_engine::ui::widgets::edit_box::EditBoxData,
+    text: String,
+) -> String {
+    let text = clamp_editbox_insert_letters(eb, text);
+    clamp_editbox_insert_bytes(eb, text)
+}
+
+fn clamp_editbox_insert_letters(
+    eb: &game_engine::ui::widgets::edit_box::EditBoxData,
+    text: String,
+) -> String {
+    let Some(max_letters) = eb.max_letters else {
+        return text;
+    };
+    let remaining = (max_letters as usize).saturating_sub(eb.text.chars().count());
+    if remaining == 0 {
+        return String::new();
+    }
+    text.chars().take(remaining).collect()
+}
+
+fn clamp_editbox_insert_bytes(
+    eb: &game_engine::ui::widgets::edit_box::EditBoxData,
+    text: String,
+) -> String {
+    let Some(max_bytes) = eb.max_bytes else {
+        return text;
+    };
+    let remaining = (max_bytes as usize).saturating_sub(eb.text.len());
+    if remaining == 0 {
+        return String::new();
+    }
+    let mut truncated = String::new();
+    for ch in text.chars() {
+        if truncated.len() + ch.len_utf8() > remaining {
+            break;
+        }
+        truncated.push(ch);
+    }
+    truncated
 }
 
 pub fn set_editbox_text(reg: &mut FrameRegistry, id: u64, text: &str) {
