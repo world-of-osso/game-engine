@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use game_engine::asset::blp::load_blp_rgba;
 use game_engine::asset::m2::load_m2_uncached;
 use game_engine::csv_util::{parse_csv_line, parse_csv_line_trimmed};
 
@@ -31,5 +32,29 @@ fn bench_m2_loading(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(parser_benches, bench_csv_parsers, bench_m2_loading);
+fn bench_blp_loading(c: &mut Criterion) {
+    let textures = [
+        ("torch_flame_small", Path::new("data/textures/198077.blp")),
+        ("human_skin_large", Path::new("data/textures/1027767.blp")),
+    ];
+    let mut group = c.benchmark_group("asset::blp::load_blp_rgba");
+    for (label, path) in textures {
+        assert!(
+            path.exists(),
+            "missing benchmark texture {}",
+            path.display()
+        );
+        group.bench_with_input(BenchmarkId::from_parameter(label), &path, |b, path| {
+            b.iter(|| load_blp_rgba(path).expect("load benchmark BLP"));
+        });
+    }
+    group.finish();
+}
+
+criterion_group!(
+    parser_benches,
+    bench_csv_parsers,
+    bench_m2_loading,
+    bench_blp_loading
+);
 criterion_main!(parser_benches);
