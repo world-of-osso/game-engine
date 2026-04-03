@@ -130,32 +130,7 @@ impl CharTextureData {
         self.seed_default_body_texture(&mut pixels, w, h, layout_id);
         let atlas_materials = self.atlas_materials(materials, layout_id);
         self.composite_materials_into(&mut pixels, w, &atlas_materials, layout_id);
-
-        let item_layer = TextureLayer {
-            texture_type: 1,
-            layer: 0,
-            blend_mode: 0,
-            section_bitmask: 0,
-            target_id: 0,
-            layout_id,
-        };
-        for &(component_section, fdid) in item_textures {
-            let Some((tex_pixels, tex_w, tex_h)) = load_texture_rgba(fdid) else {
-                continue;
-            };
-            let Some(section) = self.sections.get(&(layout_id, component_section as u32)) else {
-                continue;
-            };
-            blit_section(
-                &mut pixels,
-                w,
-                &tex_pixels,
-                tex_w,
-                tex_h,
-                section,
-                &item_layer,
-            );
-        }
+        self.composite_item_textures_into(&mut pixels, w, item_textures, layout_id);
 
         let hair = self.runtime_target_texture(materials, layout_id, 10);
 
@@ -239,6 +214,59 @@ impl CharTextureData {
             target_h: height,
             layer: &layer,
         });
+    }
+
+    fn composite_item_textures_into(
+        &self,
+        pixels: &mut [u8],
+        canvas_w: u32,
+        item_textures: &[(u8, u32)],
+        layout_id: u32,
+    ) {
+        let item_layer = TextureLayer {
+            texture_type: 1,
+            layer: 0,
+            blend_mode: 0,
+            section_bitmask: 0,
+            target_id: 0,
+            layout_id,
+        };
+        for &(component_section, fdid) in item_textures {
+            self.blit_item_texture_into(
+                pixels,
+                canvas_w,
+                &item_layer,
+                layout_id,
+                component_section,
+                fdid,
+            );
+        }
+    }
+
+    fn blit_item_texture_into(
+        &self,
+        pixels: &mut [u8],
+        canvas_w: u32,
+        item_layer: &TextureLayer,
+        layout_id: u32,
+        component_section: u8,
+        fdid: u32,
+    ) {
+        let Some((tex_pixels, tex_w, tex_h)) = load_texture_rgba(fdid) else {
+            return;
+        };
+        let Some(section) = self.sections.get(&(layout_id, component_section as u32)) else {
+            return;
+        };
+        blit_section(
+            pixels,
+            canvas_w,
+            &tex_pixels,
+            tex_w,
+            tex_h,
+            section,
+            item_layer,
+        );
     }
 
     fn composite_materials_into(
