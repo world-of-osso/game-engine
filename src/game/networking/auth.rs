@@ -608,29 +608,77 @@ pub fn receive_enter_world_response(
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
-            if resp.success {
-                apply_enter_world(&mut selected, &char_list, &char_idx);
-                if reconnect
-                    .as_deref()
-                    .is_some_and(|reconnect| reconnect.is_active())
-                    && *state.get() == GameState::InWorld
-                {
-                    info!("Reconnect enter-world accepted, waiting for replicated world state");
-                } else {
-                    next_state.set(GameState::Loading);
-                }
-            } else {
-                let err = resp.error.unwrap_or_default();
-                error!("Enter world failed: {err}");
-                if let Some(ref mut reconnect) = reconnect
-                    && reconnect.is_active()
-                {
-                    reconnect.phase = crate::networking::ReconnectPhase::Inactive;
-                    reconnect.terrain_refresh_seen = false;
-                }
-                next_state.set(GameState::CharSelect);
-            }
+            handle_enter_world_response(
+                resp,
+                &mut selected,
+                &char_list,
+                &char_idx,
+                state.get(),
+                reconnect.as_deref_mut(),
+                &mut next_state,
+            );
         }
+    }
+}
+
+fn handle_enter_world_response(
+    resp: EnterWorldResponse,
+    selected: &mut SelectedCharacterId,
+    char_list: &CharacterList,
+    char_idx: &crate::scenes::char_select::SelectedCharIndex,
+    state: &GameState,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    next_state: &mut NextState<GameState>,
+) {
+    if resp.success {
+        handle_enter_world_success(selected, char_list, char_idx, state, reconnect, next_state);
+    } else {
+        handle_enter_world_failure(resp, reconnect, next_state);
+    }
+}
+
+fn handle_enter_world_success(
+    selected: &mut SelectedCharacterId,
+    char_list: &CharacterList,
+    char_idx: &crate::scenes::char_select::SelectedCharIndex,
+    state: &GameState,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    next_state: &mut NextState<GameState>,
+) {
+    apply_enter_world(selected, char_list, char_idx);
+    if is_reconnect_enter_world(reconnect.as_deref(), state) {
+        info!("Reconnect enter-world accepted, waiting for replicated world state");
+    } else {
+        next_state.set(GameState::Loading);
+    }
+}
+
+fn handle_enter_world_failure(
+    resp: EnterWorldResponse,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    next_state: &mut NextState<GameState>,
+) {
+    let err = resp.error.unwrap_or_default();
+    error!("Enter world failed: {err}");
+    reset_reconnect_after_enter_world_failure(reconnect);
+    next_state.set(GameState::CharSelect);
+}
+
+fn is_reconnect_enter_world(
+    reconnect: Option<&crate::networking::ReconnectState>,
+    state: &GameState,
+) -> bool {
+    reconnect.is_some_and(|reconnect| reconnect.is_active()) && *state == GameState::InWorld
+}
+
+fn reset_reconnect_after_enter_world_failure(
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+) {
+    if let Some(reconnect) = reconnect
+        && reconnect.is_active()
+    {
+        reconnect.phase = crate::networking::ReconnectPhase::Inactive;
+        reconnect.terrain_refresh_seen = false;
     }
 }
 
