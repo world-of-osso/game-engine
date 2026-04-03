@@ -8,6 +8,7 @@ use game_engine::asset::m2::load_m2_uncached;
 use game_engine::asset::m2_particle::parse_particle_emitters;
 use game_engine::asset::wmo::{load_wmo_group, load_wmo_root};
 use game_engine::csv_util::{parse_csv_line, parse_csv_line_trimmed};
+use game_engine::particle_effect_builder::build_particle_effect_asset;
 
 fn bench_csv_parsers(c: &mut Criterion) {
     let quoted = r#"5412968,"Skybox, Debug",1,"A, B, C",Trailing"#;
@@ -166,6 +167,27 @@ fn bench_particle_emitter_parsing(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_particle_effect_asset_build(c: &mut Criterion) {
+    let cases = [("torch", Path::new("data/models/145513.m2"))];
+    let mut group = c.benchmark_group("particle_effect_builder::build_particle_effect_asset");
+    for (label, path) in cases {
+        assert!(
+            path.exists(),
+            "missing benchmark particle model {}",
+            path.display()
+        );
+        let loaded = load_m2_uncached(path, &[0, 0, 0]).expect("load benchmark particle model");
+        let emitter = loaded
+            .particle_emitters
+            .first()
+            .expect("benchmark particle emitter");
+        group.bench_with_input(BenchmarkId::from_parameter(label), emitter, |b, emitter| {
+            b.iter(|| build_particle_effect_asset(emitter, 1.0, 1.0));
+        });
+    }
+    group.finish();
+}
+
 fn find_md21_chunk(data: &[u8]) -> Option<&[u8]> {
     let mut off = 0;
     while off + 8 <= data.len() {
@@ -190,6 +212,7 @@ criterion_group!(
     bench_blp_loading,
     bench_adt_parsing,
     bench_wmo_parsing,
-    bench_particle_emitter_parsing
+    bench_particle_emitter_parsing,
+    bench_particle_effect_asset_build
 );
 criterion_main!(parser_benches);

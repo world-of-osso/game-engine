@@ -24,6 +24,7 @@ pub mod mail;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
 pub mod particle_color_cache;
+pub mod particle_effect_builder;
 pub mod paths;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
