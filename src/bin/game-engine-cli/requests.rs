@@ -240,10 +240,23 @@ pub fn auction_create_request(
     })
 }
 
-pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
+fn simple_auction_request(command: &AuctionCmd) -> Option<Request> {
     match command {
-        AuctionCmd::Open => Ok(Request::AuctionOpen),
-        AuctionCmd::Status => Ok(Request::AuctionStatus),
+        AuctionCmd::Open => Some(Request::AuctionOpen),
+        AuctionCmd::Status => Some(Request::AuctionStatus),
+        AuctionCmd::Owned => Some(Request::AuctionOwned),
+        AuctionCmd::Bids => Some(Request::AuctionBids),
+        AuctionCmd::Inventory => Some(Request::AuctionInventory),
+        AuctionCmd::Mailbox => Some(Request::AuctionMailbox),
+        _ => None,
+    }
+}
+
+fn auction_request_from_command(command: AuctionCmd) -> Result<Request, String> {
+    if let Some(request) = simple_auction_request(&command) {
+        return Ok(request);
+    }
+    match command {
         AuctionCmd::Browse {
             text,
             page,
@@ -263,10 +276,6 @@ pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
             sort,
             dir,
         }),
-        AuctionCmd::Owned => Ok(Request::AuctionOwned),
-        AuctionCmd::Bids => Ok(Request::AuctionBids),
-        AuctionCmd::Inventory => Ok(Request::AuctionInventory),
-        AuctionCmd::Mailbox => Ok(Request::AuctionMailbox),
         AuctionCmd::ClaimMail { mail_id } => Ok(Request::AuctionClaimMail {
             claim: ClaimAuctionMail { mail_id },
         }),
@@ -289,7 +298,17 @@ pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
         AuctionCmd::Cancel { id } => Ok(Request::AuctionCancel {
             cancel: CancelAuction { auction_id: id },
         }),
+        AuctionCmd::Open
+        | AuctionCmd::Status
+        | AuctionCmd::Owned
+        | AuctionCmd::Bids
+        | AuctionCmd::Inventory
+        | AuctionCmd::Mailbox => unreachable!("simple auction commands handled above"),
     }
+}
+
+pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
+    auction_request_from_command(command)
 }
 
 pub fn parse_duration(value: &str) -> Result<AuctionDuration, String> {
