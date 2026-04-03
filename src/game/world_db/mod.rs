@@ -671,6 +671,23 @@ fn populate_model_to_fdid(conn: &Connection, path: &Path) -> Result<(), String> 
     let mut insert = conn.prepare(
         "INSERT INTO model_to_fdid (model_resource_id, model_order, file_data_id) VALUES (?1, ?2, ?3)"
     ).map_err(|err| format!("prepare model_to_fdid insert: {err}"))?;
+    insert_model_to_fdid_rows(
+        &mut reader,
+        path,
+        file_data_col,
+        model_resource_col,
+        &mut insert,
+    )?;
+    Ok(())
+}
+
+fn insert_model_to_fdid_rows(
+    reader: &mut dyn BufRead,
+    path: &Path,
+    file_data_col: usize,
+    model_resource_col: usize,
+    insert: &mut Statement<'_>,
+) -> Result<(), String> {
     let mut seen = HashSet::new();
     let mut next_order: HashMap<u32, u32> = HashMap::new();
     let mut line = String::new();
