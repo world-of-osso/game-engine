@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use game_engine::asset::adt::{load_adt_for_tile, load_adt_tex0};
+use game_engine::asset::adt_format::adt_obj::load_adt_obj0;
 use game_engine::asset::blp::load_blp_rgba;
 use game_engine::asset::m2::load_m2_uncached;
 use game_engine::csv_util::{parse_csv_line, parse_csv_line_trimmed};
@@ -51,10 +53,67 @@ fn bench_blp_loading(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_adt_parsing(c: &mut Criterion) {
+    let cases = [(
+        "elwynn_32_48",
+        Path::new("data/terrain/azeroth_32_48.adt"),
+        Path::new("data/terrain/azeroth_32_48_tex0.adt"),
+        Path::new("data/terrain/azeroth_32_48_obj0.adt"),
+        32_u32,
+        48_u32,
+    )];
+    let mut group = c.benchmark_group("asset::adt");
+    for (label, root_path, tex_path, obj_path, tile_y, tile_x) in cases {
+        assert!(
+            root_path.exists(),
+            "missing benchmark ADT {}",
+            root_path.display()
+        );
+        assert!(
+            tex_path.exists(),
+            "missing benchmark ADT tex {}",
+            tex_path.display()
+        );
+        assert!(
+            obj_path.exists(),
+            "missing benchmark ADT obj {}",
+            obj_path.display()
+        );
+        let root_bytes = std::fs::read(root_path).expect("read benchmark ADT root");
+        let tex_bytes = std::fs::read(tex_path).expect("read benchmark ADT tex");
+        let obj_bytes = std::fs::read(obj_path).expect("read benchmark ADT obj");
+        group.bench_with_input(
+            BenchmarkId::new("load_adt_for_tile", label),
+            &root_bytes,
+            |b, bytes| {
+                b.iter(|| {
+                    load_adt_for_tile(bytes, tile_y, tile_x).expect("parse benchmark ADT root")
+                });
+            },
+        );
+        group.bench_with_input(
+            BenchmarkId::new("load_adt_tex0", label),
+            &tex_bytes,
+            |b, bytes| {
+                b.iter(|| load_adt_tex0(bytes).expect("parse benchmark ADT tex"));
+            },
+        );
+        group.bench_with_input(
+            BenchmarkId::new("load_adt_obj0", label),
+            &obj_bytes,
+            |b, bytes| {
+                b.iter(|| load_adt_obj0(bytes).expect("parse benchmark ADT obj"));
+            },
+        );
+    }
+    group.finish();
+}
+
 criterion_group!(
     parser_benches,
     bench_csv_parsers,
     bench_m2_loading,
-    bench_blp_loading
+    bench_blp_loading,
+    bench_adt_parsing
 );
 criterion_main!(parser_benches);
