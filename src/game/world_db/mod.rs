@@ -437,6 +437,8 @@ struct DisplayInfoColumns {
     helmet_vis_1: usize,
 }
 
+type DisplayInfoRow = (u32, u32, u32, u32, u32, i16, i16, i16, u32, u32);
+
 fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoColumns, String> {
     Ok(DisplayInfoColumns {
         id: header_index(headers, "ID", path)?,
@@ -469,41 +471,48 @@ fn insert_display_info_rows(
             break;
         }
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let display_id = fields
-            .get(columns.id)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        if display_id == 0 {
+        let Some(row) = parse_display_info_row(&fields, columns) else {
             continue;
-        }
-        let get_u32 = |idx: usize| {
-            fields
-                .get(idx)
-                .and_then(|v| v.parse::<u32>().ok())
-                .unwrap_or(0)
-        };
-        let get_i16 = |idx: usize| {
-            fields
-                .get(idx)
-                .and_then(|v| v.parse::<i32>().ok())
-                .unwrap_or(0) as i16
         };
         insert
-            .execute((
-                display_id,
-                get_u32(columns.model_res_0),
-                get_u32(columns.model_res_1),
-                get_u32(columns.model_mat_res_0),
-                get_u32(columns.model_mat_res_1),
-                get_i16(columns.geoset_group_0),
-                get_i16(columns.geoset_group_1),
-                get_i16(columns.geoset_group_2),
-                get_u32(columns.helmet_vis_0),
-                get_u32(columns.helmet_vis_1),
-            ))
+            .execute(row)
             .map_err(|err| format!("insert display_info row: {err}"))?;
     }
     Ok(())
+}
+
+fn parse_display_info_row(
+    fields: &[String],
+    columns: &DisplayInfoColumns,
+) -> Option<DisplayInfoRow> {
+    let get_u32 = |idx: usize| {
+        fields
+            .get(idx)
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0)
+    };
+    let get_i16 = |idx: usize| {
+        fields
+            .get(idx)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0) as i16
+    };
+    let display_id = get_u32(columns.id);
+    if display_id == 0 {
+        return None;
+    }
+    Some((
+        display_id,
+        get_u32(columns.model_res_0),
+        get_u32(columns.model_res_1),
+        get_u32(columns.model_mat_res_0),
+        get_u32(columns.model_mat_res_1),
+        get_i16(columns.geoset_group_0),
+        get_i16(columns.geoset_group_1),
+        get_i16(columns.geoset_group_2),
+        get_u32(columns.helmet_vis_0),
+        get_u32(columns.helmet_vis_1),
+    ))
 }
 
 fn populate_material_to_texture(conn: &Connection, path: &Path) -> Result<(), String> {
