@@ -19,10 +19,18 @@ use visuals::{
     has_authored_size_variation, has_authored_twinkle,
 };
 
-const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
-const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
-const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x0000_0200;
-const PARTICLE_FLAG_BONE_SCALE: u32 = 0x0000_0400;
+// CParticleEmitter / retail runtime particle flag values.
+pub(super) const PARTICLE_FLAG_TAIL_PARTICLES: u32 = 0x0000_0008;
+pub(super) const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x0000_0200;
+pub(super) const PARTICLE_FLAG_BONE_SCALE: u32 = 0x0000_0400;
+pub(super) const PARTICLE_FLAG_XY_QUAD: u32 = 0x0000_4000;
+pub(super) const PARTICLE_FLAG_NEGATE_SPIN: u32 = 0x0001_0000;
+pub(super) const PARTICLE_FLAG_CLAMP_TAIL_TO_AGE: u32 = 0x0002_0000;
+pub(super) const PARTICLE_FLAG_PROJECT_PARTICLE: u32 = 0x0004_0000;
+pub(super) const PARTICLE_FLAG_FOLLOW_POSITION: u32 = 0x0008_0000;
+pub(super) const PARTICLE_FLAG_RANDOM_TEXTURE: u32 = 0x0010_0000;
+pub(super) const PARTICLE_FLAG_VELOCITY_ORIENT: u32 = 0x0020_0000;
+pub(super) const PARTICLE_FLAG_SIZE_VARIATION_2D: u32 = 0x0080_0000;
 const BLEND_OPAQUE: u8 = 0;
 const BLEND_ALPHA_KEY: u8 = 1;
 const BLEND_ALPHA: u8 = 2;

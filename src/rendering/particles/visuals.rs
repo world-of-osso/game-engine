@@ -5,10 +5,10 @@ use bevy_hanabi::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::{PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_TAIL_PARTICLES};
 use crate::asset::m2_particle::M2ParticleEmitter;
 
 const PARTICLE_TYPE_TRAIL: u8 = 1;
-const PARTICLE_FLAG_TAIL_PARTICLES: u32 = 0x0000_0008;
 const TRAIL_LENGTH_FACTOR: f32 = 0.6;
 const WOW_PARTICLE_HALF_EXTENT_SCALE: f32 = 2.0;
 
@@ -53,7 +53,8 @@ pub(crate) fn has_authored_twinkle(em: &M2ParticleEmitter) -> bool {
 }
 
 pub(crate) fn has_authored_size_variation(em: &M2ParticleEmitter) -> bool {
-    em.scale_variation != 0.0 || (em.flags & 0x0080_0000 != 0 && em.scale_variation_y != 0.0)
+    em.scale_variation != 0.0
+        || (em.flags & PARTICLE_FLAG_SIZE_VARIATION_2D != 0 && em.scale_variation_y != 0.0)
 }
 
 fn build_simple_color_gradient(em: &M2ParticleEmitter) -> bevy_hanabi::Gradient<Vec4> {
