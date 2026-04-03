@@ -256,11 +256,6 @@ fn detail_panel(state: &SelectionDebugState) -> Element {
         detail: "Populate SelectionDebugState.entries before rendering this screen.".to_string(),
     };
     let selected = state.entries.get(state.selected_index).unwrap_or(&fallback);
-    let mode = if state.pinned {
-        "Pinned mode keeps the current row selected while you inspect detail output."
-    } else {
-        "Live mode mirrors quick candidate changes so hover and keyboard traversal stay easy to inspect."
-    };
 
     rsx! {
         r#frame {
@@ -286,141 +281,159 @@ fn detail_panel(state: &SelectionDebugState) -> Element {
                     relative_point: AnchorPoint::Top,
                 }
             }
-            fontstring {
-                name: "SelectionDebugDetailTitle",
-                width: 520.0,
-                height: 28.0,
-                text: "Selected Candidate",
-                font: GameFont::FrizQuadrata,
-                font_size: 20.0,
-                font_color: TEXT_GOLD,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-18",
-                }
+            {detail_panel_selected_copy(selected)}
+            {detail_panel_mode_copy(state)}
+        }
+    }
+}
+
+fn detail_panel_selected_copy(selected: &SelectionDebugEntry) -> Element {
+    rsx! {
+        fontstring {
+            name: "SelectionDebugDetailTitle",
+            width: 520.0,
+            height: 28.0,
+            text: "Selected Candidate",
+            font: GameFont::FrizQuadrata,
+            font_size: 20.0,
+            font_color: TEXT_GOLD,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-18",
             }
-            fontstring {
-                name: "SelectionDebugDetailLabel",
-                width: 520.0,
-                height: 32.0,
-                text: {&selected.label},
-                font: GameFont::FrizQuadrata,
-                font_size: 28.0,
-                font_color: TEXT_GOLD,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-62",
-                }
+        }
+        fontstring {
+            name: "SelectionDebugDetailLabel",
+            width: 520.0,
+            height: 32.0,
+            text: {&selected.label},
+            font: GameFont::FrizQuadrata,
+            font_size: 28.0,
+            font_color: TEXT_GOLD,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-62",
             }
-            fontstring {
-                name: "SelectionDebugDetailSubtitle",
-                width: 520.0,
-                height: 18.0,
-                text: {&selected.subtitle},
-                font: GameFont::FrizQuadrata,
-                font_size: 14.0,
-                font_color: TEXT_SUBTITLE,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-96",
-                }
+        }
+        fontstring {
+            name: "SelectionDebugDetailSubtitle",
+            width: 520.0,
+            height: 18.0,
+            text: {&selected.subtitle},
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
+            font_color: TEXT_SUBTITLE,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-96",
             }
-            fontstring {
-                name: "SelectionDebugDetailValue",
-                width: 520.0,
-                height: 150.0,
-                text: {&selected.detail},
-                font: GameFont::FrizQuadrata,
-                font_size: 15.0,
-                font_color: TEXT_MUTED,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-136",
-                }
+        }
+        fontstring {
+            name: "SelectionDebugDetailValue",
+            width: 520.0,
+            height: 150.0,
+            text: {&selected.detail},
+            font: GameFont::FrizQuadrata,
+            font_size: 15.0,
+            font_color: TEXT_MUTED,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-136",
             }
-            fontstring {
-                name: "SelectionDebugModeTitle",
-                width: 520.0,
-                height: 20.0,
-                text: "Selection Mode",
-                font: GameFont::FrizQuadrata,
-                font_size: 17.0,
-                font_color: TEXT_GOLD,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-302",
-                }
+        }
+    }
+}
+
+fn detail_panel_mode_copy(state: &SelectionDebugState) -> Element {
+    let mode = if state.pinned {
+        "Pinned mode keeps the current row selected while you inspect detail output."
+    } else {
+        "Live mode mirrors quick candidate changes so hover and keyboard traversal stay easy to inspect."
+    };
+
+    rsx! {
+        fontstring {
+            name: "SelectionDebugModeTitle",
+            width: 520.0,
+            height: 20.0,
+            text: "Selection Mode",
+            font: GameFont::FrizQuadrata,
+            font_size: 17.0,
+            font_color: TEXT_GOLD,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-302",
             }
-            fontstring {
-                name: "SelectionDebugModeValue",
-                width: 520.0,
-                height: 70.0,
-                text: mode,
-                font: GameFont::FrizQuadrata,
-                font_size: 14.0,
-                font_color: TEXT_SUBTITLE,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-330",
-                }
+        }
+        fontstring {
+            name: "SelectionDebugModeValue",
+            width: 520.0,
+            height: 70.0,
+            text: mode,
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
+            font_color: TEXT_SUBTITLE,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-330",
             }
-            fontstring {
-                name: "SelectionDebugLastActionTitle",
-                width: 520.0,
-                height: 20.0,
-                text: "Last Action",
-                font: GameFont::FrizQuadrata,
-                font_size: 17.0,
-                font_color: TEXT_GOLD,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-404",
-                }
+        }
+        fontstring {
+            name: "SelectionDebugLastActionTitle",
+            width: 520.0,
+            height: 20.0,
+            text: "Last Action",
+            font: GameFont::FrizQuadrata,
+            font_size: 17.0,
+            font_color: TEXT_GOLD,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-404",
             }
-            fontstring {
-                name: "SelectionDebugLastActionValue",
-                width: 520.0,
-                height: 24.0,
-                text: {&state.last_action},
-                font: GameFont::FrizQuadrata,
-                font_size: 14.0,
-                font_color: TEXT_SUBTITLE,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-432",
-                }
+        }
+        fontstring {
+            name: "SelectionDebugLastActionValue",
+            width: 520.0,
+            height: 24.0,
+            text: {&state.last_action},
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
+            font_color: TEXT_SUBTITLE,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: DETAIL_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-432",
             }
         }
     }
