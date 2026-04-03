@@ -186,53 +186,96 @@ fn register_pending_particle_effects(
         .map(GraphicsOptions::particle_density_multiplier)
         .unwrap_or(1.0);
     for (entity, mut transform, comp) in &mut query {
-        if let Some(projected_y) =
-            projected_particle_spawn_y(entity, comp, &global_transforms, terrain.as_deref())
-        {
-            transform.translation.y += projected_y;
-        }
-        let model_scale = global_transforms
-            .get(comp.scale_source)
-            .map(|tf| tf.compute_transform().scale.x)
-            .unwrap_or(1.0);
-        let asset = build_effect_asset_with_mode(
-            &comp.emitter,
-            model_scale,
-            particle_density_multiplier,
-            comp.spawn_mode,
-            comp.spawn_source,
-            &comp.child_emitters,
+        apply_projected_particle_spawn(
+            entity,
+            comp,
+            &global_transforms,
+            terrain.as_deref(),
+            &mut transform,
         );
-        let handle = effects.add(asset);
-        let mut ec = commands.entity(entity);
-        ec.insert(ParticleEffect::new(handle));
-        if let Some(parent_effect) = comp.effect_parent {
-            ec.insert(EffectParent::new(parent_effect));
-        }
-        if let Some(tex) = comp.pending_texture.clone() {
-            ec.insert(EffectMaterial { images: vec![tex] });
-        }
-        if emitter_uses_inherit_position(&comp.emitter) {
-            let current_world_position = global_transforms
-                .get(entity)
-                .map(GlobalTransform::translation)
-                .unwrap_or(Vec3::ZERO);
-            ec.insert(EffectProperties::default().with_properties([(
-                INHERIT_POSITION_BACK_DELTA_PROPERTY.to_string(),
-                Vec3::ZERO.into(),
-            )]));
-            ec.insert(InheritPositionMotionState {
-                previous_world_position: current_world_position,
-            });
-        }
-        if emitter_uses_dynamic_wind(&comp.emitter) {
-            let properties = EffectProperties::default()
-                .with_properties([(DYNAMIC_WIND_ACCEL_PROPERTY.to_string(), Vec3::ZERO.into())]);
-            ec.insert(properties);
-        }
-        if comp.spawn_mode == ParticleSpawnMode::BurstOnce {
-            ec.insert(PendingParticleBurst { armed: true });
-        }
+        let mut ec = register_particle_effect_entity(
+            entity,
+            comp,
+            &global_transforms,
+            particle_density_multiplier,
+            &mut effects,
+            &mut commands,
+        );
+        insert_optional_particle_effect_properties(entity, comp, &global_transforms, &mut ec);
+    }
+}
+
+fn apply_projected_particle_spawn(
+    entity: Entity,
+    comp: &ParticleEmitterComp,
+    global_transforms: &Query<&GlobalTransform>,
+    terrain: Option<&crate::terrain_heightmap::TerrainHeightmap>,
+    transform: &mut Transform,
+) {
+    if let Some(projected_y) = projected_particle_spawn_y(entity, comp, global_transforms, terrain)
+    {
+        transform.translation.y += projected_y;
+    }
+}
+
+fn register_particle_effect_entity<'a>(
+    entity: Entity,
+    comp: &ParticleEmitterComp,
+    global_transforms: &Query<&GlobalTransform>,
+    particle_density_multiplier: f32,
+    effects: &mut Assets<EffectAsset>,
+    commands: &'a mut Commands,
+) -> EntityCommands<'a> {
+    let model_scale = global_transforms
+        .get(comp.scale_source)
+        .map(|tf| tf.compute_transform().scale.x)
+        .unwrap_or(1.0);
+    let asset = build_effect_asset_with_mode(
+        &comp.emitter,
+        model_scale,
+        particle_density_multiplier,
+        comp.spawn_mode,
+        comp.spawn_source,
+        &comp.child_emitters,
+    );
+    let handle = effects.add(asset);
+    let mut ec = commands.entity(entity);
+    ec.insert(ParticleEffect::new(handle));
+    if let Some(parent_effect) = comp.effect_parent {
+        ec.insert(EffectParent::new(parent_effect));
+    }
+    if let Some(tex) = comp.pending_texture.clone() {
+        ec.insert(EffectMaterial { images: vec![tex] });
+    }
+    ec
+}
+
+fn insert_optional_particle_effect_properties(
+    entity: Entity,
+    comp: &ParticleEmitterComp,
+    global_transforms: &Query<&GlobalTransform>,
+    ec: &mut EntityCommands,
+) {
+    if emitter_uses_inherit_position(&comp.emitter) {
+        let current_world_position = global_transforms
+            .get(entity)
+            .map(GlobalTransform::translation)
+            .unwrap_or(Vec3::ZERO);
+        ec.insert(EffectProperties::default().with_properties([(
+            INHERIT_POSITION_BACK_DELTA_PROPERTY.to_string(),
+            Vec3::ZERO.into(),
+        )]));
+        ec.insert(InheritPositionMotionState {
+            previous_world_position: current_world_position,
+        });
+    }
+    if emitter_uses_dynamic_wind(&comp.emitter) {
+        let properties = EffectProperties::default()
+            .with_properties([(DYNAMIC_WIND_ACCEL_PROPERTY.to_string(), Vec3::ZERO.into())]);
+        ec.insert(properties);
+    }
+    if comp.spawn_mode == ParticleSpawnMode::BurstOnce {
+        ec.insert(PendingParticleBurst { armed: true });
     }
 }
 
