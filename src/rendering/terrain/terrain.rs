@@ -506,17 +506,15 @@ fn log_tile_memory_stats(refs: &SpawnRefs, parsed: &ParsedTile) {
 /// Compute the set of (tile_y, tile_x) that should be loaded around a center tile.
 fn compute_desired_tiles(center_y: u32, center_x: u32, radius: u32) -> Vec<(u32, u32)> {
     let r = radius as i32;
-    let mut tiles = Vec::with_capacity(((2 * r + 1) * (2 * r + 1)) as usize);
-    for dy in -r..=r {
-        for dx in -r..=r {
-            let ty = center_y as i32 + dy;
-            let tx = center_x as i32 + dx;
-            if (0..64).contains(&ty) && (0..64).contains(&tx) {
-                tiles.push((ty as u32, tx as u32));
-            }
-        }
-    }
-    tiles
+    (-r..=r)
+        .flat_map(|dy| {
+            (-r..=r).filter_map(move |dx| {
+                let ty = center_y as i32 + dy;
+                let tx = center_x as i32 + dx;
+                ((0..64).contains(&ty) && (0..64).contains(&tx)).then_some((ty as u32, tx as u32))
+            })
+        })
+        .collect()
 }
 
 /// Unload tiles that are no longer in the desired set.
