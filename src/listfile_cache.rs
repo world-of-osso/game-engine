@@ -19,16 +19,20 @@ pub(crate) fn load_local_cache(cache_path: &Path) -> Result<CachedListfile, Stri
     if !cache_path.exists() {
         return Ok(CachedListfile::default());
     }
-    let conn = Connection::open_with_flags(
-        cache_path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
+    let conn = open_local_cache(cache_path)?;
+    let Some(rows) = load_local_cache_rows(&conn)? else {
+        return Ok(CachedListfile::default());
+    };
+    Ok(build_cached_listfile(rows)?)
+}
+
+#[cfg(test)]
+fn load_local_cache_rows(conn: &Connection) -> Result<Option<Vec<(u32, String)>>, String> {
     let mut stmt = match conn.prepare("SELECT fdid, path FROM local_listfile_entries ORDER BY fdid")
     {
         Ok(stmt) => stmt,
         Err(err) if is_missing_table_error(&err) => {
-            return Ok(CachedListfile::default());
+            return Ok(None);
         }
         Err(err) => return Err(format!("prepare local_listfile_entries query: {err}")),
     };
@@ -36,11 +40,18 @@ pub(crate) fn load_local_cache(cache_path: &Path) -> Result<CachedListfile, Stri
         .query_map([], |row| {
             Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?))
         })
-        .map_err(|err| format!("query local_listfile_entries: {err}"))?;
+        .map_err(|err| format!("query local_listfile_entries: {err}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("read local_listfile_entries row: {err}"))?;
+    Ok(Some(rows))
+}
+
+#[cfg(test)]
+fn build_cached_listfile(rows: Vec<(u32, String)>) -> Result<CachedListfile, String> {
     let mut by_fdid = std::collections::HashMap::new();
     let mut by_path = std::collections::HashMap::new();
     for row in rows {
-        let (fdid, path) = row.map_err(|err| format!("read local_listfile_entries row: {err}"))?;
+        let (fdid, path) = row;
         let leaked = Box::leak(path.into_boxed_str()) as &'static str;
         by_fdid.insert(fdid, leaked);
         by_path.insert(leaked.to_ascii_lowercase(), fdid);
