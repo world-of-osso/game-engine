@@ -21,6 +21,7 @@ impl Plugin for ClientOptionsPlugin {
         let loaded = load_options_file();
         app.insert_resource(loaded.sound.to_runtime())
             .insert_resource(CameraOptions::from_file(&loaded.camera))
+            .insert_resource(GraphicsOptions::from_file(&loaded.graphics))
             .insert_resource(HudOptions::from_file(&loaded.hud))
             .insert_resource(loaded.bindings.clone())
             .insert_resource(ClientOptionsUiState {
@@ -74,6 +75,31 @@ impl CameraOptions {
             min_distance: file.min_distance,
             max_distance: file.max_distance,
         }
+    }
+}
+
+#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GraphicsOptions {
+    pub particle_density: u8,
+}
+
+impl Default for GraphicsOptions {
+    fn default() -> Self {
+        Self {
+            particle_density: 100,
+        }
+    }
+}
+
+impl GraphicsOptions {
+    fn from_file(file: &GraphicsOptionsFile) -> Self {
+        Self {
+            particle_density: file.particle_density.clamp(10, 100),
+        }
+    }
+
+    pub fn particle_density_multiplier(&self) -> f32 {
+        self.particle_density.clamp(10, 100) as f32 / 100.0
     }
 }
 
@@ -132,6 +158,8 @@ struct ClientOptionsFile {
     #[serde(default)]
     camera: CameraOptionsFile,
     #[serde(default)]
+    graphics: GraphicsOptionsFile,
+    #[serde(default)]
     hud: HudOptionsFile,
     #[serde(default)]
     bindings: InputBindings,
@@ -147,6 +175,7 @@ impl Default for ClientOptionsFile {
         Self {
             sound: SoundOptionsFile::default(),
             camera: CameraOptionsFile::default(),
+            graphics: GraphicsOptionsFile::default(),
             hud: HudOptionsFile::default(),
             bindings: InputBindings::default(),
             modal_offset: None,
@@ -202,6 +231,20 @@ struct CameraOptionsFile {
     max_distance: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct GraphicsOptionsFile {
+    #[serde(default = "default_particle_density", rename = "particleDensity")]
+    particle_density: u8,
+}
+
+impl Default for GraphicsOptionsFile {
+    fn default() -> Self {
+        Self {
+            particle_density: default_particle_density(),
+        }
+    }
+}
+
 impl Default for CameraOptionsFile {
     fn default() -> Self {
         let defaults = CameraOptions::default();
@@ -243,11 +286,12 @@ impl Default for HudOptionsFile {
 pub fn save_client_options(
     sound: Option<&SoundSettings>,
     camera: &CameraOptions,
+    graphics: &GraphicsOptions,
     hud: &HudOptions,
     bindings: &InputBindings,
     modal_offset: [f32; 2],
 ) -> Result<(), String> {
-    let file = build_options_file(sound, camera, hud, bindings, modal_offset);
+    let file = build_options_file(sound, camera, graphics, hud, bindings, modal_offset);
     let pretty = ron::ser::PrettyConfig::new();
     let serialized = ron::ser::to_string_pretty(&file, pretty)
         .map_err(|err| format!("failed to serialize client options: {err}"))?;
@@ -264,16 +308,18 @@ pub fn save_client_options(
 pub fn save_client_options_values(
     sound: &SoundSettings,
     camera: &CameraOptions,
+    graphics: &GraphicsOptions,
     hud: &HudOptions,
     bindings: &InputBindings,
     modal_offset: [f32; 2],
 ) -> Result<(), String> {
-    save_client_options(Some(sound), camera, hud, bindings, modal_offset)
+    save_client_options(Some(sound), camera, graphics, hud, bindings, modal_offset)
 }
 
 fn build_options_file(
     sound: Option<&SoundSettings>,
     camera: &CameraOptions,
+    graphics: &GraphicsOptions,
     hud: &HudOptions,
     bindings: &InputBindings,
     modal_offset: [f32; 2],
@@ -290,6 +336,9 @@ fn build_options_file(
             min_distance: camera.min_distance,
             max_distance: camera.max_distance,
         },
+        graphics: GraphicsOptionsFile {
+            particle_density: graphics.particle_density.clamp(10, 100),
+        },
         hud: HudOptionsFile {
             show_minimap: hud.show_minimap,
             show_action_bars: hud.show_action_bars,
@@ -302,6 +351,10 @@ fn build_options_file(
         modal_offset: Some(modal_offset),
         modal_position: None,
     }
+}
+
+const fn default_particle_density() -> u8 {
+    100
 }
 
 fn load_options_file() -> ClientOptionsFile {
@@ -414,6 +467,27 @@ mod tests {
         assert!(defaults.show_minimap);
         assert!(defaults.show_action_bars);
         assert!(defaults.show_target_marker);
+    }
+
+    #[test]
+    fn graphics_defaults_use_full_particle_density() {
+        let defaults = GraphicsOptions::default();
+        assert_eq!(defaults.particle_density, 100);
+        assert!((defaults.particle_density_multiplier() - 1.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn options_file_serializes_particle_density_with_cvar_name() {
+        let file = ClientOptionsFile {
+            graphics: GraphicsOptionsFile {
+                particle_density: 80,
+            },
+            ..ClientOptionsFile::default()
+        };
+
+        let serialized = ron::ser::to_string(&file).unwrap();
+
+        assert!(serialized.contains("particleDensity:80"));
     }
 
     #[test]

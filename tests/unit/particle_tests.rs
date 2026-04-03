@@ -6,9 +6,11 @@ use super::{
     FlipbookSpriteMode, active_cell_track, build_color_gradient, build_effect_asset,
     build_expr_modifiers, build_size_gradient, emitter_alpha_mode, emitter_spawn_radius,
     emitter_translation, flipbook_sprite_mode, has_authored_spin, has_authored_twinkle,
-    has_authored_wind, lifetime_range, orient_mode, wind_accel_bevy, wind_strength_at_age,
+    has_authored_wind, lifetime_range, orient_mode, scaled_emission_rate, wind_accel_bevy,
+    wind_strength_at_age,
 };
 use crate::asset::m2_particle::M2ParticleEmitter;
+use crate::client_options::GraphicsOptions;
 use bevy_hanabi::OrientMode;
 
 struct SampleMotionDefaults {
@@ -166,7 +168,7 @@ fn textured_emitters_declare_hanabi_texture_slot() {
     let mut emitter = sample_emitter();
     emitter.texture_fdid = Some(145513);
 
-    let asset = build_effect_asset(&emitter, 1.0);
+    let asset = build_effect_asset(&emitter, 1.0, 1.0);
 
     assert_eq!(asset.texture_layout().layout.len(), 1);
     assert_eq!(asset.texture_layout().layout[0].name, "color");
@@ -222,6 +224,33 @@ fn burst_multiplier_scales_particle_size_gradient() {
     assert_eq!(keys[0].value, Vec3::new(0.5, 0.5, 1.0));
     assert_eq!(keys[1].value, Vec3::new(1.0, 1.0, 1.0));
     assert_eq!(keys[2].value, Vec3::new(0.25, 0.25, 1.0));
+}
+
+#[test]
+fn particle_density_scales_emission_rate() {
+    let emitter = sample_emitter();
+    let graphics = GraphicsOptions {
+        particle_density: 50,
+    };
+
+    assert!(
+        (scaled_emission_rate(&emitter, graphics.particle_density_multiplier()) - 10.0).abs()
+            < 0.0001
+    );
+}
+
+#[test]
+fn particle_density_defaults_to_full_rate() {
+    let emitter = sample_emitter();
+
+    assert!(
+        (scaled_emission_rate(
+            &emitter,
+            GraphicsOptions::default().particle_density_multiplier()
+        ) - 20.0)
+            .abs()
+            < 0.0001
+    );
 }
 
 #[test]

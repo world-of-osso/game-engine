@@ -14,7 +14,9 @@ use game_engine::ui::screens::options_menu_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
-use crate::client_options::{self, CameraOptions, ClientOptionsUiState, HudOptions};
+use crate::client_options::{
+    self, CameraOptions, ClientOptionsUiState, GraphicsOptions, HudOptions,
+};
 use crate::game_state::GameState;
 use crate::scenes::game_menu::options::{
     ApplySnapshot, BindingCapture, DragCapture, OverlayModel, SliderField, apply_camera_snapshot,
@@ -684,7 +686,7 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     apply_target_marker_visibility(world, snapshot.hud.show_target_marker);
 }
 
-fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
+fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
     let camera = CameraOptions {
         look_sensitivity: snapshot.camera.look_sensitivity,
         invert_y: snapshot.camera.invert_y,
@@ -693,6 +695,7 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
         min_distance: snapshot.camera.min_distance,
         max_distance: snapshot.camera.max_distance,
     };
+    let graphics = world.resource::<GraphicsOptions>().clone();
     let hud = HudOptions {
         show_minimap: snapshot.hud.show_minimap,
         show_action_bars: snapshot.hud.show_action_bars,
@@ -711,6 +714,7 @@ fn save_snapshot(_world: &mut World, snapshot: &ApplySnapshot) {
     if let Err(err) = client_options::save_client_options_values(
         &sound,
         &camera,
+        &graphics,
         &hud,
         &snapshot.bindings,
         snapshot.modal_position,

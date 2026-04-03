@@ -13,6 +13,7 @@ use bevy_hanabi::prelude::*;
 use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
 use crate::asset::{m2_anim::M2Bone, m2_particle::M2ParticleEmitter};
+use crate::client_options::GraphicsOptions;
 use visuals::{
     SizeVariationModifier, TwinkleSizeModifier, build_color_gradient, build_size_gradient,
     has_authored_size_variation, has_authored_twinkle,
@@ -61,13 +62,18 @@ fn register_pending_particle_effects(
     mut effects: ResMut<Assets<EffectAsset>>,
     query: Query<(Entity, &ParticleEmitterComp), Without<ParticleEffect>>,
     global_transforms: Query<&GlobalTransform>,
+    graphics: Option<Res<GraphicsOptions>>,
 ) {
+    let particle_density_multiplier = graphics
+        .as_deref()
+        .map(GraphicsOptions::particle_density_multiplier)
+        .unwrap_or(1.0);
     for (entity, comp) in &query {
         let model_scale = global_transforms
             .get(comp.scale_source)
             .map(|tf| tf.compute_transform().scale.x)
             .unwrap_or(1.0);
-        let asset = build_effect_asset(&comp.emitter, model_scale);
+        let asset = build_effect_asset(&comp.emitter, model_scale, particle_density_multiplier);
         let handle = effects.add(asset);
         let mut ec = commands.entity(entity);
         ec.insert(ParticleEffect::new(handle));
@@ -271,9 +277,13 @@ fn build_cell_track_sprite_index(
     cell.cast(ScalarType::Int)
 }
 
-fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
+fn build_effect_asset(
+    em: &M2ParticleEmitter,
+    model_scale: f32,
+    particle_density_multiplier: f32,
+) -> EffectAsset {
     let m = build_expr_modifiers(em, model_scale);
-    let emission_rate = em.emission_rate.max(0.1);
+    let emission_rate = scaled_emission_rate(em, particle_density_multiplier);
     let (_, max_lifetime) = lifetime_range(em);
     let max_particles = ((emission_rate * max_lifetime) as u32).clamp(16, 4096);
     // WoW emits particles via an accumulator (`rate * dt + carry`) and can vary
@@ -313,6 +323,10 @@ fn build_effect_asset(em: &M2ParticleEmitter, model_scale: f32) -> EffectAsset {
         });
     }
     effect
+}
+
+fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> f32 {
+    (em.emission_rate * particle_density_multiplier.clamp(0.1, 1.0)).max(0.1)
 }
 
 fn assemble_effect(
