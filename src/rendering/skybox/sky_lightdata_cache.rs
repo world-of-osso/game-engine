@@ -87,35 +87,7 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
         )
         .map_err(|err| format!("prepare light_data_rows query: {err}"))?;
     let rows = stmt
-        .query_map([param_id], |row| {
-            Ok(LightDataRow {
-                time: row.get(0)?,
-                direct_color: decode_bgr32(row.get(1)?),
-                ambient_color: decode_bgr32(row.get(2)?),
-                sky_top: decode_bgr32(row.get(3)?),
-                sky_middle: decode_bgr32(row.get(4)?),
-                sky_band1: decode_bgr32(row.get(5)?),
-                sky_band2: decode_bgr32(row.get(6)?),
-                sky_smog: decode_bgr32(row.get(7)?),
-                fog_color: decode_bgr32(row.get(8)?),
-                sun_color: decode_bgr32(row.get(9)?),
-                sun_halo_color: decode_bgr32(row.get(10)?),
-                cloud_emissive_color: decode_bgr32(row.get(11)?),
-                cloud_layer1_ambient_color: decode_bgr32(row.get(12)?),
-                cloud_layer2_ambient_color: decode_bgr32(row.get(13)?),
-                ocean_close_color: decode_bgr32(row.get(14)?),
-                ocean_far_color: decode_bgr32(row.get(15)?),
-                river_close_color: decode_bgr32(row.get(16)?),
-                river_far_color: decode_bgr32(row.get(17)?),
-                horizon_ambient_color: decode_bgr32(row.get(18)?),
-                fog_end: row.get(19)?,
-                fog_start: row.get(20)?,
-                glow: row.get(21)?,
-                cloud_density: row.get(22)?,
-                unk1: row.get(23)?,
-                unk2: row.get(24)?,
-            })
-        })
+        .query_map([param_id], decode_light_data_row)
         .map_err(|err| format!("query light_data_rows: {err}"))?;
 
     let mut values = Vec::new();
@@ -123,6 +95,36 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
         values.push(row.map_err(|err| format!("read light_data_rows row: {err}"))?);
     }
     Ok(values)
+}
+
+fn decode_light_data_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightDataRow> {
+    Ok(LightDataRow {
+        time: row.get(0)?,
+        direct_color: decode_bgr32(row.get(1)?),
+        ambient_color: decode_bgr32(row.get(2)?),
+        sky_top: decode_bgr32(row.get(3)?),
+        sky_middle: decode_bgr32(row.get(4)?),
+        sky_band1: decode_bgr32(row.get(5)?),
+        sky_band2: decode_bgr32(row.get(6)?),
+        sky_smog: decode_bgr32(row.get(7)?),
+        fog_color: decode_bgr32(row.get(8)?),
+        sun_color: decode_bgr32(row.get(9)?),
+        sun_halo_color: decode_bgr32(row.get(10)?),
+        cloud_emissive_color: decode_bgr32(row.get(11)?),
+        cloud_layer1_ambient_color: decode_bgr32(row.get(12)?),
+        cloud_layer2_ambient_color: decode_bgr32(row.get(13)?),
+        ocean_close_color: decode_bgr32(row.get(14)?),
+        ocean_far_color: decode_bgr32(row.get(15)?),
+        river_close_color: decode_bgr32(row.get(16)?),
+        river_far_color: decode_bgr32(row.get(17)?),
+        horizon_ambient_color: decode_bgr32(row.get(18)?),
+        fog_end: row.get(19)?,
+        fog_start: row.get(20)?,
+        glow: row.get(21)?,
+        cloud_density: row.get(22)?,
+        unk1: row.get(23)?,
+        unk2: row.get(24)?,
+    })
 }
 
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {
