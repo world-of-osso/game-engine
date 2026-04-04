@@ -438,12 +438,36 @@ fn load_wmo_material_image(
         texture_2_fdid,
         texture_3_fdid,
     };
-    let cache = WMO_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
-    if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
+    let cache = wmo_texture_cache();
+    if let Some(cached) = lookup_cached_wmo_material_image(cache, &key) {
         return cached;
     }
     let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
-    for overlay_fdid in [texture_2_fdid, texture_3_fdid] {
+    composite_wmo_overlay_layers(&mut pixels, w, h, [texture_2_fdid, texture_3_fdid]);
+    let handle = images.add(build_wmo_material_image(pixels, w, h));
+    cache.lock().unwrap().insert(key, Ok(handle.clone()));
+    Ok(handle)
+}
+
+fn wmo_texture_cache()
+-> &'static Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<Handle<Image>, String>>> {
+    WMO_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
+fn lookup_cached_wmo_material_image(
+    cache: &Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<Handle<Image>, String>>>,
+    key: &WmoTextureCacheKey,
+) -> Option<Result<Handle<Image>, String>> {
+    cache.lock().unwrap().get(key).cloned()
+}
+
+fn composite_wmo_overlay_layers(
+    pixels: &mut [u8],
+    width: u32,
+    height: u32,
+    overlay_fdids: [u32; 2],
+) {
+    for overlay_fdid in overlay_fdids {
         if overlay_fdid == 0 {
             continue;
         }
@@ -453,15 +477,17 @@ fn load_wmo_material_image(
         let Ok((overlay_pixels, ov_w, ov_h)) = blp::load_blp_rgba(&overlay_path) else {
             continue;
         };
-        if ov_w == w && ov_h == h {
-            blp::blit_region(&mut pixels, w, &overlay_pixels, ov_w, ov_h, 0, 0);
+        if ov_w == width && ov_h == height {
+            blp::blit_region(pixels, width, &overlay_pixels, ov_w, ov_h, 0, 0);
         }
     }
+}
 
+fn build_wmo_material_image(pixels: Vec<u8>, width: u32, height: u32) -> Image {
     let mut image = Image::new(
         bevy::render::render_resource::Extent3d {
-            width: w,
-            height: h,
+            width,
+            height,
             depth_or_array_layers: 1,
         },
         bevy::render::render_resource::TextureDimension::D2,
@@ -474,9 +500,7 @@ fn load_wmo_material_image(
         address_mode_v: bevy::image::ImageAddressMode::Repeat,
         ..bevy::image::ImageSamplerDescriptor::linear()
     });
-    let handle = images.add(image);
-    cache.lock().unwrap().insert(key, Ok(handle.clone()));
-    Ok(handle)
+    image
 }
 
 pub(super) fn wmo_standard_material(
