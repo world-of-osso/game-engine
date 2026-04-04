@@ -1,3 +1,5 @@
+use std::path::Path;
+
 pub fn parse_csv_line(line: &str) -> Vec<String> {
     let mut fields = Vec::new();
     let mut current = String::new();
@@ -30,6 +32,13 @@ pub fn parse_csv_line_trimmed(line: &str) -> Vec<String> {
         .into_iter()
         .map(|field| field.trim().to_string())
         .collect()
+}
+
+pub fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usize, String> {
+    headers
+        .iter()
+        .position(|header| header == column)
+        .ok_or_else(|| format!("{} missing {column} column", path.display()))
 }
 
 #[cfg(test)]

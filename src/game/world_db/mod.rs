@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
+use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::outfit_data::DisplayInfoResolved;
 #[cfg(test)]
 use crate::outfit_data::DisplayMaterialTextures;
@@ -76,13 +76,6 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usize, String> {
-    headers
-        .iter()
-        .position(|header| header == column)
-        .ok_or_else(|| format!("{} missing {column} column", path.display()))
 }
 
 pub(crate) fn load_chr_race_prefixes() -> Result<HashMap<u8, String>, String> {

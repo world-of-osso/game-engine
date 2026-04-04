@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use crate::cache_sqlite::open_read_only;
-use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
+use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::sqlite_util::is_missing_table_error;
 use rusqlite::Connection;
 
@@ -260,13 +260,6 @@ fn decode_particle_color_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Partic
         mid: [row.get(4)?, row.get(5)?, row.get(6)?],
         end: [row.get(7)?, row.get(8)?, row.get(9)?],
     })
-}
-
-fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usize, String> {
-    headers
-        .iter()
-        .position(|header| header == column)
-        .ok_or_else(|| format!("{} missing {column} column", path.display()))
 }
 
 fn parse_u32_field(

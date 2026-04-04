@@ -6,7 +6,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::asset::char_texture::{TextureLayer, TextureLayout, TextureSection};
-use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
+use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::sqlite_util::is_missing_table_error;
 
 type CharTextureCacheData = (
@@ -31,13 +31,6 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usize, String> {
-    headers
-        .iter()
-        .position(|header| header == column)
-        .ok_or_else(|| format!("{} missing {column} column", path.display()))
 }
 
 fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
