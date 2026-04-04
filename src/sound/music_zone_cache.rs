@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
+use crate::cache_source_mtime::csv_mtime;
 use crate::csv_util::parse_csv_line;
 use crate::sqlite_util::is_missing_table_error;
 use rusqlite::{Connection, OpenFlags};
@@ -29,17 +29,6 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-fn csv_mtime(path: &Path) -> Result<i64, String> {
-    let modified = std::fs::metadata(path)
-        .map_err(|err| format!("stat {}: {err}", path.display()))?
-        .modified()
-        .map_err(|err| format!("mtime {}: {err}", path.display()))?;
-    Ok(modified
-        .duration_since(UNIX_EPOCH)
-        .map_err(|err| format!("mtime epoch {}: {err}", path.display()))?
-        .as_secs() as i64)
 }
 
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {

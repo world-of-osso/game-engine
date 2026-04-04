@@ -1,9 +1,8 @@
+use crate::cache_source_mtime::csv_mtime;
+use rusqlite::{Connection, OpenFlags};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
-
-use rusqlite::{Connection, OpenFlags};
 
 use crate::asset::char_texture::{TextureLayer, TextureLayout, TextureSection};
 use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
@@ -46,17 +45,6 @@ fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usize, 
         .iter()
         .position(|header| header == column)
         .ok_or_else(|| format!("{} missing {column} column", path.display()))
-}
-
-fn csv_mtime(path: &Path) -> Result<i64, String> {
-    let modified = std::fs::metadata(path)
-        .map_err(|err| format!("stat {}: {err}", path.display()))?
-        .modified()
-        .map_err(|err| format!("mtime {}: {err}", path.display()))?;
-    Ok(modified
-        .duration_since(UNIX_EPOCH)
-        .map_err(|err| format!("mtime epoch {}: {err}", path.display()))?
-        .as_secs() as i64)
 }
 
 fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {

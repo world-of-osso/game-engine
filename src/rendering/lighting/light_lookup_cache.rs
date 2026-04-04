@@ -1,7 +1,10 @@
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+
+#[cfg(test)]
 use std::time::UNIX_EPOCH;
 
+use crate::cache_source_mtime::csv_mtime;
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
@@ -258,17 +261,6 @@ fn skip_header(reader: &mut BufReader<std::fs::File>, path: &Path) -> Result<(),
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", path.display()))?;
     Ok(())
-}
-
-fn csv_mtime(path: &Path) -> Result<i64, String> {
-    let modified = std::fs::metadata(path)
-        .map_err(|err| format!("stat {}: {err}", path.display()))?
-        .modified()
-        .map_err(|err| format!("mtime {}: {err}", path.display()))?;
-    Ok(modified
-        .duration_since(UNIX_EPOCH)
-        .map_err(|err| format!("mtime epoch {}: {err}", path.display()))?
-        .as_secs() as i64)
 }
 
 #[cfg(test)]
