@@ -228,24 +228,46 @@ const fn create_light_data_rows_table_sql() -> &'static str {
 
 fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
     let mut reader = open_reader(source_path)?;
+    let columns = read_import_columns(&mut reader, source_path)?;
+    let mut insert = prepare_row_insert(conn)?;
+    import_reader_rows(&mut reader, &mut insert, &columns, source_path)?;
+    Ok(())
+}
+
+fn read_import_columns<R: BufRead>(
+    reader: &mut R,
+    source_path: &Path,
+) -> Result<[usize; 26], String> {
     let mut header = String::new();
     reader
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", source_path.display()))?;
-    let columns = super::resolve_csv_fallback_column_indices(header.trim_end_matches(['\r', '\n']));
-    let mut insert = conn
-        .prepare(
-             "INSERT OR REPLACE INTO light_data_rows
-              (param_id, time, direct_color, ambient_color, sky_top, sky_middle,
-               sky_band1, sky_band2, sky_smog, fog_color,
-               sun_color, sun_halo_color, cloud_emissive_color,
-               cloud_layer1_ambient_color, cloud_layer2_ambient_color,
-               ocean_close_color, ocean_far_color,
-               river_close_color, river_far_color, horizon_ambient_color,
-               fog_end, fog_start, glow, cloud_density, unk1, unk2)
-              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
-        )
-        .map_err(|err| format!("prepare light_data_rows insert: {err}"))?;
+    Ok(super::resolve_csv_fallback_column_indices(
+        header.trim_end_matches(['\r', '\n']),
+    ))
+}
+
+fn prepare_row_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
+    conn.prepare(
+        "INSERT OR REPLACE INTO light_data_rows
+         (param_id, time, direct_color, ambient_color, sky_top, sky_middle,
+          sky_band1, sky_band2, sky_smog, fog_color,
+          sun_color, sun_halo_color, cloud_emissive_color,
+          cloud_layer1_ambient_color, cloud_layer2_ambient_color,
+          ocean_close_color, ocean_far_color,
+          river_close_color, river_far_color, horizon_ambient_color,
+          fog_end, fog_start, glow, cloud_density, unk1, unk2)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
+    )
+    .map_err(|err| format!("prepare light_data_rows insert: {err}"))
+}
+
+fn import_reader_rows<R: BufRead>(
+    reader: &mut R,
+    insert: &mut rusqlite::Statement<'_>,
+    columns: &[usize; 26],
+    source_path: &Path,
+) -> Result<(), String> {
     let mut line = String::new();
     loop {
         line.clear();
@@ -257,9 +279,9 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
             break;
         }
         insert_row(
-            &mut insert,
+            insert,
             line.trim_end_matches(['\r', '\n']),
-            &columns,
+            columns,
             source_path,
         )?;
     }
