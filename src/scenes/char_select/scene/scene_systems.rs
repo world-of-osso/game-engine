@@ -13,11 +13,13 @@ use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandSceneEntr
 use crate::terrain_heightmap::TerrainHeightmap;
 
 use super::camera::{CharSelectOrbit, update_camera_for_scene};
+use super::scene_types::{
+    CharSelectRenderAssets, DisplayedCharacterAppearance, DisplayedCharacterId,
+    PendingSupplementalWarbandScene,
+};
 use super::{
-    CharSelectModelRoot, CharSelectRenderAssets, CharSelectScene, DisplayedCharacterAppearance,
-    DisplayedCharacterId, ModelPresentation, PendingSupplementalWarbandScene,
-    resolve_char_select_model_path, selected_character_presentation, selected_scene_character,
-    selected_scene_placement,
+    CharSelectModelRoot, CharSelectScene, ModelPresentation, resolve_char_select_model_path,
+    selected_character_presentation, selected_scene_character, selected_scene_placement,
 };
 
 fn spawn_scene_warband_terrain(

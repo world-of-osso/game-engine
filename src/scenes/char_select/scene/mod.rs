@@ -3,15 +3,13 @@
 //! Spawns camera, lighting, warband terrain, and the selected character's M2 model.
 //! All entities are tagged with [`CharSelectScene`] for bulk despawn on exit.
 
+mod scene_types;
+
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use bevy::ecs::system::SystemParam;
-use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
-use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::{CustomizationDb, ModelPresentation};
-use game_engine::outfit_data::OutfitData;
 use game_engine::scene_tree::SceneNode;
 use shared::protocol::CharacterListEntry;
 
@@ -20,22 +18,20 @@ use crate::character_customization::{
 };
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
-use crate::equipment::EquipmentItem;
 use crate::equipment_appearance::{apply_runtime_equipment, resolve_equipment_appearance};
 use crate::game_state::GameState;
-use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking_auth::CharacterList;
-use crate::scenes::char_select::SelectedCharIndex;
 use crate::scenes::char_select::scene_tree::{self as scene_tree, ActiveWarbandSceneId};
-use crate::scenes::char_select::warband::{
-    SelectedWarbandScene, WarbandSceneEntry, WarbandScenePlacement, WarbandScenes,
-};
+use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandSceneEntry, WarbandScenes};
 use crate::scenes::setup::DEFAULT_M2;
-use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
-use crate::terrain_material::TerrainMaterial;
-use crate::water_material::WaterMaterial;
+use scene_types::{
+    AppearanceSyncSelection, AppliedCharacterAppearance, CharSelectAppearanceSyncParams,
+    CharSelectModelSyncParams, CharSelectRenderAssets, CharSelectSceneSetupParams,
+    DisplayedCharacterAppearance, DisplayedCharacterId, ModelSyncSelection,
+    PendingSupplementalWarbandScene, SceneSetupLighting, SceneSetupSelection, SceneSetupTimings,
+};
 
 /// Marker component for all entities belonging to the char-select 3D scene.
 #[derive(Component)]
@@ -54,156 +50,10 @@ pub(super) struct CharSelectSkybox {
     pub(super) path: PathBuf,
 }
 
-/// Tracks which character is currently displayed as a 3D model.
-#[derive(Resource, Default)]
-pub(super) struct DisplayedCharacterId(pub(super) Option<u64>);
-
-#[derive(Resource, Default)]
-pub(super) struct DisplayedCharacterAppearance(pub(super) Option<AppliedCharacterAppearance>);
-
-#[derive(Resource, Default)]
-pub(super) struct PendingSupplementalWarbandScene {
-    pub(super) scene_id: Option<u32>,
-    pub(super) wait_for_next_frame: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct AppliedCharacterAppearance {
-    character_id: u64,
-    race: u8,
-    class: u8,
-    appearance: shared::components::CharacterAppearance,
-    equipment_appearance: shared::components::EquipmentAppearance,
-}
-
-#[derive(bevy::ecs::system::SystemParam)]
-pub(super) struct CharSelectRenderAssets<'w> {
-    pub(super) meshes: ResMut<'w, Assets<Mesh>>,
-    pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
-    pub(super) effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
-    pub(super) skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
-    pub(super) terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
-    pub(super) water_materials: ResMut<'w, Assets<WaterMaterial>>,
-    pub(super) images: ResMut<'w, Assets<Image>>,
-    pub(super) inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
-}
-
 struct CharSelectModelSpawnContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     assets: &'a mut CharSelectRenderAssets<'w>,
     creature_display_map: &'a creature_display::CreatureDisplayMap,
-}
-
-struct SceneSetupSelection {
-    scene_entry: Option<WarbandSceneEntry>,
-    placement: Option<WarbandScenePlacement>,
-    presentation: ModelPresentation,
-}
-
-struct ModelSyncSelection {
-    desired_id: Option<u64>,
-    scene_entry: Option<WarbandSceneEntry>,
-    placement: Option<WarbandScenePlacement>,
-    presentation: ModelPresentation,
-    char_tf: Transform,
-}
-
-struct AppearanceSyncSelection {
-    root: Entity,
-    desired: AppliedCharacterAppearance,
-    character: CharacterListEntry,
-}
-
-struct SceneSetupLighting {
-    camera_entity: Entity,
-    fov: f32,
-    dir: Entity,
-}
-
-struct SceneSetupTimings {
-    background_elapsed: std::time::Duration,
-    camera_elapsed: std::time::Duration,
-    sky_light_elapsed: std::time::Duration,
-    model_elapsed: std::time::Duration,
-}
-
-#[derive(SystemParam)]
-struct CharSelectSceneSetupParams<'w, 's> {
-    commands: Commands<'w, 's>,
-    assets: CharSelectRenderAssets<'w>,
-    heightmap: ResMut<'w, TerrainHeightmap>,
-    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
-    customization_db: Res<'w, CustomizationDb>,
-    char_list: Res<'w, CharacterList>,
-    selected: Res<'w, SelectedCharIndex>,
-    displayed: ResMut<'w, DisplayedCharacterId>,
-    active_scene: ResMut<'w, ActiveWarbandSceneId>,
-    pending_supplemental: ResMut<'w, PendingSupplementalWarbandScene>,
-    warband: Option<Res<'w, WarbandScenes>>,
-    selected_scene: Option<Res<'w, SelectedWarbandScene>>,
-}
-
-#[derive(SystemParam)]
-struct CharSelectModelSyncParams<'w, 's> {
-    commands: Commands<'w, 's>,
-    assets: CharSelectRenderAssets<'w>,
-    creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
-    customization_db: Res<'w, CustomizationDb>,
-    heightmap: Res<'w, TerrainHeightmap>,
-    char_list: Res<'w, CharacterList>,
-    selected: Res<'w, SelectedCharIndex>,
-    current_model: Query<'w, 's, Entity, With<CharSelectModelWrapper>>,
-    displayed: ResMut<'w, DisplayedCharacterId>,
-    warband: Option<Res<'w, WarbandScenes>>,
-    selected_scene: Option<Res<'w, SelectedWarbandScene>>,
-    camera_query: Query<
-        'w,
-        's,
-        (
-            &'static mut Transform,
-            &'static mut camera::CharSelectOrbit,
-            &'static mut Projection,
-        ),
-        (With<CharSelectScene>, Without<CharSelectModelRoot>),
-    >,
-}
-
-#[derive(SystemParam)]
-struct CharSelectAppearanceSyncParams<'w, 's> {
-    customization_db: Res<'w, CustomizationDb>,
-    char_tex: Res<'w, CharTextureData>,
-    outfit_data: Res<'w, OutfitData>,
-    char_list: Res<'w, CharacterList>,
-    selected: Res<'w, SelectedCharIndex>,
-    displayed_appearance: ResMut<'w, DisplayedCharacterAppearance>,
-    root_query:
-        Query<'w, 's, (Entity, &'static CharSelectModelCharacter), With<CharSelectModelRoot>>,
-    parent_query: Query<'w, 's, &'static ChildOf>,
-    geoset_query: Query<
-        'w,
-        's,
-        (
-            Entity,
-            &'static crate::m2_spawn::GeosetMesh,
-            &'static ChildOf,
-        ),
-    >,
-    visibility_query: Query<'w, 's, &'static mut Visibility>,
-    equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
-    material_query: Query<
-        'w,
-        's,
-        (
-            Entity,
-            &'static MeshMaterial3d<StandardMaterial>,
-            Option<&'static crate::m2_spawn::GeosetMesh>,
-            Option<&'static crate::m2_spawn::BatchTextureType>,
-            &'static ChildOf,
-        ),
-    >,
-    equipment_query: Query<'w, 's, &'static mut crate::equipment::Equipment>,
-    images: ResMut<'w, Assets<Image>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
 }
 
 pub struct CharSelectScenePlugin;

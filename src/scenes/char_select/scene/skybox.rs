@@ -3,9 +3,10 @@ use bevy::prelude::*;
 use std::path::PathBuf;
 
 use crate::creature_display;
+use crate::scenes::char_select::scene::CharSelectSkybox;
 use crate::scenes::char_select::scene::background;
 use crate::scenes::char_select::scene::camera::CharSelectOrbit;
-use crate::scenes::char_select::scene::{CharSelectRenderAssets, CharSelectSkybox};
+use crate::scenes::char_select::scene::scene_types::CharSelectRenderAssets;
 use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
 
 #[derive(SystemParam)]
