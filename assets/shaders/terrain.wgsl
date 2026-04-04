@@ -9,9 +9,18 @@
     pbr_types,
 }
 
-// config.x = layer_count (1-4), config.y = height_blend_strength (0=off, typical 2-4)
-// config.z = perceptual_roughness, config.w = reflectance
-@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> config: vec4<f32>;
+struct TerrainSettings {
+    config: vec4<f32>,
+    layer_params_0: vec4<f32>,
+    layer_params_1: vec4<f32>,
+    layer_params_2: vec4<f32>,
+    layer_params_3: vec4<f32>,
+}
+
+// settings.config.x = layer_count (1-4), settings.config.y = global height blend strength
+// settings.config.z = perceptual_roughness, settings.config.w = reflectance
+// settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
+@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: TerrainSettings;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var ground_0: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var ground_sampler_0: sampler;
@@ -66,6 +75,16 @@ fn sample_ground(idx: u32, uv: vec2<f32>) -> vec4<f32> {
 
 fn sample_ground_tiled(idx: u32, uv: vec2<f32>) -> vec4<f32> {
     return sample_ground(idx, uv * TILE_REPEAT);
+}
+
+fn layer_params(idx: u32) -> vec4<f32> {
+    switch idx {
+        case 0u: { return settings.layer_params_0; }
+        case 1u: { return settings.layer_params_1; }
+        case 2u: { return settings.layer_params_2; }
+        case 3u: { return settings.layer_params_3; }
+        default: { return vec4<f32>(1.0, 0.0, 0.0, 0.0); }
+    }
 }
 
 // ── Hex tiling ───────────────────────────────────────────────────────────────
@@ -184,10 +203,11 @@ fn paint_weights(alpha: vec3<f32>, layer_count: u32) -> vec4<f32> {
     return vec4<f32>(w0, w1, w2, w3);
 }
 
-fn height_weight(height: f32, strength: f32) -> f32 {
+fn height_weight(height: f32, params: vec4<f32>, strength: f32) -> f32 {
     // strength=0 -> no height influence. Positive strength amplifies highs,
     // de-emphasizes lows, while remaining stable for textures with flat alpha.
-    return exp2((height - 0.5) * max(strength, 0.0));
+    let adjusted_height = height * params.x + params.y;
+    return exp2((adjusted_height - 0.5) * max(strength, 0.0));
 }
 
 // ── Fragment entry ───────────────────────────────────────────────────────────
@@ -195,10 +215,10 @@ fn height_weight(height: f32, strength: f32) -> f32 {
 @fragment
 fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @location(0) vec4<f32> {
     let uv = in.uv;
-    let layer_count = u32(config.x);
-    let blend_strength = config.y;
-    let perceptual_roughness = config.z;
-    let reflectance = config.w;
+    let layer_count = u32(settings.config.x);
+    let blend_strength = settings.config.y;
+    let perceptual_roughness = settings.config.z;
+    let reflectance = settings.config.w;
 
     let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
     let paint = paint_weights(alpha, layer_count);
@@ -210,10 +230,10 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let c3 = sample_ground_tiled(3u, uv);
 
     var weights = vec4<f32>(
-        paint.x * height_weight(c0.a, blend_strength),
-        paint.y * height_weight(c1.a, blend_strength),
-        paint.z * height_weight(c2.a, blend_strength),
-        paint.w * height_weight(c3.a, blend_strength),
+        paint.x * height_weight(c0.a, layer_params(0u), blend_strength),
+        paint.y * height_weight(c1.a, layer_params(1u), blend_strength),
+        paint.z * height_weight(c2.a, layer_params(2u), blend_strength),
+        paint.w * height_weight(c3.a, layer_params(3u), blend_strength),
     );
     let wsum = weights.x + weights.y + weights.z + weights.w;
     if wsum > 1e-6 {

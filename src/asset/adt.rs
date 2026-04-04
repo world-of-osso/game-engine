@@ -3,8 +3,8 @@ use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::adt_format::adt::{CHUNK_SIZE, ChunkHeightGrid, ChunkIter, UNIT_SIZE, vertex_index};
 pub use super::adt_format::adt_tex::{
-    AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, WaterLayer,
-    load_adt_tex0, parse_mh2o,
+    AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, TextureParams,
+    WaterLayer, load_adt_tex0, parse_mh2o,
 };
 use super::m2::wow_to_bevy;
 

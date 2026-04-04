@@ -54,9 +54,18 @@ pub struct ChunkTexLayers {
     pub layers: Vec<TextureLayer>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct TextureParams {
+    pub flags: u32,
+    pub height_scale: f32,
+    pub height_offset: f32,
+}
+
 pub struct AdtTexData {
     pub texture_fdids: Vec<u32>,
     pub height_texture_fdids: Vec<u32>,
+    pub texture_flags: Vec<u32>,
+    pub texture_params: Vec<TextureParams>,
     pub chunk_layers: Vec<ChunkTexLayers>,
 }
 
@@ -90,6 +99,15 @@ struct Mh2oChunkHeader {
     instance_offset: u32,
     layer_count: u32,
     _attributes_offset: u32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawTextureParams {
+    flags: u32,
+    height_scale: f32,
+    height_offset: f32,
+    _padding: u32,
 }
 
 fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
@@ -247,27 +265,57 @@ fn parse_tex0_mcnk(payload: &[u8]) -> Result<ChunkTexLayers, String> {
     })
 }
 
+fn parse_u32_chunk(payload: &[u8], label: &str) -> Result<Vec<u32>, String> {
+    if !payload.len().is_multiple_of(size_of::<u32>()) {
+        return Err(format!(
+            "{label} size must be a multiple of {} bytes: {} bytes",
+            size_of::<u32>(),
+            payload.len()
+        ));
+    }
+
+    let mut values = Vec::with_capacity(payload.len() / size_of::<u32>());
+    for i in 0..(payload.len() / size_of::<u32>()) {
+        values.push(read_u32(payload, i * size_of::<u32>())?);
+    }
+    Ok(values)
+}
+
+fn parse_texture_params(payload: &[u8]) -> Result<Vec<TextureParams>, String> {
+    if !payload.len().is_multiple_of(size_of::<RawTextureParams>()) {
+        return Err(format!(
+            "MTXP size must be a multiple of {} bytes: {} bytes",
+            size_of::<RawTextureParams>(),
+            payload.len()
+        ));
+    }
+
+    let mut params = Vec::with_capacity(payload.len() / size_of::<RawTextureParams>());
+    for i in 0..(payload.len() / size_of::<RawTextureParams>()) {
+        let entry: RawTextureParams =
+            parse_binrw_value(payload, i * size_of::<RawTextureParams>(), "MTXP entry")?;
+        params.push(TextureParams {
+            flags: entry.flags,
+            height_scale: entry.height_scale,
+            height_offset: entry.height_offset,
+        });
+    }
+    Ok(params)
+}
+
 pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
     let mut texture_fdids: Vec<u32> = Vec::new();
     let mut height_texture_fdids: Vec<u32> = Vec::new();
+    let mut texture_flags: Vec<u32> = Vec::new();
+    let mut texture_params: Vec<TextureParams> = Vec::new();
     let mut chunk_layers: Vec<ChunkTexLayers> = Vec::with_capacity(256);
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         match tag {
-            b"DIDM" => {
-                let count = payload.len() / 4;
-                texture_fdids.reserve(count);
-                for i in 0..count {
-                    texture_fdids.push(read_u32(payload, i * 4)?);
-                }
-            }
-            b"DIHM" => {
-                let count = payload.len() / 4;
-                height_texture_fdids.reserve(count);
-                for i in 0..count {
-                    height_texture_fdids.push(read_u32(payload, i * 4)?);
-                }
-            }
+            b"DIDM" => texture_fdids = parse_u32_chunk(payload, "MDID")?,
+            b"DIHM" => height_texture_fdids = parse_u32_chunk(payload, "MHID")?,
+            b"FXTM" => texture_flags = parse_u32_chunk(payload, "MTXF")?,
+            b"PXTM" => texture_params = parse_texture_params(payload)?,
             b"KNCM" => chunk_layers.push(parse_tex0_mcnk(payload)?),
             _ => {}
         }
@@ -278,6 +326,8 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
     Ok(AdtTexData {
         texture_fdids,
         height_texture_fdids,
+        texture_flags,
+        texture_params,
         chunk_layers,
     })
 }
@@ -422,6 +472,10 @@ mod tests {
     const TEST_SPEED_BITS: u32 = 5 << 3;
     const TEST_SECOND_SPEED_BITS: u32 = 2 << 3;
     const TEST_SECOND_ROTATION_BITS: u32 = 1;
+    const TEST_TEXTURE_FLAG_0: u32 = 0x10;
+    const TEST_TEXTURE_FLAG_1: u32 = 0x20;
+    const TEST_TEXTURE_PARAM_FLAG_0: u32 = 0x100;
+    const TEST_TEXTURE_PARAM_FLAG_1: u32 = 0x200;
     const TEST_ANIMATED_REFLECTIVE_FLAGS: u32 = MCLY_FLAG_USE_CUBE_MAP_REFLECTION
         | MCLY_FLAG_ALPHA_COMPRESSED
         | MCLY_FLAG_USE_ALPHA_MAP
@@ -509,6 +563,60 @@ mod tests {
         assert_eq!(parsed.height_texture_fdids, vec![30, 40]);
     }
 
+    #[test]
+    fn load_adt_tex0_reads_texture_flags_and_params() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3, 4]));
+        append_subchunk(
+            &mut payload,
+            b"FXTM",
+            u32_array_payload(&[TEST_TEXTURE_FLAG_0, TEST_TEXTURE_FLAG_1]),
+        );
+        append_subchunk(
+            &mut payload,
+            b"PXTM",
+            texture_params_payload(&[
+                TextureParams {
+                    flags: TEST_TEXTURE_PARAM_FLAG_0,
+                    height_scale: 1.5,
+                    height_offset: -0.25,
+                },
+                TextureParams {
+                    flags: TEST_TEXTURE_PARAM_FLAG_1,
+                    height_scale: 0.75,
+                    height_offset: 0.125,
+                },
+            ]),
+        );
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), Vec::new()),
+        );
+
+        let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+
+        assert_eq!(
+            parsed.texture_flags,
+            vec![TEST_TEXTURE_FLAG_0, TEST_TEXTURE_FLAG_1]
+        );
+        assert_eq!(
+            parsed.texture_params,
+            vec![
+                TextureParams {
+                    flags: TEST_TEXTURE_PARAM_FLAG_0,
+                    height_scale: 1.5,
+                    height_offset: -0.25,
+                },
+                TextureParams {
+                    flags: TEST_TEXTURE_PARAM_FLAG_1,
+                    height_scale: 0.75,
+                    height_offset: 0.125,
+                },
+            ]
+        );
+    }
+
     fn mcly_entry_payload(
         texture_index: u32,
         flags: u32,
@@ -540,6 +648,17 @@ mod tests {
         let mut payload = Vec::with_capacity(values.len() * size_of::<u32>());
         for value in values {
             payload.extend_from_slice(&value.to_le_bytes());
+        }
+        payload
+    }
+
+    fn texture_params_payload(values: &[TextureParams]) -> Vec<u8> {
+        let mut payload = Vec::with_capacity(values.len() * size_of::<RawTextureParams>());
+        for value in values {
+            payload.extend_from_slice(&value.flags.to_le_bytes());
+            payload.extend_from_slice(&value.height_scale.to_le_bytes());
+            payload.extend_from_slice(&value.height_offset.to_le_bytes());
+            payload.extend_from_slice(&0u32.to_le_bytes());
         }
         payload
     }

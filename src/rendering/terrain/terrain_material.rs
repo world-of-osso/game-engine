@@ -12,12 +12,22 @@ use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sample
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
 /// Uses height-based blending (ground texture alpha = height channel)
 /// for more natural transitions between terrain layers.
+#[derive(bevy::render::render_resource::ShaderType, Clone)]
+pub struct TerrainMaterialSettings {
+    /// x = layer_count (1-4), y = global_height_blend_strength,
+    /// z = perceptual_roughness, w = reflectance
+    pub config: Vec4,
+    /// x = height_scale, y = height_offset
+    pub layer_params_0: Vec4,
+    pub layer_params_1: Vec4,
+    pub layer_params_2: Vec4,
+    pub layer_params_3: Vec4,
+}
+
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
 pub struct TerrainMaterial {
-    /// x = layer_count (1-4), y = height_blend_strength,
-    /// z = perceptual_roughness, w = reflectance
     #[uniform(0)]
-    pub config: Vec4,
+    pub settings: TerrainMaterialSettings,
 
     #[texture(1)]
     #[sampler(2)]
@@ -307,7 +317,15 @@ pub fn build_terrain_materials(
                 .chunks
                 .get(chunk_index)
                 .and_then(|chunk| chunk.shadow_map.as_ref());
-            build_chunk_material(terrain_materials, images, chunk_tex, gi, shadow_map, &ph)
+            build_chunk_material(
+                terrain_materials,
+                images,
+                td,
+                chunk_tex,
+                gi,
+                shadow_map,
+                &ph,
+            )
         })
         .collect()
 }
@@ -317,6 +335,22 @@ pub fn build_terrain_materials(
 const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
 const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
 const TERRAIN_REFLECTANCE: f32 = 0.2;
+const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 0.0);
+
+fn terrain_settings(layer_count: f32, layer_params: [Vec4; 4]) -> TerrainMaterialSettings {
+    TerrainMaterialSettings {
+        config: Vec4::new(
+            layer_count,
+            HEIGHT_BLEND_STRENGTH,
+            TERRAIN_PERCEPTUAL_ROUGHNESS,
+            TERRAIN_REFLECTANCE,
+        ),
+        layer_params_0: layer_params[0],
+        layer_params_1: layer_params[1],
+        layer_params_2: layer_params[2],
+        layer_params_3: layer_params[3],
+    }
+}
 
 fn fallback_material(
     images: &mut Assets<Image>,
@@ -324,7 +358,7 @@ fn fallback_material(
     ph: &Placeholders,
 ) -> TerrainMaterial {
     TerrainMaterial {
-        config: Vec4::new(0.0, 0.0, TERRAIN_PERCEPTUAL_ROUGHNESS, TERRAIN_REFLECTANCE),
+        settings: terrain_settings(0.0, [DEFAULT_LAYER_PARAMS; 4]),
         ground_0: ph.image.clone(),
         ground_1: ph.image.clone(),
         ground_2: ph.image.clone(),
@@ -337,6 +371,7 @@ fn fallback_material(
 fn build_chunk_material(
     terrain_materials: &mut Assets<TerrainMaterial>,
     images: &mut Assets<Image>,
+    tex_data: &adt::AdtTexData,
     chunk_tex: &adt::ChunkTexLayers,
     ground_images: &[Option<Handle<Image>>],
     shadow_map: Option<&[u8; 512]>,
@@ -355,14 +390,10 @@ fn build_chunk_material(
             .and_then(|opt| opt.clone())
             .unwrap_or_else(|| ph.image.clone())
     };
+    let layer_params = texture_layer_params(tex_data, &chunk_tex.layers);
 
     terrain_materials.add(TerrainMaterial {
-        config: Vec4::new(
-            layer_count,
-            HEIGHT_BLEND_STRENGTH,
-            TERRAIN_PERCEPTUAL_ROUGHNESS,
-            TERRAIN_REFLECTANCE,
-        ),
+        settings: terrain_settings(layer_count, layer_params),
         ground_0: ground(0),
         ground_1: ground(1),
         ground_2: ground(2),
@@ -372,11 +403,28 @@ fn build_chunk_material(
     })
 }
 
+fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]) -> [Vec4; 4] {
+    let mut params = [DEFAULT_LAYER_PARAMS; 4];
+    for (slot, layer) in layers.iter().take(4).enumerate() {
+        params[slot] = tex_data
+            .texture_params
+            .get(layer.texture_index as usize)
+            .map(|param| Vec4::new(param.height_scale, param.height_offset, 0.0, 0.0))
+            .unwrap_or(DEFAULT_LAYER_PARAMS);
+    }
+    params
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{pack_shadow_map, shadow_bit_is_set};
+    use super::{pack_shadow_map, shadow_bit_is_set, texture_layer_params};
+    use crate::asset::adt;
     use bevy::asset::Assets;
     use bevy::image::Image;
+    use bevy::math::Vec4;
+
+    const TEST_TEXTURE_PARAM_FLAG_0: u32 = 0x10;
+    const TEST_TEXTURE_PARAM_FLAG_1: u32 = 0x20;
 
     #[test]
     fn pack_shadow_map_expands_mcsh_bits_to_64x64_pixels() {
@@ -397,5 +445,46 @@ mod tests {
         assert_eq!(&data[0..4], &[0, 0, 0, 255]);
         assert_eq!(&data[4..8], &[255, 255, 255, 255]);
         assert_eq!(&data[32..36], &[0, 0, 0, 255]);
+    }
+
+    #[test]
+    fn texture_layer_params_use_mtxp_per_texture_index() {
+        let tex_data = adt::AdtTexData {
+            texture_fdids: vec![11, 22],
+            height_texture_fdids: vec![],
+            texture_flags: vec![0, 0],
+            texture_params: vec![
+                adt::TextureParams {
+                    flags: TEST_TEXTURE_PARAM_FLAG_0,
+                    height_scale: 1.25,
+                    height_offset: -0.5,
+                },
+                adt::TextureParams {
+                    flags: TEST_TEXTURE_PARAM_FLAG_1,
+                    height_scale: 0.75,
+                    height_offset: 0.125,
+                },
+            ],
+            chunk_layers: vec![],
+        };
+        let layers = vec![
+            adt::TextureLayer {
+                texture_index: 1,
+                flags: adt::MclyFlags::default(),
+                effect_id: 0,
+                alpha_map: None,
+            },
+            adt::TextureLayer {
+                texture_index: 0,
+                flags: adt::MclyFlags::default(),
+                effect_id: 0,
+                alpha_map: None,
+            },
+        ];
+
+        let params = texture_layer_params(&tex_data, &layers);
+
+        assert_eq!(params[0], Vec4::new(0.75, 0.125, 0.0, 0.0));
+        assert_eq!(params[1], Vec4::new(1.25, -0.5, 0.0, 0.0));
     }
 }

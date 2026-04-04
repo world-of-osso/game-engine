@@ -216,6 +216,8 @@ mod tests {
         let tex = adt::AdtTexData {
             texture_fdids: vec![1, 2],
             height_texture_fdids: Vec::new(),
+            texture_flags: Vec::new(),
+            texture_params: Vec::new(),
             chunk_layers: vec![adt::ChunkTexLayers {
                 layers: vec![
                     adt::TextureLayer {
