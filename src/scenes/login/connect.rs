@@ -269,6 +269,16 @@ fn dispatch_click(
     frame_name: &str,
     frame_id: u64,
 ) -> Result<(), String> {
+    let parsed = action.and_then(LoginAction::parse);
+    dispatch_resolved_click(ctx, parsed, frame_name, frame_id)
+}
+
+fn dispatch_resolved_click(
+    ctx: LoginAutomationContext<'_, '_, '_>,
+    parsed: Option<LoginAction>,
+    frame_name: &str,
+    frame_id: u64,
+) -> Result<(), String> {
     let LoginAutomationContext {
         ui,
         login,
@@ -281,31 +291,112 @@ fn dispatch_click(
         server_hostname,
         commands,
     } = ctx;
-    let parsed = action.and_then(LoginAction::parse);
-    match parsed {
-        Some(action @ LoginAction::Connect) | Some(action @ LoginAction::Reconnect) => {
-            dispatch_login_connect_action(
-                action,
-                &ui.registry,
-                login,
-                status,
-                next_state,
-                login_mode,
-                auth_token,
-                server_addr,
-                server_hostname,
-                commands,
-            );
-        }
-        Some(action @ LoginAction::CreateAccount)
-        | Some(action @ LoginAction::Menu)
-        | Some(action @ LoginAction::Exit) => {
-            dispatch_login_ui_action(action, ui, login, status, login_mode, commands);
-        }
-        None if ui.registry.focused_frame == Some(frame_id) => {}
-        _ => return Err(format!("login frame '{frame_name}' has no onclick action")),
+    if dispatch_optional_connect_click(
+        parsed,
+        &ui.registry,
+        login,
+        status,
+        next_state,
+        login_mode,
+        auth_token,
+        server_addr,
+        server_hostname,
+        commands,
+    ) {
+        return Ok(());
     }
-    Ok(())
+    if dispatch_optional_ui_click(parsed, ui, login, status, login_mode, commands) {
+        return Ok(());
+    }
+    if ui.registry.focused_frame == Some(frame_id) {
+        return Ok(());
+    }
+    Err(format!("login frame '{frame_name}' has no onclick action"))
+}
+
+fn dispatch_optional_connect_click(
+    parsed: Option<LoginAction>,
+    registry: &FrameRegistry,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
+    commands: &mut Commands,
+) -> bool {
+    if let Some(action @ LoginAction::Connect) | Some(action @ LoginAction::Reconnect) = parsed {
+        dispatch_click_connect_action(
+            action,
+            registry,
+            login,
+            status,
+            next_state,
+            login_mode,
+            auth_token,
+            server_addr,
+            server_hostname,
+            commands,
+        );
+        return true;
+    }
+    false
+}
+
+fn dispatch_optional_ui_click(
+    parsed: Option<LoginAction>,
+    ui: &mut UiState,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    login_mode: &mut networking::LoginMode,
+    commands: &mut Commands,
+) -> bool {
+    if let Some(action @ LoginAction::CreateAccount)
+    | Some(action @ LoginAction::Menu)
+    | Some(action @ LoginAction::Exit) = parsed
+    {
+        dispatch_click_ui_action(action, ui, login, status, login_mode, commands);
+        return true;
+    }
+    false
+}
+
+fn dispatch_click_connect_action(
+    action: LoginAction,
+    registry: &FrameRegistry,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
+    commands: &mut Commands,
+) {
+    dispatch_login_connect_action(
+        action,
+        registry,
+        login,
+        status,
+        next_state,
+        login_mode,
+        auth_token,
+        server_addr,
+        server_hostname,
+        commands,
+    );
+}
+
+fn dispatch_click_ui_action(
+    action: LoginAction,
+    ui: &mut UiState,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    login_mode: &mut networking::LoginMode,
+    commands: &mut Commands,
+) {
+    dispatch_login_ui_action(action, ui, login, status, login_mode, commands);
 }
 
 fn dispatch_login_connect_action(
