@@ -271,17 +271,35 @@ fn spawn_wmo_group(
     };
 
     let bbox = group_bbox(root, group_index);
-    let group_entity = commands
+    let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
+    commands.entity(root_entity).add_child(group_entity);
+    spawn_wmo_group_batches(commands, assets, root, group_entity, group.batches);
+    true
+}
+
+fn spawn_wmo_group_entity(
+    commands: &mut Commands,
+    group_index: u16,
+    bbox: game_engine::culling::WmoGroup,
+) -> Entity {
+    commands
         .spawn((
             Name::new(format!("wmo_group_{group_index}")),
             Transform::default(),
             Visibility::default(),
             bbox,
         ))
-        .id();
-    commands.entity(root_entity).add_child(group_entity);
+        .id()
+}
 
-    for batch in group.batches {
+fn spawn_wmo_group_batches(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    root: &wmo::WmoRootData,
+    group_entity: Entity,
+    batches: Vec<wmo::WmoGroupBatch>,
+) {
+    for batch in batches {
         let mat = wmo_batch_material(
             assets.materials,
             assets.images,
@@ -299,7 +317,6 @@ fn spawn_wmo_group(
             .id();
         commands.entity(group_entity).add_child(child);
     }
-    true
 }
 
 fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling::WmoGroup {
