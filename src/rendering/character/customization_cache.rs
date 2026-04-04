@@ -174,7 +174,7 @@ fn customization_cache_drop_tables_sql() -> &'static str {
      DROP TABLE IF EXISTS texture_fdids;"
 }
 
-fn customization_cache_create_tables_sql() -> &'static str {
+fn customization_cache_core_tables_sql() -> &'static str {
     "CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
      CREATE TABLE chr_models (
          id INTEGER PRIMARY KEY,
@@ -193,8 +193,11 @@ fn customization_cache_create_tables_sql() -> &'static str {
          name TEXT NOT NULL,
          requirement_id INTEGER NOT NULL,
          order_index INTEGER NOT NULL
-     );
-     CREATE TABLE elements (
+     );"
+}
+
+fn customization_cache_relation_tables_sql() -> &'static str {
+    "CREATE TABLE elements (
          choice_id INTEGER NOT NULL,
          related_choice_id INTEGER NOT NULL,
          geoset_id INTEGER NOT NULL,
@@ -209,8 +212,11 @@ fn customization_cache_create_tables_sql() -> &'static str {
          id INTEGER PRIMARY KEY,
          geoset_type INTEGER NOT NULL,
          geoset_id INTEGER NOT NULL
-     );
-     CREATE TABLE hair_geosets (
+     );"
+}
+
+fn customization_cache_lookup_tables_sql() -> &'static str {
+    "CREATE TABLE hair_geosets (
          model_id INTEGER NOT NULL,
          geoset_type INTEGER NOT NULL,
          geoset_id INTEGER NOT NULL,
@@ -221,6 +227,17 @@ fn customization_cache_create_tables_sql() -> &'static str {
          material_resources_id INTEGER PRIMARY KEY,
          file_data_id INTEGER NOT NULL
      );"
+}
+
+fn customization_cache_create_tables_sql() -> String {
+    format!(
+        "{}
+         {}
+         {}",
+        customization_cache_core_tables_sql(),
+        customization_cache_relation_tables_sql(),
+        customization_cache_lookup_tables_sql(),
+    )
 }
 
 fn insert_simple_rows<T, F>(
