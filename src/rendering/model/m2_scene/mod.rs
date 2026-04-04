@@ -90,25 +90,51 @@ fn spawn_anim_and_particles(
     visual_root: Entity,
     default_main_hand_torch: bool,
 ) {
+    let joint_entities = spawn_anim_runtime(ctx, &payload, skinning, model_entity, visual_root);
+    finalize_anim_payload(
+        ctx.commands,
+        payload,
+        joint_entities,
+        model_entity,
+        default_main_hand_torch,
+    );
+}
+
+fn spawn_anim_runtime(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    payload: &M2SceneAnimPayload,
+    skinning: &m2_spawn::SkinningResult,
+    model_entity: Entity,
+    visual_root: Entity,
+) -> Option<Vec<Entity>> {
+    spawn_anim_joints_and_emitters(
+        ctx,
+        &payload.bones,
+        &payload.sequences,
+        &payload.particle_emitters,
+        skinning,
+        model_entity,
+        visual_root,
+    )
+}
+
+fn finalize_anim_payload(
+    commands: &mut Commands,
+    payload: M2SceneAnimPayload,
+    joint_entities: Option<Vec<Entity>>,
+    model_entity: Entity,
+    default_main_hand_torch: bool,
+) {
     let M2SceneAnimPayload {
         bones,
         sequences,
         bone_tracks,
-        particle_emitters,
         attachments,
         attachment_lookup,
+        particle_emitters: _,
     } = payload;
-    let joint_entities = spawn_anim_joints_and_emitters(
-        ctx,
-        &bones,
-        &sequences,
-        &particle_emitters,
-        skinning,
-        model_entity,
-        visual_root,
-    );
     insert_anim_data_if_present(
-        ctx.commands,
+        commands,
         model_entity,
         joint_entities,
         bones,
@@ -116,7 +142,7 @@ fn spawn_anim_and_particles(
         bone_tracks,
     );
     attach_anim_equipment(
-        ctx.commands,
+        commands,
         model_entity,
         &attachments,
         &attachment_lookup,
@@ -217,7 +243,7 @@ fn load_m2_model_with_skin_fdids(
     m2_path: &Path,
     skin_fdids: &[u32; 3],
 ) -> Option<asset::m2::M2Model> {
-    asset::m2::load_m2_uncached(m2_path, skin_fdids)
+    asset::m2::load_m2(m2_path, skin_fdids)
         .map_err(|e| {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
         })
