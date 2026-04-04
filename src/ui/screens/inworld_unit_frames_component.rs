@@ -38,7 +38,6 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<InWorldUnitFramesState>()
         .expect("InWorldUnitFramesState must be in SharedContext");
-    let hide_target = state.target.is_none() || !state.show_target_frame;
     rsx! {
         r#frame {
             name: "InWorldUnitFramesRoot",
@@ -46,23 +45,26 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
             {player_frame(&state.player, state.show_player_frame)}
-            r#frame {
-                name: "TargetFrame",
-                width: FRAME_W,
-                height: FRAME_H,
-                hidden: hide_target,
-                anchor {
-                    point: AnchorPoint::BottomLeft,
-                    relative_point: AnchorPoint::BottomLeft,
-                    x: {TARGET_FRAME_CONFIG.frame_x},
-                    y: {FRAME_BOTTOM_Y},
-                }
-                {state
-                    .target
-                    .as_ref()
-                    .map(target_frame_contents)
-                    .unwrap_or_default()}
+            {target_frame(state.target.as_ref(), state.show_target_frame)}
+        }
+    }
+}
+
+fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
+    let hide_target = target.is_none() || !visible;
+    rsx! {
+        r#frame {
+            name: "TargetFrame",
+            width: FRAME_W,
+            height: FRAME_H,
+            hidden: hide_target,
+            anchor {
+                point: AnchorPoint::BottomLeft,
+                relative_point: AnchorPoint::BottomLeft,
+                x: {TARGET_FRAME_CONFIG.frame_x},
+                y: {FRAME_BOTTOM_Y},
             }
+            {target.map(target_frame_contents).unwrap_or_default()}
         }
     }
 }
