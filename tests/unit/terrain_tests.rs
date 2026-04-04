@@ -48,6 +48,7 @@ fn rough_grid(
 fn empty_adt(height_grids: Vec<adt::ChunkHeightGrid>) -> adt::AdtData {
     adt::AdtData {
         chunks: Vec::new(),
+        blend_mesh: None,
         height_grids,
         center_surface: [0.0, 0.0, 0.0],
         chunk_positions: Vec::new(),

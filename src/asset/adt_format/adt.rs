@@ -17,13 +17,17 @@ const MCLV_BYTES_PER_VERTEX: usize = 4;
 const MCSH_BYTES: usize = 512;
 const MCSE_BYTES_PER_EMITTER: usize = 28;
 const MCBB_BYTES_PER_BATCH: usize = 20;
+const MCDD_BYTES: usize = 64;
+const MBMH_BYTES_PER_HEADER: usize = 28;
+const MBBB_BYTES_PER_BOUND: usize = 28;
+const MBNV_BYTES_PER_VERTEX: usize = 44;
 const MCNK_FLAG_HAS_MCSH: u32 = 0x1;
 const MCNK_FLAG_IMPASS: u32 = 0x2;
 const MCNK_FLAG_HAS_MCCV: u32 = 0x40;
 const MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP: u32 = 0x8000;
 const MCNK_FLAG_HIGH_RES_HOLES: u32 = 0x10000;
 
-type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
+type AdtChunksResult<'a> = Result<AdtRootChunks<'a>, String>;
 type McnkSubchunksResult = (
     [f32; MCVT_COUNT],
     [[f32; 3]; MCVT_COUNT],
@@ -32,7 +36,19 @@ type McnkSubchunksResult = (
     Option<[u8; MCSH_BYTES]>,
     Vec<SoundEmitter>,
     Vec<BlendBatch>,
+    Option<[u8; MCDD_BYTES]>,
 );
+
+struct McnkSubchunkAccum {
+    heights: Option<[f32; MCVT_COUNT]>,
+    normals: Option<[[f32; 3]; MCVT_COUNT]>,
+    vertex_colors: Option<[[f32; 4]; MCVT_COUNT]>,
+    vertex_lighting: Option<[[f32; 4]; MCVT_COUNT]>,
+    shadow_map: Option<[u8; MCSH_BYTES]>,
+    sound_emitters: Option<Vec<SoundEmitter>>,
+    blend_batches: Option<Vec<BlendBatch>>,
+    detail_doodad_disable: Option<[u8; MCDD_BYTES]>,
+}
 
 #[derive(Clone)]
 pub struct ChunkHeightGrid {
@@ -75,11 +91,19 @@ pub(crate) struct McnkData {
     pub vertex_lighting: Option<[[f32; 4]; MCVT_COUNT]>,
     pub sound_emitters: Vec<SoundEmitter>,
     pub blend_batches: Vec<BlendBatch>,
+    pub detail_doodad_disable: Option<[u8; MCDD_BYTES]>,
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub heights: [f32; MCVT_COUNT],
     pub normals: [[f32; 3]; MCVT_COUNT],
     pub vertex_colors: [[f32; 4]; MCVT_COUNT],
+}
+
+pub struct BlendMeshData {
+    pub headers: Vec<BlendMeshHeader>,
+    pub bounds: Vec<BlendMeshBounds>,
+    pub vertices: Vec<BlendMeshVertex>,
+    pub indices: Vec<u16>,
 }
 
 #[derive(Debug, Clone, Copy, BinRead, PartialEq)]
@@ -98,6 +122,35 @@ pub struct BlendBatch {
     pub index_first: u32,
     pub vertex_count: u32,
     pub vertex_first: u32,
+}
+
+#[derive(Debug, Clone, Copy, BinRead, PartialEq)]
+#[br(little)]
+pub struct BlendMeshHeader {
+    pub map_object_id: u32,
+    pub texture_id: u32,
+    pub unknown: u32,
+    pub index_count: u32,
+    pub vertex_count: u32,
+    pub index_start: u32,
+    pub vertex_start: u32,
+}
+
+#[derive(Debug, Clone, Copy, BinRead, PartialEq)]
+#[br(little)]
+pub struct BlendMeshBounds {
+    pub map_object_id: u32,
+    pub min: [f32; 3],
+    pub max: [f32; 3],
+}
+
+#[derive(Debug, Clone, Copy, BinRead, PartialEq)]
+#[br(little)]
+pub struct BlendMeshVertex {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub uv: [f32; 2],
+    pub color: [[u8; 4]; 3],
 }
 
 #[derive(BinRead)]
@@ -131,11 +184,21 @@ struct McnkHeader {
 
 pub(crate) struct ParsedAdtData {
     pub chunks: Vec<McnkData>,
+    pub blend_mesh: Option<BlendMeshData>,
     pub height_grids: Vec<ChunkHeightGrid>,
     pub center_surface: [f32; 3],
     pub chunk_positions: Vec<[f32; 3]>,
     pub water: Option<AdtWaterData>,
     pub water_error: Option<String>,
+}
+
+struct AdtRootChunks<'a> {
+    mcnks: Vec<&'a [u8]>,
+    mh2o: Option<&'a [u8]>,
+    mbmh: Option<&'a [u8]>,
+    mbbb: Option<&'a [u8]>,
+    mbnv: Option<&'a [u8]>,
+    mbmi: Option<&'a [u8]>,
 }
 
 fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
@@ -335,13 +398,116 @@ fn parse_mcbb(payload: &[u8]) -> Result<Vec<BlendBatch>, String> {
     Ok(batches)
 }
 
+fn parse_mcdd(payload: &[u8]) -> Result<[u8; MCDD_BYTES], String> {
+    if payload.len() < MCDD_BYTES {
+        return Err(format!(
+            "MCDD too small: {} bytes (need {})",
+            payload.len(),
+            MCDD_BYTES
+        ));
+    }
+
+    let mut disable = [0; MCDD_BYTES];
+    disable.copy_from_slice(&payload[..MCDD_BYTES]);
+    Ok(disable)
+}
+
+fn parse_blend_mesh_headers(payload: &[u8]) -> Result<Vec<BlendMeshHeader>, String> {
+    parse_binrw_array(payload, MBMH_BYTES_PER_HEADER, "MBMH header")
+}
+
+fn parse_blend_mesh_bounds(payload: &[u8]) -> Result<Vec<BlendMeshBounds>, String> {
+    parse_binrw_array(payload, MBBB_BYTES_PER_BOUND, "MBBB bounds")
+}
+
+fn parse_blend_mesh_vertices(payload: &[u8]) -> Result<Vec<BlendMeshVertex>, String> {
+    parse_binrw_array(payload, MBNV_BYTES_PER_VERTEX, "MBNV vertex")
+}
+
+fn parse_blend_mesh_indices(payload: &[u8]) -> Result<Vec<u16>, String> {
+    if !payload.len().is_multiple_of(size_of::<u16>()) {
+        return Err(format!(
+            "MBMI size must be a multiple of {} bytes: {} bytes",
+            size_of::<u16>(),
+            payload.len()
+        ));
+    }
+
+    Ok(payload
+        .chunks_exact(size_of::<u16>())
+        .map(|chunk| u16::from_le_bytes(chunk.try_into().unwrap()))
+        .collect())
+}
+
+fn parse_binrw_array<T>(payload: &[u8], entry_size: usize, label: &str) -> Result<Vec<T>, String>
+where
+    for<'a> T: BinRead<Args<'a> = ()>,
+{
+    if !payload.len().is_multiple_of(entry_size) {
+        return Err(format!(
+            "{label} array size must be a multiple of {entry_size} bytes: {} bytes",
+            payload.len()
+        ));
+    }
+
+    let mut entries = Vec::with_capacity(payload.len() / entry_size);
+    let mut cursor = Cursor::new(payload);
+    while (cursor.position() as usize) < payload.len() {
+        entries
+            .push(T::read_le(&mut cursor).map_err(|err| format!("{label} parse failed: {err}"))?);
+    }
+    Ok(entries)
+}
+
+fn parse_blend_mesh_data(root_chunks: &AdtRootChunks<'_>) -> Result<Option<BlendMeshData>, String> {
+    let has_any_blend_mesh_chunk = root_chunks.mbmh.is_some()
+        || root_chunks.mbbb.is_some()
+        || root_chunks.mbnv.is_some()
+        || root_chunks.mbmi.is_some();
+    if !has_any_blend_mesh_chunk {
+        return Ok(None);
+    }
+
+    let headers = root_chunks
+        .mbmh
+        .ok_or("ADT has blend mesh chunks but is missing HMBM (MBMH)".to_string())
+        .and_then(parse_blend_mesh_headers)?;
+    let vertices = root_chunks
+        .mbnv
+        .ok_or("ADT has blend mesh chunks but is missing VNBM (MBNV)".to_string())
+        .and_then(parse_blend_mesh_vertices)?;
+    let indices = root_chunks
+        .mbmi
+        .ok_or("ADT has blend mesh chunks but is missing IMBM (MBMI)".to_string())
+        .and_then(parse_blend_mesh_indices)?;
+    let bounds = match root_chunks.mbbb {
+        Some(payload) => parse_blend_mesh_bounds(payload)?,
+        None => Vec::new(),
+    };
+
+    Ok(Some(BlendMeshData {
+        headers,
+        bounds,
+        vertices,
+        indices,
+    }))
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
     }
     let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
     let flags = McnkFlags::from_bits(header.flags);
-    let pos = [header.pos_x, header.pos_y, header.pos_z];
+    let subchunks = parse_mcnk_subchunks(&payload[128..], flags)?;
+    Ok(build_mcnk_data(header, flags, subchunks))
+}
+
+fn build_mcnk_data(
+    header: McnkHeader,
+    flags: McnkFlags,
+    subchunks: McnkSubchunksResult,
+) -> McnkData {
     let (
         heights,
         normals,
@@ -350,60 +516,81 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         shadow_map,
         sound_emitters,
         blend_batches,
-    ) = parse_mcnk_subchunks(&payload[128..], flags)?;
-    Ok(McnkData {
+        detail_doodad_disable,
+    ) = subchunks;
+    McnkData {
         index_x: header.index_x,
         index_y: header.index_y,
-        pos,
+        pos: [header.pos_x, header.pos_y, header.pos_z],
         flags,
         area_id: header._area_id,
         shadow_map,
         vertex_lighting,
         sound_emitters,
         blend_batches,
+        detail_doodad_disable,
         holes_low_res: header._holes_low_res,
         holes_high_res: flags.high_res_holes.then_some(header._holes_high_res),
         heights,
         normals,
         vertex_colors,
-    })
+    }
 }
 
 fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksResult, String> {
-    let mut heights = None;
-    let mut normals = None;
-    let mut vertex_colors = None;
-    let mut vertex_lighting = None;
-    let mut shadow_map = None;
-    let mut sound_emitters = None;
-    let mut blend_batches = None;
+    let mut accum = McnkSubchunkAccum {
+        heights: None,
+        normals: None,
+        vertex_colors: None,
+        vertex_lighting: None,
+        shadow_map: None,
+        sound_emitters: None,
+        blend_batches: None,
+        detail_doodad_disable: None,
+    };
     for chunk in ChunkIter::new(sub) {
         let (tag, payload) = chunk?;
-        match tag {
-            b"TVCM" => heights = Some(parse_mcvt(payload)?),
-            b"RNCM" => normals = Some(parse_mcnr(payload)?),
-            b"VCCM" => vertex_colors = Some(parse_mccv(payload)?),
-            b"VLCM" => vertex_lighting = Some(parse_mclv(payload)?),
-            b"HSCM" => shadow_map = Some(parse_mcsh(payload)?),
-            b"MCSE" => sound_emitters = Some(parse_mcse(payload)?),
-            b"BBCM" => blend_batches = Some(parse_mcbb(payload)?),
-            _ => {}
-        }
+        apply_mcnk_subchunk(&mut accum, tag, payload)?;
     }
-    let heights = heights.ok_or("MCNK missing TVCM sub-chunk")?;
-    let normals = normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
-    let vertex_colors = resolve_mcnk_vertex_colors(vertex_colors, flags)?;
-    let shadow_map = resolve_mcnk_shadow_map(shadow_map, flags)?;
-    let sound_emitters = sound_emitters.unwrap_or_default();
-    let blend_batches = blend_batches.unwrap_or_default();
+    finalize_mcnk_subchunks(accum, flags)
+}
+
+fn apply_mcnk_subchunk(
+    accum: &mut McnkSubchunkAccum,
+    tag: &[u8; 4],
+    payload: &[u8],
+) -> Result<(), String> {
+    match tag {
+        b"TVCM" => accum.heights = Some(parse_mcvt(payload)?),
+        b"RNCM" => accum.normals = Some(parse_mcnr(payload)?),
+        b"VCCM" => accum.vertex_colors = Some(parse_mccv(payload)?),
+        b"VLCM" => accum.vertex_lighting = Some(parse_mclv(payload)?),
+        b"HSCM" => accum.shadow_map = Some(parse_mcsh(payload)?),
+        b"MCSE" => accum.sound_emitters = Some(parse_mcse(payload)?),
+        b"BBCM" => accum.blend_batches = Some(parse_mcbb(payload)?),
+        b"DDCM" => accum.detail_doodad_disable = Some(parse_mcdd(payload)?),
+        _ => {}
+    }
+    Ok(())
+}
+
+fn finalize_mcnk_subchunks(
+    accum: McnkSubchunkAccum,
+    flags: McnkFlags,
+) -> Result<McnkSubchunksResult, String> {
+    let heights = accum.heights.ok_or("MCNK missing TVCM sub-chunk")?;
+    let normals = accum.normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
+    let vertex_colors = resolve_mcnk_vertex_colors(accum.vertex_colors, flags)?;
+    let shadow_map = resolve_mcnk_shadow_map(accum.shadow_map, flags)?;
     Ok((
         heights,
         normals,
         vertex_colors,
-        vertex_lighting,
+        accum.vertex_lighting,
         shadow_map,
-        sound_emitters,
-        blend_batches,
+        accum.sound_emitters.unwrap_or_default(),
+        accum.blend_batches.unwrap_or_default(),
+        accum.detail_doodad_disable,
     ))
 }
 
@@ -692,20 +879,30 @@ fn center_surface_position(chunks: &[McnkData], tile_coords: Option<(u32, u32)>)
 }
 
 fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
-    let mut mcnks = Vec::with_capacity(256);
-    let mut mh2o = None;
+    let mut root_chunks = AdtRootChunks {
+        mcnks: Vec::with_capacity(256),
+        mh2o: None,
+        mbmh: None,
+        mbbb: None,
+        mbnv: None,
+        mbmi: None,
+    };
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         match tag {
-            b"KNCM" => mcnks.push(payload),
-            b"O2HM" => mh2o = Some(payload),
+            b"KNCM" => root_chunks.mcnks.push(payload),
+            b"O2HM" => root_chunks.mh2o = Some(payload),
+            b"HMBM" => root_chunks.mbmh = Some(payload),
+            b"BBBM" => root_chunks.mbbb = Some(payload),
+            b"VNBM" => root_chunks.mbnv = Some(payload),
+            b"IMBM" => root_chunks.mbmi = Some(payload),
             _ => {}
         }
     }
-    if mcnks.is_empty() {
+    if root_chunks.mcnks.is_empty() {
         return Err("No KNCM (MCNK) chunks found in ADT file".to_string());
     }
-    Ok((mcnks, mh2o))
+    Ok(root_chunks)
 }
 
 pub(crate) fn load_adt_parsed(data: &[u8]) -> Result<ParsedAdtData, String> {
@@ -730,8 +927,10 @@ fn load_adt_inner(
     stitch: bool,
     tile_coords: Option<(u32, u32)>,
 ) -> Result<ParsedAdtData, String> {
-    let (mcnk_payloads, mh2o_payload) = collect_adt_chunks(data)?;
-    let mut parsed: Vec<McnkData> = mcnk_payloads
+    let root_chunks = collect_adt_chunks(data)?;
+    let blend_mesh = parse_blend_mesh_data(&root_chunks)?;
+    let mut parsed: Vec<McnkData> = root_chunks
+        .mcnks
         .into_iter()
         .map(parse_mcnk)
         .collect::<Result<Vec<_>, String>>()?;
@@ -741,7 +940,7 @@ fn load_adt_inner(
     let center_surface = center_surface_position(&parsed, tile_coords);
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed, tile_coords);
-    let (water, water_error) = match mh2o_payload {
+    let (water, water_error) = match root_chunks.mh2o {
         Some(payload) => match parse_mh2o(payload) {
             Ok(water) => (Some(water), None),
             Err(err) => (None, Some(err)),
@@ -750,6 +949,7 @@ fn load_adt_inner(
     };
     Ok(ParsedAdtData {
         chunks: parsed,
+        blend_mesh,
         height_grids,
         center_surface,
         chunk_positions,

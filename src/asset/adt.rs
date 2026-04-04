@@ -16,10 +16,12 @@ pub struct McnkMesh {
     pub shadow_map: Option<[u8; 512]>,
     pub sound_emitters: Vec<super::adt_format::adt::SoundEmitter>,
     pub blend_batches: Vec<super::adt_format::adt::BlendBatch>,
+    pub detail_doodad_disable: Option<[u8; 64]>,
 }
 
 pub struct AdtData {
     pub chunks: Vec<McnkMesh>,
+    pub blend_mesh: Option<super::adt_format::adt::BlendMeshData>,
     pub height_grids: Vec<ChunkHeightGrid>,
     pub center_surface: [f32; 3],
     pub chunk_positions: Vec<[f32; 3]>,
@@ -207,6 +209,7 @@ fn build_chunks(
             shadow_map: chunk.shadow_map,
             sound_emitters: chunk.sound_emitters.clone(),
             blend_batches: chunk.blend_batches.clone(),
+            detail_doodad_disable: chunk.detail_doodad_disable,
         })
         .collect()
 }
@@ -323,6 +326,7 @@ fn load_adt_inner(
 ) -> Result<AdtData, String> {
     Ok(AdtData {
         chunks: build_chunks(&parsed.chunks, tile_coords),
+        blend_mesh: parsed.blend_mesh,
         height_grids: parsed.height_grids,
         center_surface: parsed.center_surface,
         chunk_positions: parsed.chunk_positions,
@@ -403,6 +407,7 @@ mod tests {
             vertex_lighting: None,
             sound_emitters: Vec::new(),
             blend_batches: Vec::new(),
+            detail_doodad_disable: None,
             holes_low_res: 0,
             holes_high_res: None,
             heights: [0.0; 145],
@@ -431,6 +436,7 @@ mod tests {
             vertex_lighting: Some([[1.5, 0.5, 0.25, 1.0]; 145]),
             sound_emitters: Vec::new(),
             blend_batches: Vec::new(),
+            detail_doodad_disable: None,
             holes_low_res: 0,
             holes_high_res: None,
             heights: [0.0; 145],
