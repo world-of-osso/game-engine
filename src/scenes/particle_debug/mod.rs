@@ -42,7 +42,7 @@ struct ParticleDebugSceneParams<'w, 's> {
 }
 
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
-    commands.insert_resource(ClearColor(Color::srgb(0.03, 0.04, 0.06)));
+    commands.insert_resource(ClearColor(Color::srgb(0.14, 0.17, 0.22)));
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
@@ -72,10 +72,10 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
 }
 
 fn spawn_camera(commands: &mut Commands) {
-    let focus = Vec3::new(0.0, 0.75, 0.0);
-    let mut orbit = OrbitCamera::new(focus, 2.25);
-    orbit.min_distance = 0.75;
-    orbit.max_distance = 8.0;
+    let focus = Vec3::new(0.0, 1.1, 0.0);
+    let mut orbit = OrbitCamera::new(focus, 1.1);
+    orbit.min_distance = 0.45;
+    orbit.max_distance = 6.0;
     let eye = orbit.eye_position();
     commands.spawn((
         Name::new("ParticleDebugCamera"),
@@ -89,17 +89,17 @@ fn spawn_camera(commands: &mut Commands) {
 
 fn spawn_lighting(commands: &mut Commands) {
     commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(0.82, 0.87, 0.95),
-        brightness: 120.0,
+        color: Color::srgb(0.92, 0.94, 0.98),
+        brightness: 650.0,
         ..default()
     });
     commands.spawn((
         Name::new("ParticleDebugLight"),
         ParticleDebugScene,
         DirectionalLight {
-            illuminance: 9000.0,
+            illuminance: 30000.0,
             shadows_enabled: true,
-            color: Color::srgb(1.0, 0.95, 0.86),
+            color: Color::srgb(1.0, 0.96, 0.9),
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
@@ -116,9 +116,11 @@ fn spawn_ground(
         ParticleDebugScene,
         Mesh3d(meshes.add(Plane3d::default().mesh().size(18.0, 18.0).build())),
         MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.12, 0.14, 0.17),
-            perceptual_roughness: 0.96,
-            metallic: 0.02,
+            base_color: Color::srgb(0.28, 0.31, 0.36),
+            emissive: LinearRgba::rgb(0.16, 0.17, 0.19),
+            unlit: true,
+            perceptual_roughness: 1.0,
+            metallic: 0.0,
             ..default()
         })),
     ));
@@ -150,7 +152,7 @@ fn spawn_torch(commands: &mut Commands, ctx: ParticleDebugTorchContext<'_>) {
     m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
         &mut ctx,
         &path,
-        Transform::from_xyz(0.0, 0.02, 0.0).with_scale(Vec3::splat(6.0)),
+        Transform::from_xyz(0.0, 0.02, 0.0).with_scale(Vec3::splat(18.0)),
         &skin_fdids,
     );
 }
