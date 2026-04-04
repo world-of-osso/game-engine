@@ -11,6 +11,7 @@
 
 struct TerrainSettings {
     config: vec4<f32>,
+    surface: vec4<f32>,
     layer_params_0: vec4<f32>,
     layer_params_1: vec4<f32>,
     layer_params_2: vec4<f32>,
@@ -18,7 +19,8 @@ struct TerrainSettings {
 }
 
 // settings.config.x = layer_count (1-4), settings.config.y = global height blend strength
-// settings.config.z = perceptual_roughness, settings.config.w = reflectance
+// settings.config.z = texture repeat, settings.config.w = unused
+// settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
 // settings.layer_params_N.z = MCMT terrain material id
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: TerrainSettings;
@@ -41,7 +43,6 @@ struct TerrainSettings {
 @group(#{MATERIAL_BIND_GROUP}) @binding(11) var shadow_map: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(12) var shadow_sampler: sampler;
 
-const TILE_REPEAT: f32 = 8.0;
 const STATIC_SHADOW_MIN_BRIGHTNESS: f32 = 0.55;
 
 // ── Hash: deterministic pseudo-random from grid cell ─────────────────────────
@@ -75,7 +76,7 @@ fn sample_ground(idx: u32, uv: vec2<f32>) -> vec4<f32> {
 }
 
 fn sample_ground_tiled(idx: u32, uv: vec2<f32>) -> vec4<f32> {
-    return sample_ground(idx, uv * TILE_REPEAT);
+    return sample_ground(idx, uv * settings.config.z);
 }
 
 fn layer_params(idx: u32) -> vec4<f32> {
@@ -95,7 +96,7 @@ fn layer_params(idx: u32) -> vec4<f32> {
 
 fn hex_sample(idx: u32, uv: vec2<f32>) -> vec4<f32> {
     // Scale UV to tiled space
-    let p = uv * TILE_REPEAT;
+    let p = uv * settings.config.z;
 
     // Transform to simplex (equilateral triangle) grid
     // Skew factor for 2D simplex: (sqrt(3)-1)/2
@@ -218,8 +219,8 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let uv = in.uv;
     let layer_count = u32(settings.config.x);
     let blend_strength = settings.config.y;
-    let perceptual_roughness = settings.config.z;
-    let reflectance = settings.config.w;
+    let perceptual_roughness = settings.surface.x;
+    let reflectance = settings.surface.y;
 
     let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
     let paint = paint_weights(alpha, layer_count);

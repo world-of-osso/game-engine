@@ -63,6 +63,7 @@ pub struct TextureParams {
 }
 
 pub struct AdtTexData {
+    pub texture_amplifier: Option<u32>,
     pub texture_fdids: Vec<u32>,
     pub height_texture_fdids: Vec<u32>,
     pub texture_flags: Vec<u32>,
@@ -351,6 +352,7 @@ pub fn load_adt_tex0_with_chunk_alpha_flags(
     data: &[u8],
     do_not_fix_alpha_map: &[bool],
 ) -> Result<AdtTexData, String> {
+    let mut texture_amplifier: Option<u32> = None;
     let mut texture_fdids: Vec<u32> = Vec::new();
     let mut height_texture_fdids: Vec<u32> = Vec::new();
     let mut texture_flags: Vec<u32> = Vec::new();
@@ -360,6 +362,7 @@ pub fn load_adt_tex0_with_chunk_alpha_flags(
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         match tag {
+            b"PMAM" => texture_amplifier = Some(parse_mamp(payload)?),
             b"DIDM" => texture_fdids = parse_u32_chunk(payload, "MDID")?,
             b"DIHM" => height_texture_fdids = parse_u32_chunk(payload, "MHID")?,
             b"FXTM" => texture_flags = parse_u32_chunk(payload, "MTXF")?,
@@ -379,12 +382,24 @@ pub fn load_adt_tex0_with_chunk_alpha_flags(
         return Err("No KNCM chunks found in _tex0.adt file".to_string());
     }
     Ok(AdtTexData {
+        texture_amplifier,
         texture_fdids,
         height_texture_fdids,
         texture_flags,
         texture_params,
         chunk_layers,
     })
+}
+
+fn parse_mamp(payload: &[u8]) -> Result<u32, String> {
+    if payload.len() != size_of::<u32>() {
+        return Err(format!(
+            "MAMP size must be exactly {} bytes: {} bytes",
+            size_of::<u32>(),
+            payload.len()
+        ));
+    }
+    read_u32(payload, 0)
 }
 
 pub struct WaterLayer {
@@ -583,6 +598,7 @@ mod tests {
     #[test]
     fn load_adt_tex0_preserves_parsed_mcly_flags_per_chunk() {
         let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
         append_subchunk(&mut payload, b"DIDM", 3u32.to_le_bytes().to_vec());
         append_subchunk(
             &mut payload,
@@ -597,6 +613,7 @@ mod tests {
         let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
         let layer = &parsed.chunk_layers[0].layers[0];
 
+        assert_eq!(parsed.texture_amplifier, Some(0));
         assert_eq!(parsed.texture_fdids, vec![3]);
         assert!(parsed.height_texture_fdids.is_empty());
         assert!(layer.flags.use_alpha_map());
@@ -608,6 +625,7 @@ mod tests {
     #[test]
     fn load_adt_tex0_reads_mcmt_material_ids_per_layer() {
         let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
         append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3, 4]));
         let mcly = [
             mcly_entry_payload(0, 0, 0, 0),
@@ -630,6 +648,7 @@ mod tests {
     #[test]
     fn load_adt_tex0_reads_height_texture_fdids_from_mhid() {
         let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
         append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3, 4]));
         append_subchunk(&mut payload, b"DIHM", u32_array_payload(&[30, 40]));
         append_subchunk(
@@ -647,6 +666,7 @@ mod tests {
     #[test]
     fn load_adt_tex0_reads_texture_flags_and_params() {
         let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
         append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3, 4]));
         append_subchunk(
             &mut payload,
@@ -701,6 +721,7 @@ mod tests {
     #[test]
     fn load_adt_tex0_fixes_uncompressed_alpha_map_edges_by_default() {
         let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
         append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
         let mcal = uncompressed_mcal_payload(|x, y| {
             if x == 63 || y == 63 {
@@ -737,6 +758,7 @@ mod tests {
     #[test]
     fn load_adt_tex0_preserves_uncompressed_alpha_map_edges_when_flagged() {
         let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
         append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
         let mcal = uncompressed_mcal_payload(|x, y| {
             if x == 63 || y == 63 {
@@ -769,6 +791,22 @@ mod tests {
         assert_eq!(alpha_at(alpha, 10, 62), 51);
         assert_eq!(alpha_at(alpha, 10, 63), 255);
         assert_eq!(alpha_at(alpha, 63, 63), 255);
+    }
+
+    #[test]
+    fn load_adt_tex0_reads_mamp_texture_amplifier() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"PMAM", 2u32.to_le_bytes().to_vec());
+        append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
+        );
+
+        let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+
+        assert_eq!(parsed.texture_amplifier, Some(2));
     }
 
     fn mcly_entry_payload(

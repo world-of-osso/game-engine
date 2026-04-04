@@ -15,8 +15,10 @@ use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sample
 #[derive(bevy::render::render_resource::ShaderType, Clone)]
 pub struct TerrainMaterialSettings {
     /// x = layer_count (1-4), y = global_height_blend_strength,
-    /// z = perceptual_roughness, w = reflectance
+    /// z = texture_repeat, w = unused
     pub config: Vec4,
+    /// x = perceptual_roughness, y = reflectance
+    pub surface: Vec4,
     /// x = height_scale, y = height_offset
     pub layer_params_0: Vec4,
     pub layer_params_1: Vec4,
@@ -333,18 +335,19 @@ pub fn build_terrain_materials(
 /// Height blend strength: how much the texture alpha channel influences
 /// layer transitions. 0 = flat alpha blending, 2-4 = natural rocky edges.
 const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
+const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
 const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
 const TERRAIN_REFLECTANCE: f32 = 0.2;
 const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 0.0);
 
-fn terrain_settings(layer_count: f32, layer_params: [Vec4; 4]) -> TerrainMaterialSettings {
+fn terrain_settings(
+    layer_count: f32,
+    texture_repeat: f32,
+    layer_params: [Vec4; 4],
+) -> TerrainMaterialSettings {
     TerrainMaterialSettings {
-        config: Vec4::new(
-            layer_count,
-            HEIGHT_BLEND_STRENGTH,
-            TERRAIN_PERCEPTUAL_ROUGHNESS,
-            TERRAIN_REFLECTANCE,
-        ),
+        config: Vec4::new(layer_count, HEIGHT_BLEND_STRENGTH, texture_repeat, 0.0),
+        surface: Vec4::new(TERRAIN_PERCEPTUAL_ROUGHNESS, TERRAIN_REFLECTANCE, 0.0, 0.0),
         layer_params_0: layer_params[0],
         layer_params_1: layer_params[1],
         layer_params_2: layer_params[2],
@@ -358,7 +361,7 @@ fn fallback_material(
     ph: &Placeholders,
 ) -> TerrainMaterial {
     TerrainMaterial {
-        settings: terrain_settings(0.0, [DEFAULT_LAYER_PARAMS; 4]),
+        settings: terrain_settings(0.0, BASE_TERRAIN_TEXTURE_REPEAT, [DEFAULT_LAYER_PARAMS; 4]),
         ground_0: ph.image.clone(),
         ground_1: ph.image.clone(),
         ground_2: ph.image.clone(),
@@ -391,9 +394,10 @@ fn build_chunk_material(
             .unwrap_or_else(|| ph.image.clone())
     };
     let layer_params = texture_layer_params(tex_data, &chunk_tex.layers);
+    let texture_repeat = terrain_texture_repeat(tex_data.texture_amplifier);
 
     terrain_materials.add(TerrainMaterial {
-        settings: terrain_settings(layer_count, layer_params),
+        settings: terrain_settings(layer_count, texture_repeat, layer_params),
         ground_0: ground(0),
         ground_1: ground(1),
         ground_2: ground(2),
@@ -401,6 +405,11 @@ fn build_chunk_material(
         alpha_packed: pack_alpha_maps(images, &chunk_tex.layers),
         shadow_map: pack_shadow_map(images, shadow_map),
     })
+}
+
+fn terrain_texture_repeat(texture_amplifier: Option<u32>) -> f32 {
+    let exponent = texture_amplifier.unwrap_or(0).min(8) as i32;
+    BASE_TERRAIN_TEXTURE_REPEAT * 2.0f32.powi(exponent)
 }
 
 fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]) -> [Vec4; 4] {
@@ -424,7 +433,7 @@ fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]
 
 #[cfg(test)]
 mod tests {
-    use super::{pack_shadow_map, shadow_bit_is_set, texture_layer_params};
+    use super::{pack_shadow_map, shadow_bit_is_set, terrain_texture_repeat, texture_layer_params};
     use crate::asset::adt;
     use bevy::asset::Assets;
     use bevy::image::Image;
@@ -457,6 +466,7 @@ mod tests {
     #[test]
     fn texture_layer_params_use_mtxp_per_texture_index() {
         let tex_data = adt::AdtTexData {
+            texture_amplifier: None,
             texture_fdids: vec![11, 22],
             height_texture_fdids: vec![],
             texture_flags: vec![0, 0],
@@ -495,5 +505,12 @@ mod tests {
 
         assert_eq!(params[0], Vec4::new(0.75, 0.125, 9.0, 0.0));
         assert_eq!(params[1], Vec4::new(1.25, -0.5, 4.0, 0.0));
+    }
+
+    #[test]
+    fn terrain_texture_repeat_scales_with_mamp() {
+        assert_eq!(terrain_texture_repeat(None), 8.0);
+        assert_eq!(terrain_texture_repeat(Some(0)), 8.0);
+        assert_eq!(terrain_texture_repeat(Some(2)), 32.0);
     }
 }
