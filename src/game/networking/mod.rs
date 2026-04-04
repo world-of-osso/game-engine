@@ -14,7 +14,7 @@ pub use crate::networking_auth::{
     SelectedCharacterId, load_auth_token,
 };
 
-use crate::camera::{CharacterFacing, MovementState, Player};
+use crate::camera::{CharacterFacing, MovementState};
 use game_engine::status::{
     CollectionStatusSnapshot, CombatLogStatusSnapshot, GroupStatusSnapshot, MapStatusSnapshot,
     ProfessionStatusSnapshot, QuestLogStatusSnapshot,
@@ -202,7 +202,7 @@ fn register_gameplay_net_systems(app: &mut App) {
             msg::receive_chat_messages,
             msg::send_target_to_server,
             msg::track_player_zone,
-            sync_map_status_snapshot,
+            crate::status_sync::sync_map_status_snapshot,
             msg::receive_quest_log_snapshot,
             msg::receive_group_roster_snapshot,
         )
@@ -276,18 +276,6 @@ fn register_auth_net_systems(app: &mut App) {
             auth::receive_register_response,
         ),
     );
-}
-
-fn sync_map_status_snapshot(
-    mut snapshot: ResMut<MapStatusSnapshot>,
-    current_zone: Res<CurrentZone>,
-    player_query: Query<&Transform, With<Player>>,
-) {
-    snapshot.zone_id = current_zone.zone_id;
-    if let Some(transform) = player_query.iter().next() {
-        snapshot.player_x = transform.translation.x;
-        snapshot.player_z = transform.translation.z;
-    }
 }
 
 fn register_net_observers(app: &mut App) {

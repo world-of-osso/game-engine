@@ -329,11 +329,11 @@ pub fn sync_map_status_snapshot(
     current_zone: Res<networking::CurrentZone>,
     player_query: Query<&Transform, With<Player>>,
 ) {
-    snapshot.zone_id = current_zone.zone_id;
-    if let Some(transform) = player_query.iter().next() {
-        snapshot.player_x = transform.translation.x;
-        snapshot.player_z = transform.translation.z;
-    }
+    crate::status_map_sync::fill_map_status_snapshot(
+        &mut snapshot,
+        current_zone.zone_id,
+        player_query.iter().next(),
+    );
 }
 
 pub(crate) fn init_status_resources(app: &mut App) {
