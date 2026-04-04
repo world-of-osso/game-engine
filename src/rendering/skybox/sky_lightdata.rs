@@ -498,9 +498,11 @@ pub fn interpolate_colors(rows: &[LightDataRow], minutes: f32) -> SkyColorSet {
 mod tests {
     use super::*;
 
+    const BGR32_RED: u32 = 0x000000FF;
+
     #[test]
     fn decode_bgr32_red() {
-        let c = decode_bgr32(0x000000FF);
+        let c = decode_bgr32(BGR32_RED);
         let lin = c.to_linear();
         assert!((lin.red - 1.0).abs() < 0.01);
         assert!(lin.green < 0.01);
