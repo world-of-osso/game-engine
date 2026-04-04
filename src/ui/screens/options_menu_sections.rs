@@ -216,9 +216,12 @@ fn info_detail(key: &str, detail: &str) -> Element {
 }
 
 fn ghost_detail(key: &str, detail: &str) -> Element {
+    let name = DynName(format!("GhostDetail{key}"));
+    let button_name = DynName(format!("GhostButton{key}"));
+
     rsx! {
         fontstring {
-            name: {DynName(format!("GhostDetail{key}"))},
+            name: {name},
             width: 270.0,
             height: 28.0,
             text: {detail},
@@ -227,7 +230,7 @@ fn ghost_detail(key: &str, detail: &str) -> Element {
             justify_h: "RIGHT",
             anchor {
                 point: AnchorPoint::Right,
-                relative_to: {DynName(format!("GhostButton{key}"))},
+                relative_to: {button_name},
                 relative_point: AnchorPoint::Left,
                 x: "-8",
             }
