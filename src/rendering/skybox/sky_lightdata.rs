@@ -382,6 +382,13 @@ pub fn default_sky_colors() -> SkyColorSet {
 }
 
 fn lerp_rows(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
+    let mut colors = lerp_sky_and_light_colors(a, b, t);
+    fill_lerped_water_and_cloud_colors(&mut colors, a, b, t);
+    fill_lerped_row_scalars(&mut colors, a, b, t);
+    colors
+}
+
+fn lerp_sky_and_light_colors(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
     SkyColorSet {
         sky_top: lerp_color(a.sky_top, b.sky_top, t),
         sky_middle: lerp_color(a.sky_middle, b.sky_middle, t),
@@ -393,29 +400,58 @@ fn lerp_rows(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
         fog_color: lerp_color(a.fog_color, b.fog_color, t),
         sun_color: lerp_color(a.sun_color, b.sun_color, t),
         sun_halo_color: lerp_color(a.sun_halo_color, b.sun_halo_color, t),
-        cloud_emissive_color: lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t),
-        cloud_layer1_ambient_color: lerp_color(
-            a.cloud_layer1_ambient_color,
-            b.cloud_layer1_ambient_color,
-            t,
-        ),
-        cloud_layer2_ambient_color: lerp_color(
-            a.cloud_layer2_ambient_color,
-            b.cloud_layer2_ambient_color,
-            t,
-        ),
-        ocean_close_color: lerp_color(a.ocean_close_color, b.ocean_close_color, t),
-        ocean_far_color: lerp_color(a.ocean_far_color, b.ocean_far_color, t),
-        river_close_color: lerp_color(a.river_close_color, b.river_close_color, t),
-        river_far_color: lerp_color(a.river_far_color, b.river_far_color, t),
-        horizon_ambient_color: lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t),
-        fog_end: a.fog_end + (b.fog_end - a.fog_end) * t,
-        fog_start: a.fog_start + (b.fog_start - a.fog_start) * t,
-        glow: a.glow + (b.glow - a.glow) * t,
-        cloud_density: a.cloud_density + (b.cloud_density - a.cloud_density) * t,
-        unk1: a.unk1 + (b.unk1 - a.unk1) * t,
-        unk2: a.unk2 + (b.unk2 - a.unk2) * t,
+        cloud_emissive_color: Color::BLACK,
+        cloud_layer1_ambient_color: Color::BLACK,
+        cloud_layer2_ambient_color: Color::BLACK,
+        ocean_close_color: Color::BLACK,
+        ocean_far_color: Color::BLACK,
+        river_close_color: Color::BLACK,
+        river_far_color: Color::BLACK,
+        horizon_ambient_color: Color::BLACK,
+        fog_end: 0.0,
+        fog_start: 0.0,
+        glow: 0.0,
+        cloud_density: 0.0,
+        unk1: 0.0,
+        unk2: 0.0,
     }
+}
+
+fn fill_lerped_water_and_cloud_colors(
+    colors: &mut SkyColorSet,
+    a: &LightDataRow,
+    b: &LightDataRow,
+    t: f32,
+) {
+    colors.cloud_emissive_color = lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t);
+    colors.cloud_layer1_ambient_color = lerp_color(
+        a.cloud_layer1_ambient_color,
+        b.cloud_layer1_ambient_color,
+        t,
+    );
+    colors.cloud_layer2_ambient_color = lerp_color(
+        a.cloud_layer2_ambient_color,
+        b.cloud_layer2_ambient_color,
+        t,
+    );
+    colors.ocean_close_color = lerp_color(a.ocean_close_color, b.ocean_close_color, t);
+    colors.ocean_far_color = lerp_color(a.ocean_far_color, b.ocean_far_color, t);
+    colors.river_close_color = lerp_color(a.river_close_color, b.river_close_color, t);
+    colors.river_far_color = lerp_color(a.river_far_color, b.river_far_color, t);
+    colors.horizon_ambient_color = lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t);
+}
+
+fn fill_lerped_row_scalars(colors: &mut SkyColorSet, a: &LightDataRow, b: &LightDataRow, t: f32) {
+    colors.fog_end = lerp_scalar(a.fog_end, b.fog_end, t);
+    colors.fog_start = lerp_scalar(a.fog_start, b.fog_start, t);
+    colors.glow = lerp_scalar(a.glow, b.glow, t);
+    colors.cloud_density = lerp_scalar(a.cloud_density, b.cloud_density, t);
+    colors.unk1 = lerp_scalar(a.unk1, b.unk1, t);
+    colors.unk2 = lerp_scalar(a.unk2, b.unk2, t);
+}
+
+fn lerp_scalar(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
 }
 
 fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow, f32) {
