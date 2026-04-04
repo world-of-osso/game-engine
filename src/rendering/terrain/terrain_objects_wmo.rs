@@ -96,13 +96,14 @@ fn try_spawn_wmo(
         root_entity,
     );
     log_wmo_spawn(root_fdid, group_count, &root, &transform);
-    build_spawned_wmo_root(root_fdid, root_entity, group_count)
+    build_spawned_wmo_root(root_fdid, root_entity, group_count, placement)
 }
 
 fn build_spawned_wmo_root(
     root_fdid: u32,
     root_entity: Entity,
     group_count: u32,
+    placement: &adt_obj::WmoPlacement,
 ) -> Option<SpawnedWmoRoot> {
     (group_count > 0).then(|| {
         let model = game_engine::listfile::lookup_fdid(root_fdid)
@@ -110,9 +111,16 @@ fn build_spawned_wmo_root(
             .unwrap_or_else(|| root_fdid.to_string());
         SpawnedWmoRoot {
             entity: root_entity,
-            model,
+            model: wmo_debug_label(model, placement.name_set),
         }
     })
+}
+
+fn wmo_debug_label(model: String, name_set: u16) -> String {
+    if name_set == 0 {
+        return model;
+    }
+    format!("{model} nameSet={name_set}")
 }
 
 fn spawn_wmo_root_entity(
@@ -313,6 +321,18 @@ mod tests {
             .copied()
             .expect("metadata component");
         assert_eq!(stored, metadata);
+    }
+
+    #[test]
+    fn wmo_debug_label_includes_non_default_name_set() {
+        assert_eq!(
+            wmo_debug_label("world/wmo/test.wmo".into(), 0),
+            "world/wmo/test.wmo"
+        );
+        assert_eq!(
+            wmo_debug_label("world/wmo/test.wmo".into(), 6),
+            "world/wmo/test.wmo nameSet=6"
+        );
     }
 }
 
