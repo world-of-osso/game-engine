@@ -3,9 +3,10 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::cache_source_mtime::csv_mtime;
+use crate::cache_sqlite::open_read_only;
 use crate::csv_util::parse_csv_line;
 use crate::sqlite_util::is_missing_table_error;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 
 type TracksByZone = HashMap<u32, Vec<usize>>;
 
@@ -15,14 +16,6 @@ fn csv_path() -> PathBuf {
 
 fn cache_path() -> PathBuf {
     crate::paths::shared_data_path("cache/music_zone_links.sqlite")
-}
-
-fn open_read_only(path: &Path) -> Result<Connection, String> {
-    Connection::open_with_flags(
-        path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|err| format!("open {}: {err}", path.display()))
 }
 
 fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {

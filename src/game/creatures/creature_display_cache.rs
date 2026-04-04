@@ -3,9 +3,10 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::cache_source_mtime::csv_mtime;
+use crate::cache_sqlite::open_read_only;
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 
 use crate::creature_display::CreatureDisplay;
 
@@ -115,14 +116,6 @@ pub(crate) fn query_distinct_model_fdids() -> Vec<u32> {
         Err(_) => return Vec::new(),
     };
     rows.filter_map(|r| r.ok()).collect()
-}
-
-fn open_read_only(path: &Path) -> Result<Connection, String> {
-    Connection::open_with_flags(
-        path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|err| format!("open {}: {err}", path.display()))
 }
 
 fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, String> {

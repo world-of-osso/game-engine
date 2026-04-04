@@ -2,9 +2,10 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+use crate::cache_sqlite::open_read_only;
 use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
 use crate::sqlite_util::is_missing_table_error;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 
 const PARTICLE_COLOR_CACHE_PATH: &str = "cache/particle_color.sqlite";
 const PARTICLE_COLOR_CSV_FILE: &str = "ParticleColor.csv";
@@ -75,14 +76,6 @@ fn import_particle_color_cache_into(csv_path: &Path, cache_path: &Path) -> Resul
     rebuild_cache(&conn, csv_path)?;
     record_source_file(&conn, csv_path)?;
     Ok(cache_path.to_path_buf())
-}
-
-fn open_read_only(path: &Path) -> Result<Connection, String> {
-    Connection::open_with_flags(
-        path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|err| format!("open {}: {err}", path.display()))
 }
 
 fn cache_is_fresh(conn: &Connection, source_path: &Path) -> Result<bool, String> {

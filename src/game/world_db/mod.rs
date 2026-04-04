@@ -1,5 +1,6 @@
 use crate::cache_source_mtime::csv_mtime;
-use rusqlite::{Connection, OpenFlags, Statement};
+use crate::cache_sqlite::open_read_only;
+use rusqlite::{Connection, Statement};
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -69,14 +70,6 @@ fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
         data_dir.join("ItemDisplayInfoMaterialRes.csv"),
         data_dir.join("ModelFileData.csv"),
     ]
-}
-
-fn open_read_only(path: &Path) -> Result<Connection, String> {
-    Connection::open_with_flags(
-        path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|err| format!("open {}: {err}", path.display()))
 }
 
 fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {

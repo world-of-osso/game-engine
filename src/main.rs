@@ -36,6 +36,7 @@ mod asset {
     pub use game_engine::asset::*;
 }
 mod cache_source_mtime;
+mod cache_sqlite;
 mod cli_args;
 mod collision;
 mod csv_util;
