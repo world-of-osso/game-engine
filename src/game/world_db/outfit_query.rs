@@ -107,6 +107,43 @@ pub(super) fn resolve_cached_skin_fdids_for_model_name(
     select_best_skin_fdids_by_name(&conn, rows, model_name)
 }
 
+fn select_best_skin_fdids_by_name(
+    conn: &Connection,
+    rows: rusqlite::MappedRows<
+        '_,
+        impl FnMut(&rusqlite::Row<'_>) -> rusqlite::Result<(u32, [u32; 2], u32)>,
+    >,
+    model_name: &str,
+) -> Result<Option<[u32; 3]>, String> {
+    let mut material_cache = HashMap::new();
+    let mut best: Option<(usize, u32, [u32; 3])> = None;
+    for row in rows {
+        let (display_info_id, material_ids, model_fdid) =
+            row.map_err(|err| format!("read model skin lookup by name row: {err}"))?;
+        let matches_name = game_engine::listfile::lookup_fdid(model_fdid)
+            .and_then(|path| Path::new(path).file_name()?.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case(model_name));
+        if !matches_name {
+            continue;
+        }
+        let skin_fdids = resolve_skin_fdids(conn, material_ids, &mut material_cache)?;
+        let filled = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
+        if filled == 0 {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((best_filled, best_display_id, _)) => {
+                filled > best_filled || (filled == best_filled && display_info_id < best_display_id)
+            }
+        };
+        if better {
+            best = Some((filled, display_info_id, skin_fdids));
+        }
+    }
+    Ok(best.map(|(_, _, skin_fdids)| skin_fdids))
+}
+
 fn open_outfit_conn(data_dir: &Path) -> Result<Connection, String> {
     let cache_path = super::imported_outfit_links_cache_path(data_dir)?;
     super::open_read_only(&cache_path)
@@ -202,43 +239,6 @@ fn select_best_skin_fdids(
     for row in rows {
         let (display_info_id, material_ids) =
             row.map_err(|err| format!("read model skin lookup row: {err}"))?;
-        let skin_fdids = resolve_skin_fdids(conn, material_ids, &mut material_cache)?;
-        let filled = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
-        if filled == 0 {
-            continue;
-        }
-        let better = match best {
-            None => true,
-            Some((best_filled, best_display_id, _)) => {
-                filled > best_filled || (filled == best_filled && display_info_id < best_display_id)
-            }
-        };
-        if better {
-            best = Some((filled, display_info_id, skin_fdids));
-        }
-    }
-    Ok(best.map(|(_, _, skin_fdids)| skin_fdids))
-}
-
-fn select_best_skin_fdids_by_name(
-    conn: &Connection,
-    rows: rusqlite::MappedRows<
-        '_,
-        impl FnMut(&rusqlite::Row<'_>) -> rusqlite::Result<(u32, [u32; 2], u32)>,
-    >,
-    model_name: &str,
-) -> Result<Option<[u32; 3]>, String> {
-    let mut material_cache = HashMap::new();
-    let mut best: Option<(usize, u32, [u32; 3])> = None;
-    for row in rows {
-        let (display_info_id, material_ids, model_fdid) =
-            row.map_err(|err| format!("read model skin lookup by name row: {err}"))?;
-        let matches_name = game_engine::listfile::lookup_fdid(model_fdid)
-            .and_then(|path| Path::new(path).file_name()?.to_str())
-            .is_some_and(|name| name.eq_ignore_ascii_case(model_name));
-        if !matches_name {
-            continue;
-        }
         let skin_fdids = resolve_skin_fdids(conn, material_ids, &mut material_cache)?;
         let filled = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
         if filled == 0 {

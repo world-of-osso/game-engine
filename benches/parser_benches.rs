@@ -267,6 +267,32 @@ fn find_md21_chunk(data: &[u8]) -> Option<&[u8]> {
     None
 }
 
+fn bench_skin_fdid_resolution(c: &mut Criterion) {
+    let data_dir = Path::new("data");
+    let outfit_data = game_engine::outfit_data::OutfitData::load(data_dir);
+    // Warm up the lazy load
+    let _ = outfit_data.resolve_item_model_skin_fdids_for_model_path(Path::new("dummy.m2"));
+
+    let cases: &[(&str, &Path)] = &[
+        (
+            "named_torch",
+            Path::new("data/models/club_1h_torch_a_01.m2"),
+        ),
+        ("fdid_torch", Path::new("data/models/145513.m2")),
+    ];
+    let mut group = c.benchmark_group("outfit_data::resolve_skin_fdids");
+    for &(label, path) in cases {
+        if !path.exists() {
+            eprintln!("skipping bench {label}: {} not found", path.display());
+            continue;
+        }
+        group.bench_with_input(BenchmarkId::from_parameter(label), &path, |b, path| {
+            b.iter(|| outfit_data.resolve_item_model_skin_fdids_for_model_path(path));
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     parser_benches,
     bench_csv_parsers,
@@ -276,6 +302,7 @@ criterion_group!(
     bench_wmo_parsing,
     bench_particle_emitter_parsing,
     bench_particle_effect_asset_build,
-    bench_character_texture_compositing
+    bench_character_texture_compositing,
+    bench_skin_fdid_resolution
 );
 criterion_main!(parser_benches);

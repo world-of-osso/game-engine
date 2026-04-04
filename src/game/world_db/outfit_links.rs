@@ -54,7 +54,8 @@ CREATE TABLE model_to_fdid (
     model_order INTEGER NOT NULL,
     file_data_id INTEGER NOT NULL,
     PRIMARY KEY (model_resource_id, model_order)
-);";
+);
+CREATE INDEX idx_model_to_fdid_file_data_id ON model_to_fdid(file_data_id);";
 
 pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = super::outfit_links_cache_path();

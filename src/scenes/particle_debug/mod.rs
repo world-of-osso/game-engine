@@ -76,50 +76,49 @@ struct ParticleDebugSceneParams<'w, 's> {
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
     let mut timings = SetupTimings::default();
 
-    commands.insert_resource(ClearColor(Color::srgb(0.0, 1.0, 0.0)));
+    commands.insert_resource(ClearColor(Color::srgb(0.14, 0.17, 0.22)));
     timings.record("camera", || spawn_camera(&mut commands));
     timings.record("lighting", || spawn_lighting(&mut commands));
     timings.record("ground", || {
         spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
     });
 
-    let skin_fdids = timings.record("resolve_skin", || {
-        resolved_skin_fdids(
-            Path::new(TORCH_M2),
-            &params.creature_display_map,
-            &params.outfit_data,
-        )
-    });
-
-    timings.record("overlay", || {
-        spawn_emitter_overlay(&mut commands, &skin_fdids);
-    });
-    timings.record("torch", || {
-        spawn_torch_from_params(&mut commands, &mut params);
-    });
-
-    timings.log_summary();
-    commands.insert_resource(ParticleDebugFrameTimer {
-        setup_done: Instant::now(),
-        frames_logged: 0,
-    });
+    let skin_fdids = resolved_skin_fdids(
+        Path::new(TORCH_M2),
+        &params.creature_display_map,
+        &params.outfit_data,
+    );
+    spawn_emitter_overlay(&mut commands, &skin_fdids);
+    spawn_torch_with_skin_fdids(&mut commands, &mut params, &skin_fdids);
 }
 
-fn spawn_torch_from_params(commands: &mut Commands, params: &mut ParticleDebugSceneParams) {
-    spawn_torch(
+fn spawn_torch_with_skin_fdids(
+    commands: &mut Commands,
+    params: &mut ParticleDebugSceneParams,
+    skin_fdids: &[u32; 3],
+) {
+    let path = PathBuf::from(TORCH_M2);
+    if !path.exists() {
+        eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
+        return;
+    }
+    let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
-        ParticleDebugTorchContext {
-            assets: crate::m2_spawn::SpawnAssets {
-                meshes: &mut params.meshes,
-                materials: &mut params.materials,
-                effect_materials: &mut params.effect_materials,
-                skybox_materials: None,
-                images: &mut params.images,
-                inverse_bindposes: &mut params.inv_bp,
-            },
-            creature_display_map: &params.creature_display_map,
-            outfit_data: &params.outfit_data,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes: &mut params.meshes,
+            materials: &mut params.materials,
+            effect_materials: &mut params.effect_materials,
+            skybox_materials: None,
+            images: &mut params.images,
+            inverse_bindposes: &mut params.inv_bp,
         },
+        creature_display_map: &params.creature_display_map,
+    };
+    m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
+        &mut ctx,
+        &path,
+        Transform::from_xyz(0.0, 0.5, 0.0),
+        skin_fdids,
     );
 }
 
@@ -159,10 +158,8 @@ impl SetupTimings {
 }
 
 fn spawn_camera(commands: &mut Commands) {
-    let focus = Vec3::new(0.0, 3.0, 0.0);
-    let mut orbit = OrbitCamera::new(focus, 8.0);
-    orbit.min_distance = 2.0;
-    orbit.max_distance = 30.0;
+    let focus = Vec3::Y * 0.5;
+    let orbit = OrbitCamera::new(focus, 3.0);
     let eye = orbit.eye_position();
     commands.spawn((
         Name::new("ParticleDebugCamera"),
@@ -204,44 +201,11 @@ fn spawn_ground(
         Mesh3d(meshes.add(Plane3d::default().mesh().size(18.0, 18.0).build())),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::srgb(0.28, 0.31, 0.36),
-            emissive: LinearRgba::rgb(0.16, 0.17, 0.19),
-            unlit: true,
             perceptual_roughness: 1.0,
             metallic: 0.0,
             ..default()
         })),
     ));
-}
-
-struct ParticleDebugTorchContext<'a> {
-    assets: crate::m2_spawn::SpawnAssets<'a>,
-    creature_display_map: &'a creature_display::CreatureDisplayMap,
-    outfit_data: &'a OutfitData,
-}
-
-fn spawn_torch(commands: &mut Commands, ctx: ParticleDebugTorchContext<'_>) {
-    let ParticleDebugTorchContext {
-        assets,
-        creature_display_map,
-        outfit_data,
-    } = ctx;
-    let path = PathBuf::from(TORCH_M2);
-    if !path.exists() {
-        eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
-        return;
-    }
-    let skin_fdids = resolved_skin_fdids(&path, creature_display_map, outfit_data);
-    let mut ctx = m2_scene::M2SceneSpawnContext {
-        commands,
-        assets,
-        creature_display_map,
-    };
-    m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
-        &mut ctx,
-        &path,
-        Transform::from_xyz(0.0, 0.02, 0.0).with_scale(Vec3::splat(6.0)),
-        &skin_fdids,
-    );
 }
 
 fn resolved_skin_fdids(
