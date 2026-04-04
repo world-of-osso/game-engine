@@ -6,6 +6,8 @@
 
 #[path = "particle_effect_builder_motion.rs"]
 mod motion;
+#[path = "particle_effect_builder_setup.rs"]
+mod setup;
 #[path = "rendering/particles/visuals.rs"]
 mod visuals;
 
@@ -20,6 +22,7 @@ use motion::{
     emitter_uses_dynamic_wind, gravity_accel_bevy, has_authored_spin, has_authored_wind,
     is_trail_particle, wind_accel_bevy,
 };
+use setup::{EffectAssembleParts, EffectRuntimeModifiers, build_particle_effect_inputs};
 use visuals::{
     SizeVariationModifier, TwinkleSizeModifier, build_color_gradient,
     build_offset_by_spin_modifier, build_size_gradient, has_authored_size_variation,
@@ -62,21 +65,7 @@ pub fn build_particle_effect_asset(
     build_runtime_particle_effect(em, runtime_modifiers, parts)
 }
 
-struct EffectSetup {
-    emission_rate: f32,
-    max_particles: u32,
-}
-
-struct EffectAssembleSeed {
-    module: Module,
-    alpha_mode: bevy_hanabi::AlphaMode,
-    init: InitModifiers,
-    gravity: AccelModifier,
-    orient_rotation: Option<ExprHandle>,
-    model_scale: f32,
-}
-
-struct ExprModifiers {
+pub(crate) struct ExprModifiers {
     init: InitModifiers,
     gravity: AccelModifier,
     drag: Option<LinearDragModifier>,
@@ -88,123 +77,6 @@ struct ExprModifiers {
     alpha_mode: bevy_hanabi::AlphaMode,
     orient_rotation: Option<ExprHandle>,
     module: Module,
-}
-
-struct EffectRuntimeModifiers {
-    drag: Option<LinearDragModifier>,
-    flipbook_sprite_index_init: Option<SetAttributeModifier>,
-    flipbook_sprite_index_update: Option<SetAttributeModifier>,
-    texture: Option<ParticleTextureModifier>,
-    twinkle: Option<TwinkleSizeModifier>,
-    size_variation: Option<SizeVariationModifier>,
-}
-
-fn build_effect_runtime_modifiers(
-    drag: Option<LinearDragModifier>,
-    flipbook_sprite_index_init: Option<SetAttributeModifier>,
-    flipbook_sprite_index_update: Option<SetAttributeModifier>,
-    texture: Option<ParticleTextureModifier>,
-    twinkle: Option<TwinkleSizeModifier>,
-    size_variation: Option<SizeVariationModifier>,
-) -> EffectRuntimeModifiers {
-    EffectRuntimeModifiers {
-        drag,
-        flipbook_sprite_index_init,
-        flipbook_sprite_index_update,
-        texture,
-        twinkle,
-        size_variation,
-    }
-}
-
-fn build_effect_setup(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> EffectSetup {
-    let emission_rate = scaled_emission_rate(em, particle_density_multiplier);
-    let (_, max_lifetime) = lifetime_range(em);
-    let max_particles =
-        (((emission_rate * max_lifetime).max(emission_rate)).ceil() as u32).clamp(16, 4096);
-    EffectSetup {
-        emission_rate,
-        max_particles,
-    }
-}
-
-fn build_particle_effect_inputs(
-    em: &M2ParticleEmitter,
-    model_scale: f32,
-    particle_density_multiplier: f32,
-) -> (EffectAssembleParts, EffectRuntimeModifiers) {
-    build_particle_effect_inputs_from_expr(
-        em,
-        particle_density_multiplier,
-        model_scale,
-        build_expr_modifiers(em, model_scale),
-    )
-}
-
-fn build_particle_effect_inputs_from_expr(
-    em: &M2ParticleEmitter,
-    particle_density_multiplier: f32,
-    model_scale: f32,
-    expr_modifiers: ExprModifiers,
-) -> (EffectAssembleParts, EffectRuntimeModifiers) {
-    (
-        build_effect_assemble_parts(
-            em,
-            particle_density_multiplier,
-            EffectAssembleSeed {
-                module: expr_modifiers.module,
-                alpha_mode: expr_modifiers.alpha_mode,
-                init: expr_modifiers.init,
-                gravity: expr_modifiers.gravity,
-                orient_rotation: expr_modifiers.orient_rotation,
-                model_scale,
-            },
-        ),
-        build_runtime_modifiers_from_expr(
-            expr_modifiers.drag,
-            expr_modifiers.flipbook_sprite_index_init,
-            expr_modifiers.flipbook_sprite_index_update,
-            expr_modifiers.texture,
-            expr_modifiers.twinkle,
-            expr_modifiers.size_variation,
-        ),
-    )
-}
-
-fn build_effect_assemble_parts(
-    em: &M2ParticleEmitter,
-    particle_density_multiplier: f32,
-    seed: EffectAssembleSeed,
-) -> EffectAssembleParts {
-    let effect_setup = build_effect_setup(em, particle_density_multiplier);
-    EffectAssembleParts {
-        module: seed.module,
-        spawner: SpawnerSettings::rate(effect_setup.emission_rate.into()),
-        max_particles: effect_setup.max_particles,
-        alpha_mode: seed.alpha_mode,
-        init: seed.init,
-        gravity: seed.gravity,
-        orient_rotation: seed.orient_rotation,
-        model_scale: seed.model_scale,
-    }
-}
-
-fn build_runtime_modifiers_from_expr(
-    drag: Option<LinearDragModifier>,
-    flipbook_sprite_index_init: Option<SetAttributeModifier>,
-    flipbook_sprite_index_update: Option<SetAttributeModifier>,
-    texture: Option<ParticleTextureModifier>,
-    twinkle: Option<TwinkleSizeModifier>,
-    size_variation: Option<SizeVariationModifier>,
-) -> EffectRuntimeModifiers {
-    build_effect_runtime_modifiers(
-        drag,
-        flipbook_sprite_index_init,
-        flipbook_sprite_index_update,
-        texture,
-        twinkle,
-        size_variation,
-    )
 }
 
 fn build_runtime_particle_effect(
@@ -214,17 +86,6 @@ fn build_runtime_particle_effect(
 ) -> EffectAsset {
     let effect = assemble_effect(em, parts);
     apply_effect_runtime_modifiers(effect, em, runtime_modifiers)
-}
-
-struct EffectAssembleParts {
-    module: Module,
-    spawner: SpawnerSettings,
-    max_particles: u32,
-    alpha_mode: bevy_hanabi::AlphaMode,
-    init: InitModifiers,
-    gravity: AccelModifier,
-    orient_rotation: Option<ExprHandle>,
-    model_scale: f32,
 }
 
 struct BaseEffectParts {
@@ -434,14 +295,8 @@ fn apply_effect_runtime_modifiers(
     effect
 }
 
-fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> f32 {
-    let mean_rate = em.emission_rate + em.emission_rate_variation.max(0.0) * 0.5;
-    let global_scale = if em.flags & PARTICLE_FLAG_NO_GLOBAL_SCALE != 0 {
-        1.0
-    } else {
-        particle_density_multiplier.clamp(0.1, 1.0)
-    };
-    (mean_rate * global_scale).max(0.1)
+pub fn scaled_emission_rate(em: &M2ParticleEmitter, particle_density_multiplier: f32) -> f32 {
+    setup::scaled_emission_rate(em, particle_density_multiplier)
 }
 
 fn assemble_effect(em: &M2ParticleEmitter, parts: EffectAssembleParts) -> EffectAsset {
