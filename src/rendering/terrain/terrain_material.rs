@@ -208,23 +208,10 @@ pub fn pack_shadow_map(
     shadow_map: Option<&[u8; 512]>,
 ) -> Handle<Image> {
     const SIZE: u32 = 64;
-    let mut rgba = default_shadow_pixels(SIZE);
-    let Some(shadow_map) = shadow_map else {
-        return images.add(new_shadow_image(rgba, SIZE));
+    let rgba = match shadow_map {
+        Some(shadow_map) => pack_shadow_pixels(shadow_map, SIZE),
+        None => default_shadow_pixels(SIZE),
     };
-
-    for row in 0..SIZE as usize {
-        for col in 0..SIZE as usize {
-            write_shadow_pixel(
-                &mut rgba,
-                SIZE as usize,
-                row,
-                col,
-                shadow_bit_is_set(shadow_map, row, col),
-            );
-        }
-    }
-
     images.add(new_shadow_image(rgba, SIZE))
 }
 
@@ -242,6 +229,23 @@ fn write_shadow_pixel(rgba: &mut [u8], size: usize, row: usize, col: usize, shad
     rgba[base] = value;
     rgba[base + 1] = value;
     rgba[base + 2] = value;
+}
+
+fn pack_shadow_pixels(shadow_map: &[u8; 512], size: u32) -> Vec<u8> {
+    let mut rgba = default_shadow_pixels(size);
+    let size = size as usize;
+    for row in 0..size {
+        for col in 0..size {
+            write_shadow_pixel(
+                &mut rgba,
+                size,
+                row,
+                col,
+                shadow_bit_is_set(shadow_map, row, col),
+            );
+        }
+    }
+    rgba
 }
 
 fn new_shadow_image(rgba: Vec<u8>, size: u32) -> Image {
