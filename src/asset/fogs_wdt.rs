@@ -89,40 +89,61 @@ fn parse_vfog(payload: &[u8]) -> Result<Vec<FogVolume>, String> {
     }
     let mut volumes = Vec::new();
     for base in (0..payload.len()).step_by(VFOG_ENTRY_SIZE) {
-        let color = [
+        let entry = parse_vfog_entry(payload, base)?;
+        volumes.push(build_vfog_volume(entry));
+    }
+    Ok(volumes)
+}
+
+struct VFogEntry {
+    color: [f32; 3],
+    density: f32,
+    position: [f32; 3],
+    rotation: [f32; 4],
+    flags: u32,
+    model_fdid: u32,
+    fog_level: u32,
+    fog_id: u32,
+}
+
+fn parse_vfog_entry(payload: &[u8], base: usize) -> Result<VFogEntry, String> {
+    Ok(VFogEntry {
+        color: [
             read_f32(payload, base)?,
             read_f32(payload, base + 4)?,
             read_f32(payload, base + 8)?,
-        ];
-        let density = read_f32(payload, base + 12)?;
-        let position = [
+        ],
+        density: read_f32(payload, base + 12)?,
+        position: [
             read_f32(payload, base + 28)?,
             read_f32(payload, base + 32)?,
             read_f32(payload, base + 36)?,
-        ];
-        let rotation = [
+        ],
+        rotation: [
             read_f32(payload, base + 44)?,
             read_f32(payload, base + 48)?,
             read_f32(payload, base + 52)?,
             read_f32(payload, base + 56)?,
-        ];
-        let flags = read_u32(payload, base + 88)?;
-        let model_fdid = read_u32(payload, base + 92)?;
-        let fog_level = read_u32(payload, base + 96)?;
-        let fog_id = read_u32(payload, base + 100)?;
-        volumes.push(FogVolume {
-            position,
-            rotation,
-            extents: [1.0, 1.0, 1.0],
-            color,
-            density,
-            model_fdid,
-            fog_level,
-            fog_id,
-            flags,
-        });
+        ],
+        flags: read_u32(payload, base + 88)?,
+        model_fdid: read_u32(payload, base + 92)?,
+        fog_level: read_u32(payload, base + 96)?,
+        fog_id: read_u32(payload, base + 100)?,
+    })
+}
+
+fn build_vfog_volume(entry: VFogEntry) -> FogVolume {
+    FogVolume {
+        position: entry.position,
+        rotation: entry.rotation,
+        extents: [1.0, 1.0, 1.0],
+        color: entry.color,
+        density: entry.density,
+        model_fdid: entry.model_fdid,
+        fog_level: entry.fog_level,
+        fog_id: entry.fog_id,
+        flags: entry.flags,
     }
-    Ok(volumes)
 }
 
 fn parse_vfex(payload: &[u8]) -> Result<Vec<([f32; 3], u32)>, String> {
