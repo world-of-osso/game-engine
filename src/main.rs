@@ -563,13 +563,13 @@ fn default_connecting_server_arg(
     initial_state: Option<game_state::GameState>,
 ) -> Option<cli_args::ServerArg> {
     if initial_state == Some(game_state::GameState::Connecting) {
-        Some(load_default_server_arg())
+        Some(default_server_arg_or_exit())
     } else {
         None
     }
 }
 
-fn load_default_server_arg() -> cli_args::ServerArg {
+fn default_server_arg_or_exit() -> cli_args::ServerArg {
     match cli_args::default_server_arg() {
         Ok(server) => server,
         Err(err) => {

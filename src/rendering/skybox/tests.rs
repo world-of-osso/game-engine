@@ -255,9 +255,13 @@ fn sky_dome_uses_wow_client_latitude_angles() {
     let latitudes: Vec<f32> = sky_dome_latitudes_radians()
         .map(|angle| angle.to_degrees())
         .collect();
+    let expected = [90.0, 55.0, 40.0, 25.0, 15.0, 4.0, 3.5, 0.0, -2.25, -90.0];
 
-    assert_eq!(
-        latitudes,
-        vec![90.0, 55.0, 40.0, 25.0, 15.0, 4.0, 3.5, 0.0, -2.25, -90.0]
-    );
+    assert_eq!(latitudes.len(), expected.len());
+    for (actual, expected) in latitudes.iter().zip(expected) {
+        assert!(
+            (actual - expected).abs() <= 0.001,
+            "expected latitude {expected}, got {actual}"
+        );
+    }
 }

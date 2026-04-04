@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn parse_csv_line_handles_escaped_quotes() {
-        let fields = parse_csv_line(r#""a """"quoted"""" value",x"#);
+        let fields = parse_csv_line(r#""a ""quoted"" value",x"#);
         assert_eq!(fields, vec![r#"a "quoted" value"#, "x"]);
     }
 
