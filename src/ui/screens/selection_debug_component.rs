@@ -584,6 +584,7 @@ pub fn selection_debug_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<SelectionDebugState>()
         .expect("SelectionDebugState must be present");
+    let pin_label = selection_pin_label(state);
 
     rsx! {
         r#frame {
@@ -591,37 +592,81 @@ pub fn selection_debug_screen(ctx: &SharedContext) -> Element {
             stretch: true,
             background_color: "0.01,0.01,0.02,1.0",
             strata: FrameStrata::Background,
-            r#frame {
-                name: SCREEN_MOUNT,
-                width: 1120.0,
-                height: 640.0,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
-                {framed_title(
-                    TITLE_FRAME,
-                    TITLE_LABEL,
-                    SCREEN_MOUNT,
-                    420.0,
-                    "Selection Debug",
-                )}
-                {helper_text()}
-                {list_panel(&state.entries, state.selected_index)}
-                {detail_panel(state)}
-                {action_button(PREV_BUTTON, "Previous", SelectionDebugAction::Prev, SCREEN_MOUNT, 32.0)}
-                {action_button(NEXT_BUTTON, "Next", SelectionDebugAction::Next, SCREEN_MOUNT, 216.0)}
-                {action_button(
-                    PIN_BUTTON,
-                    if state.pinned { "Unpin" } else { "Pin Selection" },
-                    SelectionDebugAction::TogglePinned,
-                    SCREEN_MOUNT,
-                    400.0,
-                )}
-                {action_button(BACK_BUTTON, "Back", SelectionDebugAction::Back, SCREEN_MOUNT, 924.0)}
-                {status_text(state)}
-            }
+            {selection_debug_mount(state, pin_label)}
         }
+    }
+}
+
+fn selection_pin_label(state: &SelectionDebugState) -> &'static str {
+    if state.pinned {
+        "Unpin"
+    } else {
+        "Pin Selection"
+    }
+}
+
+fn selection_debug_mount(state: &SelectionDebugState, pin_label: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: SCREEN_MOUNT,
+            width: 1120.0,
+            height: 640.0,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+            }
+            {selection_debug_header()}
+            {list_panel(&state.entries, state.selected_index)}
+            {detail_panel(state)}
+            {selection_debug_action_buttons(pin_label)}
+            {status_text(state)}
+        }
+    }
+}
+
+fn selection_debug_header() -> Element {
+    rsx! {
+        {framed_title(
+            TITLE_FRAME,
+            TITLE_LABEL,
+            SCREEN_MOUNT,
+            420.0,
+            "Selection Debug",
+        )}
+        {helper_text()}
+    }
+}
+
+fn selection_debug_action_buttons(pin_label: &str) -> Element {
+    rsx! {
+        {action_button(
+            PREV_BUTTON,
+            "Previous",
+            SelectionDebugAction::Prev,
+            SCREEN_MOUNT,
+            32.0,
+        )}
+        {action_button(
+            NEXT_BUTTON,
+            "Next",
+            SelectionDebugAction::Next,
+            SCREEN_MOUNT,
+            216.0,
+        )}
+        {action_button(
+            PIN_BUTTON,
+            pin_label,
+            SelectionDebugAction::TogglePinned,
+            SCREEN_MOUNT,
+            400.0,
+        )}
+        {action_button(
+            BACK_BUTTON,
+            "Back",
+            SelectionDebugAction::Back,
+            SCREEN_MOUNT,
+            924.0,
+        )}
     }
 }
 
