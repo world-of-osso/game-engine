@@ -325,58 +325,7 @@ fn sync_desired_equipment_slot<'w, 's>(
     };
 
     despawn_rendered_slot(commands, rendered, slot);
-    let Some(spawned) = spawn_runtime_equipment_slot(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        transforms,
-        parents,
-        names,
-        warned,
-        owner,
-        attach_points,
-        joint_entities,
-        slot,
-        path,
-        skin_fdids,
-    ) else {
-        return;
-    };
-    rendered
-        .slots
-        .insert(slot, rendered_item(spawned, path, skin_fdids));
-}
-
-fn rendered_item(entity: Entity, path: &Path, skin_fdids: [u32; 3]) -> RenderedItem {
-    RenderedItem {
-        entity,
-        path: path.to_path_buf(),
-        skin_fdids,
-    }
-}
-
-fn spawn_runtime_equipment_slot<'w, 's>(
-    commands: &mut Commands<'w, 's>,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    transforms: &EquipmentTransforms,
-    parents: &Query<'w, 's, &'static ChildOf>,
-    names: &Query<'w, 's, &'static Name>,
-    warned: &mut Local<'s, HashSet<String>>,
-    owner: Entity,
-    attach_points: &AttachmentPoints,
-    joint_entities: &[Entity],
-    slot: EquipmentSlot,
-    path: &Path,
-    skin_fdids: [u32; 3],
-) -> Option<Entity> {
-    spawn_equipment_slot(
+    let Some(spawned) = spawn_equipment_slot(
         &mut EquipmentSpawnContext {
             commands,
             assets: crate::m2_spawn::SpawnAssets {
@@ -398,7 +347,20 @@ fn spawn_runtime_equipment_slot<'w, 's>(
         slot,
         path,
         skin_fdids,
-    )
+    ) else {
+        return;
+    };
+    rendered
+        .slots
+        .insert(slot, rendered_item(spawned, path, skin_fdids));
+}
+
+fn rendered_item(entity: Entity, path: &Path, skin_fdids: [u32; 3]) -> RenderedItem {
+    RenderedItem {
+        entity,
+        path: path.to_path_buf(),
+        skin_fdids,
+    }
 }
 
 fn despawn_rendered_slot(
