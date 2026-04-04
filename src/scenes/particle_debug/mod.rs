@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -22,10 +23,41 @@ struct ParticleDebugScene;
 
 pub struct ParticleDebugScenePlugin;
 
+/// Tracks frame times after scene setup to identify first-frame render bottlenecks.
+#[derive(Resource)]
+struct ParticleDebugFrameTimer {
+    setup_done: Instant,
+    frames_logged: u32,
+}
+
+const FRAME_TIMER_LOG_COUNT: u32 = 5;
+
 impl Plugin for ParticleDebugScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::ParticleDebug), setup_scene);
+        app.add_systems(
+            Update,
+            log_first_frames.run_if(in_state(GameState::ParticleDebug)),
+        );
         app.add_systems(OnExit(GameState::ParticleDebug), teardown_scene);
+    }
+}
+
+fn log_first_frames(
+    mut timer: Option<ResMut<ParticleDebugFrameTimer>>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    let Some(timer) = timer.as_mut() else {
+        return;
+    };
+    let frame = timer.frames_logged;
+    let since_setup_ms = timer.setup_done.elapsed().as_secs_f64() * 1000.0;
+    let frame_dt_ms = time.delta_secs_f64() * 1000.0;
+    info!("particle_debug frame {frame}: dt={frame_dt_ms:.1}ms since_setup={since_setup_ms:.1}ms");
+    timer.frames_logged += 1;
+    if timer.frames_logged >= FRAME_TIMER_LOG_COUNT {
+        commands.remove_resource::<ParticleDebugFrameTimer>();
     }
 }
 
@@ -42,20 +74,40 @@ struct ParticleDebugSceneParams<'w, 's> {
 }
 
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
+    let mut timings = SetupTimings::default();
+
     commands.insert_resource(ClearColor(Color::srgb(0.0, 1.0, 0.0)));
-    spawn_camera(&mut commands);
-    spawn_lighting(&mut commands);
-    spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
-    spawn_emitter_overlay(
-        &mut commands,
-        &resolved_skin_fdids(
+    timings.record("camera", || spawn_camera(&mut commands));
+    timings.record("lighting", || spawn_lighting(&mut commands));
+    timings.record("ground", || {
+        spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
+    });
+
+    let skin_fdids = timings.record("resolve_skin", || {
+        resolved_skin_fdids(
             Path::new(TORCH_M2),
             &params.creature_display_map,
             &params.outfit_data,
-        ),
-    );
+        )
+    });
+
+    timings.record("overlay", || {
+        spawn_emitter_overlay(&mut commands, &skin_fdids);
+    });
+    timings.record("torch", || {
+        spawn_torch_from_params(&mut commands, &mut params);
+    });
+
+    timings.log_summary();
+    commands.insert_resource(ParticleDebugFrameTimer {
+        setup_done: Instant::now(),
+        frames_logged: 0,
+    });
+}
+
+fn spawn_torch_from_params(commands: &mut Commands, params: &mut ParticleDebugSceneParams) {
     spawn_torch(
-        &mut commands,
+        commands,
         ParticleDebugTorchContext {
             assets: crate::m2_spawn::SpawnAssets {
                 meshes: &mut params.meshes,
@@ -69,6 +121,41 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
             outfit_data: &params.outfit_data,
         },
     );
+}
+
+#[derive(Default)]
+struct SetupTimings {
+    start: Option<Instant>,
+    steps: Vec<(&'static str, f64)>,
+}
+
+impl SetupTimings {
+    fn record<T>(&mut self, label: &'static str, f: impl FnOnce() -> T) -> T {
+        if self.start.is_none() {
+            self.start = Some(Instant::now());
+        }
+        let t0 = Instant::now();
+        let result = f();
+        self.steps
+            .push((label, t0.elapsed().as_secs_f64() * 1000.0));
+        result
+    }
+
+    fn log_summary(&self) {
+        let total_ms = self
+            .start
+            .map(|s| s.elapsed().as_secs_f64() * 1000.0)
+            .unwrap_or(0.0);
+        let steps: Vec<String> = self
+            .steps
+            .iter()
+            .map(|(label, ms)| format!("{label}={ms:.1}ms"))
+            .collect();
+        info!(
+            "particle_debug setup: total={total_ms:.1}ms {}",
+            steps.join(" ")
+        );
+    }
 }
 
 fn spawn_camera(commands: &mut Commands) {
@@ -289,6 +376,7 @@ fn format_emitter_twinkle_line(emitter: &asset::m2_particle::M2ParticleEmitter) 
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<ParticleDebugScene>>) {
+    commands.remove_resource::<ParticleDebugFrameTimer>();
     commands.insert_resource(ClearColor(Color::BLACK));
     for entity in &query {
         commands.entity(entity).despawn();
