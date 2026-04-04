@@ -83,11 +83,9 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
         spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
     });
 
-    let skin_fdids = resolved_skin_fdids(
-        Path::new(TORCH_M2),
-        &params.creature_display_map,
-        &params.outfit_data,
-    );
+    // FDID 145303 = item/objectcomponents/weapon/club_1h_torch_a_01.blp
+    // The torch's first texture is type 2 (Monster Skin 1) which needs skin_fdids[0].
+    let skin_fdids = [145303, 0, 0];
     spawn_emitter_overlay(&mut commands, &skin_fdids);
     spawn_torch_with_skin_fdids(&mut commands, &mut params, &skin_fdids);
 }
