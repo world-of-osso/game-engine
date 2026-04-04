@@ -21,6 +21,8 @@ pub struct WmoPlacement {
     pub unique_id: u32,
     pub position: [f32; 3],
     pub rotation: [f32; 3],
+    pub extents_min: [f32; 3],
+    pub extents_max: [f32; 3],
     pub flags: u16,
     pub doodad_set: u16,
     pub name_set: u16,
@@ -241,6 +243,8 @@ fn parse_modf_entry(
         unique_id: entry.unique_id,
         position: entry.position,
         rotation: entry.rotation,
+        extents_min: entry._lower_bounds,
+        extents_max: entry._upper_bounds,
         flags: entry.flags,
         doodad_set: entry.doodad_set,
         name_set: entry.name_set,
@@ -299,8 +303,38 @@ mod tests {
         let parsed = parse_modf_entry(&entry, 0, b"", &[]).expect("modf entry should parse");
 
         assert_eq!(parsed.unique_id, 99);
+        assert_eq!(parsed.extents_min, [0.0, 0.0, 0.0]);
+        assert_eq!(parsed.extents_max, [0.0, 0.0, 0.0]);
         assert_eq!(parsed.doodad_set, 5);
         assert_eq!(parsed.name_set, 8);
         assert_eq!(parsed.scale, 2.0);
+    }
+
+    #[test]
+    fn parse_modf_entry_preserves_extents() {
+        let mut entry = Vec::new();
+        entry.extend_from_slice(&7u32.to_le_bytes());
+        entry.extend_from_slice(&99u32.to_le_bytes());
+        entry.extend_from_slice(&1.0f32.to_le_bytes());
+        entry.extend_from_slice(&2.0f32.to_le_bytes());
+        entry.extend_from_slice(&3.0f32.to_le_bytes());
+        entry.extend_from_slice(&10.0f32.to_le_bytes());
+        entry.extend_from_slice(&20.0f32.to_le_bytes());
+        entry.extend_from_slice(&30.0f32.to_le_bytes());
+        entry.extend_from_slice(&40.0f32.to_le_bytes());
+        entry.extend_from_slice(&50.0f32.to_le_bytes());
+        entry.extend_from_slice(&60.0f32.to_le_bytes());
+        entry.extend_from_slice(&70.0f32.to_le_bytes());
+        entry.extend_from_slice(&80.0f32.to_le_bytes());
+        entry.extend_from_slice(&90.0f32.to_le_bytes());
+        entry.extend_from_slice(&0u16.to_le_bytes());
+        entry.extend_from_slice(&0u16.to_le_bytes());
+        entry.extend_from_slice(&0u16.to_le_bytes());
+        entry.extend_from_slice(&0u16.to_le_bytes());
+
+        let parsed = parse_modf_entry(&entry, 0, b"", &[]).expect("modf entry should parse");
+
+        assert_eq!(parsed.extents_min, [40.0, 50.0, 60.0]);
+        assert_eq!(parsed.extents_max, [70.0, 80.0, 90.0]);
     }
 }

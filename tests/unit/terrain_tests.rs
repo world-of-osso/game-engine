@@ -123,6 +123,8 @@ fn choose_safe_spawn_position_avoids_nearby_wmo_chunk() {
             unique_id: 0,
             position: [-adt::CHUNK_SIZE / 2.0, -adt::CHUNK_SIZE / 2.0, 0.0],
             rotation: [0.0, 0.0, 0.0],
+            extents_min: [0.0, 0.0, 0.0],
+            extents_max: [0.0, 0.0, 0.0],
             flags: 0,
             doodad_set: 0,
             name_set: 0,

@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::asset::{adt_format::adt_obj, blp, wmo};
 
-use super::{SpawnedWmoRoot, WmoLocalSkybox, wmo_transform};
+use super::{SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform};
 
 const WMO_DOUBLE_SIDED_FLAG: u32 = 0x04;
 
@@ -84,6 +84,7 @@ fn try_spawn_wmo(
         transform,
         portal_graph,
         build_wmo_adt_metadata(placement),
+        build_wmo_root_bounds(placement),
         root.skybox_wow_path.as_deref(),
     );
 
@@ -129,6 +130,7 @@ fn spawn_wmo_root_entity(
     transform: Transform,
     portal_graph: game_engine::culling::WmoPortalGraph,
     placement: WmoAdtMetadata,
+    root_bounds: game_engine::culling::WmoRootBounds,
     skybox_wow_path: Option<&str>,
 ) -> Entity {
     let mut entity = commands.spawn((
@@ -136,6 +138,7 @@ fn spawn_wmo_root_entity(
         transform,
         Visibility::default(),
         game_engine::culling::Wmo,
+        root_bounds,
         portal_graph,
         placement,
     ));
@@ -152,6 +155,15 @@ fn build_wmo_adt_metadata(placement: &adt_obj::WmoPlacement) -> WmoAdtMetadata {
         unique_id: placement.unique_id,
         doodad_set: placement.doodad_set,
         name_set: placement.name_set,
+    }
+}
+
+fn build_wmo_root_bounds(placement: &adt_obj::WmoPlacement) -> game_engine::culling::WmoRootBounds {
+    let min = Vec3::from(placement_to_bevy_absolute(placement.extents_min));
+    let max = Vec3::from(placement_to_bevy_absolute(placement.extents_max));
+    game_engine::culling::WmoRootBounds {
+        world_min: min.min(max),
+        world_max: min.max(max),
     }
 }
 
@@ -271,6 +283,8 @@ mod tests {
             unique_id: 77,
             position: [0.0, 0.0, 0.0],
             rotation: [0.0, 0.0, 0.0],
+            extents_min: [10.0, 20.0, 30.0],
+            extents_max: [40.0, 50.0, 60.0],
             flags: 0,
             doodad_set: 3,
             name_set: 9,
@@ -290,12 +304,49 @@ mod tests {
     }
 
     #[test]
+    fn build_wmo_root_bounds_converts_modf_extents() {
+        let placement = adt_obj::WmoPlacement {
+            name_id: 1,
+            unique_id: 77,
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            extents_min: [40.0, 50.0, 60.0],
+            extents_max: [10.0, 20.0, 30.0],
+            flags: 0,
+            doodad_set: 3,
+            name_set: 9,
+            scale: 1.0,
+            fdid: Some(123),
+            path: None,
+        };
+
+        let expected_min = Vec3::from(placement_to_bevy_absolute(placement.extents_min)).min(
+            Vec3::from(placement_to_bevy_absolute(placement.extents_max)),
+        );
+        let expected_max = Vec3::from(placement_to_bevy_absolute(placement.extents_min)).max(
+            Vec3::from(placement_to_bevy_absolute(placement.extents_max)),
+        );
+
+        assert_eq!(
+            build_wmo_root_bounds(&placement),
+            game_engine::culling::WmoRootBounds {
+                world_min: expected_min,
+                world_max: expected_max,
+            }
+        );
+    }
+
+    #[test]
     fn spawn_wmo_root_entity_attaches_adt_metadata() {
         let mut app = App::new();
         let metadata = WmoAdtMetadata {
             unique_id: 88,
             doodad_set: 4,
             name_set: 6,
+        };
+        let bounds = game_engine::culling::WmoRootBounds {
+            world_min: Vec3::new(-1.0, -2.0, -3.0),
+            world_max: Vec3::new(1.0, 2.0, 3.0),
         };
 
         let entity = app
@@ -310,17 +361,25 @@ mod tests {
                         portal_verts: Vec::new(),
                     },
                     metadata,
+                    bounds,
                     None,
                 )
             });
         app.update();
+        let entity = entity.expect("entity should spawn");
 
         let stored = app
             .world()
-            .get::<WmoAdtMetadata>(entity.expect("entity should spawn"))
+            .get::<WmoAdtMetadata>(entity)
             .copied()
             .expect("metadata component");
         assert_eq!(stored, metadata);
+        let stored_bounds = app
+            .world()
+            .get::<game_engine::culling::WmoRootBounds>(entity)
+            .copied()
+            .expect("bounds component");
+        assert_eq!(stored_bounds, bounds);
     }
 
     #[test]

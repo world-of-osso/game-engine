@@ -28,6 +28,13 @@ pub struct Doodad;
 #[derive(Component)]
 pub struct Wmo;
 
+/// Absolute world-space bounds from ADT MODF placement extents.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct WmoRootBounds {
+    pub world_min: Vec3,
+    pub world_max: Vec3,
+}
+
 /// Marker for a WMO group entity (child of a Wmo root). Stores the group index
 /// and its AABB in WMO-local space (from MOGI).
 #[derive(Component)]
@@ -89,7 +96,7 @@ fn distance_cull_system(
     camera_q: Query<&Transform, With<Camera3d>>,
     mut chunks: Query<(&TerrainChunk, &mut Visibility)>,
     mut doodads: Query<(&Transform, &mut Visibility), DoodadFilter>,
-    mut wmos: Query<(&Transform, &mut Visibility), WmoFilter>,
+    mut wmos: Query<(&Transform, Option<&WmoRootBounds>, &mut Visibility), WmoFilter>,
 ) {
     let Ok(cam) = camera_q.single() else { return };
     let cam_pos = cam.translation;
@@ -100,7 +107,7 @@ fn distance_cull_system(
 
     update_chunk_visibility(cam_pos, config.chunk_distance_sq, &mut chunks);
     update_transform_visibility(cam_pos, config.doodad_distance_sq, &mut doodads);
-    update_transform_visibility(cam_pos, config.wmo_distance_sq, &mut wmos);
+    update_wmo_visibility(cam_pos, config.wmo_distance_sq, &mut wmos);
 }
 
 fn should_skip_cull_update(
@@ -143,6 +150,44 @@ fn update_transform_visibility<F>(
             &mut vis,
         );
     }
+}
+
+fn update_wmo_visibility(
+    cam_pos: Vec3,
+    max_distance_sq: f32,
+    wmos: &mut Query<(&Transform, Option<&WmoRootBounds>, &mut Visibility), WmoFilter>,
+) {
+    for (transform, bounds, mut visibility) in wmos {
+        let distance_sq = bounds
+            .map(|bounds| distance_sq_to_aabb(cam_pos, bounds.world_min, bounds.world_max))
+            .unwrap_or_else(|| cam_pos.distance_squared(transform.translation));
+        apply_distance_visibility(distance_sq, max_distance_sq, &mut visibility);
+    }
+}
+
+fn distance_sq_to_aabb(point: Vec3, min: Vec3, max: Vec3) -> f32 {
+    let dx = if point.x < min.x {
+        min.x - point.x
+    } else if point.x > max.x {
+        point.x - max.x
+    } else {
+        0.0
+    };
+    let dy = if point.y < min.y {
+        min.y - point.y
+    } else if point.y > max.y {
+        point.y - max.y
+    } else {
+        0.0
+    };
+    let dz = if point.z < min.z {
+        min.z - point.z
+    } else if point.z > max.z {
+        point.z - max.z
+    } else {
+        0.0
+    };
+    dx * dx + dy * dy + dz * dz
 }
 
 fn apply_distance_visibility(distance_sq: f32, max_distance_sq: f32, vis: &mut Visibility) {
@@ -307,7 +352,11 @@ mod tests {
         Query<
             'static,
             'static,
-            (&'static Transform, &'static mut Visibility),
+            (
+                &'static Transform,
+                Option<&'static WmoRootBounds>,
+                &'static mut Visibility,
+            ),
             (
                 With<Wmo>,
                 Without<Doodad>,
@@ -413,6 +462,28 @@ mod tests {
         run_cull(&mut world, &mut state);
         assert_eq!(*world.get::<Visibility>(near).unwrap(), Visibility::Visible);
         assert_eq!(*world.get::<Visibility>(far).unwrap(), Visibility::Hidden);
+    }
+
+    #[test]
+    fn wmo_uses_root_bounds_for_distance_culling() {
+        let (mut world, mut state) = setup_world(Vec3::new(45.0, 0.0, 0.0), 10.0 * 10.0);
+        let entity = world
+            .spawn((
+                Wmo,
+                Transform::from_xyz(500.0, 0.0, 0.0),
+                WmoRootBounds {
+                    world_min: Vec3::new(40.0, -5.0, -5.0),
+                    world_max: Vec3::new(60.0, 5.0, 5.0),
+                },
+                Visibility::Visible,
+            ))
+            .id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(
+            *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Visible
+        );
     }
 
     #[test]

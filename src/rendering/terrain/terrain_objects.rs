@@ -513,7 +513,7 @@ fn spawn_wmos(
 
 /// Convert MODF/MDDF placement position to Bevy-space using the legacy
 /// absolute-world ADT convention.
-fn placement_to_bevy_absolute(raw: [f32; 3]) -> [f32; 3] {
+pub(super) fn placement_to_bevy_absolute(raw: [f32; 3]) -> [f32; 3] {
     let center = 32.0 * TILE_SIZE;
     [center - raw[2], raw[1], raw[0] - center]
 }
