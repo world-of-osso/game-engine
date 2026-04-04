@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use crate::little_endian::{read_le, read_le_u16, read_le_u32};
+
 #[path = "light_lookup_cache.rs"]
 mod cache;
 
@@ -445,22 +447,6 @@ fn parse_wdc5_field_storage(
         });
     }
     Ok(fields)
-}
-
-fn read_le(bytes: &[u8], offset: usize, len: usize) -> u64 {
-    let mut value = 0u64;
-    for (index, byte) in bytes[offset..offset + len].iter().enumerate() {
-        value |= (*byte as u64) << (index * 8);
-    }
-    value
-}
-
-fn read_le_u16(bytes: &[u8], offset: usize) -> u16 {
-    read_le(bytes, offset, 2) as u16
-}
-
-fn read_le_u32(bytes: &[u8], offset: usize) -> u32 {
-    read_le(bytes, offset, 4) as u32
 }
 
 #[cfg(test)]

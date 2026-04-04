@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::little_endian::{read_le, read_le_u16, read_le_u32};
+
 const HELMET_GEOSET_DATA_FDID: u32 = 2_821_752;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -231,20 +233,4 @@ fn helmet_relation_value(
         cursor += 8;
     }
     None
-}
-
-fn read_le(bytes: &[u8], offset: usize, len: usize) -> u64 {
-    let mut value = 0u64;
-    for (index, byte) in bytes[offset..offset + len].iter().enumerate() {
-        value |= (*byte as u64) << (index * 8);
-    }
-    value
-}
-
-fn read_le_u16(bytes: &[u8], offset: usize) -> u16 {
-    read_le(bytes, offset, 2) as u16
-}
-
-fn read_le_u32(bytes: &[u8], offset: usize) -> u32 {
-    read_le(bytes, offset, 4) as u32
 }

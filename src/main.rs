@@ -43,6 +43,7 @@ mod collision;
 mod csv_util;
 mod dump_systems;
 mod game;
+mod little_endian;
 mod mesh_asset_stats;
 mod model_path_resolver;
 mod process_limits;

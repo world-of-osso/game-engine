@@ -23,6 +23,7 @@ pub mod ipc;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
 pub mod listfile;
+pub mod little_endian;
 pub mod mail;
 pub mod mesh_asset_stats;
 #[path = "game/equipment/outfit_data.rs"]
