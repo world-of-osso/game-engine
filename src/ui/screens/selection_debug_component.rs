@@ -325,6 +325,15 @@ fn detail_panel(state: &SelectionDebugState) -> Element {
 
 fn detail_panel_selected_copy(selected: &SelectionDebugEntry) -> Element {
     rsx! {
+        {detail_panel_selected_title()}
+        {detail_panel_selected_label(&selected.label)}
+        {detail_panel_selected_subtitle(&selected.subtitle)}
+        {detail_panel_selected_value(&selected.detail)}
+    }
+}
+
+fn detail_panel_selected_title() -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugDetailTitle",
             width: 520.0,
@@ -342,11 +351,16 @@ fn detail_panel_selected_copy(selected: &SelectionDebugEntry) -> Element {
                 y: "-18",
             }
         }
+    }
+}
+
+fn detail_panel_selected_label(label: &str) -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugDetailLabel",
             width: 520.0,
             height: 32.0,
-            text: {&selected.label},
+            text: {label},
             font: GameFont::FrizQuadrata,
             font_size: 28.0,
             font_color: TEXT_GOLD,
@@ -359,11 +373,16 @@ fn detail_panel_selected_copy(selected: &SelectionDebugEntry) -> Element {
                 y: "-62",
             }
         }
+    }
+}
+
+fn detail_panel_selected_subtitle(subtitle: &str) -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugDetailSubtitle",
             width: 520.0,
             height: 18.0,
-            text: {&selected.subtitle},
+            text: {subtitle},
             font: GameFont::FrizQuadrata,
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
@@ -376,11 +395,16 @@ fn detail_panel_selected_copy(selected: &SelectionDebugEntry) -> Element {
                 y: "-96",
             }
         }
+    }
+}
+
+fn detail_panel_selected_value(detail: &str) -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugDetailValue",
             width: 520.0,
             height: 150.0,
-            text: {&selected.detail},
+            text: {detail},
             font: GameFont::FrizQuadrata,
             font_size: 15.0,
             font_color: TEXT_MUTED,
