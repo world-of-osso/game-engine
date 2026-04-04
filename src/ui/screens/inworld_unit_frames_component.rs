@@ -463,6 +463,16 @@ fn target_portrait_overlay_icons(prefix: &str) -> Element {
 
 fn target_right_badge_icons(prefix: &str) -> Element {
     [
+        target_right_prestige_icons(prefix),
+        target_right_threat_icons(prefix),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn target_right_prestige_icons(prefix: &str) -> Element {
+    [
         sized_marker(
             format!("{prefix}PrestigePortrait"),
             TARGET_PRESTIGE.x,
@@ -483,14 +493,20 @@ fn target_right_badge_icons(prefix: &str) -> Element {
             TARGET_PRESTIGE_BADGE_W,
             TARGET_PRESTIGE_BADGE_H,
         ),
-        sized_marker(
-            format!("{prefix}NumericalThreat"),
-            TARGET_THREAT.x,
-            TARGET_THREAT.y,
-            TARGET_THREAT.width,
-            TARGET_THREAT.height,
-        ),
     ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn target_right_threat_icons(prefix: &str) -> Element {
+    [sized_marker(
+        format!("{prefix}NumericalThreat"),
+        TARGET_THREAT.x,
+        TARGET_THREAT.y,
+        TARGET_THREAT.width,
+        TARGET_THREAT.height,
+    )]
     .into_iter()
     .flatten()
     .collect()
