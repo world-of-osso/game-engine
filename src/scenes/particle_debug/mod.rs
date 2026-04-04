@@ -257,6 +257,14 @@ fn basic_particle_debug_emitter(
     authored: &asset::m2_particle::M2ParticleEmitter,
 ) -> asset::m2_particle::M2ParticleEmitter {
     let mut emitter = authored.clone();
+    reset_basic_emitter_identity(&mut emitter);
+    reset_basic_emitter_motion(&mut emitter, authored);
+    reset_basic_emitter_dynamics(&mut emitter);
+    reset_basic_emitter_visuals(&mut emitter, authored);
+    emitter
+}
+
+fn reset_basic_emitter_identity(emitter: &mut asset::m2_particle::M2ParticleEmitter) {
     emitter.flags = 0;
     emitter.texture_fdid = None;
     emitter.blend_type = 2;
@@ -265,6 +273,12 @@ fn basic_particle_debug_emitter(
     emitter.head_or_tail = 0;
     emitter.tile_rows = 1;
     emitter.tile_cols = 1;
+}
+
+fn reset_basic_emitter_motion(
+    emitter: &mut asset::m2_particle::M2ParticleEmitter,
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) {
     emitter.emission_speed = authored.emission_speed.max(0.1);
     emitter.speed_variation = 0.0;
     emitter.vertical_range = 0.0;
@@ -276,6 +290,9 @@ fn basic_particle_debug_emitter(
     emitter.z_source = 0.0;
     emitter.tail_length = 0.0;
     emitter.drag = 0.0;
+}
+
+fn reset_basic_emitter_dynamics(emitter: &mut asset::m2_particle::M2ParticleEmitter) {
     emitter.scale_variation = 0.0;
     emitter.scale_variation_y = 0.0;
     emitter.base_spin = 0.0;
@@ -288,6 +305,12 @@ fn basic_particle_debug_emitter(
     emitter.follow_scale1 = 0.0;
     emitter.follow_speed2 = 0.0;
     emitter.follow_scale2 = 0.0;
+}
+
+fn reset_basic_emitter_visuals(
+    emitter: &mut asset::m2_particle::M2ParticleEmitter,
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) {
     emitter.color_keys.clear();
     emitter.opacity_keys.clear();
     emitter.scale_keys.clear();
@@ -304,7 +327,6 @@ fn basic_particle_debug_emitter(
     emitter.head_cell_track = [0; 3];
     emitter.tail_cell_track = [0; 3];
     emitter.mid_point = 0.5;
-    emitter
 }
 
 fn spawn_torch_model(
