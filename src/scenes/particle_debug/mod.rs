@@ -110,24 +110,9 @@ struct ParticleDebugSceneParams<'w, 's> {
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
     let mut timings = SetupTimings::default();
 
-    commands.insert_resource(ClearColor(Color::srgb(0.03, 0.04, 0.06)));
-    timings.record("camera", || spawn_camera(&mut commands));
-    timings.record("lighting", || spawn_lighting(&mut commands));
-    timings.record("ground", || {
-        spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
-    });
-    let skin_fdids = resolved_skin_fdids(
-        Path::new(TORCH_M2),
-        &params.creature_display_map,
-        &params.outfit_data,
-    );
-    let path = PathBuf::from(TORCH_M2);
-    let model = match asset::m2::load_m2_uncached(&path, &skin_fdids) {
-        Ok(m) => m,
-        Err(e) => {
-            eprintln!("particle_debug: failed to load {}: {e}", path.display());
-            return;
-        }
+    setup_scene_environment(&mut commands, &mut params, &mut timings);
+    let Some((path, model)) = load_particle_debug_model(&params) else {
+        return;
     };
     let model = configure_particle_debug_model(model, PARTICLE_DEBUG_EMITTER_STAGE);
     spawn_emitter_overlay_from_emitters(
@@ -141,6 +126,37 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
         format_particle_overlay(&model.particle_emitters)
     );
     spawn_torch_model(&mut commands, &mut params, &path, model);
+}
+
+fn setup_scene_environment(
+    commands: &mut Commands,
+    params: &mut ParticleDebugSceneParams,
+    timings: &mut SetupTimings,
+) {
+    commands.insert_resource(ClearColor(Color::srgb(0.03, 0.04, 0.06)));
+    timings.record("camera", || spawn_camera(commands));
+    timings.record("lighting", || spawn_lighting(commands));
+    timings.record("ground", || {
+        spawn_ground(commands, &mut params.meshes, &mut params.materials);
+    });
+}
+
+fn load_particle_debug_model(
+    params: &ParticleDebugSceneParams,
+) -> Option<(PathBuf, asset::m2::M2Model)> {
+    let path = PathBuf::from(TORCH_M2);
+    let skin_fdids = resolved_skin_fdids(
+        Path::new(TORCH_M2),
+        &params.creature_display_map,
+        &params.outfit_data,
+    );
+    match asset::m2::load_m2_uncached(&path, &skin_fdids) {
+        Ok(model) => Some((path, model)),
+        Err(e) => {
+            eprintln!("particle_debug: failed to load {}: {e}", path.display());
+            None
+        }
+    }
 }
 
 fn configure_particle_debug_model(
