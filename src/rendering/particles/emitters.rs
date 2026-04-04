@@ -364,6 +364,13 @@ pub fn spawn_burst_emitters(
     }
 }
 
+struct EmitterSpawnContext {
+    bone_entity: Option<Entity>,
+    parent_entity: Entity,
+    local_offset: Vec3,
+    scale_source: Entity,
+}
+
 fn spawn_single_emitter(
     commands: &mut Commands,
     images: &mut Assets<Image>,
@@ -373,42 +380,73 @@ fn spawn_single_emitter(
     parent: Entity,
     spawn_mode: ParticleSpawnMode,
 ) {
-    let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
-    let parent_entity = emitter_parent_entity(em, bone_entity, parent);
-    let local_offset = emitter_spawn_offset(em, bones);
+    let spawn = resolve_emitter_spawn_context(em, bones, bone_entities, parent);
     if emitter_uses_model_particles(em) {
         spawn_model_particle_emitter(
             commands,
             em,
-            bone_entity,
-            parent_entity,
-            local_offset,
-            emitter_scale_source(em, bone_entity, parent),
+            spawn.bone_entity,
+            spawn.parent_entity,
+            spawn.local_offset,
+            spawn.scale_source,
             spawn_mode,
             ParticleSpawnSource::Standalone,
         );
         return;
     }
+    let emitter_entity = spawn_gpu_particle_emitter(
+        commands,
+        images,
+        em,
+        &spawn,
+        spawn_mode,
+        ParticleSpawnSource::Standalone,
+    );
+    spawn_child_emitter_effects(commands, images, em, emitter_entity, parent);
+}
+
+fn resolve_emitter_spawn_context(
+    em: &M2ParticleEmitter,
+    bones: &[M2Bone],
+    bone_entities: Option<&[Entity]>,
+    parent: Entity,
+) -> EmitterSpawnContext {
+    let bone_entity = bone_entities.and_then(|b| b.get(em.bone_index as usize).copied());
+    EmitterSpawnContext {
+        bone_entity,
+        parent_entity: emitter_parent_entity(em, bone_entity, parent),
+        local_offset: emitter_spawn_offset(em, bones),
+        scale_source: emitter_scale_source(em, bone_entity, parent),
+    }
+}
+
+fn spawn_gpu_particle_emitter(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    em: &M2ParticleEmitter,
+    spawn: &EmitterSpawnContext,
+    spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+) -> Entity {
     let pending_texture = load_emitter_texture(em, images);
-    let emitter_entity = commands
+    commands
         .spawn((
             Name::new("ParticleEmitter"),
             ParticleEmitterComp {
                 emitter: em.clone(),
-                bone_entity,
-                scale_source: emitter_scale_source(em, bone_entity, parent),
+                bone_entity: spawn.bone_entity,
+                scale_source: spawn.scale_source,
                 spawn_mode,
-                spawn_source: ParticleSpawnSource::Standalone,
+                spawn_source,
                 child_emitters: load_child_particle_emitters(em),
                 effect_parent: None,
                 pending_texture,
             },
-            Transform::from_translation(local_offset),
+            Transform::from_translation(spawn.local_offset),
             Visibility::default(),
         ))
-        .set_parent_in_place(parent_entity)
-        .id();
-    spawn_child_emitter_effects(commands, images, em, emitter_entity, parent);
+        .set_parent_in_place(spawn.parent_entity)
+        .id()
 }
 
 fn spawn_model_particle_emitter(
