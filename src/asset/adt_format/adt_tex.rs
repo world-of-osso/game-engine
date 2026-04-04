@@ -47,6 +47,7 @@ pub struct TextureLayer {
     pub texture_index: u32,
     pub flags: MclyFlags,
     pub effect_id: u32,
+    pub material_id: u8,
     pub alpha_map: Option<Vec<u8>>,
 }
 
@@ -249,6 +250,7 @@ fn fix_alpha_map_edges(alpha_map: &mut [u8]) {
 fn build_texture_layers(
     mcly: &[u8],
     mcal: &[u8],
+    mcmt: Option<[u8; 4]>,
     do_not_fix_alpha_map: bool,
 ) -> Result<Vec<TextureLayer>, String> {
     let layer_count = mcly.len() / size_of::<MclyEntry>();
@@ -267,6 +269,7 @@ fn build_texture_layers(
             texture_index: entry.texture_index,
             flags: MclyFlags { raw: entry.flags },
             effect_id: entry._effect_id,
+            material_id: mcmt.and_then(|ids| ids.get(i).copied()).unwrap_or(0),
             alpha_map,
         });
     }
@@ -276,19 +279,30 @@ fn build_texture_layers(
 fn parse_tex0_mcnk(payload: &[u8], do_not_fix_alpha_map: bool) -> Result<ChunkTexLayers, String> {
     let mut mcly_payload: Option<&[u8]> = None;
     let mut mcal_payload: Option<&[u8]> = None;
+    let mut mcmt_payload: Option<[u8; 4]> = None;
     for chunk in ChunkIter::new(payload) {
         let (tag, data) = chunk?;
         match tag {
             b"YLCM" => mcly_payload = Some(data),
             b"LACM" => mcal_payload = Some(data),
+            b"TMCM" => mcmt_payload = Some(parse_mcmt(data)?),
             _ => {}
         }
     }
     let mcly = mcly_payload.unwrap_or(&[]);
     let mcal = mcal_payload.unwrap_or(&[]);
     Ok(ChunkTexLayers {
-        layers: build_texture_layers(mcly, mcal, do_not_fix_alpha_map)?,
+        layers: build_texture_layers(mcly, mcal, mcmt_payload, do_not_fix_alpha_map)?,
     })
+}
+
+fn parse_mcmt(payload: &[u8]) -> Result<[u8; 4], String> {
+    let values: [u8; 4] = payload
+        .get(..4)
+        .ok_or_else(|| "MCMT too small: need 4 bytes".to_string())?
+        .try_into()
+        .map_err(|_| "MCMT must be exactly 4 bytes".to_string())?;
+    Ok(values)
 }
 
 fn parse_u32_chunk(payload: &[u8], label: &str) -> Result<Vec<u32>, String> {
@@ -551,11 +565,13 @@ mod tests {
             99,
         );
 
-        let layers = build_texture_layers(&mcly, &[], false).expect("expected MCLY layer to parse");
+        let layers = build_texture_layers(&mcly, &[], Some([12, 0, 0, 0]), false)
+            .expect("expected MCLY layer to parse");
         let layer = &layers[0];
 
         assert_eq!(layer.texture_index, 7);
         assert_eq!(layer.effect_id, 99);
+        assert_eq!(layer.material_id, 12);
         assert_eq!(layer.flags.animation_rotation(), 1);
         assert_eq!(layer.flags.animation_speed(), 2);
         assert!(layer.flags.animation_enabled());
@@ -573,6 +589,7 @@ mod tests {
             b"KNCM",
             tex0_mcnk_payload(
                 mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 11),
+                Some([4, 0, 0, 0]),
                 vec![0x7F; 4096],
             ),
         );
@@ -584,7 +601,30 @@ mod tests {
         assert!(parsed.height_texture_fdids.is_empty());
         assert!(layer.flags.use_alpha_map());
         assert_eq!(layer.effect_id, 11);
+        assert_eq!(layer.material_id, 4);
         assert_eq!(layer.alpha_map.as_ref().map(Vec::len), Some(4096));
+    }
+
+    #[test]
+    fn load_adt_tex0_reads_mcmt_material_ids_per_layer() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3, 4]));
+        let mcly = [
+            mcly_entry_payload(0, 0, 0, 0),
+            mcly_entry_payload(1, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+        ]
+        .concat();
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            tex0_mcnk_payload(mcly, Some([7, 9, 0, 0]), vec![0x7F; 4096]),
+        );
+
+        let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+        let layers = &parsed.chunk_layers[0].layers;
+
+        assert_eq!(layers[0].material_id, 7);
+        assert_eq!(layers[1].material_id, 9);
     }
 
     #[test]
@@ -595,7 +635,7 @@ mod tests {
         append_subchunk(
             &mut payload,
             b"KNCM",
-            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), Vec::new()),
+            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
         );
 
         let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
@@ -632,7 +672,7 @@ mod tests {
         append_subchunk(
             &mut payload,
             b"KNCM",
-            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), Vec::new()),
+            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
         );
 
         let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
@@ -674,7 +714,11 @@ mod tests {
         append_subchunk(
             &mut payload,
             b"KNCM",
-            tex0_mcnk_payload(mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0), mcal),
+            tex0_mcnk_payload(
+                mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+                None,
+                mcal,
+            ),
         );
 
         let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
@@ -706,7 +750,11 @@ mod tests {
         append_subchunk(
             &mut payload,
             b"KNCM",
-            tex0_mcnk_payload(mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0), mcal),
+            tex0_mcnk_payload(
+                mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+                None,
+                mcal,
+            ),
         );
 
         let parsed = load_adt_tex0_with_chunk_alpha_flags(&payload, &[true])
@@ -737,9 +785,12 @@ mod tests {
         payload
     }
 
-    fn tex0_mcnk_payload(mcly: Vec<u8>, mcal: Vec<u8>) -> Vec<u8> {
+    fn tex0_mcnk_payload(mcly: Vec<u8>, mcmt: Option<[u8; 4]>, mcal: Vec<u8>) -> Vec<u8> {
         let mut payload = Vec::new();
         append_subchunk(&mut payload, b"YLCM", mcly);
+        if let Some(material_ids) = mcmt {
+            append_subchunk(&mut payload, b"TMCM", material_ids.to_vec());
+        }
         append_subchunk(&mut payload, b"LACM", mcal);
         payload
     }

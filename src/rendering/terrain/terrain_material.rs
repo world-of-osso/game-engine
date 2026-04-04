@@ -409,8 +409,15 @@ fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]
         params[slot] = tex_data
             .texture_params
             .get(layer.texture_index as usize)
-            .map(|param| Vec4::new(param.height_scale, param.height_offset, 0.0, 0.0))
-            .unwrap_or(DEFAULT_LAYER_PARAMS);
+            .map(|param| {
+                Vec4::new(
+                    param.height_scale,
+                    param.height_offset,
+                    f32::from(layer.material_id),
+                    0.0,
+                )
+            })
+            .unwrap_or(Vec4::new(1.0, 0.0, f32::from(layer.material_id), 0.0));
     }
     params
 }
@@ -472,19 +479,21 @@ mod tests {
                 texture_index: 1,
                 flags: adt::MclyFlags::default(),
                 effect_id: 0,
+                material_id: 9,
                 alpha_map: None,
             },
             adt::TextureLayer {
                 texture_index: 0,
                 flags: adt::MclyFlags::default(),
                 effect_id: 0,
+                material_id: 4,
                 alpha_map: None,
             },
         ];
 
         let params = texture_layer_params(&tex_data, &layers);
 
-        assert_eq!(params[0], Vec4::new(0.75, 0.125, 0.0, 0.0));
-        assert_eq!(params[1], Vec4::new(1.25, -0.5, 0.0, 0.0));
+        assert_eq!(params[0], Vec4::new(0.75, 0.125, 9.0, 0.0));
+        assert_eq!(params[1], Vec4::new(1.25, -0.5, 4.0, 0.0));
     }
 }

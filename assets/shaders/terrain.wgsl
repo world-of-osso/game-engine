@@ -20,6 +20,7 @@ struct TerrainSettings {
 // settings.config.x = layer_count (1-4), settings.config.y = global height blend strength
 // settings.config.z = perceptual_roughness, settings.config.w = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
+// settings.layer_params_N.z = MCMT terrain material id
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: TerrainSettings;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var ground_0: texture_2d<f32>;
