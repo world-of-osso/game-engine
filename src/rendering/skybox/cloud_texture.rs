@@ -9,6 +9,7 @@ pub const CLOUD_TEXTURE_WIDTH: u32 = 512;
 pub const CLOUD_TEXTURE_HEIGHT: u32 = 1024;
 pub const CLOUD_REGEN_SECONDS: f32 = 5.0;
 const CLOUD_OCTAVES: usize = 6;
+const CLOUD_RIDGE_SEED_MIX: u32 = 0x9E37_79B9;
 
 #[derive(Resource)]
 pub struct ProceduralCloudMaps {
@@ -51,7 +52,11 @@ pub fn generate_procedural_cloud_image(seed: u32) -> Image {
             let u = x as f32 / width as f32;
             let v = y as f32 / height as f32;
             let noise = fbm_simplex(u * 7.0, v * 9.0, seed);
-            let ridges = fbm_simplex(u * 15.0 + 17.3, v * 13.0 - 11.1, seed ^ 0x9E37_79B9);
+            let ridges = fbm_simplex(
+                u * 15.0 + 17.3,
+                v * 13.0 - 11.1,
+                seed ^ CLOUD_RIDGE_SEED_MIX,
+            );
             let combined =
                 (noise * 0.72 + (1.0 - (ridges * 2.0 - 1.0).abs()) * 0.28).clamp(0.0, 1.0);
             let softened = combined.powf(1.35);
