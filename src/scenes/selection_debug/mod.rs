@@ -184,23 +184,35 @@ fn dispatch_selection_debug_action(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for event in events.read() {
-        match SelectionDebugAction::parse(&event.0) {
-            Some(SelectionDebugAction::SelectEntry(index)) => select_entry(&mut model, index),
-            Some(SelectionDebugAction::Prev) => cycle_selection(&mut model, -1),
-            Some(SelectionDebugAction::Next) => cycle_selection(&mut model, 1),
-            Some(SelectionDebugAction::TogglePinned) => {
-                model.pinned = !model.pinned;
-                let label = current_label(&model);
-                model.last_action = if model.pinned {
-                    format!("Pinned {label}")
-                } else {
-                    format!("Unpinned {label}")
-                };
-            }
-            Some(SelectionDebugAction::Back) => next_state.set(GameState::Login),
-            None => {}
-        }
+        let Some(action) = SelectionDebugAction::parse(&event.0) else {
+            continue;
+        };
+        handle_selection_debug_action(&mut model, &mut next_state, action);
     }
+}
+
+fn handle_selection_debug_action(
+    model: &mut SelectionDebugModel,
+    next_state: &mut NextState<GameState>,
+    action: SelectionDebugAction,
+) {
+    match action {
+        SelectionDebugAction::SelectEntry(index) => select_entry(model, index),
+        SelectionDebugAction::Prev => cycle_selection(model, -1),
+        SelectionDebugAction::Next => cycle_selection(model, 1),
+        SelectionDebugAction::TogglePinned => toggle_pinned_selection(model),
+        SelectionDebugAction::Back => next_state.set(GameState::Login),
+    }
+}
+
+fn toggle_pinned_selection(model: &mut SelectionDebugModel) {
+    model.pinned = !model.pinned;
+    let label = current_label(model);
+    model.last_action = if model.pinned {
+        format!("Pinned {label}")
+    } else {
+        format!("Unpinned {label}")
+    };
 }
 
 fn select_entry(model: &mut SelectionDebugModel, index: usize) {
