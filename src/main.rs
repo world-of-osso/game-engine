@@ -45,6 +45,7 @@ mod dump_systems;
 mod game;
 mod mesh_asset_stats;
 mod process_limits;
+mod process_memory_status;
 mod rendering;
 mod scenes;
 mod screen_auto_login;
