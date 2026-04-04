@@ -156,45 +156,74 @@ fn rebuild_cache(conn: &Connection, source_path: &Path) -> Result<(), String> {
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "BEGIN;
-         DROP TABLE IF EXISTS metadata;
-         DROP TABLE IF EXISTS light_data_rows;
-         CREATE TABLE metadata (
-             source_path TEXT NOT NULL,
-             source_mtime INTEGER NOT NULL
-         );
-         CREATE TABLE light_data_rows (
-             param_id INTEGER NOT NULL,
-             time REAL NOT NULL,
-             direct_color INTEGER NOT NULL,
-             ambient_color INTEGER NOT NULL,
-             sky_top INTEGER NOT NULL,
-             sky_middle INTEGER NOT NULL,
-             sky_band1 INTEGER NOT NULL,
-             sky_band2 INTEGER NOT NULL,
-             sky_smog INTEGER NOT NULL,
-             fog_color INTEGER NOT NULL,
-             sun_color INTEGER NOT NULL,
-             sun_halo_color INTEGER NOT NULL,
-             cloud_emissive_color INTEGER NOT NULL,
-             cloud_layer1_ambient_color INTEGER NOT NULL,
-             cloud_layer2_ambient_color INTEGER NOT NULL,
-             ocean_close_color INTEGER NOT NULL,
-             ocean_far_color INTEGER NOT NULL,
-             river_close_color INTEGER NOT NULL,
-             river_far_color INTEGER NOT NULL,
-             horizon_ambient_color INTEGER NOT NULL,
-             fog_end REAL NOT NULL,
-             fog_start REAL NOT NULL,
-             glow REAL NOT NULL,
-             cloud_density REAL NOT NULL,
-             unk1 REAL NOT NULL,
-             unk2 REAL NOT NULL,
-             PRIMARY KEY (param_id, time)
-         );",
+    conn.execute_batch(&build_cache_schema_sql())
+        .map_err(|err| format!("init light data cache: {err}"))
+}
+
+fn build_cache_schema_sql() -> String {
+    format!(
+        "{}{}{}",
+        begin_cache_schema_sql(),
+        drop_cache_tables_sql(),
+        create_cache_tables_sql()
     )
-    .map_err(|err| format!("init light data cache: {err}"))
+}
+
+fn begin_cache_schema_sql() -> &'static str {
+    "BEGIN;\n"
+}
+
+fn drop_cache_tables_sql() -> &'static str {
+    "DROP TABLE IF EXISTS metadata;
+     DROP TABLE IF EXISTS light_data_rows;
+    "
+}
+
+fn create_cache_tables_sql() -> String {
+    format!(
+        "{}\n{}",
+        create_metadata_table_sql(),
+        create_light_data_rows_table_sql()
+    )
+}
+
+const fn create_metadata_table_sql() -> &'static str {
+    "CREATE TABLE metadata (
+         source_path TEXT NOT NULL,
+         source_mtime INTEGER NOT NULL
+     );"
+}
+
+const fn create_light_data_rows_table_sql() -> &'static str {
+    "CREATE TABLE light_data_rows (
+         param_id INTEGER NOT NULL,
+         time REAL NOT NULL,
+         direct_color INTEGER NOT NULL,
+         ambient_color INTEGER NOT NULL,
+         sky_top INTEGER NOT NULL,
+         sky_middle INTEGER NOT NULL,
+         sky_band1 INTEGER NOT NULL,
+         sky_band2 INTEGER NOT NULL,
+         sky_smog INTEGER NOT NULL,
+         fog_color INTEGER NOT NULL,
+         sun_color INTEGER NOT NULL,
+         sun_halo_color INTEGER NOT NULL,
+         cloud_emissive_color INTEGER NOT NULL,
+         cloud_layer1_ambient_color INTEGER NOT NULL,
+         cloud_layer2_ambient_color INTEGER NOT NULL,
+         ocean_close_color INTEGER NOT NULL,
+         ocean_far_color INTEGER NOT NULL,
+         river_close_color INTEGER NOT NULL,
+         river_far_color INTEGER NOT NULL,
+         horizon_ambient_color INTEGER NOT NULL,
+         fog_end REAL NOT NULL,
+         fog_start REAL NOT NULL,
+         glow REAL NOT NULL,
+         cloud_density REAL NOT NULL,
+         unk1 REAL NOT NULL,
+         unk2 REAL NOT NULL,
+         PRIMARY KEY (param_id, time)
+     );"
 }
 
 fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
