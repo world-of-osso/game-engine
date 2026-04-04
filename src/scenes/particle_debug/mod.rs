@@ -42,8 +42,10 @@ struct ParticleDebugSceneParams<'w, 's> {
 }
 
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
+    commands.insert_resource(ClearColor(Color::srgb(0.03, 0.04, 0.06)));
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
+    spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
     spawn_emitter_overlay(
         &mut commands,
         &resolved_skin_fdids(
@@ -70,8 +72,10 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
 }
 
 fn spawn_camera(commands: &mut Commands) {
-    let focus = Vec3::Y * 0.5;
-    let orbit = OrbitCamera::new(focus, 3.0);
+    let focus = Vec3::new(0.0, 0.75, 0.0);
+    let mut orbit = OrbitCamera::new(focus, 2.25);
+    orbit.min_distance = 0.75;
+    orbit.max_distance = 8.0;
     let eye = orbit.eye_position();
     commands.spawn((
         Name::new("ParticleDebugCamera"),
@@ -85,19 +89,38 @@ fn spawn_camera(commands: &mut Commands) {
 
 fn spawn_lighting(commands: &mut Commands) {
     commands.insert_resource(GlobalAmbientLight {
-        color: Color::WHITE,
-        brightness: 20.0,
+        color: Color::srgb(0.82, 0.87, 0.95),
+        brightness: 120.0,
         ..default()
     });
     commands.spawn((
         Name::new("ParticleDebugLight"),
         ParticleDebugScene,
         DirectionalLight {
-            illuminance: 4000.0,
-            shadows_enabled: false,
+            illuminance: 9000.0,
+            shadows_enabled: true,
+            color: Color::srgb(1.0, 0.95, 0.86),
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
+    ));
+}
+
+fn spawn_ground(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    commands.spawn((
+        Name::new("ParticleDebugGround"),
+        ParticleDebugScene,
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(18.0, 18.0).build())),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb(0.12, 0.14, 0.17),
+            perceptual_roughness: 0.96,
+            metallic: 0.02,
+            ..default()
+        })),
     ));
 }
 
@@ -127,7 +150,7 @@ fn spawn_torch(commands: &mut Commands, ctx: ParticleDebugTorchContext<'_>) {
     m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
         &mut ctx,
         &path,
-        Transform::IDENTITY,
+        Transform::from_xyz(0.0, 0.02, 0.0).with_scale(Vec3::splat(6.0)),
         &skin_fdids,
     );
 }
@@ -264,6 +287,7 @@ fn format_emitter_twinkle_line(emitter: &asset::m2_particle::M2ParticleEmitter) 
 }
 
 fn teardown_scene(mut commands: Commands, query: Query<Entity, With<ParticleDebugScene>>) {
+    commands.insert_resource(ClearColor(Color::BLACK));
     for entity in &query {
         commands.entity(entity).despawn();
     }
