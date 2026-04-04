@@ -618,24 +618,114 @@ struct BarBlockSpec<'a> {
     hidden: bool,
 }
 
-fn bar_block(spec: BarBlockSpec<'_>) -> Element {
-    let BarBlockSpec {
-        name,
+struct BarBlockNames {
+    frame_name: DynName,
+    fill_name: DynName,
+    text_name: DynName,
+    edge_name: DynName,
+}
+
+struct BarBlockShellSpec<'a> {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    bg_color: &'a str,
+    hidden: bool,
+}
+
+fn bar_block_names(name: &str) -> BarBlockNames {
+    let frame_name = dyn_name(name.to_string());
+    let fill_name = dyn_name(format!("{}Fill", frame_name.0));
+    let text_name = dyn_name(format!("{}Text", frame_name.0));
+    let edge_name = dyn_name(format!("{}Edge", frame_name.0));
+    BarBlockNames {
+        frame_name,
+        fill_name,
+        text_name,
+        edge_name,
+    }
+}
+
+fn bar_block_fill(fill_name: DynName, fill_width: f32, height: f32, fill_color: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {fill_name},
+            width: fill_width,
+            height,
+            background_color: fill_color,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+        }
+    }
+}
+
+fn bar_block_edge(edge_name: DynName, width: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: edge_name,
+            width,
+            height: 1.0,
+            background_color: BAR_EDGE,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+        }
+    }
+}
+
+fn bar_block_text(
+    text_name: DynName,
+    width: f32,
+    height: f32,
+    value_text: &str,
+    text_x: f32,
+) -> Element {
+    rsx! {
+        fontstring {
+            name: {text_name},
+            width,
+            height,
+            text: value_text,
+            font: STATUS_BAR_FONT,
+            font_size: STATUS_BAR_FONT_SIZE,
+            font_color: VALUE_TEXT,
+            outline: "OUTLINE",
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+                x: {text_x},
+            }
+        }
+    }
+}
+
+fn bar_block_content(
+    spec: &BarBlockSpec<'_>,
+    fill_name: DynName,
+    edge_name: DynName,
+    text_name: DynName,
+) -> Element {
+    rsx! {
+        {bar_block_fill(fill_name, spec.fill_width, spec.height, spec.fill_color)}
+        {bar_block_edge(edge_name, spec.width)}
+        {bar_block_text(text_name, spec.width, spec.height, spec.value_text, spec.text_x)}
+    }
+}
+
+fn bar_block_shell(frame_name: DynName, spec: BarBlockShellSpec<'_>, content: Element) -> Element {
+    let BarBlockShellSpec {
         x,
         y,
         width,
         height,
         bg_color,
-        fill_color,
-        fill_width,
-        value_text,
-        text_x,
         hidden,
     } = spec;
-    let frame_name = dyn_name(name);
-    let fill_name = dyn_name(format!("{}Fill", frame_name.0));
-    let text_name = dyn_name(format!("{}Text", frame_name.0));
-    let edge_name = dyn_name(format!("{}Edge", frame_name.0));
     rsx! {
         r#frame {
             name: frame_name,
@@ -649,44 +739,46 @@ fn bar_block(spec: BarBlockSpec<'_>) -> Element {
                 x,
                 y: {-y},
             }
-            r#frame {
-                name: {fill_name},
-                width: fill_width,
-                height,
-                background_color: fill_color,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-            r#frame {
-                name: edge_name,
-                width,
-                height: 1.0,
-                background_color: BAR_EDGE,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-            fontstring {
-                name: {text_name},
-                width,
-                height,
-                text: value_text,
-                font: STATUS_BAR_FONT,
-                font_size: STATUS_BAR_FONT_SIZE,
-                font_color: VALUE_TEXT,
-                outline: "OUTLINE",
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                    x: {text_x},
-                }
-            }
+            {content}
         }
     }
+}
+
+fn bar_block_shell_spec(
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    bg_color: &str,
+    hidden: bool,
+) -> BarBlockShellSpec<'_> {
+    BarBlockShellSpec {
+        x,
+        y,
+        width,
+        height,
+        bg_color,
+        hidden,
+    }
+}
+
+fn bar_block(spec: BarBlockSpec<'_>) -> Element {
+    let BarBlockNames {
+        frame_name,
+        fill_name,
+        text_name,
+        edge_name,
+    } = bar_block_names(&spec.name);
+    let content = bar_block_content(&spec, fill_name, edge_name, text_name);
+    let shell = bar_block_shell_spec(
+        spec.x,
+        spec.y,
+        spec.width,
+        spec.height,
+        spec.bg_color,
+        spec.hidden,
+    );
+    bar_block_shell(frame_name, shell, content)
 }
 
 pub fn default_player_frame_state() -> UnitFrameState {
