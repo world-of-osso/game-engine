@@ -217,6 +217,10 @@ impl<'w, 's> From<EquipmentSyncParams<'w, 's>> for EquipmentSyncRuntime<'w, 's> 
 }
 
 fn run_equipment_sync(mut runtime: EquipmentSyncRuntime<'_, '_>) {
+    sync_equipment_query(&mut runtime);
+}
+
+fn sync_equipment_query(runtime: &mut EquipmentSyncRuntime<'_, '_>) {
     let EquipmentSyncRuntime {
         commands,
         meshes,
@@ -230,10 +234,50 @@ fn run_equipment_sync(mut runtime: EquipmentSyncRuntime<'_, '_>) {
         names,
         existing_items,
         warned,
-    } = &mut runtime;
+    } = runtime;
 
+    sync_equipment_entries(
+        query,
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        transforms,
+        parents,
+        names,
+        existing_items,
+        warned,
+    );
+}
+
+fn sync_equipment_entries<'w, 's>(
+    query: &mut Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static Equipment,
+            &'static AttachmentPoints,
+            &'static M2AnimData,
+            &'static mut RenderedEquipment,
+        ),
+    >,
+    commands: &mut Commands<'w, 's>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    transforms: &EquipmentTransforms,
+    parents: &Query<'w, 's, &'static ChildOf>,
+    names: &Query<'w, 's, &'static Name>,
+    existing_items: &Query<'w, 's, (), With<EquipmentItem>>,
+    warned: &mut Local<'s, HashSet<String>>,
+) {
     for (owner, equipment, attach_points, anim_data, mut rendered) in query {
-        sync_rendered_equipment_owner(
+        sync_equipment_owner_entry(
             commands,
             meshes,
             materials,
@@ -252,6 +296,44 @@ fn run_equipment_sync(mut runtime: EquipmentSyncRuntime<'_, '_>) {
             &mut rendered,
         );
     }
+}
+
+fn sync_equipment_owner_entry<'w, 's>(
+    commands: &mut Commands<'w, 's>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    transforms: &EquipmentTransforms,
+    parents: &Query<'w, 's, &'static ChildOf>,
+    names: &Query<'w, 's, &'static Name>,
+    existing_items: &Query<'w, 's, (), With<EquipmentItem>>,
+    warned: &mut Local<'s, HashSet<String>>,
+    owner: Entity,
+    equipment: &Equipment,
+    attach_points: &AttachmentPoints,
+    anim_data: &M2AnimData,
+    rendered: &mut RenderedEquipment,
+) {
+    sync_rendered_equipment_owner(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        transforms,
+        parents,
+        names,
+        existing_items,
+        warned,
+        owner,
+        equipment,
+        attach_points,
+        anim_data,
+        rendered,
+    );
 }
 
 fn sync_rendered_equipment_owner<'w, 's>(
