@@ -3,6 +3,7 @@ use std::io::Cursor;
 use std::mem::size_of;
 
 use super::adt_tex::{AdtWaterData, parse_mh2o};
+use crate::asset::read_bytes::{read_f32, read_u32};
 use binrw::BinRead;
 
 pub const CHUNK_SIZE: f32 = 100.0 / 3.0;
@@ -68,24 +69,6 @@ pub(crate) struct ParsedAdtData {
     pub chunk_positions: Vec<[f32; 3]>,
     pub water: Option<AdtWaterData>,
     pub water_error: Option<String>,
-}
-
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_u32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_f32 out of bounds at {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(f32::from_le_bytes(bytes))
 }
 
 fn read_i8(data: &[u8], off: usize) -> Result<i8, String> {
