@@ -347,15 +347,23 @@ fn to_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand
 fn auction_non_simple_request(command: AuctionNonSimpleCommand) -> Result<Request, String> {
     match command {
         AuctionNonSimpleCommand::Browse(command) => auction_browse_command_request(command),
-        AuctionNonSimpleCommand::Create {
-            item_guid,
-            stack,
-            bid,
-            buyout,
-            duration,
-        } => auction_create_request(item_guid, stack, bid, buyout, duration),
+        AuctionNonSimpleCommand::Create { .. } => auction_create_command_request(command),
         AuctionNonSimpleCommand::Action(command) => Ok(auction_action_request(command)),
     }
+}
+
+fn auction_create_command_request(command: AuctionNonSimpleCommand) -> Result<Request, String> {
+    let AuctionNonSimpleCommand::Create {
+        item_guid,
+        stack,
+        bid,
+        buyout,
+        duration,
+    } = command
+    else {
+        unreachable!("create helper must only receive create command");
+    };
+    auction_create_request(item_guid, stack, bid, buyout, duration)
 }
 
 fn auction_browse_command_request(command: AuctionBrowseCommand) -> Result<Request, String> {
