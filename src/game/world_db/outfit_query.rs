@@ -120,28 +120,19 @@ fn select_best_skin_fdids_by_name(
     for row in rows {
         let (display_info_id, material_ids, model_fdid) =
             row.map_err(|err| format!("read model skin lookup by name row: {err}"))?;
-        let matches_name = game_engine::listfile::lookup_fdid(model_fdid)
-            .and_then(|path| Path::new(path).file_name()?.to_str())
-            .is_some_and(|name| name.eq_ignore_ascii_case(model_name));
-        if !matches_name {
+        if !model_fdid_matches_name(model_fdid, model_name) {
             continue;
         }
         let skin_fdids = resolve_skin_fdids(conn, material_ids, &mut material_cache)?;
-        let filled = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
-        if filled == 0 {
-            continue;
-        }
-        let better = match best {
-            None => true,
-            Some((best_filled, best_display_id, _)) => {
-                filled > best_filled || (filled == best_filled && display_info_id < best_display_id)
-            }
-        };
-        if better {
-            best = Some((filled, display_info_id, skin_fdids));
-        }
+        update_best_skin_candidate(&mut best, display_info_id, skin_fdids);
     }
     Ok(best.map(|(_, _, skin_fdids)| skin_fdids))
+}
+
+fn model_fdid_matches_name(model_fdid: u32, model_name: &str) -> bool {
+    game_engine::listfile::lookup_fdid(model_fdid)
+        .and_then(|path| Path::new(path).file_name()?.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case(model_name))
 }
 
 fn open_outfit_conn(data_dir: &Path) -> Result<Connection, String> {
@@ -240,21 +231,38 @@ fn select_best_skin_fdids(
         let (display_info_id, material_ids) =
             row.map_err(|err| format!("read model skin lookup row: {err}"))?;
         let skin_fdids = resolve_skin_fdids(conn, material_ids, &mut material_cache)?;
-        let filled = skin_fdids.iter().filter(|&&fdid| fdid != 0).count();
-        if filled == 0 {
-            continue;
-        }
-        let better = match best {
-            None => true,
-            Some((best_filled, best_display_id, _)) => {
-                filled > best_filled || (filled == best_filled && display_info_id < best_display_id)
-            }
-        };
-        if better {
-            best = Some((filled, display_info_id, skin_fdids));
-        }
+        update_best_skin_candidate(&mut best, display_info_id, skin_fdids);
     }
     Ok(best.map(|(_, _, skin_fdids)| skin_fdids))
+}
+
+fn update_best_skin_candidate(
+    best: &mut Option<(usize, u32, [u32; 3])>,
+    display_info_id: u32,
+    skin_fdids: [u32; 3],
+) {
+    let filled = count_filled_skin_fdids(skin_fdids);
+    if filled == 0 || !is_better_skin_candidate(best, filled, display_info_id) {
+        return;
+    }
+    *best = Some((filled, display_info_id, skin_fdids));
+}
+
+fn count_filled_skin_fdids(skin_fdids: [u32; 3]) -> usize {
+    skin_fdids.iter().filter(|&&fdid| fdid != 0).count()
+}
+
+fn is_better_skin_candidate(
+    best: &Option<(usize, u32, [u32; 3])>,
+    filled: usize,
+    display_info_id: u32,
+) -> bool {
+    match best {
+        None => true,
+        Some((best_filled, best_display_id, _)) => {
+            filled > *best_filled || (filled == *best_filled && display_info_id < *best_display_id)
+        }
+    }
 }
 
 fn resolve_skin_fdids(
