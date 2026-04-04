@@ -310,6 +310,8 @@ fn keybinding_section_tabs(active: BindingSection) -> Element {
             width: {OPTIONS_ROW_W},
             height: KEYBINDING_TAB_H,
             layout: "flex-row",
+            justify: "start",
+            align: "center",
             gap: KEYBINDING_TAB_GAP,
             r#frame {
                 name: "KeybindingSectionTabsLeadSpacer",

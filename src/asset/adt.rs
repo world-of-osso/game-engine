@@ -61,13 +61,21 @@ fn build_mcnk_geometry(
         };
         uvs.push(uv);
     }
-    (positions, normals_out, uvs, build_mcnk_indices())
+    (
+        positions,
+        normals_out,
+        uvs,
+        build_mcnk_indices(chunk.holes_low_res),
+    )
 }
 
-fn build_mcnk_indices() -> Vec<u32> {
+fn build_mcnk_indices(holes_low_res: u16) -> Vec<u32> {
     let mut indices = Vec::with_capacity(8 * 8 * 4 * 3);
     for qr in 0..8usize {
         for qc in 0..8usize {
+            if low_res_hole_at(holes_low_res, qc / 2, qr / 2) {
+                continue;
+            }
             let tl = vertex_index(qr * 2, qc) as u32;
             let tr = vertex_index(qr * 2, qc + 1) as u32;
             let bl = vertex_index(qr * 2 + 2, qc) as u32;
@@ -80,6 +88,14 @@ fn build_mcnk_indices() -> Vec<u32> {
         }
     }
     indices
+}
+
+fn low_res_hole_at(holes_low_res: u16, col: usize, row: usize) -> bool {
+    if col >= 4 || row >= 4 {
+        return false;
+    }
+    let bit = row * 4 + col;
+    ((holes_low_res >> bit) & 1) != 0
 }
 
 fn build_mcnk_mesh(
@@ -230,4 +246,41 @@ fn load_adt_inner(
         water: parsed.water,
         water_error: parsed.water_error,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_mcnk_indices;
+
+    #[test]
+    fn mcnk_indices_emit_all_quads_without_holes() {
+        let indices = build_mcnk_indices(0);
+        assert_eq!(indices.len(), 8 * 8 * 4 * 3);
+    }
+
+    #[test]
+    fn mcnk_indices_skip_all_quads_in_low_res_hole_block() {
+        let indices = build_mcnk_indices(1 << 5);
+        assert_eq!(indices.len(), (8 * 8 - 4) * 4 * 3);
+        assert_eq!(indices.chunks_exact(3).len(), (8 * 8 - 4) * 4);
+
+        let skipped_cells = [(2usize, 2usize), (3, 2), (2, 3), (3, 3)];
+        for (quad_col, quad_row) in skipped_cells {
+            let base = quad_index_base(quad_row, quad_col);
+            assert!(!indices.contains(&base.center));
+        }
+
+        let preserved = quad_index_base(1, 2);
+        assert!(indices.contains(&preserved.center));
+    }
+
+    struct QuadIndices {
+        center: u32,
+    }
+
+    fn quad_index_base(quad_row: usize, quad_col: usize) -> QuadIndices {
+        QuadIndices {
+            center: super::vertex_index(quad_row * 2 + 1, quad_col) as u32,
+        }
+    }
 }

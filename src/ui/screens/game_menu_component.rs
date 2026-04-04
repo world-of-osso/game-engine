@@ -196,6 +196,8 @@ fn options_menu_overlay(options: &OptionsViewModel) -> Element {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Mutex, OnceLock};
+
     use super::*;
     use crate::input_bindings::{BindingSection, InputAction, InputBinding};
     use crate::ui::screens::options_menu_component::{
@@ -211,6 +213,8 @@ mod tests {
     use crate::ui::frame::{WidgetData, WidgetType};
     use crate::ui::registry::FrameRegistry;
     use ui_toolkit::widgets::font_string::Outline;
+
+    static OPTIONS_REGISTRY_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
     fn model(view: GameMenuView) -> GameMenuViewModel {
         GameMenuViewModel {
@@ -560,6 +564,7 @@ mod tests {
     }
 
     fn options_registry_for_category(category: OptionsCategory) -> FrameRegistry {
+        let _guard = options_registry_test_lock().lock().unwrap();
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
@@ -572,6 +577,7 @@ mod tests {
     }
 
     fn options_registry_with_master_volume(master_volume: f32) -> FrameRegistry {
+        let _guard = options_registry_test_lock().lock().unwrap();
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
@@ -584,6 +590,7 @@ mod tests {
     }
 
     fn options_registry_with_muted(muted: bool) -> FrameRegistry {
+        let _guard = options_registry_test_lock().lock().unwrap();
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
@@ -599,5 +606,9 @@ mod tests {
         reg.get(reg.get_by_name(name).expect(name))
             .and_then(|frame| frame.layout_rect.clone())
             .expect(name)
+    }
+
+    fn options_registry_test_lock() -> &'static Mutex<()> {
+        OPTIONS_REGISTRY_TEST_LOCK.get_or_init(|| Mutex::new(()))
     }
 }

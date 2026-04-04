@@ -29,6 +29,7 @@ pub(crate) struct McnkData {
     pub index_x: u32,
     pub index_y: u32,
     pub pos: [f32; 3],
+    pub holes_low_res: u16,
     pub heights: [f32; MCVT_COUNT],
     pub normals: [[f32; 3]; MCVT_COUNT],
 }
@@ -70,7 +71,6 @@ pub(crate) struct ParsedAdtData {
     pub water: Option<AdtWaterData>,
     pub water_error: Option<String>,
 }
-
 
 fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
 where
@@ -176,6 +176,7 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         index_x: header.index_x,
         index_y: header.index_y,
         pos,
+        holes_low_res: header._holes_low_res,
         heights,
         normals,
     })

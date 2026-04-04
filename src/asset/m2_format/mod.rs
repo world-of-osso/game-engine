@@ -38,4 +38,3 @@ pub(crate) const MD20_TEXTURE_UNIT_LOOKUP_COUNT_OFFSET: usize = 0x88;
 pub(crate) const MD20_ATTACHMENTS_COUNT_OFFSET: usize = 0xD8;
 pub(crate) const MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET: usize = 0xE0;
 pub(crate) const MD20_PARTICLE_EMITTERS_COUNT_OFFSET: usize = 0x128;
-
