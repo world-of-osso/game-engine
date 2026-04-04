@@ -162,6 +162,26 @@ pub fn spawn_sky_dome(
     camera_entity: Entity,
     cloud_texture: Handle<Image>,
 ) -> Entity {
+    let dome = spawn_sky_dome_entity(
+        commands,
+        meshes,
+        sky_materials,
+        camera_entity,
+        cloud_texture,
+    );
+    let default_colors = default_sky_colors();
+    insert_default_sky_fog(commands, camera_entity, &default_colors);
+    insert_default_sky_env_map(commands, images, camera_entity, &default_colors);
+    dome
+}
+
+fn spawn_sky_dome_entity(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    sky_materials: &mut Assets<SkyMaterial>,
+    camera_entity: Entity,
+    cloud_texture: Handle<Image>,
+) -> Entity {
     let mesh = build_sky_dome_mesh(900.0, 32);
     let material = sky_materials.add(SkyMaterial {
         uniforms: SkyUniforms::default(),
@@ -178,14 +198,25 @@ pub fn spawn_sky_dome(
         ))
         .id();
     commands.entity(dome).set_parent_in_place(camera_entity);
-    let default_colors = default_sky_colors();
+    dome
+}
+
+fn insert_default_sky_fog(commands: &mut Commands, camera_entity: Entity, colors: &SkyColorSet) {
     commands.entity(camera_entity).insert(DistanceFog {
-        color: default_colors.sky_smog,
-        directional_light_color: default_colors.sky_band2,
+        color: colors.sky_smog,
+        directional_light_color: colors.sky_band2,
         directional_light_exponent: 8.0,
-        falloff: fog_falloff_from_colors(&default_colors),
+        falloff: fog_falloff_from_colors(colors),
     });
-    let cubemap = build_sky_cubemap(&default_colors);
+}
+
+fn insert_default_sky_env_map(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    camera_entity: Entity,
+    colors: &SkyColorSet,
+) {
+    let cubemap = build_sky_cubemap(colors);
     let cubemap_handle = images.add(cubemap);
     commands.insert_resource(SkyEnvMapHandle(cubemap_handle.clone()));
     commands
@@ -196,7 +227,6 @@ pub fn spawn_sky_dome(
             rotation: Quat::IDENTITY,
             affects_lightmapped_mesh_diffuse: true,
         });
-    dome
 }
 
 // ---------------------------------------------------------------------------
