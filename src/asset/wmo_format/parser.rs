@@ -184,15 +184,14 @@ where
 
 pub fn load_wmo_root(data: &[u8]) -> Result<WmoRootData, String> {
     let mut accum = WmoRootAccum::default();
-    let mut state = accum.state();
-    load_wmo_root_chunks(data, &mut state)?;
+    load_wmo_root_chunks(data, &mut accum)?;
     Ok(finalize_wmo_root_data(accum))
 }
 
-fn load_wmo_root_chunks(data: &[u8], state: &mut WmoRootChunkState<'_>) -> Result<(), String> {
+fn load_wmo_root_chunks(data: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
-        apply_root_chunk(tag, payload, state)?;
+        apply_root_chunk(tag, payload, accum)?;
     }
     Ok(())
 }
@@ -209,17 +208,6 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
     }
 }
 
-struct WmoRootChunkState<'a> {
-    n_groups: &'a mut u32,
-    materials: &'a mut Vec<WmoMaterialDef>,
-    portals: &'a mut Vec<WmoPortal>,
-    mopt_raw: &'a mut Vec<(u16, u16)>,
-    portal_refs: &'a mut Vec<WmoPortalRef>,
-    group_infos: &'a mut Vec<WmoGroupInfo>,
-    skybox_wow_path: &'a mut Option<String>,
-    portal_vertices: &'a mut Vec<[f32; 3]>,
-}
-
 #[derive(Default)]
 struct WmoRootAccum {
     n_groups: u32,
@@ -232,41 +220,22 @@ struct WmoRootAccum {
     portal_vertices: Vec<[f32; 3]>,
 }
 
-impl WmoRootAccum {
-    fn state(&mut self) -> WmoRootChunkState<'_> {
-        WmoRootChunkState {
-            n_groups: &mut self.n_groups,
-            materials: &mut self.materials,
-            portals: &mut self.portals,
-            mopt_raw: &mut self.mopt_raw,
-            portal_refs: &mut self.portal_refs,
-            group_infos: &mut self.group_infos,
-            skybox_wow_path: &mut self.skybox_wow_path,
-            portal_vertices: &mut self.portal_vertices,
-        }
-    }
-}
-
-fn apply_root_chunk(
-    tag: &[u8],
-    payload: &[u8],
-    state: &mut WmoRootChunkState<'_>,
-) -> Result<(), String> {
+fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
     match tag {
         b"DHOM" => {
             let header: MohdHeader = parse_binrw_value(payload, MOHD_HEADER_SIZE, "MOHD")?;
-            *state.n_groups = header.n_groups;
+            accum.n_groups = header.n_groups;
         }
-        b"TMOM" => *state.materials = parse_momt(payload)?,
-        b"VPOM" => *state.portal_vertices = parse_vec3_array(payload)?,
+        b"TMOM" => accum.materials = parse_momt(payload)?,
+        b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
-            *state.portals = p;
-            *state.mopt_raw = raw;
+            accum.portals = p;
+            accum.mopt_raw = raw;
         }
-        b"RPOM" => *state.portal_refs = parse_mopr(payload)?,
-        b"IGOM" => *state.group_infos = parse_mogi(payload)?,
-        b"BSOM" => *state.skybox_wow_path = parse_c_string(payload),
+        b"RPOM" => accum.portal_refs = parse_mopr(payload)?,
+        b"IGOM" => accum.group_infos = parse_mogi(payload)?,
+        b"BSOM" => accum.skybox_wow_path = parse_c_string(payload),
         _ => {}
     }
     Ok(())
@@ -462,33 +431,13 @@ mod tests {
 
     #[test]
     fn parse_root_chunk_reads_mosb_skybox_name() {
-        let mut n_groups = 0;
-        let mut materials = Vec::new();
-        let mut portals = Vec::new();
-        let mut portal_refs = Vec::new();
-        let mut group_infos = Vec::new();
-        let mut skybox_wow_path = None;
-        let mut portal_vertices = Vec::new();
-        let mut mopt_raw = Vec::new();
+        let mut accum = WmoRootAccum::default();
 
-        apply_root_chunk(
-            b"BSOM",
-            b"environments/stars/deathskybox.m2\0",
-            &mut WmoRootChunkState {
-                n_groups: &mut n_groups,
-                materials: &mut materials,
-                portals: &mut portals,
-                mopt_raw: &mut mopt_raw,
-                portal_refs: &mut portal_refs,
-                group_infos: &mut group_infos,
-                skybox_wow_path: &mut skybox_wow_path,
-                portal_vertices: &mut portal_vertices,
-            },
-        )
-        .expect("parse MOSB chunk");
+        apply_root_chunk(b"BSOM", b"environments/stars/deathskybox.m2\0", &mut accum)
+            .expect("parse MOSB chunk");
 
         assert_eq!(
-            skybox_wow_path.as_deref(),
+            accum.skybox_wow_path.as_deref(),
             Some("environments/stars/deathskybox.m2")
         );
     }
