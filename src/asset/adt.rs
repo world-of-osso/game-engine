@@ -82,15 +82,15 @@ fn build_mcnk_geometry(
         positions,
         normals_out,
         uvs,
-        build_mcnk_indices(chunk.holes_low_res),
+        build_mcnk_indices(chunk.holes_low_res, chunk.holes_high_res),
     )
 }
 
-fn build_mcnk_indices(holes_low_res: u16) -> Vec<u32> {
+fn build_mcnk_indices(holes_low_res: u16, holes_high_res: Option<u64>) -> Vec<u32> {
     let mut indices = Vec::with_capacity(8 * 8 * 4 * 3);
     for qr in 0..8usize {
         for qc in 0..8usize {
-            if low_res_hole_at(holes_low_res, qc / 2, qr / 2) {
+            if terrain_hole_at(holes_low_res, holes_high_res, qc, qr) {
                 continue;
             }
             let tl = vertex_index(qr * 2, qc) as u32;
@@ -107,12 +107,32 @@ fn build_mcnk_indices(holes_low_res: u16) -> Vec<u32> {
     indices
 }
 
+fn terrain_hole_at(
+    holes_low_res: u16,
+    holes_high_res: Option<u64>,
+    col: usize,
+    row: usize,
+) -> bool {
+    if let Some(mask) = holes_high_res {
+        return high_res_hole_at(mask, col, row);
+    }
+    low_res_hole_at(holes_low_res, col / 2, row / 2)
+}
+
 fn low_res_hole_at(holes_low_res: u16, col: usize, row: usize) -> bool {
     if col >= 4 || row >= 4 {
         return false;
     }
     let bit = row * 4 + col;
     ((holes_low_res >> bit) & 1) != 0
+}
+
+fn high_res_hole_at(holes_high_res: u64, col: usize, row: usize) -> bool {
+    if col >= 8 || row >= 8 {
+        return false;
+    }
+    let bit = row * 8 + col;
+    ((holes_high_res >> bit) & 1) != 0
 }
 
 fn build_mcnk_mesh(
@@ -272,15 +292,17 @@ mod tests {
 
     use super::{build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color};
 
+    const FULL_LOW_RES_HOLE_MASK: u16 = u16::MAX;
+
     #[test]
     fn mcnk_indices_emit_all_quads_without_holes() {
-        let indices = build_mcnk_indices(0);
+        let indices = build_mcnk_indices(0, None);
         assert_eq!(indices.len(), 8 * 8 * 4 * 3);
     }
 
     #[test]
     fn mcnk_indices_skip_all_quads_in_low_res_hole_block() {
-        let indices = build_mcnk_indices(1 << 5);
+        let indices = build_mcnk_indices(1 << 5, None);
         assert_eq!(indices.len(), (8 * 8 - 4) * 4 * 3);
         assert_eq!(indices.chunks_exact(3).len(), (8 * 8 - 4) * 4);
 
@@ -291,6 +313,18 @@ mod tests {
         }
 
         let preserved = quad_index_base(1, 2);
+        assert!(indices.contains(&preserved.center));
+    }
+
+    #[test]
+    fn mcnk_indices_skip_only_targeted_high_res_hole_quad() {
+        let indices = build_mcnk_indices(FULL_LOW_RES_HOLE_MASK, Some(1 << (3 * 8 + 2)));
+        assert_eq!(indices.len(), (8 * 8 - 1) * 4 * 3);
+
+        let skipped = quad_index_base(3, 2);
+        assert!(!indices.contains(&skipped.center));
+
+        let preserved = quad_index_base(3, 3);
         assert!(indices.contains(&preserved.center));
     }
 
@@ -319,6 +353,7 @@ mod tests {
             index_y: 0,
             pos: [0.0, 0.0, 0.0],
             holes_low_res: 0,
+            holes_high_res: None,
             heights: [0.0; 145],
             normals: [[0.0, 1.0, 0.0]; 145],
             vertex_colors: [[1.0, 1.0, 1.0, 1.0]; 145],

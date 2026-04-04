@@ -13,6 +13,7 @@ const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
 const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
 const MCVT_COUNT: usize = 145;
 const MCCV_BYTES_PER_VERTEX: usize = 4;
+const MCNK_FLAG_HIGH_RES_HOLES: u32 = 0x200;
 
 type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
 
@@ -31,6 +32,7 @@ pub(crate) struct McnkData {
     pub index_y: u32,
     pub pos: [f32; 3],
     pub holes_low_res: u16,
+    pub holes_high_res: Option<u64>,
     pub heights: [f32; MCVT_COUNT],
     pub normals: [[f32; 3]; MCVT_COUNT],
     pub vertex_colors: [[f32; 4]; MCVT_COUNT],
@@ -39,7 +41,7 @@ pub(crate) struct McnkData {
 #[derive(BinRead)]
 #[br(little)]
 struct McnkHeader {
-    _flags: u32,
+    flags: u32,
     index_x: u32,
     index_y: u32,
     _n_layers: u32,
@@ -205,10 +207,15 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         index_y: header.index_y,
         pos,
         holes_low_res: header._holes_low_res,
+        holes_high_res: header_uses_high_res_holes(&header).then_some(header._holes_high_res),
         heights,
         normals,
         vertex_colors,
     })
+}
+
+fn header_uses_high_res_holes(header: &McnkHeader) -> bool {
+    (header.flags & MCNK_FLAG_HIGH_RES_HOLES) != 0
 }
 
 fn parse_mcnk_subchunks(
@@ -573,7 +580,9 @@ fn load_adt_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::{MCVT_COUNT, parse_mccv};
+    use super::{
+        MCNK_FLAG_HIGH_RES_HOLES, MCVT_COUNT, McnkHeader, header_uses_high_res_holes, parse_mccv,
+    };
 
     #[test]
     fn parse_mccv_reads_bgra_and_maps_neutral_to_one() {
@@ -590,5 +599,42 @@ mod tests {
         assert_eq!(colors[0][1], 0x40 as f32 / 127.0);
         assert_eq!(colors[0][2], 0x20 as f32 / 127.0);
         assert_eq!(colors[0][3], 0x80 as f32 / 255.0);
+    }
+
+    #[test]
+    fn mcnk_header_detects_high_res_hole_flag() {
+        let high_res = McnkHeader {
+            flags: MCNK_FLAG_HIGH_RES_HOLES,
+            index_x: 0,
+            index_y: 0,
+            _n_layers: 0,
+            _n_doodad_refs: 0,
+            _holes_high_res: 0,
+            _ofs_mcvt: 0,
+            _ofs_mcnr: 0,
+            _ofs_mcly: 0,
+            _ofs_mcrf: 0,
+            _ofs_mcal: 0,
+            _size_mcal: 0,
+            _ofs_mcsh: 0,
+            _size_mcsh: 0,
+            _area_id: 0,
+            _n_map_obj_refs: 0,
+            _holes_low_res: 0,
+            _unknown_but_used: 0,
+            _low_quality_texture_map: 0,
+            _no_effect_doodad: 0,
+            _unknown_tail: [0; 16],
+            pos_y: 0.0,
+            pos_x: 0.0,
+            pos_z: 0.0,
+        };
+        assert!(header_uses_high_res_holes(&high_res));
+
+        let low_res = McnkHeader {
+            flags: 0,
+            ..high_res
+        };
+        assert!(!header_uses_high_res_holes(&low_res));
     }
 }
