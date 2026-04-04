@@ -434,38 +434,50 @@ fn default_plugins() -> bevy::app::PluginGroupBuilder {
 }
 
 fn register_bevy_plugins(app: &mut App) {
-    app.add_plugins(default_plugins())
-        .add_plugins(game_engine::auction_house::AuctionHousePlugin)
+    app.add_plugins(default_plugins());
+    register_ui_plugins(app);
+    register_world_plugins(app);
+    register_render_plugins(app);
+    app.add_plugins(FpsOverlayPlugin {
+        config: FpsOverlayConfig {
+            refresh_interval: Duration::from_millis(500),
+            ..default()
+        },
+    });
+}
+
+fn register_ui_plugins(app: &mut App) {
+    app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
         .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(game_engine::ui::automation::UiAutomationPlugin)
         .add_plugins(IpcPlugin)
-        .add_plugins(client_options::ClientOptionsPlugin)
-        .add_plugins(WowCameraPlugin)
+        .add_plugins(client_options::ClientOptionsPlugin);
+}
+
+fn register_world_plugins(app: &mut App) {
+    app.add_plugins(WowCameraPlugin)
         .add_plugins(AnimationPlugin)
         .add_plugins(CollisionPlugin)
         .add_plugins(game_engine::culling::CullingPlugin)
         .add_plugins(AdtStreamingPlugin)
-        .add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
-        .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
-        .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
-        .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(minimap::MinimapPlugin)
         .add_plugins(action_bar::ActionBarPlugin)
         .add_plugins(unit_frames::InWorldUnitFramesPlugin)
-        .add_plugins(sky::SkyPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(target::TargetPlugin)
-        .add_plugins(particle::ParticlePlugin)
         .add_plugins(equipment::EquipmentPlugin)
-        .add_plugins(character_customization::CharacterCustomizationPlugin)
-        .add_plugins(FpsOverlayPlugin {
-            config: FpsOverlayConfig {
-                refresh_interval: Duration::from_millis(500),
-                ..default()
-            },
-        });
+        .add_plugins(character_customization::CharacterCustomizationPlugin);
+}
+
+fn register_render_plugins(app: &mut App) {
+    app.add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
+        .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
+        .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
+        .add_plugins(water_material::WaterMaterialPlugin)
+        .add_plugins(sky::SkyPlugin)
+        .add_plugins(particle::ParticlePlugin);
 }
 
 fn register_plugins(app: &mut App) {
