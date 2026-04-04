@@ -2,6 +2,8 @@ use std::io::Cursor;
 use std::mem::size_of;
 use std::path::{Path, PathBuf};
 
+use crate::asset::read_bytes::read_u32;
+
 use binrw::BinRead;
 
 const CHUNK_HEADER_SIZE: usize = 8;
@@ -141,33 +143,6 @@ pub(crate) struct SkelData {
     pub sequences: Vec<super::m2_anim::M2AnimSequence>,
     pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
     pub global_sequences: Vec<u32>,
-}
-
-pub(crate) fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_u32 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u32::from_le_bytes(bytes))
-}
-
-pub(crate) fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_f32 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(f32::from_le_bytes(bytes))
-}
-
-pub(crate) fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_u16 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u16::from_le_bytes(bytes))
 }
 
 fn parse_binrw_entries<T>(

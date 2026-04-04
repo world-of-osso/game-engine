@@ -1,7 +1,7 @@
 //! M2 model light parser (MD20 lights block at 0x108).
 
 use super::m2_anim::{AnimTrack, evaluate_f32_track, evaluate_u8_track, evaluate_vec3_track};
-use super::{read_f32, read_u16, read_u32};
+use super::{read_f32, read_i16, read_u16, read_u32};
 
 const MD20_LIGHTS_OFFSET: usize = 0x108;
 const M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS: usize = 0x9C;
@@ -52,11 +52,6 @@ pub struct EvaluatedLight {
     pub attenuation_end: f32,
 }
 
-fn read_i16(data: &[u8], off: usize) -> Option<i16> {
-    let bytes: [u8; 2] = data.get(off..off + 2)?.try_into().ok()?;
-    Some(i16::from_le_bytes(bytes))
-}
-
 fn parse_vec3(data: &[u8], off: usize) -> Option<[f32; 3]> {
     Some([
         read_f32(data, off).ok()?,
@@ -72,7 +67,7 @@ fn parse_anim_track<T: Copy>(
     parse_value: impl Fn(&[u8], usize) -> Option<T>,
 ) -> Option<AnimTrack<T>> {
     let interpolation_type = read_u16(md20, block_offset).ok()?;
-    let global_sequence = read_i16(md20, block_offset + ANIM_BLOCK_GLOBAL_SEQUENCE_OFFSET)?;
+    let global_sequence = read_i16(md20, block_offset + ANIM_BLOCK_GLOBAL_SEQUENCE_OFFSET).ok()?;
     let ts_outer_count =
         read_u32(md20, block_offset + ANIM_BLOCK_TIMESTAMPS_COUNT_OFFSET).ok()? as usize;
     let ts_outer_offset =
@@ -151,7 +146,7 @@ fn parse_light_entry(
     }
     Some(M2Light {
         light_type: read_u16(md20, base + LIGHT_ENTRY_TYPE_OFFSET).ok()?,
-        bone_index: read_i16(md20, base + LIGHT_ENTRY_BONE_INDEX_OFFSET)?,
+        bone_index: read_i16(md20, base + LIGHT_ENTRY_BONE_INDEX_OFFSET).ok()?,
         position: parse_vec3(md20, base + LIGHT_ENTRY_POSITION_OFFSET)?,
         ambient_color: parse_vec3_track(md20, base + LIGHT_ENTRY_AMBIENT_COLOR_OFFSET)?,
         ambient_intensity: parse_f32_track(md20, base + LIGHT_ENTRY_AMBIENT_INTENSITY_OFFSET)?,

@@ -27,6 +27,7 @@ use super::{
     MD20_TEXTURE_WEIGHTS_DATA_OFFSET, MD20_TRANSPARENCY_COUNT_OFFSET,
     MD20_TRANSPARENCY_DATA_OFFSET,
 };
+use crate::asset::read_bytes::{read_f32, read_i16, read_i32, read_u16, read_u32};
 
 const BONE_SIZE: usize = 88;
 const BONE_FLAGS_OFFSET: usize = 0x04;
@@ -43,51 +44,6 @@ const SEQ_MOVE_SPEED_OFFSET: usize = 0x08;
 const SEQ_FLAGS_OFFSET: usize = 0x0C;
 const SEQ_BLEND_TIME_OFFSET: usize = 0x1C;
 const SEQ_NEXT_ANIMATION_OFFSET: usize = 0x3C;
-
-fn read_u32(data: &[u8], off: usize) -> Result<u32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_u32 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u32::from_le_bytes(bytes))
-}
-
-fn read_u16(data: &[u8], off: usize) -> Result<u16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_u16 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(u16::from_le_bytes(bytes))
-}
-
-fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_i16 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(i16::from_le_bytes(bytes))
-}
-
-fn read_f32(data: &[u8], off: usize) -> Result<f32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_f32 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(f32::from_le_bytes(bytes))
-}
-
-fn read_i32(data: &[u8], off: usize) -> Result<i32, String> {
-    let bytes: [u8; 4] = data
-        .get(off..off + 4)
-        .ok_or_else(|| format!("read_i32 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(i32::from_le_bytes(bytes))
-}
 
 #[derive(Clone)]
 pub struct M2Bone {

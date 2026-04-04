@@ -127,7 +127,7 @@ pub struct M2ParticleEmitter {
     pub mid_point: f32,
 }
 
-use super::{read_f32, read_u16, read_u32};
+use super::{read_f32, read_i16, read_u16, read_u32};
 
 const EMITTER_FLAGS_OFFSET: usize = 0x04;
 const EMITTER_POSITION_OFFSET: usize = 0x08;
@@ -218,15 +218,6 @@ impl Default for EmitterHeaderCore {
             tile_cols: 0,
         }
     }
-}
-
-fn read_i16(data: &[u8], off: usize) -> Result<i16, String> {
-    let bytes: [u8; 2] = data
-        .get(off..off + 2)
-        .ok_or_else(|| format!("read_i16 out of bounds at offset {off:#x}"))?
-        .try_into()
-        .unwrap();
-    Ok(i16::from_le_bytes(bytes))
 }
 
 fn read_u16_values(md20: &[u8], emitter: &[u8], off: usize) -> [u16; 3] {

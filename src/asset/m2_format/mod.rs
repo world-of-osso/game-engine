@@ -9,6 +9,7 @@ pub mod m2_bone_names;
 pub mod m2_light;
 pub mod m2_particle;
 pub mod parser;
+pub(crate) use crate::asset::read_bytes::{read_f32, read_i16, read_u16, read_u32};
 pub use parser::ensure_primary_skin_path;
 #[cfg(test)]
 pub(crate) use parser::parse_skin_full;
@@ -16,7 +17,7 @@ pub(crate) use parser::{
     M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
     load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_texture_lookup,
     parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
-    parse_uv_animation_lookup, parse_vertices, read_f32, read_u16, read_u32, resolve_indices,
+    parse_uv_animation_lookup, parse_vertices, resolve_indices,
 };
 
 pub(crate) const FIXED16_SCALE: f32 = 32767.0;
