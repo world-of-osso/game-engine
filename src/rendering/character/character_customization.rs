@@ -447,18 +447,42 @@ fn apply_character_render_request(
     request: &CharacterRenderRequest,
     context: &mut CharacterRenderRequestContext,
 ) {
-    let resolved_equipment = resolve_equipment_appearance(
+    let resolved_equipment = resolve_character_render_equipment(request, context);
+    log_character_render_apply(entity, request, &resolved_equipment);
+    apply_character_render_customization(entity, request, &resolved_equipment, context);
+    log_visible_character_geosets(entity, context);
+    finalize_character_render(
+        entity,
+        request,
+        &resolved_equipment,
+        context.equipment_query,
+        context.commands,
+    );
+}
+
+fn resolve_character_render_equipment(
+    request: &CharacterRenderRequest,
+    context: &CharacterRenderRequestContext,
+) -> ResolvedEquipmentAppearance {
+    resolve_equipment_appearance(
         &request.equipment_appearance,
         context.outfit_data,
         request.selection.race,
         request.selection.sex,
-    );
-    log_character_render_apply(entity, request, &resolved_equipment);
+    )
+}
+
+fn apply_character_render_customization(
+    entity: Entity,
+    request: &CharacterRenderRequest,
+    resolved_equipment: &ResolvedEquipmentAppearance,
+    context: &mut CharacterRenderRequestContext,
+) {
     apply_character_customization(
         request.selection,
         context.customization_db,
         context.char_tex,
-        Some(&resolved_equipment),
+        Some(resolved_equipment),
         entity,
         context.images,
         context.materials,
@@ -468,6 +492,9 @@ fn apply_character_render_request(
         context.equipment_item_query,
         context.material_query,
     );
+}
+
+fn log_visible_character_geosets(entity: Entity, context: &mut CharacterRenderRequestContext) {
     info!(
         "character visible geosets entity={entity:?} ids={:?}",
         visible_geoset_ids_for_root(
@@ -476,13 +503,6 @@ fn apply_character_render_request(
             context.geoset_query,
             context.visibility_query,
         )
-    );
-    finalize_character_render(
-        entity,
-        request,
-        &resolved_equipment,
-        context.equipment_query,
-        context.commands,
     );
 }
 
