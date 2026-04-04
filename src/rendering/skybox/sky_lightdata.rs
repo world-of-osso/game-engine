@@ -238,7 +238,13 @@ fn parse_csv_fallback_light_row(
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0)
     };
-    Some(LightDataRow {
+    let mut row = parse_csv_fallback_color_row(&p);
+    fill_csv_fallback_fog_and_aux_row(&mut row, &pf);
+    Some(row)
+}
+
+fn parse_csv_fallback_color_row(p: &impl Fn(usize) -> u32) -> LightDataRow {
+    LightDataRow {
         time: p(1) as f32,
         direct_color: decode_bgr32(p(2)),
         ambient_color: decode_bgr32(p(3)),
@@ -258,13 +264,22 @@ fn parse_csv_fallback_light_row(
         river_close_color: decode_bgr32(p(17)),
         river_far_color: decode_bgr32(p(18)),
         horizon_ambient_color: decode_bgr32(p(19)),
-        fog_end: pf(20),
-        fog_start: pf(20) * pf(21),
-        glow: pf(22),
-        cloud_density: pf(23),
-        unk1: pf(24),
-        unk2: pf(25),
-    })
+        fog_end: 0.0,
+        fog_start: 0.0,
+        glow: 0.0,
+        cloud_density: 0.0,
+        unk1: 0.0,
+        unk2: 0.0,
+    }
+}
+
+fn fill_csv_fallback_fog_and_aux_row(row: &mut LightDataRow, pf: &impl Fn(usize) -> f32) {
+    row.fog_end = pf(20);
+    row.fog_start = pf(20) * pf(21);
+    row.glow = pf(22);
+    row.cloud_density = pf(23);
+    row.unk1 = pf(24);
+    row.unk2 = pf(25);
 }
 
 fn load_light_data_csv_fallback(path: &Path, param_id: u32) -> Vec<LightDataRow> {
