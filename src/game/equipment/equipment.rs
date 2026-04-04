@@ -279,65 +279,218 @@ pub struct EquipmentSyncParams<'w, 's> {
     warned: Local<'s, HashSet<String>>,
 }
 
-pub fn sync_equipment(mut params: EquipmentSyncParams) {
-    for (owner, equipment, attach_points, anim_data, mut rendered) in &mut params.query {
-        sync_removed_slots(
-            &mut params.commands,
-            &equipment.slots,
-            &mut rendered,
-            &params.existing_items,
-        );
+pub fn sync_equipment(params: EquipmentSyncParams) {
+    run_equipment_sync(EquipmentSyncRuntime::from(params));
+}
 
-        for (&slot, path) in &equipment.slots {
-            let Some(skin_fdids) = desired_equipment_skin_fdids(
-                equipment,
-                &rendered,
-                &params.existing_items,
-                slot,
-                path,
-            ) else {
-                continue;
-            };
+struct EquipmentSyncRuntime<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
+    transforms: Res<'w, EquipmentTransforms>,
+    query: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static Equipment,
+            &'static AttachmentPoints,
+            &'static M2AnimData,
+            &'static mut RenderedEquipment,
+        ),
+    >,
+    parents: Query<'w, 's, &'static ChildOf>,
+    names: Query<'w, 's, &'static Name>,
+    existing_items: Query<'w, 's, (), With<EquipmentItem>>,
+    warned: Local<'s, HashSet<String>>,
+}
 
-            if let Some(existing) = rendered.slots.remove(&slot) {
-                params.commands.entity(existing.entity).despawn();
-            }
-
-            let Some(spawned) = spawn_equipment_slot(
-                &mut EquipmentSpawnContext {
-                    commands: &mut params.commands,
-                    assets: crate::m2_spawn::SpawnAssets {
-                        meshes: &mut params.meshes,
-                        materials: &mut params.materials,
-                        effect_materials: &mut params.effect_materials,
-                        skybox_materials: None,
-                        images: &mut params.images,
-                        inverse_bindposes: &mut params.inv_bp,
-                    },
-                    joint_entities: &anim_data.joint_entities,
-                    parents: &params.parents,
-                    names: &params.names,
-                    attach_points,
-                    transforms: &params.transforms,
-                    warned: &mut params.warned,
-                    owner,
-                },
-                slot,
-                path,
-                skin_fdids,
-            ) else {
-                continue;
-            };
-
-            rendered.slots.insert(
-                slot,
-                RenderedItem {
-                    entity: spawned,
-                    path: path.to_path_buf(),
-                    skin_fdids,
-                },
-            );
+impl<'w, 's> From<EquipmentSyncParams<'w, 's>> for EquipmentSyncRuntime<'w, 's> {
+    fn from(params: EquipmentSyncParams<'w, 's>) -> Self {
+        let EquipmentSyncParams {
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inv_bp,
+            transforms,
+            query,
+            parents,
+            names,
+            existing_items,
+            warned,
+        } = params;
+        Self {
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inv_bp,
+            transforms,
+            query,
+            parents,
+            names,
+            existing_items,
+            warned,
         }
+    }
+}
+
+fn run_equipment_sync(mut runtime: EquipmentSyncRuntime<'_, '_>) {
+    let EquipmentSyncRuntime {
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        transforms,
+        query,
+        parents,
+        names,
+        existing_items,
+        warned,
+    } = &mut runtime;
+
+    for (owner, equipment, attach_points, anim_data, mut rendered) in query {
+        sync_rendered_equipment_owner(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inv_bp,
+            transforms,
+            parents,
+            names,
+            existing_items,
+            warned,
+            owner,
+            equipment,
+            attach_points,
+            anim_data,
+            &mut rendered,
+        );
+    }
+}
+
+fn sync_rendered_equipment_owner<'w, 's>(
+    commands: &mut Commands<'w, 's>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    transforms: &EquipmentTransforms,
+    parents: &Query<'w, 's, &'static ChildOf>,
+    names: &Query<'w, 's, &'static Name>,
+    existing_items: &Query<'w, 's, (), With<EquipmentItem>>,
+    warned: &mut Local<'s, HashSet<String>>,
+    owner: Entity,
+    equipment: &Equipment,
+    attach_points: &AttachmentPoints,
+    anim_data: &M2AnimData,
+    rendered: &mut RenderedEquipment,
+) {
+    sync_removed_slots(commands, &equipment.slots, rendered, existing_items);
+
+    for (&slot, path) in &equipment.slots {
+        let Some(skin_fdids) =
+            desired_equipment_skin_fdids(equipment, rendered, existing_items, slot, path)
+        else {
+            continue;
+        };
+
+        despawn_rendered_slot(commands, rendered, slot);
+        let Some(spawned) = spawn_runtime_equipment_slot(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inv_bp,
+            transforms,
+            parents,
+            names,
+            warned,
+            owner,
+            attach_points,
+            &anim_data.joint_entities,
+            slot,
+            path,
+            skin_fdids,
+        ) else {
+            continue;
+        };
+        rendered
+            .slots
+            .insert(slot, rendered_item(spawned, path, skin_fdids));
+    }
+}
+
+fn rendered_item(entity: Entity, path: &Path, skin_fdids: [u32; 3]) -> RenderedItem {
+    RenderedItem {
+        entity,
+        path: path.to_path_buf(),
+        skin_fdids,
+    }
+}
+
+fn spawn_runtime_equipment_slot<'w, 's>(
+    commands: &mut Commands<'w, 's>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    transforms: &EquipmentTransforms,
+    parents: &Query<'w, 's, &'static ChildOf>,
+    names: &Query<'w, 's, &'static Name>,
+    warned: &mut Local<'s, HashSet<String>>,
+    owner: Entity,
+    attach_points: &AttachmentPoints,
+    joint_entities: &[Entity],
+    slot: EquipmentSlot,
+    path: &Path,
+    skin_fdids: [u32; 3],
+) -> Option<Entity> {
+    spawn_equipment_slot(
+        &mut EquipmentSpawnContext {
+            commands,
+            assets: crate::m2_spawn::SpawnAssets {
+                meshes,
+                materials,
+                effect_materials,
+                skybox_materials: None,
+                images,
+                inverse_bindposes: inv_bp,
+            },
+            joint_entities,
+            parents,
+            names,
+            attach_points,
+            transforms,
+            warned,
+            owner,
+        },
+        slot,
+        path,
+        skin_fdids,
+    )
+}
+
+fn despawn_rendered_slot(
+    commands: &mut Commands,
+    rendered: &mut RenderedEquipment,
+    slot: EquipmentSlot,
+) {
+    if let Some(existing) = rendered.slots.remove(&slot) {
+        commands.entity(existing.entity).despawn();
     }
 }
 

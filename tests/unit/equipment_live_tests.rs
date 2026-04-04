@@ -47,8 +47,7 @@ fn live_human_male_back_cloak_spawns_runtime_attachment() {
         return;
     }
 
-    let mut app = App::new();
-    configure_live_test_app(&mut app);
+    let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
 
     let mut equipment = app
