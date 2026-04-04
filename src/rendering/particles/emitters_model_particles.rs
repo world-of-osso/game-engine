@@ -17,6 +17,8 @@ use super::effect_builder::{
 use super::emitters::emitter_uses_sphere_invert_velocity;
 use super::{MODEL_PARTICLE_MIN_SPEED, ParticleSpawnMode, ParticleSpawnSource};
 
+const PSEUDO_RANDOM_SEED_MIX: u32 = 0x9E37_79B9;
+
 #[derive(Component)]
 pub struct ModelParticleEmitterComp {
     pub emitter: M2ParticleEmitter,
@@ -362,7 +364,7 @@ fn resolve_particle_model_path(path: &str) -> Option<PathBuf> {
 
 fn pseudo_random01(seed: u32, lane: u32) -> f32 {
     let mut x = seed
-        .wrapping_mul(0x9E37_79B9)
+        .wrapping_mul(PSEUDO_RANDOM_SEED_MIX)
         .wrapping_add(lane.wrapping_mul(0x85EB_CA6B));
     x ^= x >> 16;
     x = x.wrapping_mul(0x7FEB_352D);
