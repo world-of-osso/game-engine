@@ -428,6 +428,15 @@ fn detail_panel_mode_copy(state: &SelectionDebugState) -> Element {
     };
 
     rsx! {
+        {detail_panel_mode_title()}
+        {detail_panel_mode_value(mode)}
+        {detail_panel_last_action_title()}
+        {detail_panel_last_action_value(&state.last_action)}
+    }
+}
+
+fn detail_panel_mode_title() -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugModeTitle",
             width: 520.0,
@@ -445,11 +454,16 @@ fn detail_panel_mode_copy(state: &SelectionDebugState) -> Element {
                 y: "-302",
             }
         }
+    }
+}
+
+fn detail_panel_mode_value(mode: &str) -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugModeValue",
             width: 520.0,
             height: 70.0,
-            text: mode,
+            text: {mode},
             font: GameFont::FrizQuadrata,
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
@@ -462,6 +476,11 @@ fn detail_panel_mode_copy(state: &SelectionDebugState) -> Element {
                 y: "-330",
             }
         }
+    }
+}
+
+fn detail_panel_last_action_title() -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugLastActionTitle",
             width: 520.0,
@@ -479,11 +498,16 @@ fn detail_panel_mode_copy(state: &SelectionDebugState) -> Element {
                 y: "-404",
             }
         }
+    }
+}
+
+fn detail_panel_last_action_value(last_action: &str) -> Element {
+    rsx! {
         fontstring {
             name: "SelectionDebugLastActionValue",
             width: 520.0,
             height: 24.0,
-            text: {&state.last_action},
+            text: {last_action},
             font: GameFont::FrizQuadrata,
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
