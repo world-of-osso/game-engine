@@ -2,6 +2,7 @@ extern crate self as game_engine;
 
 pub mod asset;
 pub mod auction_house;
+pub mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;
 #[path = "scenes/char_create/data.rs"]

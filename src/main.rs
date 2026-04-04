@@ -35,6 +35,7 @@ mod asset {
     // resolver OnceLock is shared instead of compiled into the binary twice.
     pub use game_engine::asset::*;
 }
+mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;
 mod cli_args;
