@@ -12,6 +12,7 @@ pub const UNIT_SIZE: f32 = CHUNK_SIZE / 8.0;
 const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
 const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
 const MCVT_COUNT: usize = 145;
+const MCCV_BYTES_PER_VERTEX: usize = 4;
 
 type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
 
@@ -32,6 +33,7 @@ pub(crate) struct McnkData {
     pub holes_low_res: u16,
     pub heights: [f32; MCVT_COUNT],
     pub normals: [[f32; 3]; MCVT_COUNT],
+    pub vertex_colors: [[f32; 4]; MCVT_COUNT],
 }
 
 #[derive(BinRead)]
@@ -165,13 +167,39 @@ fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
     Ok(normals)
 }
 
+fn parse_mccv(payload: &[u8]) -> Result<[[f32; 4]; MCVT_COUNT], String> {
+    let expected_len = MCVT_COUNT * MCCV_BYTES_PER_VERTEX;
+    if payload.len() < expected_len {
+        return Err(format!(
+            "MCCV too small: {} bytes (need {})",
+            payload.len(),
+            expected_len
+        ));
+    }
+    let mut colors = [[1.0f32; 4]; MCVT_COUNT];
+    for (i, color) in colors.iter_mut().enumerate() {
+        let base = i * MCCV_BYTES_PER_VERTEX;
+        let blue = payload[base];
+        let green = payload[base + 1];
+        let red = payload[base + 2];
+        let alpha = payload[base + 3];
+        *color = [
+            f32::from(red) / 127.0,
+            f32::from(green) / 127.0,
+            f32::from(blue) / 127.0,
+            f32::from(alpha) / 255.0,
+        ];
+    }
+    Ok(colors)
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
     }
     let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
     let pos = [header.pos_x, header.pos_y, header.pos_z];
-    let (heights, normals) = parse_mcnk_subchunks(&payload[128..])?;
+    let (heights, normals, vertex_colors) = parse_mcnk_subchunks(&payload[128..])?;
     Ok(McnkData {
         index_x: header.index_x,
         index_y: header.index_y,
@@ -179,26 +207,39 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         holes_low_res: header._holes_low_res,
         heights,
         normals,
+        vertex_colors,
     })
 }
 
-fn parse_mcnk_subchunks(sub: &[u8]) -> Result<([f32; MCVT_COUNT], [[f32; 3]; MCVT_COUNT]), String> {
+fn parse_mcnk_subchunks(
+    sub: &[u8],
+) -> Result<
+    (
+        [f32; MCVT_COUNT],
+        [[f32; 3]; MCVT_COUNT],
+        [[f32; 4]; MCVT_COUNT],
+    ),
+    String,
+> {
     let mut heights = None;
     let mut normals = None;
+    let mut vertex_colors = None;
     for chunk in ChunkIter::new(sub) {
         let (tag, payload) = chunk?;
         match tag {
             b"TVCM" => heights = Some(parse_mcvt(payload)?),
             b"RNCM" => normals = Some(parse_mcnr(payload)?),
+            b"VCCM" => vertex_colors = Some(parse_mccv(payload)?),
             _ => {}
         }
-        if heights.is_some() && normals.is_some() {
+        if heights.is_some() && normals.is_some() && vertex_colors.is_some() {
             break;
         }
     }
     let heights = heights.ok_or("MCNK missing TVCM sub-chunk")?;
     let normals = normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
-    Ok((heights, normals))
+    let vertex_colors = vertex_colors.unwrap_or([[1.0, 1.0, 1.0, 1.0]; MCVT_COUNT]);
+    Ok((heights, normals, vertex_colors))
 }
 
 pub fn vertex_index(grid_row: usize, col: usize) -> usize {
@@ -528,4 +569,26 @@ fn load_adt_inner(
         water,
         water_error,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MCVT_COUNT, parse_mccv};
+
+    #[test]
+    fn parse_mccv_reads_bgra_and_maps_neutral_to_one() {
+        let mut payload = vec![0x7F; MCVT_COUNT * 4];
+        for i in 0..MCVT_COUNT {
+            payload[i * 4 + 3] = 0xFF;
+        }
+        payload[0..4].copy_from_slice(&[0x20, 0x40, 0x60, 0x80]);
+
+        let colors = parse_mccv(&payload).expect("expected MCCV colors");
+        assert_eq!(colors.len(), MCVT_COUNT);
+        assert_eq!(colors[1], [1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(colors[0][0], 0x60 as f32 / 127.0);
+        assert_eq!(colors[0][1], 0x40 as f32 / 127.0);
+        assert_eq!(colors[0][2], 0x20 as f32 / 127.0);
+        assert_eq!(colors[0][3], 0x80 as f32 / 255.0);
+    }
 }

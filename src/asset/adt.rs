@@ -26,6 +26,37 @@ pub struct AdtData {
 type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 type WaterGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 
+#[cfg(test)]
+fn mccv_color_to_shader_color(bgra: [u8; 4]) -> [f32; 4] {
+    [
+        f32::from(bgra[2]) / 127.0,
+        f32::from(bgra[1]) / 127.0,
+        f32::from(bgra[0]) / 127.0,
+        f32::from(bgra[3]) / 255.0,
+    ]
+}
+
+fn decode_mcnk_vertex_grid(index: usize) -> (usize, usize) {
+    let pair = index / 17;
+    let rem = index % 17;
+    if rem < 9 {
+        (pair * 2, rem)
+    } else {
+        (pair * 2 + 1, rem - 9)
+    }
+}
+
+fn terrain_vertex_uv(grid_row: usize, col: usize) -> [f32; 2] {
+    if grid_row.is_multiple_of(2) {
+        [col as f32 / 8.0, (grid_row / 2) as f32 / 8.0]
+    } else {
+        [
+            (col as f32 + 0.5) / 8.0,
+            ((grid_row / 2) as f32 + 0.5) / 8.0,
+        ]
+    }
+}
+
 fn build_mcnk_geometry(
     chunk: &super::adt_format::adt::McnkData,
     tile_coords: Option<(u32, u32)>,
@@ -35,13 +66,7 @@ fn build_mcnk_geometry(
     let mut uvs = Vec::with_capacity(145);
     let (origin_x, origin_z) = super::adt_format::adt::chunk_origin_bevy(chunk, tile_coords);
     for i in 0..145 {
-        let pair = i / 17;
-        let rem = i % 17;
-        let (grid_row, col) = if rem < 9 {
-            (pair * 2, rem)
-        } else {
-            (pair * 2 + 1, rem - 9)
-        };
+        let (grid_row, col) = decode_mcnk_vertex_grid(i);
         positions.push(super::adt_format::adt::vertex_position_from_origin(
             grid_row,
             col,
@@ -51,15 +76,7 @@ fn build_mcnk_geometry(
             &chunk.heights,
         ));
         normals_out.push(chunk.normals[i]);
-        let uv = if grid_row.is_multiple_of(2) {
-            [col as f32 / 8.0, (grid_row / 2) as f32 / 8.0]
-        } else {
-            [
-                (col as f32 + 0.5) / 8.0,
-                ((grid_row / 2) as f32 + 0.5) / 8.0,
-            ]
-        };
-        uvs.push(uv);
+        uvs.push(terrain_vertex_uv(grid_row, col));
     }
     (
         positions,
@@ -110,6 +127,7 @@ fn build_mcnk_mesh(
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, chunk.vertex_colors.to_vec());
     mesh.insert_indices(Indices::U32(indices));
     mesh
 }
@@ -250,7 +268,9 @@ fn load_adt_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::build_mcnk_indices;
+    use bevy::mesh::{Mesh, VertexAttributeValues};
+
+    use super::{build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color};
 
     #[test]
     fn mcnk_indices_emit_all_quads_without_holes() {
@@ -272,6 +292,45 @@ mod tests {
 
         let preserved = quad_index_base(1, 2);
         assert!(indices.contains(&preserved.center));
+    }
+
+    #[test]
+    fn mccv_color_conversion_uses_bgra_order_and_neutral_center() {
+        assert_eq!(
+            mccv_color_to_shader_color([0x7F, 0x7F, 0x7F, 0xFF]),
+            [1.0, 1.0, 1.0, 1.0]
+        );
+        assert_eq!(
+            mccv_color_to_shader_color([0x00, 0x00, 0x00, 0xFF]),
+            [0.0, 0.0, 0.0, 1.0]
+        );
+
+        let bright_red = mccv_color_to_shader_color([0x00, 0x00, 0xFF, 0x80]);
+        assert!((bright_red[0] - (255.0 / 127.0)).abs() < f32::EPSILON);
+        assert_eq!(bright_red[1], 0.0);
+        assert_eq!(bright_red[2], 0.0);
+        assert_eq!(bright_red[3], 128.0 / 255.0);
+    }
+
+    #[test]
+    fn mcnk_mesh_emits_vertex_color_attribute_from_mccv() {
+        let chunk = super::super::adt_format::adt::McnkData {
+            index_x: 0,
+            index_y: 0,
+            pos: [0.0, 0.0, 0.0],
+            holes_low_res: 0,
+            heights: [0.0; 145],
+            normals: [[0.0, 1.0, 0.0]; 145],
+            vertex_colors: [[1.0, 1.0, 1.0, 1.0]; 145],
+        };
+
+        let mesh = build_mcnk_mesh(&chunk, None);
+        let Some(VertexAttributeValues::Float32x4(colors)) = mesh.attribute(Mesh::ATTRIBUTE_COLOR)
+        else {
+            panic!("expected terrain mesh vertex colors");
+        };
+        assert_eq!(colors.len(), 145);
+        assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
     }
 
     struct QuadIndices {

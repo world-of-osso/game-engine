@@ -222,9 +222,11 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
         c0.rgb * weights.x + c1.rgb * weights.y + c2.rgb * weights.z + c3.rgb * weights.w,
         1.0,
     );
+    let vertex_color = in.color.rgb;
+    let shaded_color = vec4<f32>(color.rgb * vertex_color, color.a);
 
     var pbr_input = pbr_types::pbr_input_new();
-    pbr_input.material.base_color = color;
+    pbr_input.material.base_color = shaded_color;
     pbr_input.material.perceptual_roughness = perceptual_roughness;
     pbr_input.material.reflectance = vec3<f32>(reflectance);
     pbr_input.material.flags = pbr_types::STANDARD_MATERIAL_FLAGS_FOG_ENABLED_BIT;
