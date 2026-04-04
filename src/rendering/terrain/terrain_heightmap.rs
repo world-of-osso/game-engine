@@ -219,12 +219,14 @@ mod tests {
                 layers: vec![
                     adt::TextureLayer {
                         texture_index: 0,
-                        _flags: 0,
+                        flags: adt::MclyFlags::default(),
+                        effect_id: 0,
                         alpha_map: None,
                     },
                     adt::TextureLayer {
                         texture_index: 1,
-                        _flags: 0,
+                        flags: adt::MclyFlags::default(),
+                        effect_id: 0,
                         alpha_map: Some(vec![255; 4096]),
                     },
                 ],
