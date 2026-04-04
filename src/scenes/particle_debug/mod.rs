@@ -76,16 +76,18 @@ struct ParticleDebugSceneParams<'w, 's> {
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
     let mut timings = SetupTimings::default();
 
-    commands.insert_resource(ClearColor(Color::srgb(0.14, 0.17, 0.22)));
+    commands.insert_resource(ClearColor(Color::srgb(0.03, 0.04, 0.06)));
     timings.record("camera", || spawn_camera(&mut commands));
     timings.record("lighting", || spawn_lighting(&mut commands));
     timings.record("ground", || {
         spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
     });
 
-    // FDID 145303 = item/objectcomponents/weapon/club_1h_torch_a_01.blp
-    // The torch's first texture is type 2 (Monster Skin 1) which needs skin_fdids[0].
-    let skin_fdids = [145303, 0, 0];
+    let skin_fdids = resolved_skin_fdids(
+        Path::new(TORCH_M2),
+        &params.creature_display_map,
+        &params.outfit_data,
+    );
     spawn_emitter_overlay(&mut commands, &skin_fdids);
     spawn_torch_with_skin_fdids(&mut commands, &mut params, &skin_fdids);
 }
@@ -172,14 +174,14 @@ fn spawn_camera(commands: &mut Commands) {
 fn spawn_lighting(commands: &mut Commands) {
     commands.insert_resource(GlobalAmbientLight {
         color: Color::srgb(0.92, 0.94, 0.98),
-        brightness: 650.0,
+        brightness: 80.0,
         ..default()
     });
     commands.spawn((
         Name::new("ParticleDebugLight"),
         ParticleDebugScene,
         DirectionalLight {
-            illuminance: 30000.0,
+            illuminance: 2000.0,
             shadows_enabled: true,
             color: Color::srgb(1.0, 0.96, 0.9),
             ..default()
@@ -198,9 +200,9 @@ fn spawn_ground(
         ParticleDebugScene,
         Mesh3d(meshes.add(Plane3d::default().mesh().size(18.0, 18.0).build())),
         MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.28, 0.31, 0.36),
-            perceptual_roughness: 1.0,
-            metallic: 0.0,
+            base_color: Color::srgb(0.08, 0.09, 0.11),
+            perceptual_roughness: 0.96,
+            metallic: 0.02,
             ..default()
         })),
     ));

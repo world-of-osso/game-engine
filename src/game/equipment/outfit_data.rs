@@ -614,6 +614,20 @@ mod tests {
     }
 
     #[test]
+    fn torch_model_resolves_skin_fdids() {
+        let data = OutfitData::load(Path::new("data"));
+        let path = Path::new("data/models/club_1h_torch_a_01.m2");
+
+        let skin_fdids = data.resolve_item_model_skin_fdids_for_model_path(path);
+
+        assert!(
+            skin_fdids.is_some_and(|fdids| fdids[0] != 0),
+            "torch skin FDID should resolve via outfit data, got {:?}",
+            skin_fdids
+        );
+    }
+
+    #[test]
     fn waist_display_without_material_rows_has_no_item_textures() {
         let data = OutfitData::load(Path::new("data"));
 
