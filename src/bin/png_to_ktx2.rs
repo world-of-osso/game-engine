@@ -4,6 +4,21 @@ use std::path::Path;
 use image::ImageReader;
 use ktx2_rw::{Ktx2Texture, VkFormat};
 
+fn box_filter_rgba(src: &[u8], src_w: u32, src_h: u32, src_x: u32, src_y: u32) -> [u8; 4] {
+    let mut rgba = [0u32; 4];
+    for dy in 0..2u32 {
+        for dx in 0..2u32 {
+            let px = (src_x + dx).min(src_w - 1);
+            let py = (src_y + dy).min(src_h - 1);
+            let offset = ((py * src_w + px) * 4) as usize;
+            for (c, v) in rgba.iter_mut().enumerate() {
+                *v += src[offset + c] as u32;
+            }
+        }
+    }
+    rgba.map(|value| (value / 4) as u8)
+}
+
 fn box_filter_mip(src: &[u8], src_w: u32, src_h: u32) -> Vec<u8> {
     let dst_w = (src_w / 2).max(1);
     let dst_h = (src_h / 2).max(1);
@@ -11,24 +26,9 @@ fn box_filter_mip(src: &[u8], src_w: u32, src_h: u32) -> Vec<u8> {
 
     for y in 0..dst_h {
         for x in 0..dst_w {
-            let mut rgba = [0u32; 4];
             let src_x = x * 2;
             let src_y = y * 2;
-
-            for dy in 0..2u32 {
-                for dx in 0..2u32 {
-                    let px = (src_x + dx).min(src_w - 1);
-                    let py = (src_y + dy).min(src_h - 1);
-                    let offset = ((py * src_w + px) * 4) as usize;
-                    for (c, v) in rgba.iter_mut().enumerate() {
-                        *v += src[offset + c] as u32;
-                    }
-                }
-            }
-
-            for v in rgba {
-                dst.push((v / 4) as u8);
-            }
+            dst.extend(box_filter_rgba(src, src_w, src_h, src_x, src_y));
         }
     }
 
