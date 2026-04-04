@@ -12,7 +12,6 @@
 )]
 
 use bevy::{
-    dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
     pbr::MaterialPlugin,
     prelude::*,
     window::WindowPlugin,
@@ -22,7 +21,6 @@ use raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 mod asset {
@@ -441,12 +439,14 @@ fn register_bevy_plugins(app: &mut App) {
     register_ui_plugins(app);
     register_world_plugins(app);
     register_render_plugins(app);
-    app.add_plugins(FpsOverlayPlugin {
-        config: FpsOverlayConfig {
-            refresh_interval: Duration::from_millis(500),
-            ..default()
-        },
-    });
+    // Disabled temporarily to test whether Bevy text rendering is part of the
+    // charselect PointLight + SkinnedMesh blackout path.
+    // app.add_plugins(FpsOverlayPlugin {
+    //     config: FpsOverlayConfig {
+    //         refresh_interval: Duration::from_millis(500),
+    //         ..default()
+    //     },
+    // });
 }
 
 fn register_ui_plugins(app: &mut App) {
