@@ -413,17 +413,32 @@ pub fn receive_create_character_response(
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
-            if resp.success {
-                if let Some(ch) = resp.character {
-                    info!("Created character '{}'", ch.name);
-                    char_list.0.push(ch);
-                }
-            } else {
-                let err = resp.error.unwrap_or_default();
-                error!("Create character failed: {err}");
-            }
+            handle_create_character_response(resp, &mut char_list);
         }
     }
+}
+
+fn handle_create_character_response(resp: CreateCharacterResponse, char_list: &mut CharacterList) {
+    if resp.success {
+        handle_create_character_success(resp.character, char_list);
+        return;
+    }
+    handle_create_character_failure(resp.error);
+}
+
+fn handle_create_character_success(
+    character: Option<CharacterListEntry>,
+    char_list: &mut CharacterList,
+) {
+    if let Some(character) = character {
+        info!("Created character '{}'", character.name);
+        char_list.0.push(character);
+    }
+}
+
+fn handle_create_character_failure(error: Option<String>) {
+    let err = error.unwrap_or_default();
+    error!("Create character failed: {err}");
 }
 
 /// Handle DeleteCharacterResponse: remove character from list.
