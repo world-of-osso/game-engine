@@ -188,6 +188,17 @@ fn unit_frame_shell_labels(
     player_side: bool,
 ) -> Element {
     rsx! {
+        {unit_frame_name_label(names, state, frame)}
+        {unit_frame_level_label(names, state, frame, player_side)}
+    }
+}
+
+fn unit_frame_name_label(
+    names: &UnitFrameNames,
+    state: &UnitFrameState,
+    frame: &FrameConfig,
+) -> Element {
+    rsx! {
         fontstring {
             name: names.name,
             width: frame.name.width,
@@ -206,6 +217,22 @@ fn unit_frame_shell_labels(
                 y: {-frame.name.y},
             }
         }
+    }
+}
+
+fn unit_frame_level_label(
+    names: &UnitFrameNames,
+    state: &UnitFrameState,
+    frame: &FrameConfig,
+    player_side: bool,
+) -> Element {
+    let justify_h = if player_side { "RIGHT" } else { "CENTER" };
+    let point = if player_side {
+        AnchorPoint::TopRight
+    } else {
+        AnchorPoint::TopLeft
+    };
+    rsx! {
         fontstring {
             name: names.level,
             width: frame.level.width,
@@ -216,10 +243,10 @@ fn unit_frame_shell_labels(
             font_color: GOLD_TEXT,
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
-            justify_h: if player_side { "RIGHT" } else { "CENTER" },
+            justify_h,
             anchor {
-                point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
-                relative_point: if player_side { AnchorPoint::TopRight } else { AnchorPoint::TopLeft },
+                point,
+                relative_point: point,
                 x: {frame.level.x},
                 y: {-frame.level.y},
             }
