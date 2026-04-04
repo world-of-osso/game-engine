@@ -95,10 +95,10 @@ pub struct GraphicsOptions {
 impl Default for GraphicsOptions {
     fn default() -> Self {
         Self {
-            particle_density: 100,
-            render_scale: 1.0,
-            bloom_enabled: true,
-            bloom_intensity: 0.08,
+            particle_density: default_particle_density(),
+            render_scale: default_render_scale(),
+            bloom_enabled: default_bloom_enabled(),
+            bloom_intensity: default_bloom_intensity(),
         }
     }
 }
