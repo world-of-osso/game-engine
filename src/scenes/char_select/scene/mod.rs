@@ -460,6 +460,24 @@ fn spawn_scene_camera_and_lighting(
     selection: &SceneSetupSelection,
     bg_node: &mut SceneNode,
 ) -> (SceneSetupLighting, std::time::Duration, std::time::Duration) {
+    let (camera_entity, camera_params, camera_elapsed) = spawn_scene_camera(params, selection);
+    let sky_light_elapsed =
+        attach_scene_skybox_and_spawn_lighting(params, selection, bg_node, camera_params.0);
+    (
+        SceneSetupLighting {
+            camera_entity,
+            fov: camera_params.2,
+            dir: sky_light_elapsed.0,
+        },
+        camera_elapsed,
+        sky_light_elapsed.1,
+    )
+}
+
+fn spawn_scene_camera(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    selection: &SceneSetupSelection,
+) -> (Entity, (Vec3, Vec3, f32), std::time::Duration) {
     let camera_start = Instant::now();
     let camera_entity = camera::spawn_char_select_camera(
         &mut params.commands,
@@ -469,16 +487,25 @@ fn spawn_scene_camera_and_lighting(
         selection.presentation,
     );
     let camera_elapsed = camera_start.elapsed();
-    let sky_light_start = Instant::now();
     let camera_params = camera::camera_params(
         selection.scene_entry.as_ref(),
         selection.placement.as_ref(),
         selection.presentation,
     );
+    (camera_entity, camera_params, camera_elapsed)
+}
+
+fn attach_scene_skybox_and_spawn_lighting(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    selection: &SceneSetupSelection,
+    bg_node: &mut SceneNode,
+    camera_translation: Vec3,
+) -> (Entity, std::time::Duration) {
+    let sky_light_start = Instant::now();
     attach_scene_skybox(
         params,
         selection.scene_entry.as_ref(),
-        camera_params.0,
+        camera_translation,
         bg_node,
     );
     let dir = lighting::spawn(
@@ -487,15 +514,7 @@ fn spawn_scene_camera_and_lighting(
         selection.placement.as_ref(),
         selection.presentation,
     );
-    (
-        SceneSetupLighting {
-            camera_entity,
-            fov: camera_params.2,
-            dir,
-        },
-        camera_elapsed,
-        sky_light_start.elapsed(),
-    )
+    (dir, sky_light_start.elapsed())
 }
 
 fn attach_scene_skybox(
