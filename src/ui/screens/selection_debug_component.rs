@@ -145,49 +145,67 @@ fn list_panel(entries: &[SelectionDebugEntry], selected_index: usize) -> Element
                 x: "32",
                 y: "-86",
             }
-            r#frame {
-                name: "SelectionDebugListBorder",
-                width: 450.0,
-                height: 2.0,
-                background_color: PANEL_BORDER,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_to: LIST_PANEL,
-                    relative_point: AnchorPoint::Top,
-                }
+            {list_panel_border()}
+            {list_panel_title()}
+            {list_panel_rows(rows)}
+        }
+    }
+}
+
+fn list_panel_border() -> Element {
+    rsx! {
+        r#frame {
+            name: "SelectionDebugListBorder",
+            width: 450.0,
+            height: 2.0,
+            background_color: PANEL_BORDER,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: LIST_PANEL,
+                relative_point: AnchorPoint::Top,
             }
-            fontstring {
-                name: "SelectionDebugListTitle",
-                width: 390.0,
-                height: 28.0,
-                text: "Selection Candidates",
-                font: GameFont::FrizQuadrata,
-                font_size: 20.0,
-                font_color: TEXT_GOLD,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: LIST_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-18",
-                }
+        }
+    }
+}
+
+fn list_panel_title() -> Element {
+    rsx! {
+        fontstring {
+            name: "SelectionDebugListTitle",
+            width: 390.0,
+            height: 28.0,
+            text: "Selection Candidates",
+            font: GameFont::FrizQuadrata,
+            font_size: 20.0,
+            font_color: TEXT_GOLD,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: LIST_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-18",
             }
-            r#frame {
-                name: "SelectionDebugRows",
-                width: 402.0,
-                height: 368.0,
-                layout: "flex-col",
-                gap: 12.0,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_to: LIST_PANEL,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "24",
-                    y: "-56",
-                }
-                {rows}
+        }
+    }
+}
+
+fn list_panel_rows(rows: Element) -> Element {
+    rsx! {
+        r#frame {
+            name: "SelectionDebugRows",
+            width: 402.0,
+            height: 368.0,
+            layout: "flex-col",
+            gap: 12.0,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_to: LIST_PANEL,
+                relative_point: AnchorPoint::TopLeft,
+                x: "24",
+                y: "-56",
             }
+            {rows}
         }
     }
 }
