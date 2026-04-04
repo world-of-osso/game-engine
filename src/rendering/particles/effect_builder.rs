@@ -8,6 +8,9 @@ use super::effect_builder_motion::{
     build_size_variation_modifier_attr, build_spin_sign_modifier, build_twinkle_modifier,
     build_twinkle_seed_modifier, build_velocity_modifier, is_trail_particle,
 };
+use super::effect_builder_setup::{
+    EffectAssetParts, RuntimeEffectModifiers, build_effect_asset_inputs,
+};
 use super::emitters::{
     emitter_simulation_space, emitter_uses_dynamic_wind, emitter_uses_inherit_velocity,
 };
@@ -16,9 +19,8 @@ use super::visuals::{
     build_offset_by_spin_modifier, build_size_gradient, has_authored_twinkle,
 };
 use super::{
-    CHILD_EMITTER_FPS_APPROXIMATION, DYNAMIC_WIND_ACCEL_PROPERTY, PARTICLE_FLAG_NO_GLOBAL_SCALE,
-    PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_XY_QUAD,
-    ParticleSpawnMode, ParticleSpawnSource,
+    DYNAMIC_WIND_ACCEL_PROPERTY, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_VELOCITY_ORIENT,
+    PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource,
 };
 
 pub(crate) struct ExprModifiers {
@@ -215,160 +217,6 @@ pub(crate) fn build_effect_asset_with_mode(
     apply_runtime_effect_modifiers(effect, em, runtime_modifiers)
 }
 
-struct RuntimeEffectModifiers {
-    drag: Option<LinearDragModifier>,
-    flipbook_sprite_index_init: Option<SetAttributeModifier>,
-    flipbook_sprite_index_update: Option<SetAttributeModifier>,
-    texture: Option<ParticleTextureModifier>,
-    twinkle: Option<TwinkleSizeModifier>,
-    size_variation: Option<SizeVariationModifier>,
-}
-
-struct EffectAssetParts {
-    module: Module,
-    spawner: SpawnerSettings,
-    max_particles: u32,
-    alpha_mode: bevy_hanabi::AlphaMode,
-    init: InitModifiers,
-    gravity: AccelModifier,
-    orient_rotation: Option<ExprHandle>,
-    model_scale: f32,
-    child_event_counts: Vec<u32>,
-}
-
-struct EffectExprParts {
-    module: Module,
-    alpha_mode: bevy_hanabi::AlphaMode,
-    init: InitModifiers,
-    gravity: AccelModifier,
-    orient_rotation: Option<ExprHandle>,
-}
-
-fn build_effect_asset_inputs(
-    em: &M2ParticleEmitter,
-    model_scale: f32,
-    particle_density_multiplier: f32,
-    spawn_mode: ParticleSpawnMode,
-    spawn_source: ParticleSpawnSource,
-    child_emitters: &[M2ParticleEmitter],
-) -> (EffectAssetParts, RuntimeEffectModifiers) {
-    build_effect_asset_inputs_from_expr(
-        em,
-        particle_density_multiplier,
-        spawn_mode,
-        spawn_source,
-        child_emitters,
-        model_scale,
-        build_expr_modifiers(em, model_scale),
-    )
-}
-
-fn build_effect_asset_inputs_from_expr(
-    em: &M2ParticleEmitter,
-    particle_density_multiplier: f32,
-    spawn_mode: ParticleSpawnMode,
-    spawn_source: ParticleSpawnSource,
-    child_emitters: &[M2ParticleEmitter],
-    model_scale: f32,
-    expr_modifiers: ExprModifiers,
-) -> (EffectAssetParts, RuntimeEffectModifiers) {
-    let (expr_parts, runtime_modifiers) = split_effect_expr_modifiers(expr_modifiers);
-    (
-        build_effect_asset_parts(
-            em,
-            particle_density_multiplier,
-            spawn_mode,
-            spawn_source,
-            child_emitters,
-            model_scale,
-            expr_parts,
-        ),
-        runtime_modifiers,
-    )
-}
-
-fn build_effect_asset_parts(
-    em: &M2ParticleEmitter,
-    particle_density_multiplier: f32,
-    spawn_mode: ParticleSpawnMode,
-    spawn_source: ParticleSpawnSource,
-    child_emitters: &[M2ParticleEmitter],
-    model_scale: f32,
-    expr_parts: EffectExprParts,
-) -> EffectAssetParts {
-    let setup = build_effect_runtime_setup(
-        em,
-        particle_density_multiplier,
-        spawn_mode,
-        spawn_source,
-        child_emitters,
-    );
-    EffectAssetParts {
-        module: expr_parts.module,
-        spawner: setup.spawner,
-        max_particles: setup.max_particles,
-        alpha_mode: expr_parts.alpha_mode,
-        init: expr_parts.init,
-        gravity: expr_parts.gravity,
-        orient_rotation: expr_parts.orient_rotation,
-        model_scale,
-        child_event_counts: setup.child_event_counts,
-    }
-}
-
-fn split_effect_expr_modifiers(
-    expr_modifiers: ExprModifiers,
-) -> (EffectExprParts, RuntimeEffectModifiers) {
-    let ExprModifiers {
-        init,
-        gravity,
-        drag,
-        flipbook_sprite_index_init,
-        flipbook_sprite_index_update,
-        texture,
-        twinkle,
-        size_variation,
-        alpha_mode,
-        orient_rotation,
-        module,
-    } = expr_modifiers;
-    (
-        EffectExprParts {
-            module,
-            alpha_mode,
-            init,
-            gravity,
-            orient_rotation,
-        },
-        build_runtime_effect_modifiers(
-            drag,
-            flipbook_sprite_index_init,
-            flipbook_sprite_index_update,
-            texture,
-            twinkle,
-            size_variation,
-        ),
-    )
-}
-
-fn build_runtime_effect_modifiers(
-    drag: Option<LinearDragModifier>,
-    flipbook_sprite_index_init: Option<SetAttributeModifier>,
-    flipbook_sprite_index_update: Option<SetAttributeModifier>,
-    texture: Option<ParticleTextureModifier>,
-    twinkle: Option<TwinkleSizeModifier>,
-    size_variation: Option<SizeVariationModifier>,
-) -> RuntimeEffectModifiers {
-    RuntimeEffectModifiers {
-        drag,
-        flipbook_sprite_index_init,
-        flipbook_sprite_index_update,
-        texture,
-        twinkle,
-        size_variation,
-    }
-}
-
 fn assemble_effect_from_parts(
     em: &M2ParticleEmitter,
     spawn_source: ParticleSpawnSource,
@@ -404,32 +252,6 @@ fn apply_runtime_effect_modifiers(
         runtime_modifiers.twinkle,
         runtime_modifiers.size_variation,
     )
-}
-
-struct EffectRuntimeSetup {
-    spawner: SpawnerSettings,
-    max_particles: u32,
-    child_event_counts: Vec<u32>,
-}
-
-fn build_effect_runtime_setup(
-    em: &M2ParticleEmitter,
-    particle_density_multiplier: f32,
-    spawn_mode: ParticleSpawnMode,
-    spawn_source: ParticleSpawnSource,
-    child_emitters: &[M2ParticleEmitter],
-) -> EffectRuntimeSetup {
-    let emission_rate = scaled_emission_rate(em, particle_density_multiplier);
-    let (_, max_lifetime) = lifetime_range(em);
-    let burst_count = emission_rate.max(0.0);
-    EffectRuntimeSetup {
-        spawner: build_spawner_settings(emission_rate, spawn_mode, spawn_source),
-        max_particles: max_particles(emission_rate, max_lifetime, burst_count, spawn_source),
-        child_event_counts: child_emitters
-            .iter()
-            .map(|child| child_emitter_event_count(child, particle_density_multiplier))
-            .collect(),
-    }
 }
 
 fn apply_effect_runtime_modifiers(
@@ -469,47 +291,6 @@ fn apply_effect_runtime_modifiers(
         });
     }
     effect
-}
-
-fn build_spawner_settings(
-    emission_rate: f32,
-    spawn_mode: ParticleSpawnMode,
-    spawn_source: ParticleSpawnSource,
-) -> SpawnerSettings {
-    if spawn_source == ParticleSpawnSource::ChildFromParentParticles {
-        return SpawnerSettings::default();
-    }
-    match spawn_mode {
-        ParticleSpawnMode::Continuous => SpawnerSettings::rate(emission_rate.into()),
-        ParticleSpawnMode::BurstOnce => SpawnerSettings::once(emission_rate.max(0.0).into())
-            .with_starts_active(true)
-            .with_emit_on_start(false),
-    }
-}
-
-fn max_particles(
-    emission_rate: f32,
-    max_lifetime: f32,
-    burst_count: f32,
-    spawn_source: ParticleSpawnSource,
-) -> u32 {
-    if spawn_source == ParticleSpawnSource::ChildFromParentParticles {
-        return 4096;
-    }
-    (((emission_rate * max_lifetime).max(burst_count)).ceil() as u32).clamp(16, 4096)
-}
-
-pub(crate) fn scaled_emission_rate(
-    em: &M2ParticleEmitter,
-    particle_density_multiplier: f32,
-) -> f32 {
-    let mean_rate = em.emission_rate + em.emission_rate_variation.max(0.0) * 0.5;
-    let global_scale = if em.flags & PARTICLE_FLAG_NO_GLOBAL_SCALE != 0 {
-        1.0
-    } else {
-        particle_density_multiplier.clamp(0.1, 1.0)
-    };
-    (mean_rate * global_scale).max(0.1)
 }
 
 fn assemble_effect(
@@ -668,9 +449,14 @@ pub(crate) fn child_emitter_event_count(
     em: &M2ParticleEmitter,
     particle_density_multiplier: f32,
 ) -> u32 {
-    let per_frame =
-        scaled_emission_rate(em, particle_density_multiplier) / CHILD_EMITTER_FPS_APPROXIMATION;
-    per_frame.ceil().max(1.0) as u32
+    super::effect_builder_setup::child_emitter_event_count(em, particle_density_multiplier)
+}
+
+pub(crate) fn scaled_emission_rate(
+    em: &M2ParticleEmitter,
+    particle_density_multiplier: f32,
+) -> f32 {
+    super::effect_builder_setup::scaled_emission_rate(em, particle_density_multiplier)
 }
 
 pub(crate) fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {

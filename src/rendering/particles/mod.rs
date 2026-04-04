@@ -5,6 +5,7 @@
 
 pub(crate) mod effect_builder;
 mod effect_builder_motion;
+mod effect_builder_setup;
 mod emitters;
 mod emitters_model_particles;
 mod visuals;
