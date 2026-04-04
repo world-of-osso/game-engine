@@ -637,8 +637,12 @@ fn register_inworld_systems(app: &mut App) {
 }
 
 fn register_sky_visual_systems(app: &mut App) {
+    register_shared_sky_visual_systems(app);
+    register_inworld_time_display_system(app);
+}
+
+fn register_shared_sky_visual_systems(app: &mut App) {
     let sky_active = sky_scene_active;
-    let iw = in_state(GameState::InWorld);
     app.add_systems(
         Update,
         update_sky_colors
@@ -664,8 +668,12 @@ fn register_sky_visual_systems(app: &mut App) {
     .add_systems(
         Update,
         update_procedural_cloud_maps.run_if(sky_scene_active),
-    )
-    .add_systems(
+    );
+}
+
+fn register_inworld_time_display_system(app: &mut App) {
+    let iw = in_state(GameState::InWorld);
+    app.add_systems(
         Update,
         update_time_display.after(advance_game_time).run_if(iw),
     );
