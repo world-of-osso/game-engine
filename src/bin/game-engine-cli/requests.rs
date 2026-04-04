@@ -206,6 +206,24 @@ pub struct AuctionBrowseRequestArgs {
     pub dir: String,
 }
 
+type AuctionBrowseCommand = (
+    String,
+    u32,
+    u32,
+    Option<u16>,
+    Option<u16>,
+    Option<u8>,
+    String,
+    String,
+);
+
+enum AuctionActionCommand {
+    ClaimMail { mail_id: u64 },
+    Bid { id: u64, amount: u32 },
+    Buyout { id: u64 },
+    Cancel { id: u64 },
+}
+
 pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request, String> {
     Ok(Request::AuctionBrowse {
         query: AuctionSearchQuery {
@@ -240,6 +258,13 @@ pub fn auction_create_request(
     })
 }
 
+pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
+    if let Some(request) = simple_auction_request(&command) {
+        return Ok(request);
+    }
+    auction_non_simple_request(command)
+}
+
 fn simple_auction_request(command: &AuctionCmd) -> Option<Request> {
     match command {
         AuctionCmd::Open => Some(Request::AuctionOpen),
@@ -252,12 +277,15 @@ fn simple_auction_request(command: &AuctionCmd) -> Option<Request> {
     }
 }
 
-fn auction_request_from_command(command: AuctionCmd) -> Result<Request, String> {
-    if let Some(request) = simple_auction_request(&command) {
-        return Ok(request);
-    }
+fn auction_non_simple_request(command: AuctionCmd) -> Result<Request, String> {
+    use AuctionActionCommand as Action;
+    use AuctionCmd as Cmd;
+
     match command {
-        AuctionCmd::Browse {
+        command if simple_auction_request(&command).is_some() => {
+            Err("unexpected simple auction command".into())
+        }
+        Cmd::Browse {
             text,
             page,
             page_size,
@@ -266,49 +294,57 @@ fn auction_request_from_command(command: AuctionCmd) -> Result<Request, String> 
             quality,
             sort,
             dir,
-        } => auction_browse_request(AuctionBrowseRequestArgs {
-            text,
-            page,
-            page_size,
-            min_level,
-            max_level,
-            quality,
-            sort,
-            dir,
-        }),
-        AuctionCmd::ClaimMail { mail_id } => Ok(Request::AuctionClaimMail {
-            claim: ClaimAuctionMail { mail_id },
-        }),
-        AuctionCmd::Create {
+        } => auction_browse_command_request((
+            text, page, page_size, min_level, max_level, quality, sort, dir,
+        )),
+        Cmd::Create {
             item_guid,
             stack,
             bid,
             buyout,
             duration,
         } => auction_create_request(item_guid, stack, bid, buyout, duration),
-        AuctionCmd::Bid { id, amount } => Ok(Request::AuctionBid {
+        Cmd::ClaimMail { mail_id } => Ok(auction_action_request(Action::ClaimMail { mail_id })),
+        Cmd::Bid { id, amount } => Ok(auction_action_request(Action::Bid { id, amount })),
+        Cmd::Buyout { id } => Ok(auction_action_request(Action::Buyout { id })),
+        Cmd::Cancel { id } => Ok(auction_action_request(Action::Cancel { id })),
+        _ => Err("unexpected simple auction command".into()),
+    }
+}
+
+fn auction_browse_command_request(
+    (text, page, page_size, min_level, max_level, quality, sort, dir): AuctionBrowseCommand,
+) -> Result<Request, String> {
+    auction_browse_request(AuctionBrowseRequestArgs {
+        text,
+        page,
+        page_size,
+        min_level,
+        max_level,
+        quality,
+        sort,
+        dir,
+    })
+}
+
+fn auction_action_request(command: AuctionActionCommand) -> Request {
+    match command {
+        AuctionActionCommand::ClaimMail { mail_id } => Request::AuctionClaimMail {
+            claim: ClaimAuctionMail { mail_id },
+        },
+        AuctionActionCommand::Bid { id, amount } => Request::AuctionBid {
             bid: PlaceBid {
                 auction_id: id,
                 amount,
             },
-        }),
-        AuctionCmd::Buyout { id } => Ok(Request::AuctionBuyout {
+        },
+        AuctionActionCommand::Buyout { id } => Request::AuctionBuyout {
             buyout: BuyoutAuction { auction_id: id },
-        }),
-        AuctionCmd::Cancel { id } => Ok(Request::AuctionCancel {
+        },
+        AuctionActionCommand::Cancel { id } => Request::AuctionCancel {
             cancel: CancelAuction { auction_id: id },
-        }),
-        AuctionCmd::Open
-        | AuctionCmd::Status
-        | AuctionCmd::Owned
-        | AuctionCmd::Bids
-        | AuctionCmd::Inventory
-        | AuctionCmd::Mailbox => unreachable!("simple auction commands handled above"),
+        },
     }
-}
-
-pub fn auction_request(command: AuctionCmd) -> Result<Request, String> {
-    auction_request_from_command(command)
 }
 
 pub fn parse_duration(value: &str) -> Result<AuctionDuration, String> {
