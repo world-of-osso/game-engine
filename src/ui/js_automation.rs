@@ -39,6 +39,14 @@ pub fn run_js_to_actions(script: &str) -> Result<Vec<UiAutomationAction>, String
 }
 
 fn register_callbacks(ctx: &Context) -> Result<(), String> {
+    register_action_callbacks(ctx)?;
+    register_wait_callbacks(ctx)?;
+    register_debug_callbacks(ctx)?;
+    register_env_callback(ctx)?;
+    Ok(())
+}
+
+fn register_action_callbacks(ctx: &Context) -> Result<(), String> {
     ctx.add_callback("__click", |name: String| -> bool {
         push_action(UiAutomationAction::ClickFrame(name));
         true
@@ -53,7 +61,10 @@ fn register_callbacks(ctx: &Context) -> Result<(), String> {
         push_action(UiAutomationAction::PressKey(parse_key(&key)?));
         Ok(true)
     })
-    .map_err(|err| format!("failed to register key callback: {err}"))?;
+    .map_err(|err| format!("failed to register key callback: {err}"))
+}
+
+fn register_wait_callbacks(ctx: &Context) -> Result<(), String> {
     ctx.add_callback(
         "__waitForState",
         |args: Arguments| -> Result<bool, String> {
@@ -75,6 +86,10 @@ fn register_callbacks(ctx: &Context) -> Result<(), String> {
         },
     )
     .map_err(|err| format!("failed to register waitForFrame callback: {err}"))?;
+    Ok(())
+}
+
+fn register_debug_callbacks(ctx: &Context) -> Result<(), String> {
     ctx.add_callback("__dumpTree", || -> bool {
         push_action(UiAutomationAction::DumpTree);
         true
@@ -85,11 +100,14 @@ fn register_callbacks(ctx: &Context) -> Result<(), String> {
         true
     })
     .map_err(|err| format!("failed to register dumpUiTree callback: {err}"))?;
+    Ok(())
+}
+
+fn register_env_callback(ctx: &Context) -> Result<(), String> {
     ctx.add_callback("__env", move |name: String| -> String {
         std::env::var(name).unwrap_or_default()
     })
-    .map_err(|err| format!("failed to register env callback: {err}"))?;
-    Ok(())
+    .map_err(|err| format!("failed to register env callback: {err}"))
 }
 
 thread_local! {
