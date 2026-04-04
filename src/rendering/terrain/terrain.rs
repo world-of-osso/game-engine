@@ -383,21 +383,39 @@ fn spawn_terrain_only_content(
     adt_path: &Path,
     inputs: &TerrainOnlySpawnInputs,
 ) -> Entity {
+    let chunk_materials = build_terrain_only_chunk_materials(assets, inputs, adt_path);
+    let root = spawn_terrain_only_entities(assets, inputs, &chunk_materials);
+    finalize_terrain_only_spawn(heightmap, adt_path, inputs);
+    root
+}
+
+fn build_terrain_only_chunk_materials(
+    assets: &mut TerrainOnlySpawnAssets<'_, '_, '_>,
+    inputs: &TerrainOnlySpawnInputs,
+    adt_path: &Path,
+) -> Vec<Handle<terrain_material::TerrainMaterial>> {
     let ground_images = inputs
         .tex_data
         .as_ref()
         .map(|td| terrain_material::load_ground_images(assets.images, td, adt_path));
     eprintln!("build_terrain_materials {}", adt_path.display());
-    let chunk_materials = terrain_material::build_terrain_materials(
+    terrain_material::build_terrain_materials(
         assets.terrain_materials,
         assets.images,
         inputs.tex_data.as_ref(),
         ground_images.as_deref(),
-    );
+    )
+}
+
+fn spawn_terrain_only_entities(
+    assets: &mut TerrainOnlySpawnAssets<'_, '_, '_>,
+    inputs: &TerrainOnlySpawnInputs,
+    chunk_materials: &[Handle<terrain_material::TerrainMaterial>],
+) -> Entity {
     let root = spawn_chunk_entities(
         assets.commands,
         assets.meshes,
-        &chunk_materials,
+        chunk_materials,
         &inputs.adt_data,
         &inputs.tile,
     );
@@ -408,6 +426,14 @@ fn spawn_terrain_only_content(
         assets.images,
         &inputs.adt_data,
     );
+    root
+}
+
+fn finalize_terrain_only_spawn(
+    heightmap: &mut TerrainHeightmap,
+    adt_path: &Path,
+    inputs: &TerrainOnlySpawnInputs,
+) {
     heightmap.register_tile(
         inputs.tile_y,
         inputs.tile_x,
@@ -415,7 +441,6 @@ fn spawn_terrain_only_content(
         inputs.tex_data.as_ref(),
     );
     log_adt_spawn(&inputs.adt_data, adt_path);
-    root
 }
 
 fn build_terrain_only_spawn_result(
