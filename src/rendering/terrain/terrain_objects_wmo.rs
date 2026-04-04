@@ -88,17 +88,23 @@ fn try_spawn_wmo(
         root_entity,
     );
     log_wmo_spawn(root_fdid, group_count, &root, &transform);
-    if group_count > 0 {
+    build_spawned_wmo_root(root_fdid, root_entity, group_count)
+}
+
+fn build_spawned_wmo_root(
+    root_fdid: u32,
+    root_entity: Entity,
+    group_count: u32,
+) -> Option<SpawnedWmoRoot> {
+    (group_count > 0).then(|| {
         let model = game_engine::listfile::lookup_fdid(root_fdid)
             .map(str::to_string)
             .unwrap_or_else(|| root_fdid.to_string());
-        Some(SpawnedWmoRoot {
+        SpawnedWmoRoot {
             entity: root_entity,
             model,
-        })
-    } else {
-        None
-    }
+        }
+    })
 }
 
 fn spawn_wmo_root_entity(
