@@ -281,9 +281,46 @@ fn dispatch_click(
         server_hostname,
         commands,
     } = ctx;
-    match action.and_then(LoginAction::parse) {
+    let parsed = action.and_then(LoginAction::parse);
+    match parsed {
+        Some(LoginAction::Connect) | Some(LoginAction::Reconnect) => {
+            dispatch_login_connect_action(
+                parsed,
+                &ui.registry,
+                login,
+                status,
+                next_state,
+                login_mode,
+                auth_token,
+                server_addr,
+                server_hostname,
+                commands,
+            );
+        }
+        Some(LoginAction::CreateAccount) | Some(LoginAction::Menu) | Some(LoginAction::Exit) => {
+            dispatch_login_ui_action(parsed, ui, login, status, login_mode, commands);
+        }
+        None if ui.registry.focused_frame == Some(frame_id) => {}
+        _ => return Err(format!("login frame '{frame_name}' has no onclick action")),
+    }
+    Ok(())
+}
+
+fn dispatch_login_connect_action(
+    action: Option<LoginAction>,
+    registry: &FrameRegistry,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
+    commands: &mut Commands,
+) {
+    match action {
         Some(LoginAction::Connect) => try_connect(
-            &ui.registry,
+            registry,
             login,
             status,
             next_state,
@@ -301,6 +338,19 @@ fn dispatch_click(
             server_hostname,
             commands,
         ),
+        _ => unreachable!("only connect/reconnect actions should be routed here"),
+    }
+}
+
+fn dispatch_login_ui_action(
+    action: Option<LoginAction>,
+    ui: &mut UiState,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    login_mode: &mut networking::LoginMode,
+    commands: &mut Commands,
+) {
+    match action {
         Some(LoginAction::CreateAccount) => {
             toggle_login_mode(login_mode, &mut ui.registry, login);
             status.0.clear();
@@ -309,8 +359,6 @@ fn dispatch_click(
             crate::scenes::game_menu::open_game_menu(ui, commands, GameState::Login);
         }
         Some(LoginAction::Exit) => {}
-        None if ui.registry.focused_frame == Some(frame_id) => {}
-        _ => return Err(format!("login frame '{frame_name}' has no onclick action")),
+        _ => unreachable!("only UI-only login actions should be routed here"),
     }
-    Ok(())
 }
