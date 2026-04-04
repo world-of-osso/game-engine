@@ -1,7 +1,9 @@
 use bevy::asset::RenderAssetUsages;
-use bevy::image::{Image, ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::image::Image;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+
+use crate::rendering::image_sampler::repeat_linear_sampler;
 
 pub const CLOUD_TEXTURE_WIDTH: u32 = 512;
 pub const CLOUD_TEXTURE_HEIGHT: u32 = 1024;
@@ -75,14 +77,6 @@ pub fn generate_procedural_cloud_image(seed: u32) -> Image {
     );
     image.sampler = repeat_linear_sampler();
     image
-}
-
-fn repeat_linear_sampler() -> ImageSampler {
-    ImageSampler::Descriptor(ImageSamplerDescriptor {
-        address_mode_u: ImageAddressMode::Repeat,
-        address_mode_v: ImageAddressMode::Repeat,
-        ..ImageSamplerDescriptor::linear()
-    })
 }
 
 fn fbm_simplex(x: f32, y: f32, seed: u32) -> f32 {

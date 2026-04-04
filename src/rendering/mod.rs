@@ -10,6 +10,8 @@ pub mod character_models;
 #[path = "character/m2_texture_composite.rs"]
 pub mod m2_texture_composite;
 
+#[path = "image_sampler.rs"]
+pub mod image_sampler;
 #[path = "lighting/light_lookup.rs"]
 pub mod light_lookup;
 

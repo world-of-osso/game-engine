@@ -6,6 +6,7 @@ use bevy::render::render_resource::{AsBindGroup, Extent3d, TextureDimension, Tex
 use bevy::shader::ShaderRef;
 
 use crate::asset::adt;
+use crate::rendering::image_sampler::repeat_linear_sampler;
 
 /// Custom terrain material: ground texture layers + alpha blending + hex tiling.
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
@@ -88,14 +89,6 @@ pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
     );
     img.sampler = clamp_linear_sampler();
     images.add(img)
-}
-
-fn repeat_linear_sampler() -> ImageSampler {
-    ImageSampler::Descriptor(ImageSamplerDescriptor {
-        address_mode_u: ImageAddressMode::Repeat,
-        address_mode_v: ImageAddressMode::Repeat,
-        ..ImageSamplerDescriptor::linear()
-    })
 }
 
 fn clamp_linear_sampler() -> ImageSampler {
