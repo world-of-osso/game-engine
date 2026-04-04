@@ -98,14 +98,13 @@ fn spawn_anim_and_particles(
         attachments,
         attachment_lookup,
     } = payload;
-    let joint_entities =
-        attach_bone_pivots_and_player(ctx.commands, &bones, &sequences, skinning, model_entity);
-    spawn_particle_emitters(
-        ctx.commands,
-        ctx.assets.images,
-        &particle_emitters,
+    let joint_entities = spawn_anim_joints_and_emitters(
+        ctx,
         &bones,
+        &sequences,
+        &particle_emitters,
         skinning,
+        model_entity,
         visual_root,
     );
     insert_anim_data_if_present(
@@ -123,6 +122,28 @@ fn spawn_anim_and_particles(
         &attachment_lookup,
         default_main_hand_torch,
     );
+}
+
+fn spawn_anim_joints_and_emitters(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    bones: &[M2Bone],
+    sequences: &[M2AnimSequence],
+    particle_emitters: &[M2ParticleEmitter],
+    skinning: &m2_spawn::SkinningResult,
+    model_entity: Entity,
+    visual_root: Entity,
+) -> Option<Vec<Entity>> {
+    let joint_entities =
+        attach_bone_pivots_and_player(ctx.commands, bones, sequences, skinning, model_entity);
+    spawn_particle_emitters(
+        ctx.commands,
+        ctx.assets.images,
+        particle_emitters,
+        bones,
+        skinning,
+        visual_root,
+    );
+    joint_entities
 }
 
 fn insert_anim_data_if_present(
