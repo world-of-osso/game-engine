@@ -206,16 +206,16 @@ pub struct AuctionBrowseRequestArgs {
     pub dir: String,
 }
 
-type AuctionBrowseCommand = (
-    String,
-    u32,
-    u32,
-    Option<u16>,
-    Option<u16>,
-    Option<u8>,
-    String,
-    String,
-);
+struct AuctionBrowseCommand {
+    text: String,
+    page: u32,
+    page_size: u32,
+    min_level: Option<u16>,
+    max_level: Option<u16>,
+    quality: Option<u8>,
+    sort: String,
+    dir: String,
+}
 
 enum AuctionActionCommand {
     ClaimMail { mail_id: u64 },
@@ -294,9 +294,16 @@ fn auction_non_simple_request(command: AuctionCmd) -> Result<Request, String> {
             quality,
             sort,
             dir,
-        } => auction_browse_command_request((
-            text, page, page_size, min_level, max_level, quality, sort, dir,
-        )),
+        } => auction_browse_command_request(AuctionBrowseCommand {
+            text,
+            page,
+            page_size,
+            min_level,
+            max_level,
+            quality,
+            sort,
+            dir,
+        }),
         Cmd::Create {
             item_guid,
             stack,
@@ -312,18 +319,16 @@ fn auction_non_simple_request(command: AuctionCmd) -> Result<Request, String> {
     }
 }
 
-fn auction_browse_command_request(
-    (text, page, page_size, min_level, max_level, quality, sort, dir): AuctionBrowseCommand,
-) -> Result<Request, String> {
+fn auction_browse_command_request(command: AuctionBrowseCommand) -> Result<Request, String> {
     auction_browse_request(AuctionBrowseRequestArgs {
-        text,
-        page,
-        page_size,
-        min_level,
-        max_level,
-        quality,
-        sort,
-        dir,
+        text: command.text,
+        page: command.page,
+        page_size: command.page_size,
+        min_level: command.min_level,
+        max_level: command.max_level,
+        quality: command.quality,
+        sort: command.sort,
+        dir: command.dir,
     })
 }
 
