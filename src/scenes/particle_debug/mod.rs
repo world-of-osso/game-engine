@@ -88,20 +88,24 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
         &params.creature_display_map,
         &params.outfit_data,
     );
-    spawn_emitter_overlay(&mut commands, &skin_fdids);
-    spawn_torch_with_skin_fdids(&mut commands, &mut params, &skin_fdids);
+    let path = PathBuf::from(TORCH_M2);
+    let model = match asset::m2::load_m2_uncached(&path, &skin_fdids) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("particle_debug: failed to load {}: {e}", path.display());
+            return;
+        }
+    };
+    info!("{}", format_particle_overlay(&model.particle_emitters));
+    spawn_torch_model(&mut commands, &mut params, &path, model);
 }
 
-fn spawn_torch_with_skin_fdids(
+fn spawn_torch_model(
     commands: &mut Commands,
     params: &mut ParticleDebugSceneParams,
-    skin_fdids: &[u32; 3],
+    path: &Path,
+    model: asset::m2::M2Model,
 ) {
-    let path = PathBuf::from(TORCH_M2);
-    if !path.exists() {
-        eprintln!("particle_debug_scene: torch model not found at {TORCH_M2}");
-        return;
-    }
     let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
         assets: crate::m2_spawn::SpawnAssets {
@@ -114,11 +118,13 @@ fn spawn_torch_with_skin_fdids(
         },
         creature_display_map: &params.creature_display_map,
     };
-    m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
+    m2_scene::spawn_animated_static_m2_parts_from_model(
         &mut ctx,
-        &path,
+        path,
         Transform::from_xyz(0.0, 0.5, 0.0),
-        skin_fdids,
+        model,
+        false,
+        None,
     );
 }
 
@@ -219,12 +225,11 @@ fn resolved_skin_fdids(
         .unwrap_or([0, 0, 0])
 }
 
-fn spawn_emitter_overlay(commands: &mut Commands, skin_fdids: &[u32; 3]) {
-    let path = PathBuf::from(TORCH_M2);
-    let text = match load_emitter_overlay_text(&path, skin_fdids) {
-        Ok(text) => text,
-        Err(error) => format!("particle debug overlay failed\n{error}"),
-    };
+fn spawn_emitter_overlay_from_emitters(
+    commands: &mut Commands,
+    emitters: &[asset::m2_particle::M2ParticleEmitter],
+) {
+    let text = format_particle_overlay(emitters);
     commands.spawn((
         Name::new("ParticleDebugOverlay"),
         ParticleDebugScene,
@@ -247,11 +252,6 @@ fn spawn_emitter_overlay(commands: &mut Commands, skin_fdids: &[u32; 3]) {
     ));
 }
 
-fn load_emitter_overlay_text(path: &Path, skin_fdids: &[u32; 3]) -> Result<String, String> {
-    let model = asset::m2::load_m2(path, skin_fdids)
-        .map_err(|error| format!("failed to load {}: {error}", path.display()))?;
-    Ok(format_particle_overlay(&model.particle_emitters))
-}
 
 fn format_particle_overlay(emitters: &[asset::m2_particle::M2ParticleEmitter]) -> String {
     if emitters.is_empty() {

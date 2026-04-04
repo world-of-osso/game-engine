@@ -54,7 +54,8 @@ struct M2SceneAttachedVisuals {
 #[allow(unused_imports)]
 pub use self::static_spawn::{
     SpawnedAnimatedStaticM2, spawn_animated_static_m2, spawn_animated_static_m2_parts,
-    spawn_animated_static_m2_parts_with_skin_fdids, spawn_animated_static_skybox_m2_parts,
+    spawn_animated_static_m2_parts_from_model, spawn_animated_static_m2_parts_with_skin_fdids,
+    spawn_animated_static_skybox_m2_parts,
 };
 
 /// Attach equipment (attachment points + default main-hand torch) to a model entity.
@@ -195,7 +196,7 @@ fn load_m2_model_with_skin_fdids(
     m2_path: &Path,
     skin_fdids: &[u32; 3],
 ) -> Option<asset::m2::M2Model> {
-    asset::m2::load_m2(m2_path, &skin_fdids)
+    asset::m2::load_m2_uncached(m2_path, skin_fdids)
         .map_err(|e| {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
         })

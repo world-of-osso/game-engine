@@ -194,15 +194,38 @@ fn authored_point_light(authored: &m2_light::EvaluatedLight) -> PointLight {
 }
 
 pub fn spawn_model_point_lights(
-    _commands: &mut Commands,
-    _lights: &[m2_light::M2Light],
-    _skinning: &SkinningResult,
-    _root: Entity,
-    _anim_owner: Entity,
+    commands: &mut Commands,
+    lights: &[m2_light::M2Light],
+    skinning: &SkinningResult,
+    root: Entity,
+    anim_owner: Entity,
 ) {
-    // Disabled: Bevy 0.18 has a rendering bug where PointLight + SkinnedMesh
-    // in the same scene causes the entire framebuffer to go black.
-    // TODO: re-enable when Bevy fixes PointLight + SkinnedMesh interaction.
+    for (index, light) in lights
+        .iter()
+        .filter(|l| l.light_type == m2_light::M2_LIGHT_TYPE_POINT)
+        .enumerate()
+    {
+        let parent = point_light_parent(light, skinning, root);
+        let pos = asset::m2::wow_to_bevy(light.position[0], light.position[1], light.position[2]);
+        let authored = m2_light::evaluate_light(light, 0, 0);
+        let vis = if authored.visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        commands.entity(parent).with_children(|children| {
+            children.spawn((
+                Name::new(format!("M2PointLight{index}")),
+                Transform::from_translation(pos.into()),
+                authored_point_light(&authored),
+                vis,
+                RuntimeM2PointLight {
+                    light: light.clone(),
+                    anim_owner,
+                },
+            ));
+        });
+    }
 }
 
 enum BatchMaterial {

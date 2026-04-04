@@ -48,7 +48,7 @@ pub fn spawn_animated_static_m2_parts_with_skin_fdids(
     spawn_animated_static_m2_parts_from_model(ctx, m2_path, transform, model, false, None)
 }
 
-fn spawn_animated_static_m2_parts_from_model(
+pub fn spawn_animated_static_m2_parts_from_model(
     ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
     m2_path: &Path,
     transform: Transform,
