@@ -154,7 +154,14 @@ fn parse_row(line: &str, ci: &[usize; 26]) -> Option<(u32, LightDataRow)> {
     };
 
     let param_id = p_u32(0);
-    let row = LightDataRow {
+    let mut row = parse_color_row(&p_u32, &p_f32);
+    fill_fog_and_aux_row(&mut row, &p_f32);
+
+    Some((param_id, row))
+}
+
+fn parse_color_row(p_u32: &impl Fn(usize) -> u32, p_f32: &impl Fn(usize) -> f32) -> LightDataRow {
+    LightDataRow {
         time: p_f32(1),
         direct_color: p_u32(2),
         ambient_color: p_u32(3),
@@ -174,13 +181,15 @@ fn parse_row(line: &str, ci: &[usize; 26]) -> Option<(u32, LightDataRow)> {
         river_close_color: p_u32(17),
         river_far_color: p_u32(18),
         horizon_ambient_color: p_u32(19),
-        fog_end: p_f32(20),
-        fog_start: p_f32(20) * p_f32(21),
-        glow: p_f32(22),
-        cloud_density: p_f32(23),
-        unk1: p_f32(24),
-        unk2: p_f32(25),
-    };
+        ..LightDataRow::default()
+    }
+}
 
-    Some((param_id, row))
+fn fill_fog_and_aux_row(row: &mut LightDataRow, p_f32: &impl Fn(usize) -> f32) {
+    row.fog_end = p_f32(20);
+    row.fog_start = p_f32(20) * p_f32(21);
+    row.glow = p_f32(22);
+    row.cloud_density = p_f32(23);
+    row.unk1 = p_f32(24);
+    row.unk2 = p_f32(25);
 }
