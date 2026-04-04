@@ -18,8 +18,8 @@ use crate::orbit_camera::OrbitCamera;
 
 const TORCH_M2: &str = "data/models/club_1h_torch_a_01.m2";
 const PARTICLE_DEBUG_WHITE_TEXTURE_FDID: u32 = u32::MAX;
-const PARTICLE_DEBUG_EMITTER_STAGE: ParticleDebugEmitterStage =
-    ParticleDebugEmitterStage::Basic;
+const PARTICLE_DEBUG_WHITE_BIND_ONLY_FDID: u32 = u32::MAX - 1;
+const PARTICLE_DEBUG_EMITTER_STAGE: ParticleDebugEmitterStage = ParticleDebugEmitterStage::Basic;
 
 #[derive(Component)]
 struct ParticleDebugScene;
@@ -28,6 +28,7 @@ struct ParticleDebugScene;
 enum ParticleDebugEmitterStage {
     Off,
     Basic,
+    SyntheticTextureBindOnly,
     SyntheticTextureAlpha,
     TexturedAlpha,
     TexturedBlend,
@@ -42,6 +43,7 @@ impl ParticleDebugEmitterStage {
         match self {
             Self::Off => "off",
             Self::Basic => "basic",
+            Self::SyntheticTextureBindOnly => "synthetic-texture-bind-only",
             Self::SyntheticTextureAlpha => "synthetic-texture-alpha",
             Self::TexturedAlpha => "textured-alpha",
             Self::TexturedBlend => "textured-blend",
@@ -151,6 +153,7 @@ fn configure_particle_debug_model(
             model.particle_emitters.clear();
         }
         ParticleDebugEmitterStage::Basic
+        | ParticleDebugEmitterStage::SyntheticTextureBindOnly
         | ParticleDebugEmitterStage::SyntheticTextureAlpha
         | ParticleDebugEmitterStage::TexturedAlpha
         | ParticleDebugEmitterStage::TexturedBlend
@@ -170,53 +173,83 @@ fn particle_debug_emitter_variant(
     authored: &asset::m2_particle::M2ParticleEmitter,
     stage: ParticleDebugEmitterStage,
 ) -> asset::m2_particle::M2ParticleEmitter {
-    let mut emitter = basic_particle_debug_emitter(authored);
     match stage {
-        ParticleDebugEmitterStage::Off | ParticleDebugEmitterStage::Basic => {}
+        ParticleDebugEmitterStage::Off | ParticleDebugEmitterStage::Basic => {
+            basic_particle_debug_emitter(authored)
+        }
+        ParticleDebugEmitterStage::SyntheticTextureBindOnly => {
+            emitter_with_texture_fdid(authored, Some(PARTICLE_DEBUG_WHITE_BIND_ONLY_FDID))
+        }
         ParticleDebugEmitterStage::SyntheticTextureAlpha => {
-            emitter.texture_fdid = Some(PARTICLE_DEBUG_WHITE_TEXTURE_FDID);
+            emitter_with_texture_fdid(authored, Some(PARTICLE_DEBUG_WHITE_TEXTURE_FDID))
         }
         ParticleDebugEmitterStage::TexturedAlpha => {
-            emitter.texture_fdid = authored.texture_fdid;
+            emitter_with_texture_fdid(authored, authored.texture_fdid)
         }
-        ParticleDebugEmitterStage::TexturedBlend => {
-            emitter =
-                particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::TexturedAlpha);
-            emitter.blend_type = authored.blend_type;
-        }
-        ParticleDebugEmitterStage::AuthoredCurves => {
-            emitter =
-                particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::TexturedBlend);
-            emitter.colors = authored.colors;
-            emitter.opacity = authored.opacity;
-            emitter.scales = authored.scales;
-            emitter.color_keys = authored.color_keys.clone();
-            emitter.opacity_keys = authored.opacity_keys.clone();
-            emitter.scale_keys = authored.scale_keys.clone();
-            emitter.mid_point = authored.mid_point;
-        }
-        ParticleDebugEmitterStage::Flipbook => {
-            emitter = particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::AuthoredCurves);
-            emitter.tile_rows = authored.tile_rows.max(1);
-            emitter.tile_cols = authored.tile_cols.max(1);
-            emitter.head_cell_track = authored.head_cell_track;
-            emitter.tail_cell_track = authored.tail_cell_track;
-        }
-        ParticleDebugEmitterStage::MotionVariation => {
-            emitter = particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::Flipbook);
-            emitter.speed_variation = authored.speed_variation;
-            emitter.vertical_range = authored.vertical_range;
-            emitter.horizontal_range = authored.horizontal_range;
-            emitter.gravity = authored.gravity;
-            emitter.gravity_vector = authored.gravity_vector;
-            emitter.lifespan_variation = authored.lifespan_variation;
-            emitter.emission_rate_variation = authored.emission_rate_variation;
-            emitter.drag = authored.drag;
-            emitter.scale_variation = authored.scale_variation;
-            emitter.scale_variation_y = authored.scale_variation_y;
-        }
+        ParticleDebugEmitterStage::TexturedBlend => emitter_with_authored_blend(authored),
+        ParticleDebugEmitterStage::AuthoredCurves => emitter_with_authored_curves(authored),
+        ParticleDebugEmitterStage::Flipbook => emitter_with_authored_flipbook(authored),
+        ParticleDebugEmitterStage::MotionVariation => emitter_with_motion_variation(authored),
         ParticleDebugEmitterStage::Full => return authored.clone(),
     }
+}
+
+fn emitter_with_texture_fdid(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+    texture_fdid: Option<u32>,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = basic_particle_debug_emitter(authored);
+    emitter.texture_fdid = texture_fdid;
+    emitter
+}
+
+fn emitter_with_authored_blend(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = emitter_with_texture_fdid(authored, authored.texture_fdid);
+    emitter.blend_type = authored.blend_type;
+    emitter
+}
+
+fn emitter_with_authored_curves(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = emitter_with_authored_blend(authored);
+    emitter.colors = authored.colors;
+    emitter.opacity = authored.opacity;
+    emitter.scales = authored.scales;
+    emitter.color_keys = authored.color_keys.clone();
+    emitter.opacity_keys = authored.opacity_keys.clone();
+    emitter.scale_keys = authored.scale_keys.clone();
+    emitter.mid_point = authored.mid_point;
+    emitter
+}
+
+fn emitter_with_authored_flipbook(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = emitter_with_authored_curves(authored);
+    emitter.tile_rows = authored.tile_rows.max(1);
+    emitter.tile_cols = authored.tile_cols.max(1);
+    emitter.head_cell_track = authored.head_cell_track;
+    emitter.tail_cell_track = authored.tail_cell_track;
+    emitter
+}
+
+fn emitter_with_motion_variation(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = emitter_with_authored_flipbook(authored);
+    emitter.speed_variation = authored.speed_variation;
+    emitter.vertical_range = authored.vertical_range;
+    emitter.horizontal_range = authored.horizontal_range;
+    emitter.gravity = authored.gravity;
+    emitter.gravity_vector = authored.gravity_vector;
+    emitter.lifespan_variation = authored.lifespan_variation;
+    emitter.emission_rate_variation = authored.emission_rate_variation;
+    emitter.drag = authored.drag;
+    emitter.scale_variation = authored.scale_variation;
+    emitter.scale_variation_y = authored.scale_variation_y;
     emitter
 }
 
@@ -404,7 +437,11 @@ fn spawn_emitter_overlay_from_emitters(
     emitters: &[asset::m2_particle::M2ParticleEmitter],
     stage: ParticleDebugEmitterStage,
 ) {
-    let text = format!("Stage: {}\n\n{}", stage.label(), format_particle_overlay(emitters));
+    let text = format!(
+        "Stage: {}\n\n{}",
+        stage.label(),
+        format_particle_overlay(emitters)
+    );
     commands.spawn((
         Name::new("ParticleDebugOverlay"),
         ParticleDebugScene,
@@ -426,7 +463,6 @@ fn spawn_emitter_overlay_from_emitters(
         },
     ));
 }
-
 
 fn format_particle_overlay(emitters: &[asset::m2_particle::M2ParticleEmitter]) -> String {
     if emitters.is_empty() {
