@@ -8,6 +8,7 @@ use game_engine::asset::blp::load_blp_to_image;
 
 use crate::networking::ResolvedModelAssetInfo;
 use crate::rendering::image_sampler::clamp_linear_sampler;
+use crate::scene_graph_utils::{is_descendant_or_self, point};
 
 use super::{TargetCircleStyle, TargetMarker, TargetMarkerScaleFactor};
 
@@ -80,32 +81,6 @@ fn world_aabb_corners(aabb: &Aabb, transform: &GlobalTransform) -> [Vec3; 8] {
         point(center, extents, 1.0, 1.0, 1.0),
     ]
     .map(|v| affine.transform_point3(v))
-}
-
-fn point(center: Vec3, extents: Vec3, sx: f32, sy: f32, sz: f32) -> Vec3 {
-    Vec3::new(
-        center.x + extents.x * sx,
-        center.y + extents.y * sy,
-        center.z + extents.z * sz,
-    )
-}
-
-fn is_descendant_or_self(
-    candidate: Entity,
-    ancestor: Entity,
-    parent_query: &Query<&ChildOf>,
-) -> bool {
-    if candidate == ancestor {
-        return true;
-    }
-    let mut current = candidate;
-    while let Ok(parent) = parent_query.get(current) {
-        current = parent.parent();
-        if current == ancestor {
-            return true;
-        }
-    }
-    false
 }
 
 pub(super) fn spawn_target_circle(

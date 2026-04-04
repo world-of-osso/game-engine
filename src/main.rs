@@ -47,6 +47,7 @@ mod mesh_asset_stats;
 mod process_limits;
 mod process_memory_status;
 mod rendering;
+mod scene_graph_utils;
 mod scenes;
 mod screen_auto_login;
 mod sound;

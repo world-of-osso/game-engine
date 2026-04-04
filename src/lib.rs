@@ -30,6 +30,7 @@ pub mod outfit_data;
 pub mod particle_color_cache;
 pub mod particle_effect_builder;
 pub mod paths;
+pub mod scene_graph_utils;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
 pub mod screenshot;

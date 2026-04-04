@@ -5,6 +5,7 @@ use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::picking::prelude::MeshRayCastSettings;
 use bevy::prelude::*;
 
+use crate::scene_graph_utils::{is_descendant_or_self, point};
 use game_engine::scene_tree::{
     NodeProps, SceneNode, SceneNodeTransform, SceneSnapshot, SceneSnapshotNode, SceneTree,
 };
@@ -545,32 +546,6 @@ fn world_aabb_corners(aabb: &Aabb, transform: &GlobalTransform) -> [Vec3; 8] {
         point(c, e, 1.0, 1.0, 1.0),
     ]
     .map(|v| p.transform_point3(v))
-}
-
-fn point(center: Vec3, extents: Vec3, sx: f32, sy: f32, sz: f32) -> Vec3 {
-    Vec3::new(
-        center.x + extents.x * sx,
-        center.y + extents.y * sy,
-        center.z + extents.z * sz,
-    )
-}
-
-fn is_descendant_or_self(
-    candidate: Entity,
-    ancestor: Entity,
-    parent_query: &Query<&ChildOf>,
-) -> bool {
-    if candidate == ancestor {
-        return true;
-    }
-    let mut current = candidate;
-    while let Ok(parent) = parent_query.get(current) {
-        current = parent.parent();
-        if current == ancestor {
-            return true;
-        }
-    }
-    false
 }
 
 fn format_model_assets(
