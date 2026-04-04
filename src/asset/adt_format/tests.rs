@@ -173,41 +173,61 @@ fn parse_mcnk_subchunks_reads_mclv_even_when_it_is_not_first() {
 
 fn mcnk_subchunks_payload(include_mcsh: bool, include_mclv: bool, include_mcse: bool) -> Vec<u8> {
     let mut payload = Vec::new();
-    append_subchunk(&mut payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
-    append_subchunk(&mut payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
-    if include_mcsh {
-        let mut shadow_map = vec![0; 512];
-        shadow_map[0] = 0b1000_0000;
-        shadow_map[1] = 0b0100_0000;
-        append_subchunk(&mut payload, b"HSCM", shadow_map);
-    }
-    if include_mcsh {
-        append_subchunk(&mut payload, b"VCCM", vec![0x7F; MCVT_COUNT * 4]);
-    }
-    if include_mclv {
-        let mut vertex_lighting = vec![0; MCVT_COUNT * 4];
-        vertex_lighting[0..4].copy_from_slice(&[0x00, 0x40, 0x80, 0xFF]);
-        append_subchunk(&mut payload, b"VLCM", vertex_lighting);
-    }
-    if include_mcse {
-        let mut sound_emitters = Vec::new();
-        sound_emitters.extend_from_slice(&42u32.to_le_bytes());
-        sound_emitters.extend_from_slice(&100.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&200.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&300.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&10.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&20.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&30.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&7u32.to_le_bytes());
-        sound_emitters.extend_from_slice(&1.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&2.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&3.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&4.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&5.0f32.to_le_bytes());
-        sound_emitters.extend_from_slice(&6.0f32.to_le_bytes());
-        append_subchunk(&mut payload, b"MCSE", sound_emitters);
-    }
+    append_base_subchunks(&mut payload);
+    append_optional_mcsh_subchunks(&mut payload, include_mcsh);
+    append_optional_mclv_subchunk(&mut payload, include_mclv);
+    append_optional_mcse_subchunk(&mut payload, include_mcse);
     payload
+}
+
+fn append_base_subchunks(payload: &mut Vec<u8>) {
+    append_subchunk(payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
+    append_subchunk(payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
+}
+
+fn append_optional_mcsh_subchunks(payload: &mut Vec<u8>, include_mcsh: bool) {
+    if !include_mcsh {
+        return;
+    }
+
+    let mut shadow_map = vec![0; 512];
+    shadow_map[0] = 0b1000_0000;
+    shadow_map[1] = 0b0100_0000;
+    append_subchunk(payload, b"HSCM", shadow_map);
+    append_subchunk(payload, b"VCCM", vec![0x7F; MCVT_COUNT * 4]);
+}
+
+fn append_optional_mclv_subchunk(payload: &mut Vec<u8>, include_mclv: bool) {
+    if !include_mclv {
+        return;
+    }
+
+    let mut vertex_lighting = vec![0; MCVT_COUNT * 4];
+    vertex_lighting[0..4].copy_from_slice(&[0x00, 0x40, 0x80, 0xFF]);
+    append_subchunk(payload, b"VLCM", vertex_lighting);
+}
+
+fn append_optional_mcse_subchunk(payload: &mut Vec<u8>, include_mcse: bool) {
+    if !include_mcse {
+        return;
+    }
+
+    let mut sound_emitters = Vec::new();
+    sound_emitters.extend_from_slice(&42u32.to_le_bytes());
+    sound_emitters.extend_from_slice(&100.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&200.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&300.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&10.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&20.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&30.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&7u32.to_le_bytes());
+    sound_emitters.extend_from_slice(&1.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&2.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&3.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&4.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&5.0f32.to_le_bytes());
+    sound_emitters.extend_from_slice(&6.0f32.to_le_bytes());
+    append_subchunk(payload, b"MCSE", sound_emitters);
 }
 
 fn append_subchunk(payload: &mut Vec<u8>, tag: &[u8; 4], chunk_payload: Vec<u8>) {
