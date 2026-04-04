@@ -525,3 +525,47 @@ fn clamp_step(value: f32, delta: f32, min: f32, max: f32) -> f32 {
 fn normalize_camera_limits(camera: &mut CameraDraft) {
     camera.max_distance = camera.max_distance.max(camera.min_distance + 1.0);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::prelude::Vec2;
+    use game_engine::ui::screens::game_menu_component::GameMenuView;
+
+    #[test]
+    fn resetting_graphics_defaults_disables_bloom() {
+        let mut model = OverlayModel {
+            logged_in: true,
+            view: GameMenuView::Options,
+            category: OptionsCategory::Graphics,
+            modal_position: [500.0, 180.0],
+            drag_capture: DragCapture::None,
+            drag_origin: Vec2::ZERO,
+            drag_offset: Vec2::ZERO,
+            pressed_action: None,
+            pressed_origin: Vec2::ZERO,
+            draft_graphics: GraphicsDraft {
+                particle_density: 100.0,
+                render_scale: 1.0,
+                bloom_enabled: true,
+                bloom_intensity: 0.42,
+            },
+            draft_sound: sound_draft(None),
+            draft_camera: camera_draft(&CameraOptions::default()),
+            draft_hud: hud_draft(&HudOptions::default()),
+            committed_graphics: graphics_draft(&GraphicsOptions::default()),
+            committed_sound: sound_draft(None),
+            committed_camera: camera_draft(&CameraOptions::default()),
+            committed_hud: hud_draft(&HudOptions::default()),
+            draft_bindings: InputBindings::default(),
+            committed_bindings: InputBindings::default(),
+            binding_section: BindingSection::Movement,
+            binding_capture: BindingCapture::None,
+        };
+
+        reset_category_defaults(&mut model);
+
+        assert!(!model.draft_graphics.bloom_enabled);
+        assert!((model.draft_graphics.bloom_intensity - 0.08).abs() < 0.0001);
+    }
+}

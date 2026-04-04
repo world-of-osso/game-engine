@@ -243,7 +243,7 @@ mod tests {
         GraphicsOptionsView {
             particle_density: 100.0,
             render_scale: 1.0,
-            bloom_enabled: true,
+            bloom_enabled: false,
             bloom_intensity: 0.08,
         }
     }

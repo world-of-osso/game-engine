@@ -19,7 +19,7 @@ use crate::orbit_camera::OrbitCamera;
 const TORCH_M2: &str = "data/models/club_1h_torch_a_01.m2";
 const PARTICLE_DEBUG_WHITE_TEXTURE_FDID: u32 = u32::MAX;
 const PARTICLE_DEBUG_WHITE_BIND_ONLY_FDID: u32 = u32::MAX - 1;
-const PARTICLE_DEBUG_EMITTER_STAGE: ParticleDebugEmitterStage = ParticleDebugEmitterStage::Basic;
+const PARTICLE_DEBUG_EMITTER_STAGE: ParticleDebugEmitterStage = ParticleDebugEmitterStage::Full;
 
 #[derive(Component)]
 struct ParticleDebugScene;
@@ -116,7 +116,6 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
     timings.record("ground", || {
         spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
     });
-
     let skin_fdids = resolved_skin_fdids(
         Path::new(TORCH_M2),
         &params.creature_display_map,
@@ -452,6 +451,11 @@ fn resolved_skin_fdids(
         .resolve_item_model_skin_fdids_for_model_path(path)
         .or_else(|| creature_display_map.resolve_skin_fdids_for_model_path(path))
         .unwrap_or([0, 0, 0])
+}
+
+fn load_emitter_overlay_text(path: &Path, skin_fdids: &[u32; 3]) -> Result<String, String> {
+    let model = asset::m2::load_m2(path, skin_fdids)?;
+    Ok(format_particle_overlay(&model.particle_emitters))
 }
 
 fn spawn_emitter_overlay_from_emitters(
