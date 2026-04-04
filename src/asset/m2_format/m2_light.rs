@@ -221,9 +221,11 @@ pub fn evaluate_light(light: &M2Light, seq_idx: usize, time_ms: u32) -> Evaluate
 mod tests {
     use super::*;
 
+    const SINGLE_LIGHT_FIXTURE_SIZE: usize = 0x53C;
+
     #[test]
     fn parse_lights_reads_single_point_light() {
-        let mut md20 = vec![0u8; 0x700];
+        let mut md20 = vec![0u8; SINGLE_LIGHT_FIXTURE_SIZE];
         let light_base = 0x180usize;
         md20[MD20_LIGHTS_OFFSET..MD20_LIGHTS_OFFSET + 4].copy_from_slice(&(1u32).to_le_bytes());
         md20[MD20_LIGHTS_OFFSET + 4..MD20_LIGHTS_OFFSET + 8]
