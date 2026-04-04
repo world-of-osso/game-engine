@@ -240,6 +240,21 @@ struct BaseEffectParts {
     model_scale: f32,
 }
 
+struct AssembleEffectParts {
+    age: SetAttributeModifier,
+    lifetime: SetAttributeModifier,
+    pos: PositionInitModifier,
+    vel: SetAttributeModifier,
+    gravity: AccelModifier,
+    rotation: Option<SetAttributeModifier>,
+    angular_velocity: Option<SetAttributeModifier>,
+    spin_sign: Option<SetAttributeModifier>,
+    twinkle_phase: Option<SetAttributeModifier>,
+    twinkle_enabled: Option<SetAttributeModifier>,
+    size_variation: Option<SetAttributeModifier>,
+    orient: OrientModifier,
+}
+
 fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> ExprModifiers {
     let writer = ExprWriter::new();
     let init = build_init_modifiers(em, &writer, model_scale);
@@ -440,6 +455,25 @@ fn assemble_effect(em: &M2ParticleEmitter, parts: EffectAssembleParts) -> Effect
         orient_rotation,
         model_scale,
     } = parts;
+    let assemble_parts = build_assemble_effect_parts(em, init, gravity, orient_rotation);
+    let effect = build_base_effect_with_parts(
+        em,
+        &assemble_parts,
+        module,
+        spawner,
+        max_particles,
+        alpha_mode,
+        model_scale,
+    );
+    add_effect_init_modifiers(effect, assemble_parts)
+}
+
+fn build_assemble_effect_parts(
+    em: &M2ParticleEmitter,
+    init: InitModifiers,
+    gravity: AccelModifier,
+    orient_rotation: Option<ExprHandle>,
+) -> AssembleEffectParts {
     let InitModifiers {
         age,
         lifetime,
@@ -457,30 +491,58 @@ fn assemble_effect(em: &M2ParticleEmitter, parts: EffectAssembleParts) -> Effect
     } else {
         OrientModifier::new(orient_mode(em))
     };
-    let effect = build_base_effect(
-        em,
-        BaseEffectParts {
-            module,
-            spawner,
-            max_particles,
-            alpha_mode,
-            age,
-            lifetime,
-            vel,
-            gravity,
-            orient,
-            model_scale,
-        },
-    );
-    let effect = add_position_init(effect, pos);
-    add_optional_init_modifiers(
-        effect,
+    AssembleEffectParts {
+        age,
+        lifetime,
+        pos,
+        vel,
+        gravity,
         rotation,
         angular_velocity,
         spin_sign,
         twinkle_phase,
         twinkle_enabled,
         size_variation,
+        orient,
+    }
+}
+
+fn build_base_effect_with_parts(
+    em: &M2ParticleEmitter,
+    parts: &AssembleEffectParts,
+    module: Module,
+    spawner: SpawnerSettings,
+    max_particles: u32,
+    alpha_mode: bevy_hanabi::AlphaMode,
+    model_scale: f32,
+) -> EffectAsset {
+    build_base_effect(
+        em,
+        BaseEffectParts {
+            module,
+            spawner,
+            max_particles,
+            alpha_mode,
+            age: parts.age,
+            lifetime: parts.lifetime,
+            vel: parts.vel,
+            gravity: parts.gravity,
+            orient: parts.orient,
+            model_scale,
+        },
+    )
+}
+
+fn add_effect_init_modifiers(effect: EffectAsset, parts: AssembleEffectParts) -> EffectAsset {
+    let effect = add_position_init(effect, parts.pos);
+    add_optional_init_modifiers(
+        effect,
+        parts.rotation,
+        parts.angular_velocity,
+        parts.spin_sign,
+        parts.twinkle_phase,
+        parts.twinkle_enabled,
+        parts.size_variation,
     )
 }
 
