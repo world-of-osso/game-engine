@@ -504,18 +504,21 @@ pub fn format_map_target(
     let Some(target) = current_target.0 else {
         return map_target_none_text();
     };
-    let Ok((entity, name, _, _, transform)) = tree_query.get(target) else {
+    let Ok(target_info) = tree_query.get(target) else {
         return "map_target: missing\ndistance: -".into();
     };
-    let dx = transform.translation.x - map_status.player_x;
-    let dz = transform.translation.z - map_status.player_z;
+    let dx = target_info.transform.translation.x - map_status.player_x;
+    let dz = target_info.transform.translation.z - map_status.player_z;
     let distance = (dx * dx + dz * dz).sqrt();
     format!(
         "map_target: {}\nentity: {}\nposition: {:.2},{:.2}\ndistance: {:.2}",
-        name.map(|v| v.as_str()).unwrap_or("unnamed"),
-        entity.to_bits(),
-        transform.translation.x,
-        transform.translation.z,
+        target_info
+            .name
+            .map(|value| value.as_str())
+            .unwrap_or("unnamed"),
+        target_info.entity.to_bits(),
+        target_info.transform.translation.x,
+        target_info.transform.translation.z,
         distance,
     )
 }

@@ -1,5 +1,6 @@
 //! Entity hierarchy dump for the `dump-tree` and `dump-ui-tree` IPC commands.
 
+use bevy::ecs::query::QueryData;
 use bevy::prelude::*;
 
 use crate::ui::anchor::anchor_position;
@@ -17,28 +18,33 @@ struct EntityInfo {
     scale: Vec3,
 }
 
+#[derive(QueryData)]
+pub struct TreeQueryData<'w> {
+    pub entity: Entity,
+    pub name: Option<&'w Name>,
+    pub children: Option<&'w Children>,
+    pub visibility: Option<&'w Visibility>,
+    pub transform: &'w Transform,
+}
+
 /// Build a formatted tree string for all root entities.
-#[allow(clippy::type_complexity)]
 pub fn build_tree(
-    tree_query: &Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
+    tree_query: &Query<TreeQueryData<'_>>,
     parent_query: &Query<&ChildOf>,
     filter: Option<&str>,
 ) -> String {
     let infos: Vec<EntityInfo> = tree_query
         .iter()
-        .map(|(e, name, children, vis, transform)| EntityInfo {
-            entity: e,
-            name: name.map(|n| n.as_str().to_owned()),
-            children: children.map(|c| c.iter().collect()).unwrap_or_default(),
-            hidden: matches!(vis, Some(Visibility::Hidden)),
-            translation: transform.translation,
-            scale: transform.scale,
+        .map(|item| EntityInfo {
+            entity: item.entity,
+            name: item.name.map(|n| n.as_str().to_owned()),
+            children: item
+                .children
+                .map(|c| c.iter().collect())
+                .unwrap_or_default(),
+            hidden: matches!(item.visibility, Some(Visibility::Hidden)),
+            translation: item.transform.translation,
+            scale: item.transform.scale,
         })
         .collect();
 

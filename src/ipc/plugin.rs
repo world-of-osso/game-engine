@@ -52,17 +52,7 @@ pub struct EquipmentControlQueue {
 }
 
 /// Type alias for the entity tree query used in dump and map-target operations.
-pub(crate) type TreeQuery<'w, 's> = Query<
-    'w,
-    's,
-    (
-        Entity,
-        Option<&'static Name>,
-        Option<&'static Children>,
-        Option<&'static Visibility>,
-        &'static Transform,
-    ),
->;
+pub(crate) type TreeQuery<'w, 's> = Query<'w, 's, crate::dump::TreeQueryData<'static>>;
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct StatusSnapshotParams<'w> {

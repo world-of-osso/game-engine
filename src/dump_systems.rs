@@ -3,15 +3,19 @@ use bevy::{camera::primitives::Aabb, picking::mesh_picking::ray_cast::MeshRayCas
 use crate::game_state;
 use crate::{DumpSceneFlag, DumpTreeFlag, DumpUiTreeFlag};
 
-#[allow(clippy::type_complexity)]
+#[derive(bevy::ecs::system::SystemParam)]
+pub(crate) struct DumpSceneSystemParams<'w, 's> {
+    transforms: Query<'w, 's, &'static Transform>,
+    global_transforms: Query<'w, 's, &'static GlobalTransform>,
+    tree_query: Query<'w, 's, game_engine::dump::TreeQueryData<'static>>,
+    parent_query: Query<'w, 's, &'static ChildOf>,
+    aabb_query: Query<'w, 's, (Entity, &'static Aabb, &'static GlobalTransform)>,
+    camera_query: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<Camera3d>>,
+    ray_cast: MeshRayCast<'w, 's>,
+}
+
 pub fn dump_tree_and_exit(
-    tree_query: Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
+    tree_query: Query<game_engine::dump::TreeQueryData<'_>>,
     parent_query: Query<&ChildOf>,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
     mut exit: MessageWriter<AppExit>,
@@ -27,22 +31,9 @@ pub fn dump_tree_and_exit(
     exit.write(AppExit::Success);
 }
 
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn dump_scene_and_exit(
     tree: Option<Res<game_engine::scene_tree::SceneTree>>,
-    transforms: Query<&Transform>,
-    global_transforms: Query<&GlobalTransform>,
-    tree_query: Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
-    parent_query: Query<&ChildOf>,
-    aabb_query: Query<(Entity, &Aabb, &GlobalTransform)>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    mut ray_cast: MeshRayCast,
+    mut scene: DumpSceneSystemParams,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
     state: Res<State<game_state::GameState>>,
     time: Res<Time>,
@@ -57,12 +48,12 @@ pub fn dump_scene_and_exit(
             "{}",
             game_engine::dump::build_scene_tree(
                 &tree,
-                &transforms,
-                &global_transforms,
-                &parent_query,
-                &aabb_query,
-                &camera_query,
-                &mut ray_cast,
+                &scene.transforms,
+                &scene.global_transforms,
+                &scene.parent_query,
+                &scene.aabb_query,
+                &scene.camera_query,
+                &mut scene.ray_cast,
             )
         );
         exit.write(AppExit::Success);
@@ -77,7 +68,7 @@ pub fn dump_scene_and_exit(
     }
     println!(
         "{}",
-        game_engine::dump::build_tree(&tree_query, &parent_query, None)
+        game_engine::dump::build_tree(&scene.tree_query, &scene.parent_query, None)
     );
     exit.write(AppExit::Success);
 }
@@ -104,16 +95,9 @@ pub fn headless_dump_ui_tree_immediate(ui_state: ResMut<game_engine::ui::plugin:
     std::process::exit(0);
 }
 
-#[allow(clippy::type_complexity)]
 pub fn handle_automation_dump_tree_request(
     request: Option<Res<game_engine::ui::automation::UiAutomationDumpTreeRequest>>,
-    tree_query: Query<(
-        Entity,
-        Option<&Name>,
-        Option<&Children>,
-        Option<&Visibility>,
-        &Transform,
-    )>,
+    tree_query: Query<game_engine::dump::TreeQueryData<'_>>,
     parent_query: Query<&ChildOf>,
     mut commands: Commands,
     mut exit: MessageWriter<AppExit>,
