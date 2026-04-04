@@ -248,22 +248,30 @@ fn candidate_panel(state: &InWorldSelectionDebugState) -> Element {
 }
 
 fn circle_style_row(index: usize, label: &str, active: bool) -> Element {
+    let row_name = DynName(format!("CircleStyle_{index}"));
+    let label_name = DynName(format!("CircleStyleLabel_{index}"));
     rsx! {
         r#frame {
-            name: {DynName(format!("CircleStyle_{index}"))},
+            name: {row_name},
             width: 200.0,
             height: 30.0,
             onclick: InWorldSelectionDebugAction::SelectCircleStyle(index),
             background_color: if active { ROW_SELECTED } else { ROW_IDLE },
-            fontstring {
-                name: {DynName(format!("CircleStyleLabel_{index}"))},
-                width: 180.0,
-                height: 20.0,
-                text: {label},
-                font_size: 14.0,
-                color: if active { TEXT_GOLD } else { TEXT_SUBTITLE },
-                anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "10" }
-            }
+            {circle_style_label(label_name, label, active)}
+        }
+    }
+}
+
+fn circle_style_label(name: DynName, label: &str, active: bool) -> Element {
+    rsx! {
+        fontstring {
+            name: {name},
+            width: 180.0,
+            height: 20.0,
+            text: {label},
+            font_size: 14.0,
+            color: if active { TEXT_GOLD } else { TEXT_SUBTITLE },
+            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "10" }
         }
     }
 }
