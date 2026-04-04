@@ -1,5 +1,7 @@
 //! WarbandScene DB2 data: camera positions + character placements for char select backgrounds.
 
+#[cfg(test)]
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
@@ -239,8 +241,9 @@ pub fn ensure_warband_terrain_tiles(scene: &WarbandSceneEntry) -> Vec<PathBuf> {
     let map_name = scene.map_name();
     let primary = scene.tile_coords();
     let mut tiles = vec![primary];
+    let mut seen = HashSet::from([primary]);
     for supplemental in supplemental_terrain_tile_coords(scene) {
-        if supplemental != primary && !tiles.contains(&supplemental) {
+        if seen.insert(supplemental) {
             tiles.push(supplemental);
         }
     }
