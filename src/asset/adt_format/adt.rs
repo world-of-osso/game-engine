@@ -16,6 +16,7 @@ const MCCV_BYTES_PER_VERTEX: usize = 4;
 const MCLV_BYTES_PER_VERTEX: usize = 4;
 const MCSH_BYTES: usize = 512;
 const MCSE_BYTES_PER_EMITTER: usize = 28;
+const MCBB_BYTES_PER_BATCH: usize = 20;
 const MCNK_FLAG_HAS_MCSH: u32 = 0x1;
 const MCNK_FLAG_IMPASS: u32 = 0x2;
 const MCNK_FLAG_HAS_MCCV: u32 = 0x40;
@@ -30,6 +31,7 @@ type McnkSubchunksResult = (
     Option<[[f32; 4]; MCVT_COUNT]>,
     Option<[u8; MCSH_BYTES]>,
     Vec<SoundEmitter>,
+    Vec<BlendBatch>,
 );
 
 #[derive(Clone)]
@@ -72,6 +74,7 @@ pub(crate) struct McnkData {
     pub shadow_map: Option<[u8; MCSH_BYTES]>,
     pub vertex_lighting: Option<[[f32; 4]; MCVT_COUNT]>,
     pub sound_emitters: Vec<SoundEmitter>,
+    pub blend_batches: Vec<BlendBatch>,
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub heights: [f32; MCVT_COUNT],
@@ -85,6 +88,16 @@ pub struct SoundEmitter {
     pub sound_entry_id: u32,
     pub position: [f32; 3],
     pub size_min: [f32; 3],
+}
+
+#[derive(Debug, Clone, Copy, BinRead, PartialEq)]
+#[br(little)]
+pub struct BlendBatch {
+    pub mbmh_index: u32,
+    pub index_count: u32,
+    pub index_first: u32,
+    pub vertex_count: u32,
+    pub vertex_first: u32,
 }
 
 #[derive(BinRead)]
@@ -303,6 +316,25 @@ fn parse_mcse(payload: &[u8]) -> Result<Vec<SoundEmitter>, String> {
     Ok(emitters)
 }
 
+fn parse_mcbb(payload: &[u8]) -> Result<Vec<BlendBatch>, String> {
+    if !payload.len().is_multiple_of(MCBB_BYTES_PER_BATCH) {
+        return Err(format!(
+            "MCBB size must be a multiple of {MCBB_BYTES_PER_BATCH} bytes: {} bytes",
+            payload.len()
+        ));
+    }
+
+    let mut batches = Vec::with_capacity(payload.len() / MCBB_BYTES_PER_BATCH);
+    let mut cursor = Cursor::new(payload);
+    while (cursor.position() as usize) < payload.len() {
+        batches.push(
+            BlendBatch::read_le(&mut cursor)
+                .map_err(|err| format!("MCBB batch parse failed: {err}"))?,
+        );
+    }
+    Ok(batches)
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
@@ -310,8 +342,15 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
     let flags = McnkFlags::from_bits(header.flags);
     let pos = [header.pos_x, header.pos_y, header.pos_z];
-    let (heights, normals, vertex_colors, vertex_lighting, shadow_map, sound_emitters) =
-        parse_mcnk_subchunks(&payload[128..], flags)?;
+    let (
+        heights,
+        normals,
+        vertex_colors,
+        vertex_lighting,
+        shadow_map,
+        sound_emitters,
+        blend_batches,
+    ) = parse_mcnk_subchunks(&payload[128..], flags)?;
     Ok(McnkData {
         index_x: header.index_x,
         index_y: header.index_y,
@@ -321,6 +360,7 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         shadow_map,
         vertex_lighting,
         sound_emitters,
+        blend_batches,
         holes_low_res: header._holes_low_res,
         holes_high_res: flags.high_res_holes.then_some(header._holes_high_res),
         heights,
@@ -336,6 +376,7 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
     let mut vertex_lighting = None;
     let mut shadow_map = None;
     let mut sound_emitters = None;
+    let mut blend_batches = None;
     for chunk in ChunkIter::new(sub) {
         let (tag, payload) = chunk?;
         match tag {
@@ -345,6 +386,7 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
             b"VLCM" => vertex_lighting = Some(parse_mclv(payload)?),
             b"HSCM" => shadow_map = Some(parse_mcsh(payload)?),
             b"MCSE" => sound_emitters = Some(parse_mcse(payload)?),
+            b"BBCM" => blend_batches = Some(parse_mcbb(payload)?),
             _ => {}
         }
     }
@@ -353,6 +395,7 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
     let vertex_colors = resolve_mcnk_vertex_colors(vertex_colors, flags)?;
     let shadow_map = resolve_mcnk_shadow_map(shadow_map, flags)?;
     let sound_emitters = sound_emitters.unwrap_or_default();
+    let blend_batches = blend_batches.unwrap_or_default();
     Ok((
         heights,
         normals,
@@ -360,6 +403,7 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
         vertex_lighting,
         shadow_map,
         sound_emitters,
+        blend_batches,
     ))
 }
 

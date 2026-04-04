@@ -1,5 +1,5 @@
 use super::{
-    MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP, MCNK_FLAG_HAS_MCCV, MCNK_FLAG_HAS_MCSH,
+    BlendBatch, MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP, MCNK_FLAG_HAS_MCCV, MCNK_FLAG_HAS_MCSH,
     MCNK_FLAG_HIGH_RES_HOLES, MCNK_FLAG_IMPASS, MCVT_COUNT, McnkFlags, parse_mccv, parse_mclv,
     parse_mcnk, parse_mcnk_subchunks,
 };
@@ -40,7 +40,7 @@ fn mcnk_flags_decode_named_bits() {
 
 #[test]
 fn parse_mcnk_subchunks_requires_mccv_when_flagged() {
-    let payload = mcnk_subchunks_payload(false, false, false);
+    let payload = mcnk_subchunks_payload(false, false, false, false);
 
     let err = parse_mcnk_subchunks(
         &payload,
@@ -59,9 +59,9 @@ fn parse_mcnk_subchunks_requires_mccv_when_flagged() {
 
 #[test]
 fn parse_mcnk_subchunks_defaults_vertex_colors_when_mccv_not_flagged() {
-    let payload = mcnk_subchunks_payload(false, false, false);
+    let payload = mcnk_subchunks_payload(false, false, false, false);
 
-    let (_, _, colors, vertex_lighting, shadow_map, sound_emitters) =
+    let (_, _, colors, vertex_lighting, shadow_map, sound_emitters, blend_batches) =
         parse_mcnk_subchunks(&payload, McnkFlags::default())
             .expect("expected missing optional MCCV to default");
 
@@ -70,6 +70,7 @@ fn parse_mcnk_subchunks_defaults_vertex_colors_when_mccv_not_flagged() {
     assert_eq!(vertex_lighting, None);
     assert_eq!(shadow_map, None);
     assert!(sound_emitters.is_empty());
+    assert!(blend_batches.is_empty());
 }
 
 #[test]
@@ -99,32 +100,34 @@ fn parse_mclv_reads_bgra_and_uses_neutral_center() {
 
 #[test]
 fn parse_mcnk_subchunks_reads_mcsh_when_flagged() {
-    let payload = mcnk_subchunks_payload(true, false, false);
+    let payload = mcnk_subchunks_payload(true, false, false, false);
 
-    let (_, _, _, vertex_lighting, shadow_map, sound_emitters) = parse_mcnk_subchunks(
-        &payload,
-        McnkFlags {
-            has_mcsh: true,
-            impass: false,
-            has_mccv: false,
-            do_not_fix_alpha_map: false,
-            high_res_holes: false,
-        },
-    )
-    .expect("expected MCSH shadow map");
+    let (_, _, _, vertex_lighting, shadow_map, sound_emitters, blend_batches) =
+        parse_mcnk_subchunks(
+            &payload,
+            McnkFlags {
+                has_mcsh: true,
+                impass: false,
+                has_mccv: false,
+                do_not_fix_alpha_map: false,
+                high_res_holes: false,
+            },
+        )
+        .expect("expected MCSH shadow map");
 
     let shadow_map = shadow_map.expect("expected parsed shadow map");
     assert_eq!(shadow_map[0], 0b1000_0000);
     assert_eq!(shadow_map[1], 0b0100_0000);
     assert_eq!(vertex_lighting, None);
     assert!(sound_emitters.is_empty());
+    assert!(blend_batches.is_empty());
 }
 
 #[test]
 fn parse_mcnk_subchunks_reads_mcse_emitters() {
-    let payload = mcnk_subchunks_payload(false, false, true);
+    let payload = mcnk_subchunks_payload(false, false, true, false);
 
-    let (_, _, _, vertex_lighting, shadow_map, sound_emitters) =
+    let (_, _, _, vertex_lighting, shadow_map, sound_emitters, blend_batches) =
         parse_mcnk_subchunks(&payload, McnkFlags::default()).expect("expected MCSE emitters");
 
     assert_eq!(vertex_lighting, None);
@@ -136,11 +139,45 @@ fn parse_mcnk_subchunks_reads_mcse_emitters() {
     assert_eq!(sound_emitters[1].sound_entry_id, 7);
     assert_eq!(sound_emitters[1].position, [1.0, 2.0, 3.0]);
     assert_eq!(sound_emitters[1].size_min, [4.0, 5.0, 6.0]);
+    assert!(blend_batches.is_empty());
+}
+
+#[test]
+fn parse_mcnk_subchunks_reads_mcbb_batches() {
+    let payload = mcnk_subchunks_payload(false, false, false, true);
+
+    let (_, _, _, vertex_lighting, shadow_map, sound_emitters, blend_batches) =
+        parse_mcnk_subchunks(&payload, McnkFlags::default()).expect("expected MCBB batches");
+
+    assert_eq!(vertex_lighting, None);
+    assert_eq!(shadow_map, None);
+    assert!(sound_emitters.is_empty());
+    assert_eq!(blend_batches.len(), 2);
+    assert_eq!(
+        blend_batches[0],
+        BlendBatch {
+            mbmh_index: 1,
+            index_count: 3,
+            index_first: 5,
+            vertex_count: 4,
+            vertex_first: 6,
+        }
+    );
+    assert_eq!(
+        blend_batches[1],
+        BlendBatch {
+            mbmh_index: 7,
+            index_count: 8,
+            index_first: 9,
+            vertex_count: 10,
+            vertex_first: 11,
+        }
+    );
 }
 
 #[test]
 fn parse_mcnk_subchunks_requires_mcsh_when_flagged() {
-    let payload = mcnk_subchunks_payload(false, false, false);
+    let payload = mcnk_subchunks_payload(false, false, false, false);
 
     let err = parse_mcnk_subchunks(
         &payload,
@@ -159,9 +196,9 @@ fn parse_mcnk_subchunks_requires_mcsh_when_flagged() {
 
 #[test]
 fn parse_mcnk_subchunks_reads_mclv_even_when_it_is_not_first() {
-    let payload = mcnk_subchunks_payload(false, true, false);
+    let payload = mcnk_subchunks_payload(false, true, false, false);
 
-    let (_, _, _, vertex_lighting, shadow_map, sound_emitters) =
+    let (_, _, _, vertex_lighting, shadow_map, sound_emitters, blend_batches) =
         parse_mcnk_subchunks(&payload, McnkFlags::default())
             .expect("expected vertex lighting to be parsed");
 
@@ -169,14 +206,21 @@ fn parse_mcnk_subchunks_reads_mclv_even_when_it_is_not_first() {
     assert_eq!(vertex_lighting[0], [1.0, 0.5, 0.0, 1.0]);
     assert_eq!(shadow_map, None);
     assert!(sound_emitters.is_empty());
+    assert!(blend_batches.is_empty());
 }
 
-fn mcnk_subchunks_payload(include_mcsh: bool, include_mclv: bool, include_mcse: bool) -> Vec<u8> {
+fn mcnk_subchunks_payload(
+    include_mcsh: bool,
+    include_mclv: bool,
+    include_mcse: bool,
+    include_mcbb: bool,
+) -> Vec<u8> {
     let mut payload = Vec::new();
     append_base_subchunks(&mut payload);
     append_optional_mcsh_subchunks(&mut payload, include_mcsh);
     append_optional_mclv_subchunk(&mut payload, include_mclv);
     append_optional_mcse_subchunk(&mut payload, include_mcse);
+    append_optional_mcbb_subchunk(&mut payload, include_mcbb);
     payload
 }
 
@@ -228,6 +272,32 @@ fn append_optional_mcse_subchunk(payload: &mut Vec<u8>, include_mcse: bool) {
     sound_emitters.extend_from_slice(&5.0f32.to_le_bytes());
     sound_emitters.extend_from_slice(&6.0f32.to_le_bytes());
     append_subchunk(payload, b"MCSE", sound_emitters);
+}
+
+fn append_optional_mcbb_subchunk(payload: &mut Vec<u8>, include_mcbb: bool) {
+    if !include_mcbb {
+        return;
+    }
+
+    let mut blend_batches = Vec::new();
+    append_blend_batch(&mut blend_batches, 1, 3, 5, 4, 6);
+    append_blend_batch(&mut blend_batches, 7, 8, 9, 10, 11);
+    append_subchunk(payload, b"BBCM", blend_batches);
+}
+
+fn append_blend_batch(
+    payload: &mut Vec<u8>,
+    mbmh_index: u32,
+    index_count: u32,
+    index_first: u32,
+    vertex_count: u32,
+    vertex_first: u32,
+) {
+    payload.extend_from_slice(&mbmh_index.to_le_bytes());
+    payload.extend_from_slice(&index_count.to_le_bytes());
+    payload.extend_from_slice(&index_first.to_le_bytes());
+    payload.extend_from_slice(&vertex_count.to_le_bytes());
+    payload.extend_from_slice(&vertex_first.to_le_bytes());
 }
 
 fn append_subchunk(payload: &mut Vec<u8>, tag: &[u8; 4], chunk_payload: Vec<u8>) {

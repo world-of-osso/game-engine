@@ -15,6 +15,7 @@ pub struct McnkMesh {
     pub area_id: u32,
     pub shadow_map: Option<[u8; 512]>,
     pub sound_emitters: Vec<super::adt_format::adt::SoundEmitter>,
+    pub blend_batches: Vec<super::adt_format::adt::BlendBatch>,
 }
 
 pub struct AdtData {
@@ -205,6 +206,7 @@ fn build_chunks(
             area_id: chunk.area_id,
             shadow_map: chunk.shadow_map,
             sound_emitters: chunk.sound_emitters.clone(),
+            blend_batches: chunk.blend_batches.clone(),
         })
         .collect()
 }
@@ -400,6 +402,7 @@ mod tests {
             shadow_map: None,
             vertex_lighting: None,
             sound_emitters: Vec::new(),
+            blend_batches: Vec::new(),
             holes_low_res: 0,
             holes_high_res: None,
             heights: [0.0; 145],
@@ -427,6 +430,7 @@ mod tests {
             shadow_map: None,
             vertex_lighting: Some([[1.5, 0.5, 0.25, 1.0]; 145]),
             sound_emitters: Vec::new(),
+            blend_batches: Vec::new(),
             holes_low_res: 0,
             holes_high_res: None,
             heights: [0.0; 145],
