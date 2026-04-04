@@ -6,6 +6,7 @@
 pub(crate) mod effect_builder;
 mod effect_builder_motion;
 mod emitters;
+mod emitters_model_particles;
 mod visuals;
 
 use bevy::prelude::*;
