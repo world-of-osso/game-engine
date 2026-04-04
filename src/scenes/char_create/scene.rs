@@ -15,7 +15,6 @@ use crate::camera::additive_particle_glow_tonemapping;
 use crate::character_customization::{
     CharacterCustomizationSelection, apply_character_customization,
 };
-use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display;
 use crate::equipment::EquipmentItem;
 use crate::game_state::GameState;
@@ -23,8 +22,8 @@ use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::m2_spawn::GeosetMesh;
+use crate::model_path_resolver::resolve_model_path;
 use crate::scenes::char_create::CharCreateState;
-use crate::scenes::setup::DEFAULT_M2;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::CustomizationDb;
 use shared::components::CharacterAppearance;
@@ -181,15 +180,6 @@ fn spawn_ground(
 fn model_transform() -> Transform {
     Transform::from_xyz(0.0, 0.0, 0.0)
         .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
-}
-
-fn resolve_model_path(race: u8, sex: u8) -> Option<PathBuf> {
-    race_model_wow_path(race, sex)
-        .and_then(ensure_named_model_bundle)
-        .or_else(|| {
-            let p = PathBuf::from(DEFAULT_M2);
-            p.exists().then_some(p)
-        })
 }
 
 #[derive(SystemParam)]

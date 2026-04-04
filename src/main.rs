@@ -44,6 +44,7 @@ mod csv_util;
 mod dump_systems;
 mod game;
 mod mesh_asset_stats;
+mod model_path_resolver;
 mod process_limits;
 mod process_memory_status;
 mod rendering;
