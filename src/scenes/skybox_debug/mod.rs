@@ -13,6 +13,7 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::orbit_camera::OrbitCamera;
 use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
+use crate::scenes::teardown::teardown_tagged_scene;
 use crate::skybox_m2_material::SkyboxM2Material;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
@@ -382,11 +383,8 @@ fn sync_skybox_to_camera(
     }
 }
 
-fn teardown_scene(mut commands: Commands, query: Query<Entity, With<SkyboxDebugScene>>) {
-    commands.remove_resource::<SceneTree>();
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
+fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene>>) {
+    teardown_tagged_scene::<SkyboxDebugScene>(commands, query);
 }
 
 #[cfg(test)]
