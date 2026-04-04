@@ -50,30 +50,52 @@ fn parse_item_line(line: &str) -> Option<ItemStaticInfo> {
         return None;
     }
 
-    let item_id_end = trimmed.find(',')?;
-    let item_id = trimmed[1..item_id_end].parse().ok()?;
-    let name = extract_string_field(trimmed, "name")?;
-    let quality = extract_number_field(trimmed, "quality")?;
-    let item_level = extract_number_field(trimmed, "item_level")?;
-    let required_level = extract_number_field(trimmed, "required_level")?;
-    let inventory_type = extract_number_field(trimmed, "inventory_type")?;
-    let sell_price = extract_number_field(trimmed, "sell_price")?;
-    let stackable = extract_number_field(trimmed, "stackable")?;
-    let bonding = extract_number_field(trimmed, "bonding")?;
-    let expansion_id = extract_number_field(trimmed, "expansion_id")?;
+    let fields = parse_item_fields(trimmed)?;
+    Some(build_item_info(fields))
+}
 
-    Some(ItemStaticInfo {
-        item_id,
-        name,
-        quality,
-        item_level,
-        required_level,
-        inventory_type,
-        sell_price,
-        stackable,
-        bonding,
-        expansion_id,
+struct ParsedItemFields {
+    item_id: u32,
+    name: String,
+    quality: u8,
+    item_level: u16,
+    required_level: u16,
+    inventory_type: u8,
+    sell_price: u32,
+    stackable: u32,
+    bonding: u8,
+    expansion_id: u8,
+}
+
+fn parse_item_fields(trimmed: &str) -> Option<ParsedItemFields> {
+    let item_id_end = trimmed.find(',')?;
+    Some(ParsedItemFields {
+        item_id: trimmed[1..item_id_end].parse().ok()?,
+        name: extract_string_field(trimmed, "name")?,
+        quality: extract_number_field(trimmed, "quality")?,
+        item_level: extract_number_field(trimmed, "item_level")?,
+        required_level: extract_number_field(trimmed, "required_level")?,
+        inventory_type: extract_number_field(trimmed, "inventory_type")?,
+        sell_price: extract_number_field(trimmed, "sell_price")?,
+        stackable: extract_number_field(trimmed, "stackable")?,
+        bonding: extract_number_field(trimmed, "bonding")?,
+        expansion_id: extract_number_field(trimmed, "expansion_id")?,
     })
+}
+
+fn build_item_info(fields: ParsedItemFields) -> ItemStaticInfo {
+    ItemStaticInfo {
+        item_id: fields.item_id,
+        name: fields.name,
+        quality: fields.quality,
+        item_level: fields.item_level,
+        required_level: fields.required_level,
+        inventory_type: fields.inventory_type,
+        sell_price: fields.sell_price,
+        stackable: fields.stackable,
+        bonding: fields.bonding,
+        expansion_id: fields.expansion_id,
+    }
 }
 
 fn extract_string_field(line: &str, field: &str) -> Option<String> {
