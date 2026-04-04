@@ -426,34 +426,15 @@ fn dispatch_map_and_equipment_request(
     sender_params: &mut IpcSenderParams,
 ) {
     match cmd.request {
-        Request::MapPosition => {
-            let _ = cmd
-                .respond
-                .send(Response::Text(format_map_position(ctx.map_status)));
-        }
-        Request::MapTarget => {
-            let _ = cmd.respond.send(Response::Text(format_map_target(
-                ctx.map_status,
-                ctx.current_target,
-                tree_query,
-            )));
-        }
+        Request::MapPosition => respond_with_map_position(cmd, ctx.map_status),
+        Request::MapTarget => respond_with_map_target(cmd, ctx, tree_query),
         Request::MapWaypointAdd { x, y } => handle_waypoint_add(cmd, ctx.map_status, x, y),
         Request::MapWaypointClear => handle_waypoint_clear(cmd, ctx.map_status),
         Request::EquipmentSet { .. } => {
-            if let Request::EquipmentSet { slot, model_path } = cmd.request {
-                handle_equipment_set(
-                    cmd.respond,
-                    &mut sender_params.equipment_control,
-                    slot,
-                    model_path,
-                );
-            }
+            dispatch_equipment_set_request(cmd, &mut sender_params.equipment_control);
         }
         Request::EquipmentClear { .. } => {
-            if let Request::EquipmentClear { slot } = cmd.request {
-                handle_equipment_clear(cmd.respond, &mut sender_params.equipment_control, slot);
-            }
+            dispatch_equipment_clear_request(cmd, &mut sender_params.equipment_control);
         }
         Request::ExportCharacter {
             output_path,
@@ -469,6 +450,32 @@ fn dispatch_map_and_equipment_request(
             );
         }
         _ => {}
+    }
+}
+
+fn respond_with_map_position(cmd: Command, map_status: &MapStatusSnapshot) {
+    let _ = cmd
+        .respond
+        .send(Response::Text(format_map_position(map_status)));
+}
+
+fn respond_with_map_target(cmd: Command, ctx: DispatchContext, tree_query: &TreeQuery) {
+    let _ = cmd.respond.send(Response::Text(format_map_target(
+        ctx.map_status,
+        ctx.current_target,
+        tree_query,
+    )));
+}
+
+fn dispatch_equipment_set_request(cmd: Command, equipment_control: &mut EquipmentControlQueue) {
+    if let Request::EquipmentSet { slot, model_path } = cmd.request {
+        handle_equipment_set(cmd.respond, equipment_control, slot, model_path);
+    }
+}
+
+fn dispatch_equipment_clear_request(cmd: Command, equipment_control: &mut EquipmentControlQueue) {
+    if let Request::EquipmentClear { slot } = cmd.request {
+        handle_equipment_clear(cmd.respond, equipment_control, slot);
     }
 }
 
