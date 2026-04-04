@@ -1,12 +1,13 @@
 use std::path::Path;
 
 use bevy::camera::primitives::Aabb;
-use bevy::image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::image::Image;
 use bevy::pbr::decal::{ForwardDecal, ForwardDecalMaterial, ForwardDecalMaterialExt};
 use bevy::prelude::*;
 use game_engine::asset::blp::load_blp_to_image;
 
 use crate::networking::ResolvedModelAssetInfo;
+use crate::rendering::image_sampler::clamp_linear_sampler;
 
 use super::{TargetCircleStyle, TargetMarker, TargetMarkerScaleFactor};
 
@@ -314,14 +315,6 @@ pub(super) fn convert_opaque_image_to_alpha_mask(image: &mut Image) {
         rgba[2] = intensity;
         rgba[3] = intensity;
     }
-}
-
-fn clamp_linear_sampler() -> ImageSampler {
-    ImageSampler::Descriptor(ImageSamplerDescriptor {
-        address_mode_u: ImageAddressMode::ClampToEdge,
-        address_mode_v: ImageAddressMode::ClampToEdge,
-        ..ImageSamplerDescriptor::linear()
-    })
 }
 
 fn target_circle_decal_transform(target_translation: Vec3, scale: f32) -> Transform {

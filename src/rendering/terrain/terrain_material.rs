@@ -1,12 +1,12 @@
 use bevy::asset::RenderAssetUsages;
-use bevy::image::{Image, ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::image::Image;
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, Extent3d, TextureDimension, TextureFormat};
 use bevy::shader::ShaderRef;
 
 use crate::asset::adt;
-use crate::rendering::image_sampler::repeat_linear_sampler;
+use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sampler};
 
 /// Custom terrain material: ground texture layers + alpha blending + hex tiling.
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
@@ -89,14 +89,6 @@ pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
     );
     img.sampler = clamp_linear_sampler();
     images.add(img)
-}
-
-fn clamp_linear_sampler() -> ImageSampler {
-    ImageSampler::Descriptor(ImageSamplerDescriptor {
-        address_mode_u: ImageAddressMode::ClampToEdge,
-        address_mode_v: ImageAddressMode::ClampToEdge,
-        ..ImageSamplerDescriptor::linear()
-    })
 }
 
 /// Load ground BLP textures as Bevy Image handles with Repeat sampler.
