@@ -2,12 +2,18 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 #[path = "inworld_unit_frames_layout.rs"]
 mod inworld_unit_frames_layout;
+#[path = "inworld_unit_frames_parts.rs"]
+mod inworld_unit_frames_parts;
 use inworld_unit_frames_layout::*;
 pub use inworld_unit_frames_layout::{PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W};
+use inworld_unit_frames_parts::{
+    UnitFrameBarSpec, anchored_marker, anchored_top_marker, anchored_topright_marker,
+    centered_marker, portrait_centered_marker, sized_marker, unit_frame_bar,
+};
 
 struct DynName(String);
 
@@ -265,7 +271,8 @@ fn unit_frame_shell_bars(
     rsx! {
         {unit_frame_bar(
             UnitFrameBarSpec {
-                name: format!("{prefix}HealthBar"),
+                prefix,
+                label: "HealthBar",
                 layout: &frame.health_bar,
                 height: BAR_H,
                 bg_color: visuals.health_bg,
@@ -277,7 +284,8 @@ fn unit_frame_shell_bars(
         )}
         {unit_frame_bar(
             UnitFrameBarSpec {
-                name: format!("{prefix}ManaBar"),
+                prefix,
+                label: "ManaBar",
                 layout: &frame.mana_bar,
                 height: MANA_H,
                 bg_color: MANA_BG,
@@ -288,33 +296,6 @@ fn unit_frame_shell_bars(
             },
         )}
     }
-}
-
-struct UnitFrameBarSpec<'a> {
-    name: String,
-    layout: &'a BarConfig,
-    height: f32,
-    bg_color: &'a str,
-    fill_color: &'a str,
-    fill_width: f32,
-    value_text: &'a str,
-    hidden: bool,
-}
-
-fn unit_frame_bar(spec: UnitFrameBarSpec<'_>) -> Element {
-    bar_block(BarBlockSpec {
-        name: spec.name,
-        x: spec.layout.x,
-        y: spec.layout.y,
-        width: spec.layout.width,
-        height: spec.height,
-        bg_color: spec.bg_color,
-        fill_color: spec.fill_color,
-        fill_width: spec.fill_width,
-        value_text: spec.value_text,
-        text_x: spec.layout.text_x,
-        hidden: spec.hidden,
-    })
 }
 
 fn contextual_icons(prefix: &str, player_side: bool) -> Element {
@@ -450,12 +431,25 @@ fn target_portrait_overlay_icons(prefix: &str) -> Element {
     [
         portrait_centered_marker(
             format!("{prefix}RaidTargetIcon"),
+            TARGET_PORTRAIT_FRAME,
             AnchorPoint::Top,
             TARGET_RAID_ICON.width,
             TARGET_RAID_ICON.height,
         ),
-        portrait_centered_marker(format!("{prefix}BossIcon"), AnchorPoint::Bottom, 0.0, 0.0),
-        portrait_centered_marker(format!("{prefix}QuestIcon"), AnchorPoint::Bottom, 0.0, 0.0),
+        portrait_centered_marker(
+            format!("{prefix}BossIcon"),
+            TARGET_PORTRAIT_FRAME,
+            AnchorPoint::Bottom,
+            0.0,
+            0.0,
+        ),
+        portrait_centered_marker(
+            format!("{prefix}QuestIcon"),
+            TARGET_PORTRAIT_FRAME,
+            AnchorPoint::Bottom,
+            0.0,
+            0.0,
+        ),
         anchored_top_marker(format!("{prefix}PvpIcon"), FRAME_W - 26.0, PLAYER_PVP.y),
     ]
     .into_iter()
@@ -512,275 +506,6 @@ fn target_right_threat_icons(prefix: &str) -> Element {
     .into_iter()
     .flatten()
     .collect()
-}
-
-fn anchored_marker(name: String, x: f32, y: f32) -> Element {
-    sized_marker(name, x, y, 0.0, 0.0)
-}
-
-fn anchored_top_marker(name: String, x: f32, y: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(name),
-            width: 0.0,
-            height: 0.0,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
-        }
-    }
-}
-
-fn anchored_topright_marker(name: String, x: f32, y: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(name),
-            width: 0.0,
-            height: 0.0,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
-        }
-    }
-}
-
-fn sized_marker(name: String, x: f32, y: f32, width: f32, height: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(name),
-            width,
-            height,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
-        }
-    }
-}
-
-fn centered_marker(name: String, relative_to: FrameName, width: f32, height: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(name),
-            width,
-            height,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to,
-                relative_point: AnchorPoint::Center,
-            }
-        }
-    }
-}
-
-fn portrait_centered_marker(
-    name: String,
-    relative_point: AnchorPoint,
-    width: f32,
-    height: f32,
-) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(name),
-            width,
-            height,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: TARGET_PORTRAIT_FRAME,
-                relative_point,
-            }
-        }
-    }
-}
-
-struct BarBlockSpec<'a> {
-    name: String,
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    bg_color: &'a str,
-    fill_color: &'a str,
-    fill_width: f32,
-    value_text: &'a str,
-    text_x: f32,
-    hidden: bool,
-}
-
-struct BarBlockNames {
-    frame_name: DynName,
-    fill_name: DynName,
-    text_name: DynName,
-    edge_name: DynName,
-}
-
-struct BarBlockShellSpec<'a> {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    bg_color: &'a str,
-    hidden: bool,
-}
-
-fn bar_block_names(name: &str) -> BarBlockNames {
-    let frame_name = dyn_name(name.to_string());
-    let fill_name = dyn_name(format!("{}Fill", frame_name.0));
-    let text_name = dyn_name(format!("{}Text", frame_name.0));
-    let edge_name = dyn_name(format!("{}Edge", frame_name.0));
-    BarBlockNames {
-        frame_name,
-        fill_name,
-        text_name,
-        edge_name,
-    }
-}
-
-fn bar_block_fill(fill_name: DynName, fill_width: f32, height: f32, fill_color: &str) -> Element {
-    rsx! {
-        r#frame {
-            name: {fill_name},
-            width: fill_width,
-            height,
-            background_color: fill_color,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
-        }
-    }
-}
-
-fn bar_block_edge(edge_name: DynName, width: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: edge_name,
-            width,
-            height: 1.0,
-            background_color: BAR_EDGE,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
-        }
-    }
-}
-
-fn bar_block_text(
-    text_name: DynName,
-    width: f32,
-    height: f32,
-    value_text: &str,
-    text_x: f32,
-) -> Element {
-    rsx! {
-        fontstring {
-            name: {text_name},
-            width,
-            height,
-            text: value_text,
-            font: STATUS_BAR_FONT,
-            font_size: STATUS_BAR_FONT_SIZE,
-            font_color: VALUE_TEXT,
-            outline: "OUTLINE",
-            justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: {text_x},
-            }
-        }
-    }
-}
-
-fn bar_block_content(
-    spec: &BarBlockSpec<'_>,
-    fill_name: DynName,
-    edge_name: DynName,
-    text_name: DynName,
-) -> Element {
-    rsx! {
-        {bar_block_fill(fill_name, spec.fill_width, spec.height, spec.fill_color)}
-        {bar_block_edge(edge_name, spec.width)}
-        {bar_block_text(text_name, spec.width, spec.height, spec.value_text, spec.text_x)}
-    }
-}
-
-fn bar_block_shell(frame_name: DynName, spec: BarBlockShellSpec<'_>, content: Element) -> Element {
-    let BarBlockShellSpec {
-        x,
-        y,
-        width,
-        height,
-        bg_color,
-        hidden,
-    } = spec;
-    rsx! {
-        r#frame {
-            name: frame_name,
-            width,
-            height,
-            background_color: bg_color,
-            hidden,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
-            {content}
-        }
-    }
-}
-
-fn bar_block_shell_spec(
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    bg_color: &str,
-    hidden: bool,
-) -> BarBlockShellSpec<'_> {
-    BarBlockShellSpec {
-        x,
-        y,
-        width,
-        height,
-        bg_color,
-        hidden,
-    }
-}
-
-fn bar_block(spec: BarBlockSpec<'_>) -> Element {
-    let BarBlockNames {
-        frame_name,
-        fill_name,
-        text_name,
-        edge_name,
-    } = bar_block_names(&spec.name);
-    let content = bar_block_content(&spec, fill_name, edge_name, text_name);
-    let shell = bar_block_shell_spec(
-        spec.x,
-        spec.y,
-        spec.width,
-        spec.height,
-        spec.bg_color,
-        spec.hidden,
-    );
-    bar_block_shell(frame_name, shell, content)
 }
 
 pub fn default_player_frame_state() -> UnitFrameState {
