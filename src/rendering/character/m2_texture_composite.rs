@@ -18,6 +18,8 @@ pub(crate) static COMPOSITED_TEXTURE_CACHE: OnceLock<
     Mutex<std::collections::HashMap<TextureCacheKey, Result<Handle<Image>, String>>>,
 > = OnceLock::new();
 
+const M2_SHADER_ALPHA_MASK: u16 = 0x8000;
+
 pub(crate) fn load_composited_texture(
     base_path: &Path,
     batch: &asset::m2::M2RenderBatch,
@@ -143,7 +145,7 @@ fn shader_blend(
     shader_id: u16,
 ) -> ([f32; 3], f32) {
     match shader_id {
-        0x8000 => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
+        M2_SHADER_ALPHA_MASK => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
         0x4014 => (
             mul_2x_rgb(base_rgb, overlay_rgb),
             (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
