@@ -223,9 +223,6 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
 }
 
 pub(crate) fn parse_vertices(md20: &[u8]) -> Result<Vec<M2Vertex>, String> {
-    if md20.len() < super::MD20_VERTICES_DATA_OFFSET + 4 {
-        return Err("MD20 header too short for vertices".into());
-    }
     read_m2_array(md20, super::MD20_VERTICES_COUNT_OFFSET, "vertex")
 }
 

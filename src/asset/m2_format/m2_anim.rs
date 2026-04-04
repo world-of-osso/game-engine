@@ -21,13 +21,14 @@
 //!   0x4C: pivot [f32; 3] (12 bytes, WoW coordinates)
 
 use super::{
-    FIXED16_SCALE, MD20_BONES_COUNT_OFFSET, MD20_BONES_DATA_OFFSET, MD20_COLORS_COUNT_OFFSET,
-    MD20_COLORS_DATA_OFFSET, MD20_GLOBAL_SEQUENCES_COUNT_OFFSET, MD20_GLOBAL_SEQUENCES_DATA_OFFSET,
-    MD20_SEQUENCES_COUNT_OFFSET, MD20_SEQUENCES_DATA_OFFSET, MD20_TEXTURE_WEIGHTS_COUNT_OFFSET,
-    MD20_TEXTURE_WEIGHTS_DATA_OFFSET, MD20_TRANSPARENCY_COUNT_OFFSET,
-    MD20_TRANSPARENCY_DATA_OFFSET,
+    FIXED16_SCALE, MD20_BONES_COUNT_OFFSET, MD20_COLORS_COUNT_OFFSET,
+    MD20_GLOBAL_SEQUENCES_COUNT_OFFSET, MD20_SEQUENCES_COUNT_OFFSET,
+    MD20_TEXTURE_WEIGHTS_COUNT_OFFSET, MD20_TRANSPARENCY_COUNT_OFFSET,
 };
-use crate::asset::read_bytes::{read_f32, read_i16, read_i32, read_u16, read_u32};
+use crate::asset::read_bytes::{
+    read_f32, read_i16, read_i32, read_m2_array_header, read_quat_i16, read_u16, read_u32,
+    read_vec3,
+};
 
 const BONE_SIZE: usize = 88;
 const BONE_FLAGS_OFFSET: usize = 0x04;
@@ -81,11 +82,7 @@ pub fn parse_bones_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2
 /// Parse the bones M2Array from the MD20 blob at offset 0x2C.
 /// Returns bones with parent indices and pivot points.
 pub fn parse_bones(md20: &[u8]) -> Result<Vec<M2Bone>, String> {
-    if md20.len() < MD20_BONES_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_BONES_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_BONES_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_BONES_COUNT_OFFSET)?;
     parse_bones_at(md20, offset, count)
 }
 
@@ -152,11 +149,7 @@ pub fn parse_sequences_at(
 ///   0x1C u16  blend_time
 ///   0x3C i16  next_animation (-1 = none)
 pub fn parse_sequences(md20: &[u8]) -> Result<Vec<M2AnimSequence>, String> {
-    if md20.len() < MD20_SEQUENCES_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_SEQUENCES_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_SEQUENCES_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_SEQUENCES_COUNT_OFFSET)?;
     parse_sequences_at(md20, offset, count)
 }
 
@@ -178,11 +171,7 @@ pub fn parse_global_sequences_at(
 /// Global sequences are simple u32 durations (milliseconds) used for looping
 /// animations that run independently of any specific animation sequence.
 pub fn parse_global_sequences(md20: &[u8]) -> Result<Vec<u32>, String> {
-    if md20.len() < MD20_GLOBAL_SEQUENCES_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_GLOBAL_SEQUENCES_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_GLOBAL_SEQUENCES_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_GLOBAL_SEQUENCES_COUNT_OFFSET)?;
     parse_global_sequences_at(md20, offset, count)
 }
 
@@ -215,27 +204,6 @@ pub struct TextureAnimTracks {
 pub struct ColorAnimTracks {
     pub color: AnimTrack<[f32; 3]>,
     pub opacity: AnimTrack<i16>,
-}
-
-fn parse_vec3(md20: &[u8], off: usize) -> Result<[f32; 3], String> {
-    Ok([
-        read_f32(md20, off)?,
-        read_f32(md20, off + 4)?,
-        read_f32(md20, off + 8)?,
-    ])
-}
-
-fn parse_quat_packed(md20: &[u8], off: usize) -> Result<[i16; 4], String> {
-    Ok([
-        read_i16(md20, off)?,
-        read_i16(md20, off + 2)?,
-        read_i16(md20, off + 4)?,
-        read_i16(md20, off + 6)?,
-    ])
-}
-
-fn parse_i16_value(md20: &[u8], off: usize) -> Result<i16, String> {
-    read_i16(md20, off)
 }
 
 /// Parse an AnimBlock's nested M2Array structure.
@@ -315,14 +283,9 @@ pub fn parse_bone_animations_at(
             return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
         }
         let translation =
-            parse_anim_track(data, base + BONE_TRANSLATION_BLOCK_OFFSET, 12, parse_vec3)?;
-        let rotation = parse_anim_track(
-            data,
-            base + BONE_ROTATION_BLOCK_OFFSET,
-            8,
-            parse_quat_packed,
-        )?;
-        let scale = parse_anim_track(data, base + BONE_SCALE_BLOCK_OFFSET, 12, parse_vec3)?;
+            parse_anim_track(data, base + BONE_TRANSLATION_BLOCK_OFFSET, 12, read_vec3)?;
+        let rotation = parse_anim_track(data, base + BONE_ROTATION_BLOCK_OFFSET, 8, read_quat_i16)?;
+        let scale = parse_anim_track(data, base + BONE_SCALE_BLOCK_OFFSET, 12, read_vec3)?;
         tracks.push(BoneAnimTracks {
             translation,
             rotation,
@@ -335,20 +298,12 @@ pub fn parse_bone_animations_at(
 /// Parse animation tracks for all bones from the MD20 blob.
 /// Returns one BoneAnimTracks per bone, in the same order as parse_bones.
 pub fn parse_bone_animations(md20: &[u8]) -> Result<Vec<BoneAnimTracks>, String> {
-    if md20.len() < MD20_BONES_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_BONES_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_BONES_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_BONES_COUNT_OFFSET)?;
     parse_bone_animations_at(md20, offset, count)
 }
 
 pub fn parse_transparency_tracks(md20: &[u8]) -> Result<Vec<AnimTrack<i16>>, String> {
-    if md20.len() < MD20_TRANSPARENCY_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_TRANSPARENCY_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_TRANSPARENCY_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_TRANSPARENCY_COUNT_OFFSET)?;
     let mut tracks = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * 20;
@@ -357,17 +312,13 @@ pub fn parse_transparency_tracks(md20: &[u8]) -> Result<Vec<AnimTrack<i16>>, Str
                 "Transparency track {i} out of bounds at offset {base:#x}"
             ));
         }
-        tracks.push(parse_anim_track(md20, base, 2, parse_i16_value)?);
+        tracks.push(parse_anim_track(md20, base, 2, read_i16)?);
     }
     Ok(tracks)
 }
 
 pub fn parse_color_tracks(md20: &[u8]) -> Result<Vec<ColorAnimTracks>, String> {
-    if md20.len() < MD20_COLORS_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_COLORS_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_COLORS_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_COLORS_COUNT_OFFSET)?;
     let mut tracks = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * 40;
@@ -375,19 +326,15 @@ pub fn parse_color_tracks(md20: &[u8]) -> Result<Vec<ColorAnimTracks>, String> {
             return Err(format!("Color track {i} out of bounds at offset {base:#x}"));
         }
         tracks.push(ColorAnimTracks {
-            color: parse_anim_track(md20, base, 12, parse_vec3)?,
-            opacity: parse_anim_track(md20, base + 20, 2, parse_i16_value)?,
+            color: parse_anim_track(md20, base, 12, read_vec3)?,
+            opacity: parse_anim_track(md20, base + 20, 2, read_i16)?,
         });
     }
     Ok(tracks)
 }
 
 pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, String> {
-    if md20.len() < MD20_TEXTURE_WEIGHTS_DATA_OFFSET + 4 {
-        return Ok(Vec::new());
-    }
-    let count = read_u32(md20, MD20_TEXTURE_WEIGHTS_COUNT_OFFSET)? as usize;
-    let offset = read_u32(md20, MD20_TEXTURE_WEIGHTS_DATA_OFFSET)? as usize;
+    let (count, offset) = read_m2_array_header(md20, MD20_TEXTURE_WEIGHTS_COUNT_OFFSET)?;
     let mut tracks = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * 60;
@@ -397,9 +344,9 @@ pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, S
             ));
         }
         tracks.push(TextureAnimTracks {
-            translation: parse_anim_track(md20, base, 12, parse_vec3)?,
-            rotation: parse_anim_track(md20, base + 20, 8, parse_quat_packed)?,
-            scale: parse_anim_track(md20, base + 40, 12, parse_vec3)?,
+            translation: parse_anim_track(md20, base, 12, read_vec3)?,
+            rotation: parse_anim_track(md20, base + 20, 8, read_quat_i16)?,
+            scale: parse_anim_track(md20, base + 40, 12, read_vec3)?,
         });
     }
     Ok(tracks)

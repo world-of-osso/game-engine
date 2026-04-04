@@ -23,9 +23,9 @@
 mod defaults;
 
 use super::{
-    MD20_PARTICLE_EMITTERS_COUNT_OFFSET, MD20_PARTICLE_EMITTERS_DATA_OFFSET, MD20_VERSION_OFFSET,
-    fixed16_to_f32, unorm16_to_f32,
+    MD20_PARTICLE_EMITTERS_COUNT_OFFSET, MD20_VERSION_OFFSET, fixed16_to_f32, unorm16_to_f32,
 };
+use crate::asset::read_bytes::read_m2_array_header;
 
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
@@ -569,12 +569,9 @@ pub fn resolve_texture_fdids(emitters: &mut [M2ParticleEmitter], txid: &[u32]) {
 
 /// Parse all particle emitters from the MD20 header (M2Array at offset 0x128).
 pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
-    if md20.len() < MD20_PARTICLE_EMITTERS_DATA_OFFSET + 4 {
-        return Vec::new();
-    }
+    let (count, offset) =
+        read_m2_array_header(md20, MD20_PARTICLE_EMITTERS_COUNT_OFFSET).unwrap_or((0, 0));
     let version = read_u32(md20, MD20_VERSION_OFFSET).unwrap_or(0);
-    let count = read_u32(md20, MD20_PARTICLE_EMITTERS_COUNT_OFFSET).unwrap_or(0) as usize;
-    let offset = read_u32(md20, MD20_PARTICLE_EMITTERS_DATA_OFFSET).unwrap_or(0) as usize;
     if count == 0 {
         return Vec::new();
     }
