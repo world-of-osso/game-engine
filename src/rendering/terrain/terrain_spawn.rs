@@ -70,6 +70,7 @@ pub(super) fn spawn_terrain_chunks(
     let chunk_materials = terrain_material::build_terrain_materials(
         refs.terrain_materials,
         refs.images,
+        adt_data,
         tex_data,
         ground_images.as_deref(),
     );

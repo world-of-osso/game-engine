@@ -15,6 +15,7 @@ const MCVT_COUNT: usize = 145;
 const MCCV_BYTES_PER_VERTEX: usize = 4;
 const MCLV_BYTES_PER_VERTEX: usize = 4;
 const MCSH_BYTES: usize = 512;
+const MCSE_BYTES_PER_EMITTER: usize = 28;
 const MCNK_FLAG_HAS_MCSH: u32 = 0x1;
 const MCNK_FLAG_IMPASS: u32 = 0x2;
 const MCNK_FLAG_HAS_MCCV: u32 = 0x40;
@@ -28,6 +29,7 @@ type McnkSubchunksResult = (
     [[f32; 4]; MCVT_COUNT],
     Option<[[f32; 4]; MCVT_COUNT]>,
     Option<[u8; MCSH_BYTES]>,
+    Vec<SoundEmitter>,
 );
 
 #[derive(Clone)]
@@ -69,11 +71,20 @@ pub(crate) struct McnkData {
     pub area_id: u32,
     pub shadow_map: Option<[u8; MCSH_BYTES]>,
     pub vertex_lighting: Option<[[f32; 4]; MCVT_COUNT]>,
+    pub sound_emitters: Vec<SoundEmitter>,
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub heights: [f32; MCVT_COUNT],
     pub normals: [[f32; 3]; MCVT_COUNT],
     pub vertex_colors: [[f32; 4]; MCVT_COUNT],
+}
+
+#[derive(Debug, Clone, Copy, BinRead, PartialEq)]
+#[br(little)]
+pub(crate) struct SoundEmitter {
+    pub sound_entry_id: u32,
+    pub position: [f32; 3],
+    pub size_min: [f32; 3],
 }
 
 #[derive(BinRead)]
@@ -273,6 +284,25 @@ fn parse_mcsh(payload: &[u8]) -> Result<[u8; MCSH_BYTES], String> {
     Ok(shadow_map)
 }
 
+fn parse_mcse(payload: &[u8]) -> Result<Vec<SoundEmitter>, String> {
+    if !payload.len().is_multiple_of(MCSE_BYTES_PER_EMITTER) {
+        return Err(format!(
+            "MCSE size must be a multiple of {MCSE_BYTES_PER_EMITTER} bytes: {} bytes",
+            payload.len()
+        ));
+    }
+
+    let mut emitters = Vec::with_capacity(payload.len() / MCSE_BYTES_PER_EMITTER);
+    let mut cursor = Cursor::new(payload);
+    while (cursor.position() as usize) < payload.len() {
+        emitters.push(
+            SoundEmitter::read_le(&mut cursor)
+                .map_err(|err| format!("MCSE emitter parse failed: {err}"))?,
+        );
+    }
+    Ok(emitters)
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
@@ -280,7 +310,7 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
     let flags = McnkFlags::from_bits(header.flags);
     let pos = [header.pos_x, header.pos_y, header.pos_z];
-    let (heights, normals, vertex_colors, vertex_lighting, shadow_map) =
+    let (heights, normals, vertex_colors, vertex_lighting, shadow_map, sound_emitters) =
         parse_mcnk_subchunks(&payload[128..], flags)?;
     Ok(McnkData {
         index_x: header.index_x,
@@ -290,6 +320,7 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         area_id: header._area_id,
         shadow_map,
         vertex_lighting,
+        sound_emitters,
         holes_low_res: header._holes_low_res,
         holes_high_res: flags.high_res_holes.then_some(header._holes_high_res),
         heights,
@@ -304,6 +335,7 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
     let mut vertex_colors = None;
     let mut vertex_lighting = None;
     let mut shadow_map = None;
+    let mut sound_emitters = None;
     for chunk in ChunkIter::new(sub) {
         let (tag, payload) = chunk?;
         match tag {
@@ -312,6 +344,7 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
             b"VCCM" => vertex_colors = Some(parse_mccv(payload)?),
             b"VLCM" => vertex_lighting = Some(parse_mclv(payload)?),
             b"HSCM" => shadow_map = Some(parse_mcsh(payload)?),
+            b"MCSE" => sound_emitters = Some(parse_mcse(payload)?),
             _ => {}
         }
     }
@@ -319,7 +352,15 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
     let normals = normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
     let vertex_colors = resolve_mcnk_vertex_colors(vertex_colors, flags)?;
     let shadow_map = resolve_mcnk_shadow_map(shadow_map, flags)?;
-    Ok((heights, normals, vertex_colors, vertex_lighting, shadow_map))
+    let sound_emitters = sound_emitters.unwrap_or_default();
+    Ok((
+        heights,
+        normals,
+        vertex_colors,
+        vertex_lighting,
+        shadow_map,
+        sound_emitters,
+    ))
 }
 
 fn resolve_mcnk_vertex_colors(
@@ -717,7 +758,7 @@ mod tests {
 
     #[test]
     fn parse_mcnk_subchunks_requires_mccv_when_flagged() {
-        let payload = mcnk_subchunks_payload(false, false);
+        let payload = mcnk_subchunks_payload(false, false, false);
 
         let err = parse_mcnk_subchunks(
             &payload,
@@ -736,9 +777,9 @@ mod tests {
 
     #[test]
     fn parse_mcnk_subchunks_defaults_vertex_colors_when_mccv_not_flagged() {
-        let payload = mcnk_subchunks_payload(false, false);
+        let payload = mcnk_subchunks_payload(false, false, false);
 
-        let (_, _, colors, vertex_lighting, shadow_map) =
+        let (_, _, colors, vertex_lighting, shadow_map, sound_emitters) =
             parse_mcnk_subchunks(&payload, McnkFlags::default())
                 .expect("expected missing optional MCCV to default");
 
@@ -746,6 +787,7 @@ mod tests {
         assert_eq!(colors[MCVT_COUNT - 1], [1.0, 1.0, 1.0, 1.0]);
         assert_eq!(vertex_lighting, None);
         assert_eq!(shadow_map, None);
+        assert!(sound_emitters.is_empty());
     }
 
     #[test]
@@ -775,9 +817,9 @@ mod tests {
 
     #[test]
     fn parse_mcnk_subchunks_reads_mcsh_when_flagged() {
-        let payload = mcnk_subchunks_payload(true, false);
+        let payload = mcnk_subchunks_payload(true, false, false);
 
-        let (_, _, _, vertex_lighting, shadow_map) = parse_mcnk_subchunks(
+        let (_, _, _, vertex_lighting, shadow_map, sound_emitters) = parse_mcnk_subchunks(
             &payload,
             McnkFlags {
                 has_mcsh: true,
@@ -793,11 +835,30 @@ mod tests {
         assert_eq!(shadow_map[0], 0b1000_0000);
         assert_eq!(shadow_map[1], 0b0100_0000);
         assert_eq!(vertex_lighting, None);
+        assert!(sound_emitters.is_empty());
+    }
+
+    #[test]
+    fn parse_mcnk_subchunks_reads_mcse_emitters() {
+        let payload = mcnk_subchunks_payload(false, false, true);
+
+        let (_, _, _, vertex_lighting, shadow_map, sound_emitters) =
+            parse_mcnk_subchunks(&payload, McnkFlags::default()).expect("expected MCSE emitters");
+
+        assert_eq!(vertex_lighting, None);
+        assert_eq!(shadow_map, None);
+        assert_eq!(sound_emitters.len(), 2);
+        assert_eq!(sound_emitters[0].sound_entry_id, 42);
+        assert_eq!(sound_emitters[0].position, [100.0, 200.0, 300.0]);
+        assert_eq!(sound_emitters[0].size_min, [10.0, 20.0, 30.0]);
+        assert_eq!(sound_emitters[1].sound_entry_id, 7);
+        assert_eq!(sound_emitters[1].position, [1.0, 2.0, 3.0]);
+        assert_eq!(sound_emitters[1].size_min, [4.0, 5.0, 6.0]);
     }
 
     #[test]
     fn parse_mcnk_subchunks_requires_mcsh_when_flagged() {
-        let payload = mcnk_subchunks_payload(false, false);
+        let payload = mcnk_subchunks_payload(false, false, false);
 
         let err = parse_mcnk_subchunks(
             &payload,
@@ -816,18 +877,23 @@ mod tests {
 
     #[test]
     fn parse_mcnk_subchunks_reads_mclv_even_when_it_is_not_first() {
-        let payload = mcnk_subchunks_payload(false, true);
+        let payload = mcnk_subchunks_payload(false, true, false);
 
-        let (_, _, _, vertex_lighting, shadow_map) =
+        let (_, _, _, vertex_lighting, shadow_map, sound_emitters) =
             parse_mcnk_subchunks(&payload, McnkFlags::default())
                 .expect("expected vertex lighting to be parsed");
 
         let vertex_lighting = vertex_lighting.expect("expected parsed MCLV");
         assert_eq!(vertex_lighting[0], [1.0, 0.5, 0.0, 1.0]);
         assert_eq!(shadow_map, None);
+        assert!(sound_emitters.is_empty());
     }
 
-    fn mcnk_subchunks_payload(include_mcsh: bool, include_mclv: bool) -> Vec<u8> {
+    fn mcnk_subchunks_payload(
+        include_mcsh: bool,
+        include_mclv: bool,
+        include_mcse: bool,
+    ) -> Vec<u8> {
         let mut payload = Vec::new();
         append_subchunk(&mut payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
         append_subchunk(&mut payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
@@ -844,6 +910,24 @@ mod tests {
             let mut vertex_lighting = vec![0; MCVT_COUNT * 4];
             vertex_lighting[0..4].copy_from_slice(&[0x00, 0x40, 0x80, 0xFF]);
             append_subchunk(&mut payload, b"VLCM", vertex_lighting);
+        }
+        if include_mcse {
+            let mut sound_emitters = Vec::new();
+            sound_emitters.extend_from_slice(&42u32.to_le_bytes());
+            sound_emitters.extend_from_slice(&100.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&200.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&300.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&10.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&20.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&30.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&7u32.to_le_bytes());
+            sound_emitters.extend_from_slice(&1.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&2.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&3.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&4.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&5.0f32.to_le_bytes());
+            sound_emitters.extend_from_slice(&6.0f32.to_le_bytes());
+            append_subchunk(&mut payload, b"MCSE", sound_emitters);
         }
         payload
     }

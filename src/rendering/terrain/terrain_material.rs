@@ -39,6 +39,11 @@ pub struct TerrainMaterial {
     #[texture(9)]
     #[sampler(10)]
     pub alpha_packed: Handle<Image>,
+
+    /// Static per-chunk shadow mask expanded from MCSH. 64x64, ClampToEdge.
+    #[texture(11)]
+    #[sampler(12)]
+    pub shadow_map: Handle<Image>,
 }
 
 impl Material for TerrainMaterial {
@@ -198,6 +203,69 @@ fn pack_alpha_channel(rgba: &mut [u8], alpha: Option<&[u8]>, channel: usize, siz
     }
 }
 
+pub fn pack_shadow_map(
+    images: &mut Assets<Image>,
+    shadow_map: Option<&[u8; 512]>,
+) -> Handle<Image> {
+    const SIZE: u32 = 64;
+    let mut rgba = default_shadow_pixels(SIZE);
+    let Some(shadow_map) = shadow_map else {
+        return images.add(new_shadow_image(rgba, SIZE));
+    };
+
+    for row in 0..SIZE as usize {
+        for col in 0..SIZE as usize {
+            write_shadow_pixel(
+                &mut rgba,
+                SIZE as usize,
+                row,
+                col,
+                shadow_bit_is_set(shadow_map, row, col),
+            );
+        }
+    }
+
+    images.add(new_shadow_image(rgba, SIZE))
+}
+
+fn default_shadow_pixels(size: u32) -> Vec<u8> {
+    let mut rgba = vec![255u8; (size * size * 4) as usize];
+    for pixel in rgba.chunks_exact_mut(4) {
+        pixel[3] = 255;
+    }
+    rgba
+}
+
+fn write_shadow_pixel(rgba: &mut [u8], size: usize, row: usize, col: usize, shadowed: bool) {
+    let value = if shadowed { 0 } else { 255 };
+    let base = (row * size + col) * 4;
+    rgba[base] = value;
+    rgba[base + 1] = value;
+    rgba[base + 2] = value;
+}
+
+fn new_shadow_image(rgba: Vec<u8>, size: u32) -> Image {
+    let mut img = Image::new(
+        Extent3d {
+            width: size,
+            height: size,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        rgba,
+        TextureFormat::Rgba8Unorm,
+        RenderAssetUsages::default(),
+    );
+    img.sampler = clamp_linear_sampler();
+    img
+}
+
+fn shadow_bit_is_set(shadow_map: &[u8; 512], row: usize, col: usize) -> bool {
+    let byte = shadow_map[row * 8 + col / 8];
+    let bit = col % 8;
+    ((byte >> bit) & 1) != 0
+}
+
 /// Shared placeholder handles for fallback materials.
 struct Placeholders {
     image: Handle<Image>,
@@ -208,6 +276,7 @@ struct Placeholders {
 pub fn build_terrain_materials(
     terrain_materials: &mut Assets<TerrainMaterial>,
     images: &mut Assets<Image>,
+    adt_data: &adt::AdtData,
     tex_data: Option<&adt::AdtTexData>,
     ground_images: Option<&[Option<Handle<Image>>]>,
 ) -> Vec<Handle<TerrainMaterial>> {
@@ -217,13 +286,25 @@ pub fn build_terrain_materials(
     };
 
     let (Some(td), Some(gi)) = (tex_data, ground_images) else {
-        let mat = terrain_materials.add(fallback_material(&ph));
-        return vec![mat; 256];
+        return adt_data
+            .chunks
+            .iter()
+            .map(|chunk| {
+                terrain_materials.add(fallback_material(images, chunk.shadow_map.as_ref(), &ph))
+            })
+            .collect();
     };
 
     td.chunk_layers
         .iter()
-        .map(|chunk_tex| build_chunk_material(terrain_materials, images, chunk_tex, gi, &ph))
+        .enumerate()
+        .map(|(chunk_index, chunk_tex)| {
+            let shadow_map = adt_data
+                .chunks
+                .get(chunk_index)
+                .and_then(|chunk| chunk.shadow_map.as_ref());
+            build_chunk_material(terrain_materials, images, chunk_tex, gi, shadow_map, &ph)
+        })
         .collect()
 }
 
@@ -233,7 +314,11 @@ const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
 const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
 const TERRAIN_REFLECTANCE: f32 = 0.2;
 
-fn fallback_material(ph: &Placeholders) -> TerrainMaterial {
+fn fallback_material(
+    images: &mut Assets<Image>,
+    shadow_map: Option<&[u8; 512]>,
+    ph: &Placeholders,
+) -> TerrainMaterial {
     TerrainMaterial {
         config: Vec4::new(0.0, 0.0, TERRAIN_PERCEPTUAL_ROUGHNESS, TERRAIN_REFLECTANCE),
         ground_0: ph.image.clone(),
@@ -241,6 +326,7 @@ fn fallback_material(ph: &Placeholders) -> TerrainMaterial {
         ground_2: ph.image.clone(),
         ground_3: ph.image.clone(),
         alpha_packed: ph.alpha.clone(),
+        shadow_map: pack_shadow_map(images, shadow_map),
     }
 }
 
@@ -249,10 +335,11 @@ fn build_chunk_material(
     images: &mut Assets<Image>,
     chunk_tex: &adt::ChunkTexLayers,
     ground_images: &[Option<Handle<Image>>],
+    shadow_map: Option<&[u8; 512]>,
     ph: &Placeholders,
 ) -> Handle<TerrainMaterial> {
     if chunk_tex.layers.is_empty() {
-        return terrain_materials.add(fallback_material(ph));
+        return terrain_materials.add(fallback_material(images, shadow_map, ph));
     }
 
     let layer_count = chunk_tex.layers.len().min(4) as f32;
@@ -277,5 +364,34 @@ fn build_chunk_material(
         ground_2: ground(2),
         ground_3: ground(3),
         alpha_packed: pack_alpha_maps(images, &chunk_tex.layers),
+        shadow_map: pack_shadow_map(images, shadow_map),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pack_shadow_map, shadow_bit_is_set};
+    use bevy::asset::Assets;
+    use bevy::image::Image;
+
+    #[test]
+    fn pack_shadow_map_expands_mcsh_bits_to_64x64_pixels() {
+        let mut images = Assets::<Image>::default();
+        let mut shadow_map = [0u8; 512];
+        shadow_map[0] = 0b0000_0001;
+        shadow_map[1] = 0b0000_0001;
+
+        assert!(shadow_bit_is_set(&shadow_map, 0, 0));
+        assert!(shadow_bit_is_set(&shadow_map, 0, 8));
+
+        let handle = pack_shadow_map(&mut images, Some(&shadow_map));
+        let image = images.get(&handle).expect("expected shadow image");
+        let data = image.data.as_ref().expect("expected shadow pixels");
+
+        assert_eq!(image.texture_descriptor.size.width, 64);
+        assert_eq!(image.texture_descriptor.size.height, 64);
+        assert_eq!(&data[0..4], &[0, 0, 0, 255]);
+        assert_eq!(&data[4..8], &[255, 255, 255, 255]);
+        assert_eq!(&data[32..36], &[0, 0, 0, 255]);
+    }
 }

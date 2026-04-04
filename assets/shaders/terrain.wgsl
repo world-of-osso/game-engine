@@ -28,7 +28,11 @@
 @group(#{MATERIAL_BIND_GROUP}) @binding(9) var alpha_packed: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(10) var alpha_sampler: sampler;
 
+@group(#{MATERIAL_BIND_GROUP}) @binding(11) var shadow_map: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(12) var shadow_sampler: sampler;
+
 const TILE_REPEAT: f32 = 8.0;
+const STATIC_SHADOW_MIN_BRIGHTNESS: f32 = 0.55;
 
 // ── Hash: deterministic pseudo-random from grid cell ─────────────────────────
 
@@ -223,7 +227,9 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
         1.0,
     );
     let vertex_color = in.color.rgb;
-    let shaded_color = vec4<f32>(color.rgb * vertex_color, color.a);
+    let static_shadow = textureSample(shadow_map, shadow_sampler, uv).r;
+    let shadow_light = mix(STATIC_SHADOW_MIN_BRIGHTNESS, 1.0, static_shadow);
+    let shaded_color = vec4<f32>(color.rgb * vertex_color * shadow_light, color.a);
 
     var pbr_input = pbr_types::pbr_input_new();
     pbr_input.material.base_color = shaded_color;

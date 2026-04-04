@@ -407,6 +407,7 @@ fn build_terrain_only_chunk_materials(
     terrain_material::build_terrain_materials(
         assets.terrain_materials,
         assets.images,
+        &inputs.adt_data,
         inputs.tex_data.as_ref(),
         ground_images.as_deref(),
     )
