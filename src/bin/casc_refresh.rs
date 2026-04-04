@@ -15,36 +15,68 @@ async fn main() {
 }
 
 async fn run() -> Result<(), String> {
-    let data_root = PathBuf::from(WOW_PATH).join("Data");
+    let data_root = casc_data_root();
+    let refresh = resolve_refresh_targets(&data_root)?;
+    let install = open_local_installation(&data_root).await?;
+    let encoding_data = read_encoding_data(&install, &refresh.encoding_ekey).await?;
+    let root_data = read_root_data(&install, &encoding_data, &refresh.root_ckey).await?;
+    write_refresh_outputs(&encoding_data, &root_data)?;
+    eprintln!("Refreshed {OUT_DIR}/encoding.bin and {OUT_DIR}/root.bin from local CASC");
+    Ok(())
+}
+
+struct CascRefreshTargets {
+    root_ckey: ContentKey,
+    encoding_ekey: EncodingKey,
+}
+
+fn casc_data_root() -> PathBuf {
+    PathBuf::from(WOW_PATH).join("Data")
+}
+
+fn resolve_refresh_targets(data_root: &Path) -> Result<CascRefreshTargets, String> {
     let build_key = read_active_build_key(&PathBuf::from(WOW_PATH).join(".build.info"))?;
     let build_cfg = read_build_config(&data_root.join("config"), &build_key)?;
+    Ok(CascRefreshTargets {
+        root_ckey: parse_single_key(&build_cfg, "root")?,
+        encoding_ekey: parse_second_key(&build_cfg, "encoding")?,
+    })
+}
 
-    let root_ckey = parse_single_key(&build_cfg, "root")?;
-    let encoding_ekey = parse_second_key(&build_cfg, "encoding")?;
-
+async fn open_local_installation(data_root: &Path) -> Result<Installation, String> {
     eprintln!("Opening local CASC: {}", data_root.display());
-    let install =
-        Installation::open(data_root).map_err(|e| format!("failed to open installation: {e}"))?;
+    let install = Installation::open(data_root.to_path_buf())
+        .map_err(|e| format!("failed to open installation: {e}"))?;
     install
         .initialize()
         .await
         .map_err(|e| format!("failed to initialize installation: {e}"))?;
+    Ok(install)
+}
 
+async fn read_encoding_data(
+    install: &Installation,
+    encoding_ekey: &EncodingKey,
+) -> Result<Vec<u8>, String> {
     let encoding_data = install
-        .read_file_by_encoding_key(&encoding_ekey)
+        .read_file_by_encoding_key(encoding_ekey)
         .await
         .map_err(|e| format!("failed to read encoding by local encoding key: {e}"))?;
     eprintln!(
         "Read encoding.bin from local archives: {} bytes",
         encoding_data.len()
     );
-    let resolver = ContentResolver::new();
-    resolver
-        .load_encoding_file(&encoding_data)
-        .map_err(|e| format!("failed to load fresh encoding file: {e}"))?;
+    Ok(encoding_data)
+}
 
+async fn read_root_data(
+    install: &Installation,
+    encoding_data: &[u8],
+    root_ckey: &ContentKey,
+) -> Result<Vec<u8>, String> {
+    let resolver = load_encoding_resolver(encoding_data)?;
     let root_ekey = resolver
-        .resolve_content_key(&root_ckey)
+        .resolve_content_key(root_ckey)
         .ok_or_else(|| format!("root content key {root_ckey} not found in fresh encoding file"))?;
     let root_data = install
         .read_file_by_encoding_key(&root_ekey)
@@ -54,15 +86,24 @@ async fn run() -> Result<(), String> {
         "Read root.bin from local archives: {} bytes",
         root_data.len()
     );
+    Ok(root_data)
+}
 
+fn load_encoding_resolver(encoding_data: &[u8]) -> Result<ContentResolver, String> {
+    let resolver = ContentResolver::new();
+    resolver
+        .load_encoding_file(encoding_data)
+        .map_err(|e| format!("failed to load fresh encoding file: {e}"))?;
+    Ok(resolver)
+}
+
+fn write_refresh_outputs(encoding_data: &[u8], root_data: &[u8]) -> Result<(), String> {
     let out_dir = PathBuf::from(OUT_DIR);
     std::fs::create_dir_all(&out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
-    std::fs::write(out_dir.join("encoding.bin"), &encoding_data)
+    std::fs::write(out_dir.join("encoding.bin"), encoding_data)
         .map_err(|e| format!("write encoding.bin: {e}"))?;
-    std::fs::write(out_dir.join("root.bin"), &root_data)
+    std::fs::write(out_dir.join("root.bin"), root_data)
         .map_err(|e| format!("write root.bin: {e}"))?;
-
-    eprintln!("Refreshed {OUT_DIR}/encoding.bin and {OUT_DIR}/root.bin from local CASC");
     Ok(())
 }
 
