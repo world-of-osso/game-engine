@@ -219,7 +219,7 @@ fn rebuild_cache(
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(cache_schema_sql())
+    conn.execute_batch(&cache_schema_sql())
         .map_err(|err| format!("init warband scene cache: {err}"))
 }
 
@@ -267,22 +267,27 @@ fn import_placement_option_rows(conn: &Connection, source_path: &Path) -> Result
     Ok(())
 }
 
-fn cache_schema_sql() -> &'static str {
-    "BEGIN;
-     DROP TABLE IF EXISTS source_files;
+fn cache_schema_drop_tables_sql() -> &'static str {
+    "DROP TABLE IF EXISTS source_files;
      DROP TABLE IF EXISTS cache_metadata;
      DROP TABLE IF EXISTS warband_scenes;
      DROP TABLE IF EXISTS warband_scene_placements;
-     DROP TABLE IF EXISTS warband_scene_placement_options;
-     CREATE TABLE cache_metadata (
+     DROP TABLE IF EXISTS warband_scene_placement_options;"
+}
+
+fn cache_metadata_tables_sql() -> &'static str {
+    "CREATE TABLE cache_metadata (
          id INTEGER PRIMARY KEY CHECK (id = 1),
          version INTEGER NOT NULL
      );
      CREATE TABLE source_files (
          path TEXT PRIMARY KEY,
          mtime INTEGER NOT NULL
-     );
-     CREATE TABLE warband_scenes (
+     );"
+}
+
+fn cache_scene_tables_sql() -> &'static str {
+    "CREATE TABLE warband_scenes (
          id INTEGER PRIMARY KEY,
          name TEXT NOT NULL,
          description TEXT NOT NULL,
@@ -305,8 +310,11 @@ fn cache_schema_sql() -> &'static str {
          pos_z REAL NOT NULL,
          rotation REAL NOT NULL,
          slot_id INTEGER NOT NULL
-     );
-     CREATE TABLE warband_scene_placement_options (
+     );"
+}
+
+fn cache_scene_option_tables_sql() -> &'static str {
+    "CREATE TABLE warband_scene_placement_options (
          placement_id INTEGER NOT NULL,
          layout_key INTEGER NOT NULL,
          pos_x REAL NOT NULL,
@@ -316,6 +324,20 @@ fn cache_schema_sql() -> &'static str {
          scale REAL NOT NULL,
          PRIMARY KEY (placement_id, layout_key)
      );"
+}
+
+fn cache_schema_sql() -> String {
+    format!(
+        "BEGIN;
+         {}
+         {}
+         {}
+         {}",
+        cache_schema_drop_tables_sql(),
+        cache_metadata_tables_sql(),
+        cache_scene_tables_sql(),
+        cache_scene_option_tables_sql(),
+    )
 }
 
 fn prepare_scene_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
