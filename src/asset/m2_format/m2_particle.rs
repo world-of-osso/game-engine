@@ -486,6 +486,12 @@ impl Default for M2ParticleEmitter {
 
 /// Fill M2Track-based dynamic values on an emitter.
 fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
+    fill_motion_track_values(em, md20, data);
+    fill_shape_and_spin_track_values(em, md20, data);
+    fill_wind_and_follow_track_values(em, data);
+}
+
+fn fill_motion_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.emission_speed = read_track_static_f32(md20, data, EMITTER_EMISSION_SPEED_OFFSET);
     em.speed_variation = read_track_static_f32(md20, data, EMITTER_SPEED_VARIATION_OFFSET);
     em.vertical_range = read_track_static_f32(md20, data, EMITTER_VERTICAL_RANGE_OFFSET);
@@ -498,6 +504,9 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.emission_rate = read_track_static_f32(md20, data, EMITTER_EMISSION_RATE_OFFSET);
     em.emission_rate_variation =
         read_f32(data, EMITTER_EMISSION_RATE_VARIATION_OFFSET).unwrap_or(0.0);
+}
+
+fn fill_shape_and_spin_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.area_length = read_track_static_f32(md20, data, EMITTER_AREA_LENGTH_OFFSET);
     em.area_width = read_track_static_f32(md20, data, EMITTER_AREA_WIDTH_OFFSET);
     em.z_source = read_track_static_f32(md20, data, EMITTER_Z_SOURCE_OFFSET);
@@ -509,6 +518,9 @@ fn fill_track_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.base_spin_variation = read_f32(data, EMITTER_BASE_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
     em.spin = read_f32(data, EMITTER_SPIN_OFFSET).unwrap_or(0.0);
     em.spin_variation = read_f32(data, EMITTER_SPIN_VARIATION_OFFSET).unwrap_or(0.0);
+}
+
+fn fill_wind_and_follow_track_values(em: &mut M2ParticleEmitter, data: &[u8]) {
     em.wind_vector = [
         read_f32(data, EMITTER_WIND_VECTOR_OFFSET).unwrap_or(0.0),
         read_f32(data, EMITTER_WIND_VECTOR_OFFSET + 4).unwrap_or(0.0),
