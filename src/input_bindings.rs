@@ -138,37 +138,11 @@ impl InputAction {
     }
 
     pub fn from_key(key: &str) -> Option<Self> {
-        Some(match key {
-            "move_forward" => Self::MoveForward,
-            "move_backward" => Self::MoveBackward,
-            "strafe_left" => Self::StrafeLeft,
-            "strafe_right" => Self::StrafeRight,
-            "jump" => Self::Jump,
-            "run_toggle" => Self::RunToggle,
-            "auto_run" => Self::AutoRun,
-            "turn_left" => Self::TurnLeft,
-            "turn_right" => Self::TurnRight,
-            "pitch_up" => Self::PitchUp,
-            "pitch_down" => Self::PitchDown,
-            "zoom_in" => Self::ZoomIn,
-            "zoom_out" => Self::ZoomOut,
-            "target_nearest" => Self::TargetNearest,
-            "target_self" => Self::TargetSelf,
-            "action_slot_1" => Self::ActionSlot1,
-            "action_slot_2" => Self::ActionSlot2,
-            "action_slot_3" => Self::ActionSlot3,
-            "action_slot_4" => Self::ActionSlot4,
-            "action_slot_5" => Self::ActionSlot5,
-            "action_slot_6" => Self::ActionSlot6,
-            "action_slot_7" => Self::ActionSlot7,
-            "action_slot_8" => Self::ActionSlot8,
-            "action_slot_9" => Self::ActionSlot9,
-            "action_slot_10" => Self::ActionSlot10,
-            "action_slot_11" => Self::ActionSlot11,
-            "action_slot_12" => Self::ActionSlot12,
-            "toggle_mute" => Self::ToggleMute,
-            _ => return None,
-        })
+        movement_action_from_key(key)
+            .or_else(|| camera_action_from_key(key))
+            .or_else(|| targeting_action_from_key(key))
+            .or_else(|| action_slot_from_key(key))
+            .or_else(|| audio_action_from_key(key))
     }
 
     pub fn label(self) -> &'static str {
@@ -445,6 +419,64 @@ fn audio_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> I
         BindingSection::Audio,
         Some(InputBinding::Keyboard(default_key)),
     )
+}
+
+fn movement_action_from_key(key: &str) -> Option<InputAction> {
+    Some(match key {
+        "move_forward" => InputAction::MoveForward,
+        "move_backward" => InputAction::MoveBackward,
+        "strafe_left" => InputAction::StrafeLeft,
+        "strafe_right" => InputAction::StrafeRight,
+        "jump" => InputAction::Jump,
+        "run_toggle" => InputAction::RunToggle,
+        "auto_run" => InputAction::AutoRun,
+        _ => return None,
+    })
+}
+
+fn camera_action_from_key(key: &str) -> Option<InputAction> {
+    Some(match key {
+        "turn_left" => InputAction::TurnLeft,
+        "turn_right" => InputAction::TurnRight,
+        "pitch_up" => InputAction::PitchUp,
+        "pitch_down" => InputAction::PitchDown,
+        "zoom_in" => InputAction::ZoomIn,
+        "zoom_out" => InputAction::ZoomOut,
+        _ => return None,
+    })
+}
+
+fn targeting_action_from_key(key: &str) -> Option<InputAction> {
+    Some(match key {
+        "target_nearest" => InputAction::TargetNearest,
+        "target_self" => InputAction::TargetSelf,
+        _ => return None,
+    })
+}
+
+fn action_slot_from_key(key: &str) -> Option<InputAction> {
+    Some(match key {
+        "action_slot_1" => InputAction::ActionSlot1,
+        "action_slot_2" => InputAction::ActionSlot2,
+        "action_slot_3" => InputAction::ActionSlot3,
+        "action_slot_4" => InputAction::ActionSlot4,
+        "action_slot_5" => InputAction::ActionSlot5,
+        "action_slot_6" => InputAction::ActionSlot6,
+        "action_slot_7" => InputAction::ActionSlot7,
+        "action_slot_8" => InputAction::ActionSlot8,
+        "action_slot_9" => InputAction::ActionSlot9,
+        "action_slot_10" => InputAction::ActionSlot10,
+        "action_slot_11" => InputAction::ActionSlot11,
+        "action_slot_12" => InputAction::ActionSlot12,
+        _ => return None,
+    })
+}
+
+fn audio_action_from_key(key: &str) -> Option<InputAction> {
+    match key {
+        "toggle_mute" => Some(InputAction::ToggleMute),
+        _ => None,
+    }
 }
 
 fn input_action_meta(
