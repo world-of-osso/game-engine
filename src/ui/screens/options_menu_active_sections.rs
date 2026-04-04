@@ -187,6 +187,17 @@ fn sound_items(sound: &SoundOptionsView) -> Element {
 
 fn graphics_items(graphics: &GraphicsOptionsView) -> Element {
     [
+        render_scale_items(graphics),
+        bloom_items(graphics),
+        particle_density_item(graphics),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn render_scale_items(graphics: &GraphicsOptionsView) -> Element {
+    [
         slider_row(
             "render_scale",
             "Render Scale",
@@ -199,6 +210,14 @@ fn graphics_items(graphics: &GraphicsOptionsView) -> Element {
             "Presets",
             "Native 1.00 • Quality 0.75 • Balanced 0.67 • Performance 0.50",
         ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn bloom_items(graphics: &GraphicsOptionsView) -> Element {
+    [
         toggle_row("bloom_enabled", "Enable Bloom", graphics.bloom_enabled),
         slider_row(
             "bloom_intensity",
@@ -207,17 +226,20 @@ fn graphics_items(graphics: &GraphicsOptionsView) -> Element {
             0.0,
             1.0,
         ),
-        slider_row(
-            "particle_density",
-            "Particle Density",
-            graphics.particle_density,
-            10.0,
-            100.0,
-        ),
     ]
     .into_iter()
     .flatten()
     .collect()
+}
+
+fn particle_density_item(graphics: &GraphicsOptionsView) -> Element {
+    slider_row(
+        "particle_density",
+        "Particle Density",
+        graphics.particle_density,
+        10.0,
+        100.0,
+    )
 }
 
 fn camera_items(camera: &CameraOptionsView) -> Element {
