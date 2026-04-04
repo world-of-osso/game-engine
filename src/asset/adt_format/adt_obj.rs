@@ -22,8 +22,8 @@ pub struct WmoPlacement {
     pub position: [f32; 3],
     pub rotation: [f32; 3],
     pub flags: u16,
-    pub _doodad_set: u16,
-    pub _name_set: u16,
+    pub doodad_set: u16,
+    pub name_set: u16,
     pub scale: f32,
     pub fdid: Option<u32>,
     pub path: Option<String>,
@@ -242,8 +242,8 @@ fn parse_modf_entry(
         position: entry.position,
         rotation: entry.rotation,
         flags: entry.flags,
-        _doodad_set: entry.doodad_set,
-        _name_set: entry.name_set,
+        doodad_set: entry.doodad_set,
+        name_set: entry.name_set,
         scale,
         fdid,
         path,
@@ -277,5 +277,30 @@ mod tests {
             d.position[0] != 0.0 || d.position[1] != 0.0,
             "position shouldn't be zero"
         );
+    }
+
+    #[test]
+    fn parse_modf_entry_preserves_doodad_and_name_sets() {
+        let mut entry = Vec::new();
+        entry.extend_from_slice(&7u32.to_le_bytes());
+        entry.extend_from_slice(&99u32.to_le_bytes());
+        entry.extend_from_slice(&1.0f32.to_le_bytes());
+        entry.extend_from_slice(&2.0f32.to_le_bytes());
+        entry.extend_from_slice(&3.0f32.to_le_bytes());
+        entry.extend_from_slice(&10.0f32.to_le_bytes());
+        entry.extend_from_slice(&20.0f32.to_le_bytes());
+        entry.extend_from_slice(&30.0f32.to_le_bytes());
+        entry.extend_from_slice(&[0u8; 24]);
+        entry.extend_from_slice(&MODF_FLAG_HAS_SCALE.to_le_bytes());
+        entry.extend_from_slice(&5u16.to_le_bytes());
+        entry.extend_from_slice(&8u16.to_le_bytes());
+        entry.extend_from_slice(&2048u16.to_le_bytes());
+
+        let parsed = parse_modf_entry(&entry, 0, b"", &[]).expect("modf entry should parse");
+
+        assert_eq!(parsed.unique_id, 99);
+        assert_eq!(parsed.doodad_set, 5);
+        assert_eq!(parsed.name_set, 8);
+        assert_eq!(parsed.scale, 2.0);
     }
 }

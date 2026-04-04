@@ -10,6 +10,13 @@ use super::{SpawnedWmoRoot, WmoLocalSkybox, wmo_transform};
 
 const WMO_DOUBLE_SIDED_FLAG: u32 = 0x04;
 
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WmoAdtMetadata {
+    pub unique_id: u32,
+    pub doodad_set: u16,
+    pub name_set: u16,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct WmoTextureCacheKey {
     base_path: PathBuf,
@@ -76,6 +83,7 @@ fn try_spawn_wmo(
         root_fdid,
         transform,
         portal_graph,
+        build_wmo_adt_metadata(placement),
         root.skybox_wow_path.as_deref(),
     );
 
@@ -112,6 +120,7 @@ fn spawn_wmo_root_entity(
     root_fdid: u32,
     transform: Transform,
     portal_graph: game_engine::culling::WmoPortalGraph,
+    placement: WmoAdtMetadata,
     skybox_wow_path: Option<&str>,
 ) -> Entity {
     let mut entity = commands.spawn((
@@ -120,6 +129,7 @@ fn spawn_wmo_root_entity(
         Visibility::default(),
         game_engine::culling::Wmo,
         portal_graph,
+        placement,
     ));
     if let Some(wow_path) = skybox_wow_path {
         entity.insert(WmoLocalSkybox {
@@ -127,6 +137,14 @@ fn spawn_wmo_root_entity(
         });
     }
     entity.id()
+}
+
+fn build_wmo_adt_metadata(placement: &adt_obj::WmoPlacement) -> WmoAdtMetadata {
+    WmoAdtMetadata {
+        unique_id: placement.unique_id,
+        doodad_set: placement.doodad_set,
+        name_set: placement.name_set,
+    }
 }
 
 fn spawn_wmo_groups(
@@ -231,6 +249,71 @@ fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
     }
     let wow_path = wmo.path.as_ref()?;
     game_engine::listfile::lookup_path(wow_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn build_wmo_adt_metadata_preserves_modf_sets() {
+        let placement = adt_obj::WmoPlacement {
+            name_id: 1,
+            unique_id: 77,
+            position: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0],
+            flags: 0,
+            doodad_set: 3,
+            name_set: 9,
+            scale: 1.0,
+            fdid: Some(123),
+            path: None,
+        };
+
+        assert_eq!(
+            build_wmo_adt_metadata(&placement),
+            WmoAdtMetadata {
+                unique_id: 77,
+                doodad_set: 3,
+                name_set: 9,
+            }
+        );
+    }
+
+    #[test]
+    fn spawn_wmo_root_entity_attaches_adt_metadata() {
+        let mut app = App::new();
+        let metadata = WmoAdtMetadata {
+            unique_id: 88,
+            doodad_set: 4,
+            name_set: 6,
+        };
+
+        let entity = app
+            .world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                spawn_wmo_root_entity(
+                    &mut commands,
+                    12345,
+                    Transform::IDENTITY,
+                    game_engine::culling::WmoPortalGraph {
+                        adjacency: Vec::new(),
+                        portal_verts: Vec::new(),
+                    },
+                    metadata,
+                    None,
+                )
+            });
+        app.update();
+
+        let stored = app
+            .world()
+            .get::<WmoAdtMetadata>(entity.expect("entity should spawn"))
+            .copied()
+            .expect("metadata component");
+        assert_eq!(stored, metadata);
+    }
 }
 
 fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
