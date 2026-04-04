@@ -187,7 +187,7 @@ fn authored_point_light(authored: &m2_light::EvaluatedLight) -> PointLight {
         color: Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]),
         intensity: authored.intensity,
         range: authored.attenuation_end,
-        radius: 0.0,
+        radius: authored.attenuation_start.min(authored.attenuation_end),
         shadows_enabled: false,
         ..default()
     }

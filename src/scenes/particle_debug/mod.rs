@@ -96,8 +96,14 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
             return;
         }
     };
+    spawn_emitter_overlay_from_emitters(&mut commands, &model.particle_emitters);
     info!("{}", format_particle_overlay(&model.particle_emitters));
-    spawn_torch_model(&mut commands, &mut params, &path, model);
+    spawn_torch_model(&mut commands, &mut params, &path, model_without_particles(model));
+}
+
+fn model_without_particles(mut model: asset::m2::M2Model) -> asset::m2::M2Model {
+    model.particle_emitters.clear();
+    model
 }
 
 fn spawn_torch_model(
