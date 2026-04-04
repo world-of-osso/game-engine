@@ -342,6 +342,16 @@ fn build_insert_row_values<'a>(
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0)
     };
+    let mut values = build_insert_identity_and_color_values(&p, param_id, time);
+    values.extend(build_insert_fog_and_aux_values(&pf));
+    values
+}
+
+fn build_insert_identity_and_color_values(
+    p: &impl Fn(usize) -> u32,
+    param_id: u32,
+    time: f32,
+) -> Vec<rusqlite::types::Value> {
     vec![
         param_id.into(),
         time.into(),
@@ -363,6 +373,11 @@ fn build_insert_row_values<'a>(
         p(17).into(),
         p(18).into(),
         p(19).into(),
+    ]
+}
+
+fn build_insert_fog_and_aux_values(pf: &impl Fn(usize) -> f32) -> [rusqlite::types::Value; 6] {
+    [
         pf(20).into(),
         (pf(20) * pf(21)).into(),
         pf(22).into(),
