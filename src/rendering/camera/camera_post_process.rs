@@ -24,7 +24,7 @@ pub(super) fn additive_particle_glow_bloom(graphics: &GraphicsOptions) -> Option
             threshold: 0.65,
             threshold_softness: 0.1,
         },
-        composite_mode: BloomCompositeMode::Additive,
+        composite_mode: BloomCompositeMode::EnergyConserving,
         max_mip_dimension: Bloom::OLD_SCHOOL.max_mip_dimension,
         scale: Vec2::ONE,
     })

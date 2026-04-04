@@ -97,7 +97,7 @@ impl Default for GraphicsOptions {
         Self {
             particle_density: 100,
             render_scale: 1.0,
-            bloom_enabled: false,
+            bloom_enabled: true,
             bloom_intensity: 0.08,
         }
     }
@@ -425,7 +425,7 @@ const fn default_render_scale() -> f32 {
 }
 
 const fn default_bloom_enabled() -> bool {
-    false
+    true
 }
 
 const fn default_bloom_intensity() -> f32 {
@@ -586,7 +586,7 @@ mod tests {
         let defaults = GraphicsOptions::default();
         assert_eq!(defaults.particle_density, 100);
         assert!((defaults.render_scale - 1.0).abs() < 0.0001);
-        assert!(!defaults.bloom_enabled);
+        assert!(defaults.bloom_enabled);
         assert!((defaults.bloom_intensity - 0.08).abs() < 0.0001);
         assert!((defaults.particle_density_multiplier() - 1.0).abs() < 0.0001);
     }

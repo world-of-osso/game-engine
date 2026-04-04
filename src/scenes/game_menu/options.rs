@@ -565,7 +565,7 @@ mod tests {
 
         reset_category_defaults(&mut model);
 
-        assert!(!model.draft_graphics.bloom_enabled);
+        assert!(model.draft_graphics.bloom_enabled);
         assert!((model.draft_graphics.bloom_intensity - 0.08).abs() < 0.0001);
     }
 }
