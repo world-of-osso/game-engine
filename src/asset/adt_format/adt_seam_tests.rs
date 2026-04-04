@@ -52,42 +52,51 @@ mod tests {
             if tag != b"KNCM" {
                 continue;
             }
-            let index_x =
-                u32::from_le_bytes(payload[0x04..0x08].try_into().expect("index_x bytes"));
-            let index_y =
-                u32::from_le_bytes(payload[0x08..0x0c].try_into().expect("index_y bytes"));
-            let base_y = f32::from_le_bytes(payload[0x70..0x74].try_into().expect("base_y bytes"));
-            let mut heights = None;
-            let mut sub_off = 128usize;
-            while sub_off + 8 <= payload.len() {
-                let sub_tag = &payload[sub_off..sub_off + 4];
-                let sub_size = u32::from_le_bytes(
-                    payload[sub_off + 4..sub_off + 8]
-                        .try_into()
-                        .expect("sub size bytes"),
-                ) as usize;
-                let sub_payload = &payload[sub_off + 8..sub_off + 8 + sub_size];
-                if sub_tag == b"TVCM" {
-                    let mut parsed = [0.0f32; 145];
-                    for (i, h) in parsed.iter_mut().enumerate() {
-                        let start = i * 4;
-                        *h = f32::from_le_bytes(
-                            sub_payload[start..start + 4]
-                                .try_into()
-                                .expect("height bytes"),
-                        );
-                    }
-                    heights = Some(parsed);
-                    break;
-                }
-                sub_off += 8 + sub_size;
-            }
+            let ((index_x, index_y), base_y) = parse_raw_binary_chunk_header(payload);
             chunks.insert(
                 (index_x, index_y),
-                (base_y, heights.expect("MCNK missing TVCM")),
+                (base_y, parse_raw_binary_chunk_heights(payload)),
             );
         }
         chunks
+    }
+
+    fn parse_raw_binary_chunk_header(payload: &[u8]) -> ((u32, u32), f32) {
+        let index_x = u32::from_le_bytes(payload[0x04..0x08].try_into().expect("index_x bytes"));
+        let index_y = u32::from_le_bytes(payload[0x08..0x0c].try_into().expect("index_y bytes"));
+        let base_y = f32::from_le_bytes(payload[0x70..0x74].try_into().expect("base_y bytes"));
+        ((index_x, index_y), base_y)
+    }
+
+    fn parse_raw_binary_chunk_heights(payload: &[u8]) -> [f32; 145] {
+        let mut sub_off = 128usize;
+        while sub_off + 8 <= payload.len() {
+            let sub_tag = &payload[sub_off..sub_off + 4];
+            let sub_size = u32::from_le_bytes(
+                payload[sub_off + 4..sub_off + 8]
+                    .try_into()
+                    .expect("sub size bytes"),
+            ) as usize;
+            let sub_payload = &payload[sub_off + 8..sub_off + 8 + sub_size];
+            if sub_tag == b"TVCM" {
+                return parse_raw_binary_subchunk_heights(sub_payload);
+            }
+            sub_off += 8 + sub_size;
+        }
+        panic!("MCNK missing TVCM");
+    }
+
+    fn parse_raw_binary_subchunk_heights(sub_payload: &[u8]) -> [f32; 145] {
+        let mut parsed = [0.0f32; 145];
+        for (i, h) in parsed.iter_mut().enumerate() {
+            let start = i * 4;
+            *h = f32::from_le_bytes(
+                sub_payload[start..start + 4]
+                    .try_into()
+                    .expect("height bytes"),
+            );
+        }
+        parsed
     }
 
     fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
