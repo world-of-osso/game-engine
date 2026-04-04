@@ -12,6 +12,7 @@ pub struct McnkMesh {
     pub mesh: Mesh,
     pub index_x: u32,
     pub index_y: u32,
+    pub area_id: u32,
     pub shadow_map: Option<[u8; 512]>,
 }
 
@@ -190,6 +191,7 @@ fn build_chunks(
             mesh: build_mcnk_mesh(chunk, tile_coords),
             index_x: chunk.index_x,
             index_y: chunk.index_y,
+            area_id: chunk.area_id,
             shadow_map: chunk.shadow_map,
         })
         .collect()
@@ -382,6 +384,7 @@ mod tests {
             index_y: 0,
             pos: [0.0, 0.0, 0.0],
             flags: super::super::adt_format::adt::McnkFlags::default(),
+            area_id: 0,
             shadow_map: None,
             vertex_lighting: None,
             holes_low_res: 0,
@@ -407,6 +410,7 @@ mod tests {
             index_y: 0,
             pos: [0.0, 0.0, 0.0],
             flags: super::super::adt_format::adt::McnkFlags::default(),
+            area_id: 0,
             shadow_map: None,
             vertex_lighting: Some([[1.5, 0.5, 0.25, 1.0]; 145]),
             holes_low_res: 0,

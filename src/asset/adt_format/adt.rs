@@ -22,6 +22,13 @@ const MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP: u32 = 0x8000;
 const MCNK_FLAG_HIGH_RES_HOLES: u32 = 0x10000;
 
 type AdtChunksResult<'a> = Result<(Vec<&'a [u8]>, Option<&'a [u8]>), String>;
+type McnkSubchunksResult = (
+    [f32; MCVT_COUNT],
+    [[f32; 3]; MCVT_COUNT],
+    [[f32; 4]; MCVT_COUNT],
+    Option<[[f32; 4]; MCVT_COUNT]>,
+    Option<[u8; MCSH_BYTES]>,
+);
 
 #[derive(Clone)]
 pub struct ChunkHeightGrid {
@@ -59,6 +66,7 @@ pub(crate) struct McnkData {
     pub index_y: u32,
     pub pos: [f32; 3],
     pub flags: McnkFlags,
+    pub area_id: u32,
     pub shadow_map: Option<[u8; MCSH_BYTES]>,
     pub vertex_lighting: Option<[[f32; 4]; MCVT_COUNT]>,
     pub holes_low_res: u16,
@@ -279,6 +287,7 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
         index_y: header.index_y,
         pos,
         flags,
+        area_id: header._area_id,
         shadow_map,
         vertex_lighting,
         holes_low_res: header._holes_low_res,
@@ -289,19 +298,7 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     })
 }
 
-fn parse_mcnk_subchunks(
-    sub: &[u8],
-    flags: McnkFlags,
-) -> Result<
-    (
-        [f32; MCVT_COUNT],
-        [[f32; 3]; MCVT_COUNT],
-        [[f32; 4]; MCVT_COUNT],
-        Option<[[f32; 4]; MCVT_COUNT]>,
-        Option<[u8; MCSH_BYTES]>,
-    ),
-    String,
-> {
+fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksResult, String> {
     let mut heights = None;
     let mut normals = None;
     let mut vertex_colors = None;
@@ -681,7 +678,7 @@ mod tests {
     use super::{
         MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP, MCNK_FLAG_HAS_MCCV, MCNK_FLAG_HAS_MCSH,
         MCNK_FLAG_HIGH_RES_HOLES, MCNK_FLAG_IMPASS, MCVT_COUNT, McnkFlags, parse_mccv, parse_mclv,
-        parse_mcnk_subchunks,
+        parse_mcnk, parse_mcnk_subchunks,
     };
 
     #[test]
@@ -749,6 +746,20 @@ mod tests {
         assert_eq!(colors[MCVT_COUNT - 1], [1.0, 1.0, 1.0, 1.0]);
         assert_eq!(vertex_lighting, None);
         assert_eq!(shadow_map, None);
+    }
+
+    #[test]
+    fn parse_mcnk_reads_area_id_from_header() {
+        let mut payload = vec![0; 128];
+        payload[0..4].copy_from_slice(&0u32.to_le_bytes());
+        payload[4..8].copy_from_slice(&3u32.to_le_bytes());
+        payload[8..12].copy_from_slice(&7u32.to_le_bytes());
+        payload[60..64].copy_from_slice(&0x1234_5678u32.to_le_bytes());
+        append_subchunk(&mut payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
+        append_subchunk(&mut payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
+
+        let chunk = parse_mcnk(&payload).expect("expected MCNK header to parse");
+        assert_eq!(chunk.area_id, 0x1234_5678);
     }
 
     #[test]
