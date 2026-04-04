@@ -1,5 +1,7 @@
 use super::*;
 
+const DEBUG_PARTICLE_WHITE_BIND_ONLY_FDID: u32 = u32::MAX - 1;
+
 pub(crate) struct ExprModifiers {
     pub(crate) init: InitModifiers,
     pub(crate) gravity: AccelModifier,
@@ -47,18 +49,12 @@ pub(crate) fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> 
     let (flipbook_sprite_index_init, flipbook_sprite_index_update) =
         build_flipbook_sprite_index_modifiers(em, &writer);
     let mask_cutoff = writer.lit(0.5_f32).expr();
-    let texture = em.texture_fdid.map(|_| ParticleTextureModifier {
-        texture_slot: writer.lit(0u32).expr(),
-        sample_mapping: ImageSampleMapping::Modulate,
-    });
+    let texture = build_texture_modifier(em, &writer);
     let twinkle = build_twinkle_modifier(em);
     let size_variation = build_size_variation_modifier(em);
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
     let orient_rotation = build_orient_rotation_expr(em, &writer);
-    let mut module = writer.finish();
-    if texture.is_some() {
-        module.add_texture_slot("color");
-    }
+    let module = finish_expr_module(writer, texture.is_some());
     ExprModifiers {
         init,
         gravity,
@@ -72,6 +68,26 @@ pub(crate) fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> 
         orient_rotation,
         module,
     }
+}
+
+fn build_texture_modifier(
+    em: &M2ParticleEmitter,
+    writer: &ExprWriter,
+) -> Option<ParticleTextureModifier> {
+    em.texture_fdid
+        .filter(|&fdid| fdid != DEBUG_PARTICLE_WHITE_BIND_ONLY_FDID)
+        .map(|_| ParticleTextureModifier {
+            texture_slot: writer.lit(0u32).expr(),
+            sample_mapping: ImageSampleMapping::Modulate,
+        })
+}
+
+fn finish_expr_module(writer: ExprWriter, needs_texture_slot: bool) -> Module {
+    let mut module = writer.finish();
+    if needs_texture_slot {
+        module.add_texture_slot("color");
+    }
+    module
 }
 
 pub(crate) fn add_optional_init_modifiers(
