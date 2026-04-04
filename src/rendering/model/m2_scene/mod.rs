@@ -195,7 +195,7 @@ fn load_m2_model_with_skin_fdids(
     m2_path: &Path,
     skin_fdids: &[u32; 3],
 ) -> Option<asset::m2::M2Model> {
-    asset::m2::load_m2_uncached(m2_path, &skin_fdids)
+    asset::m2::load_m2(m2_path, &skin_fdids)
         .map_err(|e| {
             eprintln!("Failed to load M2 {}: {e}", m2_path.display());
         })
@@ -462,9 +462,10 @@ pub fn attach_bone_pivots_and_player(
 
 #[cfg(test)]
 mod tests {
-    use super::visual_root_entity;
+    use super::{load_m2_model_with_skin_fdids, visual_root_entity};
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn skybox_visual_root_skips_grounding_even_with_nonzero_offset() {
@@ -500,5 +501,47 @@ mod tests {
 
         let grounded_name = world.get::<Name>(grounded_root).map(Name::as_str);
         assert_eq!(grounded_name, Some("GroundedModelRoot"));
+    }
+
+    #[test]
+    fn static_m2_scene_load_uses_model_cache() {
+        let Some((model_path, _skin_path)) = copy_torch_model_to_temp() else {
+            return;
+        };
+        let cache_entries_before = crate::asset::m2::model_cache_stats().entries;
+
+        let first = load_m2_model_with_skin_fdids(&model_path, &[0, 0, 0]);
+        let cache_entries_after_first = crate::asset::m2::model_cache_stats().entries;
+
+        let second = load_m2_model_with_skin_fdids(&model_path, &[0, 0, 0]);
+        let cache_entries_after_second = crate::asset::m2::model_cache_stats().entries;
+
+        assert!(first.is_some());
+        assert!(second.is_some());
+        assert_eq!(cache_entries_after_first, cache_entries_before + 1);
+        assert_eq!(cache_entries_after_second, cache_entries_after_first);
+    }
+
+    fn copy_torch_model_to_temp() -> Option<(PathBuf, PathBuf)> {
+        let source_model = Path::new("data/models/club_1h_torch_a_01.m2");
+        let source_skin = Path::new("data/models/club_1h_torch_a_0100.skin");
+        if !source_model.exists() || !source_skin.exists() {
+            return None;
+        }
+        let unique = format!(
+            "m2_scene_cache_test_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system time")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(unique);
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let model_path = temp_dir.join("club_1h_torch_a_01.m2");
+        let skin_path = temp_dir.join("club_1h_torch_a_0100.skin");
+        std::fs::copy(source_model, &model_path).expect("copy temp torch model");
+        std::fs::copy(source_skin, &skin_path).expect("copy temp torch skin");
+        Some((model_path, skin_path))
     }
 }

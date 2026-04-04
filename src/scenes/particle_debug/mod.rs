@@ -42,7 +42,7 @@ struct ParticleDebugSceneParams<'w, 's> {
 }
 
 fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
-    commands.insert_resource(ClearColor(Color::srgb(0.14, 0.17, 0.22)));
+    commands.insert_resource(ClearColor(Color::srgb(0.0, 1.0, 0.0)));
     spawn_camera(&mut commands);
     spawn_lighting(&mut commands);
     spawn_ground(&mut commands, &mut params.meshes, &mut params.materials);
@@ -72,10 +72,10 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
 }
 
 fn spawn_camera(commands: &mut Commands) {
-    let focus = Vec3::new(0.0, 1.1, 0.0);
-    let mut orbit = OrbitCamera::new(focus, 1.1);
-    orbit.min_distance = 0.45;
-    orbit.max_distance = 6.0;
+    let focus = Vec3::new(0.0, 3.0, 0.0);
+    let mut orbit = OrbitCamera::new(focus, 8.0);
+    orbit.min_distance = 2.0;
+    orbit.max_distance = 30.0;
     let eye = orbit.eye_position();
     commands.spawn((
         Name::new("ParticleDebugCamera"),
@@ -152,7 +152,7 @@ fn spawn_torch(commands: &mut Commands, ctx: ParticleDebugTorchContext<'_>) {
     m2_scene::spawn_animated_static_m2_parts_with_skin_fdids(
         &mut ctx,
         &path,
-        Transform::from_xyz(0.0, 0.02, 0.0).with_scale(Vec3::splat(18.0)),
+        Transform::from_xyz(0.0, 0.02, 0.0).with_scale(Vec3::splat(6.0)),
         &skin_fdids,
     );
 }
@@ -197,7 +197,7 @@ fn spawn_emitter_overlay(commands: &mut Commands, skin_fdids: &[u32; 3]) {
 }
 
 fn load_emitter_overlay_text(path: &Path, skin_fdids: &[u32; 3]) -> Result<String, String> {
-    let model = asset::m2::load_m2_uncached(path, skin_fdids)
+    let model = asset::m2::load_m2(path, skin_fdids)
         .map_err(|error| format!("failed to load {}: {error}", path.display()))?;
     Ok(format_particle_overlay(&model.particle_emitters))
 }
@@ -299,6 +299,7 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<ParticleDebu
 mod tests {
     use super::format_particle_overlay;
     use crate::asset::m2_particle::M2ParticleEmitter;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn particle_overlay_lists_key_emitter_fields() {
@@ -317,5 +318,49 @@ mod tests {
         assert!(text.contains("blend=4"));
         assert!(text.contains("life=1.250"));
         assert!(text.contains("tex=Some(145513)"));
+    }
+
+    #[test]
+    fn emitter_overlay_load_uses_model_cache() {
+        let Some((model_path, _skin_path)) = copy_torch_model_to_temp() else {
+            return;
+        };
+        let cache_entries_before = crate::asset::m2::model_cache_stats().entries;
+
+        let text = super::load_emitter_overlay_text(&model_path, &[0, 0, 0])
+            .expect("overlay text should load from cached M2 path");
+        let cache_entries_after_first = crate::asset::m2::model_cache_stats().entries;
+
+        let second_text = super::load_emitter_overlay_text(&model_path, &[0, 0, 0])
+            .expect("overlay text should reuse cached M2 path");
+        let cache_entries_after_second = crate::asset::m2::model_cache_stats().entries;
+
+        assert!(!text.is_empty());
+        assert_eq!(text, second_text);
+        assert_eq!(cache_entries_after_first, cache_entries_before + 1);
+        assert_eq!(cache_entries_after_second, cache_entries_after_first);
+    }
+
+    fn copy_torch_model_to_temp() -> Option<(PathBuf, PathBuf)> {
+        let source_model = Path::new(super::TORCH_M2);
+        let source_skin = Path::new("data/models/club_1h_torch_a_0100.skin");
+        if !source_model.exists() || !source_skin.exists() {
+            return None;
+        }
+        let unique = format!(
+            "particle_debug_cache_test_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system time")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(unique);
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let model_path = temp_dir.join("club_1h_torch_a_01.m2");
+        let skin_path = temp_dir.join("club_1h_torch_a_0100.skin");
+        std::fs::copy(source_model, &model_path).expect("copy temp torch model");
+        std::fs::copy(source_skin, &skin_path).expect("copy temp torch skin");
+        Some((model_path, skin_path))
     }
 }
