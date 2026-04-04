@@ -249,37 +249,42 @@ fn main_action_bar() -> Element {
 }
 
 fn bottom_action_bars() -> Element {
-    [
-        action_bar_root(
-            FrameName("MultiBarBottomLeft"),
-            FrameName("MultiBarBottomLeftMoverLabel"),
-            "Bottom Left Action Bar",
-            true,
-            slot_buttons(
-                "MultiBarBottomLeftButtonContainer",
-                "MultiBarBottomLeftButton",
-                false,
-                EXTRA_BUTTON_ATLAS,
-                EXTRA_BUTTON_PRESSED_ATLAS,
-            ),
+    [bottom_left_action_bar(), bottom_right_action_bar()]
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+fn bottom_left_action_bar() -> Element {
+    action_bar_root(
+        FrameName("MultiBarBottomLeft"),
+        FrameName("MultiBarBottomLeftMoverLabel"),
+        "Bottom Left Action Bar",
+        true,
+        slot_buttons(
+            "MultiBarBottomLeftButtonContainer",
+            "MultiBarBottomLeftButton",
+            false,
+            EXTRA_BUTTON_ATLAS,
+            EXTRA_BUTTON_PRESSED_ATLAS,
         ),
-        action_bar_root(
-            FrameName("MultiBarBottomRight"),
-            FrameName("MultiBarBottomRightMoverLabel"),
-            "Bottom Right Action Bar",
-            true,
-            slot_buttons(
-                "MultiBarBottomRightButtonContainer",
-                "MultiBarBottomRightButton",
-                false,
-                EXTRA_BUTTON_ATLAS,
-                EXTRA_BUTTON_PRESSED_ATLAS,
-            ),
+    )
+}
+
+fn bottom_right_action_bar() -> Element {
+    action_bar_root(
+        FrameName("MultiBarBottomRight"),
+        FrameName("MultiBarBottomRightMoverLabel"),
+        "Bottom Right Action Bar",
+        true,
+        slot_buttons(
+            "MultiBarBottomRightButtonContainer",
+            "MultiBarBottomRightButton",
+            false,
+            EXTRA_BUTTON_ATLAS,
+            EXTRA_BUTTON_PRESSED_ATLAS,
         ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    )
 }
 
 fn side_action_bars() -> Element {
