@@ -69,6 +69,14 @@ pub(crate) struct ModelParticleInstance {
     lifetime: f32,
 }
 
+struct ModelParticleInstanceState {
+    transform: Transform,
+    velocity: Vec3,
+    angular_velocity: Vec3,
+    acceleration: Vec3,
+    lifetime: f32,
+}
+
 #[derive(SystemParam)]
 pub(crate) struct ModelParticleSpawnParams<'w, 's> {
     meshes: ResMut<'w, Assets<Mesh>>,
@@ -704,15 +712,45 @@ fn spawn_model_particle_instance(
 ) {
     let seed = runtime.spawn_serial;
     runtime.spawn_serial = runtime.spawn_serial.wrapping_add(1);
-    let transform = model_particle_spawn_transform(&emitter.emitter, emitter_transform, seed);
-    let lifetime = sample_model_particle_lifetime(&emitter.emitter, seed);
-    let velocity = sample_model_particle_velocity(
-        &emitter.emitter,
-        emitter_transform.compute_transform().scale.x,
-        seed,
-    );
-    let acceleration = gravity_accel_bevy(&emitter.emitter);
-    let angular_velocity = model_particle_angular_velocity(&emitter.emitter, seed);
+    let instance = build_model_particle_instance_state(&emitter.emitter, emitter_transform, seed);
+    let Some(spawned_root) =
+        spawn_model_particle_root(commands, spawn_params, model_path, instance.transform)
+    else {
+        return;
+    };
+    commands.entity(spawned_root).insert(ModelParticleInstance {
+        velocity: instance.velocity,
+        angular_velocity: instance.angular_velocity,
+        acceleration: instance.acceleration,
+        age: 0.0,
+        lifetime: instance.lifetime,
+    });
+}
+
+fn build_model_particle_instance_state(
+    emitter: &M2ParticleEmitter,
+    emitter_transform: &GlobalTransform,
+    seed: u32,
+) -> ModelParticleInstanceState {
+    ModelParticleInstanceState {
+        transform: model_particle_spawn_transform(emitter, emitter_transform, seed),
+        velocity: sample_model_particle_velocity(
+            emitter,
+            emitter_transform.compute_transform().scale.x,
+            seed,
+        ),
+        angular_velocity: model_particle_angular_velocity(emitter, seed),
+        acceleration: gravity_accel_bevy(emitter),
+        lifetime: sample_model_particle_lifetime(emitter, seed),
+    }
+}
+
+fn spawn_model_particle_root(
+    commands: &mut Commands,
+    spawn_params: &mut ModelParticleSpawnParams<'_, '_>,
+    model_path: &Path,
+    transform: Transform,
+) -> Option<Entity> {
     let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
         assets: m2_spawn::SpawnAssets {
@@ -725,19 +763,8 @@ fn spawn_model_particle_instance(
         },
         creature_display_map: &spawn_params.creature_display_map,
     };
-    let Some(spawned) = m2_scene::spawn_animated_static_m2_parts(&mut ctx, model_path, transform)
-    else {
-        return;
-    };
-    ctx.commands
-        .entity(spawned.root)
-        .insert(ModelParticleInstance {
-            velocity,
-            angular_velocity,
-            acceleration,
-            age: 0.0,
-            lifetime,
-        });
+    m2_scene::spawn_animated_static_m2_parts(&mut ctx, model_path, transform)
+        .map(|spawned| spawned.root)
 }
 
 fn model_particle_spawn_transform(
