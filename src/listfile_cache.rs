@@ -300,23 +300,9 @@ fn source_mtime(path: &Path) -> Result<i64, String> {
 mod tests {
     use super::*;
 
-    fn temp_test_dir(label: &str) -> PathBuf {
-        let unique = format!(
-            "game-engine-{label}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        let path = std::env::temp_dir().join(unique);
-        std::fs::create_dir_all(&path).unwrap();
-        path
-    }
-
     #[test]
     fn lookup_path_round_trips_sqlite_cache() {
-        let dir = temp_test_dir("listfile-cache");
+        let dir = crate::test_harness::temp_test_dir("listfile-cache");
         let source = dir.join("community-listfile.csv");
         let cache = dir.join("community-listfile.sqlite");
         std::fs::write(

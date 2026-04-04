@@ -2,9 +2,6 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-#[cfg(test)]
-use std::time::UNIX_EPOCH;
-
 use crate::cache_source_mtime::csv_mtime;
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
@@ -450,23 +447,9 @@ fn header_index(headers: &[&str], column: &str, path: &Path) -> Result<usize, St
 mod tests {
     use super::*;
 
-    fn temp_test_dir(label: &str) -> PathBuf {
-        let unique = format!(
-            "game-engine-{label}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        let path = std::env::temp_dir().join(unique);
-        std::fs::create_dir_all(&path).unwrap();
-        path
-    }
-
     #[test]
     fn import_and_query_creature_display() {
-        let dir = temp_test_dir("creature-display-cache");
+        let dir = game_engine::test_harness::temp_test_dir("creature-display-cache");
         let display_path = dir.join("CreatureDisplayInfo.csv");
         let model_path = dir.join("CreatureModelData.csv");
         std::fs::write(

@@ -1,9 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-#[cfg(test)]
-use std::time::UNIX_EPOCH;
-
 use crate::cache_source_mtime::csv_mtime;
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
@@ -267,23 +264,9 @@ fn skip_header(reader: &mut BufReader<std::fs::File>, path: &Path) -> Result<(),
 mod tests {
     use super::*;
 
-    fn temp_test_dir(label: &str) -> PathBuf {
-        let unique = format!(
-            "game-engine-{label}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        let path = std::env::temp_dir().join(unique);
-        std::fs::create_dir_all(&path).unwrap();
-        path
-    }
-
     #[test]
     fn load_light_entries_round_trips_cache() {
-        let dir = temp_test_dir("light-cache");
+        let dir = game_engine::test_harness::temp_test_dir("light-cache");
         let csv_path = dir.join("Light.csv");
         std::fs::write(
             &csv_path,

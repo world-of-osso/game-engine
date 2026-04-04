@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::path::PathBuf;
 use std::time::Duration;
 
 /// Build a minimal headless Bevy app for tests and benchmarks.
@@ -42,6 +43,20 @@ pub fn percentile_duration(samples: &[Duration], percentile: f64) -> Option<Dura
 /// Convenience wrapper for 99th percentile duration.
 pub fn p99_duration(samples: &[Duration]) -> Option<Duration> {
     percentile_duration(samples, 0.99)
+}
+
+pub fn temp_test_dir(label: &str) -> PathBuf {
+    let unique = format!(
+        "game-engine-{label}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let path = std::env::temp_dir().join(unique);
+    std::fs::create_dir_all(&path).unwrap();
+    path
 }
 
 #[cfg(test)]

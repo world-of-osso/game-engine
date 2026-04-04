@@ -323,23 +323,9 @@ fn source_mtime(path: &Path) -> Result<i64, String> {
 mod tests {
     use super::*;
 
-    fn temp_test_dir(label: &str) -> PathBuf {
-        let unique = format!(
-            "game-engine-{label}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        let path = std::env::temp_dir().join(unique);
-        std::fs::create_dir_all(&path).unwrap();
-        path
-    }
-
     #[test]
     fn particle_color_cache_round_trips_local_csv() {
-        let dir = temp_test_dir("particle-color-cache");
+        let dir = crate::test_harness::temp_test_dir("particle-color-cache");
         let csv_path = dir.join("ParticleColor.csv");
         let cache_path = dir.join("particle_color.sqlite");
         std::fs::write(
@@ -372,7 +358,7 @@ mod tests {
 
     #[test]
     fn particle_color_cache_import_reuses_fresh_cache() {
-        let dir = temp_test_dir("particle-color-reuse");
+        let dir = crate::test_harness::temp_test_dir("particle-color-reuse");
         let csv_path = dir.join("ParticleColor.csv");
         let cache_path = dir.join("particle_color.sqlite");
         std::fs::write(
