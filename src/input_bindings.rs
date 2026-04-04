@@ -495,40 +495,60 @@ fn input_action_meta(
 
 pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
     match section {
-        BindingSection::Movement => &[
-            InputAction::MoveForward,
-            InputAction::MoveBackward,
-            InputAction::StrafeLeft,
-            InputAction::StrafeRight,
-            InputAction::Jump,
-            InputAction::RunToggle,
-            InputAction::AutoRun,
-        ],
-        BindingSection::Camera => &[
-            InputAction::TurnLeft,
-            InputAction::TurnRight,
-            InputAction::PitchUp,
-            InputAction::PitchDown,
-            InputAction::ZoomIn,
-            InputAction::ZoomOut,
-        ],
-        BindingSection::Targeting => &[InputAction::TargetNearest, InputAction::TargetSelf],
-        BindingSection::ActionBar => &[
-            InputAction::ActionSlot1,
-            InputAction::ActionSlot2,
-            InputAction::ActionSlot3,
-            InputAction::ActionSlot4,
-            InputAction::ActionSlot5,
-            InputAction::ActionSlot6,
-            InputAction::ActionSlot7,
-            InputAction::ActionSlot8,
-            InputAction::ActionSlot9,
-            InputAction::ActionSlot10,
-            InputAction::ActionSlot11,
-            InputAction::ActionSlot12,
-        ],
-        BindingSection::Audio => &[InputAction::ToggleMute],
+        BindingSection::Movement => movement_section_actions(),
+        BindingSection::Camera => camera_section_actions(),
+        BindingSection::Targeting => targeting_section_actions(),
+        BindingSection::ActionBar => action_bar_section_actions(),
+        BindingSection::Audio => audio_section_actions(),
     }
+}
+
+fn movement_section_actions() -> &'static [InputAction] {
+    &[
+        InputAction::MoveForward,
+        InputAction::MoveBackward,
+        InputAction::StrafeLeft,
+        InputAction::StrafeRight,
+        InputAction::Jump,
+        InputAction::RunToggle,
+        InputAction::AutoRun,
+    ]
+}
+
+fn camera_section_actions() -> &'static [InputAction] {
+    &[
+        InputAction::TurnLeft,
+        InputAction::TurnRight,
+        InputAction::PitchUp,
+        InputAction::PitchDown,
+        InputAction::ZoomIn,
+        InputAction::ZoomOut,
+    ]
+}
+
+fn targeting_section_actions() -> &'static [InputAction] {
+    &[InputAction::TargetNearest, InputAction::TargetSelf]
+}
+
+fn action_bar_section_actions() -> &'static [InputAction] {
+    &[
+        InputAction::ActionSlot1,
+        InputAction::ActionSlot2,
+        InputAction::ActionSlot3,
+        InputAction::ActionSlot4,
+        InputAction::ActionSlot5,
+        InputAction::ActionSlot6,
+        InputAction::ActionSlot7,
+        InputAction::ActionSlot8,
+        InputAction::ActionSlot9,
+        InputAction::ActionSlot10,
+        InputAction::ActionSlot11,
+        InputAction::ActionSlot12,
+    ]
+}
+
+fn audio_section_actions() -> &'static [InputAction] {
+    &[InputAction::ToggleMute]
 }
 
 fn binding_token(binding: InputBinding) -> String {
