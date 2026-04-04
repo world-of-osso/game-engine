@@ -308,7 +308,15 @@ fn dispatch_resolved_click(
     if dispatch_optional_ui_click(parsed, ui, login, status, login_mode, commands) {
         return Ok(());
     }
-    if ui.registry.focused_frame == Some(frame_id) {
+    finish_unhandled_click(&ui.registry, frame_name, frame_id)
+}
+
+fn finish_unhandled_click(
+    registry: &FrameRegistry,
+    frame_name: &str,
+    frame_id: u64,
+) -> Result<(), String> {
+    if registry.focused_frame == Some(frame_id) {
         return Ok(());
     }
     Err(format!("login frame '{frame_name}' has no onclick action"))
