@@ -78,11 +78,16 @@ fn build_mcnk_geometry(
         normals_out.push(chunk.normals[i]);
         uvs.push(terrain_vertex_uv(grid_row, col));
     }
+    let holes_high_res = if chunk.flags.high_res_holes {
+        chunk.holes_high_res
+    } else {
+        None
+    };
     (
         positions,
         normals_out,
         uvs,
-        build_mcnk_indices(chunk.holes_low_res, chunk.holes_high_res),
+        build_mcnk_indices(chunk.holes_low_res, holes_high_res),
     )
 }
 
@@ -352,6 +357,7 @@ mod tests {
             index_x: 0,
             index_y: 0,
             pos: [0.0, 0.0, 0.0],
+            flags: super::super::adt_format::adt::McnkFlags::default(),
             holes_low_res: 0,
             holes_high_res: None,
             heights: [0.0; 145],
