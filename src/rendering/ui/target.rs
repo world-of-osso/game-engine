@@ -8,6 +8,9 @@ use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
 use game_engine::input_bindings::{InputAction, InputBindings};
 
+type RemoteTargetQuery<'w, 's> =
+    Query<'w, 's, (Entity, &'static Transform), (With<RemoteEntity>, Without<Player>)>;
+
 #[path = "target_visuals.rs"]
 mod target_visuals;
 
@@ -156,12 +159,11 @@ fn click_to_target(
 }
 
 /// On Tab, cycle through nearby RemoteEntity sorted by distance from local player.
-#[allow(clippy::type_complexity)]
 fn tab_target(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     player_q: Query<&Transform, With<Player>>,
-    remote_q: Query<(Entity, &Transform), (With<RemoteEntity>, Without<Player>)>,
+    remote_q: RemoteTargetQuery<'_, '_>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
@@ -181,10 +183,9 @@ fn tab_target(
 }
 
 /// Sort remote entities by distance from player, return entity list.
-#[allow(clippy::type_complexity)]
 fn sorted_targets_by_distance(
     player_tf: &Transform,
-    remote_q: &Query<(Entity, &Transform), (With<RemoteEntity>, Without<Player>)>,
+    remote_q: &RemoteTargetQuery<'_, '_>,
 ) -> Vec<Entity> {
     let mut entities: Vec<(Entity, f32)> = remote_q
         .iter()
