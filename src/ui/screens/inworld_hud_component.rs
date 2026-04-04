@@ -288,37 +288,42 @@ fn bottom_right_action_bar() -> Element {
 }
 
 fn side_action_bars() -> Element {
-    [
-        action_bar_root(
-            FrameName("MultiBarRight"),
-            FrameName("MultiBarRightMoverLabel"),
-            "Right Action Bar",
-            true,
-            slot_buttons(
-                "MultiBarRightButtonContainer",
-                "MultiBarRightButton",
-                false,
-                EXTRA_BUTTON_ATLAS,
-                EXTRA_BUTTON_PRESSED_ATLAS,
-            ),
+    [right_action_bar(), left_action_bar()]
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+fn right_action_bar() -> Element {
+    action_bar_root(
+        FrameName("MultiBarRight"),
+        FrameName("MultiBarRightMoverLabel"),
+        "Right Action Bar",
+        true,
+        slot_buttons(
+            "MultiBarRightButtonContainer",
+            "MultiBarRightButton",
+            false,
+            EXTRA_BUTTON_ATLAS,
+            EXTRA_BUTTON_PRESSED_ATLAS,
         ),
-        action_bar_root(
-            FrameName("MultiBarLeft"),
-            FrameName("MultiBarLeftMoverLabel"),
-            "Left Action Bar",
-            true,
-            slot_buttons(
-                "MultiBarLeftButtonContainer",
-                "MultiBarLeftButton",
-                false,
-                EXTRA_BUTTON_ATLAS,
-                EXTRA_BUTTON_PRESSED_ATLAS,
-            ),
+    )
+}
+
+fn left_action_bar() -> Element {
+    action_bar_root(
+        FrameName("MultiBarLeft"),
+        FrameName("MultiBarLeftMoverLabel"),
+        "Left Action Bar",
+        true,
+        slot_buttons(
+            "MultiBarLeftButtonContainer",
+            "MultiBarLeftButton",
+            false,
+            EXTRA_BUTTON_ATLAS,
+            EXTRA_BUTTON_PRESSED_ATLAS,
         ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    )
 }
 
 fn action_bar_overlays() -> Element {
