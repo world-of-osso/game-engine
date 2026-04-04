@@ -191,6 +191,15 @@ struct SpawnedAdtContent {
     spawned_fog_volumes: terrain_objects::SpawnedFogVolumes,
 }
 
+struct TerrainOnlySpawnInputs {
+    map_name: String,
+    tile_y: u32,
+    tile_x: u32,
+    tile: AdtTile,
+    adt_data: adt::AdtData,
+    tex_data: Option<adt::AdtTexData>,
+}
+
 /// Load an ADT file, build meshes, and spawn them into the Bevy scene.
 pub fn spawn_adt(
     assets: &mut AdtSpawnAssets<'_, '_, '_>,
@@ -345,52 +354,83 @@ pub fn spawn_adt_terrain_only(
     heightmap: &mut TerrainHeightmap,
     adt_path: &Path,
 ) -> Result<AdtSpawnResult, String> {
+    let inputs = load_terrain_only_spawn_inputs(adt_path)?;
+    let root = spawn_terrain_only_content(assets, heightmap, adt_path, &inputs);
+    Ok(build_terrain_only_spawn_result(inputs, root))
+}
+
+fn load_terrain_only_spawn_inputs(adt_path: &Path) -> Result<TerrainOnlySpawnInputs, String> {
     let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
-    let tile = AdtTile {
-        _tile_x: tile_x,
-        _tile_y: tile_y,
-    };
-    let adt_data = load_and_parse_adt(adt_path)?;
-    let tex_data = load_tex0(adt_path);
-    let ground_images = tex_data
+    Ok(TerrainOnlySpawnInputs {
+        map_name,
+        tile_y,
+        tile_x,
+        tile: AdtTile {
+            _tile_x: tile_x,
+            _tile_y: tile_y,
+        },
+        adt_data: load_and_parse_adt(adt_path)?,
+        tex_data: load_tex0(adt_path),
+    })
+}
+
+fn spawn_terrain_only_content(
+    assets: &mut TerrainOnlySpawnAssets<'_, '_, '_>,
+    heightmap: &mut TerrainHeightmap,
+    adt_path: &Path,
+    inputs: &TerrainOnlySpawnInputs,
+) -> Entity {
+    let ground_images = inputs
+        .tex_data
         .as_ref()
         .map(|td| terrain_material::load_ground_images(assets.images, td, adt_path));
     eprintln!("build_terrain_materials {}", adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
         assets.terrain_materials,
         assets.images,
-        tex_data.as_ref(),
+        inputs.tex_data.as_ref(),
         ground_images.as_deref(),
     );
     let root = spawn_chunk_entities(
         assets.commands,
         assets.meshes,
         &chunk_materials,
-        &adt_data,
-        &tile,
+        &inputs.adt_data,
+        &inputs.tile,
     );
     spawn_water(
         assets.commands,
         assets.meshes,
         assets.water_materials,
         assets.images,
-        &adt_data,
+        &inputs.adt_data,
     );
-    heightmap.register_tile(tile_y, tile_x, &adt_data, tex_data.as_ref());
-    log_adt_spawn(&adt_data, adt_path);
+    heightmap.register_tile(
+        inputs.tile_y,
+        inputs.tile_x,
+        &inputs.adt_data,
+        inputs.tex_data.as_ref(),
+    );
+    log_adt_spawn(&inputs.adt_data, adt_path);
+    root
+}
 
-    let (camera, center) = compute_spawn_result(&adt_data, None);
-    Ok(AdtSpawnResult {
+fn build_terrain_only_spawn_result(
+    inputs: TerrainOnlySpawnInputs,
+    root_entity: Entity,
+) -> AdtSpawnResult {
+    let (camera, center) = compute_spawn_result(&inputs.adt_data, None);
+    AdtSpawnResult {
         camera,
         center,
-        root_entity: root,
+        root_entity,
         doodad_count: 0,
         wmo_entities: Vec::new(),
         spawned_object_entities: Vec::new(),
-        tile_y,
-        tile_x,
-        map_name,
-    })
+        tile_y: inputs.tile_y,
+        tile_x: inputs.tile_x,
+        map_name: inputs.map_name,
+    }
 }
 
 #[cfg(test)]
