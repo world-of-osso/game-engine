@@ -220,48 +220,66 @@ fn selection_row(index: usize, entry: &SelectionDebugEntry, selected: bool) -> E
             height: 80.0,
             onclick: SelectionDebugAction::SelectEntry(index),
             background_color: {background},
-            r#frame {
-                name: {row_selected_name(index)},
-                width: 402.0,
-                height: 4.0,
-                hidden: hide_selected,
-                background_color: ROW_ACCENT,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                }
+            {selection_row_selected_accent(index, hide_selected)}
+            {selection_row_label(index, &entry.label)}
+            {selection_row_subtitle(index, &entry.subtitle)}
+        }
+    }
+}
+
+fn selection_row_selected_accent(index: usize, hide_selected: bool) -> Element {
+    rsx! {
+        r#frame {
+            name: {row_selected_name(index)},
+            width: 402.0,
+            height: 4.0,
+            hidden: hide_selected,
+            background_color: ROW_ACCENT,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
             }
-            fontstring {
-                name: {row_label_name(index)},
-                width: 340.0,
-                height: 28.0,
-                text: {&entry.label},
-                font: GameFont::FrizQuadrata,
-                font_size: 20.0,
-                font_color: TEXT_GOLD,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "16",
-                    y: "-14",
-                }
+        }
+    }
+}
+
+fn selection_row_label(index: usize, label: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {row_label_name(index)},
+            width: 340.0,
+            height: 28.0,
+            text: {label},
+            font: GameFont::FrizQuadrata,
+            font_size: 20.0,
+            font_color: TEXT_GOLD,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "16",
+                y: "-14",
             }
-            fontstring {
-                name: {row_subtitle_name(index)},
-                width: 360.0,
-                height: 18.0,
-                text: {&entry.subtitle},
-                font: GameFont::FrizQuadrata,
-                font_size: 13.0,
-                font_color: TEXT_SUBTITLE,
-                justify_h: JustifyH::Left,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "16",
-                    y: "-42",
-                }
+        }
+    }
+}
+
+fn selection_row_subtitle(index: usize, subtitle: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {row_subtitle_name(index)},
+            width: 360.0,
+            height: 18.0,
+            text: {subtitle},
+            font: GameFont::FrizQuadrata,
+            font_size: 13.0,
+            font_color: TEXT_SUBTITLE,
+            justify_h: JustifyH::Left,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "16",
+                y: "-42",
             }
         }
     }
