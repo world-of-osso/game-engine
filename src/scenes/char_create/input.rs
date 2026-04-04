@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui_input::walk_up_for_onclick;
 
 const MALE: u8 = 0;
 const FEMALE: u8 = 1;
@@ -68,21 +69,6 @@ pub(super) fn char_create_mouse_input(
 fn find_clicked_action(ui: &UiState, mx: f32, my: f32) -> Option<String> {
     let hit_id = ui_toolkit::input::find_frame_at(&ui.registry, mx, my)?;
     walk_up_for_onclick(&ui.registry, hit_id)
-}
-
-fn walk_up_for_onclick(reg: &FrameRegistry, mut id: u64) -> Option<String> {
-    loop {
-        if let Some(frame) = reg.get(id) {
-            if let Some(ref action) = frame.onclick {
-                return Some(action.clone());
-            }
-            if let Some(parent) = frame.parent_id {
-                id = parent;
-                continue;
-            }
-        }
-        return None;
-    }
 }
 
 fn dispatch_action(

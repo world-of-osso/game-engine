@@ -5,7 +5,6 @@ use lightyear::prelude::*;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::plugin::UiState;
-use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::CharSelectAction;
 use shared::protocol::{AuthChannel, DeleteCharacter, SelectCharacter};
 
@@ -14,6 +13,7 @@ use crate::networking::CharacterList;
 use crate::scenes::char_select::{
     CampsitePanelVisible, CharSelectFocus, CharSelectUi, SelectedCharIndex,
 };
+use crate::ui_input::walk_up_for_onclick;
 
 #[derive(Message)]
 pub(crate) struct CharSelectClickEvent(pub String);
@@ -217,21 +217,6 @@ pub(crate) fn cursor_pos(windows: &Query<&Window>) -> Option<Vec2> {
 pub(crate) fn find_clicked_action(ui: &UiState, mx: f32, my: f32) -> Option<String> {
     let hit_id = ui_toolkit::input::find_frame_at(&ui.registry, mx, my)?;
     walk_up_for_onclick(&ui.registry, hit_id)
-}
-
-pub(crate) fn walk_up_for_onclick(reg: &FrameRegistry, mut id: u64) -> Option<String> {
-    loop {
-        if let Some(frame) = reg.get(id) {
-            if let Some(ref action) = frame.onclick {
-                return Some(action.clone());
-            }
-            if let Some(parent) = frame.parent_id {
-                id = parent;
-                continue;
-            }
-        }
-        return None;
-    }
 }
 
 pub(crate) fn try_enter_world(

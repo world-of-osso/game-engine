@@ -56,6 +56,7 @@ mod status_asset_stats;
 mod status_map_sync;
 mod status_sync;
 mod trash_button_screen;
+mod ui_input;
 
 pub(crate) use game::{
     client_options, creature_display, equipment, equipment_appearance, game_state, networking,
