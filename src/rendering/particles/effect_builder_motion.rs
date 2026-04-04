@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_hanabi::prelude::*;
 
 #[path = "effect_builder_motion_shared.rs"]
@@ -36,15 +37,34 @@ pub(crate) fn wind_strength_at_age(age: f32, wind_time: f32) -> f32 {
     }
 }
 
+pub(crate) const DEBUG_PARTICLE_WHITE_TEXTURE_FDID: u32 = u32::MAX;
+
 pub(crate) fn load_emitter_texture(
     em: &M2ParticleEmitter,
     images: &mut Assets<Image>,
 ) -> Option<Handle<Image>> {
     let fdid = em.texture_fdid?;
+    if fdid == DEBUG_PARTICLE_WHITE_TEXTURE_FDID {
+        return Some(images.add(debug_particle_white_image()));
+    }
     let path = PathBuf::from(format!("data/textures/{fdid}.blp"));
     if !path.exists() {
         return None;
     }
     let image = blp::load_blp_gpu_image(&path).ok()?;
     Some(images.add(image))
+}
+
+fn debug_particle_white_image() -> Image {
+    Image::new(
+        Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        vec![255, 255, 255, 255],
+        TextureFormat::Rgba8UnormSrgb,
+        bevy::asset::RenderAssetUsages::RENDER_WORLD,
+    )
 }

@@ -17,9 +17,41 @@ use crate::m2_scene;
 use crate::orbit_camera::OrbitCamera;
 
 const TORCH_M2: &str = "data/models/club_1h_torch_a_01.m2";
+const PARTICLE_DEBUG_WHITE_TEXTURE_FDID: u32 = u32::MAX;
+const PARTICLE_DEBUG_EMITTER_STAGE: ParticleDebugEmitterStage =
+    ParticleDebugEmitterStage::Basic;
 
 #[derive(Component)]
 struct ParticleDebugScene;
+
+#[derive(Clone, Copy, Debug)]
+enum ParticleDebugEmitterStage {
+    Off,
+    Basic,
+    SyntheticTextureAlpha,
+    TexturedAlpha,
+    TexturedBlend,
+    AuthoredCurves,
+    Flipbook,
+    MotionVariation,
+    Full,
+}
+
+impl ParticleDebugEmitterStage {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Basic => "basic",
+            Self::SyntheticTextureAlpha => "synthetic-texture-alpha",
+            Self::TexturedAlpha => "textured-alpha",
+            Self::TexturedBlend => "textured-blend",
+            Self::AuthoredCurves => "authored-curves",
+            Self::Flipbook => "flipbook",
+            Self::MotionVariation => "motion-variation",
+            Self::Full => "full",
+        }
+    }
+}
 
 pub struct ParticleDebugScenePlugin;
 
@@ -96,14 +128,150 @@ fn setup_scene(mut commands: Commands, mut params: ParticleDebugSceneParams) {
             return;
         }
     };
-    spawn_emitter_overlay_from_emitters(&mut commands, &model.particle_emitters);
-    info!("{}", format_particle_overlay(&model.particle_emitters));
-    spawn_torch_model(&mut commands, &mut params, &path, model_without_particles(model));
+    let model = configure_particle_debug_model(model, PARTICLE_DEBUG_EMITTER_STAGE);
+    spawn_emitter_overlay_from_emitters(
+        &mut commands,
+        &model.particle_emitters,
+        PARTICLE_DEBUG_EMITTER_STAGE,
+    );
+    info!(
+        "particle_debug emitter stage: {}\n{}",
+        PARTICLE_DEBUG_EMITTER_STAGE.label(),
+        format_particle_overlay(&model.particle_emitters)
+    );
+    spawn_torch_model(&mut commands, &mut params, &path, model);
 }
 
-fn model_without_particles(mut model: asset::m2::M2Model) -> asset::m2::M2Model {
-    model.particle_emitters.clear();
+fn configure_particle_debug_model(
+    mut model: asset::m2::M2Model,
+    stage: ParticleDebugEmitterStage,
+) -> asset::m2::M2Model {
+    match stage {
+        ParticleDebugEmitterStage::Off => {
+            model.particle_emitters.clear();
+        }
+        ParticleDebugEmitterStage::Basic
+        | ParticleDebugEmitterStage::SyntheticTextureAlpha
+        | ParticleDebugEmitterStage::TexturedAlpha
+        | ParticleDebugEmitterStage::TexturedBlend
+        | ParticleDebugEmitterStage::AuthoredCurves
+        | ParticleDebugEmitterStage::Flipbook
+        | ParticleDebugEmitterStage::MotionVariation => {
+            for emitter in &mut model.particle_emitters {
+                *emitter = particle_debug_emitter_variant(emitter, stage);
+            }
+        }
+        ParticleDebugEmitterStage::Full => {}
+    }
     model
+}
+
+fn particle_debug_emitter_variant(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+    stage: ParticleDebugEmitterStage,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = basic_particle_debug_emitter(authored);
+    match stage {
+        ParticleDebugEmitterStage::Off | ParticleDebugEmitterStage::Basic => {}
+        ParticleDebugEmitterStage::SyntheticTextureAlpha => {
+            emitter.texture_fdid = Some(PARTICLE_DEBUG_WHITE_TEXTURE_FDID);
+        }
+        ParticleDebugEmitterStage::TexturedAlpha => {
+            emitter.texture_fdid = authored.texture_fdid;
+        }
+        ParticleDebugEmitterStage::TexturedBlend => {
+            emitter =
+                particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::TexturedAlpha);
+            emitter.blend_type = authored.blend_type;
+        }
+        ParticleDebugEmitterStage::AuthoredCurves => {
+            emitter =
+                particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::TexturedBlend);
+            emitter.colors = authored.colors;
+            emitter.opacity = authored.opacity;
+            emitter.scales = authored.scales;
+            emitter.color_keys = authored.color_keys.clone();
+            emitter.opacity_keys = authored.opacity_keys.clone();
+            emitter.scale_keys = authored.scale_keys.clone();
+            emitter.mid_point = authored.mid_point;
+        }
+        ParticleDebugEmitterStage::Flipbook => {
+            emitter = particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::AuthoredCurves);
+            emitter.tile_rows = authored.tile_rows.max(1);
+            emitter.tile_cols = authored.tile_cols.max(1);
+            emitter.head_cell_track = authored.head_cell_track;
+            emitter.tail_cell_track = authored.tail_cell_track;
+        }
+        ParticleDebugEmitterStage::MotionVariation => {
+            emitter = particle_debug_emitter_variant(authored, ParticleDebugEmitterStage::Flipbook);
+            emitter.speed_variation = authored.speed_variation;
+            emitter.vertical_range = authored.vertical_range;
+            emitter.horizontal_range = authored.horizontal_range;
+            emitter.gravity = authored.gravity;
+            emitter.gravity_vector = authored.gravity_vector;
+            emitter.lifespan_variation = authored.lifespan_variation;
+            emitter.emission_rate_variation = authored.emission_rate_variation;
+            emitter.drag = authored.drag;
+            emitter.scale_variation = authored.scale_variation;
+            emitter.scale_variation_y = authored.scale_variation_y;
+        }
+        ParticleDebugEmitterStage::Full => return authored.clone(),
+    }
+    emitter
+}
+
+fn basic_particle_debug_emitter(
+    authored: &asset::m2_particle::M2ParticleEmitter,
+) -> asset::m2_particle::M2ParticleEmitter {
+    let mut emitter = authored.clone();
+    emitter.flags = 0;
+    emitter.texture_fdid = None;
+    emitter.blend_type = 2;
+    emitter.emitter_type = 1;
+    emitter.particle_type = 0;
+    emitter.head_or_tail = 0;
+    emitter.tile_rows = 1;
+    emitter.tile_cols = 1;
+    emitter.emission_speed = authored.emission_speed.max(0.1);
+    emitter.speed_variation = 0.0;
+    emitter.vertical_range = 0.0;
+    emitter.horizontal_range = 0.0;
+    emitter.gravity = 0.0;
+    emitter.gravity_vector = [0.0; 3];
+    emitter.lifespan_variation = 0.0;
+    emitter.emission_rate_variation = 0.0;
+    emitter.z_source = 0.0;
+    emitter.tail_length = 0.0;
+    emitter.drag = 0.0;
+    emitter.scale_variation = 0.0;
+    emitter.scale_variation_y = 0.0;
+    emitter.base_spin = 0.0;
+    emitter.base_spin_variation = 0.0;
+    emitter.spin = 0.0;
+    emitter.spin_variation = 0.0;
+    emitter.wind_vector = [0.0; 3];
+    emitter.wind_time = 0.0;
+    emitter.follow_speed1 = 0.0;
+    emitter.follow_scale1 = 0.0;
+    emitter.follow_speed2 = 0.0;
+    emitter.follow_scale2 = 0.0;
+    emitter.color_keys.clear();
+    emitter.opacity_keys.clear();
+    emitter.scale_keys.clear();
+    let color = [255.0, 255.0, 255.0];
+    let opacity = 1.0;
+    let scale = authored.scales[0];
+    emitter.colors = [color, color, color];
+    emitter.opacity = [opacity, opacity, opacity];
+    emitter.scales = [scale, scale, scale];
+    emitter.twinkle_speed = 0.0;
+    emitter.twinkle_percent = 1.0;
+    emitter.twinkle_scale_min = 1.0;
+    emitter.twinkle_scale_max = 1.0;
+    emitter.head_cell_track = [0; 3];
+    emitter.tail_cell_track = [0; 3];
+    emitter.mid_point = 0.5;
+    emitter
 }
 
 fn spawn_torch_model(
@@ -234,8 +402,9 @@ fn resolved_skin_fdids(
 fn spawn_emitter_overlay_from_emitters(
     commands: &mut Commands,
     emitters: &[asset::m2_particle::M2ParticleEmitter],
+    stage: ParticleDebugEmitterStage,
 ) {
-    let text = format_particle_overlay(emitters);
+    let text = format!("Stage: {}\n\n{}", stage.label(), format_particle_overlay(emitters));
     commands.spawn((
         Name::new("ParticleDebugOverlay"),
         ParticleDebugScene,
