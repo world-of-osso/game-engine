@@ -203,6 +203,122 @@ pub(crate) fn build_effect_asset_with_mode(
     spawn_source: ParticleSpawnSource,
     child_emitters: &[M2ParticleEmitter],
 ) -> EffectAsset {
+    let (parts, runtime_modifiers) = build_effect_asset_inputs(
+        em,
+        model_scale,
+        particle_density_multiplier,
+        spawn_mode,
+        spawn_source,
+        child_emitters,
+    );
+    let effect = assemble_effect_from_parts(em, spawn_source, parts);
+    apply_runtime_effect_modifiers(effect, em, runtime_modifiers)
+}
+
+struct RuntimeEffectModifiers {
+    drag: Option<LinearDragModifier>,
+    flipbook_sprite_index_init: Option<SetAttributeModifier>,
+    flipbook_sprite_index_update: Option<SetAttributeModifier>,
+    texture: Option<ParticleTextureModifier>,
+    twinkle: Option<TwinkleSizeModifier>,
+    size_variation: Option<SizeVariationModifier>,
+}
+
+struct EffectAssetParts {
+    module: Module,
+    spawner: SpawnerSettings,
+    max_particles: u32,
+    alpha_mode: bevy_hanabi::AlphaMode,
+    init: InitModifiers,
+    gravity: AccelModifier,
+    orient_rotation: Option<ExprHandle>,
+    model_scale: f32,
+    child_event_counts: Vec<u32>,
+}
+
+struct EffectExprParts {
+    module: Module,
+    alpha_mode: bevy_hanabi::AlphaMode,
+    init: InitModifiers,
+    gravity: AccelModifier,
+    orient_rotation: Option<ExprHandle>,
+}
+
+fn build_effect_asset_inputs(
+    em: &M2ParticleEmitter,
+    model_scale: f32,
+    particle_density_multiplier: f32,
+    spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+    child_emitters: &[M2ParticleEmitter],
+) -> (EffectAssetParts, RuntimeEffectModifiers) {
+    build_effect_asset_inputs_from_expr(
+        em,
+        particle_density_multiplier,
+        spawn_mode,
+        spawn_source,
+        child_emitters,
+        model_scale,
+        build_expr_modifiers(em, model_scale),
+    )
+}
+
+fn build_effect_asset_inputs_from_expr(
+    em: &M2ParticleEmitter,
+    particle_density_multiplier: f32,
+    spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+    child_emitters: &[M2ParticleEmitter],
+    model_scale: f32,
+    expr_modifiers: ExprModifiers,
+) -> (EffectAssetParts, RuntimeEffectModifiers) {
+    let (expr_parts, runtime_modifiers) = split_effect_expr_modifiers(expr_modifiers);
+    (
+        build_effect_asset_parts(
+            em,
+            particle_density_multiplier,
+            spawn_mode,
+            spawn_source,
+            child_emitters,
+            model_scale,
+            expr_parts,
+        ),
+        runtime_modifiers,
+    )
+}
+
+fn build_effect_asset_parts(
+    em: &M2ParticleEmitter,
+    particle_density_multiplier: f32,
+    spawn_mode: ParticleSpawnMode,
+    spawn_source: ParticleSpawnSource,
+    child_emitters: &[M2ParticleEmitter],
+    model_scale: f32,
+    expr_parts: EffectExprParts,
+) -> EffectAssetParts {
+    let setup = build_effect_runtime_setup(
+        em,
+        particle_density_multiplier,
+        spawn_mode,
+        spawn_source,
+        child_emitters,
+    );
+    EffectAssetParts {
+        module: expr_parts.module,
+        spawner: setup.spawner,
+        max_particles: setup.max_particles,
+        alpha_mode: expr_parts.alpha_mode,
+        init: expr_parts.init,
+        gravity: expr_parts.gravity,
+        orient_rotation: expr_parts.orient_rotation,
+        model_scale,
+        child_event_counts: setup.child_event_counts,
+    }
+}
+
+fn split_effect_expr_modifiers(
+    expr_modifiers: ExprModifiers,
+) -> (EffectExprParts, RuntimeEffectModifiers) {
     let ExprModifiers {
         init,
         gravity,
@@ -215,36 +331,78 @@ pub(crate) fn build_effect_asset_with_mode(
         alpha_mode,
         orient_rotation,
         module,
-    } = build_expr_modifiers(em, model_scale);
-    let setup = build_effect_runtime_setup(
-        em,
-        particle_density_multiplier,
-        spawn_mode,
-        spawn_source,
-        child_emitters,
-    );
-    let effect = assemble_effect(
-        em,
-        module,
-        setup.spawner,
-        setup.max_particles,
-        alpha_mode,
-        init,
-        gravity,
-        orient_rotation,
-        model_scale,
-        spawn_source,
-        setup.child_event_counts,
-    );
-    apply_effect_runtime_modifiers(
-        effect,
-        em,
+    } = expr_modifiers;
+    (
+        EffectExprParts {
+            module,
+            alpha_mode,
+            init,
+            gravity,
+            orient_rotation,
+        },
+        build_runtime_effect_modifiers(
+            drag,
+            flipbook_sprite_index_init,
+            flipbook_sprite_index_update,
+            texture,
+            twinkle,
+            size_variation,
+        ),
+    )
+}
+
+fn build_runtime_effect_modifiers(
+    drag: Option<LinearDragModifier>,
+    flipbook_sprite_index_init: Option<SetAttributeModifier>,
+    flipbook_sprite_index_update: Option<SetAttributeModifier>,
+    texture: Option<ParticleTextureModifier>,
+    twinkle: Option<TwinkleSizeModifier>,
+    size_variation: Option<SizeVariationModifier>,
+) -> RuntimeEffectModifiers {
+    RuntimeEffectModifiers {
         drag,
         flipbook_sprite_index_init,
         flipbook_sprite_index_update,
         texture,
         twinkle,
         size_variation,
+    }
+}
+
+fn assemble_effect_from_parts(
+    em: &M2ParticleEmitter,
+    spawn_source: ParticleSpawnSource,
+    parts: EffectAssetParts,
+) -> EffectAsset {
+    assemble_effect(
+        em,
+        parts.module,
+        parts.spawner,
+        parts.max_particles,
+        parts.alpha_mode,
+        parts.init,
+        parts.gravity,
+        parts.orient_rotation,
+        parts.model_scale,
+        spawn_source,
+        parts.child_event_counts,
+    )
+}
+
+fn apply_runtime_effect_modifiers(
+    effect: EffectAsset,
+    em: &M2ParticleEmitter,
+    runtime_modifiers: RuntimeEffectModifiers,
+) -> EffectAsset {
+    apply_effect_runtime_modifiers(
+        effect,
+        em,
+        runtime_modifiers.drag,
+        runtime_modifiers.flipbook_sprite_index_init,
+        runtime_modifiers.flipbook_sprite_index_update,
+        runtime_modifiers.texture,
+        runtime_modifiers.twinkle,
+        runtime_modifiers.size_variation,
     )
 }
 
