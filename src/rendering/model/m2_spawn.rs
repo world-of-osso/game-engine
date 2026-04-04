@@ -272,7 +272,29 @@ fn bind_existing_skeleton(
     if bones.is_empty() {
         return None;
     }
-    let named_targets = target_joints
+    let named_targets = named_target_joints(target_joints, names);
+    let mut mapped_joints = Vec::with_capacity(bones.len());
+    for (i, bone) in bones.iter().enumerate() {
+        mapped_joints.push(resolve_bound_joint(
+            commands,
+            model_entity,
+            &named_targets,
+            bone,
+            i,
+        ));
+    }
+    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(vec![
+        Mat4::IDENTITY;
+        bones.len()
+    ]));
+    Some((inv_bp, mapped_joints))
+}
+
+fn named_target_joints(
+    target_joints: &[Entity],
+    names: &Query<&Name>,
+) -> std::collections::HashMap<String, Entity> {
+    target_joints
         .iter()
         .filter_map(|entity| {
             names
@@ -280,29 +302,29 @@ fn bind_existing_skeleton(
                 .ok()
                 .map(|name| (name.as_str().to_owned(), *entity))
         })
-        .collect::<std::collections::HashMap<_, _>>();
-    let mut mapped_joints = Vec::with_capacity(bones.len());
-    for (i, bone) in bones.iter().enumerate() {
-        let bone_name = m2_bone_names::bone_display_name(bone.key_bone_id, i);
-        if let Some(entity) = named_targets.get(&bone_name) {
-            mapped_joints.push(*entity);
-            continue;
-        }
-        let fallback = commands
-            .spawn((
-                Transform::IDENTITY,
-                Visibility::default(),
-                Name::new(format!("Unmapped{bone_name}")),
-            ))
-            .id();
-        commands.entity(fallback).set_parent_in_place(model_entity);
-        mapped_joints.push(fallback);
+        .collect()
+}
+
+fn resolve_bound_joint(
+    commands: &mut Commands,
+    model_entity: Entity,
+    named_targets: &std::collections::HashMap<String, Entity>,
+    bone: &m2_anim::M2Bone,
+    bone_index: usize,
+) -> Entity {
+    let bone_name = m2_bone_names::bone_display_name(bone.key_bone_id, bone_index);
+    if let Some(entity) = named_targets.get(&bone_name) {
+        return *entity;
     }
-    let inv_bp = inverse_bindposes.add(SkinnedMeshInverseBindposes::from(vec![
-        Mat4::IDENTITY;
-        bones.len()
-    ]));
-    Some((inv_bp, mapped_joints))
+    let fallback = commands
+        .spawn((
+            Transform::IDENTITY,
+            Visibility::default(),
+            Name::new(format!("Unmapped{bone_name}")),
+        ))
+        .id();
+    commands.entity(fallback).set_parent_in_place(model_entity);
+    fallback
 }
 
 fn spawn_batch_mesh(
