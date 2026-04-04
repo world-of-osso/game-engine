@@ -339,6 +339,48 @@ fn login_footer() -> Element {
         .collect()
 }
 
+fn login_game_logo() -> Element {
+    rsx! {
+        texture {
+            name: "LoginGameLogo",
+            texture_file: TEX_GAME_LOGO,
+            width: 384.0,
+            height: 256.0,
+            strata: FrameStrata::High,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "3",
+                y: "7",
+            }
+        }
+    }
+}
+
+fn login_ui(status: &str, connecting: bool) -> Element {
+    rsx! {
+        r#frame { name: "LoginUI",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: "0",
+            }
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: "0",
+                y: "0",
+            }
+            {login_game_logo()}
+            {login_inputs()}
+            {login_main_buttons(false, status, connecting)}
+            {login_action_buttons()}
+            {login_footer()}
+        }
+    }
+}
+
 pub fn login_screen(ctx: &SharedContext) -> Element {
     let status = ctx
         .get::<SharedStatusText>()
@@ -348,37 +390,7 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
-            r#frame { name: "LoginUI",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-                anchor {
-                    point: AnchorPoint::BottomRight,
-                    relative_point: AnchorPoint::BottomRight,
-                    x: "0",
-                    y: "0",
-                }
-                texture {
-                    name: "LoginGameLogo",
-                    texture_file: TEX_GAME_LOGO,
-                    width: 384.0,
-                    height: 256.0,
-                    strata: FrameStrata::High,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: "3",
-                        y: "7",
-                    }
-                }
-                {login_inputs()}
-                {login_main_buttons(false, status, connecting)}
-                {login_action_buttons()}
-                {login_footer()}
-            }
+            {login_ui(status, connecting)}
         }
     }
 }
