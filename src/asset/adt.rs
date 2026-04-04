@@ -86,23 +86,16 @@ fn collect_mcnk_vertices(
     (positions, normals, uvs)
 }
 
-fn selected_high_res_hole_mask(
-    flags: super::adt_format::adt::McnkFlags,
-    holes_high_res: Option<u64>,
-) -> Option<u64> {
-    if flags.high_res_holes {
-        holes_high_res
-    } else {
-        None
-    }
-}
-
 fn build_mcnk_geometry(
     chunk: &super::adt_format::adt::McnkData,
     tile_coords: Option<(u32, u32)>,
 ) -> McnkGeometry {
     let (positions, normals_out, uvs) = collect_mcnk_vertices(chunk, tile_coords);
-    let holes_high_res = selected_high_res_hole_mask(chunk.flags, chunk.holes_high_res);
+    let holes_high_res = if chunk.flags.high_res_holes {
+        chunk.holes_high_res
+    } else {
+        None
+    };
     (
         positions,
         normals_out,
@@ -340,10 +333,7 @@ fn load_adt_inner(
 mod tests {
     use bevy::mesh::{Mesh, VertexAttributeValues};
 
-    use super::{
-        build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color,
-        selected_high_res_hole_mask,
-    };
+    use super::{build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color};
 
     const FULL_LOW_RES_HOLE_MASK: u16 = u16::MAX;
 
@@ -379,29 +369,6 @@ mod tests {
 
         let preserved = quad_index_base(3, 3);
         assert!(indices.contains(&preserved.center));
-    }
-
-    #[test]
-    fn selected_high_res_hole_mask_respects_high_res_flag() {
-        let flags = super::super::adt_format::adt::McnkFlags {
-            has_mcsh: false,
-            impass: false,
-            has_mccv: false,
-            do_not_fix_alpha_map: false,
-            high_res_holes: true,
-        };
-
-        assert_eq!(selected_high_res_hole_mask(flags, Some(0x55)), Some(0x55));
-        assert_eq!(
-            selected_high_res_hole_mask(
-                super::super::adt_format::adt::McnkFlags {
-                    high_res_holes: false,
-                    ..flags
-                },
-                Some(0x55),
-            ),
-            None
-        );
     }
 
     #[test]
