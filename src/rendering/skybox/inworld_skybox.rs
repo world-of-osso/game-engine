@@ -223,19 +223,10 @@ pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
     let Some(camera_translation) = active_camera_translation(&params.camera_q) else {
         return;
     };
-    let anchor_pos = resolve_inworld_camera_anchor(&params.player_q, camera_translation);
-    let map_id = resolve_inworld_map_id(&params.adt_manager, &params.current_zone);
-    let desired_path =
-        active_wmo_local_skybox_wow_path(camera_translation, &params.wmo_q, &params.wmo_group_q)
-            .as_deref()
-            .and_then(ensure_skybox_wow_path)
-            .or_else(|| resolve_inworld_skybox_path(map_id, anchor_pos));
+    let desired_path = resolve_desired_inworld_skybox_path(&params, camera_translation);
     let has_existing_skybox = params.skybox_q.iter().next().is_some();
 
-    if let Some(path) = desired_path.as_deref()
-        && has_active_inworld_skybox_path(&params.skybox_q, path)
-    {
-        mark_inworld_skyboxes_fading_out(&mut params.commands, &params.skybox_q, Some(path));
+    if keep_active_inworld_skybox(&mut params, desired_path.as_deref()) {
         return;
     }
 
@@ -248,16 +239,7 @@ pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
     let Some(path) = desired_path else {
         return;
     };
-    let phase = if has_existing_skybox {
-        InWorldSkyboxPhase::FadingIn
-    } else {
-        InWorldSkyboxPhase::Steady
-    };
-    let initial_alpha = if phase == InWorldSkyboxPhase::FadingIn {
-        0.0
-    } else {
-        1.0
-    };
+    let (phase, initial_alpha) = inworld_skybox_spawn_state(has_existing_skybox);
     let Some(spawned_root) = spawn_inworld_skybox(
         &mut params.commands,
         &mut params.meshes,
@@ -278,6 +260,39 @@ pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
         phase,
         elapsed: 0.0,
     });
+}
+
+fn resolve_desired_inworld_skybox_path(
+    params: &InWorldSkyboxParams,
+    camera_translation: Vec3,
+) -> Option<std::path::PathBuf> {
+    let anchor_pos = resolve_inworld_camera_anchor(&params.player_q, camera_translation);
+    let map_id = resolve_inworld_map_id(&params.adt_manager, &params.current_zone);
+    active_wmo_local_skybox_wow_path(camera_translation, &params.wmo_q, &params.wmo_group_q)
+        .as_deref()
+        .and_then(ensure_skybox_wow_path)
+        .or_else(|| resolve_inworld_skybox_path(map_id, anchor_pos))
+}
+
+fn keep_active_inworld_skybox(
+    params: &mut InWorldSkyboxParams,
+    desired_path: Option<&std::path::Path>,
+) -> bool {
+    if let Some(path) = desired_path
+        && has_active_inworld_skybox_path(&params.skybox_q, path)
+    {
+        mark_inworld_skyboxes_fading_out(&mut params.commands, &params.skybox_q, Some(path));
+        return true;
+    }
+    false
+}
+
+fn inworld_skybox_spawn_state(has_existing_skybox: bool) -> (InWorldSkyboxPhase, f32) {
+    if has_existing_skybox {
+        (InWorldSkyboxPhase::FadingIn, 0.0)
+    } else {
+        (InWorldSkyboxPhase::Steady, 1.0)
+    }
 }
 
 pub(super) fn sync_inworld_skybox_to_camera(
