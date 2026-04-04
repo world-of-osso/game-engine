@@ -208,7 +208,16 @@ pub fn spawn_adt(
         images: assets.images,
         inverse_bp: assets.inverse_bp,
     };
-    let spawned = spawn_adt_content(&mut refs, heightmap, adt_path, &inputs);
+    finish_spawn_adt(&mut refs, heightmap, adt_path, inputs)
+}
+
+fn finish_spawn_adt(
+    refs: &mut SpawnRefs,
+    heightmap: &mut TerrainHeightmap,
+    adt_path: &Path,
+    inputs: SpawnAdtInputs,
+) -> Result<AdtSpawnResult, String> {
+    let spawned = spawn_adt_content(refs, heightmap, adt_path, &inputs);
     log_adt_spawn(&inputs.adt_data, adt_path);
 
     let (camera, center) = compute_spawn_result(&inputs.adt_data, inputs.obj_data.as_ref());

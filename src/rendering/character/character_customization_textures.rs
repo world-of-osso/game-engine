@@ -177,7 +177,7 @@ pub(super) fn apply_explicit_equipment_overlays(
     merge_overlay_texture_sets(&merged, &equipped.outfit)
 }
 
-fn replacement_texture_for_batch(
+pub(crate) fn replacement_texture_for_batch(
     texture_type: Option<u32>,
     body_handle: &Handle<Image>,
     head_handle: Option<&Handle<Image>>,
@@ -199,7 +199,9 @@ fn replacement_texture_for_batch(
     }
 }
 
-fn component_sections_for_slot(slot: shared::components::EquipmentVisualSlot) -> &'static [u8] {
+pub(crate) fn component_sections_for_slot(
+    slot: shared::components::EquipmentVisualSlot,
+) -> &'static [u8] {
     use shared::components::EquipmentVisualSlot as Slot;
 
     match slot {
