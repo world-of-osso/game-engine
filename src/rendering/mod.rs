@@ -38,6 +38,8 @@ pub mod skybox_m2_material;
 
 #[path = "terrain/ground.rs"]
 pub mod ground;
+#[path = "terrain/ground_effects.rs"]
+pub mod ground_effects;
 #[path = "terrain/terrain.rs"]
 pub mod terrain;
 #[path = "terrain/terrain_heightmap.rs"]

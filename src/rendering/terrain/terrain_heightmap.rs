@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::asset::adt::{self, CHUNK_SIZE, ChunkHeightGrid, UNIT_SIZE, vertex_index};
+use crate::rendering::ground_effects::{self, GroundEffectEntry};
 use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
 use crate::terrain_tile::bevy_to_tile_coords;
 
@@ -13,6 +14,8 @@ use crate::terrain_tile::bevy_to_tile_coords;
 pub struct TerrainHeightmap {
     /// Per-tile grids: (tile_y, tile_x) → 256 chunk height grids.
     tiles: HashMap<(u32, u32), Vec<Option<ChunkHeightGrid>>>,
+    /// Per-tile dominant ground effect metadata for each chunk.
+    effects: HashMap<(u32, u32), Vec<Option<GroundEffectEntry>>>,
     /// Per-tile dominant surface class for each chunk.
     surfaces: HashMap<(u32, u32), Vec<FootstepSurface>>,
 }
@@ -43,6 +46,7 @@ impl TerrainHeightmap {
     /// Remove height grids for a tile.
     pub fn remove_tile(&mut self, tile_y: u32, tile_x: u32) {
         self.tiles.remove(&(tile_y, tile_x));
+        self.effects.remove(&(tile_y, tile_x));
         self.surfaces.remove(&(tile_y, tile_x));
     }
 
@@ -55,10 +59,14 @@ impl TerrainHeightmap {
     }
 
     pub fn insert_tile_surfaces(&mut self, tile_y: u32, tile_x: u32, tex_data: &adt::AdtTexData) {
+        let mut chunk_effects = vec![None; 256];
         let mut chunk_surfaces = vec![FootstepSurface::Dirt; 256];
         for (idx, chunk) in tex_data.chunk_layers.iter().enumerate().take(256) {
-            chunk_surfaces[idx] = dominant_surface_for_chunk(tex_data, chunk);
+            let effect = dominant_ground_effect_for_chunk(chunk);
+            chunk_effects[idx] = effect;
+            chunk_surfaces[idx] = dominant_surface_for_chunk(tex_data, chunk, effect);
         }
+        self.effects.insert((tile_y, tile_x), chunk_effects);
         self.surfaces.insert((tile_y, tile_x), chunk_surfaces);
     }
 
@@ -84,6 +92,16 @@ impl TerrainHeightmap {
             .copied()
     }
 
+    pub fn ground_effect_at(&self, bx: f32, bz: f32) -> Option<GroundEffectEntry> {
+        let (tile_y, tile_x) = bevy_to_tile_coords(bx, bz);
+        let chunk_idx = self.chunk_index_at(tile_y, tile_x, bx, bz)?;
+        self.effects
+            .get(&(tile_y, tile_x))
+            .and_then(|effects| effects.get(chunk_idx))
+            .copied()
+            .flatten()
+    }
+
     fn chunk_index_at(&self, tile_y: u32, tile_x: u32, bx: f32, bz: f32) -> Option<usize> {
         self.tile_chunks(tile_y, tile_x)?
             .iter()
@@ -96,7 +114,37 @@ impl TerrainHeightmap {
 fn dominant_surface_for_chunk(
     tex_data: &adt::AdtTexData,
     chunk: &adt::ChunkTexLayers,
+    effect: Option<GroundEffectEntry>,
 ) -> FootstepSurface {
+    if let Some(effect) = effect
+        && let Some(surface) = ground_effects::resolve_ground_effect_surface(effect.effect_id)
+    {
+        return surface;
+    }
+    dominant_surface_for_chunk_with_resolver(tex_data, chunk, |_| None)
+}
+
+fn dominant_ground_effect_for_chunk(chunk: &adt::ChunkTexLayers) -> Option<GroundEffectEntry> {
+    dominant_ground_effect_for_chunk_with_resolver(chunk, ground_effects::resolve_ground_effect)
+}
+
+fn dominant_ground_effect_for_chunk_with_resolver(
+    chunk: &adt::ChunkTexLayers,
+    resolve_ground_effect: impl Fn(u32) -> Option<GroundEffectEntry>,
+) -> Option<GroundEffectEntry> {
+    dominant_effect_id(chunk).and_then(resolve_ground_effect)
+}
+
+fn dominant_surface_for_chunk_with_resolver(
+    tex_data: &adt::AdtTexData,
+    chunk: &adt::ChunkTexLayers,
+    resolve_effect_surface: impl Fn(u32) -> Option<FootstepSurface>,
+) -> FootstepSurface {
+    if let Some(effect_id) = dominant_effect_id(chunk)
+        && let Some(surface) = resolve_effect_surface(effect_id)
+    {
+        return surface;
+    }
     let Some(fdid) = dominant_texture_fdid(tex_data, chunk) else {
         return FootstepSurface::Dirt;
     };
@@ -104,6 +152,30 @@ fn dominant_surface_for_chunk(
         return FootstepSurface::Dirt;
     };
     classify_surface_from_texture_path(path)
+}
+
+fn dominant_effect_id(chunk: &adt::ChunkTexLayers) -> Option<u32> {
+    let mut best = None;
+    let mut best_weight = 0u64;
+    for (layer_idx, layer) in chunk.layers.iter().enumerate() {
+        if layer.effect_id == 0 {
+            continue;
+        }
+        let weight = if layer_idx == 0 {
+            1_000_000
+        } else {
+            layer
+                .alpha_map
+                .as_ref()
+                .map(|alpha| alpha.iter().map(|v| u64::from(*v)).sum())
+                .unwrap_or_default()
+        };
+        if weight >= best_weight {
+            best = Some(layer.effect_id);
+            best_weight = weight;
+        }
+    }
+    best
 }
 
 fn dominant_texture_fdid(tex_data: &adt::AdtTexData, chunk: &adt::ChunkTexLayers) -> Option<u32> {
@@ -237,5 +309,89 @@ mod tests {
         };
 
         assert_eq!(dominant_texture_fdid(&tex, &tex.chunk_layers[0]), Some(2));
+    }
+
+    #[test]
+    fn dominant_effect_prefers_highest_alpha_layer() {
+        let chunk = adt::ChunkTexLayers {
+            layers: vec![
+                adt::TextureLayer {
+                    texture_index: 0,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 5,
+                    alpha_map: None,
+                },
+                adt::TextureLayer {
+                    texture_index: 1,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 9,
+                    alpha_map: Some(vec![255; 4096]),
+                },
+            ],
+        };
+
+        assert_eq!(dominant_effect_id(&chunk), Some(9));
+    }
+
+    #[test]
+    fn dominant_surface_uses_effect_id_override_before_texture_path() {
+        let tex = adt::AdtTexData {
+            texture_fdids: vec![1],
+            height_texture_fdids: Vec::new(),
+            texture_flags: Vec::new(),
+            texture_params: Vec::new(),
+            chunk_layers: vec![adt::ChunkTexLayers {
+                layers: vec![adt::TextureLayer {
+                    texture_index: 0,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 42,
+                    alpha_map: None,
+                }],
+            }],
+        };
+
+        let surface =
+            dominant_surface_for_chunk_with_resolver(&tex, &tex.chunk_layers[0], |effect_id| {
+                (effect_id == 42).then_some(FootstepSurface::Stone)
+            });
+
+        assert_eq!(surface, FootstepSurface::Stone);
+    }
+
+    #[test]
+    fn dominant_ground_effect_resolves_from_highest_weight_effect_id() {
+        let chunk = adt::ChunkTexLayers {
+            layers: vec![
+                adt::TextureLayer {
+                    texture_index: 0,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 7,
+                    alpha_map: Some(vec![16; 4096]),
+                },
+                adt::TextureLayer {
+                    texture_index: 1,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 9,
+                    alpha_map: Some(vec![255; 4096]),
+                },
+            ],
+        };
+
+        let entry = dominant_ground_effect_for_chunk_with_resolver(&chunk, |effect_id| {
+            (effect_id == 9).then_some(GroundEffectEntry {
+                effect_id,
+                density: 12,
+                terrain_sound_id: 3,
+            })
+        });
+
+        assert_eq!(
+            entry,
+            Some(GroundEffectEntry {
+                effect_id: 9,
+                density: 12,
+                terrain_sound_id: 3,
+            })
+        );
     }
 }
