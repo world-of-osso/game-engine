@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::asset;
 
-pub fn race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
+fn base_race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
     match (race, sex) {
         (1, 0) => Some("character/human/male/humanmale_hd.m2"),
         (1, 1) => Some("character/human/female/humanfemale_hd.m2"),
@@ -20,16 +20,22 @@ pub fn race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
         (7, 1) => Some("character/gnome/female/gnomefemale_hd.m2"),
         (8, 0) => Some("character/troll/male/trollmale_hd.m2"),
         (8, 1) => Some("character/troll/female/trollfemale_hd.m2"),
+        (9, 0) => Some("character/goblin/male/goblinmale.m2"),
+        (9, 1) => Some("character/goblin/female/goblinfemale.m2"),
         (10, 0) => Some("character/bloodelf/male/bloodelfmale_hd.m2"),
         (10, 1) => Some("character/bloodelf/female/bloodelffemale_hd.m2"),
         (11, 0) => Some("character/draenei/male/draeneimale_hd.m2"),
         (11, 1) => Some("character/draenei/female/draeneifemale_hd.m2"),
-        (9, 0) => Some("character/goblin/male/goblinmale.m2"),
-        (9, 1) => Some("character/goblin/female/goblinfemale.m2"),
         (22, 0) => Some("character/worgen/male/worgenmale.m2"),
         (22, 1) => Some("character/worgen/female/worgenfemale.m2"),
         (25, 0) => Some("character/pandaren/male/pandarenmale.m2"),
         (25, 1) => Some("character/pandaren/female/pandarenfemale.m2"),
+        _ => None,
+    }
+}
+
+fn allied_race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
+    match (race, sex) {
         (27, 0) => Some("character/nightborne/male/nightbornemale.m2"),
         (27, 1) => Some("character/nightborne/female/nightbornefemale.m2"),
         (28, 0) => Some("character/highmountaintauren/male/highmountaintaurenmale.m2"),
@@ -50,6 +56,10 @@ pub fn race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
         (37, 1) => Some("character/mechagnome/female/mechagnomefemale.m2"),
         _ => None,
     }
+}
+
+pub fn race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
+    base_race_model_wow_path(race, sex).or_else(|| allied_race_model_wow_path(race, sex))
 }
 
 pub fn ensure_named_model_bundle(wow_model_path: &str) -> Option<PathBuf> {
