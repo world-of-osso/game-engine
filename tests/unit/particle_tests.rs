@@ -9,27 +9,35 @@ use bevy_hanabi::{AlphaMode, Attribute, EffectProperties, ExprWriter, Simulation
 use std::path::Path;
 use std::time::Instant;
 
-use super::visuals::{build_offset_by_spin_modifier, has_authored_size_variation};
+use super::effect_builder::{
+    FlipbookSpriteMode, PositionInitModifier, active_cell_track, build_effect_asset,
+    build_effect_asset_with_mode, build_expr_modifiers, build_position_modifier,
+    child_emitter_event_count, emitter_alpha_mode, emitter_spawn_radius, flipbook_sprite_mode,
+    gravity_accel_bevy, has_authored_spin, has_authored_wind, lifetime_range, orient_mode,
+    scaled_emission_rate, wind_accel_bevy, wind_strength_at_age,
+};
+use super::emitters::{
+    ModelParticleEmitterComp, ModelParticleEmitterRuntime, ModelParticleInstance,
+    ParticleEmitterComp, emitter_parent_entity, emitter_scale_source, emitter_simulation_space,
+    emitter_spawn_offset, emitter_translation, emitter_uses_bone_scale, emitter_uses_dynamic_wind,
+    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
+    emitter_uses_model_particles, emitter_uses_project_particle,
+    emitter_uses_sphere_invert_velocity, inherit_position_back_delta_local,
+    model_particle_spawn_count, projected_particle_spawn_y, spawn_emitters,
+    spawn_loaded_child_emitters, sync_dynamic_wind_properties,
+};
+use super::visuals::{
+    build_color_gradient, build_offset_by_spin_modifier, build_size_gradient,
+    has_authored_size_variation, has_authored_twinkle,
+};
 use super::{
-    DYNAMIC_WIND_ACCEL_PROPERTY, DynamicParticleWind, FlipbookSpriteMode, PARTICLE_FLAG_BONE_SCALE,
+    DYNAMIC_WIND_ACCEL_PROPERTY, DynamicParticleWind, PARTICLE_FLAG_BONE_SCALE,
     PARTICLE_FLAG_CLAMP_TAIL_TO_AGE, PARTICLE_FLAG_INHERIT_POSITION,
     PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_NO_GLOBAL_SCALE,
     PARTICLE_FLAG_OFFSET_BY_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
     PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
     PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
-    PARTICLE_FLAG_XY_QUAD, ParticleEmitterComp, ParticleSpawnMode, ParticleSpawnSource,
-    PositionInitModifier, active_cell_track, build_color_gradient, build_effect_asset,
-    build_effect_asset_with_mode, build_expr_modifiers, build_position_modifier,
-    build_size_gradient, child_emitter_event_count, emitter_alpha_mode, emitter_parent_entity,
-    emitter_scale_source, emitter_simulation_space, emitter_spawn_offset, emitter_spawn_radius,
-    emitter_translation, emitter_uses_bone_scale, emitter_uses_dynamic_wind,
-    emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
-    emitter_uses_model_particles, emitter_uses_project_particle,
-    emitter_uses_sphere_invert_velocity, flipbook_sprite_mode, gravity_accel_bevy,
-    has_authored_spin, has_authored_twinkle, has_authored_wind, inherit_position_back_delta_local,
-    lifetime_range, model_particle_spawn_count, orient_mode, projected_particle_spawn_y,
-    scaled_emission_rate, spawn_emitters, sync_dynamic_wind_properties, wind_accel_bevy,
-    wind_strength_at_age,
+    PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
@@ -258,12 +266,12 @@ fn bench_particle_heavy_scene_headless() {
         app.add_systems(
             Update,
             (
-                super::register_pending_particle_effects,
-                super::sync_inherit_position_properties,
-                super::sync_dynamic_wind_properties,
-                super::trigger_pending_particle_bursts,
-                super::tick_model_particle_emitters,
-                super::simulate_model_particle_instances,
+                super::emitters::register_pending_particle_effects,
+                super::emitters::sync_inherit_position_properties,
+                super::emitters::sync_dynamic_wind_properties,
+                super::emitters::trigger_pending_particle_bursts,
+                super::emitters::tick_model_particle_emitters,
+                super::emitters::simulate_model_particle_instances,
             ),
         );
     });
@@ -291,7 +299,7 @@ fn bench_particle_heavy_scene_headless() {
 
     let registered_before = app
         .world_mut()
-        .query::<&super::ParticleEmitterComp>()
+        .query::<&ParticleEmitterComp>()
         .iter(app.world())
         .count();
     assert_eq!(registered_before, total_emitters);
@@ -485,7 +493,7 @@ fn project_particle_snaps_spawn_height_to_loaded_terrain() {
         .id();
     let mut emitter = sample_emitter();
     emitter.flags = super::PARTICLE_FLAG_PROJECT_PARTICLE;
-    let comp = super::ParticleEmitterComp {
+    let comp = ParticleEmitterComp {
         emitter,
         bone_entity: None,
         scale_source: entity,
@@ -591,14 +599,14 @@ fn model_particle_emitters_skip_hanabi_quad_spawn_path() {
 
     assert_eq!(
         app.world_mut()
-            .query::<&super::ParticleEmitterComp>()
+            .query::<&ParticleEmitterComp>()
             .iter(app.world())
             .count(),
         0
     );
     assert_eq!(
         app.world_mut()
-            .query::<&super::ModelParticleEmitterComp>()
+            .query::<&ModelParticleEmitterComp>()
             .iter(app.world())
             .count(),
         1
@@ -618,7 +626,7 @@ fn child_model_particle_emitters_use_child_spawn_source() {
         .run_system_once(
             move |mut commands: bevy::prelude::Commands,
                   mut images: bevy::prelude::ResMut<Assets<Image>>| {
-                super::spawn_loaded_child_emitters(
+                spawn_loaded_child_emitters(
                     &mut commands,
                     &mut images,
                     &child_emitters,
@@ -633,7 +641,7 @@ fn child_model_particle_emitters_use_child_spawn_source() {
 
     let spawns: Vec<ParticleSpawnSource> = app
         .world_mut()
-        .query::<&super::ModelParticleEmitterComp>()
+        .query::<&ModelParticleEmitterComp>()
         .iter(app.world())
         .map(|comp| comp.spawn_source)
         .collect();
@@ -644,7 +652,7 @@ fn child_model_particle_emitters_use_child_spawn_source() {
 #[test]
 fn continuous_model_particle_spawner_accumulates_fractional_rate() {
     let emitter = sample_emitter();
-    let mut runtime = super::ModelParticleEmitterRuntime::default();
+    let mut runtime = ModelParticleEmitterRuntime::default();
 
     let first = model_particle_spawn_count(
         &emitter,
@@ -668,7 +676,7 @@ fn continuous_model_particle_spawner_accumulates_fractional_rate() {
 #[test]
 fn burst_model_particle_spawner_fires_only_once() {
     let emitter = sample_emitter();
-    let mut runtime = super::ModelParticleEmitterRuntime::default();
+    let mut runtime = ModelParticleEmitterRuntime::default();
 
     let first = model_particle_spawn_count(
         &emitter,
@@ -711,7 +719,7 @@ fn model_particle_runtime_spawns_static_m2_instance() {
         .spawn((
             GlobalTransform::IDENTITY,
             Transform::IDENTITY,
-            super::ModelParticleEmitterComp {
+            ModelParticleEmitterComp {
                 emitter,
                 bone_entity: None,
                 scale_source: Entity::PLACEHOLDER,
@@ -720,23 +728,23 @@ fn model_particle_runtime_spawns_static_m2_instance() {
                 requested_model_path: "data/models/club_1h_torch_a_01.m2".to_string(),
                 resolved_model_path: Some("data/models/club_1h_torch_a_01.m2".into()),
             },
-            super::ModelParticleEmitterRuntime::default(),
+            ModelParticleEmitterRuntime::default(),
         ))
         .id();
     app.world_mut()
         .entity_mut(emitter_entity)
-        .get_mut::<super::ModelParticleEmitterComp>()
+        .get_mut::<ModelParticleEmitterComp>()
         .unwrap()
         .scale_source = emitter_entity;
 
     app.world_mut()
-        .run_system_once(super::tick_model_particle_emitters)
+        .run_system_once(super::emitters::tick_model_particle_emitters)
         .expect("model particle tick should run");
     app.world_mut().flush();
 
     assert!(
         app.world_mut()
-            .query::<&super::ModelParticleInstance>()
+            .query::<&ModelParticleInstance>()
             .iter(app.world())
             .count()
             > 0
