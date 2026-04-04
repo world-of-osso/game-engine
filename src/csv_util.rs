@@ -1,3 +1,4 @@
+use std::io::BufRead;
 use std::path::Path;
 
 pub fn parse_csv_line(line: &str) -> Vec<String> {
@@ -39,6 +40,14 @@ pub fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usi
         .iter()
         .position(|header| header == column)
         .ok_or_else(|| format!("{} missing {column} column", path.display()))
+}
+
+pub fn skip_csv_header<R: BufRead>(reader: &mut R, path: &Path) -> Result<(), String> {
+    let mut header = String::new();
+    reader
+        .read_line(&mut header)
+        .map_err(|err| format!("read {} header: {err}", path.display()))?;
+    Ok(())
 }
 
 #[cfg(test)]

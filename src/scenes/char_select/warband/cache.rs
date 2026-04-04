@@ -2,6 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::cache_source_mtime::csv_mtime;
+use crate::csv_util::skip_csv_header;
 use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
@@ -448,7 +449,7 @@ fn load_placement_option_rows(
 
 fn load_rows<T>(source_path: &Path, parse_row: fn(&str) -> Option<T>) -> Result<Vec<T>, String> {
     let mut reader = open_reader(source_path)?;
-    skip_header(&mut reader, source_path)?;
+    skip_csv_header(&mut reader, source_path)?;
     let mut rows = Vec::new();
     let mut line = String::new();
     loop {
@@ -471,14 +472,6 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-fn skip_header(reader: &mut BufReader<std::fs::File>, path: &Path) -> Result<(), String> {
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    Ok(())
 }
 
 #[cfg(test)]

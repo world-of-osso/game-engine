@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::cache_metadata::single_source_cache_is_fresh;
 use crate::cache_source_mtime::csv_mtime;
+use crate::csv_util::skip_csv_header;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags};
 
@@ -17,7 +18,7 @@ pub(crate) fn load_light_entries(path: &Path) -> Result<Vec<LightEntry>, String>
 
 pub(crate) fn load_light_entries_uncached(path: &Path) -> Result<Vec<LightEntry>, String> {
     let mut reader = open_reader(path)?;
-    skip_header(&mut reader, path)?;
+    skip_csv_header(&mut reader, path)?;
     let mut entries = Vec::new();
     let mut line = String::new();
     loop {
@@ -138,7 +139,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
 
 fn import_light_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
     let mut reader = open_reader(source_path)?;
-    skip_header(&mut reader, source_path)?;
+    skip_csv_header(&mut reader, source_path)?;
     let mut insert = conn
         .prepare(
             "INSERT OR REPLACE INTO lights
@@ -231,14 +232,6 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-fn skip_header(reader: &mut BufReader<std::fs::File>, path: &Path) -> Result<(), String> {
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    Ok(())
 }
 
 #[cfg(test)]
