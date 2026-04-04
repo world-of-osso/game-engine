@@ -264,52 +264,62 @@ fn class_grid(state: &CharCreateUiState) -> Element {
 
 fn customize_rows(state: &CharCreateUiState) -> Element {
     rsx! {
-        {
-            customization_row(
-                "Skin Color",
-                state.skin_color,
-                "",
-                &state.skin_color_swatches,
-                AppearanceField::SkinColor,
-            )
-        }
-        {
-            customization_row(
-                "Face",
-                state.face,
-                &state.face_label,
-                &[],
-                AppearanceField::Face,
-            )
-        }
-        {
-            customization_row(
-                "Hair Style",
-                state.hair_style,
-                &state.hair_style_label,
-                &[],
-                AppearanceField::HairStyle,
-            )
-        }
-        {
-            customization_row(
-                "Hair Color",
-                state.hair_color,
-                "",
-                &state.hair_color_swatches,
-                AppearanceField::HairColor,
-            )
-        }
-        {
-            customization_row(
-                "Facial Style",
-                state.facial_style,
-                &state.facial_style_label,
-                &[],
-                AppearanceField::FacialStyle,
-            )
-        }
+        {skin_color_row(state)}
+        {face_row(state)}
+        {hair_style_row(state)}
+        {hair_color_row(state)}
+        {facial_style_row(state)}
     }
+}
+
+fn skin_color_row(state: &CharCreateUiState) -> Element {
+    customization_row(
+        "Skin Color",
+        state.skin_color,
+        "",
+        &state.skin_color_swatches,
+        AppearanceField::SkinColor,
+    )
+}
+
+fn face_row(state: &CharCreateUiState) -> Element {
+    customization_row(
+        "Face",
+        state.face,
+        &state.face_label,
+        &[],
+        AppearanceField::Face,
+    )
+}
+
+fn hair_style_row(state: &CharCreateUiState) -> Element {
+    customization_row(
+        "Hair Style",
+        state.hair_style,
+        &state.hair_style_label,
+        &[],
+        AppearanceField::HairStyle,
+    )
+}
+
+fn hair_color_row(state: &CharCreateUiState) -> Element {
+    customization_row(
+        "Hair Color",
+        state.hair_color,
+        "",
+        &state.hair_color_swatches,
+        AppearanceField::HairColor,
+    )
+}
+
+fn facial_style_row(state: &CharCreateUiState) -> Element {
+    customization_row(
+        "Facial Style",
+        state.facial_style,
+        &state.facial_style_label,
+        &[],
+        AppearanceField::FacialStyle,
+    )
 }
 
 // row_height(44) + gap(8) = 52 per row; dropdowns should open below the active row.
