@@ -4,6 +4,7 @@
 //! a `ParticleEffect` entity parented to the model (or its bone).
 
 pub(crate) mod effect_builder;
+mod effect_builder_motion;
 mod emitters;
 mod visuals;
 
