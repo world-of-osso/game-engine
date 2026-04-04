@@ -144,6 +144,54 @@ fn parse_mcnk_subchunks_reads_mcsh_when_flagged() {
 }
 
 #[test]
+fn parse_mcnk_subchunks_fixes_shadow_map_edges_by_default() {
+    let payload = mcnk_subchunks_payload(true, false, false, false, false);
+
+    let (_, _, _, _, shadow_map, _, _, _) = parse_mcnk_subchunks(
+        &payload,
+        McnkFlags {
+            has_mcsh: true,
+            impass: false,
+            has_mccv: false,
+            do_not_fix_alpha_map: false,
+            high_res_holes: false,
+        },
+    )
+    .expect("expected MCSH shadow map");
+
+    let shadow_map = shadow_map.expect("expected parsed shadow map");
+    assert!(!shadow_map_bit(&shadow_map, 0, 62));
+    assert!(!shadow_map_bit(&shadow_map, 0, 63));
+    assert!(!shadow_map_bit(&shadow_map, 63, 0));
+    assert!(shadow_map_bit(&shadow_map, 63, 1));
+    assert!(!shadow_map_bit(&shadow_map, 63, 63));
+}
+
+#[test]
+fn parse_mcnk_subchunks_preserves_shadow_map_edges_when_flagged() {
+    let payload = mcnk_subchunks_payload(true, false, false, false, false);
+
+    let (_, _, _, _, shadow_map, _, _, _) = parse_mcnk_subchunks(
+        &payload,
+        McnkFlags {
+            has_mcsh: true,
+            impass: false,
+            has_mccv: false,
+            do_not_fix_alpha_map: true,
+            high_res_holes: false,
+        },
+    )
+    .expect("expected MCSH shadow map");
+
+    let shadow_map = shadow_map.expect("expected parsed shadow map");
+    assert!(!shadow_map_bit(&shadow_map, 0, 62));
+    assert!(shadow_map_bit(&shadow_map, 0, 63));
+    assert!(shadow_map_bit(&shadow_map, 63, 0));
+    assert!(!shadow_map_bit(&shadow_map, 63, 1));
+    assert!(!shadow_map_bit(&shadow_map, 63, 63));
+}
+
+#[test]
 fn parse_mcnk_subchunks_reads_mcse_emitters() {
     let payload = mcnk_subchunks_payload(false, false, true, false, false);
 
@@ -407,10 +455,30 @@ fn append_optional_mcsh_subchunks(payload: &mut Vec<u8>, include_mcsh: bool) {
     }
 
     let mut shadow_map = vec![0; 512];
-    shadow_map[0] = 0b1000_0000;
-    shadow_map[1] = 0b0100_0000;
+    set_shadow_map_payload_bit(&mut shadow_map, 0, 62, false);
+    set_shadow_map_payload_bit(&mut shadow_map, 0, 63, true);
+    set_shadow_map_payload_bit(&mut shadow_map, 62, 0, false);
+    set_shadow_map_payload_bit(&mut shadow_map, 62, 1, true);
+    set_shadow_map_payload_bit(&mut shadow_map, 63, 0, true);
+    set_shadow_map_payload_bit(&mut shadow_map, 63, 1, false);
+    set_shadow_map_payload_bit(&mut shadow_map, 63, 63, false);
     append_subchunk(payload, b"HSCM", shadow_map);
     append_subchunk(payload, b"VCCM", vec![0x7F; MCVT_COUNT * 4]);
+}
+
+fn shadow_map_bit(shadow_map: &[u8; 512], row: usize, col: usize) -> bool {
+    let byte = shadow_map[row * 8 + col / 8];
+    ((byte >> (7 - (col % 8))) & 1) != 0
+}
+
+fn set_shadow_map_payload_bit(shadow_map: &mut [u8], row: usize, col: usize, value: bool) {
+    let byte_index = row * 8 + col / 8;
+    let mask = 1 << (7 - (col % 8));
+    if value {
+        shadow_map[byte_index] |= mask;
+    } else {
+        shadow_map[byte_index] &= !mask;
+    }
 }
 
 fn append_optional_mclv_subchunk(payload: &mut Vec<u8>, include_mclv: bool) {

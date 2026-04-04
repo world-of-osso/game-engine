@@ -29,7 +29,7 @@ fn build_parsed_tile(
     lod: DoodadLod,
 ) -> Result<ParsedTile, String> {
     let adt_data = load_parsed_adt_data(tile_y, tile_x, &adt_path)?;
-    let tex_data = load_parsed_tile_textures(tile_y, tile_x, &adt_path);
+    let tex_data = load_parsed_tile_textures(tile_y, tile_x, &adt_path, &adt_data);
     let obj_data = load_parsed_tile_objects(tile_y, tile_x, &adt_path, lod);
     Ok(ParsedTile {
         tile_y,
@@ -55,8 +55,13 @@ fn load_parsed_adt_data(tile_y: u32, tile_x: u32, adt_path: &Path) -> Result<adt
     Ok(adt_data)
 }
 
-fn load_parsed_tile_textures(tile_y: u32, tile_x: u32, adt_path: &Path) -> Option<adt::AdtTexData> {
-    let tex_data = load_tex0(adt_path);
+fn load_parsed_tile_textures(
+    tile_y: u32,
+    tile_x: u32,
+    adt_path: &Path,
+    adt_data: &adt::AdtData,
+) -> Option<adt::AdtTexData> {
+    let tex_data = load_tex0(adt_path, Some(adt_data));
     eprintln!(
         "parse_tile_background tex ok ({}, {}) {} tex={}",
         tile_y,

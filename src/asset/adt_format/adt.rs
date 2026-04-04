@@ -360,6 +360,35 @@ fn parse_mcsh(payload: &[u8]) -> Result<[u8; MCSH_BYTES], String> {
     Ok(shadow_map)
 }
 
+fn fix_shadow_map_edges(shadow_map: &mut [u8; MCSH_BYTES]) {
+    const SHADOW_MAP_SIDE: usize = 64;
+
+    for row in 0..SHADOW_MAP_SIDE {
+        let last_source_col = shadow_map_bit(shadow_map, row, 62);
+        set_shadow_map_bit(shadow_map, row, 63, last_source_col);
+    }
+    for col in 0..SHADOW_MAP_SIDE {
+        let last_source_row = shadow_map_bit(shadow_map, 62, col);
+        set_shadow_map_bit(shadow_map, 63, col, last_source_row);
+    }
+}
+
+fn shadow_map_bit(shadow_map: &[u8; MCSH_BYTES], row: usize, col: usize) -> bool {
+    let byte_index = row * 8 + col / 8;
+    let mask = 1 << (7 - (col % 8));
+    (shadow_map[byte_index] & mask) != 0
+}
+
+fn set_shadow_map_bit(shadow_map: &mut [u8; MCSH_BYTES], row: usize, col: usize, value: bool) {
+    let byte_index = row * 8 + col / 8;
+    let mask = 1 << (7 - (col % 8));
+    if value {
+        shadow_map[byte_index] |= mask;
+    } else {
+        shadow_map[byte_index] &= !mask;
+    }
+}
+
 fn parse_mcse(payload: &[u8]) -> Result<Vec<SoundEmitter>, String> {
     if !payload.len().is_multiple_of(MCSE_BYTES_PER_EMITTER) {
         return Err(format!(
@@ -610,7 +639,12 @@ fn resolve_mcnk_shadow_map(
     flags: McnkFlags,
 ) -> Result<Option<[u8; MCSH_BYTES]>, String> {
     match shadow_map {
-        Some(shadow_map) => Ok(Some(shadow_map)),
+        Some(mut shadow_map) => {
+            if !flags.do_not_fix_alpha_map {
+                fix_shadow_map_edges(&mut shadow_map);
+            }
+            Ok(Some(shadow_map))
+        }
         None if !flags.has_mcsh => Ok(None),
         None => Err("MCNK flagged with MCSH but missing HSCM sub-chunk".to_string()),
     }

@@ -4,7 +4,7 @@ use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 pub use super::adt_format::adt::{CHUNK_SIZE, ChunkHeightGrid, ChunkIter, UNIT_SIZE, vertex_index};
 pub use super::adt_format::adt_tex::{
     AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, TextureParams,
-    WaterLayer, load_adt_tex0, parse_mh2o,
+    WaterLayer, load_adt_tex0, load_adt_tex0_with_chunk_alpha_flags, parse_mh2o,
 };
 use super::m2::wow_to_bevy;
 
@@ -13,6 +13,7 @@ pub struct McnkMesh {
     pub index_x: u32,
     pub index_y: u32,
     pub area_id: u32,
+    pub do_not_fix_alpha_map: bool,
     pub shadow_map: Option<[u8; 512]>,
     pub sound_emitters: Vec<super::adt_format::adt::SoundEmitter>,
     pub blend_batches: Vec<super::adt_format::adt::BlendBatch>,
@@ -206,6 +207,7 @@ fn build_chunks(
             index_x: chunk.index_x,
             index_y: chunk.index_y,
             area_id: chunk.area_id,
+            do_not_fix_alpha_map: chunk.flags.do_not_fix_alpha_map,
             shadow_map: chunk.shadow_map,
             sound_emitters: chunk.sound_emitters.clone(),
             blend_batches: chunk.blend_batches.clone(),

@@ -204,6 +204,7 @@ fn read_layer_alpha_map(
     offset_in_mcal: usize,
     mcal: &[u8],
     layer_idx: usize,
+    do_not_fix_alpha_map: bool,
 ) -> Result<Option<Vec<u8>>, String> {
     if (flags & MCLY_FLAG_USE_ALPHA_MAP) == 0 {
         return Ok(None);
@@ -220,6 +221,9 @@ fn read_layer_alpha_map(
             out[i * 2] = (v & 0x0F) * 17;
             out[i * 2 + 1] = (v >> 4) * 17;
         }
+        if !do_not_fix_alpha_map {
+            fix_alpha_map_edges(&mut out);
+        }
         out
     } else {
         return Err(format!(
@@ -230,13 +234,35 @@ fn read_layer_alpha_map(
     Ok(Some(data))
 }
 
-fn build_texture_layers(mcly: &[u8], mcal: &[u8]) -> Result<Vec<TextureLayer>, String> {
+fn fix_alpha_map_edges(alpha_map: &mut [u8]) {
+    const ALPHA_MAP_SIZE: usize = 64;
+
+    for row in 0..ALPHA_MAP_SIZE {
+        let base = row * ALPHA_MAP_SIZE;
+        alpha_map[base + 63] = alpha_map[base + 62];
+    }
+    for col in 0..ALPHA_MAP_SIZE {
+        alpha_map[63 * ALPHA_MAP_SIZE + col] = alpha_map[62 * ALPHA_MAP_SIZE + col];
+    }
+}
+
+fn build_texture_layers(
+    mcly: &[u8],
+    mcal: &[u8],
+    do_not_fix_alpha_map: bool,
+) -> Result<Vec<TextureLayer>, String> {
     let layer_count = mcly.len() / size_of::<MclyEntry>();
     let mut layers = Vec::with_capacity(layer_count);
     for i in 0..layer_count {
         let base = i * size_of::<MclyEntry>();
         let entry: MclyEntry = parse_binrw_value(mcly, base, "MCLY entry")?;
-        let alpha_map = read_layer_alpha_map(entry.flags, entry.offset_in_mcal as usize, mcal, i)?;
+        let alpha_map = read_layer_alpha_map(
+            entry.flags,
+            entry.offset_in_mcal as usize,
+            mcal,
+            i,
+            do_not_fix_alpha_map,
+        )?;
         layers.push(TextureLayer {
             texture_index: entry.texture_index,
             flags: MclyFlags { raw: entry.flags },
@@ -247,7 +273,7 @@ fn build_texture_layers(mcly: &[u8], mcal: &[u8]) -> Result<Vec<TextureLayer>, S
     Ok(layers)
 }
 
-fn parse_tex0_mcnk(payload: &[u8]) -> Result<ChunkTexLayers, String> {
+fn parse_tex0_mcnk(payload: &[u8], do_not_fix_alpha_map: bool) -> Result<ChunkTexLayers, String> {
     let mut mcly_payload: Option<&[u8]> = None;
     let mut mcal_payload: Option<&[u8]> = None;
     for chunk in ChunkIter::new(payload) {
@@ -261,7 +287,7 @@ fn parse_tex0_mcnk(payload: &[u8]) -> Result<ChunkTexLayers, String> {
     let mcly = mcly_payload.unwrap_or(&[]);
     let mcal = mcal_payload.unwrap_or(&[]);
     Ok(ChunkTexLayers {
-        layers: build_texture_layers(mcly, mcal)?,
+        layers: build_texture_layers(mcly, mcal, do_not_fix_alpha_map)?,
     })
 }
 
@@ -304,11 +330,19 @@ fn parse_texture_params(payload: &[u8]) -> Result<Vec<TextureParams>, String> {
 }
 
 pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
+    load_adt_tex0_with_chunk_alpha_flags(data, &[])
+}
+
+pub fn load_adt_tex0_with_chunk_alpha_flags(
+    data: &[u8],
+    do_not_fix_alpha_map: &[bool],
+) -> Result<AdtTexData, String> {
     let mut texture_fdids: Vec<u32> = Vec::new();
     let mut height_texture_fdids: Vec<u32> = Vec::new();
     let mut texture_flags: Vec<u32> = Vec::new();
     let mut texture_params: Vec<TextureParams> = Vec::new();
     let mut chunk_layers: Vec<ChunkTexLayers> = Vec::with_capacity(256);
+    let mut chunk_index = 0usize;
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         match tag {
@@ -316,7 +350,14 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
             b"DIHM" => height_texture_fdids = parse_u32_chunk(payload, "MHID")?,
             b"FXTM" => texture_flags = parse_u32_chunk(payload, "MTXF")?,
             b"PXTM" => texture_params = parse_texture_params(payload)?,
-            b"KNCM" => chunk_layers.push(parse_tex0_mcnk(payload)?),
+            b"KNCM" => {
+                let chunk_do_not_fix_alpha = do_not_fix_alpha_map
+                    .get(chunk_index)
+                    .copied()
+                    .unwrap_or(false);
+                chunk_layers.push(parse_tex0_mcnk(payload, chunk_do_not_fix_alpha)?);
+                chunk_index += 1;
+            }
             _ => {}
         }
     }
@@ -510,7 +551,7 @@ mod tests {
             99,
         );
 
-        let layers = build_texture_layers(&mcly, &[]).expect("expected MCLY layer to parse");
+        let layers = build_texture_layers(&mcly, &[], false).expect("expected MCLY layer to parse");
         let layer = &layers[0];
 
         assert_eq!(layer.texture_index, 7);
@@ -617,6 +658,71 @@ mod tests {
         );
     }
 
+    #[test]
+    fn load_adt_tex0_fixes_uncompressed_alpha_map_edges_by_default() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+        let mcal = uncompressed_mcal_payload(|x, y| {
+            if x == 63 || y == 63 {
+                15
+            } else if x == 62 || y == 62 {
+                3
+            } else {
+                0
+            }
+        });
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            tex0_mcnk_payload(mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0), mcal),
+        );
+
+        let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+        let alpha = parsed.chunk_layers[0].layers[0]
+            .alpha_map
+            .as_ref()
+            .expect("expected alpha map");
+
+        assert_eq!(alpha_at(alpha, 62, 10), 51);
+        assert_eq!(alpha_at(alpha, 63, 10), 51);
+        assert_eq!(alpha_at(alpha, 10, 62), 51);
+        assert_eq!(alpha_at(alpha, 10, 63), 51);
+        assert_eq!(alpha_at(alpha, 63, 63), 51);
+    }
+
+    #[test]
+    fn load_adt_tex0_preserves_uncompressed_alpha_map_edges_when_flagged() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+        let mcal = uncompressed_mcal_payload(|x, y| {
+            if x == 63 || y == 63 {
+                15
+            } else if x == 62 || y == 62 {
+                3
+            } else {
+                0
+            }
+        });
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            tex0_mcnk_payload(mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0), mcal),
+        );
+
+        let parsed = load_adt_tex0_with_chunk_alpha_flags(&payload, &[true])
+            .expect("expected _tex0 payload to parse");
+        let alpha = parsed.chunk_layers[0].layers[0]
+            .alpha_map
+            .as_ref()
+            .expect("expected alpha map");
+
+        assert_eq!(alpha_at(alpha, 62, 10), 51);
+        assert_eq!(alpha_at(alpha, 63, 10), 255);
+        assert_eq!(alpha_at(alpha, 10, 62), 51);
+        assert_eq!(alpha_at(alpha, 10, 63), 255);
+        assert_eq!(alpha_at(alpha, 63, 63), 255);
+    }
+
     fn mcly_entry_payload(
         texture_index: u32,
         flags: u32,
@@ -661,5 +767,21 @@ mod tests {
             payload.extend_from_slice(&0u32.to_le_bytes());
         }
         payload
+    }
+
+    fn uncompressed_mcal_payload(alpha: impl Fn(usize, usize) -> u8) -> Vec<u8> {
+        let mut payload = Vec::with_capacity(2048);
+        for x in 0..64usize {
+            for y in (0..64usize).step_by(2) {
+                let lower = alpha(x, y) & 0x0F;
+                let upper = alpha(x, y + 1) & 0x0F;
+                payload.push(lower | (upper << 4));
+            }
+        }
+        payload
+    }
+
+    fn alpha_at(alpha: &[u8], x: usize, y: usize) -> u8 {
+        alpha[x * 64 + y]
     }
 }

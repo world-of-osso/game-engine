@@ -260,6 +260,8 @@ fn finish_spawn_adt(
 
 fn load_spawn_adt_inputs(adt_path: &Path) -> Result<SpawnAdtInputs, String> {
     let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
+    let adt_data = load_and_parse_adt(adt_path)?;
+    let tex_data = load_tex0(adt_path, Some(&adt_data));
     Ok(SpawnAdtInputs {
         map_name,
         tile_y,
@@ -268,8 +270,8 @@ fn load_spawn_adt_inputs(adt_path: &Path) -> Result<SpawnAdtInputs, String> {
             _tile_x: tile_x,
             _tile_y: tile_y,
         },
-        adt_data: load_and_parse_adt(adt_path)?,
-        tex_data: load_tex0(adt_path),
+        adt_data,
+        tex_data,
         obj_data: terrain_objects::load_obj0(adt_path),
     })
 }
@@ -369,6 +371,8 @@ pub fn spawn_adt_terrain_only(
 
 fn load_terrain_only_spawn_inputs(adt_path: &Path) -> Result<TerrainOnlySpawnInputs, String> {
     let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
+    let adt_data = load_and_parse_adt(adt_path)?;
+    let tex_data = load_tex0(adt_path, Some(&adt_data));
     Ok(TerrainOnlySpawnInputs {
         map_name,
         tile_y,
@@ -377,8 +381,8 @@ fn load_terrain_only_spawn_inputs(adt_path: &Path) -> Result<TerrainOnlySpawnInp
             _tile_x: tile_x,
             _tile_y: tile_y,
         },
-        adt_data: load_and_parse_adt(adt_path)?,
-        tex_data: load_tex0(adt_path),
+        adt_data,
+        tex_data,
     })
 }
 

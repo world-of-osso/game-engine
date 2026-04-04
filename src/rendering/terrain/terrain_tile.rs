@@ -145,10 +145,21 @@ pub(crate) fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<Pa
 }
 
 /// Try to load the companion _tex0.adt file.
-pub(crate) fn load_tex0(adt_path: &Path) -> Option<adt::AdtTexData> {
+pub(crate) fn load_tex0(
+    adt_path: &Path,
+    adt_data: Option<&adt::AdtData>,
+) -> Option<adt::AdtTexData> {
     let tex0_path = resolve_companion_path(adt_path, "_tex0")?;
     let data = std::fs::read(&tex0_path).ok()?;
-    match adt::load_adt_tex0(&data) {
+    let chunk_flags = adt_data
+        .map(|adt| {
+            adt.chunks
+                .iter()
+                .map(|chunk| chunk.do_not_fix_alpha_map)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    match adt::load_adt_tex0_with_chunk_alpha_flags(&data, &chunk_flags) {
         Ok(td) => {
             eprintln!(
                 "Loaded _tex0: {} textures, {} chunks",
