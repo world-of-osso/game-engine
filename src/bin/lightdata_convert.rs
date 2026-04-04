@@ -8,7 +8,7 @@ struct LightDataFile {
     by_param: BTreeMap<u32, Vec<LightDataRow>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 struct LightDataRow {
     time: f32,
     direct_color: u32,
@@ -97,7 +97,8 @@ fn resolve_column_indices(header: &str) -> [usize; 26] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
-    let mut indices = resolve_color_column_indices(&idx);
+    let mut indices = [0; 26];
+    indices[..20].copy_from_slice(&resolve_color_column_indices(&idx));
     indices[20..].copy_from_slice(&resolve_fog_and_aux_column_indices(&idx));
     indices
 }

@@ -58,7 +58,7 @@ fn bench_blp_loading(c: &mut Criterion) {
 }
 
 fn bench_adt_parsing(c: &mut Criterion) {
-    let cases = [(
+    let cases = [load_adt_bench_case(
         "elwynn_32_48",
         Path::new("data/terrain/azeroth_32_48.adt"),
         Path::new("data/terrain/azeroth_32_48_tex0.adt"),
@@ -67,50 +67,82 @@ fn bench_adt_parsing(c: &mut Criterion) {
         48_u32,
     )];
     let mut group = c.benchmark_group("asset::adt");
-    for (label, root_path, tex_path, obj_path, tile_y, tile_x) in cases {
-        assert!(
-            root_path.exists(),
-            "missing benchmark ADT {}",
-            root_path.display()
-        );
-        assert!(
-            tex_path.exists(),
-            "missing benchmark ADT tex {}",
-            tex_path.display()
-        );
-        assert!(
-            obj_path.exists(),
-            "missing benchmark ADT obj {}",
-            obj_path.display()
-        );
-        let root_bytes = std::fs::read(root_path).expect("read benchmark ADT root");
-        let tex_bytes = std::fs::read(tex_path).expect("read benchmark ADT tex");
-        let obj_bytes = std::fs::read(obj_path).expect("read benchmark ADT obj");
-        group.bench_with_input(
-            BenchmarkId::new("load_adt_for_tile", label),
-            &root_bytes,
-            |b, bytes| {
-                b.iter(|| {
-                    load_adt_for_tile(bytes, tile_y, tile_x).expect("parse benchmark ADT root")
-                });
-            },
-        );
-        group.bench_with_input(
-            BenchmarkId::new("load_adt_tex0", label),
-            &tex_bytes,
-            |b, bytes| {
-                b.iter(|| load_adt_tex0(bytes).expect("parse benchmark ADT tex"));
-            },
-        );
-        group.bench_with_input(
-            BenchmarkId::new("load_adt_obj0", label),
-            &obj_bytes,
-            |b, bytes| {
-                b.iter(|| load_adt_obj0(bytes).expect("parse benchmark ADT obj"));
-            },
-        );
+    for case in &cases {
+        register_adt_bench_case(&mut group, case);
     }
     group.finish();
+}
+
+struct AdtBenchCase {
+    label: &'static str,
+    root_bytes: Vec<u8>,
+    tex_bytes: Vec<u8>,
+    obj_bytes: Vec<u8>,
+    tile_y: u32,
+    tile_x: u32,
+}
+
+fn load_adt_bench_case(
+    label: &'static str,
+    root_path: &Path,
+    tex_path: &Path,
+    obj_path: &Path,
+    tile_y: u32,
+    tile_x: u32,
+) -> AdtBenchCase {
+    assert!(
+        root_path.exists(),
+        "missing benchmark ADT {}",
+        root_path.display()
+    );
+    assert!(
+        tex_path.exists(),
+        "missing benchmark ADT tex {}",
+        tex_path.display()
+    );
+    assert!(
+        obj_path.exists(),
+        "missing benchmark ADT obj {}",
+        obj_path.display()
+    );
+    AdtBenchCase {
+        label,
+        root_bytes: std::fs::read(root_path).expect("read benchmark ADT root"),
+        tex_bytes: std::fs::read(tex_path).expect("read benchmark ADT tex"),
+        obj_bytes: std::fs::read(obj_path).expect("read benchmark ADT obj"),
+        tile_y,
+        tile_x,
+    }
+}
+
+fn register_adt_bench_case(
+    group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
+    case: &AdtBenchCase,
+) {
+    group.bench_with_input(
+        BenchmarkId::new("load_adt_for_tile", case.label),
+        &case.root_bytes,
+        |b, bytes| {
+            b.iter(|| {
+                load_adt_for_tile(bytes, case.tile_y, case.tile_x)
+                    .expect("parse benchmark ADT root")
+            });
+        },
+    );
+    group.bench_with_input(
+        BenchmarkId::new("load_adt_tex0", case.label),
+        &case.tex_bytes,
+        |b, bytes| {
+            b.iter(|| load_adt_tex0(bytes).expect("parse benchmark ADT tex"));
+        },
+    );
+    group.bench_with_input(
+        BenchmarkId::new("load_adt_obj0", case.label),
+        &case.obj_bytes,
+        |b, bytes| {
+            b.iter(|| load_adt_obj0(bytes).expect("parse benchmark ADT obj"));
+        },
+    );
 }
 
 fn bench_wmo_parsing(c: &mut Criterion) {
