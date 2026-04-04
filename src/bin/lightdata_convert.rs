@@ -97,6 +97,12 @@ fn resolve_column_indices(header: &str) -> [usize; 26] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
+    let mut indices = resolve_color_column_indices(&idx);
+    indices[20..].copy_from_slice(&resolve_fog_and_aux_column_indices(&idx));
+    indices
+}
+
+fn resolve_color_column_indices(idx: &impl Fn(&str, usize) -> usize) -> [usize; 20] {
     [
         idx("LightParamID", 1),
         idx("Time", 2),
@@ -118,6 +124,11 @@ fn resolve_column_indices(header: &str) -> [usize; 26] {
         idx("RiverCloseColor", 18),
         idx("RiverFarColor", 19),
         idx("HorizonAmbientColor", 34),
+    ]
+}
+
+fn resolve_fog_and_aux_column_indices(idx: &impl Fn(&str, usize) -> usize) -> [usize; 6] {
+    [
         idx("FogEnd", 21),
         idx("FogScaler", 22),
         idx("SunFogStrength", 40),
