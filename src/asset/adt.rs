@@ -12,6 +12,7 @@ pub struct McnkMesh {
     pub mesh: Mesh,
     pub index_x: u32,
     pub index_y: u32,
+    pub shadow_map: Option<[u8; 512]>,
 }
 
 pub struct AdtData {
@@ -145,6 +146,7 @@ fn build_mcnk_mesh(
     tile_coords: Option<(u32, u32)>,
 ) -> Mesh {
     let (positions, normals, uvs, indices) = build_mcnk_geometry(chunk, tile_coords);
+    let colors = combine_mcnk_vertex_colors(chunk.vertex_colors, chunk.vertex_lighting);
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
@@ -152,9 +154,30 @@ fn build_mcnk_mesh(
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, chunk.vertex_colors.to_vec());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     mesh.insert_indices(Indices::U32(indices));
     mesh
+}
+
+fn combine_mcnk_vertex_colors<const N: usize>(
+    vertex_colors: [[f32; 4]; N],
+    vertex_lighting: Option<[[f32; 4]; N]>,
+) -> Vec<[f32; 4]> {
+    match vertex_lighting {
+        Some(vertex_lighting) => vertex_colors
+            .into_iter()
+            .zip(vertex_lighting)
+            .map(|(base, lighting)| {
+                [
+                    base[0] * lighting[0],
+                    base[1] * lighting[1],
+                    base[2] * lighting[2],
+                    base[3],
+                ]
+            })
+            .collect(),
+        None => vertex_colors.to_vec(),
+    }
 }
 
 fn build_chunks(
@@ -167,6 +190,7 @@ fn build_chunks(
             mesh: build_mcnk_mesh(chunk, tile_coords),
             index_x: chunk.index_x,
             index_y: chunk.index_y,
+            shadow_map: chunk.shadow_map,
         })
         .collect()
 }
@@ -358,6 +382,8 @@ mod tests {
             index_y: 0,
             pos: [0.0, 0.0, 0.0],
             flags: super::super::adt_format::adt::McnkFlags::default(),
+            shadow_map: None,
+            vertex_lighting: None,
             holes_low_res: 0,
             holes_high_res: None,
             heights: [0.0; 145],
@@ -372,6 +398,30 @@ mod tests {
         };
         assert_eq!(colors.len(), 145);
         assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn mcnk_mesh_multiplies_vertex_lighting_into_vertex_colors() {
+        let chunk = super::super::adt_format::adt::McnkData {
+            index_x: 0,
+            index_y: 0,
+            pos: [0.0, 0.0, 0.0],
+            flags: super::super::adt_format::adt::McnkFlags::default(),
+            shadow_map: None,
+            vertex_lighting: Some([[1.5, 0.5, 0.25, 1.0]; 145]),
+            holes_low_res: 0,
+            holes_high_res: None,
+            heights: [0.0; 145],
+            normals: [[0.0, 1.0, 0.0]; 145],
+            vertex_colors: [[0.5, 0.5, 0.5, 0.75]; 145],
+        };
+
+        let mesh = build_mcnk_mesh(&chunk, None);
+        let Some(VertexAttributeValues::Float32x4(colors)) = mesh.attribute(Mesh::ATTRIBUTE_COLOR)
+        else {
+            panic!("expected terrain mesh vertex colors");
+        };
+        assert_eq!(colors[0], [0.75, 0.25, 0.125, 0.75]);
     }
 
     struct QuadIndices {

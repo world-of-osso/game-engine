@@ -13,6 +13,8 @@ const HALF_UNIT: f32 = UNIT_SIZE / 2.0;
 const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
 const MCVT_COUNT: usize = 145;
 const MCCV_BYTES_PER_VERTEX: usize = 4;
+const MCLV_BYTES_PER_VERTEX: usize = 4;
+const MCSH_BYTES: usize = 512;
 const MCNK_FLAG_HAS_MCSH: u32 = 0x1;
 const MCNK_FLAG_IMPASS: u32 = 0x2;
 const MCNK_FLAG_HAS_MCCV: u32 = 0x40;
@@ -57,6 +59,8 @@ pub(crate) struct McnkData {
     pub index_y: u32,
     pub pos: [f32; 3],
     pub flags: McnkFlags,
+    pub shadow_map: Option<[u8; MCSH_BYTES]>,
+    pub vertex_lighting: Option<[[f32; 4]; MCVT_COUNT]>,
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub heights: [f32; MCVT_COUNT],
@@ -221,6 +225,46 @@ fn parse_mccv(payload: &[u8]) -> Result<[[f32; 4]; MCVT_COUNT], String> {
     Ok(colors)
 }
 
+fn parse_mclv(payload: &[u8]) -> Result<[[f32; 4]; MCVT_COUNT], String> {
+    let expected_len = MCVT_COUNT * MCLV_BYTES_PER_VERTEX;
+    if payload.len() < expected_len {
+        return Err(format!(
+            "MCLV too small: {} bytes (need {})",
+            payload.len(),
+            expected_len
+        ));
+    }
+
+    let mut colors = [[1.0f32; 4]; MCVT_COUNT];
+    for (i, color) in colors.iter_mut().enumerate() {
+        let base = i * MCLV_BYTES_PER_VERTEX;
+        let blue = payload[base];
+        let green = payload[base + 1];
+        let red = payload[base + 2];
+        *color = [
+            f32::from(red) / 128.0,
+            f32::from(green) / 128.0,
+            f32::from(blue) / 128.0,
+            1.0,
+        ];
+    }
+    Ok(colors)
+}
+
+fn parse_mcsh(payload: &[u8]) -> Result<[u8; MCSH_BYTES], String> {
+    if payload.len() < MCSH_BYTES {
+        return Err(format!(
+            "MCSH too small: {} bytes (need {})",
+            payload.len(),
+            MCSH_BYTES
+        ));
+    }
+
+    let mut shadow_map = [0; MCSH_BYTES];
+    shadow_map.copy_from_slice(&payload[..MCSH_BYTES]);
+    Ok(shadow_map)
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
@@ -228,12 +272,15 @@ fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
     let flags = McnkFlags::from_bits(header.flags);
     let pos = [header.pos_x, header.pos_y, header.pos_z];
-    let (heights, normals, vertex_colors) = parse_mcnk_subchunks(&payload[128..], flags)?;
+    let (heights, normals, vertex_colors, vertex_lighting, shadow_map) =
+        parse_mcnk_subchunks(&payload[128..], flags)?;
     Ok(McnkData {
         index_x: header.index_x,
         index_y: header.index_y,
         pos,
         flags,
+        shadow_map,
+        vertex_lighting,
         holes_low_res: header._holes_low_res,
         holes_high_res: flags.high_res_holes.then_some(header._holes_high_res),
         heights,
@@ -250,32 +297,54 @@ fn parse_mcnk_subchunks(
         [f32; MCVT_COUNT],
         [[f32; 3]; MCVT_COUNT],
         [[f32; 4]; MCVT_COUNT],
+        Option<[[f32; 4]; MCVT_COUNT]>,
+        Option<[u8; MCSH_BYTES]>,
     ),
     String,
 > {
     let mut heights = None;
     let mut normals = None;
     let mut vertex_colors = None;
+    let mut vertex_lighting = None;
+    let mut shadow_map = None;
     for chunk in ChunkIter::new(sub) {
         let (tag, payload) = chunk?;
         match tag {
             b"TVCM" => heights = Some(parse_mcvt(payload)?),
             b"RNCM" => normals = Some(parse_mcnr(payload)?),
             b"VCCM" => vertex_colors = Some(parse_mccv(payload)?),
+            b"VLCM" => vertex_lighting = Some(parse_mclv(payload)?),
+            b"HSCM" => shadow_map = Some(parse_mcsh(payload)?),
             _ => {}
-        }
-        if heights.is_some() && normals.is_some() && vertex_colors.is_some() {
-            break;
         }
     }
     let heights = heights.ok_or("MCNK missing TVCM sub-chunk")?;
     let normals = normals.unwrap_or([[0.0, 1.0, 0.0]; MCVT_COUNT]);
-    let vertex_colors = match vertex_colors {
-        Some(colors) => colors,
-        None if !flags.has_mccv => [[1.0, 1.0, 1.0, 1.0]; MCVT_COUNT],
-        None => return Err("MCNK flagged with MCCV but missing VCCM sub-chunk".to_string()),
-    };
-    Ok((heights, normals, vertex_colors))
+    let vertex_colors = resolve_mcnk_vertex_colors(vertex_colors, flags)?;
+    let shadow_map = resolve_mcnk_shadow_map(shadow_map, flags)?;
+    Ok((heights, normals, vertex_colors, vertex_lighting, shadow_map))
+}
+
+fn resolve_mcnk_vertex_colors(
+    vertex_colors: Option<[[f32; 4]; MCVT_COUNT]>,
+    flags: McnkFlags,
+) -> Result<[[f32; 4]; MCVT_COUNT], String> {
+    match vertex_colors {
+        Some(colors) => Ok(colors),
+        None if !flags.has_mccv => Ok([[1.0, 1.0, 1.0, 1.0]; MCVT_COUNT]),
+        None => Err("MCNK flagged with MCCV but missing VCCM sub-chunk".to_string()),
+    }
+}
+
+fn resolve_mcnk_shadow_map(
+    shadow_map: Option<[u8; MCSH_BYTES]>,
+    flags: McnkFlags,
+) -> Result<Option<[u8; MCSH_BYTES]>, String> {
+    match shadow_map {
+        Some(shadow_map) => Ok(Some(shadow_map)),
+        None if !flags.has_mcsh => Ok(None),
+        None => Err("MCNK flagged with MCSH but missing HSCM sub-chunk".to_string()),
+    }
 }
 
 pub fn vertex_index(grid_row: usize, col: usize) -> usize {
@@ -611,7 +680,7 @@ fn load_adt_inner(
 mod tests {
     use super::{
         MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP, MCNK_FLAG_HAS_MCCV, MCNK_FLAG_HAS_MCSH,
-        MCNK_FLAG_HIGH_RES_HOLES, MCNK_FLAG_IMPASS, MCVT_COUNT, McnkFlags, parse_mccv,
+        MCNK_FLAG_HIGH_RES_HOLES, MCNK_FLAG_IMPASS, MCVT_COUNT, McnkFlags, parse_mccv, parse_mclv,
         parse_mcnk_subchunks,
     };
 
@@ -651,7 +720,7 @@ mod tests {
 
     #[test]
     fn parse_mcnk_subchunks_requires_mccv_when_flagged() {
-        let payload = mcnk_subchunks_payload(false);
+        let payload = mcnk_subchunks_payload(false, false);
 
         let err = parse_mcnk_subchunks(
             &payload,
@@ -670,21 +739,100 @@ mod tests {
 
     #[test]
     fn parse_mcnk_subchunks_defaults_vertex_colors_when_mccv_not_flagged() {
-        let payload = mcnk_subchunks_payload(false);
+        let payload = mcnk_subchunks_payload(false, false);
 
-        let (_, _, colors) = parse_mcnk_subchunks(&payload, McnkFlags::default())
-            .expect("expected missing optional MCCV to default");
+        let (_, _, colors, vertex_lighting, shadow_map) =
+            parse_mcnk_subchunks(&payload, McnkFlags::default())
+                .expect("expected missing optional MCCV to default");
 
         assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
         assert_eq!(colors[MCVT_COUNT - 1], [1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(vertex_lighting, None);
+        assert_eq!(shadow_map, None);
     }
 
-    fn mcnk_subchunks_payload(include_mccv: bool) -> Vec<u8> {
+    #[test]
+    fn parse_mclv_reads_bgra_and_uses_neutral_center() {
+        let mut payload = vec![0; MCVT_COUNT * 4];
+        payload[0..4].copy_from_slice(&[0x40, 0x60, 0x80, 0xFF]);
+
+        let colors = parse_mclv(&payload).expect("expected MCLV colors");
+        assert_eq!(colors.len(), MCVT_COUNT);
+        assert_eq!(colors[0], [128.0 / 128.0, 96.0 / 128.0, 64.0 / 128.0, 1.0]);
+        assert_eq!(colors[1], [0.0, 0.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn parse_mcnk_subchunks_reads_mcsh_when_flagged() {
+        let payload = mcnk_subchunks_payload(true, false);
+
+        let (_, _, _, vertex_lighting, shadow_map) = parse_mcnk_subchunks(
+            &payload,
+            McnkFlags {
+                has_mcsh: true,
+                impass: false,
+                has_mccv: false,
+                do_not_fix_alpha_map: false,
+                high_res_holes: false,
+            },
+        )
+        .expect("expected MCSH shadow map");
+
+        let shadow_map = shadow_map.expect("expected parsed shadow map");
+        assert_eq!(shadow_map[0], 0b1000_0000);
+        assert_eq!(shadow_map[1], 0b0100_0000);
+        assert_eq!(vertex_lighting, None);
+    }
+
+    #[test]
+    fn parse_mcnk_subchunks_requires_mcsh_when_flagged() {
+        let payload = mcnk_subchunks_payload(false, false);
+
+        let err = parse_mcnk_subchunks(
+            &payload,
+            McnkFlags {
+                has_mcsh: true,
+                impass: false,
+                has_mccv: false,
+                do_not_fix_alpha_map: false,
+                high_res_holes: false,
+            },
+        )
+        .expect_err("expected missing MCSH to be rejected");
+
+        assert!(err.contains("flagged with MCSH"));
+    }
+
+    #[test]
+    fn parse_mcnk_subchunks_reads_mclv_even_when_it_is_not_first() {
+        let payload = mcnk_subchunks_payload(false, true);
+
+        let (_, _, _, vertex_lighting, shadow_map) =
+            parse_mcnk_subchunks(&payload, McnkFlags::default())
+                .expect("expected vertex lighting to be parsed");
+
+        let vertex_lighting = vertex_lighting.expect("expected parsed MCLV");
+        assert_eq!(vertex_lighting[0], [1.0, 0.5, 0.0, 1.0]);
+        assert_eq!(shadow_map, None);
+    }
+
+    fn mcnk_subchunks_payload(include_mcsh: bool, include_mclv: bool) -> Vec<u8> {
         let mut payload = Vec::new();
         append_subchunk(&mut payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
         append_subchunk(&mut payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
-        if include_mccv {
+        if include_mcsh {
+            let mut shadow_map = vec![0; 512];
+            shadow_map[0] = 0b1000_0000;
+            shadow_map[1] = 0b0100_0000;
+            append_subchunk(&mut payload, b"HSCM", shadow_map);
+        }
+        if include_mcsh {
             append_subchunk(&mut payload, b"VCCM", vec![0x7F; MCVT_COUNT * 4]);
+        }
+        if include_mclv {
+            let mut vertex_lighting = vec![0; MCVT_COUNT * 4];
+            vertex_lighting[0..4].copy_from_slice(&[0x00, 0x40, 0x80, 0xFF]);
+            append_subchunk(&mut payload, b"VLCM", vertex_lighting);
         }
         payload
     }
