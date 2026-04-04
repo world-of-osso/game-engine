@@ -56,6 +56,7 @@ pub struct ChunkTexLayers {
 
 pub struct AdtTexData {
     pub texture_fdids: Vec<u32>,
+    pub height_texture_fdids: Vec<u32>,
     pub chunk_layers: Vec<ChunkTexLayers>,
 }
 
@@ -248,6 +249,7 @@ fn parse_tex0_mcnk(payload: &[u8]) -> Result<ChunkTexLayers, String> {
 
 pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
     let mut texture_fdids: Vec<u32> = Vec::new();
+    let mut height_texture_fdids: Vec<u32> = Vec::new();
     let mut chunk_layers: Vec<ChunkTexLayers> = Vec::with_capacity(256);
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
@@ -259,6 +261,13 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
                     texture_fdids.push(read_u32(payload, i * 4)?);
                 }
             }
+            b"DIHM" => {
+                let count = payload.len() / 4;
+                height_texture_fdids.reserve(count);
+                for i in 0..count {
+                    height_texture_fdids.push(read_u32(payload, i * 4)?);
+                }
+            }
             b"KNCM" => chunk_layers.push(parse_tex0_mcnk(payload)?),
             _ => {}
         }
@@ -268,6 +277,7 @@ pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
     }
     Ok(AdtTexData {
         texture_fdids,
+        height_texture_fdids,
         chunk_layers,
     })
 }
@@ -476,9 +486,27 @@ mod tests {
         let layer = &parsed.chunk_layers[0].layers[0];
 
         assert_eq!(parsed.texture_fdids, vec![3]);
+        assert!(parsed.height_texture_fdids.is_empty());
         assert!(layer.flags.use_alpha_map());
         assert_eq!(layer.effect_id, 11);
         assert_eq!(layer.alpha_map.as_ref().map(Vec::len), Some(4096));
+    }
+
+    #[test]
+    fn load_adt_tex0_reads_height_texture_fdids_from_mhid() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3, 4]));
+        append_subchunk(&mut payload, b"DIHM", u32_array_payload(&[30, 40]));
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), Vec::new()),
+        );
+
+        let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+
+        assert_eq!(parsed.texture_fdids, vec![3, 4]);
+        assert_eq!(parsed.height_texture_fdids, vec![30, 40]);
     }
 
     fn mcly_entry_payload(
@@ -506,5 +534,13 @@ mod tests {
         payload.extend_from_slice(tag);
         payload.extend_from_slice(&(chunk_payload.len() as u32).to_le_bytes());
         payload.extend_from_slice(&chunk_payload);
+    }
+
+    fn u32_array_payload(values: &[u32]) -> Vec<u8> {
+        let mut payload = Vec::with_capacity(values.len() * size_of::<u32>());
+        for value in values {
+            payload.extend_from_slice(&value.to_le_bytes());
+        }
+        payload
     }
 }

@@ -215,6 +215,7 @@ mod tests {
     fn dominant_texture_prefers_highest_alpha_layer() {
         let tex = adt::AdtTexData {
             texture_fdids: vec![1, 2],
+            height_texture_fdids: Vec::new(),
             chunk_layers: vec![adt::ChunkTexLayers {
                 layers: vec![
                     adt::TextureLayer {
