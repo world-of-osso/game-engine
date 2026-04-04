@@ -176,18 +176,20 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
     };
     match model.view {
         GameMenuView::MainMenu => main_menu_view(model.logged_in),
-        GameMenuView::Options => {
-            let options = options_view(&model.options);
-            rsx! {
-                r#frame {
-                    name: GAME_MENU_ROOT,
-                    stretch: true,
-                    background_color: "0.01,0.01,0.02,0.75",
-                    strata: FrameStrata::Dialog,
-                    mouse_enabled: true,
-                    {options}
-                }
-            }
+        GameMenuView::Options => options_menu_overlay(&model.options),
+    }
+}
+
+fn options_menu_overlay(options: &OptionsViewModel) -> Element {
+    let options = options_view(options);
+    rsx! {
+        r#frame {
+            name: GAME_MENU_ROOT,
+            stretch: true,
+            background_color: "0.01,0.01,0.02,0.75",
+            strata: FrameStrata::Dialog,
+            mouse_enabled: true,
+            {options}
         }
     }
 }
