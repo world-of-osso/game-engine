@@ -14,6 +14,7 @@ pub struct McnkMesh {
     pub index_y: u32,
     pub area_id: u32,
     pub shadow_map: Option<[u8; 512]>,
+    pub sound_emitters: Vec<super::adt_format::adt::SoundEmitter>,
 }
 
 pub struct AdtData {
@@ -59,14 +60,15 @@ fn terrain_vertex_uv(grid_row: usize, col: usize) -> [f32; 2] {
     }
 }
 
-fn build_mcnk_geometry(
+fn collect_mcnk_vertices(
     chunk: &super::adt_format::adt::McnkData,
     tile_coords: Option<(u32, u32)>,
-) -> McnkGeometry {
+) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>) {
     let mut positions = Vec::with_capacity(145);
-    let mut normals_out = Vec::with_capacity(145);
+    let mut normals = Vec::with_capacity(145);
     let mut uvs = Vec::with_capacity(145);
     let (origin_x, origin_z) = super::adt_format::adt::chunk_origin_bevy(chunk, tile_coords);
+
     for i in 0..145 {
         let (grid_row, col) = decode_mcnk_vertex_grid(i);
         positions.push(super::adt_format::adt::vertex_position_from_origin(
@@ -77,14 +79,30 @@ fn build_mcnk_geometry(
             chunk.pos[2],
             &chunk.heights,
         ));
-        normals_out.push(chunk.normals[i]);
+        normals.push(chunk.normals[i]);
         uvs.push(terrain_vertex_uv(grid_row, col));
     }
-    let holes_high_res = if chunk.flags.high_res_holes {
-        chunk.holes_high_res
+
+    (positions, normals, uvs)
+}
+
+fn selected_high_res_hole_mask(
+    flags: super::adt_format::adt::McnkFlags,
+    holes_high_res: Option<u64>,
+) -> Option<u64> {
+    if flags.high_res_holes {
+        holes_high_res
     } else {
         None
-    };
+    }
+}
+
+fn build_mcnk_geometry(
+    chunk: &super::adt_format::adt::McnkData,
+    tile_coords: Option<(u32, u32)>,
+) -> McnkGeometry {
+    let (positions, normals_out, uvs) = collect_mcnk_vertices(chunk, tile_coords);
+    let holes_high_res = selected_high_res_hole_mask(chunk.flags, chunk.holes_high_res);
     (
         positions,
         normals_out,
@@ -193,6 +211,7 @@ fn build_chunks(
             index_y: chunk.index_y,
             area_id: chunk.area_id,
             shadow_map: chunk.shadow_map,
+            sound_emitters: chunk.sound_emitters.clone(),
         })
         .collect()
 }
@@ -321,7 +340,10 @@ fn load_adt_inner(
 mod tests {
     use bevy::mesh::{Mesh, VertexAttributeValues};
 
-    use super::{build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color};
+    use super::{
+        build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color,
+        selected_high_res_hole_mask,
+    };
 
     const FULL_LOW_RES_HOLE_MASK: u16 = u16::MAX;
 
@@ -357,6 +379,29 @@ mod tests {
 
         let preserved = quad_index_base(3, 3);
         assert!(indices.contains(&preserved.center));
+    }
+
+    #[test]
+    fn selected_high_res_hole_mask_respects_high_res_flag() {
+        let flags = super::super::adt_format::adt::McnkFlags {
+            has_mcsh: false,
+            impass: false,
+            has_mccv: false,
+            do_not_fix_alpha_map: false,
+            high_res_holes: true,
+        };
+
+        assert_eq!(selected_high_res_hole_mask(flags, Some(0x55)), Some(0x55));
+        assert_eq!(
+            selected_high_res_hole_mask(
+                super::super::adt_format::adt::McnkFlags {
+                    high_res_holes: false,
+                    ..flags
+                },
+                Some(0x55),
+            ),
+            None
+        );
     }
 
     #[test]

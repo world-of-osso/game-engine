@@ -81,7 +81,7 @@ pub(crate) struct McnkData {
 
 #[derive(Debug, Clone, Copy, BinRead, PartialEq)]
 #[br(little)]
-pub(crate) struct SoundEmitter {
+pub struct SoundEmitter {
     pub sound_entry_id: u32,
     pub position: [f32; 3],
     pub size_min: [f32; 3],
