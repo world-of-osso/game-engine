@@ -291,50 +291,12 @@ fn simple_auction_request(command: &AuctionCmd) -> Option<Request> {
 
 fn to_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand {
     match command {
-        AuctionCmd::Browse {
-            text,
-            page,
-            page_size,
-            min_level,
-            max_level,
-            quality,
-            sort,
-            dir,
-        } => AuctionNonSimpleCommand::Browse(AuctionBrowseCommand {
-            text,
-            page,
-            page_size,
-            min_level,
-            max_level,
-            quality,
-            sort,
-            dir,
-        }),
-        AuctionCmd::Create {
-            item_guid,
-            stack,
-            bid,
-            buyout,
-            duration,
-        } => AuctionNonSimpleCommand::Create {
-            item_guid,
-            stack,
-            bid,
-            buyout,
-            duration,
-        },
-        AuctionCmd::ClaimMail { mail_id } => {
-            AuctionNonSimpleCommand::Action(AuctionActionCommand::ClaimMail { mail_id })
-        }
-        AuctionCmd::Bid { id, amount } => {
-            AuctionNonSimpleCommand::Action(AuctionActionCommand::Bid { id, amount })
-        }
-        AuctionCmd::Buyout { id } => {
-            AuctionNonSimpleCommand::Action(AuctionActionCommand::Buyout { id })
-        }
-        AuctionCmd::Cancel { id } => {
-            AuctionNonSimpleCommand::Action(AuctionActionCommand::Cancel { id })
-        }
+        AuctionCmd::Browse { .. } => browse_non_simple_auction_command(command),
+        AuctionCmd::Create { .. } => create_non_simple_auction_command(command),
+        AuctionCmd::ClaimMail { .. }
+        | AuctionCmd::Bid { .. }
+        | AuctionCmd::Buyout { .. }
+        | AuctionCmd::Cancel { .. } => action_non_simple_auction_command(command),
         AuctionCmd::Open
         | AuctionCmd::Status
         | AuctionCmd::Owned
@@ -342,6 +304,62 @@ fn to_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand
         | AuctionCmd::Inventory
         | AuctionCmd::Mailbox => unreachable!("simple auction commands returned above"),
     }
+}
+
+fn browse_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand {
+    let AuctionCmd::Browse {
+        text,
+        page,
+        page_size,
+        min_level,
+        max_level,
+        quality,
+        sort,
+        dir,
+    } = command
+    else {
+        unreachable!("browse helper must only receive browse command");
+    };
+    AuctionNonSimpleCommand::Browse(AuctionBrowseCommand {
+        text,
+        page,
+        page_size,
+        min_level,
+        max_level,
+        quality,
+        sort,
+        dir,
+    })
+}
+
+fn create_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand {
+    let AuctionCmd::Create {
+        item_guid,
+        stack,
+        bid,
+        buyout,
+        duration,
+    } = command
+    else {
+        unreachable!("create helper must only receive create command");
+    };
+    AuctionNonSimpleCommand::Create {
+        item_guid,
+        stack,
+        bid,
+        buyout,
+        duration,
+    }
+}
+
+fn action_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand {
+    AuctionNonSimpleCommand::Action(match command {
+        AuctionCmd::ClaimMail { mail_id } => AuctionActionCommand::ClaimMail { mail_id },
+        AuctionCmd::Bid { id, amount } => AuctionActionCommand::Bid { id, amount },
+        AuctionCmd::Buyout { id } => AuctionActionCommand::Buyout { id },
+        AuctionCmd::Cancel { id } => AuctionActionCommand::Cancel { id },
+        _ => unreachable!("action helper must only receive action command"),
+    })
 }
 
 fn auction_non_simple_request(command: AuctionNonSimpleCommand) -> Result<Request, String> {
