@@ -138,21 +138,41 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
 
 fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
     let mut reader = open_reader(source_path)?;
+    let columns = read_import_columns(&mut reader, source_path)?;
+    let mut insert = prepare_particle_color_insert(conn)?;
+    import_particle_color_rows(&mut reader, &mut insert, &columns, source_path)?;
+    Ok(())
+}
+
+fn read_import_columns<R: BufRead>(
+    reader: &mut R,
+    source_path: &Path,
+) -> Result<[usize; 10], String> {
     let mut header = String::new();
     reader
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", source_path.display()))?;
-    let columns = resolve_column_indices(
+    resolve_column_indices(
         parse_csv_line(header.trim_end_matches(['\r', '\n'])).as_slice(),
         source_path,
-    )?;
-    let mut insert = conn
-        .prepare(
-            "INSERT OR REPLACE INTO particle_colors
-             (id, start_0, start_1, start_2, mid_0, mid_1, mid_2, end_0, end_1, end_2)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        )
-        .map_err(|err| format!("prepare particle_colors insert: {err}"))?;
+    )
+}
+
+fn prepare_particle_color_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
+    conn.prepare(
+        "INSERT OR REPLACE INTO particle_colors
+         (id, start_0, start_1, start_2, mid_0, mid_1, mid_2, end_0, end_1, end_2)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+    )
+    .map_err(|err| format!("prepare particle_colors insert: {err}"))
+}
+
+fn import_particle_color_rows<R: BufRead>(
+    reader: &mut R,
+    insert: &mut rusqlite::Statement<'_>,
+    columns: &[usize; 10],
+    source_path: &Path,
+) -> Result<(), String> {
     let mut line = String::new();
     loop {
         line.clear();
@@ -164,7 +184,7 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
             break;
         }
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        if let Some(record) = parse_particle_color_row(&fields, &columns, source_path)? {
+        if let Some(record) = parse_particle_color_row(&fields, columns, source_path)? {
             insert
                 .execute((
                     record.id,
