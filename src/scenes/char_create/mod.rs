@@ -172,15 +172,17 @@ fn initial_char_create_state(
     state
 }
 
+const CHAR_CREATE_RANDOM_SEED_MIX: u64 = 0x9e37_79b9_7f4a_7c15;
+
 fn fresh_random_seed() -> u64 {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(duration) => duration.as_nanos() as u64,
-        Err(_) => 0x9e37_79b9_7f4a_7c15,
+        Err(_) => CHAR_CREATE_RANDOM_SEED_MIX,
     }
 }
 
 fn mix_seed(seed: u64) -> u64 {
-    let mut z = seed.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    let mut z = seed.wrapping_add(CHAR_CREATE_RANDOM_SEED_MIX);
     z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
     z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
     z ^ (z >> 31)
