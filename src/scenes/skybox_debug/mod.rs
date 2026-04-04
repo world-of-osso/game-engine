@@ -183,6 +183,17 @@ fn spawn_debug_skybox(
         warn_missing_debug_skybox(setup.scene.as_ref());
         return None;
     };
+    let spawned = spawn_resolved_debug_skybox(commands, params, setup, &resolved)?;
+    tag_debug_skybox_scene_entities(commands, &resolved, &spawned);
+    Some(build_spawned_debug_skybox(resolved, spawned))
+}
+
+fn spawn_resolved_debug_skybox(
+    commands: &mut Commands,
+    params: &mut SkyboxDebugSceneParams<'_, '_>,
+    setup: &SkyboxDebugSetup,
+    resolved: &ResolvedDebugSkybox,
+) -> Option<m2_scene::SpawnedAnimatedStaticM2> {
     let mut ctx = m2_scene::M2SceneSpawnContext {
         commands,
         assets: crate::m2_spawn::SpawnAssets {
@@ -195,29 +206,44 @@ fn spawn_debug_skybox(
         },
         creature_display_map: &params.creature_display_map,
     };
-    let Some(spawned) = m2_scene::spawn_animated_static_skybox_m2_parts(
+    let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
         &mut ctx,
         &resolved.path,
         Transform::from_translation(setup.eye),
         None,
-    ) else {
+    );
+    let Some(spawned) = spawned else {
         warn!(
             "skybox_debug_scene: failed to spawn skybox model at {}",
             resolved.path.display()
         );
         return None;
     };
+    Some(spawned)
+}
+
+fn tag_debug_skybox_scene_entities(
+    commands: &mut Commands,
+    resolved: &ResolvedDebugSkybox,
+    spawned: &m2_scene::SpawnedAnimatedStaticM2,
+) {
     commands.entity(spawned.root).insert((
         SkyboxDebugScene,
         SkyboxDebugSkybox,
         Name::new(format!("SkyboxDebug:{}", resolved.path.display())),
     ));
     commands.entity(spawned.model_root).insert(SkyboxDebugScene);
-    Some(SpawnedSkyboxDebug {
+}
+
+fn build_spawned_debug_skybox(
+    resolved: ResolvedDebugSkybox,
+    spawned: m2_scene::SpawnedAnimatedStaticM2,
+) -> SpawnedSkyboxDebug {
+    SpawnedSkyboxDebug {
         root: spawned.root,
         path: resolved.path,
         source: resolved.source,
-    })
+    }
 }
 
 fn warn_missing_debug_skybox(
