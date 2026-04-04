@@ -354,18 +354,7 @@ fn try_spawn_fog_volume(
     if !m2_path.exists() {
         return None;
     }
-    let [x, y, z] =
-        crate::asset::m2::wow_to_bevy(volume.position[0], volume.position[1], volume.position[2]);
-    let rotation = wow_quat_to_bevy(volume.rotation);
-    let entity = commands
-        .spawn((
-            Name::new(format!("FogVolume_{}", volume.fog_id)),
-            Transform::from_translation(Vec3::new(x, y, z))
-                .with_rotation(rotation)
-                .with_scale(Vec3::ONE),
-            Visibility::default(),
-        ))
-        .id();
+    let entity = spawn_fog_volume_entity(commands, volume);
     if !m2_spawn::spawn_m2_on_entity(
         commands,
         &mut m2_spawn::SpawnAssets {
@@ -383,10 +372,29 @@ fn try_spawn_fog_volume(
         commands.entity(entity).despawn();
         return None;
     }
+    attach_fog_volume_parent(commands, parent, entity);
+    Some(entity)
+}
+
+fn spawn_fog_volume_entity(commands: &mut Commands, volume: &fogs_wdt::FogVolume) -> Entity {
+    let [x, y, z] =
+        crate::asset::m2::wow_to_bevy(volume.position[0], volume.position[1], volume.position[2]);
+    let rotation = wow_quat_to_bevy(volume.rotation);
+    commands
+        .spawn((
+            Name::new(format!("FogVolume_{}", volume.fog_id)),
+            Transform::from_translation(Vec3::new(x, y, z))
+                .with_rotation(rotation)
+                .with_scale(Vec3::ONE),
+            Visibility::default(),
+        ))
+        .id()
+}
+
+fn attach_fog_volume_parent(commands: &mut Commands, parent: Option<Entity>, entity: Entity) {
     if let Some(parent) = parent {
         commands.entity(parent).add_child(entity);
     }
-    Some(entity)
 }
 
 /// Resolve a doodad placement to a local M2 file path.
