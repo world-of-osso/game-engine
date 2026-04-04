@@ -499,20 +499,44 @@ fn apply_horizontal_movement(ctx: HorizontalMovementContext<'_>) {
         dt,
         terrain,
     } = ctx;
-    if direction.length_squared() > 0.0 {
-        let dir = direction.normalize();
-        let proposed = transform.translation + dir * speed * dt;
-        transform.translation = match terrain {
-            Some(t) => collision::validate_movement_slope(
-                transform.translation,
-                proposed,
-                t,
-                physics.grounded && !movement.jumping,
-            ),
-            None => proposed,
-        };
+    apply_ground_movement(transform, movement, physics, direction, speed, dt, terrain);
+    apply_jump_input(movement, physics, bindings, keys, mouse_buttons);
+    finish_jump_if_landed(transform, movement, physics, terrain);
+}
+
+fn apply_ground_movement(
+    transform: &mut Transform,
+    movement: &MovementState,
+    physics: &CharacterPhysics,
+    direction: Vec3,
+    speed: f32,
+    dt: f32,
+    terrain: Option<&TerrainHeightmap>,
+) {
+    if direction.length_squared() == 0.0 {
+        return;
     }
 
+    let dir = direction.normalize();
+    let proposed = transform.translation + dir * speed * dt;
+    transform.translation = match terrain {
+        Some(t) => collision::validate_movement_slope(
+            transform.translation,
+            proposed,
+            t,
+            physics.grounded && !movement.jumping,
+        ),
+        None => proposed,
+    };
+}
+
+fn apply_jump_input(
+    movement: &mut MovementState,
+    physics: &mut CharacterPhysics,
+    bindings: &InputBindings,
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+) {
     if bindings.is_just_pressed(InputAction::Jump, keys, mouse_buttons)
         && physics.grounded
         && !movement.jumping
@@ -520,6 +544,14 @@ fn apply_horizontal_movement(ctx: HorizontalMovementContext<'_>) {
         movement.jumping = true;
         physics.vertical_velocity = collision::JUMP_IMPULSE;
     }
+}
+
+fn finish_jump_if_landed(
+    transform: &Transform,
+    movement: &mut MovementState,
+    physics: &CharacterPhysics,
+    terrain: Option<&TerrainHeightmap>,
+) {
     if movement.jumping
         && physics.vertical_velocity <= 0.0
         && should_end_jump(transform, physics, terrain)
