@@ -40,6 +40,9 @@ struct PlayerModelSpawnContext<'a, 'w, 's> {
     creature_display_map: &'a CreatureDisplayMap,
 }
 
+type LocalPlayerTagQuery<'w, 's> =
+    Query<'w, 's, (Entity, &'static NetPlayer, Has<LocalPlayer>), With<Replicated>>;
+
 #[derive(SystemParam)]
 pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
     commands: Commands<'w, 's>,
@@ -324,11 +327,10 @@ pub(crate) fn choose_local_player_entity<'a>(
 }
 
 /// Retroactively tag the local player when SelectedCharacterId arrives after replication.
-#[allow(clippy::type_complexity)]
 pub(crate) fn tag_local_player(
     mut commands: Commands,
     selected: Option<Res<SelectedCharacterId>>,
-    players: Query<(Entity, &NetPlayer, Has<LocalPlayer>), With<Replicated>>,
+    players: LocalPlayerTagQuery<'_, '_>,
 ) {
     let Some(sel) = selected else { return };
     let Some(ref name) = sel.character_name else {
