@@ -476,7 +476,15 @@ fn resolve_choice_elements(
     let Some(elements) = indexed.elements_by_choice.get(&choice_id) else {
         return (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     };
+    let (materials, related_materials) = resolve_choice_materials(elements, raw);
+    let (geosets, related_geosets) = resolve_choice_geosets(elements, raw);
+    (materials, related_materials, geosets, related_geosets)
+}
 
+fn resolve_choice_materials(
+    elements: &[&RawElement],
+    raw: &RawData,
+) -> (Vec<(u16, u32)>, Vec<ChoiceMaterial>) {
     let (related_materials, materials): (Vec<_>, Vec<_>) = elements
         .iter()
         .filter_map(|el| {
@@ -500,7 +508,13 @@ fn resolve_choice_elements(
         .into_iter()
         .map(|(_, material)| (material.target_id, material.fdid))
         .collect();
+    (materials, related_materials)
+}
 
+fn resolve_choice_geosets(
+    elements: &[&RawElement],
+    raw: &RawData,
+) -> (Vec<(u16, u16)>, Vec<ChoiceGeoset>) {
     let (related_geosets, geosets): (Vec<_>, Vec<_>) = elements
         .iter()
         .filter_map(|el| {
@@ -523,8 +537,7 @@ fn resolve_choice_elements(
         .into_iter()
         .map(|(_, geoset)| (geoset.geoset_type, geoset.geoset_id))
         .collect();
-
-    (materials, related_materials, geosets, related_geosets)
+    (geosets, related_geosets)
 }
 
 // --- CSV parsing (manual, no csv crate) ---
