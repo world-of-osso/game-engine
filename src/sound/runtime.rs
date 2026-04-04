@@ -203,18 +203,18 @@ fn update_audio_volumes(
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn attach_footstep_tracker(
-    mut commands: Commands,
-    query: Query<
-        Entity,
-        (
-            With<crate::camera::Player>,
-            With<crate::animation::M2AnimPlayer>,
-            Without<FootstepTracker>,
-        ),
-    >,
-) {
+type FootstepTrackerAttachQuery<'w, 's> = Query<
+    'w,
+    's,
+    Entity,
+    (
+        With<crate::camera::Player>,
+        With<crate::animation::M2AnimPlayer>,
+        Without<FootstepTracker>,
+    ),
+>;
+
+fn attach_footstep_tracker(mut commands: Commands, query: FootstepTrackerAttachQuery<'_, '_>) {
     for entity in &query {
         commands.entity(entity).insert(FootstepTracker::default());
     }
