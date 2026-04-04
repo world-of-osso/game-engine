@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -261,19 +261,11 @@ struct DebugCharacterSpawnContext<'a, 'w, 's> {
     config: &'a DebugCharacterConfig,
 }
 
-fn spawn_debug_character_model(
+fn spawn_debug_scene_model(
     ctx: &mut DebugCharacterSpawnContext<'_, '_, '_>,
+    model_path: &Path,
     x: f32,
-    head_display: u32,
-    hands_display: u32,
-    waist_display: u32,
-    legs_display: u32,
-    feet_display: u32,
-    name: &str,
-) {
-    let Some(model_path) = resolve_model_path(ctx.config.race, ctx.config.sex) else {
-        return;
-    };
+) -> Option<m2_scene::SpawnedAnimatedStaticM2> {
     let mut spawn_ctx = m2_scene::M2SceneSpawnContext {
         commands: ctx.commands,
         assets: crate::m2_spawn::SpawnAssets {
@@ -286,11 +278,15 @@ fn spawn_debug_character_model(
         },
         creature_display_map: ctx.creature_display_map,
     };
-    let Some(spawned) =
-        m2_scene::spawn_animated_static_m2_parts(&mut spawn_ctx, &model_path, model_transform(x))
-    else {
-        return;
-    };
+    m2_scene::spawn_animated_static_m2_parts(&mut spawn_ctx, model_path, model_transform(x))
+}
+
+fn insert_debug_character_request(
+    ctx: &mut DebugCharacterSpawnContext<'_, '_, '_>,
+    spawned: m2_scene::SpawnedAnimatedStaticM2,
+    side: DebugCharacterEquipment,
+    name: &str,
+) {
     ctx.commands
         .entity(spawned.root)
         .insert((DebugCharacterScene, Name::new(name.to_string())));
@@ -305,15 +301,49 @@ fn spawn_debug_character_model(
                 appearance: ctx.config.appearance,
             },
             equipment_appearance: debug_equipment_appearance(
-                ctx.config,
-                head_display,
-                hands_display,
-                waist_display,
-                legs_display,
-                feet_display,
+                ctx.config, side.head, side.hands, side.waist, side.legs, side.feet,
             ),
         },
     ));
+}
+
+#[derive(Clone, Copy)]
+struct DebugCharacterEquipment {
+    head: u32,
+    hands: u32,
+    waist: u32,
+    legs: u32,
+    feet: u32,
+}
+
+fn spawn_debug_character_model(
+    ctx: &mut DebugCharacterSpawnContext<'_, '_, '_>,
+    x: f32,
+    head_display: u32,
+    hands_display: u32,
+    waist_display: u32,
+    legs_display: u32,
+    feet_display: u32,
+    name: &str,
+) {
+    let Some(model_path) = resolve_model_path(ctx.config.race, ctx.config.sex) else {
+        return;
+    };
+    let Some(spawned) = spawn_debug_scene_model(ctx, &model_path, x) else {
+        return;
+    };
+    insert_debug_character_request(
+        ctx,
+        spawned,
+        DebugCharacterEquipment {
+            head: head_display,
+            hands: hands_display,
+            waist: waist_display,
+            legs: legs_display,
+            feet: feet_display,
+        },
+        name,
+    );
 }
 
 struct DebugCharacterSide {
