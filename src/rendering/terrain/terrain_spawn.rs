@@ -90,10 +90,27 @@ pub(super) fn spawn_parsed_tile(
     heightmap: &TerrainHeightmap,
     parsed: &ParsedTile,
 ) -> (Entity, Vec<Entity>) {
-    let tile = AdtTile {
+    let tile = parsed_adt_tile(parsed);
+    log_parsed_tile(parsed);
+    let root = spawn_terrain_chunks(
+        refs,
+        &parsed.adt_path,
+        &parsed.adt_data,
+        parsed.tex_data.as_ref(),
+        &tile,
+    );
+    let doodad_entities = spawn_parsed_tile_doodads(refs, heightmap, parsed);
+    (root, doodad_entities)
+}
+
+fn parsed_adt_tile(parsed: &ParsedTile) -> AdtTile {
+    AdtTile {
         _tile_x: parsed.tile_x,
         _tile_y: parsed.tile_y,
-    };
+    }
+}
+
+fn log_parsed_tile(parsed: &ParsedTile) {
     eprintln!(
         "Spawning parsed tile ({}, {}) {} tex={} doodads={} wmos={}",
         parsed.tile_y,
@@ -106,31 +123,30 @@ pub(super) fn spawn_parsed_tile(
         parsed.obj_data.as_ref().map_or(0, |obj| obj.doodads.len()),
         parsed.obj_data.as_ref().map_or(0, |obj| obj.wmos.len()),
     );
-    let root = spawn_terrain_chunks(
-        refs,
-        &parsed.adt_path,
-        &parsed.adt_data,
-        parsed.tex_data.as_ref(),
-        &tile,
-    );
-    let doodad_entities = if let Some(ref obj_data) = parsed.obj_data {
-        terrain_objects::spawn_obj_entities(
-            refs.commands,
-            refs.meshes,
-            refs.materials,
-            refs.effect_materials,
-            refs.images,
-            refs.inverse_bp,
-            Some(heightmap),
-            parsed.tile_y,
-            parsed.tile_x,
-            obj_data,
-        )
-        .all_entities()
-    } else {
-        Vec::new()
+}
+
+fn spawn_parsed_tile_doodads(
+    refs: &mut SpawnRefs,
+    heightmap: &TerrainHeightmap,
+    parsed: &ParsedTile,
+) -> Vec<Entity> {
+    let Some(ref obj_data) = parsed.obj_data else {
+        return Vec::new();
     };
-    (root, doodad_entities)
+
+    terrain_objects::spawn_obj_entities(
+        refs.commands,
+        refs.meshes,
+        refs.materials,
+        refs.effect_materials,
+        refs.images,
+        refs.inverse_bp,
+        Some(heightmap),
+        parsed.tile_y,
+        parsed.tile_x,
+        obj_data,
+    )
+    .all_entities()
 }
 
 pub(super) fn log_adt_spawn(adt_data: &adt::AdtData, adt_path: &Path) {
