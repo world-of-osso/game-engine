@@ -298,6 +298,17 @@ fn contextual_icons(prefix: &str, player_side: bool) -> Element {
 
 fn player_contextual_icons(prefix: &str) -> Element {
     [
+        player_left_status_icons(prefix),
+        player_portrait_overlay_icons(prefix),
+        player_right_badge_icons(prefix),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn player_left_status_icons(prefix: &str) -> Element {
+    [
         anchored_marker(
             format!("{prefix}LeaderIcon"),
             PLAYER_LEADER.x,
@@ -320,12 +331,28 @@ fn player_contextual_icons(prefix: &str) -> Element {
             PLAYER_ATTACK.x,
             PLAYER_ATTACK.y,
         ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn player_portrait_overlay_icons(prefix: &str) -> Element {
+    [
         anchored_marker(
             format!("{prefix}PlayerPortraitCornerIcon"),
             PLAYER_CORNER.x,
             PLAYER_CORNER.y,
         ),
         anchored_top_marker(format!("{prefix}PVPIcon"), PLAYER_PVP.x, PLAYER_PVP.y),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn player_right_badge_icons(prefix: &str) -> Element {
+    [
         sized_marker(
             format!("{prefix}PrestigePortrait"),
             PLAYER_PRESTIGE.x,
