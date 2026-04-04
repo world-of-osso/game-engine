@@ -6,6 +6,8 @@ use bevy::render::render_resource::{
 };
 use bevy::shader::ShaderRef;
 
+const HASH_F32_OUTPUT_MASK: u32 = 0xFFFF;
+
 /// Custom water material with scrolling normal maps, fresnel, and specular.
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct WaterMaterial {
@@ -170,7 +172,7 @@ fn hash_f32(x: u32, y: u32) -> f32 {
         .wrapping_add(y.wrapping_mul(668265263));
     h = (h ^ (h >> 13)).wrapping_mul(1274126177);
     h ^= h >> 16;
-    (h & 0xFFFF) as f32 / 32767.5 - 1.0
+    (h & HASH_F32_OUTPUT_MASK) as f32 / 32767.5 - 1.0
 }
 
 /// Compute normal from heightmap via central differences (wrapping for tileability).
