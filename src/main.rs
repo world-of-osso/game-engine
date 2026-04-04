@@ -43,6 +43,7 @@ mod collision;
 mod csv_util;
 mod dump_systems;
 mod game;
+mod mesh_asset_stats;
 mod process_limits;
 mod rendering;
 mod scenes;

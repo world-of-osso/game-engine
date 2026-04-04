@@ -24,6 +24,7 @@ pub mod ipc;
 pub mod item_info;
 pub mod listfile;
 pub mod mail;
+pub mod mesh_asset_stats;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
 pub mod particle_color_cache;
