@@ -9,6 +9,7 @@ use crate::terrain::{AdtManager, DoodadLod};
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_objects;
 use crate::terrain_tile::{bevy_to_tile_coords, resolve_tile_path, tile_lod_for_distance};
+use crate::water_material::WaterMaterial;
 
 /// Grouped asset refs for LOD spawn helpers (reduces per-function argument count).
 struct LodSpawnRefs<'a, 'w, 's> {
@@ -16,6 +17,7 @@ struct LodSpawnRefs<'a, 'w, 's> {
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
+    water_materials: &'a mut Assets<WaterMaterial>,
     images: &'a mut Assets<Image>,
     inverse_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
@@ -26,6 +28,7 @@ pub(crate) fn doodad_lod_swap_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+    mut water_materials: ResMut<Assets<WaterMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     heightmap: Res<TerrainHeightmap>,
@@ -45,6 +48,7 @@ pub(crate) fn doodad_lod_swap_system(
         meshes: &mut meshes,
         materials: &mut materials,
         effect_materials: &mut effect_materials,
+        water_materials: &mut water_materials,
         images: &mut images,
         inverse_bp: &mut inverse_bp,
     };
@@ -125,6 +129,7 @@ fn spawn_lod_doodads(
             refs.meshes,
             refs.materials,
             refs.effect_materials,
+            refs.water_materials,
             refs.images,
             refs.inverse_bp,
             Some(heightmap),

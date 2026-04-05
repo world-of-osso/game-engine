@@ -324,6 +324,7 @@ fn spawn_adt_objects(
         refs.meshes,
         refs.materials,
         refs.effect_materials,
+        refs.water_materials,
         refs.images,
         refs.inverse_bp,
         Some(heightmap),

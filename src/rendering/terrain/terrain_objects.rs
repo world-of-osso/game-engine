@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use crate::asset::{adt_format::adt_obj, fogs_wdt};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
+use crate::water_material::WaterMaterial;
 
 use crate::terrain::resolve_companion_path;
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -145,6 +146,7 @@ pub fn spawn_obj_entities(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: Option<&TerrainHeightmap>,
@@ -180,6 +182,7 @@ pub fn spawn_obj_entities(
         meshes,
         materials,
         effect_materials,
+        water_materials,
         images,
         inverse_bp,
         tile_y,
@@ -195,6 +198,7 @@ pub fn spawn_waterfall_backdrop_doodads(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    _water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: Option<&TerrainHeightmap>,
@@ -233,6 +237,7 @@ pub fn spawn_nearby_campsite_objects(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     heightmap: Option<&TerrainHeightmap>,
@@ -281,6 +286,7 @@ pub fn spawn_nearby_campsite_objects(
         meshes,
         materials,
         effect_materials,
+        water_materials,
         images,
         inverse_bp,
         tile_y,
@@ -561,6 +567,7 @@ fn spawn_wmos(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     tile_y: u32,
@@ -580,6 +587,7 @@ fn spawn_wmos(
         meshes,
         materials,
         effect_materials,
+        water_materials,
         images,
         inverse_bp,
         tile_y,

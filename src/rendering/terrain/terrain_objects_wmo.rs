@@ -1,16 +1,20 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use bevy::asset::RenderAssetUsages;
 use bevy::color::LinearRgba;
 use bevy::image::Image;
+use bevy::mesh::Indices;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use bevy::render::render_resource::PrimitiveTopology;
 
 use crate::asset::{adt_format::adt_obj, blp, wmo};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::rendering::sky::GameTime;
 use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
+use crate::water_material::{self, WaterMaterial, WaterSettings};
 
 use super::{
     SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform, wow_quat_to_bevy,
@@ -37,6 +41,7 @@ static WMO_TEXTURE_CACHE: OnceLock<
 struct WmoAssets<'a> {
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
+    water_materials: &'a mut Assets<WaterMaterial>,
     images: &'a mut Assets<Image>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
     inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
@@ -57,6 +62,7 @@ pub(super) fn spawn_wmos_filtered(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     tile_y: u32,
@@ -74,6 +80,7 @@ pub(super) fn spawn_wmos_filtered(
         let mut assets = WmoAssets {
             meshes,
             materials,
+            water_materials,
             images,
             effect_materials,
             inverse_bindposes,
@@ -409,6 +416,7 @@ fn spawn_wmo_group(
         group_entity,
         active_doodad_set,
     );
+    spawn_wmo_group_liquid(commands, assets, &group, group_entity);
     spawn_wmo_group_batches(commands, assets, root, group_entity, group.batches);
     true
 }
@@ -470,6 +478,128 @@ fn spawn_wmo_group_lights(
         };
         commands.entity(group_entity).add_child(light_entity);
     }
+}
+
+fn spawn_wmo_group_liquid(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    group: &wmo::WmoGroupData,
+    group_entity: Entity,
+) {
+    let Some(liquid) = group.liquid.as_ref() else {
+        return;
+    };
+    let mesh = build_wmo_liquid_mesh(liquid);
+    let Some(material) = build_wmo_liquid_material(assets.water_materials, assets.images) else {
+        return;
+    };
+    let liquid_entity = commands
+        .spawn((
+            Name::new("wmo_liquid"),
+            Mesh3d(assets.meshes.add(mesh)),
+            MeshMaterial3d(material),
+            Transform::default(),
+            Visibility::default(),
+        ))
+        .id();
+    commands.entity(group_entity).add_child(liquid_entity);
+}
+
+fn build_wmo_liquid_material(
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+) -> Option<Handle<WaterMaterial>> {
+    let normal_map = images.add(water_material::generate_water_normal_map());
+    Some(water_materials.add(WaterMaterial {
+        settings: WaterSettings::default(),
+        normal_map,
+    }))
+}
+
+const WMO_LIQUID_TILE_SIZE: f32 = 4.166_662_5;
+const WMO_LIQUID_Z_OFFSET: f32 = -1.0;
+
+fn build_wmo_liquid_mesh(liquid: &wmo::WmoLiquid) -> Mesh {
+    let (positions, normals, uvs, colors, indices) = build_wmo_liquid_geometry(liquid);
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    mesh.insert_indices(Indices::U32(indices));
+    mesh
+}
+
+type WmoLiquidGeometry = (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Vec<[f32; 4]>,
+    Vec<u32>,
+);
+
+fn build_wmo_liquid_geometry(liquid: &wmo::WmoLiquid) -> WmoLiquidGeometry {
+    let width = liquid.header.x_tiles.max(0) as usize;
+    let height = liquid.header.y_tiles.max(0) as usize;
+    let mut positions = Vec::with_capacity(width * height * 4);
+    let mut normals = Vec::with_capacity(width * height * 4);
+    let mut uvs = Vec::with_capacity(width * height * 4);
+    let mut colors = Vec::with_capacity(width * height * 4);
+    let mut indices = Vec::with_capacity(width * height * 6);
+
+    for row in 0..height {
+        for col in 0..width {
+            if !wmo_liquid_tile_exists(liquid, row, col) {
+                continue;
+            }
+            let base = positions.len() as u32;
+            for (dr, dc) in [(0usize, 0usize), (0, 1), (1, 0), (1, 1)] {
+                let local = wmo_liquid_local_pos(liquid, row + dr, col + dc);
+                positions.push(crate::asset::wmo::wmo_local_to_bevy(
+                    local[0], local[1], local[2],
+                ));
+                normals.push([0.0, 1.0, 0.0]);
+                uvs.push([
+                    (col + dc) as f32 / width.max(1) as f32,
+                    (row + dr) as f32 / height.max(1) as f32,
+                ]);
+                colors.push([1.0, 1.0, 1.0, 1.0]);
+            }
+            indices.extend_from_slice(&[base, base + 1, base + 2, base + 2, base + 1, base + 3]);
+        }
+    }
+
+    (positions, normals, uvs, colors, indices)
+}
+
+fn wmo_liquid_tile_exists(liquid: &wmo::WmoLiquid, row: usize, col: usize) -> bool {
+    let width = liquid.header.x_tiles.max(0) as usize;
+    let tile_index = row.saturating_mul(width).saturating_add(col);
+    liquid
+        .tiles
+        .get(tile_index)
+        .is_none_or(|tile| tile.liquid_type != 0x0F)
+}
+
+fn wmo_liquid_local_pos(liquid: &wmo::WmoLiquid, row: usize, col: usize) -> [f32; 3] {
+    let base = liquid.header.position;
+    let x = base[0] + col as f32 * WMO_LIQUID_TILE_SIZE;
+    let y = base[1] + row as f32 * WMO_LIQUID_TILE_SIZE;
+    let z = wmo_liquid_height(liquid, row, col) + WMO_LIQUID_Z_OFFSET;
+    [x, y, z]
+}
+
+fn wmo_liquid_height(liquid: &wmo::WmoLiquid, row: usize, col: usize) -> f32 {
+    let width = liquid.header.x_verts.max(0) as usize;
+    let vertex_index = row.saturating_mul(width).saturating_add(col);
+    liquid
+        .vertices
+        .get(vertex_index)
+        .map(|vertex| vertex.height)
+        .unwrap_or(liquid.header.position[2])
 }
 
 fn collect_group_lights<'a>(
@@ -989,6 +1119,7 @@ fn sidn_emissive_color(base_sidn_color: [f32; 4], strength: f32) -> LinearRgba {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asset::wmo_format::parser::{WmoLiquidHeader, WmoLiquidTile, WmoLiquidVertex};
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
@@ -1441,5 +1572,76 @@ mod tests {
         assert_eq!(lights[1].0, 2);
         assert_eq!(lights[0].1.position, [1.0, 2.0, 3.0]);
         assert_eq!(lights[1].1.position, [7.0, 8.0, 9.0]);
+    }
+
+    #[test]
+    fn build_wmo_liquid_mesh_skips_empty_tiles_and_uses_vertex_heights() {
+        let liquid = wmo::WmoLiquid {
+            header: WmoLiquidHeader {
+                x_verts: 3,
+                y_verts: 2,
+                x_tiles: 2,
+                y_tiles: 1,
+                position: [10.0, 20.0, 30.0],
+                material_id: 7,
+            },
+            vertices: vec![
+                WmoLiquidVertex {
+                    raw: [0; 4],
+                    height: 30.0,
+                },
+                WmoLiquidVertex {
+                    raw: [0; 4],
+                    height: 31.0,
+                },
+                WmoLiquidVertex {
+                    raw: [0; 4],
+                    height: 32.0,
+                },
+                WmoLiquidVertex {
+                    raw: [0; 4],
+                    height: 33.0,
+                },
+                WmoLiquidVertex {
+                    raw: [0; 4],
+                    height: 34.0,
+                },
+                WmoLiquidVertex {
+                    raw: [0; 4],
+                    height: 35.0,
+                },
+            ],
+            tiles: vec![
+                WmoLiquidTile {
+                    liquid_type: 3,
+                    fishable: false,
+                    shared: false,
+                },
+                WmoLiquidTile {
+                    liquid_type: 0x0F,
+                    fishable: false,
+                    shared: false,
+                },
+            ],
+        };
+
+        let mesh = build_wmo_liquid_mesh(&liquid);
+        let Some(bevy::mesh::VertexAttributeValues::Float32x3(positions)) =
+            mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+        else {
+            panic!("expected wmo liquid positions");
+        };
+        let Some(bevy::mesh::VertexAttributeValues::Float32x4(colors)) =
+            mesh.attribute(Mesh::ATTRIBUTE_COLOR)
+        else {
+            panic!("expected wmo liquid colors");
+        };
+        assert_eq!(positions.len(), 4);
+        assert_eq!(colors.len(), 4);
+        assert_eq!(positions[0], [-10.0, 29.0, 20.0]);
+        assert_eq!(positions[1], [-(10.0 + WMO_LIQUID_TILE_SIZE), 30.0, 20.0]);
+        assert_eq!(positions[2], [-10.0, 32.0, 20.0 + WMO_LIQUID_TILE_SIZE]);
+        assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(mesh.indices().unwrap().len(), 6);
     }
 }

@@ -142,6 +142,7 @@ fn spawn_parsed_tile_doodads(
         refs.meshes,
         refs.materials,
         refs.effect_materials,
+        refs.water_materials,
         refs.images,
         refs.inverse_bp,
         Some(heightmap),
