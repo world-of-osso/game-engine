@@ -20,7 +20,17 @@ pub struct WmoGroupData {
 pub struct WmoGroupBatch {
     pub mesh: Mesh,
     pub material_index: u16,
+    pub batch_type: WmoBatchType,
     pub has_vertex_color: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WmoBatchType {
+    WholeGroup,
+    Transparent,
+    Interior,
+    Exterior,
+    Unknown,
 }
 
 type BatchVertexAttribs = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
@@ -54,17 +64,19 @@ fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoG
             batches: vec![WmoGroupBatch {
                 mesh,
                 material_index: 0,
+                batch_type: WmoBatchType::WholeGroup,
                 has_vertex_color: whole_group_has_vertex_color,
             }],
         });
     }
 
     let mut out = Vec::with_capacity(raw.batches.len());
-    for batch in &raw.batches {
+    for (index, batch) in raw.batches.iter().enumerate() {
         let mesh = build_batch_mesh(&raw, batch);
         out.push(WmoGroupBatch {
             mesh,
             material_index: batch.material_id,
+            batch_type: classify_batch_type(&header, index),
             has_vertex_color: raw.colors.len() > batch.max_index as usize,
         });
     }
@@ -77,6 +89,25 @@ fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoG
         liquid: raw.liquid,
         batches: out,
     })
+}
+
+fn classify_batch_type(header: &WmoGroupHeader, batch_index: usize) -> WmoBatchType {
+    let trans_end = header.trans_batch_count as usize;
+    if batch_index < trans_end {
+        return WmoBatchType::Transparent;
+    }
+
+    let int_end = trans_end + header.int_batch_count as usize;
+    if batch_index < int_end {
+        return WmoBatchType::Interior;
+    }
+
+    let ext_end = int_end + header.ext_batch_count as usize;
+    if batch_index < ext_end {
+        return WmoBatchType::Exterior;
+    }
+
+    WmoBatchType::Unknown
 }
 
 fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
@@ -309,6 +340,79 @@ mod tests {
 
         assert!(group.header.group_flags.exterior);
         assert!(group.header.group_flags.interior);
+    }
+
+    #[test]
+    fn load_wmo_group_classifies_batches_from_header_ranges() {
+        let mut data = Vec::new();
+        let moba_size = 24_u32 * 4;
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + 12 + 8 + 24;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        let mut header = [0_u8; MOGP_HEADER_SIZE];
+        header[40..42].copy_from_slice(&1_u16.to_le_bytes());
+        header[42..44].copy_from_slice(&2_u16.to_le_bytes());
+        header[44..46].copy_from_slice(&1_u16.to_le_bytes());
+        data.extend_from_slice(&header);
+
+        data.extend_from_slice(b"ABOM");
+        data.extend_from_slice(&moba_size.to_le_bytes());
+        for (start_index, material_id) in [(0_u32, 1_u8), (6, 2), (12, 3), (18, 4)] {
+            data.extend_from_slice(&[0_u8; 10]);
+            data.extend_from_slice(&0_u16.to_le_bytes());
+            data.extend_from_slice(&start_index.to_le_bytes());
+            data.extend_from_slice(&6_u16.to_le_bytes());
+            data.extend_from_slice(&0_u16.to_le_bytes());
+            data.extend_from_slice(&0_u16.to_le_bytes());
+            data.push(0);
+            data.push(material_id);
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(24_u32).to_le_bytes());
+        for value in [0_u16; 12] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+
+        assert_eq!(group.batches.len(), 4);
+        assert_eq!(group.batches[0].batch_type, WmoBatchType::Transparent);
+        assert_eq!(group.batches[1].batch_type, WmoBatchType::Interior);
+        assert_eq!(group.batches[2].batch_type, WmoBatchType::Interior);
+        assert_eq!(group.batches[3].batch_type, WmoBatchType::Exterior);
+    }
+
+    #[test]
+    fn load_wmo_group_without_moba_uses_whole_group_batch_type() {
+        let mut data = Vec::new();
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+
+        assert_eq!(group.batches.len(), 1);
+        assert_eq!(group.batches[0].batch_type, WmoBatchType::WholeGroup);
     }
 
     #[test]
