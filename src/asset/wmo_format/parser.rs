@@ -20,6 +20,7 @@ pub struct WmoRootData {
     pub fogs: Vec<WmoFog>,
     pub visible_block_vertices: Vec<[f32; 3]>,
     pub visible_blocks: Vec<WmoVisibleBlock>,
+    pub convex_volume_planes: Vec<WmoConvexVolumePlane>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -145,6 +146,12 @@ pub struct WmoVisibleBlock {
     pub vertex_count: u16,
 }
 
+pub struct WmoConvexVolumePlane {
+    pub normal: [f32; 3],
+    pub distance: f32,
+    pub flags: u32,
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -170,6 +177,7 @@ const MODI_ENTRY_SIZE: usize = 4;
 const MODD_ENTRY_SIZE: usize = 40;
 const MFOG_ENTRY_SIZE: usize = 48;
 const MOVB_ENTRY_SIZE: usize = 4;
+const MCVP_ENTRY_SIZE: usize = 20;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -266,6 +274,14 @@ struct RawWmoFog {
 struct RawWmoVisibleBlock {
     start_vertex: u16,
     vertex_count: u16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoConvexVolumePlane {
+    normal: [f32; 3],
+    distance: f32,
+    flags: u32,
 }
 
 #[derive(BinRead)]
@@ -381,6 +397,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         fogs: accum.fogs,
         visible_block_vertices: accum.visible_block_vertices,
         visible_blocks: accum.visible_blocks,
+        convex_volume_planes: accum.convex_volume_planes,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -405,6 +422,7 @@ struct WmoRootAccum {
     fogs: Vec<WmoFog>,
     visible_block_vertices: Vec<[f32; 3]>,
     visible_blocks: Vec<WmoVisibleBlock>,
+    convex_volume_planes: Vec<WmoConvexVolumePlane>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -433,6 +451,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"GFOM" | b"GOFM" => accum.fogs = parse_mfog(payload)?,
         b"VVOM" => accum.visible_block_vertices = parse_vec3_array(payload)?,
         b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
+        b"PVCM" => accum.convex_volume_planes = parse_mcvp(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
@@ -600,6 +619,19 @@ pub fn parse_movb(data: &[u8]) -> Result<Vec<WmoVisibleBlock>, String> {
             .map(|block| WmoVisibleBlock {
                 start_vertex: block.start_vertex,
                 vertex_count: block.vertex_count,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mcvp(data: &[u8]) -> Result<Vec<WmoConvexVolumePlane>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoConvexVolumePlane>(data, MCVP_ENTRY_SIZE, "MCVP")?
+            .into_iter()
+            .map(|plane| WmoConvexVolumePlane {
+                normal: plane.normal,
+                distance: plane.distance,
+                flags: plane.flags,
             })
             .collect(),
     )
@@ -1151,6 +1183,51 @@ mod tests {
         assert_eq!(root.visible_blocks[0].vertex_count, 2);
         assert_eq!(root.visible_blocks[1].start_vertex, 2);
         assert_eq!(root.visible_blocks[1].vertex_count, 2);
+    }
+
+    #[test]
+    fn parse_mcvp_reads_convex_volume_planes() {
+        let mut data = Vec::new();
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&4.5_f32.to_le_bytes());
+        data.extend_from_slice(&7_u32.to_le_bytes());
+        for value in [-1.0_f32, -2.0, -3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&8.5_f32.to_le_bytes());
+        data.extend_from_slice(&9_u32.to_le_bytes());
+
+        let planes = parse_mcvp(&data).expect("parse MCVP");
+
+        assert_eq!(planes.len(), 2);
+        assert_eq!(planes[0].normal, [1.0, 2.0, 3.0]);
+        assert_eq!(planes[0].distance, 4.5);
+        assert_eq!(planes[0].flags, 7);
+        assert_eq!(planes[1].normal, [-1.0, -2.0, -3.0]);
+        assert_eq!(planes[1].distance, 8.5);
+        assert_eq!(planes[1].flags, 9);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mcvp_convex_volume_planes() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"PVCM");
+        data.extend_from_slice(&(MCVP_ENTRY_SIZE as u32).to_le_bytes());
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&40.0_f32.to_le_bytes());
+        data.extend_from_slice(&5_u32.to_le_bytes());
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.convex_volume_planes.len(), 1);
+        assert_eq!(root.convex_volume_planes[0].normal, [10.0, 20.0, 30.0]);
+        assert_eq!(root.convex_volume_planes[0].distance, 40.0);
+        assert_eq!(root.convex_volume_planes[0].flags, 5);
     }
 
     #[test]
