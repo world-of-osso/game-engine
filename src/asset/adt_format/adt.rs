@@ -939,7 +939,13 @@ fn build_mcnk_data(
 }
 
 fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksResult, String> {
-    let mut accum = McnkSubchunkAccum {
+    let mut accum = empty_mcnk_subchunk_accum();
+    apply_mcnk_subchunk_stream(&mut accum, sub)?;
+    finalize_mcnk_subchunks(accum, flags)
+}
+
+fn empty_mcnk_subchunk_accum() -> McnkSubchunkAccum {
+    McnkSubchunkAccum {
         heights: None,
         normals: None,
         vertex_colors: None,
@@ -948,12 +954,15 @@ fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksRes
         sound_emitters: None,
         blend_batches: None,
         detail_doodad_disable: None,
-    };
+    }
+}
+
+fn apply_mcnk_subchunk_stream(accum: &mut McnkSubchunkAccum, sub: &[u8]) -> Result<(), String> {
     for chunk in ChunkIter::new(sub) {
         let (tag, payload) = chunk?;
-        apply_mcnk_subchunk(&mut accum, tag, payload)?;
+        apply_mcnk_subchunk(accum, tag, payload)?;
     }
-    finalize_mcnk_subchunks(accum, flags)
+    Ok(())
 }
 
 fn apply_mcnk_subchunk(
