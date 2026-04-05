@@ -429,6 +429,7 @@ pub struct WaterLayer {
     pub exists: [u8; 8],
     pub vertex_heights: Vec<f32>,
     pub vertex_uvs: Vec<[f32; 2]>,
+    pub vertex_depths: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -457,6 +458,8 @@ pub struct ChunkWater {
 pub struct AdtWaterData {
     pub chunks: Vec<ChunkWater>,
 }
+
+type WaterVertexData = (Vec<f32>, Vec<[f32; 2]>, Vec<u8>);
 
 fn water_attribute_bit(mask: u64, x: usize, y: usize) -> bool {
     if x >= WaterAttributes::TILE_SIZE || y >= WaterAttributes::TILE_SIZE {
@@ -544,19 +547,46 @@ fn read_height_uv_vertices(
     Ok((heights, uvs))
 }
 
+fn read_depth_only_vertices(
+    payload: &[u8],
+    offset: usize,
+    width: u8,
+    height: u8,
+) -> Result<Vec<u8>, String> {
+    if offset == 0 {
+        return Ok(Vec::new());
+    }
+    let count = (width as usize + 1) * (height as usize + 1);
+    if offset + count > payload.len() {
+        return Err(format!(
+            "MH2O LVF2 vertex data out of bounds: offset {offset:#x}, need {count} bytes"
+        ));
+    }
+    Ok(payload[offset..offset + count].to_vec())
+}
+
 fn read_vertex_data(
     payload: &[u8],
     offset: usize,
     width: u8,
     height: u8,
     liquid_object: u16,
-) -> Result<(Vec<f32>, Vec<[f32; 2]>), String> {
+) -> Result<WaterVertexData, String> {
     if liquid_object == 1 {
-        return read_height_uv_vertices(payload, offset, width, height);
+        let (heights, uvs) = read_height_uv_vertices(payload, offset, width, height)?;
+        return Ok((heights, uvs, Vec::new()));
+    }
+    if liquid_object == 2 {
+        return Ok((
+            Vec::new(),
+            Vec::new(),
+            read_depth_only_vertices(payload, offset, width, height)?,
+        ));
     }
 
     Ok((
         read_vertex_heights(payload, offset, width, height)?,
+        Vec::new(),
         Vec::new(),
     ))
 }
@@ -569,7 +599,7 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
         ));
     }
     let header: LiquidInstanceHeader = parse_binrw_value(payload, off, "SLiquidInstance")?;
-    let (vertex_heights, vertex_uvs) = read_vertex_data(
+    let (vertex_heights, vertex_uvs, vertex_depths) = read_vertex_data(
         payload,
         header.vertex_offset as usize,
         header.width,
@@ -593,6 +623,7 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
         )?,
         vertex_heights,
         vertex_uvs,
+        vertex_depths,
     })
 }
 
@@ -964,6 +995,19 @@ mod tests {
         assert_eq!(layer.vertex_uvs[1], [1.0, 0.0]);
         assert_eq!(layer.vertex_uvs[2], [32.0 / 255.0, 96.0 / 255.0]);
         assert_eq!(layer.vertex_uvs[3], [16.0 / 255.0, 240.0 / 255.0]);
+    }
+
+    #[test]
+    fn parse_mh2o_reads_lvf2_depth_only_vertices() {
+        let vertex_data = [12u8, 34, 56, 78];
+        let payload = mh2o_payload_with_vertex_data(0, 1, None, 2, &vertex_data);
+
+        let parsed = parse_mh2o(&payload).expect("expected MH2O payload to parse");
+        let layer = &parsed.chunks[0].layers[0];
+
+        assert!(layer.vertex_heights.is_empty());
+        assert!(layer.vertex_uvs.is_empty());
+        assert_eq!(layer.vertex_depths, vertex_data);
     }
 
     fn mcly_entry_payload(
