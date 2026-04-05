@@ -646,11 +646,11 @@ fn checked_mliq_count(width: i32, height: i32, label: &str) -> Result<usize, Str
         .map(|count| count as usize)
 }
 
-fn split_mliq_payloads<'a>(
-    data: &'a [u8],
+fn split_mliq_payloads(
+    data: &[u8],
     vertex_count: usize,
     tile_count: usize,
-) -> Result<(&'a [u8], &'a [u8]), String> {
+) -> Result<(&[u8], &[u8]), String> {
     let vertices_offset = MLIQ_HEADER_SIZE;
     let vertices_end = vertices_offset
         .checked_add(vertex_count * MLIQ_VERTEX_SIZE)
