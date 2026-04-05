@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use crate::asset::{adt_format::adt_obj, blp, wmo};
 use crate::rendering::sky::GameTime;
+use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
 
 use super::{SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform};
 
@@ -37,6 +38,11 @@ struct WmoAssets<'a> {
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub(crate) struct WmoSidnGlow {
     pub base_sidn_color: [f32; 4],
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WmoFootstepSurface {
+    pub surface: FootstepSurface,
 }
 
 pub(super) fn spawn_wmos_filtered(
@@ -100,6 +106,7 @@ fn try_spawn_wmo(
         build_wmo_adt_metadata(placement),
         build_chunk_refs_component(chunk_refs),
         build_wmo_root_bounds(placement),
+        build_wmo_footstep_surface(&root),
         root.skybox_wow_path.as_deref(),
     );
 
@@ -147,6 +154,7 @@ fn spawn_wmo_root_entity(
     placement: WmoAdtMetadata,
     chunk_refs: Option<game_engine::culling::ChunkRefs>,
     root_bounds: game_engine::culling::WmoRootBounds,
+    footstep_surface: Option<WmoFootstepSurface>,
     skybox_wow_path: Option<&str>,
 ) -> Entity {
     let mut entity = commands.spawn((
@@ -160,6 +168,9 @@ fn spawn_wmo_root_entity(
     ));
     if let Some(chunk_refs) = chunk_refs {
         entity.insert(chunk_refs);
+    }
+    if let Some(footstep_surface) = footstep_surface {
+        entity.insert(footstep_surface);
     }
     if let Some(wow_path) = skybox_wow_path {
         entity.insert(WmoLocalSkybox {
@@ -175,6 +186,34 @@ fn build_chunk_refs_component(
     let chunk_indices = chunk_refs?;
     (!chunk_indices.is_empty()).then(|| game_engine::culling::ChunkRefs {
         chunk_indices: chunk_indices.to_vec(),
+    })
+}
+
+fn build_wmo_footstep_surface(root: &wmo::WmoRootData) -> Option<WmoFootstepSurface> {
+    root.materials
+        .iter()
+        .filter_map(material_footstep_surface)
+        .max_by_key(|candidate| candidate.priority)
+        .map(|candidate| WmoFootstepSurface {
+            surface: candidate.surface,
+        })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct WmoFootstepSurfaceCandidate {
+    priority: (bool, bool, u32),
+    surface: FootstepSurface,
+}
+
+fn material_footstep_surface(mat_def: &wmo::WmoMaterialDef) -> Option<WmoFootstepSurfaceCandidate> {
+    let path = game_engine::listfile::lookup_fdid(mat_def.texture_fdid)?;
+    Some(WmoFootstepSurfaceCandidate {
+        priority: (
+            mat_def.ground_type != 0,
+            mat_def.diff_color[3] > 0.0,
+            mat_def.texture_fdid,
+        ),
+        surface: classify_surface_from_texture_path(path),
     })
 }
 
@@ -754,6 +793,9 @@ mod tests {
                         chunk_indices: vec![4, 8],
                     }),
                     bounds,
+                    Some(WmoFootstepSurface {
+                        surface: FootstepSurface::Wood,
+                    }),
                     None,
                 )
             });
@@ -778,6 +820,17 @@ mod tests {
             .cloned()
             .expect("chunk refs component");
         assert_eq!(stored_chunk_refs.chunk_indices, vec![4, 8]);
+        let stored_surface = app
+            .world()
+            .get::<WmoFootstepSurface>(entity)
+            .copied()
+            .expect("footstep surface component");
+        assert_eq!(
+            stored_surface,
+            WmoFootstepSurface {
+                surface: FootstepSurface::Wood,
+            }
+        );
     }
 
     #[test]
@@ -789,6 +842,71 @@ mod tests {
         assert_eq!(
             wmo_debug_label("world/wmo/test.wmo".into(), 6),
             "world/wmo/test.wmo nameSet=6"
+        );
+    }
+
+    #[test]
+    fn build_wmo_footstep_surface_prefers_ground_typed_materials() {
+        let root = wmo::WmoRootData {
+            n_groups: 0,
+            flags: wmo::WmoRootFlags::default(),
+            ambient_color: [0.0; 4],
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            materials: vec![
+                wmo::WmoMaterialDef {
+                    texture_fdid: 124134,
+                    texture_2_fdid: 0,
+                    texture_3_fdid: 0,
+                    flags: 0,
+                    material_flags: wmo::WmoMaterialFlags::default(),
+                    sidn_color: [0.0; 4],
+                    diff_color: [0.0; 4],
+                    ground_type: 0,
+                    blend_mode: 0,
+                    shader: 0,
+                    uv_translation_speed: None,
+                },
+                wmo::WmoMaterialDef {
+                    texture_fdid: 123010,
+                    texture_2_fdid: 0,
+                    texture_3_fdid: 0,
+                    flags: 0,
+                    material_flags: wmo::WmoMaterialFlags::default(),
+                    sidn_color: [0.0; 4],
+                    diff_color: [0.0; 4],
+                    ground_type: 5,
+                    blend_mode: 0,
+                    shader: 0,
+                    uv_translation_speed: None,
+                },
+            ],
+            lights: Vec::new(),
+            doodad_sets: Vec::new(),
+            group_names: Vec::new(),
+            doodad_names: Vec::new(),
+            doodad_file_ids: Vec::new(),
+            doodad_defs: Vec::new(),
+            fogs: Vec::new(),
+            visible_block_vertices: Vec::new(),
+            visible_blocks: Vec::new(),
+            convex_volume_planes: Vec::new(),
+            group_file_data_ids: Vec::new(),
+            global_ambient_volumes: Vec::new(),
+            ambient_volumes: Vec::new(),
+            baked_ambient_box_volumes: Vec::new(),
+            dynamic_lights: Vec::new(),
+            portals: Vec::new(),
+            portal_refs: Vec::new(),
+            group_infos: Vec::new(),
+            skybox_wow_path: None,
+        };
+
+        assert_eq!(
+            build_wmo_footstep_surface(&root),
+            Some(WmoFootstepSurface {
+                surface: FootstepSurface::Wood,
+            })
         );
     }
 }

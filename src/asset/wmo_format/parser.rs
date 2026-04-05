@@ -95,6 +95,8 @@ pub struct WmoMaterialDef {
     pub flags: u32,
     pub material_flags: WmoMaterialFlags,
     pub sidn_color: [f32; 4],
+    pub diff_color: [f32; 4],
+    pub ground_type: u32,
     pub blend_mode: u32,
     pub shader: u32,
     pub uv_translation_speed: Option<[[f32; 2]; 2]>,
@@ -822,6 +824,8 @@ pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
                 flags: mat.flags,
                 material_flags: WmoMaterialFlags::from_bits(mat.flags),
                 sidn_color: parse_bgra_color(mat._sidn_emissive_color.to_le_bytes()),
+                diff_color: parse_bgra_color(mat._diff_color.to_le_bytes()),
+                ground_type: mat._terrain_type,
                 blend_mode: mat.blend_mode,
                 shader: mat.shader,
                 uv_translation_speed: None,
@@ -1369,6 +1373,8 @@ mod tests {
         assert_eq!(mats[0].texture_fdid, 0);
         assert_eq!(mats[0].material_flags, WmoMaterialFlags::default());
         assert_eq!(mats[0].sidn_color, [0.0; 4]);
+        assert_eq!(mats[0].diff_color, [0.0; 4]);
+        assert_eq!(mats[0].ground_type, 0);
         assert_eq!(mats[0].uv_translation_speed, None);
     }
 
@@ -1414,6 +1420,27 @@ mod tests {
                 0x44 as f32 / 255.0,
             ]
         );
+    }
+
+    #[test]
+    fn parse_momt_reads_diff_color_and_ground_type() {
+        let mut data = vec![0_u8; MOMT_ENTRY_SIZE];
+        data[32..36].copy_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+        data[44..48].copy_from_slice(&7_u32.to_le_bytes());
+
+        let mats = parse_momt(&data).expect("parse MOMT");
+
+        assert_eq!(mats.len(), 1);
+        assert_eq!(
+            mats[0].diff_color,
+            [
+                0x33 as f32 / 255.0,
+                0x22 as f32 / 255.0,
+                0x11 as f32 / 255.0,
+                0x44 as f32 / 255.0,
+            ]
+        );
+        assert_eq!(mats[0].ground_type, 7);
     }
 
     #[test]
@@ -1483,6 +1510,32 @@ mod tests {
                 0x40 as f32 / 255.0,
             ]
         );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_momt_diff_color_and_ground_type() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"TMOM");
+        data.extend_from_slice(&(MOMT_ENTRY_SIZE as u32).to_le_bytes());
+        let mut momt = vec![0_u8; MOMT_ENTRY_SIZE];
+        momt[32..36].copy_from_slice(&[0x50, 0x60, 0x70, 0x80]);
+        momt[44..48].copy_from_slice(&19_u32.to_le_bytes());
+        data.extend_from_slice(&momt);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.materials.len(), 1);
+        assert_eq!(
+            root.materials[0].diff_color,
+            [
+                0x70 as f32 / 255.0,
+                0x60 as f32 / 255.0,
+                0x50 as f32 / 255.0,
+                0x80 as f32 / 255.0,
+            ]
+        );
+        assert_eq!(root.materials[0].ground_type, 19);
     }
 
     #[test]

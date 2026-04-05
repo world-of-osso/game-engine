@@ -226,6 +226,13 @@ fn footstep_trigger(
     settings: Res<SoundSettings>,
     stats: Option<Res<game_engine::status::CharacterStatsSnapshot>>,
     terrain: Option<Res<crate::terrain_heightmap::TerrainHeightmap>>,
+    wmo_surfaces: Query<
+        (
+            &game_engine::culling::WmoRootBounds,
+            &crate::terrain_objects::WmoFootstepSurface,
+        ),
+        With<game_engine::culling::Wmo>,
+    >,
     mut player_q: Query<
         (
             &crate::animation::M2AnimPlayer,
@@ -272,12 +279,16 @@ fn footstep_trigger(
             .and_then(|stats| stats.race)
             .map(classify_player_creature)
             .unwrap_or_else(|| classify_player_creature(1));
-        let surface = terrain
-            .as_ref()
-            .and_then(|terrain| {
-                terrain.surface_at(transform.translation.x, transform.translation.z)
-            })
-            .unwrap_or(FootstepSurface::Dirt);
+        let terrain_surface = terrain.as_ref().and_then(|terrain| {
+            terrain.surface_at(transform.translation.x, transform.translation.z)
+        });
+        let surface = select_footstep_surface(
+            transform.translation,
+            terrain_surface,
+            wmo_surfaces
+                .iter()
+                .map(|(bounds, surface)| (*bounds, surface.surface)),
+        );
         let request = FootstepRequest {
             creature,
             surface,
@@ -290,6 +301,36 @@ fn footstep_trigger(
 
 fn is_movement_anim(id: u16) -> bool {
     movement_from_anim(id).is_some()
+}
+
+fn select_footstep_surface(
+    position: Vec3,
+    terrain_surface: Option<FootstepSurface>,
+    wmo_surfaces: impl Iterator<Item = (game_engine::culling::WmoRootBounds, FootstepSurface)>,
+) -> FootstepSurface {
+    wmo_surfaces
+        .filter(|(bounds, _)| point_inside_aabb(position, bounds.world_min, bounds.world_max))
+        .min_by(|(left_bounds, _), (right_bounds, _)| {
+            aabb_volume(left_bounds.world_min, left_bounds.world_max)
+                .total_cmp(&aabb_volume(right_bounds.world_min, right_bounds.world_max))
+        })
+        .map(|(_, surface)| surface)
+        .or(terrain_surface)
+        .unwrap_or(FootstepSurface::Dirt)
+}
+
+fn point_inside_aabb(point: Vec3, min: Vec3, max: Vec3) -> bool {
+    point.x >= min.x
+        && point.x <= max.x
+        && point.y >= min.y
+        && point.y <= max.y
+        && point.z >= min.z
+        && point.z <= max.z
+}
+
+fn aabb_volume(min: Vec3, max: Vec3) -> f32 {
+    let size = max - min;
+    size.x.abs() * size.y.abs() * size.z.abs()
 }
 
 fn play_footstep(
@@ -666,5 +707,49 @@ mod tests {
         let tracker = FootstepTracker::default();
         assert_eq!(tracker.last_half, 0);
         assert_eq!(tracker.last_seq_idx, 0);
+    }
+
+    #[test]
+    fn select_footstep_surface_prefers_smallest_containing_wmo() {
+        let position = Vec3::new(1.0, 1.0, 1.0);
+        let terrain_surface = Some(FootstepSurface::Grass);
+        let wmo_surfaces = vec![
+            (
+                game_engine::culling::WmoRootBounds {
+                    world_min: Vec3::ZERO,
+                    world_max: Vec3::splat(10.0),
+                },
+                FootstepSurface::Stone,
+            ),
+            (
+                game_engine::culling::WmoRootBounds {
+                    world_min: Vec3::splat(0.5),
+                    world_max: Vec3::splat(2.0),
+                },
+                FootstepSurface::Wood,
+            ),
+        ];
+
+        let surface = select_footstep_surface(position, terrain_surface, wmo_surfaces.into_iter());
+
+        assert_eq!(surface, FootstepSurface::Wood);
+    }
+
+    #[test]
+    fn select_footstep_surface_falls_back_to_terrain_when_outside_wmo() {
+        let surface = select_footstep_surface(
+            Vec3::splat(20.0),
+            Some(FootstepSurface::Grass),
+            [(
+                game_engine::culling::WmoRootBounds {
+                    world_min: Vec3::ZERO,
+                    world_max: Vec3::splat(10.0),
+                },
+                FootstepSurface::Stone,
+            )]
+            .into_iter(),
+        );
+
+        assert_eq!(surface, FootstepSurface::Grass);
     }
 }
