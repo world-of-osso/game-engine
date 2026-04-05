@@ -9,6 +9,8 @@ pub struct WmoRootData {
     pub materials: Vec<WmoMaterialDef>,
     pub lights: Vec<WmoLight>,
     pub doodad_sets: Vec<WmoDoodadSet>,
+    pub doodad_names: Vec<WmoDoodadName>,
+    pub doodad_file_ids: Vec<u32>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -77,6 +79,11 @@ pub struct WmoDoodadSet {
     pub n_doodads: u32,
 }
 
+pub struct WmoDoodadName {
+    pub offset: u32,
+    pub name: String,
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -98,6 +105,7 @@ const MOHD_HEADER_SIZE: usize = 64;
 const MOMT_ENTRY_SIZE: usize = 64;
 const MOLT_ENTRY_SIZE: usize = 48;
 const MODS_ENTRY_SIZE: usize = 32;
+const MODI_ENTRY_SIZE: usize = 4;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -266,6 +274,8 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         materials: accum.materials,
         lights: accum.lights,
         doodad_sets: accum.doodad_sets,
+        doodad_names: accum.doodad_names,
+        doodad_file_ids: accum.doodad_file_ids,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -279,6 +289,8 @@ struct WmoRootAccum {
     materials: Vec<WmoMaterialDef>,
     lights: Vec<WmoLight>,
     doodad_sets: Vec<WmoDoodadSet>,
+    doodad_names: Vec<WmoDoodadName>,
+    doodad_file_ids: Vec<u32>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -296,6 +308,8 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
         b"SDOM" => accum.doodad_sets = parse_mods(payload)?,
+        b"NDOM" => accum.doodad_names = parse_modn(payload)?,
+        b"IDOM" => accum.doodad_file_ids = parse_modi(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
@@ -366,6 +380,34 @@ pub fn parse_mods(data: &[u8]) -> Result<Vec<WmoDoodadSet>, String> {
                 start_doodad: set.start_doodad,
                 n_doodads: set.n_doodads,
             })
+            .collect(),
+    )
+}
+
+pub fn parse_modn(data: &[u8]) -> Result<Vec<WmoDoodadName>, String> {
+    let mut names = Vec::new();
+    let mut offset = 0usize;
+
+    while offset < data.len() {
+        let remaining = &data[offset..];
+        let Some(name) = parse_c_string(remaining) else {
+            break;
+        };
+        let byte_len = name.len() + 1;
+        names.push(WmoDoodadName {
+            offset: offset as u32,
+            name,
+        });
+        offset += byte_len;
+    }
+
+    Ok(names)
+}
+
+pub fn parse_modi(data: &[u8]) -> Result<Vec<u32>, String> {
+    Ok(
+        data.chunks_exact(MODI_ENTRY_SIZE)
+            .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
             .collect(),
     )
 }
@@ -682,6 +724,53 @@ mod tests {
         assert_eq!(root.doodad_sets[1].name, "FirePit");
         assert_eq!(root.doodad_sets[1].start_doodad, 3);
         assert_eq!(root.doodad_sets[1].n_doodads, 5);
+    }
+
+    #[test]
+    fn parse_modn_preserves_chunk_relative_name_offsets() {
+        let data = b"torch01.m2\0barrel02.m2\0";
+
+        let names = parse_modn(data).expect("parse MODN");
+
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0].offset, 0);
+        assert_eq!(names[0].name, "torch01.m2");
+        assert_eq!(names[1].offset, 11);
+        assert_eq!(names[1].name, "barrel02.m2");
+    }
+
+    #[test]
+    fn parse_modi_reads_doodad_file_ids() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&1001_u32.to_le_bytes());
+        data.extend_from_slice(&2002_u32.to_le_bytes());
+
+        let ids = parse_modi(&data).expect("parse MODI");
+
+        assert_eq!(ids, vec![1001, 2002]);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_modn_and_modi_doodad_sources() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"NDOM");
+        data.extend_from_slice(&(23_u32).to_le_bytes());
+        data.extend_from_slice(b"torch01.m2\0barrel02.m2\0");
+
+        data.extend_from_slice(b"IDOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        data.extend_from_slice(&1001_u32.to_le_bytes());
+        data.extend_from_slice(&2002_u32.to_le_bytes());
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.doodad_names.len(), 2);
+        assert_eq!(root.doodad_names[0].offset, 0);
+        assert_eq!(root.doodad_names[0].name, "torch01.m2");
+        assert_eq!(root.doodad_names[1].offset, 11);
+        assert_eq!(root.doodad_names[1].name, "barrel02.m2");
+        assert_eq!(root.doodad_file_ids, vec![1001, 2002]);
     }
 
     #[test]
