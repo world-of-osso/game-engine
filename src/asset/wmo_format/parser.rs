@@ -21,6 +21,7 @@ pub struct WmoRootData {
     pub visible_block_vertices: Vec<[f32; 3]>,
     pub visible_blocks: Vec<WmoVisibleBlock>,
     pub convex_volume_planes: Vec<WmoConvexVolumePlane>,
+    pub group_file_data_ids: Vec<u32>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -411,6 +412,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         visible_block_vertices: accum.visible_block_vertices,
         visible_blocks: accum.visible_blocks,
         convex_volume_planes: accum.convex_volume_planes,
+        group_file_data_ids: accum.group_file_data_ids,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -437,6 +439,7 @@ struct WmoRootAccum {
     visible_block_vertices: Vec<[f32; 3]>,
     visible_blocks: Vec<WmoVisibleBlock>,
     convex_volume_planes: Vec<WmoConvexVolumePlane>,
+    group_file_data_ids: Vec<u32>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -464,6 +467,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"IDOM" => accum.doodad_file_ids = parse_modi(payload)?,
         b"DDOM" => accum.doodad_defs = parse_modd(payload)?,
         b"GFOM" | b"GOFM" => accum.fogs = parse_mfog(payload)?,
+        b"DIFG" => accum.group_file_data_ids = parse_gfid(payload)?,
         b"VVOM" => accum.visible_block_vertices = parse_vec3_array(payload)?,
         b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
         b"PVCM" => accum.convex_volume_planes = parse_mcvp(payload)?,
@@ -596,6 +600,14 @@ pub fn parse_mogn(data: &[u8]) -> Result<Vec<WmoGroupName>, String> {
 }
 
 pub fn parse_modi(data: &[u8]) -> Result<Vec<u32>, String> {
+    Ok(
+        data.chunks_exact(MODI_ENTRY_SIZE)
+            .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
+            .collect(),
+    )
+}
+
+pub fn parse_gfid(data: &[u8]) -> Result<Vec<u32>, String> {
     Ok(
         data.chunks_exact(MODI_ENTRY_SIZE)
             .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
@@ -882,6 +894,33 @@ mod tests {
             root.materials[0].uv_translation_speed,
             Some([[0.25, 0.5], [0.75, 1.0]])
         );
+    }
+
+    #[test]
+    fn parse_gfid_reads_group_file_data_ids() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&101_u32.to_le_bytes());
+        data.extend_from_slice(&202_u32.to_le_bytes());
+        data.extend_from_slice(&303_u32.to_le_bytes());
+
+        let group_file_data_ids = parse_gfid(&data).expect("parse GFID");
+
+        assert_eq!(group_file_data_ids, vec![101, 202, 303]);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_gfid_group_file_data_ids() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DIFG");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        data.extend_from_slice(&1001_u32.to_le_bytes());
+        data.extend_from_slice(&1002_u32.to_le_bytes());
+        data.extend_from_slice(&1003_u32.to_le_bytes());
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.group_file_data_ids, vec![1001, 1002, 1003]);
     }
 
     #[test]
