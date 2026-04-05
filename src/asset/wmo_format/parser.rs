@@ -132,6 +132,10 @@ impl WmoMaterialDef {
     pub fn uses_second_uv_set(&self) -> bool {
         self.flags & Self::SECOND_UV_FLAG != 0 && matches!(self.shader, 6..=9 | 11..=15)
     }
+
+    pub fn uses_generated_tangents(&self) -> bool {
+        matches!(self.shader, 10 | 14)
+    }
 }
 
 impl WmoMaterialFlags {

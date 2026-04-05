@@ -30,6 +30,7 @@ pub struct WmoGroupBatch {
     pub batch_type: WmoBatchType,
     pub uses_second_color_blend_alpha: bool,
     pub uses_second_uv_set: bool,
+    pub uses_generated_tangents: bool,
     pub has_vertex_color: bool,
 }
 
@@ -80,7 +81,8 @@ fn build_group_batches(
     apply_mocv_vertex_color_fix(&mut raw.colors, &raw.batches, &header, root);
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     if raw.batches.is_empty() {
-        let mesh = build_whole_group_mesh(&raw);
+        let uses_generated_tangents = batch_uses_generated_tangents(root, 0);
+        let mesh = build_whole_group_mesh(&raw, uses_generated_tangents);
         return Ok(WmoGroupData {
             header,
             doodad_refs: raw.doodad_refs,
@@ -94,6 +96,7 @@ fn build_group_batches(
                 batch_type: WmoBatchType::WholeGroup,
                 uses_second_color_blend_alpha: false,
                 uses_second_uv_set: false,
+                uses_generated_tangents,
                 has_vertex_color: whole_group_has_vertex_color,
             }],
         });
@@ -104,11 +107,13 @@ fn build_group_batches(
         let uses_second_color_blend_alpha =
             batch_uses_second_color_blend_alpha(root, batch.material_id);
         let uses_second_uv_set = batch_uses_second_uv_set(root, batch.material_id);
+        let uses_generated_tangents = batch_uses_generated_tangents(root, batch.material_id);
         let mesh = build_batch_mesh(
             &raw,
             batch,
             uses_second_color_blend_alpha,
             uses_second_uv_set,
+            uses_generated_tangents,
         );
         out.push(WmoGroupBatch {
             mesh,
@@ -116,6 +121,7 @@ fn build_group_batches(
             batch_type: classify_batch_type(&header, index),
             uses_second_color_blend_alpha,
             uses_second_uv_set,
+            uses_generated_tangents,
             has_vertex_color: raw.colors.len() > batch.max_index as usize,
         });
     }
@@ -157,6 +163,11 @@ fn batch_uses_second_uv_set(root: Option<&WmoRootData>, material_index: u16) -> 
 fn batch_uses_second_color_blend_alpha(root: Option<&WmoRootData>, material_index: u16) -> bool {
     root.and_then(|root| root.materials.get(material_index as usize))
         .is_some_and(WmoMaterialDef::uses_second_color_blend_alpha)
+}
+
+fn batch_uses_generated_tangents(root: Option<&WmoRootData>, material_index: u16) -> bool {
+    root.and_then(|root| root.materials.get(material_index as usize))
+        .is_some_and(WmoMaterialDef::uses_generated_tangents)
 }
 
 fn apply_mocv_vertex_color_fix(
@@ -216,7 +227,7 @@ fn fixed_vertex_alpha(header: &WmoGroupHeader) -> f32 {
     }
 }
 
-fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
+fn build_whole_group_mesh(raw: &RawGroupData, uses_generated_tangents: bool) -> Mesh {
     let positions: Vec<[f32; 3]> = raw
         .vertices
         .iter()
@@ -247,6 +258,7 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     }
     mesh.insert_indices(Indices::U32(indices));
+    maybe_generate_mesh_tangents(&mut mesh, uses_generated_tangents);
     mesh
 }
 
@@ -255,6 +267,7 @@ fn build_batch_mesh(
     batch: &RawBatch,
     uses_second_color_blend_alpha: bool,
     uses_second_uv_set: bool,
+    uses_generated_tangents: bool,
 ) -> Mesh {
     let vmin = batch.min_index as usize;
     let vmax = (batch.max_index as usize).min(raw.vertices.len().saturating_sub(1));
@@ -284,7 +297,15 @@ fn build_batch_mesh(
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     }
     mesh.insert_indices(Indices::U32(indices));
+    maybe_generate_mesh_tangents(&mut mesh, uses_generated_tangents);
     mesh
+}
+
+fn maybe_generate_mesh_tangents(mesh: &mut Mesh, uses_generated_tangents: bool) {
+    if !uses_generated_tangents || mesh.contains_attribute(Mesh::ATTRIBUTE_TANGENT) {
+        return;
+    }
+    let _ = mesh.generate_tangents();
 }
 
 fn extract_batch_vertices(
@@ -1016,6 +1037,132 @@ mod tests {
                 .is_none()
         );
         assert!(!group.batches[0].uses_second_color_blend_alpha);
+    }
+
+    #[test]
+    fn load_wmo_group_with_root_generates_tangents_for_water_window_materials() {
+        let mut data = Vec::new();
+        let movt_size = 36_u32;
+        let monr_size = 36_u32;
+        let motv_size = 24_u32;
+        let movi_size = 6_u32;
+        let mogp_size =
+            MOGP_HEADER_SIZE as u32 + 8 + movt_size + 8 + monr_size + 8 + motv_size + 8 + movi_size;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&movt_size.to_le_bytes());
+        for value in [0.0_f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"RNOM");
+        data.extend_from_slice(&monr_size.to_le_bytes());
+        for value in [0.0_f32, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&motv_size.to_le_bytes());
+        for value in [0.0_f32, 0.0, 1.0, 0.0, 0.0, 1.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&movi_size.to_le_bytes());
+        for value in [0_u16, 1, 2] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let root = empty_root_with_material(
+            WmoRootFlags::default(),
+            WmoMaterialDef {
+                texture_fdid: 0,
+                texture_2_fdid: 0,
+                texture_3_fdid: 0,
+                flags: 0,
+                material_flags: WmoMaterialFlags::default(),
+                sidn_color: [0.0; 4],
+                diff_color: [0.0; 4],
+                ground_type: 0,
+                blend_mode: 0,
+                shader: 10,
+                uv_translation_speed: None,
+            },
+        );
+        let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+
+        assert!(
+            group.batches[0]
+                .mesh
+                .contains_attribute(Mesh::ATTRIBUTE_TANGENT)
+        );
+        assert!(group.batches[0].uses_generated_tangents);
+    }
+
+    #[test]
+    fn load_wmo_group_with_root_skips_tangents_for_non_window_materials() {
+        let mut data = Vec::new();
+        let movt_size = 36_u32;
+        let monr_size = 36_u32;
+        let motv_size = 24_u32;
+        let movi_size = 6_u32;
+        let mogp_size =
+            MOGP_HEADER_SIZE as u32 + 8 + movt_size + 8 + monr_size + 8 + motv_size + 8 + movi_size;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&movt_size.to_le_bytes());
+        for value in [0.0_f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"RNOM");
+        data.extend_from_slice(&monr_size.to_le_bytes());
+        for value in [0.0_f32, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&motv_size.to_le_bytes());
+        for value in [0.0_f32, 0.0, 1.0, 0.0, 0.0, 1.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&movi_size.to_le_bytes());
+        for value in [0_u16, 1, 2] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let root = empty_root_with_material(
+            WmoRootFlags::default(),
+            WmoMaterialDef {
+                texture_fdid: 0,
+                texture_2_fdid: 0,
+                texture_3_fdid: 0,
+                flags: 0,
+                material_flags: WmoMaterialFlags::default(),
+                sidn_color: [0.0; 4],
+                diff_color: [0.0; 4],
+                ground_type: 0,
+                blend_mode: 0,
+                shader: 0,
+                uv_translation_speed: None,
+            },
+        );
+        let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+
+        assert!(
+            !group.batches[0]
+                .mesh
+                .contains_attribute(Mesh::ATTRIBUTE_TANGENT)
+        );
+        assert!(!group.batches[0].uses_generated_tangents);
     }
 
     #[test]
