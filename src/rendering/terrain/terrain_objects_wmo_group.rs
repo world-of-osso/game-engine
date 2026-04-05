@@ -442,21 +442,9 @@ pub(super) fn spawn_wmo_group_doodad(
     assets: &mut WmoAssets<'_>,
     doodad: &WmoGroupDoodad,
 ) -> Option<Entity> {
-    let fdid = game_engine::listfile::lookup_path(&doodad.model_path)?;
-    let model_path = crate::asset::asset_cache::model(fdid)?;
-    if !model_path.exists() {
-        return None;
-    }
-    let name = model_path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or("wmo_doodad");
+    let (model_path, name) = resolve_wmo_doodad_model_path(doodad)?;
     let entity = commands
-        .spawn((
-            Name::new(name.to_owned()),
-            doodad.transform,
-            Visibility::default(),
-        ))
+        .spawn((Name::new(name), doodad.transform, Visibility::default()))
         .id();
     if !m2_spawn::spawn_m2_on_entity(
         commands,
@@ -476,6 +464,20 @@ pub(super) fn spawn_wmo_group_doodad(
         return None;
     }
     Some(entity)
+}
+
+fn resolve_wmo_doodad_model_path(doodad: &WmoGroupDoodad) -> Option<(PathBuf, String)> {
+    let fdid = game_engine::listfile::lookup_path(&doodad.model_path)?;
+    let model_path = crate::asset::asset_cache::model(fdid)?;
+    if !model_path.exists() {
+        return None;
+    }
+    let name = model_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("wmo_doodad")
+        .to_owned();
+    Some((model_path, name))
 }
 
 pub(super) fn group_bbox(
