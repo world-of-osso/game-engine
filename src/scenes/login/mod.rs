@@ -33,7 +33,7 @@ use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_states, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, hit_frame, insert_char_into_editbox, insert_text_into_editbox,
+    editbox_move_cursor, hit_frame, insert_text_into_editbox,
     set_login_primary_button_textures,
 };
 
@@ -570,8 +570,7 @@ fn maybe_insert_login_text(event: &KeyboardInput, ui: &mut UiState, focused_id: 
     let Some(text) = &event.text else {
         return false;
     };
-    insert_char_into_editbox(&mut ui.registry, focused_id, text.as_str());
-    true
+    insert_text_into_editbox(&mut ui.registry, focused_id, text.as_str())
 }
 
 fn is_paste_shortcut(modifiers: &LoginModifierState, event: &KeyboardInput) -> bool {

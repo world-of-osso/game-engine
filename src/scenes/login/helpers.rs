@@ -49,20 +49,22 @@ pub fn insert_char_into_editbox(reg: &mut FrameRegistry, id: u64, ch: &str) {
     insert_text_into_editbox(reg, id, ch);
 }
 
-pub fn insert_text_into_editbox(reg: &mut FrameRegistry, id: u64, text: &str) {
+pub fn insert_text_into_editbox(reg: &mut FrameRegistry, id: u64, text: &str) -> bool {
     let filtered = filter_editbox_input(text);
     if filtered.is_empty() {
-        return;
+        return false;
     }
     if let Some(WidgetData::EditBox(eb)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
         let insert = clamp_editbox_insert(eb, filtered);
         if insert.is_empty() {
-            return;
+            return false;
         }
 
         eb.text.insert_str(eb.cursor_position, &insert);
         eb.cursor_position += insert.len();
+        return true;
     }
+    false
 }
 
 fn filter_editbox_input(text: &str) -> String {
