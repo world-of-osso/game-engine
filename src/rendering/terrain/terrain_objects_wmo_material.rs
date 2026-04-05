@@ -24,27 +24,18 @@ pub(crate) struct WmoSurfaceParams {
 }
 
 pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
-    use WmoLayerCombine::{Add, AlphaBlend, Mod2x, Multiply, None};
-
     match shader {
-        2 => shader_descriptor(false, true, false, None, None),
-        3 => shader_descriptor(true, false, false, None, None),
-        5 => shader_descriptor(true, true, false, None, None),
-        6 => shader_descriptor(false, false, false, AlphaBlend, None),
-        7 => shader_descriptor(true, true, false, AlphaBlend, Add),
-        8 => shader_descriptor(false, false, false, AlphaBlend, None),
-        9 => shader_descriptor(false, false, true, Add, None),
-        10 => shader_descriptor(true, false, false, None, None),
-        11 => shader_descriptor(true, true, false, AlphaBlend, AlphaBlend),
-        12 => shader_descriptor(true, true, true, Add, Add),
-        13 => shader_descriptor(false, false, false, AlphaBlend, None),
-        14 => shader_descriptor(true, false, false, None, None),
-        15 => shader_descriptor(false, false, true, Add, None),
-        17 => shader_descriptor(true, true, true, Add, Add),
-        18 | 19 => shader_descriptor(false, false, false, Mod2x, None),
-        20 => shader_descriptor(false, false, false, AlphaBlend, None),
-        22 => shader_descriptor(true, true, false, Multiply, None),
-        _ => shader_descriptor(false, false, false, None, None),
+        2 => metallic_shader_descriptor(),
+        3 | 10 | 14 => reflective_shader_descriptor(),
+        5 => reflective_metal_shader_descriptor(),
+        6 | 8 | 13 | 20 => alpha_blend_shader_descriptor(),
+        7 => env_add_shader_descriptor(),
+        9 | 15 => emissive_add_shader_descriptor(),
+        11 => layered_env_shader_descriptor(),
+        12 | 17 => emissive_env_add_shader_descriptor(),
+        18 | 19 => mod2x_shader_descriptor(),
+        22 => multiply_reflection_shader_descriptor(),
+        _ => default_shader_descriptor(),
     }
 }
 
@@ -62,6 +53,110 @@ fn shader_descriptor(
         second_layer,
         third_layer,
     }
+}
+
+fn default_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        false,
+        false,
+        false,
+        WmoLayerCombine::None,
+        WmoLayerCombine::None,
+    )
+}
+
+fn metallic_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        false,
+        true,
+        false,
+        WmoLayerCombine::None,
+        WmoLayerCombine::None,
+    )
+}
+
+fn reflective_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        true,
+        false,
+        false,
+        WmoLayerCombine::None,
+        WmoLayerCombine::None,
+    )
+}
+
+fn reflective_metal_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        true,
+        true,
+        false,
+        WmoLayerCombine::None,
+        WmoLayerCombine::None,
+    )
+}
+
+fn alpha_blend_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        false,
+        false,
+        false,
+        WmoLayerCombine::AlphaBlend,
+        WmoLayerCombine::None,
+    )
+}
+
+fn env_add_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        true,
+        true,
+        false,
+        WmoLayerCombine::AlphaBlend,
+        WmoLayerCombine::Add,
+    )
+}
+
+fn emissive_add_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        false,
+        false,
+        true,
+        WmoLayerCombine::Add,
+        WmoLayerCombine::None,
+    )
+}
+
+fn layered_env_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        true,
+        true,
+        false,
+        WmoLayerCombine::AlphaBlend,
+        WmoLayerCombine::AlphaBlend,
+    )
+}
+
+fn emissive_env_add_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(true, true, true, WmoLayerCombine::Add, WmoLayerCombine::Add)
+}
+
+fn mod2x_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        false,
+        false,
+        false,
+        WmoLayerCombine::Mod2x,
+        WmoLayerCombine::None,
+    )
+}
+
+fn multiply_reflection_shader_descriptor() -> WmoShaderDescriptor {
+    shader_descriptor(
+        true,
+        true,
+        false,
+        WmoLayerCombine::Multiply,
+        WmoLayerCombine::None,
+    )
 }
 
 const DEFAULT_ROUGHNESS: f32 = 0.88;
