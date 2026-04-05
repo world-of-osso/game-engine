@@ -166,39 +166,71 @@ fn append_synthetic_lod_liquid_chunks(payload: &mut Vec<u8>) {
 }
 
 fn append_synthetic_lod_object_chunks(payload: &mut Vec<u8>) {
+    append_synthetic_lod_object_chunk(
+        payload,
+        SyntheticLodObjectChunk {
+            placement_id: *b"DDLM",
+            visibility_id: *b"XDLM",
+            unique_id: 100,
+            name_id: 200,
+            position: [1.0, 2.0, 3.0],
+            rotation: [4.0, 5.0, 6.0],
+            scale: 1.5,
+            flags: TEST_M2_LOD_FLAGS,
+            bbox_min: [10.0, 20.0, 30.0],
+            bbox_max: [40.0, 50.0, 60.0],
+            radius: 70.0,
+        },
+    );
+    append_synthetic_lod_object_chunk(
+        payload,
+        SyntheticLodObjectChunk {
+            placement_id: *b"DMLM",
+            visibility_id: *b"XMLM",
+            unique_id: 300,
+            name_id: 400,
+            position: [7.0, 8.0, 9.0],
+            rotation: [10.0, 11.0, 12.0],
+            scale: 2.5,
+            flags: TEST_WMO_LOD_FLAGS,
+            bbox_min: [15.0, 25.0, 35.0],
+            bbox_max: [45.0, 55.0, 65.0],
+            radius: 75.0,
+        },
+    );
+}
+
+struct SyntheticLodObjectChunk {
+    placement_id: [u8; 4],
+    visibility_id: [u8; 4],
+    unique_id: u32,
+    name_id: u32,
+    position: [f32; 3],
+    rotation: [f32; 3],
+    scale: f32,
+    flags: u32,
+    bbox_min: [f32; 3],
+    bbox_max: [f32; 3],
+    radius: f32,
+}
+
+fn append_synthetic_lod_object_chunk(payload: &mut Vec<u8>, chunk: SyntheticLodObjectChunk) {
     append_subchunk(
         payload,
-        b"DDLM",
+        &chunk.placement_id,
         lod_object_placement_payload(
-            100,
-            200,
-            [1.0, 2.0, 3.0],
-            [4.0, 5.0, 6.0],
-            1.5,
-            TEST_M2_LOD_FLAGS,
+            chunk.unique_id,
+            chunk.name_id,
+            chunk.position,
+            chunk.rotation,
+            chunk.scale,
+            chunk.flags,
         ),
     );
     append_subchunk(
         payload,
-        b"XDLM",
-        lod_object_visibility_payload([10.0, 20.0, 30.0], [40.0, 50.0, 60.0], 70.0),
-    );
-    append_subchunk(
-        payload,
-        b"DMLM",
-        lod_object_placement_payload(
-            300,
-            400,
-            [7.0, 8.0, 9.0],
-            [10.0, 11.0, 12.0],
-            2.5,
-            TEST_WMO_LOD_FLAGS,
-        ),
-    );
-    append_subchunk(
-        payload,
-        b"XMLM",
-        lod_object_visibility_payload([15.0, 25.0, 35.0], [45.0, 55.0, 65.0], 75.0),
+        &chunk.visibility_id,
+        lod_object_visibility_payload(chunk.bbox_min, chunk.bbox_max, chunk.radius),
     );
 }
 
