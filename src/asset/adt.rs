@@ -1,7 +1,9 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
-pub use super::adt_format::adt::{CHUNK_SIZE, ChunkHeightGrid, ChunkIter, UNIT_SIZE, vertex_index};
+pub use super::adt_format::adt::{
+    CHUNK_SIZE, ChunkHeightGrid, ChunkIter, FlightBounds, UNIT_SIZE, vertex_index,
+};
 pub use super::adt_format::adt_tex::{
     AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, TextureParams,
     WaterLayer, load_adt_tex0, load_adt_tex0_with_chunk_alpha_flags, parse_mh2o,
@@ -23,6 +25,7 @@ pub struct McnkMesh {
 pub struct AdtData {
     pub chunks: Vec<McnkMesh>,
     pub blend_mesh: Option<super::adt_format::adt::BlendMeshData>,
+    pub flight_bounds: Option<FlightBounds>,
     pub height_grids: Vec<ChunkHeightGrid>,
     pub center_surface: [f32; 3],
     pub chunk_positions: Vec<[f32; 3]>,
@@ -359,6 +362,7 @@ fn load_adt_inner(
     Ok(AdtData {
         chunks: build_chunks(&parsed.chunks, tile_coords),
         blend_mesh: parsed.blend_mesh,
+        flight_bounds: parsed.flight_bounds,
         height_grids: parsed.height_grids,
         center_surface: parsed.center_surface,
         chunk_positions: parsed.chunk_positions,
@@ -457,6 +461,35 @@ mod tests {
         };
         assert_eq!(colors.len(), 145);
         assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn load_adt_raw_preserves_flight_bounds() {
+        let adt = super::load_adt_inner(
+            super::super::adt_format::adt::ParsedAdtData {
+                chunks: Vec::new(),
+                blend_mesh: None,
+                flight_bounds: Some(super::super::adt_format::adt::FlightBounds {
+                    min_heights: [-10, -9, -8, -7, -6, -5, -4, -3, -2],
+                    max_heights: [20, 21, 22, 23, 24, 25, 26, 27, 28],
+                }),
+                height_grids: Vec::new(),
+                center_surface: [0.0, 0.0, 0.0],
+                chunk_positions: Vec::new(),
+                water: None,
+                water_error: None,
+            },
+            None,
+        )
+        .expect("expected parsed ADT to convert");
+
+        assert_eq!(
+            adt.flight_bounds,
+            Some(super::super::adt_format::adt::FlightBounds {
+                min_heights: [-10, -9, -8, -7, -6, -5, -4, -3, -2],
+                max_heights: [20, 21, 22, 23, 24, 25, 26, 27, 28],
+            })
+        );
     }
 
     #[test]

@@ -1,7 +1,8 @@
 use super::{
-    BlendBatch, BlendMeshBounds, BlendMeshHeader, BlendMeshVertex, MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP,
-    MCNK_FLAG_HAS_MCCV, MCNK_FLAG_HAS_MCSH, MCNK_FLAG_HIGH_RES_HOLES, MCNK_FLAG_IMPASS, MCVT_COUNT,
-    McnkFlags, load_adt_raw, parse_mccv, parse_mclv, parse_mcnk, parse_mcnk_subchunks,
+    BlendBatch, BlendMeshBounds, BlendMeshHeader, BlendMeshVertex, FlightBounds,
+    MCNK_FLAG_DO_NOT_FIX_ALPHA_MAP, MCNK_FLAG_HAS_MCCV, MCNK_FLAG_HAS_MCSH,
+    MCNK_FLAG_HIGH_RES_HOLES, MCNK_FLAG_IMPASS, MCVT_COUNT, McnkFlags, load_adt_raw, parse_mccv,
+    parse_mclv, parse_mcnk, parse_mcnk_subchunks,
 };
 
 const TEST_AREA_ID: u32 = 0x1234_5678;
@@ -371,6 +372,21 @@ fn load_adt_raw_reads_top_level_blend_mesh_chunks() {
 }
 
 #[test]
+fn load_adt_raw_reads_top_level_mfbo_flight_bounds() {
+    let data = adt_file_payload(false);
+
+    let parsed = load_adt_raw(&data).expect("expected ADT with MFBO to parse");
+
+    assert_eq!(
+        parsed.flight_bounds,
+        Some(FlightBounds {
+            min_heights: [-10, -9, -8, -7, -6, -5, -4, -3, -2],
+            max_heights: [20, 21, 22, 23, 24, 25, 26, 27, 28],
+        })
+    );
+}
+
+#[test]
 fn load_adt_raw_rejects_partial_top_level_blend_mesh_data() {
     let mut data = adt_file_payload(false);
     append_subchunk(
@@ -410,6 +426,7 @@ fn adt_file_payload(include_blend_mesh: bool) -> Vec<u8> {
         b"KNCM",
         mcnk_payload(false, false, false, true, false),
     );
+    append_subchunk(&mut payload, b"OFBM", mfbo_payload());
     if include_blend_mesh {
         append_subchunk(
             &mut payload,
@@ -419,6 +436,17 @@ fn adt_file_payload(include_blend_mesh: bool) -> Vec<u8> {
         append_subchunk(&mut payload, b"BBBM", blend_mesh_bounds_payload(77));
         append_subchunk(&mut payload, b"VNBM", blend_mesh_vertex_payload());
         append_subchunk(&mut payload, b"IMBM", blend_mesh_index_payload());
+    }
+    payload
+}
+
+fn mfbo_payload() -> Vec<u8> {
+    let mut payload = Vec::new();
+    for value in [-10i16, -9, -8, -7, -6, -5, -4, -3, -2] {
+        payload.extend_from_slice(&value.to_le_bytes());
+    }
+    for value in [20i16, 21, 22, 23, 24, 25, 26, 27, 28] {
+        payload.extend_from_slice(&value.to_le_bytes());
     }
     payload
 }

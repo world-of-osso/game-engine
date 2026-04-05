@@ -106,6 +106,12 @@ pub struct BlendMeshData {
     pub indices: Vec<u16>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FlightBounds {
+    pub min_heights: [i16; 9],
+    pub max_heights: [i16; 9],
+}
+
 #[derive(Debug, Clone, Copy, BinRead, PartialEq)]
 #[br(little)]
 pub struct SoundEmitter {
@@ -185,6 +191,7 @@ struct McnkHeader {
 pub(crate) struct ParsedAdtData {
     pub chunks: Vec<McnkData>,
     pub blend_mesh: Option<BlendMeshData>,
+    pub flight_bounds: Option<FlightBounds>,
     pub height_grids: Vec<ChunkHeightGrid>,
     pub center_surface: [f32; 3],
     pub chunk_positions: Vec<[f32; 3]>,
@@ -195,6 +202,7 @@ pub(crate) struct ParsedAdtData {
 struct AdtRootChunks<'a> {
     mcnks: Vec<&'a [u8]>,
     mh2o: Option<&'a [u8]>,
+    mfbo: Option<&'a [u8]>,
     mbmh: Option<&'a [u8]>,
     mbbb: Option<&'a [u8]>,
     mbnv: Option<&'a [u8]>,
@@ -520,6 +528,34 @@ fn parse_blend_mesh_data(root_chunks: &AdtRootChunks<'_>) -> Result<Option<Blend
         vertices,
         indices,
     }))
+}
+
+fn parse_mfbo(payload: &[u8]) -> Result<FlightBounds, String> {
+    const MFBO_ENTRIES: usize = 18;
+    const MFBO_BYTES: usize = MFBO_ENTRIES * size_of::<i16>();
+
+    if payload.len() < MFBO_BYTES {
+        return Err(format!(
+            "MFBO too small: {} bytes (need {})",
+            payload.len(),
+            MFBO_BYTES
+        ));
+    }
+
+    let mut values = [0i16; MFBO_ENTRIES];
+    for (index, value) in values.iter_mut().enumerate() {
+        let base = index * size_of::<i16>();
+        *value = i16::from_le_bytes(payload[base..base + size_of::<i16>()].try_into().unwrap());
+    }
+
+    let mut min_heights = [0i16; 9];
+    let mut max_heights = [0i16; 9];
+    min_heights.copy_from_slice(&values[..9]);
+    max_heights.copy_from_slice(&values[9..]);
+    Ok(FlightBounds {
+        min_heights,
+        max_heights,
+    })
 }
 
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
@@ -916,6 +952,7 @@ fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
     let mut root_chunks = AdtRootChunks {
         mcnks: Vec::with_capacity(256),
         mh2o: None,
+        mfbo: None,
         mbmh: None,
         mbbb: None,
         mbnv: None,
@@ -926,6 +963,7 @@ fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
         match tag {
             b"KNCM" => root_chunks.mcnks.push(payload),
             b"O2HM" => root_chunks.mh2o = Some(payload),
+            b"OFBM" => root_chunks.mfbo = Some(payload),
             b"HMBM" => root_chunks.mbmh = Some(payload),
             b"BBBM" => root_chunks.mbbb = Some(payload),
             b"VNBM" => root_chunks.mbnv = Some(payload),
@@ -963,6 +1001,7 @@ fn load_adt_inner(
 ) -> Result<ParsedAdtData, String> {
     let root_chunks = collect_adt_chunks(data)?;
     let blend_mesh = parse_blend_mesh_data(&root_chunks)?;
+    let flight_bounds = root_chunks.mfbo.map(parse_mfbo).transpose()?;
     let mut parsed: Vec<McnkData> = root_chunks
         .mcnks
         .into_iter()
@@ -984,6 +1023,7 @@ fn load_adt_inner(
     Ok(ParsedAdtData {
         chunks: parsed,
         blend_mesh,
+        flight_bounds,
         height_grids,
         center_surface,
         chunk_positions,
