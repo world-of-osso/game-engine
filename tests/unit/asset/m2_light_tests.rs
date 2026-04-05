@@ -32,13 +32,11 @@ fn parse_lights_reads_single_point_light() {
     // Fill remaining required tracks with static one-key defaults.
     for off in [0x24, 0x38, 0x4C, 0x60, 0x74] {
         md20[light_base + off..light_base + off + 2].copy_from_slice(&0u16.to_le_bytes());
-        md20[light_base + off + 2..light_base + off + 4]
-            .copy_from_slice(&(-1i16).to_le_bytes());
+        md20[light_base + off + 2..light_base + off + 4].copy_from_slice(&(-1i16).to_le_bytes());
         md20[light_base + off + 4..light_base + off + 8].copy_from_slice(&(1u32).to_le_bytes());
         md20[light_base + off + 8..light_base + off + 12]
             .copy_from_slice(&(0x430u32).to_le_bytes());
-        md20[light_base + off + 12..light_base + off + 16]
-            .copy_from_slice(&(1u32).to_le_bytes());
+        md20[light_base + off + 12..light_base + off + 16].copy_from_slice(&(1u32).to_le_bytes());
         md20[light_base + off + 16..light_base + off + 20]
             .copy_from_slice(&(0x440u32).to_le_bytes());
     }
@@ -53,11 +51,9 @@ fn parse_lights_reads_single_point_light() {
     md20[light_base + off..light_base + off + 2].copy_from_slice(&0u16.to_le_bytes());
     md20[light_base + off + 2..light_base + off + 4].copy_from_slice(&(-1i16).to_le_bytes());
     md20[light_base + off + 4..light_base + off + 8].copy_from_slice(&(1u32).to_le_bytes());
-    md20[light_base + off + 8..light_base + off + 12]
-        .copy_from_slice(&(0x450u32).to_le_bytes());
+    md20[light_base + off + 8..light_base + off + 12].copy_from_slice(&(0x450u32).to_le_bytes());
     md20[light_base + off + 12..light_base + off + 16].copy_from_slice(&(1u32).to_le_bytes());
-    md20[light_base + off + 16..light_base + off + 20]
-        .copy_from_slice(&(0x464u32).to_le_bytes());
+    md20[light_base + off + 16..light_base + off + 20].copy_from_slice(&(0x464u32).to_le_bytes());
     md20[0x450..0x454].copy_from_slice(&(1u32).to_le_bytes());
     md20[0x454..0x458].copy_from_slice(&(0x514u32).to_le_bytes());
     md20[0x464..0x468].copy_from_slice(&(1u32).to_le_bytes());

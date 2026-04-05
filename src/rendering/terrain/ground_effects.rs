@@ -304,7 +304,8 @@ mod tests {
             &[42],
         );
 
-        let entries = parse_ground_effect_entries(&bytes).expect("expected GroundEffectTexture DB2 to parse");
+        let entries =
+            parse_ground_effect_entries(&bytes).expect("expected GroundEffectTexture DB2 to parse");
 
         assert_eq!(
             entries.get(&42),
