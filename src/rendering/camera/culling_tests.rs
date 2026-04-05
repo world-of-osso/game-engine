@@ -80,30 +80,34 @@ fn spawn_portal_test_wmo(world: &mut World, portal_verts: Vec<Vec3>) -> (Entity,
             },
         ))
         .id();
-    let group0 = world
-        .spawn((
-            WmoGroup {
-                group_index: 0,
-                bbox_min: Vec3::splat(-0.5),
-                bbox_max: Vec3::splat(0.5),
-                is_antiportal: false,
-            },
-            Visibility::Visible,
-        ))
-        .id();
-    let group1 = world
-        .spawn((
-            WmoGroup {
-                group_index: 1,
-                bbox_min: Vec3::new(2.0, -0.5, -0.5),
-                bbox_max: Vec3::new(3.0, 0.5, 0.5),
-                is_antiportal: false,
-            },
-            Visibility::Visible,
-        ))
-        .id();
+    let group0 = spawn_portal_test_group(world, 0, Vec3::splat(-0.5), Vec3::splat(0.5));
+    let group1 = spawn_portal_test_group(
+        world,
+        1,
+        Vec3::new(2.0, -0.5, -0.5),
+        Vec3::new(3.0, 0.5, 0.5),
+    );
     world.entity_mut(root).add_children(&[group0, group1]);
     (root, group0, group1)
+}
+
+fn spawn_portal_test_group(
+    world: &mut World,
+    group_index: u16,
+    bbox_min: Vec3,
+    bbox_max: Vec3,
+) -> Entity {
+    world
+        .spawn((
+            WmoGroup {
+                group_index,
+                bbox_min,
+                bbox_max,
+                is_antiportal: false,
+            },
+            Visibility::Visible,
+        ))
+        .id()
 }
 
 #[test]
