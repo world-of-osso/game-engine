@@ -479,7 +479,12 @@ fn register_render_plugins(app: &mut App) {
         .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(sky::SkyPlugin)
-        .add_plugins(particle::ParticlePlugin);
+        .add_plugins(particle::ParticlePlugin)
+        .add_systems(
+            Update,
+            terrain_objects::sync_wmo_sidn_emissive
+                .run_if(in_state(game_state::GameState::InWorld)),
+        );
 }
 
 fn register_plugins(app: &mut App) {

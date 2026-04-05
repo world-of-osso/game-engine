@@ -94,6 +94,7 @@ pub struct WmoMaterialDef {
     pub texture_3_fdid: u32,
     pub flags: u32,
     pub material_flags: WmoMaterialFlags,
+    pub sidn_color: [f32; 4],
     pub blend_mode: u32,
     pub shader: u32,
     pub uv_translation_speed: Option<[[f32; 2]; 2]>,
@@ -820,6 +821,7 @@ pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
                 texture_3_fdid: mat.texture_3_fdid,
                 flags: mat.flags,
                 material_flags: WmoMaterialFlags::from_bits(mat.flags),
+                sidn_color: parse_bgra_color(mat._sidn_emissive_color.to_le_bytes()),
                 blend_mode: mat.blend_mode,
                 shader: mat.shader,
                 uv_translation_speed: None,
@@ -1366,6 +1368,7 @@ mod tests {
         assert_eq!(mats.len(), 1);
         assert_eq!(mats[0].texture_fdid, 0);
         assert_eq!(mats[0].material_flags, WmoMaterialFlags::default());
+        assert_eq!(mats[0].sidn_color, [0.0; 4]);
         assert_eq!(mats[0].uv_translation_speed, None);
     }
 
@@ -1391,6 +1394,25 @@ mod tests {
                 clamp_s: true,
                 clamp_t: true,
             }
+        );
+    }
+
+    #[test]
+    fn parse_momt_reads_sidn_color() {
+        let mut data = vec![0_u8; MOMT_ENTRY_SIZE];
+        data[16..20].copy_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+
+        let mats = parse_momt(&data).expect("parse MOMT");
+
+        assert_eq!(mats.len(), 1);
+        assert_eq!(
+            mats[0].sidn_color,
+            [
+                0x33 as f32 / 255.0,
+                0x22 as f32 / 255.0,
+                0x11 as f32 / 255.0,
+                0x44 as f32 / 255.0,
+            ]
         );
     }
 
@@ -1436,6 +1458,30 @@ mod tests {
         assert_eq!(
             root.materials[0].uv_translation_speed,
             Some([[0.25, 0.5], [0.75, 1.0]])
+        );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_momt_sidn_color() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"TMOM");
+        data.extend_from_slice(&(MOMT_ENTRY_SIZE as u32).to_le_bytes());
+        let mut momt = vec![0_u8; MOMT_ENTRY_SIZE];
+        momt[16..20].copy_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+        data.extend_from_slice(&momt);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.materials.len(), 1);
+        assert_eq!(
+            root.materials[0].sidn_color,
+            [
+                0x30 as f32 / 255.0,
+                0x20 as f32 / 255.0,
+                0x10 as f32 / 255.0,
+                0x40 as f32 / 255.0,
+            ]
         );
     }
 

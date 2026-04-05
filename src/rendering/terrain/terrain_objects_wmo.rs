@@ -1,10 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use bevy::color::LinearRgba;
 use bevy::image::Image;
 use bevy::prelude::*;
 
 use crate::asset::{adt_format::adt_obj, blp, wmo};
+use crate::rendering::sky::GameTime;
 
 use super::{SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform};
 
@@ -30,6 +32,11 @@ struct WmoAssets<'a> {
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
     images: &'a mut Assets<Image>,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub(crate) struct WmoSidnGlow {
+    pub base_sidn_color: [f32; 4],
 }
 
 pub(super) fn spawn_wmos_filtered(
@@ -359,21 +366,24 @@ fn spawn_wmo_group_batches(
     batches: Vec<wmo::WmoGroupBatch>,
 ) {
     for batch in batches {
+        let material_props = wmo_material_props(root, batch.material_index);
         let mat = wmo_batch_material(
             assets.materials,
             assets.images,
-            root,
             batch.material_index,
+            &material_props,
             batch.has_vertex_color,
         );
-        let child = commands
-            .spawn((
-                Mesh3d(assets.meshes.add(batch.mesh)),
-                MeshMaterial3d(mat),
-                Transform::default(),
-                Visibility::default(),
-            ))
-            .id();
+        let mut child = commands.spawn((
+            Mesh3d(assets.meshes.add(batch.mesh)),
+            MeshMaterial3d(mat),
+            Transform::default(),
+            Visibility::default(),
+        ));
+        if let Some(glow) = material_props.sidn_glow {
+            child.insert(glow);
+        }
+        let child = child.id();
         commands.entity(group_entity).add_child(child);
     }
 }
@@ -409,17 +419,17 @@ fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling
 fn wmo_batch_material(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
-    root: &wmo::WmoRootData,
     material_index: u16,
+    material_props: &WmoMaterialProps,
     has_vertex_color: bool,
 ) -> Handle<StandardMaterial> {
-    let material_props = wmo_material_props(root, material_index);
     let image = load_wmo_batch_material_image(images, material_index, &material_props);
     materials.add(wmo_standard_material(
         image,
         material_props.blend_mode,
         material_props.unculled,
         has_vertex_color,
+        material_props.sidn_glow,
     ))
 }
 
@@ -430,6 +440,7 @@ struct WmoMaterialProps {
     blend_mode: u32,
     unculled: bool,
     shader: u32,
+    sidn_glow: Option<WmoSidnGlow>,
 }
 
 fn wmo_material_props(root: &wmo::WmoRootData, material_index: u16) -> WmoMaterialProps {
@@ -441,7 +452,17 @@ fn wmo_material_props(root: &wmo::WmoRootData, material_index: u16) -> WmoMateri
         blend_mode: mat_def.map(|m| m.blend_mode).unwrap_or(0),
         unculled: mat_def.map(|m| m.material_flags.unculled).unwrap_or(false),
         shader: mat_def.map(|m| m.shader).unwrap_or(0),
+        sidn_glow: mat_def.and_then(build_wmo_sidn_glow),
     }
+}
+
+fn build_wmo_sidn_glow(mat_def: &wmo::WmoMaterialDef) -> Option<WmoSidnGlow> {
+    let rgb = &mat_def.sidn_color[..3];
+    (mat_def.material_flags.sidn && rgb.iter().any(|channel| *channel > 0.0)).then_some(
+        WmoSidnGlow {
+            base_sidn_color: mat_def.sidn_color,
+        },
+    )
 }
 
 fn load_wmo_batch_material_image(
@@ -567,6 +588,7 @@ pub(super) fn wmo_standard_material(
     blend_mode: u32,
     unculled: bool,
     has_vertex_color: bool,
+    sidn_glow: Option<WmoSidnGlow>,
 ) -> StandardMaterial {
     let alpha_mode = match blend_mode {
         2 | 3 => AlphaMode::Blend,
@@ -584,6 +606,9 @@ pub(super) fn wmo_standard_material(
         base_color_texture: texture,
         perceptual_roughness: if prop_like_surface { 0.97 } else { 0.88 },
         reflectance: if prop_like_surface { 0.02 } else { 0.18 },
+        emissive: sidn_glow
+            .map(|glow| sidn_emissive_color(glow.base_sidn_color, 0.0))
+            .unwrap_or(LinearRgba::BLACK),
         unlit: has_vertex_color,
         double_sided,
         cull_mode: if double_sided {
@@ -594,6 +619,45 @@ pub(super) fn wmo_standard_material(
         alpha_mode,
         ..default()
     }
+}
+
+pub(crate) fn sync_wmo_sidn_emissive(
+    game_time: Res<GameTime>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    query: Query<(&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow)>,
+    mut last_strength: Local<Option<f32>>,
+) {
+    let strength = sidn_glow_strength(game_time.minutes);
+    if last_strength.is_some_and(|last| (last - strength).abs() < 0.001) {
+        return;
+    }
+    *last_strength = Some(strength);
+
+    for (material_handle, glow) in &query {
+        let Some(material) = materials.get_mut(material_handle) else {
+            continue;
+        };
+        material.emissive = sidn_emissive_color(glow.base_sidn_color, strength);
+    }
+}
+
+pub(super) fn sidn_glow_strength(minutes: f32) -> f32 {
+    let sun_cycle = ((minutes.rem_euclid(2880.0) / 2880.0) * std::f32::consts::TAU
+        - std::f32::consts::FRAC_PI_2)
+        .sin();
+    (-sun_cycle).max(0.0).powf(1.25)
+}
+
+fn sidn_emissive_color(base_sidn_color: [f32; 4], strength: f32) -> LinearRgba {
+    let alpha = base_sidn_color[3];
+    let scale = alpha * strength;
+    let linear =
+        Color::srgb(base_sidn_color[0], base_sidn_color[1], base_sidn_color[2]).to_linear();
+    LinearRgba::rgb(
+        linear.red * scale,
+        linear.green * scale,
+        linear.blue * scale,
+    )
 }
 
 #[cfg(test)]

@@ -17,6 +17,7 @@ use crate::terrain::resolve_companion_path;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_tile::TILE_SIZE;
 use terrain_objects_wmo::spawn_wmos_filtered;
+pub(crate) use terrain_objects_wmo::sync_wmo_sidn_emissive;
 
 #[derive(Default)]
 pub struct SpawnedTerrainObjects {

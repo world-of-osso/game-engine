@@ -1,4 +1,5 @@
 use super::*;
+use bevy::ecs::system::RunSystemOnce;
 
 #[test]
 fn placement_rotation_matches_current_model_rotation_formula() {
@@ -116,8 +117,63 @@ fn doodad_transform_lifts_props_to_terrain_height() {
 
 #[test]
 fn wmo_vertex_colored_materials_are_unlit() {
-    let material = super::terrain_objects_wmo::wmo_standard_material(None, 0, false, true);
+    let material = super::terrain_objects_wmo::wmo_standard_material(None, 0, false, true, None);
     assert!(material.unlit);
+}
+
+#[test]
+fn sidn_glow_strength_is_night_only() {
+    assert!((super::terrain_objects_wmo::sidn_glow_strength(0.0) - 1.0).abs() < 0.001);
+    assert_eq!(super::terrain_objects_wmo::sidn_glow_strength(1440.0), 0.0);
+    assert_eq!(super::terrain_objects_wmo::sidn_glow_strength(720.0), 0.0);
+    assert_eq!(super::terrain_objects_wmo::sidn_glow_strength(2160.0), 0.0);
+}
+
+#[test]
+fn wmo_sidn_emissive_updates_from_game_time() {
+    let mut app = App::new();
+    app.init_resource::<Assets<StandardMaterial>>();
+    let handle = {
+        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
+        materials.add(StandardMaterial::default())
+    };
+    app.insert_resource(crate::sky::GameTime {
+        minutes: 0.0,
+        speed: 0.0,
+    });
+    app.world_mut().spawn((
+        MeshMaterial3d(handle.clone()),
+        super::terrain_objects_wmo::WmoSidnGlow {
+            base_sidn_color: [0.6, 0.4, 0.2, 0.5],
+        },
+    ));
+
+    let _ = app
+        .world_mut()
+        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive);
+    let emissive = app
+        .world()
+        .resource::<Assets<StandardMaterial>>()
+        .get(&handle)
+        .expect("material")
+        .emissive;
+    assert!(emissive.red > 0.0);
+    assert!(emissive.green > 0.0);
+    assert!(emissive.blue > 0.0);
+
+    app.world_mut()
+        .resource_mut::<crate::sky::GameTime>()
+        .minutes = 1440.0;
+    let _ = app
+        .world_mut()
+        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive);
+    let emissive = app
+        .world()
+        .resource::<Assets<StandardMaterial>>()
+        .get(&handle)
+        .expect("material")
+        .emissive;
+    assert_eq!(emissive, LinearRgba::BLACK);
 }
 
 #[test]
