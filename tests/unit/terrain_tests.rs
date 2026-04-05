@@ -335,3 +335,19 @@ fn terrain_shader_applies_overbright_layer_multiplier() {
         "expected terrain shader to apply per-layer overbright before terrain blending"
     );
 }
+
+#[test]
+fn terrain_shader_samples_environment_map_for_reflective_layers() {
+    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
+        .expect("terrain shader should be readable");
+
+    assert!(
+        shader
+            .contains("let reflection = sample_environment_reflection(pbr_input.N, pbr_input.V);"),
+        "expected terrain shader to sample the sky cubemap for reflective terrain layers"
+    );
+    assert!(
+        shader.contains("let reflective_weight = dot(weights, reflection_mask);"),
+        "expected terrain shader to derive reflection strength from per-layer cubemap flags"
+    );
+}

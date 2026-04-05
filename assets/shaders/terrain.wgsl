@@ -1,6 +1,6 @@
 // Terrain shader with direct repeated sampling.
-// Height-based blending still uses ground texture alpha as height channel
-// to make transitions between layers look more natural.
+// Height-based blending uses dedicated height textures when available
+// to make transitions between terrain layers look more natural.
 
 #import bevy_pbr::{
     forward_io::VertexOutput,
@@ -27,7 +27,7 @@ struct TerrainSettings {
 // settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
 // settings.layer_params_N.z = MCMT terrain material id, settings.layer_params_N.w = overbright multiplier
-// settings.animation_params_N.xy = per-layer UV velocity
+// settings.animation_params_N.xy = per-layer UV velocity, settings.animation_params_N.z = reflection multiplier
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: TerrainSettings;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var ground_0: texture_2d<f32>;
@@ -59,8 +59,11 @@ struct TerrainSettings {
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(19) var shadow_map: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(20) var shadow_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(21) var environment_map: texture_cube<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(22) var environment_sampler: sampler;
 
 const STATIC_SHADOW_MIN_BRIGHTNESS: f32 = 0.55;
+const TERRAIN_REFLECTION_FRESNEL_POWER: f32 = 4.0;
 
 // ── Hash: deterministic pseudo-random from grid cell ─────────────────────────
 
@@ -137,6 +140,20 @@ fn animated_layer_uv(idx: u32, uv: vec2<f32>) -> vec2<f32> {
 fn apply_layer_overbright(idx: u32, color: vec4<f32>) -> vec4<f32> {
     let multiplier = layer_params(idx).w;
     return vec4<f32>(color.rgb * multiplier, color.a);
+}
+
+fn sample_environment_reflection(normal: vec3<f32>, view_dir: vec3<f32>) -> vec3<f32> {
+    let reflection_dir = reflect(-normalize(view_dir), normalize(normal));
+    return textureSample(environment_map, environment_sampler, reflection_dir).rgb;
+}
+
+fn reflection_mask() -> vec4<f32> {
+    return vec4<f32>(
+        settings.animation_params_0.z,
+        settings.animation_params_1.z,
+        settings.animation_params_2.z,
+        settings.animation_params_3.z,
+    );
 }
 
 // ── Hex tiling ───────────────────────────────────────────────────────────────
@@ -325,6 +342,16 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
         in.world_position,
         pbr_input.is_orthographic,
     );
+    let reflection = sample_environment_reflection(pbr_input.N, pbr_input.V);
+    let reflection_mask = reflection_mask();
+    let reflective_weight = dot(weights, reflection_mask);
+    let fresnel = pow(1.0 - max(dot(pbr_input.N, pbr_input.V), 0.0), TERRAIN_REFLECTION_FRESNEL_POWER);
+    let reflective_color = mix(
+        shaded_color.rgb,
+        reflection,
+        clamp(reflective_weight * fresnel, 0.0, 1.0),
+    );
+    pbr_input.material.base_color = vec4<f32>(reflective_color, shaded_color.a);
 
     let lit = pbr_functions::apply_pbr_lighting(pbr_input);
     return pbr_functions::main_pass_post_lighting_processing(pbr_input, lit);

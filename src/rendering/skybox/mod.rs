@@ -421,8 +421,8 @@ fn update_fog(
 
 const ENV_MAP_SIZE: u32 = 32;
 
-#[derive(Resource)]
-struct SkyEnvMapHandle(Handle<Image>);
+#[derive(Resource, Clone)]
+pub(crate) struct SkyEnvMapHandle(pub Handle<Image>);
 
 fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
     let face_pixels = (ENV_MAP_SIZE * ENV_MAP_SIZE) as usize;

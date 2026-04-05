@@ -2,12 +2,16 @@ use bevy::asset::RenderAssetUsages;
 use bevy::image::Image;
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
-use bevy::render::render_resource::{AsBindGroup, Extent3d, TextureDimension, TextureFormat};
+use bevy::render::render_resource::{
+    AsBindGroup, Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor,
+    TextureViewDimension,
+};
 use bevy::shader::ShaderRef;
 use std::f32::consts::FRAC_PI_4;
 
 use crate::asset::adt;
 use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sampler};
+use crate::sky::SkyEnvMapHandle;
 
 /// Custom terrain material: ground texture layers + alpha blending + hex tiling.
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
@@ -25,7 +29,7 @@ pub struct TerrainMaterialSettings {
     pub layer_params_1: Vec4,
     pub layer_params_2: Vec4,
     pub layer_params_3: Vec4,
-    /// x/y = UV velocity, z/w = reserved
+    /// x/y = UV velocity, z = reflection multiplier, w = reserved
     pub animation_params_0: Vec4,
     pub animation_params_1: Vec4,
     pub animation_params_2: Vec4,
@@ -78,6 +82,10 @@ pub struct TerrainMaterial {
     #[texture(19)]
     #[sampler(20)]
     pub shadow_map: Handle<Image>,
+
+    #[texture(21, dimension = "cube")]
+    #[sampler(22)]
+    pub environment_map: Handle<Image>,
 }
 
 impl Material for TerrainMaterial {
@@ -101,7 +109,10 @@ pub struct TerrainMaterialPlugin;
 impl Plugin for TerrainMaterialPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MaterialPlugin::<TerrainMaterial>::default())
-            .add_systems(Update, update_terrain_animation_time);
+            .add_systems(
+                Update,
+                (update_terrain_animation_time, sync_terrain_environment_map),
+            );
     }
 }
 
@@ -112,6 +123,18 @@ fn update_terrain_animation_time(
     let animation_time = time.elapsed_secs();
     for (_id, material) in terrain_materials.iter_mut() {
         material.settings.config.w = animation_time;
+    }
+}
+
+fn sync_terrain_environment_map(
+    env_handle: Option<Res<SkyEnvMapHandle>>,
+    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
+) {
+    let Some(env_handle) = env_handle else { return };
+    for (_id, material) in terrain_materials.iter_mut() {
+        if material.environment_map != env_handle.0 {
+            material.environment_map = env_handle.0.clone();
+        }
     }
 }
 
@@ -146,6 +169,29 @@ pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
         RenderAssetUsages::default(),
     );
     img.sampler = clamp_linear_sampler();
+    images.add(img)
+}
+
+pub fn placeholder_cubemap(images: &mut Assets<Image>) -> Handle<Image> {
+    let mut img = Image::new(
+        Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 6,
+        },
+        TextureDimension::D2,
+        vec![
+            0, 56, 0, 56, 0, 56, 0, 60, 0, 56, 0, 56, 0, 56, 0, 60, 0, 56, 0, 56, 0, 56, 0, 60, 0,
+            56, 0, 56, 0, 56, 0, 60, 0, 56, 0, 56, 0, 56, 0, 60, 0, 56, 0, 56, 0, 56, 0, 60,
+        ],
+        TextureFormat::Rgba16Float,
+        RenderAssetUsages::default(),
+    );
+    img.texture_view_descriptor = Some(TextureViewDescriptor {
+        dimension: Some(TextureViewDimension::Cube),
+        ..Default::default()
+    });
+    img.sampler = repeat_linear_sampler();
     images.add(img)
 }
 
@@ -352,6 +398,7 @@ fn shadow_bit_is_set(shadow_map: &[u8; 512], row: usize, col: usize) -> bool {
 struct Placeholders {
     image: Handle<Image>,
     alpha: Handle<Image>,
+    cubemap: Handle<Image>,
 }
 
 /// Build one TerrainMaterial per MCNK chunk.
@@ -366,6 +413,7 @@ pub fn build_terrain_materials(
     let ph = Placeholders {
         image: placeholder_image(images),
         alpha: placeholder_alpha(images),
+        cubemap: placeholder_cubemap(images),
     };
 
     let (Some(td), Some(gi)) = (tex_data, ground_images) else {
@@ -453,6 +501,7 @@ fn fallback_material(
         height_3: ph.image.clone(),
         alpha_packed: ph.alpha.clone(),
         shadow_map: pack_shadow_map(images, shadow_map),
+        environment_map: ph.cubemap.clone(),
     }
 }
 
@@ -507,6 +556,7 @@ fn build_chunk_material(
         height_3: height(3),
         alpha_packed: pack_alpha_maps(images, &chunk_tex.layers),
         shadow_map: pack_shadow_map(images, shadow_map),
+        environment_map: ph.cubemap.clone(),
     })
 }
 
@@ -553,18 +603,27 @@ fn terrain_layer_animation_params(layers: &[adt::TextureLayer]) -> [Vec4; 4] {
 }
 
 fn terrain_layer_animation(flags: adt::MclyFlags) -> Vec4 {
-    if !flags.animation_enabled() {
-        return Vec4::ZERO;
-    }
+    let velocity = if flags.animation_enabled() {
+        let speed = TERRAIN_ANIMATION_SPEEDS[flags.animation_speed() as usize]
+            * TERRAIN_ANIMATION_BASE_SPEED;
+        let angle = FRAC_PI_4 + f32::from(flags.animation_rotation()) * FRAC_PI_4;
+        let (sin, cos) = angle.sin_cos();
+        let base = Vec2::splat(speed);
+        Vec2::new(base.x * cos - base.y * sin, base.x * sin + base.y * cos)
+    } else {
+        Vec2::ZERO
+    };
 
-    let speed =
-        TERRAIN_ANIMATION_SPEEDS[flags.animation_speed() as usize] * TERRAIN_ANIMATION_BASE_SPEED;
-    let angle = FRAC_PI_4 + f32::from(flags.animation_rotation()) * FRAC_PI_4;
-    let (sin, cos) = angle.sin_cos();
-    let base = Vec2::splat(speed);
-    let velocity = Vec2::new(base.x * cos - base.y * sin, base.x * sin + base.y * cos);
-
-    Vec4::new(velocity.x, velocity.y, 0.0, 0.0)
+    Vec4::new(
+        velocity.x,
+        velocity.y,
+        if flags.use_cube_map_reflection() {
+            1.0
+        } else {
+            0.0
+        },
+        0.0,
+    )
 }
 
 #[cfg(test)]
@@ -690,6 +749,7 @@ mod tests {
         let placeholder = super::Placeholders {
             image: images.add(Image::default()),
             alpha: images.add(Image::default()),
+            cubemap: images.add(Image::default()),
         };
         let diffuse_0 = images.add(Image::default());
         let diffuse_1 = images.add(Image::default());
@@ -784,5 +844,30 @@ mod tests {
 
         assert_eq!(params[0].w, 2.0);
         assert_eq!(params[1].w, 1.0);
+    }
+
+    #[test]
+    fn terrain_layer_animation_params_encode_reflection_flag() {
+        let layers = vec![
+            adt::TextureLayer {
+                texture_index: 0,
+                flags: adt::MclyFlags { raw: 0x400 },
+                effect_id: 0,
+                material_id: 0,
+                alpha_map: None,
+            },
+            adt::TextureLayer {
+                texture_index: 1,
+                flags: adt::MclyFlags::default(),
+                effect_id: 0,
+                material_id: 0,
+                alpha_map: None,
+            },
+        ];
+
+        let params = terrain_layer_animation_params(&layers);
+
+        assert_eq!(params[0].z, 1.0);
+        assert_eq!(params[1].z, 0.0);
     }
 }
