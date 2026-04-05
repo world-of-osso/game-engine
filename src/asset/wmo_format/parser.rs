@@ -6,6 +6,7 @@ use crate::asset::adt::ChunkIter;
 
 pub struct WmoRootData {
     pub n_groups: u32,
+    pub flags: WmoRootFlags,
     pub materials: Vec<WmoMaterialDef>,
     pub lights: Vec<WmoLight>,
     pub doodad_sets: Vec<WmoDoodadSet>,
@@ -42,6 +43,25 @@ pub struct WmoMaterialDef {
     pub flags: u32,
     pub blend_mode: u32,
     pub shader: u32,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WmoRootFlags {
+    pub do_not_attenuate_vertices: bool,
+    pub use_unified_render_path: bool,
+    pub use_liquid_type_dbc_id: bool,
+    pub do_not_fix_vertex_color_alpha: bool,
+}
+
+impl WmoRootFlags {
+    fn from_bits(bits: u16) -> Self {
+        Self {
+            do_not_attenuate_vertices: bits & 0x1 != 0,
+            use_unified_render_path: bits & 0x2 != 0,
+            use_liquid_type_dbc_id: bits & 0x4 != 0,
+            do_not_fix_vertex_color_alpha: bits & 0x8 != 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,7 +158,7 @@ struct MohdHeader {
     _wmo_id: u32,
     _bbox_min: [f32; 3],
     _bbox_max: [f32; 3],
-    _flags: u16,
+    flags: u16,
     _n_lod: u16,
 }
 
@@ -292,6 +312,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
     resolve_portal_vertices(&mut accum.portals, &accum.mopt_raw, &accum.portal_vertices);
     WmoRootData {
         n_groups: accum.n_groups,
+        flags: accum.flags,
         materials: accum.materials,
         lights: accum.lights,
         doodad_sets: accum.doodad_sets,
@@ -308,6 +329,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
 #[derive(Default)]
 struct WmoRootAccum {
     n_groups: u32,
+    flags: WmoRootFlags,
     materials: Vec<WmoMaterialDef>,
     lights: Vec<WmoLight>,
     doodad_sets: Vec<WmoDoodadSet>,
@@ -327,6 +349,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"DHOM" => {
             let header: MohdHeader = parse_binrw_value(payload, MOHD_HEADER_SIZE, "MOHD")?;
             accum.n_groups = header.n_groups;
+            accum.flags = WmoRootFlags::from_bits(header.flags);
         }
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
@@ -631,6 +654,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_root_chunk_reads_mohd_flags() {
+        let mut accum = WmoRootAccum::default();
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        mohd[4..8].copy_from_slice(&7_u32.to_le_bytes());
+        mohd[60..62].copy_from_slice(&0x000F_u16.to_le_bytes());
+
+        apply_root_chunk(b"DHOM", &mohd, &mut accum).expect("parse MOHD chunk");
+
+        assert_eq!(accum.n_groups, 7);
+        assert_eq!(
+            accum.flags,
+            WmoRootFlags {
+                do_not_attenuate_vertices: true,
+                use_unified_render_path: true,
+                use_liquid_type_dbc_id: true,
+                do_not_fix_vertex_color_alpha: true,
+            }
+        );
+    }
+
+    #[test]
     fn parse_molt_reads_light_fields() {
         let mut data = Vec::new();
         data.push(1);
@@ -708,6 +752,31 @@ mod tests {
         assert_eq!(light.rotation, [0.0, 0.0, 1.0, 0.0]);
         assert_eq!(light.attenuation_start, 3.0);
         assert_eq!(light.attenuation_end, 7.0);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mohd_flags() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DHOM");
+        data.extend_from_slice(&(MOHD_HEADER_SIZE as u32).to_le_bytes());
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        mohd[4..8].copy_from_slice(&2_u32.to_le_bytes());
+        mohd[60..62].copy_from_slice(&0x000A_u16.to_le_bytes());
+        data.extend_from_slice(&mohd);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.n_groups, 2);
+        assert_eq!(
+            root.flags,
+            WmoRootFlags {
+                do_not_attenuate_vertices: false,
+                use_unified_render_path: true,
+                use_liquid_type_dbc_id: false,
+                do_not_fix_vertex_color_alpha: true,
+            }
+        );
     }
 
     #[test]
