@@ -283,3 +283,14 @@ fn spawned_entity_count(world: &World, root: Entity) -> usize {
     }
     count
 }
+
+#[test]
+fn terrain_shader_uses_wow_mccv_diffuse_scaling() {
+    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
+        .expect("terrain shader should be readable");
+
+    assert!(
+        shader.contains("let vertex_color = in.color.rgb * 2.0;"),
+        "expected terrain shader to apply WoW MCCV diffuse scaling"
+    );
+}

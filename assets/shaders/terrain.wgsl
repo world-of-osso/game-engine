@@ -248,7 +248,7 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
         c0.rgb * weights.x + c1.rgb * weights.y + c2.rgb * weights.z + c3.rgb * weights.w,
         1.0,
     );
-    let vertex_color = in.color.rgb;
+    let vertex_color = in.color.rgb * 2.0;
     let static_shadow = textureSample(shadow_map, shadow_sampler, uv).r;
     let shadow_light = mix(STATIC_SHADOW_MIN_BRIGHTNESS, 1.0, static_shadow);
     let shaded_color = vec4<f32>(color.rgb * vertex_color * shadow_light, color.a);
