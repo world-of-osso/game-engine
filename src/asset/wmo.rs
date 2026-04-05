@@ -9,6 +9,7 @@ pub use super::wmo_format::parser::{
 
 pub struct WmoGroupData {
     pub header: WmoGroupHeader,
+    pub doodad_refs: Vec<u16>,
     pub liquid: Option<WmoLiquid>,
     pub batches: Vec<WmoGroupBatch>,
 }
@@ -42,6 +43,7 @@ fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoG
         let mesh = build_whole_group_mesh(&raw);
         return Ok(WmoGroupData {
             header,
+            doodad_refs: raw.doodad_refs,
             liquid: raw.liquid,
             batches: vec![WmoGroupBatch {
                 mesh,
@@ -62,6 +64,7 @@ fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoG
     }
     Ok(WmoGroupData {
         header,
+        doodad_refs: raw.doodad_refs,
         liquid: raw.liquid,
         batches: out,
     })
@@ -356,6 +359,38 @@ mod tests {
         assert_eq!(liquid.tiles[0].liquid_type, 3);
         assert!(liquid.tiles[0].fishable);
         assert!(!liquid.tiles[0].shared);
+    }
+
+    #[test]
+    fn load_wmo_group_reads_modr_doodad_refs() {
+        let mut data = Vec::new();
+        let modr_size = 6_u32;
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + modr_size + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"RDOM");
+        data.extend_from_slice(&modr_size.to_le_bytes());
+        for value in [4_u16, 9, 15] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+
+        assert_eq!(group.doodad_refs, vec![4, 9, 15]);
     }
 
     #[test]

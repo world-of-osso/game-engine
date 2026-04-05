@@ -234,6 +234,7 @@ pub struct WmoNewLight {
 
 pub struct RawGroupData {
     pub triangle_materials: Vec<WmoTriangleMaterial>,
+    pub doodad_refs: Vec<u16>,
     pub liquid: Option<WmoLiquid>,
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -1044,6 +1045,7 @@ pub fn parse_mogp_header(data: &[u8]) -> Result<WmoGroupHeader, String> {
 
 pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut triangle_materials = Vec::new();
+    let mut doodad_refs = Vec::new();
     let mut liquid = None;
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
@@ -1056,6 +1058,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         let (tag, payload) = chunk?;
         match tag {
             b"YPOM" => triangle_materials = parse_mopy(payload)?,
+            b"RDOM" => doodad_refs = parse_u16_array(payload),
             b"QILM" => liquid = Some(parse_mliq(payload)?),
             b"TVOM" => vertices = parse_vec3_array(payload)?,
             b"RNOM" => normals = parse_vec3_array(payload)?,
@@ -1076,6 +1079,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
 
     Ok(RawGroupData {
         triangle_materials,
+        doodad_refs,
         liquid,
         vertices,
         normals,
@@ -1597,6 +1601,30 @@ mod tests {
         assert_eq!(liquid.tiles[0].liquid_type, 5);
         assert!(liquid.tiles[0].fishable);
         assert!(liquid.tiles[0].shared);
+    }
+
+    #[test]
+    fn parse_group_subchunks_reads_modr_doodad_refs() {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"RDOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [3_u16, 7, 11] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = parse_group_subchunks(&data).expect("parse group subchunks");
+
+        assert_eq!(group.doodad_refs, vec![3, 7, 11]);
     }
 
     #[test]
