@@ -264,21 +264,57 @@ fn read_vertex_data(
 }
 
 fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, String> {
-    if off + size_of::<LiquidInstanceHeader>() > payload.len() {
+    let header = read_liquid_instance_header(payload, off)?;
+    let vertex_data = read_liquid_vertex_data(payload, &header)?;
+    let exists = read_liquid_exists_bitmask(payload, &header)?;
+    Ok(build_water_layer(header, exists, vertex_data))
+}
+
+fn read_liquid_instance_header(
+    payload: &[u8],
+    offset: usize,
+) -> Result<LiquidInstanceHeader, String> {
+    if offset + size_of::<LiquidInstanceHeader>() > payload.len() {
         return Err(format!(
-            "SLiquidInstance out of bounds at {off:#x} (payload len {:#x})",
+            "SLiquidInstance out of bounds at {offset:#x} (payload len {:#x})",
             payload.len()
         ));
     }
-    let header: LiquidInstanceHeader = parse_binrw_value(payload, off, "SLiquidInstance")?;
-    let (vertex_heights, vertex_uvs, vertex_depths) = read_vertex_data(
+    parse_binrw_value(payload, offset, "SLiquidInstance")
+}
+
+fn read_liquid_vertex_data(
+    payload: &[u8],
+    header: &LiquidInstanceHeader,
+) -> Result<WaterVertexData, String> {
+    read_vertex_data(
         payload,
         header.vertex_offset as usize,
         header.width,
         header.height,
         header.liquid_object,
-    )?;
-    Ok(WaterLayer {
+    )
+}
+
+fn read_liquid_exists_bitmask(
+    payload: &[u8],
+    header: &LiquidInstanceHeader,
+) -> Result<[u8; 8], String> {
+    read_exists_bitmask(
+        payload,
+        header.exists_offset as usize,
+        header.width,
+        header.height,
+    )
+}
+
+fn build_water_layer(
+    header: LiquidInstanceHeader,
+    exists: [u8; 8],
+    vertex_data: WaterVertexData,
+) -> WaterLayer {
+    let (vertex_heights, vertex_uvs, vertex_depths) = vertex_data;
+    WaterLayer {
         liquid_type: header.liquid_type,
         liquid_object: header.liquid_object,
         min_height: header.min_height,
@@ -287,16 +323,11 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
         y_offset: header.y_offset,
         width: header.width,
         height: header.height,
-        exists: read_exists_bitmask(
-            payload,
-            header.exists_offset as usize,
-            header.width,
-            header.height,
-        )?,
+        exists,
         vertex_heights,
         vertex_uvs,
         vertex_depths,
-    })
+    }
 }
 
 fn parse_water_attributes(payload: &[u8], offset: usize) -> Result<WaterAttributes, String> {
