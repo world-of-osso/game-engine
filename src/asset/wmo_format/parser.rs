@@ -8,6 +8,8 @@ pub struct WmoRootData {
     pub n_groups: u32,
     pub flags: WmoRootFlags,
     pub ambient_color: [f32; 4],
+    pub bbox_min: [f32; 3],
+    pub bbox_max: [f32; 3],
     pub materials: Vec<WmoMaterialDef>,
     pub lights: Vec<WmoLight>,
     pub doodad_sets: Vec<WmoDoodadSet>,
@@ -157,8 +159,8 @@ struct MohdHeader {
     _n_sets: u32,
     ambient_color: [u8; 4],
     _wmo_id: u32,
-    _bbox_min: [f32; 3],
-    _bbox_max: [f32; 3],
+    bbox_min: [f32; 3],
+    bbox_max: [f32; 3],
     flags: u16,
     _n_lod: u16,
 }
@@ -315,6 +317,8 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         n_groups: accum.n_groups,
         flags: accum.flags,
         ambient_color: accum.ambient_color,
+        bbox_min: accum.bbox_min,
+        bbox_max: accum.bbox_max,
         materials: accum.materials,
         lights: accum.lights,
         doodad_sets: accum.doodad_sets,
@@ -333,6 +337,8 @@ struct WmoRootAccum {
     n_groups: u32,
     flags: WmoRootFlags,
     ambient_color: [f32; 4],
+    bbox_min: [f32; 3],
+    bbox_max: [f32; 3],
     materials: Vec<WmoMaterialDef>,
     lights: Vec<WmoLight>,
     doodad_sets: Vec<WmoDoodadSet>,
@@ -354,6 +360,8 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
             accum.n_groups = header.n_groups;
             accum.flags = WmoRootFlags::from_bits(header.flags);
             accum.ambient_color = parse_bgra_color(header.ambient_color);
+            accum.bbox_min = header.bbox_min;
+            accum.bbox_max = header.bbox_max;
         }
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
@@ -698,6 +706,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_root_chunk_reads_mohd_bounding_box() {
+        let mut accum = WmoRootAccum::default();
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        for (offset, value) in [
+            (36usize, -1.0_f32),
+            (40, -2.0),
+            (44, -3.0),
+            (48, 4.0),
+            (52, 5.0),
+            (56, 6.0),
+        ] {
+            mohd[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+        }
+
+        apply_root_chunk(b"DHOM", &mohd, &mut accum).expect("parse MOHD chunk");
+
+        assert_eq!(accum.bbox_min, [-1.0, -2.0, -3.0]);
+        assert_eq!(accum.bbox_max, [4.0, 5.0, 6.0]);
+    }
+
+    #[test]
     fn parse_molt_reads_light_fields() {
         let mut data = Vec::new();
         data.push(1);
@@ -823,6 +852,31 @@ mod tests {
                 0xDD as f32 / 255.0,
             ]
         );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mohd_bounding_box() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DHOM");
+        data.extend_from_slice(&(MOHD_HEADER_SIZE as u32).to_le_bytes());
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        for (offset, value) in [
+            (36usize, -10.0_f32),
+            (40, -20.0),
+            (44, -30.0),
+            (48, 40.0),
+            (52, 50.0),
+            (56, 60.0),
+        ] {
+            mohd[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&mohd);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.bbox_min, [-10.0, -20.0, -30.0]);
+        assert_eq!(root.bbox_max, [40.0, 50.0, 60.0]);
     }
 
     #[test]
