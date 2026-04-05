@@ -136,6 +136,10 @@ impl WmoMaterialDef {
     pub fn uses_generated_tangents(&self) -> bool {
         matches!(self.shader, 10 | 14)
     }
+
+    pub fn uses_third_uv_set(&self) -> bool {
+        self.flags & 0x4000_0000 != 0 && self.shader == 18
+    }
 }
 
 impl WmoMaterialFlags {
@@ -318,6 +322,7 @@ pub struct RawGroupData {
     pub normals: Vec<[f32; 3]>,
     pub uvs: Vec<[f32; 2]>,
     pub second_uvs: Vec<[f32; 2]>,
+    pub third_uvs: Vec<[f32; 2]>,
     pub colors: Vec<[f32; 4]>,
     pub second_color_blend_alphas: Vec<f32>,
     pub indices: Vec<u16>,
@@ -1161,6 +1166,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
     let mut second_uvs = Vec::new();
+    let mut third_uvs = Vec::new();
     let mut colors = Vec::new();
     let mut second_color_blend_alphas = Vec::new();
     let mut indices = Vec::new();
@@ -1180,8 +1186,10 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
             b"VTOM" => {
                 if uvs.is_empty() {
                     uvs = parse_vec2_array(payload)?;
-                } else {
+                } else if second_uvs.is_empty() {
                     second_uvs = parse_vec2_array(payload)?;
+                } else {
+                    third_uvs = parse_vec2_array(payload)?;
                 }
             }
             b"VCOM" => {
@@ -1215,6 +1223,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         normals,
         uvs,
         second_uvs,
+        third_uvs,
         colors,
         second_color_blend_alphas,
         indices,
@@ -2084,6 +2093,46 @@ mod tests {
 
         assert_eq!(group.uvs, vec![[1.0, 2.0]]);
         assert_eq!(group.second_uvs, vec![[3.0, 4.0]]);
+    }
+
+    #[test]
+    fn parse_group_subchunks_preserves_third_motv_uv_set() {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        for value in [3.0_f32, 4.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        for value in [5.0_f32, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = parse_group_subchunks(&data).expect("parse group subchunks");
+
+        assert_eq!(group.uvs, vec![[1.0, 2.0]]);
+        assert_eq!(group.second_uvs, vec![[3.0, 4.0]]);
+        assert_eq!(group.third_uvs, vec![[5.0, 6.0]]);
     }
 
     #[test]
