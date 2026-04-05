@@ -22,6 +22,9 @@ pub struct WmoRootData {
     pub visible_blocks: Vec<WmoVisibleBlock>,
     pub convex_volume_planes: Vec<WmoConvexVolumePlane>,
     pub group_file_data_ids: Vec<u32>,
+    pub global_ambient_volumes: Vec<WmoAmbientVolume>,
+    pub ambient_volumes: Vec<WmoAmbientVolume>,
+    pub baked_ambient_box_volumes: Vec<WmoAmbientBoxVolume>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -158,6 +161,27 @@ pub struct WmoMaterialUvTransform {
     pub translation_speed: [[f32; 2]; 2],
 }
 
+pub struct WmoAmbientVolume {
+    pub position: [f32; 3],
+    pub start: f32,
+    pub end: f32,
+    pub color_1: [f32; 4],
+    pub color_2: [f32; 4],
+    pub color_3: [f32; 4],
+    pub flags: u32,
+    pub doodad_set_id: u16,
+}
+
+pub struct WmoAmbientBoxVolume {
+    pub planes: [[f32; 4]; 6],
+    pub end: f32,
+    pub color_1: [f32; 4],
+    pub color_2: [f32; 4],
+    pub color_3: [f32; 4],
+    pub flags: u32,
+    pub doodad_set_id: u16,
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -185,6 +209,8 @@ const MFOG_ENTRY_SIZE: usize = 48;
 const MOVB_ENTRY_SIZE: usize = 4;
 const MCVP_ENTRY_SIZE: usize = 20;
 const MOUV_ENTRY_SIZE: usize = 16;
+const MAVD_ENTRY_SIZE: usize = 48;
+const MBVD_ENTRY_SIZE: usize = 128;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -295,6 +321,33 @@ struct RawWmoConvexVolumePlane {
 #[br(little)]
 struct RawWmoMaterialUvTransform {
     translation_speed: [[f32; 2]; 2],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoAmbientVolume {
+    position: [f32; 3],
+    start: f32,
+    end: f32,
+    color_1: [u8; 4],
+    color_2: [u8; 4],
+    color_3: [u8; 4],
+    flags: u32,
+    doodad_set_id: u16,
+    _padding: [u8; 10],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoAmbientBoxVolume {
+    planes: [[f32; 4]; 6],
+    end: f32,
+    color_1: [u8; 4],
+    color_2: [u8; 4],
+    color_3: [u8; 4],
+    flags: u32,
+    doodad_set_id: u16,
+    _padding: [u8; 10],
 }
 
 #[derive(BinRead)]
@@ -413,6 +466,9 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         visible_blocks: accum.visible_blocks,
         convex_volume_planes: accum.convex_volume_planes,
         group_file_data_ids: accum.group_file_data_ids,
+        global_ambient_volumes: accum.global_ambient_volumes,
+        ambient_volumes: accum.ambient_volumes,
+        baked_ambient_box_volumes: accum.baked_ambient_box_volumes,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -440,6 +496,9 @@ struct WmoRootAccum {
     visible_blocks: Vec<WmoVisibleBlock>,
     convex_volume_planes: Vec<WmoConvexVolumePlane>,
     group_file_data_ids: Vec<u32>,
+    global_ambient_volumes: Vec<WmoAmbientVolume>,
+    ambient_volumes: Vec<WmoAmbientVolume>,
+    baked_ambient_box_volumes: Vec<WmoAmbientBoxVolume>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -468,6 +527,9 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"DDOM" => accum.doodad_defs = parse_modd(payload)?,
         b"GFOM" | b"GOFM" => accum.fogs = parse_mfog(payload)?,
         b"DIFG" => accum.group_file_data_ids = parse_gfid(payload)?,
+        b"GVAM" => accum.global_ambient_volumes = parse_mavd(payload)?,
+        b"DVAM" => accum.ambient_volumes = parse_mavd(payload)?,
+        b"DVBM" => accum.baked_ambient_box_volumes = parse_mbvd(payload)?,
         b"VVOM" => accum.visible_block_vertices = parse_vec3_array(payload)?,
         b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
         b"PVCM" => accum.convex_volume_planes = parse_mcvp(payload)?,
@@ -611,6 +673,41 @@ pub fn parse_gfid(data: &[u8]) -> Result<Vec<u32>, String> {
     Ok(
         data.chunks_exact(MODI_ENTRY_SIZE)
             .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
+            .collect(),
+    )
+}
+
+pub fn parse_mavd(data: &[u8]) -> Result<Vec<WmoAmbientVolume>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoAmbientVolume>(data, MAVD_ENTRY_SIZE, "MAVD")?
+            .into_iter()
+            .map(|volume| WmoAmbientVolume {
+                position: volume.position,
+                start: volume.start,
+                end: volume.end,
+                color_1: parse_bgra_color(volume.color_1),
+                color_2: parse_bgra_color(volume.color_2),
+                color_3: parse_bgra_color(volume.color_3),
+                flags: volume.flags,
+                doodad_set_id: volume.doodad_set_id,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mbvd(data: &[u8]) -> Result<Vec<WmoAmbientBoxVolume>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoAmbientBoxVolume>(data, MBVD_ENTRY_SIZE, "MBVD")?
+            .into_iter()
+            .map(|volume| WmoAmbientBoxVolume {
+                planes: volume.planes,
+                end: volume.end,
+                color_1: parse_bgra_color(volume.color_1),
+                color_2: parse_bgra_color(volume.color_2),
+                color_3: parse_bgra_color(volume.color_3),
+                flags: volume.flags,
+                doodad_set_id: volume.doodad_set_id,
+            })
             .collect(),
     )
 }
@@ -921,6 +1018,128 @@ mod tests {
         let root = load_wmo_root(&data).expect("parse WMO root");
 
         assert_eq!(root.group_file_data_ids, vec![1001, 1002, 1003]);
+    }
+
+    #[test]
+    fn parse_mavd_reads_ambient_volume_entries() {
+        let mut data = Vec::new();
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&4.5_f32.to_le_bytes());
+        data.extend_from_slice(&9.5_f32.to_le_bytes());
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+        data.extend_from_slice(&[0x50, 0x60, 0x70, 0x80]);
+        data.extend_from_slice(&[0x90, 0xA0, 0xB0, 0xC0]);
+        data.extend_from_slice(&7_u32.to_le_bytes());
+        data.extend_from_slice(&12_u16.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+
+        let volumes = parse_mavd(&data).expect("parse MAVD");
+
+        assert_eq!(volumes.len(), 1);
+        let volume = &volumes[0];
+        assert_eq!(volume.position, [1.0, 2.0, 3.0]);
+        assert_eq!(volume.start, 4.5);
+        assert_eq!(volume.end, 9.5);
+        assert_eq!(
+            volume.color_1,
+            [
+                0x30 as f32 / 255.0,
+                0x20 as f32 / 255.0,
+                0x10 as f32 / 255.0,
+                0x40 as f32 / 255.0,
+            ]
+        );
+        assert_eq!(volume.flags, 7);
+        assert_eq!(volume.doodad_set_id, 12);
+    }
+
+    #[test]
+    fn parse_mbvd_reads_baked_ambient_box_volumes() {
+        let mut data = Vec::new();
+        for value in [
+            1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0,
+            15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+        ] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&25.0_f32.to_le_bytes());
+        data.extend_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+        data.extend_from_slice(&[0x55, 0x66, 0x77, 0x88]);
+        data.extend_from_slice(&[0x99, 0xAA, 0xBB, 0xCC]);
+        data.extend_from_slice(&9_u32.to_le_bytes());
+        data.extend_from_slice(&4_u16.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+
+        let volumes = parse_mbvd(&data).expect("parse MBVD");
+
+        assert_eq!(volumes.len(), 1);
+        let volume = &volumes[0];
+        assert_eq!(volume.planes[0], [1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(volume.planes[5], [21.0, 22.0, 23.0, 24.0]);
+        assert_eq!(volume.end, 25.0);
+        assert_eq!(volume.flags, 9);
+        assert_eq!(volume.doodad_set_id, 4);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_ambient_volume_chunks() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"GVAM");
+        data.extend_from_slice(&(MAVD_ENTRY_SIZE as u32).to_le_bytes());
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&2.0_f32.to_le_bytes());
+        data.extend_from_slice(&8.0_f32.to_le_bytes());
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+        data.extend_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+        data.extend_from_slice(&[0x12, 0x23, 0x34, 0x45]);
+        data.extend_from_slice(&1_u32.to_le_bytes());
+        data.extend_from_slice(&2_u16.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+
+        data.extend_from_slice(b"DVAM");
+        data.extend_from_slice(&(MAVD_ENTRY_SIZE as u32).to_le_bytes());
+        for value in [40.0_f32, 50.0, 60.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&3.0_f32.to_le_bytes());
+        data.extend_from_slice(&9.0_f32.to_le_bytes());
+        data.extend_from_slice(&[0x50, 0x60, 0x70, 0x80]);
+        data.extend_from_slice(&[0x51, 0x61, 0x71, 0x81]);
+        data.extend_from_slice(&[0x52, 0x62, 0x72, 0x82]);
+        data.extend_from_slice(&3_u32.to_le_bytes());
+        data.extend_from_slice(&4_u16.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+
+        data.extend_from_slice(b"DVBM");
+        data.extend_from_slice(&(MBVD_ENTRY_SIZE as u32).to_le_bytes());
+        for value in [
+            1.0_f32, 0.0, 0.0, 5.0, -1.0, 0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 0.0, -1.0, 0.0,
+            8.0, 0.0, 0.0, 1.0, 9.0, 0.0, 0.0, -1.0, 10.0,
+        ] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&11.0_f32.to_le_bytes());
+        data.extend_from_slice(&[0x90, 0xA0, 0xB0, 0xC0]);
+        data.extend_from_slice(&[0x91, 0xA1, 0xB1, 0xC1]);
+        data.extend_from_slice(&[0x92, 0xA2, 0xB2, 0xC2]);
+        data.extend_from_slice(&5_u32.to_le_bytes());
+        data.extend_from_slice(&6_u16.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.global_ambient_volumes.len(), 1);
+        assert_eq!(root.global_ambient_volumes[0].position, [10.0, 20.0, 30.0]);
+        assert_eq!(root.ambient_volumes.len(), 1);
+        assert_eq!(root.ambient_volumes[0].position, [40.0, 50.0, 60.0]);
+        assert_eq!(root.baked_ambient_box_volumes.len(), 1);
+        assert_eq!(root.baked_ambient_box_volumes[0].planes[0], [1.0, 0.0, 0.0, 5.0]);
+        assert_eq!(root.baked_ambient_box_volumes[0].end, 11.0);
     }
 
     #[test]
