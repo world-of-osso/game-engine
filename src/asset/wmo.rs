@@ -2,13 +2,14 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::wmo_format::parser::{
-    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoGroupHeader, WmoGroupInfo, WmoMaterialDef,
-    WmoPortal, WmoPortalRef, WmoRootData, find_mogp, load_wmo_root, parse_group_subchunks,
-    parse_mogp_header, wmo_local_to_bevy,
+    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoGroupHeader, WmoGroupInfo, WmoLiquid,
+    WmoMaterialDef, WmoPortal, WmoPortalRef, WmoRootData, find_mogp, load_wmo_root,
+    parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
 };
 
 pub struct WmoGroupData {
     pub header: WmoGroupHeader,
+    pub liquid: Option<WmoLiquid>,
     pub batches: Vec<WmoGroupBatch>,
 }
 
@@ -32,15 +33,16 @@ pub fn load_wmo_group(data: &[u8]) -> Result<WmoGroupData, String> {
     let header = parse_mogp_header(mogp_payload)?;
     let sub_chunks = &mogp_payload[MOGP_HEADER_SIZE..];
     let raw = parse_group_subchunks(sub_chunks)?;
-    build_group_batches(header, &raw)
+    build_group_batches(header, raw)
 }
 
-fn build_group_batches(header: WmoGroupHeader, raw: &RawGroupData) -> Result<WmoGroupData, String> {
+fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoGroupData, String> {
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     if raw.batches.is_empty() {
-        let mesh = build_whole_group_mesh(raw);
+        let mesh = build_whole_group_mesh(&raw);
         return Ok(WmoGroupData {
             header,
+            liquid: raw.liquid,
             batches: vec![WmoGroupBatch {
                 mesh,
                 material_index: 0,
@@ -51,7 +53,7 @@ fn build_group_batches(header: WmoGroupHeader, raw: &RawGroupData) -> Result<Wmo
 
     let mut out = Vec::with_capacity(raw.batches.len());
     for batch in &raw.batches {
-        let mesh = build_batch_mesh(raw, batch);
+        let mesh = build_batch_mesh(&raw, batch);
         out.push(WmoGroupBatch {
             mesh,
             material_index: batch.material_id,
@@ -60,6 +62,7 @@ fn build_group_batches(header: WmoGroupHeader, raw: &RawGroupData) -> Result<Wmo
     }
     Ok(WmoGroupData {
         header,
+        liquid: raw.liquid,
         batches: out,
     })
 }
@@ -297,6 +300,62 @@ mod tests {
         };
 
         assert_eq!(indices, vec![0, 0, 0]);
+    }
+
+    #[test]
+    fn load_wmo_group_reads_mliq_liquid_data() {
+        let mut data = Vec::new();
+        let mliq_size = 30_u32 + 4 * 8 + 1;
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + mliq_size + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"QILM");
+        data.extend_from_slice(&mliq_size.to_le_bytes());
+        data.extend_from_slice(&2_i32.to_le_bytes());
+        data.extend_from_slice(&2_i32.to_le_bytes());
+        data.extend_from_slice(&1_i32.to_le_bytes());
+        data.extend_from_slice(&1_i32.to_le_bytes());
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&9_i16.to_le_bytes());
+        for (raw, height) in [
+            ([1_u8, 2, 3, 4], 100.0_f32),
+            ([5_u8, 6, 7, 8], 101.0),
+            ([9_u8, 10, 11, 12], 102.0),
+            ([13_u8, 14, 15, 16], 103.0),
+        ] {
+            data.extend_from_slice(&raw);
+            data.extend_from_slice(&height.to_le_bytes());
+        }
+        data.push(0b0100_0011);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+        let liquid = group.liquid.expect("group liquid");
+
+        assert_eq!(liquid.header.material_id, 9);
+        assert_eq!(liquid.header.position, [10.0, 20.0, 30.0]);
+        assert_eq!(liquid.vertices.len(), 4);
+        assert_eq!(liquid.vertices[1].raw, [5, 6, 7, 8]);
+        assert_eq!(liquid.vertices[2].height, 102.0);
+        assert_eq!(liquid.tiles.len(), 1);
+        assert_eq!(liquid.tiles[0].liquid_type, 3);
+        assert!(liquid.tiles[0].fishable);
+        assert!(!liquid.tiles[0].shared);
     }
 
     #[test]

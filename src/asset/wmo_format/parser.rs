@@ -234,6 +234,7 @@ pub struct WmoNewLight {
 
 pub struct RawGroupData {
     pub triangle_materials: Vec<WmoTriangleMaterial>,
+    pub liquid: Option<WmoLiquid>,
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
     pub uvs: Vec<[f32; 2]>,
@@ -245,6 +246,32 @@ pub struct RawGroupData {
 pub struct WmoTriangleMaterial {
     pub flags: u8,
     pub material_id: u8,
+}
+
+pub struct WmoLiquid {
+    pub header: WmoLiquidHeader,
+    pub vertices: Vec<WmoLiquidVertex>,
+    pub tiles: Vec<WmoLiquidTile>,
+}
+
+pub struct WmoLiquidHeader {
+    pub x_verts: i32,
+    pub y_verts: i32,
+    pub x_tiles: i32,
+    pub y_tiles: i32,
+    pub position: [f32; 3],
+    pub material_id: i16,
+}
+
+pub struct WmoLiquidVertex {
+    pub raw: [u8; 4],
+    pub height: f32,
+}
+
+pub struct WmoLiquidTile {
+    pub liquid_type: u8,
+    pub fishable: bool,
+    pub shared: bool,
 }
 
 pub struct RawBatch {
@@ -269,6 +296,9 @@ const MAVD_ENTRY_SIZE: usize = 48;
 const MBVD_ENTRY_SIZE: usize = 128;
 const MNLD_ENTRY_SIZE: usize = 60;
 const MOPY_ENTRY_SIZE: usize = 2;
+const MLIQ_HEADER_SIZE: usize = 30;
+const MLIQ_VERTEX_SIZE: usize = 8;
+const MLIQ_TILE_SIZE: usize = 1;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -491,6 +521,24 @@ struct RawWmoGroupHeader {
 struct RawWmoTriangleMaterial {
     flags: u8,
     material_id: u8,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoLiquidHeader {
+    x_verts: i32,
+    y_verts: i32,
+    x_tiles: i32,
+    y_tiles: i32,
+    position: [f32; 3],
+    material_id: i16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoLiquidVertex {
+    raw: [u8; 4],
+    height: f32,
 }
 
 pub const MOGP_HEADER_SIZE: usize = 68;
@@ -996,6 +1044,7 @@ pub fn parse_mogp_header(data: &[u8]) -> Result<WmoGroupHeader, String> {
 
 pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut triangle_materials = Vec::new();
+    let mut liquid = None;
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
@@ -1007,6 +1056,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         let (tag, payload) = chunk?;
         match tag {
             b"YPOM" => triangle_materials = parse_mopy(payload)?,
+            b"QILM" => liquid = Some(parse_mliq(payload)?),
             b"TVOM" => vertices = parse_vec3_array(payload)?,
             b"RNOM" => normals = parse_vec3_array(payload)?,
             b"VTOM" => uvs = parse_vec2_array(payload)?,
@@ -1026,6 +1076,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
 
     Ok(RawGroupData {
         triangle_materials,
+        liquid,
         vertices,
         normals,
         uvs,
@@ -1045,6 +1096,62 @@ pub fn parse_mopy(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
             })
             .collect(),
     )
+}
+
+pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {
+    let header: RawWmoLiquidHeader = parse_binrw_value(data, MLIQ_HEADER_SIZE, "MLIQ")?;
+    let vertex_count = header
+        .x_verts
+        .checked_mul(header.y_verts)
+        .ok_or_else(|| "MLIQ vertex count overflow".to_string())? as usize;
+    let tile_count = header
+        .x_tiles
+        .checked_mul(header.y_tiles)
+        .ok_or_else(|| "MLIQ tile count overflow".to_string())? as usize;
+    let vertices_offset = MLIQ_HEADER_SIZE;
+    let vertices_end = vertices_offset
+        .checked_add(vertex_count * MLIQ_VERTEX_SIZE)
+        .ok_or_else(|| "MLIQ vertex byte length overflow".to_string())?;
+    let vertices_data = data
+        .get(vertices_offset..vertices_end)
+        .ok_or_else(|| format!("MLIQ missing vertex payload: {} bytes", data.len()))?;
+    let tiles_end = vertices_end
+        .checked_add(tile_count * MLIQ_TILE_SIZE)
+        .ok_or_else(|| "MLIQ tile byte length overflow".to_string())?;
+    let tiles_data = data
+        .get(vertices_end..tiles_end)
+        .ok_or_else(|| format!("MLIQ missing tile payload: {} bytes", data.len()))?;
+
+    Ok(WmoLiquid {
+        header: WmoLiquidHeader {
+            x_verts: header.x_verts,
+            y_verts: header.y_verts,
+            x_tiles: header.x_tiles,
+            y_tiles: header.y_tiles,
+            position: header.position,
+            material_id: header.material_id,
+        },
+        vertices: parse_binrw_entries::<RawWmoLiquidVertex>(
+            vertices_data,
+            MLIQ_VERTEX_SIZE,
+            "MLIQ vertices",
+        )?
+        .into_iter()
+        .map(|vertex| WmoLiquidVertex {
+            raw: vertex.raw,
+            height: vertex.height,
+        })
+        .collect(),
+        tiles: tiles_data
+            .iter()
+            .copied()
+            .map(|tile| WmoLiquidTile {
+                liquid_type: tile & 0x3F,
+                fishable: tile & 0x40 != 0,
+                shared: tile & 0x80 != 0,
+            })
+            .collect(),
+    })
 }
 
 fn parse_vec3_array(data: &[u8]) -> Result<Vec<[f32; 3]>, String> {
@@ -1451,6 +1558,45 @@ mod tests {
         assert_eq!(materials[0].material_id, 0x05);
         assert_eq!(materials[1].flags, 0x08);
         assert_eq!(materials[1].material_id, 0xFF);
+    }
+
+    #[test]
+    fn parse_mliq_reads_liquid_header_vertices_and_tiles() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&2_i32.to_le_bytes());
+        data.extend_from_slice(&2_i32.to_le_bytes());
+        data.extend_from_slice(&1_i32.to_le_bytes());
+        data.extend_from_slice(&1_i32.to_le_bytes());
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&7_i16.to_le_bytes());
+        for (raw, height) in [
+            ([1_u8, 2, 3, 4], 100.0_f32),
+            ([5_u8, 6, 7, 8], 101.0),
+            ([9_u8, 10, 11, 12], 102.0),
+            ([13_u8, 14, 15, 16], 103.0),
+        ] {
+            data.extend_from_slice(&raw);
+            data.extend_from_slice(&height.to_le_bytes());
+        }
+        data.push(0b1100_0101);
+
+        let liquid = parse_mliq(&data).expect("parse MLIQ");
+
+        assert_eq!(liquid.header.x_verts, 2);
+        assert_eq!(liquid.header.y_verts, 2);
+        assert_eq!(liquid.header.x_tiles, 1);
+        assert_eq!(liquid.header.y_tiles, 1);
+        assert_eq!(liquid.header.position, [10.0, 20.0, 30.0]);
+        assert_eq!(liquid.header.material_id, 7);
+        assert_eq!(liquid.vertices.len(), 4);
+        assert_eq!(liquid.vertices[0].raw, [1, 2, 3, 4]);
+        assert_eq!(liquid.vertices[3].height, 103.0);
+        assert_eq!(liquid.tiles.len(), 1);
+        assert_eq!(liquid.tiles[0].liquid_type, 5);
+        assert!(liquid.tiles[0].fishable);
+        assert!(liquid.tiles[0].shared);
     }
 
     #[test]
