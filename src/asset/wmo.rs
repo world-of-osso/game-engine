@@ -274,18 +274,8 @@ fn fixed_vertex_alpha(header: &WmoGroupHeader) -> f32 {
 }
 
 fn build_whole_group_mesh(raw: &RawGroupData, uses_generated_tangents: bool) -> Mesh {
-    let positions: Vec<[f32; 3]> = raw
-        .vertices
-        .iter()
-        .map(|v| wmo_local_to_bevy(v[0], v[1], v[2]))
-        .collect();
-    let normals = convert_normals(&raw.normals, positions.len());
-    let uvs = convert_uvs(&raw.uvs, positions.len());
-    let second_uvs = convert_optional_uvs(&raw.second_uvs, positions.len());
-    let third_uvs = convert_optional_uvs(&raw.third_uvs, positions.len());
-    let second_color_blend_alphas =
-        convert_optional_blend_alphas(&raw.second_color_blend_alphas, positions.len());
-    let colors = convert_colors(&raw.colors, positions.len());
+    let (positions, normals, uvs, second_uvs, third_uvs, second_color_blend_alphas, colors) =
+        build_whole_group_vertex_attributes(raw);
     let indices = extract_renderable_whole_group_indices(raw);
 
     let mut mesh = Mesh::new(
@@ -295,6 +285,53 @@ fn build_whole_group_mesh(raw: &RawGroupData, uses_generated_tangents: bool) -> 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    insert_whole_group_optional_attributes(
+        &mut mesh,
+        second_uvs,
+        third_uvs,
+        second_color_blend_alphas,
+        colors,
+    );
+    mesh.insert_indices(Indices::U32(indices));
+    maybe_generate_mesh_tangents(&mut mesh, uses_generated_tangents);
+    mesh
+}
+
+type WholeGroupVertexAttributes = (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Option<Vec<[f32; 2]>>,
+    Option<Vec<[f32; 2]>>,
+    Option<Vec<f32>>,
+    Option<Vec<[f32; 4]>>,
+);
+
+fn build_whole_group_vertex_attributes(raw: &RawGroupData) -> WholeGroupVertexAttributes {
+    let positions: Vec<[f32; 3]> = raw
+        .vertices
+        .iter()
+        .map(|vertex| wmo_local_to_bevy(vertex[0], vertex[1], vertex[2]))
+        .collect();
+    let vertex_count = positions.len();
+    (
+        positions,
+        convert_normals(&raw.normals, vertex_count),
+        convert_uvs(&raw.uvs, vertex_count),
+        convert_optional_uvs(&raw.second_uvs, vertex_count),
+        convert_optional_uvs(&raw.third_uvs, vertex_count),
+        convert_optional_blend_alphas(&raw.second_color_blend_alphas, vertex_count),
+        convert_colors(&raw.colors, vertex_count),
+    )
+}
+
+fn insert_whole_group_optional_attributes(
+    mesh: &mut Mesh,
+    second_uvs: Option<Vec<[f32; 2]>>,
+    third_uvs: Option<Vec<[f32; 2]>>,
+    second_color_blend_alphas: Option<Vec<f32>>,
+    colors: Option<Vec<[f32; 4]>>,
+) {
     if let Some(second_uvs) = second_uvs {
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_1, second_uvs);
     }
@@ -307,9 +344,6 @@ fn build_whole_group_mesh(raw: &RawGroupData, uses_generated_tangents: bool) -> 
     if let Some(colors) = colors {
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     }
-    mesh.insert_indices(Indices::U32(indices));
-    maybe_generate_mesh_tangents(&mut mesh, uses_generated_tangents);
-    mesh
 }
 
 fn build_batch_mesh(
