@@ -97,6 +97,14 @@ struct LiquidInstanceHeader {
 
 #[derive(BinRead)]
 #[br(little)]
+struct HeightUvVertex {
+    height: f32,
+    u: u16,
+    v: u16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
 struct Mh2oChunkHeader {
     instance_offset: u32,
     layer_count: u32,
@@ -420,6 +428,7 @@ pub struct WaterLayer {
     pub height: u8,
     pub exists: [u8; 8],
     pub vertex_heights: Vec<f32>,
+    pub vertex_uvs: Vec<[f32; 2]>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -504,6 +513,54 @@ fn read_vertex_heights(
     Ok(heights)
 }
 
+fn read_height_uv_vertices(
+    payload: &[u8],
+    offset: usize,
+    width: u8,
+    height: u8,
+) -> Result<(Vec<f32>, Vec<[f32; 2]>), String> {
+    if offset == 0 {
+        return Ok((Vec::new(), Vec::new()));
+    }
+    let count = (width as usize + 1) * (height as usize + 1);
+    let byte_len = count * size_of::<HeightUvVertex>();
+    if offset + byte_len > payload.len() {
+        return Err(format!(
+            "MH2O LVF1 vertex data out of bounds: offset {offset:#x}, need {byte_len} bytes"
+        ));
+    }
+
+    let mut heights = Vec::with_capacity(count);
+    let mut uvs = Vec::with_capacity(count);
+    for i in 0..count {
+        let vertex: HeightUvVertex = parse_binrw_value(
+            payload,
+            offset + i * size_of::<HeightUvVertex>(),
+            "MH2O LVF1 vertex",
+        )?;
+        heights.push(vertex.height);
+        uvs.push([f32::from(vertex.u) / 255.0, f32::from(vertex.v) / 255.0]);
+    }
+    Ok((heights, uvs))
+}
+
+fn read_vertex_data(
+    payload: &[u8],
+    offset: usize,
+    width: u8,
+    height: u8,
+    liquid_object: u16,
+) -> Result<(Vec<f32>, Vec<[f32; 2]>), String> {
+    if liquid_object == 1 {
+        return read_height_uv_vertices(payload, offset, width, height);
+    }
+
+    Ok((
+        read_vertex_heights(payload, offset, width, height)?,
+        Vec::new(),
+    ))
+}
+
 fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, String> {
     if off + size_of::<LiquidInstanceHeader>() > payload.len() {
         return Err(format!(
@@ -512,6 +569,13 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
         ));
     }
     let header: LiquidInstanceHeader = parse_binrw_value(payload, off, "SLiquidInstance")?;
+    let (vertex_heights, vertex_uvs) = read_vertex_data(
+        payload,
+        header.vertex_offset as usize,
+        header.width,
+        header.height,
+        header.liquid_object,
+    )?;
     Ok(WaterLayer {
         liquid_type: header.liquid_type,
         liquid_object: header.liquid_object,
@@ -527,12 +591,8 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
             header.width,
             header.height,
         )?,
-        vertex_heights: read_vertex_heights(
-            payload,
-            header.vertex_offset as usize,
-            header.width,
-            header.height,
-        )?,
+        vertex_heights,
+        vertex_uvs,
     })
 }
 
@@ -884,6 +944,28 @@ mod tests {
         assert!(attributes.is_deep(7, 7));
     }
 
+    #[test]
+    fn parse_mh2o_reads_lvf1_height_and_uv_vertices() {
+        let vertex_data = [
+            mh2o_height_uv_vertex(1.5, 64, 128),
+            mh2o_height_uv_vertex(2.5, 255, 0),
+            mh2o_height_uv_vertex(3.5, 32, 96),
+            mh2o_height_uv_vertex(4.5, 16, 240),
+        ]
+        .concat();
+        let payload = mh2o_payload_with_vertex_data(0, 1, None, 1, &vertex_data);
+
+        let parsed = parse_mh2o(&payload).expect("expected MH2O payload to parse");
+        let layer = &parsed.chunks[0].layers[0];
+
+        assert_eq!(layer.vertex_heights, vec![1.5, 2.5, 3.5, 4.5]);
+        assert_eq!(layer.vertex_uvs.len(), 4);
+        assert_eq!(layer.vertex_uvs[0], [64.0 / 255.0, 128.0 / 255.0]);
+        assert_eq!(layer.vertex_uvs[1], [1.0, 0.0]);
+        assert_eq!(layer.vertex_uvs[2], [32.0 / 255.0, 96.0 / 255.0]);
+        assert_eq!(layer.vertex_uvs[3], [16.0 / 255.0, 240.0 / 255.0]);
+    }
+
     fn mcly_entry_payload(
         texture_index: u32,
         flags: u32,
@@ -968,6 +1050,56 @@ mod tests {
             payload.extend_from_slice(&deep.to_le_bytes());
         }
 
+        payload
+    }
+
+    fn mh2o_payload_with_vertex_data(
+        chunk_index: usize,
+        layer_count: u32,
+        attributes: Option<(u64, u64)>,
+        liquid_object: u16,
+        vertex_data: &[u8],
+    ) -> Vec<u8> {
+        const CHUNK_COUNT: usize = 256;
+        const HEADER_SIZE: usize = CHUNK_COUNT * size_of::<Mh2oChunkHeader>();
+        let instance_offset = HEADER_SIZE as u32;
+        let attributes_size = attributes.map_or(0, |_| size_of::<Mh2oAttributes>() as u32);
+        let vertex_offset =
+            instance_offset + size_of::<LiquidInstanceHeader>() as u32 + attributes_size;
+        let attributes_offset =
+            attributes.map(|_| instance_offset + size_of::<LiquidInstanceHeader>() as u32);
+
+        let mut payload = vec![0u8; HEADER_SIZE];
+        let header_base = chunk_index * size_of::<Mh2oChunkHeader>();
+        payload[header_base..header_base + 4].copy_from_slice(&instance_offset.to_le_bytes());
+        payload[header_base + 4..header_base + 8].copy_from_slice(&layer_count.to_le_bytes());
+        payload[header_base + 8..header_base + 12]
+            .copy_from_slice(&attributes_offset.unwrap_or(0).to_le_bytes());
+
+        payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.extend_from_slice(&liquid_object.to_le_bytes());
+        payload.extend_from_slice(&1.0f32.to_le_bytes());
+        payload.extend_from_slice(&2.0f32.to_le_bytes());
+        payload.extend_from_slice(&0u8.to_le_bytes());
+        payload.extend_from_slice(&0u8.to_le_bytes());
+        payload.extend_from_slice(&1u8.to_le_bytes());
+        payload.extend_from_slice(&1u8.to_le_bytes());
+        payload.extend_from_slice(&0u32.to_le_bytes());
+        payload.extend_from_slice(&vertex_offset.to_le_bytes());
+
+        if let Some((fishable, deep)) = attributes {
+            payload.extend_from_slice(&fishable.to_le_bytes());
+            payload.extend_from_slice(&deep.to_le_bytes());
+        }
+        payload.extend_from_slice(vertex_data);
+        payload
+    }
+
+    fn mh2o_height_uv_vertex(height: f32, u: u16, v: u16) -> Vec<u8> {
+        let mut payload = Vec::with_capacity(8);
+        payload.extend_from_slice(&height.to_le_bytes());
+        payload.extend_from_slice(&u.to_le_bytes());
+        payload.extend_from_slice(&v.to_le_bytes());
         payload
     }
 

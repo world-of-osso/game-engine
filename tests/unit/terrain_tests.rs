@@ -95,6 +95,7 @@ fn choose_safe_spawn_position_skips_water_chunks() {
                         height: 8,
                         exists: [0; 8],
                         vertex_heights: Vec::new(),
+                        vertex_uvs: Vec::new(),
                     }]
                 } else {
                     Vec::new()
