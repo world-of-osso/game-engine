@@ -18,6 +18,8 @@ pub struct WmoRootData {
     pub doodad_file_ids: Vec<u32>,
     pub doodad_defs: Vec<WmoDoodadDef>,
     pub fogs: Vec<WmoFog>,
+    pub visible_block_vertices: Vec<[f32; 3]>,
+    pub visible_blocks: Vec<WmoVisibleBlock>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -138,6 +140,11 @@ pub struct WmoFog {
     pub color_2: [f32; 4],
 }
 
+pub struct WmoVisibleBlock {
+    pub start_vertex: u16,
+    pub vertex_count: u16,
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -162,6 +169,7 @@ const MODS_ENTRY_SIZE: usize = 32;
 const MODI_ENTRY_SIZE: usize = 4;
 const MODD_ENTRY_SIZE: usize = 40;
 const MFOG_ENTRY_SIZE: usize = 48;
+const MOVB_ENTRY_SIZE: usize = 4;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -251,6 +259,13 @@ struct RawWmoFog {
     underwater_fog_end: f32,
     underwater_fog_start_multiplier: f32,
     color_2: [u8; 4],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoVisibleBlock {
+    start_vertex: u16,
+    vertex_count: u16,
 }
 
 #[derive(BinRead)]
@@ -364,6 +379,8 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         doodad_file_ids: accum.doodad_file_ids,
         doodad_defs: accum.doodad_defs,
         fogs: accum.fogs,
+        visible_block_vertices: accum.visible_block_vertices,
+        visible_blocks: accum.visible_blocks,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -386,6 +403,8 @@ struct WmoRootAccum {
     doodad_file_ids: Vec<u32>,
     doodad_defs: Vec<WmoDoodadDef>,
     fogs: Vec<WmoFog>,
+    visible_block_vertices: Vec<[f32; 3]>,
+    visible_blocks: Vec<WmoVisibleBlock>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -412,6 +431,8 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"IDOM" => accum.doodad_file_ids = parse_modi(payload)?,
         b"DDOM" => accum.doodad_defs = parse_modd(payload)?,
         b"GFOM" | b"GOFM" => accum.fogs = parse_mfog(payload)?,
+        b"VVOM" => accum.visible_block_vertices = parse_vec3_array(payload)?,
+        b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
@@ -567,6 +588,18 @@ pub fn parse_mfog(data: &[u8]) -> Result<Vec<WmoFog>, String> {
                 underwater_fog_end: fog.underwater_fog_end,
                 underwater_fog_start_multiplier: fog.underwater_fog_start_multiplier,
                 color_2: parse_bgra_color(fog.color_2),
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_movb(data: &[u8]) -> Result<Vec<WmoVisibleBlock>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoVisibleBlock>(data, MOVB_ENTRY_SIZE, "MOVB")?
+            .into_iter()
+            .map(|block| WmoVisibleBlock {
+                start_vertex: block.start_vertex,
+                vertex_count: block.vertex_count,
             })
             .collect(),
     )
@@ -1074,6 +1107,50 @@ mod tests {
         assert_eq!(root.group_names[1].offset, 10);
         assert_eq!(root.group_names[1].name, "antiportal01");
         assert!(root.group_names[1].is_antiportal);
+    }
+
+    #[test]
+    fn parse_movb_reads_visible_blocks() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&6_u16.to_le_bytes());
+        data.extend_from_slice(&9_u16.to_le_bytes());
+        data.extend_from_slice(&12_u16.to_le_bytes());
+
+        let blocks = parse_movb(&data).expect("parse MOVB");
+
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].start_vertex, 3);
+        assert_eq!(blocks[0].vertex_count, 6);
+        assert_eq!(blocks[1].start_vertex, 9);
+        assert_eq!(blocks[1].vertex_count, 12);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_visible_volumes() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"VVOM");
+        data.extend_from_slice(&(24_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VBOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&2_u16.to_le_bytes());
+        data.extend_from_slice(&2_u16.to_le_bytes());
+        data.extend_from_slice(&2_u16.to_le_bytes());
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.visible_block_vertices, vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+        assert_eq!(root.visible_blocks.len(), 2);
+        assert_eq!(root.visible_blocks[0].start_vertex, 0);
+        assert_eq!(root.visible_blocks[0].vertex_count, 2);
+        assert_eq!(root.visible_blocks[1].start_vertex, 2);
+        assert_eq!(root.visible_blocks[1].vertex_count, 2);
     }
 
     #[test]
