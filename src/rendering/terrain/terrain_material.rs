@@ -4,6 +4,7 @@ use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, Extent3d, TextureDimension, TextureFormat};
 use bevy::shader::ShaderRef;
+use std::f32::consts::FRAC_PI_4;
 
 use crate::asset::adt;
 use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sampler};
@@ -15,7 +16,7 @@ use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sample
 #[derive(bevy::render::render_resource::ShaderType, Clone)]
 pub struct TerrainMaterialSettings {
     /// x = layer_count (1-4), y = global_height_blend_strength,
-    /// z = texture_repeat, w = unused
+    /// z = texture_repeat, w = animation_time
     pub config: Vec4,
     /// x = perceptual_roughness, y = reflectance
     pub surface: Vec4,
@@ -24,6 +25,11 @@ pub struct TerrainMaterialSettings {
     pub layer_params_1: Vec4,
     pub layer_params_2: Vec4,
     pub layer_params_3: Vec4,
+    /// x/y = UV velocity, z/w = reserved
+    pub animation_params_0: Vec4,
+    pub animation_params_1: Vec4,
+    pub animation_params_2: Vec4,
+    pub animation_params_3: Vec4,
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
@@ -71,6 +77,25 @@ impl Material for TerrainMaterial {
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
         descriptor.primitive.cull_mode = None;
         Ok(())
+    }
+}
+
+pub struct TerrainMaterialPlugin;
+
+impl Plugin for TerrainMaterialPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(MaterialPlugin::<TerrainMaterial>::default())
+            .add_systems(Update, update_terrain_animation_time);
+    }
+}
+
+fn update_terrain_animation_time(
+    time: Res<Time>,
+    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
+) {
+    let animation_time = time.elapsed_secs();
+    for (_id, material) in terrain_materials.iter_mut() {
+        material.settings.config.w = animation_time;
     }
 }
 
@@ -339,11 +364,14 @@ const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
 const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
 const TERRAIN_REFLECTANCE: f32 = 0.2;
 const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 0.0);
+const TERRAIN_ANIMATION_SPEEDS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0];
+const TERRAIN_ANIMATION_BASE_SPEED: f32 = 0.176_776_69;
 
 fn terrain_settings(
     layer_count: f32,
     texture_repeat: f32,
     layer_params: [Vec4; 4],
+    animation_params: [Vec4; 4],
 ) -> TerrainMaterialSettings {
     TerrainMaterialSettings {
         config: Vec4::new(layer_count, HEIGHT_BLEND_STRENGTH, texture_repeat, 0.0),
@@ -352,6 +380,10 @@ fn terrain_settings(
         layer_params_1: layer_params[1],
         layer_params_2: layer_params[2],
         layer_params_3: layer_params[3],
+        animation_params_0: animation_params[0],
+        animation_params_1: animation_params[1],
+        animation_params_2: animation_params[2],
+        animation_params_3: animation_params[3],
     }
 }
 
@@ -361,7 +393,12 @@ fn fallback_material(
     ph: &Placeholders,
 ) -> TerrainMaterial {
     TerrainMaterial {
-        settings: terrain_settings(0.0, BASE_TERRAIN_TEXTURE_REPEAT, [DEFAULT_LAYER_PARAMS; 4]),
+        settings: terrain_settings(
+            0.0,
+            BASE_TERRAIN_TEXTURE_REPEAT,
+            [DEFAULT_LAYER_PARAMS; 4],
+            [Vec4::ZERO; 4],
+        ),
         ground_0: ph.image.clone(),
         ground_1: ph.image.clone(),
         ground_2: ph.image.clone(),
@@ -394,10 +431,11 @@ fn build_chunk_material(
             .unwrap_or_else(|| ph.image.clone())
     };
     let layer_params = texture_layer_params(tex_data, &chunk_tex.layers);
+    let animation_params = terrain_layer_animation_params(&chunk_tex.layers);
     let texture_repeat = terrain_texture_repeat(tex_data.texture_amplifier);
 
     terrain_materials.add(TerrainMaterial {
-        settings: terrain_settings(layer_count, texture_repeat, layer_params),
+        settings: terrain_settings(layer_count, texture_repeat, layer_params, animation_params),
         ground_0: ground(0),
         ground_1: ground(1),
         ground_2: ground(2),
@@ -431,13 +469,39 @@ fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]
     params
 }
 
+fn terrain_layer_animation_params(layers: &[adt::TextureLayer]) -> [Vec4; 4] {
+    let mut params = [Vec4::ZERO; 4];
+    for (slot, layer) in layers.iter().take(4).enumerate() {
+        params[slot] = terrain_layer_animation(layer.flags);
+    }
+    params
+}
+
+fn terrain_layer_animation(flags: adt::MclyFlags) -> Vec4 {
+    if !flags.animation_enabled() {
+        return Vec4::ZERO;
+    }
+
+    let speed =
+        TERRAIN_ANIMATION_SPEEDS[flags.animation_speed() as usize] * TERRAIN_ANIMATION_BASE_SPEED;
+    let angle = FRAC_PI_4 + f32::from(flags.animation_rotation()) * FRAC_PI_4;
+    let (sin, cos) = angle.sin_cos();
+    let base = Vec2::splat(speed);
+    let velocity = Vec2::new(base.x * cos - base.y * sin, base.x * sin + base.y * cos);
+
+    Vec4::new(velocity.x, velocity.y, 0.0, 0.0)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{pack_shadow_map, shadow_bit_is_set, terrain_texture_repeat, texture_layer_params};
+    use super::{
+        pack_shadow_map, shadow_bit_is_set, terrain_layer_animation_params, terrain_texture_repeat,
+        texture_layer_params,
+    };
     use crate::asset::adt;
     use bevy::asset::Assets;
     use bevy::image::Image;
-    use bevy::math::Vec4;
+    use bevy::math::{Vec2, Vec4};
 
     const TEST_TEXTURE_PARAM_FLAG_0: u32 = 0x10;
     const TEST_TEXTURE_PARAM_FLAG_1: u32 = 0x20;
@@ -512,5 +576,35 @@ mod tests {
         assert_eq!(terrain_texture_repeat(None), 8.0);
         assert_eq!(terrain_texture_repeat(Some(0)), 8.0);
         assert_eq!(terrain_texture_repeat(Some(2)), 32.0);
+    }
+
+    #[test]
+    fn terrain_layer_animation_params_follow_mcly_rotation_and_speed() {
+        let layers = vec![
+            adt::TextureLayer {
+                texture_index: 0,
+                flags: adt::MclyFlags { raw: 0x40 | 0x19 },
+                effect_id: 0,
+                material_id: 0,
+                alpha_map: None,
+            },
+            adt::TextureLayer {
+                texture_index: 1,
+                flags: adt::MclyFlags::default(),
+                effect_id: 0,
+                material_id: 0,
+                alpha_map: None,
+            },
+        ];
+
+        let params = terrain_layer_animation_params(&layers);
+
+        assert!(
+            Vec2::new(params[0].x, params[0].y).distance(Vec2::new(
+                -std::f32::consts::SQRT_2,
+                std::f32::consts::SQRT_2
+            )) < 0.0001
+        );
+        assert_eq!(params[1], Vec4::ZERO);
     }
 }

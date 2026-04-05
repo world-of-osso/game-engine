@@ -294,3 +294,18 @@ fn terrain_shader_uses_wow_mccv_diffuse_scaling() {
         "expected terrain shader to apply WoW MCCV diffuse scaling"
     );
 }
+
+#[test]
+fn terrain_shader_samples_layers_with_animation_offsets() {
+    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
+        .expect("terrain shader should be readable");
+
+    assert!(
+        shader.contains("let uv0 = animated_layer_uv(0u, uv);"),
+        "expected terrain shader to build animated UVs for terrain layer 0"
+    );
+    assert!(
+        shader.contains("let c0 = sample_ground_tiled(0u, uv0);"),
+        "expected terrain shader to sample terrain layer 0 with animated UVs"
+    );
+}

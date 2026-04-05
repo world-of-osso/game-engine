@@ -16,13 +16,18 @@ struct TerrainSettings {
     layer_params_1: vec4<f32>,
     layer_params_2: vec4<f32>,
     layer_params_3: vec4<f32>,
+    animation_params_0: vec4<f32>,
+    animation_params_1: vec4<f32>,
+    animation_params_2: vec4<f32>,
+    animation_params_3: vec4<f32>,
 }
 
 // settings.config.x = layer_count (1-4), settings.config.y = global height blend strength
-// settings.config.z = texture repeat, settings.config.w = unused
+// settings.config.z = texture repeat, settings.config.w = animation time
 // settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
 // settings.layer_params_N.z = MCMT terrain material id
+// settings.animation_params_N.xy = per-layer UV velocity
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: TerrainSettings;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var ground_0: texture_2d<f32>;
@@ -79,6 +84,16 @@ fn sample_ground_tiled(idx: u32, uv: vec2<f32>) -> vec4<f32> {
     return sample_ground(idx, uv * settings.config.z);
 }
 
+fn layer_animation_params(idx: u32) -> vec4<f32> {
+    switch idx {
+        case 0u: { return settings.animation_params_0; }
+        case 1u: { return settings.animation_params_1; }
+        case 2u: { return settings.animation_params_2; }
+        case 3u: { return settings.animation_params_3; }
+        default: { return vec4<f32>(0.0); }
+    }
+}
+
 fn layer_params(idx: u32) -> vec4<f32> {
     switch idx {
         case 0u: { return settings.layer_params_0; }
@@ -87,6 +102,10 @@ fn layer_params(idx: u32) -> vec4<f32> {
         case 3u: { return settings.layer_params_3; }
         default: { return vec4<f32>(1.0, 0.0, 0.0, 0.0); }
     }
+}
+
+fn animated_layer_uv(idx: u32, uv: vec2<f32>) -> vec2<f32> {
+    return uv + layer_animation_params(idx).xy * settings.config.w;
 }
 
 // ── Hex tiling ───────────────────────────────────────────────────────────────
@@ -226,10 +245,14 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let paint = paint_weights(alpha, layer_count);
 
     // Sample each potential layer once; alpha channel is used as height.
-    let c0 = sample_ground_tiled(0u, uv);
-    let c1 = sample_ground_tiled(1u, uv);
-    let c2 = sample_ground_tiled(2u, uv);
-    let c3 = sample_ground_tiled(3u, uv);
+    let uv0 = animated_layer_uv(0u, uv);
+    let uv1 = animated_layer_uv(1u, uv);
+    let uv2 = animated_layer_uv(2u, uv);
+    let uv3 = animated_layer_uv(3u, uv);
+    let c0 = sample_ground_tiled(0u, uv0);
+    let c1 = sample_ground_tiled(1u, uv1);
+    let c2 = sample_ground_tiled(2u, uv2);
+    let c3 = sample_ground_tiled(3u, uv3);
 
     var weights = vec4<f32>(
         paint.x * height_weight(c0.a, layer_params(0u), blend_strength),

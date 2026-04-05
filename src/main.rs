@@ -13,7 +13,6 @@
 
 use bevy::{
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
-    pbr::MaterialPlugin,
     prelude::*,
     window::WindowPlugin,
 };
@@ -475,7 +474,7 @@ fn register_world_plugins(app: &mut App) {
 }
 
 fn register_render_plugins(app: &mut App) {
-    app.add_plugins(MaterialPlugin::<terrain_material::TerrainMaterial>::default())
+    app.add_plugins(terrain_material::TerrainMaterialPlugin)
         .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
         .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
