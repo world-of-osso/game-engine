@@ -115,6 +115,18 @@ fn spawn_camera(commands: &mut Commands) -> Entity {
         .id()
 }
 
+/// Compute eye position from orbit parameters and update the camera transform.
+fn apply_orbit_transform(orbit: &CharCreateOrbit, transform: &mut Transform) {
+    let pitch = orbit.base_pitch + orbit.pitch;
+    let eye = orbit.focus
+        + Vec3::new(
+            orbit.yaw.sin() * pitch.cos(),
+            pitch.sin(),
+            orbit.yaw.cos() * pitch.cos(),
+        ) * orbit.distance;
+    *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+}
+
 fn orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
@@ -128,14 +140,24 @@ fn orbit_camera(
             .clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
         orbit.pitch = (orbit.pitch + motion.delta.y * ORBIT_SENSITIVITY)
             .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
-        let pitch = orbit.base_pitch + orbit.pitch;
-        let eye = orbit.focus
-            + Vec3::new(
-                orbit.yaw.sin() * pitch.cos(),
-                pitch.sin(),
-                orbit.yaw.cos() * pitch.cos(),
-            ) * orbit.distance;
-        *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+        apply_orbit_transform(&orbit, &mut transform);
+    }
+}
+
+fn zoom_target_for_dropdown(open_dropdown: Option<AppearanceField>) -> (Vec3, f32) {
+    let is_face_field = open_dropdown.is_some_and(|f| {
+        matches!(
+            f,
+            AppearanceField::Face
+                | AppearanceField::HairStyle
+                | AppearanceField::HairColor
+                | AppearanceField::FacialStyle
+        )
+    });
+    if is_face_field {
+        (FACE_FOCUS, FACE_DISTANCE)
+    } else {
+        (DEFAULT_FOCUS, (DEFAULT_EYE - DEFAULT_FOCUS).length())
     }
 }
 
@@ -144,26 +166,8 @@ fn camera_zoom_for_dropdown(
     time: Res<Time>,
     mut query: Query<(&mut CharCreateOrbit, &mut Transform)>,
 ) {
-    let is_face_field = state
-        .as_ref()
-        .and_then(|s| s.open_dropdown)
-        .is_some_and(|f| {
-            matches!(
-                f,
-                AppearanceField::Face
-                    | AppearanceField::HairStyle
-                    | AppearanceField::HairColor
-                    | AppearanceField::FacialStyle
-            )
-        });
-
-    let (target_focus, target_distance) = if is_face_field {
-        (FACE_FOCUS, FACE_DISTANCE)
-    } else {
-        let offset = DEFAULT_EYE - DEFAULT_FOCUS;
-        (DEFAULT_FOCUS, offset.length())
-    };
-
+    let dropdown = state.as_ref().and_then(|s| s.open_dropdown);
+    let (target_focus, target_distance) = zoom_target_for_dropdown(dropdown);
     let t = (CAMERA_ZOOM_SPEED * time.delta_secs()).min(1.0);
 
     for (mut orbit, mut transform) in &mut query {
@@ -171,18 +175,11 @@ fn camera_zoom_for_dropdown(
         orbit.distance = orbit.distance.lerp(target_distance, t);
 
         // Keep a proportional upward tilt: eye sits 0.8 units above focus in the default view.
-        let default_offset = DEFAULT_EYE - DEFAULT_FOCUS;
-        let eye_height_above_focus = 0.8 * (orbit.distance / default_offset.length());
+        let default_offset_len = (DEFAULT_EYE - DEFAULT_FOCUS).length();
+        let eye_height_above_focus = 0.8 * (orbit.distance / default_offset_len);
         orbit.base_pitch = (eye_height_above_focus / orbit.distance).asin();
 
-        let pitch = orbit.base_pitch + orbit.pitch;
-        let eye = orbit.focus
-            + Vec3::new(
-                orbit.yaw.sin() * pitch.cos(),
-                pitch.sin(),
-                orbit.yaw.cos() * pitch.cos(),
-            ) * orbit.distance;
-        *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+        apply_orbit_transform(&orbit, &mut transform);
     }
 }
 
