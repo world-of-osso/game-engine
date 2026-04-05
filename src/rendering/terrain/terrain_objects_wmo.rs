@@ -400,6 +400,7 @@ fn spawn_wmo_group(
     let bbox = group_bbox(root, group_index);
     let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
     commands.entity(root_entity).add_child(group_entity);
+    spawn_wmo_group_lights(commands, root, &group, group_entity);
     spawn_wmo_group_doodads(
         commands,
         assets,
@@ -454,6 +455,122 @@ fn spawn_wmo_group_batches(
         }
         let child = child.id();
         commands.entity(group_entity).add_child(child);
+    }
+}
+
+fn spawn_wmo_group_lights(
+    commands: &mut Commands,
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    group_entity: Entity,
+) {
+    for (light_index, light) in collect_group_lights(root, group) {
+        let Some(light_entity) = spawn_wmo_group_light(commands, light_index, light) else {
+            continue;
+        };
+        commands.entity(group_entity).add_child(light_entity);
+    }
+}
+
+fn collect_group_lights<'a>(
+    root: &'a wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+) -> Vec<(u16, &'a wmo::WmoLight)> {
+    group
+        .light_refs
+        .iter()
+        .filter_map(|&light_index| {
+            root.lights
+                .get(light_index as usize)
+                .map(|light| (light_index, light))
+        })
+        .collect()
+}
+
+fn spawn_wmo_group_light(
+    commands: &mut Commands,
+    light_index: u16,
+    light: &wmo::WmoLight,
+) -> Option<Entity> {
+    match light.light_type {
+        wmo::WmoLightType::Omni => Some(spawn_wmo_point_light(commands, light_index, light)),
+        wmo::WmoLightType::Spot => Some(spawn_wmo_spot_light(commands, light_index, light)),
+        wmo::WmoLightType::Directional | wmo::WmoLightType::Ambient => None,
+    }
+}
+
+fn spawn_wmo_point_light(
+    commands: &mut Commands,
+    light_index: u16,
+    light: &wmo::WmoLight,
+) -> Entity {
+    commands
+        .spawn((
+            Name::new(format!("WmoLight{light_index}")),
+            wmo_light_transform(light),
+            authored_wmo_point_light(light),
+            Visibility::default(),
+        ))
+        .id()
+}
+
+fn spawn_wmo_spot_light(
+    commands: &mut Commands,
+    light_index: u16,
+    light: &wmo::WmoLight,
+) -> Entity {
+    commands
+        .spawn((
+            Name::new(format!("WmoSpotLight{light_index}")),
+            wmo_light_transform(light),
+            authored_wmo_spot_light(light),
+            Visibility::default(),
+        ))
+        .id()
+}
+
+fn wmo_light_transform(light: &wmo::WmoLight) -> Transform {
+    let [x, y, z] = crate::asset::wmo::wmo_local_to_bevy(
+        light.position[0],
+        light.position[1],
+        light.position[2],
+    );
+    Transform::from_translation(Vec3::new(x, y, z)).with_rotation(wow_quat_to_bevy(light.rotation))
+}
+
+fn authored_wmo_point_light(light: &wmo::WmoLight) -> PointLight {
+    PointLight {
+        color: Color::linear_rgb(light.color[0], light.color[1], light.color[2]),
+        intensity: wmo_light_intensity(light),
+        range: wmo_light_range(light),
+        radius: light.attenuation_start.min(light.attenuation_end),
+        shadows_enabled: false,
+        ..default()
+    }
+}
+
+fn authored_wmo_spot_light(light: &wmo::WmoLight) -> SpotLight {
+    SpotLight {
+        color: Color::linear_rgb(light.color[0], light.color[1], light.color[2]),
+        intensity: wmo_light_intensity(light),
+        range: wmo_light_range(light),
+        radius: light.attenuation_start.min(light.attenuation_end),
+        inner_angle: std::f32::consts::FRAC_PI_6,
+        outer_angle: std::f32::consts::FRAC_PI_3,
+        shadows_enabled: false,
+        ..default()
+    }
+}
+
+fn wmo_light_intensity(light: &wmo::WmoLight) -> f32 {
+    light.intensity.max(0.0)
+}
+
+fn wmo_light_range(light: &wmo::WmoLight) -> f32 {
+    if light.use_attenuation {
+        light.attenuation_end.max(light.attenuation_start)
+    } else {
+        light.attenuation_end.max(1.0)
     }
 }
 
@@ -1227,5 +1344,102 @@ mod tests {
         assert_eq!(doodads[0].transform.translation, Vec3::new(-1.0, 3.0, 2.0));
         assert_eq!(doodads[1].transform.scale, Vec3::splat(0.5));
         assert_eq!(doodads[2].transform.scale, Vec3::splat(2.0));
+    }
+
+    #[test]
+    fn collect_group_lights_filters_to_group_light_refs() {
+        let group = wmo::WmoGroupData {
+            header: wmo::WmoGroupHeader {
+                group_name_offset: 0,
+                descriptive_group_name_offset: 0,
+                flags: 0,
+                group_flags: Default::default(),
+                bbox_min: [0.0; 3],
+                bbox_max: [0.0; 3],
+                portal_start: 0,
+                portal_count: 0,
+                trans_batch_count: 0,
+                int_batch_count: 0,
+                ext_batch_count: 0,
+                batch_type_d: 0,
+                fog_ids: [0; 4],
+                group_liquid: 0,
+                unique_id: 0,
+                flags2: 0,
+                parent_split_group_index: -1,
+                next_split_child_group_index: -1,
+            },
+            doodad_refs: Vec::new(),
+            light_refs: vec![0, 2, 9],
+            bsp_nodes: Vec::new(),
+            bsp_face_refs: Vec::new(),
+            liquid: None,
+            batches: Vec::new(),
+        };
+        let root = wmo::WmoRootData {
+            n_groups: 1,
+            flags: wmo::WmoRootFlags::default(),
+            ambient_color: [0.0; 4],
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            materials: Vec::new(),
+            lights: vec![
+                wmo::WmoLight {
+                    light_type: wmo::WmoLightType::Omni,
+                    use_attenuation: true,
+                    color: [1.0, 0.0, 0.0, 1.0],
+                    position: [1.0, 2.0, 3.0],
+                    intensity: 4.0,
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    attenuation_start: 1.0,
+                    attenuation_end: 5.0,
+                },
+                wmo::WmoLight {
+                    light_type: wmo::WmoLightType::Ambient,
+                    use_attenuation: false,
+                    color: [0.0, 1.0, 0.0, 1.0],
+                    position: [4.0, 5.0, 6.0],
+                    intensity: 2.0,
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    attenuation_start: 0.0,
+                    attenuation_end: 0.0,
+                },
+                wmo::WmoLight {
+                    light_type: wmo::WmoLightType::Spot,
+                    use_attenuation: true,
+                    color: [0.0, 0.0, 1.0, 1.0],
+                    position: [7.0, 8.0, 9.0],
+                    intensity: 6.0,
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    attenuation_start: 2.0,
+                    attenuation_end: 10.0,
+                },
+            ],
+            doodad_sets: Vec::new(),
+            group_names: Vec::new(),
+            doodad_names: Vec::new(),
+            doodad_file_ids: Vec::new(),
+            doodad_defs: Vec::new(),
+            fogs: Vec::new(),
+            visible_block_vertices: Vec::new(),
+            visible_blocks: Vec::new(),
+            convex_volume_planes: Vec::new(),
+            group_file_data_ids: Vec::new(),
+            global_ambient_volumes: Vec::new(),
+            ambient_volumes: Vec::new(),
+            baked_ambient_box_volumes: Vec::new(),
+            dynamic_lights: Vec::new(),
+            portals: Vec::new(),
+            portal_refs: Vec::new(),
+            group_infos: Vec::new(),
+            skybox_wow_path: None,
+        };
+
+        let lights = collect_group_lights(&root, &group);
+        assert_eq!(lights.len(), 2);
+        assert_eq!(lights[0].0, 0);
+        assert_eq!(lights[1].0, 2);
+        assert_eq!(lights[0].1.position, [1.0, 2.0, 3.0]);
+        assert_eq!(lights[1].1.position, [7.0, 8.0, 9.0]);
     }
 }
