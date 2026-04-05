@@ -26,7 +26,7 @@ struct TerrainSettings {
 // settings.config.z = texture repeat, settings.config.w = animation time
 // settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
-// settings.layer_params_N.z = MCMT terrain material id
+// settings.layer_params_N.z = MCMT terrain material id, settings.layer_params_N.w = overbright multiplier
 // settings.animation_params_N.xy = per-layer UV velocity
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> settings: TerrainSettings;
 
@@ -132,6 +132,11 @@ fn layer_params(idx: u32) -> vec4<f32> {
 
 fn animated_layer_uv(idx: u32, uv: vec2<f32>) -> vec2<f32> {
     return uv + layer_animation_params(idx).xy * settings.config.w;
+}
+
+fn apply_layer_overbright(idx: u32, color: vec4<f32>) -> vec4<f32> {
+    let multiplier = layer_params(idx).w;
+    return vec4<f32>(color.rgb * multiplier, color.a);
 }
 
 // ── Hex tiling ───────────────────────────────────────────────────────────────
@@ -275,10 +280,10 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let uv1 = animated_layer_uv(1u, uv);
     let uv2 = animated_layer_uv(2u, uv);
     let uv3 = animated_layer_uv(3u, uv);
-    let c0 = sample_ground_tiled(0u, uv0);
-    let c1 = sample_ground_tiled(1u, uv1);
-    let c2 = sample_ground_tiled(2u, uv2);
-    let c3 = sample_ground_tiled(3u, uv3);
+    let c0 = apply_layer_overbright(0u, sample_ground_tiled(0u, uv0));
+    let c1 = apply_layer_overbright(1u, sample_ground_tiled(1u, uv1));
+    let c2 = apply_layer_overbright(2u, sample_ground_tiled(2u, uv2));
+    let c3 = apply_layer_overbright(3u, sample_ground_tiled(3u, uv3));
     let h0 = sample_height_tiled(0u, uv0).a;
     let h1 = sample_height_tiled(1u, uv1).a;
     let h2 = sample_height_tiled(2u, uv2).a;

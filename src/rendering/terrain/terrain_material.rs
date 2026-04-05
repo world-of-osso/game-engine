@@ -20,7 +20,7 @@ pub struct TerrainMaterialSettings {
     pub config: Vec4,
     /// x = perceptual_roughness, y = reflectance
     pub surface: Vec4,
-    /// x = height_scale, y = height_offset
+    /// x = height_scale, y = height_offset, z = material_id, w = overbright multiplier
     pub layer_params_0: Vec4,
     pub layer_params_1: Vec4,
     pub layer_params_2: Vec4,
@@ -406,7 +406,8 @@ const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
 const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
 const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
 const TERRAIN_REFLECTANCE: f32 = 0.2;
-const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 0.0);
+const TERRAIN_OVERBRIGHT_MULTIPLIER: f32 = 2.0;
+const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 1.0);
 const TERRAIN_ANIMATION_SPEEDS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0];
 const TERRAIN_ANIMATION_BASE_SPEED: f32 = 0.176_776_69;
 
@@ -517,6 +518,11 @@ fn terrain_texture_repeat(texture_amplifier: Option<u32>) -> f32 {
 fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]) -> [Vec4; 4] {
     let mut params = [DEFAULT_LAYER_PARAMS; 4];
     for (slot, layer) in layers.iter().take(4).enumerate() {
+        let overbright_multiplier = if layer.flags.overbright() {
+            TERRAIN_OVERBRIGHT_MULTIPLIER
+        } else {
+            1.0
+        };
         params[slot] = tex_data
             .texture_params
             .get(layer.texture_index as usize)
@@ -525,10 +531,15 @@ fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]
                     param.height_scale,
                     param.height_offset,
                     f32::from(layer.material_id),
-                    0.0,
+                    overbright_multiplier,
                 )
             })
-            .unwrap_or(Vec4::new(1.0, 0.0, f32::from(layer.material_id), 0.0));
+            .unwrap_or(Vec4::new(
+                1.0,
+                0.0,
+                f32::from(layer.material_id),
+                overbright_multiplier,
+            ));
     }
     params
 }
@@ -729,5 +740,49 @@ mod tests {
 
         assert_eq!(material.height_0, height_1);
         assert_eq!(material.height_1, height_0);
+    }
+
+    #[test]
+    fn texture_layer_params_encode_overbright_multiplier() {
+        let tex_data = adt::AdtTexData {
+            texture_amplifier: None,
+            texture_fdids: vec![11, 22],
+            height_texture_fdids: vec![],
+            texture_flags: vec![0, 0],
+            texture_params: vec![
+                adt::TextureParams {
+                    flags: 0,
+                    height_scale: 1.0,
+                    height_offset: 0.0,
+                },
+                adt::TextureParams {
+                    flags: 0,
+                    height_scale: 1.0,
+                    height_offset: 0.0,
+                },
+            ],
+            chunk_layers: vec![],
+        };
+        let layers = vec![
+            adt::TextureLayer {
+                texture_index: 0,
+                flags: adt::MclyFlags { raw: 0x80 },
+                effect_id: 0,
+                material_id: 0,
+                alpha_map: None,
+            },
+            adt::TextureLayer {
+                texture_index: 1,
+                flags: adt::MclyFlags::default(),
+                effect_id: 0,
+                material_id: 0,
+                alpha_map: None,
+            },
+        ];
+
+        let params = texture_layer_params(&tex_data, &layers);
+
+        assert_eq!(params[0].w, 2.0);
+        assert_eq!(params[1].w, 1.0);
     }
 }

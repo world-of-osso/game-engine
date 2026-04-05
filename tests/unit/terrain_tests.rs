@@ -305,8 +305,8 @@ fn terrain_shader_samples_layers_with_animation_offsets() {
         "expected terrain shader to build animated UVs for terrain layer 0"
     );
     assert!(
-        shader.contains("let c0 = sample_ground_tiled(0u, uv0);"),
-        "expected terrain shader to sample terrain layer 0 with animated UVs"
+        shader.contains("let c0 = apply_layer_overbright(0u, sample_ground_tiled(0u, uv0));"),
+        "expected terrain shader to sample terrain layer 0 with animated UVs before applying overbright"
     );
 }
 
@@ -322,5 +322,16 @@ fn terrain_shader_uses_height_maps_for_layer_blending() {
     assert!(
         shader.contains("paint.x * height_weight(h0, layer_params(0u), blend_strength)"),
         "expected terrain shader to weight layer 0 using sampled height texture data"
+    );
+}
+
+#[test]
+fn terrain_shader_applies_overbright_layer_multiplier() {
+    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
+        .expect("terrain shader should be readable");
+
+    assert!(
+        shader.contains("let c0 = apply_layer_overbright(0u, sample_ground_tiled(0u, uv0));"),
+        "expected terrain shader to apply per-layer overbright before terrain blending"
     );
 }
