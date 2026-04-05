@@ -33,8 +33,7 @@ use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
 pub(crate) use connect::{sync_button_visibility, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
-    editbox_move_cursor, hit_frame, insert_text_into_editbox,
-    set_login_primary_button_textures,
+    editbox_move_cursor, hit_frame, insert_text_into_editbox, set_login_primary_button_textures,
 };
 
 const FADE_IN_DURATION: f32 = 0.75;

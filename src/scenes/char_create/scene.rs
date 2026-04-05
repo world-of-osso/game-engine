@@ -25,8 +25,8 @@ use crate::m2_spawn::GeosetMesh;
 use crate::model_path_resolver::resolve_model_path;
 use crate::scenes::char_create::CharCreateState;
 use game_engine::asset::char_texture::CharTextureData;
-use game_engine::ui::screens::char_create_component::AppearanceField;
 use game_engine::customization_data::CustomizationDb;
+use game_engine::ui::screens::char_create_component::AppearanceField;
 use shared::components::CharacterAppearance;
 
 #[derive(Component)]
@@ -79,7 +79,12 @@ impl Plugin for CharCreateScenePlugin {
         app.add_systems(OnEnter(GameState::CharCreate), setup_scene);
         app.add_systems(
             Update,
-            (sync_model, sync_appearance, camera_zoom_for_dropdown, orbit_camera)
+            (
+                sync_model,
+                sync_appearance,
+                camera_zoom_for_dropdown,
+                orbit_camera,
+            )
                 .run_if(in_state(GameState::CharCreate)),
         );
         app.add_systems(OnExit(GameState::CharCreate), teardown_scene);
@@ -167,8 +172,7 @@ fn camera_zoom_for_dropdown(
 
         // Keep a proportional upward tilt: eye sits 0.8 units above focus in the default view.
         let default_offset = DEFAULT_EYE - DEFAULT_FOCUS;
-        let eye_height_above_focus =
-            0.8 * (orbit.distance / default_offset.length());
+        let eye_height_above_focus = 0.8 * (orbit.distance / default_offset.length());
         orbit.base_pitch = (eye_height_above_focus / orbit.distance).asin();
 
         let pitch = orbit.base_pitch + orbit.pitch;
@@ -270,6 +274,25 @@ struct CharCreateAppearanceParams<'w, 's> {
             &'static ChildOf,
         ),
     >,
+}
+
+impl CharCreateAppearanceParams<'_, '_> {
+    fn apply(&mut self, selection: CharacterCustomizationSelection, root: Entity) {
+        apply_character_customization(
+            selection,
+            &self.cust_db,
+            &self.char_tex,
+            None,
+            root,
+            &mut self.images,
+            &mut self.materials,
+            &self.parent_query,
+            &self.geoset_query,
+            &mut self.visibility_query,
+            &self.equipment_item_query,
+            &self.material_query,
+        );
+    }
 }
 
 struct CharCreateSpawnContext<'a, 'w, 's> {
@@ -415,26 +438,17 @@ fn sync_appearance(
     displayed.last_appearance = Some(appearance);
     displayed.last_class = Some(state.selected_class);
 
-    let active_entity = active_model_entity(&displayed, state.selected_sex);
-    let Some(root) = active_entity else { return };
-    apply_character_customization(
+    let Some(root) = active_model_entity(&displayed, state.selected_sex) else {
+        return;
+    };
+    appearance_params.apply(
         CharacterCustomizationSelection {
             race: state.selected_race,
             class: state.selected_class,
             sex: state.selected_sex,
             appearance,
         },
-        &appearance_params.cust_db,
-        &appearance_params.char_tex,
-        None,
         root,
-        &mut appearance_params.images,
-        &mut appearance_params.materials,
-        &appearance_params.parent_query,
-        &appearance_params.geoset_query,
-        &mut appearance_params.visibility_query,
-        &appearance_params.equipment_item_query,
-        &appearance_params.material_query,
     );
 }
 

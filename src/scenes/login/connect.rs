@@ -119,10 +119,7 @@ pub fn toggle_login_mode(
     sync_button_visibility(reg, login);
 }
 
-pub fn sync_button_visibility(
-    reg: &mut FrameRegistry,
-    login: &LoginUi,
-) {
+pub fn sync_button_visibility(reg: &mut FrameRegistry, login: &LoginUi) {
     reg.set_hidden(login.connect_button, false);
     if let Some(reconnect_button) = login.reconnect_button {
         reg.set_hidden(reconnect_button, true);

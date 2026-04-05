@@ -14,7 +14,8 @@ use crate::networking;
 
 use super::helpers::get_editbox_text;
 use super::{
-    LoginFocus, LoginStatus, LoginUi, run_login_automation_action, sync_button_visibility, try_connect,
+    LoginFocus, LoginStatus, LoginUi, run_login_automation_action, sync_button_visibility,
+    try_connect,
 };
 
 use game_engine::ui::automation::UiAutomationAction;
@@ -452,8 +453,14 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
     let mut status = LoginStatus::default();
     let mut next_state = NextState::<GameState>::default();
 
-    let world =
-        run_try_connect_with_credentials(&mut reg, &login, &mut status, &mut next_state, None, None);
+    let world = run_try_connect_with_credentials(
+        &mut reg,
+        &login,
+        &mut status,
+        &mut next_state,
+        None,
+        None,
+    );
 
     assert_eq!(status.0, "Connecting...");
     assert!(matches!(
