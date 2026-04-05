@@ -151,6 +151,13 @@ pub fn spawn_obj_entities(
     obj_data: &adt_obj::AdtObjData,
 ) -> SpawnedTerrainObjects {
     let mut spawned = SpawnedTerrainObjects::default();
+    let doodad_chunk_refs = build_object_chunk_refs(
+        obj_data.doodads.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.doodad_refs.as_slice()),
+    );
     spawn_doodads_filtered(
         commands,
         meshes,
@@ -162,6 +169,7 @@ pub fn spawn_obj_entities(
         tile_y,
         tile_x,
         obj_data,
+        &doodad_chunk_refs,
         |_| true,
         &mut spawned.doodads,
     );
@@ -191,6 +199,13 @@ pub fn spawn_waterfall_backdrop_doodads(
     obj_data: &adt_obj::AdtObjData,
 ) -> Vec<Entity> {
     let mut entities = Vec::new();
+    let doodad_chunk_refs = build_object_chunk_refs(
+        obj_data.doodads.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.doodad_refs.as_slice()),
+    );
     spawn_doodads_filtered(
         commands,
         meshes,
@@ -202,6 +217,7 @@ pub fn spawn_waterfall_backdrop_doodads(
         tile_y,
         tile_x,
         obj_data,
+        &doodad_chunk_refs,
         is_waterfall_backdrop_doodad,
         &mut entities,
     );
@@ -224,6 +240,20 @@ pub fn spawn_nearby_campsite_objects(
     wmo_radius: f32,
 ) -> SpawnedTerrainObjects {
     let mut spawned = SpawnedTerrainObjects::default();
+    let doodad_chunk_refs = build_object_chunk_refs(
+        obj_data.doodads.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.doodad_refs.as_slice()),
+    );
+    let wmo_chunk_refs = build_object_chunk_refs(
+        obj_data.wmos.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.wmo_refs.as_slice()),
+    );
     spawn_doodads_filtered(
         commands,
         meshes,
@@ -235,6 +265,7 @@ pub fn spawn_nearby_campsite_objects(
         tile_y,
         tile_x,
         obj_data,
+        &doodad_chunk_refs,
         |doodad| {
             doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius
                 && !is_charselect_clutter_doodad(doodad)
@@ -249,6 +280,7 @@ pub fn spawn_nearby_campsite_objects(
         tile_y,
         tile_x,
         obj_data,
+        &wmo_chunk_refs,
         |wmo| wmo_position(wmo, tile_y, tile_x).distance(focus) <= wmo_radius,
         &mut spawned.wmos,
     );
@@ -267,11 +299,12 @@ fn spawn_doodads_filtered(
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
+    chunk_refs: &[Vec<u16>],
     filter: impl Fn(&adt_obj::DoodadPlacement) -> bool,
     entities: &mut Vec<Entity>,
 ) {
     let mut spawned = 0u32;
-    for doodad in &obj_data.doodads {
+    for (index, doodad) in obj_data.doodads.iter().enumerate() {
         if !filter(doodad) {
             continue;
         }
@@ -286,6 +319,7 @@ fn spawn_doodads_filtered(
             tile_y,
             tile_x,
             doodad,
+            chunk_refs.get(index).map(Vec::as_slice),
         ) {
             entities.push(e);
             spawned += 1;
@@ -306,6 +340,7 @@ fn try_spawn_doodad(
     tile_y: u32,
     tile_x: u32,
     doodad: &adt_obj::DoodadPlacement,
+    chunk_refs: Option<&[u16]>,
 ) -> Option<Entity> {
     let m2_path = resolve_doodad_m2(doodad)?;
     if !m2_path.exists() {
@@ -336,8 +371,37 @@ fn try_spawn_doodad(
         commands.entity(entity).despawn();
         return None;
     }
-    commands.entity(entity).insert(game_engine::culling::Doodad);
+    let mut entity_commands = commands.entity(entity);
+    entity_commands.insert(game_engine::culling::Doodad);
+    if let Some(chunk_refs) = build_chunk_refs_component(chunk_refs) {
+        entity_commands.insert(chunk_refs);
+    }
     Some(entity)
+}
+
+fn build_object_chunk_refs<'a>(
+    object_count: usize,
+    chunk_refs: impl Iterator<Item = &'a [u32]>,
+) -> Vec<Vec<u16>> {
+    let mut refs_by_object = vec![Vec::new(); object_count];
+    for (chunk_index, object_refs) in chunk_refs.enumerate() {
+        for &object_index in object_refs {
+            let Some(object_chunk_refs) = refs_by_object.get_mut(object_index as usize) else {
+                continue;
+            };
+            object_chunk_refs.push(chunk_index as u16);
+        }
+    }
+    refs_by_object
+}
+
+fn build_chunk_refs_component(
+    chunk_refs: Option<&[u16]>,
+) -> Option<game_engine::culling::ChunkRefs> {
+    let chunk_indices = chunk_refs?;
+    (!chunk_indices.is_empty()).then(|| game_engine::culling::ChunkRefs {
+        chunk_indices: chunk_indices.to_vec(),
+    })
 }
 
 fn try_spawn_fog_volume(
@@ -496,6 +560,13 @@ fn spawn_wmos(
     obj_data: &adt_obj::AdtObjData,
     entities: &mut Vec<SpawnedWmoRoot>,
 ) {
+    let wmo_chunk_refs = build_object_chunk_refs(
+        obj_data.wmos.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.wmo_refs.as_slice()),
+    );
     spawn_wmos_filtered(
         commands,
         meshes,
@@ -504,6 +575,7 @@ fn spawn_wmos(
         tile_y,
         tile_x,
         obj_data,
+        &wmo_chunk_refs,
         |_| true,
         entities,
     );

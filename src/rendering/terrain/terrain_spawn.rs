@@ -193,6 +193,7 @@ pub(super) fn spawn_chunk_entities(
         if let Some(grid) = adt_data.height_grids.get(i) {
             use crate::asset::adt::CHUNK_SIZE;
             spawn.insert(game_engine::culling::TerrainChunk {
+                chunk_index: i as u16,
                 world_center: Vec3::new(
                     grid.origin_x + CHUNK_SIZE / 2.0,
                     grid.base_y,

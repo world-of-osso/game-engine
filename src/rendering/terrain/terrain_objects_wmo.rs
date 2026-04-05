@@ -42,11 +42,12 @@ pub(super) fn spawn_wmos_filtered(
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
+    chunk_refs: &[Vec<u16>],
     filter: impl Fn(&adt_obj::WmoPlacement) -> bool,
     entities: &mut Vec<SpawnedWmoRoot>,
 ) {
     let mut spawned_count = 0u32;
-    for placement in &obj_data.wmos {
+    for (index, placement) in obj_data.wmos.iter().enumerate() {
         if !filter(placement) {
             continue;
         }
@@ -55,7 +56,14 @@ pub(super) fn spawn_wmos_filtered(
             materials,
             images,
         };
-        if let Some(spawned_wmo) = try_spawn_wmo(commands, &mut assets, placement, tile_y, tile_x) {
+        if let Some(spawned_wmo) = try_spawn_wmo(
+            commands,
+            &mut assets,
+            placement,
+            chunk_refs.get(index).map(Vec::as_slice),
+            tile_y,
+            tile_x,
+        ) {
             entities.push(spawned_wmo);
             spawned_count += 1;
         }
@@ -67,6 +75,7 @@ fn try_spawn_wmo(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
     placement: &adt_obj::WmoPlacement,
+    chunk_refs: Option<&[u16]>,
     tile_y: u32,
     tile_x: u32,
 ) -> Option<SpawnedWmoRoot> {
@@ -84,6 +93,7 @@ fn try_spawn_wmo(
         transform,
         portal_graph,
         build_wmo_adt_metadata(placement),
+        build_chunk_refs_component(chunk_refs),
         build_wmo_root_bounds(placement),
         root.skybox_wow_path.as_deref(),
     );
@@ -130,6 +140,7 @@ fn spawn_wmo_root_entity(
     transform: Transform,
     portal_graph: game_engine::culling::WmoPortalGraph,
     placement: WmoAdtMetadata,
+    chunk_refs: Option<game_engine::culling::ChunkRefs>,
     root_bounds: game_engine::culling::WmoRootBounds,
     skybox_wow_path: Option<&str>,
 ) -> Entity {
@@ -142,12 +153,24 @@ fn spawn_wmo_root_entity(
         portal_graph,
         placement,
     ));
+    if let Some(chunk_refs) = chunk_refs {
+        entity.insert(chunk_refs);
+    }
     if let Some(wow_path) = skybox_wow_path {
         entity.insert(WmoLocalSkybox {
             wow_path: wow_path.to_string(),
         });
     }
     entity.id()
+}
+
+fn build_chunk_refs_component(
+    chunk_refs: Option<&[u16]>,
+) -> Option<game_engine::culling::ChunkRefs> {
+    let chunk_indices = chunk_refs?;
+    (!chunk_indices.is_empty()).then(|| game_engine::culling::ChunkRefs {
+        chunk_indices: chunk_indices.to_vec(),
+    })
 }
 
 fn build_wmo_adt_metadata(placement: &adt_obj::WmoPlacement) -> WmoAdtMetadata {
@@ -665,6 +688,9 @@ mod tests {
                         portal_verts: Vec::new(),
                     },
                     metadata,
+                    Some(game_engine::culling::ChunkRefs {
+                        chunk_indices: vec![4, 8],
+                    }),
                     bounds,
                     None,
                 )
@@ -684,6 +710,12 @@ mod tests {
             .copied()
             .expect("bounds component");
         assert_eq!(stored_bounds, bounds);
+        let stored_chunk_refs = app
+            .world()
+            .get::<game_engine::culling::ChunkRefs>(entity)
+            .cloned()
+            .expect("chunk refs component");
+        assert_eq!(stored_chunk_refs.chunk_indices, vec![4, 8]);
     }
 
     #[test]

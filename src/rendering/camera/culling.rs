@@ -13,11 +13,39 @@ type WmoFilter = (
     Without<TerrainChunk>,
     Without<Camera3d>,
 );
+type DoodadCullQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Transform,
+        Option<&'static ChunkRefs>,
+        &'static mut Visibility,
+    ),
+    DoodadFilter,
+>;
+type WmoCullQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Transform,
+        Option<&'static WmoRootBounds>,
+        Option<&'static ChunkRefs>,
+        &'static mut Visibility,
+    ),
+    WmoFilter,
+>;
 
 /// Marker for terrain chunk entities. Stores precomputed world center for distance checks.
 #[derive(Component)]
 pub struct TerrainChunk {
+    pub chunk_index: u16,
     pub world_center: Vec3,
+}
+
+/// ADT chunk indices that reference a spawned doodad or WMO.
+#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChunkRefs {
+    pub chunk_indices: Vec<u16>,
 }
 
 /// Marker for doodad (M2 prop) root entities.
@@ -95,8 +123,8 @@ fn distance_cull_system(
     mut last_pos: ResMut<LastCullPosition>,
     camera_q: Query<&Transform, With<Camera3d>>,
     mut chunks: Query<(&TerrainChunk, &mut Visibility)>,
-    mut doodads: Query<(&Transform, &mut Visibility), DoodadFilter>,
-    mut wmos: Query<(&Transform, Option<&WmoRootBounds>, &mut Visibility), WmoFilter>,
+    mut doodads: DoodadCullQuery,
+    mut wmos: WmoCullQuery,
 ) {
     let Ok(cam) = camera_q.single() else { return };
     let cam_pos = cam.translation;
@@ -105,9 +133,14 @@ fn distance_cull_system(
         return;
     }
 
-    update_chunk_visibility(cam_pos, config.chunk_distance_sq, &mut chunks);
-    update_transform_visibility(cam_pos, config.doodad_distance_sq, &mut doodads);
-    update_wmo_visibility(cam_pos, config.wmo_distance_sq, &mut wmos);
+    let visible_chunks = update_chunk_visibility(cam_pos, config.chunk_distance_sq, &mut chunks);
+    update_transform_visibility(
+        cam_pos,
+        config.doodad_distance_sq,
+        &visible_chunks,
+        &mut doodads,
+    );
+    update_wmo_visibility(cam_pos, config.wmo_distance_sq, &visible_chunks, &mut wmos);
 }
 
 fn should_skip_cull_update(
@@ -126,42 +159,46 @@ fn update_chunk_visibility(
     cam_pos: Vec3,
     max_distance_sq: f32,
     chunks: &mut Query<(&TerrainChunk, &mut Visibility)>,
-) {
+) -> HashSet<u16> {
+    let mut visible_chunks = HashSet::new();
     for (chunk, mut vis) in chunks {
-        apply_distance_visibility(
-            cam_pos.distance_squared(chunk.world_center),
-            max_distance_sq,
-            &mut vis,
-        );
+        let visible = cam_pos.distance_squared(chunk.world_center) < max_distance_sq;
+        apply_visibility(visible, &mut vis);
+        if visible {
+            visible_chunks.insert(chunk.chunk_index);
+        }
     }
+    visible_chunks
 }
 
 fn update_transform_visibility<F>(
     cam_pos: Vec3,
     max_distance_sq: f32,
-    query: &mut Query<(&Transform, &mut Visibility), F>,
+    visible_chunks: &HashSet<u16>,
+    query: &mut Query<(&Transform, Option<&ChunkRefs>, &mut Visibility), F>,
 ) where
     F: QueryFilter,
 {
-    for (tf, mut vis) in query {
-        apply_distance_visibility(
-            cam_pos.distance_squared(tf.translation),
-            max_distance_sq,
-            &mut vis,
-        );
+    for (tf, chunk_refs, mut vis) in query {
+        let visible = cam_pos.distance_squared(tf.translation) < max_distance_sq
+            && chunk_refs_visible(chunk_refs, visible_chunks);
+        apply_visibility(visible, &mut vis);
     }
 }
 
 fn update_wmo_visibility(
     cam_pos: Vec3,
     max_distance_sq: f32,
-    wmos: &mut Query<(&Transform, Option<&WmoRootBounds>, &mut Visibility), WmoFilter>,
+    visible_chunks: &HashSet<u16>,
+    wmos: &mut WmoCullQuery,
 ) {
-    for (transform, bounds, mut visibility) in wmos {
+    for (transform, bounds, chunk_refs, mut visibility) in wmos {
         let distance_sq = bounds
             .map(|bounds| distance_sq_to_aabb(cam_pos, bounds.world_min, bounds.world_max))
             .unwrap_or_else(|| cam_pos.distance_squared(transform.translation));
-        apply_distance_visibility(distance_sq, max_distance_sq, &mut visibility);
+        let visible =
+            distance_sq < max_distance_sq && chunk_refs_visible(chunk_refs, visible_chunks);
+        apply_visibility(visible, &mut visibility);
     }
 }
 
@@ -190,8 +227,19 @@ fn distance_sq_to_aabb(point: Vec3, min: Vec3, max: Vec3) -> f32 {
     dx * dx + dy * dy + dz * dz
 }
 
-fn apply_distance_visibility(distance_sq: f32, max_distance_sq: f32, vis: &mut Visibility) {
-    let desired = if distance_sq < max_distance_sq {
+fn chunk_refs_visible(chunk_refs: Option<&ChunkRefs>, visible_chunks: &HashSet<u16>) -> bool {
+    let Some(chunk_refs) = chunk_refs else {
+        return true;
+    };
+    chunk_refs.chunk_indices.is_empty()
+        || chunk_refs
+            .chunk_indices
+            .iter()
+            .any(|chunk_index| visible_chunks.contains(chunk_index))
+}
+
+fn apply_visibility(visible: bool, vis: &mut Visibility) {
+    let desired = if visible {
         Visibility::Visible
     } else {
         Visibility::Hidden
@@ -346,7 +394,11 @@ mod tests {
         Query<
             'static,
             'static,
-            (&'static Transform, &'static mut Visibility),
+            (
+                &'static Transform,
+                Option<&'static ChunkRefs>,
+                &'static mut Visibility,
+            ),
             (With<Doodad>, Without<TerrainChunk>, Without<Camera3d>),
         >,
         Query<
@@ -355,6 +407,7 @@ mod tests {
             (
                 &'static Transform,
                 Option<&'static WmoRootBounds>,
+                Option<&'static ChunkRefs>,
                 &'static mut Visibility,
             ),
             (
@@ -392,6 +445,7 @@ mod tests {
         let e = world
             .spawn((
                 TerrainChunk {
+                    chunk_index: 0,
                     world_center: Vec3::new(50.0, 0.0, 0.0),
                 },
                 Visibility::Visible,
@@ -408,6 +462,7 @@ mod tests {
         let e = world
             .spawn((
                 TerrainChunk {
+                    chunk_index: 0,
                     world_center: Vec3::new(200.0, 0.0, 0.0),
                 },
                 Visibility::Visible,
@@ -421,10 +476,20 @@ mod tests {
     #[test]
     fn doodad_culled_by_distance() {
         let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 0,
+                world_center: Vec3::new(10.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
         let near = world
             .spawn((
                 Doodad,
                 Transform::from_xyz(10.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 Visibility::Visible,
             ))
             .id();
@@ -432,6 +497,9 @@ mod tests {
             .spawn((
                 Doodad,
                 Transform::from_xyz(100.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 Visibility::Visible,
             ))
             .id();
@@ -444,10 +512,20 @@ mod tests {
     #[test]
     fn wmo_culled_by_distance() {
         let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 0,
+                world_center: Vec3::new(0.0, 0.0, 30.0),
+            },
+            Visibility::Visible,
+        ));
         let near = world
             .spawn((
                 Wmo,
                 Transform::from_xyz(0.0, 0.0, 30.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 Visibility::Visible,
             ))
             .id();
@@ -455,6 +533,9 @@ mod tests {
             .spawn((
                 Wmo,
                 Transform::from_xyz(0.0, 0.0, 300.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 Visibility::Visible,
             ))
             .id();
@@ -467,10 +548,20 @@ mod tests {
     #[test]
     fn wmo_uses_root_bounds_for_distance_culling() {
         let (mut world, mut state) = setup_world(Vec3::new(45.0, 0.0, 0.0), 10.0 * 10.0);
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 0,
+                world_center: Vec3::new(50.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
         let entity = world
             .spawn((
                 Wmo,
                 Transform::from_xyz(500.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 WmoRootBounds {
                     world_min: Vec3::new(40.0, -5.0, -5.0),
                     world_max: Vec3::new(60.0, 5.0, 5.0),
@@ -489,10 +580,20 @@ mod tests {
     #[test]
     fn hidden_object_becomes_visible_when_camera_approaches() {
         let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 0,
+                world_center: Vec3::new(100.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
         let e = world
             .spawn((
                 Doodad,
                 Transform::from_xyz(100.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 Visibility::Visible,
             ))
             .id();
@@ -518,15 +619,88 @@ mod tests {
         world.resource_mut::<CullingConfig>().update_threshold_sq = 1000.0 * 1000.0;
         world.resource_mut::<LastCullPosition>().0 = Vec3::ZERO;
 
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 0,
+                world_center: Vec3::new(100.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
         let e = world
             .spawn((
                 Doodad,
                 Transform::from_xyz(100.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![0],
+                },
                 Visibility::Visible,
             ))
             .id();
 
         run_cull(&mut world, &mut state);
         assert_eq!(*world.get::<Visibility>(e).unwrap(), Visibility::Visible);
+    }
+
+    #[test]
+    fn doodad_hidden_when_all_referenced_chunks_are_hidden() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 1,
+                world_center: Vec3::new(200.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
+        let entity = world
+            .spawn((
+                Doodad,
+                Transform::from_xyz(10.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![1],
+                },
+                Visibility::Visible,
+            ))
+            .id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(
+            *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Hidden
+        );
+    }
+
+    #[test]
+    fn wmo_stays_visible_when_any_referenced_chunk_is_visible() {
+        let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 1,
+                world_center: Vec3::new(200.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
+        world.spawn((
+            TerrainChunk {
+                chunk_index: 2,
+                world_center: Vec3::new(10.0, 0.0, 0.0),
+            },
+            Visibility::Visible,
+        ));
+        let entity = world
+            .spawn((
+                Wmo,
+                Transform::from_xyz(10.0, 0.0, 0.0),
+                ChunkRefs {
+                    chunk_indices: vec![1, 2],
+                },
+                Visibility::Visible,
+            ))
+            .id();
+
+        run_cull(&mut world, &mut state);
+        assert_eq!(
+            *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Visible
+        );
     }
 }
