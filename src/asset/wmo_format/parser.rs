@@ -51,6 +51,7 @@ pub struct WmoMaterialDef {
     pub flags: u32,
     pub blend_mode: u32,
     pub shader: u32,
+    pub uv_translation_speed: Option<[[f32; 2]; 2]>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -152,6 +153,10 @@ pub struct WmoConvexVolumePlane {
     pub flags: u32,
 }
 
+pub struct WmoMaterialUvTransform {
+    pub translation_speed: [[f32; 2]; 2],
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -178,6 +183,7 @@ const MODD_ENTRY_SIZE: usize = 40;
 const MFOG_ENTRY_SIZE: usize = 48;
 const MOVB_ENTRY_SIZE: usize = 4;
 const MCVP_ENTRY_SIZE: usize = 20;
+const MOUV_ENTRY_SIZE: usize = 16;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -286,6 +292,12 @@ struct RawWmoConvexVolumePlane {
 
 #[derive(BinRead)]
 #[br(little)]
+struct RawWmoMaterialUvTransform {
+    translation_speed: [[f32; 2]; 2],
+}
+
+#[derive(BinRead)]
+#[br(little)]
 struct RawWmoPortal {
     start_vertex: u16,
     vert_count: u16,
@@ -380,6 +392,7 @@ fn load_wmo_root_chunks(data: &[u8], accum: &mut WmoRootAccum) -> Result<(), Str
 }
 
 fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
+    apply_material_uv_transforms(&mut accum.materials, &accum.material_uv_transforms);
     resolve_portal_vertices(&mut accum.portals, &accum.mopt_raw, &accum.portal_vertices);
     WmoRootData {
         n_groups: accum.n_groups,
@@ -413,6 +426,7 @@ struct WmoRootAccum {
     bbox_min: [f32; 3],
     bbox_max: [f32; 3],
     materials: Vec<WmoMaterialDef>,
+    material_uv_transforms: Vec<WmoMaterialUvTransform>,
     lights: Vec<WmoLight>,
     doodad_sets: Vec<WmoDoodadSet>,
     group_names: Vec<WmoGroupName>,
@@ -442,6 +456,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
             accum.bbox_max = header.bbox_max;
         }
         b"TMOM" => accum.materials = parse_momt(payload)?,
+        b"VUOM" => accum.material_uv_transforms = parse_mouv(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
         b"SDOM" => accum.doodad_sets = parse_mods(payload)?,
         b"NGOM" => accum.group_names = parse_mogn(payload)?,
@@ -490,6 +505,18 @@ pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
                 flags: mat.flags,
                 blend_mode: mat.blend_mode,
                 shader: mat.shader,
+                uv_translation_speed: None,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mouv(data: &[u8]) -> Result<Vec<WmoMaterialUvTransform>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoMaterialUvTransform>(data, MOUV_ENTRY_SIZE, "MOUV")?
+            .into_iter()
+            .map(|transform| WmoMaterialUvTransform {
+                translation_speed: transform.translation_speed,
             })
             .collect(),
     )
@@ -622,6 +649,15 @@ pub fn parse_movb(data: &[u8]) -> Result<Vec<WmoVisibleBlock>, String> {
             })
             .collect(),
     )
+}
+
+fn apply_material_uv_transforms(
+    materials: &mut [WmoMaterialDef],
+    transforms: &[WmoMaterialUvTransform],
+) {
+    for (material, transform) in materials.iter_mut().zip(transforms.iter()) {
+        material.uv_translation_speed = Some(transform.translation_speed);
+    }
 }
 
 pub fn parse_mcvp(data: &[u8]) -> Result<Vec<WmoConvexVolumePlane>, String> {
@@ -800,6 +836,52 @@ mod tests {
         let mats = parse_momt(&data).unwrap();
         assert_eq!(mats.len(), 1);
         assert_eq!(mats[0].texture_fdid, 0);
+        assert_eq!(mats[0].uv_translation_speed, None);
+    }
+
+    #[test]
+    fn parse_mouv_reads_material_uv_translation_speeds() {
+        let mut data = Vec::new();
+        for value in [1.0_f32, 2.0, 3.0, 4.0, -1.0, -2.0, -3.0, -4.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let transforms = parse_mouv(&data).expect("parse MOUV");
+
+        assert_eq!(transforms.len(), 2);
+        assert_eq!(transforms[0].translation_speed, [[1.0, 2.0], [3.0, 4.0]]);
+        assert_eq!(
+            transforms[1].translation_speed,
+            [[-1.0, -2.0], [-3.0, -4.0]]
+        );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mouv_uv_translation_speeds() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"VUOM");
+        data.extend_from_slice(&(MOUV_ENTRY_SIZE as u32).to_le_bytes());
+        for value in [0.25_f32, 0.5, 0.75, 1.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TMOM");
+        data.extend_from_slice(&(MOMT_ENTRY_SIZE as u32).to_le_bytes());
+        let mut momt = vec![0_u8; MOMT_ENTRY_SIZE];
+        momt[4..8].copy_from_slice(&6_u32.to_le_bytes());
+        momt[12..16].copy_from_slice(&123_u32.to_le_bytes());
+        data.extend_from_slice(&momt);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.materials.len(), 1);
+        assert_eq!(root.materials[0].shader, 6);
+        assert_eq!(root.materials[0].texture_fdid, 123);
+        assert_eq!(
+            root.materials[0].uv_translation_speed,
+            Some([[0.25, 0.5], [0.75, 1.0]])
+        );
     }
 
     #[test]
