@@ -309,3 +309,18 @@ fn terrain_shader_samples_layers_with_animation_offsets() {
         "expected terrain shader to sample terrain layer 0 with animated UVs"
     );
 }
+
+#[test]
+fn terrain_shader_uses_height_maps_for_layer_blending() {
+    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
+        .expect("terrain shader should be readable");
+
+    assert!(
+        shader.contains("let h0 = sample_height_tiled(0u, uv0).a;"),
+        "expected terrain shader to sample layer 0 height from the MHID height texture"
+    );
+    assert!(
+        shader.contains("paint.x * height_weight(h0, layer_params(0u), blend_strength)"),
+        "expected terrain shader to weight layer 0 using sampled height texture data"
+    );
+}

@@ -53,14 +53,30 @@ pub struct TerrainMaterial {
     #[sampler(8)]
     pub ground_3: Handle<Image>,
 
-    /// Packed alpha: R=layer1, G=layer2, B=layer3. 64x64, ClampToEdge.
     #[texture(9)]
     #[sampler(10)]
+    pub height_0: Handle<Image>,
+
+    #[texture(11)]
+    #[sampler(12)]
+    pub height_1: Handle<Image>,
+
+    #[texture(13)]
+    #[sampler(14)]
+    pub height_2: Handle<Image>,
+
+    #[texture(15)]
+    #[sampler(16)]
+    pub height_3: Handle<Image>,
+
+    /// Packed alpha: R=layer1, G=layer2, B=layer3. 64x64, ClampToEdge.
+    #[texture(17)]
+    #[sampler(18)]
     pub alpha_packed: Handle<Image>,
 
     /// Static per-chunk shadow mask expanded from MCSH. 64x64, ClampToEdge.
-    #[texture(11)]
-    #[sampler(12)]
+    #[texture(19)]
+    #[sampler(20)]
     pub shadow_map: Handle<Image>,
 }
 
@@ -156,6 +172,31 @@ pub fn load_ground_images(
             let blp_path = crate::asset::asset_cache::texture(diffuse_fdid)
                 .unwrap_or_else(|| tex_dir.join(format!("{diffuse_fdid}.blp")));
             load_blp_as_terrain_image(images, &blp_path, diffuse_fdid)
+        })
+        .collect()
+}
+
+pub fn load_height_images(
+    images: &mut Assets<Image>,
+    tex_data: &adt::AdtTexData,
+    adt_path: &std::path::Path,
+) -> Vec<Option<Handle<Image>>> {
+    eprintln!(
+        "load_height_images {} height_texture_fdids={}",
+        adt_path.display(),
+        tex_data.height_texture_fdids.len(),
+    );
+    let tex_dir = adt_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join("../textures");
+    tex_data
+        .height_texture_fdids
+        .iter()
+        .map(|&fdid| {
+            let blp_path = crate::asset::asset_cache::texture(fdid)
+                .unwrap_or_else(|| tex_dir.join(format!("{fdid}.blp")));
+            load_blp_as_terrain_image(images, &blp_path, fdid)
         })
         .collect()
 }
@@ -320,6 +361,7 @@ pub fn build_terrain_materials(
     adt_data: &adt::AdtData,
     tex_data: Option<&adt::AdtTexData>,
     ground_images: Option<&[Option<Handle<Image>>]>,
+    height_images: Option<&[Option<Handle<Image>>]>,
 ) -> Vec<Handle<TerrainMaterial>> {
     let ph = Placeholders {
         image: placeholder_image(images),
@@ -350,6 +392,7 @@ pub fn build_terrain_materials(
                 td,
                 chunk_tex,
                 gi,
+                height_images,
                 shadow_map,
                 &ph,
             )
@@ -403,6 +446,10 @@ fn fallback_material(
         ground_1: ph.image.clone(),
         ground_2: ph.image.clone(),
         ground_3: ph.image.clone(),
+        height_0: ph.image.clone(),
+        height_1: ph.image.clone(),
+        height_2: ph.image.clone(),
+        height_3: ph.image.clone(),
         alpha_packed: ph.alpha.clone(),
         shadow_map: pack_shadow_map(images, shadow_map),
     }
@@ -414,6 +461,7 @@ fn build_chunk_material(
     tex_data: &adt::AdtTexData,
     chunk_tex: &adt::ChunkTexLayers,
     ground_images: &[Option<Handle<Image>>],
+    height_images: Option<&[Option<Handle<Image>>]>,
     shadow_map: Option<&[u8; 512]>,
     ph: &Placeholders,
 ) -> Handle<TerrainMaterial> {
@@ -430,6 +478,18 @@ fn build_chunk_material(
             .and_then(|opt| opt.clone())
             .unwrap_or_else(|| ph.image.clone())
     };
+    let height = |idx: usize| -> Handle<Image> {
+        let diffuse = ground(idx);
+        chunk_tex
+            .layers
+            .get(idx)
+            .and_then(|l| {
+                height_images
+                    .and_then(|images| images.get(l.texture_index as usize))
+                    .and_then(|opt| opt.clone())
+            })
+            .unwrap_or(diffuse)
+    };
     let layer_params = texture_layer_params(tex_data, &chunk_tex.layers);
     let animation_params = terrain_layer_animation_params(&chunk_tex.layers);
     let texture_repeat = terrain_texture_repeat(tex_data.texture_amplifier);
@@ -440,6 +500,10 @@ fn build_chunk_material(
         ground_1: ground(1),
         ground_2: ground(2),
         ground_3: ground(3),
+        height_0: height(0),
+        height_1: height(1),
+        height_2: height(2),
+        height_3: height(3),
         alpha_packed: pack_alpha_maps(images, &chunk_tex.layers),
         shadow_map: pack_shadow_map(images, shadow_map),
     })
@@ -495,8 +559,8 @@ fn terrain_layer_animation(flags: adt::MclyFlags) -> Vec4 {
 #[cfg(test)]
 mod tests {
     use super::{
-        pack_shadow_map, shadow_bit_is_set, terrain_layer_animation_params, terrain_texture_repeat,
-        texture_layer_params,
+        TerrainMaterial, build_chunk_material, pack_shadow_map, shadow_bit_is_set,
+        terrain_layer_animation_params, terrain_texture_repeat, texture_layer_params,
     };
     use crate::asset::adt;
     use bevy::asset::Assets;
@@ -606,5 +670,64 @@ mod tests {
             )) < 0.0001
         );
         assert_eq!(params[1], Vec4::ZERO);
+    }
+
+    #[test]
+    fn chunk_material_uses_mhid_height_textures_per_layer() {
+        let mut terrain_materials = Assets::<TerrainMaterial>::default();
+        let mut images = Assets::<Image>::default();
+        let placeholder = super::Placeholders {
+            image: images.add(Image::default()),
+            alpha: images.add(Image::default()),
+        };
+        let diffuse_0 = images.add(Image::default());
+        let diffuse_1 = images.add(Image::default());
+        let height_0 = images.add(Image::default());
+        let height_1 = images.add(Image::default());
+        let tex_data = adt::AdtTexData {
+            texture_amplifier: None,
+            texture_fdids: vec![11, 22],
+            height_texture_fdids: vec![111, 222],
+            texture_flags: vec![0, 0],
+            texture_params: vec![],
+            chunk_layers: vec![],
+        };
+        let chunk_tex = adt::ChunkTexLayers {
+            layers: vec![
+                adt::TextureLayer {
+                    texture_index: 1,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 0,
+                    material_id: 0,
+                    alpha_map: None,
+                },
+                adt::TextureLayer {
+                    texture_index: 0,
+                    flags: adt::MclyFlags::default(),
+                    effect_id: 0,
+                    material_id: 0,
+                    alpha_map: None,
+                },
+            ],
+        };
+        let ground_images = vec![Some(diffuse_0.clone()), Some(diffuse_1.clone())];
+        let height_images = vec![Some(height_0.clone()), Some(height_1.clone())];
+
+        let handle = build_chunk_material(
+            &mut terrain_materials,
+            &mut images,
+            &tex_data,
+            &chunk_tex,
+            &ground_images,
+            Some(&height_images),
+            None,
+            &placeholder,
+        );
+        let material = terrain_materials
+            .get(&handle)
+            .expect("expected terrain material");
+
+        assert_eq!(material.height_0, height_1);
+        assert_eq!(material.height_1, height_0);
     }
 }

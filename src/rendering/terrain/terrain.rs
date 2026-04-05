@@ -407,6 +407,10 @@ fn build_terrain_only_chunk_materials(
         .tex_data
         .as_ref()
         .map(|td| terrain_material::load_ground_images(assets.images, td, adt_path));
+    let height_images = inputs
+        .tex_data
+        .as_ref()
+        .map(|td| terrain_material::load_height_images(assets.images, td, adt_path));
     eprintln!("build_terrain_materials {}", adt_path.display());
     terrain_material::build_terrain_materials(
         assets.terrain_materials,
@@ -414,6 +418,7 @@ fn build_terrain_only_chunk_materials(
         &inputs.adt_data,
         inputs.tex_data.as_ref(),
         ground_images.as_deref(),
+        height_images.as_deref(),
     )
 }
 

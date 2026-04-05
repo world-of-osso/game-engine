@@ -66,6 +66,8 @@ pub(super) fn spawn_terrain_chunks(
     );
     let ground_images =
         tex_data.map(|td| terrain_material::load_ground_images(refs.images, td, adt_path));
+    let height_images =
+        tex_data.map(|td| terrain_material::load_height_images(refs.images, td, adt_path));
     eprintln!("build_terrain_materials {}", adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
         refs.terrain_materials,
@@ -73,6 +75,7 @@ pub(super) fn spawn_terrain_chunks(
         adt_data,
         tex_data,
         ground_images.as_deref(),
+        height_images.as_deref(),
     );
     let root = spawn_chunk_entities(refs.commands, refs.meshes, &chunk_materials, adt_data, tile);
     spawn_water(

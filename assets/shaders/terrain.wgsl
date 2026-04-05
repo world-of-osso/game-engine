@@ -42,11 +42,23 @@ struct TerrainSettings {
 @group(#{MATERIAL_BIND_GROUP}) @binding(7) var ground_3: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(8) var ground_sampler_3: sampler;
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(9) var alpha_packed: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(10) var alpha_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(9) var height_0: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(10) var height_sampler_0: sampler;
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(11) var shadow_map: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(12) var shadow_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(11) var height_1: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(12) var height_sampler_1: sampler;
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(13) var height_2: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(14) var height_sampler_2: sampler;
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(15) var height_3: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(16) var height_sampler_3: sampler;
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(17) var alpha_packed: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(18) var alpha_sampler: sampler;
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(19) var shadow_map: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(20) var shadow_sampler: sampler;
 
 const STATIC_SHADOW_MIN_BRIGHTNESS: f32 = 0.55;
 
@@ -82,6 +94,20 @@ fn sample_ground(idx: u32, uv: vec2<f32>) -> vec4<f32> {
 
 fn sample_ground_tiled(idx: u32, uv: vec2<f32>) -> vec4<f32> {
     return sample_ground(idx, uv * settings.config.z);
+}
+
+fn sample_height(idx: u32, uv: vec2<f32>) -> vec4<f32> {
+    switch idx {
+        case 0u: { return textureSample(height_0, height_sampler_0, uv); }
+        case 1u: { return textureSample(height_1, height_sampler_1, uv); }
+        case 2u: { return textureSample(height_2, height_sampler_2, uv); }
+        case 3u: { return textureSample(height_3, height_sampler_3, uv); }
+        default: { return vec4<f32>(0.5, 0.5, 0.5, 1.0); }
+    }
+}
+
+fn sample_height_tiled(idx: u32, uv: vec2<f32>) -> vec4<f32> {
+    return sample_height(idx, uv * settings.config.z);
 }
 
 fn layer_animation_params(idx: u32) -> vec4<f32> {
@@ -244,7 +270,7 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
     let paint = paint_weights(alpha, layer_count);
 
-    // Sample each potential layer once; alpha channel is used as height.
+    // Sample each potential layer once; height comes from MHID when available.
     let uv0 = animated_layer_uv(0u, uv);
     let uv1 = animated_layer_uv(1u, uv);
     let uv2 = animated_layer_uv(2u, uv);
@@ -253,12 +279,16 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let c1 = sample_ground_tiled(1u, uv1);
     let c2 = sample_ground_tiled(2u, uv2);
     let c3 = sample_ground_tiled(3u, uv3);
+    let h0 = sample_height_tiled(0u, uv0).a;
+    let h1 = sample_height_tiled(1u, uv1).a;
+    let h2 = sample_height_tiled(2u, uv2).a;
+    let h3 = sample_height_tiled(3u, uv3).a;
 
     var weights = vec4<f32>(
-        paint.x * height_weight(c0.a, layer_params(0u), blend_strength),
-        paint.y * height_weight(c1.a, layer_params(1u), blend_strength),
-        paint.z * height_weight(c2.a, layer_params(2u), blend_strength),
-        paint.w * height_weight(c3.a, layer_params(3u), blend_strength),
+        paint.x * height_weight(h0, layer_params(0u), blend_strength),
+        paint.y * height_weight(h1, layer_params(1u), blend_strength),
+        paint.z * height_weight(h2, layer_params(2u), blend_strength),
+        paint.w * height_weight(h3, layer_params(3u), blend_strength),
     );
     let wsum = weights.x + weights.y + weights.z + weights.w;
     if wsum > 1e-6 {
