@@ -520,44 +520,75 @@ fn build_chunk_material(
     }
 
     let layer_count = chunk_tex.layers.len().min(4) as f32;
-    let ground = |idx: usize| -> Handle<Image> {
-        chunk_tex
-            .layers
-            .get(idx)
-            .and_then(|l| ground_images.get(l.texture_index as usize))
-            .and_then(|opt| opt.clone())
-            .unwrap_or_else(|| ph.image.clone())
-    };
-    let height = |idx: usize| -> Handle<Image> {
-        let diffuse = ground(idx);
-        chunk_tex
-            .layers
-            .get(idx)
-            .and_then(|l| {
-                height_images
-                    .and_then(|images| images.get(l.texture_index as usize))
-                    .and_then(|opt| opt.clone())
-            })
-            .unwrap_or(diffuse)
-    };
+    let ground_handles = resolve_chunk_ground_images(chunk_tex, ground_images, ph);
+    let height_handles = resolve_chunk_height_images(chunk_tex, &ground_handles, height_images);
     let layer_params = texture_layer_params(tex_data, &chunk_tex.layers);
     let animation_params = terrain_layer_animation_params(&chunk_tex.layers);
     let texture_repeat = terrain_texture_repeat(tex_data.texture_amplifier);
 
     terrain_materials.add(TerrainMaterial {
         settings: terrain_settings(layer_count, texture_repeat, layer_params, animation_params),
-        ground_0: ground(0),
-        ground_1: ground(1),
-        ground_2: ground(2),
-        ground_3: ground(3),
-        height_0: height(0),
-        height_1: height(1),
-        height_2: height(2),
-        height_3: height(3),
+        ground_0: ground_handles[0].clone(),
+        ground_1: ground_handles[1].clone(),
+        ground_2: ground_handles[2].clone(),
+        ground_3: ground_handles[3].clone(),
+        height_0: height_handles[0].clone(),
+        height_1: height_handles[1].clone(),
+        height_2: height_handles[2].clone(),
+        height_3: height_handles[3].clone(),
         alpha_packed: pack_alpha_maps(images, &chunk_tex.layers),
         shadow_map: pack_shadow_map(images, shadow_map),
         environment_map: ph.cubemap.clone(),
     })
+}
+
+fn resolve_chunk_ground_images(
+    chunk_tex: &adt::ChunkTexLayers,
+    ground_images: &[Option<Handle<Image>>],
+    ph: &Placeholders,
+) -> [Handle<Image>; 4] {
+    std::array::from_fn(|idx| resolve_chunk_ground_image(chunk_tex, ground_images, idx, ph))
+}
+
+fn resolve_chunk_ground_image(
+    chunk_tex: &adt::ChunkTexLayers,
+    ground_images: &[Option<Handle<Image>>],
+    idx: usize,
+    ph: &Placeholders,
+) -> Handle<Image> {
+    chunk_tex
+        .layers
+        .get(idx)
+        .and_then(|layer| ground_images.get(layer.texture_index as usize))
+        .and_then(|image| image.clone())
+        .unwrap_or_else(|| ph.image.clone())
+}
+
+fn resolve_chunk_height_images(
+    chunk_tex: &adt::ChunkTexLayers,
+    ground_handles: &[Handle<Image>; 4],
+    height_images: Option<&[Option<Handle<Image>>]>,
+) -> [Handle<Image>; 4] {
+    std::array::from_fn(|idx| {
+        resolve_chunk_height_image(chunk_tex, ground_handles, height_images, idx)
+    })
+}
+
+fn resolve_chunk_height_image(
+    chunk_tex: &adt::ChunkTexLayers,
+    ground_handles: &[Handle<Image>; 4],
+    height_images: Option<&[Option<Handle<Image>>]>,
+    idx: usize,
+) -> Handle<Image> {
+    chunk_tex
+        .layers
+        .get(idx)
+        .and_then(|layer| {
+            height_images
+                .and_then(|images| images.get(layer.texture_index as usize))
+                .and_then(|image| image.clone())
+        })
+        .unwrap_or_else(|| ground_handles[idx].clone())
 }
 
 fn terrain_texture_repeat(texture_amplifier: Option<u32>) -> f32 {
