@@ -126,10 +126,14 @@ fn load_lod_adt_reads_real_tile_counts_and_ranges() {
 
 fn synthetic_lod_payload() -> Vec<u8> {
     let mut payload = Vec::new();
-    append_synthetic_lod_core_chunks(&mut payload);
-    append_synthetic_lod_liquid_chunks(&mut payload);
-    append_synthetic_lod_object_chunks(&mut payload);
+    append_synthetic_lod_chunks(&mut payload);
     payload
+}
+
+fn append_synthetic_lod_chunks(payload: &mut Vec<u8>) {
+    append_synthetic_lod_core_chunks(payload);
+    append_synthetic_lod_liquid_chunks(payload);
+    append_synthetic_lod_object_chunks(payload);
 }
 
 fn append_synthetic_lod_core_chunks(payload: &mut Vec<u8>) {
