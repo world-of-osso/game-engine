@@ -58,6 +58,19 @@ pub struct WmoFootstepSurface {
     pub surface: FootstepSurface,
 }
 
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct WmoGroupFogVolume {
+    pub fog_index: u8,
+    pub smaller_radius: f32,
+    pub larger_radius: f32,
+    pub fog_end: f32,
+    pub fog_start_multiplier: f32,
+    pub color_1: [f32; 4],
+    pub underwater_fog_end: f32,
+    pub underwater_fog_start_multiplier: f32,
+    pub color_2: [f32; 4],
+}
+
 pub(super) fn spawn_wmos_filtered(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -409,6 +422,7 @@ fn spawn_wmo_group(
     let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
     commands.entity(root_entity).add_child(group_entity);
     spawn_wmo_group_lights(commands, root, &group, group_entity);
+    spawn_wmo_group_fogs(commands, root, &group, group_entity);
     spawn_wmo_group_doodads(
         commands,
         assets,
@@ -489,6 +503,18 @@ fn spawn_wmo_group_lights(
             continue;
         };
         commands.entity(group_entity).add_child(light_entity);
+    }
+}
+
+fn spawn_wmo_group_fogs(
+    commands: &mut Commands,
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    group_entity: Entity,
+) {
+    for (fog_index, fog) in collect_group_fogs(root, group) {
+        let fog_entity = spawn_wmo_group_fog(commands, fog_index, fog);
+        commands.entity(group_entity).add_child(fog_entity);
     }
 }
 
@@ -629,6 +655,24 @@ fn collect_group_lights<'a>(
         .collect()
 }
 
+fn collect_group_fogs<'a>(
+    root: &'a wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+) -> Vec<(u8, &'a wmo::WmoFog)> {
+    let mut fogs = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for fog_index in group.header.fog_ids {
+        if !seen.insert(fog_index) {
+            continue;
+        }
+        let Some(fog) = root.fogs.get(fog_index as usize) else {
+            continue;
+        };
+        fogs.push((fog_index, fog));
+    }
+    fogs
+}
+
 fn spawn_wmo_group_light(
     commands: &mut Commands,
     light_index: u16,
@@ -639,6 +683,27 @@ fn spawn_wmo_group_light(
         wmo::WmoLightType::Spot => Some(spawn_wmo_spot_light(commands, light_index, light)),
         wmo::WmoLightType::Directional | wmo::WmoLightType::Ambient => None,
     }
+}
+
+fn spawn_wmo_group_fog(commands: &mut Commands, fog_index: u8, fog: &wmo::WmoFog) -> Entity {
+    commands
+        .spawn((
+            Name::new(format!("WmoFog{fog_index}")),
+            wmo_fog_transform(fog),
+            WmoGroupFogVolume {
+                fog_index,
+                smaller_radius: fog.smaller_radius,
+                larger_radius: fog.larger_radius,
+                fog_end: fog.fog_end,
+                fog_start_multiplier: fog.fog_start_multiplier,
+                color_1: fog.color_1,
+                underwater_fog_end: fog.underwater_fog_end,
+                underwater_fog_start_multiplier: fog.underwater_fog_start_multiplier,
+                color_2: fog.color_2,
+            },
+            Visibility::default(),
+        ))
+        .id()
 }
 
 fn spawn_wmo_point_light(
@@ -678,6 +743,14 @@ fn wmo_light_transform(light: &wmo::WmoLight) -> Transform {
         light.position[2],
     );
     Transform::from_translation(Vec3::new(x, y, z)).with_rotation(wow_quat_to_bevy(light.rotation))
+}
+
+fn wmo_fog_transform(fog: &wmo::WmoFog) -> Transform {
+    let [x, y, z] =
+        crate::asset::wmo::wmo_local_to_bevy(fog.position[0], fog.position[1], fog.position[2]);
+    Transform::from_translation(Vec3::new(x, y, z)).with_scale(Vec3::splat(
+        fog.larger_radius.max(fog.smaller_radius).max(1.0),
+    ))
 }
 
 fn authored_wmo_point_light(light: &wmo::WmoLight) -> PointLight {
@@ -1598,6 +1671,169 @@ mod tests {
         assert_eq!(lights[1].0, 2);
         assert_eq!(lights[0].1.position, [1.0, 2.0, 3.0]);
         assert_eq!(lights[1].1.position, [7.0, 8.0, 9.0]);
+    }
+
+    #[test]
+    fn collect_group_fogs_filters_to_valid_unique_group_fog_ids() {
+        let group = wmo::WmoGroupData {
+            header: wmo::WmoGroupHeader {
+                group_name_offset: 0,
+                descriptive_group_name_offset: 0,
+                flags: 0,
+                group_flags: Default::default(),
+                bbox_min: [0.0; 3],
+                bbox_max: [0.0; 3],
+                portal_start: 0,
+                portal_count: 0,
+                trans_batch_count: 0,
+                int_batch_count: 0,
+                ext_batch_count: 0,
+                batch_type_d: 0,
+                fog_ids: [1, 3, 1, 9],
+                group_liquid: 0,
+                unique_id: 0,
+                flags2: 0,
+                parent_split_group_index: -1,
+                next_split_child_group_index: -1,
+            },
+            doodad_refs: Vec::new(),
+            light_refs: Vec::new(),
+            bsp_nodes: Vec::new(),
+            bsp_face_refs: Vec::new(),
+            liquid: None,
+            batches: Vec::new(),
+        };
+        let root = wmo::WmoRootData {
+            n_groups: 1,
+            flags: wmo::WmoRootFlags::default(),
+            ambient_color: [0.0; 4],
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            materials: Vec::new(),
+            lights: Vec::new(),
+            doodad_sets: Vec::new(),
+            group_names: Vec::new(),
+            doodad_names: Vec::new(),
+            doodad_file_ids: Vec::new(),
+            doodad_defs: Vec::new(),
+            fogs: vec![
+                wmo::WmoFog {
+                    flags: 0,
+                    position: [1.0, 2.0, 3.0],
+                    smaller_radius: 4.0,
+                    larger_radius: 5.0,
+                    fog_end: 6.0,
+                    fog_start_multiplier: 0.2,
+                    color_1: [0.1, 0.2, 0.3, 1.0],
+                    underwater_fog_end: 7.0,
+                    underwater_fog_start_multiplier: 0.3,
+                    color_2: [0.4, 0.5, 0.6, 1.0],
+                },
+                wmo::WmoFog {
+                    flags: 1,
+                    position: [10.0, 20.0, 30.0],
+                    smaller_radius: 40.0,
+                    larger_radius: 50.0,
+                    fog_end: 60.0,
+                    fog_start_multiplier: 0.4,
+                    color_1: [0.7, 0.2, 0.3, 1.0],
+                    underwater_fog_end: 70.0,
+                    underwater_fog_start_multiplier: 0.5,
+                    color_2: [0.4, 0.8, 0.6, 1.0],
+                },
+                wmo::WmoFog {
+                    flags: 2,
+                    position: [100.0, 200.0, 300.0],
+                    smaller_radius: 400.0,
+                    larger_radius: 500.0,
+                    fog_end: 600.0,
+                    fog_start_multiplier: 0.6,
+                    color_1: [0.1, 0.9, 0.3, 1.0],
+                    underwater_fog_end: 700.0,
+                    underwater_fog_start_multiplier: 0.7,
+                    color_2: [0.4, 0.5, 0.9, 1.0],
+                },
+                wmo::WmoFog {
+                    flags: 3,
+                    position: [11.0, 22.0, 33.0],
+                    smaller_radius: 44.0,
+                    larger_radius: 55.0,
+                    fog_end: 66.0,
+                    fog_start_multiplier: 0.8,
+                    color_1: [0.8, 0.2, 0.3, 1.0],
+                    underwater_fog_end: 77.0,
+                    underwater_fog_start_multiplier: 0.9,
+                    color_2: [0.4, 0.8, 0.9, 1.0],
+                },
+            ],
+            visible_block_vertices: Vec::new(),
+            visible_blocks: Vec::new(),
+            convex_volume_planes: Vec::new(),
+            group_file_data_ids: Vec::new(),
+            global_ambient_volumes: Vec::new(),
+            ambient_volumes: Vec::new(),
+            baked_ambient_box_volumes: Vec::new(),
+            dynamic_lights: Vec::new(),
+            portals: Vec::new(),
+            portal_refs: Vec::new(),
+            group_infos: Vec::new(),
+            skybox_wow_path: None,
+        };
+
+        let fogs = collect_group_fogs(&root, &group);
+        assert_eq!(fogs.len(), 2);
+        assert_eq!(fogs[0].0, 1);
+        assert_eq!(fogs[1].0, 3);
+        assert_eq!(fogs[0].1.position, [10.0, 20.0, 30.0]);
+        assert_eq!(fogs[1].1.position, [11.0, 22.0, 33.0]);
+    }
+
+    #[test]
+    fn spawn_wmo_group_fog_preserves_authored_fog_fields() {
+        let mut app = App::new();
+        let fog = wmo::WmoFog {
+            flags: 0,
+            position: [10.0, 20.0, 30.0],
+            smaller_radius: 4.0,
+            larger_radius: 12.0,
+            fog_end: 80.0,
+            fog_start_multiplier: 0.25,
+            color_1: [0.1, 0.2, 0.3, 1.0],
+            underwater_fog_end: 90.0,
+            underwater_fog_start_multiplier: 0.5,
+            color_2: [0.7, 0.8, 0.9, 1.0],
+        };
+
+        let entity = app
+            .world_mut()
+            .run_system_once(move |mut commands: Commands| {
+                spawn_wmo_group_fog(&mut commands, 2, &fog)
+            })
+            .expect("fog entity should spawn");
+        app.update();
+
+        let component = app
+            .world()
+            .get::<WmoGroupFogVolume>(entity)
+            .copied()
+            .expect("fog component");
+        assert_eq!(
+            component,
+            WmoGroupFogVolume {
+                fog_index: 2,
+                smaller_radius: 4.0,
+                larger_radius: 12.0,
+                fog_end: 80.0,
+                fog_start_multiplier: 0.25,
+                color_1: [0.1, 0.2, 0.3, 1.0],
+                underwater_fog_end: 90.0,
+                underwater_fog_start_multiplier: 0.5,
+                color_2: [0.7, 0.8, 0.9, 1.0],
+            }
+        );
+        let transform = app.world().get::<Transform>(entity).expect("fog transform");
+        assert_eq!(transform.translation, Vec3::new(-10.0, 30.0, 20.0));
+        assert_eq!(transform.scale, Vec3::splat(12.0));
     }
 
     #[test]
