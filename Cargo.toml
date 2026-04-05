@@ -2,7 +2,7 @@
 name = "game-engine"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.94"
 
 [dependencies]
 bevy = { version = "0.18", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
@@ -20,9 +20,9 @@ half = "2"
 glob = { version = "0.3", optional = true }
 libc = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"] }
-cascette-client-storage = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", features = ["local-install"], optional = true }
-cascette-crypto = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", optional = true }
-cascette-formats = { git = "https://github.com/wowemulation-dev/cascette-rs", rev = "2d1294b", optional = true }
+cascette-client-storage = { git = "https://github.com/Osso/cascette-rs", rev = "5c5a5e3", features = ["local-install"], optional = true }
+cascette-crypto = { git = "https://github.com/Osso/cascette-rs", rev = "5c5a5e3", optional = true }
+cascette-formats = { git = "https://github.com/Osso/cascette-rs", rev = "5c5a5e3", optional = true }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
