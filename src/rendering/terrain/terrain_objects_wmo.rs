@@ -417,8 +417,16 @@ fn spawn_wmo_group(
         group_entity,
         active_doodad_set,
     );
+    let interior_ambient = build_wmo_interior_ambient(root, &group);
     spawn_wmo_group_liquid(commands, assets, &group, group_entity);
-    spawn_wmo_group_batches(commands, assets, root, group_entity, group.batches);
+    spawn_wmo_group_batches(
+        commands,
+        assets,
+        root,
+        interior_ambient,
+        group_entity,
+        group.batches,
+    );
     true
 }
 
@@ -441,6 +449,7 @@ fn spawn_wmo_group_batches(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
     root: &wmo::WmoRootData,
+    interior_ambient: Option<[f32; 4]>,
     group_entity: Entity,
     batches: Vec<wmo::WmoGroupBatch>,
 ) {
@@ -451,6 +460,7 @@ fn spawn_wmo_group_batches(
             assets.images,
             batch.material_index,
             &material_props,
+            interior_ambient,
             batch.has_vertex_color,
         );
         let mut child = commands.spawn((
@@ -879,6 +889,7 @@ fn wmo_batch_material(
     images: &mut Assets<Image>,
     material_index: u16,
     material_props: &WmoMaterialProps,
+    interior_ambient: Option<[f32; 4]>,
     has_vertex_color: bool,
 ) -> Handle<StandardMaterial> {
     let image = load_wmo_batch_material_image(images, material_index, &material_props);
@@ -886,9 +897,19 @@ fn wmo_batch_material(
         image,
         material_props.blend_mode,
         material_props.unculled,
+        interior_ambient,
         has_vertex_color,
         material_props.sidn_glow,
     ))
+}
+
+fn build_wmo_interior_ambient(
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+) -> Option<[f32; 4]> {
+    let rgb = &root.ambient_color[..3];
+    (group.header.group_flags.interior && rgb.iter().any(|channel| *channel > 0.0))
+        .then_some(root.ambient_color)
 }
 
 struct WmoMaterialProps {
@@ -1045,6 +1066,7 @@ pub(super) fn wmo_standard_material(
     texture: Option<Handle<Image>>,
     blend_mode: u32,
     unculled: bool,
+    interior_ambient: Option<[f32; 4]>,
     has_vertex_color: bool,
     sidn_glow: Option<WmoSidnGlow>,
 ) -> StandardMaterial {
@@ -1056,7 +1078,9 @@ pub(super) fn wmo_standard_material(
     let double_sided = unculled;
     let prop_like_surface = double_sided || !matches!(alpha_mode, AlphaMode::Opaque);
     StandardMaterial {
-        base_color: if texture.is_none() {
+        base_color: if let Some(ambient) = interior_ambient {
+            Color::linear_rgba(ambient[0], ambient[1], ambient[2], 1.0)
+        } else if texture.is_none() {
             Color::srgb(0.6, 0.6, 0.6)
         } else {
             Color::WHITE
@@ -1635,6 +1659,7 @@ mod tests {
                     &mut commands,
                     &mut assets,
                     &root,
+                    None,
                     group_entity,
                     vec![wmo::WmoGroupBatch {
                         mesh: Mesh::new(

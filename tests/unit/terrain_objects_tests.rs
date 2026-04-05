@@ -117,8 +117,37 @@ fn doodad_transform_lifts_props_to_terrain_height() {
 
 #[test]
 fn wmo_vertex_colored_materials_are_unlit() {
-    let material = super::terrain_objects_wmo::wmo_standard_material(None, 0, false, true, None);
+    let material =
+        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, None, true, None);
     assert!(material.unlit);
+}
+
+#[test]
+fn wmo_interior_ambient_color_tints_material_base_color() {
+    let material = super::terrain_objects_wmo::wmo_standard_material(
+        None,
+        0,
+        false,
+        Some([0.2, 0.4, 0.6, 1.0]),
+        false,
+        None,
+    );
+
+    let color = material.base_color.to_linear().to_f32_array();
+    assert!((color[0] - 0.2).abs() < 0.001);
+    assert!((color[1] - 0.4).abs() < 0.001);
+    assert!((color[2] - 0.6).abs() < 0.001);
+}
+
+#[test]
+fn wmo_without_interior_ambient_keeps_default_neutral_base_color() {
+    let material =
+        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, None, false, None);
+
+    let color = material.base_color.to_linear().to_f32_array();
+    assert!((color[0] - 0.6).abs() < 0.001);
+    assert!((color[1] - 0.6).abs() < 0.001);
+    assert!((color[2] - 0.6).abs() < 0.001);
 }
 
 #[test]
