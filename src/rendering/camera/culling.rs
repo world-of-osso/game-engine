@@ -418,6 +418,16 @@ mod tests {
             ),
         >,
     )>;
+    type PortalCullState = SystemState<(
+        Query<'static, 'static, (&'static GlobalTransform, &'static Frustum), With<Camera3d>>,
+        Query<
+            'static,
+            'static,
+            (Entity, &'static GlobalTransform, &'static WmoPortalGraph),
+            With<Wmo>,
+        >,
+        Query<'static, 'static, (&'static WmoGroup, &'static mut Visibility, &'static ChildOf)>,
+    )>;
 
     fn setup_world(cam_pos: Vec3, threshold_sq: f32) -> (World, CullState) {
         let mut world = World::default();
@@ -437,6 +447,54 @@ mod tests {
         let (config, last_pos, camera_q, chunks, doodads, wmos) = state.get_mut(world);
         distance_cull_system(config, last_pos, camera_q, chunks, doodads, wmos);
         state.apply(world);
+    }
+
+    fn run_portal_cull(world: &mut World, state: &mut PortalCullState) {
+        let (camera_q, wmo_q, group_q) = state.get_mut(world);
+        wmo_portal_cull_system(camera_q, wmo_q, group_q);
+        state.apply(world);
+    }
+
+    fn unit_test_frustum() -> Frustum {
+        Frustum::from_clip_from_world(&Mat4::IDENTITY)
+    }
+
+    fn spawn_portal_test_wmo(
+        world: &mut World,
+        portal_verts: Vec<Vec3>,
+    ) -> (Entity, Entity, Entity) {
+        let root = world
+            .spawn((
+                Wmo,
+                GlobalTransform::IDENTITY,
+                WmoPortalGraph {
+                    adjacency: vec![vec![(0, 1)], vec![(0, 0)]],
+                    portal_verts: vec![portal_verts],
+                },
+            ))
+            .id();
+        let group0 = world
+            .spawn((
+                WmoGroup {
+                    group_index: 0,
+                    bbox_min: Vec3::splat(-0.5),
+                    bbox_max: Vec3::splat(0.5),
+                },
+                Visibility::Visible,
+            ))
+            .id();
+        let group1 = world
+            .spawn((
+                WmoGroup {
+                    group_index: 1,
+                    bbox_min: Vec3::new(2.0, -0.5, -0.5),
+                    bbox_max: Vec3::new(3.0, 0.5, 0.5),
+                },
+                Visibility::Visible,
+            ))
+            .id();
+        world.entity_mut(root).add_children(&[group0, group1]);
+        (root, group0, group1)
     }
 
     #[test]
@@ -700,6 +758,54 @@ mod tests {
         run_cull(&mut world, &mut state);
         assert_eq!(
             *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Visible
+        );
+    }
+
+    #[test]
+    fn portal_culling_hides_groups_behind_non_visible_portals() {
+        let mut world = World::default();
+        world.spawn((
+            Camera3d::default(),
+            GlobalTransform::IDENTITY,
+            unit_test_frustum(),
+        ));
+        let (_root, group0, group1) =
+            spawn_portal_test_wmo(&mut world, vec![Vec3::new(5.0, 5.0, 5.0)]);
+        let mut state = PortalCullState::new(&mut world);
+
+        run_portal_cull(&mut world, &mut state);
+
+        assert_eq!(
+            *world.get::<Visibility>(group0).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *world.get::<Visibility>(group1).unwrap(),
+            Visibility::Hidden
+        );
+    }
+
+    #[test]
+    fn portal_culling_keeps_groups_visible_through_visible_portals() {
+        let mut world = World::default();
+        world.spawn((
+            Camera3d::default(),
+            GlobalTransform::IDENTITY,
+            unit_test_frustum(),
+        ));
+        let (_root, group0, group1) =
+            spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
+        let mut state = PortalCullState::new(&mut world);
+
+        run_portal_cull(&mut world, &mut state);
+
+        assert_eq!(
+            *world.get::<Visibility>(group0).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *world.get::<Visibility>(group1).unwrap(),
             Visibility::Visible
         );
     }
