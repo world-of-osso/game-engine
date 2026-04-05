@@ -100,7 +100,14 @@ struct LiquidInstanceHeader {
 struct Mh2oChunkHeader {
     instance_offset: u32,
     layer_count: u32,
-    _attributes_offset: u32,
+    attributes_offset: u32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct Mh2oAttributes {
+    fishable: u64,
+    deep: u64,
 }
 
 #[derive(BinRead)]
@@ -415,12 +422,39 @@ pub struct WaterLayer {
     pub vertex_heights: Vec<f32>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WaterAttributes {
+    pub fishable: u64,
+    pub deep: u64,
+}
+
+impl WaterAttributes {
+    const TILE_SIZE: usize = 8;
+
+    pub fn is_fishable(&self, x: usize, y: usize) -> bool {
+        water_attribute_bit(self.fishable, x, y)
+    }
+
+    pub fn is_deep(&self, x: usize, y: usize) -> bool {
+        water_attribute_bit(self.deep, x, y)
+    }
+}
+
 pub struct ChunkWater {
     pub layers: Vec<WaterLayer>,
+    pub attributes: Option<WaterAttributes>,
 }
 
 pub struct AdtWaterData {
     pub chunks: Vec<ChunkWater>,
+}
+
+fn water_attribute_bit(mask: u64, x: usize, y: usize) -> bool {
+    if x >= WaterAttributes::TILE_SIZE || y >= WaterAttributes::TILE_SIZE {
+        return false;
+    }
+    let bit_index = y * WaterAttributes::TILE_SIZE + x;
+    ((mask >> bit_index) & 1) != 0
 }
 
 fn read_exists_bitmask(
@@ -502,6 +536,14 @@ fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, Strin
     })
 }
 
+fn parse_water_attributes(payload: &[u8], offset: usize) -> Result<WaterAttributes, String> {
+    let attributes: Mh2oAttributes = parse_binrw_value(payload, offset, "MH2O attributes")?;
+    Ok(WaterAttributes {
+        fishable: attributes.fishable,
+        deep: attributes.deep,
+    })
+}
+
 pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
     const CHUNK_COUNT: usize = 256;
     const HEADER_SIZE: usize = CHUNK_COUNT * 12;
@@ -516,9 +558,20 @@ pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
     for i in 0..CHUNK_COUNT {
         let base = i * size_of::<Mh2oChunkHeader>();
         let header: Mh2oChunkHeader = parse_binrw_value(payload, base, "MH2O chunk header")?;
+        let attributes = if header.attributes_offset == 0 {
+            None
+        } else {
+            Some(parse_water_attributes(
+                payload,
+                header.attributes_offset as usize,
+            )?)
+        };
 
         if header.instance_offset == 0 || header.layer_count == 0 {
-            chunks.push(ChunkWater { layers: Vec::new() });
+            chunks.push(ChunkWater {
+                layers: Vec::new(),
+                attributes,
+            });
             continue;
         }
 
@@ -529,7 +582,7 @@ pub fn parse_mh2o(payload: &[u8]) -> Result<AdtWaterData, String> {
                 header.instance_offset as usize + layer_idx * size_of::<LiquidInstanceHeader>(),
             )?);
         }
-        chunks.push(ChunkWater { layers });
+        chunks.push(ChunkWater { layers, attributes });
     }
     Ok(AdtWaterData { chunks })
 }
@@ -809,6 +862,28 @@ mod tests {
         assert_eq!(parsed.texture_amplifier, Some(2));
     }
 
+    #[test]
+    fn parse_mh2o_reads_chunk_fishable_and_deep_masks() {
+        let fishable = (1u64 << 0) | (1u64 << 7) | (1u64 << 15);
+        let deep = (1u64 << 3) | (1u64 << 63);
+        let payload = mh2o_payload(0, 1, Some((fishable, deep)));
+
+        let parsed = parse_mh2o(&payload).expect("expected MH2O payload to parse");
+        let chunk = &parsed.chunks[0];
+        let attributes = chunk.attributes.expect("expected MH2O attributes");
+
+        assert_eq!(chunk.layers.len(), 1);
+        assert_eq!(attributes.fishable, fishable);
+        assert_eq!(attributes.deep, deep);
+        assert!(attributes.is_fishable(0, 0));
+        assert!(attributes.is_fishable(7, 0));
+        assert!(attributes.is_fishable(7, 1));
+        assert!(!attributes.is_fishable(0, 1));
+        assert!(attributes.is_deep(3, 0));
+        assert!(!attributes.is_deep(0, 0));
+        assert!(attributes.is_deep(7, 7));
+    }
+
     fn mcly_entry_payload(
         texture_index: u32,
         flags: u32,
@@ -855,6 +930,44 @@ mod tests {
             payload.extend_from_slice(&value.height_offset.to_le_bytes());
             payload.extend_from_slice(&0u32.to_le_bytes());
         }
+        payload
+    }
+
+    fn mh2o_payload(
+        chunk_index: usize,
+        layer_count: u32,
+        attributes: Option<(u64, u64)>,
+    ) -> Vec<u8> {
+        const CHUNK_COUNT: usize = 256;
+        const HEADER_SIZE: usize = CHUNK_COUNT * size_of::<Mh2oChunkHeader>();
+
+        let instance_offset = HEADER_SIZE as u32;
+        let attributes_offset =
+            attributes.map(|_| instance_offset + size_of::<LiquidInstanceHeader>() as u32);
+        let mut payload = vec![0u8; HEADER_SIZE];
+
+        let header_base = chunk_index * size_of::<Mh2oChunkHeader>();
+        payload[header_base..header_base + 4].copy_from_slice(&instance_offset.to_le_bytes());
+        payload[header_base + 4..header_base + 8].copy_from_slice(&layer_count.to_le_bytes());
+        payload[header_base + 8..header_base + 12]
+            .copy_from_slice(&attributes_offset.unwrap_or(0).to_le_bytes());
+
+        payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.extend_from_slice(&1.0f32.to_le_bytes());
+        payload.extend_from_slice(&2.0f32.to_le_bytes());
+        payload.extend_from_slice(&0u8.to_le_bytes());
+        payload.extend_from_slice(&0u8.to_le_bytes());
+        payload.extend_from_slice(&8u8.to_le_bytes());
+        payload.extend_from_slice(&8u8.to_le_bytes());
+        payload.extend_from_slice(&0u32.to_le_bytes());
+        payload.extend_from_slice(&0u32.to_le_bytes());
+
+        if let Some((fishable, deep)) = attributes {
+            payload.extend_from_slice(&fishable.to_le_bytes());
+            payload.extend_from_slice(&deep.to_le_bytes());
+        }
+
         payload
     }
 

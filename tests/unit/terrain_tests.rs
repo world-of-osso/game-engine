@@ -99,6 +99,7 @@ fn choose_safe_spawn_position_skips_water_chunks() {
                 } else {
                     Vec::new()
                 },
+                attributes: None,
             })
             .collect(),
     });
