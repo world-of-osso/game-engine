@@ -233,12 +233,18 @@ pub struct WmoNewLight {
 }
 
 pub struct RawGroupData {
+    pub triangle_materials: Vec<WmoTriangleMaterial>,
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
     pub uvs: Vec<[f32; 2]>,
     pub colors: Vec<[f32; 4]>,
     pub indices: Vec<u16>,
     pub batches: Vec<RawBatch>,
+}
+
+pub struct WmoTriangleMaterial {
+    pub flags: u8,
+    pub material_id: u8,
 }
 
 pub struct RawBatch {
@@ -262,6 +268,7 @@ const MOUV_ENTRY_SIZE: usize = 16;
 const MAVD_ENTRY_SIZE: usize = 48;
 const MBVD_ENTRY_SIZE: usize = 128;
 const MNLD_ENTRY_SIZE: usize = 60;
+const MOPY_ENTRY_SIZE: usize = 2;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -477,6 +484,13 @@ struct RawWmoGroupHeader {
     flags2: u32,
     parent_split_group_index: i16,
     next_split_child_group_index: i16,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoTriangleMaterial {
+    flags: u8,
+    material_id: u8,
 }
 
 pub const MOGP_HEADER_SIZE: usize = 68;
@@ -981,6 +995,7 @@ pub fn parse_mogp_header(data: &[u8]) -> Result<WmoGroupHeader, String> {
 }
 
 pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
+    let mut triangle_materials = Vec::new();
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
@@ -991,6 +1006,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         match tag {
+            b"YPOM" => triangle_materials = parse_mopy(payload)?,
             b"TVOM" => vertices = parse_vec3_array(payload)?,
             b"RNOM" => normals = parse_vec3_array(payload)?,
             b"VTOM" => uvs = parse_vec2_array(payload)?,
@@ -1009,6 +1025,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     }
 
     Ok(RawGroupData {
+        triangle_materials,
         vertices,
         normals,
         uvs,
@@ -1016,6 +1033,18 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         indices,
         batches,
     })
+}
+
+pub fn parse_mopy(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoTriangleMaterial>(data, MOPY_ENTRY_SIZE, "MOPY")?
+            .into_iter()
+            .map(|entry| WmoTriangleMaterial {
+                flags: entry.flags,
+                material_id: entry.material_id,
+            })
+            .collect(),
+    )
 }
 
 fn parse_vec3_array(data: &[u8]) -> Result<Vec<[f32; 3]>, String> {
@@ -1409,6 +1438,19 @@ mod tests {
         assert_eq!(header.flags2, 15);
         assert_eq!(header.parent_split_group_index, -16);
         assert_eq!(header.next_split_child_group_index, 17);
+    }
+
+    #[test]
+    fn parse_mopy_reads_triangle_material_info() {
+        let data = [0x20_u8, 0x05, 0x08, 0xFF];
+
+        let materials = parse_mopy(&data).expect("parse MOPY");
+
+        assert_eq!(materials.len(), 2);
+        assert_eq!(materials[0].flags, 0x20);
+        assert_eq!(materials[0].material_id, 0x05);
+        assert_eq!(materials[1].flags, 0x08);
+        assert_eq!(materials[1].material_id, 0xFF);
     }
 
     #[test]

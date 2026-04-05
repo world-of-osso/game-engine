@@ -73,7 +73,7 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
     let normals = convert_normals(&raw.normals, positions.len());
     let uvs = convert_uvs(&raw.uvs, positions.len());
     let colors = convert_colors(&raw.colors, positions.len());
-    let indices: Vec<u32> = raw.indices.iter().map(|&i| i as u32).collect();
+    let indices = extract_renderable_whole_group_indices(raw);
 
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -141,10 +141,18 @@ fn extract_batch_vertices(
 fn extract_batch_indices(raw: &RawGroupData, batch: &RawBatch) -> Vec<u32> {
     let idx_start = batch.start_index as usize;
     let idx_end = (idx_start + batch.count as usize).min(raw.indices.len());
-    raw.indices[idx_start..idx_end]
-        .iter()
-        .map(|&i| (i - batch.min_index) as u32)
-        .collect()
+    let mut out = Vec::with_capacity(idx_end.saturating_sub(idx_start));
+    for tri_start in (idx_start..idx_end).step_by(3) {
+        if tri_start + 3 > idx_end || !triangle_is_renderable(raw, tri_start / 3) {
+            continue;
+        }
+        out.extend(
+            raw.indices[tri_start..tri_start + 3]
+                .iter()
+                .map(|&i| (i - batch.min_index) as u32),
+        );
+    }
+    out
 }
 
 fn extract_batch_colors(raw: &RawGroupData, vmin: usize, vmax: usize) -> Option<Vec<[f32; 4]>> {
@@ -175,6 +183,27 @@ fn convert_uvs(src: &[[f32; 2]], expected: usize) -> Vec<[f32; 2]> {
 
 fn convert_colors(src: &[[f32; 4]], expected: usize) -> Option<Vec<[f32; 4]>> {
     (src.len() == expected).then(|| src.to_vec())
+}
+
+fn extract_renderable_whole_group_indices(raw: &RawGroupData) -> Vec<u32> {
+    let mut out = Vec::with_capacity(raw.indices.len());
+    for tri_start in (0..raw.indices.len()).step_by(3) {
+        if tri_start + 3 > raw.indices.len() || !triangle_is_renderable(raw, tri_start / 3) {
+            continue;
+        }
+        out.extend(
+            raw.indices[tri_start..tri_start + 3]
+                .iter()
+                .map(|&i| i as u32),
+        );
+    }
+    out
+}
+
+fn triangle_is_renderable(raw: &RawGroupData, triangle_index: usize) -> bool {
+    raw.triangle_materials
+        .get(triangle_index)
+        .is_none_or(|triangle| triangle.material_id != 0xFF)
 }
 
 #[cfg(test)]
@@ -235,6 +264,39 @@ mod tests {
         assert_eq!(group.header.flags2, 15);
         assert_eq!(group.header.parent_split_group_index, -16);
         assert_eq!(group.header.next_split_child_group_index, 17);
+    }
+
+    #[test]
+    fn load_wmo_group_skips_collision_only_mopy_triangles() {
+        let mut data = Vec::new();
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 12 + 20 + 20;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"YPOM");
+        data.extend_from_slice(&(4_u32).to_le_bytes());
+        data.extend_from_slice(&[0x20_u8, 0x01, 0x20, 0xFF]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for index in [0_u16, 0, 0, 0, 0, 0] {
+            data.extend_from_slice(&index.to_le_bytes());
+        }
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+        let indices = match group.batches[0].mesh.indices() {
+            Some(Indices::U32(values)) => values.clone(),
+            other => panic!("unexpected index buffer: {other:?}"),
+        };
+
+        assert_eq!(indices, vec![0, 0, 0]);
     }
 
     #[test]
