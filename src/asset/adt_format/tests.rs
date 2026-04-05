@@ -727,6 +727,19 @@ fn load_lod_adt_reads_synthetic_lod_chunks() {
         lod.liquids[0].vertices,
         vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
     );
+    assert_eq!(lod.m2_placements.len(), 1);
+    assert_eq!(lod.m2_placements[0].id, 100);
+    assert_eq!(lod.m2_placements[0].asset_id, 200);
+    assert_eq!(lod.m2_placements[0].position, [1.0, 2.0, 3.0]);
+    assert_eq!(lod.m2_placements[0].rotation, [4.0, 5.0, 6.0]);
+    assert_eq!(lod.m2_placements[0].scale, 1.5);
+    assert_eq!(lod.m2_placements[0].flags, 0x55AA);
+    assert_eq!(lod.m2_visibility.len(), 1);
+    assert_eq!(lod.m2_visibility[0].bounds_min, [10.0, 20.0, 30.0]);
+    assert_eq!(lod.m2_visibility[0].bounds_max, [40.0, 50.0, 60.0]);
+    assert_eq!(lod.m2_visibility[0].radius, 70.0);
+    assert_eq!(lod.wmo_placements.len(), 1);
+    assert_eq!(lod.wmo_visibility.len(), 1);
 }
 
 #[test]
@@ -743,6 +756,10 @@ fn load_lod_adt_reads_real_tile_counts_and_ranges() {
     assert_eq!(lod.indices.len(), 131_535);
     assert_eq!(lod.skirt_indices.len(), 127);
     assert_eq!(lod.liquids.len(), 6);
+    assert!(lod.m2_placements.is_empty());
+    assert!(lod.m2_visibility.is_empty());
+    assert!(lod.wmo_placements.is_empty());
+    assert!(lod.wmo_visibility.is_empty());
     assert_eq!(
         lod.liquid_directory
             .as_ref()
@@ -808,6 +825,26 @@ fn synthetic_lod_payload() -> Vec<u8> {
         &mut payload,
         b"VLLM",
         lod_liquid_vertices_payload(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+    );
+    append_subchunk(
+        &mut payload,
+        b"DDLM",
+        lod_object_placement_payload(100, 200, [1.0, 2.0, 3.0], [4.0, 5.0, 6.0], 1.5, 0x55AA),
+    );
+    append_subchunk(
+        &mut payload,
+        b"XDLM",
+        lod_object_visibility_payload([10.0, 20.0, 30.0], [40.0, 50.0, 60.0], 70.0),
+    );
+    append_subchunk(
+        &mut payload,
+        b"DMLM",
+        lod_object_placement_payload(300, 400, [7.0, 8.0, 9.0], [10.0, 11.0, 12.0], 2.5, 0xAA55),
+    );
+    append_subchunk(
+        &mut payload,
+        b"XMLM",
+        lod_object_visibility_payload([15.0, 25.0, 35.0], [45.0, 55.0, 65.0], 75.0),
     );
     payload
 }
@@ -875,5 +912,43 @@ fn lod_liquid_vertices_payload(vertices: &[[f32; 3]]) -> Vec<u8> {
             payload.extend_from_slice(&component.to_le_bytes());
         }
     }
+    payload
+}
+
+fn lod_object_placement_payload(
+    id: u32,
+    asset_id: u32,
+    position: [f32; 3],
+    rotation: [f32; 3],
+    scale: f32,
+    flags: u32,
+) -> Vec<u8> {
+    let mut payload = Vec::new();
+    payload.extend_from_slice(&id.to_le_bytes());
+    payload.extend_from_slice(&asset_id.to_le_bytes());
+    for component in position {
+        payload.extend_from_slice(&component.to_le_bytes());
+    }
+    for component in rotation {
+        payload.extend_from_slice(&component.to_le_bytes());
+    }
+    payload.extend_from_slice(&scale.to_le_bytes());
+    payload.extend_from_slice(&flags.to_le_bytes());
+    payload
+}
+
+fn lod_object_visibility_payload(
+    bounds_min: [f32; 3],
+    bounds_max: [f32; 3],
+    radius: f32,
+) -> Vec<u8> {
+    let mut payload = Vec::new();
+    for component in bounds_min {
+        payload.extend_from_slice(&component.to_le_bytes());
+    }
+    for component in bounds_max {
+        payload.extend_from_slice(&component.to_le_bytes());
+    }
+    payload.extend_from_slice(&radius.to_le_bytes());
     payload
 }

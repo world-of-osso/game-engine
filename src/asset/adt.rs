@@ -3,7 +3,8 @@ use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::adt_format::adt::{
     CHUNK_SIZE, ChunkHeightGrid, ChunkIter, FlightBounds, LodHeader, LodLevel, LodLiquidDirectory,
-    LodLiquidPatch, LodLiquidPatchHeader, LodQuadTreeNode, ParsedLodData, UNIT_SIZE, vertex_index,
+    LodLiquidPatch, LodLiquidPatchHeader, LodObjectPlacement, LodObjectVisibility, LodQuadTreeNode,
+    ParsedLodData, UNIT_SIZE, vertex_index,
 };
 pub use super::adt_format::adt_tex::{
     AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, TextureParams,
@@ -510,6 +511,10 @@ mod tests {
         assert_eq!(lod.nodes.len(), 102);
         assert_eq!(lod.indices.len(), 131_535);
         assert_eq!(lod.liquids.len(), 6);
+        assert!(lod.m2_placements.is_empty());
+        assert!(lod.m2_visibility.is_empty());
+        assert!(lod.wmo_placements.is_empty());
+        assert!(lod.wmo_visibility.is_empty());
     }
 
     #[test]

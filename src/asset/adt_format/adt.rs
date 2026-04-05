@@ -142,6 +142,10 @@ pub struct ParsedLodData {
     pub skirt_indices: Vec<u16>,
     pub liquid_directory: Option<LodLiquidDirectory>,
     pub liquids: Vec<LodLiquidPatch>,
+    pub m2_placements: Vec<LodObjectPlacement>,
+    pub m2_visibility: Vec<LodObjectVisibility>,
+    pub wmo_placements: Vec<LodObjectPlacement>,
+    pub wmo_visibility: Vec<LodObjectVisibility>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -159,6 +163,23 @@ pub struct LodLiquidPatch {
     pub header: LodLiquidPatchHeader,
     pub indices: Vec<u16>,
     pub vertices: Vec<[f32; 3]>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LodObjectPlacement {
+    pub id: u32,
+    pub asset_id: u32,
+    pub position: [f32; 3],
+    pub rotation: [f32; 3],
+    pub scale: f32,
+    pub flags: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LodObjectVisibility {
+    pub bounds_min: [f32; 3],
+    pub bounds_max: [f32; 3],
+    pub radius: f32,
 }
 
 #[derive(Debug, Clone, Copy, BinRead, PartialEq)]
@@ -267,6 +288,10 @@ struct LodRootChunks<'a> {
     mlvi: Option<&'a [u8]>,
     mlsi: Option<&'a [u8]>,
     mlld: Option<&'a [u8]>,
+    mldd: Option<&'a [u8]>,
+    mldx: Option<&'a [u8]>,
+    mlmd: Option<&'a [u8]>,
+    mlmx: Option<&'a [u8]>,
     liquid_groups: Vec<LodLiquidChunkGroup<'a>>,
 }
 
@@ -794,6 +819,81 @@ fn parse_lod_liquids(groups: Vec<LodLiquidChunkGroup<'_>>) -> Result<Vec<LodLiqu
         .collect()
 }
 
+fn parse_lod_object_placements(
+    payload: Option<&[u8]>,
+    label: &str,
+) -> Result<Vec<LodObjectPlacement>, String> {
+    const LOD_OBJECT_PLACEMENT_BYTES: usize = 40;
+    let Some(payload) = payload else {
+        return Ok(Vec::new());
+    };
+    if !payload.len().is_multiple_of(LOD_OBJECT_PLACEMENT_BYTES) {
+        return Err(format!(
+            "{label} size {} is not a multiple of {}",
+            payload.len(),
+            LOD_OBJECT_PLACEMENT_BYTES
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(LOD_OBJECT_PLACEMENT_BYTES)
+        .map(|offset| {
+            Ok(LodObjectPlacement {
+                id: read_u32(payload, offset)?,
+                asset_id: read_u32(payload, offset + 4)?,
+                position: [
+                    read_f32(payload, offset + 8)?,
+                    read_f32(payload, offset + 12)?,
+                    read_f32(payload, offset + 16)?,
+                ],
+                rotation: [
+                    read_f32(payload, offset + 20)?,
+                    read_f32(payload, offset + 24)?,
+                    read_f32(payload, offset + 28)?,
+                ],
+                scale: read_f32(payload, offset + 32)?,
+                flags: read_u32(payload, offset + 36)?,
+            })
+        })
+        .collect()
+}
+
+fn parse_lod_object_visibility(
+    payload: Option<&[u8]>,
+    label: &str,
+) -> Result<Vec<LodObjectVisibility>, String> {
+    const LOD_OBJECT_VISIBILITY_BYTES: usize = 28;
+    let Some(payload) = payload else {
+        return Ok(Vec::new());
+    };
+    if !payload.len().is_multiple_of(LOD_OBJECT_VISIBILITY_BYTES) {
+        return Err(format!(
+            "{label} size {} is not a multiple of {}",
+            payload.len(),
+            LOD_OBJECT_VISIBILITY_BYTES
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(LOD_OBJECT_VISIBILITY_BYTES)
+        .map(|offset| {
+            Ok(LodObjectVisibility {
+                bounds_min: [
+                    read_f32(payload, offset)?,
+                    read_f32(payload, offset + 4)?,
+                    read_f32(payload, offset + 8)?,
+                ],
+                bounds_max: [
+                    read_f32(payload, offset + 12)?,
+                    read_f32(payload, offset + 16)?,
+                    read_f32(payload, offset + 20)?,
+                ],
+                radius: read_f32(payload, offset + 24)?,
+            })
+        })
+        .collect()
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
@@ -1223,6 +1323,10 @@ fn collect_lod_chunks(data: &[u8]) -> Result<LodRootChunks<'_>, String> {
         mlvi: None,
         mlsi: None,
         mlld: None,
+        mldd: None,
+        mldx: None,
+        mlmd: None,
+        mlmx: None,
         liquid_groups: Vec::new(),
     };
     let mut pending_liquid_header = None;
@@ -1239,6 +1343,10 @@ fn collect_lod_chunks(data: &[u8]) -> Result<LodRootChunks<'_>, String> {
             b"IVLM" => root_chunks.mlvi = Some(payload),
             b"ISLM" => root_chunks.mlsi = Some(payload),
             b"DLLM" => root_chunks.mlld = Some(payload),
+            b"DDLM" => root_chunks.mldd = Some(payload),
+            b"XDLM" => root_chunks.mldx = Some(payload),
+            b"DMLM" => root_chunks.mlmd = Some(payload),
+            b"XMLM" => root_chunks.mlmx = Some(payload),
             b"NLLM" => {
                 pending_liquid_header = Some(payload);
                 pending_liquid_indices = None;
@@ -1364,6 +1472,10 @@ pub(crate) fn load_lod_adt(data: &[u8]) -> Result<ParsedLodData, String> {
             raw: payload.to_vec(),
         }),
         liquids: parse_lod_liquids(root_chunks.liquid_groups)?,
+        m2_placements: parse_lod_object_placements(root_chunks.mldd, "MLDD")?,
+        m2_visibility: parse_lod_object_visibility(root_chunks.mldx, "MLDX")?,
+        wmo_placements: parse_lod_object_placements(root_chunks.mlmd, "MLMD")?,
+        wmo_visibility: parse_lod_object_visibility(root_chunks.mlmx, "MLMX")?,
     })
 }
 
