@@ -205,7 +205,7 @@ fn particle_debug_emitter_variant(
         ParticleDebugEmitterStage::AuthoredCurves => emitter_with_authored_curves(authored),
         ParticleDebugEmitterStage::Flipbook => emitter_with_authored_flipbook(authored),
         ParticleDebugEmitterStage::MotionVariation => emitter_with_motion_variation(authored),
-        ParticleDebugEmitterStage::Full => return authored.clone(),
+        ParticleDebugEmitterStage::Full => authored.clone(),
     }
 }
 

@@ -132,6 +132,7 @@ fn choose_safe_spawn_position_avoids_nearby_wmo_chunk() {
             fdid: None,
             path: None,
         }],
+        chunk_refs: Vec::new(),
     };
 
     let spawn = terrain_spawn_position::choose_safe_spawn_position(&adt, Some(&obj_data))

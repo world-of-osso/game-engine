@@ -350,7 +350,7 @@ fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
     let source_data = std::fs::read(source_m2).expect("wolf m2 should be readable");
     let chunks = parse_chunks(&source_data).expect("wolf m2 should parse");
     assert!(
-        chunks.sfid.first().is_some(),
+        !chunks.sfid.is_empty(),
         "wolf m2 should reference an external skin via SFID"
     );
 

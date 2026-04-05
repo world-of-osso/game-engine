@@ -97,7 +97,10 @@ fn bone_scale_uses_bone_entity_only_without_world_space() {
 
     emitter.flags = PARTICLE_FLAG_BONE_SCALE;
     assert!(emitter_uses_bone_scale(&emitter));
-    assert_eq!(emitter_scale_source(&emitter, bone, parent), bone.unwrap());
+    assert_eq!(
+        emitter_scale_source(&emitter, bone, parent),
+        Entity::from_bits(22)
+    );
 
     emitter.flags = PARTICLE_FLAG_WORLD_SPACE | PARTICLE_FLAG_BONE_SCALE;
     assert!(!emitter_uses_bone_scale(&emitter));

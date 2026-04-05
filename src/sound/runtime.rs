@@ -525,6 +525,14 @@ fn generate_wav(samples: &[i16]) -> Vec<u8> {
     buf
 }
 
+fn compute_effects_volume(settings: &SoundSettings) -> f32 {
+    if settings.muted {
+        0.0
+    } else {
+        settings.effects_volume * settings.master_volume
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -658,12 +666,5 @@ mod tests {
         let tracker = FootstepTracker::default();
         assert_eq!(tracker.last_half, 0);
         assert_eq!(tracker.last_seq_idx, 0);
-    }
-}
-fn compute_effects_volume(settings: &SoundSettings) -> f32 {
-    if settings.muted {
-        0.0
-    } else {
-        settings.effects_volume * settings.master_volume
     }
 }

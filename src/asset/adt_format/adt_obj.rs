@@ -31,9 +31,16 @@ pub struct WmoPlacement {
     pub path: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ChunkObjectRefs {
+    pub doodad_refs: Vec<u32>,
+    pub wmo_refs: Vec<u32>,
+}
+
 pub struct AdtObjData {
     pub doodads: Vec<DoodadPlacement>,
     pub wmos: Vec<WmoPlacement>,
+    pub chunk_refs: Vec<ChunkObjectRefs>,
 }
 
 pub fn load_adt_obj0(data: &[u8]) -> Result<AdtObjData, String> {
@@ -49,16 +56,22 @@ pub fn load_adt_obj0(data: &[u8]) -> Result<AdtObjData, String> {
         Some(p) => parse_modf(&p, &chunks.mwmo, &chunks.mwid)?,
         None => Vec::new(),
     };
+    let chunk_refs = parse_chunk_object_refs(&chunks.mcnk_chunks)?;
 
     eprintln!(
-        "Loaded _obj0: {} doodads ({} model paths), {} WMOs ({} WMO paths)",
+        "Loaded _obj0: {} doodads ({} model paths), {} WMOs ({} WMO paths), {} chunk ref sets",
         doodads.len(),
         paths.len(),
         wmos.len(),
         wmo_paths.len(),
+        chunk_refs.len(),
     );
 
-    Ok(AdtObjData { doodads, wmos })
+    Ok(AdtObjData {
+        doodads,
+        wmos,
+        chunk_refs,
+    })
 }
 
 struct Obj0Chunks {
@@ -68,6 +81,7 @@ struct Obj0Chunks {
     mwid: Vec<u32>,
     mddf: Option<Vec<u8>>,
     modf: Option<Vec<u8>>,
+    mcnk_chunks: Vec<Vec<u8>>,
 }
 
 #[derive(BinRead)]
@@ -104,6 +118,7 @@ fn collect_obj0_chunks(data: &[u8]) -> Result<Obj0Chunks, String> {
         mwid: Vec::new(),
         mddf: None,
         modf: None,
+        mcnk_chunks: Vec::new(),
     };
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
@@ -114,6 +129,7 @@ fn collect_obj0_chunks(data: &[u8]) -> Result<Obj0Chunks, String> {
             b"DIWM" => c.mwid = parse_u32_array(payload),
             b"FDDM" => c.mddf = Some(payload.to_vec()),
             b"FDOM" => c.modf = Some(payload.to_vec()),
+            b"KNCM" => c.mcnk_chunks.push(payload.to_vec()),
             _ => {}
         }
     }
@@ -134,6 +150,26 @@ fn parse_u32_array(data: &[u8]) -> Vec<u32> {
     data.chunks_exact(4)
         .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
         .collect()
+}
+
+fn parse_chunk_object_refs(mcnk_chunks: &[Vec<u8>]) -> Result<Vec<ChunkObjectRefs>, String> {
+    mcnk_chunks
+        .iter()
+        .map(|payload| parse_mcnk_object_refs(payload))
+        .collect()
+}
+
+fn parse_mcnk_object_refs(payload: &[u8]) -> Result<ChunkObjectRefs, String> {
+    let mut refs = ChunkObjectRefs::default();
+    for chunk in ChunkIter::new(payload) {
+        let (tag, chunk_payload) = chunk?;
+        match tag {
+            b"DRCM" => refs.doodad_refs = parse_u32_array(chunk_payload),
+            b"WRCM" => refs.wmo_refs = parse_u32_array(chunk_payload),
+            _ => {}
+        }
+    }
+    Ok(refs)
 }
 
 fn string_at_offset(table: &[u8], offset: u32) -> Option<String> {
@@ -336,5 +372,77 @@ mod tests {
 
         assert_eq!(parsed.extents_min, [40.0, 50.0, 60.0]);
         assert_eq!(parsed.extents_max, [70.0, 80.0, 90.0]);
+    }
+
+    #[test]
+    fn load_adt_obj0_reads_per_chunk_object_refs() {
+        let mut payload = Vec::new();
+        append_subchunk(&mut payload, b"XDMM", b"foo.m2\0".to_vec());
+        append_subchunk(&mut payload, b"DIMM", 0u32.to_le_bytes().to_vec());
+        append_subchunk(&mut payload, b"OMWM", b"bar.wmo\0".to_vec());
+        append_subchunk(&mut payload, b"DIWM", 0u32.to_le_bytes().to_vec());
+        append_subchunk(&mut payload, b"FDDM", Vec::new());
+        append_subchunk(&mut payload, b"FDOM", Vec::new());
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            mcnk_object_refs_payload(&[1, 4, 7], &[2]),
+        );
+        append_subchunk(
+            &mut payload,
+            b"KNCM",
+            mcnk_object_refs_payload(&[], &[5, 6]),
+        );
+
+        let parsed = load_adt_obj0(&payload).expect("expected obj0 payload to parse");
+
+        assert_eq!(parsed.chunk_refs.len(), 2);
+        assert_eq!(parsed.chunk_refs[0].doodad_refs, vec![1, 4, 7]);
+        assert_eq!(parsed.chunk_refs[0].wmo_refs, vec![2]);
+        assert!(parsed.chunk_refs[1].doodad_refs.is_empty());
+        assert_eq!(parsed.chunk_refs[1].wmo_refs, vec![5, 6]);
+    }
+
+    #[test]
+    fn parse_elwynn_obj0_reads_chunk_object_refs() {
+        let data =
+            std::fs::read("data/terrain/azeroth_32_48_obj0.adt").expect("missing test asset");
+        let obj = load_adt_obj0(&data).expect("parse failed");
+
+        assert_eq!(
+            obj.chunk_refs.len(),
+            256,
+            "expected one KNCM ref set per ADT chunk"
+        );
+        assert!(
+            obj.chunk_refs
+                .iter()
+                .any(|chunk| !chunk.doodad_refs.is_empty() || !chunk.wmo_refs.is_empty()),
+            "expected at least one chunk to reference doodads or WMOs"
+        );
+    }
+
+    fn mcnk_object_refs_payload(doodad_refs: &[u32], wmo_refs: &[u32]) -> Vec<u8> {
+        let mut payload = Vec::new();
+        if !doodad_refs.is_empty() {
+            append_subchunk(&mut payload, b"DRCM", u32_array_payload(doodad_refs));
+        }
+        if !wmo_refs.is_empty() {
+            append_subchunk(&mut payload, b"WRCM", u32_array_payload(wmo_refs));
+        }
+        payload
+    }
+
+    fn u32_array_payload(values: &[u32]) -> Vec<u8> {
+        values
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect()
+    }
+
+    fn append_subchunk(payload: &mut Vec<u8>, tag: &[u8; 4], chunk_payload: Vec<u8>) {
+        payload.extend_from_slice(tag);
+        payload.extend_from_slice(&(chunk_payload.len() as u32).to_le_bytes());
+        payload.extend_from_slice(&chunk_payload);
     }
 }

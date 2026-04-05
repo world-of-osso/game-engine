@@ -64,10 +64,12 @@ fn terrain_vertex_uv(grid_row: usize, col: usize) -> [f32; 2] {
     }
 }
 
+type McnkVertexData = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
+
 fn collect_mcnk_vertices(
     chunk: &super::adt_format::adt::McnkData,
     tile_coords: Option<(u32, u32)>,
-) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>) {
+) -> McnkVertexData {
     let mut positions = Vec::with_capacity(145);
     let mut normals = Vec::with_capacity(145);
     let mut uvs = Vec::with_capacity(145);

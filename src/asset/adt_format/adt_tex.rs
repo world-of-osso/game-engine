@@ -840,7 +840,7 @@ mod tests {
     }
 
     fn u32_array_payload(values: &[u32]) -> Vec<u8> {
-        let mut payload = Vec::with_capacity(values.len() * size_of::<u32>());
+        let mut payload = Vec::with_capacity(std::mem::size_of_val(values));
         for value in values {
             payload.extend_from_slice(&value.to_le_bytes());
         }
