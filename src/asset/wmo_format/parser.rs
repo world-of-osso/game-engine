@@ -93,12 +93,32 @@ pub struct WmoMaterialDef {
     pub texture_2_fdid: u32,
     pub texture_3_fdid: u32,
     pub flags: u32,
+    pub material_flags: WmoMaterialFlags,
     pub blend_mode: u32,
     pub shader: u32,
     pub uv_translation_speed: Option<[[f32; 2]; 2]>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WmoMaterialFlags {
+    pub unlit: bool,
+    pub unfogged: bool,
+    pub unculled: bool,
+    pub exterior_light: bool,
+    pub sidn: bool,
+    pub window: bool,
+    pub clamp_s: bool,
+    pub clamp_t: bool,
+}
+
 impl WmoMaterialDef {
+    const UNLIT_FLAG: u32 = 0x01;
+    const UNFOGGED_FLAG: u32 = 0x02;
+    const UNCULLED_FLAG: u32 = 0x04;
+    const EXTERIOR_LIGHT_FLAG: u32 = 0x08;
+    const SIDN_WINDOW_FLAG: u32 = 0x10;
+    const CLAMP_S_FLAG: u32 = 0x20;
+    const CLAMP_T_FLAG: u32 = 0x40;
     const SECOND_COLOR_FLAG: u32 = 0x0100_0000;
     const SECOND_UV_FLAG: u32 = 0x0200_0000;
 
@@ -108,6 +128,22 @@ impl WmoMaterialDef {
 
     pub fn uses_second_uv_set(&self) -> bool {
         self.flags & Self::SECOND_UV_FLAG != 0 && matches!(self.shader, 6..=9 | 11..=15)
+    }
+}
+
+impl WmoMaterialFlags {
+    fn from_bits(bits: u32) -> Self {
+        let sidn_window = bits & WmoMaterialDef::SIDN_WINDOW_FLAG != 0;
+        Self {
+            unlit: bits & WmoMaterialDef::UNLIT_FLAG != 0,
+            unfogged: bits & WmoMaterialDef::UNFOGGED_FLAG != 0,
+            unculled: bits & WmoMaterialDef::UNCULLED_FLAG != 0,
+            exterior_light: bits & WmoMaterialDef::EXTERIOR_LIGHT_FLAG != 0,
+            sidn: sidn_window,
+            window: sidn_window,
+            clamp_s: bits & WmoMaterialDef::CLAMP_S_FLAG != 0,
+            clamp_t: bits & WmoMaterialDef::CLAMP_T_FLAG != 0,
+        }
     }
 }
 
@@ -783,6 +819,7 @@ pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
                 texture_2_fdid: mat.texture_2_fdid,
                 texture_3_fdid: mat.texture_3_fdid,
                 flags: mat.flags,
+                material_flags: WmoMaterialFlags::from_bits(mat.flags),
                 blend_mode: mat.blend_mode,
                 shader: mat.shader,
                 uv_translation_speed: None,
@@ -1293,9 +1330,7 @@ fn parse_mocv(data: &[u8]) -> Vec<[f32; 4]> {
 }
 
 fn parse_mocv_alpha(data: &[u8]) -> Vec<f32> {
-    data.chunks_exact(4)
-        .map(|c| c[3] as f32 / 255.0)
-        .collect()
+    data.chunks_exact(4).map(|c| c[3] as f32 / 255.0).collect()
 }
 
 pub fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
@@ -1330,7 +1365,33 @@ mod tests {
         let mats = parse_momt(&data).unwrap();
         assert_eq!(mats.len(), 1);
         assert_eq!(mats[0].texture_fdid, 0);
+        assert_eq!(mats[0].material_flags, WmoMaterialFlags::default());
         assert_eq!(mats[0].uv_translation_speed, None);
+    }
+
+    #[test]
+    fn parse_momt_reads_named_material_flags() {
+        let mut data = vec![0_u8; MOMT_ENTRY_SIZE];
+        let flags = 0x7F_u32;
+        data[0..4].copy_from_slice(&flags.to_le_bytes());
+
+        let mats = parse_momt(&data).expect("parse MOMT");
+
+        assert_eq!(mats.len(), 1);
+        assert_eq!(mats[0].flags, flags);
+        assert_eq!(
+            mats[0].material_flags,
+            WmoMaterialFlags {
+                unlit: true,
+                unfogged: true,
+                unculled: true,
+                exterior_light: true,
+                sidn: true,
+                window: true,
+                clamp_s: true,
+                clamp_t: true,
+            }
+        );
     }
 
     #[test]
@@ -1375,6 +1436,38 @@ mod tests {
         assert_eq!(
             root.materials[0].uv_translation_speed,
             Some([[0.25, 0.5], [0.75, 1.0]])
+        );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_momt_material_flags() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"TMOM");
+        data.extend_from_slice(&(MOMT_ENTRY_SIZE as u32).to_le_bytes());
+        let mut momt = vec![0_u8; MOMT_ENTRY_SIZE];
+        let flags = 0x2F_u32;
+        momt[0..4].copy_from_slice(&flags.to_le_bytes());
+        momt[12..16].copy_from_slice(&123_u32.to_le_bytes());
+        data.extend_from_slice(&momt);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+        let material = &root.materials[0];
+
+        assert_eq!(material.flags, flags);
+        assert_eq!(material.texture_fdid, 123);
+        assert_eq!(
+            material.material_flags,
+            WmoMaterialFlags {
+                unlit: true,
+                unfogged: true,
+                unculled: true,
+                exterior_light: true,
+                sidn: false,
+                window: false,
+                clamp_s: true,
+                clamp_t: false,
+            }
         );
     }
 
@@ -1917,7 +2010,10 @@ mod tests {
         let group = parse_group_subchunks(&data).expect("parse group subchunks");
 
         assert_eq!(group.colors.len(), 1);
-        assert_eq!(group.second_color_blend_alphas, vec![64.0 / 255.0, 192.0 / 255.0]);
+        assert_eq!(
+            group.second_color_blend_alphas,
+            vec![64.0 / 255.0, 192.0 / 255.0]
+        );
     }
 
     #[test]

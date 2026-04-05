@@ -116,7 +116,7 @@ fn doodad_transform_lifts_props_to_terrain_height() {
 
 #[test]
 fn wmo_vertex_colored_materials_are_unlit() {
-    let material = super::terrain_objects_wmo::wmo_standard_material(None, 0, 0, true);
+    let material = super::terrain_objects_wmo::wmo_standard_material(None, 0, false, true);
     assert!(material.unlit);
 }
 

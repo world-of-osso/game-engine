@@ -3,13 +3,16 @@ use bevy::mesh::{Indices, Mesh, MeshVertexAttribute, PrimitiveTopology};
 use bevy::render::render_resource::VertexFormat;
 
 pub use super::wmo_format::parser::{
-    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoBspNode, WmoGroupHeader, WmoGroupInfo,
-    WmoLiquid, WmoMaterialDef, WmoPortal, WmoPortalRef, WmoRootData, WmoRootFlags, find_mogp,
-    load_wmo_root, parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
+    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoBspNode, WmoGroupHeader, WmoGroupInfo, WmoLiquid,
+    WmoMaterialDef, WmoMaterialFlags, WmoPortal, WmoPortalRef, WmoRootData, WmoRootFlags,
+    find_mogp, load_wmo_root, parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
 };
 
-pub const WMO_BLEND_ALPHA_ATTRIBUTE: MeshVertexAttribute =
-    MeshVertexAttribute::new("WmoBlendAlpha", 0x6d28_7f31_8d44_0001, VertexFormat::Float32);
+pub const WMO_BLEND_ALPHA_ATTRIBUTE: MeshVertexAttribute = MeshVertexAttribute::new(
+    "WmoBlendAlpha",
+    0x6d28_7f31_8d44_0001,
+    VertexFormat::Float32,
+);
 
 pub struct WmoGroupData {
     pub header: WmoGroupHeader,
@@ -206,7 +209,11 @@ fn first_interior_vertex_index(header: &WmoGroupHeader, batches: &[RawBatch]) ->
 }
 
 fn fixed_vertex_alpha(header: &WmoGroupHeader) -> f32 {
-    if header.group_flags.exterior { 1.0 } else { 0.0 }
+    if header.group_flags.exterior {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
@@ -313,7 +320,13 @@ fn extract_batch_vertices(
     } else {
         None
     };
-    (positions, normals, uvs, second_uvs, second_color_blend_alphas)
+    (
+        positions,
+        normals,
+        uvs,
+        second_uvs,
+        second_color_blend_alphas,
+    )
 }
 
 fn extract_batch_indices(raw: &RawGroupData, batch: &RawBatch) -> Vec<u32> {
@@ -693,8 +706,17 @@ mod tests {
         let mut data = Vec::new();
         let moba_size = 24_u32;
         let motv_size = 8_u32;
-        let mogp_size =
-            MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + motv_size + 8 + motv_size + 8 + 12 + 8 + 6;
+        let mogp_size = MOGP_HEADER_SIZE as u32
+            + 8
+            + moba_size
+            + 8
+            + motv_size
+            + 8
+            + motv_size
+            + 8
+            + 12
+            + 8
+            + 6;
         data.extend_from_slice(b"PGOM");
         data.extend_from_slice(&mogp_size.to_le_bytes());
         data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
@@ -741,6 +763,7 @@ mod tests {
                 texture_2_fdid: 0,
                 texture_3_fdid: 0,
                 flags: 0x0200_0000,
+                material_flags: WmoMaterialFlags::default(),
                 blend_mode: 0,
                 shader: 6,
                 uv_translation_speed: None,
@@ -760,8 +783,17 @@ mod tests {
         let mut data = Vec::new();
         let moba_size = 24_u32;
         let motv_size = 8_u32;
-        let mogp_size =
-            MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + motv_size + 8 + motv_size + 8 + 12 + 8 + 6;
+        let mogp_size = MOGP_HEADER_SIZE as u32
+            + 8
+            + moba_size
+            + 8
+            + motv_size
+            + 8
+            + motv_size
+            + 8
+            + 12
+            + 8
+            + 6;
         data.extend_from_slice(b"PGOM");
         data.extend_from_slice(&mogp_size.to_le_bytes());
         data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
@@ -808,6 +840,7 @@ mod tests {
                 texture_2_fdid: 0,
                 texture_3_fdid: 0,
                 flags: 0x0200_0000,
+                material_flags: WmoMaterialFlags::default(),
                 blend_mode: 0,
                 shader: 5,
                 uv_translation_speed: None,
@@ -815,7 +848,12 @@ mod tests {
         );
         let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
 
-        assert!(group.batches[0].mesh.attribute(Mesh::ATTRIBUTE_UV_1).is_none());
+        assert!(
+            group.batches[0]
+                .mesh
+                .attribute(Mesh::ATTRIBUTE_UV_1)
+                .is_none()
+        );
         assert!(!group.batches[0].uses_second_uv_set);
     }
 
@@ -824,8 +862,17 @@ mod tests {
         let mut data = Vec::new();
         let moba_size = 24_u32;
         let mocv_size = 4_u32;
-        let mogp_size =
-            MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + mocv_size + 8 + mocv_size + 8 + 12 + 8 + 6;
+        let mogp_size = MOGP_HEADER_SIZE as u32
+            + 8
+            + moba_size
+            + 8
+            + mocv_size
+            + 8
+            + mocv_size
+            + 8
+            + 12
+            + 8
+            + 6;
         data.extend_from_slice(b"PGOM");
         data.extend_from_slice(&mogp_size.to_le_bytes());
         data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
@@ -868,6 +915,7 @@ mod tests {
                 texture_2_fdid: 0,
                 texture_3_fdid: 0,
                 flags: 0x0100_0000,
+                material_flags: WmoMaterialFlags::default(),
                 blend_mode: 0,
                 shader: 0,
                 uv_translation_speed: None,
@@ -888,8 +936,17 @@ mod tests {
         let mut data = Vec::new();
         let moba_size = 24_u32;
         let mocv_size = 4_u32;
-        let mogp_size =
-            MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + mocv_size + 8 + mocv_size + 8 + 12 + 8 + 6;
+        let mogp_size = MOGP_HEADER_SIZE as u32
+            + 8
+            + moba_size
+            + 8
+            + mocv_size
+            + 8
+            + mocv_size
+            + 8
+            + 12
+            + 8
+            + 6;
         data.extend_from_slice(b"PGOM");
         data.extend_from_slice(&mogp_size.to_le_bytes());
         data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
@@ -932,6 +989,7 @@ mod tests {
                 texture_2_fdid: 0,
                 texture_3_fdid: 0,
                 flags: 0,
+                material_flags: WmoMaterialFlags::default(),
                 blend_mode: 0,
                 shader: 0,
                 uv_translation_speed: None,
@@ -939,10 +997,12 @@ mod tests {
         );
         let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
 
-        assert!(group.batches[0]
-            .mesh
-            .attribute(WMO_BLEND_ALPHA_ATTRIBUTE)
-            .is_none());
+        assert!(
+            group.batches[0]
+                .mesh
+                .attribute(WMO_BLEND_ALPHA_ATTRIBUTE)
+                .is_none()
+        );
         assert!(!group.batches[0].uses_second_color_blend_alpha);
     }
 

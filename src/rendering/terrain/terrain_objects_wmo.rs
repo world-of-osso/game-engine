@@ -8,8 +8,6 @@ use crate::asset::{adt_format::adt_obj, blp, wmo};
 
 use super::{SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform};
 
-const WMO_DOUBLE_SIDED_FLAG: u32 = 0x04;
-
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WmoAdtMetadata {
     pub unique_id: u32,
@@ -420,7 +418,7 @@ fn wmo_batch_material(
     materials.add(wmo_standard_material(
         image,
         material_props.blend_mode,
-        material_props.flags,
+        material_props.unculled,
         has_vertex_color,
     ))
 }
@@ -430,7 +428,7 @@ struct WmoMaterialProps {
     texture_2_fdid: u32,
     texture_3_fdid: u32,
     blend_mode: u32,
-    flags: u32,
+    unculled: bool,
     shader: u32,
 }
 
@@ -441,7 +439,7 @@ fn wmo_material_props(root: &wmo::WmoRootData, material_index: u16) -> WmoMateri
         texture_2_fdid: mat_def.map(|m| m.texture_2_fdid).unwrap_or(0),
         texture_3_fdid: mat_def.map(|m| m.texture_3_fdid).unwrap_or(0),
         blend_mode: mat_def.map(|m| m.blend_mode).unwrap_or(0),
-        flags: mat_def.map(|m| m.flags).unwrap_or(0),
+        unculled: mat_def.map(|m| m.material_flags.unculled).unwrap_or(false),
         shader: mat_def.map(|m| m.shader).unwrap_or(0),
     }
 }
@@ -567,7 +565,7 @@ fn build_wmo_material_image(pixels: Vec<u8>, width: u32, height: u32) -> Image {
 pub(super) fn wmo_standard_material(
     texture: Option<Handle<Image>>,
     blend_mode: u32,
-    flags: u32,
+    unculled: bool,
     has_vertex_color: bool,
 ) -> StandardMaterial {
     let alpha_mode = match blend_mode {
@@ -575,7 +573,7 @@ pub(super) fn wmo_standard_material(
         _ if texture.is_some() => AlphaMode::Mask(0.5),
         _ => AlphaMode::Opaque,
     };
-    let double_sided = (flags & WMO_DOUBLE_SIDED_FLAG) != 0;
+    let double_sided = unculled;
     let prop_like_surface = double_sided || !matches!(alpha_mode, AlphaMode::Opaque);
     StandardMaterial {
         base_color: if texture.is_none() {
