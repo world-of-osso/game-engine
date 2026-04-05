@@ -174,35 +174,50 @@ pub(crate) fn wmo_standard_material(
     let double_sided = unculled;
     let prop_like_surface = double_sided || !matches!(alpha_mode, AlphaMode::Opaque);
     let surface = wmo_surface_params(texture.is_some(), prop_like_surface, shader);
-    let shader_emissive = if describe_wmo_shader(shader).emissive {
-        LinearRgba::rgb(0.05, 0.05, 0.05)
-    } else {
-        LinearRgba::BLACK
-    };
     StandardMaterial {
-        base_color: if let Some(ambient) = interior_ambient {
-            Color::linear_rgba(ambient[0], ambient[1], ambient[2], 1.0)
-        } else if texture.is_none() {
-            Color::srgb(0.6, 0.6, 0.6)
-        } else {
-            Color::WHITE
-        },
+        base_color: wmo_base_color(interior_ambient, texture.is_some()),
         base_color_texture: texture,
         perceptual_roughness: surface.roughness,
         reflectance: surface.reflectance,
         metallic: surface.metallic,
-        emissive: sidn_glow
-            .map(|glow| sidn_emissive_color(glow.base_sidn_color, 0.0))
-            .unwrap_or(shader_emissive),
+        emissive: wmo_emissive(shader, sidn_glow),
         unlit: has_vertex_color,
         double_sided,
-        cull_mode: if double_sided {
-            None
-        } else {
-            Some(bevy::render::render_resource::Face::Back)
-        },
+        cull_mode: wmo_cull_mode(double_sided),
         alpha_mode,
         ..default()
+    }
+}
+
+fn wmo_base_color(interior_ambient: Option<[f32; 4]>, has_texture: bool) -> Color {
+    if let Some(ambient) = interior_ambient {
+        Color::linear_rgba(ambient[0], ambient[1], ambient[2], 1.0)
+    } else if !has_texture {
+        Color::srgb(0.6, 0.6, 0.6)
+    } else {
+        Color::WHITE
+    }
+}
+
+fn wmo_emissive(shader: u32, sidn_glow: Option<WmoSidnGlow>) -> LinearRgba {
+    sidn_glow
+        .map(|glow| sidn_emissive_color(glow.base_sidn_color, 0.0))
+        .unwrap_or_else(|| shader_emissive(shader))
+}
+
+fn shader_emissive(shader: u32) -> LinearRgba {
+    if describe_wmo_shader(shader).emissive {
+        LinearRgba::rgb(0.05, 0.05, 0.05)
+    } else {
+        LinearRgba::BLACK
+    }
+}
+
+fn wmo_cull_mode(double_sided: bool) -> Option<bevy::render::render_resource::Face> {
+    if double_sided {
+        None
+    } else {
+        Some(bevy::render::render_resource::Face::Back)
     }
 }
 
