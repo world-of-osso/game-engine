@@ -18,7 +18,11 @@ use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path
 use crate::water_material::{self, WaterMaterial, WaterSettings};
 
 use super::{
-    SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform, wow_quat_to_bevy,
+    SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute,
+    terrain_objects_wmo_material::{
+        composite_wmo_shader_layer, describe_wmo_shader, wmo_surface_params,
+    },
+    wmo_transform, wow_quat_to_bevy,
 };
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,6 +35,7 @@ pub struct WmoAdtMetadata {
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct WmoTextureCacheKey {
     base_path: PathBuf,
+    shader: u32,
     texture_2_fdid: u32,
     texture_3_fdid: u32,
 }
@@ -970,6 +975,7 @@ fn wmo_batch_material(
         image,
         material_props.blend_mode,
         material_props.unculled,
+        material_props.shader,
         interior_ambient,
         has_vertex_color,
         material_props.sidn_glow,
@@ -1031,6 +1037,7 @@ fn load_wmo_batch_material_image(
     };
     match load_wmo_material_image(
         &blp_path,
+        material_props.shader,
         material_props.texture_2_fdid,
         material_props.texture_3_fdid,
         images,
@@ -1061,12 +1068,14 @@ fn log_wmo_texture_extract_failure(texture_fdid: u32) {
 
 fn load_wmo_material_image(
     base_path: &Path,
+    shader: u32,
     texture_2_fdid: u32,
     texture_3_fdid: u32,
     images: &mut Assets<Image>,
 ) -> Result<Handle<Image>, String> {
     let key = WmoTextureCacheKey {
         base_path: base_path.to_path_buf(),
+        shader,
         texture_2_fdid,
         texture_3_fdid,
     };
@@ -1075,7 +1084,7 @@ fn load_wmo_material_image(
         return cached;
     }
     let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
-    composite_wmo_overlay_layers(&mut pixels, w, h, [texture_2_fdid, texture_3_fdid]);
+    composite_wmo_overlay_layers(&mut pixels, w, h, shader, [texture_2_fdid, texture_3_fdid]);
     let handle = images.add(build_wmo_material_image(pixels, w, h));
     cache.lock().unwrap().insert(key, Ok(handle.clone()));
     Ok(handle)
@@ -1097,9 +1106,13 @@ fn composite_wmo_overlay_layers(
     pixels: &mut [u8],
     width: u32,
     height: u32,
+    shader: u32,
     overlay_fdids: [u32; 2],
 ) {
-    for overlay_fdid in overlay_fdids {
+    let descriptor = describe_wmo_shader(shader);
+    let combine_modes = [descriptor.second_layer, descriptor.third_layer];
+
+    for (overlay_fdid, combine_mode) in overlay_fdids.into_iter().zip(combine_modes) {
         if overlay_fdid == 0 {
             continue;
         }
@@ -1110,7 +1123,7 @@ fn composite_wmo_overlay_layers(
             continue;
         };
         if ov_w == width && ov_h == height {
-            blp::blit_region(pixels, width, &overlay_pixels, ov_w, ov_h, 0, 0);
+            composite_wmo_shader_layer(pixels, &overlay_pixels, combine_mode);
         }
     }
 }
@@ -1139,6 +1152,7 @@ pub(super) fn wmo_standard_material(
     texture: Option<Handle<Image>>,
     blend_mode: u32,
     unculled: bool,
+    shader: u32,
     interior_ambient: Option<[f32; 4]>,
     has_vertex_color: bool,
     sidn_glow: Option<WmoSidnGlow>,
@@ -1150,6 +1164,12 @@ pub(super) fn wmo_standard_material(
     };
     let double_sided = unculled;
     let prop_like_surface = double_sided || !matches!(alpha_mode, AlphaMode::Opaque);
+    let surface = wmo_surface_params(texture.is_some(), prop_like_surface, shader);
+    let shader_emissive = if describe_wmo_shader(shader).emissive {
+        LinearRgba::rgb(0.05, 0.05, 0.05)
+    } else {
+        LinearRgba::BLACK
+    };
     StandardMaterial {
         base_color: if let Some(ambient) = interior_ambient {
             Color::linear_rgba(ambient[0], ambient[1], ambient[2], 1.0)
@@ -1159,11 +1179,12 @@ pub(super) fn wmo_standard_material(
             Color::WHITE
         },
         base_color_texture: texture,
-        perceptual_roughness: if prop_like_surface { 0.97 } else { 0.88 },
-        reflectance: if prop_like_surface { 0.02 } else { 0.18 },
+        perceptual_roughness: surface.roughness,
+        reflectance: surface.reflectance,
+        metallic: surface.metallic,
         emissive: sidn_glow
             .map(|glow| sidn_emissive_color(glow.base_sidn_color, 0.0))
-            .unwrap_or(LinearRgba::BLACK),
+            .unwrap_or(shader_emissive),
         unlit: has_vertex_color,
         double_sided,
         cull_mode: if double_sided {

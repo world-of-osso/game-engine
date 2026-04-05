@@ -1,6 +1,7 @@
 //! Doodad (M2) and WMO spawning from _obj0/_obj1/_obj2 ADT companion files.
 
 mod terrain_objects_wmo;
+mod terrain_objects_wmo_material;
 
 use std::path::Path;
 

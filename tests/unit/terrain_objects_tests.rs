@@ -118,7 +118,7 @@ fn doodad_transform_lifts_props_to_terrain_height() {
 #[test]
 fn wmo_vertex_colored_materials_are_unlit() {
     let material =
-        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, None, true, None);
+        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, 0, None, true, None);
     assert!(material.unlit);
 }
 
@@ -128,6 +128,7 @@ fn wmo_interior_ambient_color_tints_material_base_color() {
         None,
         0,
         false,
+        0,
         Some([0.2, 0.4, 0.6, 1.0]),
         false,
         None,
@@ -142,12 +143,23 @@ fn wmo_interior_ambient_color_tints_material_base_color() {
 #[test]
 fn wmo_without_interior_ambient_keeps_default_neutral_base_color() {
     let material =
-        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, None, false, None);
+        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, 0, None, false, None);
 
     let color = material.base_color.to_linear().to_f32_array();
-    assert!((color[0] - 0.6).abs() < 0.001);
-    assert!((color[1] - 0.6).abs() < 0.001);
-    assert!((color[2] - 0.6).abs() < 0.001);
+    let expected = Color::srgb(0.6, 0.6, 0.6).to_linear().to_f32_array();
+    assert!((color[0] - expected[0]).abs() < 0.001);
+    assert!((color[1] - expected[1]).abs() < 0.001);
+    assert!((color[2] - expected[2]).abs() < 0.001);
+}
+
+#[test]
+fn env_metal_wmo_materials_gain_reflective_surface_params() {
+    let material =
+        super::terrain_objects_wmo::wmo_standard_material(None, 0, false, 5, None, false, None);
+
+    assert!((material.perceptual_roughness - 0.25).abs() < 0.001);
+    assert!((material.reflectance - 0.5).abs() < 0.001);
+    assert!((material.metallic - 0.85).abs() < 0.001);
 }
 
 #[test]
