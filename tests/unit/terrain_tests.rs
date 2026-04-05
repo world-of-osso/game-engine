@@ -337,6 +337,28 @@ fn terrain_shader_applies_overbright_layer_multiplier() {
 }
 
 #[test]
+fn terrain_shader_applies_shadow_map_overlay() {
+    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
+        .expect("terrain shader should be readable");
+
+    assert!(
+        shader.contains("let static_shadow = textureSample(shadow_map, shadow_sampler, uv).r;"),
+        "expected terrain shader to sample the packed MCSH shadow map"
+    );
+    assert!(
+        shader
+            .contains("let shadow_light = mix(STATIC_SHADOW_MIN_BRIGHTNESS, 1.0, static_shadow);"),
+        "expected terrain shader to turn MCSH into a darkening factor instead of a hard binary mask"
+    );
+    assert!(
+        shader.contains(
+            "let shaded_color = vec4<f32>(color.rgb * vertex_color * shadow_light, color.a);"
+        ),
+        "expected terrain shader to multiply terrain lighting by the static shadow factor"
+    );
+}
+
+#[test]
 fn terrain_shader_samples_environment_map_for_reflective_layers() {
     let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
         .expect("terrain shader should be readable");
