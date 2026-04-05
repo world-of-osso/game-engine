@@ -98,6 +98,14 @@ pub struct WmoMaterialDef {
     pub uv_translation_speed: Option<[[f32; 2]; 2]>,
 }
 
+impl WmoMaterialDef {
+    const SECOND_UV_FLAG: u32 = 0x0200_0000;
+
+    pub fn uses_second_uv_set(&self) -> bool {
+        self.flags & Self::SECOND_UV_FLAG != 0 && matches!(self.shader, 6..=9 | 11..=15)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct WmoRootFlags {
     pub do_not_attenuate_vertices: bool,
@@ -261,6 +269,7 @@ pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
     pub uvs: Vec<[f32; 2]>,
+    pub second_uvs: Vec<[f32; 2]>,
     pub colors: Vec<[f32; 4]>,
     pub indices: Vec<u16>,
     pub batches: Vec<RawBatch>,
@@ -1098,6 +1107,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
+    let mut second_uvs = Vec::new();
     let mut colors = Vec::new();
     let mut indices = Vec::new();
     let mut batches = Vec::new();
@@ -1113,7 +1123,13 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
             b"QILM" => liquid = Some(parse_mliq(payload)?),
             b"TVOM" => vertices = parse_vec3_array(payload)?,
             b"RNOM" => normals = parse_vec3_array(payload)?,
-            b"VTOM" => uvs = parse_vec2_array(payload)?,
+            b"VTOM" => {
+                if uvs.is_empty() {
+                    uvs = parse_vec2_array(payload)?;
+                } else {
+                    second_uvs = parse_vec2_array(payload)?;
+                }
+            }
             b"VCOM" => colors = parse_mocv(payload),
             b"IVOM" => indices = parse_u16_array(payload),
             b"ABOM" => batches = parse_moba(payload)?,
@@ -1138,6 +1154,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         vertices,
         normals,
         uvs,
+        second_uvs,
         colors,
         indices,
         batches,
@@ -1818,6 +1835,39 @@ mod tests {
         assert_eq!(group.bsp_nodes[0].face_start, 7);
         assert_eq!(group.bsp_nodes[0].plane_dist, 12.5);
         assert_eq!(group.bsp_face_refs, vec![4, 8, 9]);
+    }
+
+    #[test]
+    fn parse_group_subchunks_preserves_second_motv_uv_set() {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        for value in [3.0_f32, 4.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = parse_group_subchunks(&data).expect("parse group subchunks");
+
+        assert_eq!(group.uvs, vec![[1.0, 2.0]]);
+        assert_eq!(group.second_uvs, vec![[3.0, 4.0]]);
     }
 
     #[test]

@@ -21,6 +21,7 @@ pub struct WmoGroupBatch {
     pub mesh: Mesh,
     pub material_index: u16,
     pub batch_type: WmoBatchType,
+    pub uses_second_uv_set: bool,
     pub has_vertex_color: bool,
 }
 
@@ -33,7 +34,12 @@ pub enum WmoBatchType {
     Unknown,
 }
 
-type BatchVertexAttribs = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
+type BatchVertexAttribs = (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Option<Vec<[f32; 2]>>,
+);
 
 pub fn load_wmo_group(data: &[u8]) -> Result<WmoGroupData, String> {
     load_wmo_group_with_root(data, None)
@@ -77,6 +83,7 @@ fn build_group_batches(
                 mesh,
                 material_index: 0,
                 batch_type: WmoBatchType::WholeGroup,
+                uses_second_uv_set: false,
                 has_vertex_color: whole_group_has_vertex_color,
             }],
         });
@@ -84,11 +91,13 @@ fn build_group_batches(
 
     let mut out = Vec::with_capacity(raw.batches.len());
     for (index, batch) in raw.batches.iter().enumerate() {
-        let mesh = build_batch_mesh(&raw, batch);
+        let uses_second_uv_set = batch_uses_second_uv_set(root, batch.material_id);
+        let mesh = build_batch_mesh(&raw, batch, uses_second_uv_set);
         out.push(WmoGroupBatch {
             mesh,
             material_index: batch.material_id,
             batch_type: classify_batch_type(&header, index),
+            uses_second_uv_set,
             has_vertex_color: raw.colors.len() > batch.max_index as usize,
         });
     }
@@ -120,6 +129,11 @@ fn classify_batch_type(header: &WmoGroupHeader, batch_index: usize) -> WmoBatchT
     }
 
     WmoBatchType::Unknown
+}
+
+fn batch_uses_second_uv_set(root: Option<&WmoRootData>, material_index: u16) -> bool {
+    root.and_then(|root| root.materials.get(material_index as usize))
+        .is_some_and(WmoMaterialDef::uses_second_uv_set)
 }
 
 fn apply_mocv_vertex_color_fix(
@@ -183,6 +197,7 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
         .collect();
     let normals = convert_normals(&raw.normals, positions.len());
     let uvs = convert_uvs(&raw.uvs, positions.len());
+    let second_uvs = convert_optional_uvs(&raw.second_uvs, positions.len());
     let colors = convert_colors(&raw.colors, positions.len());
     let indices = extract_renderable_whole_group_indices(raw);
 
@@ -193,6 +208,9 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    if let Some(second_uvs) = second_uvs {
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_1, second_uvs);
+    }
     if let Some(colors) = colors {
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     }
@@ -200,12 +218,12 @@ fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
     mesh
 }
 
-fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
+fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch, uses_second_uv_set: bool) -> Mesh {
     let vmin = batch.min_index as usize;
     let vmax = (batch.max_index as usize).min(raw.vertices.len().saturating_sub(1));
     let vert_count = vmax - vmin + 1;
 
-    let (positions, normals, uvs) = extract_batch_vertices(raw, vmin, vmax, vert_count);
+    let (positions, normals, uvs, second_uvs) = extract_batch_vertices(raw, vmin, vmax, vert_count);
     let indices = extract_batch_indices(raw, batch);
     let colors = extract_batch_colors(raw, vmin, vmax);
 
@@ -216,6 +234,9 @@ fn build_batch_mesh(raw: &RawGroupData, batch: &RawBatch) -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    if uses_second_uv_set && let Some(second_uvs) = second_uvs {
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_1, second_uvs);
+    }
     if let Some(colors) = colors {
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     }
@@ -246,7 +267,12 @@ fn extract_batch_vertices(
     } else {
         vec![[0.0, 0.0]; vert_count]
     };
-    (positions, normals, uvs)
+    let second_uvs = if raw.second_uvs.len() > vmax {
+        Some(raw.second_uvs[vmin..=vmax].to_vec())
+    } else {
+        None
+    };
+    (positions, normals, uvs, second_uvs)
 }
 
 fn extract_batch_indices(raw: &RawGroupData, batch: &RawBatch) -> Vec<u32> {
@@ -290,6 +316,10 @@ fn convert_uvs(src: &[[f32; 2]], expected: usize) -> Vec<[f32; 2]> {
     } else {
         vec![[0.0, 0.0]; expected]
     }
+}
+
+fn convert_optional_uvs(src: &[[f32; 2]], expected: usize) -> Option<Vec<[f32; 2]>> {
+    (src.len() == expected).then(|| src.to_vec())
 }
 
 fn convert_colors(src: &[[f32; 4]], expected: usize) -> Option<Vec<[f32; 4]>> {
@@ -349,6 +379,12 @@ mod tests {
             group_infos: Vec::new(),
             skybox_wow_path: None,
         }
+    }
+
+    fn empty_root_with_material(flags: WmoRootFlags, material: WmoMaterialDef) -> WmoRootData {
+        let mut root = empty_root(flags);
+        root.materials.push(material);
+        root
     }
 
     #[test]
@@ -605,6 +641,137 @@ mod tests {
         assert_eq!(colors.len(), 1);
         assert!((colors[0][0] - 0.2509804).abs() < 0.001);
         assert_eq!(colors[0][3], 0.0);
+    }
+
+    #[test]
+    fn load_wmo_group_with_root_adds_uv1_for_dual_uv_materials() {
+        let mut data = Vec::new();
+        let moba_size = 24_u32;
+        let motv_size = 8_u32;
+        let mogp_size =
+            MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + motv_size + 8 + motv_size + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"ABOM");
+        data.extend_from_slice(&moba_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.push(0);
+        data.push(0);
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&motv_size.to_le_bytes());
+        for value in [1.0_f32, 2.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&motv_size.to_le_bytes());
+        for value in [3.0_f32, 4.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let root = empty_root_with_material(
+            WmoRootFlags::default(),
+            WmoMaterialDef {
+                texture_fdid: 0,
+                texture_2_fdid: 0,
+                texture_3_fdid: 0,
+                flags: 0x0200_0000,
+                blend_mode: 0,
+                shader: 6,
+                uv_translation_speed: None,
+            },
+        );
+        let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+
+        assert!(matches!(
+            group.batches[0].mesh.attribute(Mesh::ATTRIBUTE_UV_1),
+            Some(bevy::mesh::VertexAttributeValues::Float32x2(values)) if values == &vec![[3.0, 4.0]]
+        ));
+        assert!(group.batches[0].uses_second_uv_set);
+    }
+
+    #[test]
+    fn load_wmo_group_with_root_skips_uv1_for_non_dual_uv_materials() {
+        let mut data = Vec::new();
+        let moba_size = 24_u32;
+        let motv_size = 8_u32;
+        let mogp_size =
+            MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + motv_size + 8 + motv_size + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"ABOM");
+        data.extend_from_slice(&moba_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; 10]);
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.push(0);
+        data.push(0);
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&motv_size.to_le_bytes());
+        for value in [1.0_f32, 2.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"VTOM");
+        data.extend_from_slice(&motv_size.to_le_bytes());
+        for value in [3.0_f32, 4.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let root = empty_root_with_material(
+            WmoRootFlags::default(),
+            WmoMaterialDef {
+                texture_fdid: 0,
+                texture_2_fdid: 0,
+                texture_3_fdid: 0,
+                flags: 0x0200_0000,
+                blend_mode: 0,
+                shader: 5,
+                uv_translation_speed: None,
+            },
+        );
+        let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+
+        assert!(group.batches[0].mesh.attribute(Mesh::ATTRIBUTE_UV_1).is_none());
+        assert!(!group.batches[0].uses_second_uv_set);
     }
 
     #[test]
