@@ -25,6 +25,7 @@ pub struct WmoRootData {
     pub global_ambient_volumes: Vec<WmoAmbientVolume>,
     pub ambient_volumes: Vec<WmoAmbientVolume>,
     pub baked_ambient_box_volumes: Vec<WmoAmbientBoxVolume>,
+    pub dynamic_lights: Vec<WmoNewLight>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -182,6 +183,35 @@ pub struct WmoAmbientBoxVolume {
     pub doodad_set_id: u16,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WmoNewLightType {
+    Point = 0,
+    Spot = 1,
+}
+
+impl WmoNewLightType {
+    fn from_raw(raw: i32) -> Self {
+        match raw {
+            1 => Self::Spot,
+            _ => Self::Point,
+        }
+    }
+}
+
+pub struct WmoNewLight {
+    pub light_type: WmoNewLightType,
+    pub light_index: i32,
+    pub flags: i32,
+    pub doodad_set: i32,
+    pub inner_color: [f32; 4],
+    pub position: [f32; 3],
+    pub rotation: [f32; 3],
+    pub attenuation_start: f32,
+    pub attenuation_end: f32,
+    pub intensity: f32,
+    pub outer_color: [f32; 4],
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -211,6 +241,7 @@ const MCVP_ENTRY_SIZE: usize = 20;
 const MOUV_ENTRY_SIZE: usize = 16;
 const MAVD_ENTRY_SIZE: usize = 48;
 const MBVD_ENTRY_SIZE: usize = 128;
+const MNLD_ENTRY_SIZE: usize = 60;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -352,6 +383,22 @@ struct RawWmoAmbientBoxVolume {
 
 #[derive(BinRead)]
 #[br(little)]
+struct RawWmoNewLight {
+    light_type: i32,
+    light_index: i32,
+    flags: i32,
+    doodad_set: i32,
+    inner_color: [u8; 4],
+    position: [f32; 3],
+    rotation: [f32; 3],
+    attenuation_start: f32,
+    attenuation_end: f32,
+    intensity: f32,
+    outer_color: [u8; 4],
+}
+
+#[derive(BinRead)]
+#[br(little)]
 struct RawWmoPortal {
     start_vertex: u16,
     vert_count: u16,
@@ -469,6 +516,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         global_ambient_volumes: accum.global_ambient_volumes,
         ambient_volumes: accum.ambient_volumes,
         baked_ambient_box_volumes: accum.baked_ambient_box_volumes,
+        dynamic_lights: accum.dynamic_lights,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -499,6 +547,7 @@ struct WmoRootAccum {
     global_ambient_volumes: Vec<WmoAmbientVolume>,
     ambient_volumes: Vec<WmoAmbientVolume>,
     baked_ambient_box_volumes: Vec<WmoAmbientBoxVolume>,
+    dynamic_lights: Vec<WmoNewLight>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -530,6 +579,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"GVAM" => accum.global_ambient_volumes = parse_mavd(payload)?,
         b"DVAM" => accum.ambient_volumes = parse_mavd(payload)?,
         b"DVBM" => accum.baked_ambient_box_volumes = parse_mbvd(payload)?,
+        b"DNLM" => accum.dynamic_lights = parse_mnld(payload)?,
         b"VVOM" => accum.visible_block_vertices = parse_vec3_array(payload)?,
         b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
         b"PVCM" => accum.convex_volume_planes = parse_mcvp(payload)?,
@@ -707,6 +757,27 @@ pub fn parse_mbvd(data: &[u8]) -> Result<Vec<WmoAmbientBoxVolume>, String> {
                 color_3: parse_bgra_color(volume.color_3),
                 flags: volume.flags,
                 doodad_set_id: volume.doodad_set_id,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mnld(data: &[u8]) -> Result<Vec<WmoNewLight>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoNewLight>(data, MNLD_ENTRY_SIZE, "MNLD")?
+            .into_iter()
+            .map(|light| WmoNewLight {
+                light_type: WmoNewLightType::from_raw(light.light_type),
+                light_index: light.light_index,
+                flags: light.flags,
+                doodad_set: light.doodad_set,
+                inner_color: parse_bgra_color(light.inner_color),
+                position: light.position,
+                rotation: light.rotation,
+                attenuation_start: light.attenuation_start,
+                attenuation_end: light.attenuation_end,
+                intensity: light.intensity,
+                outer_color: parse_bgra_color(light.outer_color),
             })
             .collect(),
     )
@@ -1140,6 +1211,95 @@ mod tests {
         assert_eq!(root.baked_ambient_box_volumes.len(), 1);
         assert_eq!(root.baked_ambient_box_volumes[0].planes[0], [1.0, 0.0, 0.0, 5.0]);
         assert_eq!(root.baked_ambient_box_volumes[0].end, 11.0);
+    }
+
+    #[test]
+    fn parse_mnld_reads_dynamic_lights() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&1_i32.to_le_bytes());
+        data.extend_from_slice(&22_i32.to_le_bytes());
+        data.extend_from_slice(&3_i32.to_le_bytes());
+        data.extend_from_slice(&4_i32.to_le_bytes());
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        for value in [0.1_f32, 0.2, 0.3] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&5.5_f32.to_le_bytes());
+        data.extend_from_slice(&9.5_f32.to_le_bytes());
+        data.extend_from_slice(&2.25_f32.to_le_bytes());
+        data.extend_from_slice(&[0x50, 0x60, 0x70, 0x80]);
+
+        let lights = parse_mnld(&data).expect("parse MNLD");
+
+        assert_eq!(lights.len(), 1);
+        let light = &lights[0];
+        assert_eq!(light.light_type, WmoNewLightType::Spot);
+        assert_eq!(light.light_index, 22);
+        assert_eq!(light.flags, 3);
+        assert_eq!(light.doodad_set, 4);
+        assert_eq!(
+            light.inner_color,
+            [
+                0x30 as f32 / 255.0,
+                0x20 as f32 / 255.0,
+                0x10 as f32 / 255.0,
+                0x40 as f32 / 255.0,
+            ]
+        );
+        assert_eq!(light.position, [1.0, 2.0, 3.0]);
+        assert_eq!(light.rotation, [0.1, 0.2, 0.3]);
+        assert_eq!(light.attenuation_start, 5.5);
+        assert_eq!(light.attenuation_end, 9.5);
+        assert_eq!(light.intensity, 2.25);
+        assert_eq!(
+            light.outer_color,
+            [
+                0x70 as f32 / 255.0,
+                0x60 as f32 / 255.0,
+                0x50 as f32 / 255.0,
+                0x80 as f32 / 255.0,
+            ]
+        );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mnld_dynamic_lights() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DNLM");
+        data.extend_from_slice(&(MNLD_ENTRY_SIZE as u32).to_le_bytes());
+        data.extend_from_slice(&0_i32.to_le_bytes());
+        data.extend_from_slice(&11_i32.to_le_bytes());
+        data.extend_from_slice(&5_i32.to_le_bytes());
+        data.extend_from_slice(&6_i32.to_le_bytes());
+        data.extend_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        for value in [0.0_f32, 1.0, 0.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&3.0_f32.to_le_bytes());
+        data.extend_from_slice(&7.0_f32.to_le_bytes());
+        data.extend_from_slice(&1.5_f32.to_le_bytes());
+        data.extend_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.dynamic_lights.len(), 1);
+        let light = &root.dynamic_lights[0];
+        assert_eq!(light.light_type, WmoNewLightType::Point);
+        assert_eq!(light.light_index, 11);
+        assert_eq!(light.flags, 5);
+        assert_eq!(light.doodad_set, 6);
+        assert_eq!(light.position, [10.0, 20.0, 30.0]);
+        assert_eq!(light.rotation, [0.0, 1.0, 0.0]);
+        assert_eq!(light.attenuation_start, 3.0);
+        assert_eq!(light.attenuation_end, 7.0);
+        assert_eq!(light.intensity, 1.5);
     }
 
     #[test]
