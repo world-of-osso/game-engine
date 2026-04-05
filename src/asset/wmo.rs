@@ -3,8 +3,8 @@ use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::wmo_format::parser::{
     MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoBspNode, WmoGroupHeader, WmoGroupInfo,
-    WmoLiquid, WmoMaterialDef, WmoPortal, WmoPortalRef, WmoRootData, find_mogp, load_wmo_root,
-    parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
+    WmoLiquid, WmoMaterialDef, WmoPortal, WmoPortalRef, WmoRootData, WmoRootFlags, find_mogp,
+    load_wmo_root, parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
 };
 
 pub struct WmoGroupData {
@@ -36,6 +36,13 @@ pub enum WmoBatchType {
 type BatchVertexAttribs = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
 
 pub fn load_wmo_group(data: &[u8]) -> Result<WmoGroupData, String> {
+    load_wmo_group_with_root(data, None)
+}
+
+pub fn load_wmo_group_with_root(
+    data: &[u8],
+    root: Option<&WmoRootData>,
+) -> Result<WmoGroupData, String> {
     let mogp_payload = find_mogp(data)?;
     if mogp_payload.len() < MOGP_HEADER_SIZE {
         return Err(format!(
@@ -47,10 +54,15 @@ pub fn load_wmo_group(data: &[u8]) -> Result<WmoGroupData, String> {
     let header = parse_mogp_header(mogp_payload)?;
     let sub_chunks = &mogp_payload[MOGP_HEADER_SIZE..];
     let raw = parse_group_subchunks(sub_chunks)?;
-    build_group_batches(header, raw)
+    build_group_batches(header, raw, root)
 }
 
-fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoGroupData, String> {
+fn build_group_batches(
+    header: WmoGroupHeader,
+    mut raw: RawGroupData,
+    root: Option<&WmoRootData>,
+) -> Result<WmoGroupData, String> {
+    apply_mocv_vertex_color_fix(&mut raw.colors, &raw.batches, &header, root);
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     if raw.batches.is_empty() {
         let mesh = build_whole_group_mesh(&raw);
@@ -108,6 +120,59 @@ fn classify_batch_type(header: &WmoGroupHeader, batch_index: usize) -> WmoBatchT
     }
 
     WmoBatchType::Unknown
+}
+
+fn apply_mocv_vertex_color_fix(
+    colors: &mut [[f32; 4]],
+    batches: &[RawBatch],
+    header: &WmoGroupHeader,
+    root: Option<&WmoRootData>,
+) {
+    if colors.is_empty() || batches.is_empty() {
+        return;
+    }
+
+    let root_flags = root.map(|root| root.flags).unwrap_or_default();
+    let int_batch_start = first_interior_vertex_index(header, batches);
+    let fixed_alpha = fixed_vertex_alpha(header);
+    for (vertex_index, color) in colors.iter_mut().enumerate() {
+        if vertex_index < int_batch_start {
+            if !root_flags.do_not_fix_vertex_color_alpha {
+                color[0] *= 0.5;
+                color[1] *= 0.5;
+                color[2] *= 0.5;
+            }
+            continue;
+        }
+
+        if !root_flags.do_not_fix_vertex_color_alpha {
+            color[0] = ((color[0] * 255.0) + ((color[3] * 255.0) * (color[0] * 255.0) / 64.0))
+                .min(255.0)
+                / 510.0;
+            color[1] = ((color[1] * 255.0) + ((color[3] * 255.0) * (color[1] * 255.0) / 64.0))
+                .min(255.0)
+                / 510.0;
+            color[2] = ((color[2] * 255.0) + ((color[3] * 255.0) * (color[2] * 255.0) / 64.0))
+                .min(255.0)
+                / 510.0;
+        }
+        color[3] = fixed_alpha;
+    }
+}
+
+fn first_interior_vertex_index(header: &WmoGroupHeader, batches: &[RawBatch]) -> usize {
+    if header.trans_batch_count == 0 {
+        return 0;
+    }
+    let last_transparent_batch = header.trans_batch_count as usize - 1;
+    batches
+        .get(last_transparent_batch)
+        .map(|batch| batch.max_index as usize + 1)
+        .unwrap_or(0)
+}
+
+fn fixed_vertex_alpha(header: &WmoGroupHeader) -> f32 {
+    if header.group_flags.exterior { 1.0 } else { 0.0 }
 }
 
 fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
@@ -256,6 +321,36 @@ fn triangle_is_renderable(raw: &RawGroupData, triangle_index: usize) -> bool {
 mod tests {
     use super::*;
 
+    fn empty_root(flags: WmoRootFlags) -> WmoRootData {
+        WmoRootData {
+            n_groups: 0,
+            flags,
+            ambient_color: [0.0; 4],
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            materials: Vec::new(),
+            lights: Vec::new(),
+            doodad_sets: Vec::new(),
+            group_names: Vec::new(),
+            doodad_names: Vec::new(),
+            doodad_file_ids: Vec::new(),
+            doodad_defs: Vec::new(),
+            fogs: Vec::new(),
+            visible_block_vertices: Vec::new(),
+            visible_blocks: Vec::new(),
+            convex_volume_planes: Vec::new(),
+            group_file_data_ids: Vec::new(),
+            global_ambient_volumes: Vec::new(),
+            ambient_volumes: Vec::new(),
+            baked_ambient_box_volumes: Vec::new(),
+            dynamic_lights: Vec::new(),
+            portals: Vec::new(),
+            portal_refs: Vec::new(),
+            group_infos: Vec::new(),
+            skybox_wow_path: None,
+        }
+    }
+
     #[test]
     fn load_wmo_group_reads_mogp_header_fields() {
         let mut data = Vec::new();
@@ -387,6 +482,129 @@ mod tests {
         assert_eq!(group.batches[1].batch_type, WmoBatchType::Interior);
         assert_eq!(group.batches[2].batch_type, WmoBatchType::Interior);
         assert_eq!(group.batches[3].batch_type, WmoBatchType::Exterior);
+    }
+
+    #[test]
+    fn load_wmo_group_with_root_fixes_mocv_vertex_alpha_for_exterior_batches() {
+        let mut data = Vec::new();
+        let moba_size = 24_u32 * 2;
+        let mocv_size = 4_u32 * 2;
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + mocv_size + 8 + 24 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        let mut header = [0_u8; MOGP_HEADER_SIZE];
+        header[8..12].copy_from_slice(&0x8_u32.to_le_bytes());
+        header[40..42].copy_from_slice(&1_u16.to_le_bytes());
+        header[44..46].copy_from_slice(&1_u16.to_le_bytes());
+        data.extend_from_slice(&header);
+
+        data.extend_from_slice(b"ABOM");
+        data.extend_from_slice(&moba_size.to_le_bytes());
+        for (start_index, max_index) in [(0_u32, 0_u16), (3_u32, 1_u16)] {
+            data.extend_from_slice(&[0_u8; 10]);
+            data.extend_from_slice(&0_u16.to_le_bytes());
+            data.extend_from_slice(&start_index.to_le_bytes());
+            data.extend_from_slice(&3_u16.to_le_bytes());
+            data.extend_from_slice(&max_index.to_le_bytes());
+            data.extend_from_slice(&max_index.to_le_bytes());
+            data.push(0);
+            data.push(0);
+        }
+
+        data.extend_from_slice(b"VCOM");
+        data.extend_from_slice(&mocv_size.to_le_bytes());
+        data.extend_from_slice(&[64_u8, 64, 64, 128]);
+        data.extend_from_slice(&[64_u8, 64, 64, 128]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(24_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let root = empty_root(WmoRootFlags::default());
+        let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+        let colors = match group.batches[0].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
+            Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
+            _ => panic!("missing colors"),
+        };
+
+        assert_eq!(colors.len(), 1);
+        assert!((colors[0][0] - 0.1254902).abs() < 0.001);
+        assert!((colors[0][3] - 0.5019608).abs() < 0.001);
+
+        let colors = match group.batches[1].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
+            Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
+            _ => panic!("missing colors"),
+        };
+
+        assert_eq!(colors.len(), 1);
+        assert!((colors[0][0] - 0.3764706).abs() < 0.001);
+        assert_eq!(colors[0][3], 1.0);
+    }
+
+    #[test]
+    fn load_wmo_group_with_root_honors_do_not_fix_vertex_color_alpha_flag() {
+        let mut data = Vec::new();
+        let moba_size = 24_u32 * 2;
+        let mocv_size = 4_u32 * 2;
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + mocv_size + 8 + 24 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        let mut header = [0_u8; MOGP_HEADER_SIZE];
+        header[40..42].copy_from_slice(&1_u16.to_le_bytes());
+        header[42..44].copy_from_slice(&1_u16.to_le_bytes());
+        data.extend_from_slice(&header);
+
+        data.extend_from_slice(b"ABOM");
+        data.extend_from_slice(&moba_size.to_le_bytes());
+        for (start_index, max_index) in [(0_u32, 0_u16), (3_u32, 1_u16)] {
+            data.extend_from_slice(&[0_u8; 10]);
+            data.extend_from_slice(&0_u16.to_le_bytes());
+            data.extend_from_slice(&start_index.to_le_bytes());
+            data.extend_from_slice(&3_u16.to_le_bytes());
+            data.extend_from_slice(&max_index.to_le_bytes());
+            data.extend_from_slice(&max_index.to_le_bytes());
+            data.push(0);
+            data.push(0);
+        }
+
+        data.extend_from_slice(b"VCOM");
+        data.extend_from_slice(&mocv_size.to_le_bytes());
+        data.extend_from_slice(&[64_u8, 64, 64, 128]);
+        data.extend_from_slice(&[64_u8, 64, 64, 128]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(24_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let root = empty_root(WmoRootFlags {
+            do_not_fix_vertex_color_alpha: true,
+            ..WmoRootFlags::default()
+        });
+        let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+        let colors = match group.batches[1].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
+            Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
+            _ => panic!("missing colors"),
+        };
+
+        assert_eq!(colors.len(), 1);
+        assert!((colors[0][0] - 0.2509804).abs() < 0.001);
+        assert_eq!(colors[0][3], 0.0);
     }
 
     #[test]

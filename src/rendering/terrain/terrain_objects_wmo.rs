@@ -327,7 +327,7 @@ fn spawn_wmo_group(
     let Ok(data) = std::fs::read(&group_path) else {
         return false;
     };
-    let Ok(group) = wmo::load_wmo_group(&data) else {
+    let Ok(group) = wmo::load_wmo_group_with_root(&data, Some(root)) else {
         return false;
     };
 
