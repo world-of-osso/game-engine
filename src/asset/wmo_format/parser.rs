@@ -127,14 +127,7 @@ struct WmoRootAccum {
 
 fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
     match tag {
-        b"DHOM" => {
-            let header: MohdHeader = parse_binrw_value(payload, MOHD_HEADER_SIZE, "MOHD")?;
-            accum.n_groups = header.n_groups;
-            accum.flags = WmoRootFlags::from_bits(header.flags);
-            accum.ambient_color = parse_bgra_color(header.ambient_color);
-            accum.bbox_min = header.bbox_min;
-            accum.bbox_max = header.bbox_max;
-        }
+        b"DHOM" => apply_mohd_chunk(payload, accum)?,
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"VUOM" => accum.material_uv_transforms = parse_mouv(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
@@ -153,16 +146,29 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
         b"PVCM" => accum.convex_volume_planes = parse_mcvp(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
-        b"TPOM" => {
-            let (p, raw) = parse_mopt(payload)?;
-            accum.portals = p;
-            accum.mopt_raw = raw;
-        }
+        b"TPOM" => apply_mopt_chunk(payload, accum)?,
         b"RPOM" => accum.portal_refs = parse_mopr(payload)?,
         b"IGOM" => accum.group_infos = parse_mogi(payload)?,
         b"BSOM" => accum.skybox_wow_path = parse_c_string(payload),
         _ => {}
     }
+    Ok(())
+}
+
+fn apply_mohd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    let header: MohdHeader = parse_binrw_value(payload, MOHD_HEADER_SIZE, "MOHD")?;
+    accum.n_groups = header.n_groups;
+    accum.flags = WmoRootFlags::from_bits(header.flags);
+    accum.ambient_color = parse_bgra_color(header.ambient_color);
+    accum.bbox_min = header.bbox_min;
+    accum.bbox_max = header.bbox_max;
+    Ok(())
+}
+
+fn apply_mopt_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    let (portals, raw_ranges) = parse_mopt(payload)?;
+    accum.portals = portals;
+    accum.mopt_raw = raw_ranges;
     Ok(())
 }
 
