@@ -112,6 +112,36 @@ pub struct FlightBounds {
     pub max_heights: [i16; 9],
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LodHeader {
+    pub flags: u32,
+    pub bounds_min: [f32; 3],
+    pub bounds_max: [f32; 3],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LodLevel {
+    pub vertex_step: f32,
+    pub payload: [u32; 4],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LodQuadTreeNode {
+    pub words16: [u16; 4],
+    pub words32: [u32; 3],
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedLodData {
+    pub version: u32,
+    pub header: LodHeader,
+    pub heights: Vec<f32>,
+    pub levels: Vec<LodLevel>,
+    pub nodes: Vec<LodQuadTreeNode>,
+    pub indices: Vec<u16>,
+    pub skirt_indices: Vec<u16>,
+}
+
 #[derive(Debug, Clone, Copy, BinRead, PartialEq)]
 #[br(little)]
 pub struct SoundEmitter {
@@ -207,6 +237,16 @@ struct AdtRootChunks<'a> {
     mbbb: Option<&'a [u8]>,
     mbnv: Option<&'a [u8]>,
     mbmi: Option<&'a [u8]>,
+}
+
+struct LodRootChunks<'a> {
+    mver: Option<&'a [u8]>,
+    mlhd: Option<&'a [u8]>,
+    mlvh: Option<&'a [u8]>,
+    mlll: Option<&'a [u8]>,
+    mlnd: Option<&'a [u8]>,
+    mlvi: Option<&'a [u8]>,
+    mlsi: Option<&'a [u8]>,
 }
 
 fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
@@ -556,6 +596,122 @@ fn parse_mfbo(payload: &[u8]) -> Result<FlightBounds, String> {
         min_heights,
         max_heights,
     })
+}
+
+fn parse_mver(payload: &[u8]) -> Result<u32, String> {
+    read_u32(payload, 0).map_err(|err| format!("MVER parse failed: {err}"))
+}
+
+fn parse_mlhd(payload: &[u8]) -> Result<LodHeader, String> {
+    if payload.len() < 28 {
+        return Err(format!("MLHD too small: {} bytes (need 28)", payload.len()));
+    }
+
+    Ok(LodHeader {
+        flags: read_u32(payload, 0)?,
+        bounds_min: [
+            read_f32(payload, 4)?,
+            read_f32(payload, 12)?,
+            read_f32(payload, 20)?,
+        ],
+        bounds_max: [
+            read_f32(payload, 8)?,
+            read_f32(payload, 16)?,
+            read_f32(payload, 24)?,
+        ],
+    })
+}
+
+fn parse_mlvh(payload: &[u8]) -> Result<Vec<f32>, String> {
+    if !payload.len().is_multiple_of(size_of::<f32>()) {
+        return Err(format!(
+            "MLVH size {} is not a multiple of {}",
+            payload.len(),
+            size_of::<f32>()
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(size_of::<f32>())
+        .map(|offset| read_f32(payload, offset))
+        .collect()
+}
+
+fn parse_mlll(payload: &[u8]) -> Result<Vec<LodLevel>, String> {
+    const MLLL_RECORD_BYTES: usize = 20;
+    if !payload.len().is_multiple_of(MLLL_RECORD_BYTES) {
+        return Err(format!(
+            "MLLL size {} is not a multiple of {}",
+            payload.len(),
+            MLLL_RECORD_BYTES
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(MLLL_RECORD_BYTES)
+        .map(|offset| {
+            Ok(LodLevel {
+                vertex_step: read_f32(payload, offset)?,
+                payload: [
+                    read_u32(payload, offset + 4)?,
+                    read_u32(payload, offset + 8)?,
+                    read_u32(payload, offset + 12)?,
+                    read_u32(payload, offset + 16)?,
+                ],
+            })
+        })
+        .collect()
+}
+
+fn parse_mlnd(payload: &[u8]) -> Result<Vec<LodQuadTreeNode>, String> {
+    const MLND_RECORD_BYTES: usize = 20;
+    if !payload.len().is_multiple_of(MLND_RECORD_BYTES) {
+        return Err(format!(
+            "MLND size {} is not a multiple of {}",
+            payload.len(),
+            MLND_RECORD_BYTES
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(MLND_RECORD_BYTES)
+        .map(|offset| {
+            Ok(LodQuadTreeNode {
+                words16: [
+                    u16::from_le_bytes(payload[offset..offset + 2].try_into().unwrap()),
+                    u16::from_le_bytes(payload[offset + 2..offset + 4].try_into().unwrap()),
+                    u16::from_le_bytes(payload[offset + 4..offset + 6].try_into().unwrap()),
+                    u16::from_le_bytes(payload[offset + 6..offset + 8].try_into().unwrap()),
+                ],
+                words32: [
+                    read_u32(payload, offset + 8)?,
+                    read_u32(payload, offset + 12)?,
+                    read_u32(payload, offset + 16)?,
+                ],
+            })
+        })
+        .collect()
+}
+
+fn parse_u16_block(payload: &[u8], label: &str) -> Result<Vec<u16>, String> {
+    if !payload.len().is_multiple_of(size_of::<u16>()) {
+        return Err(format!(
+            "{label} size {} is not a multiple of {}",
+            payload.len(),
+            size_of::<u16>()
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(size_of::<u16>())
+        .map(|offset| {
+            Ok(u16::from_le_bytes(
+                payload[offset..offset + size_of::<u16>()]
+                    .try_into()
+                    .unwrap(),
+            ))
+        })
+        .collect()
 }
 
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
@@ -977,6 +1133,56 @@ fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
     Ok(root_chunks)
 }
 
+fn collect_lod_chunks(data: &[u8]) -> Result<LodRootChunks<'_>, String> {
+    let mut root_chunks = LodRootChunks {
+        mver: None,
+        mlhd: None,
+        mlvh: None,
+        mlll: None,
+        mlnd: None,
+        mlvi: None,
+        mlsi: None,
+    };
+
+    for chunk in ChunkIter::new(data) {
+        let (tag, payload) = chunk?;
+        match tag {
+            b"REVM" => root_chunks.mver = Some(payload),
+            b"DHLM" => root_chunks.mlhd = Some(payload),
+            b"HVLM" => root_chunks.mlvh = Some(payload),
+            b"LLLM" => root_chunks.mlll = Some(payload),
+            b"DNLM" => root_chunks.mlnd = Some(payload),
+            b"IVLM" => root_chunks.mlvi = Some(payload),
+            b"ISLM" => root_chunks.mlsi = Some(payload),
+            _ => {}
+        }
+    }
+
+    if root_chunks.mver.is_none() {
+        return Err("No REVM (MVER) chunk found in _lod.adt file".to_string());
+    }
+    if root_chunks.mlhd.is_none() {
+        return Err("No DHLM (MLHD) chunk found in _lod.adt file".to_string());
+    }
+    if root_chunks.mlvh.is_none() {
+        return Err("No HVLM (MLVH) chunk found in _lod.adt file".to_string());
+    }
+    if root_chunks.mlll.is_none() {
+        return Err("No LLLM (MLLL) chunk found in _lod.adt file".to_string());
+    }
+    if root_chunks.mlnd.is_none() {
+        return Err("No DNLM (MLND) chunk found in _lod.adt file".to_string());
+    }
+    if root_chunks.mlvi.is_none() {
+        return Err("No IVLM (MLVI) chunk found in _lod.adt file".to_string());
+    }
+    if root_chunks.mlsi.is_none() {
+        return Err("No ISLM (MLSI) chunk found in _lod.adt file".to_string());
+    }
+
+    Ok(root_chunks)
+}
+
 pub(crate) fn load_adt_parsed(data: &[u8]) -> Result<ParsedAdtData, String> {
     load_adt_inner(data, true, None)
 }
@@ -1029,6 +1235,20 @@ fn load_adt_inner(
         chunk_positions,
         water,
         water_error,
+    })
+}
+
+pub(crate) fn load_lod_adt(data: &[u8]) -> Result<ParsedLodData, String> {
+    let root_chunks = collect_lod_chunks(data)?;
+
+    Ok(ParsedLodData {
+        version: parse_mver(root_chunks.mver.unwrap())?,
+        header: parse_mlhd(root_chunks.mlhd.unwrap())?,
+        heights: parse_mlvh(root_chunks.mlvh.unwrap())?,
+        levels: parse_mlll(root_chunks.mlll.unwrap())?,
+        nodes: parse_mlnd(root_chunks.mlnd.unwrap())?,
+        indices: parse_u16_block(root_chunks.mlvi.unwrap(), "MLVI")?,
+        skirt_indices: parse_u16_block(root_chunks.mlsi.unwrap(), "MLSI")?,
     })
 }
 

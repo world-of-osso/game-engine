@@ -2,7 +2,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::adt_format::adt::{
-    CHUNK_SIZE, ChunkHeightGrid, ChunkIter, FlightBounds, UNIT_SIZE, vertex_index,
+    CHUNK_SIZE, ChunkHeightGrid, ChunkIter, FlightBounds, LodHeader, LodLevel, LodQuadTreeNode,
+    ParsedLodData, UNIT_SIZE, vertex_index,
 };
 pub use super::adt_format::adt_tex::{
     AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, TextureParams,
@@ -32,6 +33,8 @@ pub struct AdtData {
     pub water: Option<AdtWaterData>,
     pub water_error: Option<String>,
 }
+
+pub type LodData = ParsedLodData;
 
 type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 type WaterGeometry = (
@@ -343,6 +346,10 @@ pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
     load_adt_inner(super::adt_format::adt::load_adt_parsed(data)?, None)
 }
 
+pub fn load_adt_lod(data: &[u8]) -> Result<LodData, String> {
+    super::adt_format::adt::load_lod_adt(data)
+}
+
 pub fn load_adt_for_tile(data: &[u8], tile_y: u32, tile_x: u32) -> Result<AdtData, String> {
     load_adt_inner(
         super::adt_format::adt::load_adt_for_tile_parsed(data, tile_y, tile_x)?,
@@ -490,6 +497,18 @@ mod tests {
                 max_heights: [20, 21, 22, 23, 24, 25, 26, 27, 28],
             })
         );
+    }
+
+    #[test]
+    fn load_adt_lod_reads_real_tile_counts() {
+        let data = std::fs::read("data/terrain/2703_31_36_lod.adt").expect("missing test asset");
+
+        let lod = super::load_adt_lod(&data).expect("expected real _lod.adt to parse");
+
+        assert_eq!(lod.version, 18);
+        assert_eq!(lod.levels.len(), 4);
+        assert_eq!(lod.nodes.len(), 102);
+        assert_eq!(lod.indices.len(), 131_535);
     }
 
     #[test]
