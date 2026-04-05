@@ -13,6 +13,7 @@ pub struct WmoRootData {
     pub materials: Vec<WmoMaterialDef>,
     pub lights: Vec<WmoLight>,
     pub doodad_sets: Vec<WmoDoodadSet>,
+    pub group_names: Vec<WmoGroupName>,
     pub doodad_names: Vec<WmoDoodadName>,
     pub doodad_file_ids: Vec<u32>,
     pub doodad_defs: Vec<WmoDoodadDef>,
@@ -107,6 +108,12 @@ pub struct WmoDoodadSet {
 pub struct WmoDoodadName {
     pub offset: u32,
     pub name: String,
+}
+
+pub struct WmoGroupName {
+    pub offset: u32,
+    pub name: String,
+    pub is_antiportal: bool,
 }
 
 pub struct WmoDoodadDef {
@@ -352,6 +359,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         materials: accum.materials,
         lights: accum.lights,
         doodad_sets: accum.doodad_sets,
+        group_names: accum.group_names,
         doodad_names: accum.doodad_names,
         doodad_file_ids: accum.doodad_file_ids,
         doodad_defs: accum.doodad_defs,
@@ -373,6 +381,7 @@ struct WmoRootAccum {
     materials: Vec<WmoMaterialDef>,
     lights: Vec<WmoLight>,
     doodad_sets: Vec<WmoDoodadSet>,
+    group_names: Vec<WmoGroupName>,
     doodad_names: Vec<WmoDoodadName>,
     doodad_file_ids: Vec<u32>,
     doodad_defs: Vec<WmoDoodadDef>,
@@ -398,6 +407,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
         b"SDOM" => accum.doodad_sets = parse_mods(payload)?,
+        b"NGOM" => accum.group_names = parse_mogn(payload)?,
         b"NDOM" => accum.doodad_names = parse_modn(payload)?,
         b"IDOM" => accum.doodad_file_ids = parse_modi(payload)?,
         b"DDOM" => accum.doodad_defs = parse_modd(payload)?,
@@ -489,6 +499,28 @@ pub fn parse_modn(data: &[u8]) -> Result<Vec<WmoDoodadName>, String> {
         names.push(WmoDoodadName {
             offset: offset as u32,
             name,
+        });
+        offset += byte_len;
+    }
+
+    Ok(names)
+}
+
+pub fn parse_mogn(data: &[u8]) -> Result<Vec<WmoGroupName>, String> {
+    let mut names = Vec::new();
+    let mut offset = 0usize;
+
+    while offset < data.len() {
+        let remaining = &data[offset..];
+        let Some(name) = parse_c_string(remaining) else {
+            break;
+        };
+        let byte_len = name.len() + 1;
+        let is_antiportal = name.to_ascii_lowercase().contains("antiportal");
+        names.push(WmoGroupName {
+            offset: offset as u32,
+            name,
+            is_antiportal,
         });
         offset += byte_len;
     }
@@ -1009,6 +1041,39 @@ mod tests {
         assert_eq!(fog.larger_radius, 14.0);
         assert_eq!(fog.fog_end, 22.0);
         assert_eq!(fog.underwater_fog_end, 33.0);
+    }
+
+    #[test]
+    fn parse_mogn_preserves_offsets_and_antiportal_names() {
+        let data = b"EntryHall\0antiportal01\0";
+
+        let names = parse_mogn(data).expect("parse MOGN");
+
+        assert_eq!(names.len(), 2);
+        assert_eq!(names[0].offset, 0);
+        assert_eq!(names[0].name, "EntryHall");
+        assert!(!names[0].is_antiportal);
+        assert_eq!(names[1].offset, 10);
+        assert_eq!(names[1].name, "antiportal01");
+        assert!(names[1].is_antiportal);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mogn_group_names() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"NGOM");
+        data.extend_from_slice(&(23_u32).to_le_bytes());
+        data.extend_from_slice(b"EntryHall\0antiportal01\0");
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.group_names.len(), 2);
+        assert_eq!(root.group_names[0].name, "EntryHall");
+        assert!(!root.group_names[0].is_antiportal);
+        assert_eq!(root.group_names[1].offset, 10);
+        assert_eq!(root.group_names[1].name, "antiportal01");
+        assert!(root.group_names[1].is_antiportal);
     }
 
     #[test]
