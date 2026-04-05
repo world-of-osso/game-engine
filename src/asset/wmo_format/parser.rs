@@ -7,6 +7,7 @@ use crate::asset::adt::ChunkIter;
 pub struct WmoRootData {
     pub n_groups: u32,
     pub materials: Vec<WmoMaterialDef>,
+    pub lights: Vec<WmoLight>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -39,6 +40,36 @@ pub struct WmoMaterialDef {
     pub shader: u32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WmoLightType {
+    Omni = 0,
+    Spot = 1,
+    Directional = 2,
+    Ambient = 3,
+}
+
+impl WmoLightType {
+    fn from_raw(raw: u8) -> Self {
+        match raw {
+            1 => Self::Spot,
+            2 => Self::Directional,
+            3 => Self::Ambient,
+            _ => Self::Omni,
+        }
+    }
+}
+
+pub struct WmoLight {
+    pub light_type: WmoLightType,
+    pub use_attenuation: bool,
+    pub color: [f32; 4],
+    pub position: [f32; 3],
+    pub intensity: f32,
+    pub rotation: [f32; 4],
+    pub attenuation_start: f32,
+    pub attenuation_end: f32,
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -58,6 +89,7 @@ pub struct RawBatch {
 
 const MOHD_HEADER_SIZE: usize = 64;
 const MOMT_ENTRY_SIZE: usize = 64;
+const MOLT_ENTRY_SIZE: usize = 48;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -99,6 +131,20 @@ struct RawWmoMaterialDef {
     _terrain_type: u32,
     _texture_3_flags: u32,
     _run_time_data: [u32; 3],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoLight {
+    light_type: u8,
+    use_attenuation: u8,
+    _padding: [u8; 2],
+    color: [u8; 4],
+    position: [f32; 3],
+    intensity: f32,
+    rotation: [f32; 4],
+    attenuation_start: f32,
+    attenuation_end: f32,
 }
 
 #[derive(BinRead)]
@@ -201,6 +247,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
     WmoRootData {
         n_groups: accum.n_groups,
         materials: accum.materials,
+        lights: accum.lights,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -212,6 +259,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
 struct WmoRootAccum {
     n_groups: u32,
     materials: Vec<WmoMaterialDef>,
+    lights: Vec<WmoLight>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -227,6 +275,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
             accum.n_groups = header.n_groups;
         }
         b"TMOM" => accum.materials = parse_momt(payload)?,
+        b"TLOM" => accum.lights = parse_molt(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
@@ -261,6 +310,24 @@ pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
                 flags: mat.flags,
                 blend_mode: mat.blend_mode,
                 shader: mat.shader,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_molt(data: &[u8]) -> Result<Vec<WmoLight>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoLight>(data, MOLT_ENTRY_SIZE, "MOLT")?
+            .into_iter()
+            .map(|light| WmoLight {
+                light_type: WmoLightType::from_raw(light.light_type),
+                use_attenuation: light.use_attenuation != 0,
+                color: parse_bgra_color(light.color),
+                position: light.position,
+                intensity: light.intensity,
+                rotation: light.rotation,
+                attenuation_start: light.attenuation_start,
+                attenuation_end: light.attenuation_end,
             })
             .collect(),
     )
@@ -382,16 +449,18 @@ fn parse_u16_array(data: &[u8]) -> Vec<u16> {
         .collect()
 }
 
+fn parse_bgra_color(color: [u8; 4]) -> [f32; 4] {
+    [
+        color[2] as f32 / 255.0,
+        color[1] as f32 / 255.0,
+        color[0] as f32 / 255.0,
+        color[3] as f32 / 255.0,
+    ]
+}
+
 fn parse_mocv(data: &[u8]) -> Vec<[f32; 4]> {
     data.chunks_exact(4)
-        .map(|c| {
-            [
-                c[2] as f32 / 255.0,
-                c[1] as f32 / 255.0,
-                c[0] as f32 / 255.0,
-                c[3] as f32 / 255.0,
-            ]
-        })
+        .map(|c| parse_bgra_color(c.try_into().unwrap()))
         .collect()
 }
 
@@ -440,6 +509,86 @@ mod tests {
             accum.skybox_wow_path.as_deref(),
             Some("environments/stars/deathskybox.m2")
         );
+    }
+
+    #[test]
+    fn parse_molt_reads_light_fields() {
+        let mut data = Vec::new();
+        data.push(1);
+        data.push(1);
+        data.extend_from_slice(&[0, 0]);
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&4.5_f32.to_le_bytes());
+        for value in [0.1_f32, 0.2, 0.3, 0.4] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&5.5_f32.to_le_bytes());
+        data.extend_from_slice(&9.5_f32.to_le_bytes());
+
+        let lights = parse_molt(&data).expect("parse MOLT");
+
+        assert_eq!(lights.len(), 1);
+        let light = &lights[0];
+        assert_eq!(light.light_type, WmoLightType::Spot);
+        assert!(light.use_attenuation);
+        assert_eq!(
+            light.color,
+            [
+                0x30 as f32 / 255.0,
+                0x20 as f32 / 255.0,
+                0x10 as f32 / 255.0,
+                0x40 as f32 / 255.0,
+            ]
+        );
+        assert_eq!(light.position, [1.0, 2.0, 3.0]);
+        assert_eq!(light.intensity, 4.5);
+        assert_eq!(light.rotation, [0.1, 0.2, 0.3, 0.4]);
+        assert_eq!(light.attenuation_start, 5.5);
+        assert_eq!(light.attenuation_end, 9.5);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_molt_lights() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DHOM");
+        data.extend_from_slice(&(MOHD_HEADER_SIZE as u32).to_le_bytes());
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        mohd[4..8].copy_from_slice(&1_u32.to_le_bytes());
+        mohd[12..16].copy_from_slice(&1_u32.to_le_bytes());
+        data.extend_from_slice(&mohd);
+
+        data.extend_from_slice(b"TLOM");
+        data.extend_from_slice(&(MOLT_ENTRY_SIZE as u32).to_le_bytes());
+        data.push(2);
+        data.push(0);
+        data.extend_from_slice(&[0, 0]);
+        data.extend_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&2.25_f32.to_le_bytes());
+        for value in [0.0_f32, 0.0, 1.0, 0.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&3.0_f32.to_le_bytes());
+        data.extend_from_slice(&7.0_f32.to_le_bytes());
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.n_groups, 1);
+        assert_eq!(root.lights.len(), 1);
+        let light = &root.lights[0];
+        assert_eq!(light.light_type, WmoLightType::Directional);
+        assert!(!light.use_attenuation);
+        assert_eq!(light.position, [10.0, 20.0, 30.0]);
+        assert_eq!(light.intensity, 2.25);
+        assert_eq!(light.rotation, [0.0, 0.0, 1.0, 0.0]);
+        assert_eq!(light.attenuation_start, 3.0);
+        assert_eq!(light.attenuation_end, 7.0);
     }
 
     #[test]
