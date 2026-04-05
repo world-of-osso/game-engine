@@ -714,6 +714,19 @@ fn load_lod_adt_reads_synthetic_lod_chunks() {
     );
     assert_eq!(lod.indices, vec![0, 1, 2, 3, 4, 5]);
     assert_eq!(lod.skirt_indices, vec![6, 7, 8, 9]);
+    assert_eq!(
+        lod.liquid_directory,
+        Some(super::LodLiquidDirectory {
+            raw: vec![0xAA, 0xBB, 0xCC, 0xDD],
+        })
+    );
+    assert_eq!(lod.liquids.len(), 1);
+    assert_eq!(lod.liquids[0].header.words, [1, 2, 3, 4, 5, 6]);
+    assert_eq!(lod.liquids[0].indices, vec![10, 11, 12]);
+    assert_eq!(
+        lod.liquids[0].vertices,
+        vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    );
 }
 
 #[test]
@@ -729,6 +742,13 @@ fn load_lod_adt_reads_real_tile_counts_and_ranges() {
     assert_eq!(lod.nodes.len(), 102);
     assert_eq!(lod.indices.len(), 131_535);
     assert_eq!(lod.skirt_indices.len(), 127);
+    assert_eq!(lod.liquids.len(), 6);
+    assert_eq!(
+        lod.liquid_directory
+            .as_ref()
+            .map(|directory| directory.raw.len()),
+        Some(5_652)
+    );
     assert_eq!(lod.indices.iter().copied().max(), Some(33_151));
     assert_eq!(lod.skirt_indices.iter().copied().max(), Some(16_640));
     assert_eq!(
@@ -743,6 +763,14 @@ fn load_lod_adt_reads_real_tile_counts_and_ranges() {
     assert_eq!(lod.nodes[0].words32, [0, 0, 131_073]);
     assert_eq!(lod.nodes[1].words16, [3, 4, 6231, 0]);
     assert_eq!(lod.nodes[1].words32, [2520, 0, 0]);
+    assert_eq!(
+        lod.liquids[0].header.words,
+        [0, 108, 1, 860_749_829, u32::MAX, u32::MAX]
+    );
+    assert_eq!(lod.liquids[0].indices.len(), 108);
+    assert_eq!(lod.liquids[0].vertices.len(), 43);
+    assert_eq!(lod.liquids[1].indices.len(), 336);
+    assert_eq!(lod.liquids[1].vertices.len(), 127);
 }
 
 fn synthetic_lod_payload() -> Vec<u8> {
@@ -769,6 +797,18 @@ fn synthetic_lod_payload() -> Vec<u8> {
         lod_index_payload(&[0, 1, 2, 3, 4, 5]),
     );
     append_subchunk(&mut payload, b"ISLM", lod_index_payload(&[6, 7, 8, 9]));
+    append_subchunk(&mut payload, b"DLLM", vec![0xAA, 0xBB, 0xCC, 0xDD]);
+    append_subchunk(
+        &mut payload,
+        b"NLLM",
+        lod_liquid_header_payload([1, 2, 3, 4, 5, 6]),
+    );
+    append_subchunk(&mut payload, b"ILLM", lod_index_payload(&[10, 11, 12]));
+    append_subchunk(
+        &mut payload,
+        b"VLLM",
+        lod_liquid_vertices_payload(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+    );
     payload
 }
 
@@ -819,4 +859,21 @@ fn lod_index_payload(indices: &[u16]) -> Vec<u8> {
         .iter()
         .flat_map(|index| index.to_le_bytes())
         .collect()
+}
+
+fn lod_liquid_header_payload(words: [u32; 6]) -> Vec<u8> {
+    words
+        .into_iter()
+        .flat_map(|word| word.to_le_bytes())
+        .collect()
+}
+
+fn lod_liquid_vertices_payload(vertices: &[[f32; 3]]) -> Vec<u8> {
+    let mut payload = Vec::new();
+    for vertex in vertices {
+        for component in vertex {
+            payload.extend_from_slice(&component.to_le_bytes());
+        }
+    }
+    payload
 }

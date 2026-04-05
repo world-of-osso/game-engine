@@ -140,6 +140,25 @@ pub struct ParsedLodData {
     pub nodes: Vec<LodQuadTreeNode>,
     pub indices: Vec<u16>,
     pub skirt_indices: Vec<u16>,
+    pub liquid_directory: Option<LodLiquidDirectory>,
+    pub liquids: Vec<LodLiquidPatch>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LodLiquidDirectory {
+    pub raw: Vec<u8>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LodLiquidPatchHeader {
+    pub words: [u32; 6],
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LodLiquidPatch {
+    pub header: LodLiquidPatchHeader,
+    pub indices: Vec<u16>,
+    pub vertices: Vec<[f32; 3]>,
 }
 
 #[derive(Debug, Clone, Copy, BinRead, PartialEq)]
@@ -247,6 +266,14 @@ struct LodRootChunks<'a> {
     mlnd: Option<&'a [u8]>,
     mlvi: Option<&'a [u8]>,
     mlsi: Option<&'a [u8]>,
+    mlld: Option<&'a [u8]>,
+    liquid_groups: Vec<LodLiquidChunkGroup<'a>>,
+}
+
+struct LodLiquidChunkGroup<'a> {
+    header: &'a [u8],
+    indices: &'a [u8],
+    vertices: &'a [u8],
 }
 
 fn parse_binrw_value<T>(data: &[u8], offset: usize, label: &str) -> Result<T, String>
@@ -714,6 +741,59 @@ fn parse_u16_block(payload: &[u8], label: &str) -> Result<Vec<u16>, String> {
         .collect()
 }
 
+fn parse_mlln(payload: &[u8]) -> Result<LodLiquidPatchHeader, String> {
+    const MLLN_WORDS: usize = 6;
+    const MLLN_BYTES: usize = MLLN_WORDS * size_of::<u32>();
+    if payload.len() < MLLN_BYTES {
+        return Err(format!(
+            "MLLN too small: {} bytes (need {})",
+            payload.len(),
+            MLLN_BYTES
+        ));
+    }
+
+    let mut words = [0u32; MLLN_WORDS];
+    for (index, value) in words.iter_mut().enumerate() {
+        *value = read_u32(payload, index * size_of::<u32>())?;
+    }
+    Ok(LodLiquidPatchHeader { words })
+}
+
+fn parse_mllv(payload: &[u8]) -> Result<Vec<[f32; 3]>, String> {
+    const MLLV_VERTEX_BYTES: usize = 3 * size_of::<f32>();
+    if !payload.len().is_multiple_of(MLLV_VERTEX_BYTES) {
+        return Err(format!(
+            "MLLV size {} is not a multiple of {}",
+            payload.len(),
+            MLLV_VERTEX_BYTES
+        ));
+    }
+
+    (0..payload.len())
+        .step_by(MLLV_VERTEX_BYTES)
+        .map(|offset| {
+            Ok([
+                read_f32(payload, offset)?,
+                read_f32(payload, offset + size_of::<f32>())?,
+                read_f32(payload, offset + size_of::<f32>() * 2)?,
+            ])
+        })
+        .collect()
+}
+
+fn parse_lod_liquids(groups: Vec<LodLiquidChunkGroup<'_>>) -> Result<Vec<LodLiquidPatch>, String> {
+    groups
+        .into_iter()
+        .map(|group| {
+            Ok(LodLiquidPatch {
+                header: parse_mlln(group.header)?,
+                indices: parse_u16_block(group.indices, "MLLI")?,
+                vertices: parse_mllv(group.vertices)?,
+            })
+        })
+        .collect()
+}
+
 fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
@@ -1142,7 +1222,11 @@ fn collect_lod_chunks(data: &[u8]) -> Result<LodRootChunks<'_>, String> {
         mlnd: None,
         mlvi: None,
         mlsi: None,
+        mlld: None,
+        liquid_groups: Vec::new(),
     };
+    let mut pending_liquid_header = None;
+    let mut pending_liquid_indices = None;
 
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
@@ -1154,8 +1238,35 @@ fn collect_lod_chunks(data: &[u8]) -> Result<LodRootChunks<'_>, String> {
             b"DNLM" => root_chunks.mlnd = Some(payload),
             b"IVLM" => root_chunks.mlvi = Some(payload),
             b"ISLM" => root_chunks.mlsi = Some(payload),
+            b"DLLM" => root_chunks.mlld = Some(payload),
+            b"NLLM" => {
+                pending_liquid_header = Some(payload);
+                pending_liquid_indices = None;
+            }
+            b"ILLM" => {
+                if pending_liquid_header.is_some() {
+                    pending_liquid_indices = Some(payload);
+                }
+            }
+            b"VLLM" => {
+                let Some(header) = pending_liquid_header.take() else {
+                    return Err("VLLM encountered before NLLM in _lod.adt file".to_string());
+                };
+                let Some(indices) = pending_liquid_indices.take() else {
+                    return Err("VLLM encountered before ILLM in _lod.adt file".to_string());
+                };
+                root_chunks.liquid_groups.push(LodLiquidChunkGroup {
+                    header,
+                    indices,
+                    vertices: payload,
+                });
+            }
             _ => {}
         }
+    }
+
+    if pending_liquid_header.is_some() || pending_liquid_indices.is_some() {
+        return Err("Incomplete MLLN/MLLI/MLLV liquid group in _lod.adt file".to_string());
     }
 
     if root_chunks.mver.is_none() {
@@ -1249,6 +1360,10 @@ pub(crate) fn load_lod_adt(data: &[u8]) -> Result<ParsedLodData, String> {
         nodes: parse_mlnd(root_chunks.mlnd.unwrap())?,
         indices: parse_u16_block(root_chunks.mlvi.unwrap(), "MLVI")?,
         skirt_indices: parse_u16_block(root_chunks.mlsi.unwrap(), "MLSI")?,
+        liquid_directory: root_chunks.mlld.map(|payload| LodLiquidDirectory {
+            raw: payload.to_vec(),
+        }),
+        liquids: parse_lod_liquids(root_chunks.liquid_groups)?,
     })
 }
 
