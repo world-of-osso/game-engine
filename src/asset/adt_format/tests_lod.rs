@@ -126,13 +126,13 @@ fn load_lod_adt_reads_real_tile_counts_and_ranges() {
 
 fn synthetic_lod_payload() -> Vec<u8> {
     let mut payload = Vec::new();
-    append_lod_core_chunks(&mut payload);
-    append_lod_liquid_chunks(&mut payload);
-    append_lod_object_chunks(&mut payload);
+    append_synthetic_lod_core_chunks(&mut payload);
+    append_synthetic_lod_liquid_chunks(&mut payload);
+    append_synthetic_lod_object_chunks(&mut payload);
     payload
 }
 
-fn append_lod_core_chunks(payload: &mut Vec<u8>) {
+fn append_synthetic_lod_core_chunks(payload: &mut Vec<u8>) {
     append_subchunk(payload, b"REVM", 18u32.to_le_bytes().to_vec());
     append_subchunk(
         payload,
@@ -146,7 +146,7 @@ fn append_lod_core_chunks(payload: &mut Vec<u8>) {
     append_subchunk(payload, b"ISLM", lod_index_payload(&[6, 7, 8, 9]));
 }
 
-fn append_lod_liquid_chunks(payload: &mut Vec<u8>) {
+fn append_synthetic_lod_liquid_chunks(payload: &mut Vec<u8>) {
     append_subchunk(payload, b"DLLM", vec![0xAA, 0xBB, 0xCC, 0xDD]);
     append_subchunk(
         payload,
@@ -161,7 +161,7 @@ fn append_lod_liquid_chunks(payload: &mut Vec<u8>) {
     );
 }
 
-fn append_lod_object_chunks(payload: &mut Vec<u8>) {
+fn append_synthetic_lod_object_chunks(payload: &mut Vec<u8>) {
     append_subchunk(
         payload,
         b"DDLM",
