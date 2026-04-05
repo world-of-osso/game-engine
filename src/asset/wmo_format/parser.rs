@@ -53,6 +53,7 @@ pub struct WmoGroupHeader {
     pub group_name_offset: u32,
     pub descriptive_group_name_offset: u32,
     pub flags: u32,
+    pub group_flags: WmoGroupFlags,
     pub bbox_min: [f32; 3],
     pub bbox_max: [f32; 3],
     pub portal_start: u16,
@@ -67,6 +68,24 @@ pub struct WmoGroupHeader {
     pub flags2: u32,
     pub parent_split_group_index: i16,
     pub next_split_child_group_index: i16,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WmoGroupFlags {
+    pub exterior: bool,
+    pub interior: bool,
+}
+
+impl WmoGroupFlags {
+    const EXTERIOR: u32 = 0x8;
+    const INTERIOR: u32 = 0x2000;
+
+    fn from_bits(bits: u32) -> Self {
+        Self {
+            exterior: bits & Self::EXTERIOR != 0,
+            interior: bits & Self::INTERIOR != 0,
+        }
+    }
 }
 
 pub struct WmoMaterialDef {
@@ -1051,6 +1070,7 @@ pub fn parse_mogp_header(data: &[u8]) -> Result<WmoGroupHeader, String> {
         group_name_offset: header.group_name_offset,
         descriptive_group_name_offset: header.descriptive_group_name_offset,
         flags: header.flags,
+        group_flags: WmoGroupFlags::from_bits(header.flags),
         bbox_min: header.bbox_min,
         bbox_max: header.bbox_max,
         portal_start: header.portal_start,
@@ -1589,6 +1609,13 @@ mod tests {
         assert_eq!(header.group_name_offset, 12);
         assert_eq!(header.descriptive_group_name_offset, 34);
         assert_eq!(header.flags, 0x0102_0304);
+        assert_eq!(
+            header.group_flags,
+            WmoGroupFlags {
+                exterior: false,
+                interior: false,
+            }
+        );
         assert_eq!(header.bbox_min, [-1.0, -2.0, -3.0]);
         assert_eq!(header.bbox_max, [4.0, 5.0, 6.0]);
         assert_eq!(header.portal_start, 7);
@@ -1603,6 +1630,33 @@ mod tests {
         assert_eq!(header.flags2, 15);
         assert_eq!(header.parent_split_group_index, -16);
         assert_eq!(header.next_split_child_group_index, 17);
+    }
+
+    #[test]
+    fn parse_mogp_header_reads_indoor_and_outdoor_group_flags() {
+        let mut interior_data = vec![0_u8; MOGP_HEADER_SIZE];
+        interior_data[8..12].copy_from_slice(&0x2000_u32.to_le_bytes());
+        let interior = parse_mogp_header(&interior_data).expect("parse interior MOGP");
+
+        assert_eq!(
+            interior.group_flags,
+            WmoGroupFlags {
+                exterior: false,
+                interior: true,
+            }
+        );
+
+        let mut exterior_data = vec![0_u8; MOGP_HEADER_SIZE];
+        exterior_data[8..12].copy_from_slice(&0x8_u32.to_le_bytes());
+        let exterior = parse_mogp_header(&exterior_data).expect("parse exterior MOGP");
+
+        assert_eq!(
+            exterior.group_flags,
+            WmoGroupFlags {
+                exterior: true,
+                interior: false,
+            }
+        );
     }
 
     #[test]

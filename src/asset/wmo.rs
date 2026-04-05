@@ -267,6 +267,8 @@ mod tests {
         assert_eq!(group.header.group_name_offset, 12);
         assert_eq!(group.header.descriptive_group_name_offset, 34);
         assert_eq!(group.header.flags, 0x0102_0304);
+        assert!(!group.header.group_flags.exterior);
+        assert!(!group.header.group_flags.interior);
         assert_eq!(group.header.portal_start, 7);
         assert_eq!(group.header.portal_count, 8);
         assert_eq!(group.header.trans_batch_count, 9);
@@ -279,6 +281,34 @@ mod tests {
         assert_eq!(group.header.flags2, 15);
         assert_eq!(group.header.parent_split_group_index, -16);
         assert_eq!(group.header.next_split_child_group_index, 17);
+    }
+
+    #[test]
+    fn load_wmo_group_reads_indoor_and_outdoor_group_flags() {
+        let mut data = Vec::new();
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        let mut header = [0_u8; MOGP_HEADER_SIZE];
+        header[8..12].copy_from_slice(&0x2008_u32.to_le_bytes());
+        data.extend_from_slice(&header);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+
+        assert!(group.header.group_flags.exterior);
+        assert!(group.header.group_flags.interior);
     }
 
     #[test]
