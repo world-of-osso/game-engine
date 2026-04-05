@@ -79,6 +79,9 @@ shared = { path = "../shared-protocol" }
 [patch."https://github.com/world-of-osso/ui-toolkit.git"]
 ui-toolkit = { path = "../ui-toolkit" }
 
+[patch."ssh://git@github.com/world-of-osso/ui-toolkit-macros.git"]
+ui-toolkit-macros = { path = "../ui-toolkit-macros" }
+
 # Optimize deps in debug builds (Bevy is unusably slow at opt-level 0)
 [profile.dev.package."*"]
 opt-level = 2
