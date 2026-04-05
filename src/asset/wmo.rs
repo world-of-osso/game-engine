@@ -2,11 +2,13 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::wmo_format::parser::{
-    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoGroupInfo, WmoMaterialDef, WmoPortal,
-    WmoPortalRef, WmoRootData, find_mogp, load_wmo_root, parse_group_subchunks, wmo_local_to_bevy,
+    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoGroupHeader, WmoGroupInfo, WmoMaterialDef,
+    WmoPortal, WmoPortalRef, WmoRootData, find_mogp, load_wmo_root, parse_group_subchunks,
+    parse_mogp_header, wmo_local_to_bevy,
 };
 
 pub struct WmoGroupData {
+    pub header: WmoGroupHeader,
     pub batches: Vec<WmoGroupBatch>,
 }
 
@@ -27,16 +29,18 @@ pub fn load_wmo_group(data: &[u8]) -> Result<WmoGroupData, String> {
         ));
     }
 
+    let header = parse_mogp_header(mogp_payload)?;
     let sub_chunks = &mogp_payload[MOGP_HEADER_SIZE..];
     let raw = parse_group_subchunks(sub_chunks)?;
-    build_group_batches(&raw)
+    build_group_batches(header, &raw)
 }
 
-fn build_group_batches(raw: &RawGroupData) -> Result<WmoGroupData, String> {
+fn build_group_batches(header: WmoGroupHeader, raw: &RawGroupData) -> Result<WmoGroupData, String> {
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     if raw.batches.is_empty() {
         let mesh = build_whole_group_mesh(raw);
         return Ok(WmoGroupData {
+            header,
             batches: vec![WmoGroupBatch {
                 mesh,
                 material_index: 0,
@@ -54,7 +58,10 @@ fn build_group_batches(raw: &RawGroupData) -> Result<WmoGroupData, String> {
             has_vertex_color: raw.colors.len() > batch.max_index as usize,
         });
     }
-    Ok(WmoGroupData { batches: out })
+    Ok(WmoGroupData {
+        header,
+        batches: out,
+    })
 }
 
 fn build_whole_group_mesh(raw: &RawGroupData) -> Mesh {
@@ -173,6 +180,62 @@ fn convert_colors(src: &[[f32; 4]], expected: usize) -> Option<Vec<[f32; 4]>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn load_wmo_group_reads_mogp_header_fields() {
+        let mut data = Vec::new();
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&12_u32.to_le_bytes());
+        data.extend_from_slice(&34_u32.to_le_bytes());
+        data.extend_from_slice(&0x0102_0304_u32.to_le_bytes());
+        for value in [-1.0_f32, -2.0, -3.0, 4.0, 5.0, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&7_u16.to_le_bytes());
+        data.extend_from_slice(&8_u16.to_le_bytes());
+        data.extend_from_slice(&9_u16.to_le_bytes());
+        data.extend_from_slice(&10_u16.to_le_bytes());
+        data.extend_from_slice(&11_u16.to_le_bytes());
+        data.extend_from_slice(&12_u16.to_le_bytes());
+        data.extend_from_slice(&[1_u8, 2, 3, 4]);
+        data.extend_from_slice(&13_u32.to_le_bytes());
+        data.extend_from_slice(&14_u32.to_le_bytes());
+        data.extend_from_slice(&15_u32.to_le_bytes());
+        data.extend_from_slice(&(-16_i16).to_le_bytes());
+        data.extend_from_slice(&17_i16.to_le_bytes());
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+
+        assert_eq!(group.header.group_name_offset, 12);
+        assert_eq!(group.header.descriptive_group_name_offset, 34);
+        assert_eq!(group.header.flags, 0x0102_0304);
+        assert_eq!(group.header.portal_start, 7);
+        assert_eq!(group.header.portal_count, 8);
+        assert_eq!(group.header.trans_batch_count, 9);
+        assert_eq!(group.header.int_batch_count, 10);
+        assert_eq!(group.header.ext_batch_count, 11);
+        assert_eq!(group.header.batch_type_d, 12);
+        assert_eq!(group.header.fog_ids, [1, 2, 3, 4]);
+        assert_eq!(group.header.group_liquid, 13);
+        assert_eq!(group.header.unique_id, 14);
+        assert_eq!(group.header.flags2, 15);
+        assert_eq!(group.header.parent_split_group_index, -16);
+        assert_eq!(group.header.next_split_child_group_index, 17);
+    }
 
     #[test]
     fn abbey_group_batch_mesh_indices_stay_in_bounds() {

@@ -49,6 +49,26 @@ pub struct WmoGroupInfo {
     pub bbox_max: [f32; 3],
 }
 
+pub struct WmoGroupHeader {
+    pub group_name_offset: u32,
+    pub descriptive_group_name_offset: u32,
+    pub flags: u32,
+    pub bbox_min: [f32; 3],
+    pub bbox_max: [f32; 3],
+    pub portal_start: u16,
+    pub portal_count: u16,
+    pub trans_batch_count: u16,
+    pub int_batch_count: u16,
+    pub ext_batch_count: u16,
+    pub batch_type_d: u16,
+    pub fog_ids: [u8; 4],
+    pub group_liquid: u32,
+    pub unique_id: u32,
+    pub flags2: u32,
+    pub parent_split_group_index: i16,
+    pub next_split_child_group_index: i16,
+}
+
 pub struct WmoMaterialDef {
     pub texture_fdid: u32,
     pub texture_2_fdid: u32,
@@ -437,6 +457,28 @@ struct RawBatchEntry {
     material_id_small: u8,
 }
 
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoGroupHeader {
+    group_name_offset: u32,
+    descriptive_group_name_offset: u32,
+    flags: u32,
+    bbox_min: [f32; 3],
+    bbox_max: [f32; 3],
+    portal_start: u16,
+    portal_count: u16,
+    trans_batch_count: u16,
+    int_batch_count: u16,
+    ext_batch_count: u16,
+    batch_type_d: u16,
+    fog_ids: [u8; 4],
+    group_liquid: u32,
+    unique_id: u32,
+    flags2: u32,
+    parent_split_group_index: i16,
+    next_split_child_group_index: i16,
+}
+
 pub const MOGP_HEADER_SIZE: usize = 68;
 
 pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
@@ -712,19 +754,17 @@ pub fn parse_mogn(data: &[u8]) -> Result<Vec<WmoGroupName>, String> {
 }
 
 pub fn parse_modi(data: &[u8]) -> Result<Vec<u32>, String> {
-    Ok(
-        data.chunks_exact(MODI_ENTRY_SIZE)
-            .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
-            .collect(),
-    )
+    Ok(data
+        .chunks_exact(MODI_ENTRY_SIZE)
+        .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
+        .collect())
 }
 
 pub fn parse_gfid(data: &[u8]) -> Result<Vec<u32>, String> {
-    Ok(
-        data.chunks_exact(MODI_ENTRY_SIZE)
-            .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
-            .collect(),
-    )
+    Ok(data
+        .chunks_exact(MODI_ENTRY_SIZE)
+        .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
+        .collect())
 }
 
 pub fn parse_mavd(data: &[u8]) -> Result<Vec<WmoAmbientVolume>, String> {
@@ -915,6 +955,29 @@ pub fn find_mogp(data: &[u8]) -> Result<&[u8], String> {
         }
     }
     Err("No MOGP chunk found in WMO group file".to_string())
+}
+
+pub fn parse_mogp_header(data: &[u8]) -> Result<WmoGroupHeader, String> {
+    let header: RawWmoGroupHeader = parse_binrw_value(data, MOGP_HEADER_SIZE, "MOGP")?;
+    Ok(WmoGroupHeader {
+        group_name_offset: header.group_name_offset,
+        descriptive_group_name_offset: header.descriptive_group_name_offset,
+        flags: header.flags,
+        bbox_min: header.bbox_min,
+        bbox_max: header.bbox_max,
+        portal_start: header.portal_start,
+        portal_count: header.portal_count,
+        trans_batch_count: header.trans_batch_count,
+        int_batch_count: header.int_batch_count,
+        ext_batch_count: header.ext_batch_count,
+        batch_type_d: header.batch_type_d,
+        fog_ids: header.fog_ids,
+        group_liquid: header.group_liquid,
+        unique_id: header.unique_id,
+        flags2: header.flags2,
+        parent_split_group_index: header.parent_split_group_index,
+        next_split_child_group_index: header.next_split_child_group_index,
+    })
 }
 
 pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
@@ -1130,8 +1193,8 @@ mod tests {
     fn parse_mbvd_reads_baked_ambient_box_volumes() {
         let mut data = Vec::new();
         for value in [
-            1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0,
-            15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+            1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+            16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
         ] {
             data.extend_from_slice(&value.to_le_bytes());
         }
@@ -1189,8 +1252,8 @@ mod tests {
         data.extend_from_slice(b"DVBM");
         data.extend_from_slice(&(MBVD_ENTRY_SIZE as u32).to_le_bytes());
         for value in [
-            1.0_f32, 0.0, 0.0, 5.0, -1.0, 0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 0.0, -1.0, 0.0,
-            8.0, 0.0, 0.0, 1.0, 9.0, 0.0, 0.0, -1.0, 10.0,
+            1.0_f32, 0.0, 0.0, 5.0, -1.0, 0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 0.0, -1.0, 0.0, 8.0,
+            0.0, 0.0, 1.0, 9.0, 0.0, 0.0, -1.0, 10.0,
         ] {
             data.extend_from_slice(&value.to_le_bytes());
         }
@@ -1209,7 +1272,10 @@ mod tests {
         assert_eq!(root.ambient_volumes.len(), 1);
         assert_eq!(root.ambient_volumes[0].position, [40.0, 50.0, 60.0]);
         assert_eq!(root.baked_ambient_box_volumes.len(), 1);
-        assert_eq!(root.baked_ambient_box_volumes[0].planes[0], [1.0, 0.0, 0.0, 5.0]);
+        assert_eq!(
+            root.baked_ambient_box_volumes[0].planes[0],
+            [1.0, 0.0, 0.0, 5.0]
+        );
         assert_eq!(root.baked_ambient_box_volumes[0].end, 11.0);
     }
 
@@ -1300,6 +1366,49 @@ mod tests {
         assert_eq!(light.attenuation_start, 3.0);
         assert_eq!(light.attenuation_end, 7.0);
         assert_eq!(light.intensity, 1.5);
+    }
+
+    #[test]
+    fn parse_mogp_header_reads_group_fields() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&12_u32.to_le_bytes());
+        data.extend_from_slice(&34_u32.to_le_bytes());
+        data.extend_from_slice(&0x0102_0304_u32.to_le_bytes());
+        for value in [-1.0_f32, -2.0, -3.0, 4.0, 5.0, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&7_u16.to_le_bytes());
+        data.extend_from_slice(&8_u16.to_le_bytes());
+        data.extend_from_slice(&9_u16.to_le_bytes());
+        data.extend_from_slice(&10_u16.to_le_bytes());
+        data.extend_from_slice(&11_u16.to_le_bytes());
+        data.extend_from_slice(&12_u16.to_le_bytes());
+        data.extend_from_slice(&[1_u8, 2, 3, 4]);
+        data.extend_from_slice(&13_u32.to_le_bytes());
+        data.extend_from_slice(&14_u32.to_le_bytes());
+        data.extend_from_slice(&15_u32.to_le_bytes());
+        data.extend_from_slice(&(-16_i16).to_le_bytes());
+        data.extend_from_slice(&17_i16.to_le_bytes());
+
+        let header = parse_mogp_header(&data).expect("parse MOGP header");
+
+        assert_eq!(header.group_name_offset, 12);
+        assert_eq!(header.descriptive_group_name_offset, 34);
+        assert_eq!(header.flags, 0x0102_0304);
+        assert_eq!(header.bbox_min, [-1.0, -2.0, -3.0]);
+        assert_eq!(header.bbox_max, [4.0, 5.0, 6.0]);
+        assert_eq!(header.portal_start, 7);
+        assert_eq!(header.portal_count, 8);
+        assert_eq!(header.trans_batch_count, 9);
+        assert_eq!(header.int_batch_count, 10);
+        assert_eq!(header.ext_batch_count, 11);
+        assert_eq!(header.batch_type_d, 12);
+        assert_eq!(header.fog_ids, [1, 2, 3, 4]);
+        assert_eq!(header.group_liquid, 13);
+        assert_eq!(header.unique_id, 14);
+        assert_eq!(header.flags2, 15);
+        assert_eq!(header.parent_split_group_index, -16);
+        assert_eq!(header.next_split_child_group_index, 17);
     }
 
     #[test]
@@ -1677,7 +1786,10 @@ mod tests {
 
         let root = load_wmo_root(&data).expect("parse WMO root");
 
-        assert_eq!(root.visible_block_vertices, vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+        assert_eq!(
+            root.visible_block_vertices,
+            vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+        );
         assert_eq!(root.visible_blocks.len(), 2);
         assert_eq!(root.visible_blocks[0].start_vertex, 0);
         assert_eq!(root.visible_blocks[0].vertex_count, 2);
