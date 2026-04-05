@@ -179,7 +179,9 @@ pub fn spawn_obj_entities(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
+        inverse_bp,
         tile_y,
         tile_x,
         obj_data,
@@ -278,7 +280,9 @@ pub fn spawn_nearby_campsite_objects(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
+        inverse_bp,
         tile_y,
         tile_x,
         obj_data,
@@ -535,7 +539,7 @@ fn placement_rotation(rot: [f32; 3]) -> Quat {
     Quat::from_euler(EulerRot::YZX, heading_y, attitude_z, bank_x)
 }
 
-fn wow_quat_to_bevy(raw: [f32; 4]) -> Quat {
+pub(super) fn wow_quat_to_bevy(raw: [f32; 4]) -> Quat {
     let wow_quat = normalize_quat_or_identity(Quat::from_xyzw(raw[0], raw[1], raw[2], raw[3]));
     let basis = Mat3::from_cols(Vec3::X, -Vec3::Z, Vec3::Y);
     let bevy_rot = basis * Mat3::from_quat(wow_quat) * basis.transpose();
@@ -556,7 +560,9 @@ fn spawn_wmos(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
@@ -573,7 +579,9 @@ fn spawn_wmos(
         commands,
         meshes,
         materials,
+        effect_materials,
         images,
+        inverse_bp,
         tile_y,
         tile_x,
         obj_data,

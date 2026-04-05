@@ -3,13 +3,18 @@ use std::sync::{Mutex, OnceLock};
 
 use bevy::color::LinearRgba;
 use bevy::image::Image;
+use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
 use crate::asset::{adt_format::adt_obj, blp, wmo};
+use crate::m2_effect_material::M2EffectMaterial;
+use crate::m2_spawn;
 use crate::rendering::sky::GameTime;
 use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
 
-use super::{SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform};
+use super::{
+    SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute, wmo_transform, wow_quat_to_bevy,
+};
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WmoAdtMetadata {
@@ -33,6 +38,8 @@ struct WmoAssets<'a> {
     meshes: &'a mut Assets<Mesh>,
     materials: &'a mut Assets<StandardMaterial>,
     images: &'a mut Assets<Image>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
+    inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -49,7 +56,9 @@ pub(super) fn spawn_wmos_filtered(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
@@ -66,6 +75,8 @@ pub(super) fn spawn_wmos_filtered(
             meshes,
             materials,
             images,
+            effect_materials,
+            inverse_bindposes,
         };
         if let Some(spawned_wmo) = try_spawn_wmo(
             commands,
@@ -117,6 +128,7 @@ fn try_spawn_wmo(
         &group_fdids,
         root_fdid,
         root_entity,
+        placement.doodad_set,
     );
     log_wmo_spawn(root_fdid, group_count, &root, &transform);
     build_spawned_wmo_root(root_fdid, root_entity, group_count, placement)
@@ -241,11 +253,20 @@ fn spawn_wmo_groups(
     group_fdids: &[Option<u32>],
     root_fdid: u32,
     root_entity: Entity,
+    active_doodad_set: u16,
 ) -> u32 {
     let mut count = 0u32;
     for (i, group_fdid) in group_fdids.iter().enumerate() {
         let Some(fdid) = group_fdid else { continue };
-        if spawn_wmo_group(commands, assets, root, *fdid, root_entity, i as u16) {
+        if spawn_wmo_group(
+            commands,
+            assets,
+            root,
+            *fdid,
+            root_entity,
+            i as u16,
+            active_doodad_set,
+        ) {
             count += 1;
         } else {
             eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
@@ -364,6 +385,7 @@ fn spawn_wmo_group(
     group_fdid: u32,
     root_entity: Entity,
     group_index: u16,
+    active_doodad_set: u16,
 ) -> bool {
     let Some(group_path) = ensure_wmo_asset(group_fdid) else {
         return false;
@@ -378,6 +400,14 @@ fn spawn_wmo_group(
     let bbox = group_bbox(root, group_index);
     let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
     commands.entity(root_entity).add_child(group_entity);
+    spawn_wmo_group_doodads(
+        commands,
+        assets,
+        root,
+        &group,
+        group_entity,
+        active_doodad_set,
+    );
     spawn_wmo_group_batches(commands, assets, root, group_entity, group.batches);
     true
 }
@@ -425,6 +455,146 @@ fn spawn_wmo_group_batches(
         let child = child.id();
         commands.entity(group_entity).add_child(child);
     }
+}
+
+fn spawn_wmo_group_doodads(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    group_entity: Entity,
+    active_doodad_set: u16,
+) {
+    for doodad in collect_group_doodads(root, group, active_doodad_set) {
+        let Some(entity) = spawn_wmo_group_doodad(commands, assets, &doodad) else {
+            continue;
+        };
+        commands.entity(group_entity).add_child(entity);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct WmoGroupDoodad {
+    model_path: String,
+    transform: Transform,
+}
+
+fn collect_group_doodads(
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    active_doodad_set: u16,
+) -> Vec<WmoGroupDoodad> {
+    let active_indices = active_wmo_doodad_indices(root, active_doodad_set);
+    group
+        .doodad_refs
+        .iter()
+        .filter_map(|&doodad_index| {
+            if !active_indices.contains(&doodad_index) {
+                return None;
+            }
+            let doodad_def = root.doodad_defs.get(doodad_index as usize)?;
+            let model_path = resolve_wmo_doodad_name_path(root, doodad_def.name_offset)?;
+            Some(WmoGroupDoodad {
+                model_path,
+                transform: wmo_doodad_transform(doodad_def),
+            })
+        })
+        .collect()
+}
+
+fn active_wmo_doodad_indices(
+    root: &wmo::WmoRootData,
+    active_doodad_set: u16,
+) -> std::collections::HashSet<u16> {
+    let mut indices = std::collections::HashSet::new();
+    if root.doodad_sets.is_empty() {
+        indices.extend((0..root.doodad_defs.len()).filter_map(|idx| u16::try_from(idx).ok()));
+        return indices;
+    }
+
+    add_wmo_doodad_set_indices(&mut indices, root.doodad_sets.first());
+    if active_doodad_set != 0 {
+        add_wmo_doodad_set_indices(
+            &mut indices,
+            root.doodad_sets.get(active_doodad_set as usize),
+        );
+    }
+    indices
+}
+
+fn add_wmo_doodad_set_indices(
+    indices: &mut std::collections::HashSet<u16>,
+    doodad_set: Option<&wmo::WmoDoodadSet>,
+) {
+    let Some(doodad_set) = doodad_set else { return };
+    let start = doodad_set.start_doodad;
+    let end = start.saturating_add(doodad_set.n_doodads);
+    indices.extend((start..end).filter_map(|idx| u16::try_from(idx).ok()));
+}
+
+fn resolve_wmo_doodad_name_path(root: &wmo::WmoRootData, name_offset: u32) -> Option<String> {
+    root.doodad_names
+        .iter()
+        .find(|name| name.offset == name_offset)
+        .map(|name| name.name.clone())
+        .or_else(|| {
+            root.doodad_file_ids
+                .get(name_offset as usize)
+                .and_then(|fdid| game_engine::listfile::lookup_fdid(*fdid))
+                .map(str::to_string)
+        })
+}
+
+fn wmo_doodad_transform(doodad_def: &wmo::WmoDoodadDef) -> Transform {
+    let [x, y, z] = crate::asset::wmo::wmo_local_to_bevy(
+        doodad_def.position[0],
+        doodad_def.position[1],
+        doodad_def.position[2],
+    );
+    Transform::from_translation(Vec3::new(x, y, z))
+        .with_rotation(wow_quat_to_bevy(doodad_def.rotation))
+        .with_scale(Vec3::splat(doodad_def.scale))
+}
+
+fn spawn_wmo_group_doodad(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    doodad: &WmoGroupDoodad,
+) -> Option<Entity> {
+    let fdid = game_engine::listfile::lookup_path(&doodad.model_path)?;
+    let model_path = crate::asset::asset_cache::model(fdid)?;
+    if !model_path.exists() {
+        return None;
+    }
+    let name = model_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("wmo_doodad");
+    let entity = commands
+        .spawn((
+            Name::new(name.to_owned()),
+            doodad.transform,
+            Visibility::default(),
+        ))
+        .id();
+    if !m2_spawn::spawn_m2_on_entity(
+        commands,
+        &mut m2_spawn::SpawnAssets {
+            meshes: assets.meshes,
+            materials: assets.materials,
+            effect_materials: assets.effect_materials,
+            skybox_materials: None,
+            images: assets.images,
+            inverse_bindposes: assets.inverse_bindposes,
+        },
+        &model_path,
+        entity,
+        &[0, 0, 0],
+    ) {
+        commands.entity(entity).despawn();
+        return None;
+    }
+    Some(entity)
 }
 
 fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling::WmoGroup {
@@ -908,5 +1078,154 @@ mod tests {
                 surface: FootstepSurface::Wood,
             })
         );
+    }
+
+    #[test]
+    fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
+        let group = wmo::WmoGroupData {
+            header: wmo::WmoGroupHeader {
+                group_name_offset: 0,
+                descriptive_group_name_offset: 0,
+                flags: 0,
+                group_flags: Default::default(),
+                bbox_min: [0.0; 3],
+                bbox_max: [0.0; 3],
+                portal_start: 0,
+                portal_count: 0,
+                trans_batch_count: 0,
+                int_batch_count: 0,
+                ext_batch_count: 0,
+                batch_type_d: 0,
+                fog_ids: [0; 4],
+                group_liquid: 0,
+                unique_id: 0,
+                flags2: 0,
+                parent_split_group_index: -1,
+                next_split_child_group_index: -1,
+            },
+            doodad_refs: vec![0, 2, 3, 4],
+            light_refs: Vec::new(),
+            bsp_nodes: Vec::new(),
+            bsp_face_refs: Vec::new(),
+            liquid: None,
+            batches: Vec::new(),
+        };
+        let root = wmo::WmoRootData {
+            n_groups: 1,
+            flags: wmo::WmoRootFlags::default(),
+            ambient_color: [0.0; 4],
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            materials: Vec::new(),
+            lights: Vec::new(),
+            doodad_sets: vec![
+                wmo::WmoDoodadSet {
+                    name: "$DefaultGlobal".into(),
+                    start_doodad: 0,
+                    n_doodads: 2,
+                },
+                wmo::WmoDoodadSet {
+                    name: "InnProps".into(),
+                    start_doodad: 2,
+                    n_doodads: 2,
+                },
+            ],
+            group_names: Vec::new(),
+            doodad_names: vec![
+                wmo::WmoDoodadName {
+                    offset: 0,
+                    name: "world/generic/passive_doodad_0.m2".into(),
+                },
+                wmo::WmoDoodadName {
+                    offset: 1,
+                    name: "world/generic/passive_doodad_1.m2".into(),
+                },
+                wmo::WmoDoodadName {
+                    offset: 2,
+                    name: "world/generic/selected_doodad_2.m2".into(),
+                },
+                wmo::WmoDoodadName {
+                    offset: 3,
+                    name: "world/generic/selected_doodad_3.m2".into(),
+                },
+                wmo::WmoDoodadName {
+                    offset: 4,
+                    name: "world/generic/unused_doodad_4.m2".into(),
+                },
+            ],
+            doodad_file_ids: Vec::new(),
+            doodad_defs: vec![
+                wmo::WmoDoodadDef {
+                    name_offset: 0,
+                    flags: 0,
+                    position: [1.0, 2.0, 3.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: 1.0,
+                    color: [1.0; 4],
+                },
+                wmo::WmoDoodadDef {
+                    name_offset: 1,
+                    flags: 0,
+                    position: [0.0; 3],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: 1.0,
+                    color: [1.0; 4],
+                },
+                wmo::WmoDoodadDef {
+                    name_offset: 2,
+                    flags: 0,
+                    position: [4.0, 5.0, 6.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: 0.5,
+                    color: [1.0; 4],
+                },
+                wmo::WmoDoodadDef {
+                    name_offset: 3,
+                    flags: 0,
+                    position: [7.0, 8.0, 9.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: 2.0,
+                    color: [1.0; 4],
+                },
+                wmo::WmoDoodadDef {
+                    name_offset: 4,
+                    flags: 0,
+                    position: [10.0, 11.0, 12.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    scale: 3.0,
+                    color: [1.0; 4],
+                },
+            ],
+            fogs: Vec::new(),
+            visible_block_vertices: Vec::new(),
+            visible_blocks: Vec::new(),
+            convex_volume_planes: Vec::new(),
+            group_file_data_ids: Vec::new(),
+            global_ambient_volumes: Vec::new(),
+            ambient_volumes: Vec::new(),
+            baked_ambient_box_volumes: Vec::new(),
+            dynamic_lights: Vec::new(),
+            portals: Vec::new(),
+            portal_refs: Vec::new(),
+            group_infos: Vec::new(),
+            skybox_wow_path: None,
+        };
+
+        let doodads = collect_group_doodads(&root, &group, 1);
+        assert_eq!(doodads.len(), 3);
+        assert_eq!(
+            doodads
+                .iter()
+                .map(|doodad| doodad.model_path.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                "world/generic/passive_doodad_0.m2",
+                "world/generic/selected_doodad_2.m2",
+                "world/generic/selected_doodad_3.m2",
+            ]
+        );
+        assert_eq!(doodads[0].transform.translation, Vec3::new(-1.0, 3.0, 2.0));
+        assert_eq!(doodads[1].transform.scale, Vec3::splat(0.5));
+        assert_eq!(doodads[2].transform.scale, Vec3::splat(2.0));
     }
 }

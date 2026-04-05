@@ -3,9 +3,10 @@ use bevy::mesh::{Indices, Mesh, MeshVertexAttribute, PrimitiveTopology};
 use bevy::render::render_resource::VertexFormat;
 
 pub use super::wmo_format::parser::{
-    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoBspNode, WmoGroupHeader, WmoGroupInfo, WmoLiquid,
-    WmoMaterialDef, WmoMaterialFlags, WmoPortal, WmoPortalRef, WmoRootData, WmoRootFlags,
-    find_mogp, load_wmo_root, parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
+    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoBspNode, WmoDoodadDef, WmoDoodadName,
+    WmoDoodadSet, WmoGroupHeader, WmoGroupInfo, WmoLiquid, WmoMaterialDef, WmoMaterialFlags,
+    WmoPortal, WmoPortalRef, WmoRootData, WmoRootFlags, find_mogp, load_wmo_root,
+    parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
 };
 
 pub const WMO_BLEND_ALPHA_ATTRIBUTE: MeshVertexAttribute = MeshVertexAttribute::new(
