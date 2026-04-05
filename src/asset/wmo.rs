@@ -406,34 +406,12 @@ fn extract_batch_vertices(
         .iter()
         .map(|v| wmo_local_to_bevy(v[0], v[1], v[2]))
         .collect();
-    let normals = if raw.normals.len() > vmax {
-        raw.normals[vmin..=vmax]
-            .iter()
-            .map(|n| wmo_local_to_bevy(n[0], n[1], n[2]))
-            .collect()
-    } else {
-        vec![[0.0, 1.0, 0.0]; vert_count]
-    };
-    let uvs = if raw.uvs.len() > vmax {
-        raw.uvs[vmin..=vmax].to_vec()
-    } else {
-        vec![[0.0, 0.0]; vert_count]
-    };
-    let second_uvs = if raw.second_uvs.len() > vmax {
-        Some(raw.second_uvs[vmin..=vmax].to_vec())
-    } else {
-        None
-    };
-    let third_uvs = if raw.third_uvs.len() > vmax {
-        Some(raw.third_uvs[vmin..=vmax].to_vec())
-    } else {
-        None
-    };
-    let second_color_blend_alphas = if raw.second_color_blend_alphas.len() > vmax {
-        Some(raw.second_color_blend_alphas[vmin..=vmax].to_vec())
-    } else {
-        None
-    };
+    let normals = extract_batch_normals(raw, vmin, vmax, vert_count);
+    let uvs = extract_batch_uvs(&raw.uvs, vmin, vmax, vert_count);
+    let second_uvs = extract_optional_batch_slice(&raw.second_uvs, vmin, vmax);
+    let third_uvs = extract_optional_batch_slice(&raw.third_uvs, vmin, vmax);
+    let second_color_blend_alphas =
+        extract_optional_batch_slice(&raw.second_color_blend_alphas, vmin, vmax);
     (
         positions,
         normals,
@@ -442,6 +420,35 @@ fn extract_batch_vertices(
         third_uvs,
         second_color_blend_alphas,
     )
+}
+
+fn extract_batch_normals(
+    raw: &RawGroupData,
+    vmin: usize,
+    vmax: usize,
+    vert_count: usize,
+) -> Vec<[f32; 3]> {
+    if raw.normals.len() > vmax {
+        raw.normals[vmin..=vmax]
+            .iter()
+            .map(|normal| wmo_local_to_bevy(normal[0], normal[1], normal[2]))
+            .collect()
+    } else {
+        vec![[0.0, 1.0, 0.0]; vert_count]
+    }
+}
+
+fn extract_batch_uvs(
+    src: &[[f32; 2]],
+    vmin: usize,
+    vmax: usize,
+    vert_count: usize,
+) -> Vec<[f32; 2]> {
+    extract_optional_batch_slice(src, vmin, vmax).unwrap_or_else(|| vec![[0.0, 0.0]; vert_count])
+}
+
+fn extract_optional_batch_slice<T: Clone>(src: &[T], vmin: usize, vmax: usize) -> Option<Vec<T>> {
+    (src.len() > vmax).then(|| src[vmin..=vmax].to_vec())
 }
 
 fn extract_batch_indices(raw: &RawGroupData, batch: &RawBatch) -> Vec<u32> {
