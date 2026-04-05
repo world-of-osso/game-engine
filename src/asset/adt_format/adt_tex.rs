@@ -71,6 +71,45 @@ pub struct AdtTexData {
     pub chunk_layers: Vec<ChunkTexLayers>,
 }
 
+struct AdtTexAccumulator {
+    texture_amplifier: Option<u32>,
+    texture_fdids: Vec<u32>,
+    height_texture_fdids: Vec<u32>,
+    texture_flags: Vec<u32>,
+    texture_params: Vec<TextureParams>,
+    chunk_layers: Vec<ChunkTexLayers>,
+    chunk_index: usize,
+}
+
+impl AdtTexAccumulator {
+    fn new() -> Self {
+        Self {
+            texture_amplifier: None,
+            texture_fdids: Vec::new(),
+            height_texture_fdids: Vec::new(),
+            texture_flags: Vec::new(),
+            texture_params: Vec::new(),
+            chunk_layers: Vec::with_capacity(256),
+            chunk_index: 0,
+        }
+    }
+
+    fn finish(self) -> Result<AdtTexData, String> {
+        if self.chunk_layers.is_empty() {
+            return Err("No KNCM chunks found in _tex0.adt file".to_string());
+        }
+
+        Ok(AdtTexData {
+            texture_amplifier: self.texture_amplifier,
+            texture_fdids: self.texture_fdids,
+            height_texture_fdids: self.height_texture_fdids,
+            texture_flags: self.texture_flags,
+            texture_params: self.texture_params,
+            chunk_layers: self.chunk_layers,
+        })
+    }
+}
+
 #[derive(BinRead)]
 #[br(little)]
 struct MclyEntry {
@@ -377,43 +416,46 @@ pub fn load_adt_tex0_with_chunk_alpha_flags(
     data: &[u8],
     do_not_fix_alpha_map: &[bool],
 ) -> Result<AdtTexData, String> {
-    let mut texture_amplifier: Option<u32> = None;
-    let mut texture_fdids: Vec<u32> = Vec::new();
-    let mut height_texture_fdids: Vec<u32> = Vec::new();
-    let mut texture_flags: Vec<u32> = Vec::new();
-    let mut texture_params: Vec<TextureParams> = Vec::new();
-    let mut chunk_layers: Vec<ChunkTexLayers> = Vec::with_capacity(256);
-    let mut chunk_index = 0usize;
+    let mut accum = AdtTexAccumulator::new();
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
-        match tag {
-            b"PMAM" => texture_amplifier = Some(parse_mamp(payload)?),
-            b"DIDM" => texture_fdids = parse_u32_chunk(payload, "MDID")?,
-            b"DIHM" => height_texture_fdids = parse_u32_chunk(payload, "MHID")?,
-            b"FXTM" => texture_flags = parse_u32_chunk(payload, "MTXF")?,
-            b"PXTM" => texture_params = parse_texture_params(payload)?,
-            b"KNCM" => {
-                let chunk_do_not_fix_alpha = do_not_fix_alpha_map
-                    .get(chunk_index)
-                    .copied()
-                    .unwrap_or(false);
-                chunk_layers.push(parse_tex0_mcnk(payload, chunk_do_not_fix_alpha)?);
-                chunk_index += 1;
-            }
-            _ => {}
-        }
+        parse_tex0_chunk(&mut accum, tag, payload, do_not_fix_alpha_map)?;
     }
-    if chunk_layers.is_empty() {
-        return Err("No KNCM chunks found in _tex0.adt file".to_string());
+    accum.finish()
+}
+
+fn parse_tex0_chunk(
+    accum: &mut AdtTexAccumulator,
+    tag: &[u8; 4],
+    payload: &[u8],
+    do_not_fix_alpha_map: &[bool],
+) -> Result<(), String> {
+    match tag {
+        b"PMAM" => accum.texture_amplifier = Some(parse_mamp(payload)?),
+        b"DIDM" => accum.texture_fdids = parse_u32_chunk(payload, "MDID")?,
+        b"DIHM" => accum.height_texture_fdids = parse_u32_chunk(payload, "MHID")?,
+        b"FXTM" => accum.texture_flags = parse_u32_chunk(payload, "MTXF")?,
+        b"PXTM" => accum.texture_params = parse_texture_params(payload)?,
+        b"KNCM" => parse_tex0_mcnk_chunk(accum, payload, do_not_fix_alpha_map)?,
+        _ => {}
     }
-    Ok(AdtTexData {
-        texture_amplifier,
-        texture_fdids,
-        height_texture_fdids,
-        texture_flags,
-        texture_params,
-        chunk_layers,
-    })
+    Ok(())
+}
+
+fn parse_tex0_mcnk_chunk(
+    accum: &mut AdtTexAccumulator,
+    payload: &[u8],
+    do_not_fix_alpha_map: &[bool],
+) -> Result<(), String> {
+    let chunk_do_not_fix_alpha = do_not_fix_alpha_map
+        .get(accum.chunk_index)
+        .copied()
+        .unwrap_or(false);
+    accum
+        .chunk_layers
+        .push(parse_tex0_mcnk(payload, chunk_do_not_fix_alpha)?);
+    accum.chunk_index += 1;
+    Ok(())
 }
 
 fn parse_mamp(payload: &[u8]) -> Result<u32, String> {
