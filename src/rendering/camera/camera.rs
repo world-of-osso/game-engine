@@ -1,6 +1,8 @@
 use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
+use std::collections::HashSet;
 
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
@@ -375,6 +377,8 @@ fn player_movement(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
+    mut ray_cast: MeshRayCast,
+    wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
     mut player_q: Query<
         (
             &mut Transform,
@@ -399,6 +403,10 @@ fn player_movement(
     sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
     let (direction, speed) =
         resolve_player_movement_state(&keys, &mouse_buttons, &bindings, &mut movement, facing);
+    let current_position = transform.translation;
+    let proposed =
+        build_proposed_ground_movement(current_position, direction, speed, time.delta_secs());
+    let collision_meshes = collect_collision_meshes(&wmo_collision_meshes_q);
     apply_horizontal_movement(HorizontalMovementContext {
         transform: &mut transform,
         movement: &mut movement,
@@ -406,13 +414,36 @@ fn player_movement(
         keys: &keys,
         mouse_buttons: &mouse_buttons,
         bindings: &bindings,
-        direction,
-        speed,
-        dt: time.delta_secs(),
         terrain: terrain.as_deref(),
+        proposed: proposed.map(|proposed| {
+            collision::clamp_movement_against_wmo_meshes(
+                current_position,
+                proposed,
+                &mut ray_cast,
+                &collision_meshes,
+            )
+        }),
     });
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
+}
+
+fn collect_collision_meshes(
+    collision_meshes: &Query<Entity, With<collision::WmoCollisionMesh>>,
+) -> HashSet<Entity> {
+    collision_meshes.iter().collect()
+}
+
+fn build_proposed_ground_movement(
+    current: Vec3,
+    direction: Vec3,
+    speed: f32,
+    dt: f32,
+) -> Option<Vec3> {
+    if direction.length_squared() == 0.0 {
+        return None;
+    }
+    Some(current + direction.normalize() * speed * dt)
 }
 
 fn close_player_movement_for_modal(
@@ -469,10 +500,8 @@ struct HorizontalMovementContext<'a> {
     keys: &'a ButtonInput<KeyCode>,
     mouse_buttons: &'a ButtonInput<MouseButton>,
     bindings: &'a InputBindings,
-    direction: Vec3,
-    speed: f32,
-    dt: f32,
     terrain: Option<&'a TerrainHeightmap>,
+    proposed: Option<Vec3>,
 }
 
 fn apply_horizontal_movement(ctx: HorizontalMovementContext<'_>) {
@@ -483,12 +512,10 @@ fn apply_horizontal_movement(ctx: HorizontalMovementContext<'_>) {
         keys,
         mouse_buttons,
         bindings,
-        direction,
-        speed,
-        dt,
         terrain,
+        proposed,
     } = ctx;
-    apply_ground_movement(transform, movement, physics, direction, speed, dt, terrain);
+    apply_ground_movement(transform, movement, physics, proposed, terrain);
     apply_jump_input(movement, physics, bindings, keys, mouse_buttons);
     finish_jump_if_landed(transform, movement, physics, terrain);
 }
@@ -497,17 +524,10 @@ fn apply_ground_movement(
     transform: &mut Transform,
     movement: &MovementState,
     physics: &CharacterPhysics,
-    direction: Vec3,
-    speed: f32,
-    dt: f32,
+    proposed: Option<Vec3>,
     terrain: Option<&TerrainHeightmap>,
 ) {
-    if direction.length_squared() == 0.0 {
-        return;
-    }
-
-    let dir = direction.normalize();
-    let proposed = transform.translation + dir * speed * dt;
+    let Some(proposed) = proposed else { return };
     transform.translation = match terrain {
         Some(t) => collision::validate_movement_slope(
             transform.translation,
@@ -661,16 +681,37 @@ mod tests {
             keys: &keys,
             mouse_buttons: &mouse_buttons,
             bindings: &bindings,
-            direction: Vec3::ZERO,
-            speed: 0.0,
-            dt: 0.0,
             terrain: Some(&heightmap),
+            proposed: None,
         });
 
         assert!(
             movement.jumping,
             "jumping should stay active until the player actually reaches the ground"
         );
+    }
+
+    #[test]
+    fn proposed_ground_movement_is_absent_without_input() {
+        assert_eq!(
+            build_proposed_ground_movement(Vec3::new(1.0, 2.0, 3.0), Vec3::ZERO, 7.0, 0.5),
+            None
+        );
+    }
+
+    #[test]
+    fn proposed_ground_movement_advances_in_normalized_input_direction() {
+        let proposed = build_proposed_ground_movement(
+            Vec3::new(1.0, 2.0, 3.0),
+            Vec3::new(3.0, 0.0, 4.0),
+            10.0,
+            0.5,
+        )
+        .expect("movement proposal");
+
+        assert!((proposed.x - 4.0).abs() < 0.001);
+        assert_eq!(proposed.y, 2.0);
+        assert!((proposed.z - 7.0).abs() < 0.001);
     }
 }
 

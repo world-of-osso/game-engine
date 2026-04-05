@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
 
 use crate::asset::{adt_format::adt_obj, blp, wmo};
+use crate::collision::WmoCollisionMesh;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::rendering::sky::GameTime;
@@ -457,6 +458,7 @@ fn spawn_wmo_group_batches(
             MeshMaterial3d(mat),
             Transform::default(),
             Visibility::default(),
+            WmoCollisionMesh,
         ));
         if let Some(glow) = material_props.sidn_glow {
             child.insert(glow);
@@ -1572,6 +1574,95 @@ mod tests {
         assert_eq!(lights[1].0, 2);
         assert_eq!(lights[0].1.position, [1.0, 2.0, 3.0]);
         assert_eq!(lights[1].1.position, [7.0, 8.0, 9.0]);
+    }
+
+    #[test]
+    fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
+        let mut app = App::new();
+        app.world_mut().init_resource::<Assets<Mesh>>();
+        app.world_mut().init_resource::<Assets<StandardMaterial>>();
+        app.world_mut().init_resource::<Assets<WaterMaterial>>();
+        app.world_mut().init_resource::<Assets<Image>>();
+        app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
+        app.world_mut()
+            .init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        let group_entity = app.world_mut().spawn_empty().id();
+
+        let _ = app.world_mut().run_system_once(
+            move |mut commands: Commands,
+                  mut meshes: ResMut<Assets<Mesh>>,
+                  mut materials: ResMut<Assets<StandardMaterial>>,
+                  mut water_materials: ResMut<Assets<WaterMaterial>>,
+                  mut images: ResMut<Assets<Image>>,
+                  mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+                  mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>| {
+                let root = wmo::WmoRootData {
+                    n_groups: 1,
+                    flags: wmo::WmoRootFlags::default(),
+                    ambient_color: [0.0; 4],
+                    bbox_min: [0.0; 3],
+                    bbox_max: [0.0; 3],
+                    materials: Vec::new(),
+                    lights: Vec::new(),
+                    doodad_sets: Vec::new(),
+                    group_names: Vec::new(),
+                    doodad_names: Vec::new(),
+                    doodad_file_ids: Vec::new(),
+                    doodad_defs: Vec::new(),
+                    fogs: Vec::new(),
+                    visible_block_vertices: Vec::new(),
+                    visible_blocks: Vec::new(),
+                    convex_volume_planes: Vec::new(),
+                    group_file_data_ids: Vec::new(),
+                    global_ambient_volumes: Vec::new(),
+                    ambient_volumes: Vec::new(),
+                    baked_ambient_box_volumes: Vec::new(),
+                    dynamic_lights: Vec::new(),
+                    portals: Vec::new(),
+                    portal_refs: Vec::new(),
+                    group_infos: Vec::new(),
+                    skybox_wow_path: None,
+                };
+                let mut assets = WmoAssets {
+                    meshes: &mut meshes,
+                    materials: &mut materials,
+                    water_materials: &mut water_materials,
+                    images: &mut images,
+                    effect_materials: &mut effect_materials,
+                    inverse_bindposes: &mut inverse_bindposes,
+                };
+                spawn_wmo_group_batches(
+                    &mut commands,
+                    &mut assets,
+                    &root,
+                    group_entity,
+                    vec![wmo::WmoGroupBatch {
+                        mesh: Mesh::new(
+                            PrimitiveTopology::TriangleList,
+                            RenderAssetUsages::default(),
+                        ),
+                        material_index: 0,
+                        batch_type: wmo::WmoBatchType::WholeGroup,
+                        uses_second_color_blend_alpha: false,
+                        uses_second_uv_set: false,
+                        uses_third_uv_set: false,
+                        uses_generated_tangents: false,
+                        has_vertex_color: false,
+                    }],
+                );
+            },
+        );
+        app.update();
+
+        let children = app
+            .world()
+            .get::<Children>(group_entity)
+            .expect("spawned batch child");
+        let batch_entity = children[0];
+        assert!(
+            app.world().get::<WmoCollisionMesh>(batch_entity).is_some(),
+            "WMO batch mesh should block player movement"
+        );
     }
 
     #[test]

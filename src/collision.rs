@@ -3,6 +3,9 @@
 //! Player movement is validated against terrain slope and height.
 //! Gravity and ground snapping replace the old hardcoded Y assignment.
 
+use std::collections::HashSet;
+
+use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
 use shared::movement::{GRAVITY, GROUND_SNAP_THRESHOLD, MAX_SLOPE_ANGLE};
 
@@ -16,6 +19,8 @@ use crate::terrain_heightmap::TerrainHeightmap;
 /// over 2 yards at the current gravity. Lowering this keeps jumps grounded
 /// closer to the in-game feel.
 pub const JUMP_IMPULSE: f32 = 7.0;
+const WMO_COLLISION_RAY_HEIGHT: f32 = 0.6;
+const WMO_COLLISION_MARGIN: f32 = 0.05;
 
 pub struct CollisionPlugin;
 
@@ -45,6 +50,10 @@ impl Default for CharacterPhysics {
         }
     }
 }
+
+/// Marker for WMO batch meshes that should block player movement.
+#[derive(Component)]
+pub struct WmoCollisionMesh;
 
 /// Check whether the player is on walkable ground based on terrain height.
 fn update_grounded(
@@ -134,6 +143,49 @@ pub fn validate_movement_slope(
     } else {
         current
     }
+}
+
+pub fn clamp_movement_against_wmo_meshes(
+    current: Vec3,
+    proposed: Vec3,
+    ray_cast: &mut MeshRayCast,
+    collision_meshes: &HashSet<Entity>,
+) -> Vec3 {
+    let movement = Vec3::new(proposed.x - current.x, 0.0, proposed.z - current.z);
+    let distance = movement.length();
+    if distance <= f32::EPSILON || collision_meshes.is_empty() {
+        return proposed;
+    }
+
+    let direction = movement / distance;
+    let ray = Ray3d::new(
+        current + Vec3::Y * WMO_COLLISION_RAY_HEIGHT,
+        Dir3::new(direction).expect("non-zero horizontal movement"),
+    );
+    let filter = |entity: Entity| collision_meshes.contains(&entity);
+    let settings = MeshRayCastSettings::default().with_filter(&filter);
+    let hit_distance = ray_cast
+        .cast_ray(ray, &settings)
+        .first()
+        .map(|(_, hit)| hit.distance);
+
+    clamp_movement_to_hit(current, proposed, hit_distance)
+}
+
+fn clamp_movement_to_hit(current: Vec3, proposed: Vec3, hit_distance: Option<f32>) -> Vec3 {
+    let movement = Vec3::new(proposed.x - current.x, 0.0, proposed.z - current.z);
+    let distance = movement.length();
+    let Some(hit_distance) = hit_distance else {
+        return proposed;
+    };
+    if hit_distance >= distance + WMO_COLLISION_MARGIN {
+        return proposed;
+    }
+
+    let allowed_distance = (hit_distance - WMO_COLLISION_MARGIN).max(0.0);
+    let direction = movement / distance.max(f32::EPSILON);
+    let clamped = current + direction * allowed_distance;
+    Vec3::new(clamped.x, proposed.y, clamped.z)
 }
 
 #[cfg(test)]
@@ -246,5 +298,32 @@ mod tests {
             moved.y,
             proposed.y
         );
+    }
+
+    #[test]
+    fn wmo_hit_before_destination_clamps_horizontal_movement() {
+        let current = Vec3::new(1.0, 5.0, 2.0);
+        let proposed = Vec3::new(5.0, 5.0, 2.0);
+
+        let clamped = clamp_movement_to_hit(current, proposed, Some(2.0));
+
+        assert!(
+            (clamped.x - 2.95).abs() < 0.001,
+            "expected wall margin clamp"
+        );
+        assert_eq!(clamped.y, proposed.y);
+        assert_eq!(clamped.z, proposed.z);
+    }
+
+    #[test]
+    fn wmo_hit_past_destination_keeps_proposed_position() {
+        let current = Vec3::new(1.0, 5.0, 2.0);
+        let proposed = Vec3::new(5.0, 5.0, 2.0);
+
+        assert_eq!(
+            clamp_movement_to_hit(current, proposed, Some(10.0)),
+            proposed
+        );
+        assert_eq!(clamp_movement_to_hit(current, proposed, None), proposed);
     }
 }
