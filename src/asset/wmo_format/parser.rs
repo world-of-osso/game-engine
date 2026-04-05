@@ -16,6 +16,7 @@ pub struct WmoRootData {
     pub doodad_names: Vec<WmoDoodadName>,
     pub doodad_file_ids: Vec<u32>,
     pub doodad_defs: Vec<WmoDoodadDef>,
+    pub fogs: Vec<WmoFog>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -117,6 +118,19 @@ pub struct WmoDoodadDef {
     pub color: [f32; 4],
 }
 
+pub struct WmoFog {
+    pub flags: u32,
+    pub position: [f32; 3],
+    pub smaller_radius: f32,
+    pub larger_radius: f32,
+    pub fog_end: f32,
+    pub fog_start_multiplier: f32,
+    pub color_1: [f32; 4],
+    pub underwater_fog_end: f32,
+    pub underwater_fog_start_multiplier: f32,
+    pub color_2: [f32; 4],
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -140,6 +154,7 @@ const MOLT_ENTRY_SIZE: usize = 48;
 const MODS_ENTRY_SIZE: usize = 32;
 const MODI_ENTRY_SIZE: usize = 4;
 const MODD_ENTRY_SIZE: usize = 40;
+const MFOG_ENTRY_SIZE: usize = 48;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -214,6 +229,21 @@ struct RawWmoDoodadDef {
     rotation: [f32; 4],
     scale: f32,
     color: [u8; 4],
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoFog {
+    flags: u32,
+    position: [f32; 3],
+    smaller_radius: f32,
+    larger_radius: f32,
+    fog_end: f32,
+    fog_start_multiplier: f32,
+    color_1: [u8; 4],
+    underwater_fog_end: f32,
+    underwater_fog_start_multiplier: f32,
+    color_2: [u8; 4],
 }
 
 #[derive(BinRead)]
@@ -325,6 +355,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         doodad_names: accum.doodad_names,
         doodad_file_ids: accum.doodad_file_ids,
         doodad_defs: accum.doodad_defs,
+        fogs: accum.fogs,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -345,6 +376,7 @@ struct WmoRootAccum {
     doodad_names: Vec<WmoDoodadName>,
     doodad_file_ids: Vec<u32>,
     doodad_defs: Vec<WmoDoodadDef>,
+    fogs: Vec<WmoFog>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -369,6 +401,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         b"NDOM" => accum.doodad_names = parse_modn(payload)?,
         b"IDOM" => accum.doodad_file_ids = parse_modi(payload)?,
         b"DDOM" => accum.doodad_defs = parse_modd(payload)?,
+        b"GFOM" | b"GOFM" => accum.fogs = parse_mfog(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
@@ -482,6 +515,26 @@ pub fn parse_modd(data: &[u8]) -> Result<Vec<WmoDoodadDef>, String> {
                 rotation: doodad.rotation,
                 scale: doodad.scale,
                 color: parse_bgra_color(doodad.color),
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mfog(data: &[u8]) -> Result<Vec<WmoFog>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoFog>(data, MFOG_ENTRY_SIZE, "MFOG")?
+            .into_iter()
+            .map(|fog| WmoFog {
+                flags: fog.flags,
+                position: fog.position,
+                smaller_radius: fog.smaller_radius,
+                larger_radius: fog.larger_radius,
+                fog_end: fog.fog_end,
+                fog_start_multiplier: fog.fog_start_multiplier,
+                color_1: parse_bgra_color(fog.color_1),
+                underwater_fog_end: fog.underwater_fog_end,
+                underwater_fog_start_multiplier: fog.underwater_fog_start_multiplier,
+                color_2: parse_bgra_color(fog.color_2),
             })
             .collect(),
     )
@@ -877,6 +930,85 @@ mod tests {
 
         assert_eq!(root.bbox_min, [-10.0, -20.0, -30.0]);
         assert_eq!(root.bbox_max, [40.0, 50.0, 60.0]);
+    }
+
+    #[test]
+    fn parse_mfog_reads_fog_entries() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&7_u32.to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&4.5_f32.to_le_bytes());
+        data.extend_from_slice(&9.5_f32.to_le_bytes());
+        data.extend_from_slice(&12.0_f32.to_le_bytes());
+        data.extend_from_slice(&0.25_f32.to_le_bytes());
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+        data.extend_from_slice(&18.0_f32.to_le_bytes());
+        data.extend_from_slice(&0.5_f32.to_le_bytes());
+        data.extend_from_slice(&[0x50, 0x60, 0x70, 0x80]);
+
+        let fogs = parse_mfog(&data).expect("parse MFOG");
+
+        assert_eq!(fogs.len(), 1);
+        let fog = &fogs[0];
+        assert_eq!(fog.flags, 7);
+        assert_eq!(fog.position, [1.0, 2.0, 3.0]);
+        assert_eq!(fog.smaller_radius, 4.5);
+        assert_eq!(fog.larger_radius, 9.5);
+        assert_eq!(fog.fog_end, 12.0);
+        assert_eq!(fog.fog_start_multiplier, 0.25);
+        assert_eq!(
+            fog.color_1,
+            [
+                0x30 as f32 / 255.0,
+                0x20 as f32 / 255.0,
+                0x10 as f32 / 255.0,
+                0x40 as f32 / 255.0,
+            ]
+        );
+        assert_eq!(fog.underwater_fog_end, 18.0);
+        assert_eq!(fog.underwater_fog_start_multiplier, 0.5);
+        assert_eq!(
+            fog.color_2,
+            [
+                0x70 as f32 / 255.0,
+                0x60 as f32 / 255.0,
+                0x50 as f32 / 255.0,
+                0x80 as f32 / 255.0,
+            ]
+        );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mfog_entries() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"GFOM");
+        data.extend_from_slice(&(MFOG_ENTRY_SIZE as u32).to_le_bytes());
+        data.extend_from_slice(&3_u32.to_le_bytes());
+        for value in [10.0_f32, 20.0, 30.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(&6.0_f32.to_le_bytes());
+        data.extend_from_slice(&14.0_f32.to_le_bytes());
+        data.extend_from_slice(&22.0_f32.to_le_bytes());
+        data.extend_from_slice(&0.4_f32.to_le_bytes());
+        data.extend_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
+        data.extend_from_slice(&33.0_f32.to_le_bytes());
+        data.extend_from_slice(&0.6_f32.to_le_bytes());
+        data.extend_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.fogs.len(), 1);
+        let fog = &root.fogs[0];
+        assert_eq!(fog.flags, 3);
+        assert_eq!(fog.position, [10.0, 20.0, 30.0]);
+        assert_eq!(fog.smaller_radius, 6.0);
+        assert_eq!(fog.larger_radius, 14.0);
+        assert_eq!(fog.fog_end, 22.0);
+        assert_eq!(fog.underwater_fog_end, 33.0);
     }
 
     #[test]
