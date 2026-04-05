@@ -86,64 +86,95 @@ fn build_group_batches(
 ) -> Result<WmoGroupData, String> {
     apply_mocv_vertex_color_fix(&mut raw.colors, &raw.batches, &header, root);
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
-    if raw.batches.is_empty() {
-        let uses_generated_tangents = batch_uses_generated_tangents(root, 0);
-        let mesh = build_whole_group_mesh(&raw, uses_generated_tangents);
-        return Ok(WmoGroupData {
-            header,
-            doodad_refs: raw.doodad_refs,
-            light_refs: raw.light_refs,
-            bsp_nodes: raw.bsp_nodes,
-            bsp_face_refs: raw.bsp_face_refs,
-            liquid: raw.liquid,
-            batches: vec![WmoGroupBatch {
-                mesh,
-                material_index: 0,
-                batch_type: WmoBatchType::WholeGroup,
-                uses_second_color_blend_alpha: false,
-                uses_second_uv_set: false,
-                uses_third_uv_set: false,
-                uses_generated_tangents,
-                has_vertex_color: whole_group_has_vertex_color,
-            }],
-        });
-    }
-
-    let mut out = Vec::with_capacity(raw.batches.len());
-    for (index, batch) in raw.batches.iter().enumerate() {
-        let uses_second_color_blend_alpha =
-            batch_uses_second_color_blend_alpha(root, batch.material_id);
-        let uses_second_uv_set = batch_uses_second_uv_set(root, batch.material_id);
-        let uses_third_uv_set = batch_uses_third_uv_set(root, batch.material_id);
-        let uses_generated_tangents = batch_uses_generated_tangents(root, batch.material_id);
-        let mesh = build_batch_mesh(
+    let batches = if raw.batches.is_empty() {
+        vec![build_whole_group_batch(
             &raw,
-            batch,
-            uses_second_color_blend_alpha,
-            uses_second_uv_set,
-            uses_third_uv_set,
-            uses_generated_tangents,
-        );
-        out.push(WmoGroupBatch {
-            mesh,
-            material_index: batch.material_id,
-            batch_type: classify_batch_type(&header, index),
-            uses_second_color_blend_alpha,
-            uses_second_uv_set,
-            uses_third_uv_set,
-            uses_generated_tangents,
-            has_vertex_color: raw.colors.len() > batch.max_index as usize,
-        });
+            root,
+            whole_group_has_vertex_color,
+        )]
+    } else {
+        build_split_group_batches(&header, &raw, root)
+    };
+    Ok(assemble_group_data(header, raw, batches))
+}
+
+fn build_whole_group_batch(
+    raw: &RawGroupData,
+    root: Option<&WmoRootData>,
+    has_vertex_color: bool,
+) -> WmoGroupBatch {
+    let uses_generated_tangents = batch_uses_generated_tangents(root, 0);
+    let mesh = build_whole_group_mesh(raw, uses_generated_tangents);
+    WmoGroupBatch {
+        mesh,
+        material_index: 0,
+        batch_type: WmoBatchType::WholeGroup,
+        uses_second_color_blend_alpha: false,
+        uses_second_uv_set: false,
+        uses_third_uv_set: false,
+        uses_generated_tangents,
+        has_vertex_color,
     }
-    Ok(WmoGroupData {
+}
+
+fn build_split_group_batches(
+    header: &WmoGroupHeader,
+    raw: &RawGroupData,
+    root: Option<&WmoRootData>,
+) -> Vec<WmoGroupBatch> {
+    let mut batches = Vec::with_capacity(raw.batches.len());
+    for (index, batch) in raw.batches.iter().enumerate() {
+        batches.push(build_split_group_batch(header, raw, root, index, batch));
+    }
+    batches
+}
+
+fn build_split_group_batch(
+    header: &WmoGroupHeader,
+    raw: &RawGroupData,
+    root: Option<&WmoRootData>,
+    index: usize,
+    batch: &RawBatch,
+) -> WmoGroupBatch {
+    let uses_second_color_blend_alpha =
+        batch_uses_second_color_blend_alpha(root, batch.material_id);
+    let uses_second_uv_set = batch_uses_second_uv_set(root, batch.material_id);
+    let uses_third_uv_set = batch_uses_third_uv_set(root, batch.material_id);
+    let uses_generated_tangents = batch_uses_generated_tangents(root, batch.material_id);
+    let mesh = build_batch_mesh(
+        raw,
+        batch,
+        uses_second_color_blend_alpha,
+        uses_second_uv_set,
+        uses_third_uv_set,
+        uses_generated_tangents,
+    );
+    WmoGroupBatch {
+        mesh,
+        material_index: batch.material_id,
+        batch_type: classify_batch_type(header, index),
+        uses_second_color_blend_alpha,
+        uses_second_uv_set,
+        uses_third_uv_set,
+        uses_generated_tangents,
+        has_vertex_color: raw.colors.len() > batch.max_index as usize,
+    }
+}
+
+fn assemble_group_data(
+    header: WmoGroupHeader,
+    raw: RawGroupData,
+    batches: Vec<WmoGroupBatch>,
+) -> WmoGroupData {
+    WmoGroupData {
         header,
         doodad_refs: raw.doodad_refs,
         light_refs: raw.light_refs,
         bsp_nodes: raw.bsp_nodes,
         bsp_face_refs: raw.bsp_face_refs,
         liquid: raw.liquid,
-        batches: out,
-    })
+        batches,
+    }
 }
 
 fn classify_batch_type(header: &WmoGroupHeader, batch_index: usize) -> WmoBatchType {
