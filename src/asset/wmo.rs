@@ -2,8 +2,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 pub use super::wmo_format::parser::{
-    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoGroupHeader, WmoGroupInfo, WmoLiquid,
-    WmoMaterialDef, WmoPortal, WmoPortalRef, WmoRootData, find_mogp, load_wmo_root,
+    MOGP_HEADER_SIZE, RawBatch, RawGroupData, WmoBspNode, WmoGroupHeader, WmoGroupInfo,
+    WmoLiquid, WmoMaterialDef, WmoPortal, WmoPortalRef, WmoRootData, find_mogp, load_wmo_root,
     parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
 };
 
@@ -11,6 +11,8 @@ pub struct WmoGroupData {
     pub header: WmoGroupHeader,
     pub doodad_refs: Vec<u16>,
     pub light_refs: Vec<u16>,
+    pub bsp_nodes: Vec<WmoBspNode>,
+    pub bsp_face_refs: Vec<u16>,
     pub liquid: Option<WmoLiquid>,
     pub batches: Vec<WmoGroupBatch>,
 }
@@ -46,6 +48,8 @@ fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoG
             header,
             doodad_refs: raw.doodad_refs,
             light_refs: raw.light_refs,
+            bsp_nodes: raw.bsp_nodes,
+            bsp_face_refs: raw.bsp_face_refs,
             liquid: raw.liquid,
             batches: vec![WmoGroupBatch {
                 mesh,
@@ -68,6 +72,8 @@ fn build_group_batches(header: WmoGroupHeader, raw: RawGroupData) -> Result<WmoG
         header,
         doodad_refs: raw.doodad_refs,
         light_refs: raw.light_refs,
+        bsp_nodes: raw.bsp_nodes,
+        bsp_face_refs: raw.bsp_face_refs,
         liquid: raw.liquid,
         batches: out,
     })
@@ -426,6 +432,55 @@ mod tests {
         let group = load_wmo_group(&data).expect("parse WMO group");
 
         assert_eq!(group.light_refs, vec![1, 6, 12]);
+    }
+
+    #[test]
+    fn load_wmo_group_reads_mobn_and_mobr_bsp_data() {
+        let mut data = Vec::new();
+        let mobn_size = 16_u32;
+        let mobr_size = 6_u32;
+        let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + mobn_size + 8 + mobr_size + 8 + 12 + 8 + 6;
+        data.extend_from_slice(b"PGOM");
+        data.extend_from_slice(&mogp_size.to_le_bytes());
+        data.extend_from_slice(&[0_u8; MOGP_HEADER_SIZE]);
+
+        data.extend_from_slice(b"NBOM");
+        data.extend_from_slice(&mobn_size.to_le_bytes());
+        data.extend_from_slice(&0x0003_u16.to_le_bytes());
+        data.extend_from_slice(&(-1_i16).to_le_bytes());
+        data.extend_from_slice(&2_i16.to_le_bytes());
+        data.extend_from_slice(&4_u16.to_le_bytes());
+        data.extend_from_slice(&10_u32.to_le_bytes());
+        data.extend_from_slice(&22.25_f32.to_le_bytes());
+
+        data.extend_from_slice(b"RBOM");
+        data.extend_from_slice(&mobr_size.to_le_bytes());
+        for value in [3_u16, 7, 11] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = load_wmo_group(&data).expect("parse WMO group");
+
+        assert_eq!(group.bsp_nodes.len(), 1);
+        assert_eq!(group.bsp_nodes[0].flags, 0x0003);
+        assert_eq!(group.bsp_nodes[0].neg_child, -1);
+        assert_eq!(group.bsp_nodes[0].pos_child, 2);
+        assert_eq!(group.bsp_nodes[0].face_count, 4);
+        assert_eq!(group.bsp_nodes[0].face_start, 10);
+        assert_eq!(group.bsp_nodes[0].plane_dist, 22.25);
+        assert_eq!(group.bsp_face_refs, vec![3, 7, 11]);
     }
 
     #[test]

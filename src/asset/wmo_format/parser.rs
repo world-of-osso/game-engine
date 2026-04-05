@@ -236,6 +236,8 @@ pub struct RawGroupData {
     pub triangle_materials: Vec<WmoTriangleMaterial>,
     pub doodad_refs: Vec<u16>,
     pub light_refs: Vec<u16>,
+    pub bsp_nodes: Vec<WmoBspNode>,
+    pub bsp_face_refs: Vec<u16>,
     pub liquid: Option<WmoLiquid>,
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -248,6 +250,15 @@ pub struct RawGroupData {
 pub struct WmoTriangleMaterial {
     pub flags: u8,
     pub material_id: u8,
+}
+
+pub struct WmoBspNode {
+    pub flags: u16,
+    pub neg_child: i16,
+    pub pos_child: i16,
+    pub face_count: u16,
+    pub face_start: u32,
+    pub plane_dist: f32,
 }
 
 pub struct WmoLiquid {
@@ -298,6 +309,8 @@ const MAVD_ENTRY_SIZE: usize = 48;
 const MBVD_ENTRY_SIZE: usize = 128;
 const MNLD_ENTRY_SIZE: usize = 60;
 const MOPY_ENTRY_SIZE: usize = 2;
+const MOBN_ENTRY_SIZE: usize = 16;
+const MOBR_ENTRY_SIZE: usize = 2;
 const MLIQ_HEADER_SIZE: usize = 30;
 const MLIQ_VERTEX_SIZE: usize = 8;
 const MLIQ_TILE_SIZE: usize = 1;
@@ -523,6 +536,17 @@ struct RawWmoGroupHeader {
 struct RawWmoTriangleMaterial {
     flags: u8,
     material_id: u8,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoBspNode {
+    flags: u16,
+    neg_child: i16,
+    pos_child: i16,
+    face_count: u16,
+    face_start: u32,
+    plane_dist: f32,
 }
 
 #[derive(BinRead)]
@@ -1048,6 +1072,8 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut triangle_materials = Vec::new();
     let mut doodad_refs = Vec::new();
     let mut light_refs = Vec::new();
+    let mut bsp_nodes = Vec::new();
+    let mut bsp_face_refs = Vec::new();
     let mut liquid = None;
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
@@ -1062,6 +1088,8 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
             b"YPOM" => triangle_materials = parse_mopy(payload)?,
             b"RDOM" => doodad_refs = parse_u16_array(payload),
             b"RLOM" => light_refs = parse_u16_array(payload),
+            b"NBOM" => bsp_nodes = parse_mobn(payload)?,
+            b"RBOM" => bsp_face_refs = parse_mobr(payload)?,
             b"QILM" => liquid = Some(parse_mliq(payload)?),
             b"TVOM" => vertices = parse_vec3_array(payload)?,
             b"RNOM" => normals = parse_vec3_array(payload)?,
@@ -1084,6 +1112,8 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         triangle_materials,
         doodad_refs,
         light_refs,
+        bsp_nodes,
+        bsp_face_refs,
         liquid,
         vertices,
         normals,
@@ -1104,6 +1134,26 @@ pub fn parse_mopy(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
             })
             .collect(),
     )
+}
+
+pub fn parse_mobn(data: &[u8]) -> Result<Vec<WmoBspNode>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoBspNode>(data, MOBN_ENTRY_SIZE, "MOBN")?
+            .into_iter()
+            .map(|entry| WmoBspNode {
+                flags: entry.flags,
+                neg_child: entry.neg_child,
+                pos_child: entry.pos_child,
+                face_count: entry.face_count,
+                face_start: entry.face_start,
+                plane_dist: entry.plane_dist,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mobr(data: &[u8]) -> Result<Vec<u16>, String> {
+    parse_binrw_entries(data, MOBR_ENTRY_SIZE, "MOBR")
 }
 
 pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {
@@ -1653,6 +1703,67 @@ mod tests {
         let group = parse_group_subchunks(&data).expect("parse group subchunks");
 
         assert_eq!(group.light_refs, vec![2, 5, 8]);
+    }
+
+    #[test]
+    fn parse_mobn_reads_bsp_nodes() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x0006_u16.to_le_bytes());
+        data.extend_from_slice(&(-1_i16).to_le_bytes());
+        data.extend_from_slice(&5_i16.to_le_bytes());
+        data.extend_from_slice(&12_u16.to_le_bytes());
+        data.extend_from_slice(&34_u32.to_le_bytes());
+        data.extend_from_slice(&1.5_f32.to_le_bytes());
+
+        let nodes = parse_mobn(&data).expect("parse MOBN");
+
+        assert_eq!(nodes.len(), 1);
+        let node = &nodes[0];
+        assert_eq!(node.flags, 0x0006);
+        assert_eq!(node.neg_child, -1);
+        assert_eq!(node.pos_child, 5);
+        assert_eq!(node.face_count, 12);
+        assert_eq!(node.face_start, 34);
+        assert_eq!(node.plane_dist, 1.5);
+    }
+
+    #[test]
+    fn parse_group_subchunks_reads_mobn_and_mobr_bsp_data() {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"NBOM");
+        data.extend_from_slice(&(MOBN_ENTRY_SIZE as u32).to_le_bytes());
+        data.extend_from_slice(&0x0004_u16.to_le_bytes());
+        data.extend_from_slice(&(-1_i16).to_le_bytes());
+        data.extend_from_slice(&(-1_i16).to_le_bytes());
+        data.extend_from_slice(&3_u16.to_le_bytes());
+        data.extend_from_slice(&7_u32.to_le_bytes());
+        data.extend_from_slice(&12.5_f32.to_le_bytes());
+
+        data.extend_from_slice(b"RBOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [4_u16, 8, 9] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(12_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = parse_group_subchunks(&data).expect("parse group subchunks");
+
+        assert_eq!(group.bsp_nodes.len(), 1);
+        assert_eq!(group.bsp_nodes[0].flags, 0x0004);
+        assert_eq!(group.bsp_nodes[0].face_count, 3);
+        assert_eq!(group.bsp_nodes[0].face_start, 7);
+        assert_eq!(group.bsp_nodes[0].plane_dist, 12.5);
+        assert_eq!(group.bsp_face_refs, vec![4, 8, 9]);
     }
 
     #[test]
