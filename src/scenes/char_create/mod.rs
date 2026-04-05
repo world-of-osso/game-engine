@@ -323,6 +323,12 @@ fn char_create_update_visuals(
     let Some(cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_ref() else { return };
     sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db);
+    // The editbox only exists in Customize mode, but apply_post_setup runs once
+    // at build time (in RaceClass mode). Re-apply the backdrop by name after
+    // every sync so it's set when the editbox first appears.
+    if let Some(id) = ui.registry.get_by_name(CREATE_NAME_INPUT.0) {
+        set_editbox_backdrop(&mut ui.registry, id);
+    }
     if let Some(id) = cc.name_input {
         sync_editbox_focus(
             &mut ui.registry,

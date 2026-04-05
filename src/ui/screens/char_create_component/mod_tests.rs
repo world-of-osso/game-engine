@@ -17,23 +17,46 @@ fn rect_for_name(
         .unwrap_or_else(|| panic!("{name} should have a layout rect"))
 }
 
-fn build_screen(state: CharCreateUiState) -> crate::ui::registry::FrameRegistry {
-    let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert(state);
-    let mut reg = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
-    let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
-    screen.sync(&shared, &mut reg);
-    let root = reg
-        .get_by_name(CHAR_CREATE_ROOT.0)
-        .expect("CharCreateRoot should exist");
-    let (screen_width, screen_height) = (reg.screen_width, reg.screen_height);
-    if let Some(frame) = reg.get_mut(root) {
-        frame.width = Dimension::Fixed(screen_width);
-        frame.height = Dimension::Fixed(screen_height);
+struct ScreenHarness {
+    screen: ui_toolkit::screen::Screen,
+    shared: ui_toolkit::screen::SharedContext,
+    reg: crate::ui::registry::FrameRegistry,
+}
+
+impl ScreenHarness {
+    fn new(state: CharCreateUiState) -> Self {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(state);
+        let mut reg = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
+        screen.sync(&shared, &mut reg);
+        let root = reg
+            .get_by_name(CHAR_CREATE_ROOT.0)
+            .expect("CharCreateRoot should exist");
+        let (screen_width, screen_height) = (reg.screen_width, reg.screen_height);
+        if let Some(frame) = reg.get_mut(root) {
+            frame.width = Dimension::Fixed(screen_width);
+            frame.height = Dimension::Fixed(screen_height);
+        }
+        reg.mark_all_rects_dirty();
+        recompute_layouts(&mut reg);
+        Self {
+            screen,
+            shared,
+            reg,
+        }
     }
-    reg.mark_all_rects_dirty();
-    recompute_layouts(&mut reg);
-    reg
+
+    fn sync(&mut self, state: CharCreateUiState) {
+        self.shared.insert(state);
+        self.screen.sync(&self.shared, &mut self.reg);
+        self.reg.mark_all_rects_dirty();
+        recompute_layouts(&mut self.reg);
+    }
+}
+
+fn build_screen(state: CharCreateUiState) -> crate::ui::registry::FrameRegistry {
+    ScreenHarness::new(state).reg
 }
 
 fn font_text(reg: &crate::ui::registry::FrameRegistry, name: &str) -> String {
@@ -314,5 +337,147 @@ fn name_panel_controls_stack_with_spacing() {
     assert!(
         create_button.y > name_input.y + name_input.height,
         "expected visible gap between input and create button, got input={name_input:?} button={create_button:?}"
+    );
+}
+
+#[test]
+fn name_input_exists_in_all_dropdown_states() {
+    // Verify the editbox frame exists for every possible open_dropdown value
+    let dropdowns: Vec<Option<AppearanceField>> = vec![
+        None,
+        Some(AppearanceField::SkinColor),
+        Some(AppearanceField::Face),
+        Some(AppearanceField::HairStyle),
+        Some(AppearanceField::HairColor),
+        Some(AppearanceField::FacialStyle),
+    ];
+    for dropdown in &dropdowns {
+        let mut state = CharCreateUiState::default();
+        state.mode = CharCreateMode::Customize;
+        state.open_dropdown = *dropdown;
+        state.skin_color_swatches = vec![Some([64, 32, 16])];
+        state.hair_color_swatches = vec![Some([64, 32, 16])];
+        let reg = build_screen(state);
+        assert!(
+            reg.get_by_name("CharCreateNameInput").is_some(),
+            "name input should exist when open_dropdown={dropdown:?}"
+        );
+        assert!(
+            reg.get_by_name("NameLabel").is_some(),
+            "name label should exist when open_dropdown={dropdown:?}"
+        );
+        let input_rect = rect_for_name(&reg, "CharCreateNameInput");
+        assert!(
+            input_rect.width > 0.0 && input_rect.height > 0.0,
+            "name input should have size when open_dropdown={dropdown:?}, got {input_rect:?}"
+        );
+    }
+}
+
+#[test]
+fn name_panel_stays_on_screen_after_dropdown_toggle() {
+    let mut harness = ScreenHarness::new({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s
+    });
+
+    // Check initial position
+    let initial_panel = rect_for_name(&harness.reg, "NamePanel");
+    let screen_h = harness.reg.screen_height;
+    assert!(
+        initial_panel.y + initial_panel.height <= screen_h,
+        "NamePanel should be on screen initially, got {initial_panel:?} screen_h={screen_h}"
+    );
+
+    // Toggle face dropdown and re-sync
+    harness.sync({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s.open_dropdown = Some(AppearanceField::Face);
+        s
+    });
+
+    let after_panel = rect_for_name(&harness.reg, "NamePanel");
+    assert!(
+        after_panel.y + after_panel.height <= screen_h,
+        "NamePanel should stay on screen after dropdown toggle, got {after_panel:?} screen_h={screen_h}"
+    );
+    assert!(
+        after_panel.y >= 0.0,
+        "NamePanel should not go above screen, got {after_panel:?}"
+    );
+
+    // Also check the root frame size hasn't changed
+    let root_id = harness.reg.get_by_name(CHAR_CREATE_ROOT.0).unwrap();
+    let root = harness.reg.get(root_id).unwrap();
+    assert_eq!(
+        root.resolved_width(),
+        1920.0,
+        "root width should stay at screen width"
+    );
+    assert_eq!(
+        root.resolved_height(),
+        1080.0,
+        "root height should stay at screen height"
+    );
+}
+
+#[test]
+fn name_input_not_present_in_race_class_mode() {
+    // The editbox only exists in Customize mode. Starting in RaceClass means
+    // any one-time setup targeting the editbox by ID will miss it.
+    let harness = ScreenHarness::new(CharCreateUiState::default());
+    assert!(
+        harness.reg.get_by_name("CharCreateNameInput").is_none(),
+        "name input should not exist in RaceClass mode"
+    );
+}
+
+#[test]
+fn name_input_created_on_customize_mode_switch() {
+    let mut harness = ScreenHarness::new(CharCreateUiState::default());
+    harness.sync({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s
+    });
+    assert!(
+        harness.reg.get_by_name("CharCreateNameInput").is_some(),
+        "name input should exist after switching to Customize mode"
+    );
+}
+
+#[test]
+fn name_input_survives_dropdown_toggle() {
+    let mut harness = ScreenHarness::new({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s
+    });
+
+    // Verify editbox exists initially
+    assert!(
+        harness.reg.get_by_name("CharCreateNameInput").is_some(),
+        "name input should exist before dropdown toggle"
+    );
+
+    // Open face dropdown and re-sync
+    harness.sync({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s.open_dropdown = Some(AppearanceField::Face);
+        s
+    });
+
+    // Editbox must still exist
+    assert!(
+        harness.reg.get_by_name("CharCreateNameInput").is_some(),
+        "name input should survive face dropdown toggle"
+    );
+    let name_input = rect_for_name(&harness.reg, "CharCreateNameInput");
+    assert!(
+        name_input.width > 0.0 && name_input.height > 0.0,
+        "name input should have non-zero size after dropdown toggle, got {name_input:?}"
     );
 }

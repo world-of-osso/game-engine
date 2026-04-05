@@ -25,6 +25,7 @@ use crate::m2_spawn::GeosetMesh;
 use crate::model_path_resolver::resolve_model_path;
 use crate::scenes::char_create::CharCreateState;
 use game_engine::asset::char_texture::CharTextureData;
+use game_engine::ui::screens::char_create_component::AppearanceField;
 use game_engine::customization_data::CustomizationDb;
 use shared::components::CharacterAppearance;
 
@@ -64,6 +65,12 @@ const ORBIT_SENSITIVITY: f32 = 0.003;
 const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
 
+const DEFAULT_FOCUS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
+const DEFAULT_EYE: Vec3 = Vec3::new(0.0, 1.8, 6.0);
+const FACE_FOCUS: Vec3 = Vec3::new(0.0, 1.55, 0.0);
+const FACE_DISTANCE: f32 = 2.5;
+const CAMERA_ZOOM_SPEED: f32 = 5.0;
+
 pub struct CharCreateScenePlugin;
 
 impl Plugin for CharCreateScenePlugin {
@@ -72,7 +79,8 @@ impl Plugin for CharCreateScenePlugin {
         app.add_systems(OnEnter(GameState::CharCreate), setup_scene);
         app.add_systems(
             Update,
-            (sync_model, sync_appearance, orbit_camera).run_if(in_state(GameState::CharCreate)),
+            (sync_model, sync_appearance, camera_zoom_for_dropdown, orbit_camera)
+                .run_if(in_state(GameState::CharCreate)),
         );
         app.add_systems(OnExit(GameState::CharCreate), teardown_scene);
     }
@@ -115,6 +123,54 @@ fn orbit_camera(
             .clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
         orbit.pitch = (orbit.pitch + motion.delta.y * ORBIT_SENSITIVITY)
             .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        let pitch = orbit.base_pitch + orbit.pitch;
+        let eye = orbit.focus
+            + Vec3::new(
+                orbit.yaw.sin() * pitch.cos(),
+                pitch.sin(),
+                orbit.yaw.cos() * pitch.cos(),
+            ) * orbit.distance;
+        *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+    }
+}
+
+fn camera_zoom_for_dropdown(
+    state: Option<Res<CharCreateState>>,
+    time: Res<Time>,
+    mut query: Query<(&mut CharCreateOrbit, &mut Transform)>,
+) {
+    let is_face_field = state
+        .as_ref()
+        .and_then(|s| s.open_dropdown)
+        .is_some_and(|f| {
+            matches!(
+                f,
+                AppearanceField::Face
+                    | AppearanceField::HairStyle
+                    | AppearanceField::HairColor
+                    | AppearanceField::FacialStyle
+            )
+        });
+
+    let (target_focus, target_distance) = if is_face_field {
+        (FACE_FOCUS, FACE_DISTANCE)
+    } else {
+        let offset = DEFAULT_EYE - DEFAULT_FOCUS;
+        (DEFAULT_FOCUS, offset.length())
+    };
+
+    let t = (CAMERA_ZOOM_SPEED * time.delta_secs()).min(1.0);
+
+    for (mut orbit, mut transform) in &mut query {
+        orbit.focus = orbit.focus.lerp(target_focus, t);
+        orbit.distance = orbit.distance.lerp(target_distance, t);
+
+        // Keep a proportional upward tilt: eye sits 0.8 units above focus in the default view.
+        let default_offset = DEFAULT_EYE - DEFAULT_FOCUS;
+        let eye_height_above_focus =
+            0.8 * (orbit.distance / default_offset.length());
+        orbit.base_pitch = (eye_height_above_focus / orbit.distance).asin();
+
         let pitch = orbit.base_pitch + orbit.pitch;
         let eye = orbit.focus
             + Vec3::new(
