@@ -40,7 +40,7 @@ pub fn prefill_offline_credentials(reg: &mut FrameRegistry, login: &LoginUi) {
 }
 
 pub fn try_connect(
-    reg: &FrameRegistry,
+    reg: &mut FrameRegistry,
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
@@ -67,7 +67,14 @@ pub fn try_connect(
     commands.insert_resource(networking::LoginPassword(password));
     commands.insert_resource(*mode);
     status.0 = STATUS_CONNECTING.to_string();
+    set_button_disabled(reg, login.connect_button);
     next_state.set(GameState::Connecting);
+}
+
+fn set_button_disabled(reg: &mut FrameRegistry, id: u64) {
+    if let Some(WidgetData::Button(bd)) = reg.get_mut(id).and_then(|f| f.widget_data.as_mut()) {
+        bd.state = BtnState::Disabled;
+    }
 }
 
 pub fn try_reconnect(
@@ -109,36 +116,16 @@ pub fn toggle_login_mode(
         networking::LoginMode::Login => networking::LoginMode::Register,
         networking::LoginMode::Register => networking::LoginMode::Login,
     };
-    sync_button_states(
-        reg,
-        login,
-        mode,
-        &networking::AuthToken(None),
-        &super::LoginStatus::default(),
-    );
+    sync_button_visibility(reg, login);
 }
 
-pub fn sync_button_states(
+pub fn sync_button_visibility(
     reg: &mut FrameRegistry,
     login: &LoginUi,
-    _mode: &networking::LoginMode,
-    _auth_token: &networking::AuthToken,
-    status: &LoginStatus,
 ) {
     reg.set_hidden(login.connect_button, false);
     if let Some(reconnect_button) = login.reconnect_button {
         reg.set_hidden(reconnect_button, true);
-    }
-    let connecting = status.0 == STATUS_CONNECTING;
-    if let Some(WidgetData::Button(bd)) = reg
-        .get_mut(login.connect_button)
-        .and_then(|f| f.widget_data.as_mut())
-    {
-        if connecting {
-            bd.state = BtnState::Disabled;
-        } else if bd.state == BtnState::Disabled {
-            bd.state = BtnState::Normal;
-        }
     }
 }
 
@@ -293,7 +280,7 @@ fn dispatch_resolved_click(
     } = ctx;
     if dispatch_optional_connect_click(
         parsed,
-        &ui.registry,
+        &mut ui.registry,
         login,
         status,
         next_state,
@@ -324,7 +311,7 @@ fn finish_unhandled_click(
 
 fn dispatch_optional_connect_click(
     parsed: Option<LoginAction>,
-    registry: &FrameRegistry,
+    registry: &mut FrameRegistry,
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
@@ -372,7 +359,7 @@ fn dispatch_optional_ui_click(
 
 fn dispatch_click_connect_action(
     action: LoginAction,
-    registry: &FrameRegistry,
+    registry: &mut FrameRegistry,
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
@@ -409,7 +396,7 @@ fn dispatch_click_ui_action(
 
 fn dispatch_login_connect_action(
     action: LoginAction,
-    registry: &FrameRegistry,
+    registry: &mut FrameRegistry,
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,

@@ -14,7 +14,7 @@ use crate::networking;
 
 use super::helpers::get_editbox_text;
 use super::{
-    LoginFocus, LoginStatus, LoginUi, run_login_automation_action, sync_button_states, try_connect,
+    LoginFocus, LoginStatus, LoginUi, run_login_automation_action, sync_button_visibility, try_connect,
 };
 
 use game_engine::ui::automation::UiAutomationAction;
@@ -393,7 +393,7 @@ fn automation_login_reaches_connecting_state() {
 
 #[test]
 fn try_connect_requires_all_fields() {
-    let (reg, login) = login_fixture();
+    let (mut reg, login) = login_fixture();
     let mut status = LoginStatus::default();
     let mut next_state = NextState::<GameState>::default();
     let (mut world, mut system_state) = make_world_with_commands();
@@ -401,7 +401,7 @@ fn try_connect_requires_all_fields() {
     {
         let mut commands = system_state.get_mut(&mut world);
         try_connect(
-            &reg,
+            &mut reg,
             &login,
             &mut status,
             &mut next_state,
@@ -419,7 +419,7 @@ fn try_connect_requires_all_fields() {
 }
 
 fn run_try_connect_with_credentials(
-    reg: &FrameRegistry,
+    reg: &mut FrameRegistry,
     login: &LoginUi,
     status: &mut LoginStatus,
     next_state: &mut NextState<GameState>,
@@ -453,7 +453,7 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
     let mut next_state = NextState::<GameState>::default();
 
     let world =
-        run_try_connect_with_credentials(&reg, &login, &mut status, &mut next_state, None, None);
+        run_try_connect_with_credentials(&mut reg, &login, &mut status, &mut next_state, None, None);
 
     assert_eq!(status.0, "Connecting...");
     assert!(matches!(
@@ -473,30 +473,10 @@ fn try_connect_stores_credentials_and_enters_connecting_state() {
 }
 
 #[test]
-fn sync_button_states_keeps_login_button_visible_even_with_saved_token() {
+fn sync_button_visibility_keeps_login_button_visible() {
     let (mut reg, login) = login_fixture();
 
-    sync_button_states(
-        &mut reg,
-        &login,
-        &networking::LoginMode::Login,
-        &networking::AuthToken(Some("saved-token".to_string())),
-        &LoginStatus::default(),
-    );
-    assert!(
-        reg.get(login.connect_button)
-            .expect("connect button")
-            .visible
-    );
-    assert!(login.reconnect_button.is_none());
-
-    sync_button_states(
-        &mut reg,
-        &login,
-        &networking::LoginMode::Register,
-        &networking::AuthToken(Some("saved-token".to_string())),
-        &LoginStatus::default(),
-    );
+    sync_button_visibility(&mut reg, &login);
     assert!(
         reg.get(login.connect_button)
             .expect("connect button")
@@ -548,7 +528,7 @@ fn try_connect_preserves_explicit_server_address() {
         .expect("test server address should parse");
 
     let world = run_try_connect_with_credentials(
-        &reg,
+        &mut reg,
         &login,
         &mut status,
         &mut next_state,

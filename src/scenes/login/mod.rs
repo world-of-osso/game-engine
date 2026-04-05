@@ -30,7 +30,7 @@ mod view;
 pub(crate) use view::apply_post_setup;
 
 use connect::{prefill_offline_credentials, toggle_login_mode, try_reconnect};
-pub(crate) use connect::{sync_button_states, try_connect};
+pub(crate) use connect::{sync_button_visibility, try_connect};
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, hit_frame, insert_text_into_editbox,
@@ -408,7 +408,7 @@ fn dispatch_login_action(
 ) {
     match action.and_then(LoginAction::parse) {
         Some(LoginAction::Connect) => try_connect(
-            &ui.registry,
+            &mut ui.registry,
             login,
             params.status,
             params.next_state,
@@ -677,7 +677,7 @@ pub(crate) fn handle_login_key(
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
         KeyCode::Enter => try_connect(
-            &ui.registry,
+            &mut ui.registry,
             login,
             status,
             next_state,
@@ -696,14 +696,12 @@ fn login_update_visuals(
     mut screen_res: Option<ResMut<LoginScreenResWrap>>,
     status: Res<LoginStatus>,
     focus: Res<LoginFocus>,
-    login_mode: Res<networking::LoginMode>,
-    auth_token: Res<networking::AuthToken>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
     ui.focused_frame = focus.0;
-    sync_button_states(&mut ui.registry, login, &login_mode, &auth_token, &status);
+    sync_button_visibility(&mut ui.registry, login);
     view::sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
     sync_editbox_focus_visual(
         &mut ui.registry,
