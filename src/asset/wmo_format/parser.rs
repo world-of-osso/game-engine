@@ -519,79 +519,84 @@ pub fn parse_mogp_header(data: &[u8]) -> Result<WmoGroupHeader, String> {
 }
 
 pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
-    let mut triangle_materials = Vec::new();
-    let mut doodad_refs = Vec::new();
-    let mut light_refs = Vec::new();
-    let mut bsp_nodes = Vec::new();
-    let mut bsp_face_refs = Vec::new();
-    let mut liquid = None;
-    let mut vertices = Vec::new();
-    let mut normals = Vec::new();
-    let mut uvs = Vec::new();
-    let mut second_uvs = Vec::new();
-    let mut third_uvs = Vec::new();
-    let mut colors = Vec::new();
-    let mut second_color_blend_alphas = Vec::new();
-    let mut indices = Vec::new();
-    let mut batches = Vec::new();
+    let mut group = empty_group_data();
 
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
-        match tag {
-            b"YPOM" => triangle_materials = parse_mopy(payload)?,
-            b"RDOM" => doodad_refs = parse_u16_array(payload),
-            b"RLOM" => light_refs = parse_u16_array(payload),
-            b"NBOM" => bsp_nodes = parse_mobn(payload)?,
-            b"RBOM" => bsp_face_refs = parse_mobr(payload)?,
-            b"QILM" => liquid = Some(parse_mliq(payload)?),
-            b"TVOM" => vertices = parse_vec3_array(payload)?,
-            b"RNOM" => normals = parse_vec3_array(payload)?,
-            b"VTOM" => {
-                if uvs.is_empty() {
-                    uvs = parse_vec2_array(payload)?;
-                } else if second_uvs.is_empty() {
-                    second_uvs = parse_vec2_array(payload)?;
-                } else {
-                    third_uvs = parse_vec2_array(payload)?;
-                }
-            }
-            b"VCOM" => {
-                if colors.is_empty() {
-                    colors = parse_mocv(payload);
-                } else {
-                    second_color_blend_alphas = parse_mocv_alpha(payload);
-                }
-            }
-            b"IVOM" => indices = parse_u16_array(payload),
-            b"ABOM" => batches = parse_moba(payload)?,
-            _ => {}
-        }
+        apply_group_chunk(tag, payload, &mut group)?;
     }
 
-    if vertices.is_empty() {
+    validate_group_data(&group)?;
+    Ok(group)
+}
+
+fn empty_group_data() -> RawGroupData {
+    RawGroupData {
+        triangle_materials: Vec::new(),
+        doodad_refs: Vec::new(),
+        light_refs: Vec::new(),
+        bsp_nodes: Vec::new(),
+        bsp_face_refs: Vec::new(),
+        liquid: None,
+        vertices: Vec::new(),
+        normals: Vec::new(),
+        uvs: Vec::new(),
+        second_uvs: Vec::new(),
+        third_uvs: Vec::new(),
+        colors: Vec::new(),
+        second_color_blend_alphas: Vec::new(),
+        indices: Vec::new(),
+        batches: Vec::new(),
+    }
+}
+
+fn apply_group_chunk(tag: &[u8], payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    match tag {
+        b"YPOM" => group.triangle_materials = parse_mopy(payload)?,
+        b"RDOM" => group.doodad_refs = parse_u16_array(payload),
+        b"RLOM" => group.light_refs = parse_u16_array(payload),
+        b"NBOM" => group.bsp_nodes = parse_mobn(payload)?,
+        b"RBOM" => group.bsp_face_refs = parse_mobr(payload)?,
+        b"QILM" => group.liquid = Some(parse_mliq(payload)?),
+        b"TVOM" => group.vertices = parse_vec3_array(payload)?,
+        b"RNOM" => group.normals = parse_vec3_array(payload)?,
+        b"VTOM" => apply_group_uv_chunk(payload, group)?,
+        b"VCOM" => apply_group_color_chunk(payload, group),
+        b"IVOM" => group.indices = parse_u16_array(payload),
+        b"ABOM" => group.batches = parse_moba(payload)?,
+        _ => {}
+    }
+    Ok(())
+}
+
+fn apply_group_uv_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    let parsed = parse_vec2_array(payload)?;
+    if group.uvs.is_empty() {
+        group.uvs = parsed;
+    } else if group.second_uvs.is_empty() {
+        group.second_uvs = parsed;
+    } else {
+        group.third_uvs = parsed;
+    }
+    Ok(())
+}
+
+fn apply_group_color_chunk(payload: &[u8], group: &mut RawGroupData) {
+    if group.colors.is_empty() {
+        group.colors = parse_mocv(payload);
+    } else {
+        group.second_color_blend_alphas = parse_mocv_alpha(payload);
+    }
+}
+
+fn validate_group_data(group: &RawGroupData) -> Result<(), String> {
+    if group.vertices.is_empty() {
         return Err("WMO group missing MOVT (vertices)".to_string());
     }
-    if indices.is_empty() {
+    if group.indices.is_empty() {
         return Err("WMO group missing MOVI (indices)".to_string());
     }
-
-    Ok(RawGroupData {
-        triangle_materials,
-        doodad_refs,
-        light_refs,
-        bsp_nodes,
-        bsp_face_refs,
-        liquid,
-        vertices,
-        normals,
-        uvs,
-        second_uvs,
-        third_uvs,
-        colors,
-        second_color_blend_alphas,
-        indices,
-        batches,
-    })
+    Ok(())
 }
 
 pub fn parse_mopy(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
