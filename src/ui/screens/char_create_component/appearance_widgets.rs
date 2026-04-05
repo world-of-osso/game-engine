@@ -19,8 +19,6 @@ const INC_RIGHT_INSET: f32 = 10.0;
 const SWATCH_PREVIEW_WIDTH: f32 = 84.0;
 const SWATCH_PREVIEW_HEIGHT: f32 = 20.0;
 const SWATCH_PREVIEW_AREA_HEIGHT: f32 = 40.0;
-const SWATCH_PREVIEW_SELECTION_WIDTH: f32 = 102.0;
-const SWATCH_PREVIEW_SELECTION_HEIGHT: f32 = 40.0;
 const SWATCH_DROPDOWN_WIDTH: f32 = 40.0;
 const SWATCH_DROPDOWN_HEIGHT: f32 = 20.0;
 const SWATCH_DROPDOWN_CHOICE_WIDTH: f32 = 44.0;
@@ -32,7 +30,6 @@ const NUMBER_DROPDOWN_CHOICE_HEIGHT: f32 = 22.0;
 const DROPDOWN_WIDTH: f32 = 282.0;
 const DROPDOWN_GAP: f32 = 2.0;
 const DROPDOWN_PADDING: f32 = 4.0;
-const SELECTION_PREVIEW_OFFSET_X: f32 = -8.0;
 const SELECTION_DROPDOWN_OFFSET_X: f32 = -4.0;
 
 fn right_inset_x(inset: f32) -> String {
@@ -184,23 +181,6 @@ fn swatch_color_preview(field: AppearanceField, vc: &str) -> Element {
     }
 }
 
-fn swatch_selection_border(field: AppearanceField) -> Element {
-    let selection_x = x_offset(SELECTION_PREVIEW_OFFSET_X);
-    rsx! {
-        texture {
-            name: dyn_name(format!("AppSwatchSel_{}", field.as_str())),
-            width: SWATCH_PREVIEW_SELECTION_WIDTH,
-            height: SWATCH_PREVIEW_SELECTION_HEIGHT,
-            texture_atlas: "charactercreate-customize-palette-selected",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: selection_x,
-            }
-        }
-    }
-}
-
 fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
     let (vc, x) = (rgb_to_vertex_color(color), swatch_gap_center_x());
     rsx! {
@@ -215,7 +195,6 @@ fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
                 x,
             }
             {swatch_color_preview(field, &vc)}
-            {swatch_selection_border(field)}
         }
     }
 }
