@@ -56,7 +56,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let sky_color = settings.sky_color.rgb;
     let water_color = settings.base_color.rgb;
     let color = mix(water_color, sky_color, fresnel) + vec3<f32>(spec);
-    let alpha = mix(0.4, 0.85, fresnel);
+    let shoreline_depth = clamp(in.color.a, 0.0, 1.0);
+    let depth_alpha = mix(0.08, 0.7, shoreline_depth);
+    let alpha = mix(depth_alpha, 0.85, fresnel);
 
     return vec4<f32>(color, alpha);
 }

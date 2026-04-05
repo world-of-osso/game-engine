@@ -31,7 +31,20 @@ pub struct AdtData {
 }
 
 type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
-type WaterGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
+type WaterGeometry = (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Vec<[f32; 4]>,
+    Vec<u32>,
+);
+
+struct WaterMeshBuffers {
+    positions: Vec<[f32; 3]>,
+    normals: Vec<[f32; 3]>,
+    uvs: Vec<[f32; 2]>,
+    colors: Vec<[f32; 4]>,
+}
 
 #[cfg(test)]
 fn mccv_color_to_shader_color(bgra: [u8; 4]) -> [f32; 4] {
@@ -236,14 +249,25 @@ fn water_height(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
         .unwrap_or(layer.min_height)
 }
 
+fn water_depth(layer: &WaterLayer, vert_row: usize, vert_col: usize) -> f32 {
+    if layer.vertex_depths.is_empty() {
+        return 1.0;
+    }
+    let w = layer.width as usize + 1;
+    let depth = layer
+        .vertex_depths
+        .get(vert_row * w + vert_col)
+        .copied()
+        .unwrap_or(u8::MAX);
+    f32::from(depth) / 255.0
+}
+
 fn emit_water_quad(
     chunk_pos: [f32; 3],
     layer: &WaterLayer,
     row: usize,
     col: usize,
-    positions: &mut Vec<[f32; 3]>,
-    normals: &mut Vec<[f32; 3]>,
-    uvs: &mut Vec<[f32; 2]>,
+    buffers: &mut WaterMeshBuffers,
 ) {
     let abs_row = layer.y_offset as usize + row;
     let abs_col = layer.x_offset as usize + col;
@@ -251,11 +275,13 @@ fn emit_water_quad(
         let r = abs_row + dr;
         let c = abs_col + dc;
         let wz = water_height(layer, row + dr, col + dc);
+        let depth = water_depth(layer, row + dr, col + dc);
         let wx = chunk_pos[1] - c as f32 * WATER_STEP;
         let wy = chunk_pos[0] - r as f32 * WATER_STEP;
-        positions.push(wow_to_bevy(wx, wy, wz));
-        normals.push([0.0, 1.0, 0.0]);
-        uvs.push([c as f32 / 8.0, r as f32 / 8.0]);
+        buffers.positions.push(wow_to_bevy(wx, wy, wz));
+        buffers.normals.push([0.0, 1.0, 0.0]);
+        buffers.uvs.push([c as f32 / 8.0, r as f32 / 8.0]);
+        buffers.colors.push([1.0, 1.0, 1.0, depth]);
     }
 }
 
@@ -263,25 +289,20 @@ fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometr
     let w = layer.width as usize;
     let h = layer.height as usize;
     let max_quads = w * h;
-    let mut positions = Vec::with_capacity(max_quads * 4);
-    let mut normals = Vec::with_capacity(max_quads * 4);
-    let mut uvs = Vec::with_capacity(max_quads * 4);
+    let mut buffers = WaterMeshBuffers {
+        positions: Vec::with_capacity(max_quads * 4),
+        normals: Vec::with_capacity(max_quads * 4),
+        uvs: Vec::with_capacity(max_quads * 4),
+        colors: Vec::with_capacity(max_quads * 4),
+    };
     let mut indices = Vec::with_capacity(max_quads * 6);
     for row in 0..h {
         for col in 0..w {
             if !quad_exists(layer, row, col) {
                 continue;
             }
-            let base_idx = positions.len() as u32;
-            emit_water_quad(
-                chunk_pos,
-                layer,
-                row,
-                col,
-                &mut positions,
-                &mut normals,
-                &mut uvs,
-            );
+            let base_idx = buffers.positions.len() as u32;
+            emit_water_quad(chunk_pos, layer, row, col, &mut buffers);
             indices.extend_from_slice(&[
                 base_idx,
                 base_idx + 1,
@@ -292,11 +313,17 @@ fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometr
             ]);
         }
     }
-    (positions, normals, uvs, indices)
+    (
+        buffers.positions,
+        buffers.normals,
+        buffers.uvs,
+        buffers.colors,
+        indices,
+    )
 }
 
 pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
-    let (positions, normals, uvs, indices) = build_water_geometry(chunk_pos, layer);
+    let (positions, normals, uvs, colors, indices) = build_water_geometry(chunk_pos, layer);
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
@@ -304,6 +331,7 @@ pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     mesh.insert_indices(Indices::U32(indices));
     mesh
 }
@@ -343,7 +371,10 @@ fn load_adt_inner(
 mod tests {
     use bevy::mesh::{Mesh, VertexAttributeValues};
 
-    use super::{build_mcnk_indices, build_mcnk_mesh, mccv_color_to_shader_color};
+    use super::{
+        WaterLayer, build_mcnk_indices, build_mcnk_mesh, build_water_mesh,
+        mccv_color_to_shader_color,
+    };
 
     const FULL_LOW_RES_HOLE_MASK: u16 = u16::MAX;
 
@@ -454,6 +485,36 @@ mod tests {
             panic!("expected terrain mesh vertex colors");
         };
         assert_eq!(colors[0], [0.75, 0.25, 0.125, 0.75]);
+    }
+
+    #[test]
+    fn water_mesh_emits_normalized_depth_in_vertex_color_alpha() {
+        let layer = WaterLayer {
+            liquid_type: 0,
+            liquid_object: 3,
+            min_height: 2.0,
+            max_height: 2.0,
+            x_offset: 0,
+            y_offset: 0,
+            width: 1,
+            height: 1,
+            exists: [1, 0, 0, 0, 0, 0, 0, 0],
+            vertex_heights: vec![2.0, 2.0, 2.0, 2.0],
+            vertex_uvs: Vec::new(),
+            vertex_depths: vec![0, 64, 128, 255],
+        };
+
+        let mesh = build_water_mesh([0.0, 0.0, 0.0], &layer);
+        let Some(VertexAttributeValues::Float32x4(colors)) = mesh.attribute(Mesh::ATTRIBUTE_COLOR)
+        else {
+            panic!("expected water mesh vertex colors");
+        };
+
+        assert_eq!(colors.len(), 4);
+        assert_eq!(colors[0], [1.0, 1.0, 1.0, 0.0]);
+        assert!((colors[1][3] - (64.0 / 255.0)).abs() < f32::EPSILON);
+        assert!((colors[2][3] - (128.0 / 255.0)).abs() < f32::EPSILON);
+        assert_eq!(colors[3], [1.0, 1.0, 1.0, 1.0]);
     }
 
     struct QuadIndices {
