@@ -3,6 +3,7 @@ use std::sync::{Mutex, OnceLock};
 
 use bevy::asset::RenderAssetUsages;
 use bevy::color::LinearRgba;
+use bevy::ecs::query::QueryFilter;
 use bevy::image::Image;
 use bevy::mesh::Indices;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -1201,15 +1202,28 @@ pub(crate) fn sync_wmo_sidn_emissive(
     game_time: Res<GameTime>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     query: Query<(&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow)>,
+    new_glow_query: Query<
+        (&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow),
+        Or<(Added<WmoSidnGlow>, Changed<MeshMaterial3d<StandardMaterial>>)>,
+    >,
     mut last_strength: Local<Option<f32>>,
 ) {
     let strength = sidn_glow_strength(game_time.minutes);
     if last_strength.is_some_and(|last| (last - strength).abs() < 0.001) {
+        apply_sidn_emissive_updates(&mut materials, &new_glow_query, strength);
         return;
     }
     *last_strength = Some(strength);
 
-    for (material_handle, glow) in &query {
+    apply_sidn_emissive_updates(&mut materials, &query, strength);
+}
+
+fn apply_sidn_emissive_updates<F: QueryFilter>(
+    materials: &mut Assets<StandardMaterial>,
+    query: &Query<(&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow), F>,
+    strength: f32,
+) {
+    for (material_handle, glow) in query.iter() {
         let Some(material) = materials.get_mut(material_handle) else {
             continue;
         };

@@ -218,6 +218,51 @@ fn wmo_sidn_emissive_updates_from_game_time() {
 }
 
 #[test]
+fn wmo_sidn_emissive_initializes_new_glow_materials_without_time_change() {
+    let mut app = App::new();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.add_systems(Update, super::terrain_objects_wmo::sync_wmo_sidn_emissive);
+    app.insert_resource(crate::sky::GameTime {
+        minutes: 0.0,
+        speed: 0.0,
+    });
+
+    let first_handle = {
+        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
+        materials.add(StandardMaterial::default())
+    };
+    app.world_mut().spawn((
+        MeshMaterial3d(first_handle.clone()),
+        super::terrain_objects_wmo::WmoSidnGlow {
+            base_sidn_color: [0.6, 0.4, 0.2, 0.5],
+        },
+    ));
+    app.update();
+
+    let second_handle = {
+        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
+        materials.add(StandardMaterial::default())
+    };
+    app.world_mut().spawn((
+        MeshMaterial3d(second_handle.clone()),
+        super::terrain_objects_wmo::WmoSidnGlow {
+            base_sidn_color: [0.3, 0.5, 0.7, 0.8],
+        },
+    ));
+    app.update();
+
+    let second_emissive = app
+        .world()
+        .resource::<Assets<StandardMaterial>>()
+        .get(&second_handle)
+        .expect("second material")
+        .emissive;
+    assert!(second_emissive.red > 0.0);
+    assert!(second_emissive.green > 0.0);
+    assert!(second_emissive.blue > 0.0);
+}
+
+#[test]
 fn waterfall_backdrop_filter_keeps_only_waterfall_effects() {
     let waterfall = adt_obj::DoodadPlacement {
         name_id: 0,
