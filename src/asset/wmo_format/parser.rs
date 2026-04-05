@@ -8,6 +8,7 @@ pub struct WmoRootData {
     pub n_groups: u32,
     pub materials: Vec<WmoMaterialDef>,
     pub lights: Vec<WmoLight>,
+    pub doodad_sets: Vec<WmoDoodadSet>,
     pub portals: Vec<WmoPortal>,
     pub portal_refs: Vec<WmoPortalRef>,
     pub group_infos: Vec<WmoGroupInfo>,
@@ -70,6 +71,12 @@ pub struct WmoLight {
     pub attenuation_end: f32,
 }
 
+pub struct WmoDoodadSet {
+    pub name: String,
+    pub start_doodad: u32,
+    pub n_doodads: u32,
+}
+
 pub struct RawGroupData {
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -90,6 +97,7 @@ pub struct RawBatch {
 const MOHD_HEADER_SIZE: usize = 64;
 const MOMT_ENTRY_SIZE: usize = 64;
 const MOLT_ENTRY_SIZE: usize = 48;
+const MODS_ENTRY_SIZE: usize = 32;
 const MOPT_ENTRY_SIZE: usize = 20;
 const MOPR_ENTRY_SIZE: usize = 8;
 const MOGI_ENTRY_SIZE: usize = 32;
@@ -145,6 +153,15 @@ struct RawWmoLight {
     rotation: [f32; 4],
     attenuation_start: f32,
     attenuation_end: f32,
+}
+
+#[derive(BinRead)]
+#[br(little)]
+struct RawWmoDoodadSet {
+    name: [u8; 20],
+    start_doodad: u32,
+    n_doodads: u32,
+    _unused: u32,
 }
 
 #[derive(BinRead)]
@@ -248,6 +265,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         n_groups: accum.n_groups,
         materials: accum.materials,
         lights: accum.lights,
+        doodad_sets: accum.doodad_sets,
         portals: accum.portals,
         portal_refs: accum.portal_refs,
         group_infos: accum.group_infos,
@@ -260,6 +278,7 @@ struct WmoRootAccum {
     n_groups: u32,
     materials: Vec<WmoMaterialDef>,
     lights: Vec<WmoLight>,
+    doodad_sets: Vec<WmoDoodadSet>,
     portals: Vec<WmoPortal>,
     mopt_raw: Vec<(u16, u16)>,
     portal_refs: Vec<WmoPortalRef>,
@@ -276,6 +295,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
         }
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
+        b"SDOM" => accum.doodad_sets = parse_mods(payload)?,
         b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
         b"TPOM" => {
             let (p, raw) = parse_mopt(payload)?;
@@ -297,6 +317,10 @@ fn parse_c_string(data: &[u8]) -> Option<String> {
         return None;
     }
     Some(String::from_utf8_lossy(bytes).into_owned())
+}
+
+fn parse_fixed_c_string(bytes: &[u8]) -> String {
+    parse_c_string(bytes).unwrap_or_default()
 }
 
 pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
@@ -328,6 +352,19 @@ pub fn parse_molt(data: &[u8]) -> Result<Vec<WmoLight>, String> {
                 rotation: light.rotation,
                 attenuation_start: light.attenuation_start,
                 attenuation_end: light.attenuation_end,
+            })
+            .collect(),
+    )
+}
+
+pub fn parse_mods(data: &[u8]) -> Result<Vec<WmoDoodadSet>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoDoodadSet>(data, MODS_ENTRY_SIZE, "MODS")?
+            .into_iter()
+            .map(|set| WmoDoodadSet {
+                name: parse_fixed_c_string(&set.name),
+                start_doodad: set.start_doodad,
+                n_doodads: set.n_doodads,
             })
             .collect(),
     )
@@ -589,6 +626,62 @@ mod tests {
         assert_eq!(light.rotation, [0.0, 0.0, 1.0, 0.0]);
         assert_eq!(light.attenuation_start, 3.0);
         assert_eq!(light.attenuation_end, 7.0);
+    }
+
+    #[test]
+    fn parse_mods_reads_doodad_sets() {
+        let mut data = Vec::new();
+        let mut name = [0_u8; 20];
+        name[..14].copy_from_slice(b"$DefaultGlobal");
+        data.extend_from_slice(&name);
+        data.extend_from_slice(&4_u32.to_le_bytes());
+        data.extend_from_slice(&9_u32.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+
+        let sets = parse_mods(&data).expect("parse MODS");
+
+        assert_eq!(sets.len(), 1);
+        assert_eq!(sets[0].name, "$DefaultGlobal");
+        assert_eq!(sets[0].start_doodad, 4);
+        assert_eq!(sets[0].n_doodads, 9);
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mods_doodad_sets() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DHOM");
+        data.extend_from_slice(&(MOHD_HEADER_SIZE as u32).to_le_bytes());
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        mohd[24..28].copy_from_slice(&2_u32.to_le_bytes());
+        data.extend_from_slice(&mohd);
+
+        data.extend_from_slice(b"SDOM");
+        data.extend_from_slice(&(64_u32).to_le_bytes());
+
+        let mut first_name = [0_u8; 20];
+        first_name[..14].copy_from_slice(b"$DefaultGlobal");
+        data.extend_from_slice(&first_name);
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&3_u32.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+
+        let mut second_name = [0_u8; 20];
+        second_name[..7].copy_from_slice(b"FirePit");
+        data.extend_from_slice(&second_name);
+        data.extend_from_slice(&3_u32.to_le_bytes());
+        data.extend_from_slice(&5_u32.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(root.doodad_sets.len(), 2);
+        assert_eq!(root.doodad_sets[0].name, "$DefaultGlobal");
+        assert_eq!(root.doodad_sets[0].start_doodad, 0);
+        assert_eq!(root.doodad_sets[0].n_doodads, 3);
+        assert_eq!(root.doodad_sets[1].name, "FirePit");
+        assert_eq!(root.doodad_sets[1].start_doodad, 3);
+        assert_eq!(root.doodad_sets[1].n_doodads, 5);
     }
 
     #[test]
