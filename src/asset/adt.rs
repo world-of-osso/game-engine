@@ -292,32 +292,47 @@ fn emit_water_quad(
     }
 }
 
-fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometry {
-    let w = layer.width as usize;
-    let h = layer.height as usize;
-    let max_quads = w * h;
-    let mut buffers = WaterMeshBuffers {
+fn create_water_mesh_buffers(max_quads: usize) -> WaterMeshBuffers {
+    WaterMeshBuffers {
         positions: Vec::with_capacity(max_quads * 4),
         normals: Vec::with_capacity(max_quads * 4),
         uvs: Vec::with_capacity(max_quads * 4),
         colors: Vec::with_capacity(max_quads * 4),
-    };
+    }
+}
+
+fn append_water_quad(
+    chunk_pos: [f32; 3],
+    layer: &WaterLayer,
+    row: usize,
+    col: usize,
+    buffers: &mut WaterMeshBuffers,
+    indices: &mut Vec<u32>,
+) {
+    let base_idx = buffers.positions.len() as u32;
+    emit_water_quad(chunk_pos, layer, row, col, buffers);
+    indices.extend_from_slice(&[
+        base_idx,
+        base_idx + 1,
+        base_idx + 2,
+        base_idx + 2,
+        base_idx + 1,
+        base_idx + 3,
+    ]);
+}
+
+fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometry {
+    let w = layer.width as usize;
+    let h = layer.height as usize;
+    let max_quads = w * h;
+    let mut buffers = create_water_mesh_buffers(max_quads);
     let mut indices = Vec::with_capacity(max_quads * 6);
     for row in 0..h {
         for col in 0..w {
             if !quad_exists(layer, row, col) {
                 continue;
             }
-            let base_idx = buffers.positions.len() as u32;
-            emit_water_quad(chunk_pos, layer, row, col, &mut buffers);
-            indices.extend_from_slice(&[
-                base_idx,
-                base_idx + 1,
-                base_idx + 2,
-                base_idx + 2,
-                base_idx + 1,
-                base_idx + 3,
-            ]);
+            append_water_quad(chunk_pos, layer, row, col, &mut buffers, &mut indices);
         }
     }
     (
