@@ -1,6 +1,7 @@
 use cascette_client_storage::Installation;
 use cascette_client_storage::resolver::ContentResolver;
 use cascette_crypto::{ContentKey, EncodingKey};
+use osso_asset_resolver::casc_cache;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
@@ -22,6 +23,10 @@ async fn run() -> Result<(), String> {
     let root_data = read_root_data(&install, &encoding_data, &refresh.root_ckey).await?;
     write_refresh_outputs(&encoding_data, &root_data)?;
     eprintln!("Refreshed {OUT_DIR}/encoding.bin and {OUT_DIR}/root.bin from local CASC");
+
+    let casc_dir = PathBuf::from(OUT_DIR);
+    casc_cache::build_resolution_cache(&casc_dir)?;
+
     Ok(())
 }
 

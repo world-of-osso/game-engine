@@ -6,12 +6,12 @@
 use binrw::BinRead;
 use cascette_client_storage::Installation;
 use cascette_client_storage::index::IndexManager;
-use cascette_client_storage::resolver::ContentResolver;
 use cascette_client_storage::storage::ArchiveManager;
 use cascette_crypto::EncodingKey;
 use cascette_crypto::TactKeyStore;
 use cascette_formats::blte::BlteFile;
 use game_engine::listfile;
+use osso_asset_resolver::casc_cache::CascResolutionCache;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
@@ -30,11 +30,12 @@ async fn main() {
 
     let data_root = PathBuf::from(WOW_PATH).join("Data");
     let install = open_and_initialize(&data_root).await;
-    let resolver = load_cached_resolution();
+    let cache = CascResolutionCache::open(Path::new(CACHE_DIR))
+        .expect("failed to open CASC resolution cache");
 
     let (mut ok, mut fail) = (0u32, 0u32);
     for fdid in &fdids {
-        match extract_fdid(&install, &resolver, *fdid, &output_dir).await {
+        match extract_fdid(&install, &cache, *fdid, &output_dir).await {
             Ok(path) => {
                 eprintln!("Extracted FDID {fdid} -> {}", path.display());
                 ok += 1;
@@ -77,28 +78,9 @@ async fn open_and_initialize(data_root: &Path) -> Installation {
     install
 }
 
-fn load_cached_resolution() -> ContentResolver {
-    let cache = PathBuf::from(CACHE_DIR);
-    let resolver = ContentResolver::new();
-    let root_data = std::fs::read(cache.join("root.bin"))
-        .unwrap_or_else(|_| panic!("Missing root.bin, run `casc-init` first"));
-    resolver
-        .load_root_file(&root_data)
-        .expect("failed to load root");
-    eprintln!("Loaded root ({:.1} MB)", root_data.len() as f64 / 1e6);
-
-    let enc_data = std::fs::read(cache.join("encoding.bin"))
-        .unwrap_or_else(|_| panic!("Missing encoding.bin, run `casc-init` first"));
-    resolver
-        .load_encoding_file(&enc_data)
-        .expect("failed to load encoding");
-    eprintln!("Loaded encoding ({:.1} MB)", enc_data.len() as f64 / 1e6);
-    resolver
-}
-
 async fn extract_fdid(
     install: &Installation,
-    resolver: &ContentResolver,
+    cache: &CascResolutionCache,
     fdid: u32,
     output_dir: &Path,
 ) -> Result<PathBuf, String> {
@@ -108,12 +90,10 @@ async fn extract_fdid(
         return Ok(out_path);
     }
 
-    let content_key = resolver
-        .resolve_file_data_id(fdid)
-        .ok_or_else(|| format!("FDID {fdid}: missing content key in root"))?;
-    let encoding_key: EncodingKey = resolver
-        .resolve_content_key(&content_key)
-        .ok_or_else(|| format!("FDID {fdid}: missing encoding key for content {content_key}"))?;
+    let (_, ek_bytes) = cache
+        .resolve_fdid(fdid)
+        .ok_or_else(|| format!("FDID {fdid}: missing resolution entry"))?;
+    let encoding_key = EncodingKey::from_bytes(ek_bytes);
     let data = match install.read_file_by_encoding_key(&encoding_key).await {
         Ok(data) => data,
         Err(primary_err) => read_file_by_encoding_key_with_keys(&encoding_key)
