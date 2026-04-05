@@ -7,6 +7,7 @@ use crate::asset::adt::ChunkIter;
 pub struct WmoRootData {
     pub n_groups: u32,
     pub flags: WmoRootFlags,
+    pub ambient_color: [f32; 4],
     pub materials: Vec<WmoMaterialDef>,
     pub lights: Vec<WmoLight>,
     pub doodad_sets: Vec<WmoDoodadSet>,
@@ -154,7 +155,7 @@ struct MohdHeader {
     _n_models: u32,
     _n_doodads: u32,
     _n_sets: u32,
-    _ambient_color: u32,
+    ambient_color: [u8; 4],
     _wmo_id: u32,
     _bbox_min: [f32; 3],
     _bbox_max: [f32; 3],
@@ -313,6 +314,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
     WmoRootData {
         n_groups: accum.n_groups,
         flags: accum.flags,
+        ambient_color: accum.ambient_color,
         materials: accum.materials,
         lights: accum.lights,
         doodad_sets: accum.doodad_sets,
@@ -330,6 +332,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
 struct WmoRootAccum {
     n_groups: u32,
     flags: WmoRootFlags,
+    ambient_color: [f32; 4],
     materials: Vec<WmoMaterialDef>,
     lights: Vec<WmoLight>,
     doodad_sets: Vec<WmoDoodadSet>,
@@ -350,6 +353,7 @@ fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Res
             let header: MohdHeader = parse_binrw_value(payload, MOHD_HEADER_SIZE, "MOHD")?;
             accum.n_groups = header.n_groups;
             accum.flags = WmoRootFlags::from_bits(header.flags);
+            accum.ambient_color = parse_bgra_color(header.ambient_color);
         }
         b"TMOM" => accum.materials = parse_momt(payload)?,
         b"TLOM" => accum.lights = parse_molt(payload)?,
@@ -675,6 +679,25 @@ mod tests {
     }
 
     #[test]
+    fn parse_root_chunk_reads_mohd_ambient_color() {
+        let mut accum = WmoRootAccum::default();
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        mohd[28..32].copy_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+
+        apply_root_chunk(b"DHOM", &mohd, &mut accum).expect("parse MOHD chunk");
+
+        assert_eq!(
+            accum.ambient_color,
+            [
+                0x33 as f32 / 255.0,
+                0x22 as f32 / 255.0,
+                0x11 as f32 / 255.0,
+                0x44 as f32 / 255.0,
+            ]
+        );
+    }
+
+    #[test]
     fn parse_molt_reads_light_fields() {
         let mut data = Vec::new();
         data.push(1);
@@ -776,6 +799,29 @@ mod tests {
                 use_liquid_type_dbc_id: false,
                 do_not_fix_vertex_color_alpha: true,
             }
+        );
+    }
+
+    #[test]
+    fn load_wmo_root_reads_mohd_ambient_color() {
+        let mut data = Vec::new();
+
+        data.extend_from_slice(b"DHOM");
+        data.extend_from_slice(&(MOHD_HEADER_SIZE as u32).to_le_bytes());
+        let mut mohd = vec![0_u8; MOHD_HEADER_SIZE];
+        mohd[28..32].copy_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
+        data.extend_from_slice(&mohd);
+
+        let root = load_wmo_root(&data).expect("parse WMO root");
+
+        assert_eq!(
+            root.ambient_color,
+            [
+                0xCC as f32 / 255.0,
+                0xBB as f32 / 255.0,
+                0xAA as f32 / 255.0,
+                0xDD as f32 / 255.0,
+            ]
         );
     }
 
