@@ -99,7 +99,12 @@ pub struct WmoMaterialDef {
 }
 
 impl WmoMaterialDef {
+    const SECOND_COLOR_FLAG: u32 = 0x0100_0000;
     const SECOND_UV_FLAG: u32 = 0x0200_0000;
+
+    pub fn uses_second_color_blend_alpha(&self) -> bool {
+        self.flags & Self::SECOND_COLOR_FLAG != 0
+    }
 
     pub fn uses_second_uv_set(&self) -> bool {
         self.flags & Self::SECOND_UV_FLAG != 0 && matches!(self.shader, 6..=9 | 11..=15)
@@ -271,6 +276,7 @@ pub struct RawGroupData {
     pub uvs: Vec<[f32; 2]>,
     pub second_uvs: Vec<[f32; 2]>,
     pub colors: Vec<[f32; 4]>,
+    pub second_color_blend_alphas: Vec<f32>,
     pub indices: Vec<u16>,
     pub batches: Vec<RawBatch>,
 }
@@ -1109,6 +1115,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
     let mut uvs = Vec::new();
     let mut second_uvs = Vec::new();
     let mut colors = Vec::new();
+    let mut second_color_blend_alphas = Vec::new();
     let mut indices = Vec::new();
     let mut batches = Vec::new();
 
@@ -1130,7 +1137,13 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
                     second_uvs = parse_vec2_array(payload)?;
                 }
             }
-            b"VCOM" => colors = parse_mocv(payload),
+            b"VCOM" => {
+                if colors.is_empty() {
+                    colors = parse_mocv(payload);
+                } else {
+                    second_color_blend_alphas = parse_mocv_alpha(payload);
+                }
+            }
             b"IVOM" => indices = parse_u16_array(payload),
             b"ABOM" => batches = parse_moba(payload)?,
             _ => {}
@@ -1156,6 +1169,7 @@ pub fn parse_group_subchunks(data: &[u8]) -> Result<RawGroupData, String> {
         uvs,
         second_uvs,
         colors,
+        second_color_blend_alphas,
         indices,
         batches,
     })
@@ -1275,6 +1289,12 @@ fn parse_bgra_color(color: [u8; 4]) -> [f32; 4] {
 fn parse_mocv(data: &[u8]) -> Vec<[f32; 4]> {
     data.chunks_exact(4)
         .map(|c| parse_bgra_color(c.try_into().unwrap()))
+        .collect()
+}
+
+fn parse_mocv_alpha(data: &[u8]) -> Vec<f32> {
+    data.chunks_exact(4)
+        .map(|c| c[3] as f32 / 255.0)
         .collect()
 }
 
@@ -1868,6 +1888,36 @@ mod tests {
 
         assert_eq!(group.uvs, vec![[1.0, 2.0]]);
         assert_eq!(group.second_uvs, vec![[3.0, 4.0]]);
+    }
+
+    #[test]
+    fn parse_group_subchunks_preserves_second_mocv_alpha_values() {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"VCOM");
+        data.extend_from_slice(&(4_u32).to_le_bytes());
+        data.extend_from_slice(&[1_u8, 2, 3, 4]);
+
+        data.extend_from_slice(b"VCOM");
+        data.extend_from_slice(&(8_u32).to_le_bytes());
+        data.extend_from_slice(&[5_u8, 6, 7, 64]);
+        data.extend_from_slice(&[8_u8, 9, 10, 192]);
+
+        data.extend_from_slice(b"TVOM");
+        data.extend_from_slice(&(24_u32).to_le_bytes());
+        for value in [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        data.extend_from_slice(b"IVOM");
+        data.extend_from_slice(&(6_u32).to_le_bytes());
+        for value in [0_u16, 0, 0] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+
+        let group = parse_group_subchunks(&data).expect("parse group subchunks");
+
+        assert_eq!(group.colors.len(), 1);
+        assert_eq!(group.second_color_blend_alphas, vec![64.0 / 255.0, 192.0 / 255.0]);
     }
 
     #[test]
