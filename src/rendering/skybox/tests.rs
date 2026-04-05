@@ -181,6 +181,7 @@ fn active_wmo_local_skybox_prefers_nearest_containing_wmo() {
             group_index: 0,
             bbox_min: Vec3::splat(-100.0),
             bbox_max: Vec3::splat(100.0),
+            is_antiportal: false,
         },
         ChildOf(far_wmo),
     ));
@@ -199,6 +200,7 @@ fn active_wmo_local_skybox_prefers_nearest_containing_wmo() {
             group_index: 0,
             bbox_min: Vec3::splat(-5.0),
             bbox_max: Vec3::splat(5.0),
+            is_antiportal: false,
         },
         ChildOf(near_wmo),
     ));

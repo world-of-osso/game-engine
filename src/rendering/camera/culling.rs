@@ -65,11 +65,12 @@ pub struct WmoRootBounds {
 
 /// Marker for a WMO group entity (child of a Wmo root). Stores the group index
 /// and its AABB in WMO-local space (from MOGI).
-#[derive(Component)]
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct WmoGroup {
     pub group_index: u16,
     pub bbox_min: Vec3,
     pub bbox_max: Vec3,
+    pub is_antiportal: bool,
 }
 
 /// Portal culling data stored on the WMO root entity.
@@ -317,6 +318,61 @@ fn point_in_frustum(point: Vec3, frustum: &Frustum) -> bool {
     true
 }
 
+fn group_center(group: &WmoGroup) -> Vec3 {
+    (group.bbox_min + group.bbox_max) * 0.5
+}
+
+fn antiportal_occludes_group(
+    camera_local: Vec3,
+    group: &WmoGroup,
+    antiportal_groups: &[WmoGroup],
+) -> bool {
+    let group_center = group_center(group);
+    antiportal_groups.iter().any(|antiportal| {
+        antiportal.group_index != group.group_index
+            && segment_intersects_aabb(
+                camera_local,
+                group_center,
+                antiportal.bbox_min,
+                antiportal.bbox_max,
+            )
+    })
+}
+
+fn segment_intersects_aabb(start: Vec3, end: Vec3, min: Vec3, max: Vec3) -> bool {
+    let delta = end - start;
+    let mut t_min: f32 = 0.0;
+    let mut t_max: f32 = 1.0;
+
+    for axis in 0..3 {
+        let start_axis = start[axis];
+        let delta_axis = delta[axis];
+        let min_axis = min[axis];
+        let max_axis = max[axis];
+
+        if delta_axis.abs() <= f32::EPSILON {
+            if start_axis < min_axis || start_axis > max_axis {
+                return false;
+            }
+            continue;
+        }
+
+        let inv_delta = delta_axis.recip();
+        let mut axis_t0 = (min_axis - start_axis) * inv_delta;
+        let mut axis_t1 = (max_axis - start_axis) * inv_delta;
+        if axis_t0 > axis_t1 {
+            std::mem::swap(&mut axis_t0, &mut axis_t1);
+        }
+        t_min = t_min.max(axis_t0);
+        t_max = t_max.min(axis_t1);
+        if t_min > t_max {
+            return false;
+        }
+    }
+
+    true
+}
+
 /// Portal-based visibility culling for WMO interiors.
 fn wmo_portal_cull_system(
     camera_q: Query<(&GlobalTransform, &Frustum), With<Camera3d>>,
@@ -333,6 +389,7 @@ fn wmo_portal_cull_system(
 
         // Collect group info for camera detection (immutable pass)
         let camera_group = find_camera_group_from_query(local_cam, wmo_entity, &group_q);
+        let antiportal_groups = antiportal_groups_from_query(wmo_entity, &group_q);
 
         // Not inside any group = outside the WMO, skip portal culling
         let Some(cam_group) = camera_group else {
@@ -346,7 +403,12 @@ fn wmo_portal_cull_system(
             if child_of.parent() != wmo_entity {
                 continue;
             }
-            let desired = if visible_set.contains(&group.group_index) {
+            let visible_through_portals = visible_set.contains(&group.group_index);
+            let hidden_by_antiportal =
+                antiportal_occludes_group(local_cam, group, &antiportal_groups);
+            let should_show_group =
+                !group.is_antiportal && visible_through_portals && !hidden_by_antiportal;
+            let desired = if should_show_group {
                 Visibility::Visible
             } else {
                 Visibility::Hidden
@@ -379,6 +441,18 @@ fn find_camera_group_from_query(
         }
     }
     None
+}
+
+fn antiportal_groups_from_query(
+    wmo_entity: Entity,
+    group_q: &Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+) -> Vec<WmoGroup> {
+    group_q
+        .iter()
+        .filter_map(|(group, _, child_of)| {
+            (child_of.parent() == wmo_entity && group.is_antiportal).then_some(*group)
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -479,6 +553,7 @@ mod tests {
                     group_index: 0,
                     bbox_min: Vec3::splat(-0.5),
                     bbox_max: Vec3::splat(0.5),
+                    is_antiportal: false,
                 },
                 Visibility::Visible,
             ))
@@ -489,6 +564,7 @@ mod tests {
                     group_index: 1,
                     bbox_min: Vec3::new(2.0, -0.5, -0.5),
                     bbox_max: Vec3::new(3.0, 0.5, 0.5),
+                    is_antiportal: false,
                 },
                 Visibility::Visible,
             ))
@@ -807,6 +883,46 @@ mod tests {
         assert_eq!(
             *world.get::<Visibility>(group1).unwrap(),
             Visibility::Visible
+        );
+    }
+
+    #[test]
+    fn antiportal_groups_occlude_groups_behind_them() {
+        let mut world = World::default();
+        world.spawn((
+            Camera3d::default(),
+            GlobalTransform::IDENTITY,
+            unit_test_frustum(),
+        ));
+        let (root, group0, group1) =
+            spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
+        let antiportal = world
+            .spawn((
+                WmoGroup {
+                    group_index: 2,
+                    bbox_min: Vec3::new(1.0, -0.25, -0.25),
+                    bbox_max: Vec3::new(1.5, 0.25, 0.25),
+                    is_antiportal: true,
+                },
+                Visibility::Visible,
+            ))
+            .id();
+        world.entity_mut(root).add_child(antiportal);
+        let mut state = PortalCullState::new(&mut world);
+
+        run_portal_cull(&mut world, &mut state);
+
+        assert_eq!(
+            *world.get::<Visibility>(group0).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *world.get::<Visibility>(group1).unwrap(),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *world.get::<Visibility>(antiportal).unwrap(),
+            Visibility::Hidden
         );
     }
 }

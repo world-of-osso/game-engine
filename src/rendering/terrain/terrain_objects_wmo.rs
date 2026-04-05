@@ -424,7 +424,7 @@ fn spawn_wmo_group(
         return false;
     };
 
-    let bbox = group_bbox(root, group_index);
+    let bbox = group_bbox(root, group_index, &group.header);
     let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
     commands.entity(root_entity).add_child(group_entity);
     spawn_wmo_group_lights(commands, root, &group, group_entity);
@@ -935,7 +935,11 @@ fn spawn_wmo_group_doodad(
     Some(entity)
 }
 
-fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling::WmoGroup {
+fn group_bbox(
+    root: &wmo::WmoRootData,
+    group_index: u16,
+    group_header: &wmo::WmoGroupHeader,
+) -> game_engine::culling::WmoGroup {
     let (bbox_min, bbox_max) = root
         .group_infos
         .get(group_index as usize)
@@ -960,7 +964,16 @@ fn group_bbox(root: &wmo::WmoRootData, group_index: u16) -> game_engine::culling
         group_index,
         bbox_min,
         bbox_max,
+        is_antiportal: group_is_antiportal(root, group_header),
     }
+}
+
+fn group_is_antiportal(root: &wmo::WmoRootData, group_header: &wmo::WmoGroupHeader) -> bool {
+    root.group_names.iter().any(|group_name| {
+        group_name.is_antiportal
+            && (group_name.offset == group_header.group_name_offset
+                || group_name.offset == group_header.descriptive_group_name_offset)
+    })
 }
 
 fn wmo_batch_material(
@@ -1204,7 +1217,10 @@ pub(crate) fn sync_wmo_sidn_emissive(
     query: Query<(&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow)>,
     new_glow_query: Query<
         (&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow),
-        Or<(Added<WmoSidnGlow>, Changed<MeshMaterial3d<StandardMaterial>>)>,
+        Or<(
+            Added<WmoSidnGlow>,
+            Changed<MeshMaterial3d<StandardMaterial>>,
+        )>,
     >,
     mut last_strength: Local<Option<f32>>,
 ) {
@@ -1821,6 +1837,78 @@ mod tests {
         assert_eq!(fogs[1].0, 3);
         assert_eq!(fogs[0].1.position, [10.0, 20.0, 30.0]);
         assert_eq!(fogs[1].1.position, [11.0, 22.0, 33.0]);
+    }
+
+    #[test]
+    fn group_bbox_marks_antiportal_groups_from_authored_name_offsets() {
+        let root = wmo::WmoRootData {
+            n_groups: 1,
+            flags: wmo::WmoRootFlags::default(),
+            ambient_color: [0.0; 4],
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            materials: Vec::new(),
+            lights: Vec::new(),
+            doodad_sets: Vec::new(),
+            group_names: vec![
+                crate::asset::wmo_format::parser::WmoGroupName {
+                    offset: 0,
+                    name: "EntryHall".into(),
+                    is_antiportal: false,
+                },
+                crate::asset::wmo_format::parser::WmoGroupName {
+                    offset: 24,
+                    name: "antiportal01".into(),
+                    is_antiportal: true,
+                },
+            ],
+            doodad_names: Vec::new(),
+            doodad_file_ids: Vec::new(),
+            doodad_defs: Vec::new(),
+            fogs: Vec::new(),
+            visible_block_vertices: Vec::new(),
+            visible_blocks: Vec::new(),
+            convex_volume_planes: Vec::new(),
+            group_file_data_ids: Vec::new(),
+            global_ambient_volumes: Vec::new(),
+            ambient_volumes: Vec::new(),
+            baked_ambient_box_volumes: Vec::new(),
+            dynamic_lights: Vec::new(),
+            portals: Vec::new(),
+            portal_refs: Vec::new(),
+            group_infos: vec![wmo::WmoGroupInfo {
+                flags: 0,
+                bbox_min: [1.0, 2.0, 3.0],
+                bbox_max: [4.0, 5.0, 6.0],
+            }],
+            skybox_wow_path: None,
+        };
+        let group_header = wmo::WmoGroupHeader {
+            group_name_offset: 0,
+            descriptive_group_name_offset: 24,
+            flags: 0,
+            group_flags: Default::default(),
+            bbox_min: [0.0; 3],
+            bbox_max: [0.0; 3],
+            portal_start: 0,
+            portal_count: 0,
+            trans_batch_count: 0,
+            int_batch_count: 0,
+            ext_batch_count: 0,
+            batch_type_d: 0,
+            fog_ids: [0; 4],
+            group_liquid: 0,
+            unique_id: 0,
+            flags2: 0,
+            parent_split_group_index: -1,
+            next_split_child_group_index: -1,
+        };
+
+        let bbox = group_bbox(&root, 0, &group_header);
+
+        assert!(bbox.is_antiportal);
+        assert_eq!(bbox.bbox_min, Vec3::new(-4.0, 3.0, 2.0));
+        assert_eq!(bbox.bbox_max, Vec3::new(-1.0, 6.0, 5.0));
     }
 
     #[test]
