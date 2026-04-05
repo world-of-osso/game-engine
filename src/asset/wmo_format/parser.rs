@@ -633,14 +633,24 @@ pub fn parse_mobr(data: &[u8]) -> Result<Vec<u16>, String> {
 
 pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {
     let header: RawWmoLiquidHeader = parse_binrw_value(data, MLIQ_HEADER_SIZE, "MLIQ")?;
-    let vertex_count = header
-        .x_verts
-        .checked_mul(header.y_verts)
-        .ok_or_else(|| "MLIQ vertex count overflow".to_string())? as usize;
-    let tile_count = header
-        .x_tiles
-        .checked_mul(header.y_tiles)
-        .ok_or_else(|| "MLIQ tile count overflow".to_string())? as usize;
+    let vertex_count = checked_mliq_count(header.x_verts, header.y_verts, "vertex")?;
+    let tile_count = checked_mliq_count(header.x_tiles, header.y_tiles, "tile")?;
+    let (vertices_data, tiles_data) = split_mliq_payloads(data, vertex_count, tile_count)?;
+    build_mliq(header, vertices_data, tiles_data)
+}
+
+fn checked_mliq_count(width: i32, height: i32, label: &str) -> Result<usize, String> {
+    width
+        .checked_mul(height)
+        .ok_or_else(|| format!("MLIQ {label} count overflow"))
+        .map(|count| count as usize)
+}
+
+fn split_mliq_payloads<'a>(
+    data: &'a [u8],
+    vertex_count: usize,
+    tile_count: usize,
+) -> Result<(&'a [u8], &'a [u8]), String> {
     let vertices_offset = MLIQ_HEADER_SIZE;
     let vertices_end = vertices_offset
         .checked_add(vertex_count * MLIQ_VERTEX_SIZE)
@@ -654,7 +664,14 @@ pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {
     let tiles_data = data
         .get(vertices_end..tiles_end)
         .ok_or_else(|| format!("MLIQ missing tile payload: {} bytes", data.len()))?;
+    Ok((vertices_data, tiles_data))
+}
 
+fn build_mliq(
+    header: RawWmoLiquidHeader,
+    vertices_data: &[u8],
+    tiles_data: &[u8],
+) -> Result<WmoLiquid, String> {
     Ok(WmoLiquid {
         header: WmoLiquidHeader {
             x_verts: header.x_verts,
@@ -664,27 +681,32 @@ pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {
             position: header.position,
             material_id: header.material_id,
         },
-        vertices: parse_binrw_entries::<RawWmoLiquidVertex>(
-            vertices_data,
-            MLIQ_VERTEX_SIZE,
-            "MLIQ vertices",
-        )?
-        .into_iter()
-        .map(|vertex| WmoLiquidVertex {
-            raw: vertex.raw,
-            height: vertex.height,
-        })
-        .collect(),
-        tiles: tiles_data
-            .iter()
-            .copied()
-            .map(|tile| WmoLiquidTile {
-                liquid_type: tile & 0x3F,
-                fishable: tile & 0x40 != 0,
-                shared: tile & 0x80 != 0,
+        vertices: parse_mliq_vertices(vertices_data)?,
+        tiles: parse_mliq_tiles(tiles_data),
+    })
+}
+
+fn parse_mliq_vertices(data: &[u8]) -> Result<Vec<WmoLiquidVertex>, String> {
+    Ok(
+        parse_binrw_entries::<RawWmoLiquidVertex>(data, MLIQ_VERTEX_SIZE, "MLIQ vertices")?
+            .into_iter()
+            .map(|vertex| WmoLiquidVertex {
+                raw: vertex.raw,
+                height: vertex.height,
             })
             .collect(),
-    })
+    )
+}
+
+fn parse_mliq_tiles(data: &[u8]) -> Vec<WmoLiquidTile> {
+    data.iter()
+        .copied()
+        .map(|tile| WmoLiquidTile {
+            liquid_type: tile & 0x3F,
+            fishable: tile & 0x40 != 0,
+            shared: tile & 0x80 != 0,
+        })
+        .collect()
 }
 
 fn parse_vec3_array(data: &[u8]) -> Result<Vec<[f32; 3]>, String> {
