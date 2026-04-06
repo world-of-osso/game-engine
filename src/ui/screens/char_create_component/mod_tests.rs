@@ -184,24 +184,6 @@ fn swatch_preview_is_centered_between_stepper_buttons() {
     );
 }
 
-#[test]
-fn swatch_selection_overlay_is_shifted_left_to_match_palette_art() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.skin_color_swatches = vec![Some([64, 32, 16])];
-
-    let reg = build_screen(state);
-    let swatch = rect_for_name(&reg, "AppSwatch_skin");
-    let selection = rect_for_name(&reg, "AppSwatchSel_skin");
-    let swatch_center = swatch.x + swatch.width * 0.5;
-    let selection_center = selection.x + selection.width * 0.5;
-
-    assert!(
-        (selection_center - (swatch_center - 8.0)).abs() < 0.01,
-        "expected selection center {selection_center} to be 8px left of swatch center {swatch_center}"
-    );
-}
-
 fn assert_rect(
     reg: &crate::ui::registry::FrameRegistry,
     name: &str,

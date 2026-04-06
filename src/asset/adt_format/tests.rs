@@ -136,8 +136,10 @@ fn parse_mcnk_subchunks_reads_mcsh_when_flagged() {
     .expect("expected MCSH shadow map");
 
     let shadow_map = shadow_map.expect("expected parsed shadow map");
-    assert_eq!(shadow_map[0], 0b1000_0000);
-    assert_eq!(shadow_map[1], 0b0100_0000);
+    // Edge fix copies col 62→63 (row 0: was false→clears true), so (0,63) becomes false
+    assert!(!shadow_map_bit(&shadow_map, 0, 63));
+    // (62,1) was set in payload, not on an edge — survives fix
+    assert!(shadow_map_bit(&shadow_map, 62, 1));
     assert_eq!(vertex_lighting, None);
     assert!(sound_emitters.is_empty());
     assert!(blend_batches.is_empty());
