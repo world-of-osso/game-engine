@@ -552,10 +552,16 @@ fn adt_streaming_system(
 }
 
 /// Receive parsed tiles from background threads and spawn entities.
+///
+/// Budgets application to at most `max_tiles_per_frame()` tiles so that
+/// multiple tiles finishing in the same interval don't cause a single
+/// long frame.  Unprocessed results stay in the mpsc channel and are
+/// picked up on subsequent frames.
 fn receive_loaded_tiles(mut params: LoadedTileSpawnParams) {
+    let budget = crate::terrain_load_limits::max_tiles_per_frame();
     let results: Vec<_> = {
         let rx = params.adt_manager.tile_rx.lock().unwrap();
-        rx.try_iter().collect()
+        rx.try_iter().take(budget).collect()
     };
     let mut refs = SpawnRefs {
         commands: &mut params.commands,
