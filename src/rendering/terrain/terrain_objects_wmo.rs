@@ -289,8 +289,19 @@ fn spawn_wmo_group_from_data(
         group_entity,
         active_doodad_set,
     );
-    let interior_ambient = build_wmo_interior_ambient(root, group);
     spawn_wmo_group_liquid(commands, assets, group, group_entity);
+    spawn_wmo_group_geometry(commands, assets, root, group, group_entity);
+    true
+}
+
+fn spawn_wmo_group_geometry(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    group_entity: Entity,
+) {
+    let interior_ambient = build_wmo_interior_ambient(root, group);
     spawn_wmo_group_batches(
         commands,
         assets,
@@ -299,7 +310,6 @@ fn spawn_wmo_group_from_data(
         group_entity,
         group.batches.clone(),
     );
-    true
 }
 
 fn try_spawn_wmo(
