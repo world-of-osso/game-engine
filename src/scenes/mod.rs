@@ -1,3 +1,4 @@
+pub mod achievement_frame;
 pub mod char_create;
 pub mod char_select;
 pub mod character_frame;

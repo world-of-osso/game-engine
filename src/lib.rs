@@ -1,5 +1,7 @@
 extern crate self as game_engine;
 
+#[path = "game/achievements.rs"]
+pub mod achievements;
 pub mod asset;
 pub mod auction_house;
 pub mod cache_metadata;
