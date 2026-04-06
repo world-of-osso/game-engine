@@ -8,6 +8,7 @@ pub mod inworld_tree;
 pub mod loading;
 pub mod login;
 pub mod particle_debug;
+pub mod professions_frame;
 pub mod scene_tree;
 pub mod selection_debug;
 pub mod setup;
