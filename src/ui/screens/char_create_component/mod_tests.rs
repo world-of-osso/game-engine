@@ -469,30 +469,40 @@ fn name_input_survives_dropdown_toggle() {
     );
 }
 
+fn editbox_background_color(reg: &crate::ui::registry::FrameRegistry) -> Option<[f32; 4]> {
+    let id = reg.get_by_name("CharCreateNameInput")?;
+    let frame = reg.get(id)?;
+    frame.background_color
+}
+
 fn editbox_center_texture(reg: &crate::ui::registry::FrameRegistry) -> Option<String> {
     let id = reg.get_by_name("CharCreateNameInput")?;
     let frame = reg.get(id)?;
     let ns = frame.nine_slice.as_ref()?;
     let parts = ns.part_textures.as_ref()?;
     match &parts[4] {
-        crate::ui::widgets::texture::TextureSource::File(p) => Some(p.clone()),
+        crate::ui::widgets::texture::TextureSource::File(path) => Some(path.clone()),
         _ => None,
     }
 }
 
 #[test]
-fn editbox_nine_slice_textures_change_on_focus() {
+fn editbox_background_color_changes_on_focus() {
     let mut harness = ScreenHarness::new({
         let mut s = CharCreateUiState::default();
         s.mode = CharCreateMode::Customize;
         s
     });
 
-    let unfocused_center = editbox_center_texture(&harness.reg)
-        .expect("editbox should have center texture");
+    let unfocused_center =
+        editbox_center_texture(&harness.reg).expect("editbox should have a center texture");
     assert!(
-        unfocused_center.contains("dark"),
-        "unfocused center should use dark texture, got {unfocused_center}"
+        unfocused_center.ends_with("Common-Input-Border-M.blp"),
+        "unfocused state should match pre-77f891b center texture, got {unfocused_center}"
+    );
+    assert!(
+        editbox_background_color(&harness.reg).is_none(),
+        "unfocused state should not use a frame background_color"
     );
 
     // Switch to focused
@@ -504,13 +514,19 @@ fn editbox_nine_slice_textures_change_on_focus() {
     });
 
     let focused_center = editbox_center_texture(&harness.reg)
-        .expect("editbox should have center texture after focus");
+        .expect("editbox should have a center texture after focus");
     assert!(
-        focused_center.contains("focused"),
-        "focused center should use focused texture, got {focused_center}"
+        focused_center.ends_with("editbox-white-fill.ktx2"),
+        "focused state should use the white-fill center texture, got {focused_center}"
     );
-    assert_ne!(
-        unfocused_center, focused_center,
-        "textures must change between unfocused and focused"
+    let focused_background = editbox_background_color(&harness.reg)
+        .expect("editbox should have a backdrop color after focus");
+    assert!(
+        focused_background[0] > 0.1,
+        "focused background should be visibly warm, got {focused_background:?}"
+    );
+    assert!(
+        !focused_center.ends_with("Common-Input-Border-M.blp"),
+        "focused state should differ from the unfocused original center texture"
     );
 }

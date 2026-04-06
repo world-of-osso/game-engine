@@ -280,14 +280,14 @@ pub(super) fn class_button(
 
 // --- Name input + create button ---
 
-fn input_border_textures() -> [String; 9] {
+fn input_border_textures(center_texture: &str) -> [String; 9] {
     let base = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
     [
         format!("{base}TL.blp"),
         format!("{base}T.blp"),
         format!("{base}TR.blp"),
         format!("{base}L.blp"),
-        "data/textures/editbox-white-fill.ktx2".to_string(),
+        center_texture.to_string(),
         format!("{base}R.blp"),
         format!("{base}BL.blp"),
         format!("{base}B.blp"),
@@ -296,16 +296,67 @@ fn input_border_textures() -> [String; 9] {
 }
 
 pub(super) fn name_input_field(focused: bool) -> Element {
-    let textures = input_border_textures();
-    let bg_color = if focused {
-        "0.22,0.16,0.11,1.0"
+    let (center_texture, bg_color, border_color) = if focused {
+        (
+            "data/textures/editbox-white-fill.ktx2",
+            "0.14,0.10,0.07,1.0",
+            "1.0,0.82,0.0,1.0",
+        )
     } else {
-        "0.09,0.07,0.05,1.0"
+        (
+            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-M.blp",
+            "1,1,1,1",
+            "1,1,1,1",
+        )
     };
-    let border_color = if focused {
-        "1.0,0.82,0.0,1.0"
+    let textures = input_border_textures(center_texture);
+    let editbox = if focused {
+        rsx! {
+            editbox {
+                name: CREATE_NAME_INPUT,
+                width: 300.0,
+                height: 38.0,
+                background_color: {bg_color},
+                font: GameFont::ArialNarrow,
+                font_size: 16.0,
+                font_color: COLOR_GOLD,
+                text_insets: "12,5,8,8",
+                nine_slice {
+                    edge_size: 8,
+                    bg_color: {bg_color},
+                    border_color: {border_color},
+                    textures: {textures.clone()},
+                }
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_point: AnchorPoint::Top,
+                    y: "-28",
+                }
+            }
+        }
     } else {
-        "0.5,0.5,0.5,1.0"
+        rsx! {
+            editbox {
+                name: CREATE_NAME_INPUT,
+                width: 300.0,
+                height: 38.0,
+                font: GameFont::ArialNarrow,
+                font_size: 16.0,
+                font_color: COLOR_GOLD,
+                text_insets: "12,5,8,8",
+                nine_slice {
+                    edge_size: 8,
+                    bg_color: {bg_color},
+                    border_color: {border_color},
+                    textures: {textures},
+                }
+                anchor {
+                    point: AnchorPoint::Top,
+                    relative_point: AnchorPoint::Top,
+                    y: "-28",
+                }
+            }
+        }
     };
     rsx! {
         fontstring {
@@ -318,26 +369,7 @@ pub(super) fn name_input_field(focused: bool) -> Element {
             font_color: COLOR_GOLD,
             anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
         }
-        editbox {
-            name: CREATE_NAME_INPUT,
-            width: 300.0,
-            height: 38.0,
-            font: GameFont::ArialNarrow,
-            font_size: 16.0,
-            font_color: COLOR_GOLD,
-            text_insets: "12,5,8,8",
-            nine_slice {
-                edge_size: 8,
-                bg_color: {bg_color},
-                border_color: {border_color},
-                textures: {textures},
-            }
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-28",
-            }
-        }
+        {editbox}
     }
 }
 
