@@ -295,68 +295,58 @@ fn input_border_textures(center_texture: &str) -> [String; 9] {
     ]
 }
 
+fn focused_name_editbox() -> Element {
+    let bg_color = "0.14,0.10,0.07,0.5";
+    let textures = input_border_textures("data/textures/editbox-white-fill.ktx2");
+    rsx! {
+        editbox {
+            name: CREATE_NAME_INPUT,
+            width: 300.0,
+            height: 38.0,
+            background_color: {bg_color},
+            font: GameFont::ArialNarrow,
+            font_size: 16.0,
+            font_color: COLOR_GOLD,
+            text_insets: "12,5,8,8",
+            nine_slice {
+                edge_size: 8,
+                bg_color: {bg_color},
+                border_color: "1.0,0.82,0.0,1.0",
+                textures: {textures},
+            }
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-28" }
+        }
+    }
+}
+
+fn unfocused_name_editbox() -> Element {
+    let textures =
+        input_border_textures("/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-M.blp");
+    rsx! {
+        editbox {
+            name: CREATE_NAME_INPUT,
+            width: 300.0,
+            height: 38.0,
+            font: GameFont::ArialNarrow,
+            font_size: 16.0,
+            font_color: COLOR_GOLD,
+            text_insets: "12,5,8,8",
+            nine_slice {
+                edge_size: 8,
+                bg_color: "1,1,1,1",
+                border_color: "1,1,1,1",
+                textures: {textures},
+            }
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-28" }
+        }
+    }
+}
+
 pub(super) fn name_input_field(focused: bool) -> Element {
-    let (center_texture, bg_color, border_color) = if focused {
-        (
-            "data/textures/editbox-white-fill.ktx2",
-            "0.14,0.10,0.07,0.5",
-            "1.0,0.82,0.0,1.0",
-        )
-    } else {
-        (
-            "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-M.blp",
-            "1,1,1,1",
-            "1,1,1,1",
-        )
-    };
-    let textures = input_border_textures(center_texture);
     let editbox = if focused {
-        rsx! {
-            editbox {
-                name: CREATE_NAME_INPUT,
-                width: 300.0,
-                height: 38.0,
-                background_color: {bg_color},
-                font: GameFont::ArialNarrow,
-                font_size: 16.0,
-                font_color: COLOR_GOLD,
-                text_insets: "12,5,8,8",
-                nine_slice {
-                    edge_size: 8,
-                    bg_color: {bg_color},
-                    border_color: {border_color},
-                    textures: {textures.clone()},
-                }
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    y: "-28",
-                }
-            }
-        }
+        focused_name_editbox()
     } else {
-        rsx! {
-            editbox {
-                name: CREATE_NAME_INPUT,
-                width: 300.0,
-                height: 38.0,
-                font: GameFont::ArialNarrow,
-                font_size: 16.0,
-                font_color: COLOR_GOLD,
-                text_insets: "12,5,8,8",
-                nine_slice {
-                    edge_size: 8,
-                    bg_color: {bg_color},
-                    border_color: {border_color},
-                    textures: {textures},
-                }
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    y: "-28",
-                }
-            }
-        }
+        unfocused_name_editbox()
     };
     rsx! {
         fontstring {

@@ -38,7 +38,6 @@ use input::{
 };
 pub use scene::CharCreateScenePlugin;
 
-
 ui_resource! {
     pub(crate) CharCreateUi {
         root: CHAR_CREATE_ROOT,
@@ -284,7 +283,13 @@ fn char_create_update_visuals(
     let name_input_id = ui.registry.get_by_name(CREATE_NAME_INPUT.0);
     let name_focused = name_input_id
         .is_some_and(|id| focus.0 == Some(id) && state.mode == CharCreateMode::Customize);
-    sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db, name_focused);
+    sync_screen_state(
+        &mut screen_res,
+        &mut ui.registry,
+        state,
+        &cust_db,
+        name_focused,
+    );
     ui.focused_frame = focus.0.filter(|_| state.mode == CharCreateMode::Customize);
 }
 
@@ -404,7 +409,6 @@ fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCre
         name_input_focused: false,
     }
 }
-
 
 #[cfg(test)]
 #[path = "../../../tests/unit/char_create_tests.rs"]
