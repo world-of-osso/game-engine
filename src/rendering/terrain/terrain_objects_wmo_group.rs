@@ -414,10 +414,7 @@ pub(super) fn add_wmo_doodad_set_indices(
 ///
 /// MODD entries reference doodads by `name_offset` — a byte offset into the MODN string table.
 /// MODI entries are indexed by *name index* (sequential position), not byte offset.
-pub(super) fn resolve_wmo_doodad_fdid(
-    root: &wmo::WmoRootData,
-    name_offset: u32,
-) -> Option<u32> {
+pub(super) fn resolve_wmo_doodad_fdid(root: &wmo::WmoRootData, name_offset: u32) -> Option<u32> {
     let name_index = root
         .doodad_names
         .iter()

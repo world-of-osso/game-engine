@@ -402,11 +402,7 @@ fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
     game_engine::listfile::lookup_path(wow_path)
 }
 
-fn resolve_wmo_group_fdids(
-    root_fdid: u32,
-    n_groups: u32,
-    gfid: &[u32],
-) -> Vec<Option<u32>> {
+fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32, gfid: &[u32]) -> Vec<Option<u32>> {
     if gfid.len() >= n_groups as usize {
         return gfid[..n_groups as usize]
             .iter()
