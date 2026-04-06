@@ -21,6 +21,7 @@ use crate::terrain_tile::TILE_SIZE;
 pub use terrain_objects_wmo::WmoFootstepSurface;
 use terrain_objects_wmo::spawn_wmos_filtered;
 pub(crate) use terrain_objects_wmo::sync_wmo_sidn_emissive;
+pub(crate) use terrain_objects_wmo::{ensure_wmo_asset, resolve_wmo_fdid, resolve_wmo_group_fdids};
 
 #[derive(Default)]
 pub struct SpawnedTerrainObjects {
@@ -140,6 +141,70 @@ pub fn load_obj2(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
 }
 
 // ── doodad spawning ─────────────────────────────────────────────────────────
+
+/// Spawn doodads and WMOs from a pre-parsed tile, using pre-loaded M2/WMO data where available.
+pub(super) fn spawn_obj_entities_preloaded(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&crate::terrain_heightmap::TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
+    obj_data: &adt_obj::AdtObjData,
+    preloaded_doodads: &[Option<crate::terrain::PreloadedDoodad>],
+    preloaded_wmos: &[Option<crate::terrain::PreloadedWmo>],
+) -> SpawnedTerrainObjects {
+    let mut spawned = SpawnedTerrainObjects::default();
+    let doodad_chunk_refs = build_object_chunk_refs(
+        obj_data.doodads.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.doodad_refs.as_slice()),
+    );
+    let wmo_chunk_refs = build_object_chunk_refs(
+        obj_data.wmos.len(),
+        obj_data
+            .chunk_refs
+            .iter()
+            .map(|chunk_refs| chunk_refs.wmo_refs.as_slice()),
+    );
+    spawn_doodads_preloaded(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inverse_bp,
+        heightmap,
+        tile_y,
+        tile_x,
+        obj_data,
+        &doodad_chunk_refs,
+        preloaded_doodads,
+        &mut spawned.doodads,
+    );
+    terrain_objects_wmo::spawn_wmos_preloaded(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        water_materials,
+        images,
+        inverse_bp,
+        tile_y,
+        tile_x,
+        obj_data,
+        &wmo_chunk_refs,
+        preloaded_wmos,
+        &mut spawned.wmos,
+    );
+    spawned
+}
 
 /// Spawn doodads and WMOs, returning the created root entities grouped by type.
 pub fn spawn_obj_entities(
@@ -298,6 +363,109 @@ pub fn spawn_nearby_campsite_objects(
         &mut spawned.wmos,
     );
     spawned
+}
+
+/// Spawn doodads using pre-loaded models where available, falling back to disk loading.
+fn spawn_doodads_preloaded(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&crate::terrain_heightmap::TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
+    obj_data: &adt_obj::AdtObjData,
+    chunk_refs: &[Vec<u16>],
+    preloaded: &[Option<crate::terrain::PreloadedDoodad>],
+    entities: &mut Vec<Entity>,
+) {
+    let mut spawned = 0u32;
+    for (index, doodad) in obj_data.doodads.iter().enumerate() {
+        let preloaded_doodad = preloaded.get(index).and_then(|p| p.as_ref());
+        if let Some(e) = try_spawn_doodad_preloaded(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inverse_bp,
+            heightmap,
+            tile_y,
+            tile_x,
+            doodad,
+            chunk_refs.get(index).map(Vec::as_slice),
+            preloaded_doodad,
+        ) {
+            entities.push(e);
+            spawned += 1;
+        }
+    }
+    eprintln!("Spawned {spawned} preloaded doodads");
+}
+
+/// Try to spawn a single doodad using a pre-loaded model. Falls back to disk if not pre-loaded.
+fn try_spawn_doodad_preloaded(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    heightmap: Option<&crate::terrain_heightmap::TerrainHeightmap>,
+    tile_y: u32,
+    tile_x: u32,
+    doodad: &adt_obj::DoodadPlacement,
+    chunk_refs: Option<&[u16]>,
+    preloaded: Option<&crate::terrain::PreloadedDoodad>,
+) -> Option<Entity> {
+    let Some(pre) = preloaded else {
+        return try_spawn_doodad(
+            commands,
+            meshes,
+            materials,
+            effect_materials,
+            images,
+            inverse_bp,
+            heightmap,
+            tile_y,
+            tile_x,
+            doodad,
+            chunk_refs,
+        );
+    };
+    let transform = doodad_transform(doodad, heightmap, tile_y, tile_x);
+    let name = pre
+        .path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("prop");
+    let entity = commands
+        .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
+        .id();
+    if !m2_spawn::spawn_m2_model_on_entity(
+        commands,
+        &mut m2_spawn::SpawnAssets {
+            meshes,
+            materials,
+            effect_materials,
+            skybox_materials: None,
+            images,
+            inverse_bindposes: inverse_bp,
+        },
+        pre.model.clone(),
+        entity,
+    ) {
+        commands.entity(entity).despawn();
+        return None;
+    }
+    let mut entity_commands = commands.entity(entity);
+    entity_commands.insert(game_engine::culling::Doodad);
+    if let Some(chunk_refs) = build_chunk_refs_component(chunk_refs) {
+        entity_commands.insert(chunk_refs);
+    }
+    Some(entity)
 }
 
 /// Spawn doodads (M2 models) from placement data.
@@ -475,7 +643,7 @@ fn attach_fog_volume_parent(commands: &mut Commands, parent: Option<Entity>, ent
 }
 
 /// Resolve a doodad placement to a local M2 file path.
-fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
+pub(crate) fn resolve_doodad_m2(doodad: &adt_obj::DoodadPlacement) -> Option<std::path::PathBuf> {
     if let Some(fdid) = doodad.fdid {
         return crate::asset::asset_cache::model(fdid);
     }

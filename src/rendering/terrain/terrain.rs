@@ -64,6 +64,21 @@ pub enum DoodadLod {
     Lod2,
 }
 
+/// Doodad M2 model pre-loaded on the background thread.
+pub(super) struct PreloadedDoodad {
+    pub(super) path: PathBuf,
+    pub(super) model: crate::asset::m2::M2Model,
+}
+
+/// WMO root + groups pre-loaded on the background thread.
+pub(super) struct PreloadedWmo {
+    pub(super) root_fdid: u32,
+    pub(super) root: crate::asset::wmo::WmoRootData,
+    /// Group FDID + parsed group data for each successfully loaded group.
+    pub(super) groups: Vec<(u32, crate::asset::wmo::WmoGroupData)>,
+    pub(super) group_fdids: Vec<Option<u32>>,
+}
+
 /// Parsed ADT data ready to be spawned on the main thread.
 struct ParsedTile {
     tile_y: u32,
@@ -81,6 +96,10 @@ struct ParsedTile {
     chunk_alpha_maps: Vec<Image>,
     /// Pre-packed shadow maps, one per chunk (packed in background thread).
     chunk_shadow_maps: Vec<Image>,
+    /// Pre-loaded doodad M2 models, indexed by doodad placement index.
+    preloaded_doodads: Vec<Option<PreloadedDoodad>>,
+    /// Pre-loaded WMO root + group data, indexed by WMO placement index.
+    preloaded_wmos: Vec<Option<PreloadedWmo>>,
 }
 
 /// Result from a background tile load task.

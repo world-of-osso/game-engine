@@ -136,6 +136,172 @@ pub(super) fn spawn_wmos_filtered(
     eprintln!("Spawned {spawned_count}/{} WMOs", obj_data.wmos.len());
 }
 
+pub(super) fn spawn_wmos_preloaded(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    tile_y: u32,
+    tile_x: u32,
+    obj_data: &adt_obj::AdtObjData,
+    chunk_refs: &[Vec<u16>],
+    preloaded: &[Option<crate::terrain::PreloadedWmo>],
+    entities: &mut Vec<SpawnedWmoRoot>,
+) {
+    let mut spawned_count = 0u32;
+    for (index, placement) in obj_data.wmos.iter().enumerate() {
+        let preloaded_wmo = preloaded.get(index).and_then(|p| p.as_ref());
+        let mut assets = WmoAssets {
+            meshes,
+            materials,
+            water_materials,
+            images,
+            effect_materials,
+            inverse_bindposes,
+        };
+        let result = if let Some(pre) = preloaded_wmo {
+            try_spawn_wmo_preloaded(
+                commands,
+                &mut assets,
+                placement,
+                chunk_refs.get(index).map(Vec::as_slice),
+                tile_y,
+                tile_x,
+                pre,
+            )
+        } else {
+            try_spawn_wmo(
+                commands,
+                &mut assets,
+                placement,
+                chunk_refs.get(index).map(Vec::as_slice),
+                tile_y,
+                tile_x,
+            )
+        };
+        if let Some(spawned_wmo) = result {
+            entities.push(spawned_wmo);
+            spawned_count += 1;
+        }
+    }
+    eprintln!(
+        "Spawned {spawned_count}/{} WMOs (preloaded)",
+        obj_data.wmos.len()
+    );
+}
+
+fn try_spawn_wmo_preloaded(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    placement: &adt_obj::WmoPlacement,
+    chunk_refs: Option<&[u16]>,
+    tile_y: u32,
+    tile_x: u32,
+    pre: &crate::terrain::PreloadedWmo,
+) -> Option<SpawnedWmoRoot> {
+    let transform = wmo_transform(placement, tile_y, tile_x);
+    let portal_graph = build_portal_graph(&pre.root);
+    let root_entity = spawn_wmo_root_entity(
+        commands,
+        pre.root_fdid,
+        transform,
+        portal_graph,
+        build_wmo_adt_metadata(placement),
+        build_chunk_refs_component(chunk_refs),
+        build_wmo_root_bounds(placement),
+        build_wmo_footstep_surface(&pre.root),
+        pre.root.skybox_wow_path.as_deref(),
+    );
+
+    let group_count = spawn_wmo_groups_preloaded(
+        commands,
+        assets,
+        &pre.root,
+        &pre.groups,
+        &pre.group_fdids,
+        pre.root_fdid,
+        root_entity,
+        placement.doodad_set,
+    );
+    log_wmo_spawn(pre.root_fdid, group_count, &pre.root, &transform);
+    build_spawned_wmo_root(pre.root_fdid, root_entity, group_count, placement)
+}
+
+fn spawn_wmo_groups_preloaded(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    root: &wmo::WmoRootData,
+    groups: &[(u32, wmo::WmoGroupData)],
+    group_fdids: &[Option<u32>],
+    root_fdid: u32,
+    root_entity: Entity,
+    active_doodad_set: u16,
+) -> u32 {
+    let mut count = 0u32;
+    // Build a map from fdid to group data for fast lookup
+    let group_map: std::collections::HashMap<u32, &wmo::WmoGroupData> =
+        groups.iter().map(|(fdid, g)| (*fdid, g)).collect();
+    for (i, fdid_opt) in group_fdids.iter().enumerate() {
+        let Some(fdid) = fdid_opt else { continue };
+        if let Some(group) = group_map.get(fdid) {
+            if spawn_wmo_group_from_data(
+                commands,
+                assets,
+                root,
+                group,
+                root_entity,
+                i as u16,
+                active_doodad_set,
+            ) {
+                count += 1;
+            } else {
+                eprintln!("  WMO {root_fdid} group {i}: spawn failed (FDID {fdid})");
+            }
+        } else {
+            eprintln!("  WMO {root_fdid} group {i}: missing preloaded data (FDID {fdid})");
+        }
+    }
+    count
+}
+
+fn spawn_wmo_group_from_data(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    root_entity: Entity,
+    group_index: u16,
+    active_doodad_set: u16,
+) -> bool {
+    let bbox = group_bbox(root, group_index, &group.header);
+    let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
+    commands.entity(root_entity).add_child(group_entity);
+    spawn_wmo_group_lights(commands, root, group, group_entity);
+    spawn_wmo_group_fogs(commands, root, group, group_entity);
+    spawn_wmo_group_doodads(
+        commands,
+        assets,
+        root,
+        group,
+        group_entity,
+        active_doodad_set,
+    );
+    let interior_ambient = build_wmo_interior_ambient(root, group);
+    spawn_wmo_group_liquid(commands, assets, group, group_entity);
+    spawn_wmo_group_batches(
+        commands,
+        assets,
+        root,
+        interior_ambient,
+        group_entity,
+        group.batches.clone(),
+    );
+    true
+}
+
 fn try_spawn_wmo(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
@@ -394,7 +560,7 @@ fn portal_vertices(portal: &wmo::WmoPortal) -> Vec<Vec3> {
         .collect()
 }
 
-fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
+pub(crate) fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
     if let Some(fdid) = wmo.fdid {
         return Some(fdid);
     }
@@ -402,7 +568,11 @@ fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
     game_engine::listfile::lookup_path(wow_path)
 }
 
-fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32, gfid: &[u32]) -> Vec<Option<u32>> {
+pub(crate) fn resolve_wmo_group_fdids(
+    root_fdid: u32,
+    n_groups: u32,
+    gfid: &[u32],
+) -> Vec<Option<u32>> {
     if gfid.len() >= n_groups as usize {
         return gfid[..n_groups as usize]
             .iter()
@@ -424,7 +594,7 @@ fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32, gfid: &[u32]) -> Vec<O
         .collect()
 }
 
-pub(super) fn ensure_wmo_asset(fdid: u32) -> Option<PathBuf> {
+pub(crate) fn ensure_wmo_asset(fdid: u32) -> Option<PathBuf> {
     let out_path = PathBuf::from(format!("data/models/{fdid}.wmo"));
     crate::asset::asset_cache::file_at_path(fdid, &out_path)
 }
@@ -447,31 +617,15 @@ fn spawn_wmo_group(
     let Ok(group) = wmo::load_wmo_group_with_root(&data, Some(root)) else {
         return false;
     };
-
-    let bbox = group_bbox(root, group_index, &group.header);
-    let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
-    commands.entity(root_entity).add_child(group_entity);
-    spawn_wmo_group_lights(commands, root, &group, group_entity);
-    spawn_wmo_group_fogs(commands, root, &group, group_entity);
-    spawn_wmo_group_doodads(
+    spawn_wmo_group_from_data(
         commands,
         assets,
         root,
         &group,
-        group_entity,
+        root_entity,
+        group_index,
         active_doodad_set,
-    );
-    let interior_ambient = build_wmo_interior_ambient(root, &group);
-    spawn_wmo_group_liquid(commands, assets, &group, group_entity);
-    spawn_wmo_group_batches(
-        commands,
-        assets,
-        root,
-        interior_ambient,
-        group_entity,
-        group.batches,
-    );
-    true
+    )
 }
 
 fn spawn_wmo_group_entity(

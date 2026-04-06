@@ -1,3 +1,6 @@
+use crate::asset::{m2, wmo};
+use crate::terrain_objects;
+
 use super::*;
 
 pub(super) fn parse_tile_background(
@@ -34,6 +37,8 @@ fn build_parsed_tile(
     let (ground_images, height_images) = decode_tile_textures(&tex_data, &adt_path);
     let chunk_alpha_maps = pack_tile_alpha_maps(&tex_data);
     let chunk_shadow_maps = pack_tile_shadow_maps(&adt_data);
+    let preloaded_doodads = preload_doodad_models(obj_data.as_ref());
+    let preloaded_wmos = preload_wmo_data(obj_data.as_ref());
 
     Ok(ParsedTile {
         tile_y,
@@ -47,7 +52,93 @@ fn build_parsed_tile(
         height_images,
         chunk_alpha_maps,
         chunk_shadow_maps,
+        preloaded_doodads,
+        preloaded_wmos,
     })
+}
+
+fn preload_doodad_models(obj_data: Option<&adt_obj::AdtObjData>) -> Vec<Option<PreloadedDoodad>> {
+    let Some(obj) = obj_data else {
+        return Vec::new();
+    };
+    obj.doodads
+        .iter()
+        .map(|doodad| {
+            let m2_path = terrain_objects::resolve_doodad_m2(doodad)?;
+            if !m2_path.exists() {
+                return None;
+            }
+            match m2::load_m2_uncached(&m2_path, &[0, 0, 0]) {
+                Ok(model) => Some(PreloadedDoodad {
+                    path: m2_path,
+                    model,
+                }),
+                Err(e) => {
+                    eprintln!(
+                        "preload_doodad_models: failed to load {}: {e}",
+                        m2_path.display()
+                    );
+                    None
+                }
+            }
+        })
+        .collect()
+}
+
+fn preload_wmo_data(obj_data: Option<&adt_obj::AdtObjData>) -> Vec<Option<PreloadedWmo>> {
+    let Some(obj) = obj_data else {
+        return Vec::new();
+    };
+    obj.wmos
+        .iter()
+        .map(|placement| {
+            let root_fdid = terrain_objects::resolve_wmo_fdid(placement)?;
+            let root_path = terrain_objects::ensure_wmo_asset(root_fdid)?;
+            let root_data = std::fs::read(&root_path).ok()?;
+            let root = match wmo::load_wmo_root(&root_data) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("preload_wmo_data: failed to parse WMO {root_fdid}: {e}");
+                    return None;
+                }
+            };
+            let group_fdids = terrain_objects::resolve_wmo_group_fdids(
+                root_fdid,
+                root.n_groups,
+                &root.group_file_data_ids,
+            );
+            let groups = preload_wmo_groups(&root, &group_fdids);
+            Some(PreloadedWmo {
+                root_fdid,
+                root,
+                groups,
+                group_fdids,
+            })
+        })
+        .collect()
+}
+
+fn preload_wmo_groups(
+    root: &wmo::WmoRootData,
+    group_fdids: &[Option<u32>],
+) -> Vec<(u32, crate::asset::wmo::WmoGroupData)> {
+    let mut groups = Vec::new();
+    for fdid_opt in group_fdids {
+        let Some(fdid) = fdid_opt else { continue };
+        let Some(group_path) = terrain_objects::ensure_wmo_asset(*fdid) else {
+            continue;
+        };
+        let Ok(data) = std::fs::read(&group_path) else {
+            continue;
+        };
+        match wmo::load_wmo_group_with_root(&data, Some(root)) {
+            Ok(group) => groups.push((*fdid, group)),
+            Err(e) => {
+                eprintln!("preload_wmo_groups: failed to parse WMO group {fdid}: {e}");
+            }
+        }
+    }
+    groups
 }
 
 fn decode_tile_textures(

@@ -209,7 +209,7 @@ fn spawn_parsed_tile_doodads(
         return Vec::new();
     };
 
-    terrain_objects::spawn_obj_entities(
+    terrain_objects::spawn_obj_entities_preloaded(
         refs.commands,
         refs.meshes,
         refs.materials,
@@ -221,6 +221,8 @@ fn spawn_parsed_tile_doodads(
         parsed.tile_y,
         parsed.tile_x,
         obj_data,
+        &parsed.preloaded_doodads,
+        &parsed.preloaded_wmos,
     )
     .all_entities()
 }

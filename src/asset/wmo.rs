@@ -28,6 +28,7 @@ pub struct WmoGroupData {
     pub batches: Vec<WmoGroupBatch>,
 }
 
+#[derive(Clone)]
 pub struct WmoGroupBatch {
     pub mesh: Mesh,
     pub material_index: u16,

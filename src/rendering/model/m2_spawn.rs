@@ -84,6 +84,28 @@ pub fn spawn_m2_on_entity_filtered(
     true
 }
 
+/// Attach an already-loaded M2 model to an entity, skipping the file load step.
+/// Returns true if the model was attached successfully (always true for a valid model).
+pub fn spawn_m2_model_on_entity(
+    commands: &mut Commands,
+    assets: &mut SpawnAssets<'_>,
+    model: asset::m2::M2Model,
+    entity: Entity,
+) -> bool {
+    let grounded_root =
+        ensure_grounded_model_root(commands, entity, ground_offset_y(&model.batches));
+    attach_m2_batches(
+        commands,
+        assets,
+        model.batches,
+        &model.bones,
+        grounded_root,
+        false,
+        None,
+    );
+    true
+}
+
 pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
     commands: &mut Commands,
     assets: &mut SpawnAssets<'_>,
