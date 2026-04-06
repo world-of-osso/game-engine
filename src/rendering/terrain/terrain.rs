@@ -73,6 +73,14 @@ struct ParsedTile {
     tex_data: Option<adt::AdtTexData>,
     obj_data: Option<adt_obj::AdtObjData>,
     lod: DoodadLod,
+    /// Pre-decoded ground BLP textures (loaded in background thread).
+    ground_images: Vec<Option<Image>>,
+    /// Pre-decoded height BLP textures (loaded in background thread).
+    height_images: Vec<Option<Image>>,
+    /// Pre-packed alpha maps, one per chunk (packed in background thread).
+    chunk_alpha_maps: Vec<Image>,
+    /// Pre-packed shadow maps, one per chunk (packed in background thread).
+    chunk_shadow_maps: Vec<Image>,
 }
 
 /// Result from a background tile load task.
@@ -420,6 +428,8 @@ fn build_terrain_only_chunk_materials(
         inputs.tex_data.as_ref(),
         ground_images.as_deref(),
         height_images.as_deref(),
+        None,
+        None,
     )
 }
 

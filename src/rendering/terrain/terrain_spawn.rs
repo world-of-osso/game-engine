@@ -76,6 +76,8 @@ pub(super) fn spawn_terrain_chunks(
         tex_data,
         ground_images.as_deref(),
         height_images.as_deref(),
+        None,
+        None,
     );
     let root = spawn_chunk_entities(refs.commands, refs.meshes, &chunk_materials, adt_data, tile);
     spawn_water(
@@ -95,15 +97,85 @@ pub(super) fn spawn_parsed_tile(
 ) -> (Entity, Vec<Entity>) {
     let tile = parsed_adt_tile(parsed);
     log_parsed_tile(parsed);
-    let root = spawn_terrain_chunks(
-        refs,
-        &parsed.adt_path,
+
+    let ground_images = register_ground_images(refs.images, parsed);
+    let height_images = register_height_images(refs.images, parsed);
+    let alpha_handles = register_image_vec(refs.images, &parsed.chunk_alpha_maps);
+    let shadow_handles = register_image_vec(refs.images, &parsed.chunk_shadow_maps);
+
+    eprintln!("build_terrain_materials {}", parsed.adt_path.display());
+    let chunk_materials = terrain_material::build_terrain_materials(
+        refs.terrain_materials,
+        refs.images,
         &parsed.adt_data,
         parsed.tex_data.as_ref(),
+        ground_images.as_deref(),
+        height_images.as_deref(),
+        non_empty_slice(&alpha_handles),
+        non_empty_slice(&shadow_handles),
+    );
+
+    let root = spawn_chunk_entities(
+        refs.commands,
+        refs.meshes,
+        &chunk_materials,
+        &parsed.adt_data,
         &tile,
+    );
+    spawn_water(
+        refs.commands,
+        refs.meshes,
+        refs.water_materials,
+        refs.images,
+        &parsed.adt_data,
     );
     let doodad_entities = spawn_parsed_tile_doodads(refs, heightmap, parsed);
     (root, doodad_entities)
+}
+
+/// Register pre-decoded ground images or fall back to loading from disk.
+fn register_ground_images(
+    images: &mut Assets<Image>,
+    parsed: &ParsedTile,
+) -> Option<Vec<Option<Handle<Image>>>> {
+    if parsed.ground_images.is_empty() {
+        parsed
+            .tex_data
+            .as_ref()
+            .map(|td| terrain_material::load_ground_images(images, td, &parsed.adt_path))
+    } else {
+        Some(terrain_material::register_decoded_images(
+            images,
+            &parsed.ground_images,
+        ))
+    }
+}
+
+/// Register pre-decoded height images or fall back to loading from disk.
+fn register_height_images(
+    images: &mut Assets<Image>,
+    parsed: &ParsedTile,
+) -> Option<Vec<Option<Handle<Image>>>> {
+    if parsed.height_images.is_empty() {
+        parsed
+            .tex_data
+            .as_ref()
+            .map(|td| terrain_material::load_height_images(images, td, &parsed.adt_path))
+    } else {
+        Some(terrain_material::register_decoded_images(
+            images,
+            &parsed.height_images,
+        ))
+    }
+}
+
+/// Register a vec of pre-built Images as asset handles.
+fn register_image_vec(images: &mut Assets<Image>, raw: &[Image]) -> Vec<Handle<Image>> {
+    raw.iter().map(|img| images.add(img.clone())).collect()
+}
+
+fn non_empty_slice<T>(v: &[T]) -> Option<&[T]> {
+    if v.is_empty() { None } else { Some(v) }
 }
 
 fn parsed_adt_tile(parsed: &ParsedTile) -> AdtTile {

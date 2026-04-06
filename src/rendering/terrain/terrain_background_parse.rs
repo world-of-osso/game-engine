@@ -31,6 +31,10 @@ fn build_parsed_tile(
     let adt_data = load_parsed_adt_data(tile_y, tile_x, &adt_path)?;
     let tex_data = load_parsed_tile_textures(tile_y, tile_x, &adt_path, &adt_data);
     let obj_data = load_parsed_tile_objects(tile_y, tile_x, &adt_path, lod);
+    let (ground_images, height_images) = decode_tile_textures(&tex_data, &adt_path);
+    let chunk_alpha_maps = pack_tile_alpha_maps(&tex_data);
+    let chunk_shadow_maps = pack_tile_shadow_maps(&adt_data);
+
     Ok(ParsedTile {
         tile_y,
         tile_x,
@@ -39,7 +43,44 @@ fn build_parsed_tile(
         tex_data,
         obj_data,
         lod,
+        ground_images,
+        height_images,
+        chunk_alpha_maps,
+        chunk_shadow_maps,
     })
+}
+
+fn decode_tile_textures(
+    tex_data: &Option<adt::AdtTexData>,
+    adt_path: &Path,
+) -> (Vec<Option<Image>>, Vec<Option<Image>>) {
+    match tex_data {
+        Some(td) => (
+            crate::terrain_material::decode_ground_images(td, adt_path),
+            crate::terrain_material::decode_height_images(td, adt_path),
+        ),
+        None => (Vec::new(), Vec::new()),
+    }
+}
+
+fn pack_tile_alpha_maps(tex_data: &Option<adt::AdtTexData>) -> Vec<Image> {
+    tex_data
+        .as_ref()
+        .map(|td| {
+            td.chunk_layers
+                .iter()
+                .map(|cl| crate::terrain_material::pack_alpha_map_raw(&cl.layers))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn pack_tile_shadow_maps(adt_data: &adt::AdtData) -> Vec<Image> {
+    adt_data
+        .chunks
+        .iter()
+        .map(|chunk| crate::terrain_material::pack_shadow_map_raw(chunk.shadow_map.as_ref()))
+        .collect()
 }
 
 fn load_parsed_adt_data(tile_y: u32, tile_x: u32, adt_path: &Path) -> Result<adt::AdtData, String> {

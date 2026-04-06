@@ -168,6 +168,8 @@ fn chunk_material_uses_mhid_height_textures_per_layer() {
         Some(&height_images),
         None,
         &placeholder,
+        None,
+        None,
     );
     let material = terrain_materials
         .get(&handle)

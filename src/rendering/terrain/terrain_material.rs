@@ -270,6 +270,10 @@ fn load_blp_as_terrain_image(
     blp_path: &std::path::Path,
     fdid: u32,
 ) -> Option<Handle<Image>> {
+    decode_blp_terrain_image(blp_path, fdid).map(|img| images.add(img))
+}
+
+pub fn decode_blp_terrain_image(blp_path: &std::path::Path, fdid: u32) -> Option<Image> {
     match crate::asset::blp::load_blp_gpu_image(blp_path) {
         Ok(mut img) => {
             eprintln!(
@@ -277,7 +281,7 @@ fn load_blp_as_terrain_image(
                 img.texture_descriptor.format
             );
             img.sampler = repeat_linear_sampler();
-            Some(images.add(img))
+            Some(img)
         }
         Err(e) => {
             eprintln!("  Missing ground texture FDID {fdid}: {e}");
@@ -286,9 +290,62 @@ fn load_blp_as_terrain_image(
     }
 }
 
+pub fn decode_ground_images(
+    tex_data: &adt::AdtTexData,
+    adt_path: &std::path::Path,
+) -> Vec<Option<Image>> {
+    let tex_dir = adt_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join("../textures");
+    tex_data
+        .texture_fdids
+        .iter()
+        .map(|&spec_fdid| {
+            let diffuse_fdid = resolve_diffuse_fdid(spec_fdid);
+            let blp_path = crate::asset::asset_cache::texture(diffuse_fdid)
+                .unwrap_or_else(|| tex_dir.join(format!("{diffuse_fdid}.blp")));
+            decode_blp_terrain_image(&blp_path, diffuse_fdid)
+        })
+        .collect()
+}
+
+pub fn decode_height_images(
+    tex_data: &adt::AdtTexData,
+    adt_path: &std::path::Path,
+) -> Vec<Option<Image>> {
+    let tex_dir = adt_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .join("../textures");
+    tex_data
+        .height_texture_fdids
+        .iter()
+        .map(|&fdid| {
+            let blp_path = crate::asset::asset_cache::texture(fdid)
+                .unwrap_or_else(|| tex_dir.join(format!("{fdid}.blp")));
+            decode_blp_terrain_image(&blp_path, fdid)
+        })
+        .collect()
+}
+
+pub fn register_decoded_images(
+    images: &mut Assets<Image>,
+    decoded: &[Option<Image>],
+) -> Vec<Option<Handle<Image>>> {
+    decoded
+        .iter()
+        .map(|opt| opt.as_ref().map(|img| images.add(img.clone())))
+        .collect()
+}
+
 /// Pack up to 3 alpha maps (64x64 each) into a single RGB image.
 /// R = layer 1 alpha, G = layer 2 alpha, B = layer 3 alpha.
 pub fn pack_alpha_maps(images: &mut Assets<Image>, layers: &[adt::TextureLayer]) -> Handle<Image> {
+    images.add(pack_alpha_map_raw(layers))
+}
+
+pub fn pack_alpha_map_raw(layers: &[adt::TextureLayer]) -> Image {
     const SIZE: u32 = 64;
     let mut rgba = vec![0u8; (SIZE * SIZE * 4) as usize];
 
@@ -316,7 +373,7 @@ pub fn pack_alpha_maps(images: &mut Assets<Image>, layers: &[adt::TextureLayer])
         RenderAssetUsages::default(),
     );
     img.sampler = clamp_linear_sampler();
-    images.add(img)
+    img
 }
 
 fn pack_alpha_channel(rgba: &mut [u8], alpha: Option<&[u8]>, channel: usize, size: u32) {
@@ -331,12 +388,16 @@ pub fn pack_shadow_map(
     images: &mut Assets<Image>,
     shadow_map: Option<&[u8; 512]>,
 ) -> Handle<Image> {
+    images.add(pack_shadow_map_raw(shadow_map))
+}
+
+pub fn pack_shadow_map_raw(shadow_map: Option<&[u8; 512]>) -> Image {
     const SIZE: u32 = 64;
     let rgba = match shadow_map {
         Some(shadow_map) => pack_shadow_pixels(shadow_map, SIZE),
         None => default_shadow_pixels(SIZE),
     };
-    images.add(new_shadow_image(rgba, SIZE))
+    new_shadow_image(rgba, SIZE)
 }
 
 fn default_shadow_pixels(size: u32) -> Vec<u8> {
@@ -409,6 +470,8 @@ pub fn build_terrain_materials(
     tex_data: Option<&adt::AdtTexData>,
     ground_images: Option<&[Option<Handle<Image>>]>,
     height_images: Option<&[Option<Handle<Image>>]>,
+    pre_alpha: Option<&[Handle<Image>]>,
+    pre_shadow: Option<&[Handle<Image>]>,
 ) -> Vec<Handle<TerrainMaterial>> {
     let ph = Placeholders {
         image: placeholder_image(images),
@@ -417,13 +480,7 @@ pub fn build_terrain_materials(
     };
 
     let (Some(td), Some(gi)) = (tex_data, ground_images) else {
-        return adt_data
-            .chunks
-            .iter()
-            .map(|chunk| {
-                terrain_materials.add(fallback_material(images, chunk.shadow_map.as_ref(), &ph))
-            })
-            .collect();
+        return build_fallback_materials(terrain_materials, images, adt_data, pre_shadow, &ph);
     };
 
     td.chunk_layers
@@ -434,6 +491,8 @@ pub fn build_terrain_materials(
                 .chunks
                 .get(chunk_index)
                 .and_then(|chunk| chunk.shadow_map.as_ref());
+            let pre_al = pre_alpha.and_then(|a| a.get(chunk_index));
+            let pre_sh = pre_shadow.and_then(|s| s.get(chunk_index));
             build_chunk_material(
                 terrain_materials,
                 images,
@@ -443,7 +502,32 @@ pub fn build_terrain_materials(
                 height_images,
                 shadow_map,
                 &ph,
+                pre_al,
+                pre_sh,
             )
+        })
+        .collect()
+}
+
+fn build_fallback_materials(
+    terrain_materials: &mut Assets<TerrainMaterial>,
+    images: &mut Assets<Image>,
+    adt_data: &adt::AdtData,
+    pre_shadow: Option<&[Handle<Image>]>,
+    ph: &Placeholders,
+) -> Vec<Handle<TerrainMaterial>> {
+    adt_data
+        .chunks
+        .iter()
+        .enumerate()
+        .map(|(chunk_index, chunk)| {
+            let pre_sh = pre_shadow.and_then(|s| s.get(chunk_index));
+            terrain_materials.add(fallback_material(
+                images,
+                chunk.shadow_map.as_ref(),
+                ph,
+                pre_sh,
+            ))
         })
         .collect()
 }
@@ -483,6 +567,7 @@ fn fallback_material(
     images: &mut Assets<Image>,
     shadow_map: Option<&[u8; 512]>,
     ph: &Placeholders,
+    pre_shadow: Option<&Handle<Image>>,
 ) -> TerrainMaterial {
     TerrainMaterial {
         settings: terrain_settings(
@@ -500,7 +585,9 @@ fn fallback_material(
         height_2: ph.image.clone(),
         height_3: ph.image.clone(),
         alpha_packed: ph.alpha.clone(),
-        shadow_map: pack_shadow_map(images, shadow_map),
+        shadow_map: pre_shadow
+            .cloned()
+            .unwrap_or_else(|| pack_shadow_map(images, shadow_map)),
         environment_map: ph.cubemap.clone(),
     }
 }
@@ -514,9 +601,11 @@ fn build_chunk_material(
     height_images: Option<&[Option<Handle<Image>>]>,
     shadow_map: Option<&[u8; 512]>,
     ph: &Placeholders,
+    pre_alpha: Option<&Handle<Image>>,
+    pre_shadow: Option<&Handle<Image>>,
 ) -> Handle<TerrainMaterial> {
     if chunk_tex.layers.is_empty() {
-        return terrain_materials.add(fallback_material(images, shadow_map, ph));
+        return terrain_materials.add(fallback_material(images, shadow_map, ph, pre_shadow));
     }
 
     let layer_count = chunk_tex.layers.len().min(4) as f32;
@@ -536,8 +625,12 @@ fn build_chunk_material(
         height_1: height_handles[1].clone(),
         height_2: height_handles[2].clone(),
         height_3: height_handles[3].clone(),
-        alpha_packed: pack_alpha_maps(images, &chunk_tex.layers),
-        shadow_map: pack_shadow_map(images, shadow_map),
+        alpha_packed: pre_alpha
+            .cloned()
+            .unwrap_or_else(|| pack_alpha_maps(images, &chunk_tex.layers)),
+        shadow_map: pre_shadow
+            .cloned()
+            .unwrap_or_else(|| pack_shadow_map(images, shadow_map)),
         environment_map: ph.cubemap.clone(),
     })
 }
