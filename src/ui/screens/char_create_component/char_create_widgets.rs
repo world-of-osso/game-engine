@@ -287,7 +287,7 @@ fn input_border_textures() -> [String; 9] {
         format!("{base}T.blp"),
         format!("{base}TR.blp"),
         format!("{base}L.blp"),
-        format!("{base}M.blp"),
+        "data/textures/editbox-white-fill.ktx2".to_string(),
         format!("{base}R.blp"),
         format!("{base}BL.blp"),
         format!("{base}B.blp"),
@@ -297,7 +297,16 @@ fn input_border_textures() -> [String; 9] {
 
 pub(super) fn name_input_field(focused: bool) -> Element {
     let textures = input_border_textures();
-    let border_color = if focused { "1.0,0.92,0.72,1.0" } else { "1,1,1,1" };
+    let bg_color = if focused {
+        "0.22,0.16,0.11,1.0"
+    } else {
+        "0.09,0.07,0.05,1.0"
+    };
+    let border_color = if focused {
+        "1.0,0.82,0.0,1.0"
+    } else {
+        "0.5,0.5,0.5,1.0"
+    };
     rsx! {
         fontstring {
             name: "NameLabel",
@@ -319,7 +328,7 @@ pub(super) fn name_input_field(focused: bool) -> Element {
             text_insets: "12,5,8,8",
             nine_slice {
                 edge_size: 8,
-                bg_color: "1,1,1,1",
+                bg_color: {bg_color},
                 border_color: {border_color},
                 textures: {textures},
             }

@@ -42,8 +42,9 @@ pub(super) fn char_create_mouse_input(
     };
     let (mx, my) = (cursor.x, cursor.y);
 
-    if let Some(id) = cc
-        .name_input
+    if let Some(id) = ui
+        .registry
+        .get_by_name(CREATE_NAME_INPUT.0)
         .filter(|&id| hit_active_frame(&ui, id, mx, my))
     {
         focus.0 = Some(id);
@@ -100,7 +101,7 @@ fn dispatch_action(
         CharCreateAction::SelectChoice(f, idx) => select_choice(ctx.state, f, idx, ctx.cust_db),
         CharCreateAction::CreateConfirm => {
             send_create_request(ctx.state, ctx.reg, ctx.cc, create_senders);
-            if let Some(id) = ctx.cc.name_input {
+            if let Some(id) = ctx.reg.get_by_name(CREATE_NAME_INPUT.0) {
                 ctx.focus.0 = Some(id);
             }
         }
@@ -356,7 +357,8 @@ fn click_char_create_frame(
         .registry
         .get_by_name(frame_name)
         .ok_or_else(|| format!("unknown char create frame '{frame_name}'"))?;
-    if ctx.cc.name_input == Some(frame_id) {
+    let name_input_id = ctx.ui.registry.get_by_name(CREATE_NAME_INPUT.0);
+    if name_input_id == Some(frame_id) {
         ctx.focus.0 = Some(frame_id);
         return Ok(());
     }

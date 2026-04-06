@@ -468,3 +468,49 @@ fn name_input_survives_dropdown_toggle() {
         "name input should have non-zero size after dropdown toggle, got {name_input:?}"
     );
 }
+
+fn editbox_center_texture(reg: &crate::ui::registry::FrameRegistry) -> Option<String> {
+    let id = reg.get_by_name("CharCreateNameInput")?;
+    let frame = reg.get(id)?;
+    let ns = frame.nine_slice.as_ref()?;
+    let parts = ns.part_textures.as_ref()?;
+    match &parts[4] {
+        crate::ui::widgets::texture::TextureSource::File(p) => Some(p.clone()),
+        _ => None,
+    }
+}
+
+#[test]
+fn editbox_nine_slice_textures_change_on_focus() {
+    let mut harness = ScreenHarness::new({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s
+    });
+
+    let unfocused_center = editbox_center_texture(&harness.reg)
+        .expect("editbox should have center texture");
+    assert!(
+        unfocused_center.contains("dark"),
+        "unfocused center should use dark texture, got {unfocused_center}"
+    );
+
+    // Switch to focused
+    harness.sync({
+        let mut s = CharCreateUiState::default();
+        s.mode = CharCreateMode::Customize;
+        s.name_input_focused = true;
+        s
+    });
+
+    let focused_center = editbox_center_texture(&harness.reg)
+        .expect("editbox should have center texture after focus");
+    assert!(
+        focused_center.contains("focused"),
+        "focused center should use focused texture, got {focused_center}"
+    );
+    assert_ne!(
+        unfocused_center, focused_center,
+        "textures must change between unfocused and focused"
+    );
+}

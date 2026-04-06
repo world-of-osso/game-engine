@@ -279,8 +279,10 @@ fn char_create_update_visuals(
 ) {
     let Some(cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_ref() else { return };
-    let name_focused = cc
-        .name_input
+    // Look up by name each frame — the editbox only exists in Customize mode
+    // so the ID resolved at startup may be None/stale.
+    let name_input_id = ui.registry.get_by_name(CREATE_NAME_INPUT.0);
+    let name_focused = name_input_id
         .is_some_and(|id| focus.0 == Some(id) && state.mode == CharCreateMode::Customize);
     sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db, name_focused);
     ui.focused_frame = focus.0.filter(|_| state.mode == CharCreateMode::Customize);
