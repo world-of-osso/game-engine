@@ -458,7 +458,11 @@ fn handle_disconnect_by_state(
             handle_disconnect_from_charselect(auth_token, reconnect, auth_feedback, commands);
         }
         crate::game_state::GameState::Login => handle_disconnect_from_login(auth_feedback),
-        crate::game_state::GameState::InWorld => handle_disconnect_from_inworld(
+        // All states where the player is in the world should reconnect transparently.
+        crate::game_state::GameState::InWorld
+        | crate::game_state::GameState::GameMenu
+        | crate::game_state::GameState::Loading
+        | crate::game_state::GameState::CampsitePopup => handle_disconnect_from_inworld(
             auth_token,
             selected,
             reconnect,
@@ -588,6 +592,9 @@ fn handle_inworld_disconnect(
     if let Some(name) = selected.as_deref().and_then(|s| s.character_name.clone()) {
         commands.insert_resource(crate::scenes::char_select::PreselectedCharName(name));
     }
+    // Return to InWorld if currently in a sub-state (GameMenu, Loading, etc.)
+    // so the reconnect overlay displays over the 3D scene.
+    next_state.set(crate::game_state::GameState::InWorld);
     commands.insert_resource(crate::scenes::char_select::AutoEnterWorld);
     commands.insert_resource(LoginMode::Login);
     commands.insert_resource(LoginUsername(String::new()));

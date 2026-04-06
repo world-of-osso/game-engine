@@ -113,10 +113,15 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::CharacterStatsSnapshot>(world);
     reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
     reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
+    reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);
     reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
+    reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
+    reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
     reset_resource::<game_engine::status::MapStatusSnapshot>(world);
     reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);
     reset_resource::<game_engine::status::QuestLogStatusSnapshot>(world);
+    reset_resource::<game_engine::status::ReputationsStatusSnapshot>(world);
+    reset_resource::<game_engine::status::WarbankStatusSnapshot>(world);
 }
 
 fn reset_resource<T: Resource + Default>(world: &mut World) {

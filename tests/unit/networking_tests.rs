@@ -738,3 +738,61 @@ fn sync_local_alive_state_tracks_local_player_health() {
 
     assert!(!app.world().resource::<LocalAliveState>().0);
 }
+
+#[test]
+fn disconnect_during_game_menu_reconnects_without_bouncing_to_login() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(crate::game_state::GameState::GameMenu);
+    app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<ReconnectState>();
+    app.insert_resource(AuthToken(Some("saved-token".to_string())));
+    app.insert_resource(selected_with_name("Theron"));
+    app.insert_resource(game_engine::targeting::CurrentTarget(Some(
+        Entity::from_bits(77),
+    )));
+    app.init_resource::<CurrentZone>();
+    app.init_resource::<LocalAliveState>();
+    app.init_resource::<ChatLog>();
+    app.init_resource::<ChatInput>();
+    app.add_observer(handle_client_disconnected);
+
+    let client = app.world_mut().spawn(Client::default()).id();
+    let receiver = app.world_mut().spawn_empty().id();
+    let replicated = app
+        .world_mut()
+        .spawn((
+            Replicated { receiver },
+            RemoteEntity,
+            NetPlayer {
+                name: "Theron".to_string(),
+                race: 1,
+                class: 1,
+                appearance: CharacterAppearance::default(),
+            },
+        ))
+        .id();
+    app.world_mut().entity_mut(client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+
+    app.update();
+    app.update();
+
+    // Should transition to InWorld (not Login) and arm reconnect.
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
+    assert_eq!(
+        *state.get(),
+        crate::game_state::GameState::InWorld,
+        "GameMenu disconnect should transition to InWorld, not Login"
+    );
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::PendingConnect
+    );
+    assert!(app.world().get_entity(client).is_err());
+    assert!(app.world().get_entity(replicated).is_err());
+}
