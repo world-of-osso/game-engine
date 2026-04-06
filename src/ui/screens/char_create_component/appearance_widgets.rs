@@ -13,8 +13,8 @@ fn dyn_name(s: String) -> DynName {
     DynName(s)
 }
 
-const STEPPER_WIDTH: f32 = 26.0;
-const DEC_RIGHT_INSET: f32 = 120.0;
+const STEPPER_SIZE: f32 = 38.0;
+const DEC_RIGHT_INSET: f32 = 130.0;
 const INC_RIGHT_INSET: f32 = 10.0;
 const SWATCH_PREVIEW_WIDTH: f32 = 84.0;
 const SWATCH_PREVIEW_HEIGHT: f32 = 20.0;
@@ -41,7 +41,7 @@ fn x_offset(x: f32) -> String {
 }
 
 fn swatch_gap_center_x() -> String {
-    let inset = (DEC_RIGHT_INSET + INC_RIGHT_INSET + STEPPER_WIDTH) * 0.5;
+    let inset = (DEC_RIGHT_INSET + INC_RIGHT_INSET + STEPPER_SIZE) * 0.5;
     right_inset_x(inset)
 }
 
@@ -50,8 +50,8 @@ fn stepper_dec_button(field: AppearanceField) -> Element {
     rsx! {
         r#frame {
             name: dyn_name(format!("AppDec_{}", field.as_str())),
-            width: STEPPER_WIDTH,
-            height: 25.0,
+            width: STEPPER_SIZE,
+            height: STEPPER_SIZE,
             onclick: CharCreateAction::AppearanceDec(field),
             anchor {
                 point: AnchorPoint::Right,
@@ -60,19 +60,9 @@ fn stepper_dec_button(field: AppearanceField) -> Element {
             }
             texture {
                 name: dyn_name(format!("AppDecBg_{}", field.as_str())),
-                width: STEPPER_WIDTH,
-                height: 25.0,
-                texture_atlas: "common-dropdown-c-button",
-            }
-            texture {
-                name: dyn_name(format!("AppDecIcon_{}", field.as_str())),
-                width: 17.0,
-                height: 17.0,
-                texture_atlas: "common-dropdown-icon-back",
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
+                width: STEPPER_SIZE,
+                height: STEPPER_SIZE,
+                texture_atlas: "charactercreate-customize-backbutton",
             }
         }
     }
@@ -83,8 +73,8 @@ fn stepper_inc_button(field: AppearanceField) -> Element {
     rsx! {
         r#frame {
             name: dyn_name(format!("AppInc_{}", field.as_str())),
-            width: STEPPER_WIDTH,
-            height: 25.0,
+            width: STEPPER_SIZE,
+            height: STEPPER_SIZE,
             onclick: CharCreateAction::AppearanceInc(field),
             anchor {
                 point: AnchorPoint::Right,
@@ -93,19 +83,9 @@ fn stepper_inc_button(field: AppearanceField) -> Element {
             }
             texture {
                 name: dyn_name(format!("AppIncBg_{}", field.as_str())),
-                width: STEPPER_WIDTH,
-                height: 25.0,
-                texture_atlas: "common-dropdown-c-button",
-            }
-            texture {
-                name: dyn_name(format!("AppIncIcon_{}", field.as_str())),
-                width: 17.0,
-                height: 17.0,
-                texture_atlas: "common-dropdown-icon-next",
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
+                width: STEPPER_SIZE,
+                height: STEPPER_SIZE,
+                texture_atlas: "charactercreate-customize-nextbutton",
             }
         }
     }
