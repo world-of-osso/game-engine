@@ -11,8 +11,7 @@ use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::minimap_render::{
-    blit_image, create_arrow_image, create_blank_image, create_border_image, crop_with_circle,
-    render_tile_image,
+    blit_image, create_arrow_image, create_blank_image, create_border_image, render_tile_image,
 };
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::zone_names::zone_id_to_name;
@@ -21,6 +20,7 @@ use game_engine::ui::screens::inworld_hud_component;
 const MINIMAP_TILE_SIZE: u32 = 256;
 const MINIMAP_DISPLAY_SIZE: u32 = 200;
 const MINIMAP_COMPOSITE_SIZE: u32 = 768; // 3 tiles x 256 pixels
+const MINIMAP_BG_COLOR: [u8; 4] = [20, 20, 20, 255];
 
 /// Stores generated minimap tile images.
 #[derive(Resource, Default)]
@@ -31,7 +31,12 @@ pub struct MinimapState {
     generated: HashSet<(u32, u32)>,
 }
 
-/// Tracks last minimap pixel position to skip recomposite when unchanged.
+/// Tracks last minimap state to skip unnecessary work.
+///
+/// The 768×768 composite buffer only changes when the tile grid or loaded
+/// tiles change.  When just the player pixel moves within the same grid,
+/// we skip the expensive full recomposite and only redo the cheap 200×200
+/// circular crop.
 #[derive(Resource)]
 struct LastMinimapPixel {
     px_x: usize,
@@ -40,6 +45,10 @@ struct LastMinimapPixel {
     tile_col: u32,
     tile_generation: usize,
     composite_buf: Vec<u8>,
+    /// Reusable output buffer for the circular crop (avoids per-frame allocation).
+    crop_buf: Vec<u8>,
+    /// Precomputed circular mask: true = inside circle. Computed once on first use.
+    circle_mask: Vec<bool>,
 }
 
 impl Default for LastMinimapPixel {
@@ -51,6 +60,8 @@ impl Default for LastMinimapPixel {
             tile_col: u32::MAX,
             tile_generation: 0,
             composite_buf: Vec::new(),
+            crop_buf: Vec::new(),
+            circle_mask: Vec::new(),
         }
     }
 }
@@ -291,6 +302,10 @@ fn try_load_minimap_blp(tile_x: u32, tile_y: u32) -> Option<Image> {
 }
 
 /// Composite tile images centered on the player, crop and apply circular mask.
+///
+/// The 768×768 composite is only rebuilt when the tile grid or loaded tile set
+/// changes.  When just the player pixel shifts (same grid), we skip the heavy
+/// blit and only redo the cheap circular crop.
 fn update_minimap_composite(
     player_q: Query<&Transform, With<crate::camera::Player>>,
     minimap: Res<MinimapState>,
@@ -302,30 +317,29 @@ fn update_minimap_composite(
         return;
     };
 
-    if !composite_needs_update(
-        &last,
-        state.px_x,
-        state.px_y,
-        state.player_row,
-        state.player_col,
-        minimap.generated.len(),
-    ) {
+    let tile_gen = minimap.generated.len();
+    let grid_changed = tile_grid_changed(&last, state.player_row, state.player_col, tile_gen);
+    let pixel_changed = state.px_x != last.px_x || state.px_y != last.px_y;
+
+    if !grid_changed && !pixel_changed {
         return;
     }
 
-    recomposite(
-        &minimap,
-        &images,
-        &mut last,
-        state.player_row,
-        state.player_col,
-        state.comp_size,
-    );
-    update_last_minimap_pixel(&mut last, &state, minimap.generated.len());
+    if grid_changed {
+        recomposite(
+            &minimap,
+            &images,
+            &mut last,
+            state.player_row,
+            state.player_col,
+            state.comp_size,
+        );
+    }
+    update_last_minimap_pixel(&mut last, &state, tile_gen);
     apply_circular_crop(
         &state.composite,
         &mut images,
-        &last.composite_buf,
+        &mut last,
         state.comp_size,
         state.px_x,
         state.px_y,
@@ -365,37 +379,89 @@ fn update_last_minimap_pixel(
     last.tile_generation = tile_generation;
 }
 
-fn composite_needs_update(
-    last: &LastMinimapPixel,
-    px_x: usize,
-    px_y: usize,
-    row: u32,
-    col: u32,
-    tile_gen: usize,
-) -> bool {
-    px_x != last.px_x
-        || px_y != last.px_y
-        || row != last.tile_row
-        || col != last.tile_col
-        || tile_gen != last.tile_generation
+/// Returns true when the 768×768 composite buffer needs a full rebuild
+/// (tile grid shifted or new tiles loaded).  Pixel-only movement is handled
+/// by re-cropping without rebuilding the composite.
+fn tile_grid_changed(last: &LastMinimapPixel, row: u32, col: u32, tile_gen: usize) -> bool {
+    row != last.tile_row || col != last.tile_col || tile_gen != last.tile_generation
 }
 
 fn apply_circular_crop(
     composite_res: &MinimapComposite,
     images: &mut Assets<Image>,
-    buf: &[u8],
+    last: &mut LastMinimapPixel,
     comp_size: usize,
     px_x: usize,
     px_y: usize,
 ) {
+    let ds = MINIMAP_DISPLAY_SIZE as usize;
+    ensure_circle_mask(&mut last.circle_mask, ds);
+    let crop_len = ds * ds * 4;
+    last.crop_buf.resize(crop_len, 0);
+
+    crop_with_mask(
+        &last.composite_buf,
+        comp_size,
+        px_x,
+        px_y,
+        ds,
+        &last.circle_mask,
+        &mut last.crop_buf,
+    );
+
     if let Some(img) = images.get_mut(&composite_res.handle) {
-        img.data = Some(crop_with_circle(
-            buf,
-            comp_size,
-            px_x,
-            px_y,
-            MINIMAP_DISPLAY_SIZE,
-        ));
+        img.data = Some(last.crop_buf.clone());
+    }
+}
+
+/// Build the circular mask once (true = inside circle).
+fn ensure_circle_mask(mask: &mut Vec<bool>, ds: usize) {
+    if mask.len() == ds * ds {
+        return;
+    }
+    let radius = ds as f32 / 2.0;
+    let r2 = radius * radius;
+    *mask = (0..ds * ds)
+        .map(|i| {
+            let x = (i % ds) as f32 - radius + 0.5;
+            let y = (i / ds) as f32 - radius + 0.5;
+            x * x + y * y <= r2
+        })
+        .collect();
+}
+
+/// Crop a display-sized window from the composite using a precomputed mask.
+/// Writes into `out` (must be pre-sized to ds*ds*4).
+fn crop_with_mask(
+    composite: &[u8],
+    comp_size: usize,
+    cx: usize,
+    cy: usize,
+    ds: usize,
+    mask: &[bool],
+    out: &mut [u8],
+) {
+    let half = ds / 2;
+    let bg = MINIMAP_BG_COLOR;
+
+    for y in 0..ds {
+        let sy = cy as i32 - half as i32 + y as i32;
+        for x in 0..ds {
+            let di = (y * ds + x) * 4;
+            if !mask[y * ds + x] {
+                out[di..di + 4].fill(0);
+                continue;
+            }
+            let sx = cx as i32 - half as i32 + x as i32;
+            let in_bounds =
+                sx >= 0 && (sx as usize) < comp_size && sy >= 0 && (sy as usize) < comp_size;
+            if in_bounds {
+                let si = (sy as usize * comp_size + sx as usize) * 4;
+                out[di..di + 4].copy_from_slice(&composite[si..si + 4]);
+            } else {
+                out[di..di + 4].copy_from_slice(&bg);
+            }
+        }
     }
 }
 
@@ -423,12 +489,8 @@ fn recomposite(
 }
 
 fn fill_dark_background(buf: &mut [u8], comp_size: usize) {
-    for i in 0..(comp_size * comp_size) {
-        let off = i * 4;
-        buf[off] = 20;
-        buf[off + 1] = 20;
-        buf[off + 2] = 20;
-        buf[off + 3] = 255;
+    for pixel in buf[..comp_size * comp_size * 4].chunks_exact_mut(4) {
+        pixel.copy_from_slice(&MINIMAP_BG_COLOR);
     }
 }
 

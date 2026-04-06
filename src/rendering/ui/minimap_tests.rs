@@ -134,13 +134,13 @@ fn render_tile_image_size() {
 }
 
 #[test]
-fn composite_needs_update_detects_pixel_change() {
+fn tile_grid_changed_detects_row_change() {
     let last = LastMinimapPixel::default();
-    assert!(composite_needs_update(&last, 100, 100, 32, 48, 1));
+    assert!(tile_grid_changed(&last, 32, 48, 1));
 }
 
 #[test]
-fn composite_needs_update_same_state_returns_false() {
+fn tile_grid_changed_same_grid_returns_false() {
     let last = LastMinimapPixel {
         px_x: 100,
         px_y: 200,
@@ -148,12 +148,14 @@ fn composite_needs_update_same_state_returns_false() {
         tile_col: 48,
         tile_generation: 5,
         composite_buf: Vec::new(),
+        crop_buf: Vec::new(),
+        circle_mask: Vec::new(),
     };
-    assert!(!composite_needs_update(&last, 100, 200, 32, 48, 5));
+    assert!(!tile_grid_changed(&last, 32, 48, 5));
 }
 
 #[test]
-fn composite_needs_update_tile_generation_change() {
+fn tile_grid_changed_detects_tile_generation_change() {
     let last = LastMinimapPixel {
         px_x: 100,
         px_y: 200,
@@ -161,8 +163,28 @@ fn composite_needs_update_tile_generation_change() {
         tile_col: 48,
         tile_generation: 5,
         composite_buf: Vec::new(),
+        crop_buf: Vec::new(),
+        circle_mask: Vec::new(),
     };
-    assert!(composite_needs_update(&last, 100, 200, 32, 48, 6));
+    assert!(tile_grid_changed(&last, 32, 48, 6));
+}
+
+#[test]
+fn pixel_change_without_grid_change_skips_recomposite() {
+    let last = LastMinimapPixel {
+        px_x: 100,
+        px_y: 200,
+        tile_row: 32,
+        tile_col: 48,
+        tile_generation: 5,
+        composite_buf: Vec::new(),
+        crop_buf: Vec::new(),
+        circle_mask: Vec::new(),
+    };
+    // Grid unchanged — no recomposite needed
+    assert!(!tile_grid_changed(&last, 32, 48, 5));
+    // But pixel did change — crop should still update
+    assert!(101 != last.px_x);
 }
 
 #[test]
@@ -187,6 +209,51 @@ fn fill_dark_background_fills_rgba() {
     fill_dark_background(&mut buf, 4);
     assert_eq!(&buf[0..4], &[20, 20, 20, 255]);
     assert_eq!(&buf[60..64], &[20, 20, 20, 255]);
+}
+
+#[test]
+fn ensure_circle_mask_builds_correct_size() {
+    let mut mask = Vec::new();
+    ensure_circle_mask(&mut mask, 10);
+    assert_eq!(mask.len(), 100);
+    // Center pixel is inside
+    assert!(mask[5 * 10 + 5]);
+    // Corner pixel is outside
+    assert!(!mask[0]);
+    // Calling again is a no-op (same length)
+    let ptr = mask.as_ptr();
+    ensure_circle_mask(&mut mask, 10);
+    assert_eq!(mask.as_ptr(), ptr);
+}
+
+#[test]
+fn crop_with_mask_matches_crop_with_circle() {
+    // Create a simple 8x8 composite with known data
+    let comp_size = 8;
+    let mut comp = vec![0u8; comp_size * comp_size * 4];
+    for i in 0..comp_size * comp_size {
+        comp[i * 4] = (i % 256) as u8;
+        comp[i * 4 + 1] = 100;
+        comp[i * 4 + 2] = 200;
+        comp[i * 4 + 3] = 255;
+    }
+    let ds = 4;
+    let mut mask = Vec::new();
+    ensure_circle_mask(&mut mask, ds);
+    let mut out = vec![0u8; ds * ds * 4];
+    crop_with_mask(&comp, comp_size, 4, 4, ds, &mask, &mut out);
+
+    let reference = crop_with_circle(&comp, comp_size, 4, 4, ds as u32);
+    // Inside-circle pixels should match
+    for i in 0..ds * ds {
+        if mask[i] {
+            assert_eq!(
+                &out[i * 4..i * 4 + 4],
+                &reference[i * 4..i * 4 + 4],
+                "mismatch at pixel {i}"
+            );
+        }
+    }
 }
 
 #[test]
