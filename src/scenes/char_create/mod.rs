@@ -5,15 +5,15 @@ use lightyear::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
-use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
+use game_engine::ui::frame::Dimension;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
     AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT,
-    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON,
+    CharCreateAction,
+    CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON,
     SEX_TOGGLE_BUTTON, char_create_screen,
 };
-use game_engine::ui::widgets::font_string::GameFont;
 use game_engine::ui_resource;
 use shared::components::CharacterAppearance;
 use shared::protocol::{AuthChannel, CreateCharacter, CreateCharacterResponse};
@@ -43,7 +43,6 @@ const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.92, 0.72, 1.0];
-const GLUE_NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 
 ui_resource! {
     pub(crate) CharCreateUi {
@@ -210,43 +209,6 @@ fn apply_post_setup(reg: &mut FrameRegistry, cc: &CharCreateUi) {
         frame.width = Dimension::Fixed(sw);
         frame.height = Dimension::Fixed(sh);
     }
-    if let Some(id) = cc.name_input {
-        set_editbox_backdrop(reg, id);
-    }
-}
-
-fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.nine_slice = Some(NineSlice {
-            edge_size: 8.0,
-            part_textures: Some(common_input_border_part_textures()),
-            bg_color: EDITBOX_BG,
-            border_color: EDITBOX_BORDER,
-            ..Default::default()
-        });
-        if let Some(WidgetData::EditBox(eb)) = &mut frame.widget_data {
-            eb.text_insets = [12.0, 5.0, 8.0, 8.0];
-            eb.font = GameFont::ArialNarrow;
-            eb.font_size = 16.0;
-            eb.text_color = GLUE_NORMAL_FONT_COLOR;
-        }
-    }
-}
-
-fn common_input_border_part_textures() -> [game_engine::ui::widgets::texture::TextureSource; 9] {
-    use game_engine::ui::widgets::texture::TextureSource;
-    let base = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
-    [
-        TextureSource::File(format!("{base}TL.blp")),
-        TextureSource::File(format!("{base}T.blp")),
-        TextureSource::File(format!("{base}TR.blp")),
-        TextureSource::File(format!("{base}L.blp")),
-        TextureSource::File(format!("{base}M.blp")),
-        TextureSource::File(format!("{base}R.blp")),
-        TextureSource::File(format!("{base}BL.blp")),
-        TextureSource::File(format!("{base}B.blp")),
-        TextureSource::File(format!("{base}BR.blp")),
-    ]
 }
 
 fn teardown_char_create_ui(
@@ -323,12 +285,6 @@ fn char_create_update_visuals(
     let Some(cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_ref() else { return };
     sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db);
-    // The editbox only exists in Customize mode, but apply_post_setup runs once
-    // at build time (in RaceClass mode). Re-apply the backdrop by name after
-    // every sync so it's set when the editbox first appears.
-    if let Some(id) = ui.registry.get_by_name(CREATE_NAME_INPUT.0) {
-        set_editbox_backdrop(&mut ui.registry, id);
-    }
     if let Some(id) = cc.name_input {
         sync_editbox_focus(
             &mut ui.registry,

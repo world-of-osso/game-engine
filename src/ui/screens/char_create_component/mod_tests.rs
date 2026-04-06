@@ -442,9 +442,14 @@ fn name_input_created_on_customize_mode_switch() {
         s.mode = CharCreateMode::Customize;
         s
     });
+    let id = harness
+        .reg
+        .get_by_name("CharCreateNameInput")
+        .expect("name input should exist after switching to Customize mode");
+    let frame = harness.reg.get(id).unwrap();
     assert!(
-        harness.reg.get_by_name("CharCreateNameInput").is_some(),
-        "name input should exist after switching to Customize mode"
+        frame.nine_slice.is_some(),
+        "name input should have nine_slice backdrop from RSX after mode switch"
     );
 }
 

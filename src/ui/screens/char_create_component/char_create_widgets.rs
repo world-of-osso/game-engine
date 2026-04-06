@@ -280,7 +280,23 @@ pub(super) fn class_button(
 
 // --- Name input + create button ---
 
+fn input_border_textures() -> [String; 9] {
+    let base = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
+    [
+        format!("{base}TL.blp"),
+        format!("{base}T.blp"),
+        format!("{base}TR.blp"),
+        format!("{base}L.blp"),
+        format!("{base}M.blp"),
+        format!("{base}R.blp"),
+        format!("{base}BL.blp"),
+        format!("{base}B.blp"),
+        format!("{base}BR.blp"),
+    ]
+}
+
 pub(super) fn name_input_field() -> Element {
+    let textures = input_border_textures();
     rsx! {
         fontstring {
             name: "NameLabel",
@@ -296,7 +312,16 @@ pub(super) fn name_input_field() -> Element {
             name: CREATE_NAME_INPUT,
             width: 300.0,
             height: 38.0,
+            font: GameFont::ArialNarrow,
             font_size: 16.0,
+            font_color: COLOR_GOLD,
+            text_insets: "12,5,8,8",
+            nine_slice {
+                edge_size: 8,
+                bg_color: "1,1,1,1",
+                border_color: "1,1,1,1",
+                textures: {textures},
+            }
             anchor {
                 point: AnchorPoint::Top,
                 relative_point: AnchorPoint::Top,
