@@ -94,6 +94,8 @@ pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, S
     m2_particle::resolve_texture_fdids(&mut particles, &txid);
     let (attachments, attachment_lookup) = load_model_attachment_data(path, &chunks);
     let lights = m2_light::parse_lights(chunks.md20);
+    let (bounding_box_min, bounding_box_max) =
+        crate::asset::m2_format::parse_bounding_box(chunks.md20);
     Ok(M2Model {
         batches,
         bones: anim.bones,
@@ -104,6 +106,8 @@ pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, S
         attachments,
         attachment_lookup,
         lights,
+        bounding_box_min,
+        bounding_box_max,
     })
 }
 

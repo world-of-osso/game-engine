@@ -52,6 +52,14 @@ pub struct ChunkRefs {
 #[derive(Component)]
 pub struct Doodad;
 
+/// World-space AABB collider for a doodad. Used for ray-AABB collision
+/// checks during player movement.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct DoodadCollider {
+    pub world_min: Vec3,
+    pub world_max: Vec3,
+}
+
 /// Marker for WMO root entities.
 #[derive(Component)]
 pub struct Wmo;

@@ -75,6 +75,10 @@ pub struct M2Model {
     pub attachments: Vec<super::m2_attach::M2Attachment>,
     pub attachment_lookup: Vec<i16>,
     pub lights: Vec<super::m2_light::M2Light>,
+    /// Model-local bounding box min (from MD20 header).
+    pub bounding_box_min: [f32; 3],
+    /// Model-local bounding box max (from MD20 header).
+    pub bounding_box_max: [f32; 3],
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

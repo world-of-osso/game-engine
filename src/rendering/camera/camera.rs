@@ -379,6 +379,7 @@ fn player_movement(
     bindings: Res<InputBindings>,
     mut ray_cast: MeshRayCast,
     wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
+    doodad_collider_q: Query<&game_engine::culling::DoodadCollider>,
     mut player_q: Query<
         (
             &mut Transform,
@@ -407,6 +408,7 @@ fn player_movement(
     let proposed =
         build_proposed_ground_movement(current_position, direction, speed, time.delta_secs());
     let collision_meshes = collect_collision_meshes(&wmo_collision_meshes_q);
+    let doodad_colliders = collect_doodad_colliders(&doodad_collider_q);
     apply_horizontal_movement(HorizontalMovementContext {
         transform: &mut transform,
         movement: &mut movement,
@@ -416,11 +418,16 @@ fn player_movement(
         bindings: &bindings,
         terrain: terrain.as_deref(),
         proposed: proposed.map(|proposed| {
-            collision::clamp_movement_against_wmo_meshes(
+            let after_wmo = collision::clamp_movement_against_wmo_meshes(
                 current_position,
                 proposed,
                 &mut ray_cast,
                 &collision_meshes,
+            );
+            collision::clamp_movement_against_doodad_colliders(
+                current_position,
+                after_wmo,
+                &doodad_colliders,
             )
         }),
     });
@@ -432,6 +439,15 @@ fn collect_collision_meshes(
     collision_meshes: &Query<Entity, With<collision::WmoCollisionMesh>>,
 ) -> HashSet<Entity> {
     collision_meshes.iter().collect()
+}
+
+fn collect_doodad_colliders(
+    collider_q: &Query<&game_engine::culling::DoodadCollider>,
+) -> Vec<(Vec3, Vec3)> {
+    collider_q
+        .iter()
+        .map(|c| (c.world_min, c.world_max))
+        .collect()
 }
 
 fn build_proposed_ground_movement(

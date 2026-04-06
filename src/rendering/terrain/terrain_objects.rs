@@ -441,6 +441,7 @@ fn try_spawn_doodad_preloaded(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("prop");
+    let collider = build_doodad_collider(&pre.model, &transform);
     let entity = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
@@ -462,6 +463,9 @@ fn try_spawn_doodad_preloaded(
     }
     let mut entity_commands = commands.entity(entity);
     entity_commands.insert(game_engine::culling::Doodad);
+    if let Some(collider) = collider {
+        entity_commands.insert(collider);
+    }
     if let Some(chunk_refs) = build_chunk_refs_component(chunk_refs) {
         entity_commands.insert(chunk_refs);
     }
@@ -527,15 +531,17 @@ fn try_spawn_doodad(
     if !m2_path.exists() {
         return None;
     }
+    let model = crate::asset::m2::load_m2_uncached(&m2_path, &[0, 0, 0]).ok()?;
     let transform = doodad_transform(doodad, heightmap, tile_y, tile_x);
     let name = m2_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("prop");
+    let collider = build_doodad_collider(&model, &transform);
     let entity = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
-    if !m2_spawn::spawn_m2_on_entity(
+    if !m2_spawn::spawn_m2_model_on_entity(
         commands,
         &mut m2_spawn::SpawnAssets {
             meshes,
@@ -545,19 +551,47 @@ fn try_spawn_doodad(
             images,
             inverse_bindposes: inverse_bp,
         },
-        &m2_path,
+        model,
         entity,
-        &[0, 0, 0],
     ) {
         commands.entity(entity).despawn();
         return None;
     }
     let mut entity_commands = commands.entity(entity);
     entity_commands.insert(game_engine::culling::Doodad);
+    if let Some(collider) = collider {
+        entity_commands.insert(collider);
+    }
     if let Some(chunk_refs) = build_chunk_refs_component(chunk_refs) {
         entity_commands.insert(chunk_refs);
     }
     Some(entity)
+}
+
+/// Minimum world-space AABB volume to attach a collider.
+/// Small props (grass, flowers) below this threshold are skipped.
+const MIN_DOODAD_COLLIDER_VOLUME: f32 = 1.0;
+
+/// Build a `DoodadCollider` from an M2 model's bounding box and its world transform.
+/// Returns `None` for small props that shouldn't block movement.
+fn build_doodad_collider(
+    model: &crate::asset::m2::M2Model,
+    transform: &Transform,
+) -> Option<game_engine::culling::DoodadCollider> {
+    let (world_min, world_max) = crate::collision::compute_world_aabb(
+        model.bounding_box_min,
+        model.bounding_box_max,
+        transform,
+    );
+    let size = world_max - world_min;
+    let volume = size.x * size.y * size.z;
+    if volume < MIN_DOODAD_COLLIDER_VOLUME {
+        return None;
+    }
+    Some(game_engine::culling::DoodadCollider {
+        world_min,
+        world_max,
+    })
 }
 
 fn build_object_chunk_refs<'a>(

@@ -682,3 +682,18 @@ fn mesh_has_joint_attributes() {
         "Mesh should have JOINT_WEIGHT attribute"
     );
 }
+
+#[test]
+fn m2_model_has_nonzero_bounding_box() {
+    let model = load_m2_uncached(Path::new("data/models/1011653.m2"), &[0, 0, 0])
+        .expect("load human HD model");
+    let size = [
+        model.bounding_box_max[0] - model.bounding_box_min[0],
+        model.bounding_box_max[1] - model.bounding_box_min[1],
+        model.bounding_box_max[2] - model.bounding_box_min[2],
+    ];
+    assert!(
+        size[0] > 0.0 && size[1] > 0.0 && size[2] > 0.0,
+        "expected positive bounding box size, got {size:?}"
+    );
+}
