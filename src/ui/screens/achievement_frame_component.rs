@@ -43,8 +43,28 @@ const CAT_TEXT_NORMAL: &str = "1.0,1.0,1.0,1.0";
 const CAT_TEXT_HEADER: &str = "0.8,0.8,0.8,1.0";
 const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
 const CONTENT_PLACEHOLDER_COLOR: &str = "0.5,0.5,0.5,1.0";
+const ROW_H: f32 = 56.0;
+const ROW_GAP: f32 = 2.0;
+const ROW_INSET: f32 = 4.0;
+const ICON_SIZE: f32 = 40.0;
+const ICON_INSET: f32 = 6.0;
+const PROGRESS_BAR_H: f32 = 12.0;
+const PROGRESS_BAR_W: f32 = 160.0;
+const CHECK_SIZE: f32 = 16.0;
+const ROW_BG_COMPLETE: &str = "0.08,0.12,0.06,0.85";
+const ROW_BG_INCOMPLETE: &str = "0.05,0.05,0.05,0.75";
+const ICON_BG: &str = "0.15,0.12,0.02,0.95";
+const NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
+const DESC_COLOR: &str = "0.7,0.7,0.7,1.0";
+const POINTS_COLOR: &str = "1.0,0.82,0.0,1.0";
+const PROGRESS_BG: &str = "0.1,0.1,0.1,0.9";
+const PROGRESS_FILL: &str = "0.2,0.6,0.1,0.9";
+const PROGRESS_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const CHECK_COMPLETE: &str = "0.0,1.0,0.0,1.0";
+const CHECK_INCOMPLETE: &str = "0.3,0.3,0.3,0.6";
 
 pub const MAX_VISIBLE_CATEGORIES: usize = 16;
+pub const MAX_VISIBLE_ACHIEVEMENTS: usize = 6;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AchievementCategory {
@@ -60,10 +80,23 @@ pub struct AchievementTab {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct AchievementRow {
+    pub name: String,
+    pub description: String,
+    pub points: u32,
+    pub completed: bool,
+    /// Progress as 0.0..=1.0 fraction.
+    pub progress: f32,
+    /// Display text for progress bar, e.g. "3 / 5".
+    pub progress_text: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct AchievementFrameState {
     pub visible: bool,
     pub tabs: Vec<AchievementTab>,
     pub categories: Vec<AchievementCategory>,
+    pub achievements: Vec<AchievementRow>,
     pub total_points: u32,
 }
 
@@ -89,7 +122,7 @@ pub fn achievement_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar(state.total_points)}
             {tab_row(&state.tabs)}
             {category_sidebar(&state.categories)}
-            {content_area()}
+            {content_area(&state.achievements)}
         }
     }
 }
@@ -247,11 +280,22 @@ fn category_row(idx: usize, cat: &AchievementCategory, y: f32) -> Element {
     }
 }
 
-fn content_area() -> Element {
+fn content_area(achievements: &[AchievementRow]) -> Element {
     let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_INSET;
     let content_y = -SIDEBAR_TOP;
     let content_w = FRAME_W - content_x - SIDEBAR_INSET;
     let content_h = FRAME_H - SIDEBAR_TOP - SIDEBAR_INSET;
+    let has_rows = !achievements.is_empty();
+    let rows: Element = achievements
+        .iter()
+        .enumerate()
+        .take(MAX_VISIBLE_ACHIEVEMENTS)
+        .flat_map(|(i, row)| {
+            let row_y = -(ROW_INSET + i as f32 * (ROW_H + ROW_GAP));
+            achievement_row(i, row, content_w - 2.0 * ROW_INSET, row_y)
+        })
+        .collect();
+    let placeholder_hidden = has_rows;
     rsx! {
         r#frame {
             name: "AchievementContentArea",
@@ -271,6 +315,7 @@ fn content_area() -> Element {
                 text: "Select a category",
                 font_size: 11.0,
                 font_color: CONTENT_PLACEHOLDER_COLOR,
+                hidden: placeholder_hidden,
                 justify_h: "CENTER",
                 anchor {
                     point: AnchorPoint::Top,
@@ -278,6 +323,191 @@ fn content_area() -> Element {
                     x: "0",
                     y: "-20",
                 }
+            }
+            {rows}
+        }
+    }
+}
+
+fn achievement_row(idx: usize, row: &AchievementRow, row_w: f32, y: f32) -> Element {
+    let row_id = DynName(format!("AchievementRow{idx}"));
+    let bg = if row.completed {
+        ROW_BG_COMPLETE
+    } else {
+        ROW_BG_INCOMPLETE
+    };
+    let text_x = ICON_INSET + ICON_SIZE + ICON_INSET;
+    let text_w = row_w - text_x - CHECK_SIZE - ICON_INSET;
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {row_w},
+            height: {ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {ROW_INSET},
+                y: {y},
+            }
+            {row_icon(idx)}
+            {row_name(idx, &row.name, text_x, text_w)}
+            {row_description(idx, &row.description, text_x, text_w)}
+            {row_progress_bar(idx, row, text_x)}
+            {row_points(idx, row.points, row_w)}
+            {row_checkmark(idx, row.completed, row_w)}
+        }
+    }
+}
+
+fn row_icon(idx: usize) -> Element {
+    let icon_id = DynName(format!("AchievementRow{idx}Icon"));
+    rsx! {
+        r#frame {
+            name: icon_id,
+            width: {ICON_SIZE},
+            height: {ICON_SIZE},
+            background_color: ICON_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {ICON_INSET},
+                y: {-((ROW_H - ICON_SIZE) / 2.0)},
+            }
+        }
+    }
+}
+
+fn row_name(idx: usize, name: &str, x: f32, w: f32) -> Element {
+    let name_id = DynName(format!("AchievementRow{idx}Name"));
+    rsx! {
+        fontstring {
+            name: name_id,
+            width: {w},
+            height: 16.0,
+            text: name,
+            font_size: 11.0,
+            font_color: NAME_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "-4",
+            }
+        }
+    }
+}
+
+fn row_description(idx: usize, desc: &str, x: f32, w: f32) -> Element {
+    let desc_id = DynName(format!("AchievementRow{idx}Desc"));
+    rsx! {
+        fontstring {
+            name: desc_id,
+            width: {w},
+            height: 14.0,
+            text: desc,
+            font_size: 9.0,
+            font_color: DESC_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "-20",
+            }
+        }
+    }
+}
+
+fn row_progress_bar(idx: usize, row: &AchievementRow, x: f32) -> Element {
+    let bar_id = DynName(format!("AchievementRow{idx}ProgressBg"));
+    let fill_id = DynName(format!("AchievementRow{idx}ProgressFill"));
+    let text_id = DynName(format!("AchievementRow{idx}ProgressText"));
+    let fill_w = PROGRESS_BAR_W * row.progress.clamp(0.0, 1.0);
+    rsx! {
+        r#frame {
+            name: bar_id,
+            width: {PROGRESS_BAR_W},
+            height: {PROGRESS_BAR_H},
+            background_color: PROGRESS_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-(ROW_H - PROGRESS_BAR_H - 4.0)},
+            }
+            r#frame {
+                name: fill_id,
+                width: {fill_w},
+                height: {PROGRESS_BAR_H},
+                background_color: PROGRESS_FILL,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+            fontstring {
+                name: text_id,
+                width: {PROGRESS_BAR_W},
+                height: {PROGRESS_BAR_H},
+                text: {row.progress_text.as_str()},
+                font_size: 8.0,
+                font_color: PROGRESS_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+    }
+}
+
+fn row_points(idx: usize, points: u32, row_w: f32) -> Element {
+    let pts_id = DynName(format!("AchievementRow{idx}Points"));
+    let text = format!("{points}");
+    rsx! {
+        fontstring {
+            name: pts_id,
+            width: {CHECK_SIZE + ICON_INSET},
+            height: 14.0,
+            text: {text.as_str()},
+            font_size: 9.0,
+            font_color: POINTS_COLOR,
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {row_w - CHECK_SIZE - ICON_INSET},
+                y: "-4",
+            }
+        }
+    }
+}
+
+fn row_checkmark(idx: usize, completed: bool, row_w: f32) -> Element {
+    let check_id = DynName(format!("AchievementRow{idx}Check"));
+    let color = if completed {
+        CHECK_COMPLETE
+    } else {
+        CHECK_INCOMPLETE
+    };
+    let text = if completed { "\u{2713}" } else { "\u{25CB}" };
+    rsx! {
+        fontstring {
+            name: check_id,
+            width: {CHECK_SIZE},
+            height: {CHECK_SIZE},
+            text: text,
+            font_size: 14.0,
+            font_color: color,
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {row_w - CHECK_SIZE - 2.0},
+                y: {-((ROW_H - CHECK_SIZE) / 2.0)},
             }
         }
     }
@@ -339,6 +569,35 @@ mod tests {
         ]
     }
 
+    fn sample_achievements() -> Vec<AchievementRow> {
+        vec![
+            AchievementRow {
+                name: "Level 10".into(),
+                description: "Reach level 10.".into(),
+                points: 10,
+                completed: true,
+                progress: 1.0,
+                progress_text: "10 / 10".into(),
+            },
+            AchievementRow {
+                name: "Level 20".into(),
+                description: "Reach level 20.".into(),
+                points: 10,
+                completed: false,
+                progress: 0.75,
+                progress_text: "15 / 20".into(),
+            },
+            AchievementRow {
+                name: "Level 40".into(),
+                description: "Reach level 40.".into(),
+                points: 10,
+                completed: false,
+                progress: 0.0,
+                progress_text: "0 / 40".into(),
+            },
+        ]
+    }
+
     fn make_test_state() -> AchievementFrameState {
         AchievementFrameState {
             visible: true,
@@ -353,6 +612,7 @@ mod tests {
                 },
             ],
             categories: default_categories(),
+            achievements: sample_achievements(),
             total_points: 0,
         }
     }
@@ -444,8 +704,126 @@ mod tests {
         shared.insert(state);
         Screen::new(achievement_frame_screen).sync(&shared, &mut registry);
 
-        // Child category row should exist
         assert!(registry.get_by_name("AchievementCat1").is_some());
         assert!(registry.get_by_name("AchievementCat1Label").is_some());
+    }
+
+    #[test]
+    fn achievement_frame_builds_achievement_rows() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(achievement_frame_screen).sync(&shared, &mut registry);
+
+        for i in 0..3 {
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}"))
+                    .is_some(),
+                "AchievementRow{i} missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}Icon"))
+                    .is_some(),
+                "AchievementRow{i}Icon missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}Name"))
+                    .is_some(),
+                "AchievementRow{i}Name missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}Desc"))
+                    .is_some(),
+                "AchievementRow{i}Desc missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}ProgressBg"))
+                    .is_some(),
+                "AchievementRow{i}ProgressBg missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}ProgressFill"))
+                    .is_some(),
+                "AchievementRow{i}ProgressFill missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}Check"))
+                    .is_some(),
+                "AchievementRow{i}Check missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}Points"))
+                    .is_some(),
+                "AchievementRow{i}Points missing"
+            );
+        }
+    }
+
+    #[test]
+    fn achievement_frame_empty_shows_placeholder() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = make_test_state();
+        state.achievements.clear();
+        shared.insert(state);
+        Screen::new(achievement_frame_screen).sync(&shared, &mut registry);
+
+        let ph_id = registry
+            .get_by_name("AchievementContentPlaceholder")
+            .expect("placeholder");
+        let ph = registry.get(ph_id).expect("frame data");
+        assert!(
+            !ph.hidden,
+            "placeholder should be visible when no achievements"
+        );
+    }
+
+    #[test]
+    fn achievement_frame_with_rows_hides_placeholder() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(achievement_frame_screen).sync(&shared, &mut registry);
+
+        let ph_id = registry
+            .get_by_name("AchievementContentPlaceholder")
+            .expect("placeholder");
+        let ph = registry.get(ph_id).expect("frame data");
+        assert!(
+            ph.hidden,
+            "placeholder should be hidden when achievements present"
+        );
+    }
+
+    #[test]
+    fn achievement_row_progress_fill_width_matches_fraction() {
+        use ui_toolkit::frame::Dimension;
+
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(achievement_frame_screen).sync(&shared, &mut registry);
+
+        // Row 0 is completed (progress=1.0), fill should be full width
+        let fill_id = registry
+            .get_by_name("AchievementRow0ProgressFill")
+            .expect("fill");
+        let fill = registry.get(fill_id).expect("frame data");
+        assert_eq!(fill.width, Dimension::Fixed(PROGRESS_BAR_W));
+
+        // Row 1 has progress=0.75
+        let fill_id = registry
+            .get_by_name("AchievementRow1ProgressFill")
+            .expect("fill");
+        let fill = registry.get(fill_id).expect("frame data");
+        assert_eq!(fill.width, Dimension::Fixed(PROGRESS_BAR_W * 0.75));
     }
 }
