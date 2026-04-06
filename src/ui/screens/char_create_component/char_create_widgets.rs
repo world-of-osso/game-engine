@@ -299,7 +299,7 @@ pub(super) fn name_input_field(focused: bool) -> Element {
     let (center_texture, bg_color, border_color) = if focused {
         (
             "data/textures/editbox-white-fill.ktx2",
-            "0.14,0.10,0.07,1.0",
+            "0.14,0.10,0.07,0.5",
             "1.0,0.82,0.0,1.0",
         )
     } else {
