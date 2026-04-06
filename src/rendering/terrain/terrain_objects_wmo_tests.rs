@@ -146,58 +146,19 @@ fn wmo_debug_label_includes_non_default_name_set() {
 #[test]
 fn build_wmo_footstep_surface_prefers_ground_typed_materials() {
     let root = wmo::WmoRootData {
-        n_groups: 0,
-        flags: wmo::WmoRootFlags::default(),
-        ambient_color: [0.0; 4],
-        bbox_min: [0.0; 3],
-        bbox_max: [0.0; 3],
         materials: vec![
             wmo::WmoMaterialDef {
                 texture_fdid: 124134,
-                texture_2_fdid: 0,
-                texture_3_fdid: 0,
-                flags: 0,
-                material_flags: wmo::WmoMaterialFlags::default(),
-                sidn_color: [0.0; 4],
-                diff_color: [0.0; 4],
                 ground_type: 0,
-                blend_mode: 0,
-                shader: 0,
-                uv_translation_speed: None,
+                ..minimal_mat()
             },
             wmo::WmoMaterialDef {
                 texture_fdid: 123010,
-                texture_2_fdid: 0,
-                texture_3_fdid: 0,
-                flags: 0,
-                material_flags: wmo::WmoMaterialFlags::default(),
-                sidn_color: [0.0; 4],
-                diff_color: [0.0; 4],
                 ground_type: 5,
-                blend_mode: 0,
-                shader: 0,
-                uv_translation_speed: None,
+                ..minimal_mat()
             },
         ],
-        lights: Vec::new(),
-        doodad_sets: Vec::new(),
-        group_names: Vec::new(),
-        doodad_names: Vec::new(),
-        doodad_file_ids: Vec::new(),
-        doodad_defs: Vec::new(),
-        fogs: Vec::new(),
-        visible_block_vertices: Vec::new(),
-        visible_blocks: Vec::new(),
-        convex_volume_planes: Vec::new(),
-        group_file_data_ids: Vec::new(),
-        global_ambient_volumes: Vec::new(),
-        ambient_volumes: Vec::new(),
-        baked_ambient_box_volumes: Vec::new(),
-        dynamic_lights: Vec::new(),
-        portals: Vec::new(),
-        portal_refs: Vec::new(),
-        group_infos: Vec::new(),
-        skybox_wow_path: None,
+        ..minimal_root()
     };
 
     assert_eq!(
@@ -211,41 +172,11 @@ fn build_wmo_footstep_surface_prefers_ground_typed_materials() {
 #[test]
 fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
     let group = wmo::WmoGroupData {
-        header: wmo::WmoGroupHeader {
-            group_name_offset: 0,
-            descriptive_group_name_offset: 0,
-            flags: 0,
-            group_flags: Default::default(),
-            bbox_min: [0.0; 3],
-            bbox_max: [0.0; 3],
-            portal_start: 0,
-            portal_count: 0,
-            trans_batch_count: 0,
-            int_batch_count: 0,
-            ext_batch_count: 0,
-            batch_type_d: 0,
-            fog_ids: [0; 4],
-            group_liquid: 0,
-            unique_id: 0,
-            flags2: 0,
-            parent_split_group_index: -1,
-            next_split_child_group_index: -1,
-        },
         doodad_refs: vec![0, 2, 3, 4],
-        light_refs: Vec::new(),
-        bsp_nodes: Vec::new(),
-        bsp_face_refs: Vec::new(),
-        liquid: None,
-        batches: Vec::new(),
+        ..minimal_group()
     };
     let root = wmo::WmoRootData {
         n_groups: 1,
-        flags: wmo::WmoRootFlags::default(),
-        ambient_color: [0.0; 4],
-        bbox_min: [0.0; 3],
-        bbox_max: [0.0; 3],
-        materials: Vec::new(),
-        lights: Vec::new(),
         doodad_sets: vec![
             wmo::WmoDoodadSet {
                 name: "$DefaultGlobal".into(),
@@ -258,29 +189,19 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
                 n_doodads: 2,
             },
         ],
-        group_names: Vec::new(),
-        doodad_names: vec![
-            wmo::WmoDoodadName {
-                offset: 0,
-                name: "world/generic/passive_doodad_0.m2".into(),
-            },
-            wmo::WmoDoodadName {
-                offset: 1,
-                name: "world/generic/passive_doodad_1.m2".into(),
-            },
-            wmo::WmoDoodadName {
-                offset: 2,
-                name: "world/generic/selected_doodad_2.m2".into(),
-            },
-            wmo::WmoDoodadName {
-                offset: 3,
-                name: "world/generic/selected_doodad_3.m2".into(),
-            },
-            wmo::WmoDoodadName {
-                offset: 4,
-                name: "world/generic/unused_doodad_4.m2".into(),
-            },
-        ],
+        doodad_names: [
+            (0, "world/generic/passive_doodad_0.m2"),
+            (1, "world/generic/passive_doodad_1.m2"),
+            (2, "world/generic/selected_doodad_2.m2"),
+            (3, "world/generic/selected_doodad_3.m2"),
+            (4, "world/generic/unused_doodad_4.m2"),
+        ]
+        .into_iter()
+        .map(|(offset, name)| wmo::WmoDoodadName {
+            offset,
+            name: name.into(),
+        })
+        .collect(),
         doodad_file_ids: vec![100, 101, 102, 103, 104],
         doodad_defs: vec![
             wmo::WmoDoodadDef {
@@ -324,19 +245,7 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
                 color: [1.0; 4],
             },
         ],
-        fogs: Vec::new(),
-        visible_block_vertices: Vec::new(),
-        visible_blocks: Vec::new(),
-        convex_volume_planes: Vec::new(),
-        group_file_data_ids: Vec::new(),
-        global_ambient_volumes: Vec::new(),
-        ambient_volumes: Vec::new(),
-        baked_ambient_box_volumes: Vec::new(),
-        dynamic_lights: Vec::new(),
-        portals: Vec::new(),
-        portal_refs: Vec::new(),
-        group_infos: Vec::new(),
-        skybox_wow_path: None,
+        ..minimal_root()
     };
 
     let doodads = collect_group_doodads(&root, &group, 1);
@@ -356,40 +265,11 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
 #[test]
 fn collect_group_lights_filters_to_group_light_refs() {
     let group = wmo::WmoGroupData {
-        header: wmo::WmoGroupHeader {
-            group_name_offset: 0,
-            descriptive_group_name_offset: 0,
-            flags: 0,
-            group_flags: Default::default(),
-            bbox_min: [0.0; 3],
-            bbox_max: [0.0; 3],
-            portal_start: 0,
-            portal_count: 0,
-            trans_batch_count: 0,
-            int_batch_count: 0,
-            ext_batch_count: 0,
-            batch_type_d: 0,
-            fog_ids: [0; 4],
-            group_liquid: 0,
-            unique_id: 0,
-            flags2: 0,
-            parent_split_group_index: -1,
-            next_split_child_group_index: -1,
-        },
-        doodad_refs: Vec::new(),
         light_refs: vec![0, 2, 9],
-        bsp_nodes: Vec::new(),
-        bsp_face_refs: Vec::new(),
-        liquid: None,
-        batches: Vec::new(),
+        ..minimal_group()
     };
     let root = wmo::WmoRootData {
         n_groups: 1,
-        flags: wmo::WmoRootFlags::default(),
-        ambient_color: [0.0; 4],
-        bbox_min: [0.0; 3],
-        bbox_max: [0.0; 3],
-        materials: Vec::new(),
         lights: vec![
             wmo::WmoLight {
                 light_type: wmo::WmoLightType::Omni,
@@ -422,24 +302,7 @@ fn collect_group_lights_filters_to_group_light_refs() {
                 attenuation_end: 10.0,
             },
         ],
-        doodad_sets: Vec::new(),
-        group_names: Vec::new(),
-        doodad_names: Vec::new(),
-        doodad_file_ids: Vec::new(),
-        doodad_defs: Vec::new(),
-        fogs: Vec::new(),
-        visible_block_vertices: Vec::new(),
-        visible_blocks: Vec::new(),
-        convex_volume_planes: Vec::new(),
-        group_file_data_ids: Vec::new(),
-        global_ambient_volumes: Vec::new(),
-        ambient_volumes: Vec::new(),
-        baked_ambient_box_volumes: Vec::new(),
-        dynamic_lights: Vec::new(),
-        portals: Vec::new(),
-        portal_refs: Vec::new(),
-        group_infos: Vec::new(),
-        skybox_wow_path: None,
+        ..minimal_root()
     };
 
     let lights = collect_group_lights(&root, &group);
@@ -454,45 +317,13 @@ fn collect_group_lights_filters_to_group_light_refs() {
 fn collect_group_fogs_filters_to_valid_unique_group_fog_ids() {
     let group = wmo::WmoGroupData {
         header: wmo::WmoGroupHeader {
-            group_name_offset: 0,
-            descriptive_group_name_offset: 0,
-            flags: 0,
-            group_flags: Default::default(),
-            bbox_min: [0.0; 3],
-            bbox_max: [0.0; 3],
-            portal_start: 0,
-            portal_count: 0,
-            trans_batch_count: 0,
-            int_batch_count: 0,
-            ext_batch_count: 0,
-            batch_type_d: 0,
             fog_ids: [1, 3, 1, 9],
-            group_liquid: 0,
-            unique_id: 0,
-            flags2: 0,
-            parent_split_group_index: -1,
-            next_split_child_group_index: -1,
+            ..minimal_group_header()
         },
-        doodad_refs: Vec::new(),
-        light_refs: Vec::new(),
-        bsp_nodes: Vec::new(),
-        bsp_face_refs: Vec::new(),
-        liquid: None,
-        batches: Vec::new(),
+        ..minimal_group()
     };
     let root = wmo::WmoRootData {
         n_groups: 1,
-        flags: wmo::WmoRootFlags::default(),
-        ambient_color: [0.0; 4],
-        bbox_min: [0.0; 3],
-        bbox_max: [0.0; 3],
-        materials: Vec::new(),
-        lights: Vec::new(),
-        doodad_sets: Vec::new(),
-        group_names: Vec::new(),
-        doodad_names: Vec::new(),
-        doodad_file_ids: Vec::new(),
-        doodad_defs: Vec::new(),
         fogs: vec![
             wmo::WmoFog {
                 flags: 0,
@@ -543,18 +374,7 @@ fn collect_group_fogs_filters_to_valid_unique_group_fog_ids() {
                 color_2: [0.4, 0.8, 0.9, 1.0],
             },
         ],
-        visible_block_vertices: Vec::new(),
-        visible_blocks: Vec::new(),
-        convex_volume_planes: Vec::new(),
-        group_file_data_ids: Vec::new(),
-        global_ambient_volumes: Vec::new(),
-        ambient_volumes: Vec::new(),
-        baked_ambient_box_volumes: Vec::new(),
-        dynamic_lights: Vec::new(),
-        portals: Vec::new(),
-        portal_refs: Vec::new(),
-        group_infos: Vec::new(),
-        skybox_wow_path: None,
+        ..minimal_root()
     };
 
     let fogs = collect_group_fogs(&root, &group);
@@ -569,13 +389,6 @@ fn collect_group_fogs_filters_to_valid_unique_group_fog_ids() {
 fn group_bbox_marks_antiportal_groups_from_authored_name_offsets() {
     let root = wmo::WmoRootData {
         n_groups: 1,
-        flags: wmo::WmoRootFlags::default(),
-        ambient_color: [0.0; 4],
-        bbox_min: [0.0; 3],
-        bbox_max: [0.0; 3],
-        materials: Vec::new(),
-        lights: Vec::new(),
-        doodad_sets: Vec::new(),
         group_names: vec![
             crate::asset::wmo_format::parser::WmoGroupName {
                 offset: 0,
@@ -588,46 +401,16 @@ fn group_bbox_marks_antiportal_groups_from_authored_name_offsets() {
                 is_antiportal: true,
             },
         ],
-        doodad_names: Vec::new(),
-        doodad_file_ids: Vec::new(),
-        doodad_defs: Vec::new(),
-        fogs: Vec::new(),
-        visible_block_vertices: Vec::new(),
-        visible_blocks: Vec::new(),
-        convex_volume_planes: Vec::new(),
-        group_file_data_ids: Vec::new(),
-        global_ambient_volumes: Vec::new(),
-        ambient_volumes: Vec::new(),
-        baked_ambient_box_volumes: Vec::new(),
-        dynamic_lights: Vec::new(),
-        portals: Vec::new(),
-        portal_refs: Vec::new(),
         group_infos: vec![wmo::WmoGroupInfo {
             flags: 0,
             bbox_min: [1.0, 2.0, 3.0],
             bbox_max: [4.0, 5.0, 6.0],
         }],
-        skybox_wow_path: None,
+        ..minimal_root()
     };
     let group_header = wmo::WmoGroupHeader {
-        group_name_offset: 0,
         descriptive_group_name_offset: 24,
-        flags: 0,
-        group_flags: Default::default(),
-        bbox_min: [0.0; 3],
-        bbox_max: [0.0; 3],
-        portal_start: 0,
-        portal_count: 0,
-        trans_batch_count: 0,
-        int_batch_count: 0,
-        ext_batch_count: 0,
-        batch_type_d: 0,
-        fog_ids: [0; 4],
-        group_liquid: 0,
-        unique_id: 0,
-        flags2: 0,
-        parent_split_group_index: -1,
-        next_split_child_group_index: -1,
+        ..minimal_group_header()
     };
 
     let bbox = group_bbox(&root, 0, &group_header);
@@ -705,30 +488,7 @@ fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
               mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>| {
             let root = wmo::WmoRootData {
                 n_groups: 1,
-                flags: wmo::WmoRootFlags::default(),
-                ambient_color: [0.0; 4],
-                bbox_min: [0.0; 3],
-                bbox_max: [0.0; 3],
-                materials: Vec::new(),
-                lights: Vec::new(),
-                doodad_sets: Vec::new(),
-                group_names: Vec::new(),
-                doodad_names: Vec::new(),
-                doodad_file_ids: Vec::new(),
-                doodad_defs: Vec::new(),
-                fogs: Vec::new(),
-                visible_block_vertices: Vec::new(),
-                visible_blocks: Vec::new(),
-                convex_volume_planes: Vec::new(),
-                group_file_data_ids: Vec::new(),
-                global_ambient_volumes: Vec::new(),
-                ambient_volumes: Vec::new(),
-                baked_ambient_box_volumes: Vec::new(),
-                dynamic_lights: Vec::new(),
-                portals: Vec::new(),
-                portal_refs: Vec::new(),
-                group_infos: Vec::new(),
-                skybox_wow_path: None,
+                ..minimal_root()
             };
             let mut assets = WmoAssets {
                 meshes: &mut meshes,
@@ -784,32 +544,12 @@ fn build_wmo_liquid_mesh_skips_empty_tiles_and_uses_vertex_heights() {
             position: [10.0, 20.0, 30.0],
             material_id: 7,
         },
-        vertices: vec![
-            WmoLiquidVertex {
+        vertices: (30..36)
+            .map(|h| WmoLiquidVertex {
                 raw: [0; 4],
-                height: 30.0,
-            },
-            WmoLiquidVertex {
-                raw: [0; 4],
-                height: 31.0,
-            },
-            WmoLiquidVertex {
-                raw: [0; 4],
-                height: 32.0,
-            },
-            WmoLiquidVertex {
-                raw: [0; 4],
-                height: 33.0,
-            },
-            WmoLiquidVertex {
-                raw: [0; 4],
-                height: 34.0,
-            },
-            WmoLiquidVertex {
-                raw: [0; 4],
-                height: 35.0,
-            },
-        ],
+                height: h as f32,
+            })
+            .collect(),
         tiles: vec![
             WmoLiquidTile {
                 liquid_type: 3,
@@ -869,8 +609,14 @@ fn resolve_wmo_group_fdids_truncates_gfid_to_n_groups() {
 fn resolve_wmo_doodad_fdid_prefers_modi_over_modn() {
     let root = wmo::WmoRootData {
         doodad_names: vec![
-            wmo::WmoDoodadName { offset: 0, name: "torch.m2".into() },
-            wmo::WmoDoodadName { offset: 9, name: "barrel.m2".into() },
+            wmo::WmoDoodadName {
+                offset: 0,
+                name: "torch.m2".into(),
+            },
+            wmo::WmoDoodadName {
+                offset: 9,
+                name: "barrel.m2".into(),
+            },
         ],
         doodad_file_ids: vec![1001, 2002],
         ..minimal_root()
@@ -884,9 +630,10 @@ fn resolve_wmo_doodad_fdid_prefers_modi_over_modn() {
 #[test]
 fn resolve_wmo_doodad_fdid_skips_zero_modi_entry() {
     let root = wmo::WmoRootData {
-        doodad_names: vec![
-            wmo::WmoDoodadName { offset: 0, name: "torch.m2".into() },
-        ],
+        doodad_names: vec![wmo::WmoDoodadName {
+            offset: 0,
+            name: "torch.m2".into(),
+        }],
         doodad_file_ids: vec![0],
         ..minimal_root()
     };
@@ -897,14 +644,66 @@ fn resolve_wmo_doodad_fdid_skips_zero_modi_entry() {
 #[test]
 fn resolve_wmo_doodad_fdid_returns_none_for_unknown_offset() {
     let root = wmo::WmoRootData {
-        doodad_names: vec![
-            wmo::WmoDoodadName { offset: 0, name: "torch.m2".into() },
-        ],
+        doodad_names: vec![wmo::WmoDoodadName {
+            offset: 0,
+            name: "torch.m2".into(),
+        }],
         doodad_file_ids: vec![1001],
         ..minimal_root()
     };
     // name_offset=99 doesn't match any doodad_names entry
     assert_eq!(resolve_wmo_doodad_fdid(&root, 99), None);
+}
+
+fn minimal_mat() -> wmo::WmoMaterialDef {
+    wmo::WmoMaterialDef {
+        texture_fdid: 0,
+        texture_2_fdid: 0,
+        texture_3_fdid: 0,
+        flags: 0,
+        material_flags: wmo::WmoMaterialFlags::default(),
+        sidn_color: [0.0; 4],
+        diff_color: [0.0; 4],
+        ground_type: 0,
+        blend_mode: 0,
+        shader: 0,
+        uv_translation_speed: None,
+    }
+}
+
+fn minimal_group_header() -> wmo::WmoGroupHeader {
+    wmo::WmoGroupHeader {
+        group_name_offset: 0,
+        descriptive_group_name_offset: 0,
+        flags: 0,
+        group_flags: Default::default(),
+        bbox_min: [0.0; 3],
+        bbox_max: [0.0; 3],
+        portal_start: 0,
+        portal_count: 0,
+        trans_batch_count: 0,
+        int_batch_count: 0,
+        ext_batch_count: 0,
+        batch_type_d: 0,
+        fog_ids: [0; 4],
+        group_liquid: 0,
+        unique_id: 0,
+        flags2: 0,
+        parent_split_group_index: -1,
+        next_split_child_group_index: -1,
+    }
+}
+
+fn minimal_group() -> wmo::WmoGroupData {
+    wmo::WmoGroupData {
+        header: minimal_group_header(),
+        doodad_refs: Vec::new(),
+        light_refs: Vec::new(),
+        bsp_nodes: Vec::new(),
+        bsp_face_refs: Vec::new(),
+        liquid: None,
+        batches: Vec::new(),
+    }
 }
 
 fn minimal_root() -> wmo::WmoRootData {
