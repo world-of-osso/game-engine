@@ -293,6 +293,87 @@ fn bench_skin_fdid_resolution(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_minimap_blit(c: &mut Criterion) {
+    let comp_size = 768;
+    let tile_px = 256;
+    let mut composite = vec![0u8; comp_size * comp_size * 4];
+    let tile_data = vec![128u8; tile_px * tile_px * 4];
+
+    c.bench_function("minimap::blit_image_256", |b| {
+        b.iter(|| {
+            game_engine::minimap_render::blit_image(
+                &mut composite,
+                comp_size,
+                &tile_data,
+                tile_px,
+                256,
+                256,
+            );
+        });
+    });
+}
+
+fn bench_minimap_crop(c: &mut Criterion) {
+    let comp_size = 768;
+    let composite = vec![128u8; comp_size * comp_size * 4];
+
+    c.bench_function("minimap::crop_with_circle_200", |b| {
+        b.iter(|| {
+            game_engine::minimap_render::crop_with_circle(&composite, comp_size, 384, 384, 200);
+        });
+    });
+}
+
+fn bench_minimap_render_tile(c: &mut Criterion) {
+    use game_engine::asset::adt::ChunkHeightGrid;
+
+    // Build 256 synthetic chunks (16x16 grid) with realistic height data.
+    let chunks: Vec<Option<ChunkHeightGrid>> = (0..256)
+        .map(|i| {
+            let ix = i % 16;
+            let iy = i / 16;
+            let mut heights = [0.0f32; 145];
+            for (hi, h) in heights.iter_mut().enumerate() {
+                *h = 100.0 + (ix as f32 * 10.0) + (iy as f32 * 5.0) + (hi as f32 * 0.1);
+            }
+            Some(ChunkHeightGrid {
+                index_x: ix as u32,
+                index_y: iy as u32,
+                origin_x: 0.0,
+                origin_z: 0.0,
+                base_y: 100.0,
+                heights,
+            })
+        })
+        .collect();
+
+    c.bench_function("minimap::render_tile_image_256", |b| {
+        b.iter(|| game_engine::minimap_render::render_tile_image(&chunks, 256));
+    });
+}
+
+fn bench_adt_texture_decode(c: &mut Criterion) {
+    let tex_path = Path::new("data/terrain/azeroth_32_48_tex0.adt");
+    if !tex_path.exists() {
+        eprintln!(
+            "skipping bench_adt_texture_decode: {} not found",
+            tex_path.display()
+        );
+        return;
+    }
+    let tex_bytes = std::fs::read(tex_path).expect("read benchmark ADT tex");
+    let tex_data = load_adt_tex0(&tex_bytes).expect("parse benchmark ADT tex");
+
+    c.bench_function("adt::texture_decode_blp_for_tile", |b| {
+        b.iter(|| {
+            for fdid in &tex_data.texture_fdids {
+                let path = format!("data/textures/{fdid}.blp");
+                let _ = load_blp_rgba(Path::new(&path));
+            }
+        });
+    });
+}
+
 criterion_group!(
     parser_benches,
     bench_csv_parsers,
@@ -303,6 +384,10 @@ criterion_group!(
     bench_particle_emitter_parsing,
     bench_particle_effect_asset_build,
     bench_character_texture_compositing,
-    bench_skin_fdid_resolution
+    bench_skin_fdid_resolution,
+    bench_minimap_blit,
+    bench_minimap_crop,
+    bench_minimap_render_tile,
+    bench_adt_texture_decode
 );
 criterion_main!(parser_benches);

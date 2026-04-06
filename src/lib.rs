@@ -52,6 +52,8 @@ pub mod culling;
 pub mod customization_cache;
 #[path = "rendering/character/customization_data.rs"]
 pub mod customization_data;
+#[path = "rendering/ui/minimap_render.rs"]
+pub mod minimap_render;
 #[path = "rendering/skybox/validation.rs"]
 pub mod skybox_validation;
 #[path = "rendering/ui/targeting.rs"]
