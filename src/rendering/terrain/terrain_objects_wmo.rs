@@ -149,7 +149,7 @@ fn try_spawn_wmo(
     let root_data = std::fs::read(&root_path).ok()?;
     let root = wmo::load_wmo_root(&root_data).ok()?;
 
-    let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups);
+    let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups, &root.group_file_data_ids);
     let transform = wmo_transform(placement, tile_y, tile_x);
     let portal_graph = build_portal_graph(&root);
     let root_entity = spawn_wmo_root_entity(
@@ -402,9 +402,21 @@ fn resolve_wmo_fdid(wmo: &adt_obj::WmoPlacement) -> Option<u32> {
     game_engine::listfile::lookup_path(wow_path)
 }
 
-fn resolve_wmo_group_fdids(root_fdid: u32, n_groups: u32) -> Vec<Option<u32>> {
+fn resolve_wmo_group_fdids(
+    root_fdid: u32,
+    n_groups: u32,
+    gfid: &[u32],
+) -> Vec<Option<u32>> {
+    if gfid.len() >= n_groups as usize {
+        return gfid[..n_groups as usize]
+            .iter()
+            .map(|&id| if id != 0 { Some(id) } else { None })
+            .collect();
+    }
+
+    // Fallback: listfile path resolution for legacy files without GFID
     let Some(root_path) = game_engine::listfile::lookup_fdid(root_fdid) else {
-        eprintln!("  WMO {root_fdid}: not in listfile, cannot resolve group FDIDs");
+        eprintln!("  WMO {root_fdid}: no GFID and not in listfile, cannot resolve group FDIDs");
         return vec![None; n_groups as usize];
     };
     let base = root_path.trim_end_matches(".wmo");
