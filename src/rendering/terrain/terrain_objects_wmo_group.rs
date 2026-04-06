@@ -353,7 +353,7 @@ pub(super) fn spawn_wmo_group_doodads(
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct WmoGroupDoodad {
-    pub(super) model_path: String,
+    pub(super) model_fdid: u32,
     pub(super) transform: Transform,
 }
 
@@ -371,9 +371,9 @@ pub(super) fn collect_group_doodads(
                 return None;
             }
             let doodad_def = root.doodad_defs.get(doodad_index as usize)?;
-            let model_path = resolve_wmo_doodad_name_path(root, doodad_def.name_offset)?;
+            let model_fdid = resolve_wmo_doodad_fdid(root, doodad_def.name_offset)?;
             Some(WmoGroupDoodad {
-                model_path,
+                model_fdid,
                 transform: wmo_doodad_transform(doodad_def),
             })
         })
@@ -410,20 +410,30 @@ pub(super) fn add_wmo_doodad_set_indices(
     indices.extend((start..end).filter_map(|idx| u16::try_from(idx).ok()));
 }
 
-pub(super) fn resolve_wmo_doodad_name_path(
+/// Resolve a doodad FDID from MODI (preferred) or MODN name → listfile lookup (fallback).
+///
+/// MODD entries reference doodads by `name_offset` — a byte offset into the MODN string table.
+/// MODI entries are indexed by *name index* (sequential position), not byte offset.
+pub(super) fn resolve_wmo_doodad_fdid(
     root: &wmo::WmoRootData,
     name_offset: u32,
-) -> Option<String> {
-    root.doodad_names
+) -> Option<u32> {
+    let name_index = root
+        .doodad_names
         .iter()
-        .find(|name| name.offset == name_offset)
-        .map(|name| name.name.clone())
-        .or_else(|| {
-            root.doodad_file_ids
-                .get(name_offset as usize)
-                .and_then(|fdid| game_engine::listfile::lookup_fdid(*fdid))
-                .map(str::to_string)
-        })
+        .position(|n| n.offset == name_offset);
+
+    // MODI path: use FDID directly, no listfile needed
+    let modi_fdid = name_index.and_then(|idx| root.doodad_file_ids.get(idx).copied());
+    if let Some(fdid) = modi_fdid.filter(|&id| id != 0) {
+        return Some(fdid);
+    }
+
+    // Fallback: MODN name → listfile path → FDID
+    let name = name_index
+        .and_then(|idx| root.doodad_names.get(idx))
+        .map(|n| &n.name)?;
+    game_engine::listfile::lookup_path(name)
 }
 
 pub(super) fn wmo_doodad_transform(doodad_def: &wmo::WmoDoodadDef) -> Transform {
@@ -442,7 +452,15 @@ pub(super) fn spawn_wmo_group_doodad(
     assets: &mut WmoAssets<'_>,
     doodad: &WmoGroupDoodad,
 ) -> Option<Entity> {
-    let (model_path, name) = resolve_wmo_doodad_model_path(doodad)?;
+    let model_path = crate::asset::asset_cache::model(doodad.model_fdid)?;
+    if !model_path.exists() {
+        return None;
+    }
+    let name = model_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("wmo_doodad")
+        .to_owned();
     let entity = commands
         .spawn((Name::new(name), doodad.transform, Visibility::default()))
         .id();
@@ -464,20 +482,6 @@ pub(super) fn spawn_wmo_group_doodad(
         return None;
     }
     Some(entity)
-}
-
-fn resolve_wmo_doodad_model_path(doodad: &WmoGroupDoodad) -> Option<(PathBuf, String)> {
-    let fdid = game_engine::listfile::lookup_path(&doodad.model_path)?;
-    let model_path = crate::asset::asset_cache::model(fdid)?;
-    if !model_path.exists() {
-        return None;
-    }
-    let name = model_path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or("wmo_doodad")
-        .to_owned();
-    Some((model_path, name))
 }
 
 pub(super) fn group_bbox(

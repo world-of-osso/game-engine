@@ -281,7 +281,7 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
                 name: "world/generic/unused_doodad_4.m2".into(),
             },
         ],
-        doodad_file_ids: Vec::new(),
+        doodad_file_ids: vec![100, 101, 102, 103, 104],
         doodad_defs: vec![
             wmo::WmoDoodadDef {
                 name_offset: 0,
@@ -344,13 +344,9 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
     assert_eq!(
         doodads
             .iter()
-            .map(|doodad| doodad.model_path.clone())
+            .map(|doodad| doodad.model_fdid)
             .collect::<Vec<_>>(),
-        vec![
-            "world/generic/passive_doodad_0.m2",
-            "world/generic/selected_doodad_2.m2",
-            "world/generic/selected_doodad_3.m2",
-        ]
+        vec![100, 102, 103]
     );
     assert_eq!(doodads[0].transform.translation, Vec3::new(-1.0, 3.0, 2.0));
     assert_eq!(doodads[1].transform.scale, Vec3::splat(0.5));
