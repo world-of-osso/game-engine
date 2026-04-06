@@ -196,7 +196,12 @@ fn format_layout_rect_info(f: &Frame) -> String {
 fn format_position_info(f: &Frame) -> String {
     f.layout_rect
         .as_ref()
-        .map(|r| format!(" x={:.0}, y={:.0}", r.x, r.y))
+        .map(|r| {
+            format!(
+                " x={:.0} y={:.0} w={:.0} h={:.0}",
+                r.x, r.y, r.width, r.height
+            )
+        })
         .unwrap_or_default()
 }
 
