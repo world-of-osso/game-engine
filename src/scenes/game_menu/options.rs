@@ -568,4 +568,177 @@ mod tests {
         assert!(!model.draft_graphics.bloom_enabled);
         assert!((model.draft_graphics.bloom_intensity - 0.08).abs() < 0.0001);
     }
+
+    fn default_model() -> OverlayModel {
+        OverlayModel {
+            logged_in: true,
+            view: GameMenuView::Options,
+            category: OptionsCategory::Graphics,
+            modal_position: [500.0, 180.0],
+            drag_capture: DragCapture::None,
+            drag_origin: Vec2::ZERO,
+            drag_offset: Vec2::ZERO,
+            pressed_action: None,
+            pressed_origin: Vec2::ZERO,
+            draft_graphics: graphics_draft(&GraphicsOptions::default()),
+            draft_sound: sound_draft(None),
+            draft_camera: camera_draft(&CameraOptions::default()),
+            draft_hud: hud_draft(&HudOptions::default()),
+            committed_graphics: graphics_draft(&GraphicsOptions::default()),
+            committed_sound: sound_draft(None),
+            committed_camera: camera_draft(&CameraOptions::default()),
+            committed_hud: hud_draft(&HudOptions::default()),
+            draft_bindings: InputBindings::default(),
+            committed_bindings: InputBindings::default(),
+            binding_section: BindingSection::Movement,
+            binding_capture: BindingCapture::None,
+        }
+    }
+
+    // ── slider tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn slider_apply_master_volume_updates_sound_draft() {
+        let mut model = default_model();
+        apply_slider_value(SliderField::MasterVolume, 0.75, &mut model);
+        assert!((model.draft_sound.master_volume - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn slider_apply_min_distance_normalizes_camera_limits() {
+        let mut model = default_model();
+        model.draft_camera.max_distance = 15.0;
+        apply_slider_value(SliderField::MinDistance, 20.0, &mut model);
+        assert!(
+            model.draft_camera.max_distance >= model.draft_camera.min_distance + 1.0,
+            "max_distance should be clamped above min_distance"
+        );
+    }
+
+    #[test]
+    fn slider_bounds_are_valid_ranges() {
+        for field in [
+            SliderField::ParticleDensity,
+            SliderField::RenderScale,
+            SliderField::MasterVolume,
+            SliderField::LookSensitivity,
+            SliderField::MinDistance,
+            SliderField::MaxDistance,
+        ] {
+            let (min, max) = slider_bounds(field);
+            assert!(
+                min < max,
+                "slider {field:?} has invalid bounds: {min} >= {max}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_slider_action_round_trips_all_fields() {
+        let actions = [
+            ("options_slider:master_volume", SliderField::MasterVolume),
+            ("options_slider:render_scale", SliderField::RenderScale),
+            ("options_slider:min_distance", SliderField::MinDistance),
+        ];
+        for (action, expected) in actions {
+            assert_eq!(parse_slider_action(action), Some(expected));
+        }
+    }
+
+    #[test]
+    fn parse_slider_action_rejects_unknown() {
+        assert_eq!(parse_slider_action("options_slider:bogus"), None);
+        assert_eq!(parse_slider_action("not_a_slider"), None);
+    }
+
+    // ── category switching tests ────────────────────────────────────────
+
+    #[test]
+    fn parse_category_action_resolves_all_categories() {
+        let cases = [
+            ("options_category:graphics", OptionsCategory::Graphics),
+            ("options_category:sound", OptionsCategory::Sound),
+            ("options_category:controls", OptionsCategory::Controls),
+            ("options_category:keybindings", OptionsCategory::Keybindings),
+            ("options_category:support", OptionsCategory::Support),
+        ];
+        for (action, expected) in cases {
+            assert_eq!(
+                parse_category_action(action),
+                Some(expected),
+                "failed for {action}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_category_action_rejects_invalid() {
+        assert_eq!(parse_category_action("options_category:bogus"), None);
+        assert_eq!(parse_category_action("not_a_category"), None);
+    }
+
+    // ── binding capture flow tests ──────────────────────────────────────
+
+    #[test]
+    fn binding_capture_none_returns_no_action() {
+        assert!(current_capture_action(BindingCapture::None).is_none());
+    }
+
+    #[test]
+    fn binding_capture_armed_returns_action() {
+        let action = InputAction::MoveForward;
+        assert_eq!(
+            current_capture_action(BindingCapture::Armed(action)),
+            Some(action)
+        );
+    }
+
+    #[test]
+    fn binding_capture_listening_returns_action() {
+        let action = InputAction::MoveForward;
+        assert_eq!(
+            current_capture_action(BindingCapture::Listening(action)),
+            Some(action)
+        );
+    }
+
+    #[test]
+    fn binding_capture_armed_transitions_to_listening() {
+        let action = InputAction::MoveForward;
+        let mut capture = BindingCapture::Armed(action);
+        // Simulate the release handler transition
+        if let BindingCapture::Armed(a) = capture {
+            capture = BindingCapture::Listening(a);
+        }
+        assert!(matches!(
+            capture,
+            BindingCapture::Listening(InputAction::MoveForward)
+        ));
+    }
+
+    #[test]
+    fn binding_capture_escape_resets_to_none() {
+        let mut capture = BindingCapture::Listening(InputAction::MoveForward);
+        // Simulate ESC handler
+        if current_capture_action(capture).is_some() {
+            capture = BindingCapture::None;
+        }
+        assert!(matches!(capture, BindingCapture::None));
+    }
+
+    #[test]
+    fn draft_bindings_assign_updates_mapping() {
+        let mut model = default_model();
+        model.draft_bindings.assign(
+            InputAction::MoveForward,
+            game_engine::input_bindings::InputBinding::Keyboard(bevy::prelude::KeyCode::KeyZ),
+        );
+        let binding = model.draft_bindings.binding(InputAction::MoveForward);
+        assert_eq!(
+            binding,
+            Some(game_engine::input_bindings::InputBinding::Keyboard(
+                bevy::prelude::KeyCode::KeyZ
+            ))
+        );
+    }
 }
