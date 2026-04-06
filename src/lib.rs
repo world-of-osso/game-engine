@@ -56,3 +56,5 @@ pub mod customization_data;
 pub mod skybox_validation;
 #[path = "rendering/ui/targeting.rs"]
 pub mod targeting;
+#[path = "rendering/terrain/terrain_load_limits.rs"]
+pub mod terrain_load_limits;
