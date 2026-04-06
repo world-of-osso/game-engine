@@ -172,7 +172,7 @@ pub struct InventoryItemEntry {
     pub stack_count: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct InventorySearchSnapshot {
     pub entries: Vec<InventoryItemEntry>,
 }

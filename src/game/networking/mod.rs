@@ -16,8 +16,10 @@ pub use crate::networking_auth::{
 
 use crate::camera::{CharacterFacing, MovementState};
 use game_engine::status::{
-    CollectionStatusSnapshot, CombatLogStatusSnapshot, GroupStatusSnapshot, MapStatusSnapshot,
-    ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, InventorySearchSnapshot, MapStatusSnapshot,
+    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    WarbankStatusSnapshot,
 };
 
 /// Marker for entities spawned from server replication.
@@ -171,6 +173,11 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<CollectionStatusSnapshot>();
     app.init_resource::<ProfessionStatusSnapshot>();
     app.init_resource::<MapStatusSnapshot>();
+    app.init_resource::<CurrenciesStatusSnapshot>();
+    app.init_resource::<ReputationsStatusSnapshot>();
+    app.init_resource::<GuildVaultStatusSnapshot>();
+    app.init_resource::<WarbankStatusSnapshot>();
+    app.init_resource::<InventorySearchSnapshot>();
 }
 
 fn register_net_systems(app: &mut App) {
@@ -226,6 +233,11 @@ fn register_inworld_sync_systems(app: &mut App) {
             msg::receive_combat_events,
             msg::receive_collection_snapshot,
             msg::receive_profession_snapshot,
+            msg::receive_currency_snapshot,
+            msg::receive_reputation_snapshot,
+            msg::receive_guild_vault_snapshot,
+            msg::receive_warbank_snapshot,
+            msg::receive_inventory_search_snapshot,
             sync_replicated_transforms,
             crate::networking_player::sync_replicated_player_customization,
             interpolate_remote_entities,

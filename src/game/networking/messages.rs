@@ -3,9 +3,11 @@ use lightyear::prelude::*;
 use shared::components::Zone;
 use shared::protocol::{
     ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
-    CombatLogEventKindSnapshot, CombatLogSnapshot, GroupCommandResponse, GroupRoleSnapshot,
-    GroupRosterSnapshot, InputChannel, LoadTerrain, PlayerInput, ProfessionSnapshot,
-    QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot, SetTarget,
+    CombatLogEventKindSnapshot, CombatLogSnapshot, CurrencySnapshot, GroupCommandResponse,
+    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
+    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot, QuestLogSnapshot,
+    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationSnapshot, SetTarget,
+    StorageItemSnapshot, WarbankSnapshot,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -13,9 +15,11 @@ use crate::networking::{ChatInput, ChatLog, CurrentZone, MAX_CHAT_LOG, MAX_COMBA
 use crate::terrain::AdtManager;
 use game_engine::status::{
     CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
-    CombatLogEventKind, CombatLogStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot,
-    ProfessionRecipeEntry, ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot,
-    QuestObjectiveEntry, QuestRepeatability,
+    CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, CurrencyEntry,
+    GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot, InventoryItemEntry,
+    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionStatusSnapshot, QuestEntry,
+    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    ReputationsStatusSnapshot, StorageItemEntry, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 
@@ -303,6 +307,99 @@ pub(crate) fn receive_profession_snapshot(
                     name: recipe.name,
                     craftable: recipe.craftable,
                     cooldown: recipe.cooldown,
+                })
+                .collect();
+        }
+    }
+}
+
+pub(crate) fn receive_currency_snapshot(
+    mut receivers: Query<&mut MessageReceiver<CurrencySnapshot>>,
+    mut snapshot: ResMut<CurrenciesStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg
+                .entries
+                .into_iter()
+                .map(|e| CurrencyEntry {
+                    id: e.id,
+                    name: e.name,
+                    amount: e.amount,
+                })
+                .collect();
+        }
+    }
+}
+
+pub(crate) fn receive_reputation_snapshot(
+    mut receivers: Query<&mut MessageReceiver<ReputationSnapshot>>,
+    mut snapshot: ResMut<ReputationsStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg
+                .entries
+                .into_iter()
+                .map(|e| ReputationEntry {
+                    faction_id: e.faction_id,
+                    faction_name: e.faction_name,
+                    standing: e.standing,
+                    value: e.value,
+                })
+                .collect();
+        }
+    }
+}
+
+pub(crate) fn receive_guild_vault_snapshot(
+    mut receivers: Query<&mut MessageReceiver<GuildVaultSnapshot>>,
+    mut snapshot: ResMut<GuildVaultStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg.entries.into_iter().map(map_storage_item).collect();
+        }
+    }
+}
+
+pub(crate) fn receive_warbank_snapshot(
+    mut receivers: Query<&mut MessageReceiver<WarbankSnapshot>>,
+    mut snapshot: ResMut<WarbankStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg.entries.into_iter().map(map_storage_item).collect();
+        }
+    }
+}
+
+fn map_storage_item(e: StorageItemSnapshot) -> StorageItemEntry {
+    StorageItemEntry {
+        slot: e.slot,
+        item_guid: e.item_guid,
+        item_id: e.item_id,
+        name: e.name,
+        stack_count: e.stack_count,
+    }
+}
+
+pub(crate) fn receive_inventory_search_snapshot(
+    mut receivers: Query<&mut MessageReceiver<InventorySearchResultSnapshot>>,
+    mut snapshot: ResMut<InventorySearchSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for msg in receiver.receive() {
+            snapshot.entries = msg
+                .entries
+                .into_iter()
+                .map(|e| InventoryItemEntry {
+                    storage: e.storage,
+                    slot: e.slot,
+                    item_guid: e.item_guid,
+                    item_id: e.item_id,
+                    name: e.name,
+                    stack_count: e.stack_count,
                 })
                 .collect();
         }
