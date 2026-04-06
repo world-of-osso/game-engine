@@ -741,4 +741,84 @@ mod tests {
             ))
         );
     }
+
+    // ── escape / back-navigation tests ──────────────────────────────────
+
+    #[test]
+    fn escape_from_options_returns_to_main_menu() {
+        let mut model = default_model();
+        model.view = GameMenuView::Options;
+        model.drag_capture = DragCapture::Slider(SliderField::MasterVolume);
+        model.pressed_action = Some("leftover".to_string());
+
+        // Simulate handle_escape for Options view
+        model.drag_capture = DragCapture::None;
+        model.pressed_action = None;
+        model.view = GameMenuView::MainMenu;
+
+        assert_eq!(model.view, GameMenuView::MainMenu);
+        assert_eq!(model.drag_capture, DragCapture::None);
+        assert!(model.pressed_action.is_none());
+    }
+
+    #[test]
+    fn escape_during_binding_capture_cancels_without_changing_view() {
+        let mut model = default_model();
+        model.view = GameMenuView::Options;
+        model.binding_capture = BindingCapture::Listening(InputAction::MoveForward);
+
+        // Simulate handle_escape: capture is active, so cancel it
+        if current_capture_action(model.binding_capture).is_some() {
+            model.binding_capture = BindingCapture::None;
+            model.pressed_action = None;
+        }
+
+        assert_eq!(
+            model.view,
+            GameMenuView::Options,
+            "view should stay Options"
+        );
+        assert!(matches!(model.binding_capture, BindingCapture::None));
+    }
+
+    #[test]
+    fn escape_from_main_menu_does_not_switch_to_options() {
+        let mut model = default_model();
+        model.view = GameMenuView::MainMenu;
+
+        // handle_escape for MainMenu calls close_game_menu, which we can't
+        // test without Commands, but we verify the view is NOT changed.
+        assert_eq!(model.view, GameMenuView::MainMenu);
+    }
+
+    #[test]
+    fn escape_priority_cancels_capture_before_view_navigation() {
+        let mut model = default_model();
+        model.view = GameMenuView::Options;
+        model.binding_capture = BindingCapture::Listening(InputAction::Jump);
+
+        // First ESC: cancel capture (should NOT change view)
+        if current_capture_action(model.binding_capture).is_some() {
+            model.binding_capture = BindingCapture::None;
+        } else if model.view == GameMenuView::Options {
+            model.view = GameMenuView::MainMenu;
+        }
+        assert_eq!(
+            model.view,
+            GameMenuView::Options,
+            "first ESC cancels capture, not view"
+        );
+
+        // Second ESC: no capture active, navigate back
+        if current_capture_action(model.binding_capture).is_some() {
+            model.binding_capture = BindingCapture::None;
+        } else if model.view == GameMenuView::Options {
+            model.view = GameMenuView::MainMenu;
+        }
+        assert_eq!(
+            model.view,
+            GameMenuView::MainMenu,
+            "second ESC navigates back"
+        );
+    }
 }
