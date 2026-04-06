@@ -91,7 +91,7 @@ fn handle_escape(
     if overlay.model.view == GameMenuView::Options {
         overlay.model.drag_capture = DragCapture::None;
         overlay.model.pressed_action = None;
-        close_game_menu(commands);
+        overlay.model.view = GameMenuView::MainMenu;
     } else {
         close_game_menu(commands);
     }
