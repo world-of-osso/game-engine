@@ -109,18 +109,23 @@ fn reset_world_resources(world: &mut World) {
 }
 
 fn reset_status_snapshots(world: &mut World) {
-    reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
+    reset_resource::<game_engine::status::CharacterRosterStatusSnapshot>(world);
     reset_resource::<game_engine::status::CharacterStatsSnapshot>(world);
     reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
     reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);
+    reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
+    reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
     reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
     reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
     reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
     reset_resource::<game_engine::status::MapStatusSnapshot>(world);
+    reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
     reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);
     reset_resource::<game_engine::status::QuestLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::ReputationsStatusSnapshot>(world);
+    reset_resource::<game_engine::status::SoundStatusSnapshot>(world);
+    reset_resource::<game_engine::status::TerrainStatusSnapshot>(world);
     reset_resource::<game_engine::status::WarbankStatusSnapshot>(world);
 }
 
