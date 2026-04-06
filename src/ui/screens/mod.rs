@@ -14,4 +14,5 @@ pub mod options_menu_component;
 mod options_menu_sections;
 mod screen_title;
 pub mod selection_debug_component;
+pub mod talent_frame_component;
 pub mod trash_button_component;
