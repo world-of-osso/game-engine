@@ -843,3 +843,96 @@ fn build_wmo_liquid_mesh_skips_empty_tiles_and_uses_vertex_heights() {
     assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
     assert_eq!(mesh.indices().unwrap().len(), 6);
 }
+
+#[test]
+fn resolve_wmo_group_fdids_uses_gfid_when_available() {
+    let gfid = vec![100, 200, 300];
+    let result = resolve_wmo_group_fdids(999, 3, &gfid);
+    assert_eq!(result, vec![Some(100), Some(200), Some(300)]);
+}
+
+#[test]
+fn resolve_wmo_group_fdids_treats_zero_gfid_as_none() {
+    let gfid = vec![100, 0, 300];
+    let result = resolve_wmo_group_fdids(999, 3, &gfid);
+    assert_eq!(result, vec![Some(100), None, Some(300)]);
+}
+
+#[test]
+fn resolve_wmo_group_fdids_truncates_gfid_to_n_groups() {
+    let gfid = vec![100, 200, 300, 400];
+    let result = resolve_wmo_group_fdids(999, 2, &gfid);
+    assert_eq!(result, vec![Some(100), Some(200)]);
+}
+
+#[test]
+fn resolve_wmo_doodad_fdid_prefers_modi_over_modn() {
+    let root = wmo::WmoRootData {
+        doodad_names: vec![
+            wmo::WmoDoodadName { offset: 0, name: "torch.m2".into() },
+            wmo::WmoDoodadName { offset: 9, name: "barrel.m2".into() },
+        ],
+        doodad_file_ids: vec![1001, 2002],
+        ..minimal_root()
+    };
+    // name_offset=0 → name index 0 → MODI[0] = 1001
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 0), Some(1001));
+    // name_offset=9 → name index 1 → MODI[1] = 2002
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 9), Some(2002));
+}
+
+#[test]
+fn resolve_wmo_doodad_fdid_skips_zero_modi_entry() {
+    let root = wmo::WmoRootData {
+        doodad_names: vec![
+            wmo::WmoDoodadName { offset: 0, name: "torch.m2".into() },
+        ],
+        doodad_file_ids: vec![0],
+        ..minimal_root()
+    };
+    // MODI has 0 → should fall through (listfile won't resolve in tests, returns None)
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 0), None);
+}
+
+#[test]
+fn resolve_wmo_doodad_fdid_returns_none_for_unknown_offset() {
+    let root = wmo::WmoRootData {
+        doodad_names: vec![
+            wmo::WmoDoodadName { offset: 0, name: "torch.m2".into() },
+        ],
+        doodad_file_ids: vec![1001],
+        ..minimal_root()
+    };
+    // name_offset=99 doesn't match any doodad_names entry
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 99), None);
+}
+
+fn minimal_root() -> wmo::WmoRootData {
+    wmo::WmoRootData {
+        n_groups: 0,
+        flags: Default::default(),
+        ambient_color: [0.0; 4],
+        bbox_min: [0.0; 3],
+        bbox_max: [0.0; 3],
+        materials: Vec::new(),
+        lights: Vec::new(),
+        doodad_sets: Vec::new(),
+        group_names: Vec::new(),
+        doodad_names: Vec::new(),
+        doodad_file_ids: Vec::new(),
+        doodad_defs: Vec::new(),
+        fogs: Vec::new(),
+        visible_block_vertices: Vec::new(),
+        visible_blocks: Vec::new(),
+        convex_volume_planes: Vec::new(),
+        group_file_data_ids: Vec::new(),
+        global_ambient_volumes: Vec::new(),
+        ambient_volumes: Vec::new(),
+        baked_ambient_box_volumes: Vec::new(),
+        dynamic_lights: Vec::new(),
+        portals: Vec::new(),
+        portal_refs: Vec::new(),
+        group_infos: Vec::new(),
+        skybox_wow_path: None,
+    }
+}
