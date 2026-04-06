@@ -295,8 +295,9 @@ fn input_border_textures() -> [String; 9] {
     ]
 }
 
-pub(super) fn name_input_field() -> Element {
+pub(super) fn name_input_field(focused: bool) -> Element {
     let textures = input_border_textures();
+    let border_color = if focused { "1.0,0.92,0.72,1.0" } else { "1,1,1,1" };
     rsx! {
         fontstring {
             name: "NameLabel",
@@ -319,7 +320,7 @@ pub(super) fn name_input_field() -> Element {
             nine_slice {
                 edge_size: 8,
                 bg_color: "1,1,1,1",
-                border_color: "1,1,1,1",
+                border_color: {border_color},
                 textures: {textures},
             }
             anchor {

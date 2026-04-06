@@ -48,21 +48,20 @@ fn swatch_gap_center_x() -> String {
 fn stepper_dec_button(field: AppearanceField) -> Element {
     let x = right_inset_x(DEC_RIGHT_INSET);
     rsx! {
-        r#frame {
+        button {
             name: dyn_name(format!("AppDec_{}", field.as_str())),
             width: STEPPER_SIZE,
             height: STEPPER_SIZE,
+            text: "",
             onclick: CharCreateAction::AppearanceDec(field),
+            button_atlas_up: "charactercreate-customize-backbutton",
+            button_atlas_pressed: "charactercreate-customize-backbutton-down",
+            button_atlas_highlight: "charactercreate-customize-backbutton",
+            button_atlas_disabled: "charactercreate-customize-backbutton-disabled",
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
                 x,
-            }
-            texture {
-                name: dyn_name(format!("AppDecBg_{}", field.as_str())),
-                width: STEPPER_SIZE,
-                height: STEPPER_SIZE,
-                texture_atlas: "charactercreate-customize-backbutton",
             }
         }
     }
@@ -71,21 +70,20 @@ fn stepper_dec_button(field: AppearanceField) -> Element {
 fn stepper_inc_button(field: AppearanceField) -> Element {
     let x = right_inset_x(INC_RIGHT_INSET);
     rsx! {
-        r#frame {
+        button {
             name: dyn_name(format!("AppInc_{}", field.as_str())),
             width: STEPPER_SIZE,
             height: STEPPER_SIZE,
+            text: "",
             onclick: CharCreateAction::AppearanceInc(field),
+            button_atlas_up: "charactercreate-customize-nextbutton",
+            button_atlas_pressed: "charactercreate-customize-nextbutton-down",
+            button_atlas_highlight: "charactercreate-customize-nextbutton",
+            button_atlas_disabled: "charactercreate-customize-nextbutton-disabled",
             anchor {
                 point: AnchorPoint::Right,
                 relative_point: AnchorPoint::Right,
                 x,
-            }
-            texture {
-                name: dyn_name(format!("AppIncBg_{}", field.as_str())),
-                width: STEPPER_SIZE,
-                height: STEPPER_SIZE,
-                texture_atlas: "charactercreate-customize-nextbutton",
             }
         }
     }

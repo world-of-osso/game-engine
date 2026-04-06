@@ -146,6 +146,7 @@ pub struct CharCreateUiState {
     pub open_dropdown: Option<AppearanceField>,
     pub name: String,
     pub error_text: Option<String>,
+    pub name_input_focused: bool,
     /// (class_id, class_name, icon_file, available_for_race)
     pub class_availability: Vec<(u8, &'static str, &'static str, bool)>,
 }
@@ -176,6 +177,7 @@ impl Default for CharCreateUiState {
             open_dropdown: None,
             name: String::new(),
             error_text: None,
+            name_input_focused: false,
             class_availability,
         }
     }
@@ -379,7 +381,7 @@ fn name_and_create(state: &CharCreateUiState) -> Element {
                 relative_point: AnchorPoint::Bottom,
                 y: "140",
             }
-            {name_input_field()}
+            {name_input_field(state.name_input_focused)}
             {error_label(state.error_text.as_deref())}
             {create_confirm_button()}
         }

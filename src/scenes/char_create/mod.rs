@@ -38,10 +38,6 @@ use input::{
 };
 pub use scene::CharCreateScenePlugin;
 
-const EDITBOX_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-const EDITBOX_BORDER: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-const EDITBOX_FOCUSED_BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-const EDITBOX_FOCUSED_BORDER: [f32; 4] = [1.0, 0.92, 0.72, 1.0];
 
 ui_resource! {
     pub(crate) CharCreateUi {
@@ -283,14 +279,10 @@ fn char_create_update_visuals(
 ) {
     let Some(cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_ref() else { return };
-    sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db);
-    if let Some(id) = cc.name_input {
-        sync_editbox_focus(
-            &mut ui.registry,
-            id,
-            focus.0 == Some(id) && state.mode == CharCreateMode::Customize,
-        );
-    }
+    let name_focused = cc
+        .name_input
+        .is_some_and(|id| focus.0 == Some(id) && state.mode == CharCreateMode::Customize);
+    sync_screen_state(&mut screen_res, &mut ui.registry, state, &cust_db, name_focused);
     ui.focused_frame = focus.0.filter(|_| state.mode == CharCreateMode::Customize);
 }
 
@@ -299,12 +291,14 @@ fn sync_screen_state(
     reg: &mut FrameRegistry,
     state: &CharCreateState,
     cust_db: &CustomizationDb,
+    name_input_focused: bool,
 ) {
     let Some(res) = screen_res.as_mut() else {
         return;
     };
     let inner = &mut res.0;
-    let new_state = build_ui_state(state, cust_db);
+    let mut new_state = build_ui_state(state, cust_db);
+    new_state.name_input_focused = name_input_focused;
     inner.shared.insert(new_state);
     inner.screen.sync(&inner.shared, reg);
 }
@@ -405,22 +399,10 @@ fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCre
         name: String::new(),
         error_text: state.error_text.clone(),
         class_availability: build_class_availability(race),
+        name_input_focused: false,
     }
 }
 
-fn sync_editbox_focus(reg: &mut FrameRegistry, id: u64, focused: bool) {
-    let Some(frame) = reg.get_mut(id) else { return };
-    let Some(nine_slice) = frame.nine_slice.as_mut() else {
-        return;
-    };
-    if focused {
-        nine_slice.bg_color = EDITBOX_FOCUSED_BG;
-        nine_slice.border_color = EDITBOX_FOCUSED_BORDER;
-    } else {
-        nine_slice.bg_color = EDITBOX_BG;
-        nine_slice.border_color = EDITBOX_BORDER;
-    }
-}
 
 #[cfg(test)]
 #[path = "../../../tests/unit/char_create_tests.rs"]
