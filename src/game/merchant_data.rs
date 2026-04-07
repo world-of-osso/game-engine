@@ -46,7 +46,7 @@ impl MerchantState {
         if self.items_per_page == 0 {
             return 1;
         }
-        ((self.inventory.len() + self.items_per_page - 1) / self.items_per_page).max(1)
+        self.inventory.len().div_ceil(self.items_per_page).max(1)
     }
 
     pub fn current_page_items(&self) -> &[MerchantItemDef] {
@@ -67,6 +67,27 @@ impl MerchantState {
 
     pub fn can_repair(&self) -> bool {
         self.repair_cost.0 > 0 && self.player_money.0 >= self.repair_cost.0
+    }
+
+    /// Total cost to buy `quantity` of an item.
+    pub fn buy_cost(item: &MerchantItemDef, quantity: u32) -> Money {
+        Money(item.buy_price.0 * quantity as u64)
+    }
+
+    /// Whether the player can afford `quantity` of an item.
+    pub fn can_afford_quantity(&self, item: &MerchantItemDef, quantity: u32) -> bool {
+        self.player_money.0 >= Self::buy_cost(item, quantity).0
+    }
+
+    /// Navigate to next page (clamped).
+    pub fn next_page(&mut self) {
+        let max = self.page_count().saturating_sub(1);
+        self.page = (self.page + 1).min(max);
+    }
+
+    /// Navigate to previous page (clamped).
+    pub fn prev_page(&mut self) {
+        self.page = self.page.saturating_sub(1);
     }
 }
 
@@ -144,5 +165,115 @@ mod tests {
         assert_ne!(textures::BUYBACK_ICON, 0);
         assert_ne!(textures::SLOT_BORDER, 0);
         assert_ne!(textures::GOLD_ICON, 0);
+    }
+
+    // --- Inventory paging ---
+
+    #[test]
+    fn page_beyond_range_returns_empty() {
+        let state = MerchantState {
+            inventory: vec![make_item("A", 100)],
+            items_per_page: 10,
+            page: 5,
+            ..Default::default()
+        };
+        assert!(state.current_page_items().is_empty());
+    }
+
+    #[test]
+    fn exact_page_boundary() {
+        let state = MerchantState {
+            inventory: (0..20).map(|i| make_item(&format!("I{i}"), 100)).collect(),
+            items_per_page: 10,
+            page: 0,
+            ..Default::default()
+        };
+        assert_eq!(state.page_count(), 2);
+        assert_eq!(state.current_page_items().len(), 10);
+    }
+
+    #[test]
+    fn next_page_navigation() {
+        let mut state = MerchantState {
+            inventory: (0..25).map(|i| make_item(&format!("I{i}"), 100)).collect(),
+            items_per_page: 10,
+            page: 0,
+            ..Default::default()
+        };
+        state.next_page();
+        assert_eq!(state.page, 1);
+        state.next_page();
+        assert_eq!(state.page, 2);
+        state.next_page(); // clamped at last page
+        assert_eq!(state.page, 2);
+    }
+
+    #[test]
+    fn prev_page_navigation() {
+        let mut state = MerchantState {
+            inventory: (0..25).map(|i| make_item(&format!("I{i}"), 100)).collect(),
+            items_per_page: 10,
+            page: 2,
+            ..Default::default()
+        };
+        state.prev_page();
+        assert_eq!(state.page, 1);
+        state.prev_page();
+        assert_eq!(state.page, 0);
+        state.prev_page(); // clamped at 0
+        assert_eq!(state.page, 0);
+    }
+
+    // --- Price calculation ---
+
+    #[test]
+    fn buy_cost_single() {
+        let item = make_item("Arrow", 10);
+        assert_eq!(MerchantState::buy_cost(&item, 1), Money(10));
+    }
+
+    #[test]
+    fn buy_cost_stack() {
+        let item = make_item("Arrow", 10);
+        assert_eq!(MerchantState::buy_cost(&item, 20), Money(200));
+    }
+
+    #[test]
+    fn can_afford_quantity() {
+        let state = MerchantState {
+            player_money: Money(500),
+            ..Default::default()
+        };
+        let item = make_item("Arrow", 10);
+        assert!(state.can_afford_quantity(&item, 20)); // 200 <= 500
+        assert!(state.can_afford_quantity(&item, 50)); // 500 <= 500
+        assert!(!state.can_afford_quantity(&item, 51)); // 510 > 500
+    }
+
+    #[test]
+    fn sell_price_is_quarter_of_buy() {
+        let item = make_item("Sword", 10000);
+        assert_eq!(item.sell_price, Money(2500));
+    }
+
+    #[test]
+    fn repair_zero_cost_cannot_repair() {
+        let state = MerchantState {
+            player_money: Money(10000),
+            repair_cost: Money(0),
+            ..Default::default()
+        };
+        assert!(!state.can_repair());
+    }
+
+    #[test]
+    fn items_per_page_zero_shows_all() {
+        let state = MerchantState {
+            inventory: (0..5).map(|i| make_item(&format!("I{i}"), 100)).collect(),
+            items_per_page: 0,
+            ..Default::default()
+        };
+        assert_eq!(state.page_count(), 1);
+        assert_eq!(state.current_page_items().len(), 5);
     }
 }
