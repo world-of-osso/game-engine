@@ -38,6 +38,16 @@ impl PresenceState {
     pub fn is_online(self) -> bool {
         !matches!(self, Self::Offline)
     }
+
+    /// Sort key: Online=0, Away=1, Busy=2, Offline=3.
+    fn sort_key(self) -> u8 {
+        match self {
+            Self::Online => 0,
+            Self::Away => 1,
+            Self::Busy => 2,
+            Self::Offline => 3,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -90,6 +100,22 @@ impl FriendsState {
 
     pub fn total_friends(&self) -> usize {
         self.bnet_friends.len() + self.character_friends.len()
+    }
+
+    /// Sort BNet friends: online first (by presence priority), then alphabetical.
+    pub fn sort_bnet_friends(&mut self) {
+        self.bnet_friends.sort_by(|a, b| {
+            a.presence
+                .sort_key()
+                .cmp(&b.presence.sort_key())
+                .then(a.battletag.cmp(&b.battletag))
+        });
+    }
+
+    /// Sort character friends: online first, then alphabetical.
+    pub fn sort_character_friends(&mut self) {
+        self.character_friends
+            .sort_by(|a, b| b.online.cmp(&a.online).then(a.name.cmp(&b.name)));
     }
 }
 
@@ -172,5 +198,108 @@ mod tests {
         assert_ne!(textures::STATUS_ONLINE, 0);
         assert_ne!(textures::STATUS_OFFLINE, 0);
         assert_ne!(textures::GAME_WOW, 0);
+    }
+
+    // --- BNet presence ---
+
+    fn bnet(tag: &str, presence: PresenceState) -> BNetFriend {
+        BNetFriend {
+            battletag: tag.into(),
+            character_name: String::new(),
+            game: String::new(),
+            presence,
+            note: String::new(),
+        }
+    }
+
+    fn char_friend(name: &str, online: bool) -> CharacterFriend {
+        CharacterFriend {
+            name: name.into(),
+            level: 60,
+            class: "Warrior".into(),
+            area: "Orgrimmar".into(),
+            online,
+            note: String::new(),
+        }
+    }
+
+    #[test]
+    fn bnet_away_and_busy_count_as_online() {
+        let mut state = FriendsState::default();
+        state.bnet_friends = vec![
+            bnet("Away#1", PresenceState::Away),
+            bnet("Busy#2", PresenceState::Busy),
+            bnet("Off#3", PresenceState::Offline),
+        ];
+        assert_eq!(state.online_bnet_count(), 2);
+    }
+
+    #[test]
+    fn sort_bnet_friends_by_presence() {
+        let mut state = FriendsState::default();
+        state.bnet_friends = vec![
+            bnet("Off#1", PresenceState::Offline),
+            bnet("Away#2", PresenceState::Away),
+            bnet("Online#3", PresenceState::Online),
+            bnet("Busy#4", PresenceState::Busy),
+        ];
+        state.sort_bnet_friends();
+        assert_eq!(state.bnet_friends[0].battletag, "Online#3");
+        assert_eq!(state.bnet_friends[1].battletag, "Away#2");
+        assert_eq!(state.bnet_friends[2].battletag, "Busy#4");
+        assert_eq!(state.bnet_friends[3].battletag, "Off#1");
+    }
+
+    #[test]
+    fn sort_bnet_friends_alphabetical_within_status() {
+        let mut state = FriendsState::default();
+        state.bnet_friends = vec![
+            bnet("Zoe#1", PresenceState::Online),
+            bnet("Alice#2", PresenceState::Online),
+        ];
+        state.sort_bnet_friends();
+        assert_eq!(state.bnet_friends[0].battletag, "Alice#2");
+        assert_eq!(state.bnet_friends[1].battletag, "Zoe#1");
+    }
+
+    // --- Character friend online/offline ---
+
+    #[test]
+    fn sort_character_friends_online_first() {
+        let mut state = FriendsState::default();
+        state.character_friends = vec![
+            char_friend("Offline1", false),
+            char_friend("Online1", true),
+            char_friend("Offline2", false),
+            char_friend("Online2", true),
+        ];
+        state.sort_character_friends();
+        assert!(state.character_friends[0].online);
+        assert!(state.character_friends[1].online);
+        assert!(!state.character_friends[2].online);
+        assert!(!state.character_friends[3].online);
+    }
+
+    #[test]
+    fn sort_character_friends_alpha_within_status() {
+        let mut state = FriendsState::default();
+        state.character_friends = vec![char_friend("Zack", true), char_friend("Alice", true)];
+        state.sort_character_friends();
+        assert_eq!(state.character_friends[0].name, "Alice");
+        assert_eq!(state.character_friends[1].name, "Zack");
+    }
+
+    #[test]
+    fn bnet_friend_with_game_and_character() {
+        let f = BNetFriend {
+            battletag: "Test#1234".into(),
+            character_name: "Thrall".into(),
+            game: "World of Warcraft".into(),
+            presence: PresenceState::Online,
+            note: "guild mate".into(),
+        };
+        assert!(f.presence.is_online());
+        assert_eq!(f.character_name, "Thrall");
+        assert_eq!(f.game, "World of Warcraft");
     }
 }
