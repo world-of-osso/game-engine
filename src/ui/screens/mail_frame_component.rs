@@ -243,9 +243,6 @@ fn inbox_list(inbox: &[InboxEntry]) -> Element {
 
 fn inbox_row(idx: usize, entry: &InboxEntry, parent_w: f32) -> Element {
     let row_id = DynName(format!("MailInbox{idx}"));
-    let icon_id = DynName(format!("MailInbox{idx}Icon"));
-    let subj_id = DynName(format!("MailInbox{idx}Subject"));
-    let sender_id = DynName(format!("MailInbox{idx}Sender"));
     let y = -(INBOX_INSET + idx as f32 * (INBOX_ROW_H + INBOX_ROW_GAP));
     let row_w = parent_w - 2.0 * INBOX_INSET;
     let text_x = INBOX_ICON_SIZE + 8.0;
@@ -261,48 +258,51 @@ fn inbox_row(idx: usize, entry: &InboxEntry, parent_w: f32) -> Element {
                 x: {INBOX_INSET},
                 y: {y},
             }
-            r#frame {
-                name: icon_id,
-                width: {INBOX_ICON_SIZE},
-                height: {INBOX_ICON_SIZE},
-                background_color: INBOX_ICON_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: {-((INBOX_ROW_H - INBOX_ICON_SIZE) / 2.0)},
-                }
-            }
-            fontstring {
-                name: subj_id,
-                width: {text_w},
-                height: 16.0,
-                text: {entry.subject.as_str()},
-                font_size: 10.0,
-                font_color: SUBJECT_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {text_x},
-                    y: "-2",
-                }
-            }
-            fontstring {
-                name: sender_id,
-                width: {text_w},
-                height: 14.0,
-                text: {entry.sender.as_str()},
-                font_size: 8.0,
-                font_color: SENDER_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {text_x},
-                    y: "-18",
-                }
-            }
+            {inbox_icon(DynName(format!("MailInbox{idx}Icon")))}
+            {inbox_subject(DynName(format!("MailInbox{idx}Subject")), &entry.subject, text_w, text_x)}
+            {inbox_sender(DynName(format!("MailInbox{idx}Sender")), &entry.sender, text_w, text_x)}
+        }
+    }
+}
+
+fn inbox_icon(id: DynName) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {INBOX_ICON_SIZE},
+            height: {INBOX_ICON_SIZE},
+            background_color: INBOX_ICON_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {-((INBOX_ROW_H - INBOX_ICON_SIZE) / 2.0)} }
+        }
+    }
+}
+
+fn inbox_subject(id: DynName, text: &str, w: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: 16.0,
+            text: text,
+            font_size: 10.0,
+            font_color: SUBJECT_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-2" }
+        }
+    }
+}
+
+fn inbox_sender(id: DynName, text: &str, w: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: 14.0,
+            text: text,
+            font_size: 8.0,
+            font_color: SENDER_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-18" }
         }
     }
 }
