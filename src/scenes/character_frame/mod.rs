@@ -112,14 +112,7 @@ fn build_state(
     gear: Option<&EquippedGearStatusSnapshot>,
     open: &CharacterFrameOpen,
 ) -> CharacterFrameState {
-    let character_name = character_stats
-        .and_then(|s| s.name.clone())
-        .unwrap_or_default();
-    let level = character_stats.and_then(|s| s.level).unwrap_or(0);
-    let class_name = character_stats
-        .and_then(|s| s.class)
-        .map(class_name_from_id)
-        .unwrap_or_default();
+    let (character_name, level, class_name) = extract_identity(character_stats);
     let health = format_resource_bar(character_stats, |s| (s.health_current, s.health_max));
     let mana = format_resource_bar(character_stats, |s| (s.mana_current, s.mana_max));
     let speed = character_stats
@@ -139,6 +132,16 @@ fn build_state(
         right_slots: build_column_slots(&RIGHT_SLOT_LABELS, gear),
         bottom_slots: build_column_slots(&BOTTOM_SLOT_LABELS, gear),
     }
+}
+
+fn extract_identity(stats: Option<&CharacterStatsSnapshot>) -> (String, u32, String) {
+    let name = stats.and_then(|s| s.name.clone()).unwrap_or_default();
+    let level = stats.and_then(|s| s.level).unwrap_or(0);
+    let class = stats
+        .and_then(|s| s.class)
+        .map(class_name_from_id)
+        .unwrap_or_default();
+    (name, level, class)
 }
 
 fn build_column_slots(
