@@ -7,7 +7,24 @@ pub struct AchievementDef {
     pub name: &'static str,
     pub description: &'static str,
     pub points: u32,
+    pub icon_fdid: u32,
     pub category_id: i32,
+}
+
+/// Frame chrome texture FDIDs.
+pub mod chrome {
+    /// Main achievement frame background.
+    pub const BACKGROUND: u32 = 235397;
+    /// Header bar texture.
+    pub const HEADER: u32 = 235402;
+    /// Category sidebar background.
+    pub const CATEGORY_BG: u32 = 130652;
+    /// Achievement icon border frame.
+    pub const ICON_FRAME: u32 = 130656;
+    /// Criteria completion checkmark.
+    pub const CRITERIA_CHECK: u32 = 130653;
+    /// Completion shield icon.
+    pub const SHIELD: u32 = 235406;
 }
 
 pub struct AchievementCategoryDef {
@@ -74,12 +91,13 @@ pub static ACHIEVEMENT_CATEGORIES: &[AchievementCategoryDef] = &[
 ];
 
 pub static ACHIEVEMENTS: &[AchievementDef] = &[
-    // General — level milestones
+    // General — level milestones (icons: 236562–236569)
     AchievementDef {
         id: 1,
         name: "Level 10",
         description: "Reach level 10.",
         points: 10,
+        icon_fdid: 236562,
         category_id: 92,
     },
     AchievementDef {
@@ -87,6 +105,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Level 20",
         description: "Reach level 20.",
         points: 10,
+        icon_fdid: 236563,
         category_id: 92,
     },
     AchievementDef {
@@ -94,6 +113,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Level 40",
         description: "Reach level 40.",
         points: 10,
+        icon_fdid: 236565,
         category_id: 92,
     },
     AchievementDef {
@@ -101,6 +121,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Level 60",
         description: "Reach level 60.",
         points: 10,
+        icon_fdid: 236567,
         category_id: 92,
     },
     AchievementDef {
@@ -108,6 +129,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Level 70",
         description: "Reach level 70.",
         points: 10,
+        icon_fdid: 236568,
         category_id: 92,
     },
     AchievementDef {
@@ -115,14 +137,16 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Level 80",
         description: "Reach level 80.",
         points: 10,
+        icon_fdid: 236569,
         category_id: 92,
     },
-    // Quests
+    // Quests (icons: 236664–236666)
     AchievementDef {
         id: 10,
         name: "Quest Adept",
         description: "Complete 50 quests.",
         points: 10,
+        icon_fdid: 236664,
         category_id: 96,
     },
     AchievementDef {
@@ -130,6 +154,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Loremaster Initiate",
         description: "Complete 100 quests.",
         points: 10,
+        icon_fdid: 236665,
         category_id: 96,
     },
     AchievementDef {
@@ -137,14 +162,16 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "250 Quests Completed",
         description: "Complete 250 quests.",
         points: 25,
+        icon_fdid: 236666,
         category_id: 96,
     },
-    // Exploration
+    // Exploration (icon: 236809)
     AchievementDef {
         id: 20,
         name: "Explore Elwynn Forest",
         description: "Explore the wilds of Elwynn Forest.",
         points: 10,
+        icon_fdid: 236809,
         category_id: 97,
     },
     AchievementDef {
@@ -152,14 +179,16 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Explore Durotar",
         description: "Explore the harsh terrain of Durotar.",
         points: 10,
+        icon_fdid: 236809,
         category_id: 97,
     },
-    // PvP
+    // PvP (icon: 236363)
     AchievementDef {
         id: 30,
         name: "Honorable Kill",
         description: "Earn an honorable kill.",
         points: 10,
+        icon_fdid: 236363,
         category_id: 95,
     },
     AchievementDef {
@@ -167,6 +196,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "100 Honorable Kills",
         description: "Earn 100 honorable kills.",
         points: 10,
+        icon_fdid: 236363,
         category_id: 95,
     },
     // Dungeons & Raids
@@ -175,6 +205,7 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "The Deadmines",
         description: "Defeat the final boss of the Deadmines.",
         points: 10,
+        icon_fdid: 135274,
         category_id: 168,
     },
     AchievementDef {
@@ -182,14 +213,16 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Shadowfang Keep",
         description: "Defeat the final boss of Shadowfang Keep.",
         points: 10,
+        icon_fdid: 136243,
         category_id: 168,
     },
-    // Professions
+    // Professions (icon: 136243)
     AchievementDef {
         id: 50,
         name: "Professional Journeyman",
         description: "Reach Journeyman level in a profession.",
         points: 10,
+        icon_fdid: 136243,
         category_id: 169,
     },
     AchievementDef {
@@ -197,30 +230,34 @@ pub static ACHIEVEMENTS: &[AchievementDef] = &[
         name: "Professional Expert",
         description: "Reach Expert level in a profession.",
         points: 10,
+        icon_fdid: 136243,
         category_id: 169,
     },
-    // Reputation
+    // Reputation (icon: 236685)
     AchievementDef {
         id: 60,
         name: "Ambassador",
         description: "Earn Exalted status with five home-city factions.",
         points: 10,
+        icon_fdid: 236685,
         category_id: 201,
     },
-    // World Events
+    // World Events (icon: 236704)
     AchievementDef {
         id: 70,
         name: "To Honor One's Elders",
         description: "Complete the Lunar Festival achievements.",
         points: 25,
+        icon_fdid: 236704,
         category_id: 155,
     },
-    // Feats of Strength
+    // Feats of Strength (icon: 136243)
     AchievementDef {
         id: 80,
         name: "Old School Ride",
         description: "Obtain a rare vintage mount.",
         points: 0,
+        icon_fdid: 136243,
         category_id: 81,
     },
 ];

@@ -179,6 +179,7 @@ fn def_to_row(
         name: def.name.to_string(),
         description: def.description.to_string(),
         points: def.points,
+        icon_fdid: def.icon_fdid,
         completed,
         progress,
         progress_text: format!("{current} / {required}"),

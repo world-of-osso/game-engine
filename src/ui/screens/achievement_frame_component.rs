@@ -84,6 +84,7 @@ pub struct AchievementRow {
     pub name: String,
     pub description: String,
     pub points: u32,
+    pub icon_fdid: u32,
     pub completed: bool,
     /// Progress as 0.0..=1.0 fraction.
     pub progress: f32,
@@ -350,7 +351,7 @@ fn achievement_row(idx: usize, row: &AchievementRow, row_w: f32, y: f32) -> Elem
                 x: {ROW_INSET},
                 y: {y},
             }
-            {row_icon(idx)}
+            {row_icon(idx, row.icon_fdid)}
             {row_name(idx, &row.name, text_x, text_w)}
             {row_description(idx, &row.description, text_x, text_w)}
             {row_progress_bar(idx, row, text_x)}
@@ -360,8 +361,10 @@ fn achievement_row(idx: usize, row: &AchievementRow, row_w: f32, y: f32) -> Elem
     }
 }
 
-fn row_icon(idx: usize) -> Element {
+fn row_icon(idx: usize, icon_fdid: u32) -> Element {
     let icon_id = DynName(format!("AchievementRow{idx}Icon"));
+    let tex_id = DynName(format!("AchievementRow{idx}IconTex"));
+    let icon_y = -((ROW_H - ICON_SIZE) / 2.0);
     rsx! {
         r#frame {
             name: icon_id,
@@ -372,7 +375,17 @@ fn row_icon(idx: usize) -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: {ICON_INSET},
-                y: {-((ROW_H - ICON_SIZE) / 2.0)},
+                y: {icon_y},
+            }
+            texture {
+                name: tex_id,
+                width: {ICON_SIZE},
+                height: {ICON_SIZE},
+                texture_fdid: {icon_fdid},
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
             }
         }
     }
@@ -575,6 +588,7 @@ mod tests {
                 name: "Level 10".into(),
                 description: "Reach level 10.".into(),
                 points: 10,
+                icon_fdid: 236562,
                 completed: true,
                 progress: 1.0,
                 progress_text: "10 / 10".into(),
@@ -583,6 +597,7 @@ mod tests {
                 name: "Level 20".into(),
                 description: "Reach level 20.".into(),
                 points: 10,
+                icon_fdid: 236563,
                 completed: false,
                 progress: 0.75,
                 progress_text: "15 / 20".into(),
@@ -591,6 +606,7 @@ mod tests {
                 name: "Level 40".into(),
                 description: "Reach level 40.".into(),
                 points: 10,
+                icon_fdid: 236565,
                 completed: false,
                 progress: 0.0,
                 progress_text: "0 / 40".into(),
@@ -763,6 +779,23 @@ mod tests {
                     .get_by_name(&format!("AchievementRow{i}Points"))
                     .is_some(),
                 "AchievementRow{i}Points missing"
+            );
+        }
+    }
+
+    #[test]
+    fn achievement_row_icons_have_texture_frames() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(achievement_frame_screen).sync(&shared, &mut registry);
+
+        for i in 0..3 {
+            assert!(
+                registry
+                    .get_by_name(&format!("AchievementRow{i}IconTex"))
+                    .is_some(),
+                "AchievementRow{i}IconTex missing"
             );
         }
     }
