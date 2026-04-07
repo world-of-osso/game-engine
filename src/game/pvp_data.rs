@@ -1,5 +1,18 @@
 use bevy::prelude::*;
 
+pub mod textures {
+    /// PvP queue frame sheet.
+    pub const QUEUE_FRAME: u32 = 2123218;
+    /// Alliance faction emblem.
+    pub const ALLIANCE_EMBLEM: u32 = 136998;
+    /// Horde faction emblem.
+    pub const HORDE_EMBLEM: u32 = 137000;
+    /// Alliance queue background.
+    pub const QUEUE_BG_ALLIANCE: u32 = 1405824;
+    /// Honor bar fill.
+    pub const HONOR_BAR_FILL: u32 = 2131913;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PVPBracket {
     Arena2v2,
@@ -140,5 +153,13 @@ mod tests {
         };
         assert_eq!(state.honor_text(), "500/15000");
         assert_eq!(state.conquest_text(), "800/1800");
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::QUEUE_FRAME, 0);
+        assert_ne!(textures::ALLIANCE_EMBLEM, 0);
+        assert_ne!(textures::HORDE_EMBLEM, 0);
+        assert_ne!(textures::HONOR_BAR_FILL, 0);
     }
 }
