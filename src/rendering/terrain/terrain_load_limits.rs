@@ -49,4 +49,67 @@ mod tests {
         let remaining: Vec<_> = rx.try_iter().collect();
         assert_eq!(remaining.len(), 4, "remaining tiles should stay queued");
     }
+
+    #[test]
+    fn budget_drains_queue_over_multiple_frames() {
+        let (tx, rx) = mpsc::channel::<u32>();
+        for i in 0..3 {
+            tx.send(i).unwrap();
+        }
+        drop(tx);
+
+        let budget = 1;
+        let mut all_taken = Vec::new();
+        // Simulate 5 frames — should drain all 3 tiles
+        for _ in 0..5 {
+            let taken: Vec<_> = rx.try_iter().take(budget).collect();
+            all_taken.extend(taken);
+        }
+        assert_eq!(all_taken, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn budget_larger_than_queue_takes_all() {
+        let (tx, rx) = mpsc::channel::<u32>();
+        tx.send(10).unwrap();
+        tx.send(20).unwrap();
+        drop(tx);
+
+        let budget = 10;
+        let taken: Vec<_> = rx.try_iter().take(budget).collect();
+        assert_eq!(taken, vec![10, 20]);
+    }
+
+    #[test]
+    fn budget_on_empty_queue_takes_nothing() {
+        let (_tx, rx) = mpsc::channel::<u32>();
+        let budget = max_tiles_per_frame();
+        let taken: Vec<_> = rx.try_iter().take(budget).collect();
+        assert!(taken.is_empty());
+    }
+
+    #[test]
+    fn pending_limit_caps_dispatched_loads() {
+        let pending_limit = max_pending_tile_loads(); // 1
+        // Simulate dispatch: only start loads up to pending_limit
+        let desired = vec![1, 2, 3, 4, 5];
+        let dispatched: Vec<_> = desired.into_iter().take(pending_limit).collect();
+        assert_eq!(dispatched.len(), 1);
+    }
+
+    #[test]
+    fn budget_preserves_order() {
+        let (tx, rx) = mpsc::channel::<u32>();
+        for i in 0..5 {
+            tx.send(i * 10).unwrap();
+        }
+
+        let budget = 2;
+        let frame1: Vec<_> = rx.try_iter().take(budget).collect();
+        let frame2: Vec<_> = rx.try_iter().take(budget).collect();
+        let frame3: Vec<_> = rx.try_iter().take(budget).collect();
+        assert_eq!(frame1, vec![0, 10]);
+        assert_eq!(frame2, vec![20, 30]);
+        assert_eq!(frame3, vec![40]);
+    }
 }
