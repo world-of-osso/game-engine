@@ -201,58 +201,54 @@ fn trade_slot(prefix: &str, idx: usize, slot: Option<&TradeSlot>, y: f32) -> Ele
     }
 }
 
-fn money_row(prefix: &str, money: u32, y: f32, show_input: bool) -> Element {
-    let label_id = DynName(format!("{prefix}MoneyLabel"));
-    let value_id = DynName(format!("{prefix}MoneyValue"));
-    let money_text = format_money(money);
-    let value_bg = if show_input {
-        MONEY_INPUT_BG
-    } else {
-        "0.0,0.0,0.0,0.0"
-    };
+fn money_label(id: DynName, y: f32) -> Element {
     rsx! {
         fontstring {
-            name: label_id,
+            name: id,
             width: {MONEY_LABEL_W},
             height: {MONEY_ROW_H},
             text: "Gold:",
             font_size: 10.0,
             font_color: MONEY_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "4",
-                y: {-y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {y} }
         }
+    }
+}
+
+fn money_value(id: DynName, text_id: DynName, text: &str, bg: &str, y: f32) -> Element {
+    rsx! {
         r#frame {
-            name: value_id,
+            name: id,
             width: {MONEY_INPUT_W},
             height: {MONEY_ROW_H},
-            background_color: value_bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {MONEY_LABEL_W + 8.0},
-                y: {-y},
-            }
+            background_color: bg,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {MONEY_LABEL_W + 8.0}, y: {y} }
             fontstring {
-                name: DynName(format!("{prefix}MoneyText")),
+                name: text_id,
                 width: {MONEY_INPUT_W},
                 height: {MONEY_ROW_H},
-                text: {money_text.as_str()},
+                text: text,
                 font_size: 10.0,
                 font_color: MONEY_INPUT_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
             }
         }
+    }
+}
+
+fn money_row(prefix: &str, money: u32, y: f32, show_input: bool) -> Element {
+    let money_text = format_money(money);
+    let value_bg = if show_input {
+        MONEY_INPUT_BG
+    } else {
+        "0.0,0.0,0.0,0.0"
+    };
+    let neg_y = -y;
+    rsx! {
+        {money_label(DynName(format!("{prefix}MoneyLabel")), neg_y)}
+        {money_value(DynName(format!("{prefix}MoneyValue")), DynName(format!("{prefix}MoneyText")), &money_text, value_bg, neg_y)}
     }
 }
 
