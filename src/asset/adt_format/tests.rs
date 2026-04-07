@@ -672,6 +672,96 @@ fn append_subchunk(payload: &mut Vec<u8>, tag: &[u8; 4], chunk_payload: Vec<u8>)
     payload.extend_from_slice(&chunk_payload);
 }
 
+// --- Blend batch vertex construction integrity ---
+
+#[test]
+fn blend_batch_fields_parsed_correctly() {
+    let data = adt_file_payload(true);
+    let parsed = load_adt_raw(&data).expect("should parse");
+    let batches = &parsed.chunks[0].blend_batches;
+    assert_eq!(batches.len(), 2);
+    // First batch: mbmh_index=1, index_count=3, index_first=5, vertex_count=4, vertex_first=6
+    assert_eq!(batches[0].mbmh_index, 1);
+    assert_eq!(batches[0].index_count, 3);
+    assert_eq!(batches[0].index_first, 5);
+    assert_eq!(batches[0].vertex_count, 4);
+    assert_eq!(batches[0].vertex_first, 6);
+}
+
+#[test]
+fn blend_mesh_vertex_has_all_components() {
+    let data = adt_file_payload(true);
+    let parsed = load_adt_raw(&data).expect("should parse");
+    let blend_mesh = parsed.blend_mesh.expect("should have blend mesh");
+
+    for (i, v) in blend_mesh.vertices.iter().enumerate() {
+        // Position should not be all zeros (our test data uses 10/20/30 etc.)
+        assert!(
+            v.position.iter().any(|&c| c != 0.0),
+            "vertex {i} has zero position"
+        );
+        // Normal should be unit-length (or close)
+        let len = (v.normal[0].powi(2) + v.normal[1].powi(2) + v.normal[2].powi(2)).sqrt();
+        assert!(
+            (len - 1.0).abs() < 0.01,
+            "vertex {i} normal length {len} not unit"
+        );
+        // UV should be in 0..1 range
+        assert!(
+            v.uv[0] >= 0.0 && v.uv[0] <= 1.0,
+            "vertex {i} u out of range"
+        );
+        assert!(
+            v.uv[1] >= 0.0 && v.uv[1] <= 1.0,
+            "vertex {i} v out of range"
+        );
+    }
+}
+
+#[test]
+fn blend_mesh_indices_reference_valid_vertices() {
+    let data = adt_file_payload(true);
+    let parsed = load_adt_raw(&data).expect("should parse");
+    let blend_mesh = parsed.blend_mesh.expect("should have blend mesh");
+
+    for (i, &idx) in blend_mesh.indices.iter().enumerate() {
+        assert!(
+            (idx as usize) < blend_mesh.vertices.len(),
+            "index {i} value {idx} >= vertex count {}",
+            blend_mesh.vertices.len()
+        );
+    }
+}
+
+#[test]
+fn blend_mesh_header_consistency() {
+    let data = adt_file_payload(true);
+    let parsed = load_adt_raw(&data).expect("should parse");
+    let blend_mesh = parsed.blend_mesh.expect("should have blend mesh");
+
+    for (i, header) in blend_mesh.headers.iter().enumerate() {
+        let vertex_end = header.vertex_start + header.vertex_count;
+        assert!(
+            vertex_end as usize <= blend_mesh.vertices.len(),
+            "header {i} vertex range exceeds data"
+        );
+        let index_end = header.index_start + header.index_count;
+        assert!(
+            index_end as usize <= blend_mesh.indices.len(),
+            "header {i} index range exceeds data"
+        );
+    }
+}
+
+#[test]
+fn load_adt_raw_without_blend_mesh() {
+    let data = adt_file_payload(false);
+    let parsed = load_adt_raw(&data).expect("should parse");
+    assert!(parsed.blend_mesh.is_none());
+    // MCNK still has MCBB batches (per-chunk data), only top-level mesh is absent
+    assert!(!parsed.chunks[0].blend_batches.is_empty());
+}
+
 #[cfg(test)]
 #[path = "tests_lod.rs"]
 mod lod_tests;
