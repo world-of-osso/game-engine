@@ -185,4 +185,71 @@ mod tests {
 
         assert_eq!(bevy_to_tile_coords(bx, bz), (32, 48));
     }
+
+    // --- LOD selection: distance-based switching ---
+
+    #[test]
+    fn lod_same_tile_is_full() {
+        assert_eq!(tile_lod_for_distance(32, 48, 32, 48), DoodadLod::Full);
+    }
+
+    #[test]
+    fn lod_adjacent_tile_is_full() {
+        // Distance 1 (≤ LOD1_TILE_DISTANCE=2)
+        assert_eq!(tile_lod_for_distance(33, 48, 32, 48), DoodadLod::Full);
+    }
+
+    #[test]
+    fn lod_distance_2_is_full() {
+        // Chebyshev distance 2 = LOD1_TILE_DISTANCE boundary (≤ 2 → Full)
+        assert_eq!(tile_lod_for_distance(34, 48, 32, 48), DoodadLod::Full);
+    }
+
+    #[test]
+    fn lod_distance_3_is_lod1() {
+        // Chebyshev distance 3 (> 2, ≤ 4 → Lod1)
+        assert_eq!(tile_lod_for_distance(35, 48, 32, 48), DoodadLod::Lod1);
+    }
+
+    #[test]
+    fn lod_distance_4_is_lod1() {
+        // Chebyshev distance 4 = LOD2_TILE_DISTANCE boundary (≤ 4 → Lod1)
+        assert_eq!(tile_lod_for_distance(36, 48, 32, 48), DoodadLod::Lod1);
+    }
+
+    #[test]
+    fn lod_distance_5_is_lod2() {
+        // Chebyshev distance 5 (> 4 → Lod2)
+        assert_eq!(tile_lod_for_distance(37, 48, 32, 48), DoodadLod::Lod2);
+    }
+
+    #[test]
+    fn lod_diagonal_distance() {
+        // Diagonal: dy=3, dx=3 → Chebyshev = 3 → Lod1
+        assert_eq!(tile_lod_for_distance(35, 51, 32, 48), DoodadLod::Lod1);
+        // Diagonal: dy=5, dx=5 → Chebyshev = 5 → Lod2
+        assert_eq!(tile_lod_for_distance(37, 53, 32, 48), DoodadLod::Lod2);
+    }
+
+    #[test]
+    fn lod_asymmetric_distance_uses_max() {
+        // dy=1, dx=5 → Chebyshev = 5 → Lod2
+        assert_eq!(tile_lod_for_distance(33, 53, 32, 48), DoodadLod::Lod2);
+        // dy=5, dx=1 → Chebyshev = 5 → Lod2
+        assert_eq!(tile_lod_for_distance(37, 49, 32, 48), DoodadLod::Lod2);
+    }
+
+    #[test]
+    fn lod_far_tile_is_lod2() {
+        assert_eq!(tile_lod_for_distance(0, 0, 32, 48), DoodadLod::Lod2);
+    }
+
+    #[test]
+    fn lod_negative_direction() {
+        // Tile behind the player (lower coords)
+        assert_eq!(
+            tile_lod_for_distance(29, 48, 32, 48),
+            DoodadLod::Lod1 // distance 3
+        );
+    }
 }
