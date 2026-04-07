@@ -90,6 +90,8 @@ pub mod sound_music_zone_cache;
 pub mod sqlite_util;
 pub mod status;
 pub mod test_harness;
+#[path = "game/trade_data.rs"]
+pub mod trade_data;
 pub mod ui;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;
