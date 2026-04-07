@@ -536,39 +536,37 @@ fn crafting_quantity_and_button() -> Element {
 
 // --- Recipe Book ---
 
+fn book_recipe_row(i: usize, recipe: &BookRecipe, w: f32) -> Element {
+    let id = DynName(format!("BookRecipe{i}"));
+    let y = -(BOOK_INSET + i as f32 * (BOOK_ROW_H + BOOK_ROW_GAP));
+    let color = if recipe.learned {
+        recipe.skill_up.color()
+    } else {
+        UNLEARNED_COLOR
+    };
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {BOOK_ROW_H},
+            text: {recipe.name.as_str()},
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {BOOK_INSET}, y: {y} }
+        }
+    }
+}
+
 fn recipe_book_panel(recipes: &[BookRecipe]) -> Element {
     let panel_w = FRAME_W - 2.0 * INSET;
     let panel_h = MAX_BOOK_RECIPES as f32 * (BOOK_ROW_H + BOOK_ROW_GAP);
+    let row_w = panel_w - 2.0 * BOOK_INSET;
     let rows: Element = recipes
         .iter()
         .enumerate()
         .take(MAX_BOOK_RECIPES)
-        .flat_map(|(i, recipe)| {
-            let row_id = DynName(format!("BookRecipe{i}"));
-            let y = -(BOOK_INSET + i as f32 * (BOOK_ROW_H + BOOK_ROW_GAP));
-            let color = if !recipe.learned {
-                UNLEARNED_COLOR
-            } else {
-                recipe.skill_up.color()
-            };
-            rsx! {
-                fontstring {
-                    name: row_id,
-                    width: {panel_w - 2.0 * BOOK_INSET},
-                    height: {BOOK_ROW_H},
-                    text: {recipe.name.as_str()},
-                    font_size: 10.0,
-                    font_color: color,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {BOOK_INSET},
-                        y: {y},
-                    }
-                }
-            }
-        })
+        .flat_map(|(i, recipe)| book_recipe_row(i, recipe, row_w))
         .collect();
     rsx! {
         r#frame {
