@@ -329,6 +329,23 @@ fn deposit_withdraw_buttons() -> Element {
     }
 }
 
+fn log_entry_row(idx: usize, text: &str, w: f32) -> Element {
+    let id = DynName(format!("GuildBankLogEntry{idx}"));
+    let y = -(idx as f32 * LOG_ROW_H);
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {LOG_ROW_H},
+            text: text,
+            font_size: 9.0,
+            font_color: LOG_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {y} }
+        }
+    }
+}
+
 fn transaction_log(transactions: &[TransactionEntry], visible: bool) -> Element {
     let hide = !visible;
     let grid_rows = (GUILD_BANK_SLOTS + GRID_COLS - 1) / GRID_COLS;
@@ -338,27 +355,7 @@ fn transaction_log(transactions: &[TransactionEntry], visible: bool) -> Element 
         .iter()
         .enumerate()
         .take(MAX_LOG_ENTRIES)
-        .flat_map(|(i, entry)| {
-            let row_name = DynName(format!("GuildBankLogEntry{i}"));
-            let row_y = -(i as f32 * LOG_ROW_H);
-            rsx! {
-                fontstring {
-                    name: row_name,
-                    width: {log_w},
-                    height: {LOG_ROW_H},
-                    text: {entry.text.as_str()},
-                    font_size: 9.0,
-                    font_color: LOG_TEXT_COLOR,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: "0",
-                        y: {row_y},
-                    }
-                }
-            }
-        })
+        .flat_map(|(i, e)| log_entry_row(i, &e.text, log_w))
         .collect();
     rsx! {
         r#frame {
