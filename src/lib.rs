@@ -8,6 +8,8 @@ pub mod asset;
 pub mod auction_house;
 #[path = "game/auction_house_data.rs"]
 pub mod auction_house_data;
+#[path = "game/bag_data.rs"]
+pub mod bag_data;
 pub mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;

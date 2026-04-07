@@ -29,6 +29,8 @@ const SLOT_BG: &str = "0.08,0.07,0.06,0.88";
 pub struct BagSlotState {
     pub icon_fdid: u32,
     pub count: u32,
+    /// RGBA color string for quality border (empty string = no border).
+    pub quality_border: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -154,6 +156,7 @@ mod tests {
                 .map(|_| BagSlotState {
                     icon_fdid: 0,
                     count: 0,
+                    quality_border: String::new(),
                 })
                 .collect(),
             visible: true,
