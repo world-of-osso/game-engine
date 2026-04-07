@@ -49,7 +49,6 @@ const DETAIL_TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const DETAIL_BODY_COLOR: &str = "0.8,0.8,0.8,1.0";
 const TICKET_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 const TICKET_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
-const TICKET_INPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const TICKET_BTN_BG: &str = "0.15,0.12,0.05,0.95";
 const TICKET_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
 
@@ -74,23 +73,12 @@ pub struct TicketFormState {
     pub description: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct HelpFrameState {
     pub visible: bool,
     pub articles: Vec<ArticleEntry>,
     pub detail: ArticleDetail,
     pub ticket: TicketFormState,
-}
-
-impl Default for HelpFrameState {
-    fn default() -> Self {
-        Self {
-            visible: false,
-            articles: vec![],
-            detail: ArticleDetail::default(),
-            ticket: TicketFormState::default(),
-        }
-    }
 }
 
 pub fn help_frame_screen(ctx: &SharedContext) -> Element {
@@ -611,5 +599,111 @@ mod tests {
         let r = rect(&reg, "HelpTicketSubmitButton");
         assert!((r.width - TICKET_BTN_W).abs() < 1.0);
         assert!((r.height - TICKET_BTN_H).abs() < 1.0);
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "HelpFrameTitle"), "Help");
+    }
+
+    #[test]
+    fn category_button_labels() {
+        let reg = build_registry();
+        for (i, expected) in CATEGORY_BUTTONS.iter().enumerate() {
+            let actual = fontstring_text(&reg, &format!("HelpCategoryBtn{i}Text"));
+            assert_eq!(actual, *expected, "button {i} label mismatch");
+        }
+    }
+
+    #[test]
+    fn article_row_titles() {
+        let reg = article_registry();
+        assert_eq!(
+            fontstring_text(&reg, "HelpArticle0Title"),
+            "Getting Started"
+        );
+        assert_eq!(fontstring_text(&reg, "HelpArticle1Title"), "Combat Basics");
+    }
+
+    #[test]
+    fn article_detail_text() {
+        let reg = article_registry();
+        assert_eq!(
+            fontstring_text(&reg, "HelpArticleDetailTitle"),
+            "Getting Started"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "HelpArticleDetailBody"),
+            "Welcome to the game!"
+        );
+    }
+
+    #[test]
+    fn ticket_form_labels() {
+        let reg = article_registry();
+        assert_eq!(
+            fontstring_text(&reg, "HelpTicketCategoryLabel"),
+            "Category:"
+        );
+        assert_eq!(fontstring_text(&reg, "HelpTicketDescLabel"), "Description:");
+        assert_eq!(
+            fontstring_text(&reg, "HelpTicketSubmitButtonText"),
+            "Submit"
+        );
+    }
+
+    #[test]
+    fn article_list_hidden_by_default() {
+        let reg = article_registry();
+        let id = reg.get_by_name("HelpArticleList").expect("list");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn ticket_form_hidden_by_default() {
+        let reg = article_registry();
+        let id = reg.get_by_name("HelpTicketForm").expect("form");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn max_articles_capped() {
+        let articles: Vec<ArticleEntry> = (0..15)
+            .map(|i| ArticleEntry {
+                title: format!("Article {i}"),
+                selected: false,
+            })
+            .collect();
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(HelpFrameState {
+            visible: true,
+            articles,
+            ..Default::default()
+        });
+        Screen::new(help_frame_screen).sync(&shared, &mut reg);
+        for i in 0..MAX_ARTICLES {
+            assert!(
+                reg.get_by_name(&format!("HelpArticle{i}")).is_some(),
+                "HelpArticle{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("HelpArticle{MAX_ARTICLES}"))
+                .is_none()
+        );
     }
 }
