@@ -431,64 +431,78 @@ mod tests {
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
+    fn member(
+        name: &str,
+        hp: u32,
+        max: u32,
+        role: PartyRole,
+        debuffs: Vec<PartyDebuff>,
+        in_range: bool,
+        rc: ReadyCheckState,
+        heals: f32,
+    ) -> PartyMemberState {
+        PartyMemberState {
+            name: name.into(),
+            health_current: hp,
+            health_max: max,
+            role,
+            debuffs,
+            online: true,
+            in_range,
+            ready_check: rc,
+            incoming_heals: heals,
+        }
+    }
+
+    fn debuff(name: &str, fdid: u32) -> PartyDebuff {
+        PartyDebuff {
+            name: name.into(),
+            icon_fdid: fdid,
+        }
+    }
+
     fn sample_members() -> Vec<PartyMemberState> {
         vec![
-            PartyMemberState {
-                name: "Tankadin".into(),
-                health_current: 45000,
-                health_max: 50000,
-                role: PartyRole::Tank,
-                debuffs: vec![PartyDebuff {
-                    name: "Bleed".into(),
-                    icon_fdid: 1,
-                }],
-                online: true,
-                in_range: true,
-                ready_check: ReadyCheckState::Accepted,
-                incoming_heals: 0.1,
-            },
-            PartyMemberState {
-                name: "Healbot".into(),
-                health_current: 30000,
-                health_max: 35000,
-                role: PartyRole::Healer,
-                debuffs: vec![],
-                online: true,
-                in_range: true,
-                ready_check: ReadyCheckState::None,
-                incoming_heals: 0.0,
-            },
-            PartyMemberState {
-                name: "Stabsworth".into(),
-                health_current: 28000,
-                health_max: 32000,
-                role: PartyRole::Dps,
-                debuffs: vec![
-                    PartyDebuff {
-                        name: "Poison".into(),
-                        icon_fdid: 2,
-                    },
-                    PartyDebuff {
-                        name: "Curse".into(),
-                        icon_fdid: 3,
-                    },
-                ],
-                online: true,
-                in_range: false,
-                ready_check: ReadyCheckState::Pending,
-                incoming_heals: 0.0,
-            },
-            PartyMemberState {
-                name: "Pewpew".into(),
-                health_current: 0,
-                health_max: 30000,
-                role: PartyRole::Dps,
-                debuffs: vec![],
-                online: true,
-                in_range: true,
-                ready_check: ReadyCheckState::Declined,
-                incoming_heals: 0.0,
-            },
+            member(
+                "Tankadin",
+                45000,
+                50000,
+                PartyRole::Tank,
+                vec![debuff("Bleed", 1)],
+                true,
+                ReadyCheckState::Accepted,
+                0.1,
+            ),
+            member(
+                "Healbot",
+                30000,
+                35000,
+                PartyRole::Healer,
+                vec![],
+                true,
+                ReadyCheckState::None,
+                0.0,
+            ),
+            member(
+                "Stabsworth",
+                28000,
+                32000,
+                PartyRole::Dps,
+                vec![debuff("Poison", 2), debuff("Curse", 3)],
+                false,
+                ReadyCheckState::Pending,
+                0.0,
+            ),
+            member(
+                "Pewpew",
+                0,
+                30000,
+                PartyRole::Dps,
+                vec![],
+                true,
+                ReadyCheckState::Declined,
+                0.0,
+            ),
         ]
     }
 
