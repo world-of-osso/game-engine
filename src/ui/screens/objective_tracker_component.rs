@@ -87,19 +87,14 @@ pub struct ObjectiveTrackerState {
     pub scenario_steps: Vec<ScenarioStep>,
 }
 
-pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
-    let state = ctx
-        .get::<ObjectiveTrackerState>()
-        .expect("ObjectiveTrackerState must be in SharedContext");
-    let mut y_cursor = 0.0_f32;
-    let quest_elements: Element = state
-        .quests
+fn build_quest_elements(quests: &[TrackedQuest], y_cursor: &mut f32) -> Element {
+    quests
         .iter()
         .enumerate()
         .take(MAX_QUESTS)
         .flat_map(|(qi, quest)| {
-            let header_y = -y_cursor;
-            y_cursor += HEADER_H + QUEST_GAP;
+            let header_y = -*y_cursor;
+            *y_cursor += HEADER_H + QUEST_GAP;
             let header = quest_header(qi, quest, header_y);
             let objectives: Element = if quest.collapsed {
                 Vec::new()
@@ -110,8 +105,8 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
                     .enumerate()
                     .take(MAX_OBJECTIVES_PER_QUEST)
                     .flat_map(|(oi, obj)| {
-                        let obj_y = -y_cursor;
-                        y_cursor += OBJECTIVE_H + OBJECTIVE_GAP;
+                        let obj_y = -*y_cursor;
+                        *y_cursor += OBJECTIVE_H + OBJECTIVE_GAP;
                         objective_line(qi, oi, obj, obj_y)
                     })
                     .collect()
@@ -121,7 +116,15 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
                 .flatten()
                 .collect::<Vec<_>>()
         })
-        .collect();
+        .collect()
+}
+
+pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
+    let state = ctx
+        .get::<ObjectiveTrackerState>()
+        .expect("ObjectiveTrackerState must be in SharedContext");
+    let mut y_cursor = 0.0_f32;
+    let quest_elements = build_quest_elements(&state.quests, &mut y_cursor);
     let bonus_elements = bonus_section(&state.bonus_objectives, &mut y_cursor);
     let timer_elements = timer_section(&state.timers, &mut y_cursor);
     let scenario_elements =
