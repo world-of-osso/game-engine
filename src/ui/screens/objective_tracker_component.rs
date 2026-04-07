@@ -170,8 +170,6 @@ fn quest_header(qi: usize, quest: &TrackedQuest, y: f32) -> Element {
 }
 
 fn objective_line(qi: usize, oi: usize, obj: &ObjectiveLine, y: f32) -> Element {
-    let cb_id = DynName(format!("QuestObj{qi}_{oi}Check"));
-    let text_id = DynName(format!("QuestObj{qi}_{oi}Text"));
     let check_text = if obj.completed { "\u{2713}" } else { "" };
     let text_color = if obj.completed {
         OBJECTIVE_DONE_COLOR
@@ -180,45 +178,44 @@ fn objective_line(qi: usize, oi: usize, obj: &ObjectiveLine, y: f32) -> Element 
     };
     let text_x = INSET + CHECKBOX_SIZE + CHECKBOX_GAP;
     rsx! {
+        {obj_checkbox(DynName(format!("QuestObj{qi}_{oi}Check")), DynName(format!("QuestObj{qi}_{oi}CheckText")), check_text, y)}
+        {obj_text_label(DynName(format!("QuestObj{qi}_{oi}Text")), &obj.text, text_color, text_x, y)}
+    }
+}
+
+fn obj_checkbox(id: DynName, text_id: DynName, check: &str, y: f32) -> Element {
+    rsx! {
         r#frame {
-            name: cb_id,
+            name: id,
             width: {CHECKBOX_SIZE},
             height: {CHECKBOX_SIZE},
             background_color: CHECKBOX_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
             fontstring {
-                name: DynName(format!("QuestObj{qi}_{oi}CheckText")),
+                name: text_id,
                 width: {CHECKBOX_SIZE},
                 height: {CHECKBOX_SIZE},
-                text: check_text,
+                text: check,
                 font_size: 10.0,
                 font_color: CHECKBOX_CHECK,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
+    }
+}
+
+fn obj_text_label(id: DynName, text: &str, color: &str, x: f32, y: f32) -> Element {
+    rsx! {
         fontstring {
-            name: text_id,
-            width: {TRACKER_W - text_x - INSET},
+            name: id,
+            width: {TRACKER_W - x - INSET},
             height: {OBJECTIVE_H},
-            text: {obj.text.as_str()},
+            text: text,
             font_size: 10.0,
-            font_color: text_color,
+            font_color: color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {text_x},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
         }
     }
 }
