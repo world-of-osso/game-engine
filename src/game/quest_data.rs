@@ -1,20 +1,63 @@
 use bevy::prelude::*;
 
 pub mod textures {
-    /// Quest log frame chrome.
-    pub const QUEST_LOG_FRAME: u32 = 1064979;
-    /// Quest type icon: normal quest bang.
+    // --- Quest log frame chrome ---
+    /// Quest log dual-pane left background.
+    pub const QUEST_LOG_PANE_LEFT: u32 = 309665;
+    /// Quest log dual-pane right background.
+    pub const QUEST_LOG_PANE_RIGHT: u32 = 309666;
+    /// Quest log top-left corner.
+    pub const QUEST_LOG_TOP_LEFT: u32 = 136804;
+    /// Quest log top-right corner.
+    pub const QUEST_LOG_TOP_RIGHT: u32 = 136805;
+    /// Quest log bottom-left corner.
+    pub const QUEST_LOG_BOT_LEFT: u32 = 136798;
+    /// Quest log bottom-right corner.
+    pub const QUEST_LOG_BOT_RIGHT: u32 = 136799;
+    /// Quest log title highlight bar.
+    pub const QUEST_LOG_TITLE_HIGHLIGHT: u32 = 136809;
+    /// Quest log book icon.
+    pub const QUEST_LOG_BOOK_ICON: u32 = 136797;
+    /// Horizontal divider line.
+    pub const HORIZONTAL_BREAK: u32 = 136783;
+    /// Bullet point marker for objectives.
+    pub const BULLET_POINT: u32 = 136788;
+
+    // --- Quest type icons ---
+    /// Active quest exclamation mark (normal).
     pub const QUEST_BANG_NORMAL: u32 = 132048;
-    /// Quest type icon: daily quest.
-    pub const QUEST_BANG_DAILY: u32 = 368364;
-    /// Quest type icon: campaign/legendary.
-    pub const QUEST_BANG_CAMPAIGN: u32 = 2032597;
-    /// Quest complete turn-in question mark.
+    /// Available quest question mark / turn-in.
     pub const QUEST_TURNIN: u32 = 132049;
-    /// NPC dialog frame chrome.
-    pub const QUEST_DIALOG_FRAME: u32 = 1064979;
-    /// NPC portrait border.
-    pub const NPC_PORTRAIT_BORDER: u32 = 136040;
+    /// Daily quest exclamation mark (blue).
+    pub const QUEST_BANG_DAILY: u32 = 368364;
+    /// Campaign/legendary quest active icon (orange).
+    pub const QUEST_BANG_CAMPAIGN: u32 = 646979;
+    /// Campaign/legendary quest available icon.
+    pub const QUEST_TURNIN_CAMPAIGN: u32 = 646980;
+
+    // --- NPC dialog ---
+    /// Quest dialog top-left corner.
+    pub const QUEST_DIALOG_TOP_LEFT: u32 = 136789;
+    /// Quest dialog top-right corner.
+    pub const QUEST_DIALOG_TOP_RIGHT: u32 = 136790;
+    /// Quest dialog bottom-left corner.
+    pub const QUEST_DIALOG_BOT_LEFT: u32 = 136784;
+    /// Quest dialog bottom-right corner.
+    pub const QUEST_DIALOG_BOT_RIGHT: u32 = 136786;
+    /// NPC portrait ring with background.
+    pub const NPC_PORTRAIT_RING: u32 = 652158;
+    /// NPC portrait ring highlight (hover/selected).
+    pub const NPC_PORTRAIT_RING_HIGHLIGHT: u32 = 652157;
+
+    // --- Reward item icons (generic placeholders) ---
+    /// Generic sword icon (melee weapon reward).
+    pub const REWARD_ICON_SWORD: u32 = 135274;
+    /// Generic shield icon (armor reward).
+    pub const REWARD_ICON_SHIELD: u32 = 134948;
+    /// Gold coin icon (money reward).
+    pub const REWARD_ICON_GOLD: u32 = 133784;
+    /// Experience icon (XP reward).
+    pub const REWARD_ICON_XP: u32 = 132446;
 }
 
 // --- Quest types ---
@@ -439,11 +482,30 @@ mod tests {
 
     #[test]
     fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::QUEST_LOG_FRAME, 0);
+        // Quest log chrome
+        assert_ne!(textures::QUEST_LOG_PANE_LEFT, 0);
+        assert_ne!(textures::QUEST_LOG_PANE_RIGHT, 0);
+        assert_ne!(textures::QUEST_LOG_TOP_LEFT, 0);
+        assert_ne!(textures::QUEST_LOG_BOT_LEFT, 0);
+        assert_ne!(textures::QUEST_LOG_TITLE_HIGHLIGHT, 0);
+        assert_ne!(textures::QUEST_LOG_BOOK_ICON, 0);
+        assert_ne!(textures::HORIZONTAL_BREAK, 0);
+        assert_ne!(textures::BULLET_POINT, 0);
+        // Quest type icons
         assert_ne!(textures::QUEST_BANG_NORMAL, 0);
+        assert_ne!(textures::QUEST_TURNIN, 0);
         assert_ne!(textures::QUEST_BANG_DAILY, 0);
         assert_ne!(textures::QUEST_BANG_CAMPAIGN, 0);
-        assert_ne!(textures::QUEST_TURNIN, 0);
-        assert_ne!(textures::NPC_PORTRAIT_BORDER, 0);
+        assert_ne!(textures::QUEST_TURNIN_CAMPAIGN, 0);
+        // NPC dialog
+        assert_ne!(textures::QUEST_DIALOG_TOP_LEFT, 0);
+        assert_ne!(textures::QUEST_DIALOG_BOT_LEFT, 0);
+        assert_ne!(textures::NPC_PORTRAIT_RING, 0);
+        assert_ne!(textures::NPC_PORTRAIT_RING_HIGHLIGHT, 0);
+        // Reward icons
+        assert_ne!(textures::REWARD_ICON_SWORD, 0);
+        assert_ne!(textures::REWARD_ICON_SHIELD, 0);
+        assert_ne!(textures::REWARD_ICON_GOLD, 0);
+        assert_ne!(textures::REWARD_ICON_XP, 0);
     }
 }
