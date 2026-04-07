@@ -64,6 +64,8 @@ pub mod merchant_data;
 pub mod mesh_asset_stats;
 #[path = "game/minimap_data.rs"]
 pub mod minimap_data;
+#[path = "game/missile_data.rs"]
+pub mod missile_data;
 #[path = "game/objective_tracker_data.rs"]
 pub mod objective_tracker_data;
 #[path = "game/equipment/outfit_data.rs"]
