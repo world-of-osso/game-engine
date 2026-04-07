@@ -205,4 +205,85 @@ mod tests {
         assert_ne!(textures::MODEL_BACKDROP, 0);
         assert_ne!(textures::BUTTON_UP, 0);
     }
+
+    #[test]
+    fn override_on_empty_slot() {
+        let mut state = DressUpState::default();
+        // No equipped item, just an override
+        state.set_override(EquipSlot::Chest, sword());
+        assert_eq!(
+            state.displayed_item(EquipSlot::Chest).unwrap().name,
+            "Ashkandi"
+        );
+        assert!(state.has_overrides());
+    }
+
+    #[test]
+    fn clear_override_on_empty_slot_stays_none() {
+        let mut state = DressUpState::default();
+        state.clear_override(EquipSlot::Feet);
+        assert!(state.displayed_item(EquipSlot::Feet).is_none());
+    }
+
+    #[test]
+    fn multiple_slot_overrides_independent() {
+        let mut state = DressUpState::default();
+        state.equipped[0] = Some(helm());
+        state.set_override(EquipSlot::MainHand, sword());
+        state.set_override(
+            EquipSlot::Head,
+            PreviewItem {
+                item_id: 500,
+                name: "Tier Helm".into(),
+                icon_fdid: 999,
+            },
+        );
+        // Head shows override
+        assert_eq!(
+            state.displayed_item(EquipSlot::Head).unwrap().name,
+            "Tier Helm"
+        );
+        // MainHand shows override
+        assert_eq!(
+            state.displayed_item(EquipSlot::MainHand).unwrap().name,
+            "Ashkandi"
+        );
+        // Chest has neither
+        assert!(state.displayed_item(EquipSlot::Chest).is_none());
+        // Clear head, reverts to equipped
+        state.clear_override(EquipSlot::Head);
+        assert_eq!(
+            state.displayed_item(EquipSlot::Head).unwrap().name,
+            "Lionheart Helm"
+        );
+        // MainHand override still active
+        assert!(state.has_overrides());
+    }
+
+    #[test]
+    fn override_preserves_icon_fdid() {
+        let mut state = DressUpState::default();
+        let item = PreviewItem {
+            item_id: 42,
+            name: "Test".into(),
+            icon_fdid: 135810,
+        };
+        state.set_override(EquipSlot::Back, item);
+        assert_eq!(
+            state.displayed_item(EquipSlot::Back).unwrap().icon_fdid,
+            135810
+        );
+    }
+
+    #[test]
+    fn reset_all_with_equipped_items_shows_equipped() {
+        let mut state = DressUpState::default();
+        state.equipped[0] = Some(helm());
+        state.set_override(EquipSlot::Head, sword());
+        state.reset_all();
+        assert_eq!(
+            state.displayed_item(EquipSlot::Head).unwrap().name,
+            "Lionheart Helm"
+        );
+    }
 }
