@@ -637,6 +637,8 @@ pub fn minimap_screen(_ctx: &SharedContext) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ui_toolkit::frame::Dimension;
+    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -645,6 +647,18 @@ mod tests {
         let shared = SharedContext::new();
         Screen::new(action_bar_screen).sync(&shared, &mut reg);
         reg
+    }
+
+    fn layout_registry() -> FrameRegistry {
+        let mut reg = action_bar_registry();
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
+        reg.get(reg.get_by_name(name).expect(name))
+            .and_then(|f| f.layout_rect.clone())
+            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
     }
 
     #[test]
@@ -765,5 +779,74 @@ mod tests {
                 "CharacterBag{i}Slot missing"
             );
         }
+    }
+
+    // --- Coord validation ---
+
+    #[test]
+    fn coord_main_action_bar_slot_dimensions() {
+        let reg = action_bar_registry();
+        let id = reg.get_by_name("ActionButton1").expect("ActionButton1");
+        let frame = reg.get(id).expect("frame data");
+        assert_eq!(frame.width, Dimension::Fixed(SLOT_W));
+        assert_eq!(frame.height, Dimension::Fixed(SLOT_H));
+    }
+
+    #[test]
+    fn coord_micro_menu_button_spacing() {
+        let reg = layout_registry();
+        let btn0 = rect(&reg, "CharacterMicroButton");
+        let btn1 = rect(&reg, "SpellbookMicroButton");
+        let spacing = btn1.x - btn0.x;
+        let expected = MICRO_BTN_W + MICRO_BTN_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "micro button spacing: expected {expected}, got {spacing}"
+        );
+    }
+
+    #[test]
+    fn coord_micro_menu_button_dimensions() {
+        let reg = layout_registry();
+        let btn = rect(&reg, "CharacterMicroButton");
+        assert!(
+            (btn.width - MICRO_BTN_W).abs() < 1.0,
+            "width: expected {MICRO_BTN_W}, got {}",
+            btn.width
+        );
+        assert!(
+            (btn.height - MICRO_BTN_H).abs() < 1.0,
+            "height: expected {MICRO_BTN_H}, got {}",
+            btn.height
+        );
+    }
+
+    #[test]
+    fn coord_bag_slot_spacing() {
+        let reg = layout_registry();
+        let backpack = rect(&reg, "MainMenuBarBackpackButton");
+        let bag0 = rect(&reg, "CharacterBag0Slot");
+        let spacing = bag0.x - backpack.x;
+        let expected = BAG_SLOT_SIZE + BAG_SLOT_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "bag slot spacing: expected {expected}, got {spacing}"
+        );
+    }
+
+    #[test]
+    fn coord_bag_slot_dimensions() {
+        let reg = layout_registry();
+        let slot = rect(&reg, "MainMenuBarBackpackButton");
+        assert!(
+            (slot.width - BAG_SLOT_SIZE).abs() < 1.0,
+            "width: expected {BAG_SLOT_SIZE}, got {}",
+            slot.width
+        );
+        assert!(
+            (slot.height - BAG_SLOT_SIZE).abs() < 1.0,
+            "height: expected {BAG_SLOT_SIZE}, got {}",
+            slot.height
+        );
     }
 }
