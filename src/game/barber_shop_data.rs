@@ -220,4 +220,62 @@ mod tests {
         assert_ne!(textures::PANEL_BUTTON_DOWN, 0);
         assert_ne!(textures::MODEL_BACKDROP, 0);
     }
+
+    #[test]
+    fn prev_choice_cycles_backward() {
+        let mut state = BarberShopState::default();
+        state.next_choice(2); // Facial Hair: None -> Goatee
+        state.next_choice(2); // Goatee -> Full Beard
+        state.prev_choice(2); // Full Beard -> Goatee
+        assert_eq!(state.selected_value(2), "Goatee");
+    }
+
+    #[test]
+    fn cost_display_formatted_as_money() {
+        let mut state = BarberShopState::default();
+        state.next_choice(0);
+        state.next_choice(1);
+        state.next_choice(2);
+        // 3 changes × 1g = 3g
+        assert_eq!(state.cost_display(), "3g 0s 0c");
+    }
+
+    #[test]
+    fn next_choice_out_of_bounds_no_panic() {
+        let mut state = BarberShopState::default();
+        state.next_choice(999); // should not panic
+    }
+
+    #[test]
+    fn prev_choice_out_of_bounds_no_panic() {
+        let mut state = BarberShopState::default();
+        state.prev_choice(999); // should not panic
+    }
+
+    #[test]
+    fn selected_value_out_of_bounds() {
+        let state = BarberShopState::default();
+        assert_eq!(state.selected_value(999), "???");
+    }
+
+    #[test]
+    fn change_then_revert_is_free() {
+        let mut state = BarberShopState::default();
+        state.next_choice(0); // Style 1 -> Style 2
+        assert_eq!(state.changed_count(), 1);
+        state.prev_choice(0); // Style 2 -> Style 1 (back to original)
+        assert_eq!(state.changed_count(), 0);
+        assert_eq!(state.cost_display(), "Free");
+    }
+
+    #[test]
+    fn apply_then_change_costs_again() {
+        let mut state = BarberShopState::default();
+        state.next_choice(0);
+        state.apply(); // Style 2 is now baseline
+        assert_eq!(state.cost_display(), "Free");
+        state.next_choice(0); // Style 2 -> Style 3 (new change)
+        assert_eq!(state.changed_count(), 1);
+        assert_eq!(state.total_cost(), Money(10_000));
+    }
 }
