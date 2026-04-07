@@ -625,6 +625,35 @@ fn reward_slot_name(id: DynName, text: &str) -> Element {
 
 // --- Action buttons ---
 
+fn quest_action_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {ACTION_BTN_W},
+            height: {ACTION_BTN_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: text_id,
+                width: {ACTION_BTN_W},
+                height: {ACTION_BTN_H},
+                text: label,
+                font_size: 11.0,
+                font_color: color,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn action_buttons(quest_complete: bool, panel_h: f32) -> Element {
     let y = -(panel_h - ACTION_BTN_H - 8.0);
     let (primary_label, primary_bg, primary_text) = if quest_complete {
@@ -632,53 +661,9 @@ fn action_buttons(quest_complete: bool, panel_h: f32) -> Element {
     } else {
         ("Accept", ACCEPT_BTN_BG, ACCEPT_BTN_TEXT)
     };
-    let primary_x = 8.0;
-    let abandon_x = primary_x + ACTION_BTN_W + ACTION_BTN_GAP;
     rsx! {
-        r#frame {
-            name: "QuestLogAcceptBtn",
-            width: {ACTION_BTN_W},
-            height: {ACTION_BTN_H},
-            background_color: primary_bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {primary_x},
-                y: {y},
-            }
-            fontstring {
-                name: "QuestLogAcceptBtnText",
-                width: {ACTION_BTN_W},
-                height: {ACTION_BTN_H},
-                text: primary_label,
-                font_size: 11.0,
-                font_color: primary_text,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
-        r#frame {
-            name: "QuestLogAbandonBtn",
-            width: {ACTION_BTN_W},
-            height: {ACTION_BTN_H},
-            background_color: ABANDON_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {abandon_x},
-                y: {y},
-            }
-            fontstring {
-                name: "QuestLogAbandonBtnText",
-                width: {ACTION_BTN_W},
-                height: {ACTION_BTN_H},
-                text: "Abandon",
-                font_size: 11.0,
-                font_color: ABANDON_BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {quest_action_btn("QuestLogAcceptBtn", primary_label, primary_bg, primary_text, 8.0, y)}
+        {quest_action_btn("QuestLogAbandonBtn", "Abandon", ABANDON_BTN_BG, ABANDON_BTN_TEXT, 8.0 + ACTION_BTN_W + ACTION_BTN_GAP, y)}
     }
 }
 
