@@ -31,6 +31,14 @@ const TAB_INSET: f32 = 12.0;
 
 pub const BANK_SLOT_COUNT: usize = 28;
 pub const BANK_BAG_SLOT_COUNT: usize = 7;
+pub const REAGENT_SLOT_COUNT: usize = 98;
+const REAGENT_GRID_COLS: usize = 7;
+const REAGENT_GRID_TOP: f32 = HEADER_H + TAB_GAP + TAB_H + TAB_GAP;
+const PURCHASE_BTN_W: f32 = 140.0;
+const PURCHASE_BTN_H: f32 = 28.0;
+const PURCHASE_BTN_BG: &str = "0.2,0.15,0.05,0.95";
+const PURCHASE_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
+const LOCKED_SLOT_BG: &str = "0.04,0.04,0.04,0.6";
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -52,6 +60,8 @@ pub struct BankTab {
 pub struct BankFrameState {
     pub visible: bool,
     pub tabs: Vec<BankTab>,
+    /// Number of reagent bank slots unlocked (0 = not purchased).
+    pub reagent_slots_unlocked: usize,
 }
 
 impl Default for BankFrameState {
@@ -68,6 +78,7 @@ impl Default for BankFrameState {
                     active: false,
                 },
             ],
+            reagent_slots_unlocked: 0,
         }
     }
 }
@@ -95,6 +106,7 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
             {tab_row(&state.tabs)}
             {bank_slot_grid()}
             {bag_slots_row()}
+            {reagent_bank_tab(state.reagent_slots_unlocked)}
         }
     }
 }
@@ -257,6 +269,103 @@ fn bank_bag_slot(index: usize, x: f32) -> Element {
     }
 }
 
+// --- Reagent Bank Tab ---
+
+fn reagent_bank_tab(slots_unlocked: usize) -> Element {
+    let content_y = -REAGENT_GRID_TOP;
+    let content_w = FRAME_W - 2.0 * INSET;
+    let content_h = FRAME_H - REAGENT_GRID_TOP - INSET;
+    let grid = reagent_slot_grid(slots_unlocked);
+    let purchase = purchase_slot_button(slots_unlocked);
+    rsx! {
+        r#frame {
+            name: "ReagentBankTab",
+            width: {content_w},
+            height: {content_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {INSET},
+                y: {content_y},
+            }
+            {grid}
+            {purchase}
+        }
+    }
+}
+
+fn reagent_slot_grid(slots_unlocked: usize) -> Element {
+    (0..REAGENT_SLOT_COUNT)
+        .flat_map(|i| {
+            let col = i % REAGENT_GRID_COLS;
+            let row = i / REAGENT_GRID_COLS;
+            let x = col as f32 * (SLOT_SIZE + SLOT_GAP);
+            let y = -(row as f32 * (SLOT_SIZE + SLOT_GAP));
+            let locked = i >= slots_unlocked;
+            reagent_slot(i, x, y, locked)
+        })
+        .collect()
+}
+
+fn reagent_slot(index: usize, x: f32, y: f32, locked: bool) -> Element {
+    let slot_name = DynName(format!("ReagentBankSlot{index}"));
+    let bg = if locked { LOCKED_SLOT_BG } else { SLOT_BG };
+    rsx! {
+        r#frame {
+            name: slot_name,
+            width: {SLOT_SIZE},
+            height: {SLOT_SIZE},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+        }
+    }
+}
+
+fn purchase_slot_button(slots_unlocked: usize) -> Element {
+    let all_unlocked = slots_unlocked >= REAGENT_SLOT_COUNT;
+    let label = if all_unlocked {
+        "All Slots Unlocked"
+    } else {
+        "Purchase Reagent Slot"
+    };
+    let rows = (REAGENT_SLOT_COUNT + REAGENT_GRID_COLS - 1) / REAGENT_GRID_COLS;
+    let grid_h = rows as f32 * SLOT_SIZE + (rows - 1) as f32 * SLOT_GAP;
+    let btn_y = -(grid_h + INSET);
+    rsx! {
+        r#frame {
+            name: "ReagentBankPurchaseButton",
+            width: {PURCHASE_BTN_W},
+            height: {PURCHASE_BTN_H},
+            background_color: PURCHASE_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: {btn_y},
+            }
+            fontstring {
+                name: "ReagentBankPurchaseButtonText",
+                width: {PURCHASE_BTN_W},
+                height: {PURCHASE_BTN_H},
+                text: label,
+                font_size: 10.0,
+                font_color: PURCHASE_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,5 +489,35 @@ mod tests {
         assert!((r.x - (FRAME_X + INSET)).abs() < 1.0);
         assert!((r.y - (FRAME_Y + BAG_ROW_TOP)).abs() < 1.0);
         assert!((r.width - BAG_SLOT_SIZE).abs() < 1.0);
+    }
+
+    // --- Reagent bank tests ---
+
+    #[test]
+    fn reagent_tab_builds_root() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("ReagentBankTab").is_some());
+    }
+
+    #[test]
+    fn reagent_tab_builds_98_slots() {
+        let reg = build_registry();
+        for i in 0..REAGENT_SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("ReagentBankSlot{i}")).is_some(),
+                "ReagentBankSlot{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("ReagentBankSlot{REAGENT_SLOT_COUNT}"))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn reagent_tab_builds_purchase_button() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("ReagentBankPurchaseButton").is_some());
+        assert!(reg.get_by_name("ReagentBankPurchaseButtonText").is_some());
     }
 }
