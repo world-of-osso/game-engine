@@ -75,6 +75,8 @@ pub mod paths;
 pub mod professions_data;
 #[path = "game/pvp_data.rs"]
 pub mod pvp_data;
+#[path = "game/quest_data.rs"]
+pub mod quest_data;
 pub mod scene_graph_utils;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
