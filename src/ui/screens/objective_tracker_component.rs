@@ -220,6 +220,57 @@ fn obj_text_label(id: DynName, text: &str, color: &str, x: f32, y: f32) -> Eleme
     }
 }
 
+fn bonus_name_label(id: DynName, text: &str, y: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {TRACKER_W - 2.0 * INSET},
+            height: {OBJECTIVE_H},
+            text: text,
+            font_size: 10.0,
+            font_color: OBJECTIVE_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+        }
+    }
+}
+
+fn bonus_progress_bar(
+    bar_id: DynName,
+    fill_id: DynName,
+    text_id: DynName,
+    fill_w: f32,
+    progress_text: &str,
+    y: f32,
+) -> Element {
+    rsx! {
+        r#frame {
+            name: bar_id,
+            width: {PROGRESS_BAR_W},
+            height: {PROGRESS_BAR_H},
+            background_color: PROGRESS_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+            r#frame {
+                name: fill_id,
+                width: {fill_w},
+                height: {PROGRESS_BAR_H},
+                background_color: PROGRESS_FILL,
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+            fontstring {
+                name: text_id,
+                width: {PROGRESS_BAR_W},
+                height: {PROGRESS_BAR_H},
+                text: progress_text,
+                font_size: 8.0,
+                font_color: PROGRESS_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn bonus_section(bonuses: &[BonusObjective], y: &mut f32) -> Element {
     bonuses
         .iter()
@@ -230,47 +281,17 @@ fn bonus_section(bonuses: &[BonusObjective], y: &mut f32) -> Element {
             *y += OBJECTIVE_H + OBJECTIVE_GAP;
             let bar_y = -*y;
             *y += PROGRESS_BAR_H + QUEST_GAP;
-            let name_id = DynName(format!("BonusObj{i}Name"));
-            let bar_id = DynName(format!("BonusObj{i}Bar"));
-            let fill_id = DynName(format!("BonusObj{i}Fill"));
-            let text_id = DynName(format!("BonusObj{i}Text"));
             let fill_w = PROGRESS_BAR_W * bonus.progress.clamp(0.0, 1.0);
-            rsx! {
-                fontstring {
-                    name: name_id,
-                    width: {TRACKER_W - 2.0 * INSET},
-                    height: {OBJECTIVE_H},
-                    text: {bonus.name.as_str()},
-                    font_size: 10.0,
-                    font_color: OBJECTIVE_COLOR,
-                    justify_h: "LEFT",
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {label_y} }
-                }
-                r#frame {
-                    name: bar_id,
-                    width: {PROGRESS_BAR_W},
-                    height: {PROGRESS_BAR_H},
-                    background_color: PROGRESS_BG,
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {bar_y} }
-                    r#frame {
-                        name: fill_id,
-                        width: {fill_w},
-                        height: {PROGRESS_BAR_H},
-                        background_color: PROGRESS_FILL,
-                        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                    }
-                    fontstring {
-                        name: text_id,
-                        width: {PROGRESS_BAR_W},
-                        height: {PROGRESS_BAR_H},
-                        text: {bonus.progress_text.as_str()},
-                        font_size: 8.0,
-                        font_color: PROGRESS_TEXT_COLOR,
-                        justify_h: "CENTER",
-                        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                    }
-                }
-            }
+            let name = bonus_name_label(DynName(format!("BonusObj{i}Name")), &bonus.name, label_y);
+            let bar = bonus_progress_bar(
+                DynName(format!("BonusObj{i}Bar")),
+                DynName(format!("BonusObj{i}Fill")),
+                DynName(format!("BonusObj{i}Text")),
+                fill_w,
+                &bonus.progress_text,
+                bar_y,
+            );
+            [name, bar].into_iter().flatten().collect::<Vec<_>>()
         })
         .collect()
 }
