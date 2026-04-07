@@ -1,5 +1,20 @@
 use bevy::prelude::*;
 
+pub mod textures {
+    /// Minimap border ring.
+    pub const BORDER: u32 = 136468;
+    /// Zoom in button.
+    pub const ZOOM_IN: u32 = 136480;
+    /// Zoom out button.
+    pub const ZOOM_OUT: u32 = 136483;
+    /// LFG eye notification icon.
+    pub const LFG_EYE: u32 = 136317;
+    /// Player arrow (static).
+    pub const ARROW: u32 = 136431;
+    /// Player arrow (rotating).
+    pub const ARROW_ROTATING: u32 = 136443;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrackingType {
     None,
@@ -96,5 +111,14 @@ mod tests {
         assert!(n.has_mail);
         assert!(n.lfg_proposal);
         assert!(!n.calendar_event);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::BORDER, 0);
+        assert_ne!(textures::ZOOM_IN, 0);
+        assert_ne!(textures::ZOOM_OUT, 0);
+        assert_ne!(textures::LFG_EYE, 0);
+        assert_ne!(textures::ARROW, 0);
     }
 }
