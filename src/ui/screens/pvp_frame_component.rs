@@ -35,6 +35,21 @@ const TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
 const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
 const CURRENCY_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 const CURRENCY_VALUE_COLOR: &str = "1.0,0.82,0.0,1.0";
+const BRACKET_ROW_H: f32 = 48.0;
+const BRACKET_ROW_GAP: f32 = 4.0;
+const BRACKET_INSET: f32 = 8.0;
+const BRACKET_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
+const BRACKET_RATING_COLOR: &str = "1.0,0.82,0.0,1.0";
+const BRACKET_STATS_COLOR: &str = "0.7,0.7,0.7,1.0";
+const BRACKET_BG: &str = "0.04,0.04,0.04,0.6";
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BracketEntry {
+    pub name: String,
+    pub rating: String,
+    pub season_wins: String,
+    pub season_losses: String,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PVPTab {
@@ -48,6 +63,7 @@ pub struct PVPFrameState {
     pub tabs: Vec<PVPTab>,
     pub honor: String,
     pub conquest: String,
+    pub brackets: Vec<BracketEntry>,
 }
 
 impl Default for PVPFrameState {
@@ -70,6 +86,7 @@ impl Default for PVPFrameState {
             ],
             honor: "0".into(),
             conquest: "0".into(),
+            brackets: vec![],
         }
     }
 }
@@ -96,7 +113,7 @@ pub fn pvp_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {tab_row(&state.tabs)}
             {currency_display(&state.honor, &state.conquest)}
-            {content_area()}
+            {bracket_list(&state.brackets)}
         }
     }
 }
@@ -220,10 +237,15 @@ fn currency_display(honor: &str, conquest: &str) -> Element {
     }
 }
 
-fn content_area() -> Element {
+fn bracket_list(brackets: &[BracketEntry]) -> Element {
     let content_y = -(CONTENT_TOP + CURRENCY_H + 4.0);
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CURRENCY_H - 4.0 - CONTENT_INSET;
+    let rows: Element = brackets
+        .iter()
+        .enumerate()
+        .flat_map(|(i, b)| bracket_row(i, b, content_w))
+        .collect();
     rsx! {
         r#frame {
             name: "PVPContentArea",
@@ -235,6 +257,61 @@ fn content_area() -> Element {
                 relative_point: AnchorPoint::TopLeft,
                 x: {CONTENT_INSET},
                 y: {content_y},
+            }
+            {rows}
+        }
+    }
+}
+
+fn bracket_row(idx: usize, bracket: &BracketEntry, parent_w: f32) -> Element {
+    let row_id = DynName(format!("PVPBracket{idx}"));
+    let name_id = DynName(format!("PVPBracket{idx}Name"));
+    let rating_id = DynName(format!("PVPBracket{idx}Rating"));
+    let stats_id = DynName(format!("PVPBracket{idx}Stats"));
+    let row_w = parent_w - 2.0 * BRACKET_INSET;
+    let y = -(BRACKET_INSET + idx as f32 * (BRACKET_ROW_H + BRACKET_ROW_GAP));
+    let stats_text = format!("{} - {}", bracket.season_wins, bracket.season_losses);
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {row_w},
+            height: {BRACKET_ROW_H},
+            background_color: BRACKET_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {BRACKET_INSET},
+                y: {y},
+            }
+            fontstring {
+                name: name_id,
+                width: {row_w * 0.4},
+                height: 18.0,
+                text: {bracket.name.as_str()},
+                font_size: 12.0,
+                font_color: BRACKET_NAME_COLOR,
+                justify_h: "LEFT",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-4" }
+            }
+            fontstring {
+                name: rating_id,
+                width: {row_w * 0.4},
+                height: 16.0,
+                text: {bracket.rating.as_str()},
+                font_size: 14.0,
+                font_color: BRACKET_RATING_COLOR,
+                justify_h: "RIGHT",
+                anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-8", y: "-4" }
+            }
+            fontstring {
+                name: stats_id,
+                width: {row_w - 16.0},
+                height: 14.0,
+                text: {stats_text.as_str()},
+                font_size: 9.0,
+                font_color: BRACKET_STATS_COLOR,
+                justify_h: "LEFT",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-26" }
             }
         }
     }
@@ -329,5 +406,71 @@ mod tests {
         let frame_x = (1920.0 - FRAME_W) / 2.0;
         let r = rect(&reg, "PVPContentArea");
         assert!((r.x - (frame_x + CONTENT_INSET)).abs() < 1.0);
+    }
+
+    // --- Bracket list tests ---
+
+    fn make_bracket_state() -> PVPFrameState {
+        PVPFrameState {
+            visible: true,
+            brackets: vec![
+                BracketEntry {
+                    name: "2v2".into(),
+                    rating: "1850".into(),
+                    season_wins: "42".into(),
+                    season_losses: "18".into(),
+                },
+                BracketEntry {
+                    name: "3v3".into(),
+                    rating: "2100".into(),
+                    season_wins: "30".into(),
+                    season_losses: "12".into(),
+                },
+                BracketEntry {
+                    name: "RBG".into(),
+                    rating: "1600".into(),
+                    season_wins: "15".into(),
+                    season_losses: "10".into(),
+                },
+                BracketEntry {
+                    name: "Solo Shuffle".into(),
+                    rating: "1900".into(),
+                    season_wins: "50".into(),
+                    season_losses: "25".into(),
+                },
+            ],
+            ..Default::default()
+        }
+    }
+
+    fn bracket_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_bracket_state());
+        Screen::new(pvp_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn bracket_list_builds_rows() {
+        let reg = bracket_registry();
+        for i in 0..4 {
+            assert!(
+                reg.get_by_name(&format!("PVPBracket{i}")).is_some(),
+                "PVPBracket{i} missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("PVPBracket{i}Name")).is_some(),
+                "PVPBracket{i}Name missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("PVPBracket{i}Rating")).is_some(),
+                "PVPBracket{i}Rating missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("PVPBracket{i}Stats")).is_some(),
+                "PVPBracket{i}Stats missing"
+            );
+        }
     }
 }
