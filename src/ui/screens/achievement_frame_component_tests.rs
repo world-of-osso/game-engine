@@ -474,3 +474,140 @@ fn coord_first_achievement_row() {
         },
     );
 }
+
+// --- Data model tests ---
+
+#[test]
+fn progress_pct_full() {
+    let row = AchievementRow {
+        progress: 1.0,
+        ..sample_achievements()[0].clone()
+    };
+    assert_eq!(row.progress_pct(), 100);
+}
+
+#[test]
+fn progress_pct_partial() {
+    let row = AchievementRow {
+        progress: 0.75,
+        ..sample_achievements()[1].clone()
+    };
+    assert_eq!(row.progress_pct(), 75);
+}
+
+#[test]
+fn progress_pct_zero() {
+    let row = AchievementRow {
+        progress: 0.0,
+        ..sample_achievements()[2].clone()
+    };
+    assert_eq!(row.progress_pct(), 0);
+}
+
+#[test]
+fn progress_pct_clamps_above_one() {
+    let row = AchievementRow {
+        progress: 1.5,
+        ..sample_achievements()[0].clone()
+    };
+    assert_eq!(row.progress_pct(), 100);
+}
+
+#[test]
+fn toggle_completion_marks_done() {
+    let mut state = make_test_state();
+    // Index 1 ("Level 20") starts incomplete
+    assert!(!state.achievements[1].completed);
+    state.toggle_completion(1);
+    assert!(state.achievements[1].completed);
+    assert_eq!(state.achievements[1].progress, 1.0);
+}
+
+#[test]
+fn toggle_completion_marks_undone() {
+    let mut state = make_test_state();
+    // Index 0 ("Level 10") starts complete
+    assert!(state.achievements[0].completed);
+    state.toggle_completion(0);
+    assert!(!state.achievements[0].completed);
+}
+
+#[test]
+fn toggle_completion_out_of_bounds_no_panic() {
+    let mut state = make_test_state();
+    state.toggle_completion(999); // should not panic
+}
+
+#[test]
+fn completion_pct_one_of_three() {
+    let state = make_test_state();
+    // 1 completed out of 3
+    assert_eq!(state.completion_pct(), 33);
+}
+
+#[test]
+fn completion_pct_all_done() {
+    let mut state = make_test_state();
+    for a in &mut state.achievements {
+        a.completed = true;
+    }
+    assert_eq!(state.completion_pct(), 100);
+}
+
+#[test]
+fn completion_pct_empty() {
+    let state = AchievementFrameState {
+        achievements: vec![],
+        ..make_test_state()
+    };
+    assert_eq!(state.completion_pct(), 0);
+}
+
+#[test]
+fn filter_by_name_finds_matches() {
+    let state = make_test_state();
+    let results = state.filter_by_name("level");
+    assert_eq!(results.len(), 3);
+}
+
+#[test]
+fn filter_by_name_case_insensitive() {
+    let state = make_test_state();
+    let results = state.filter_by_name("LEVEL");
+    assert_eq!(results.len(), 3);
+}
+
+#[test]
+fn filter_by_name_no_match() {
+    let state = make_test_state();
+    let results = state.filter_by_name("pvp");
+    assert!(results.is_empty());
+}
+
+#[test]
+fn filter_by_name_partial() {
+    let state = make_test_state();
+    let results = state.filter_by_name("20");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].name, "Level 20");
+}
+
+#[test]
+fn select_category_deselects_others() {
+    let mut state = make_test_state();
+    // Initially "General" (idx 0) is selected
+    assert!(state.categories[0].selected);
+    state.select_category(2);
+    assert!(!state.categories[0].selected);
+    assert!(state.categories[2].selected);
+    // Only one selected
+    let selected_count = state.categories.iter().filter(|c| c.selected).count();
+    assert_eq!(selected_count, 1);
+}
+
+#[test]
+fn select_category_same_index_stays_selected() {
+    let mut state = make_test_state();
+    state.select_category(0);
+    assert!(state.categories[0].selected);
+}

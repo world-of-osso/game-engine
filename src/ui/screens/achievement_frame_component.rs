@@ -101,6 +101,51 @@ pub struct AchievementFrameState {
     pub total_points: u32,
 }
 
+impl AchievementRow {
+    /// Returns the progress percentage as 0–100.
+    pub fn progress_pct(&self) -> u32 {
+        (self.progress.clamp(0.0, 1.0) * 100.0).round() as u32
+    }
+}
+
+impl AchievementFrameState {
+    /// Toggle the completion state of an achievement by index.
+    pub fn toggle_completion(&mut self, index: usize) {
+        if let Some(row) = self.achievements.get_mut(index) {
+            row.completed = !row.completed;
+            if row.completed {
+                row.progress = 1.0;
+            }
+        }
+    }
+
+    /// Percentage of achievements completed (0–100).
+    pub fn completion_pct(&self) -> u32 {
+        if self.achievements.is_empty() {
+            return 0;
+        }
+        let done = self.achievements.iter().filter(|a| a.completed).count();
+        ((done as f32 / self.achievements.len() as f32) * 100.0).round() as u32
+    }
+
+    /// Filter achievements by category name, returning only those whose name
+    /// contains the query (case-insensitive).
+    pub fn filter_by_name(&self, query: &str) -> Vec<&AchievementRow> {
+        let q = query.to_lowercase();
+        self.achievements
+            .iter()
+            .filter(|a| a.name.to_lowercase().contains(&q))
+            .collect()
+    }
+
+    /// Select a category by index, deselecting all others.
+    pub fn select_category(&mut self, index: usize) {
+        for (i, cat) in self.categories.iter_mut().enumerate() {
+            cat.selected = i == index;
+        }
+    }
+}
+
 pub fn achievement_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<AchievementFrameState>()
