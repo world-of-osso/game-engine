@@ -57,6 +57,8 @@ pub mod little_endian;
 #[path = "game/loss_of_control_data.rs"]
 pub mod loss_of_control_data;
 pub mod mail;
+#[path = "game/mail_data.rs"]
+pub mod mail_data;
 pub mod mesh_asset_stats;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
