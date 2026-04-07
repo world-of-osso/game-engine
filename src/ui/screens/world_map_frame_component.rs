@@ -46,6 +46,20 @@ const ZONE_OVERLAY_MAX: usize = 8;
 const PIN_SIZE: f32 = 16.0;
 const MAX_PINS: usize = 20;
 
+const LEGEND_W: f32 = 140.0;
+const LEGEND_ROW_H: f32 = 18.0;
+const LEGEND_ICON_SIZE: f32 = 12.0;
+const LEGEND_INSET: f32 = 6.0;
+const LEGEND_HEADER_H: f32 = 16.0;
+
+const FP_LINE_H: f32 = 2.0;
+const FP_DOT_SIZE: f32 = 6.0;
+const MAX_FP_SEGMENTS: usize = 16;
+
+const TOOLTIP_W: f32 = 180.0;
+const TOOLTIP_LINE_H: f32 = 16.0;
+const TOOLTIP_INSET: f32 = 6.0;
+
 // --- Colors ---
 
 const FRAME_BG: &str = "0.04,0.03,0.02,0.95";
@@ -63,6 +77,14 @@ const ZONE_OVERLAY_TEXT: &str = "1.0,0.82,0.0,0.8";
 const PIN_QUEST_BG: &str = "1.0,0.82,0.0,0.9";
 const PIN_FP_BG: &str = "0.3,0.8,0.3,0.9";
 const PIN_POI_BG: &str = "0.6,0.6,0.6,0.9";
+const LEGEND_BG: &str = "0.06,0.05,0.04,0.9";
+const LEGEND_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
+const LEGEND_TEXT_COLOR: &str = "0.85,0.85,0.85,1.0";
+const FP_LINE_COLOR: &str = "0.3,0.8,0.3,0.6";
+const FP_DOT_COLOR: &str = "0.3,0.8,0.3,0.9";
+const TOOLTIP_BG: &str = "0.08,0.06,0.04,0.95";
+const TOOLTIP_TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
+const TOOLTIP_TEXT_COLOR: &str = "0.85,0.85,0.85,1.0";
 
 // --- Data types ---
 
@@ -111,6 +133,15 @@ pub struct ZoneOverlay {
     pub h: f32,
 }
 
+/// A flight path line segment between two points on the canvas (fractions 0.0–1.0).
+#[derive(Clone, Debug, PartialEq)]
+pub struct FlightPathSegment {
+    pub x1: f32,
+    pub y1: f32,
+    pub x2: f32,
+    pub y2: f32,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct WorldMapFrameState {
     pub visible: bool,
@@ -120,6 +151,9 @@ pub struct WorldMapFrameState {
     pub continent_name: String,
     pub zone_overlays: Vec<ZoneOverlay>,
     pub pins: Vec<MapPin>,
+    pub flight_paths: Vec<FlightPathSegment>,
+    /// Index of hovered pin for tooltip display.
+    pub hovered_pin: Option<usize>,
 }
 
 impl WorldMapFrameState {
@@ -153,8 +187,11 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
             {header_bar(&state.zone_name, &coords)}
             {dropdown_nav(&state.continent_name, &state.zone_name)}
             {map_canvas()}
+            {flight_path_lines(&state.flight_paths)}
             {zone_overlays(&state.zone_overlays)}
             {map_pins(&state.pins)}
+            {map_legend()}
+            {pin_tooltip(&state.pins, state.hovered_pin)}
             {close_button()}
         }
     }
@@ -402,6 +439,209 @@ fn map_pins(pins: &[MapPin]) -> Element {
         .collect()
 }
 
+// --- Flight path lines (dot at each endpoint) ---
+
+fn flight_path_lines(segments: &[FlightPathSegment]) -> Element {
+    segments
+        .iter()
+        .enumerate()
+        .take(MAX_FP_SEGMENTS)
+        .flat_map(|(i, seg)| {
+            let dot1_id = DynName(format!("WorldMapFP{i}Dot1"));
+            let dot2_id = DynName(format!("WorldMapFP{i}Dot2"));
+            let line_id = DynName(format!("WorldMapFP{i}Line"));
+            let x1 = CANVAS_INSET + seg.x1 * CANVAS_W;
+            let y1 = CANVAS_TOP + seg.y1 * CANVAS_H;
+            let x2 = CANVAS_INSET + seg.x2 * CANVAS_W;
+            let y2 = CANVAS_TOP + seg.y2 * CANVAS_H;
+            let line_x = x1.min(x2);
+            let line_y = y1.min(y2);
+            let line_w = (x2 - x1).abs().max(FP_LINE_H);
+            let line_h = (y2 - y1).abs().max(FP_LINE_H);
+            rsx! {
+                r#frame {
+                    name: line_id,
+                    width: {line_w},
+                    height: {line_h},
+                    background_color: FP_LINE_COLOR,
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {line_x},
+                        y: {-line_y},
+                    }
+                }
+                r#frame {
+                    name: dot1_id,
+                    width: {FP_DOT_SIZE},
+                    height: {FP_DOT_SIZE},
+                    background_color: FP_DOT_COLOR,
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x1 - FP_DOT_SIZE / 2.0},
+                        y: {-(y1 - FP_DOT_SIZE / 2.0)},
+                    }
+                }
+                r#frame {
+                    name: dot2_id,
+                    width: {FP_DOT_SIZE},
+                    height: {FP_DOT_SIZE},
+                    background_color: FP_DOT_COLOR,
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x2 - FP_DOT_SIZE / 2.0},
+                        y: {-(y2 - FP_DOT_SIZE / 2.0)},
+                    }
+                }
+            }
+        })
+        .collect()
+}
+
+// --- Map legend (bottom-left corner of canvas) ---
+
+fn map_legend() -> Element {
+    let legend_h = LEGEND_HEADER_H + 3.0 * LEGEND_ROW_H + 2.0 * LEGEND_INSET;
+    let legend_x = CANVAS_INSET + 8.0;
+    let legend_y = CANVAS_TOP + CANVAS_H - legend_h - 8.0;
+    let entries = [
+        (MapPinType::Quest, "Quests"),
+        (MapPinType::FlightPath, "Flight Paths"),
+        (MapPinType::PointOfInterest, "Points of Interest"),
+    ];
+    let rows: Element = entries
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (pin_type, label))| legend_row(i, *pin_type, label))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "WorldMapLegend",
+            width: {LEGEND_W},
+            height: {legend_h},
+            background_color: LEGEND_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {legend_x},
+                y: {-legend_y},
+            }
+            fontstring {
+                name: "WorldMapLegendTitle",
+                width: {LEGEND_W - 2.0 * LEGEND_INSET},
+                height: {LEGEND_HEADER_H},
+                text: "Legend",
+                font_size: 10.0,
+                font_color: LEGEND_HEADER_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {LEGEND_INSET},
+                    y: {-LEGEND_INSET},
+                }
+            }
+            {rows}
+        }
+    }
+}
+
+fn legend_row(idx: usize, pin_type: MapPinType, label: &str) -> Element {
+    let icon_id = DynName(format!("WorldMapLegendIcon{idx}"));
+    let text_id = DynName(format!("WorldMapLegendText{idx}"));
+    let y = LEGEND_INSET + LEGEND_HEADER_H + idx as f32 * LEGEND_ROW_H;
+    rsx! {
+        r#frame {
+            name: icon_id,
+            width: {LEGEND_ICON_SIZE},
+            height: {LEGEND_ICON_SIZE},
+            background_color: {pin_type.color()},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LEGEND_INSET},
+                y: {-y},
+            }
+        }
+        fontstring {
+            name: text_id,
+            width: {LEGEND_W - LEGEND_ICON_SIZE - 3.0 * LEGEND_INSET},
+            height: {LEGEND_ROW_H},
+            text: label,
+            font_size: 9.0,
+            font_color: LEGEND_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LEGEND_INSET + LEGEND_ICON_SIZE + LEGEND_INSET},
+                y: {-y},
+            }
+        }
+    }
+}
+
+// --- Pin tooltip ---
+
+fn pin_tooltip(pins: &[MapPin], hovered: Option<usize>) -> Element {
+    let hide = hovered.is_none();
+    let (title, subtitle) = match hovered {
+        Some(idx) if idx < pins.len() => {
+            let pin = &pins[idx];
+            (pin.label.as_str(), pin.pin_type.symbol())
+        }
+        _ => ("", ""),
+    };
+    let tooltip_h = 2.0 * TOOLTIP_INSET + TOOLTIP_LINE_H * 2.0;
+    rsx! {
+        r#frame {
+            name: "WorldMapPinTooltip",
+            width: {TOOLTIP_W},
+            height: {tooltip_h},
+            hidden: hide,
+            background_color: TOOLTIP_BG,
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: {-CANVAS_INSET - 8.0},
+                y: {CANVAS_INSET + 8.0},
+            }
+            fontstring {
+                name: "WorldMapPinTooltipTitle",
+                width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+                height: {TOOLTIP_LINE_H},
+                text: title,
+                font_size: 11.0,
+                font_color: TOOLTIP_TITLE_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {TOOLTIP_INSET},
+                    y: {-TOOLTIP_INSET},
+                }
+            }
+            fontstring {
+                name: "WorldMapPinTooltipType",
+                width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+                height: {TOOLTIP_LINE_H},
+                text: subtitle,
+                font_size: 9.0,
+                font_color: TOOLTIP_TEXT_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {TOOLTIP_INSET},
+                    y: {-(TOOLTIP_INSET + TOOLTIP_LINE_H)},
+                }
+            }
+        }
+    }
+}
+
 // --- Close button ---
 
 fn close_button() -> Element {
@@ -481,6 +721,13 @@ mod tests {
                     y: 0.54,
                 },
             ],
+            flight_paths: vec![FlightPathSegment {
+                x1: 0.32,
+                y1: 0.52,
+                x2: 0.6,
+                y2: 0.3,
+            }],
+            hovered_pin: None,
         }
     }
 
@@ -690,5 +937,70 @@ mod tests {
         assert!(!MapPinType::Quest.color().is_empty());
         assert!(!MapPinType::FlightPath.color().is_empty());
         assert!(!MapPinType::PointOfInterest.color().is_empty());
+    }
+
+    // --- Legend tests ---
+
+    #[test]
+    fn builds_legend() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("WorldMapLegend").is_some());
+        assert!(reg.get_by_name("WorldMapLegendTitle").is_some());
+        for i in 0..3 {
+            assert!(reg.get_by_name(&format!("WorldMapLegendIcon{i}")).is_some());
+            assert!(reg.get_by_name(&format!("WorldMapLegendText{i}")).is_some());
+        }
+    }
+
+    #[test]
+    fn coord_legend_dimensions() {
+        let reg = layout_registry();
+        let r = rect(&reg, "WorldMapLegend");
+        assert!((r.width - LEGEND_W).abs() < 1.0);
+    }
+
+    // --- Flight path tests ---
+
+    #[test]
+    fn builds_flight_path_elements() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("WorldMapFP0Line").is_some());
+        assert!(reg.get_by_name("WorldMapFP0Dot1").is_some());
+        assert!(reg.get_by_name("WorldMapFP0Dot2").is_some());
+        assert!(reg.get_by_name("WorldMapFP1Line").is_none());
+    }
+
+    #[test]
+    fn coord_flight_path_dots() {
+        let reg = layout_registry();
+        let dot1 = rect(&reg, "WorldMapFP0Dot1");
+        let dot2 = rect(&reg, "WorldMapFP0Dot2");
+        assert!((dot1.width - FP_DOT_SIZE).abs() < 1.0);
+        assert!((dot2.width - FP_DOT_SIZE).abs() < 1.0);
+        // Dot1 at (0.32, 0.52), dot2 at (0.6, 0.3) — dot2 is to the right
+        assert!(dot2.x > dot1.x);
+    }
+
+    // --- Tooltip tests ---
+
+    #[test]
+    fn tooltip_hidden_when_no_hover() {
+        let reg = build_registry();
+        let id = reg.get_by_name("WorldMapPinTooltip").expect("tooltip");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn tooltip_visible_when_hovered() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = sample_state();
+        state.hovered_pin = Some(0);
+        shared.insert(state);
+        Screen::new(world_map_frame_screen).sync(&shared, &mut reg);
+        let id = reg.get_by_name("WorldMapPinTooltip").expect("tooltip");
+        assert!(!reg.get(id).expect("data").hidden);
+        assert!(reg.get_by_name("WorldMapPinTooltipTitle").is_some());
+        assert!(reg.get_by_name("WorldMapPinTooltipType").is_some());
     }
 }
