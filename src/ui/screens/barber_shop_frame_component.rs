@@ -150,7 +150,6 @@ fn option_rows(options: &[CustomizationOption]) -> Element {
 fn option_row(idx: usize, opt: &CustomizationOption) -> Element {
     let row_id = DynName(format!("BarberShopOption{idx}"));
     let label_id = DynName(format!("BarberShopOption{idx}Label"));
-    let value_id = DynName(format!("BarberShopOption{idx}Value"));
     let left_id = DynName(format!("BarberShopOption{idx}Left"));
     let right_id = DynName(format!("BarberShopOption{idx}Right"));
     let y = -(OPTIONS_TOP + idx as f32 * (OPTION_ROW_H + OPTION_ROW_GAP));
@@ -168,46 +167,54 @@ fn option_row(idx: usize, opt: &CustomizationOption) -> Element {
                 x: {OPTION_INSET},
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {OPTION_LABEL_W},
-                height: {OPTION_ROW_H},
-                text: {opt.label.as_str()},
-                font_size: 10.0,
-                font_color: LABEL_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
+            {option_label(label_id, &opt.label)}
             {arrow_button(left_id, "<", arrow_x - OPTION_INSET)}
-            r#frame {
-                name: value_id,
+            {option_value_display(idx, &opt.value, value_x - OPTION_INSET)}
+            {arrow_button(right_id, ">", right_x - OPTION_INSET)}
+        }
+    }
+}
+
+fn option_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {OPTION_LABEL_W},
+            height: {OPTION_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
+}
+
+fn option_value_display(idx: usize, value: &str, x: f32) -> Element {
+    let value_id = DynName(format!("BarberShopOption{idx}Value"));
+    let text_id = DynName(format!("BarberShopOption{idx}ValueText"));
+    rsx! {
+        r#frame {
+            name: value_id,
+            width: {OPTION_VALUE_W},
+            height: {OPTION_ROW_H},
+            background_color: VALUE_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+            fontstring {
+                name: text_id,
                 width: {OPTION_VALUE_W},
                 height: {OPTION_ROW_H},
-                background_color: VALUE_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {value_x - OPTION_INSET},
-                    y: "0",
-                }
-                fontstring {
-                    name: DynName(format!("BarberShopOption{idx}ValueText")),
-                    width: {OPTION_VALUE_W},
-                    height: {OPTION_ROW_H},
-                    text: {opt.value.as_str()},
-                    font_size: 10.0,
-                    font_color: VALUE_COLOR,
-                    justify_h: "CENTER",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                    }
-                }
+                text: value,
+                font_size: 10.0,
+                font_color: VALUE_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
-            {arrow_button(right_id, ">", right_x - OPTION_INSET)}
         }
     }
 }
