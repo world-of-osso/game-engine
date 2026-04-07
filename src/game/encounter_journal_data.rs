@@ -211,6 +211,24 @@ pub fn loot_for_boss(boss_id: u32) -> Vec<&'static LootEntry> {
     LOOT.iter().filter(|l| l.boss_id == boss_id).collect()
 }
 
+/// Filter loot for a boss by slot name (case-insensitive substring match).
+pub fn loot_for_boss_by_slot(boss_id: u32, slot_filter: &str) -> Vec<&'static LootEntry> {
+    let q = slot_filter.to_lowercase();
+    LOOT.iter()
+        .filter(|l| l.boss_id == boss_id && l.slot.to_lowercase().contains(&q))
+        .collect()
+}
+
+/// Full tree traversal: instance → bosses → abilities for all bosses in an instance.
+pub fn instance_ability_tree(
+    instance_id: u32,
+) -> Vec<(&'static BossDef, Vec<&'static AbilityDef>)> {
+    bosses_for_instance(instance_id)
+        .into_iter()
+        .map(|boss| (boss, abilities_for_boss(boss.id)))
+        .collect()
+}
+
 /// Runtime encounter journal state.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct EJState {
@@ -273,5 +291,92 @@ mod tests {
         assert_ne!(textures::BOSS_DEFAULT, 0);
         assert_ne!(textures::BACKGROUND, 0);
         assert_ne!(textures::JOURNAL_BG, 0);
+    }
+
+    // --- Instance/boss/ability tree ---
+
+    #[test]
+    fn instance_ability_tree_deadmines() {
+        let tree = instance_ability_tree(1);
+        assert_eq!(tree.len(), 2); // VanCleef + Cookie
+        assert_eq!(tree[0].0.name, "Edwin VanCleef");
+        assert_eq!(tree[0].1.len(), 2); // Deadly Poison + Summon Pirates
+        assert_eq!(tree[1].0.name, "Cookie");
+        assert_eq!(tree[1].1.len(), 1); // Cookie's Cooking
+    }
+
+    #[test]
+    fn instance_ability_tree_single_boss() {
+        let tree = instance_ability_tree(3); // Molten Core
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].0.name, "Ragnaros");
+        assert_eq!(tree[0].1[0].name, "Hand of Ragnaros");
+    }
+
+    #[test]
+    fn instance_ability_tree_nonexistent() {
+        let tree = instance_ability_tree(999);
+        assert!(tree.is_empty());
+    }
+
+    // --- Loot filter matching ---
+
+    #[test]
+    fn loot_filter_by_slot_sword() {
+        let loot = loot_for_boss_by_slot(10, "sword");
+        assert_eq!(loot.len(), 1);
+        assert_eq!(loot[0].item_name, "Cruel Barb");
+    }
+
+    #[test]
+    fn loot_filter_by_slot_back() {
+        let loot = loot_for_boss_by_slot(10, "back");
+        assert_eq!(loot.len(), 1);
+        assert_eq!(loot[0].item_name, "Cape of the Brotherhood");
+    }
+
+    #[test]
+    fn loot_filter_no_match() {
+        let loot = loot_for_boss_by_slot(10, "plate");
+        assert!(loot.is_empty());
+    }
+
+    #[test]
+    fn loot_filter_case_insensitive() {
+        let loot = loot_for_boss_by_slot(10, "SWORD");
+        assert_eq!(loot.len(), 1);
+    }
+
+    // --- Edge cases ---
+
+    #[test]
+    fn bosses_for_nonexistent_instance() {
+        assert!(bosses_for_instance(999).is_empty());
+    }
+
+    #[test]
+    fn abilities_for_nonexistent_boss() {
+        assert!(abilities_for_boss(999).is_empty());
+    }
+
+    #[test]
+    fn loot_for_nonexistent_boss() {
+        assert!(loot_for_boss(999).is_empty());
+    }
+
+    #[test]
+    fn all_bosses_have_at_least_one_ability() {
+        for boss in BOSSES {
+            let abilities = abilities_for_boss(boss.id);
+            assert!(!abilities.is_empty(), "boss {} has no abilities", boss.name);
+        }
+    }
+
+    #[test]
+    fn all_bosses_have_loot() {
+        for boss in BOSSES {
+            let loot = loot_for_boss(boss.id);
+            assert!(!loot.is_empty(), "boss {} has no loot", boss.name);
+        }
     }
 }
