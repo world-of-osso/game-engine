@@ -290,15 +290,10 @@ fn instance_list(instances: &[InstanceEntry]) -> Element {
 fn instance_row(idx: usize, inst: &InstanceEntry) -> Element {
     let row_id = DynName(format!("EJInstance{idx}"));
     let label_id = DynName(format!("EJInstance{idx}Label"));
-    let bg = if inst.selected {
-        INSTANCE_SELECTED_BG
+    let (bg, color) = if inst.selected {
+        (INSTANCE_SELECTED_BG, INSTANCE_SELECTED_COLOR)
     } else {
-        INSTANCE_NORMAL_BG
-    };
-    let color = if inst.selected {
-        INSTANCE_SELECTED_COLOR
-    } else {
-        INSTANCE_NORMAL_COLOR
+        (INSTANCE_NORMAL_BG, INSTANCE_NORMAL_COLOR)
     };
     let y = -(idx as f32 * (INSTANCE_ROW_H + INSTANCE_ROW_GAP));
     rsx! {
@@ -313,21 +308,22 @@ fn instance_row(idx: usize, inst: &InstanceEntry) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {SIDEBAR_W - 8.0},
-                height: {INSTANCE_ROW_H},
-                text: {inst.name.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
+            {instance_row_label(label_id, &inst.name, color)}
+        }
+    }
+}
+
+fn instance_row_label(id: DynName, text: &str, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {SIDEBAR_W - 8.0},
+            height: {INSTANCE_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
         }
     }
 }
