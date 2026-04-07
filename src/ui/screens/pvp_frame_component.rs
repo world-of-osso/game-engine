@@ -201,51 +201,44 @@ fn pvp_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
     }
 }
 
-fn currency_display(honor: &str, conquest: &str) -> Element {
-    let y = -(HEADER_H + TAB_GAP + TAB_H + TAB_GAP);
-    let honor_x = CONTENT_INSET;
-    let conquest_x = FRAME_W / 2.0;
+fn currency_pair(
+    label_name: &str,
+    label: &str,
+    label_w: f32,
+    value_name: &str,
+    value: &str,
+    x: f32,
+    y: f32,
+) -> Element {
     rsx! {
         fontstring {
-            name: "PVPHonorLabel",
-            width: 60.0,
+            name: DynName(label_name.into()),
+            width: {label_w},
             height: {CURRENCY_H},
-            text: "Honor:",
+            text: label,
             font_size: 10.0,
             font_color: CURRENCY_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {honor_x}, y: {y} }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
         }
         fontstring {
-            name: "PVPHonorValue",
+            name: DynName(value_name.into()),
             width: 80.0,
             height: {CURRENCY_H},
-            text: honor,
+            text: value,
             font_size: 10.0,
             font_color: CURRENCY_VALUE_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {honor_x + 64.0}, y: {y} }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x + label_w + 4.0}, y: {y} }
         }
-        fontstring {
-            name: "PVPConquestLabel",
-            width: 70.0,
-            height: {CURRENCY_H},
-            text: "Conquest:",
-            font_size: 10.0,
-            font_color: CURRENCY_LABEL_COLOR,
-            justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {conquest_x}, y: {y} }
-        }
-        fontstring {
-            name: "PVPConquestValue",
-            width: 80.0,
-            height: {CURRENCY_H},
-            text: conquest,
-            font_size: 10.0,
-            font_color: CURRENCY_VALUE_COLOR,
-            justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {conquest_x + 74.0}, y: {y} }
-        }
+    }
+}
+
+fn currency_display(honor: &str, conquest: &str) -> Element {
+    let y = -(HEADER_H + TAB_GAP + TAB_H + TAB_GAP);
+    rsx! {
+        {currency_pair("PVPHonorLabel", "Honor:", 60.0, "PVPHonorValue", honor, CONTENT_INSET, y)}
+        {currency_pair("PVPConquestLabel", "Conquest:", 70.0, "PVPConquestValue", conquest, FRAME_W / 2.0, y)}
     }
 }
 
