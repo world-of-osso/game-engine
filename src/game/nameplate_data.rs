@@ -94,6 +94,50 @@ impl ClassColor {
     }
 }
 
+/// Threat level for aggro indicators on nameplates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ThreatLevel {
+    /// No threat — no glow.
+    #[default]
+    None,
+    /// Low threat — gaining aggro (yellow glow).
+    Low,
+    /// High threat — about to pull aggro (orange glow).
+    High,
+    /// Tanking — currently has aggro (red glow).
+    Tanking,
+}
+
+impl ThreatLevel {
+    /// Glow border color for this threat level.
+    pub fn glow_color(self) -> Option<[f32; 4]> {
+        match self {
+            Self::None => Option::None,
+            Self::Low => Some([1.0, 1.0, 0.0, 0.5]),
+            Self::High => Some([1.0, 0.5, 0.0, 0.7]),
+            Self::Tanking => Some([1.0, 0.0, 0.0, 0.9]),
+        }
+    }
+
+    /// Whether the glow indicator should be shown.
+    pub fn has_glow(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    /// Determine threat level from threat percentage (0–100+).
+    pub fn from_pct(pct: f32) -> Self {
+        if pct >= 100.0 {
+            Self::Tanking
+        } else if pct >= 80.0 {
+            Self::High
+        } else if pct >= 50.0 {
+            Self::Low
+        } else {
+            Self::None
+        }
+    }
+}
+
 /// Visual state of a nameplate.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NameplateVisuals {
@@ -105,8 +149,8 @@ pub struct NameplateVisuals {
     pub health_max: f32,
     /// Active cast bar (None = not casting).
     pub cast: Option<NameplateCastBar>,
-    /// Whether this unit has threat on the player.
-    pub has_threat: bool,
+    /// Threat/aggro level for glow indicator.
+    pub threat: ThreatLevel,
 }
 
 impl Default for NameplateVisuals {
@@ -119,7 +163,7 @@ impl Default for NameplateVisuals {
             health_current: 1.0,
             health_max: 1.0,
             cast: None,
-            has_threat: false,
+            threat: ThreatLevel::None,
         }
     }
 }
@@ -332,5 +376,57 @@ mod tests {
         };
         let color = bar.fill_color();
         assert!((color[0] - 0.6).abs() < 0.01); // gray
+    }
+
+    // --- ThreatLevel ---
+
+    #[test]
+    fn threat_none_has_no_glow() {
+        assert!(!ThreatLevel::None.has_glow());
+        assert!(ThreatLevel::None.glow_color().is_none());
+    }
+
+    #[test]
+    fn threat_levels_have_glow() {
+        assert!(ThreatLevel::Low.has_glow());
+        assert!(ThreatLevel::High.has_glow());
+        assert!(ThreatLevel::Tanking.has_glow());
+    }
+
+    #[test]
+    fn threat_glow_colors_distinct() {
+        let low = ThreatLevel::Low.glow_color().unwrap();
+        let high = ThreatLevel::High.glow_color().unwrap();
+        let tanking = ThreatLevel::Tanking.glow_color().unwrap();
+        assert_ne!(low, high);
+        assert_ne!(high, tanking);
+    }
+
+    #[test]
+    fn threat_from_pct_thresholds() {
+        assert_eq!(ThreatLevel::from_pct(0.0), ThreatLevel::None);
+        assert_eq!(ThreatLevel::from_pct(49.0), ThreatLevel::None);
+        assert_eq!(ThreatLevel::from_pct(50.0), ThreatLevel::Low);
+        assert_eq!(ThreatLevel::from_pct(79.0), ThreatLevel::Low);
+        assert_eq!(ThreatLevel::from_pct(80.0), ThreatLevel::High);
+        assert_eq!(ThreatLevel::from_pct(99.0), ThreatLevel::High);
+        assert_eq!(ThreatLevel::from_pct(100.0), ThreatLevel::Tanking);
+        assert_eq!(ThreatLevel::from_pct(150.0), ThreatLevel::Tanking);
+    }
+
+    #[test]
+    fn threat_tanking_glow_is_reddest() {
+        let tanking = ThreatLevel::Tanking.glow_color().unwrap();
+        assert!((tanking[0] - 1.0).abs() < 0.01); // red channel max
+        assert!(tanking[3] > 0.8); // high alpha
+    }
+
+    #[test]
+    fn nameplate_with_threat() {
+        let np = NameplateVisuals {
+            threat: ThreatLevel::Tanking,
+            ..Default::default()
+        };
+        assert!(np.threat.has_glow());
     }
 }
