@@ -965,4 +965,66 @@ mod tests {
         let id = reg.get_by_name("RepTooltipParagon").expect("paragon line");
         assert!(reg.get(id).expect("data").hidden);
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_paragon_indicator_in_row() {
+        let reg = layout_registry();
+        // Cenarion Circle (cat 2, fac 0) has paragon indicator
+        let row_r = rect(&reg, "RepFaction2_0");
+        let paragon_r = rect(&reg, "RepParagon2_0");
+        // Anchored at left of row, vertically centered
+        let expected_x = row_r.x + PARAGON_ICON_X;
+        let expected_y = row_r.y + (FACTION_ROW_H - PARAGON_ICON_SIZE) / 2.0;
+        assert!((paragon_r.x - expected_x).abs() < 1.0);
+        assert!((paragon_r.y - expected_y).abs() < 1.0);
+        assert!((paragon_r.width - PARAGON_ICON_SIZE).abs() < 1.0);
+        assert!((paragon_r.height - PARAGON_ICON_SIZE).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_second_faction_row_spacing() {
+        let reg = layout_registry();
+        let row0 = rect(&reg, "RepFaction0_0");
+        let row1 = rect(&reg, "RepFaction0_1");
+        let expected_gap = FACTION_ROW_H + ROW_GAP;
+        assert!((row1.y - row0.y - expected_gap).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_tooltip_dimensions() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(ReputationFrameState {
+            visible: true,
+            categories: sample_categories(),
+            hovered_faction: Some((0, 0)),
+        });
+        Screen::new(reputation_frame_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        let r = rect(&reg, "RepTooltip");
+        assert!((r.width - TOOLTIP_W).abs() < 1.0);
+        // No paragon → 2 lines + header + insets
+        let expected_h = TOOLTIP_INSET * 2.0 + TOOLTIP_HEADER_H + 2.0 * TOOLTIP_LINE_H;
+        assert!((r.height - expected_h).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_bar_fill_inside_bar() {
+        let reg = layout_registry();
+        let bar_r = rect(&reg, "RepBar0_0");
+        let fill_r = rect(&reg, "RepBar0_0Fill");
+        // Fill starts at left edge of bar
+        assert!((fill_r.x - bar_r.x).abs() < 1.0);
+        assert!((fill_r.y - bar_r.y).abs() < 1.0);
+        assert!((fill_r.height - BAR_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_category_header_width() {
+        let reg = layout_registry();
+        let cat_r = rect(&reg, "RepCat0");
+        assert!((cat_r.width - (LIST_W - 4.0)).abs() < 1.0);
+    }
 }
