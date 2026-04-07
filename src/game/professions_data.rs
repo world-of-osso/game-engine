@@ -1,5 +1,17 @@
 use bevy::prelude::*;
 
+pub mod textures {
+    pub const ICON_ALCHEMY: u32 = 136240;
+    pub const ICON_BLACKSMITHING: u32 = 136241;
+    pub const ICON_MINING: u32 = 136248;
+    /// Professions book frame (left page).
+    pub const BOOK_LEFT: u32 = 383588;
+    /// Skill progress bar fill.
+    pub const PROGRESS_FILL: u32 = 383590;
+    /// Item slot border (shared).
+    pub const SLOT_BORDER: u32 = 130862;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReagentRequirement {
     pub item_name: String,
@@ -138,5 +150,13 @@ mod tests {
         assert!(!state.is_crafting());
         state.craft_queue.push(1);
         assert!(state.is_crafting());
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::ICON_ALCHEMY, 0);
+        assert_ne!(textures::ICON_BLACKSMITHING, 0);
+        assert_ne!(textures::BOOK_LEFT, 0);
+        assert_ne!(textures::PROGRESS_FILL, 0);
     }
 }
