@@ -389,4 +389,86 @@ mod tests {
             "spacing: expected {expected}, got {spacing}"
         );
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "DressUpFrameTitle"), "Dressing Room");
+    }
+
+    #[test]
+    fn slot_labels_match_item_slots() {
+        let reg = build_registry();
+        for (i, expected) in ITEM_SLOTS.iter().enumerate() {
+            let actual = fontstring_text(&reg, &format!("DressUpSlot{i}Label"));
+            assert_eq!(actual, *expected, "slot {i} label mismatch");
+        }
+    }
+
+    #[test]
+    fn button_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "DressUpButtonResetText"), "Reset");
+        assert_eq!(fontstring_text(&reg, "DressUpButtonLinkText"), "Link");
+        assert_eq!(fontstring_text(&reg, "DressUpButtonCloseText"), "Close");
+    }
+
+    #[test]
+    fn slot_count_matches_item_slots() {
+        let reg = build_registry();
+        let last = ITEM_SLOTS.len();
+        assert!(
+            reg.get_by_name(&format!("DressUpSlot{}", last - 1))
+                .is_some()
+        );
+        assert!(reg.get_by_name(&format!("DressUpSlot{last}")).is_none());
+    }
+
+    #[test]
+    fn custom_slot_labels() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(DressUpFrameState {
+            visible: true,
+            slots: vec![
+                DressUpSlot {
+                    label: "Helm".into(),
+                    icon_fdid: 100,
+                },
+                DressUpSlot {
+                    label: "Cape".into(),
+                    icon_fdid: 200,
+                },
+            ],
+        });
+        Screen::new(dress_up_frame_screen).sync(&shared, &mut reg);
+        assert_eq!(fontstring_text(&reg, "DressUpSlot0Label"), "Helm");
+        assert_eq!(fontstring_text(&reg, "DressUpSlot1Label"), "Cape");
+        assert!(reg.get_by_name("DressUpSlot2").is_none());
+    }
+
+    #[test]
+    fn coord_slot_horizontal_spacing() {
+        let reg = layout_registry();
+        let s0 = rect(&reg, "DressUpSlot0");
+        let s1 = rect(&reg, "DressUpSlot1");
+        let expected = SLOT_SIZE + SLOT_GAP;
+        let actual = s1.x - s0.x;
+        assert!(
+            (actual - expected).abs() < 1.0,
+            "horizontal spacing: expected {expected}, got {actual}"
+        );
+    }
 }
