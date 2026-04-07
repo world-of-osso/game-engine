@@ -22,9 +22,21 @@ const ROW_H: f32 = 30.0;
 const ROW_GAP: f32 = 2.0;
 const INSET: f32 = 12.0;
 const FOOTER_H: f32 = 24.0;
+const TAB_H: f32 = 28.0;
+const TAB_GAP: f32 = 4.0;
+const TAB_INSET: f32 = 8.0;
+const SEARCH_H: f32 = 24.0;
+const SEARCH_INSET: f32 = 4.0;
+const CONTENT_TOP: f32 = HEADER_H + TAB_GAP + TAB_H + TAB_GAP + SEARCH_H + SEARCH_INSET;
 pub const MAX_VISIBLE_RECIPES: usize = 12;
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
+const TAB_BG_ACTIVE: &str = "0.2,0.15,0.05,0.95";
+const TAB_BG_INACTIVE: &str = "0.08,0.07,0.06,0.88";
+const TAB_TEXT_ACTIVE: &str = "1.0,0.82,0.0,1.0";
+const TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
+const SEARCH_BG: &str = "0.1,0.1,0.1,0.9";
+const SEARCH_TEXT_COLOR: &str = "0.5,0.5,0.5,0.8";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const ROW_BG: &str = "0.0,0.0,0.0,0.4";
 const NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
@@ -41,9 +53,16 @@ pub struct RecipeState {
     pub cooldown: String,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProfessionTab {
+    pub name: String,
+    pub active: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ProfessionsFrameState {
     pub visible: bool,
+    pub tabs: Vec<ProfessionTab>,
     pub recipes: Vec<RecipeState>,
 }
 
@@ -67,6 +86,8 @@ pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
                 y: "-80",
             }
             {professions_title_bar()}
+            {profession_tab_row(&state.tabs)}
+            {recipe_search_bar()}
             {recipe_list(&state.recipes)}
             {recipe_count_footer(state.recipes.len())}
         }
@@ -88,6 +109,91 @@ fn professions_title_bar() -> Element {
                 relative_point: AnchorPoint::Top,
                 x: "0",
                 y: "0",
+            }
+        }
+    }
+}
+
+fn profession_tab_row(tabs: &[ProfessionTab]) -> Element {
+    let count = tabs.len().max(1) as f32;
+    let tab_w = (FRAME_W - 2.0 * TAB_INSET - (count - 1.0) * TAB_GAP) / count;
+    tabs.iter()
+        .enumerate()
+        .flat_map(|(i, tab)| {
+            let tab_id = DynName(format!("ProfessionTab{i}"));
+            let label_id = DynName(format!("ProfessionTab{i}Label"));
+            let x = TAB_INSET + i as f32 * (tab_w + TAB_GAP);
+            let y = -(HEADER_H + TAB_GAP);
+            let bg = if tab.active {
+                TAB_BG_ACTIVE
+            } else {
+                TAB_BG_INACTIVE
+            };
+            let color = if tab.active {
+                TAB_TEXT_ACTIVE
+            } else {
+                TAB_TEXT_INACTIVE
+            };
+            rsx! {
+                r#frame {
+                    name: tab_id,
+                    width: {tab_w},
+                    height: {TAB_H},
+                    background_color: bg,
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x},
+                        y: {y},
+                    }
+                    fontstring {
+                        name: label_id,
+                        width: {tab_w},
+                        height: {TAB_H},
+                        text: {tab.name.as_str()},
+                        font_size: 11.0,
+                        font_color: color,
+                        justify_h: "CENTER",
+                        anchor {
+                            point: AnchorPoint::TopLeft,
+                            relative_point: AnchorPoint::TopLeft,
+                        }
+                    }
+                }
+            }
+        })
+        .collect()
+}
+
+fn recipe_search_bar() -> Element {
+    let bar_w = FRAME_W - 2.0 * INSET;
+    let y = -(HEADER_H + TAB_GAP + TAB_H + TAB_GAP);
+    rsx! {
+        r#frame {
+            name: "ProfessionsSearchBar",
+            width: {bar_w},
+            height: {SEARCH_H},
+            background_color: SEARCH_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {INSET},
+                y: {y},
+            }
+            fontstring {
+                name: "ProfessionsSearchText",
+                width: {bar_w - 8.0},
+                height: {SEARCH_H},
+                text: "Search recipes...",
+                font_size: 10.0,
+                font_color: SEARCH_TEXT_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
+                }
             }
         }
     }
@@ -243,6 +349,7 @@ mod tests {
                     },
                 })
                 .collect(),
+            tabs: vec![],
         }
     }
 
@@ -290,5 +397,36 @@ mod tests {
             .expect("ProfessionsFrame");
         let frame = registry.get(frame_id).expect("frame data");
         assert!(frame.hidden, "frame should be hidden when visible=false");
+    }
+
+    #[test]
+    fn professions_frame_builds_tabs() {
+        let mut state = make_test_state(0);
+        state.tabs = vec![
+            ProfessionTab {
+                name: "Alchemy".into(),
+                active: true,
+            },
+            ProfessionTab {
+                name: "Blacksmithing".into(),
+                active: false,
+            },
+        ];
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(professions_frame_screen).sync(&shared, &mut registry);
+        assert!(registry.get_by_name("ProfessionTab0").is_some());
+        assert!(registry.get_by_name("ProfessionTab1").is_some());
+    }
+
+    #[test]
+    fn professions_frame_builds_search_bar() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state(0));
+        Screen::new(professions_frame_screen).sync(&shared, &mut registry);
+        assert!(registry.get_by_name("ProfessionsSearchBar").is_some());
+        assert!(registry.get_by_name("ProfessionsSearchText").is_some());
     }
 }
