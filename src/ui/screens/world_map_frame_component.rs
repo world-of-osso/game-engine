@@ -269,94 +269,55 @@ fn map_canvas() -> Element {
 
 // --- Dropdown navigation ---
 
-fn dropdown_nav(continent: &str, zone: &str) -> Element {
-    let dropdown_y = (HEADER_H - DROPDOWN_H) / 2.0;
-    let zone_x = DROPDOWN_X + DROPDOWN_W + DROPDOWN_GAP;
+fn nav_dropdown(
+    frame_name: &str,
+    label_name: &str,
+    arrow_name: &str,
+    text: &str,
+    x: f32,
+    y: f32,
+) -> Element {
     rsx! {
         r#frame {
-            name: "WorldMapContinentDropdown",
+            name: DynName(frame_name.into()),
             width: {DROPDOWN_W},
             height: {DROPDOWN_H},
             background_color: DROPDOWN_BG,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {DROPDOWN_X},
-                y: {-dropdown_y},
+                x: {x},
+                y: {y},
             }
             fontstring {
-                name: "WorldMapContinentLabel",
+                name: DynName(label_name.into()),
                 width: {DROPDOWN_W - 20.0},
                 height: {DROPDOWN_H},
-                text: continent,
+                text: text,
                 font_size: 10.0,
                 font_color: DROPDOWN_TEXT_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "6",
-                    y: "0",
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "6", y: "0" }
             }
             fontstring {
-                name: "WorldMapContinentArrow",
+                name: DynName(arrow_name.into()),
                 width: 14.0,
                 height: {DROPDOWN_H},
                 text: "▼",
                 font_size: 9.0,
                 font_color: DROPDOWN_ARROW_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: "-4",
-                    y: "0",
-                }
+                anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
             }
         }
-        r#frame {
-            name: "WorldMapZoneDropdown",
-            width: {DROPDOWN_W},
-            height: {DROPDOWN_H},
-            background_color: DROPDOWN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {zone_x},
-                y: {-dropdown_y},
-            }
-            fontstring {
-                name: "WorldMapZoneDropLabel",
-                width: {DROPDOWN_W - 20.0},
-                height: {DROPDOWN_H},
-                text: zone,
-                font_size: 10.0,
-                font_color: DROPDOWN_TEXT_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "6",
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: "WorldMapZoneDropArrow",
-                width: 14.0,
-                height: {DROPDOWN_H},
-                text: "▼",
-                font_size: 9.0,
-                font_color: DROPDOWN_ARROW_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: "-4",
-                    y: "0",
-                }
-            }
-        }
+    }
+}
+
+fn dropdown_nav(continent: &str, zone: &str) -> Element {
+    let y = -((HEADER_H - DROPDOWN_H) / 2.0);
+    rsx! {
+        {nav_dropdown("WorldMapContinentDropdown", "WorldMapContinentLabel", "WorldMapContinentArrow", continent, DROPDOWN_X, y)}
+        {nav_dropdown("WorldMapZoneDropdown", "WorldMapZoneDropLabel", "WorldMapZoneDropArrow", zone, DROPDOWN_X + DROPDOWN_W + DROPDOWN_GAP, y)}
     }
 }
 
