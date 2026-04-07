@@ -668,41 +668,40 @@ fn minimap_buttons() -> Element {
         ("MinimapLFGButton", "LFG", -80.0, 38.0),
     ];
     btns.iter()
-        .flat_map(|(name, text, x_off, y_off)| {
-            let btn_name = DynName(name.to_string());
-            let txt_name = DynName(format!("{name}Text"));
-            rsx! {
-                r#frame {
-                    name: btn_name,
-                    width: {MINIMAP_BTN_SIZE},
-                    height: {MINIMAP_BTN_SIZE},
-                    background_color: MINIMAP_HEADER_BG,
-                    strata: FrameStrata::High,
-                    frame_level: 12.0,
-                    anchor {
-                        point: AnchorPoint::Center,
-                        relative_to: MINIMAP_DISPLAY,
-                        relative_point: AnchorPoint::Center,
-                        x: {*x_off},
-                        y: {*y_off},
-                    }
-                    fontstring {
-                        name: txt_name,
-                        width: {MINIMAP_BTN_SIZE},
-                        height: {MINIMAP_BTN_SIZE},
-                        text,
-                        font_size: 8.0,
-                        font_color: MINIMAP_ZONE_COLOR,
-                        justify_h: "CENTER",
-                        anchor {
-                            point: AnchorPoint::TopLeft,
-                            relative_point: AnchorPoint::TopLeft,
-                        }
-                    }
-                }
-            }
-        })
+        .flat_map(|(name, text, x_off, y_off)| minimap_btn(name, text, *x_off, *y_off))
         .collect()
+}
+
+fn minimap_btn(name: &str, text: &str, x_off: f32, y_off: f32) -> Element {
+    let btn_name = DynName(name.to_string());
+    let txt_name = DynName(format!("{name}Text"));
+    rsx! {
+        r#frame {
+            name: btn_name,
+            width: {MINIMAP_BTN_SIZE},
+            height: {MINIMAP_BTN_SIZE},
+            background_color: MINIMAP_HEADER_BG,
+            strata: FrameStrata::High,
+            frame_level: 12.0,
+            anchor {
+                point: AnchorPoint::Center,
+                relative_to: MINIMAP_DISPLAY,
+                relative_point: AnchorPoint::Center,
+                x: {x_off},
+                y: {y_off},
+            }
+            fontstring {
+                name: txt_name,
+                width: {MINIMAP_BTN_SIZE},
+                height: {MINIMAP_BTN_SIZE},
+                text,
+                font_size: 8.0,
+                font_color: MINIMAP_ZONE_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
 }
 
 pub fn minimap_screen(_ctx: &SharedContext) -> Element {
