@@ -64,8 +64,9 @@ pub static ACTIVITY_CATEGORIES: &[ActivityCategory] = &[
     },
 ];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ApplicationStatus {
+    #[default]
     None,
     Applied,
     Invited,
@@ -104,12 +105,6 @@ pub struct LFGState {
     pub applied_group_id: Option<u64>,
 }
 
-impl Default for ApplicationStatus {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 impl LFGState {
     pub fn has_role(&self, role: LFGRole) -> bool {
         self.selected_roles.contains(&role)
@@ -128,6 +123,20 @@ impl LFGState {
             .and_then(|id| ACTIVITY_CATEGORIES.iter().find(|c| c.id == id))
             .map(|c| c.name)
             .unwrap_or("All Activities")
+    }
+
+    /// Filter listings by activity name (case-insensitive substring).
+    pub fn filter_listings(&self, query: &str) -> Vec<&GroupListing> {
+        let q = query.to_lowercase();
+        self.listings
+            .iter()
+            .filter(|l| l.activity.to_lowercase().contains(&q))
+            .collect()
+    }
+
+    /// Filter listings to only non-full groups.
+    pub fn available_listings(&self) -> Vec<&GroupListing> {
+        self.listings.iter().filter(|l| !l.is_full()).collect()
     }
 }
 
@@ -202,5 +211,115 @@ mod tests {
         assert_ne!(textures::ROLE_ICONS, 0);
         assert_ne!(textures::ICON_HEROIC, 0);
         assert_ne!(textures::BG_DEADMINES, 0);
+    }
+
+    // --- Role checkbox combos ---
+
+    #[test]
+    fn multiple_roles_selected() {
+        let mut state = LFGState::default();
+        state.toggle_role(LFGRole::Tank);
+        state.toggle_role(LFGRole::Healer);
+        assert!(state.has_role(LFGRole::Tank));
+        assert!(state.has_role(LFGRole::Healer));
+        assert!(!state.has_role(LFGRole::DPS));
+        assert_eq!(state.selected_roles.len(), 2);
+    }
+
+    #[test]
+    fn all_three_roles_selected() {
+        let mut state = LFGState::default();
+        state.toggle_role(LFGRole::Tank);
+        state.toggle_role(LFGRole::Healer);
+        state.toggle_role(LFGRole::DPS);
+        assert_eq!(state.selected_roles.len(), 3);
+    }
+
+    #[test]
+    fn toggle_role_removes_from_combo() {
+        let mut state = LFGState::default();
+        state.toggle_role(LFGRole::Tank);
+        state.toggle_role(LFGRole::Healer);
+        state.toggle_role(LFGRole::Tank); // remove tank
+        assert!(!state.has_role(LFGRole::Tank));
+        assert!(state.has_role(LFGRole::Healer));
+        assert_eq!(state.selected_roles.len(), 1);
+    }
+
+    // --- Activity filtering ---
+
+    fn sample_listings() -> Vec<GroupListing> {
+        vec![
+            GroupListing {
+                id: 1,
+                leader: "A".into(),
+                member_count: 3,
+                max_members: 5,
+                activity: "Deadmines".into(),
+                note: String::new(),
+                min_item_level: 0,
+                voice_chat: false,
+            },
+            GroupListing {
+                id: 2,
+                leader: "B".into(),
+                member_count: 5,
+                max_members: 5,
+                activity: "Shadowfang Keep".into(),
+                note: String::new(),
+                min_item_level: 0,
+                voice_chat: true,
+            },
+            GroupListing {
+                id: 3,
+                leader: "C".into(),
+                member_count: 2,
+                max_members: 10,
+                activity: "Deadmines Heroic".into(),
+                note: String::new(),
+                min_item_level: 200,
+                voice_chat: false,
+            },
+        ]
+    }
+
+    #[test]
+    fn filter_listings_by_activity() {
+        let mut state = LFGState::default();
+        state.listings = sample_listings();
+        let results = state.filter_listings("deadmines");
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn filter_listings_case_insensitive() {
+        let mut state = LFGState::default();
+        state.listings = sample_listings();
+        let results = state.filter_listings("SHADOWFANG");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].leader, "B");
+    }
+
+    #[test]
+    fn filter_listings_no_match() {
+        let mut state = LFGState::default();
+        state.listings = sample_listings();
+        assert!(state.filter_listings("Molten Core").is_empty());
+    }
+
+    #[test]
+    fn available_listings_excludes_full() {
+        let mut state = LFGState::default();
+        state.listings = sample_listings();
+        let available = state.available_listings();
+        assert_eq!(available.len(), 2); // id 1 and 3 (id 2 is full)
+        assert!(available.iter().all(|l| !l.is_full()));
+    }
+
+    #[test]
+    fn selected_activity_nonexistent_id() {
+        let mut state = LFGState::default();
+        state.selected_activity = Some(999);
+        assert_eq!(state.selected_activity_name(), "All Activities");
     }
 }
