@@ -559,59 +559,37 @@ fn loot_tab(items: &[LootItem], slot_filter: &str, class_filter: &str) -> Elemen
 }
 
 fn loot_filter_row(slot_filter: &str, class_filter: &str) -> Element {
+    let class_x = LOOT_INSET + LOOT_FILTER_W + LOOT_FILTER_GAP;
+    rsx! {
+        {loot_filter_dropdown("EJLootSlotFilter", slot_filter, LOOT_INSET)}
+        {loot_filter_dropdown("EJLootClassFilter", class_filter, class_x)}
+    }
+}
+
+fn loot_filter_dropdown(name: &str, text: &str, x: f32) -> Element {
+    let frame_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
     rsx! {
         r#frame {
-            name: "EJLootSlotFilter",
+            name: frame_id,
             width: {LOOT_FILTER_W},
             height: {LOOT_FILTER_H},
             background_color: LOOT_FILTER_BG,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {LOOT_INSET},
+                x: {x},
                 y: {-LOOT_INSET},
             }
             fontstring {
-                name: "EJLootSlotFilterText",
+                name: text_id,
                 width: {LOOT_FILTER_W - 8.0},
                 height: {LOOT_FILTER_H},
-                text: slot_filter,
+                text: text,
                 font_size: 10.0,
                 font_color: LOOT_FILTER_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
-        }
-        r#frame {
-            name: "EJLootClassFilter",
-            width: {LOOT_FILTER_W},
-            height: {LOOT_FILTER_H},
-            background_color: LOOT_FILTER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {LOOT_INSET + LOOT_FILTER_W + LOOT_FILTER_GAP},
-                y: {-LOOT_INSET},
-            }
-            fontstring {
-                name: "EJLootClassFilterText",
-                width: {LOOT_FILTER_W - 8.0},
-                height: {LOOT_FILTER_H},
-                text: class_filter,
-                font_size: 10.0,
-                font_color: LOOT_FILTER_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
             }
         }
     }
