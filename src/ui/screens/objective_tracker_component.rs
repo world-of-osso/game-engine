@@ -545,4 +545,119 @@ mod tests {
         assert!(reg.get_by_name("ScenarioStep0").is_some());
         assert!(reg.get_by_name("ScenarioStep1").is_some());
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn quest_header_text() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "QuestHeader0"),
+            "The Defias Brotherhood"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "QuestHeader1"),
+            "Red Ridge Supply Run"
+        );
+    }
+
+    #[test]
+    fn objective_line_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "QuestObj0_0Text"), "Kill 10 Defias");
+        assert_eq!(
+            fontstring_text(&reg, "QuestObj0_1Text"),
+            "Collect 5 bandanas"
+        );
+    }
+
+    #[test]
+    fn objective_checkbox_completed() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "QuestObj0_0CheckText"), "✓");
+    }
+
+    #[test]
+    fn objective_checkbox_incomplete() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "QuestObj0_1CheckText"), "");
+    }
+
+    #[test]
+    fn bonus_objective_text() {
+        let reg = full_registry();
+        assert_eq!(fontstring_text(&reg, "BonusObj0Name"), "Defend the Bridge");
+        assert_eq!(fontstring_text(&reg, "BonusObj0Text"), "3/5");
+    }
+
+    #[test]
+    fn timer_text() {
+        let reg = full_registry();
+        assert_eq!(fontstring_text(&reg, "Timer0Label"), "Arena");
+        assert_eq!(fontstring_text(&reg, "Timer0Time"), "1:30");
+    }
+
+    #[test]
+    fn scenario_header_and_step_text() {
+        let reg = full_registry();
+        assert_eq!(fontstring_text(&reg, "ScenarioHeader"), "Proving Grounds");
+        assert_eq!(fontstring_text(&reg, "ScenarioStep0"), "Survive wave 1");
+        assert_eq!(fontstring_text(&reg, "ScenarioStep1"), "Survive wave 2");
+    }
+
+    #[test]
+    fn empty_state_builds_frame_only() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(ObjectiveTrackerState::default());
+        Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
+        assert!(reg.get_by_name("ObjectiveTrackerFrame").is_some());
+        assert!(reg.get_by_name("QuestHeader0").is_none());
+        assert!(reg.get_by_name("ScenarioHeader").is_none());
+    }
+
+    #[test]
+    fn scenario_hidden_when_name_empty() {
+        let reg = build_registry();
+        // Default state has empty scenario_name
+        assert!(reg.get_by_name("ScenarioHeader").is_none());
+    }
+
+    #[test]
+    fn max_quests_capped() {
+        let quests: Vec<TrackedQuest> = (0..12)
+            .map(|i| TrackedQuest {
+                title: format!("Quest {i}"),
+                collapsed: true,
+                objectives: vec![],
+            })
+            .collect();
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(ObjectiveTrackerState {
+            quests,
+            ..Default::default()
+        });
+        Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
+        for i in 0..MAX_QUESTS {
+            assert!(
+                reg.get_by_name(&format!("QuestHeader{i}")).is_some(),
+                "QuestHeader{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("QuestHeader{MAX_QUESTS}"))
+                .is_none()
+        );
+    }
 }
