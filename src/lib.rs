@@ -6,6 +6,8 @@ pub mod achievements;
 pub mod action_bar_data;
 pub mod asset;
 pub mod auction_house;
+#[path = "game/auction_house_data.rs"]
+pub mod auction_house_data;
 pub mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;
