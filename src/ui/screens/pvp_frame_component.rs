@@ -24,7 +24,6 @@ const TAB_INSET: f32 = 8.0;
 const CONTENT_TOP: f32 = HEADER_H + TAB_GAP + TAB_H + TAB_GAP;
 const CONTENT_INSET: f32 = 8.0;
 const CURRENCY_H: f32 = 20.0;
-const CURRENCY_GAP: f32 = 16.0;
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -548,5 +547,104 @@ mod tests {
         assert!(reg.get_by_name("PVPQueueButtonText").is_some());
         assert!(reg.get_by_name("PVPWarGamesButton").is_some());
         assert!(reg.get_by_name("PVPWarGamesButtonText").is_some());
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: PVPFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(pvp_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "PVPFrameTitle"), "Player vs. Player");
+    }
+
+    #[test]
+    fn tab_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "PVPTab0Label"), "Honor");
+        assert_eq!(fontstring_text(&reg, "PVPTab1Label"), "Conquest");
+        assert_eq!(fontstring_text(&reg, "PVPTab2Label"), "War Games");
+    }
+
+    #[test]
+    fn currency_labels_and_values() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "PVPHonorLabel"), "Honor:");
+        assert_eq!(fontstring_text(&reg, "PVPHonorValue"), "0");
+        assert_eq!(fontstring_text(&reg, "PVPConquestLabel"), "Conquest:");
+        assert_eq!(fontstring_text(&reg, "PVPConquestValue"), "0");
+    }
+
+    #[test]
+    fn currency_custom_values() {
+        let mut state = PVPFrameState {
+            visible: true,
+            ..Default::default()
+        };
+        state.honor = "15000".into();
+        state.conquest = "1800".into();
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "PVPHonorValue"), "15000");
+        assert_eq!(fontstring_text(&reg, "PVPConquestValue"), "1800");
+    }
+
+    #[test]
+    fn bracket_row_text() {
+        let reg = bracket_registry();
+        assert_eq!(fontstring_text(&reg, "PVPBracket0Name"), "2v2");
+        assert_eq!(fontstring_text(&reg, "PVPBracket0Rating"), "1850");
+        assert_eq!(fontstring_text(&reg, "PVPBracket0Stats"), "42 - 18");
+    }
+
+    #[test]
+    fn bracket_row_text_all() {
+        let reg = bracket_registry();
+        assert_eq!(fontstring_text(&reg, "PVPBracket1Name"), "3v3");
+        assert_eq!(fontstring_text(&reg, "PVPBracket1Rating"), "2100");
+        assert_eq!(fontstring_text(&reg, "PVPBracket2Name"), "RBG");
+        assert_eq!(fontstring_text(&reg, "PVPBracket3Name"), "Solo Shuffle");
+        assert_eq!(fontstring_text(&reg, "PVPBracket3Rating"), "1900");
+        assert_eq!(fontstring_text(&reg, "PVPBracket3Stats"), "50 - 25");
+    }
+
+    #[test]
+    fn queue_button_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "PVPQueueButtonText"), "Join Queue");
+        assert_eq!(fontstring_text(&reg, "PVPWarGamesButtonText"), "War Games");
+    }
+
+    #[test]
+    fn empty_brackets_no_rows() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("PVPBracket0").is_none());
+        assert!(reg.get_by_name("PVPContentArea").is_some());
+    }
+
+    #[test]
+    fn coord_queue_button_dimensions() {
+        let reg = layout_registry();
+        let q = rect(&reg, "PVPQueueButton");
+        assert!((q.width - QUEUE_BTN_W).abs() < 1.0);
+        assert!((q.height - QUEUE_BTN_H).abs() < 1.0);
+        let w = rect(&reg, "PVPWarGamesButton");
+        assert!((w.width - WARGAME_BTN_W).abs() < 1.0);
     }
 }
