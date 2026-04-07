@@ -67,4 +67,11 @@ mod tests {
         );
         assert!(ssao.constant_object_thickness > 0.0);
     }
+
+    #[test]
+    fn taa_default_resets_history() {
+        use bevy::anti_alias::taa::TemporalAntiAliasing;
+        let taa = TemporalAntiAliasing::default();
+        assert!(taa.reset, "TAA should reset history on first frame");
+    }
 }

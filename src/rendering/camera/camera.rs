@@ -1,3 +1,4 @@
+use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::core_pipeline::prepass::{DepthPrepass, NormalPrepass};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::light::ShadowFilteringMethod;
@@ -129,9 +130,11 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
     commands
         .spawn((
             Camera3d::default(),
+            Msaa::Off,
             DepthPrepass,
             NormalPrepass,
             ScreenSpaceAmbientOcclusion::default(),
+            TemporalAntiAliasing::default(),
             additive_particle_glow_tonemapping(),
             Transform::default(),
             WowCamera::default(),
