@@ -1,5 +1,35 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the auction house frame.
+pub mod textures {
+    // Frame chrome
+    /// Auction frame top border.
+    pub const FRAME_TOP: u32 = 130681;
+    /// Auction frame top-left corner.
+    pub const FRAME_TOP_LEFT: u32 = 130682;
+    /// Auction frame top-right corner.
+    pub const FRAME_TOP_RIGHT: u32 = 130683;
+    /// Auction frame bottom border.
+    pub const FRAME_BOTTOM: u32 = 130678;
+    // Browse tab chrome
+    /// Browse tab top border.
+    pub const BROWSE_TOP: u32 = 130693;
+    /// Browse tab bottom border.
+    pub const BROWSE_BOTTOM: u32 = 130690;
+    // Item slot / icons
+    /// Buyout icon.
+    pub const BUYOUT_ICON: u32 = 130677;
+    // Money denomination icons
+    /// Gold coin icon.
+    pub const GOLD_ICON: u32 = 237618;
+    /// Silver coin icon.
+    pub const SILVER_ICON: u32 = 237620;
+    /// Copper coin icon.
+    pub const COPPER_ICON: u32 = 237617;
+    /// Combined money icons sheet.
+    pub const MONEY_ICONS: u32 = 136496;
+}
+
 /// A money amount stored as total copper (1g = 100s = 10000c).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Money(pub u64);
@@ -182,5 +212,16 @@ mod tests {
         assert!(state.search_results.is_empty());
         assert!(state.my_listings.is_empty());
         assert_eq!(state.player_money, Money(0));
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_TOP, 0);
+        assert_ne!(textures::FRAME_BOTTOM, 0);
+        assert_ne!(textures::BROWSE_TOP, 0);
+        assert_ne!(textures::BUYOUT_ICON, 0);
+        assert_ne!(textures::GOLD_ICON, 0);
+        assert_ne!(textures::SILVER_ICON, 0);
+        assert_ne!(textures::COPPER_ICON, 0);
     }
 }
