@@ -31,7 +31,42 @@ const TAB_BG_INACTIVE: &str = "0.08,0.07,0.06,0.88";
 const TAB_TEXT_ACTIVE: &str = "1.0,0.82,0.0,1.0";
 const TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
 const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
-const CONTENT_PLACEHOLDER_COLOR: &str = "0.5,0.5,0.5,1.0";
+
+// Browse tab layout
+const SEARCH_BAR_H: f32 = 28.0;
+const SEARCH_BAR_INSET: f32 = 4.0;
+const SIDEBAR_W: f32 = 160.0;
+const SIDEBAR_GAP: f32 = 4.0;
+const RESULTS_HEADER_H: f32 = 22.0;
+const RESULT_ROW_H: f32 = 24.0;
+const RESULT_ROW_GAP: f32 = 1.0;
+
+const SEARCH_BAR_BG: &str = "0.1,0.1,0.1,0.9";
+const SEARCH_BAR_TEXT: &str = "0.5,0.5,0.5,0.8";
+const SIDEBAR_BG: &str = "0.0,0.0,0.0,0.4";
+const CAT_ROW_H: f32 = 18.0;
+const CAT_ROW_GAP: f32 = 1.0;
+const CAT_SELECTED_BG: &str = "0.2,0.15,0.05,0.95";
+const CAT_NORMAL_BG: &str = "0.0,0.0,0.0,0.0";
+const CAT_SELECTED_COLOR: &str = "1.0,0.82,0.0,1.0";
+const CAT_NORMAL_COLOR: &str = "1.0,1.0,1.0,1.0";
+const HEADER_BG: &str = "0.12,0.1,0.08,0.9";
+const HEADER_TEXT_COLOR: &str = "0.8,0.8,0.8,1.0";
+const ROW_BG_EVEN: &str = "0.04,0.04,0.04,0.6";
+const ROW_BG_ODD: &str = "0.06,0.06,0.06,0.6";
+const ROW_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const GOLD_COLOR: &str = "1.0,0.82,0.0,1.0";
+
+pub const MAX_BROWSE_CATEGORIES: usize = 12;
+pub const MAX_RESULT_ROWS: usize = 8;
+pub const RESULT_COLUMNS: &[(&str, f32)] = &[
+    ("Name", 0.40),
+    ("Level", 0.10),
+    ("Time Left", 0.15),
+    ("Seller", 0.15),
+    ("Bid", 0.10),
+    ("Buyout", 0.10),
+];
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AuctionTab {
@@ -40,9 +75,27 @@ pub struct AuctionTab {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct BrowseCategory {
+    pub name: String,
+    pub selected: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BrowseResultRow {
+    pub name: String,
+    pub level: String,
+    pub time_left: String,
+    pub seller: String,
+    pub bid: String,
+    pub buyout: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct AuctionHouseFrameState {
     pub visible: bool,
     pub tabs: Vec<AuctionTab>,
+    pub browse_categories: Vec<BrowseCategory>,
+    pub browse_results: Vec<BrowseResultRow>,
 }
 
 impl Default for AuctionHouseFrameState {
@@ -63,6 +116,8 @@ impl Default for AuctionHouseFrameState {
                     active: false,
                 },
             ],
+            browse_categories: vec![],
+            browse_results: vec![],
         }
     }
 }
@@ -88,7 +143,7 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             }
             {title_bar()}
             {tab_row(&state.tabs)}
-            {content_area()}
+            {browse_tab_content(&state.browse_categories, &state.browse_results)}
         }
     }
 }
@@ -168,7 +223,7 @@ fn tab_button(i: usize, tab: &AuctionTab, tab_w: f32, x: f32, y: f32) -> Element
     }
 }
 
-fn content_area() -> Element {
+fn browse_tab_content(categories: &[BrowseCategory], results: &[BrowseResultRow]) -> Element {
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
@@ -184,23 +239,282 @@ fn content_area() -> Element {
                 x: {CONTENT_INSET},
                 y: {content_y},
             }
+            {browse_search_bar(content_w)}
+            {browse_category_sidebar(categories)}
+            {browse_results_panel(results, content_w)}
+        }
+    }
+}
+
+fn browse_search_bar(parent_w: f32) -> Element {
+    let bar_w = parent_w - 2.0 * SEARCH_BAR_INSET;
+    rsx! {
+        r#frame {
+            name: "AuctionHouseBrowseSearchBar",
+            width: {bar_w},
+            height: {SEARCH_BAR_H},
+            background_color: SEARCH_BAR_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEARCH_BAR_INSET},
+                y: {-SEARCH_BAR_INSET},
+            }
             fontstring {
-                name: "AuctionHouseContentPlaceholder",
-                width: {content_w},
-                height: 20.0,
-                text: "Browse the Auction House",
-                font_size: 11.0,
-                font_color: CONTENT_PLACEHOLDER_COLOR,
-                justify_h: "CENTER",
+                name: "AuctionHouseBrowseSearchText",
+                width: {bar_w - 8.0},
+                height: {SEARCH_BAR_H},
+                text: "Search...",
+                font_size: 10.0,
+                font_color: SEARCH_BAR_TEXT,
+                justify_h: "LEFT",
                 anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: "-20",
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
                 }
             }
         }
     }
+}
+
+fn browse_category_sidebar(categories: &[BrowseCategory]) -> Element {
+    let top_y = -(SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP);
+    let sidebar_h = FRAME_H
+        - CONTENT_TOP
+        - CONTENT_INSET
+        - SEARCH_BAR_INSET
+        - SEARCH_BAR_H
+        - SIDEBAR_GAP
+        - SEARCH_BAR_INSET;
+    let rows: Element = categories
+        .iter()
+        .enumerate()
+        .take(MAX_BROWSE_CATEGORIES)
+        .flat_map(|(i, cat)| browse_category_row(i, cat))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "AuctionHouseBrowseCategorySidebar",
+            width: {SIDEBAR_W},
+            height: {sidebar_h},
+            background_color: SIDEBAR_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEARCH_BAR_INSET},
+                y: {top_y},
+            }
+            {rows}
+        }
+    }
+}
+
+fn browse_category_row(idx: usize, cat: &BrowseCategory) -> Element {
+    let row_id = DynName(format!("AuctionHouseBrowseCat{idx}"));
+    let label_id = DynName(format!("AuctionHouseBrowseCat{idx}Label"));
+    let bg = if cat.selected {
+        CAT_SELECTED_BG
+    } else {
+        CAT_NORMAL_BG
+    };
+    let color = if cat.selected {
+        CAT_SELECTED_COLOR
+    } else {
+        CAT_NORMAL_COLOR
+    };
+    let y = -(idx as f32 * (CAT_ROW_H + CAT_ROW_GAP));
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {SIDEBAR_W},
+            height: {CAT_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: {y},
+            }
+            fontstring {
+                name: label_id,
+                width: {SIDEBAR_W - 8.0},
+                height: {CAT_ROW_H},
+                text: {cat.name.as_str()},
+                font_size: 9.0,
+                font_color: color,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
+                }
+            }
+        }
+    }
+}
+
+fn browse_results_panel(results: &[BrowseResultRow], parent_w: f32) -> Element {
+    let panel_x = SEARCH_BAR_INSET + SIDEBAR_W + SIDEBAR_GAP;
+    let panel_y = -(SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP);
+    let panel_w = parent_w - panel_x - SEARCH_BAR_INSET;
+    let panel_h = FRAME_H
+        - CONTENT_TOP
+        - CONTENT_INSET
+        - SEARCH_BAR_INSET
+        - SEARCH_BAR_H
+        - SIDEBAR_GAP
+        - SEARCH_BAR_INSET;
+    let header = results_header(panel_w);
+    let rows: Element = results
+        .iter()
+        .enumerate()
+        .take(MAX_RESULT_ROWS)
+        .flat_map(|(i, row)| result_row(i, row, panel_w))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "AuctionHouseBrowseResults",
+            width: {panel_w},
+            height: {panel_h},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {panel_x},
+                y: {panel_y},
+            }
+            {header}
+            {rows}
+        }
+    }
+}
+
+fn results_header(panel_w: f32) -> Element {
+    let cols: Element = RESULT_COLUMNS
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (name, _))| {
+            let x = column_x(panel_w, i);
+            let w = column_w(panel_w, i);
+            results_header_cell(i, name, x, w)
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "AuctionHouseBrowseResultsHeader",
+            width: {panel_w},
+            height: {RESULTS_HEADER_H},
+            background_color: HEADER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+            {cols}
+        }
+    }
+}
+
+fn results_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
+    let cell_id = DynName(format!("AuctionHouseResultsCol{idx}"));
+    rsx! {
+        fontstring {
+            name: cell_id,
+            width: {w},
+            height: {RESULTS_HEADER_H},
+            text,
+            font_size: 9.0,
+            font_color: HEADER_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn result_row(idx: usize, row: &BrowseResultRow, panel_w: f32) -> Element {
+    let row_id = DynName(format!("AuctionHouseResult{idx}"));
+    let y = -(RESULTS_HEADER_H + idx as f32 * (RESULT_ROW_H + RESULT_ROW_GAP));
+    let bg = if idx % 2 == 0 {
+        ROW_BG_EVEN
+    } else {
+        ROW_BG_ODD
+    };
+    let cells = result_row_cells(idx, row, panel_w);
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {panel_w},
+            height: {RESULT_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: {y},
+            }
+            {cells}
+        }
+    }
+}
+
+fn result_row_cells(idx: usize, row: &BrowseResultRow, panel_w: f32) -> Element {
+    let values = [
+        &row.name,
+        &row.level,
+        &row.time_left,
+        &row.seller,
+        &row.bid,
+        &row.buyout,
+    ];
+    values
+        .iter()
+        .enumerate()
+        .flat_map(|(col, text)| {
+            let cell_id = DynName(format!("AuctionHouseResult{idx}Col{col}"));
+            let x = column_x(panel_w, col);
+            let w = column_w(panel_w, col);
+            let color = if col >= 4 { GOLD_COLOR } else { ROW_TEXT_COLOR };
+            result_cell(cell_id, text, x, w, color)
+        })
+        .collect()
+}
+
+fn result_cell(name: DynName, text: &str, x: f32, w: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name,
+            width: {w},
+            height: {RESULT_ROW_H},
+            text,
+            font_size: 9.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn column_x(panel_w: f32, col: usize) -> f32 {
+    let mut x = 4.0;
+    for i in 0..col {
+        x += RESULT_COLUMNS[i].1 * panel_w;
+    }
+    x
+}
+
+fn column_w(panel_w: f32, col: usize) -> f32 {
+    RESULT_COLUMNS[col].1 * panel_w
 }
 
 #[cfg(test)]
@@ -237,13 +551,112 @@ mod tests {
             .unwrap_or_else(|| panic!("{name} has no layout_rect"))
     }
 
+    fn make_browse_state() -> AuctionHouseFrameState {
+        let mut state = make_test_state();
+        state.browse_categories = vec![
+            BrowseCategory {
+                name: "Weapons".into(),
+                selected: true,
+            },
+            BrowseCategory {
+                name: "Armor".into(),
+                selected: false,
+            },
+            BrowseCategory {
+                name: "Consumables".into(),
+                selected: false,
+            },
+        ];
+        state.browse_results = vec![
+            BrowseResultRow {
+                name: "Arcanite Reaper".into(),
+                level: "58".into(),
+                time_left: "Long".into(),
+                seller: "Arthas".into(),
+                bid: "50g".into(),
+                buyout: "80g".into(),
+            },
+            BrowseResultRow {
+                name: "Thunderfury".into(),
+                level: "60".into(),
+                time_left: "Medium".into(),
+                seller: "Illidan".into(),
+                bid: "500g".into(),
+                buyout: "1000g".into(),
+            },
+        ];
+        state
+    }
+
+    fn browse_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_browse_state());
+        Screen::new(auction_house_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
     #[test]
     fn builds_expected_frames() {
         let reg = build_registry();
         assert!(reg.get_by_name("AuctionHouseFrame").is_some());
         assert!(reg.get_by_name("AuctionHouseFrameTitle").is_some());
         assert!(reg.get_by_name("AuctionHouseContentArea").is_some());
-        assert!(reg.get_by_name("AuctionHouseContentPlaceholder").is_some());
+    }
+
+    #[test]
+    fn browse_tab_builds_search_bar() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("AuctionHouseBrowseSearchBar").is_some());
+        assert!(reg.get_by_name("AuctionHouseBrowseSearchText").is_some());
+    }
+
+    #[test]
+    fn browse_tab_builds_category_sidebar() {
+        let reg = browse_registry();
+        assert!(
+            reg.get_by_name("AuctionHouseBrowseCategorySidebar")
+                .is_some()
+        );
+        for i in 0..3 {
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseBrowseCat{i}"))
+                    .is_some(),
+                "AuctionHouseBrowseCat{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn browse_tab_builds_results_header() {
+        let reg = browse_registry();
+        assert!(reg.get_by_name("AuctionHouseBrowseResults").is_some());
+        assert!(reg.get_by_name("AuctionHouseBrowseResultsHeader").is_some());
+        for i in 0..RESULT_COLUMNS.len() {
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseResultsCol{i}"))
+                    .is_some(),
+                "AuctionHouseResultsCol{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn browse_tab_builds_result_rows() {
+        let reg = browse_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseResult{i}")).is_some(),
+                "AuctionHouseResult{i} missing"
+            );
+            for col in 0..RESULT_COLUMNS.len() {
+                assert!(
+                    reg.get_by_name(&format!("AuctionHouseResult{i}Col{col}"))
+                        .is_some(),
+                    "AuctionHouseResult{i}Col{col} missing"
+                );
+            }
+        }
     }
 
     #[test]
