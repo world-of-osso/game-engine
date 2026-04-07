@@ -326,6 +326,19 @@ mod tests {
     }
 
     #[test]
+    fn game_menu_button_atlas_names_resolve() {
+        use ui_toolkit::atlas::get_region;
+        for atlas in [
+            BUTTON_ATLAS_UP,
+            BUTTON_ATLAS_PRESSED,
+            BUTTON_ATLAS_HIGHLIGHT,
+            BUTTON_ATLAS_DISABLED,
+        ] {
+            assert!(get_region(atlas).is_some(), "atlas {atlas} not found");
+        }
+    }
+
+    #[test]
     fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
