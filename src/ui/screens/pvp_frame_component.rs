@@ -270,9 +270,6 @@ fn bracket_list(brackets: &[BracketEntry]) -> Element {
 
 fn bracket_row(idx: usize, bracket: &BracketEntry, parent_w: f32) -> Element {
     let row_id = DynName(format!("PVPBracket{idx}"));
-    let name_id = DynName(format!("PVPBracket{idx}Name"));
-    let rating_id = DynName(format!("PVPBracket{idx}Rating"));
-    let stats_id = DynName(format!("PVPBracket{idx}Stats"));
     let row_w = parent_w - 2.0 * BRACKET_INSET;
     let y = -(BRACKET_INSET + idx as f32 * (BRACKET_ROW_H + BRACKET_ROW_GAP));
     let stats_text = format!("{} - {}", bracket.season_wins, bracket.season_losses);
@@ -288,36 +285,54 @@ fn bracket_row(idx: usize, bracket: &BracketEntry, parent_w: f32) -> Element {
                 x: {BRACKET_INSET},
                 y: {y},
             }
-            fontstring {
-                name: name_id,
-                width: {row_w * 0.4},
-                height: 18.0,
-                text: {bracket.name.as_str()},
-                font_size: 12.0,
-                font_color: BRACKET_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-4" }
-            }
-            fontstring {
-                name: rating_id,
-                width: {row_w * 0.4},
-                height: 16.0,
-                text: {bracket.rating.as_str()},
-                font_size: 14.0,
-                font_color: BRACKET_RATING_COLOR,
-                justify_h: "RIGHT",
-                anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-8", y: "-4" }
-            }
-            fontstring {
-                name: stats_id,
-                width: {row_w - 16.0},
-                height: 14.0,
-                text: {stats_text.as_str()},
-                font_size: 9.0,
-                font_color: BRACKET_STATS_COLOR,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-26" }
-            }
+            {bracket_name(DynName(format!("PVPBracket{idx}Name")), &bracket.name, row_w)}
+            {bracket_rating(DynName(format!("PVPBracket{idx}Rating")), &bracket.rating, row_w)}
+            {bracket_stats(DynName(format!("PVPBracket{idx}Stats")), &stats_text, row_w)}
+        }
+    }
+}
+
+fn bracket_name(id: DynName, text: &str, row_w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {row_w * 0.4},
+            height: 18.0,
+            text: text,
+            font_size: 12.0,
+            font_color: BRACKET_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-4" }
+        }
+    }
+}
+
+fn bracket_rating(id: DynName, text: &str, row_w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {row_w * 0.4},
+            height: 16.0,
+            text: text,
+            font_size: 14.0,
+            font_color: BRACKET_RATING_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-8", y: "-4" }
+        }
+    }
+}
+
+fn bracket_stats(id: DynName, text: &str, row_w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {row_w - 16.0},
+            height: 14.0,
+            text: text,
+            font_size: 9.0,
+            font_color: BRACKET_STATS_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-26" }
         }
     }
 }
