@@ -97,6 +97,22 @@ impl Standing {
         Self::Revered,
         Self::Exalted,
     ];
+
+    /// Determine standing from a raw reputation value.
+    pub fn from_raw(rep: i32) -> (Standing, u32) {
+        for pair in Self::ALL.windows(2).rev() {
+            if rep >= pair[0].threshold() && rep < pair[1].threshold() {
+                let offset = (rep - pair[0].threshold()) as u32;
+                return (pair[0], offset);
+            }
+        }
+        if rep >= Self::Exalted.threshold() {
+            (Self::Exalted, 0)
+        } else {
+            let offset = (rep - Self::Hated.threshold()).max(0) as u32;
+            (Self::Hated, offset)
+        }
+    }
 }
 
 // --- Paragon ---
@@ -385,6 +401,113 @@ mod tests {
             }],
         };
         assert_eq!(state.pending_paragon_rewards(), 1);
+    }
+
+    // --- Standing thresholds ---
+
+    #[test]
+    fn standing_from_raw_neutral() {
+        let (standing, offset) = Standing::from_raw(0);
+        assert_eq!(standing, Standing::Neutral);
+        assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn standing_from_raw_mid_friendly() {
+        let (standing, offset) = Standing::from_raw(5000);
+        assert_eq!(standing, Standing::Friendly);
+        assert_eq!(offset, 2000); // 5000 - 3000 threshold
+    }
+
+    #[test]
+    fn standing_from_raw_exalted() {
+        let (standing, _) = Standing::from_raw(42000);
+        assert_eq!(standing, Standing::Exalted);
+    }
+
+    #[test]
+    fn standing_from_raw_hated() {
+        let (standing, _) = Standing::from_raw(-42000);
+        assert_eq!(standing, Standing::Hated);
+    }
+
+    #[test]
+    fn standing_from_raw_boundary_friendly() {
+        // Exactly at Friendly threshold
+        let (standing, offset) = Standing::from_raw(3000);
+        assert_eq!(standing, Standing::Friendly);
+        assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn standing_from_raw_just_below_honored() {
+        // One point below Honored threshold (9000)
+        let (standing, offset) = Standing::from_raw(8999);
+        assert_eq!(standing, Standing::Friendly);
+        assert_eq!(offset, 5999); // 8999 - 3000
+    }
+
+    #[test]
+    fn standing_from_raw_negative() {
+        let (standing, offset) = Standing::from_raw(-1000);
+        assert_eq!(standing, Standing::Unfriendly);
+        assert_eq!(offset, 2000); // -1000 - (-3000)
+    }
+
+    // --- Paragon overflow ---
+
+    #[test]
+    fn paragon_overflow_completions() {
+        let p = ParagonProgress {
+            current: 3000,
+            max: 10000,
+            reward_pending: false,
+            completions: 5,
+        };
+        assert_eq!(p.completions, 5);
+        assert!((p.fraction() - 0.3).abs() < 0.01);
+    }
+
+    #[test]
+    fn paragon_overcapped_clamps() {
+        let p = ParagonProgress {
+            current: 15000,
+            max: 10000,
+            reward_pending: true,
+            completions: 2,
+        };
+        assert_eq!(p.fraction(), 1.0); // clamped
+        assert!(p.reward_pending);
+    }
+
+    #[test]
+    fn paragon_reward_pending_counted() {
+        let mut f = faction(Standing::Exalted, 0);
+        f.paragon = Some(ParagonProgress {
+            current: 10000,
+            max: 10000,
+            reward_pending: true,
+            completions: 1,
+        });
+        assert!(f.paragon.as_ref().unwrap().reward_pending);
+    }
+
+    // --- Bracket edges ---
+
+    #[test]
+    fn faction_progress_at_bracket_max() {
+        let f = Faction {
+            current: 6000,
+            max: 6000,
+            ..faction(Standing::Friendly, 6000)
+        };
+        assert_eq!(f.progress_fraction(), 1.0);
+    }
+
+    #[test]
+    fn faction_progress_text_format() {
+        let f = faction(Standing::Honored, 8500);
+        assert_eq!(f.progress_text(), "8500/12000");
     }
 
     #[test]
