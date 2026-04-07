@@ -21,6 +21,7 @@ pub mod help_frame_component;
 pub mod inworld_hud_component;
 pub mod inworld_selection_debug_component;
 pub mod inworld_unit_frames_component;
+pub mod lfg_list_frame_component;
 pub mod loading_component;
 pub mod login_component;
 mod options_menu_active_sections;
