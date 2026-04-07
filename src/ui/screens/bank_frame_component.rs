@@ -332,7 +332,7 @@ fn purchase_slot_button(slots_unlocked: usize) -> Element {
     } else {
         "Purchase Reagent Slot"
     };
-    let rows = (REAGENT_SLOT_COUNT + REAGENT_GRID_COLS - 1) / REAGENT_GRID_COLS;
+    let rows = REAGENT_SLOT_COUNT.div_ceil(REAGENT_GRID_COLS);
     let grid_h = rows as f32 * SLOT_SIZE + (rows - 1) as f32 * SLOT_GAP;
     let btn_y = -(grid_h + INSET);
     rsx! {
@@ -568,5 +568,77 @@ mod tests {
         let expected_x = FRAME_X + INSET + SLOT_SIZE + SLOT_GAP;
         assert!((r.x - expected_x).abs() < 1.0);
         assert!((r.y - (FRAME_Y + grid_top)).abs() < 1.0);
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: BankFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(bank_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn tab_labels_show_names() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "BankTab0Label"), "Bank");
+        assert_eq!(fontstring_text(&reg, "BankTab1Label"), "Reagent Bank");
+    }
+
+    #[test]
+    fn tab_switching_preserves_labels() {
+        let mut state = make_test_state();
+        state.tabs[0].active = false;
+        state.tabs[1].active = true;
+        let reg = build_with_state(state);
+
+        assert!(reg.get_by_name("BankTab0").is_some());
+        assert!(reg.get_by_name("BankTab1").is_some());
+        assert_eq!(fontstring_text(&reg, "BankTab0Label"), "Bank");
+        assert_eq!(fontstring_text(&reg, "BankTab1Label"), "Reagent Bank");
+    }
+
+    #[test]
+    fn purchase_button_text_when_locked() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "ReagentBankPurchaseButtonText"),
+            "Purchase Reagent Slot"
+        );
+    }
+
+    #[test]
+    fn purchase_button_text_when_all_unlocked() {
+        let mut state = make_test_state();
+        state.reagent_slots_unlocked = REAGENT_SLOT_COUNT;
+        let reg = build_with_state(state);
+        assert_eq!(
+            fontstring_text(&reg, "ReagentBankPurchaseButtonText"),
+            "All Slots Unlocked"
+        );
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "BankFrameTitle"), "Bank");
+    }
+
+    #[test]
+    fn bag_slots_label_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "BankBagSlotsLabel"), "Bag Slots");
     }
 }
