@@ -428,4 +428,30 @@ mod tests {
         assert!(reg.get_by_name("BuffTooltipDesc").is_some());
         assert!(reg.get_by_name("BuffTooltipSource").is_some());
     }
+
+    #[test]
+    fn coord_buff_icon_horizontal_spacing() {
+        let reg = layout_reg(3, 0);
+        let icon0 = rect(&reg, "BuffIcon0");
+        let icon1 = rect(&reg, "BuffIcon1");
+        let expected = ICON_SIZE + ICON_GAP;
+        let actual = icon1.x - icon0.x;
+        assert!(
+            (actual - expected).abs() < 1.0,
+            "icon spacing: expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn coord_debuff_frame_right_aligned() {
+        let reg = layout_reg(0, 3);
+        let r = rect(&reg, "DebuffFrame");
+        let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
+        let expected_x = 1920.0 - 205.0 - grid_w;
+        assert!(
+            (r.x - expected_x).abs() < 1.0,
+            "debuff x: expected {expected_x}, got {}",
+            r.x
+        );
+    }
 }
