@@ -25,6 +25,7 @@ pub mod lfg_list_frame_component;
 pub mod loading_component;
 pub mod login_component;
 pub mod loss_of_control_component;
+pub mod mail_frame_component;
 mod options_menu_active_sections;
 pub mod options_menu_component;
 mod options_menu_sections;
