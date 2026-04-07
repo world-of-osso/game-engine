@@ -761,4 +761,34 @@ mod tests {
         let id = reg.get_by_name("LFGCreateGroupForm").expect("form");
         assert!(reg.get(id).expect("data").hidden);
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_group_header() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_group_state());
+        Screen::new(lfg_list_frame_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let content = rect(&reg, "LFGContentArea");
+        let header = rect(&reg, "LFGGroupHeader");
+        assert!((header.x - (content.x + GROUP_INSET)).abs() < 1.0);
+        assert!((header.y - (content.y + GROUP_INSET)).abs() < 1.0);
+        assert!((header.height - GROUP_HEADER_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_apply_button() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_group_state());
+        Screen::new(lfg_list_frame_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let r = rect(&reg, "LFGApplyButton");
+        assert!((r.width - APPLY_BTN_W).abs() < 1.0);
+        assert!((r.height - APPLY_BTN_H).abs() < 1.0);
+    }
 }
