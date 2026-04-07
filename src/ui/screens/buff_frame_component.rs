@@ -20,10 +20,18 @@ const ICONS_PER_ROW: usize = 10;
 const ROW_GAP: f32 = 14.0;
 const DEBUFF_GAP: f32 = 4.0;
 const TIMER_H: f32 = 12.0;
+const STACK_SIZE: f32 = 14.0;
+const TOOLTIP_W: f32 = 200.0;
+const TOOLTIP_H: f32 = 60.0;
 
 const BUFF_BG: &str = "0.0,0.0,0.0,0.5";
 const DEBUFF_BG: &str = "0.4,0.0,0.0,0.5";
 const TIMER_COLOR: &str = "1.0,1.0,1.0,0.9";
+const STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
+const TOOLTIP_BG: &str = "0.0,0.0,0.0,0.92";
+const TOOLTIP_TITLE_COLOR: &str = "1.0,1.0,1.0,1.0";
+const TOOLTIP_DESC_COLOR: &str = "1.0,0.82,0.0,1.0";
+const TOOLTIP_SOURCE_COLOR: &str = "0.6,0.6,0.6,1.0";
 
 pub const MAX_BUFFS: usize = 32;
 pub const MAX_DEBUFFS: usize = 16;
@@ -32,6 +40,14 @@ pub const MAX_DEBUFFS: usize = 16;
 pub struct BuffIconState {
     pub icon_fdid: u32,
     pub timer_text: String,
+    /// Stack count (0 or 1 = hide).
+    pub stacks: u32,
+    /// Tooltip name.
+    pub name: String,
+    /// Tooltip description (e.g. "Increases haste by 5%").
+    pub description: String,
+    /// Source of the buff (e.g. caster name).
+    pub source: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -56,6 +72,7 @@ pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
     rsx! {
         {buff_grid(&state.buffs)}
         {debuff_grid(&state.buffs, &state.debuffs)}
+        {buff_tooltip()}
     }
 }
 
@@ -120,7 +137,14 @@ fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
     let y = -(row as f32 * (ICON_SIZE + ROW_GAP));
     let icon_name = DynName(format!("{prefix}Icon{index}"));
     let timer_name = DynName(format!("{prefix}Icon{index}Timer"));
+    let stack_name = DynName(format!("{prefix}Icon{index}Stack"));
     let bg = if prefix == "Buff" { BUFF_BG } else { DEBUFF_BG };
+    let show_stacks = buff.stacks > 1;
+    let stack_text = if show_stacks {
+        format!("{}", buff.stacks)
+    } else {
+        String::new()
+    };
     rsx! {
         r#frame {
             name: icon_name,
@@ -148,6 +172,84 @@ fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
                     y: {TIMER_H},
                 }
             }
+            fontstring {
+                name: stack_name,
+                width: {STACK_SIZE},
+                height: {STACK_SIZE},
+                text: {stack_text.as_str()},
+                font_size: 10.0,
+                font_color: STACK_COLOR,
+                justify_h: "RIGHT",
+                anchor {
+                    point: AnchorPoint::BottomRight,
+                    relative_point: AnchorPoint::BottomRight,
+                    x: "-1",
+                    y: "1",
+                }
+            }
+        }
+    }
+}
+
+fn buff_tooltip() -> Element {
+    use crate::ui::strata::FrameStrata;
+    rsx! {
+        r#frame {
+            name: "BuffTooltip",
+            width: {TOOLTIP_W},
+            height: {TOOLTIP_H},
+            background_color: TOOLTIP_BG,
+            strata: FrameStrata::Tooltip,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+            fontstring {
+                name: "BuffTooltipTitle",
+                width: {TOOLTIP_W - 8.0},
+                height: 16.0,
+                text: "",
+                font_size: 11.0,
+                font_color: TOOLTIP_TITLE_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "-4",
+                }
+            }
+            fontstring {
+                name: "BuffTooltipDesc",
+                width: {TOOLTIP_W - 8.0},
+                height: 16.0,
+                text: "",
+                font_size: 9.0,
+                font_color: TOOLTIP_DESC_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "-22",
+                }
+            }
+            fontstring {
+                name: "BuffTooltipSource",
+                width: {TOOLTIP_W - 8.0},
+                height: 14.0,
+                text: "",
+                font_size: 8.0,
+                font_color: TOOLTIP_SOURCE_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "-40",
+                }
+            }
         }
     }
 }
@@ -163,6 +265,10 @@ mod tests {
         BuffIconState {
             icon_fdid: 12345,
             timer_text: timer.into(),
+            stacks: 0,
+            name: "Test Buff".into(),
+            description: "Does something".into(),
+            source: "Player".into(),
         }
     }
 
@@ -293,5 +399,33 @@ mod tests {
         let debuff = rect(&reg, "DebuffIcon0");
         assert!((debuff.width - ICON_SIZE).abs() < 1.0);
         assert!((debuff.height - ICON_SIZE).abs() < 1.0);
+    }
+
+    #[test]
+    fn buff_icons_have_stack_count_overlay() {
+        let reg = build_registry(3, 2);
+        for i in 0..3 {
+            assert!(
+                reg.get_by_name(&format!("BuffIcon{i}Stack")).is_some(),
+                "BuffIcon{i}Stack missing"
+            );
+        }
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("DebuffIcon{i}Stack")).is_some(),
+                "DebuffIcon{i}Stack missing"
+            );
+        }
+    }
+
+    #[test]
+    fn tooltip_frame_exists_and_hidden() {
+        let reg = build_registry(1, 0);
+        let id = reg.get_by_name("BuffTooltip").expect("BuffTooltip");
+        let frame = reg.get(id).expect("data");
+        assert!(frame.hidden, "tooltip should start hidden");
+        assert!(reg.get_by_name("BuffTooltipTitle").is_some());
+        assert!(reg.get_by_name("BuffTooltipDesc").is_some());
+        assert!(reg.get_by_name("BuffTooltipSource").is_some());
     }
 }
