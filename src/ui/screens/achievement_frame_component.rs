@@ -529,6 +529,7 @@ fn row_checkmark(idx: usize, completed: bool, row_w: f32) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -858,5 +859,177 @@ mod tests {
             .expect("fill");
         let fill = registry.get(fill_id).expect("frame data");
         assert_eq!(fill.width, Dimension::Fixed(PROGRESS_BAR_W * 0.75));
+    }
+
+    // --- Coord validation helpers ---
+
+    fn layout_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(achievement_frame_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
+        reg.get(reg.get_by_name(name).expect(name))
+            .and_then(|f| f.layout_rect.clone())
+            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
+    }
+
+    fn assert_rect(reg: &FrameRegistry, name: &str, expected: LayoutRect) {
+        let actual = rect(reg, name);
+        let ok = (actual.x - expected.x).abs() < 1.0
+            && (actual.y - expected.y).abs() < 1.0
+            && (actual.width - expected.width).abs() < 1.0
+            && (actual.height - expected.height).abs() < 1.0;
+        assert!(
+            ok,
+            "{name} rect mismatch:\n  expected: ({}, {}, {}×{})\n  actual:   ({}, {}, {}×{})",
+            expected.x,
+            expected.y,
+            expected.width,
+            expected.height,
+            actual.x,
+            actual.y,
+            actual.width,
+            actual.height,
+        );
+    }
+
+    // --- Coord validation tests ---
+
+    const FRAME_X: f32 = 370.0;
+    const FRAME_Y: f32 = 80.0;
+
+    #[test]
+    fn coord_main_frame() {
+        let reg = layout_registry();
+        assert_rect(
+            &reg,
+            "AchievementFrame",
+            LayoutRect {
+                x: FRAME_X,
+                y: FRAME_Y,
+                width: FRAME_W,
+                height: FRAME_H,
+            },
+        );
+    }
+
+    #[test]
+    fn coord_title() {
+        let reg = layout_registry();
+        assert_rect(
+            &reg,
+            "AchievementFrameTitle",
+            LayoutRect {
+                x: FRAME_X,
+                y: FRAME_Y,
+                width: FRAME_W,
+                height: HEADER_H,
+            },
+        );
+    }
+
+    #[test]
+    fn coord_tabs() {
+        let reg = layout_registry();
+        let tab_count = 2.0_f32;
+        let tab_w = (FRAME_W - 2.0 * TAB_INSET - (tab_count - 1.0) * TAB_GAP) / tab_count;
+        let tab_y = FRAME_Y + HEADER_H + TAB_GAP;
+        assert_rect(
+            &reg,
+            "AchievementTab0",
+            LayoutRect {
+                x: FRAME_X + TAB_INSET,
+                y: tab_y,
+                width: tab_w,
+                height: TAB_H,
+            },
+        );
+        assert_rect(
+            &reg,
+            "AchievementTab1",
+            LayoutRect {
+                x: FRAME_X + TAB_INSET + tab_w + TAB_GAP,
+                y: tab_y,
+                width: tab_w,
+                height: TAB_H,
+            },
+        );
+    }
+
+    #[test]
+    fn coord_sidebar() {
+        let reg = layout_registry();
+        let sidebar_y = FRAME_Y + SIDEBAR_TOP;
+        let sidebar_h = FRAME_H - SIDEBAR_TOP - SIDEBAR_INSET;
+        assert_rect(
+            &reg,
+            "AchievementCategorySidebar",
+            LayoutRect {
+                x: FRAME_X + SIDEBAR_INSET,
+                y: sidebar_y,
+                width: SIDEBAR_W,
+                height: sidebar_h,
+            },
+        );
+    }
+
+    #[test]
+    fn coord_content_area() {
+        let reg = layout_registry();
+        let content_x = FRAME_X + SIDEBAR_INSET + SIDEBAR_W + CONTENT_INSET;
+        let content_y = FRAME_Y + SIDEBAR_TOP;
+        let content_w = FRAME_W - (SIDEBAR_INSET + SIDEBAR_W + CONTENT_INSET) - SIDEBAR_INSET;
+        let content_h = FRAME_H - SIDEBAR_TOP - SIDEBAR_INSET;
+        assert_rect(
+            &reg,
+            "AchievementContentArea",
+            LayoutRect {
+                x: content_x,
+                y: content_y,
+                width: content_w,
+                height: content_h,
+            },
+        );
+    }
+
+    #[test]
+    fn coord_first_category_row() {
+        let reg = layout_registry();
+        let sidebar_x = FRAME_X + SIDEBAR_INSET;
+        let sidebar_y = FRAME_Y + SIDEBAR_TOP;
+        assert_rect(
+            &reg,
+            "AchievementCat0",
+            LayoutRect {
+                x: sidebar_x,
+                y: sidebar_y,
+                width: SIDEBAR_W,
+                height: CAT_ROW_H,
+            },
+        );
+    }
+
+    #[test]
+    fn coord_first_achievement_row() {
+        let reg = layout_registry();
+        let content_x = FRAME_X + SIDEBAR_INSET + SIDEBAR_W + CONTENT_INSET;
+        let content_y = FRAME_Y + SIDEBAR_TOP;
+        let content_w = FRAME_W - (SIDEBAR_INSET + SIDEBAR_W + CONTENT_INSET) - SIDEBAR_INSET;
+        let row_w = content_w - 2.0 * ROW_INSET;
+        assert_rect(
+            &reg,
+            "AchievementRow0",
+            LayoutRect {
+                x: content_x + ROW_INSET,
+                y: content_y + ROW_INSET,
+                width: row_w,
+                height: ROW_H,
+            },
+        );
     }
 }
