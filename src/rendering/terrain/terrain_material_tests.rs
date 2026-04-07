@@ -74,8 +74,8 @@ fn texture_layer_params_use_mtxp_per_texture_index() {
 
     let params = texture_layer_params(&tex_data, &layers);
 
-    assert_eq!(params[0], Vec4::new(0.75, 0.125, 9.0, 0.0));
-    assert_eq!(params[1], Vec4::new(1.25, -0.5, 4.0, 0.0));
+    assert_eq!(params[0], Vec4::new(0.75, 0.125, 9.0, 1.0));
+    assert_eq!(params[1], Vec4::new(1.25, -0.5, 4.0, 1.0));
 }
 
 #[test]
