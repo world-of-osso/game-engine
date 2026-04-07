@@ -80,12 +80,59 @@ pub fn find_article(id: u32) -> Option<&'static HelpArticle> {
     ARTICLES.iter().find(|a| a.id == id)
 }
 
+/// Ticket lifecycle states.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum TicketStatus {
+    #[default]
+    Draft,
+    Submitted,
+    InProgress,
+    Resolved,
+}
+
+impl TicketStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Draft => "Draft",
+            Self::Submitted => "Submitted",
+            Self::InProgress => "In Progress",
+            Self::Resolved => "Resolved",
+        }
+    }
+
+    pub fn can_edit(self) -> bool {
+        matches!(self, Self::Draft)
+    }
+
+    pub fn can_cancel(self) -> bool {
+        matches!(self, Self::Draft | Self::Submitted)
+    }
+}
+
+/// All unique categories present in the article database.
+pub fn article_categories() -> Vec<&'static str> {
+    let mut cats: Vec<&str> = ARTICLES.iter().map(|a| a.category).collect();
+    cats.sort();
+    cats.dedup();
+    cats
+}
+
+/// Search articles by title (case-insensitive substring).
+pub fn search_articles(query: &str) -> Vec<&'static HelpArticle> {
+    let q = query.to_lowercase();
+    ARTICLES
+        .iter()
+        .filter(|a| a.title.to_lowercase().contains(&q))
+        .collect()
+}
+
 /// Runtime help system state.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct HelpState {
     pub selected_article: Option<u32>,
     pub ticket_category_index: usize,
     pub ticket_description: String,
+    pub ticket_status: TicketStatus,
 }
 
 impl HelpState {
@@ -93,6 +140,25 @@ impl HelpState {
         TICKET_CATEGORIES
             .get(self.ticket_category_index)
             .unwrap_or(&"Other")
+    }
+
+    /// Submit the ticket if it has a description and is still a draft.
+    pub fn submit_ticket(&mut self) -> bool {
+        if self.ticket_status != TicketStatus::Draft || self.ticket_description.is_empty() {
+            return false;
+        }
+        self.ticket_status = TicketStatus::Submitted;
+        true
+    }
+
+    /// Cancel the ticket (only if draft or submitted).
+    pub fn cancel_ticket(&mut self) -> bool {
+        if !self.ticket_status.can_cancel() {
+            return false;
+        }
+        self.ticket_status = TicketStatus::Draft;
+        self.ticket_description.clear();
+        true
     }
 }
 
@@ -149,5 +215,135 @@ mod tests {
         assert_ne!(textures::ICON_KNOWLEDGE_BASE, 0);
         assert_ne!(textures::ICON_OPEN_TICKET, 0);
         assert_ne!(textures::ICON_REPORT_ABUSE, 0);
+    }
+
+    // --- Article category filtering ---
+
+    #[test]
+    fn article_categories_lists_all() {
+        let cats = article_categories();
+        assert!(cats.contains(&"Basics"));
+        assert!(cats.contains(&"Social"));
+        assert!(cats.contains(&"Gameplay"));
+        assert!(cats.contains(&"Economy"));
+        assert!(cats.contains(&"Settings"));
+    }
+
+    #[test]
+    fn article_categories_no_duplicates() {
+        let cats = article_categories();
+        let count = cats.len();
+        let mut deduped = cats.clone();
+        deduped.dedup();
+        assert_eq!(count, deduped.len());
+    }
+
+    #[test]
+    fn articles_by_nonexistent_category() {
+        assert!(articles_by_category("PvP").is_empty());
+    }
+
+    #[test]
+    fn search_articles_finds_match() {
+        let results = search_articles("combat");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Combat Basics");
+    }
+
+    #[test]
+    fn search_articles_case_insensitive() {
+        let results = search_articles("GETTING");
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn search_articles_no_match() {
+        assert!(search_articles("zzzzz").is_empty());
+    }
+
+    // --- Ticket state machine ---
+
+    #[test]
+    fn ticket_status_labels() {
+        assert_eq!(TicketStatus::Draft.label(), "Draft");
+        assert_eq!(TicketStatus::Submitted.label(), "Submitted");
+        assert_eq!(TicketStatus::InProgress.label(), "In Progress");
+        assert_eq!(TicketStatus::Resolved.label(), "Resolved");
+    }
+
+    #[test]
+    fn ticket_submit_succeeds_with_description() {
+        let mut state = HelpState {
+            ticket_description: "I'm stuck".into(),
+            ..Default::default()
+        };
+        assert!(state.submit_ticket());
+        assert_eq!(state.ticket_status, TicketStatus::Submitted);
+    }
+
+    #[test]
+    fn ticket_submit_fails_empty_description() {
+        let mut state = HelpState::default();
+        assert!(!state.submit_ticket());
+        assert_eq!(state.ticket_status, TicketStatus::Draft);
+    }
+
+    #[test]
+    fn ticket_submit_fails_if_already_submitted() {
+        let mut state = HelpState {
+            ticket_description: "bug".into(),
+            ticket_status: TicketStatus::Submitted,
+            ..Default::default()
+        };
+        assert!(!state.submit_ticket());
+    }
+
+    #[test]
+    fn ticket_cancel_from_draft() {
+        let mut state = HelpState {
+            ticket_description: "draft text".into(),
+            ..Default::default()
+        };
+        assert!(state.cancel_ticket());
+        assert_eq!(state.ticket_status, TicketStatus::Draft);
+        assert!(state.ticket_description.is_empty());
+    }
+
+    #[test]
+    fn ticket_cancel_from_submitted() {
+        let mut state = HelpState {
+            ticket_description: "submitted".into(),
+            ticket_status: TicketStatus::Submitted,
+            ..Default::default()
+        };
+        assert!(state.cancel_ticket());
+        assert_eq!(state.ticket_status, TicketStatus::Draft);
+    }
+
+    #[test]
+    fn ticket_cancel_fails_in_progress() {
+        let mut state = HelpState {
+            ticket_status: TicketStatus::InProgress,
+            ..Default::default()
+        };
+        assert!(!state.cancel_ticket());
+        assert_eq!(state.ticket_status, TicketStatus::InProgress);
+    }
+
+    #[test]
+    fn ticket_cancel_fails_resolved() {
+        let mut state = HelpState {
+            ticket_status: TicketStatus::Resolved,
+            ..Default::default()
+        };
+        assert!(!state.cancel_ticket());
+    }
+
+    #[test]
+    fn ticket_can_edit_only_in_draft() {
+        assert!(TicketStatus::Draft.can_edit());
+        assert!(!TicketStatus::Submitted.can_edit());
+        assert!(!TicketStatus::InProgress.can_edit());
+        assert!(!TicketStatus::Resolved.can_edit());
     }
 }
