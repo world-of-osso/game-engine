@@ -500,4 +500,43 @@ mod tests {
         assert!(reg.get_by_name("FriendsAddButton").is_some());
         assert!(reg.get_by_name("FriendsAddButtonText").is_some());
     }
+
+    // --- Additional coord validation ---
+
+    fn friends_layout_registry() -> FrameRegistry {
+        let mut reg = friends_registry();
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    #[test]
+    fn coord_first_friend_row() {
+        let reg = friends_layout_registry();
+        let content = rect(&reg, "FriendsContentArea");
+        let row = rect(&reg, "FriendRow0");
+        assert!((row.x - (content.x + FRIEND_INSET)).abs() < 1.0);
+        assert!((row.y - (content.y + FRIEND_INSET)).abs() < 1.0);
+        assert!((row.height - FRIEND_ROW_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_friend_row_spacing() {
+        let reg = friends_layout_registry();
+        let r0 = rect(&reg, "FriendRow0");
+        let r1 = rect(&reg, "FriendRow1");
+        let spacing = r1.y - r0.y;
+        let expected = FRIEND_ROW_H + FRIEND_ROW_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "row spacing: expected {expected}, got {spacing}"
+        );
+    }
+
+    #[test]
+    fn coord_add_button_dimensions() {
+        let reg = friends_layout_registry();
+        let r = rect(&reg, "FriendsAddButton");
+        assert!((r.width - ADD_BUTTON_W).abs() < 1.0);
+        assert!((r.height - ADD_BUTTON_H).abs() < 1.0);
+    }
 }
