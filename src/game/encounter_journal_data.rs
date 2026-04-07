@@ -1,5 +1,19 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the encounter journal.
+pub mod textures {
+    // Boss portraits
+    pub const BOSS_VANCLEEF: u32 = 5875507;
+    pub const BOSS_COOKIE: u32 = 5875506;
+    pub const BOSS_GODFREY: u32 = 522247;
+    pub const BOSS_RAGNAROS: u32 = 522261;
+    pub const BOSS_DEFAULT: u32 = 521744;
+    // Instance / journal chrome
+    pub const BACKGROUND: u32 = 521743;
+    pub const JOURNAL_BG: u32 = 521750;
+    pub const ICONS: u32 = 521749;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Difficulty {
     #[default]
@@ -250,5 +264,14 @@ mod tests {
         assert!(state.selected_instance.is_none());
         assert!(state.selected_boss.is_none());
         assert_eq!(state.difficulty, Difficulty::Normal);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::BOSS_VANCLEEF, 0);
+        assert_ne!(textures::BOSS_RAGNAROS, 0);
+        assert_ne!(textures::BOSS_DEFAULT, 0);
+        assert_ne!(textures::BACKGROUND, 0);
+        assert_ne!(textures::JOURNAL_BG, 0);
     }
 }
