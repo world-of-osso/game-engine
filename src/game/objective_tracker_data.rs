@@ -1,5 +1,20 @@
 use bevy::prelude::*;
 
+pub mod textures {
+    /// Objective tracker frame sheet.
+    pub const TRACKER_FRAME: u32 = 959719;
+    /// Quest tracker sheet.
+    pub const QUEST_TRACKER: u32 = 5320671;
+    /// Tracker button icons.
+    pub const TRACKER_BUTTONS: u32 = 3536418;
+    /// Checkbox check (shared).
+    pub const CHECKBOX_CHECK: u32 = 130751;
+    /// Checkbox unchecked (shared).
+    pub const CHECKBOX_UP: u32 = 130755;
+    /// Progress bar fill (shared with casting bar).
+    pub const PROGRESS_FILL: u32 = 4505182;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestObjective {
     pub text: String,
@@ -177,5 +192,13 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(data.completed_quest_count(), 1);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::TRACKER_FRAME, 0);
+        assert_ne!(textures::QUEST_TRACKER, 0);
+        assert_ne!(textures::CHECKBOX_CHECK, 0);
+        assert_ne!(textures::PROGRESS_FILL, 0);
     }
 }
