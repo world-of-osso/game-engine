@@ -346,12 +346,41 @@ fn req_count_label(id: DynName, text: &str) -> Element {
 
 // --- Dialog buttons ---
 
+fn dialog_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {BTN_W},
+            height: {BTN_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: text_id,
+                width: {BTN_W},
+                height: {BTN_H},
+                text: label,
+                font_size: 11.0,
+                font_color: color,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn dialog_buttons(mode: &QuestDialogMode) -> Element {
     let y = -(FRAME_H - BTN_H - 10.0);
     let center = FRAME_W / 2.0;
     let left_x = center - BTN_W - BTN_GAP / 2.0;
     let right_x = center + BTN_GAP / 2.0;
-    let (left_label, left_bg, left_text, right_label, right_bg, right_text) = match mode {
+    let (left_label, left_bg, left_color, right_label, right_bg, right_color) = match mode {
         QuestDialogMode::Offer => (
             "Accept",
             ACCEPT_BTN_BG,
@@ -370,50 +399,8 @@ fn dialog_buttons(mode: &QuestDialogMode) -> Element {
         ),
     };
     rsx! {
-        r#frame {
-            name: "QuestDialogLeftBtn",
-            width: {BTN_W},
-            height: {BTN_H},
-            background_color: left_bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {left_x},
-                y: {y},
-            }
-            fontstring {
-                name: "QuestDialogLeftBtnText",
-                width: {BTN_W},
-                height: {BTN_H},
-                text: left_label,
-                font_size: 11.0,
-                font_color: left_text,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
-        r#frame {
-            name: "QuestDialogRightBtn",
-            width: {BTN_W},
-            height: {BTN_H},
-            background_color: right_bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {right_x},
-                y: {y},
-            }
-            fontstring {
-                name: "QuestDialogRightBtnText",
-                width: {BTN_W},
-                height: {BTN_H},
-                text: right_label,
-                font_size: 11.0,
-                font_color: right_text,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {dialog_btn("QuestDialogLeftBtn", left_label, left_bg, left_color, left_x, y)}
+        {dialog_btn("QuestDialogRightBtn", right_label, right_bg, right_color, right_x, y)}
     }
 }
 
