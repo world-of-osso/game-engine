@@ -157,47 +157,59 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
     }
 }
 
+fn graphics_to_view(g: &GraphicsDraft) -> GraphicsOptionsView {
+    GraphicsOptionsView {
+        particle_density: g.particle_density,
+        render_scale: g.render_scale,
+        bloom_enabled: g.bloom_enabled,
+        bloom_intensity: g.bloom_intensity,
+    }
+}
+
+fn sound_to_view(s: &SoundDraft) -> SoundOptionsView {
+    SoundOptionsView {
+        muted: s.muted,
+        music_enabled: s.music_enabled,
+        master_volume: s.master_volume,
+        music_volume: s.music_volume,
+        ambient_volume: s.ambient_volume,
+        effects_volume: s.effects_volume,
+    }
+}
+
+fn camera_to_view(c: &CameraDraft) -> CameraOptionsView {
+    CameraOptionsView {
+        look_sensitivity: c.look_sensitivity,
+        invert_y: c.invert_y,
+        zoom_speed: c.zoom_speed,
+        follow_speed: c.follow_speed,
+        min_distance: c.min_distance,
+        max_distance: c.max_distance,
+    }
+}
+
+fn hud_to_view(h: &HudDraft) -> HudOptionsView {
+    HudOptionsView {
+        show_minimap: h.show_minimap,
+        show_action_bars: h.show_action_bars,
+        show_nameplates: h.show_nameplates,
+        show_health_bars: h.show_health_bars,
+        show_target_marker: h.show_target_marker,
+        show_fps_overlay: h.show_fps_overlay,
+    }
+}
+
 pub fn build_view_model(model: &OverlayModel) -> GameMenuViewModel {
-    let g = &model.draft_graphics;
-    let s = &model.draft_sound;
-    let c = &model.draft_camera;
-    let h = &model.draft_hud;
     GameMenuViewModel {
         logged_in: model.logged_in,
         view: model.view,
         options: OptionsViewModel {
             category: model.category,
             position: model.modal_position,
-            graphics: GraphicsOptionsView {
-                particle_density: g.particle_density,
-                render_scale: g.render_scale,
-                bloom_enabled: g.bloom_enabled,
-                bloom_intensity: g.bloom_intensity,
-            },
-            sound: SoundOptionsView {
-                muted: s.muted,
-                music_enabled: s.music_enabled,
-                master_volume: s.master_volume,
-                music_volume: s.music_volume,
-                ambient_volume: s.ambient_volume,
-                effects_volume: s.effects_volume,
-            },
-            camera: CameraOptionsView {
-                look_sensitivity: c.look_sensitivity,
-                invert_y: c.invert_y,
-                zoom_speed: c.zoom_speed,
-                follow_speed: c.follow_speed,
-                min_distance: c.min_distance,
-                max_distance: c.max_distance,
-            },
-            hud: HudOptionsView {
-                show_minimap: h.show_minimap,
-                show_action_bars: h.show_action_bars,
-                show_nameplates: h.show_nameplates,
-                show_health_bars: h.show_health_bars,
-                show_target_marker: h.show_target_marker,
-                show_fps_overlay: h.show_fps_overlay,
-            },
+            graphics: graphics_to_view(&model.draft_graphics),
+            sound: sound_to_view(&model.draft_sound),
+            camera: camera_to_view(&model.draft_camera),
+            hud: hud_to_view(&model.draft_hud),
             bindings: bindings_view(
                 &model.draft_bindings,
                 model.binding_section,
