@@ -1,5 +1,21 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the help frame.
+pub mod textures {
+    /// Frame chrome top-left corner.
+    pub const FRAME_TOP_LEFT: u32 = 132081;
+    /// Frame chrome bottom-left corner.
+    pub const FRAME_BOTTOM_LEFT: u32 = 132077;
+    /// Frame chrome top border.
+    pub const FRAME_TOP: u32 = 132080;
+    /// Knowledge Base category icon.
+    pub const ICON_KNOWLEDGE_BASE: u32 = 516770;
+    /// Submit Ticket category icon.
+    pub const ICON_OPEN_TICKET: u32 = 516771;
+    /// Report Abuse / Bug Report category icon.
+    pub const ICON_REPORT_ABUSE: u32 = 516772;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct HelpArticle {
     pub id: u32,
@@ -124,5 +140,14 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(state.selected_ticket_category(), "Other");
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_TOP_LEFT, 0);
+        assert_ne!(textures::FRAME_TOP, 0);
+        assert_ne!(textures::ICON_KNOWLEDGE_BASE, 0);
+        assert_ne!(textures::ICON_OPEN_TICKET, 0);
+        assert_ne!(textures::ICON_REPORT_ABUSE, 0);
     }
 }
