@@ -1,5 +1,19 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the casting bar.
+pub mod textures {
+    /// Bar fill texture.
+    pub const BAR_FILL: u32 = 4505182;
+    /// Border chrome (full size).
+    pub const BORDER: u32 = 130874;
+    /// Border chrome (small variant).
+    pub const BORDER_SMALL: u32 = 130873;
+    /// Spark at fill edge.
+    pub const SPARK: u32 = 130877;
+    /// Flash effect on cast complete.
+    pub const FLASH: u32 = 130876;
+}
+
 /// Whether this is a cast or a channel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum CastType {
@@ -183,5 +197,13 @@ mod tests {
         state.tick(1.0);
         state.clear_finished();
         assert!(state.active.is_some());
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::BAR_FILL, 0);
+        assert_ne!(textures::BORDER, 0);
+        assert_ne!(textures::SPARK, 0);
+        assert_ne!(textures::FLASH, 0);
     }
 }
