@@ -138,6 +138,72 @@ impl InventoryState {
     }
 }
 
+/// A bank bag slot that may or may not be purchased.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BankBagSlot {
+    pub purchased: bool,
+    pub bag_name: String,
+    pub bag_size: usize,
+    pub icon_fdid: u32,
+}
+
+impl Default for BankBagSlot {
+    fn default() -> Self {
+        Self {
+            purchased: false,
+            bag_name: String::new(),
+            bag_size: 0,
+            icon_fdid: 0,
+        }
+    }
+}
+
+/// Runtime state for the player's bank.
+#[derive(Resource, Clone, Debug, PartialEq)]
+pub struct BankState {
+    /// Main bank slots (28).
+    pub slots: Vec<InventorySlot>,
+    /// Bank bag slots (7), each may be purchased or locked.
+    pub bag_slots: Vec<BankBagSlot>,
+    /// Reagent bank slots (98), only `reagent_unlocked` are usable.
+    pub reagent_slots: Vec<InventorySlot>,
+    /// Number of reagent slots the player has purchased.
+    pub reagent_unlocked: usize,
+}
+
+impl Default for BankState {
+    fn default() -> Self {
+        Self {
+            slots: vec![InventorySlot::default(); 28],
+            bag_slots: vec![BankBagSlot::default(); 7],
+            reagent_slots: vec![InventorySlot::default(); 98],
+            reagent_unlocked: 0,
+        }
+    }
+}
+
+impl BankState {
+    pub fn main_slot(&self, index: usize) -> Option<&InventorySlot> {
+        self.slots.get(index)
+    }
+
+    pub fn reagent_slot(&self, index: usize) -> Option<&InventorySlot> {
+        self.reagent_slots.get(index)
+    }
+
+    pub fn is_reagent_slot_locked(&self, index: usize) -> bool {
+        index >= self.reagent_unlocked
+    }
+
+    pub fn is_bag_slot_purchased(&self, index: usize) -> bool {
+        self.bag_slots.get(index).is_some_and(|s| s.purchased)
+    }
+
+    pub fn purchased_bag_count(&self) -> usize {
+        self.bag_slots.iter().filter(|s| s.purchased).count()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,5 +287,46 @@ mod tests {
         assert_eq!(bag_background_for_rows(3), textures::BAG_BG_3X4);
         assert_eq!(bag_background_for_rows(4), textures::BAG_BG_4X4);
         assert_eq!(bag_background_for_rows(6), textures::BAG_BG_4X4);
+    }
+
+    // --- Bank state tests ---
+
+    #[test]
+    fn default_bank_has_28_main_slots() {
+        let bank = BankState::default();
+        assert_eq!(bank.slots.len(), 28);
+        assert!(bank.main_slot(0).is_some());
+        assert!(bank.main_slot(27).is_some());
+        assert!(bank.main_slot(28).is_none());
+    }
+
+    #[test]
+    fn default_bank_bag_slots_are_locked() {
+        let bank = BankState::default();
+        assert_eq!(bank.bag_slots.len(), 7);
+        assert_eq!(bank.purchased_bag_count(), 0);
+        assert!(!bank.is_bag_slot_purchased(0));
+    }
+
+    #[test]
+    fn purchased_bag_slot_tracking() {
+        let mut bank = BankState::default();
+        bank.bag_slots[0].purchased = true;
+        bank.bag_slots[0].bag_name = "Runecloth Bag".into();
+        bank.bag_slots[0].bag_size = 14;
+        assert!(bank.is_bag_slot_purchased(0));
+        assert!(!bank.is_bag_slot_purchased(1));
+        assert_eq!(bank.purchased_bag_count(), 1);
+    }
+
+    #[test]
+    fn reagent_slot_locked_state() {
+        let mut bank = BankState::default();
+        assert_eq!(bank.reagent_slots.len(), 98);
+        assert!(bank.is_reagent_slot_locked(0));
+        bank.reagent_unlocked = 49;
+        assert!(!bank.is_reagent_slot_locked(0));
+        assert!(!bank.is_reagent_slot_locked(48));
+        assert!(bank.is_reagent_slot_locked(49));
     }
 }
