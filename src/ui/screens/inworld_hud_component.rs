@@ -576,4 +576,51 @@ mod tests {
         assert!(reg.get_by_name("MultiBarRight").is_some());
         assert!(reg.get_by_name("MultiBarLeft").is_some());
     }
+
+    #[test]
+    fn bottom_left_bar_builds_12_slots() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("MultiBarBottomLeftButton{i}"))
+                    .is_some(),
+                "MultiBarBottomLeftButton{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn bottom_right_bar_builds_12_slots() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("MultiBarBottomRightButton{i}"))
+                    .is_some(),
+                "MultiBarBottomRightButton{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn right_bar_builds_12_slots() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("MultiBarRightButton{i}"))
+                    .is_some(),
+                "MultiBarRightButton{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn left_bar_builds_12_slots() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("MultiBarLeftButton{i}")).is_some(),
+                "MultiBarLeftButton{i} missing"
+            );
+        }
+    }
 }
