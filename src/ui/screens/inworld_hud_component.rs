@@ -25,6 +25,15 @@ const GUIDE_COLOR: &str = "0.95,0.78,0.25,0.95";
 const EDIT_BANNER_BG: &str = "0.03,0.04,0.06,0.9";
 const EDIT_BANNER_TEXT: &str = "1.0,0.86,0.25,1.0";
 const MOVER_LABEL_TEXT: &str = "1.0,0.9,0.45,1.0";
+const MICRO_BTN_W: f32 = 28.0;
+const MICRO_BTN_H: f32 = 36.0;
+const MICRO_BTN_GAP: f32 = 2.0;
+const MICRO_BTN_BG: &str = "0.08,0.07,0.06,0.88";
+const MICRO_BTN_LABEL: &str = "0.7,0.7,0.7,1.0";
+const BAG_SLOT_SIZE: f32 = 30.0;
+const BAG_SLOT_GAP: f32 = 4.0;
+const BAG_SLOT_BG: &str = "0.06,0.05,0.04,0.82";
+const BAG_COUNT: usize = 4;
 const MINIMAP_ZONE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const MINIMAP_COORDS_COLOR: &str = "1.0,1.0,1.0,1.0";
 const MINIMAP_HEADER_BG: &str = "0.06,0.05,0.04,0.92";
@@ -369,10 +378,119 @@ pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
         bottom_action_bars(),
         side_action_bars(),
         action_bar_overlays(),
+        micro_menu_bar(),
+        bag_bar(),
     ]
     .into_iter()
     .flatten()
     .collect()
+}
+
+const MICRO_BUTTONS: &[&str] = &[
+    "CharacterMicroButton",
+    "SpellbookMicroButton",
+    "TalentMicroButton",
+    "AchievementMicroButton",
+    "QuestLogMicroButton",
+    "GuildMicroButton",
+    "LFDMicroButton",
+    "CollectionsMicroButton",
+    "EJMicroButton",
+    "StoreMicroButton",
+    "MainMenuMicroButton",
+];
+
+fn micro_menu_bar() -> Element {
+    let total_w =
+        MICRO_BUTTONS.len() as f32 * MICRO_BTN_W + (MICRO_BUTTONS.len() - 1) as f32 * MICRO_BTN_GAP;
+    let buttons: Element = MICRO_BUTTONS
+        .iter()
+        .enumerate()
+        .flat_map(|(i, name)| micro_button(i, name))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "MicroMenuContainer",
+            width: {total_w},
+            height: {MICRO_BTN_H},
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: "-230",
+                y: "55",
+            }
+            {buttons}
+        }
+    }
+}
+
+fn micro_button(index: usize, name: &str) -> Element {
+    let btn_name = DynName(name.to_string());
+    let x = index as f32 * (MICRO_BTN_W + MICRO_BTN_GAP);
+    rsx! {
+        button {
+            name: btn_name,
+            width: {MICRO_BTN_W},
+            height: {MICRO_BTN_H},
+            text: "",
+            font_size: 8.0,
+            background_color: MICRO_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn bag_bar() -> Element {
+    let backpack = bag_slot("MainMenuBarBackpackButton", 0);
+    let bags: Element = (0..BAG_COUNT)
+        .flat_map(|i| {
+            let name = format!("CharacterBag{i}Slot");
+            let slot_index = i + 1;
+            bag_slot(&name, slot_index)
+        })
+        .collect();
+    let total_w = (BAG_COUNT as f32 + 1.0) * BAG_SLOT_SIZE + BAG_COUNT as f32 * BAG_SLOT_GAP;
+    rsx! {
+        r#frame {
+            name: "BagsBar",
+            width: {total_w},
+            height: {BAG_SLOT_SIZE},
+            anchor {
+                point: AnchorPoint::BottomRight,
+                relative_point: AnchorPoint::BottomRight,
+                x: "-4",
+                y: "8",
+            }
+            {backpack}
+            {bags}
+        }
+    }
+}
+
+fn bag_slot(name: &str, index: usize) -> Element {
+    let slot_name = DynName(name.to_string());
+    let x = index as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+    rsx! {
+        button {
+            name: slot_name,
+            width: {BAG_SLOT_SIZE},
+            height: {BAG_SLOT_SIZE},
+            text: "",
+            font_size: 8.0,
+            background_color: BAG_SLOT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
 }
 
 fn minimap_header() -> Element {
@@ -620,6 +738,31 @@ mod tests {
             assert!(
                 reg.get_by_name(&format!("MultiBarLeftButton{i}")).is_some(),
                 "MultiBarLeftButton{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn micro_menu_builds_all_buttons() {
+        let reg = action_bar_registry();
+        assert!(reg.get_by_name("MicroMenuContainer").is_some());
+        for name in MICRO_BUTTONS {
+            assert!(reg.get_by_name(name).is_some(), "{name} missing");
+        }
+    }
+
+    #[test]
+    fn bag_bar_builds_backpack_and_slots() {
+        let reg = action_bar_registry();
+        assert!(reg.get_by_name("BagsBar").is_some());
+        assert!(
+            reg.get_by_name("MainMenuBarBackpackButton").is_some(),
+            "backpack missing"
+        );
+        for i in 0..BAG_COUNT {
+            assert!(
+                reg.get_by_name(&format!("CharacterBag{i}Slot")).is_some(),
+                "CharacterBag{i}Slot missing"
             );
         }
     }
