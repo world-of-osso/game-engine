@@ -40,7 +40,29 @@ const INSTANCE_SELECTED_COLOR: &str = "1.0,0.82,0.0,1.0";
 const INSTANCE_NORMAL_COLOR: &str = "1.0,1.0,1.0,1.0";
 const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
 
+// Boss list / detail layout
+const BOSS_LIST_W: f32 = 160.0;
+const BOSS_ROW_H: f32 = 24.0;
+const BOSS_ROW_GAP: f32 = 1.0;
+const BOSS_LIST_INSET: f32 = 4.0;
+const DETAIL_INSET: f32 = 4.0;
+const ABILITY_ICON_SIZE: f32 = 28.0;
+const ABILITY_ROW_H: f32 = 48.0;
+const ABILITY_ROW_GAP: f32 = 4.0;
+const BOSS_NAME_H: f32 = 22.0;
+
+const BOSS_SELECTED_BG: &str = "0.2,0.15,0.05,0.95";
+const BOSS_NORMAL_BG: &str = "0.0,0.0,0.0,0.0";
+const BOSS_SELECTED_COLOR: &str = "1.0,0.82,0.0,1.0";
+const BOSS_NORMAL_COLOR: &str = "1.0,1.0,1.0,1.0";
+const BOSS_NAME_COLOR: &str = "1.0,0.82,0.0,1.0";
+const ABILITY_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
+const ABILITY_DESC_COLOR: &str = "0.8,0.8,0.8,1.0";
+const ABILITY_ICON_BG: &str = "0.1,0.1,0.1,0.9";
+
 pub const MAX_INSTANCES: usize = 15;
+pub const MAX_BOSSES: usize = 10;
+pub const MAX_ABILITIES: usize = 8;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EJTab {
@@ -55,10 +77,26 @@ pub struct InstanceEntry {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct BossEntry {
+    pub name: String,
+    pub selected: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BossAbility {
+    pub name: String,
+    pub description: String,
+    pub icon_fdid: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct EncounterJournalState {
     pub visible: bool,
     pub tabs: Vec<EJTab>,
     pub instances: Vec<InstanceEntry>,
+    pub bosses: Vec<BossEntry>,
+    pub selected_boss_name: String,
+    pub abilities: Vec<BossAbility>,
 }
 
 impl Default for EncounterJournalState {
@@ -80,6 +118,9 @@ impl Default for EncounterJournalState {
                 },
             ],
             instances: vec![],
+            bosses: vec![],
+            selected_boss_name: String::new(),
+            abilities: vec![],
         }
     }
 }
@@ -106,7 +147,7 @@ pub fn encounter_journal_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {sidebar_tabs(&state.tabs)}
             {instance_list(&state.instances)}
-            {content_area()}
+            {boss_content(&state.bosses, &state.selected_boss_name, &state.abilities)}
         }
     }
 }
@@ -256,7 +297,7 @@ fn instance_row(idx: usize, inst: &InstanceEntry) -> Element {
     }
 }
 
-fn content_area() -> Element {
+fn boss_content(bosses: &[BossEntry], selected_name: &str, abilities: &[BossAbility]) -> Element {
     let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - content_x - SIDEBAR_INSET;
@@ -272,6 +313,183 @@ fn content_area() -> Element {
                 relative_point: AnchorPoint::TopLeft,
                 x: {content_x},
                 y: {content_y},
+            }
+            {boss_list_panel(bosses, content_h)}
+            {boss_detail_panel(selected_name, abilities, content_w, content_h)}
+        }
+    }
+}
+
+fn boss_list_panel(bosses: &[BossEntry], parent_h: f32) -> Element {
+    let rows: Element = bosses
+        .iter()
+        .enumerate()
+        .take(MAX_BOSSES)
+        .flat_map(|(i, boss)| boss_row(i, boss))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "EJBossList",
+            width: {BOSS_LIST_W},
+            height: {parent_h - 2.0 * BOSS_LIST_INSET},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {BOSS_LIST_INSET},
+                y: {-BOSS_LIST_INSET},
+            }
+            {rows}
+        }
+    }
+}
+
+fn boss_row(idx: usize, boss: &BossEntry) -> Element {
+    let row_id = DynName(format!("EJBoss{idx}"));
+    let label_id = DynName(format!("EJBoss{idx}Label"));
+    let bg = if boss.selected {
+        BOSS_SELECTED_BG
+    } else {
+        BOSS_NORMAL_BG
+    };
+    let color = if boss.selected {
+        BOSS_SELECTED_COLOR
+    } else {
+        BOSS_NORMAL_COLOR
+    };
+    let y = -(idx as f32 * (BOSS_ROW_H + BOSS_ROW_GAP));
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {BOSS_LIST_W},
+            height: {BOSS_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: {y},
+            }
+            fontstring {
+                name: label_id,
+                width: {BOSS_LIST_W - 8.0},
+                height: {BOSS_ROW_H},
+                text: {boss.name.as_str()},
+                font_size: 10.0,
+                font_color: color,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
+                }
+            }
+        }
+    }
+}
+
+fn boss_detail_panel(
+    boss_name: &str,
+    abilities: &[BossAbility],
+    parent_w: f32,
+    parent_h: f32,
+) -> Element {
+    let detail_x = BOSS_LIST_INSET + BOSS_LIST_W + DETAIL_INSET;
+    let detail_w = parent_w - detail_x - DETAIL_INSET;
+    let detail_h = parent_h - 2.0 * DETAIL_INSET;
+    let ability_rows: Element = abilities
+        .iter()
+        .enumerate()
+        .take(MAX_ABILITIES)
+        .flat_map(|(i, ability)| ability_row(i, ability, detail_w))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "EJBossDetail",
+            width: {detail_w},
+            height: {detail_h},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {detail_x},
+                y: {-DETAIL_INSET},
+            }
+            fontstring {
+                name: "EJBossDetailName",
+                width: {detail_w},
+                height: {BOSS_NAME_H},
+                text: boss_name,
+                font_size: 14.0,
+                font_color: BOSS_NAME_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+            {ability_rows}
+        }
+    }
+}
+
+fn ability_row(idx: usize, ability: &BossAbility, parent_w: f32) -> Element {
+    let row_id = DynName(format!("EJAbility{idx}"));
+    let icon_id = DynName(format!("EJAbility{idx}Icon"));
+    let name_id = DynName(format!("EJAbility{idx}Name"));
+    let desc_id = DynName(format!("EJAbility{idx}Desc"));
+    let y = -(BOSS_NAME_H + idx as f32 * (ABILITY_ROW_H + ABILITY_ROW_GAP));
+    let text_x = ABILITY_ICON_SIZE + 8.0;
+    let text_w = parent_w - text_x;
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {parent_w},
+            height: {ABILITY_ROW_H},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: {y},
+            }
+            r#frame {
+                name: icon_id,
+                width: {ABILITY_ICON_SIZE},
+                height: {ABILITY_ICON_SIZE},
+                background_color: ABILITY_ICON_BG,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+            fontstring {
+                name: name_id,
+                width: {text_w},
+                height: 16.0,
+                text: {ability.name.as_str()},
+                font_size: 11.0,
+                font_color: ABILITY_NAME_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {text_x},
+                    y: "0",
+                }
+            }
+            fontstring {
+                name: desc_id,
+                width: {text_w},
+                height: 28.0,
+                text: {ability.description.as_str()},
+                font_size: 9.0,
+                font_color: ABILITY_DESC_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {text_x},
+                    y: "-16",
+                }
             }
         }
     }
@@ -404,5 +622,77 @@ mod tests {
         let expected_x = frame_x + SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
         assert!((r.x - expected_x).abs() < 1.0);
         assert!((r.y - (frame_y + CONTENT_TOP)).abs() < 1.0);
+    }
+
+    // --- Boss list / detail tests ---
+
+    fn make_boss_state() -> EncounterJournalState {
+        let mut state = make_test_state();
+        state.bosses = vec![
+            BossEntry {
+                name: "Edwin VanCleef".into(),
+                selected: true,
+            },
+            BossEntry {
+                name: "Cookie".into(),
+                selected: false,
+            },
+        ];
+        state.selected_boss_name = "Edwin VanCleef".into();
+        state.abilities = vec![
+            BossAbility {
+                name: "Deadly Poison".into(),
+                description: "Coats weapons with poison.".into(),
+                icon_fdid: 12345,
+            },
+            BossAbility {
+                name: "Summon Pirates".into(),
+                description: "Calls nearby pirates to aid.".into(),
+                icon_fdid: 12346,
+            },
+        ];
+        state
+    }
+
+    fn boss_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_boss_state());
+        Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn boss_list_builds_entries() {
+        let reg = boss_registry();
+        assert!(reg.get_by_name("EJBossList").is_some());
+        assert!(reg.get_by_name("EJBoss0").is_some());
+        assert!(reg.get_by_name("EJBoss1").is_some());
+        assert!(reg.get_by_name("EJBoss0Label").is_some());
+    }
+
+    #[test]
+    fn boss_detail_builds_name_and_abilities() {
+        let reg = boss_registry();
+        assert!(reg.get_by_name("EJBossDetail").is_some());
+        assert!(reg.get_by_name("EJBossDetailName").is_some());
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("EJAbility{i}")).is_some(),
+                "EJAbility{i} missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJAbility{i}Icon")).is_some(),
+                "EJAbility{i}Icon missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJAbility{i}Name")).is_some(),
+                "EJAbility{i}Name missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJAbility{i}Desc")).is_some(),
+                "EJAbility{i}Desc missing"
+            );
+        }
     }
 }
