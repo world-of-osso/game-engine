@@ -2,6 +2,25 @@ use bevy::prelude::*;
 
 use crate::auction_house_data::Money;
 
+pub mod textures {
+    /// Frame chrome bottom-left.
+    pub const FRAME_BOTTOM_LEFT: u32 = 136420;
+    /// Repair icons sheet.
+    pub const REPAIR_ICONS: u32 = 136424;
+    /// Repair ability icon.
+    pub const REPAIR_ABILITY: u32 = 132281;
+    /// Buyback icon.
+    pub const BUYBACK_ICON: u32 = 136417;
+    /// Item slot border (shared).
+    pub const SLOT_BORDER: u32 = 130862;
+    /// Gold coin (shared).
+    pub const GOLD_ICON: u32 = 237618;
+    /// Silver coin (shared).
+    pub const SILVER_ICON: u32 = 237620;
+    /// Copper coin (shared).
+    pub const COPPER_ICON: u32 = 237617;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MerchantItemDef {
     pub item_id: u32,
@@ -115,5 +134,15 @@ mod tests {
         };
         assert_eq!(state.page_count(), 1);
         assert!(state.current_page_items().is_empty());
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_BOTTOM_LEFT, 0);
+        assert_ne!(textures::REPAIR_ICONS, 0);
+        assert_ne!(textures::REPAIR_ABILITY, 0);
+        assert_ne!(textures::BUYBACK_ICON, 0);
+        assert_ne!(textures::SLOT_BORDER, 0);
+        assert_ne!(textures::GOLD_ICON, 0);
     }
 }
