@@ -530,4 +530,49 @@ mod tests {
         assert!(cancel_r.x > accept_r.x);
         assert!((accept_r.width - BTN_W).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_panels_same_height() {
+        let reg = layout_registry();
+        let player_r = rect(&reg, "TradePlayerPanel");
+        let other_r = rect(&reg, "TradeOtherPanel");
+        assert!((player_r.height - other_r.height).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_slot_dimensions() {
+        let reg = layout_registry();
+        let slot_r = rect(&reg, "TradePlayerSlot0");
+        assert!((slot_r.width - SLOT_SIZE).abs() < 1.0);
+        assert!((slot_r.height - SLOT_SIZE).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_last_slot_position() {
+        let reg = layout_registry();
+        let slot0 = rect(&reg, "TradePlayerSlot0");
+        let slot6 = rect(&reg, "TradePlayerSlot6");
+        let expected_offset = 6.0 * (SLOT_SIZE + SLOT_GAP);
+        assert!((slot6.y - slot0.y - expected_offset).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_money_row_below_slots() {
+        let reg = layout_registry();
+        let panel_r = rect(&reg, "TradePlayerPanel");
+        let money_r = rect(&reg, "TradePlayerMoneyLabel");
+        let expected_y =
+            panel_r.y + PANEL_LABEL_H + 4.0 + SLOT_COUNT as f32 * (SLOT_SIZE + SLOT_GAP) + 4.0;
+        assert!((money_r.y - expected_y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_other_panel_slots_aligned() {
+        let reg = layout_registry();
+        let other_r = rect(&reg, "TradeOtherPanel");
+        let slot_r = rect(&reg, "TradeOtherSlot0");
+        let expected_y = other_r.y + PANEL_LABEL_H + 4.0;
+        assert!((slot_r.y - expected_y).abs() < 1.0);
+        assert!((slot_r.width - SLOT_SIZE).abs() < 1.0);
+    }
 }
