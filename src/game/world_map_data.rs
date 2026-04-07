@@ -209,6 +209,34 @@ impl WorldMapState {
     pub fn continent_names(&self) -> Vec<&str> {
         self.continents.iter().map(|c| c.name.as_str()).collect()
     }
+
+    /// Filter current zone pins by type.
+    pub fn pins_by_type(&self, pin_type: PinType) -> Vec<&WorldMapPin> {
+        self.current_zone_pins()
+            .iter()
+            .filter(|p| p.pin_type == pin_type)
+            .collect()
+    }
+
+    /// Discovered flight connections in the current zone.
+    pub fn discovered_flights(&self) -> Vec<&FlightConnection> {
+        self.current_zone
+            .as_ref()
+            .map(|z| {
+                z.flight_connections
+                    .iter()
+                    .filter(|f| f.discovered)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Whether the current zone is explored (in fog of war).
+    pub fn is_current_zone_explored(&self) -> bool {
+        self.current_zone
+            .as_ref()
+            .is_some_and(|z| self.fog.is_explored(z.zone_id))
+    }
 }
 
 #[cfg(test)]
@@ -339,6 +367,134 @@ mod tests {
             state.continent_names(),
             vec!["Eastern Kingdoms", "Kalimdor"]
         );
+    }
+
+    // --- Pin filtering ---
+
+    fn zone_with_pins() -> ZoneMapData {
+        ZoneMapData {
+            zone_id: 10,
+            name: "Westfall".into(),
+            texture_fdid: 100,
+            pins: vec![
+                pin(PinType::Quest, 0.1, 0.2),
+                pin(PinType::FlightPath, 0.5, 0.5),
+                pin(PinType::Quest, 0.3, 0.4),
+                pin(PinType::Vendor, 0.7, 0.8),
+                pin(PinType::Innkeeper, 0.6, 0.3),
+            ],
+            flight_connections: vec![
+                FlightConnection {
+                    from_name: "Sentinel Hill".into(),
+                    to_name: "Stormwind".into(),
+                    from_x: 0.5,
+                    from_y: 0.5,
+                    to_x: 0.9,
+                    to_y: 0.1,
+                    discovered: true,
+                },
+                FlightConnection {
+                    from_name: "Sentinel Hill".into(),
+                    to_name: "Darkshire".into(),
+                    from_x: 0.5,
+                    from_y: 0.5,
+                    to_x: 0.8,
+                    to_y: 0.7,
+                    discovered: false,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn pins_by_type_quest() {
+        let state = WorldMapState {
+            current_zone: Some(zone_with_pins()),
+            ..Default::default()
+        };
+        let quests = state.pins_by_type(PinType::Quest);
+        assert_eq!(quests.len(), 2);
+    }
+
+    #[test]
+    fn pins_by_type_flight_path() {
+        let state = WorldMapState {
+            current_zone: Some(zone_with_pins()),
+            ..Default::default()
+        };
+        assert_eq!(state.pins_by_type(PinType::FlightPath).len(), 1);
+    }
+
+    #[test]
+    fn pins_by_type_no_zone() {
+        let state = WorldMapState::default();
+        assert!(state.pins_by_type(PinType::Quest).is_empty());
+    }
+
+    #[test]
+    fn pins_by_type_no_match() {
+        let state = WorldMapState {
+            current_zone: Some(zone_with_pins()),
+            ..Default::default()
+        };
+        assert!(state.pins_by_type(PinType::PointOfInterest).is_empty());
+    }
+
+    // --- Flight path connectivity ---
+
+    #[test]
+    fn discovered_flights_only() {
+        let state = WorldMapState {
+            current_zone: Some(zone_with_pins()),
+            ..Default::default()
+        };
+        let flights = state.discovered_flights();
+        assert_eq!(flights.len(), 1);
+        assert_eq!(flights[0].to_name, "Stormwind");
+    }
+
+    #[test]
+    fn discovered_flights_no_zone() {
+        let state = WorldMapState::default();
+        assert!(state.discovered_flights().is_empty());
+    }
+
+    // --- Discovery fog ---
+
+    #[test]
+    fn is_current_zone_explored_true() {
+        let mut state = WorldMapState {
+            current_zone: Some(zone_with_pins()),
+            ..Default::default()
+        };
+        state.fog.explore(10); // zone_id matches
+        assert!(state.is_current_zone_explored());
+    }
+
+    #[test]
+    fn is_current_zone_explored_false() {
+        let state = WorldMapState {
+            current_zone: Some(zone_with_pins()),
+            ..Default::default()
+        };
+        assert!(!state.is_current_zone_explored());
+    }
+
+    #[test]
+    fn is_current_zone_explored_no_zone() {
+        let state = WorldMapState::default();
+        assert!(!state.is_current_zone_explored());
+    }
+
+    #[test]
+    fn fog_multiple_zones() {
+        let mut fog = FogOfWar::default();
+        fog.explore(1);
+        fog.explore(5);
+        fog.explore(10);
+        assert_eq!(fog.explored_count(), 3);
+        assert!(fog.is_explored(5));
+        assert!(!fog.is_explored(7));
     }
 
     #[test]
