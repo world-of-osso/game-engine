@@ -596,4 +596,85 @@ mod tests {
         assert!(decoded.server_addr.is_none());
         assert!(decoded.local_client_id.is_none());
     }
+
+    // --- Malformed packet/data handling ---
+
+    #[test]
+    fn malformed_empty_string_rejected() {
+        let result = serde_json::from_str::<NetworkStatusSnapshot>("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_garbage_bytes_rejected() {
+        let result = serde_json::from_str::<NetworkStatusSnapshot>("not json at all");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_truncated_json_rejected() {
+        let result = serde_json::from_str::<NetworkStatusSnapshot>(r#"{"connected": true"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_wrong_type_rejected() {
+        // connected should be bool, not string
+        let result = serde_json::from_str::<NetworkStatusSnapshot>(
+            r#"{"server_addr":null,"game_state":"X","connected":"yes","connected_links":0,"local_client_id":null,"zone_id":0,"remote_entities":0,"local_players":0,"chat_messages":0}"#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_missing_required_field_rejected() {
+        // Missing "game_state" field
+        let result = serde_json::from_str::<NetworkStatusSnapshot>(
+            r#"{"server_addr":null,"connected":false,"connected_links":0,"local_client_id":null,"zone_id":0,"remote_entities":0,"local_players":0,"chat_messages":0}"#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_extra_fields_accepted() {
+        // serde_json ignores unknown fields by default
+        let json = r#"{"server_addr":null,"game_state":"X","connected":false,"connected_links":0,"local_client_id":null,"zone_id":0,"remote_entities":0,"local_players":0,"chat_messages":0,"extra_field":42}"#;
+        let result = serde_json::from_str::<NetworkStatusSnapshot>(json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn malformed_null_for_non_option_rejected() {
+        // "connected" is bool, not Option — null should fail
+        let result = serde_json::from_str::<NetworkStatusSnapshot>(
+            r#"{"server_addr":null,"game_state":"X","connected":null,"connected_links":0,"local_client_id":null,"zone_id":0,"remote_entities":0,"local_players":0,"chat_messages":0}"#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_terrain_snapshot_wrong_tuple() {
+        // initial_tile should be [u32, u32], not a string
+        let result = serde_json::from_str::<TerrainStatusSnapshot>(
+            r#"{"map_name":"","initial_tile":"wrong","load_radius":0,"loaded_tiles":0,"pending_tiles":0,"failed_tiles":0,"server_requested_tiles":0,"heightmap_tiles":0,"process_rss_kb":0,"process_anon_kb":0,"process_data_kb":0,"m2_model_cache_entries":0,"m2_model_cache_est_cpu_bytes":0,"composited_texture_cache_entries":0,"composited_texture_cache_est_cpu_bytes":0,"image_assets":0,"image_asset_cpu_bytes":0,"mesh_assets":0,"mesh_asset_est_cpu_bytes":0,"standard_material_assets":0,"terrain_material_assets":0,"water_material_assets":0,"m2_effect_material_assets":0}"#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_negative_unsigned_rejected() {
+        // zone_id is u32, negative should fail
+        let result = serde_json::from_str::<NetworkStatusSnapshot>(
+            r#"{"server_addr":null,"game_state":"X","connected":false,"connected_links":0,"local_client_id":null,"zone_id":-1,"remote_entities":0,"local_players":0,"chat_messages":0}"#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn malformed_chat_message_wrong_channel_type() {
+        let result = serde_json::from_str::<shared::protocol::ChatMessage>(
+            r#"{"sender":"A","content":"hi","channel":"InvalidChannel"}"#,
+        );
+        assert!(result.is_err());
+    }
 }
