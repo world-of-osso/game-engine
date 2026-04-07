@@ -369,11 +369,50 @@ fn faction_row(cat_idx: usize, fac_idx: usize, faction: &FactionEntry, y: f32) -
     }
 }
 
+fn rep_bar_fill(id: DynName, w: f32, color: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {w},
+            height: {BAR_H},
+            background_color: color,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
+fn rep_bar_text(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {BAR_W},
+            height: {BAR_H},
+            text: text,
+            font_size: 8.0,
+            font_color: BAR_TEXT_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
+fn rep_standing_label(id: DynName, standing: Standing) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {STANDING_LABEL_W},
+            height: {FACTION_ROW_H},
+            text: {standing.label()},
+            font_size: 9.0,
+            font_color: {standing.bar_color()},
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
+        }
+    }
+}
+
 fn reputation_bar(cat_idx: usize, fac_idx: usize, faction: &FactionEntry) -> Element {
     let bar_id = DynName(format!("RepBar{cat_idx}_{fac_idx}"));
-    let fill_id = DynName(format!("RepBar{cat_idx}_{fac_idx}Fill"));
-    let text_id = DynName(format!("RepBar{cat_idx}_{fac_idx}Text"));
-    let standing_id = DynName(format!("RepBar{cat_idx}_{fac_idx}Standing"));
     let fill_w = faction.progress_fraction() * BAR_W;
     let bar_y = (FACTION_ROW_H - BAR_H) / 2.0;
     let progress = faction.progress_text();
@@ -389,49 +428,10 @@ fn reputation_bar(cat_idx: usize, fac_idx: usize, faction: &FactionEntry) -> Ele
                 x: {BAR_X},
                 y: {-bar_y},
             }
-            r#frame {
-                name: fill_id,
-                width: {fill_w},
-                height: {BAR_H},
-                background_color: {faction.standing.bar_color()},
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: text_id,
-                width: {BAR_W},
-                height: {BAR_H},
-                text: {progress.as_str()},
-                font_size: 8.0,
-                font_color: BAR_TEXT_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
+            {rep_bar_fill(DynName(format!("RepBar{cat_idx}_{fac_idx}Fill")), fill_w, faction.standing.bar_color())}
+            {rep_bar_text(DynName(format!("RepBar{cat_idx}_{fac_idx}Text")), &progress)}
         }
-        fontstring {
-            name: standing_id,
-            width: {STANDING_LABEL_W},
-            height: {FACTION_ROW_H},
-            text: {faction.standing.label()},
-            font_size: 9.0,
-            font_color: {faction.standing.bar_color()},
-            justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-4",
-                y: "0",
-            }
-        }
+        {rep_standing_label(DynName(format!("RepBar{cat_idx}_{fac_idx}Standing")), faction.standing)}
     }
 }
 
