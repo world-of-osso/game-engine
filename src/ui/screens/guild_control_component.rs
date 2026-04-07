@@ -221,46 +221,48 @@ fn rank_name_editor(name: &str) -> Element {
     let editor_y = -CONTENT_TOP;
     let editor_w = FRAME_W - editor_x - SIDEBAR_INSET;
     rsx! {
+        {editor_label("GuildControlRankNameLabel", "Rank Name:", editor_x, editor_y)}
+        {editor_input("GuildControlRankNameEditor", "GuildControlRankNameText", name, editor_w - 84.0, editor_x + 84.0, editor_y)}
+    }
+}
+
+fn editor_label(name: &str, text: &str, x: f32, y: f32) -> Element {
+    rsx! {
         fontstring {
-            name: "GuildControlRankNameLabel",
+            name: DynName(name.into()),
             width: 80.0,
             height: {EDITOR_H},
-            text: "Rank Name:",
+            text: text,
             font_size: 10.0,
             font_color: EDITOR_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {editor_x},
-                y: {editor_y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
         }
+    }
+}
+
+fn editor_input(name: &str, text_name: &str, value: &str, w: f32, x: f32, y: f32) -> Element {
+    rsx! {
         r#frame {
-            name: "GuildControlRankNameEditor",
-            width: {editor_w - 84.0},
+            name: DynName(name.into()),
+            width: {w},
             height: {EDITOR_H},
             background_color: EDITOR_BG,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {editor_x + 84.0},
-                y: {editor_y},
+                x: {x},
+                y: {y},
             }
             fontstring {
-                name: "GuildControlRankNameText",
-                width: {editor_w - 92.0},
+                name: DynName(text_name.into()),
+                width: {w - 8.0},
                 height: {EDITOR_H},
-                text: name,
+                text: value,
                 font_size: 10.0,
                 font_color: EDITOR_TEXT_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
             }
         }
     }
