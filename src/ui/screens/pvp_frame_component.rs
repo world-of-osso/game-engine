@@ -337,56 +337,50 @@ fn bracket_stats(id: DynName, text: &str, row_w: f32) -> Element {
     }
 }
 
+fn pvp_action_button(
+    name: &str,
+    label: &str,
+    w: f32,
+    h: f32,
+    bg: &str,
+    color: &str,
+    x: f32,
+    y: f32,
+) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {w},
+            height: {h},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: text_id,
+                width: {w},
+                height: {h},
+                text: label,
+                font_size: 11.0,
+                font_color: color,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn queue_and_wargame_buttons() -> Element {
     let y = -(FRAME_H - QUEUE_BTN_H - 8.0);
     let center = FRAME_W / 2.0;
-    let queue_x = center - QUEUE_BTN_W - BTN_GAP / 2.0;
-    let wargame_x = center + BTN_GAP / 2.0;
     rsx! {
-        r#frame {
-            name: "PVPQueueButton",
-            width: {QUEUE_BTN_W},
-            height: {QUEUE_BTN_H},
-            background_color: QUEUE_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {queue_x},
-                y: {y},
-            }
-            fontstring {
-                name: "PVPQueueButtonText",
-                width: {QUEUE_BTN_W},
-                height: {QUEUE_BTN_H},
-                text: "Join Queue",
-                font_size: 11.0,
-                font_color: QUEUE_BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
-        r#frame {
-            name: "PVPWarGamesButton",
-            width: {WARGAME_BTN_W},
-            height: {WARGAME_BTN_H},
-            background_color: WARGAME_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {wargame_x},
-                y: {y},
-            }
-            fontstring {
-                name: "PVPWarGamesButtonText",
-                width: {WARGAME_BTN_W},
-                height: {WARGAME_BTN_H},
-                text: "War Games",
-                font_size: 11.0,
-                font_color: WARGAME_BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {pvp_action_button("PVPQueueButton", "Join Queue", QUEUE_BTN_W, QUEUE_BTN_H, QUEUE_BTN_BG, QUEUE_BTN_TEXT, center - QUEUE_BTN_W - BTN_GAP / 2.0, y)}
+        {pvp_action_button("PVPWarGamesButton", "War Games", WARGAME_BTN_W, WARGAME_BTN_H, WARGAME_BTN_BG, WARGAME_BTN_TEXT, center + BTN_GAP / 2.0, y)}
     }
 }
 
