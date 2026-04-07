@@ -41,4 +41,5 @@ pub mod reputation_frame_component;
 mod screen_title;
 pub mod selection_debug_component;
 pub mod talent_frame_component;
+pub mod trade_frame_component;
 pub mod trash_button_component;
