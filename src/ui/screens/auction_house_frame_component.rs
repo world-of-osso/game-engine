@@ -1308,4 +1308,67 @@ mod tests {
             );
         }
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_browse_search_bar() {
+        let reg = layout_registry();
+        let content_x = FRAME_X + CONTENT_INSET;
+        let content_y = FRAME_Y + CONTENT_TOP;
+        let r = rect(&reg, "AuctionHouseBrowseSearchBar");
+        assert!((r.x - (content_x + SEARCH_BAR_INSET)).abs() < 1.0);
+        assert!((r.y - (content_y + SEARCH_BAR_INSET)).abs() < 1.0);
+        let expected_w = FRAME_W - 2.0 * CONTENT_INSET - 2.0 * SEARCH_BAR_INSET;
+        assert!((r.width - expected_w).abs() < 1.0);
+        assert!((r.height - SEARCH_BAR_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_browse_category_sidebar() {
+        let reg = layout_registry();
+        let content_x = FRAME_X + CONTENT_INSET;
+        let content_y = FRAME_Y + CONTENT_TOP;
+        let r = rect(&reg, "AuctionHouseBrowseCategorySidebar");
+        assert!((r.x - (content_x + SEARCH_BAR_INSET)).abs() < 1.0);
+        let expected_y = content_y + SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP;
+        assert!((r.y - expected_y).abs() < 1.0);
+        assert!((r.width - SIDEBAR_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_browse_results_panel() {
+        let reg = layout_registry();
+        let content_x = FRAME_X + CONTENT_INSET;
+        let content_y = FRAME_Y + CONTENT_TOP;
+        let r = rect(&reg, "AuctionHouseBrowseResults");
+        let expected_x = content_x + SEARCH_BAR_INSET + SIDEBAR_W + SIDEBAR_GAP;
+        let expected_y = content_y + SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP;
+        assert!(
+            (r.x - expected_x).abs() < 1.0,
+            "x: expected {expected_x}, got {}",
+            r.x
+        );
+        assert!(
+            (r.y - expected_y).abs() < 1.0,
+            "y: expected {expected_y}, got {}",
+            r.y
+        );
+    }
+
+    #[test]
+    fn coord_sell_item_slot() {
+        let reg = layout_registry();
+        let r = rect(&reg, "AuctionHouseSellItemSlot");
+        assert!((r.width - SELL_ITEM_SLOT_SIZE).abs() < 1.0);
+        assert!((r.height - SELL_ITEM_SLOT_SIZE).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_sell_post_button() {
+        let reg = layout_registry();
+        let r = rect(&reg, "AuctionHouseSellPostButton");
+        assert!((r.width - SELL_BUTTON_W).abs() < 1.0);
+        assert!((r.height - SELL_BUTTON_H).abs() < 1.0);
+    }
 }
