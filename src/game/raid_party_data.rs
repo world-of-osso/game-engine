@@ -3,18 +3,30 @@ use bevy::prelude::*;
 pub mod textures {
     /// Health bar fill (shared with casting bar).
     pub const HEALTH_BAR_FILL: u32 = 4505182;
-    /// Role icon: tank shield.
-    pub const ROLE_TANK: u32 = 132341;
-    /// Role icon: healer plus.
-    pub const ROLE_HEALER: u32 = 135923;
-    /// Role icon: DPS sword.
-    pub const ROLE_DPS: u32 = 132349;
-    /// Ready check: accepted checkmark.
-    pub const READY_CHECK_OK: u32 = 132156;
-    /// Ready check: not ready cross.
-    pub const READY_CHECK_FAIL: u32 = 132155;
-    /// Ready check: pending question mark.
-    pub const READY_CHECK_WAIT: u32 = 132157;
+
+    // --- Role icons (LFG role atlas) ---
+    /// LFG role icon sheet (tank/healer/DPS in one atlas).
+    pub const LFG_ROLE_ICONS: u32 = 337499;
+    /// Role icons sheet (modern).
+    pub const ROLE_ICONS: u32 = 2134184;
+    /// LFG role icon sheet (original).
+    pub const LFG_ROLE: u32 = 252190;
+
+    // --- Ready check icons ---
+    /// Ready check: accepted (green checkmark).
+    pub const READY_CHECK_OK: u32 = 136814;
+    /// Ready check: not ready (red X).
+    pub const READY_CHECK_FAIL: u32 = 136813;
+    /// Ready check: pending (yellow ?).
+    pub const READY_CHECK_WAIT: u32 = 136815;
+    /// Ready check frame background.
+    pub const READY_CHECK_FRAME: u32 = 136825;
+
+    // --- Debuff ---
+    /// Debuff border overlay (colored by type: magic/curse/poison/disease).
+    pub const DEBUFF_BORDER: u32 = 130758;
+    /// Debuff type color overlays.
+    pub const DEBUFF_OVERLAYS: u32 = 130759;
 }
 
 // --- Role ---
@@ -480,11 +492,14 @@ mod tests {
     #[test]
     fn texture_fdids_are_nonzero() {
         assert_ne!(textures::HEALTH_BAR_FILL, 0);
-        assert_ne!(textures::ROLE_TANK, 0);
-        assert_ne!(textures::ROLE_HEALER, 0);
-        assert_ne!(textures::ROLE_DPS, 0);
+        assert_ne!(textures::LFG_ROLE_ICONS, 0);
+        assert_ne!(textures::ROLE_ICONS, 0);
+        assert_ne!(textures::LFG_ROLE, 0);
         assert_ne!(textures::READY_CHECK_OK, 0);
         assert_ne!(textures::READY_CHECK_FAIL, 0);
         assert_ne!(textures::READY_CHECK_WAIT, 0);
+        assert_ne!(textures::READY_CHECK_FRAME, 0);
+        assert_ne!(textures::DEBUFF_BORDER, 0);
+        assert_ne!(textures::DEBUFF_OVERLAYS, 0);
     }
 }
