@@ -34,6 +34,8 @@ pub mod dress_up_data;
 pub mod dump;
 #[path = "game/encounter_journal_data.rs"]
 pub mod encounter_journal_data;
+#[path = "game/experience_data.rs"]
+pub mod experience_data;
 #[path = "game/floating_combat_text.rs"]
 pub mod floating_combat_text;
 #[path = "game/friends_data.rs"]
