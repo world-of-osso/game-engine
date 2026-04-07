@@ -40,6 +40,8 @@ pub mod friends_data;
 pub mod game_state_enum;
 #[path = "game/guild_bank_data.rs"]
 pub mod guild_bank_data;
+#[path = "game/guild_control_data.rs"]
+pub mod guild_control_data;
 #[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
 pub mod input_bindings;
