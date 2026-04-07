@@ -201,4 +201,116 @@ mod tests {
         assert_ne!(textures::CHECKBOX_DOWN, 0);
         assert_ne!(textures::PERMISSION_TAB, 0);
     }
+
+    // --- Rank permission bitmask ---
+
+    #[test]
+    fn guild_master_has_all_permissions() {
+        let gm = guild_master();
+        for perm in GuildPermFlag::ALL {
+            assert!(gm.permissions.contains(&perm), "GM missing {:?}", perm);
+        }
+    }
+
+    #[test]
+    fn member_has_limited_permissions() {
+        let m = member();
+        assert!(m.permissions.contains(&GuildPermFlag::EditPublicNote));
+        assert!(!m.permissions.contains(&GuildPermFlag::RemoveMembers));
+        assert!(!m.permissions.contains(&GuildPermFlag::PromoteMembers));
+    }
+
+    #[test]
+    fn toggle_perm_out_of_bounds_no_panic() {
+        let mut state = GuildControlDataState {
+            ranks: vec![member()],
+            ..Default::default()
+        };
+        state.toggle_perm(99, GuildPermFlag::InviteMembers); // should not panic
+    }
+
+    #[test]
+    fn rank_has_perm_out_of_bounds() {
+        let state = GuildControlDataState::default();
+        assert!(!state.rank_has_perm(99, GuildPermFlag::InviteMembers));
+    }
+
+    #[test]
+    fn selected_rank_def_none_when_empty() {
+        let state = GuildControlDataState::default();
+        assert!(state.selected_rank_def().is_none());
+    }
+
+    // --- Bank tab settings per rank ---
+
+    #[test]
+    fn guild_master_bank_tab_full_access() {
+        let gm = guild_master();
+        let tab = &gm.bank_tabs[0];
+        assert!(tab.can_view);
+        assert!(tab.can_deposit);
+        assert!(tab.can_withdraw);
+        assert_eq!(tab.withdraw_limit, 100);
+    }
+
+    #[test]
+    fn member_bank_tab_view_only() {
+        let m = member();
+        let tab = &m.bank_tabs[0];
+        assert!(tab.can_view);
+        assert!(!tab.can_deposit);
+        assert!(!tab.can_withdraw);
+        assert_eq!(tab.withdraw_limit, 0);
+    }
+
+    #[test]
+    fn multi_tab_bank_settings() {
+        let rank = GuildRankDef {
+            name: "Officer".into(),
+            index: 1,
+            permissions: vec![GuildPermFlag::InviteMembers, GuildPermFlag::EditPublicNote],
+            bank_tabs: vec![
+                BankTabSettings {
+                    can_view: true,
+                    can_deposit: true,
+                    can_withdraw: true,
+                    withdraw_limit: 50,
+                },
+                BankTabSettings {
+                    can_view: true,
+                    can_deposit: true,
+                    can_withdraw: false,
+                    withdraw_limit: 0,
+                },
+                BankTabSettings::default(),
+            ],
+        };
+        assert_eq!(rank.bank_tabs.len(), 3);
+        assert!(rank.bank_tabs[0].can_withdraw);
+        assert!(!rank.bank_tabs[1].can_withdraw);
+        assert!(rank.bank_tabs[1].can_deposit);
+        assert!(!rank.bank_tabs[2].can_deposit);
+    }
+
+    #[test]
+    fn toggle_multiple_perms_independently() {
+        let mut state = GuildControlDataState {
+            ranks: vec![GuildRankDef {
+                name: "New Rank".into(),
+                index: 0,
+                permissions: vec![],
+                bank_tabs: vec![],
+            }],
+            ..Default::default()
+        };
+        state.toggle_perm(0, GuildPermFlag::InviteMembers);
+        state.toggle_perm(0, GuildPermFlag::SetMotd);
+        assert!(state.rank_has_perm(0, GuildPermFlag::InviteMembers));
+        assert!(state.rank_has_perm(0, GuildPermFlag::SetMotd));
+        assert!(!state.rank_has_perm(0, GuildPermFlag::RemoveMembers));
+        // Remove just one
+        state.toggle_perm(0, GuildPermFlag::InviteMembers);
+        assert!(!state.rank_has_perm(0, GuildPermFlag::InviteMembers));
+        assert!(state.rank_has_perm(0, GuildPermFlag::SetMotd));
+    }
 }
