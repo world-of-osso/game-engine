@@ -3,6 +3,29 @@ use bevy::prelude::*;
 const BAR_COUNT: usize = 5;
 const SLOTS_PER_BAR: usize = 12;
 
+/// Texture FDIDs for action bar chrome and cooldown overlays.
+pub mod textures {
+    /// Action bar atlas sheet (slot backgrounds, borders, flash, highlight).
+    pub const ACTION_BAR_ATLAS: u32 = 4613342;
+    /// Cooldown sweep overlay (clock-wipe dark overlay).
+    pub const COOLDOWN_SWEEP: u32 = 131006;
+    /// Cooldown edge glow (drawn at sweep boundary).
+    pub const COOLDOWN_EDGE: u32 = 131008;
+    /// Cooldown finished star burst.
+    pub const COOLDOWN_STAR: u32 = 131010;
+}
+
+/// Atlas region names used by slot textures.
+pub mod atlas {
+    pub const SLOT_FRAME: &str = "ui-hud-actionbar-iconframe";
+    pub const SLOT_FRAME_EXTRA: &str = "ui-hud-actionbar-iconframe-addrow";
+    pub const SLOT_PRESSED: &str = "ui-hud-actionbar-iconframe-down";
+    pub const SLOT_PRESSED_EXTRA: &str = "ui-hud-actionbar-iconframe-addrow-down";
+    pub const SLOT_HIGHLIGHT: &str = "ui-hud-actionbar-iconframe-mouseover";
+    pub const SLOT_BORDER: &str = "ui-hud-actionbar-iconframe-border";
+    pub const SLOT_FLASH: &str = "ui-hud-actionbar-iconframe-flash";
+}
+
 /// Which bar a slot belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BarKind {
@@ -186,5 +209,21 @@ mod tests {
     fn bar_slots_returns_full_bar() {
         let state = ActionBarState::default();
         assert_eq!(state.bar_slots(BarKind::Main).len(), 12);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::ACTION_BAR_ATLAS, 0);
+        assert_ne!(textures::COOLDOWN_SWEEP, 0);
+        assert_ne!(textures::COOLDOWN_EDGE, 0);
+        assert_ne!(textures::COOLDOWN_STAR, 0);
+    }
+
+    #[test]
+    fn atlas_names_are_nonempty() {
+        assert!(!atlas::SLOT_FRAME.is_empty());
+        assert!(!atlas::SLOT_HIGHLIGHT.is_empty());
+        assert!(!atlas::SLOT_BORDER.is_empty());
+        assert!(!atlas::SLOT_FLASH.is_empty());
     }
 }
