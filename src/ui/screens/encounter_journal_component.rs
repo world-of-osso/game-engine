@@ -469,8 +469,6 @@ fn build_ability_rows(abilities: &[BossAbility], w: f32) -> Element {
 fn ability_row(idx: usize, ability: &BossAbility, parent_w: f32) -> Element {
     let row_id = DynName(format!("EJAbility{idx}"));
     let icon_id = DynName(format!("EJAbility{idx}Icon"));
-    let name_id = DynName(format!("EJAbility{idx}Name"));
-    let desc_id = DynName(format!("EJAbility{idx}Desc"));
     let y = -(BOSS_NAME_H + idx as f32 * (ABILITY_ROW_H + ABILITY_ROW_GAP));
     let text_x = ABILITY_ICON_SIZE + 8.0;
     let text_w = parent_w - text_x;
@@ -485,46 +483,51 @@ fn ability_row(idx: usize, ability: &BossAbility, parent_w: f32) -> Element {
                 x: "0",
                 y: {y},
             }
-            r#frame {
-                name: icon_id,
-                width: {ABILITY_ICON_SIZE},
-                height: {ABILITY_ICON_SIZE},
-                background_color: ABILITY_ICON_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-            fontstring {
-                name: name_id,
-                width: {text_w},
-                height: 16.0,
-                text: {ability.name.as_str()},
-                font_size: 11.0,
-                font_color: ABILITY_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {text_x},
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: desc_id,
-                width: {text_w},
-                height: 28.0,
-                text: {ability.description.as_str()},
-                font_size: 9.0,
-                font_color: ABILITY_DESC_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {text_x},
-                    y: "-16",
-                }
-            }
+            {ability_icon(icon_id)}
+            {ability_name_label(DynName(format!("EJAbility{idx}Name")), &ability.name, text_w, text_x)}
+            {ability_desc_label(DynName(format!("EJAbility{idx}Desc")), &ability.description, text_w, text_x)}
+        }
+    }
+}
+
+fn ability_icon(id: DynName) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {ABILITY_ICON_SIZE},
+            height: {ABILITY_ICON_SIZE},
+            background_color: ABILITY_ICON_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
+}
+
+fn ability_name_label(id: DynName, text: &str, w: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: 16.0,
+            text: text,
+            font_size: 11.0,
+            font_color: ABILITY_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "0" }
+        }
+    }
+}
+
+fn ability_desc_label(id: DynName, text: &str, w: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: 28.0,
+            text: text,
+            font_size: 9.0,
+            font_color: ABILITY_DESC_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-16" }
         }
     }
 }
