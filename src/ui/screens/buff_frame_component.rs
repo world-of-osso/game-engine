@@ -1,0 +1,297 @@
+use std::fmt;
+
+use ui_toolkit::rsx;
+use ui_toolkit::screen::SharedContext;
+use ui_toolkit::widget_def::Element;
+
+use crate::ui::anchor::AnchorPoint;
+
+struct DynName(String);
+
+impl fmt::Display for DynName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+const ICON_SIZE: f32 = 30.0;
+const ICON_GAP: f32 = 2.0;
+const ICONS_PER_ROW: usize = 10;
+const ROW_GAP: f32 = 14.0;
+const DEBUFF_GAP: f32 = 4.0;
+const TIMER_H: f32 = 12.0;
+
+const BUFF_BG: &str = "0.0,0.0,0.0,0.5";
+const DEBUFF_BG: &str = "0.4,0.0,0.0,0.5";
+const TIMER_COLOR: &str = "1.0,1.0,1.0,0.9";
+
+pub const MAX_BUFFS: usize = 32;
+pub const MAX_DEBUFFS: usize = 16;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BuffIconState {
+    pub icon_fdid: u32,
+    pub timer_text: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BuffFrameState {
+    pub buffs: Vec<BuffIconState>,
+    pub debuffs: Vec<BuffIconState>,
+}
+
+impl Default for BuffFrameState {
+    fn default() -> Self {
+        Self {
+            buffs: vec![],
+            debuffs: vec![],
+        }
+    }
+}
+
+pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
+    let state = ctx
+        .get::<BuffFrameState>()
+        .expect("BuffFrameState must be in SharedContext");
+    rsx! {
+        {buff_grid(&state.buffs)}
+        {debuff_grid(&state.buffs, &state.debuffs)}
+    }
+}
+
+fn buff_grid(buffs: &[BuffIconState]) -> Element {
+    let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
+    let buff_rows = (buffs.len().min(MAX_BUFFS) + ICONS_PER_ROW - 1) / ICONS_PER_ROW.max(1);
+    let grid_h = buff_rows.max(1) as f32 * (ICON_SIZE + ROW_GAP);
+    let icons: Element = buffs
+        .iter()
+        .enumerate()
+        .take(MAX_BUFFS)
+        .flat_map(|(i, buff)| buff_icon(i, buff, "Buff"))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "BuffFrame",
+            width: {grid_w},
+            height: {grid_h},
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "-205",
+                y: "-8",
+            }
+            {icons}
+        }
+    }
+}
+
+fn debuff_grid(buffs: &[BuffIconState], debuffs: &[BuffIconState]) -> Element {
+    let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
+    let buff_rows = (buffs.len().min(MAX_BUFFS) + ICONS_PER_ROW - 1) / ICONS_PER_ROW.max(1);
+    let debuff_y_offset = buff_rows.max(1) as f32 * (ICON_SIZE + ROW_GAP) + DEBUFF_GAP;
+    let debuff_rows = (debuffs.len().min(MAX_DEBUFFS) + ICONS_PER_ROW - 1) / ICONS_PER_ROW.max(1);
+    let grid_h = debuff_rows.max(1) as f32 * (ICON_SIZE + ROW_GAP);
+    let icons: Element = debuffs
+        .iter()
+        .enumerate()
+        .take(MAX_DEBUFFS)
+        .flat_map(|(i, debuff)| buff_icon(i, debuff, "Debuff"))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "DebuffFrame",
+            width: {grid_w},
+            height: {grid_h},
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "-205",
+                y: {-(8.0 + debuff_y_offset)},
+            }
+            {icons}
+        }
+    }
+}
+
+fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
+    let col = index % ICONS_PER_ROW;
+    let row = index / ICONS_PER_ROW;
+    let x = col as f32 * (ICON_SIZE + ICON_GAP);
+    let y = -(row as f32 * (ICON_SIZE + ROW_GAP));
+    let icon_name = DynName(format!("{prefix}Icon{index}"));
+    let timer_name = DynName(format!("{prefix}Icon{index}Timer"));
+    let bg = if prefix == "Buff" { BUFF_BG } else { DEBUFF_BG };
+    rsx! {
+        r#frame {
+            name: icon_name,
+            width: {ICON_SIZE},
+            height: {ICON_SIZE},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: timer_name,
+                width: {ICON_SIZE},
+                height: {TIMER_H},
+                text: {buff.timer_text.as_str()},
+                font_size: 8.0,
+                font_color: TIMER_COLOR,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::Bottom,
+                    relative_point: AnchorPoint::Bottom,
+                    x: "0",
+                    y: {TIMER_H},
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+
+    fn make_icon(timer: &str) -> BuffIconState {
+        BuffIconState {
+            icon_fdid: 12345,
+            timer_text: timer.into(),
+        }
+    }
+
+    fn make_state(buff_count: usize, debuff_count: usize) -> BuffFrameState {
+        BuffFrameState {
+            buffs: (0..buff_count)
+                .map(|i| make_icon(&format!("{i}m")))
+                .collect(),
+            debuffs: (0..debuff_count)
+                .map(|i| make_icon(&format!("{i}s")))
+                .collect(),
+        }
+    }
+
+    fn build_registry(buff_count: usize, debuff_count: usize) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_state(buff_count, debuff_count));
+        Screen::new(buff_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    fn layout_reg(buff_count: usize, debuff_count: usize) -> FrameRegistry {
+        let mut reg = build_registry(buff_count, debuff_count);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
+        reg.get(reg.get_by_name(name).expect(name))
+            .and_then(|f| f.layout_rect.clone())
+            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
+    }
+
+    #[test]
+    fn builds_buff_and_debuff_frames() {
+        let reg = build_registry(3, 2);
+        assert!(reg.get_by_name("BuffFrame").is_some());
+        assert!(reg.get_by_name("DebuffFrame").is_some());
+    }
+
+    #[test]
+    fn builds_buff_icons_with_timers() {
+        let reg = build_registry(5, 0);
+        for i in 0..5 {
+            assert!(
+                reg.get_by_name(&format!("BuffIcon{i}")).is_some(),
+                "BuffIcon{i} missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("BuffIcon{i}Timer")).is_some(),
+                "BuffIcon{i}Timer missing"
+            );
+        }
+        assert!(reg.get_by_name("BuffIcon5").is_none());
+    }
+
+    #[test]
+    fn builds_debuff_icons_with_timers() {
+        let reg = build_registry(0, 4);
+        for i in 0..4 {
+            assert!(
+                reg.get_by_name(&format!("DebuffIcon{i}")).is_some(),
+                "DebuffIcon{i} missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("DebuffIcon{i}Timer")).is_some(),
+                "DebuffIcon{i}Timer missing"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_state_builds_frames_only() {
+        let reg = build_registry(0, 0);
+        assert!(reg.get_by_name("BuffFrame").is_some());
+        assert!(reg.get_by_name("DebuffFrame").is_some());
+        assert!(reg.get_by_name("BuffIcon0").is_none());
+        assert!(reg.get_by_name("DebuffIcon0").is_none());
+    }
+
+    // --- Coord validation ---
+
+    #[test]
+    fn coord_buff_frame_right_aligned() {
+        let reg = layout_reg(5, 0);
+        let r = rect(&reg, "BuffFrame");
+        let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
+        let expected_x = 1920.0 - 205.0 - grid_w;
+        assert!(
+            (r.x - expected_x).abs() < 1.0,
+            "x: expected {expected_x}, got {}",
+            r.x
+        );
+        assert!((r.y - 8.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_buff_icon_wraps_to_second_row() {
+        let reg = layout_reg(12, 0);
+        let first = rect(&reg, "BuffIcon0");
+        let eleventh = rect(&reg, "BuffIcon10");
+        let row_offset = ICON_SIZE + ROW_GAP;
+        assert!(
+            (eleventh.y - first.y - row_offset).abs() < 1.0,
+            "second row y offset: expected {row_offset}, got {}",
+            eleventh.y - first.y
+        );
+    }
+
+    #[test]
+    fn coord_debuff_below_buffs() {
+        let reg = layout_reg(5, 3);
+        let buff_frame = rect(&reg, "BuffFrame");
+        let debuff_frame = rect(&reg, "DebuffFrame");
+        assert!(
+            debuff_frame.y > buff_frame.y,
+            "debuff frame should be below buff frame"
+        );
+    }
+
+    #[test]
+    fn coord_icon_dimensions() {
+        let reg = layout_reg(1, 1);
+        let buff = rect(&reg, "BuffIcon0");
+        assert!((buff.width - ICON_SIZE).abs() < 1.0);
+        assert!((buff.height - ICON_SIZE).abs() < 1.0);
+        let debuff = rect(&reg, "DebuffIcon0");
+        assert!((debuff.width - ICON_SIZE).abs() < 1.0);
+        assert!((debuff.height - ICON_SIZE).abs() < 1.0);
+    }
+}
