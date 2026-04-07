@@ -281,6 +281,8 @@ fn article_detail_panel(detail: &ArticleDetail) -> Element {
     let panel_y = -(BUTTON_TOP + buttons_h);
     let panel_w = FRAME_W - 2.0 * CONTENT_INSET;
     let panel_h = FRAME_H - BUTTON_TOP - buttons_h - CONTENT_INSET;
+    let inner_w = panel_w - 2.0 * DETAIL_BODY_INSET;
+    let body_h = panel_h - DETAIL_TITLE_H - 3.0 * DETAIL_BODY_INSET;
     rsx! {
         r#frame {
             name: "HelpArticleDetail",
@@ -293,36 +295,38 @@ fn article_detail_panel(detail: &ArticleDetail) -> Element {
                 x: {CONTENT_INSET},
                 y: {panel_y},
             }
-            fontstring {
-                name: "HelpArticleDetailTitle",
-                width: {panel_w - 2.0 * DETAIL_BODY_INSET},
-                height: {DETAIL_TITLE_H},
-                text: {detail.title.as_str()},
-                font_size: 13.0,
-                font_color: DETAIL_TITLE_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {DETAIL_BODY_INSET},
-                    y: {-DETAIL_BODY_INSET},
-                }
-            }
-            fontstring {
-                name: "HelpArticleDetailBody",
-                width: {panel_w - 2.0 * DETAIL_BODY_INSET},
-                height: {panel_h - DETAIL_TITLE_H - 3.0 * DETAIL_BODY_INSET},
-                text: {detail.body.as_str()},
-                font_size: 10.0,
-                font_color: DETAIL_BODY_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {DETAIL_BODY_INSET},
-                    y: {-(DETAIL_BODY_INSET + DETAIL_TITLE_H)},
-                }
-            }
+            {detail_title_label(&detail.title, inner_w)}
+            {detail_body_label(&detail.body, inner_w, body_h)}
+        }
+    }
+}
+
+fn detail_title_label(text: &str, w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "HelpArticleDetailTitle",
+            width: {w},
+            height: {DETAIL_TITLE_H},
+            text: text,
+            font_size: 13.0,
+            font_color: DETAIL_TITLE_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {DETAIL_BODY_INSET}, y: {-DETAIL_BODY_INSET} }
+        }
+    }
+}
+
+fn detail_body_label(text: &str, w: f32, h: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "HelpArticleDetailBody",
+            width: {w},
+            height: {h},
+            text: text,
+            font_size: 10.0,
+            font_color: DETAIL_BODY_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {DETAIL_BODY_INSET}, y: {-(DETAIL_BODY_INSET + DETAIL_TITLE_H)} }
         }
     }
 }
