@@ -267,3 +267,133 @@ fn zone_id_to_name_known() {
 fn zone_id_to_name_unknown() {
     assert_eq!(zone_id_to_name(99999), "Unknown");
 }
+
+// --- Minimap recomposite: tile stitching correctness ---
+
+#[test]
+fn blit_image_places_tile_at_correct_offset() {
+    let tile_size = 2;
+    let comp_size = 6; // 3 tiles of size 2
+    let mut composite = vec![0u8; comp_size * comp_size * 4];
+    // Fill a 2x2 tile with red
+    let tile = vec![
+        255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255,
+    ];
+    // Blit at offset (2, 2) — the center tile position
+    blit_image(&mut composite, comp_size, &tile, tile_size, 2, 2);
+    // Check pixel at (2, 2) is red
+    let i = (2 * comp_size + 2) * 4;
+    assert_eq!(&composite[i..i + 4], &[255, 0, 0, 255]);
+    // Check pixel at (0, 0) is still black (background)
+    assert_eq!(&composite[0..4], &[0, 0, 0, 0]);
+}
+
+#[test]
+fn blit_image_adjacent_tiles_no_gap() {
+    let tile_size = 2;
+    let comp_size = 4;
+    let mut composite = vec![0u8; comp_size * comp_size * 4];
+    let red = vec![
+        255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255,
+    ];
+    let blue = vec![
+        0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255,
+    ];
+    // Blit red at (0,0), blue at (2,0)
+    blit_image(&mut composite, comp_size, &red, tile_size, 0, 0);
+    blit_image(&mut composite, comp_size, &blue, tile_size, 2, 0);
+    // Last pixel of red tile (row 0, col 1)
+    let red_end = (0 * comp_size + 1) * 4;
+    assert_eq!(&composite[red_end..red_end + 4], &[255, 0, 0, 255]);
+    // First pixel of blue tile (row 0, col 2)
+    let blue_start = (0 * comp_size + 2) * 4;
+    assert_eq!(&composite[blue_start..blue_start + 4], &[0, 0, 255, 255]);
+    // No gap between them
+    assert_eq!(blue_start - red_end, 4); // exactly 1 pixel apart
+}
+
+#[test]
+fn blit_image_does_not_overwrite_outside_bounds() {
+    let tile_size = 2;
+    let comp_size = 4;
+    let mut composite = vec![99u8; comp_size * comp_size * 4];
+    let tile = vec![0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255];
+    blit_image(&mut composite, comp_size, &tile, tile_size, 0, 0);
+    // Pixel at (0, 2) should still be 99 (untouched)
+    let i = (0 * comp_size + 2) * 4;
+    assert_eq!(composite[i], 99);
+    // Pixel at (2, 0) should still be 99 (untouched)
+    let i = (2 * comp_size + 0) * 4;
+    assert_eq!(composite[i], 99);
+}
+
+#[test]
+fn composite_3x3_grid_center_pixel_matches_center_tile() {
+    let tile_size = 4;
+    let comp_size = tile_size * 3; // 12
+    let mut composite = vec![0u8; comp_size * comp_size * 4];
+    fill_dark_background(&mut composite, comp_size);
+
+    // Create a center tile with a known pixel pattern
+    let mut center_tile = vec![0u8; tile_size * tile_size * 4];
+    // Set pixel (2, 2) in the tile to green
+    let tile_pixel = (2 * tile_size + 2) * 4;
+    center_tile[tile_pixel..tile_pixel + 4].copy_from_slice(&[0, 255, 0, 255]);
+
+    // Blit center tile at (tile_size, tile_size)
+    blit_image(
+        &mut composite,
+        comp_size,
+        &center_tile,
+        tile_size,
+        tile_size,
+        tile_size,
+    );
+
+    // Check the composite pixel at (tile_size + 2, tile_size + 2)
+    let comp_pixel = ((tile_size + 2) * comp_size + tile_size + 2) * 4;
+    assert_eq!(
+        &composite[comp_pixel..comp_pixel + 4],
+        &[0, 255, 0, 255],
+        "center tile pixel should be green in composite"
+    );
+}
+
+#[test]
+fn blit_image_full_composite_coverage() {
+    let tile_size = 2;
+    let comp_size = 6;
+    let mut composite = vec![0u8; comp_size * comp_size * 4];
+
+    // Fill all 9 tiles of a 3x3 grid, each with a unique color
+    for dy in 0..3usize {
+        for dx in 0..3usize {
+            let color = ((dy * 3 + dx) * 28) as u8;
+            let tile = vec![color, color, color, 255]
+                .into_iter()
+                .cycle()
+                .take(tile_size * tile_size * 4)
+                .collect::<Vec<_>>();
+            blit_image(
+                &mut composite,
+                comp_size,
+                &tile,
+                tile_size,
+                dx * tile_size,
+                dy * tile_size,
+            );
+        }
+    }
+
+    // Every pixel should be non-zero (fully covered)
+    for y in 0..comp_size {
+        for x in 0..comp_size {
+            let i = (y * comp_size + x) * 4;
+            assert_ne!(
+                composite[i + 3],
+                0,
+                "pixel ({x}, {y}) should have alpha from a tile"
+            );
+        }
+    }
+}
