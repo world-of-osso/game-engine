@@ -81,7 +81,7 @@ fn torch_item_model_skin_resolution_restores_missing_body_texture() {
     let skin_fdids = outfit_data
         .resolve_item_model_skin_fdids_for_model_path(path)
         .expect("torch item model skin fdids");
-    assert_eq!(skin_fdids, [145303, 0, 0]);
+    assert_eq!(skin_fdids, [145303, 145303, 0]);
 
     let resolved_model = game_engine::asset::m2::load_m2_uncached(path, &skin_fdids).unwrap();
     assert!(
