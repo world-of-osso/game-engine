@@ -16,6 +16,7 @@ pub mod encounter_journal_component;
 pub mod friends_frame_component;
 pub mod game_menu_component;
 pub mod guild_bank_frame_component;
+pub mod guild_control_component;
 pub mod inworld_hud_component;
 pub mod inworld_selection_debug_component;
 pub mod inworld_unit_frames_component;
