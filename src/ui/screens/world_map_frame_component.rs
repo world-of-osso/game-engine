@@ -199,6 +199,36 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
 
 // --- Header bar ---
 
+fn header_zone_label(text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: "WorldMapZoneName",
+            width: {ZONE_NAME_W},
+            height: {HEADER_H},
+            text: text,
+            font_size: 16.0,
+            font_color: ZONE_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {HEADER_INSET}, y: "0" }
+        }
+    }
+}
+
+fn header_coord_label(text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: "WorldMapCoords",
+            width: {COORD_W},
+            height: {COORD_H},
+            text: text,
+            font_size: 11.0,
+            font_color: COORD_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: {-(CLOSE_BTN_SIZE + CLOSE_BTN_INSET + 8.0)}, y: {-(HEADER_H - COORD_H) / 2.0} }
+        }
+    }
+}
+
 fn header_bar(zone_name: &str, coord_text: &str) -> Element {
     rsx! {
         r#frame {
@@ -212,36 +242,8 @@ fn header_bar(zone_name: &str, coord_text: &str) -> Element {
                 x: "0",
                 y: "0",
             }
-            fontstring {
-                name: "WorldMapZoneName",
-                width: {ZONE_NAME_W},
-                height: {HEADER_H},
-                text: zone_name,
-                font_size: 16.0,
-                font_color: ZONE_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {HEADER_INSET},
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: "WorldMapCoords",
-                width: {COORD_W},
-                height: {COORD_H},
-                text: coord_text,
-                font_size: 11.0,
-                font_color: COORD_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: {-(CLOSE_BTN_SIZE + CLOSE_BTN_INSET + 8.0)},
-                    y: {-(HEADER_H - COORD_H) / 2.0},
-                }
-            }
+            {header_zone_label(zone_name)}
+            {header_coord_label(coord_text)}
         }
     }
 }
