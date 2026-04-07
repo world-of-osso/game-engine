@@ -24,6 +24,7 @@ fn graphics_options_build_additive_particle_bloom() {
         render_scale: 1.0,
         bloom_enabled: true,
         bloom_intensity: 0.12,
+        depth_of_field: false,
     })
     .expect("expected bloom");
 
@@ -41,6 +42,7 @@ fn disabled_graphics_bloom_returns_none() {
             render_scale: 1.0,
             bloom_enabled: false,
             bloom_intensity: 0.12,
+            depth_of_field: false,
         })
         .is_none()
     );

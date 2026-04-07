@@ -90,6 +90,7 @@ pub struct GraphicsOptions {
     pub render_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
+    pub depth_of_field: bool,
 }
 
 impl Default for GraphicsOptions {
@@ -99,6 +100,7 @@ impl Default for GraphicsOptions {
             render_scale: default_render_scale(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
+            depth_of_field: false,
         }
     }
 }
@@ -110,6 +112,7 @@ impl GraphicsOptions {
             render_scale: file.render_scale.clamp(0.5, 1.0),
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
+            depth_of_field: false,
         }
     }
 

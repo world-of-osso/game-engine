@@ -74,4 +74,18 @@ mod tests {
         let taa = TemporalAntiAliasing::default();
         assert!(taa.reset, "TAA should reset history on first frame");
     }
+
+    #[test]
+    fn depth_of_field_default_has_reasonable_focal_distance() {
+        use bevy::post_process::dof::DepthOfField;
+        let dof = DepthOfField::default();
+        assert!(dof.focal_distance > 0.0);
+        assert!(dof.aperture_f_stops > 0.0);
+    }
+
+    #[test]
+    fn graphics_options_dof_disabled_by_default() {
+        let opts = crate::client_options::GraphicsOptions::default();
+        assert!(!opts.depth_of_field);
+    }
 }

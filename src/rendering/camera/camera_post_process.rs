@@ -2,6 +2,7 @@ use bevy::anti_alias::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::camera::MainPassResolutionOverride;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
+use bevy::post_process::dof::DepthOfField;
 use bevy::prelude::*;
 
 use crate::client_options::GraphicsOptions;
@@ -57,12 +58,13 @@ pub(super) fn sync_camera_graphics_post_process(
             Option<&mut Bloom>,
             Option<&mut MainPassResolutionOverride>,
             Option<&mut ContrastAdaptiveSharpening>,
+            Option<&mut DepthOfField>,
         ),
         With<Camera3d>,
     >,
 ) {
     let desired_bloom = additive_particle_glow_bloom(&graphics);
-    for (entity, camera, bloom, resolution_override, cas) in &mut cameras {
+    for (entity, camera, bloom, resolution_override, cas, dof) in &mut cameras {
         sync_bloom(&mut commands, entity, desired_bloom.clone(), bloom);
         let desired_resolution = camera
             .physical_target_size()
@@ -74,6 +76,29 @@ pub(super) fn sync_camera_graphics_post_process(
             resolution_override,
         );
         sync_sharpening(&mut commands, entity, graphics.render_scale < 0.999, cas);
+        sync_depth_of_field(&mut commands, entity, graphics.depth_of_field, dof);
+    }
+}
+
+fn sync_depth_of_field(
+    commands: &mut Commands,
+    entity: Entity,
+    enabled: bool,
+    dof: Option<Mut<DepthOfField>>,
+) {
+    match (enabled, dof) {
+        (true, None) => {
+            commands.entity(entity).insert(DepthOfField {
+                focal_distance: 15.0,
+                aperture_f_stops: 1.0 / 8.0,
+                max_circle_of_confusion_diameter: 64.0,
+                ..Default::default()
+            });
+        }
+        (false, Some(_)) => {
+            commands.entity(entity).remove::<DepthOfField>();
+        }
+        _ => {}
     }
 }
 
