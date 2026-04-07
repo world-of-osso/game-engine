@@ -274,4 +274,133 @@ mod tests {
         let id2 = rand_client_id();
         assert_ne!(id1, id2);
     }
+
+    // --- Rapid reconnect: no state leaks ---
+
+    #[test]
+    fn rapid_reset_status_snapshots_no_accumulation() {
+        let mut world = World::default();
+        world.insert_resource(game_engine::status::NetworkStatusSnapshot::default());
+        world.insert_resource(game_engine::status::CurrenciesStatusSnapshot::default());
+
+        for i in 0..5 {
+            // Simulate populating state between reconnects
+            world
+                .resource_mut::<game_engine::status::NetworkStatusSnapshot>()
+                .remote_entities = i + 10;
+            world
+                .resource_mut::<game_engine::status::CurrenciesStatusSnapshot>()
+                .entries
+                .push(game_engine::status::CurrencyEntry {
+                    id: i as u32,
+                    name: format!("Currency{i}"),
+                    amount: 100,
+                });
+
+            reset_status_snapshots(&mut world);
+
+            let net = world.resource::<game_engine::status::NetworkStatusSnapshot>();
+            assert_eq!(net.remote_entities, 0, "leak on iteration {i}");
+            let cur = world.resource::<game_engine::status::CurrenciesStatusSnapshot>();
+            assert!(cur.entries.is_empty(), "currency leak on iteration {i}");
+        }
+    }
+
+    #[test]
+    fn rapid_reset_world_resources_no_accumulation() {
+        let mut world = World::default();
+        world.insert_resource(CurrentZone { zone_id: 0 });
+        world.insert_resource(ChatLog { messages: vec![] });
+        world.insert_resource(LocalAliveState(true));
+
+        for i in 0..5 {
+            // Simulate state accumulating between reconnects
+            world.resource_mut::<CurrentZone>().zone_id = 100 + i;
+            world.resource_mut::<ChatLog>().messages.push((
+                format!("Player{i}"),
+                format!("msg{i}"),
+                shared::protocol::ChatType::Say,
+            ));
+            world.resource_mut::<LocalAliveState>().0 = false;
+
+            reset_world_resources(&mut world);
+
+            assert_eq!(
+                world.resource::<CurrentZone>().zone_id,
+                0,
+                "zone leak at {i}"
+            );
+            assert!(
+                world.resource::<ChatLog>().messages.is_empty(),
+                "chat leak at {i}"
+            );
+            assert!(world.resource::<LocalAliveState>().0, "alive leak at {i}");
+        }
+    }
+
+    #[test]
+    fn rapid_phase_cycling_no_stuck_state() {
+        let mut state = ReconnectState::default();
+        for _ in 0..10 {
+            assert!(!state.is_active());
+            // Disconnect → PendingConnect
+            state.phase = ReconnectPhase::PendingConnect;
+            assert!(state.is_active());
+            // Connect → AwaitingWorld
+            state.phase = ReconnectPhase::AwaitingWorld;
+            state.terrain_refresh_seen = false;
+            assert!(state.is_active());
+            // Terrain arrives
+            state.terrain_refresh_seen = true;
+            // Complete reconnect
+            state.phase = ReconnectPhase::Inactive;
+            state.terrain_refresh_seen = false;
+        }
+        assert!(!state.is_active());
+        assert!(!state.terrain_refresh_seen);
+    }
+
+    #[test]
+    fn double_reset_idempotent() {
+        let mut world = World::default();
+        world.insert_resource(game_engine::status::NetworkStatusSnapshot {
+            connected: true,
+            remote_entities: 5,
+            ..Default::default()
+        });
+
+        reset_status_snapshots(&mut world);
+        reset_status_snapshots(&mut world);
+
+        let net = world.resource::<game_engine::status::NetworkStatusSnapshot>();
+        assert!(!net.connected);
+        assert_eq!(net.remote_entities, 0);
+    }
+
+    #[test]
+    fn reset_after_partial_state_population() {
+        let mut world = World::default();
+        world.insert_resource(game_engine::status::NetworkStatusSnapshot::default());
+        world.insert_resource(game_engine::status::QuestLogStatusSnapshot::default());
+
+        // Only populate some resources, not all
+        world
+            .resource_mut::<game_engine::status::NetworkStatusSnapshot>()
+            .connected = true;
+        // QuestLog left at default
+
+        reset_status_snapshots(&mut world);
+
+        assert!(
+            !world
+                .resource::<game_engine::status::NetworkStatusSnapshot>()
+                .connected
+        );
+        assert!(
+            world
+                .resource::<game_engine::status::QuestLogStatusSnapshot>()
+                .entries
+                .is_empty()
+        );
+    }
 }
