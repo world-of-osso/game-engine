@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use bevy::camera::visibility::NoFrustumCulling;
-use bevy::light::{NotShadowCaster, NotShadowReceiver};
+use bevy::light::NotShadowCaster;
 use bevy::mesh::VertexAttributeValues;
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::prelude::*;
@@ -546,7 +546,6 @@ fn spawn_skinned_mesh_skybox(
         Name::new(format!("Mesh[{}]", spawn.batch_index)),
         NoFrustumCulling,
         NotShadowCaster,
-        NotShadowReceiver,
         vis,
     ));
     let component_context = MeshComponentContext {

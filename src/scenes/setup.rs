@@ -4,6 +4,7 @@ use std::f32::consts::PI;
 use std::path::Path;
 
 use bevy::ecs::system::SystemParam;
+use bevy::light::DirectionalLightShadowMap;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
@@ -15,6 +16,7 @@ use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::networking;
+use crate::shadow_config::default_cascade_shadow_config;
 use crate::sky;
 use crate::terrain::{self, AdtManager};
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -261,13 +263,17 @@ pub fn spawn_scene_environment(
         brightness: 150.0,
         ..default()
     });
+    commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
             shadows_enabled: true,
+            shadow_depth_bias: 0.02,
+            shadow_normal_bias: 1.8,
             ..default()
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
+        default_cascade_shadow_config(),
     ));
     sky::spawn_sky_dome(
         commands,

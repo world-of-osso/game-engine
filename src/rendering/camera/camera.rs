@@ -1,5 +1,6 @@
 use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::light::ShadowFilteringMethod;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use std::collections::HashSet;
@@ -131,6 +132,7 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
             additive_particle_glow_tonemapping(),
             Transform::default(),
             WowCamera::default(),
+            ShadowFilteringMethod::Gaussian,
         ))
         .id()
 }

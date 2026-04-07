@@ -14,6 +14,8 @@ pub mod m2_texture_composite;
 pub mod image_sampler;
 #[path = "lighting/light_lookup.rs"]
 pub mod light_lookup;
+#[path = "lighting/shadow_config.rs"]
+pub mod shadow_config;
 
 #[path = "model/animation.rs"]
 pub mod animation;

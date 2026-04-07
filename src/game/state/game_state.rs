@@ -1,11 +1,13 @@
 use std::f32::consts::PI;
 use std::time::Instant;
 
+use bevy::light::DirectionalLightShadowMap;
 use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
 
 use crate::camera::{self, WowCamera};
 use crate::networking::{LocalPlayer, ServerAddr};
+use crate::shadow_config::default_cascade_shadow_config;
 use crate::sky;
 use crate::terrain::AdtManager;
 
@@ -192,13 +194,17 @@ fn spawn_world_environment(
         brightness: 0.0,
         ..default()
     });
+    commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
             shadows_enabled: true,
+            shadow_depth_bias: 0.02,
+            shadow_normal_bias: 1.8,
             ..default()
         },
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
+        default_cascade_shadow_config(),
     ));
     sky::spawn_sky_dome(
         &mut commands,
