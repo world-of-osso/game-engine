@@ -406,62 +406,46 @@ fn map_pins(pins: &[MapPin]) -> Element {
 
 // --- Flight path lines (dot at each endpoint) ---
 
+fn fp_dot(id: DynName, cx: f32, cy: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {FP_DOT_SIZE},
+            height: {FP_DOT_SIZE},
+            background_color: FP_DOT_COLOR,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {cx - FP_DOT_SIZE / 2.0}, y: {-(cy - FP_DOT_SIZE / 2.0)} }
+        }
+    }
+}
+
+fn fp_segment(i: usize, seg: &FlightPathSegment) -> Element {
+    let x1 = CANVAS_INSET + seg.x1 * CANVAS_W;
+    let y1 = CANVAS_TOP + seg.y1 * CANVAS_H;
+    let x2 = CANVAS_INSET + seg.x2 * CANVAS_W;
+    let y2 = CANVAS_TOP + seg.y2 * CANVAS_H;
+    let line_x = x1.min(x2);
+    let line_y = y1.min(y2);
+    let line_w = (x2 - x1).abs().max(FP_LINE_H);
+    let line_h = (y2 - y1).abs().max(FP_LINE_H);
+    rsx! {
+        r#frame {
+            name: DynName(format!("WorldMapFP{i}Line")),
+            width: {line_w},
+            height: {line_h},
+            background_color: FP_LINE_COLOR,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {line_x}, y: {-line_y} }
+        }
+        {fp_dot(DynName(format!("WorldMapFP{i}Dot1")), x1, y1)}
+        {fp_dot(DynName(format!("WorldMapFP{i}Dot2")), x2, y2)}
+    }
+}
+
 fn flight_path_lines(segments: &[FlightPathSegment]) -> Element {
     segments
         .iter()
         .enumerate()
         .take(MAX_FP_SEGMENTS)
-        .flat_map(|(i, seg)| {
-            let dot1_id = DynName(format!("WorldMapFP{i}Dot1"));
-            let dot2_id = DynName(format!("WorldMapFP{i}Dot2"));
-            let line_id = DynName(format!("WorldMapFP{i}Line"));
-            let x1 = CANVAS_INSET + seg.x1 * CANVAS_W;
-            let y1 = CANVAS_TOP + seg.y1 * CANVAS_H;
-            let x2 = CANVAS_INSET + seg.x2 * CANVAS_W;
-            let y2 = CANVAS_TOP + seg.y2 * CANVAS_H;
-            let line_x = x1.min(x2);
-            let line_y = y1.min(y2);
-            let line_w = (x2 - x1).abs().max(FP_LINE_H);
-            let line_h = (y2 - y1).abs().max(FP_LINE_H);
-            rsx! {
-                r#frame {
-                    name: line_id,
-                    width: {line_w},
-                    height: {line_h},
-                    background_color: FP_LINE_COLOR,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {line_x},
-                        y: {-line_y},
-                    }
-                }
-                r#frame {
-                    name: dot1_id,
-                    width: {FP_DOT_SIZE},
-                    height: {FP_DOT_SIZE},
-                    background_color: FP_DOT_COLOR,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x1 - FP_DOT_SIZE / 2.0},
-                        y: {-(y1 - FP_DOT_SIZE / 2.0)},
-                    }
-                }
-                r#frame {
-                    name: dot2_id,
-                    width: {FP_DOT_SIZE},
-                    height: {FP_DOT_SIZE},
-                    background_color: FP_DOT_COLOR,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x2 - FP_DOT_SIZE / 2.0},
-                        y: {-(y2 - FP_DOT_SIZE / 2.0)},
-                    }
-                }
-            }
-        })
+        .flat_map(|(i, seg)| fp_segment(i, seg))
         .collect()
 }
 
