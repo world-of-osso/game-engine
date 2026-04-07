@@ -1,5 +1,19 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the dress-up frame.
+pub mod textures {
+    /// Frame chrome bottom border.
+    pub const FRAME_BOTTOM: u32 = 130674;
+    /// Frame chrome top border.
+    pub const FRAME_TOP: u32 = 130676;
+    /// Model backdrop (Paladin dressing room).
+    pub const MODEL_BACKDROP: u32 = 1696340;
+    /// Panel button normal (shared with barber shop).
+    pub const BUTTON_UP: u32 = 130828;
+    /// Panel button pressed (shared with barber shop).
+    pub const BUTTON_DOWN: u32 = 130825;
+}
+
 /// Equipment slot identifiers matching DressUpFrame order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EquipSlot {
@@ -182,5 +196,13 @@ mod tests {
         for slot in EquipSlot::ALL {
             assert!(!slot.label().is_empty());
         }
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_BOTTOM, 0);
+        assert_ne!(textures::FRAME_TOP, 0);
+        assert_ne!(textures::MODEL_BACKDROP, 0);
+        assert_ne!(textures::BUTTON_UP, 0);
     }
 }
