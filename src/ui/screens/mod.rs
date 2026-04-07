@@ -33,6 +33,7 @@ pub mod options_menu_component;
 mod options_menu_sections;
 pub mod professions_frame_component;
 pub mod pvp_frame_component;
+pub mod quest_dialog_component;
 pub mod quest_log_frame_component;
 mod screen_title;
 pub mod selection_debug_component;
