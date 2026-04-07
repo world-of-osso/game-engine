@@ -544,53 +544,25 @@ mod tests {
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
+    fn cat(name: &str, selected: bool) -> AchievementCategory {
+        AchievementCategory {
+            name: name.into(),
+            is_child: false,
+            selected,
+        }
+    }
+
     fn default_categories() -> Vec<AchievementCategory> {
         vec![
-            AchievementCategory {
-                name: "General".into(),
-                is_child: false,
-                selected: true,
-            },
-            AchievementCategory {
-                name: "Quests".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "Exploration".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "PvP".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "Dungeons & Raids".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "Professions".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "Reputation".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "World Events".into(),
-                is_child: false,
-                selected: false,
-            },
-            AchievementCategory {
-                name: "Feats of Strength".into(),
-                is_child: false,
-                selected: false,
-            },
+            cat("General", true),
+            cat("Quests", false),
+            cat("Exploration", false),
+            cat("PvP", false),
+            cat("Dungeons & Raids", false),
+            cat("Professions", false),
+            cat("Reputation", false),
+            cat("World Events", false),
+            cat("Feats of Strength", false),
         ]
     }
 
