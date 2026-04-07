@@ -348,4 +348,44 @@ mod tests {
         assert!((r.y - (FRAME_Y + SLOT_ROW_TOP)).abs() < 1.0);
         assert!((r.width - SLOT_SIZE).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_second_row_slot() {
+        let reg = layout_registry();
+        let r = rect(&reg, "DressUpSlot6");
+        let expected_y = FRAME_Y + SLOT_ROW_TOP + SLOT_SIZE + SLOT_GAP;
+        assert!((r.x - (FRAME_X + SLOT_INSET)).abs() < 1.0);
+        assert!(
+            (r.y - expected_y).abs() < 1.0,
+            "y: expected {expected_y}, got {}",
+            r.y
+        );
+    }
+
+    #[test]
+    fn coord_reset_button() {
+        let reg = layout_registry();
+        let r = rect(&reg, "DressUpButtonReset");
+        assert!((r.width - BUTTON_W).abs() < 1.0);
+        assert!((r.height - BUTTON_H).abs() < 1.0);
+        let expected_y = FRAME_Y + FRAME_H - BUTTON_H - BUTTON_ROW_BOTTOM;
+        assert!(
+            (r.y - expected_y).abs() < 1.0,
+            "y: expected {expected_y}, got {}",
+            r.y
+        );
+    }
+
+    #[test]
+    fn coord_button_spacing() {
+        let reg = layout_registry();
+        let reset = rect(&reg, "DressUpButtonReset");
+        let link = rect(&reg, "DressUpButtonLink");
+        let spacing = link.x - reset.x;
+        let expected = BUTTON_W + BUTTON_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "spacing: expected {expected}, got {spacing}"
+        );
+    }
 }
