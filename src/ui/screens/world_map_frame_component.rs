@@ -538,6 +538,21 @@ fn legend_row(idx: usize, pin_type: MapPinType, label: &str) -> Element {
 
 // --- Pin tooltip ---
 
+fn pin_tooltip_line(name: &str, text: &str, font_size: f32, color: &str, y: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: DynName(name.into()),
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {TOOLTIP_LINE_H},
+            text: text,
+            font_size: font_size,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {TOOLTIP_INSET}, y: {y} }
+        }
+    }
+}
+
 fn pin_tooltip(pins: &[MapPin], hovered: Option<usize>) -> Element {
     let hide = hovered.is_none();
     let (title, subtitle) = match hovered {
@@ -561,36 +576,8 @@ fn pin_tooltip(pins: &[MapPin], hovered: Option<usize>) -> Element {
                 x: {-CANVAS_INSET - 8.0},
                 y: {CANVAS_INSET + 8.0},
             }
-            fontstring {
-                name: "WorldMapPinTooltipTitle",
-                width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-                height: {TOOLTIP_LINE_H},
-                text: title,
-                font_size: 11.0,
-                font_color: TOOLTIP_TITLE_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {TOOLTIP_INSET},
-                    y: {-TOOLTIP_INSET},
-                }
-            }
-            fontstring {
-                name: "WorldMapPinTooltipType",
-                width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-                height: {TOOLTIP_LINE_H},
-                text: subtitle,
-                font_size: 9.0,
-                font_color: TOOLTIP_TEXT_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {TOOLTIP_INSET},
-                    y: {-(TOOLTIP_INSET + TOOLTIP_LINE_H)},
-                }
-            }
+            {pin_tooltip_line("WorldMapPinTooltipTitle", title, 11.0, TOOLTIP_TITLE_COLOR, -TOOLTIP_INSET)}
+            {pin_tooltip_line("WorldMapPinTooltipType", subtitle, 9.0, TOOLTIP_TEXT_COLOR, -(TOOLTIP_INSET + TOOLTIP_LINE_H))}
         }
     }
 }
