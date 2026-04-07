@@ -643,6 +643,25 @@ mod tests {
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
+    fn ov(name: &str, x: f32, y: f32, w: f32, h: f32) -> ZoneOverlay {
+        ZoneOverlay {
+            name: name.into(),
+            x,
+            y,
+            w,
+            h,
+        }
+    }
+
+    fn pin(pt: MapPinType, label: &str, x: f32, y: f32) -> MapPin {
+        MapPin {
+            pin_type: pt,
+            label: label.into(),
+            x,
+            y,
+        }
+    }
+
     fn sample_state() -> WorldMapFrameState {
         WorldMapFrameState {
             visible: true,
@@ -651,40 +670,13 @@ mod tests {
             player_y: 0.637,
             continent_name: "Eastern Kingdoms".into(),
             zone_overlays: vec![
-                ZoneOverlay {
-                    name: "Goldshire".into(),
-                    x: 0.3,
-                    y: 0.5,
-                    w: 0.2,
-                    h: 0.15,
-                },
-                ZoneOverlay {
-                    name: "Northshire".into(),
-                    x: 0.5,
-                    y: 0.2,
-                    w: 0.15,
-                    h: 0.1,
-                },
+                ov("Goldshire", 0.3, 0.5, 0.2, 0.15),
+                ov("Northshire", 0.5, 0.2, 0.15, 0.1),
             ],
             pins: vec![
-                MapPin {
-                    pin_type: MapPinType::Quest,
-                    label: "Quest Hub".into(),
-                    x: 0.35,
-                    y: 0.55,
-                },
-                MapPin {
-                    pin_type: MapPinType::FlightPath,
-                    label: "Goldshire FP".into(),
-                    x: 0.32,
-                    y: 0.52,
-                },
-                MapPin {
-                    pin_type: MapPinType::PointOfInterest,
-                    label: "Lion's Pride Inn".into(),
-                    x: 0.34,
-                    y: 0.54,
-                },
+                pin(MapPinType::Quest, "Quest Hub", 0.35, 0.55),
+                pin(MapPinType::FlightPath, "Goldshire FP", 0.32, 0.52),
+                pin(MapPinType::PointOfInterest, "Lion's Pride Inn", 0.34, 0.54),
             ],
             flight_paths: vec![FlightPathSegment {
                 x1: 0.32,
