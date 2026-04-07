@@ -348,7 +348,7 @@ fn log_entry_row(idx: usize, text: &str, w: f32) -> Element {
 
 fn transaction_log(transactions: &[TransactionEntry], visible: bool) -> Element {
     let hide = !visible;
-    let grid_rows = (GUILD_BANK_SLOTS + GRID_COLS - 1) / GRID_COLS;
+    let grid_rows = GUILD_BANK_SLOTS.div_ceil(GRID_COLS);
     let log_y = -(GRID_TOP + grid_rows as f32 * (SLOT_SIZE + SLOT_GAP) + LOG_INSET);
     let log_w = FRAME_W - 2.0 * LOG_INSET;
     let rows: Element = transactions
@@ -561,6 +561,144 @@ mod tests {
             (log.x - expected_log_x).abs() < 1.0,
             "log tab x: expected {expected_log_x}, got {}",
             log.x
+        );
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: GuildBankFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(guild_bank_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "GuildBankFrameTitle"), "Guild Bank");
+    }
+
+    #[test]
+    fn money_display_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "GuildBankMoneyLabel"), "Guild Gold:");
+        assert_eq!(fontstring_text(&reg, "GuildBankMoneyValue"), "0g 0s 0c");
+    }
+
+    #[test]
+    fn money_display_custom_value() {
+        let mut state = make_test_state();
+        state.guild_money = "500g 25s 10c".into();
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "GuildBankMoneyValue"), "500g 25s 10c");
+    }
+
+    #[test]
+    fn deposit_withdraw_button_labels() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "GuildBankDepositButtonText"),
+            "Deposit"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildBankWithdrawButtonText"),
+            "Withdraw"
+        );
+    }
+
+    #[test]
+    fn log_tab_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "GuildBankItemsTabLabel"), "Items");
+        assert_eq!(fontstring_text(&reg, "GuildBankLogTabLabel"), "Log");
+    }
+
+    #[test]
+    fn transaction_log_entry_text() {
+        let mut state = make_test_state();
+        state.log_tab_active = true;
+        state.transactions = vec![
+            TransactionEntry {
+                text: "Alice deposited 10g".into(),
+            },
+            TransactionEntry {
+                text: "Bob withdrew Sword".into(),
+            },
+        ];
+        let reg = build_with_state(state);
+        assert_eq!(
+            fontstring_text(&reg, "GuildBankLogEntry0"),
+            "Alice deposited 10g"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildBankLogEntry1"),
+            "Bob withdrew Sword"
+        );
+    }
+
+    #[test]
+    fn transaction_log_visible_when_log_tab() {
+        let mut state = make_test_state();
+        state.log_tab_active = true;
+        let reg = build_with_state(state);
+        let id = reg.get_by_name("GuildBankTransactionLog").expect("log");
+        let frame = reg.get(id).expect("data");
+        assert!(!frame.hidden, "log should be visible on log tab");
+    }
+
+    #[test]
+    fn max_log_entries_capped() {
+        let mut state = make_test_state();
+        state.log_tab_active = true;
+        state.transactions = (0..15)
+            .map(|i| TransactionEntry {
+                text: format!("Entry {i}"),
+            })
+            .collect();
+        let reg = build_with_state(state);
+        for i in 0..MAX_LOG_ENTRIES {
+            assert!(
+                reg.get_by_name(&format!("GuildBankLogEntry{i}")).is_some(),
+                "GuildBankLogEntry{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("GuildBankLogEntry{MAX_LOG_ENTRIES}"))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn max_tabs_capped() {
+        let mut state = make_test_state();
+        state.tabs = (0..12)
+            .map(|i| GuildBankTab {
+                name: format!("Tab {i}"),
+                active: i == 0,
+            })
+            .collect();
+        let reg = build_with_state(state);
+        for i in 0..MAX_BANK_TABS {
+            assert!(
+                reg.get_by_name(&format!("GuildBankTabBtn{i}")).is_some(),
+                "GuildBankTabBtn{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("GuildBankTabBtn{MAX_BANK_TABS}"))
+                .is_none()
         );
     }
 }
