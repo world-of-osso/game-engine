@@ -802,4 +802,29 @@ mod tests {
         let expected_w = 0.1 * BAR_W;
         assert!((heal_r.width - expected_w).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_range_fade_covers_unit() {
+        let reg = layout_registry();
+        // Member 2 is out of range — fade covers the entire unit frame
+        let unit_r = rect(&reg, "PartyMember2");
+        let fade_r = rect(&reg, "PartyMember2RangeFade");
+        assert!((fade_r.x - unit_r.x).abs() < 1.0);
+        assert!((fade_r.y - unit_r.y).abs() < 1.0);
+        assert!((fade_r.width - UNIT_W).abs() < 1.0);
+        assert!((fade_r.height - UNIT_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_ready_check_top_right() {
+        let reg = layout_registry();
+        // Member 0 has Accepted ready check
+        let unit_r = rect(&reg, "PartyMember0");
+        let rc_r = rect(&reg, "PartyMember0ReadyCheck");
+        // Anchored top-right of unit, offset -2px inward
+        let expected_right = unit_r.x + unit_r.width;
+        assert!((rc_r.x + rc_r.width - expected_right).abs() < 3.0);
+        assert!((rc_r.y - unit_r.y).abs() < 1.0);
+        assert!((rc_r.width - READY_CHECK_SIZE).abs() < 1.0);
+    }
 }

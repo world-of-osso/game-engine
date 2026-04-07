@@ -640,4 +640,64 @@ mod tests {
         assert_eq!(RaidReadyCheck::Declined.label(), "✗");
         assert_eq!(RaidReadyCheck::None.label(), "");
     }
+
+    // --- Overlay coord tests ---
+
+    #[test]
+    fn coord_range_fade_covers_cell() {
+        let reg = layout_registry();
+        // Cell 0_1 (Healer1) is out of range
+        let cell_r = rect(&reg, "RaidCell0_1");
+        let fade_r = rect(&reg, "RaidCell0_1Fade");
+        assert!((fade_r.x - cell_r.x).abs() < 1.0);
+        assert!((fade_r.y - cell_r.y).abs() < 1.0);
+        assert!((fade_r.width - CELL_W).abs() < 1.0);
+        assert!((fade_r.height - CELL_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_incoming_heals_position() {
+        let reg = layout_registry();
+        // Cell 0_1 (Healer1): health 30000/35000 ≈ 0.857, incoming 0.15
+        let cell_r = rect(&reg, "RaidCell0_1");
+        let heal_r = rect(&reg, "RaidCell0_1Heal");
+        let frac = 30000.0 / 35000.0;
+        let bar_inner = CELL_W - 2.0 * FILL_INSET;
+        let expected_x = cell_r.x + FILL_INSET + frac * bar_inner;
+        assert!((heal_r.x - expected_x).abs() < 1.0);
+        // Heal fraction capped at remaining: min(0.15, 1.0-0.857) ≈ 0.143
+        let heal_frac = 0.15_f32.min(1.0 - frac);
+        let expected_w = heal_frac * bar_inner;
+        assert!((heal_r.width - expected_w).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_grid_total_dimensions() {
+        let reg = layout_registry();
+        let r = rect(&reg, "RaidFrame");
+        assert!((r.width - GRID_W).abs() < 1.0);
+        assert!((r.height - GRID_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_second_group_offset() {
+        let reg = layout_registry();
+        let c00 = rect(&reg, "RaidCell0_0");
+        let c10 = rect(&reg, "RaidCell1_0");
+        let expected_gap = CELL_W + GROUP_GAP;
+        assert!((c10.x - c00.x - expected_gap).abs() < 1.0);
+        // Same Y for first row of each group
+        assert!((c10.y - c00.y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_row_spacing() {
+        let reg = layout_registry();
+        let c00 = rect(&reg, "RaidCell0_0");
+        let c01 = rect(&reg, "RaidCell0_1");
+        let expected_gap = CELL_H + CELL_GAP;
+        assert!((c01.y - c00.y - expected_gap).abs() < 1.0);
+        // Same X within a group
+        assert!((c01.x - c00.x).abs() < 1.0);
+    }
 }
