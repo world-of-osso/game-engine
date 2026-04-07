@@ -321,32 +321,27 @@ fn apply_button(y: f32) -> Element {
     }
 }
 
+fn group_header_cell(i: usize, name: &str, list_w: f32) -> Element {
+    let id = DynName(format!("LFGGroupCol{i}"));
+    rsx! {
+        fontstring {
+            name: id,
+            width: {group_col_w(list_w, i)},
+            height: {GROUP_HEADER_H},
+            text: name,
+            font_size: 9.0,
+            font_color: GROUP_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {group_col_x(list_w, i)}, y: "0" }
+        }
+    }
+}
+
 fn group_header(list_w: f32) -> Element {
     let cols: Element = GROUP_COLUMNS
         .iter()
         .enumerate()
-        .flat_map(|(i, (name, _))| {
-            let x = group_col_x(list_w, i);
-            let w = group_col_w(list_w, i);
-            let cell_id = DynName(format!("LFGGroupCol{i}"));
-            rsx! {
-                fontstring {
-                    name: cell_id,
-                    width: {w},
-                    height: {GROUP_HEADER_H},
-                    text: name,
-                    font_size: 9.0,
-                    font_color: GROUP_HEADER_COLOR,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: "0",
-                    }
-                }
-            }
-        })
+        .flat_map(|(i, (name, _))| group_header_cell(i, name, list_w))
         .collect();
     rsx! {
         r#frame {
