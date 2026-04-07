@@ -1,5 +1,35 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for bag frames and slots.
+pub mod textures {
+    /// Backpack background texture.
+    pub const BACKPACK_BG: u32 = 130981;
+    /// Backpack button icon.
+    pub const BACKPACK_BUTTON: u32 = 130716;
+    /// Container frame background: 1×4 grid.
+    pub const BAG_BG_1X4: u32 = 130986;
+    /// Container frame background: 2×4 grid.
+    pub const BAG_BG_2X4: u32 = 130990;
+    /// Container frame background: 3×4 grid.
+    pub const BAG_BG_3X4: u32 = 130994;
+    /// Container frame background: 4×4 grid.
+    pub const BAG_BG_4X4: u32 = 130998;
+    /// Default bag icon (small pouch).
+    pub const BAG_ICON_DEFAULT: u32 = 133622;
+    /// Medium bag icon.
+    pub const BAG_ICON_MEDIUM: u32 = 133625;
+}
+
+/// Returns the appropriate container background FDID for a given row count.
+pub fn bag_background_for_rows(rows: usize) -> u32 {
+    match rows {
+        0 | 1 => textures::BAG_BG_1X4,
+        2 => textures::BAG_BG_2X4,
+        3 => textures::BAG_BG_3X4,
+        _ => textures::BAG_BG_4X4,
+    }
+}
+
 /// Item quality tiers, used for slot border color.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ItemQuality {
@@ -173,5 +203,23 @@ mod tests {
         assert!(inv.slot(0, 15).is_some());
         assert!(inv.slot(0, 16).is_none());
         assert!(inv.slot(5, 0).is_none());
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::BACKPACK_BG, 0);
+        assert_ne!(textures::BACKPACK_BUTTON, 0);
+        assert_ne!(textures::BAG_BG_1X4, 0);
+        assert_ne!(textures::BAG_BG_4X4, 0);
+        assert_ne!(textures::BAG_ICON_DEFAULT, 0);
+    }
+
+    #[test]
+    fn bag_background_selects_correct_size() {
+        assert_eq!(bag_background_for_rows(1), textures::BAG_BG_1X4);
+        assert_eq!(bag_background_for_rows(2), textures::BAG_BG_2X4);
+        assert_eq!(bag_background_for_rows(3), textures::BAG_BG_3X4);
+        assert_eq!(bag_background_for_rows(4), textures::BAG_BG_4X4);
+        assert_eq!(bag_background_for_rows(6), textures::BAG_BG_4X4);
     }
 }
