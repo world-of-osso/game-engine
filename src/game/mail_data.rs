@@ -80,6 +80,33 @@ impl MailState {
     pub fn total_money_in_inbox(&self) -> Money {
         Money(self.inbox.iter().map(|m| m.money.0).sum())
     }
+
+    /// Sort inbox: unread first, then by expiry (soonest first).
+    pub fn sort_inbox(&mut self) {
+        self.inbox.sort_by(|a, b| {
+            a.read
+                .cmp(&b.read)
+                .then(a.expires_in.partial_cmp(&b.expires_in).unwrap())
+        });
+    }
+
+    /// Collect all attachments across all inbox messages.
+    pub fn all_attachments(&self) -> Vec<&MailAttachment> {
+        self.inbox
+            .iter()
+            .flat_map(|m| m.attachments.iter())
+            .collect()
+    }
+
+    /// Validate send money: must not exceed player balance, and must be non-negative.
+    pub fn validate_send_money(&self, player_money: Money) -> bool {
+        self.send_money.0 <= player_money.0
+    }
+
+    /// Count of non-empty send attachment slots.
+    pub fn send_attachment_count(&self) -> usize {
+        self.send_attachments.iter().filter(|s| s.is_some()).count()
+    }
 }
 
 #[cfg(test)]
@@ -172,5 +199,140 @@ mod tests {
         assert_ne!(textures::LETTER_UNREAD, 0);
         assert_ne!(textures::LETTER_READ, 0);
         assert_ne!(textures::GOLD_ICON, 0);
+    }
+
+    // --- Inbox sorting ---
+
+    fn mail(id: u64, read: bool, expires: f32) -> MailMessage {
+        MailMessage {
+            id,
+            sender: format!("Sender{id}"),
+            subject: format!("Mail {id}"),
+            body: String::new(),
+            money: Money(0),
+            attachments: vec![],
+            read,
+            expires_in: expires,
+        }
+    }
+
+    #[test]
+    fn sort_inbox_unread_first() {
+        let mut state = MailState::default();
+        state.inbox = vec![
+            mail(1, true, 3600.0),
+            mail(2, false, 7200.0),
+            mail(3, true, 1800.0),
+        ];
+        state.sort_inbox();
+        assert!(!state.inbox[0].read); // unread first
+        assert!(state.inbox[1].read);
+        assert!(state.inbox[2].read);
+    }
+
+    #[test]
+    fn sort_inbox_by_expiry_within_status() {
+        let mut state = MailState::default();
+        state.inbox = vec![
+            mail(1, false, 7200.0),
+            mail(2, false, 1800.0),
+            mail(3, false, 3600.0),
+        ];
+        state.sort_inbox();
+        assert_eq!(state.inbox[0].id, 2); // soonest expiry first
+        assert_eq!(state.inbox[1].id, 3);
+        assert_eq!(state.inbox[2].id, 1);
+    }
+
+    // --- Attachment extraction ---
+
+    #[test]
+    fn all_attachments_across_messages() {
+        let mut state = MailState::default();
+        state.inbox = vec![
+            MailMessage {
+                attachments: vec![
+                    MailAttachment {
+                        item_name: "Ore".into(),
+                        icon_fdid: 1,
+                        count: 20,
+                    },
+                    MailAttachment {
+                        item_name: "Bar".into(),
+                        icon_fdid: 2,
+                        count: 5,
+                    },
+                ],
+                ..sample_mail()
+            },
+            MailMessage {
+                id: 2,
+                attachments: vec![MailAttachment {
+                    item_name: "Gem".into(),
+                    icon_fdid: 3,
+                    count: 1,
+                }],
+                ..sample_mail()
+            },
+        ];
+        let all = state.all_attachments();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].item_name, "Ore");
+        assert_eq!(all[2].item_name, "Gem");
+    }
+
+    #[test]
+    fn all_attachments_empty_inbox() {
+        let state = MailState::default();
+        assert!(state.all_attachments().is_empty());
+    }
+
+    // --- Money validation ---
+
+    #[test]
+    fn validate_send_money_sufficient() {
+        let mut state = MailState::default();
+        state.send_money = Money::from_gold_silver_copper(5, 0, 0);
+        assert!(state.validate_send_money(Money::from_gold_silver_copper(10, 0, 0)));
+    }
+
+    #[test]
+    fn validate_send_money_exact() {
+        let mut state = MailState::default();
+        state.send_money = Money::from_gold_silver_copper(10, 0, 0);
+        assert!(state.validate_send_money(Money::from_gold_silver_copper(10, 0, 0)));
+    }
+
+    #[test]
+    fn validate_send_money_insufficient() {
+        let mut state = MailState::default();
+        state.send_money = Money::from_gold_silver_copper(10, 0, 0);
+        assert!(!state.validate_send_money(Money::from_gold_silver_copper(5, 0, 0)));
+    }
+
+    #[test]
+    fn validate_send_money_zero() {
+        let state = MailState::default();
+        assert!(state.validate_send_money(Money(0)));
+    }
+
+    #[test]
+    fn send_attachment_count() {
+        let mut state = MailState::default();
+        state.send_attachments = vec![
+            Some(MailAttachment {
+                item_name: "A".into(),
+                icon_fdid: 1,
+                count: 1,
+            }),
+            None,
+            Some(MailAttachment {
+                item_name: "B".into(),
+                icon_fdid: 2,
+                count: 1,
+            }),
+            None,
+        ];
+        assert_eq!(state.send_attachment_count(), 2);
     }
 }
