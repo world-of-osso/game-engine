@@ -1,5 +1,21 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the communities frame.
+pub mod textures {
+    /// Main guild/community frame chrome.
+    pub const FRAME_CHROME: u32 = 410251;
+    /// Frame bottom-left corner.
+    pub const CORNER_BOTTOM_LEFT: u32 = 131117;
+    /// Frame bottom-right corner.
+    pub const CORNER_BOTTOM_RIGHT: u32 = 131118;
+    /// LFG role icons (tank/healer/dps combined).
+    pub const ROLE_ICONS: u32 = 337499;
+    /// Role icons sheet.
+    pub const ROLE_ICONS_SHEET: u32 = 2134184;
+    /// Default community/guild logo placeholder.
+    pub const GUILD_LOGO_DEFAULT: u32 = 460904;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MemberRole {
     Owner,
@@ -173,5 +189,12 @@ mod tests {
             },
         ];
         assert_eq!(state.online_count(), 2);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_CHROME, 0);
+        assert_ne!(textures::ROLE_ICONS, 0);
+        assert_ne!(textures::GUILD_LOGO_DEFAULT, 0);
     }
 }
