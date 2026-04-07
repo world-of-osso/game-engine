@@ -520,12 +520,31 @@ fn tooltip_border() -> Element {
     }
 }
 
-fn tooltip_content(faction: &FactionEntry) -> (Element, f32) {
-    let mut line_count: u32 = 2; // standing + progress
-    let has_paragon = faction.paragon.is_some();
-    if has_paragon {
-        line_count += 1;
+fn rep_tooltip_line(
+    name: &str,
+    text: &str,
+    h: f32,
+    font_size: f32,
+    color: &str,
+    y: f32,
+) -> Element {
+    rsx! {
+        fontstring {
+            name: DynName(name.into()),
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {h},
+            text: text,
+            font_size: font_size,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {TOOLTIP_INSET}, y: {y} }
+        }
     }
+}
+
+fn tooltip_content(faction: &FactionEntry) -> (Element, f32) {
+    let has_paragon = faction.paragon.is_some();
+    let line_count = if has_paragon { 3u32 } else { 2 };
     let h = TOOLTIP_INSET * 2.0 + TOOLTIP_HEADER_H + line_count as f32 * TOOLTIP_LINE_H;
     let standing_text = format!("Standing: {}", faction.standing.label());
     let progress_text = format!("Progress: {}", faction.progress_text());
@@ -537,51 +556,9 @@ fn tooltip_content(faction: &FactionEntry) -> (Element, f32) {
     let hide_paragon = !has_paragon;
     let paragon_y = TOOLTIP_INSET + TOOLTIP_HEADER_H + 2.0 * TOOLTIP_LINE_H;
     let elems = rsx! {
-        fontstring {
-            name: "RepTooltipTitle",
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-            height: {TOOLTIP_HEADER_H},
-            text: {faction.name.as_str()},
-            font_size: 12.0,
-            font_color: TOOLTIP_HEADER_COLOR,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {-TOOLTIP_INSET},
-            }
-        }
-        fontstring {
-            name: "RepTooltipStanding",
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-            height: {TOOLTIP_LINE_H},
-            text: {standing_text.as_str()},
-            font_size: 10.0,
-            font_color: {faction.standing.bar_color()},
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {-(TOOLTIP_INSET + TOOLTIP_HEADER_H)},
-            }
-        }
-        fontstring {
-            name: "RepTooltipProgress",
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-            height: {TOOLTIP_LINE_H},
-            text: {progress_text.as_str()},
-            font_size: 10.0,
-            font_color: TOOLTIP_TEXT_COLOR,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {-(TOOLTIP_INSET + TOOLTIP_HEADER_H + TOOLTIP_LINE_H)},
-            }
-        }
+        {rep_tooltip_line("RepTooltipTitle", &faction.name, TOOLTIP_HEADER_H, 12.0, TOOLTIP_HEADER_COLOR, -TOOLTIP_INSET)}
+        {rep_tooltip_line("RepTooltipStanding", &standing_text, TOOLTIP_LINE_H, 10.0, faction.standing.bar_color(), -(TOOLTIP_INSET + TOOLTIP_HEADER_H))}
+        {rep_tooltip_line("RepTooltipProgress", &progress_text, TOOLTIP_LINE_H, 10.0, TOOLTIP_TEXT_COLOR, -(TOOLTIP_INSET + TOOLTIP_HEADER_H + TOOLTIP_LINE_H))}
         fontstring {
             name: "RepTooltipParagon",
             width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
@@ -591,12 +568,7 @@ fn tooltip_content(faction: &FactionEntry) -> (Element, f32) {
             font_size: 10.0,
             font_color: TOOLTIP_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {-paragon_y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {TOOLTIP_INSET}, y: {-paragon_y} }
         }
     };
     (elems, h)
