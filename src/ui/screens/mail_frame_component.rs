@@ -470,6 +470,21 @@ fn send_money_row(_input_w: f32) -> Element {
     }
 }
 
+fn send_btn_label() -> Element {
+    rsx! {
+        fontstring {
+            name: "MailSendButtonText",
+            width: {SEND_BTN_W},
+            height: {SEND_BTN_H},
+            text: "Send Mail",
+            font_size: 10.0,
+            font_color: SEND_BTN_TEXT,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
+}
+
 fn send_button() -> Element {
     let base_y = SEND_INSET
         + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP)
@@ -492,19 +507,7 @@ fn send_button() -> Element {
                 x: {x},
                 y: {-base_y},
             }
-            fontstring {
-                name: "MailSendButtonText",
-                width: {SEND_BTN_W},
-                height: {SEND_BTN_H},
-                text: "Send Mail",
-                font_size: 10.0,
-                font_color: SEND_BTN_TEXT,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
+            {send_btn_label()}
         }
     }
 }
