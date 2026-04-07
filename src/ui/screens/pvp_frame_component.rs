@@ -154,49 +154,51 @@ fn tab_row(tabs: &[PVPTab]) -> Element {
     tabs.iter()
         .enumerate()
         .flat_map(|(i, tab)| {
-            let tab_id = DynName(format!("PVPTab{i}"));
-            let label_id = DynName(format!("PVPTab{i}Label"));
             let x = TAB_INSET + i as f32 * (tab_w + TAB_GAP);
-            let y = -(HEADER_H + TAB_GAP);
-            let bg = if tab.active {
-                TAB_BG_ACTIVE
-            } else {
-                TAB_BG_INACTIVE
-            };
-            let color = if tab.active {
-                TAB_TEXT_ACTIVE
-            } else {
-                TAB_TEXT_INACTIVE
-            };
-            rsx! {
-                r#frame {
-                    name: tab_id,
-                    width: {tab_w},
-                    height: {TAB_H},
-                    background_color: bg,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {y},
-                    }
-                    fontstring {
-                        name: label_id,
-                        width: {tab_w},
-                        height: {TAB_H},
-                        text: {tab.name.as_str()},
-                        font_size: 11.0,
-                        font_color: color,
-                        justify_h: "CENTER",
-                        anchor {
-                            point: AnchorPoint::TopLeft,
-                            relative_point: AnchorPoint::TopLeft,
-                        }
-                    }
-                }
-            }
+            pvp_tab_button(i, tab, tab_w, x)
         })
         .collect()
+}
+
+fn pvp_tab_button(i: usize, tab: &PVPTab, w: f32, x: f32) -> Element {
+    let tab_id = DynName(format!("PVPTab{i}"));
+    let label_id = DynName(format!("PVPTab{i}Label"));
+    let (bg, color) = if tab.active {
+        (TAB_BG_ACTIVE, TAB_TEXT_ACTIVE)
+    } else {
+        (TAB_BG_INACTIVE, TAB_TEXT_INACTIVE)
+    };
+    let y = -(HEADER_H + TAB_GAP);
+    rsx! {
+        r#frame {
+            name: tab_id,
+            width: {w},
+            height: {TAB_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            {pvp_tab_label(label_id, &tab.name, w, color)}
+        }
+    }
+}
+
+fn pvp_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {TAB_H},
+            text: text,
+            font_size: 11.0,
+            font_color: color,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
 }
 
 fn currency_display(honor: &str, conquest: &str) -> Element {
