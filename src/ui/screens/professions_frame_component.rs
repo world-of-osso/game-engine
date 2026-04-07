@@ -488,6 +488,28 @@ fn crafting_quality_bar(fill_w: f32, text: &str) -> Element {
     }
 }
 
+fn craft_button(x: f32, y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: "CraftingCraftButton",
+            width: {CRAFT_BTN_W},
+            height: {CRAFT_BTN_H},
+            background_color: CRAFT_BTN_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            fontstring {
+                name: "CraftingCraftButtonText",
+                width: {CRAFT_BTN_W},
+                height: {CRAFT_BTN_H},
+                text: "Craft",
+                font_size: 10.0,
+                font_color: CRAFT_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn crafting_quantity_and_button() -> Element {
     let y = -(22.0 + 2.0 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP) + 8.0 + QUALITY_BAR_H + 8.0);
     rsx! {
@@ -508,23 +530,7 @@ fn crafting_quantity_and_button() -> Element {
             background_color: QTY_INPUT_BG,
             anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: 44.0, y: {y} }
         }
-        r#frame {
-            name: "CraftingCraftButton",
-            width: {CRAFT_BTN_W},
-            height: {CRAFT_BTN_H},
-            background_color: CRAFT_BTN_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {44.0 + QTY_INPUT_W + 8.0}, y: {y} }
-            fontstring {
-                name: "CraftingCraftButtonText",
-                width: {CRAFT_BTN_W},
-                height: {CRAFT_BTN_H},
-                text: "Craft",
-                font_size: 10.0,
-                font_color: CRAFT_BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {craft_button(44.0 + QTY_INPUT_W + 8.0, y)}
     }
 }
 
