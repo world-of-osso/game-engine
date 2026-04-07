@@ -269,10 +269,35 @@ fn member_name(idx: usize, name: &str) -> Element {
     }
 }
 
+fn health_fill(id: DynName, w: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {w},
+            height: {BAR_H},
+            background_color: HEALTH_FILL,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
+fn health_text_overlay(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {BAR_W},
+            height: {BAR_H},
+            text: text,
+            font_size: 8.0,
+            font_color: HEALTH_TEXT_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
 fn health_bar(idx: usize, fill_w: f32, member: &PartyMemberState) -> Element {
     let bar_id = DynName(format!("PartyMember{idx}HealthBg"));
-    let fill_id = DynName(format!("PartyMember{idx}HealthFill"));
-    let text_id = DynName(format!("PartyMember{idx}HealthText"));
     let health_text = member.health_text();
     rsx! {
         r#frame {
@@ -286,33 +311,8 @@ fn health_bar(idx: usize, fill_w: f32, member: &PartyMemberState) -> Element {
                 x: {BAR_INSET},
                 y: {-BAR_Y},
             }
-            r#frame {
-                name: fill_id,
-                width: {fill_w},
-                height: {BAR_H},
-                background_color: HEALTH_FILL,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: text_id,
-                width: {BAR_W},
-                height: {BAR_H},
-                text: {health_text.as_str()},
-                font_size: 8.0,
-                font_color: HEALTH_TEXT_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
+            {health_fill(DynName(format!("PartyMember{idx}HealthFill")), fill_w)}
+            {health_text_overlay(DynName(format!("PartyMember{idx}HealthText")), &health_text)}
         }
     }
 }
