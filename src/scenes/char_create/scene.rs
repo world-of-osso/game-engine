@@ -537,4 +537,80 @@ mod tests {
         let state = blood_elf_warrior_state();
         assert_face_materials_present(&db, &state);
     }
+
+    // --- Dropdown camera zoom: target calculation, restore on close ---
+
+    #[test]
+    fn zoom_target_no_dropdown_returns_default() {
+        let (focus, distance) = zoom_target_for_dropdown(None);
+        assert_eq!(focus, DEFAULT_FOCUS);
+        let expected_distance = (DEFAULT_EYE - DEFAULT_FOCUS).length();
+        assert!((distance - expected_distance).abs() < 0.01);
+    }
+
+    #[test]
+    fn zoom_target_face_field_returns_face_params() {
+        let (focus, distance) = zoom_target_for_dropdown(Some(AppearanceField::Face));
+        assert_eq!(focus, FACE_FOCUS);
+        assert_eq!(distance, FACE_DISTANCE);
+    }
+
+    #[test]
+    fn zoom_target_hair_style_is_face_zoom() {
+        let (focus, distance) = zoom_target_for_dropdown(Some(AppearanceField::HairStyle));
+        assert_eq!(focus, FACE_FOCUS);
+        assert_eq!(distance, FACE_DISTANCE);
+    }
+
+    #[test]
+    fn zoom_target_hair_color_is_face_zoom() {
+        let (_, distance) = zoom_target_for_dropdown(Some(AppearanceField::HairColor));
+        assert_eq!(distance, FACE_DISTANCE);
+    }
+
+    #[test]
+    fn zoom_target_facial_style_is_face_zoom() {
+        let (_, distance) = zoom_target_for_dropdown(Some(AppearanceField::FacialStyle));
+        assert_eq!(distance, FACE_DISTANCE);
+    }
+
+    #[test]
+    fn zoom_target_non_face_field_returns_default() {
+        let (focus, distance) = zoom_target_for_dropdown(Some(AppearanceField::SkinColor));
+        assert_eq!(focus, DEFAULT_FOCUS);
+        let expected = (DEFAULT_EYE - DEFAULT_FOCUS).length();
+        assert!((distance - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn zoom_target_restore_on_close_matches_no_dropdown() {
+        // Opening a face dropdown then closing (None) should restore default
+        let (open_focus, open_dist) = zoom_target_for_dropdown(Some(AppearanceField::Face));
+        let (close_focus, close_dist) = zoom_target_for_dropdown(None);
+        assert_ne!(open_focus, close_focus);
+        assert!((open_dist - close_dist).abs() > 0.1);
+        assert_eq!(close_focus, DEFAULT_FOCUS);
+    }
+
+    #[test]
+    fn face_distance_is_closer_than_default() {
+        let (_, default_dist) = zoom_target_for_dropdown(None);
+        assert!(FACE_DISTANCE < default_dist);
+    }
+
+    #[test]
+    fn apply_orbit_produces_valid_transform() {
+        let orbit = CharCreateOrbit {
+            yaw: 0.0,
+            pitch: 0.0,
+            focus: DEFAULT_FOCUS,
+            distance: (DEFAULT_EYE - DEFAULT_FOCUS).length(),
+            base_pitch: 0.0,
+        };
+        let mut transform = Transform::default();
+        apply_orbit_transform(&orbit, &mut transform);
+        // Camera should be looking roughly toward the focus point
+        let forward = transform.forward();
+        assert!(forward.z < 0.0, "camera should face -Z (toward model)");
+    }
 }
