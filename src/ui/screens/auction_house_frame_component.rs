@@ -359,15 +359,10 @@ fn browse_category_sidebar(categories: &[BrowseCategory]) -> Element {
 fn browse_category_row(idx: usize, cat: &BrowseCategory) -> Element {
     let row_id = DynName(format!("AuctionHouseBrowseCat{idx}"));
     let label_id = DynName(format!("AuctionHouseBrowseCat{idx}Label"));
-    let bg = if cat.selected {
-        CAT_SELECTED_BG
+    let (bg, color) = if cat.selected {
+        (CAT_SELECTED_BG, CAT_SELECTED_COLOR)
     } else {
-        CAT_NORMAL_BG
-    };
-    let color = if cat.selected {
-        CAT_SELECTED_COLOR
-    } else {
-        CAT_NORMAL_COLOR
+        (CAT_NORMAL_BG, CAT_NORMAL_COLOR)
     };
     let y = -(idx as f32 * (CAT_ROW_H + CAT_ROW_GAP));
     rsx! {
@@ -382,21 +377,22 @@ fn browse_category_row(idx: usize, cat: &BrowseCategory) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {SIDEBAR_W - 8.0},
-                height: {CAT_ROW_H},
-                text: {cat.name.as_str()},
-                font_size: 9.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
+            {browse_cat_label(label_id, &cat.name, color)}
+        }
+    }
+}
+
+fn browse_cat_label(id: DynName, text: &str, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {SIDEBAR_W - 8.0},
+            height: {CAT_ROW_H},
+            text: text,
+            font_size: 9.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
         }
     }
 }
