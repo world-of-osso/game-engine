@@ -181,16 +181,14 @@ fn trade_panel(prefix: &str, panel: &TradePlayerPanel, x: f32, show_input: bool)
     }
 }
 
-fn trade_slot(prefix: &str, idx: usize, slot: Option<&TradeSlot>, y: f32) -> Element {
+fn trade_slot(prefix: &str, idx: usize, _slot: Option<&TradeSlot>, y: f32) -> Element {
     let slot_id = DynName(format!("{prefix}Slot{idx}"));
-    let has_item = slot.is_some_and(|s| !s.name.is_empty());
-    let bg = if has_item { SLOT_BG } else { SLOT_BG };
     rsx! {
         r#frame {
             name: slot_id,
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
-            background_color: bg,
+            background_color: SLOT_BG,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -554,5 +552,75 @@ mod tests {
         let expected_y = other_r.y + PANEL_LABEL_H + 4.0;
         assert!((slot_r.y - expected_y).abs() < 1.0);
         assert!((slot_r.width - SLOT_SIZE).abs() < 1.0);
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: TradeFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(trade_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "TradeFrameTitle"), "Trade");
+    }
+
+    #[test]
+    fn panel_label_names() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "TradePlayerLabel"), "Tankadin");
+        assert_eq!(fontstring_text(&reg, "TradeOtherLabel"), "Healbot");
+    }
+
+    #[test]
+    fn money_label_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "TradePlayerMoneyLabel"), "Gold:");
+        assert_eq!(fontstring_text(&reg, "TradeOtherMoneyLabel"), "Gold:");
+    }
+
+    #[test]
+    fn player_money_formatted() {
+        let reg = build_registry();
+        // 150000 copper = 15g 0s 0c
+        assert_eq!(fontstring_text(&reg, "TradePlayerMoneyText"), "15g 0s 0c");
+    }
+
+    #[test]
+    fn other_money_zero() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "TradeOtherMoneyText"), "0c");
+    }
+
+    #[test]
+    fn button_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "TradeAcceptBtnText"), "Accept");
+        assert_eq!(fontstring_text(&reg, "TradeCancelBtnText"), "Cancel");
+    }
+
+    #[test]
+    fn format_money_mixed() {
+        assert_eq!(format_money(123456), "12g 34s 56c");
+    }
+
+    #[test]
+    fn format_money_zero() {
+        assert_eq!(format_money(0), "0c");
     }
 }
