@@ -273,4 +273,42 @@ mod tests {
         assert!((r.x - (frame_x + INSET)).abs() < 1.0);
         assert!((r.y - expected_y).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_last_column_slot() {
+        let reg = layout_registry(vec![make_bag(0, 16)]);
+        let r = rect(&reg, "ContainerFrame0Slot3");
+        let frame_x = 300.0;
+        let frame_y = 100.0;
+        let expected_x = frame_x + INSET + 3.0 * (SLOT_SIZE + SLOT_GAP);
+        let expected_y = frame_y + TITLE_H + INSET;
+        assert!(
+            (r.x - expected_x).abs() < 1.0,
+            "x: expected {expected_x}, got {}",
+            r.x
+        );
+        assert!((r.y - expected_y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_second_bag_offset() {
+        let reg = layout_registry(vec![make_bag(0, 8), make_bag(1, 12)]);
+        let r0 = rect(&reg, "ContainerFrame0");
+        let r1 = rect(&reg, "ContainerFrame1");
+        // Bag 1 is offset 20px further right than bag 0
+        assert!((r1.x - r0.x - 20.0).abs() < 1.0);
+        // Both at same y
+        assert!((r0.y - r1.y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_variable_bag_height() {
+        let reg = layout_registry(vec![make_bag(0, 8), make_bag(1, 16)]);
+        let r8 = rect(&reg, "ContainerFrame0");
+        let r16 = rect(&reg, "ContainerFrame1");
+        let (_, h8) = BagFrameState::bag_dimensions(8);
+        let (_, h16) = BagFrameState::bag_dimensions(16);
+        assert!((r8.height - h8).abs() < 1.0);
+        assert!((r16.height - h16).abs() < 1.0);
+    }
 }
