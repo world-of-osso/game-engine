@@ -105,24 +105,37 @@ fn y_component_always_zero() {
     }
 }
 
-#[test]
-fn disconnect_during_charselect_arms_reconnect_when_token_exists() {
+fn charselect_disconnect_app(token: Option<&str>) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(crate::game_state::GameState::CharSelect);
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
-    app.insert_resource(AuthToken(Some("saved-token".to_string())));
+    app.insert_resource(AuthToken(token.map(|t| t.to_string())));
     app.insert_resource(LoginMode::Login);
     app.insert_resource(LoginUsername("stale-user".to_string()));
     app.insert_resource(LoginPassword("stale-pass".to_string()));
     app.add_observer(handle_client_disconnected);
+    app
+}
 
+fn trigger_disconnect(app: &mut App) -> Entity {
     let client = app.world_mut().spawn(Client::default()).id();
+    trigger_disconnect_entity(app, client);
+    client
+}
+
+fn trigger_disconnect_entity(app: &mut App, client: Entity) {
     app.world_mut().entity_mut(client).insert(Disconnected {
         reason: Some("Link failed: test".to_string()),
     });
+}
+
+#[test]
+fn disconnect_during_charselect_arms_reconnect_when_token_exists() {
+    let mut app = charselect_disconnect_app(Some("saved-token"));
+    let client = trigger_disconnect(&mut app);
     app.update();
 
     let state = app
@@ -142,19 +155,8 @@ fn disconnect_during_charselect_arms_reconnect_when_token_exists() {
 
 #[test]
 fn disconnect_during_charselect_without_token_stays_offline() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_plugins(bevy::state::app::StatesPlugin);
-    app.insert_state(crate::game_state::GameState::CharSelect);
-    app.init_resource::<AuthUiFeedback>();
-    app.init_resource::<ReconnectState>();
-    app.insert_resource(AuthToken(None));
-    app.add_observer(handle_client_disconnected);
-
-    let client = app.world_mut().spawn(Client::default()).id();
-    app.world_mut().entity_mut(client).insert(Disconnected {
-        reason: Some("Link failed: test".to_string()),
-    });
+    let mut app = charselect_disconnect_app(None);
+    let client = trigger_disconnect(&mut app);
     app.update();
 
     let state = app
@@ -181,11 +183,7 @@ fn disconnect_during_connecting_is_ignored() {
     app.insert_state(crate::game_state::GameState::Connecting);
     app.init_resource::<AuthUiFeedback>();
     app.add_observer(handle_client_disconnected);
-
-    let client = app.world_mut().spawn(Client::default()).id();
-    app.world_mut().entity_mut(client).insert(Disconnected {
-        reason: Some("Link failed: test".to_string()),
-    });
+    trigger_disconnect(&mut app);
     app.update();
     app.update();
 
@@ -197,11 +195,11 @@ fn disconnect_during_connecting_is_ignored() {
     assert_eq!(feedback.0.as_deref(), None);
 }
 
-fn inworld_disconnect_base_app() -> App {
+fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
-    app.insert_state(crate::game_state::GameState::InWorld);
+    app.insert_state(state);
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
     app.insert_resource(AuthToken(Some("saved-token".to_string())));
@@ -217,21 +215,16 @@ fn inworld_disconnect_base_app() -> App {
     app
 }
 
+fn inworld_disconnect_base_app() -> App {
+    disconnect_app_with_state(crate::game_state::GameState::InWorld)
+}
+
 fn populate_inworld_disconnect_entities(app: &mut App) -> (Entity, Entity) {
     let client = app.world_mut().spawn(Client::default()).id();
     let receiver = app.world_mut().spawn_empty().id();
     let replicated = app
         .world_mut()
-        .spawn((
-            Replicated { receiver },
-            RemoteEntity,
-            NetPlayer {
-                name: "Theron".to_string(),
-                race: 1,
-                class: 1,
-                appearance: CharacterAppearance::default(),
-            },
-        ))
+        .spawn((Replicated { receiver }, RemoteEntity, net_player("Theron")))
         .id();
     app.world_mut().resource_mut::<ChatLog>().messages.push((
         "system".to_string(),
@@ -275,9 +268,7 @@ fn assert_inworld_reconnect_state(app: &App, client: Entity, replicated: Entity)
 fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
     let mut app = inworld_disconnect_base_app();
     let (client, replicated) = populate_inworld_disconnect_entities(&mut app);
-    app.world_mut().entity_mut(client).insert(Disconnected {
-        reason: Some("Link failed: test".to_string()),
-    });
+    trigger_disconnect_entity(&mut app, client);
 
     app.update();
     app.update();
@@ -356,12 +347,16 @@ fn reconnect_finishes_after_local_player_and_terrain_signal() {
     assert!(!reconnect.terrain_refresh_seen);
 }
 
-#[test]
-fn sync_updates_rotation_target() {
+fn sync_test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_systems(Update, sync_replicated_transforms);
+    app
+}
 
+#[test]
+fn sync_updates_rotation_target() {
+    let mut app = sync_test_app();
     let entity = app
         .world_mut()
         .spawn((
@@ -380,9 +375,7 @@ fn sync_updates_rotation_target() {
             RemoteEntity,
         ))
         .id();
-
     app.update();
-
     let rot = app.world().get::<RotationTarget>(entity).unwrap();
     assert!(
         (rot.yaw - 1.5).abs() < 1e-6,
@@ -393,10 +386,7 @@ fn sync_updates_rotation_target() {
 
 #[test]
 fn sync_updates_interpolation_target() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, sync_replicated_transforms);
-
+    let mut app = sync_test_app();
     let entity = app
         .world_mut()
         .spawn((
@@ -409,20 +399,14 @@ fn sync_updates_interpolation_target() {
             RemoteEntity,
         ))
         .id();
-
     app.update();
-
     let interp = app.world().get::<InterpolationTarget>(entity).unwrap();
-    // Server sends Bevy-space positions — no conversion.
     assert_eq!(interp.target, Vec3::new(10.0, 20.0, 30.0));
 }
 
 #[test]
 fn sync_skips_entities_without_remote_marker() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, sync_replicated_transforms);
-
+    let mut app = sync_test_app();
     let entity = app
         .world_mut()
         .spawn((
@@ -432,22 +416,21 @@ fn sync_skips_entities_without_remote_marker() {
                 z: 7.0,
             },
             InterpolationTarget { target: Vec3::ZERO },
-            // no RemoteEntity marker
         ))
         .id();
-
     app.update();
-
-    let interp = app.world().get::<InterpolationTarget>(entity).unwrap();
-    assert_eq!(interp.target, Vec3::ZERO);
+    assert_eq!(
+        app.world()
+            .get::<InterpolationTarget>(entity)
+            .unwrap()
+            .target,
+        Vec3::ZERO
+    );
 }
 
 #[test]
 fn sync_skips_local_player_even_with_remote_marker() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, sync_replicated_transforms);
-
+    let mut app = sync_test_app();
     let entity = app
         .world_mut()
         .spawn((
@@ -461,19 +444,26 @@ fn sync_skips_local_player_even_with_remote_marker() {
             LocalPlayer,
         ))
         .id();
-
     app.update();
+    assert_eq!(
+        app.world()
+            .get::<InterpolationTarget>(entity)
+            .unwrap()
+            .target,
+        Vec3::ZERO
+    );
+}
 
-    let interp = app.world().get::<InterpolationTarget>(entity).unwrap();
-    assert_eq!(interp.target, Vec3::ZERO);
+fn interp_test_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, interpolate_remote_entities);
+    app
 }
 
 #[test]
 fn interpolation_moves_toward_target() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, interpolate_remote_entities);
-
+    let mut app = interp_test_app();
     let start = Vec3::ZERO;
     let target = Vec3::new(10.0, 0.0, 0.0);
     let entity = app
@@ -498,10 +488,7 @@ fn interpolation_moves_toward_target() {
 
 #[test]
 fn interpolation_skips_local_player_even_with_remote_marker() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, interpolate_remote_entities);
-
+    let mut app = interp_test_app();
     let start = Vec3::ZERO;
     let target = Vec3::new(10.0, 20.0, 30.0);
     let entity = app
@@ -566,23 +553,22 @@ fn is_local_player_entity_none_when_not_selected() {
     assert!(!is_local_player_entity("Theron", Some(&selected)));
 }
 
+fn net_player(name: &str) -> NetPlayer {
+    NetPlayer {
+        name: name.into(),
+        race: 1,
+        class: 1,
+        appearance: CharacterAppearance::default(),
+    }
+}
+
 #[test]
 fn choose_local_player_entity_prefers_newest_matching_entity() {
     let older = Entity::from_bits(10);
     let newer = Entity::from_bits(20);
     let other = Entity::from_bits(30);
-    let theron = NetPlayer {
-        name: "Theron".into(),
-        race: 1,
-        class: 1,
-        appearance: CharacterAppearance::default(),
-    };
-    let other_player = NetPlayer {
-        name: "Other".into(),
-        race: 1,
-        class: 1,
-        appearance: CharacterAppearance::default(),
-    };
+    let theron = net_player("Theron");
+    let other_player = net_player("Other");
 
     let (chosen, matches) = choose_local_player_entity(
         "Theron",
@@ -595,13 +581,7 @@ fn choose_local_player_entity_prefers_newest_matching_entity() {
 
 #[test]
 fn choose_local_player_entity_returns_none_when_name_missing() {
-    let player = NetPlayer {
-        name: "Other".into(),
-        race: 1,
-        class: 1,
-        appearance: CharacterAppearance::default(),
-    };
-
+    let player = net_player("Other");
     let (chosen, matches) =
         choose_local_player_entity("Theron", [(Entity::from_bits(1), &player)].into_iter());
 
@@ -741,41 +721,9 @@ fn sync_local_alive_state_tracks_local_player_health() {
 
 #[test]
 fn disconnect_during_game_menu_reconnects_without_bouncing_to_login() {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_plugins(bevy::state::app::StatesPlugin);
-    app.insert_state(crate::game_state::GameState::GameMenu);
-    app.init_resource::<AuthUiFeedback>();
-    app.init_resource::<ReconnectState>();
-    app.insert_resource(AuthToken(Some("saved-token".to_string())));
-    app.insert_resource(selected_with_name("Theron"));
-    app.insert_resource(game_engine::targeting::CurrentTarget(Some(
-        Entity::from_bits(77),
-    )));
-    app.init_resource::<CurrentZone>();
-    app.init_resource::<LocalAliveState>();
-    app.init_resource::<ChatLog>();
-    app.init_resource::<ChatInput>();
-    app.add_observer(handle_client_disconnected);
-
-    let client = app.world_mut().spawn(Client::default()).id();
-    let receiver = app.world_mut().spawn_empty().id();
-    let replicated = app
-        .world_mut()
-        .spawn((
-            Replicated { receiver },
-            RemoteEntity,
-            NetPlayer {
-                name: "Theron".to_string(),
-                race: 1,
-                class: 1,
-                appearance: CharacterAppearance::default(),
-            },
-        ))
-        .id();
-    app.world_mut().entity_mut(client).insert(Disconnected {
-        reason: Some("Link failed: test".to_string()),
-    });
+    let mut app = disconnect_app_with_state(crate::game_state::GameState::GameMenu);
+    let (client, replicated) = populate_inworld_disconnect_entities(&mut app);
+    trigger_disconnect_entity(&mut app, client);
 
     app.update();
     app.update();
