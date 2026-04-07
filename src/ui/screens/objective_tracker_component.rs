@@ -331,6 +331,27 @@ fn timer_section(timers: &[TimerBlock], y: &mut f32) -> Element {
         .collect()
 }
 
+fn scenario_step_label(i: usize, step: &ScenarioStep, y: f32) -> Element {
+    let id = DynName(format!("ScenarioStep{i}"));
+    let color = if step.completed {
+        OBJECTIVE_DONE_COLOR
+    } else {
+        SCENARIO_STEP_COLOR
+    };
+    rsx! {
+        fontstring {
+            name: id,
+            width: {TRACKER_W - 2.0 * INSET},
+            height: {SCENARIO_STEP_H},
+            text: {step.text.as_str()},
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+        }
+    }
+}
+
 fn scenario_section(name: &str, steps: &[ScenarioStep], y: &mut f32) -> Element {
     if name.is_empty() {
         return Vec::new();
@@ -344,20 +365,7 @@ fn scenario_section(name: &str, steps: &[ScenarioStep], y: &mut f32) -> Element 
         .flat_map(|(i, step)| {
             let sy = -*y;
             *y += SCENARIO_STEP_H + OBJECTIVE_GAP;
-            let step_id = DynName(format!("ScenarioStep{i}"));
-            let color = if step.completed { OBJECTIVE_DONE_COLOR } else { SCENARIO_STEP_COLOR };
-            rsx! {
-                fontstring {
-                    name: step_id,
-                    width: {TRACKER_W - 2.0 * INSET},
-                    height: {SCENARIO_STEP_H},
-                    text: {step.text.as_str()},
-                    font_size: 10.0,
-                    font_color: color,
-                    justify_h: "LEFT",
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {sy} }
-                }
-            }
+            scenario_step_label(i, step, sy)
         })
         .collect();
     rsx! {
