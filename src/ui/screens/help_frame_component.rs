@@ -238,15 +238,10 @@ fn article_list_panel(articles: &[ArticleEntry]) -> Element {
 fn article_row(idx: usize, article: &ArticleEntry, w: f32) -> Element {
     let row_id = DynName(format!("HelpArticle{idx}"));
     let label_id = DynName(format!("HelpArticle{idx}Title"));
-    let bg = if article.selected {
-        ARTICLE_SELECTED_BG
+    let (bg, color) = if article.selected {
+        (ARTICLE_SELECTED_BG, ARTICLE_SELECTED_COLOR)
     } else {
-        ARTICLE_NORMAL_BG
-    };
-    let color = if article.selected {
-        ARTICLE_SELECTED_COLOR
-    } else {
-        ARTICLE_TITLE_COLOR
+        (ARTICLE_NORMAL_BG, ARTICLE_TITLE_COLOR)
     };
     let y = -(ARTICLE_INSET + idx as f32 * (ARTICLE_ROW_H + ARTICLE_ROW_GAP));
     rsx! {
@@ -261,21 +256,22 @@ fn article_row(idx: usize, article: &ArticleEntry, w: f32) -> Element {
                 x: {ARTICLE_INSET},
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {w - 4.0 * ARTICLE_INSET},
-                height: {ARTICLE_ROW_H},
-                text: {article.title.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
+            {article_row_label(label_id, &article.title, w - 4.0 * ARTICLE_INSET, color)}
+        }
+    }
+}
+
+fn article_row_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {ARTICLE_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
         }
     }
 }
