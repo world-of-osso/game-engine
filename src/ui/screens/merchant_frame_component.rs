@@ -370,33 +370,41 @@ fn money_display(money: &str) -> Element {
     }
 }
 
-fn page_buttons(page: usize, total: usize) -> Element {
-    let page_text = format!("Page {page}/{total}");
-    let y = -(FRAME_H - PAGE_BTN_H - 8.0);
-    let center_x = FRAME_W / 2.0;
+fn page_nav_button(name: &str, label: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
     rsx! {
         r#frame {
-            name: "MerchantPagePrev",
+            name: btn_id,
             width: {PAGE_BTN_W},
             height: {PAGE_BTN_H},
             background_color: PAGE_BTN_BG,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {center_x - PAGE_BTN_W - PAGE_BTN_GAP - 30.0},
+                x: {x},
                 y: {y},
             }
             fontstring {
-                name: "MerchantPagePrevText",
+                name: text_id,
                 width: {PAGE_BTN_W},
                 height: {PAGE_BTN_H},
-                text: "<",
+                text: label,
                 font_size: 12.0,
                 font_color: PAGE_BTN_TEXT,
                 justify_h: "CENTER",
                 anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
+    }
+}
+
+fn page_buttons(page: usize, total: usize) -> Element {
+    let page_text = format!("Page {page}/{total}");
+    let y = -(FRAME_H - PAGE_BTN_H - 8.0);
+    let center_x = FRAME_W / 2.0;
+    rsx! {
+        {page_nav_button("MerchantPagePrev", "<", center_x - PAGE_BTN_W - PAGE_BTN_GAP - 30.0, y)}
         fontstring {
             name: "MerchantPageLabel",
             width: 60.0,
@@ -405,35 +413,9 @@ fn page_buttons(page: usize, total: usize) -> Element {
             font_size: 10.0,
             font_color: PAGE_BTN_TEXT,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {center_x - 30.0},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {center_x - 30.0}, y: {y} }
         }
-        r#frame {
-            name: "MerchantPageNext",
-            width: {PAGE_BTN_W},
-            height: {PAGE_BTN_H},
-            background_color: PAGE_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {center_x + 30.0 + PAGE_BTN_GAP},
-                y: {y},
-            }
-            fontstring {
-                name: "MerchantPageNextText",
-                width: {PAGE_BTN_W},
-                height: {PAGE_BTN_H},
-                text: ">",
-                font_size: 12.0,
-                font_color: PAGE_BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {page_nav_button("MerchantPageNext", ">", center_x + 30.0 + PAGE_BTN_GAP, y)}
     }
 }
 
