@@ -360,6 +360,22 @@ fn group_header(list_w: f32) -> Element {
     }
 }
 
+fn group_row_cell(row: usize, col: usize, text: &str, list_w: f32) -> Element {
+    let id = DynName(format!("LFGGroup{row}Col{col}"));
+    rsx! {
+        fontstring {
+            name: id,
+            width: {group_col_w(list_w, col)},
+            height: {GROUP_ROW_H},
+            text: text,
+            font_size: 9.0,
+            font_color: GROUP_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {group_col_x(list_w, col)}, y: "0" }
+        }
+    }
+}
+
 fn group_row(idx: usize, group: &GroupListEntry, list_w: f32) -> Element {
     let row_id = DynName(format!("LFGGroup{idx}"));
     let y = -(GROUP_INSET + GROUP_HEADER_H + idx as f32 * (GROUP_ROW_H + GROUP_ROW_GAP));
@@ -372,28 +388,7 @@ fn group_row(idx: usize, group: &GroupListEntry, list_w: f32) -> Element {
     let cells: Element = values
         .iter()
         .enumerate()
-        .flat_map(|(col, text)| {
-            let cell_id = DynName(format!("LFGGroup{idx}Col{col}"));
-            let x = group_col_x(list_w, col);
-            let w = group_col_w(list_w, col);
-            rsx! {
-                fontstring {
-                    name: cell_id,
-                    width: {w},
-                    height: {GROUP_ROW_H},
-                    text: {text.as_str()},
-                    font_size: 9.0,
-                    font_color: GROUP_TEXT_COLOR,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: "0",
-                    }
-                }
-            }
-        })
+        .flat_map(|(col, text)| group_row_cell(idx, col, text, list_w))
         .collect();
     rsx! {
         r#frame {
