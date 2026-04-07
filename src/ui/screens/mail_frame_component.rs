@@ -39,6 +39,27 @@ const INBOX_ICON_BG: &str = "0.1,0.1,0.1,0.9";
 const SUBJECT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const SENDER_COLOR: &str = "0.7,0.7,0.7,1.0";
 
+// Send tab layout
+const SEND_INSET: f32 = 8.0;
+const SEND_LABEL_W: f32 = 70.0;
+const SEND_INPUT_H: f32 = 22.0;
+const SEND_BODY_H: f32 = 80.0;
+const SEND_ROW_GAP: f32 = 6.0;
+const ATTACH_SLOT_SIZE: f32 = 28.0;
+const ATTACH_SLOT_GAP: f32 = 4.0;
+const ATTACH_COLS: usize = 4;
+const MONEY_INPUT_W: f32 = 50.0;
+const MONEY_GAP: f32 = 4.0;
+const SEND_BTN_W: f32 = 80.0;
+const SEND_BTN_H: f32 = 24.0;
+const SEND_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
+const SEND_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
+const SEND_INPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const ATTACH_BG: &str = "0.08,0.07,0.06,0.88";
+const MONEY_LABEL_COLOR: &str = "1.0,0.82,0.0,1.0";
+const SEND_BTN_BG: &str = "0.15,0.12,0.05,0.95";
+const SEND_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
+
 pub const INBOX_ROWS: usize = 7;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -55,11 +76,22 @@ pub struct InboxEntry {
     pub read: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct SendMailState {
+    pub recipient: String,
+    pub subject: String,
+    pub body: String,
+    pub gold: String,
+    pub silver: String,
+    pub copper: String,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MailFrameState {
     pub visible: bool,
     pub tabs: Vec<MailTab>,
     pub inbox: Vec<InboxEntry>,
+    pub send: SendMailState,
 }
 
 impl Default for MailFrameState {
@@ -77,6 +109,7 @@ impl Default for MailFrameState {
                 },
             ],
             inbox: vec![],
+            send: SendMailState::default(),
         }
     }
 }
@@ -103,6 +136,7 @@ pub fn mail_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {tab_row(&state.tabs)}
             {inbox_list(&state.inbox)}
+            {send_tab(&state.send)}
         }
     }
 }
@@ -275,6 +309,233 @@ fn inbox_row(idx: usize, entry: &InboxEntry, parent_w: f32) -> Element {
     }
 }
 
+// --- Send tab ---
+
+fn send_tab(send: &SendMailState) -> Element {
+    let content_y = -CONTENT_TOP;
+    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
+    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    let input_w = content_w - SEND_LABEL_W - 3.0 * SEND_INSET;
+    rsx! {
+        r#frame {
+            name: "MailSendTab",
+            width: {content_w},
+            height: {content_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CONTENT_INSET},
+                y: {content_y},
+            }
+            {send_input_row("MailSendTo", "To:", 0, input_w)}
+            {send_input_row("MailSendSubject", "Subject:", 1, input_w)}
+            {send_body_area(input_w)}
+            {send_attachments_grid()}
+            {send_money_row(input_w)}
+            {send_button()}
+        }
+    }
+}
+
+fn send_input_row(prefix: &str, label: &str, row: usize, input_w: f32) -> Element {
+    let label_name = DynName(format!("{prefix}Label"));
+    let input_name = DynName(format!("{prefix}Input"));
+    let y = -(SEND_INSET + row as f32 * (SEND_INPUT_H + SEND_ROW_GAP));
+    rsx! {
+        fontstring {
+            name: label_name,
+            width: {SEND_LABEL_W},
+            height: {SEND_INPUT_H},
+            text: label,
+            font_size: 10.0,
+            font_color: SEND_LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEND_INSET},
+                y: {y},
+            }
+        }
+        r#frame {
+            name: input_name,
+            width: {input_w},
+            height: {SEND_INPUT_H},
+            background_color: SEND_INPUT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEND_INSET + SEND_LABEL_W + SEND_INSET},
+                y: {y},
+            }
+        }
+    }
+}
+
+fn send_body_area(input_w: f32) -> Element {
+    let y = -(SEND_INSET + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP));
+    rsx! {
+        fontstring {
+            name: "MailSendBodyLabel",
+            width: {SEND_LABEL_W},
+            height: {SEND_INPUT_H},
+            text: "Body:",
+            font_size: 10.0,
+            font_color: SEND_LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEND_INSET},
+                y: {y},
+            }
+        }
+        r#frame {
+            name: "MailSendBodyInput",
+            width: {input_w},
+            height: {SEND_BODY_H},
+            background_color: SEND_INPUT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEND_INSET + SEND_LABEL_W + SEND_INSET},
+                y: {y},
+            }
+        }
+    }
+}
+
+fn send_attachments_grid() -> Element {
+    let base_y = SEND_INSET + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP) + SEND_BODY_H + SEND_ROW_GAP;
+    let x_start = SEND_INSET + SEND_LABEL_W + SEND_INSET;
+    (0..(ATTACH_COLS * 2))
+        .flat_map(|i| {
+            let col = i % ATTACH_COLS;
+            let row = i / ATTACH_COLS;
+            let x = x_start + col as f32 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP);
+            let y = -(base_y + row as f32 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP));
+            let slot_name = DynName(format!("MailSendAttach{i}"));
+            rsx! {
+                r#frame {
+                    name: slot_name,
+                    width: {ATTACH_SLOT_SIZE},
+                    height: {ATTACH_SLOT_SIZE},
+                    background_color: ATTACH_BG,
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x},
+                        y: {y},
+                    }
+                }
+            }
+        })
+        .collect()
+}
+
+fn send_money_row(input_w: f32) -> Element {
+    let base_y = SEND_INSET
+        + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP)
+        + SEND_BODY_H
+        + SEND_ROW_GAP
+        + 2.0 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP)
+        + SEND_ROW_GAP;
+    let x_start = SEND_INSET + SEND_LABEL_W + SEND_INSET;
+    rsx! {
+        fontstring {
+            name: "MailSendMoneyLabel",
+            width: {SEND_LABEL_W},
+            height: {SEND_INPUT_H},
+            text: "Money:",
+            font_size: 10.0,
+            font_color: SEND_LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SEND_INSET},
+                y: {-base_y},
+            }
+        }
+        r#frame {
+            name: "MailSendGoldInput",
+            width: {MONEY_INPUT_W},
+            height: {SEND_INPUT_H},
+            background_color: SEND_INPUT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x_start},
+                y: {-base_y},
+            }
+        }
+        r#frame {
+            name: "MailSendSilverInput",
+            width: {MONEY_INPUT_W},
+            height: {SEND_INPUT_H},
+            background_color: SEND_INPUT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x_start + MONEY_INPUT_W + MONEY_GAP},
+                y: {-base_y},
+            }
+        }
+        r#frame {
+            name: "MailSendCopperInput",
+            width: {MONEY_INPUT_W},
+            height: {SEND_INPUT_H},
+            background_color: SEND_INPUT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x_start + 2.0 * (MONEY_INPUT_W + MONEY_GAP)},
+                y: {-base_y},
+            }
+        }
+    }
+}
+
+fn send_button() -> Element {
+    let base_y = SEND_INSET
+        + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP)
+        + SEND_BODY_H
+        + SEND_ROW_GAP
+        + 2.0 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP)
+        + SEND_ROW_GAP
+        + SEND_INPUT_H
+        + SEND_ROW_GAP;
+    let x = SEND_INSET + SEND_LABEL_W + SEND_INSET;
+    rsx! {
+        r#frame {
+            name: "MailSendButton",
+            width: {SEND_BTN_W},
+            height: {SEND_BTN_H},
+            background_color: SEND_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-base_y},
+            }
+            fontstring {
+                name: "MailSendButtonText",
+                width: {SEND_BTN_W},
+                height: {SEND_BTN_H},
+                text: "Send Mail",
+                font_size: 10.0,
+                font_color: SEND_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -407,5 +668,43 @@ mod tests {
         assert!((row.x - (list.x + INBOX_INSET)).abs() < 1.0);
         assert!((row.y - (list.y + INBOX_INSET)).abs() < 1.0);
         assert!((row.height - INBOX_ROW_H).abs() < 1.0);
+    }
+
+    // --- Send tab tests ---
+
+    #[test]
+    fn send_tab_builds_inputs() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("MailSendTab").is_some());
+        assert!(reg.get_by_name("MailSendToInput").is_some());
+        assert!(reg.get_by_name("MailSendSubjectInput").is_some());
+        assert!(reg.get_by_name("MailSendBodyInput").is_some());
+    }
+
+    #[test]
+    fn send_tab_builds_attachments() {
+        let reg = build_registry();
+        for i in 0..(ATTACH_COLS * 2) {
+            assert!(
+                reg.get_by_name(&format!("MailSendAttach{i}")).is_some(),
+                "MailSendAttach{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn send_tab_builds_money_and_button() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("MailSendGoldInput").is_some());
+        assert!(reg.get_by_name("MailSendSilverInput").is_some());
+        assert!(reg.get_by_name("MailSendCopperInput").is_some());
+        assert!(reg.get_by_name("MailSendButton").is_some());
+    }
+
+    #[test]
+    fn send_tab_hidden_by_default() {
+        let reg = build_registry();
+        let id = reg.get_by_name("MailSendTab").expect("send tab");
+        assert!(reg.get(id).expect("data").hidden);
     }
 }
