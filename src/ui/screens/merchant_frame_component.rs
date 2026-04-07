@@ -44,6 +44,16 @@ const ITEM_PRICE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const PAGE_BTN_BG: &str = "0.15,0.12,0.05,0.95";
 const PAGE_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
 
+const REPAIR_BTN_W: f32 = 80.0;
+const REPAIR_BTN_H: f32 = 22.0;
+const REPAIR_GAP: f32 = 8.0;
+const MONEY_W: f32 = 120.0;
+const MONEY_H: f32 = 16.0;
+const REPAIR_BTN_BG: &str = "0.15,0.12,0.05,0.95";
+const REPAIR_BTN_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
+const MONEY_COLOR: &str = "1.0,0.82,0.0,1.0";
+const MONEY_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
+
 pub const MERCHANT_ITEM_ROWS: usize = 10;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,6 +76,7 @@ pub struct MerchantFrameState {
     pub items: Vec<MerchantItem>,
     pub page: usize,
     pub total_pages: usize,
+    pub player_money: String,
 }
 
 impl Default for MerchantFrameState {
@@ -89,6 +100,7 @@ impl Default for MerchantFrameState {
             items: vec![],
             page: 1,
             total_pages: 1,
+            player_money: "0g 0s 0c".into(),
         }
     }
 }
@@ -115,6 +127,8 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {tab_row(&state.tabs)}
             {item_grid(&state.items)}
+            {repair_buttons()}
+            {money_display(&state.player_money)}
             {page_buttons(state.page, state.total_pages)}
         }
     }
@@ -280,6 +294,79 @@ fn merchant_item_row(idx: usize, item: &MerchantItem, parent_w: f32) -> Element 
                     x: "0",
                     y: {-((ITEM_ROW_H - 16.0) / 2.0)},
                 }
+            }
+        }
+    }
+}
+
+fn repair_buttons() -> Element {
+    let grid_h = MERCHANT_ITEM_ROWS as f32 * (ITEM_ROW_H + ITEM_ROW_GAP);
+    let y = -(CONTENT_TOP + grid_h + 8.0);
+    rsx! {
+        r#frame {
+            name: "MerchantRepairButton",
+            width: {REPAIR_BTN_W},
+            height: {REPAIR_BTN_H},
+            background_color: REPAIR_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CONTENT_INSET},
+                y: {y},
+            }
+            fontstring {
+                name: "MerchantRepairButtonText",
+                width: {REPAIR_BTN_W},
+                height: {REPAIR_BTN_H},
+                text: "Repair All",
+                font_size: 10.0,
+                font_color: REPAIR_BTN_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+        r#frame {
+            name: "MerchantGuildRepairButton",
+            width: {REPAIR_BTN_W},
+            height: {REPAIR_BTN_H},
+            background_color: REPAIR_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CONTENT_INSET + REPAIR_BTN_W + REPAIR_GAP},
+                y: {y},
+            }
+            fontstring {
+                name: "MerchantGuildRepairButtonText",
+                width: {REPAIR_BTN_W},
+                height: {REPAIR_BTN_H},
+                text: "Guild Repair",
+                font_size: 10.0,
+                font_color: REPAIR_BTN_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
+fn money_display(money: &str) -> Element {
+    let grid_h = MERCHANT_ITEM_ROWS as f32 * (ITEM_ROW_H + ITEM_ROW_GAP);
+    let y = -(CONTENT_TOP + grid_h + 8.0);
+    rsx! {
+        fontstring {
+            name: "MerchantMoneyDisplay",
+            width: {MONEY_W},
+            height: {MONEY_H},
+            text: money,
+            font_size: 10.0,
+            font_color: MONEY_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: {-CONTENT_INSET},
+                y: {y},
             }
         }
     }
@@ -473,5 +560,34 @@ mod tests {
         assert!((prev.width - PAGE_BTN_W).abs() < 1.0);
         assert!((next.width - PAGE_BTN_W).abs() < 1.0);
         assert!(next.x > prev.x, "next should be right of prev");
+    }
+
+    // --- Repair / money tests ---
+
+    #[test]
+    fn builds_repair_buttons() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("MerchantRepairButton").is_some());
+        assert!(reg.get_by_name("MerchantGuildRepairButton").is_some());
+    }
+
+    #[test]
+    fn builds_money_display() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("MerchantMoneyDisplay").is_some());
+    }
+
+    #[test]
+    fn coord_repair_button_spacing() {
+        let reg = layout_registry();
+        let repair = rect(&reg, "MerchantRepairButton");
+        let guild = rect(&reg, "MerchantGuildRepairButton");
+        assert!((repair.width - REPAIR_BTN_W).abs() < 1.0);
+        let spacing = guild.x - repair.x;
+        let expected = REPAIR_BTN_W + REPAIR_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "spacing: expected {expected}, got {spacing}"
+        );
     }
 }
