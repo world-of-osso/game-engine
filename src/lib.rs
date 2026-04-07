@@ -32,6 +32,8 @@ pub mod csv_util;
 #[path = "game/dress_up_data.rs"]
 pub mod dress_up_data;
 pub mod dump;
+#[path = "game/encounter_journal_data.rs"]
+pub mod encounter_journal_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 #[path = "game/equipment/helmet_geoset_data.rs"]
