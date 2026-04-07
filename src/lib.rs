@@ -50,6 +50,8 @@ pub mod input_bindings;
 pub mod ipc;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
+#[path = "game/lfg_data.rs"]
+pub mod lfg_data;
 pub mod listfile;
 pub mod little_endian;
 pub mod mail;
