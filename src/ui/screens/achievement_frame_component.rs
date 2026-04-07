@@ -461,29 +461,35 @@ fn row_progress_bar(idx: usize, row: &AchievementRow, x: f32) -> Element {
                 x: {x},
                 y: {-(ROW_H - PROGRESS_BAR_H - 4.0)},
             }
-            r#frame {
-                name: fill_id,
-                width: {fill_w},
-                height: {PROGRESS_BAR_H},
-                background_color: PROGRESS_FILL,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-            fontstring {
-                name: text_id,
-                width: {PROGRESS_BAR_W},
-                height: {PROGRESS_BAR_H},
-                text: {row.progress_text.as_str()},
-                font_size: 8.0,
-                font_color: PROGRESS_TEXT_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
+            {progress_fill(fill_id, fill_w)}
+            {progress_text(text_id, &row.progress_text)}
+        }
+    }
+}
+
+fn progress_fill(id: DynName, w: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {w},
+            height: {PROGRESS_BAR_H},
+            background_color: PROGRESS_FILL,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
+}
+
+fn progress_text(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {PROGRESS_BAR_W},
+            height: {PROGRESS_BAR_H},
+            text: text,
+            font_size: 8.0,
+            font_color: PROGRESS_TEXT_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
         }
     }
 }
