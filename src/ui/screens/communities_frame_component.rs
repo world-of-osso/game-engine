@@ -927,4 +927,53 @@ mod tests {
             }
         }
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_first_tab() {
+        let reg = layout_registry();
+        let tab_area_x = FRAME_X + SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
+        let tab_y = FRAME_Y + HEADER_H + TAB_GAP;
+        let t = rect(&reg, "CommunitiesTab0");
+        assert!(
+            (t.x - tab_area_x).abs() < 1.0,
+            "tab x: expected {tab_area_x}, got {}",
+            t.x
+        );
+        assert!((t.y - tab_y).abs() < 1.0);
+        assert!((t.height - TAB_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_chat_channel_selector() {
+        let reg = {
+            let mut r = FrameRegistry::new(1920.0, 1080.0);
+            let mut s = SharedContext::new();
+            s.insert(make_chat_state());
+            Screen::new(communities_frame_screen).sync(&s, &mut r);
+            recompute_layouts(&mut r);
+            r
+        };
+        let content_x = FRAME_X + SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
+        let content_y = FRAME_Y + CONTENT_TOP;
+        let r = rect(&reg, "CommunitiesChatChannelSelector");
+        assert!((r.x - (content_x + INPUT_INSET)).abs() < 1.0);
+        assert!((r.y - (content_y + INPUT_INSET)).abs() < 1.0);
+        assert!((r.width - CHANNEL_SELECTOR_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_chat_input_box() {
+        let reg = {
+            let mut r = FrameRegistry::new(1920.0, 1080.0);
+            let mut s = SharedContext::new();
+            s.insert(make_chat_state());
+            Screen::new(communities_frame_screen).sync(&s, &mut r);
+            recompute_layouts(&mut r);
+            r
+        };
+        let r = rect(&reg, "CommunitiesChatInputBox");
+        assert!((r.height - INPUT_H).abs() < 1.0);
+    }
 }
