@@ -36,7 +36,7 @@ impl Plugin for SoundPlugin {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct SoundSettings {
     pub master_volume: f32,
     pub ambient_volume: f32,
