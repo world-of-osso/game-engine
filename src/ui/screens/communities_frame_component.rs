@@ -218,15 +218,10 @@ fn community_sidebar(communities: &[CommunityEntry]) -> Element {
 fn community_row(idx: usize, entry: &CommunityEntry) -> Element {
     let row_id = DynName(format!("CommunityRow{idx}"));
     let label_id = DynName(format!("CommunityRow{idx}Label"));
-    let bg = if entry.selected {
-        COMMUNITY_SELECTED_BG
+    let (bg, color) = if entry.selected {
+        (COMMUNITY_SELECTED_BG, COMMUNITY_SELECTED_COLOR)
     } else {
-        COMMUNITY_NORMAL_BG
-    };
-    let color = if entry.selected {
-        COMMUNITY_SELECTED_COLOR
-    } else {
-        COMMUNITY_NORMAL_COLOR
+        (COMMUNITY_NORMAL_BG, COMMUNITY_NORMAL_COLOR)
     };
     let y = -(idx as f32 * (COMMUNITY_ROW_H + COMMUNITY_ROW_GAP));
     rsx! {
@@ -241,21 +236,22 @@ fn community_row(idx: usize, entry: &CommunityEntry) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {SIDEBAR_W - 8.0},
-                height: {COMMUNITY_ROW_H},
-                text: {entry.name.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
+            {community_row_label(label_id, &entry.name, color)}
+        }
+    }
+}
+
+fn community_row_label(id: DynName, text: &str, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {SIDEBAR_W - 8.0},
+            height: {COMMUNITY_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
         }
     }
 }
