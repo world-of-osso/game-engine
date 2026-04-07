@@ -236,6 +236,21 @@ fn quest_text_area(quest_text: &str) -> Element {
 
 // --- Requirement items ---
 
+fn reqs_header_label(w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "QuestDialogReqsHeader",
+            width: {w},
+            height: {REQ_HEADER_H},
+            text: "Requirements",
+            font_size: 12.0,
+            font_color: REQ_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
 fn requirement_items(items: &[RequiredItem]) -> Element {
     let hide_reqs = items.is_empty();
     let req_top = TEXT_TOP + TEXT_AREA_H + 8.0;
@@ -260,21 +275,7 @@ fn requirement_items(items: &[RequiredItem]) -> Element {
                 x: {INSET},
                 y: {-req_top},
             }
-            fontstring {
-                name: "QuestDialogReqsHeader",
-                width: {req_w},
-                height: {REQ_HEADER_H},
-                text: "Requirements",
-                font_size: 12.0,
-                font_color: REQ_HEADER_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
+            {reqs_header_label(req_w)}
             {rows}
         }
     }
