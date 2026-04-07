@@ -460,4 +460,47 @@ mod tests {
         assert!((r.width - (FRAME_W - 2.0 * PREVIEW_INSET)).abs() < 1.0);
         assert!((r.height - PREVIEW_H).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_first_option_row() {
+        let reg = layout_registry();
+        let frame_x = (1920.0 - FRAME_W) / 2.0;
+        let frame_y = (1080.0 - FRAME_H) / 2.0;
+        let r = rect(&reg, "BarberShopOption0");
+        assert!((r.x - (frame_x + OPTION_INSET)).abs() < 1.0);
+        let expected_y = frame_y + OPTIONS_TOP;
+        assert!(
+            (r.y - expected_y).abs() < 1.0,
+            "y: expected {expected_y}, got {}",
+            r.y
+        );
+    }
+
+    #[test]
+    fn coord_second_option_row_offset() {
+        let reg = layout_registry();
+        let r0 = rect(&reg, "BarberShopOption0");
+        let r1 = rect(&reg, "BarberShopOption1");
+        let expected_gap = OPTION_ROW_H + OPTION_ROW_GAP;
+        let actual_gap = r1.y - r0.y;
+        assert!(
+            (actual_gap - expected_gap).abs() < 1.0,
+            "row gap: expected {expected_gap}, got {actual_gap}"
+        );
+    }
+
+    #[test]
+    fn coord_accept_cancel_buttons() {
+        let reg = layout_registry();
+        let accept = rect(&reg, "BarberShopAcceptButton");
+        let cancel = rect(&reg, "BarberShopCancelButton");
+        assert!((accept.width - BUTTON_W).abs() < 1.0);
+        assert!((cancel.width - BUTTON_W).abs() < 1.0);
+        let spacing = cancel.x - accept.x;
+        let expected = BUTTON_W + BUTTON_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "button spacing: expected {expected}, got {spacing}"
+        );
+    }
 }
