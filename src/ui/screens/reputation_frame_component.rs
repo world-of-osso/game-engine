@@ -35,6 +35,14 @@ const BAR_X: f32 = LIST_W - BAR_W - 8.0;
 
 const STANDING_LABEL_W: f32 = 80.0;
 
+const PARAGON_ICON_SIZE: f32 = 16.0;
+const PARAGON_ICON_X: f32 = 2.0;
+
+const TOOLTIP_W: f32 = 220.0;
+const TOOLTIP_LINE_H: f32 = 16.0;
+const TOOLTIP_INSET: f32 = 8.0;
+const TOOLTIP_HEADER_H: f32 = 18.0;
+
 // --- Colors ---
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
@@ -46,6 +54,12 @@ const FACTION_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
 const BAR_BG: &str = "0.1,0.1,0.1,0.9";
 const BAR_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const COLLAPSE_ICON_COLOR: &str = "0.8,0.8,0.8,1.0";
+const PARAGON_ICON_BG: &str = "0.6,0.3,0.9,0.9";
+const PARAGON_ICON_TEXT: &str = "1.0,0.82,0.0,1.0";
+const TOOLTIP_BG: &str = "0.08,0.06,0.04,0.95";
+const TOOLTIP_BORDER: &str = "0.3,0.25,0.15,0.9";
+const TOOLTIP_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
+const TOOLTIP_TEXT_COLOR: &str = "0.85,0.85,0.85,1.0";
 
 const STANDING_HATED: &str = "0.8,0.2,0.2,0.95";
 const STANDING_HOSTILE: &str = "0.8,0.3,0.2,0.95";
@@ -99,12 +113,33 @@ impl Standing {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct ParagonProgress {
+    pub current: u32,
+    pub max: u32,
+    pub reward_pending: bool,
+}
+
+impl ParagonProgress {
+    pub fn fraction(&self) -> f32 {
+        if self.max == 0 {
+            return 0.0;
+        }
+        (self.current as f32 / self.max as f32).min(1.0)
+    }
+
+    pub fn progress_text(&self) -> String {
+        format!("{}/{}", self.current, self.max)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct FactionEntry {
     pub name: String,
     pub standing: Standing,
     pub current: u32,
     pub max: u32,
+    pub paragon: Option<ParagonProgress>,
 }
 
 impl FactionEntry {
@@ -135,6 +170,8 @@ pub struct FactionCategory {
 pub struct ReputationFrameState {
     pub visible: bool,
     pub categories: Vec<FactionCategory>,
+    /// Index of hovered faction for tooltip: (category_idx, faction_idx).
+    pub hovered_faction: Option<(usize, usize)>,
 }
 
 // --- Screen entry ---
@@ -144,6 +181,7 @@ pub fn reputation_frame_screen(ctx: &SharedContext) -> Element {
         .get::<ReputationFrameState>()
         .expect("ReputationFrameState must be in SharedContext");
     let hide = !state.visible;
+    let tooltip = build_tooltip(state);
     rsx! {
         r#frame {
             name: "ReputationFrame",
@@ -160,6 +198,7 @@ pub fn reputation_frame_screen(ctx: &SharedContext) -> Element {
             }
             {title_bar()}
             {faction_list(&state.categories)}
+            {tooltip}
         }
     }
 }
@@ -325,6 +364,7 @@ fn faction_row(cat_idx: usize, fac_idx: usize, faction: &FactionEntry, y: f32) -
                 }
             }
             {reputation_bar(cat_idx, fac_idx, faction)}
+            {paragon_indicator(cat_idx, fac_idx, faction.paragon.as_ref())}
         }
     }
 }
@@ -395,6 +435,173 @@ fn reputation_bar(cat_idx: usize, fac_idx: usize, faction: &FactionEntry) -> Ele
     }
 }
 
+// --- Paragon reward indicator ---
+
+fn paragon_indicator(cat_idx: usize, fac_idx: usize, paragon: Option<&ParagonProgress>) -> Element {
+    let id = DynName(format!("RepParagon{cat_idx}_{fac_idx}"));
+    let label_id = DynName(format!("RepParagon{cat_idx}_{fac_idx}Label"));
+    let hide = paragon.is_none();
+    let reward_pending = paragon.is_some_and(|p| p.reward_pending);
+    let icon_text = if reward_pending { "★" } else { "◆" };
+    rsx! {
+        r#frame {
+            name: id,
+            width: {PARAGON_ICON_SIZE},
+            height: {PARAGON_ICON_SIZE},
+            hidden: hide,
+            background_color: PARAGON_ICON_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {PARAGON_ICON_X},
+                y: {-(FACTION_ROW_H - PARAGON_ICON_SIZE) / 2.0},
+            }
+            fontstring {
+                name: label_id,
+                width: {PARAGON_ICON_SIZE},
+                height: {PARAGON_ICON_SIZE},
+                text: icon_text,
+                font_size: 10.0,
+                font_color: PARAGON_ICON_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
+// --- Reputation detail tooltip ---
+
+fn build_tooltip(state: &ReputationFrameState) -> Element {
+    let hide = state.hovered_faction.is_none();
+    let (content, tooltip_h) = match state.hovered_faction {
+        Some((ci, fi)) => {
+            let faction = &state.categories[ci].factions[fi];
+            tooltip_content(faction)
+        }
+        None => (
+            rsx! {},
+            TOOLTIP_HEADER_H + 2.0 * TOOLTIP_LINE_H + 2.0 * TOOLTIP_INSET,
+        ),
+    };
+    rsx! {
+        r#frame {
+            name: "RepTooltip",
+            width: {TOOLTIP_W},
+            height: {tooltip_h},
+            hidden: hide,
+            background_color: TOOLTIP_BG,
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopLeft,
+                x: "4",
+                y: "0",
+            }
+            {tooltip_border()}
+            {content}
+        }
+    }
+}
+
+fn tooltip_border() -> Element {
+    rsx! {
+        r#frame {
+            name: "RepTooltipBorder",
+            width: {TOOLTIP_W},
+            height: "1",
+            background_color: TOOLTIP_BORDER,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: "0",
+            }
+        }
+    }
+}
+
+fn tooltip_content(faction: &FactionEntry) -> (Element, f32) {
+    let mut line_count: u32 = 2; // standing + progress
+    let has_paragon = faction.paragon.is_some();
+    if has_paragon {
+        line_count += 1;
+    }
+    let h = TOOLTIP_INSET * 2.0 + TOOLTIP_HEADER_H + line_count as f32 * TOOLTIP_LINE_H;
+    let standing_text = format!("Standing: {}", faction.standing.label());
+    let progress_text = format!("Progress: {}", faction.progress_text());
+    let paragon_line = faction
+        .paragon
+        .as_ref()
+        .map(|p| format!("Paragon: {}", p.progress_text()))
+        .unwrap_or_default();
+    let hide_paragon = !has_paragon;
+    let paragon_y = TOOLTIP_INSET + TOOLTIP_HEADER_H + 2.0 * TOOLTIP_LINE_H;
+    let elems = rsx! {
+        fontstring {
+            name: "RepTooltipTitle",
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {TOOLTIP_HEADER_H},
+            text: {faction.name.as_str()},
+            font_size: 12.0,
+            font_color: TOOLTIP_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {TOOLTIP_INSET},
+                y: {-TOOLTIP_INSET},
+            }
+        }
+        fontstring {
+            name: "RepTooltipStanding",
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {TOOLTIP_LINE_H},
+            text: {standing_text.as_str()},
+            font_size: 10.0,
+            font_color: {faction.standing.bar_color()},
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {TOOLTIP_INSET},
+                y: {-(TOOLTIP_INSET + TOOLTIP_HEADER_H)},
+            }
+        }
+        fontstring {
+            name: "RepTooltipProgress",
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {TOOLTIP_LINE_H},
+            text: {progress_text.as_str()},
+            font_size: 10.0,
+            font_color: TOOLTIP_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {TOOLTIP_INSET},
+                y: {-(TOOLTIP_INSET + TOOLTIP_HEADER_H + TOOLTIP_LINE_H)},
+            }
+        }
+        fontstring {
+            name: "RepTooltipParagon",
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {TOOLTIP_LINE_H},
+            hidden: hide_paragon,
+            text: {paragon_line.as_str()},
+            font_size: 10.0,
+            font_color: TOOLTIP_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {TOOLTIP_INSET},
+                y: {-paragon_y},
+            }
+        }
+    };
+    (elems, h)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -413,12 +620,14 @@ mod tests {
                         standing: Standing::Honored,
                         current: 8000,
                         max: 12000,
+                        paragon: None,
                     },
                     FactionEntry {
                         name: "Ironforge".into(),
                         standing: Standing::Friendly,
                         current: 3000,
                         max: 6000,
+                        paragon: None,
                     },
                 ],
             },
@@ -430,6 +639,7 @@ mod tests {
                     standing: Standing::Hated,
                     current: 0,
                     max: 36000,
+                    paragon: None,
                 }],
             },
             FactionCategory {
@@ -440,6 +650,11 @@ mod tests {
                     standing: Standing::Exalted,
                     current: 0,
                     max: 0,
+                    paragon: Some(ParagonProgress {
+                        current: 5000,
+                        max: 10000,
+                        reward_pending: true,
+                    }),
                 }],
             },
         ]
@@ -451,6 +666,7 @@ mod tests {
         shared.insert(ReputationFrameState {
             visible: true,
             categories: sample_categories(),
+            hovered_faction: None,
         });
         Screen::new(reputation_frame_screen).sync(&shared, &mut reg);
         reg
@@ -557,6 +773,7 @@ mod tests {
             standing: Standing::Friendly,
             current: 3000,
             max: 6000,
+            paragon: None,
         };
         assert!((f.progress_fraction() - 0.5).abs() < 0.01);
     }
@@ -568,6 +785,7 @@ mod tests {
             standing: Standing::Exalted,
             current: 0,
             max: 0,
+            paragon: None,
         };
         assert_eq!(f.progress_fraction(), 1.0);
     }
@@ -579,6 +797,7 @@ mod tests {
             standing: Standing::Neutral,
             current: 1500,
             max: 3000,
+            paragon: None,
         };
         assert_eq!(f.progress_text(), "1500/3000");
     }
@@ -653,5 +872,97 @@ mod tests {
         let cat2_r = rect(&reg, "RepCat2");
         let expected_y = cat1_r.y + CAT_HEADER_H + ROW_GAP;
         assert!((cat2_r.y - expected_y).abs() < 1.0);
+    }
+
+    // --- Paragon tests ---
+
+    #[test]
+    fn paragon_indicator_visible_when_present() {
+        let reg = build_registry();
+        // Cenarion Circle (cat 2, fac 0) has paragon
+        let id = reg.get_by_name("RepParagon2_0").expect("paragon");
+        assert!(!reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn paragon_indicator_hidden_when_absent() {
+        let reg = build_registry();
+        // Stormwind (cat 0, fac 0) has no paragon
+        let id = reg.get_by_name("RepParagon0_0").expect("paragon");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn paragon_progress_fraction() {
+        let p = ParagonProgress {
+            current: 5000,
+            max: 10000,
+            reward_pending: false,
+        };
+        assert!((p.fraction() - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn paragon_progress_text() {
+        let p = ParagonProgress {
+            current: 5000,
+            max: 10000,
+            reward_pending: false,
+        };
+        assert_eq!(p.progress_text(), "5000/10000");
+    }
+
+    // --- Tooltip tests ---
+
+    #[test]
+    fn tooltip_hidden_when_no_hover() {
+        let reg = build_registry();
+        let id = reg.get_by_name("RepTooltip").expect("tooltip");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn tooltip_visible_when_hovered() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(ReputationFrameState {
+            visible: true,
+            categories: sample_categories(),
+            hovered_faction: Some((0, 0)),
+        });
+        Screen::new(reputation_frame_screen).sync(&shared, &mut reg);
+        let id = reg.get_by_name("RepTooltip").expect("tooltip");
+        assert!(!reg.get(id).expect("data").hidden);
+        assert!(reg.get_by_name("RepTooltipTitle").is_some());
+        assert!(reg.get_by_name("RepTooltipStanding").is_some());
+        assert!(reg.get_by_name("RepTooltipProgress").is_some());
+    }
+
+    #[test]
+    fn tooltip_shows_paragon_line_for_paragon_faction() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(ReputationFrameState {
+            visible: true,
+            categories: sample_categories(),
+            hovered_faction: Some((2, 0)), // Cenarion Circle with paragon
+        });
+        Screen::new(reputation_frame_screen).sync(&shared, &mut reg);
+        let id = reg.get_by_name("RepTooltipParagon").expect("paragon line");
+        assert!(!reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn tooltip_hides_paragon_line_for_normal_faction() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(ReputationFrameState {
+            visible: true,
+            categories: sample_categories(),
+            hovered_faction: Some((0, 0)), // Stormwind, no paragon
+        });
+        Screen::new(reputation_frame_screen).sync(&shared, &mut reg);
+        let id = reg.get_by_name("RepTooltipParagon").expect("paragon line");
+        assert!(reg.get(id).expect("data").hidden);
     }
 }
