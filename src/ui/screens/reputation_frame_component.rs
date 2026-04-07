@@ -285,8 +285,6 @@ fn category_positions(cats: &[FactionCategory]) -> Vec<(usize, f32, Vec<(usize, 
 
 fn category_header(idx: usize, name: &str, collapsed: bool, y: f32) -> Element {
     let id = DynName(format!("RepCat{idx}"));
-    let label_id = DynName(format!("RepCat{idx}Label"));
-    let icon_id = DynName(format!("RepCat{idx}Icon"));
     let icon_text = if collapsed { "▶" } else { "▼" };
     rsx! {
         r#frame {
@@ -300,36 +298,38 @@ fn category_header(idx: usize, name: &str, collapsed: bool, y: f32) -> Element {
                 x: "2",
                 y: {-y},
             }
-            fontstring {
-                name: icon_id,
-                width: 14.0,
-                height: {CAT_HEADER_H},
-                text: icon_text,
-                font_size: 10.0,
-                font_color: COLLAPSE_ICON_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: label_id,
-                width: {LIST_W - 26.0},
-                height: {CAT_HEADER_H},
-                text: name,
-                font_size: 11.0,
-                font_color: CAT_HEADER_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "20",
-                    y: "0",
-                }
-            }
+            {cat_collapse_icon(DynName(format!("RepCat{idx}Icon")), icon_text)}
+            {cat_header_label(DynName(format!("RepCat{idx}Label")), name)}
+        }
+    }
+}
+
+fn cat_collapse_icon(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: 14.0,
+            height: {CAT_HEADER_H},
+            text: text,
+            font_size: 10.0,
+            font_color: COLLAPSE_ICON_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+        }
+    }
+}
+
+fn cat_header_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {LIST_W - 26.0},
+            height: {CAT_HEADER_H},
+            text: text,
+            font_size: 11.0,
+            font_color: CAT_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "20", y: "0" }
         }
     }
 }
