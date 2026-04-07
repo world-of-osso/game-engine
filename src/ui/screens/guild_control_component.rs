@@ -621,4 +621,34 @@ mod tests {
             );
         }
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_rank_name_editor() {
+        let reg = layout_registry();
+        let r = rect(&reg, "GuildControlRankNameEditor");
+        let frame_x = (1920.0 - FRAME_W) / 2.0;
+        let frame_y = (1080.0 - FRAME_H) / 2.0;
+        let expected_x = frame_x + SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP + 84.0;
+        assert!(
+            (r.x - expected_x).abs() < 1.0,
+            "editor x: expected {expected_x}, got {}",
+            r.x
+        );
+        assert!((r.y - (frame_y + CONTENT_TOP)).abs() < 1.0);
+        assert!((r.height - EDITOR_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_bank_perm_header() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_bank_perm_state());
+        Screen::new(guild_control_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let header = rect(&reg, "GuildControlBankPermHeaderTab");
+        assert!((header.height - BANK_TAB_ROW_H).abs() < 1.0);
+    }
 }
