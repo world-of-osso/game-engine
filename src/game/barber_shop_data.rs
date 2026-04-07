@@ -2,6 +2,22 @@ use bevy::prelude::*;
 
 use crate::auction_house_data::Money;
 
+/// Texture FDIDs for the barber shop frame.
+pub mod textures {
+    /// Left arrow button (normal state).
+    pub const ARROW_LEFT: u32 = 136487;
+    /// Right arrow button (normal state).
+    pub const ARROW_RIGHT: u32 = 136490;
+    /// Panel button (normal state) — used for Accept/Cancel.
+    pub const PANEL_BUTTON_UP: u32 = 130828;
+    /// Panel button (pressed state).
+    pub const PANEL_BUTTON_DOWN: u32 = 130825;
+    /// Panel button highlight.
+    pub const PANEL_BUTTON_HIGHLIGHT: u32 = 130826;
+    /// Model preview backdrop.
+    pub const MODEL_BACKDROP: u32 = 131081;
+}
+
 /// A single customization category with its available choices.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CustomizationDef {
@@ -194,5 +210,14 @@ mod tests {
         state.apply();
         assert_eq!(state.changed_count(), 0);
         assert_eq!(state.selected_value(0), "Style 2");
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::ARROW_LEFT, 0);
+        assert_ne!(textures::ARROW_RIGHT, 0);
+        assert_ne!(textures::PANEL_BUTTON_UP, 0);
+        assert_ne!(textures::PANEL_BUTTON_DOWN, 0);
+        assert_ne!(textures::MODEL_BACKDROP, 0);
     }
 }
