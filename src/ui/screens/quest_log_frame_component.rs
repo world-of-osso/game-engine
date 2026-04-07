@@ -37,6 +37,16 @@ const DETAIL_OBJ_ROW_H: f32 = 18.0;
 const DETAIL_OBJ_GAP: f32 = 2.0;
 const DETAIL_SECTION_GAP: f32 = 12.0;
 
+const REWARD_ICON_SIZE: f32 = 32.0;
+const REWARD_LABEL_H: f32 = 18.0;
+const REWARD_GAP: f32 = 8.0;
+const REWARD_NAME_W: f32 = 80.0;
+const REWARD_SLOT_W: f32 = REWARD_ICON_SIZE + REWARD_GAP;
+
+const ACTION_BTN_W: f32 = 110.0;
+const ACTION_BTN_H: f32 = 26.0;
+const ACTION_BTN_GAP: f32 = 8.0;
+
 // --- Colors ---
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
@@ -54,6 +64,15 @@ const DETAIL_DESC_COLOR: &str = "0.85,0.85,0.85,1.0";
 const OBJ_INCOMPLETE_COLOR: &str = "1.0,1.0,1.0,1.0";
 const OBJ_COMPLETE_COLOR: &str = "0.5,0.5,0.5,1.0";
 const LEVEL_COLOR: &str = "0.7,0.7,0.7,1.0";
+const REWARD_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
+const REWARD_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
+const REWARD_ICON_BG: &str = "0.08,0.08,0.08,0.8";
+const ACCEPT_BTN_BG: &str = "0.15,0.25,0.1,0.95";
+const ACCEPT_BTN_TEXT: &str = "0.2,1.0,0.2,1.0";
+const ABANDON_BTN_BG: &str = "0.25,0.08,0.08,0.95";
+const ABANDON_BTN_TEXT: &str = "1.0,0.3,0.3,1.0";
+const COMPLETE_BTN_BG: &str = "0.15,0.25,0.1,0.95";
+const COMPLETE_BTN_TEXT: &str = "0.2,1.0,0.2,1.0";
 
 // --- Data types ---
 
@@ -79,6 +98,13 @@ impl QuestLogObjective {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct QuestRewardItem {
+    pub name: String,
+    pub icon_fdid: u32,
+    pub quantity: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct QuestLogEntry {
     pub quest_id: u32,
     pub title: String,
@@ -86,6 +112,7 @@ pub struct QuestLogEntry {
     pub zone: String,
     pub description: String,
     pub objectives: Vec<QuestLogObjective>,
+    pub rewards: Vec<QuestRewardItem>,
     pub selected: bool,
 }
 
@@ -383,11 +410,18 @@ fn detail_content(quest: &QuestLogEntry, w: f32) -> Element {
     let inner_w = w - 16.0;
     let title_y: f32 = 8.0;
     let desc_y = title_y + DETAIL_TITLE_H + DETAIL_SECTION_GAP;
+    let obj_count = quest.objectives.len() as f32;
     let obj_y = desc_y + DETAIL_DESC_H + DETAIL_SECTION_GAP;
+    let obj_total_h =
+        DETAIL_OBJ_ROW_H + (obj_count * (DETAIL_OBJ_ROW_H + DETAIL_OBJ_GAP)) + DETAIL_SECTION_GAP;
+    let rewards_y = obj_y + obj_total_h;
+    let detail_h = FRAME_H - CONTENT_TOP - INSET;
     rsx! {
         {detail_title(quest, inner_w, title_y)}
         {detail_description(&quest.description, inner_w, desc_y)}
         {detail_objectives(&quest.objectives, inner_w, obj_y)}
+        {reward_items_row(&quest.rewards, inner_w, rewards_y)}
+        {action_buttons(quest.is_complete(), detail_h)}
     }
 }
 
@@ -491,6 +525,158 @@ fn objective_row(idx: usize, obj: &QuestLogObjective, w: f32, y: f32) -> Element
     }
 }
 
+// --- Reward items row ---
+
+fn reward_items_row(rewards: &[QuestRewardItem], w: f32, y: f32) -> Element {
+    let hide_rewards = rewards.is_empty();
+    let items: Element = rewards
+        .iter()
+        .enumerate()
+        .flat_map(|(i, reward)| reward_item_slot(i, reward))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "QuestLogRewards",
+            width: {w},
+            height: {REWARD_LABEL_H + REWARD_ICON_SIZE + 4.0},
+            hidden: hide_rewards,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "8",
+                y: {-y},
+            }
+            fontstring {
+                name: "QuestLogRewardsLabel",
+                width: {w},
+                height: {REWARD_LABEL_H},
+                text: "Rewards",
+                font_size: 12.0,
+                font_color: REWARD_HEADER_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "0",
+                    y: "0",
+                }
+            }
+            {items}
+        }
+    }
+}
+
+fn reward_item_slot(idx: usize, reward: &QuestRewardItem) -> Element {
+    let slot_id = DynName(format!("QuestLogReward{idx}"));
+    let icon_id = DynName(format!("QuestLogReward{idx}Icon"));
+    let name_id = DynName(format!("QuestLogReward{idx}Name"));
+    let x = idx as f32 * (REWARD_SLOT_W + REWARD_NAME_W + REWARD_GAP);
+    let quantity_label = if reward.quantity > 1 {
+        format!("{} x{}", reward.name, reward.quantity)
+    } else {
+        reward.name.clone()
+    };
+    rsx! {
+        r#frame {
+            name: slot_id,
+            width: {REWARD_SLOT_W + REWARD_NAME_W},
+            height: {REWARD_ICON_SIZE},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-REWARD_LABEL_H},
+            }
+            r#frame {
+                name: icon_id,
+                width: {REWARD_ICON_SIZE},
+                height: {REWARD_ICON_SIZE},
+                background_color: REWARD_ICON_BG,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "0",
+                    y: "0",
+                }
+            }
+            fontstring {
+                name: name_id,
+                width: {REWARD_NAME_W},
+                height: {REWARD_ICON_SIZE},
+                text: {quantity_label.as_str()},
+                font_size: 10.0,
+                font_color: REWARD_NAME_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {REWARD_SLOT_W},
+                    y: "0",
+                }
+            }
+        }
+    }
+}
+
+// --- Action buttons ---
+
+fn action_buttons(quest_complete: bool, panel_h: f32) -> Element {
+    let y = -(panel_h - ACTION_BTN_H - 8.0);
+    let (primary_label, primary_bg, primary_text) = if quest_complete {
+        ("Complete", COMPLETE_BTN_BG, COMPLETE_BTN_TEXT)
+    } else {
+        ("Accept", ACCEPT_BTN_BG, ACCEPT_BTN_TEXT)
+    };
+    let primary_x = 8.0;
+    let abandon_x = primary_x + ACTION_BTN_W + ACTION_BTN_GAP;
+    rsx! {
+        r#frame {
+            name: "QuestLogAcceptBtn",
+            width: {ACTION_BTN_W},
+            height: {ACTION_BTN_H},
+            background_color: primary_bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {primary_x},
+                y: {y},
+            }
+            fontstring {
+                name: "QuestLogAcceptBtnText",
+                width: {ACTION_BTN_W},
+                height: {ACTION_BTN_H},
+                text: primary_label,
+                font_size: 11.0,
+                font_color: primary_text,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+        r#frame {
+            name: "QuestLogAbandonBtn",
+            width: {ACTION_BTN_W},
+            height: {ACTION_BTN_H},
+            background_color: ABANDON_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {abandon_x},
+                y: {y},
+            }
+            fontstring {
+                name: "QuestLogAbandonBtnText",
+                width: {ACTION_BTN_W},
+                height: {ACTION_BTN_H},
+                text: "Abandon",
+                font_size: 11.0,
+                font_color: ABANDON_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -518,6 +704,18 @@ mod tests {
                         required: 5,
                     },
                 ],
+                rewards: vec![
+                    QuestRewardItem {
+                        name: "Outpost Blade".into(),
+                        icon_fdid: 100001,
+                        quantity: 1,
+                    },
+                    QuestRewardItem {
+                        name: "Gold Dust".into(),
+                        icon_fdid: 100002,
+                        quantity: 5,
+                    },
+                ],
                 selected: true,
             },
             QuestLogEntry {
@@ -531,6 +729,7 @@ mod tests {
                     current: 8,
                     required: 8,
                 }],
+                rewards: vec![],
                 selected: false,
             },
             QuestLogEntry {
@@ -543,6 +742,11 @@ mod tests {
                     text: "Commune with spirits".into(),
                     current: 1,
                     required: 3,
+                }],
+                rewards: vec![QuestRewardItem {
+                    name: "Spirit Totem".into(),
+                    icon_fdid: 200001,
+                    quantity: 1,
                 }],
                 selected: false,
             },
@@ -728,5 +932,127 @@ mod tests {
         assert_eq!(groups[0].1.len(), 2);
         assert_eq!(groups[1].0, "Desolace");
         assert_eq!(groups[1].1.len(), 1);
+    }
+
+    // --- Reward items tests ---
+
+    #[test]
+    fn builds_reward_items() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("QuestLogRewards").is_some());
+        assert!(reg.get_by_name("QuestLogRewardsLabel").is_some());
+        // Selected quest has 2 rewards
+        assert!(reg.get_by_name("QuestLogReward0").is_some());
+        assert!(reg.get_by_name("QuestLogReward0Icon").is_some());
+        assert!(reg.get_by_name("QuestLogReward0Name").is_some());
+        assert!(reg.get_by_name("QuestLogReward1").is_some());
+    }
+
+    #[test]
+    fn rewards_hidden_when_empty() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(QuestLogFrameState {
+            visible: true,
+            quests: vec![QuestLogEntry {
+                quest_id: 1,
+                title: "No Rewards".into(),
+                level: 10,
+                zone: "Test".into(),
+                description: "A quest with no rewards.".into(),
+                objectives: vec![],
+                rewards: vec![],
+                selected: true,
+            }],
+        });
+        Screen::new(quest_log_frame_screen).sync(&shared, &mut reg);
+        let id = reg.get_by_name("QuestLogRewards").expect("rewards frame");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn reward_quantity_label() {
+        let single = QuestRewardItem {
+            name: "Sword".into(),
+            icon_fdid: 1,
+            quantity: 1,
+        };
+        // quantity 1 → just the name
+        assert_eq!(single.name, "Sword");
+
+        let multi = QuestRewardItem {
+            name: "Gold Dust".into(),
+            icon_fdid: 2,
+            quantity: 5,
+        };
+        // quantity > 1 → "name xN" (tested via the rendered text)
+        assert!(multi.quantity > 1);
+    }
+
+    // --- Action buttons tests ---
+
+    #[test]
+    fn builds_action_buttons() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("QuestLogAcceptBtn").is_some());
+        assert!(reg.get_by_name("QuestLogAcceptBtnText").is_some());
+        assert!(reg.get_by_name("QuestLogAbandonBtn").is_some());
+        assert!(reg.get_by_name("QuestLogAbandonBtnText").is_some());
+    }
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn complete_button_for_finished_quest() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(QuestLogFrameState {
+            visible: true,
+            quests: vec![QuestLogEntry {
+                quest_id: 99,
+                title: "Done Quest".into(),
+                level: 10,
+                zone: "Test".into(),
+                description: "Already finished.".into(),
+                objectives: vec![QuestLogObjective {
+                    text: "Done".into(),
+                    current: 1,
+                    required: 1,
+                }],
+                rewards: vec![],
+                selected: true,
+            }],
+        });
+        Screen::new(quest_log_frame_screen).sync(&shared, &mut reg);
+        assert_eq!(fontstring_text(&reg, "QuestLogAcceptBtnText"), "Complete");
+    }
+
+    #[test]
+    fn accept_button_for_incomplete_quest() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "QuestLogAcceptBtnText"), "Accept");
+    }
+
+    #[test]
+    fn coord_action_buttons() {
+        let reg = layout_registry();
+        let detail_r = rect(&reg, "QuestLogDetail");
+        let accept_r = rect(&reg, "QuestLogAcceptBtn");
+        let abandon_r = rect(&reg, "QuestLogAbandonBtn");
+        // Buttons near bottom of detail panel
+        let expected_btn_bottom = detail_r.y + detail_r.height;
+        assert!((accept_r.y + accept_r.height - expected_btn_bottom).abs() < 10.0);
+        // Abandon is to the right of accept
+        assert!(abandon_r.x > accept_r.x);
+        assert!((accept_r.width - ACTION_BTN_W).abs() < 1.0);
+        assert!((abandon_r.width - ACTION_BTN_W).abs() < 1.0);
     }
 }
