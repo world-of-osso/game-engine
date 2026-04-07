@@ -484,32 +484,37 @@ fn form_row(prefix: &str, label: &str, value: &str, row: usize) -> Element {
 
 fn form_checkbox_row(voice_text: &str) -> Element {
     let y = -(FORM_INSET + 3.0 * (FORM_INPUT_H + FORM_ROW_GAP));
+    let check_x = FORM_INSET + FORM_LABEL_W + 4.0;
+    rsx! {
+        {form_check_box(voice_text, check_x, y)}
+        {form_check_label(check_x + ROLE_CHECK_SIZE + 4.0, y)}
+    }
+}
+
+fn form_check_box(text: &str, x: f32, y: f32) -> Element {
     rsx! {
         r#frame {
             name: "LFGFormVoiceCheck",
             width: {ROLE_CHECK_SIZE},
             height: {ROLE_CHECK_SIZE},
             background_color: CHECK_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FORM_INSET + FORM_LABEL_W + 4.0},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
             fontstring {
                 name: "LFGFormVoiceCheckText",
                 width: {ROLE_CHECK_SIZE},
                 height: {ROLE_CHECK_SIZE},
-                text: voice_text,
+                text: text,
                 font_size: 14.0,
                 font_color: CHECK_ON,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
+    }
+}
+
+fn form_check_label(x: f32, y: f32) -> Element {
+    rsx! {
         fontstring {
             name: "LFGFormVoiceLabel",
             width: {FORM_INPUT_W},
@@ -518,12 +523,7 @@ fn form_checkbox_row(voice_text: &str) -> Element {
             font_size: 10.0,
             font_color: FORM_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FORM_INSET + FORM_LABEL_W + 4.0 + ROLE_CHECK_SIZE + 4.0},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
         }
     }
 }
