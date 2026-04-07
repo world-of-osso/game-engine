@@ -45,6 +45,28 @@ const READY_COLOR: &str = "0.0,1.0,0.0,1.0";
 const CD_COLOR: &str = "1.0,0.5,0.0,1.0";
 const FOOTER_COLOR: &str = "0.8,0.8,0.8,1.0";
 
+// Crafting detail
+const REAGENT_SLOT_SIZE: f32 = 32.0;
+const REAGENT_SLOT_GAP: f32 = 4.0;
+const REAGENT_COLS: usize = 4;
+const CRAFT_BTN_W: f32 = 80.0;
+const CRAFT_BTN_H: f32 = 24.0;
+const QTY_INPUT_W: f32 = 50.0;
+const QTY_INPUT_H: f32 = 22.0;
+const QUALITY_BAR_W: f32 = 160.0;
+const QUALITY_BAR_H: f32 = 12.0;
+const DETAIL_INSET: f32 = 8.0;
+const REAGENT_BG: &str = "0.08,0.07,0.06,0.88";
+const CRAFT_BTN_BG: &str = "0.15,0.12,0.05,0.95";
+const CRAFT_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
+const QTY_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
+const QUALITY_BG: &str = "0.1,0.1,0.1,0.9";
+const QUALITY_FILL: &str = "0.8,0.6,0.0,0.9";
+const QUALITY_TEXT: &str = "1.0,1.0,1.0,0.9";
+const DETAIL_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
+
+pub const MAX_REAGENT_SLOTS: usize = 8;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct RecipeState {
     pub name: String,
@@ -60,10 +82,19 @@ pub struct ProfessionTab {
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
+pub struct CraftingDetail {
+    pub recipe_name: String,
+    pub reagent_count: usize,
+    pub quality: f32,
+    pub quality_text: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct ProfessionsFrameState {
     pub visible: bool,
     pub tabs: Vec<ProfessionTab>,
     pub recipes: Vec<RecipeState>,
+    pub crafting: CraftingDetail,
 }
 
 pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
@@ -90,6 +121,7 @@ pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
             {recipe_search_bar()}
             {recipe_list(&state.recipes)}
             {recipe_count_footer(state.recipes.len())}
+            {crafting_detail_panel(&state.crafting)}
         }
     }
 }
@@ -328,6 +360,134 @@ fn recipe_count_footer(count: usize) -> Element {
     }
 }
 
+// --- Crafting Detail ---
+
+fn crafting_detail_panel(detail: &CraftingDetail) -> Element {
+    let panel_y = -(FRAME_H - 8.0);
+    let panel_w = FRAME_W - 2.0 * DETAIL_INSET;
+    let reagent_grid = crafting_reagent_grid(detail.reagent_count);
+    let quality_fill_w = QUALITY_BAR_W * detail.quality.clamp(0.0, 1.0);
+    rsx! {
+        r#frame {
+            name: "CraftingDetailPanel",
+            width: {panel_w},
+            height: 160.0,
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {DETAIL_INSET},
+                y: {panel_y},
+            }
+            fontstring {
+                name: "CraftingDetailName",
+                width: {panel_w},
+                height: 18.0,
+                text: {detail.recipe_name.as_str()},
+                font_size: 12.0,
+                font_color: TITLE_COLOR,
+                justify_h: "LEFT",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+            {reagent_grid}
+            {crafting_quality_bar(quality_fill_w, &detail.quality_text)}
+            {crafting_quantity_and_button()}
+        }
+    }
+}
+
+fn crafting_reagent_grid(count: usize) -> Element {
+    let slots = count.min(MAX_REAGENT_SLOTS);
+    (0..slots)
+        .flat_map(|i| {
+            let col = i % REAGENT_COLS;
+            let row = i / REAGENT_COLS;
+            let x = col as f32 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP);
+            let y = -(22.0 + row as f32 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP));
+            let name = DynName(format!("CraftingReagent{i}"));
+            rsx! {
+                r#frame {
+                    name,
+                    width: {REAGENT_SLOT_SIZE},
+                    height: {REAGENT_SLOT_SIZE},
+                    background_color: REAGENT_BG,
+                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+                }
+            }
+        })
+        .collect()
+}
+
+fn crafting_quality_bar(fill_w: f32, text: &str) -> Element {
+    let y = -(22.0 + 2.0 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP) + 8.0);
+    rsx! {
+        r#frame {
+            name: "CraftingQualityBar",
+            width: {QUALITY_BAR_W},
+            height: {QUALITY_BAR_H},
+            background_color: QUALITY_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {y} }
+            r#frame {
+                name: "CraftingQualityFill",
+                width: {fill_w},
+                height: {QUALITY_BAR_H},
+                background_color: QUALITY_FILL,
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+            fontstring {
+                name: "CraftingQualityText",
+                width: {QUALITY_BAR_W},
+                height: {QUALITY_BAR_H},
+                text,
+                font_size: 8.0,
+                font_color: QUALITY_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
+fn crafting_quantity_and_button() -> Element {
+    let y = -(22.0 + 2.0 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP) + 8.0 + QUALITY_BAR_H + 8.0);
+    rsx! {
+        fontstring {
+            name: "CraftingQtyLabel",
+            width: 40.0,
+            height: {QTY_INPUT_H},
+            text: "Qty:",
+            font_size: 10.0,
+            font_color: DETAIL_LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {y} }
+        }
+        r#frame {
+            name: "CraftingQtyInput",
+            width: {QTY_INPUT_W},
+            height: {QTY_INPUT_H},
+            background_color: QTY_INPUT_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: 44.0, y: {y} }
+        }
+        r#frame {
+            name: "CraftingCraftButton",
+            width: {CRAFT_BTN_W},
+            height: {CRAFT_BTN_H},
+            background_color: CRAFT_BTN_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {44.0 + QTY_INPUT_W + 8.0}, y: {y} }
+            fontstring {
+                name: "CraftingCraftButtonText",
+                width: {CRAFT_BTN_W},
+                height: {CRAFT_BTN_H},
+                text: "Craft",
+                font_size: 10.0,
+                font_color: CRAFT_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -350,6 +510,7 @@ mod tests {
                 })
                 .collect(),
             tabs: vec![],
+            crafting: CraftingDetail::default(),
         }
     }
 
@@ -428,5 +589,35 @@ mod tests {
         Screen::new(professions_frame_screen).sync(&shared, &mut registry);
         assert!(registry.get_by_name("ProfessionsSearchBar").is_some());
         assert!(registry.get_by_name("ProfessionsSearchText").is_some());
+    }
+
+    #[test]
+    fn crafting_detail_builds_elements() {
+        let mut state = make_test_state(0);
+        state.crafting = CraftingDetail {
+            recipe_name: "Flask of the Titans".into(),
+            reagent_count: 4,
+            quality: 0.75,
+            quality_text: "Rank 3".into(),
+        };
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(professions_frame_screen).sync(&shared, &mut registry);
+
+        assert!(registry.get_by_name("CraftingDetailPanel").is_some());
+        assert!(registry.get_by_name("CraftingDetailName").is_some());
+        for i in 0..4 {
+            assert!(
+                registry
+                    .get_by_name(&format!("CraftingReagent{i}"))
+                    .is_some(),
+                "CraftingReagent{i} missing"
+            );
+        }
+        assert!(registry.get_by_name("CraftingQualityBar").is_some());
+        assert!(registry.get_by_name("CraftingQualityFill").is_some());
+        assert!(registry.get_by_name("CraftingQtyInput").is_some());
+        assert!(registry.get_by_name("CraftingCraftButton").is_some());
     }
 }
