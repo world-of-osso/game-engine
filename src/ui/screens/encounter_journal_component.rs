@@ -377,15 +377,10 @@ fn boss_list_panel(bosses: &[BossEntry], parent_h: f32) -> Element {
 fn boss_row(idx: usize, boss: &BossEntry) -> Element {
     let row_id = DynName(format!("EJBoss{idx}"));
     let label_id = DynName(format!("EJBoss{idx}Label"));
-    let bg = if boss.selected {
-        BOSS_SELECTED_BG
+    let (bg, color) = if boss.selected {
+        (BOSS_SELECTED_BG, BOSS_SELECTED_COLOR)
     } else {
-        BOSS_NORMAL_BG
-    };
-    let color = if boss.selected {
-        BOSS_SELECTED_COLOR
-    } else {
-        BOSS_NORMAL_COLOR
+        (BOSS_NORMAL_BG, BOSS_NORMAL_COLOR)
     };
     let y = -(idx as f32 * (BOSS_ROW_H + BOSS_ROW_GAP));
     rsx! {
@@ -400,21 +395,22 @@ fn boss_row(idx: usize, boss: &BossEntry) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {BOSS_LIST_W - 8.0},
-                height: {BOSS_ROW_H},
-                text: {boss.name.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
+            {boss_row_label(label_id, &boss.name, color)}
+        }
+    }
+}
+
+fn boss_row_label(id: DynName, text: &str, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {BOSS_LIST_W - 8.0},
+            height: {BOSS_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
         }
     }
 }
