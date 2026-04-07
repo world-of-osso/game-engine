@@ -330,40 +330,33 @@ fn stats_area(state: &CharacterFrameState) -> Element {
 }
 
 fn stat_row(id: &str, label: &str, value: &str, y_offset: f32) -> Element {
-    let label_id = DynName(format!("{id}Label"));
-    let value_id = DynName(format!("{id}Value"));
     let stat_w = FRAME_W - 2.0 * COLUMN_INSET;
     let half = stat_w / 2.0;
     rsx! {
+        {stat_label(DynName(format!("{id}Label")), label, half, y_offset, STAT_LABEL_COLOR, "LEFT", AnchorPoint::TopLeft)}
+        {stat_label(DynName(format!("{id}Value")), value, half, y_offset, STAT_VALUE_COLOR, "RIGHT", AnchorPoint::TopRight)}
+    }
+}
+
+fn stat_label(
+    id: DynName,
+    text: &str,
+    w: f32,
+    y_offset: f32,
+    color: &str,
+    justify: &str,
+    anchor_pt: AnchorPoint,
+) -> Element {
+    rsx! {
         fontstring {
-            name: label_id,
-            width: {half},
+            name: id,
+            width: {w},
             height: 14.0,
-            text: label,
+            text: text,
             font_size: 10.0,
-            font_color: STAT_LABEL_COLOR,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {-y_offset},
-            }
-        }
-        fontstring {
-            name: value_id,
-            width: {half},
-            height: 14.0,
-            text: value,
-            font_size: 10.0,
-            font_color: STAT_VALUE_COLOR,
-            justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "0",
-                y: {-y_offset},
-            }
+            font_color: color,
+            justify_h: justify,
+            anchor { point: anchor_pt, relative_point: anchor_pt, x: "0", y: {-y_offset} }
         }
     }
 }
