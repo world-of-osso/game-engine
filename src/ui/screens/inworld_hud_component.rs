@@ -884,4 +884,34 @@ mod tests {
             slot.height
         );
     }
+
+    // --- Minimap tests ---
+
+    fn minimap_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let shared = SharedContext::new();
+        Screen::new(minimap_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn minimap_builds_cluster_and_elements() {
+        let reg = minimap_registry();
+        assert!(reg.get_by_name("MinimapCluster").is_some());
+        assert!(reg.get_by_name("MinimapDisplay").is_some());
+        assert!(reg.get_by_name("MinimapBorder").is_some());
+        assert!(reg.get_by_name("MinimapArrow").is_some());
+        assert!(reg.get_by_name("MinimapZoneName").is_some());
+        assert!(reg.get_by_name("MinimapCoords").is_some());
+        assert!(reg.get_by_name("MinimapHeader").is_some());
+    }
+
+    #[test]
+    fn minimap_display_dimensions() {
+        let reg = minimap_registry();
+        let id = reg.get_by_name("MinimapDisplay").expect("display");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(MINIMAP_DISPLAY_SIZE));
+        assert_eq!(frame.height, Dimension::Fixed(MINIMAP_DISPLAY_SIZE));
+    }
 }
