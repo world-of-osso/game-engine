@@ -80,25 +80,13 @@ pub struct BankTabPermission {
     pub withdraw_limit: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct GuildControlState {
     pub visible: bool,
     pub ranks: Vec<GuildRank>,
     pub rank_name: String,
     pub permissions: Vec<PermissionRow>,
     pub bank_tab_permissions: Vec<BankTabPermission>,
-}
-
-impl Default for GuildControlState {
-    fn default() -> Self {
-        Self {
-            visible: false,
-            ranks: vec![],
-            rank_name: String::new(),
-            permissions: vec![],
-            bank_tab_permissions: vec![],
-        }
-    }
 }
 
 pub fn guild_control_screen(ctx: &SharedContext) -> Element {
@@ -338,7 +326,6 @@ fn bank_tab_permissions_panel(tabs: &[BankTabPermission]) -> Element {
     let panel_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
     let perm_grid_h = MAX_PERMISSIONS as f32 * (PERM_ROW_H + PERM_ROW_GAP);
     let panel_y = -(CONTENT_TOP + EDITOR_H + EDITOR_INSET + perm_grid_h + BANK_PERM_TOP_OFFSET);
-    let panel_w = FRAME_W - panel_x - SIDEBAR_INSET;
     let header = bank_perm_header(panel_x, panel_y);
     let rows: Element = tabs
         .iter()
@@ -650,5 +637,169 @@ mod tests {
 
         let header = rect(&reg, "GuildControlBankPermHeaderTab");
         assert!((header.height - BANK_TAB_ROW_H).abs() < 1.0);
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: GuildControlState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(guild_control_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "GuildControlTitle"), "Guild Control");
+    }
+
+    #[test]
+    fn rank_sidebar_labels() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlRank0Label"),
+            "Guild Master"
+        );
+        assert_eq!(fontstring_text(&reg, "GuildControlRank1Label"), "Officer");
+        assert_eq!(fontstring_text(&reg, "GuildControlRank2Label"), "Member");
+    }
+
+    #[test]
+    fn rank_name_editor_text() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlRankNameLabel"),
+            "Rank Name:"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlRankNameText"),
+            "Guild Master"
+        );
+    }
+
+    #[test]
+    fn permission_labels_and_checks() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlPerm0Label"),
+            "Invite Members"
+        );
+        assert_eq!(fontstring_text(&reg, "GuildControlPerm0CheckText"), "✓");
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlPerm3Label"),
+            "Edit Public Note"
+        );
+        assert_eq!(fontstring_text(&reg, "GuildControlPerm3CheckText"), "");
+    }
+
+    #[test]
+    fn bank_perm_header_text() {
+        let reg = bank_perm_registry();
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankPermHeaderTab"),
+            "Bank Tab"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankPermHeaderView"),
+            "View"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankPermHeaderDeposit"),
+            "Deposit"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankPermHeaderWithdraw"),
+            "Withdraw"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankPermHeaderLimit"),
+            "Limit"
+        );
+    }
+
+    #[test]
+    fn bank_tab_perm_row_text() {
+        let reg = bank_perm_registry();
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab0Name"), "Tab 1");
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab0ViewText"), "✓");
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankTab0DepositText"),
+            "✓"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankTab0WithdrawText"),
+            "✓"
+        );
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab0Limit"), "50");
+    }
+
+    #[test]
+    fn bank_tab_perm_unchecked_row() {
+        let reg = bank_perm_registry();
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab1Name"), "Tab 2");
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab1ViewText"), "✓");
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab1DepositText"), "");
+        assert_eq!(
+            fontstring_text(&reg, "GuildControlBankTab1WithdrawText"),
+            ""
+        );
+        assert_eq!(fontstring_text(&reg, "GuildControlBankTab1Limit"), "0");
+    }
+
+    #[test]
+    fn max_ranks_capped() {
+        let mut state = make_test_state();
+        state.ranks = (0..15)
+            .map(|i| GuildRank {
+                name: format!("Rank {i}"),
+                selected: i == 0,
+            })
+            .collect();
+        let reg = build_with_state(state);
+        for i in 0..MAX_RANKS {
+            assert!(
+                reg.get_by_name(&format!("GuildControlRank{i}")).is_some(),
+                "GuildControlRank{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("GuildControlRank{MAX_RANKS}"))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn max_permissions_capped() {
+        let mut state = make_test_state();
+        state.permissions = (0..16)
+            .map(|i| PermissionRow {
+                label: format!("Perm {i}"),
+                checked: false,
+            })
+            .collect();
+        let reg = build_with_state(state);
+        for i in 0..MAX_PERMISSIONS {
+            assert!(
+                reg.get_by_name(&format!("GuildControlPerm{i}Check"))
+                    .is_some(),
+                "GuildControlPerm{i}Check missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("GuildControlPerm{MAX_PERMISSIONS}Check"))
+                .is_none()
+        );
     }
 }
