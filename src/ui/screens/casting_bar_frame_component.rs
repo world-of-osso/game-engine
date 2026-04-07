@@ -296,4 +296,118 @@ mod tests {
         );
         assert!((spark.width - SPARK_W).abs() < 1.0);
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: CastingBarState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(casting_bar_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn spell_name_displayed() {
+        let reg = build_registry(0.5);
+        assert_eq!(fontstring_text(&reg, "CastingBarSpellName"), "Fireball");
+    }
+
+    #[test]
+    fn timer_text_displayed() {
+        let reg = build_registry(0.5);
+        assert_eq!(fontstring_text(&reg, "CastingBarTimer"), "1.5s");
+    }
+
+    #[test]
+    fn fill_width_zero_progress() {
+        let reg = build_registry(0.0);
+        let id = reg.get_by_name("CastingBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(0.0));
+    }
+
+    #[test]
+    fn fill_width_full_progress() {
+        let reg = build_registry(1.0);
+        let id = reg.get_by_name("CastingBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(BAR_W));
+    }
+
+    #[test]
+    fn fill_width_clamped_above_one() {
+        let reg = build_registry(1.5);
+        let id = reg.get_by_name("CastingBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(BAR_W));
+    }
+
+    #[test]
+    fn channel_spell_name_displayed() {
+        let state = CastingBarState {
+            visible: true,
+            spell_name: "Drain Life".into(),
+            timer_text: "3.0s".into(),
+            progress: 0.8,
+            is_channel: true,
+            is_interruptible: true,
+        };
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "CastingBarSpellName"), "Drain Life");
+        assert_eq!(fontstring_text(&reg, "CastingBarTimer"), "3.0s");
+    }
+
+    #[test]
+    fn channel_fill_width() {
+        let state = CastingBarState {
+            visible: true,
+            spell_name: "Drain Life".into(),
+            timer_text: "3.0s".into(),
+            progress: 0.8,
+            is_channel: true,
+            is_interruptible: true,
+        };
+        let reg = build_with_state(state);
+        let id = reg.get_by_name("CastingBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        let expected = BAR_W * 0.8;
+        assert_eq!(frame.width, Dimension::Fixed(expected));
+    }
+
+    #[test]
+    fn spark_at_zero_progress() {
+        let reg = layout_reg(0.0);
+        let bg = rect(&reg, "CastingBarBackground");
+        let spark = rect(&reg, "CastingBarSpark");
+        let expected_x = bg.x - SPARK_W / 2.0;
+        assert!(
+            (spark.x - expected_x).abs() < 1.0,
+            "spark at 0: expected {expected_x}, got {}",
+            spark.x
+        );
+    }
+
+    #[test]
+    fn spark_at_full_progress() {
+        let reg = layout_reg(1.0);
+        let bg = rect(&reg, "CastingBarBackground");
+        let spark = rect(&reg, "CastingBarSpark");
+        let expected_x = bg.x + BAR_W - SPARK_W / 2.0;
+        assert!(
+            (spark.x - expected_x).abs() < 1.0,
+            "spark at 1.0: expected {expected_x}, got {}",
+            spark.x
+        );
+    }
 }
