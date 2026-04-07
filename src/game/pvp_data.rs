@@ -162,4 +162,112 @@ mod tests {
         assert_ne!(textures::HORDE_EMBLEM, 0);
         assert_ne!(textures::HONOR_BAR_FILL, 0);
     }
+
+    // --- Bracket rating ---
+
+    #[test]
+    fn all_brackets_accessible() {
+        let mut state = PVPState::default();
+        state.brackets[0].rating = 1500;
+        state.brackets[1].rating = 2100;
+        state.brackets[2].rating = 1600;
+        state.brackets[3].rating = 1900;
+        assert_eq!(state.bracket(PVPBracket::Arena2v2).rating, 1500);
+        assert_eq!(state.bracket(PVPBracket::Arena3v3).rating, 2100);
+        assert_eq!(state.bracket(PVPBracket::RatedBG).rating, 1600);
+        assert_eq!(state.bracket(PVPBracket::SoloShuffle).rating, 1900);
+    }
+
+    #[test]
+    fn win_rate_all_wins() {
+        let stats = BracketStats {
+            season_wins: 50,
+            season_losses: 0,
+            ..Default::default()
+        };
+        assert!((stats.win_rate() - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn win_rate_all_losses() {
+        let stats = BracketStats {
+            season_wins: 0,
+            season_losses: 30,
+            ..Default::default()
+        };
+        assert_eq!(stats.win_rate(), 0.0);
+    }
+
+    #[test]
+    fn weekly_record_separate_from_season() {
+        let stats = BracketStats {
+            rating: 1800,
+            season_wins: 100,
+            season_losses: 50,
+            weekly_wins: 10,
+            weekly_losses: 5,
+        };
+        assert_eq!(stats.season_record(), "100 - 50");
+        // Weekly is tracked independently
+        assert_eq!(stats.weekly_wins, 10);
+        assert_eq!(stats.weekly_losses, 5);
+    }
+
+    // --- Queue state transitions ---
+
+    #[test]
+    fn queue_state_transitions() {
+        let mut state = PVPState::default();
+        assert_eq!(state.queue, QueueState::Idle);
+        assert!(!state.is_queued());
+
+        state.queue = QueueState::Queued;
+        assert!(state.is_queued());
+
+        state.queue = QueueState::InProgress;
+        assert!(!state.is_queued()); // in_progress is not "queued"
+    }
+
+    #[test]
+    fn queue_in_progress_not_idle() {
+        let state = PVPState {
+            queue: QueueState::InProgress,
+            ..Default::default()
+        };
+        assert!(!state.is_queued());
+        assert!(!matches!(state.queue, QueueState::Idle));
+    }
+
+    // --- Currency tracking ---
+
+    #[test]
+    fn honor_at_cap() {
+        let state = PVPState {
+            honor: 15000,
+            honor_max: 15000,
+            ..Default::default()
+        };
+        assert_eq!(state.honor_text(), "15000/15000");
+    }
+
+    #[test]
+    fn conquest_at_zero() {
+        let state = PVPState {
+            conquest: 0,
+            conquest_max: 1800,
+            ..Default::default()
+        };
+        assert_eq!(state.conquest_text(), "0/1800");
+    }
+
+    #[test]
+    fn default_state_zeroed() {
+        let state = PVPState::default();
+        assert_eq!(state.honor, 0);
+        assert_eq!(state.conquest, 0);
+        assert_eq!(state.queue, QueueState::Idle);
+        for b in &state.brackets {
+            assert_eq!(b.rating, 0);
+        }
+    }
 }
