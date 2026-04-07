@@ -227,4 +227,79 @@ mod tests {
         assert!((r.width - BAR_W).abs() < 1.0);
         assert!((r.height - BAR_H).abs() < 1.0);
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn ability_name_displayed() {
+        let reg = build_registry(3.0, 6.0);
+        assert_eq!(
+            fontstring_text(&reg, "LossOfControlName"),
+            "Hammer of Justice"
+        );
+    }
+
+    #[test]
+    fn duration_text_displayed() {
+        let reg = build_registry(3.2, 6.0);
+        assert_eq!(fontstring_text(&reg, "LossOfControlDuration"), "4s");
+    }
+
+    #[test]
+    fn duration_text_at_one_second() {
+        let reg = build_registry(0.5, 6.0);
+        assert_eq!(fontstring_text(&reg, "LossOfControlDuration"), "1s");
+    }
+
+    // --- Progress edge cases ---
+
+    #[test]
+    fn progress_zero_when_total_zero() {
+        let state = LossOfControlState {
+            duration_remaining: 5.0,
+            duration_total: 0.0,
+            ..make_state(5.0, 0.0)
+        };
+        assert_eq!(state.progress(), 0.0);
+    }
+
+    #[test]
+    fn progress_clamped_to_one() {
+        let state = make_state(10.0, 6.0);
+        assert_eq!(state.progress(), 1.0);
+    }
+
+    #[test]
+    fn fill_width_zero_progress() {
+        let reg = build_registry(0.0, 6.0);
+        let id = reg.get_by_name("LossOfControlBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(0.0));
+    }
+
+    #[test]
+    fn fill_width_full_progress() {
+        let reg = build_registry(6.0, 6.0);
+        let id = reg.get_by_name("LossOfControlBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(BAR_W));
+    }
+
+    #[test]
+    fn fill_width_zero_total() {
+        let reg = build_registry(5.0, 0.0);
+        let id = reg.get_by_name("LossOfControlBarFill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(0.0));
+    }
 }
