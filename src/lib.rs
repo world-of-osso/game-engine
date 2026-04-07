@@ -10,6 +10,8 @@ pub mod auction_house;
 pub mod auction_house_data;
 #[path = "game/bag_data.rs"]
 pub mod bag_data;
+#[path = "game/barber_shop_data.rs"]
+pub mod barber_shop_data;
 pub mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;
