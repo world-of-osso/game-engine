@@ -34,6 +34,9 @@ const BAG_SLOT_SIZE: f32 = 30.0;
 const BAG_SLOT_GAP: f32 = 4.0;
 const BAG_SLOT_BG: &str = "0.06,0.05,0.04,0.82";
 const BAG_COUNT: usize = 4;
+const MONEY_DISPLAY_W: f32 = 160.0;
+const MONEY_DISPLAY_H: f32 = 14.0;
+const MONEY_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
 const MINIMAP_ZONE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const MINIMAP_COORDS_COLOR: &str = "1.0,1.0,1.0,1.0";
 const MINIMAP_HEADER_BG: &str = "0.06,0.05,0.04,0.92";
@@ -455,11 +458,12 @@ fn bag_bar() -> Element {
         })
         .collect();
     let total_w = (BAG_COUNT as f32 + 1.0) * BAG_SLOT_SIZE + BAG_COUNT as f32 * BAG_SLOT_GAP;
+    let bar_h = BAG_SLOT_SIZE + MONEY_DISPLAY_H + 4.0;
     rsx! {
         r#frame {
             name: "BagsBar",
             width: {total_w},
-            height: {BAG_SLOT_SIZE},
+            height: {bar_h},
             anchor {
                 point: AnchorPoint::BottomRight,
                 relative_point: AnchorPoint::BottomRight,
@@ -468,6 +472,28 @@ fn bag_bar() -> Element {
             }
             {backpack}
             {bags}
+            {money_display(total_w)}
+        }
+    }
+}
+
+fn money_display(parent_w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "BagsBarMoneyDisplay",
+            width: {MONEY_DISPLAY_W},
+            height: {MONEY_DISPLAY_H},
+            text: "0g 0s 0c",
+            font: "ArialNarrow",
+            font_size: 11.0,
+            font_color: MONEY_TEXT_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "0",
+                y: {-(BAG_SLOT_SIZE + 4.0)},
+            }
         }
     }
 }
@@ -779,6 +805,15 @@ mod tests {
                 "CharacterBag{i}Slot missing"
             );
         }
+    }
+
+    #[test]
+    fn bag_bar_has_money_display() {
+        let reg = action_bar_registry();
+        assert!(
+            reg.get_by_name("BagsBarMoneyDisplay").is_some(),
+            "money display missing"
+        );
     }
 
     // --- Coord validation ---
