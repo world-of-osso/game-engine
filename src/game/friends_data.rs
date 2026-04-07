@@ -1,5 +1,21 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the friends frame.
+pub mod textures {
+    // Frame chrome
+    pub const FRAME_TOP_LEFT: u32 = 131130;
+    pub const FRAME_BOTTOM_LEFT: u32 = 131125;
+    pub const FRAME_BOTTOM_RIGHT: u32 = 131126;
+    pub const HIGHLIGHT_BAR: u32 = 131128;
+    // Status icons
+    pub const STATUS_ONLINE: u32 = 374226;
+    pub const STATUS_AWAY: u32 = 374223;
+    pub const STATUS_DND: u32 = 374224;
+    pub const STATUS_OFFLINE: u32 = 374225;
+    // Game icons
+    pub const GAME_WOW: u32 = 374212;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PresenceState {
     Online,
@@ -148,5 +164,13 @@ mod tests {
         let state = FriendsState::default();
         assert_eq!(state.total_friends(), 0);
         assert_eq!(state.total_online(), 0);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_TOP_LEFT, 0);
+        assert_ne!(textures::STATUS_ONLINE, 0);
+        assert_ne!(textures::STATUS_OFFLINE, 0);
+        assert_ne!(textures::GAME_WOW, 0);
     }
 }
