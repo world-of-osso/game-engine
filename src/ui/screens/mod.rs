@@ -13,6 +13,7 @@ pub mod character_frame_component;
 pub mod communities_frame_component;
 pub mod dress_up_frame_component;
 pub mod encounter_journal_component;
+pub mod friends_frame_component;
 pub mod game_menu_component;
 pub mod inworld_hud_component;
 pub mod inworld_selection_debug_component;
