@@ -289,22 +289,24 @@ fn category_row_label(id: DynName, text: &str, w: f32, x: f32, color: &str) -> E
     }
 }
 
+fn build_achievement_rows(achievements: &[AchievementRow], row_w: f32) -> Element {
+    achievements
+        .iter()
+        .enumerate()
+        .take(MAX_VISIBLE_ACHIEVEMENTS)
+        .flat_map(|(i, row)| {
+            achievement_row(i, row, row_w, -(ROW_INSET + i as f32 * (ROW_H + ROW_GAP)))
+        })
+        .collect()
+}
+
 fn content_area(achievements: &[AchievementRow]) -> Element {
     let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_INSET;
     let content_y = -SIDEBAR_TOP;
     let content_w = FRAME_W - content_x - SIDEBAR_INSET;
     let content_h = FRAME_H - SIDEBAR_TOP - SIDEBAR_INSET;
     let has_rows = !achievements.is_empty();
-    let rows: Element = achievements
-        .iter()
-        .enumerate()
-        .take(MAX_VISIBLE_ACHIEVEMENTS)
-        .flat_map(|(i, row)| {
-            let row_y = -(ROW_INSET + i as f32 * (ROW_H + ROW_GAP));
-            achievement_row(i, row, content_w - 2.0 * ROW_INSET, row_y)
-        })
-        .collect();
-    let placeholder_hidden = has_rows;
+    let rows = build_achievement_rows(achievements, content_w - 2.0 * ROW_INSET);
     rsx! {
         r#frame {
             name: "AchievementContentArea",
@@ -317,23 +319,24 @@ fn content_area(achievements: &[AchievementRow]) -> Element {
                 x: {content_x},
                 y: {content_y},
             }
-            fontstring {
-                name: "AchievementContentPlaceholder",
-                width: {content_w},
-                height: 20.0,
-                text: "Select a category",
-                font_size: 11.0,
-                font_color: CONTENT_PLACEHOLDER_COLOR,
-                hidden: placeholder_hidden,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: "-20",
-                }
-            }
+            {content_placeholder(content_w, has_rows)}
             {rows}
+        }
+    }
+}
+
+fn content_placeholder(w: f32, has_rows: bool) -> Element {
+    rsx! {
+        fontstring {
+            name: "AchievementContentPlaceholder",
+            width: {w},
+            height: 20.0,
+            text: "Select a category",
+            font_size: 11.0,
+            font_color: CONTENT_PLACEHOLDER_COLOR,
+            hidden: has_rows,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "-20" }
         }
     }
 }
