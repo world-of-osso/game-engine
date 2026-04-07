@@ -599,4 +599,146 @@ mod tests {
             center: super::vertex_index(quad_row * 2 + 1, quad_col) as u32,
         }
     }
+
+    // --- Low-res hole bitmask (4×4 grid, 16 bits) ---
+
+    #[test]
+    fn low_res_no_holes() {
+        for r in 0..4 {
+            for c in 0..4 {
+                assert!(!super::low_res_hole_at(0x0000, c, r));
+            }
+        }
+    }
+
+    #[test]
+    fn low_res_all_holes() {
+        for r in 0..4 {
+            for c in 0..4 {
+                assert!(super::low_res_hole_at(0xFFFF, c, r));
+            }
+        }
+    }
+
+    #[test]
+    fn low_res_single_hole_bit0() {
+        // Bit 0 = row 0, col 0
+        assert!(super::low_res_hole_at(0x0001, 0, 0));
+        assert!(!super::low_res_hole_at(0x0001, 1, 0));
+        assert!(!super::low_res_hole_at(0x0001, 0, 1));
+    }
+
+    #[test]
+    fn low_res_single_hole_bit5() {
+        // Bit 5 = row 1, col 1 (row*4 + col)
+        assert!(super::low_res_hole_at(0x0020, 1, 1));
+        assert!(!super::low_res_hole_at(0x0020, 0, 0));
+    }
+
+    #[test]
+    fn low_res_last_bit() {
+        // Bit 15 = row 3, col 3
+        assert!(super::low_res_hole_at(0x8000, 3, 3));
+        assert!(!super::low_res_hole_at(0x8000, 0, 0));
+    }
+
+    #[test]
+    fn low_res_out_of_bounds() {
+        assert!(!super::low_res_hole_at(0xFFFF, 4, 0));
+        assert!(!super::low_res_hole_at(0xFFFF, 0, 4));
+    }
+
+    // --- High-res hole bitmask (8×8 grid, 64 bits) ---
+
+    #[test]
+    fn high_res_no_holes() {
+        for r in 0..8 {
+            for c in 0..8 {
+                assert!(!super::high_res_hole_at(0, c, r));
+            }
+        }
+    }
+
+    #[test]
+    fn high_res_all_holes() {
+        for r in 0..8 {
+            for c in 0..8 {
+                assert!(super::high_res_hole_at(u64::MAX, c, r));
+            }
+        }
+    }
+
+    #[test]
+    fn high_res_single_hole_bit0() {
+        assert!(super::high_res_hole_at(1, 0, 0));
+        assert!(!super::high_res_hole_at(1, 1, 0));
+    }
+
+    #[test]
+    fn high_res_single_hole_bit9() {
+        // Bit 9 = row 1, col 1 (row*8 + col)
+        assert!(super::high_res_hole_at(1 << 9, 1, 1));
+        assert!(!super::high_res_hole_at(1 << 9, 0, 0));
+    }
+
+    #[test]
+    fn high_res_last_bit() {
+        // Bit 63 = row 7, col 7
+        assert!(super::high_res_hole_at(1 << 63, 7, 7));
+        assert!(!super::high_res_hole_at(1 << 63, 0, 0));
+    }
+
+    #[test]
+    fn high_res_out_of_bounds() {
+        assert!(!super::high_res_hole_at(u64::MAX, 8, 0));
+        assert!(!super::high_res_hole_at(u64::MAX, 0, 8));
+    }
+
+    // --- terrain_hole_at dispatch ---
+
+    #[test]
+    fn terrain_hole_prefers_high_res() {
+        // High-res has hole at (0,0), low-res does not
+        assert!(super::terrain_hole_at(0x0000, Some(1), 0, 0));
+    }
+
+    #[test]
+    fn terrain_hole_falls_back_to_low_res() {
+        // No high-res → uses low-res. Col 0, row 0 in 8×8 maps to col/2=0, row/2=0 in 4×4
+        assert!(super::terrain_hole_at(0x0001, None, 0, 0));
+        assert!(super::terrain_hole_at(0x0001, None, 1, 0)); // col 1 → col/2 = 0
+        assert!(!super::terrain_hole_at(0x0001, None, 2, 0)); // col 2 → col/2 = 1
+    }
+
+    // --- build_mcnk_indices with holes ---
+
+    #[test]
+    fn indices_no_holes_full_mesh() {
+        let indices = super::build_mcnk_indices(0, None);
+        // 8×8 quads × 4 triangles × 3 indices = 768
+        assert_eq!(indices.len(), 768);
+    }
+
+    #[test]
+    fn indices_all_holes_empty() {
+        let indices = super::build_mcnk_indices(0xFFFF, None);
+        assert!(indices.is_empty());
+    }
+
+    #[test]
+    fn indices_one_low_res_hole_removes_quads() {
+        // Bit 0 = low-res hole at (col 0, row 0) → covers 8×8 quads (0,0) and (1,0) and (0,1) and (1,1)
+        let full = super::build_mcnk_indices(0, None);
+        let with_hole = super::build_mcnk_indices(0x0001, None);
+        // 4 quads removed (2×2 in the 8×8 grid), each had 4 tris × 3 = 12 indices
+        assert_eq!(full.len() - with_hole.len(), 4 * 12);
+    }
+
+    #[test]
+    fn indices_high_res_single_hole() {
+        let full = super::build_mcnk_indices(0, None);
+        let with_hole = super::build_mcnk_indices(0, Some(1)); // hole at (0,0) only
+        // 1 quad removed = 4 tris × 3 = 12 indices
+        assert_eq!(full.len() - with_hole.len(), 12);
+    }
 }
