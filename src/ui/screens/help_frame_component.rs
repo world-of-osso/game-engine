@@ -331,12 +331,15 @@ fn detail_body_label(text: &str, w: f32, h: f32) -> Element {
     }
 }
 
-fn ticket_form_panel(ticket: &TicketFormState) -> Element {
+fn ticket_form_panel(_ticket: &TicketFormState) -> Element {
     let buttons_h = CATEGORY_BUTTONS.len() as f32 * (BUTTON_H + BUTTON_GAP);
     let panel_y = -(BUTTON_TOP + buttons_h);
     let panel_w = FRAME_W - 2.0 * CONTENT_INSET;
     let panel_h = FRAME_H - BUTTON_TOP - buttons_h - CONTENT_INSET;
     let input_w = panel_w - TICKET_LABEL_W - 3.0 * ARTICLE_INSET;
+    let input_x = ARTICLE_INSET + TICKET_LABEL_W + ARTICLE_INSET;
+    let row2_y = -(ARTICLE_INSET + TICKET_INPUT_H + ARTICLE_INSET);
+    let btn_y = row2_y - TICKET_TEXTAREA_H - ARTICLE_INSET;
     rsx! {
         r#frame {
             name: "HelpTicketForm",
@@ -349,84 +352,59 @@ fn ticket_form_panel(ticket: &TicketFormState) -> Element {
                 x: {CONTENT_INSET},
                 y: {panel_y},
             }
+            {ticket_field_label("HelpTicketCategoryLabel", "Category:", -ARTICLE_INSET)}
+            {ticket_field_input("HelpTicketCategoryInput", input_w, TICKET_INPUT_H, input_x, -ARTICLE_INSET)}
+            {ticket_field_label("HelpTicketDescLabel", "Description:", row2_y)}
+            {ticket_field_input("HelpTicketDescInput", input_w, TICKET_TEXTAREA_H, input_x, row2_y)}
+            {ticket_submit_button(input_x, btn_y)}
+        }
+    }
+}
+
+fn ticket_field_label(name: &str, text: &str, y: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: DynName(name.into()),
+            width: {TICKET_LABEL_W},
+            height: {TICKET_INPUT_H},
+            text: text,
+            font_size: 10.0,
+            font_color: TICKET_LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {ARTICLE_INSET}, y: {y} }
+        }
+    }
+}
+
+fn ticket_field_input(name: &str, w: f32, h: f32, x: f32, y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: DynName(name.into()),
+            width: {w},
+            height: {h},
+            background_color: TICKET_INPUT_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+        }
+    }
+}
+
+fn ticket_submit_button(x: f32, y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: "HelpTicketSubmitButton",
+            width: {TICKET_BTN_W},
+            height: {TICKET_BTN_H},
+            background_color: TICKET_BTN_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
             fontstring {
-                name: "HelpTicketCategoryLabel",
-                width: {TICKET_LABEL_W},
-                height: {TICKET_INPUT_H},
-                text: "Category:",
-                font_size: 10.0,
-                font_color: TICKET_LABEL_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {ARTICLE_INSET},
-                    y: {-ARTICLE_INSET},
-                }
-            }
-            r#frame {
-                name: "HelpTicketCategoryInput",
-                width: {input_w},
-                height: {TICKET_INPUT_H},
-                background_color: TICKET_INPUT_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {ARTICLE_INSET + TICKET_LABEL_W + ARTICLE_INSET},
-                    y: {-ARTICLE_INSET},
-                }
-            }
-            fontstring {
-                name: "HelpTicketDescLabel",
-                width: {TICKET_LABEL_W},
-                height: {TICKET_INPUT_H},
-                text: "Description:",
-                font_size: 10.0,
-                font_color: TICKET_LABEL_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {ARTICLE_INSET},
-                    y: {-(ARTICLE_INSET + TICKET_INPUT_H + ARTICLE_INSET)},
-                }
-            }
-            r#frame {
-                name: "HelpTicketDescInput",
-                width: {input_w},
-                height: {TICKET_TEXTAREA_H},
-                background_color: TICKET_INPUT_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {ARTICLE_INSET + TICKET_LABEL_W + ARTICLE_INSET},
-                    y: {-(ARTICLE_INSET + TICKET_INPUT_H + ARTICLE_INSET)},
-                }
-            }
-            r#frame {
-                name: "HelpTicketSubmitButton",
+                name: "HelpTicketSubmitButtonText",
                 width: {TICKET_BTN_W},
                 height: {TICKET_BTN_H},
-                background_color: TICKET_BTN_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {ARTICLE_INSET + TICKET_LABEL_W + ARTICLE_INSET},
-                    y: {-(ARTICLE_INSET + TICKET_INPUT_H + ARTICLE_INSET + TICKET_TEXTAREA_H + ARTICLE_INSET)},
-                }
-                fontstring {
-                    name: "HelpTicketSubmitButtonText",
-                    width: {TICKET_BTN_W},
-                    height: {TICKET_BTN_H},
-                    text: "Submit",
-                    font_size: 10.0,
-                    font_color: TICKET_BTN_TEXT,
-                    justify_h: "CENTER",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                    }
-                }
+                text: "Submit",
+                font_size: 10.0,
+                font_color: TICKET_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
     }
