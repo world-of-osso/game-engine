@@ -178,34 +178,38 @@ fn character_center_info(state: &CharacterFrameState) -> Element {
                 x: {center_x},
                 y: {-(HEADER_H + SLOT_GAP)},
             }
-            fontstring {
-                name: "CharacterFrameName",
-                width: {center_w},
-                height: 18.0,
-                text: {state.character_name.as_str()},
-                font_size: 14.0,
-                font_color: INFO_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                }
-            }
-            fontstring {
-                name: "CharacterFrameLevelClass",
-                width: {center_w},
-                height: 14.0,
-                text: {level_class.as_str()},
-                font_size: 11.0,
-                font_color: SLOT_LABEL_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: "-20",
-                }
-            }
+            {center_name_label(&state.character_name, center_w)}
+            {center_level_class_label(&level_class, center_w)}
+        }
+    }
+}
+
+fn center_name_label(name: &str, w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "CharacterFrameName",
+            width: {w},
+            height: 18.0,
+            text: name,
+            font_size: 14.0,
+            font_color: INFO_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+        }
+    }
+}
+
+fn center_level_class_label(text: &str, w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "CharacterFrameLevelClass",
+            width: {w},
+            height: 14.0,
+            text: text,
+            font_size: 11.0,
+            font_color: SLOT_LABEL_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "-20" }
         }
     }
 }
