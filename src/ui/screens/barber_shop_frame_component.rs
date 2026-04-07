@@ -491,4 +491,135 @@ mod tests {
             "button spacing: expected {expected}, got {spacing}"
         );
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: BarberShopFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(barber_shop_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "BarberShopFrameTitle"), "Barber Shop");
+    }
+
+    #[test]
+    fn option_row_labels_and_values() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopOption0Label"),
+            "Hair Style"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopOption0ValueText"),
+            "Style 3"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopOption1Label"),
+            "Hair Color"
+        );
+        assert_eq!(fontstring_text(&reg, "BarberShopOption1ValueText"), "Brown");
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopOption2Label"),
+            "Facial Hair"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopOption2ValueText"),
+            "Goatee"
+        );
+    }
+
+    #[test]
+    fn arrow_button_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "BarberShopOption0LeftText"), "<");
+        assert_eq!(fontstring_text(&reg, "BarberShopOption0RightText"), ">");
+    }
+
+    #[test]
+    fn cost_display_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "BarberShopCost"), "1g 50s");
+    }
+
+    #[test]
+    fn cost_display_free() {
+        let state = BarberShopFrameState {
+            visible: true,
+            options: sample_options(),
+            cost: "Free".into(),
+        };
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "BarberShopCost"), "Free");
+    }
+
+    #[test]
+    fn accept_cancel_button_labels() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopAcceptButtonText"),
+            "Accept"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "BarberShopCancelButtonText"),
+            "Cancel"
+        );
+    }
+
+    #[test]
+    fn empty_options_builds_no_rows() {
+        let state = BarberShopFrameState {
+            visible: true,
+            options: vec![],
+            cost: "Free".into(),
+        };
+        let reg = build_with_state(state);
+        assert!(reg.get_by_name("BarberShopOption0").is_none());
+        // Buttons and cost still present
+        assert!(reg.get_by_name("BarberShopAcceptButton").is_some());
+        assert!(reg.get_by_name("BarberShopCost").is_some());
+    }
+
+    #[test]
+    fn max_option_rows_capped() {
+        let options: Vec<CustomizationOption> = (0..12)
+            .map(|i| CustomizationOption {
+                label: format!("Opt{i}"),
+                value: format!("Val{i}"),
+            })
+            .collect();
+        let state = BarberShopFrameState {
+            visible: true,
+            options,
+            cost: "5g".into(),
+        };
+        let reg = build_with_state(state);
+        // Should only render MAX_OPTION_ROWS (8)
+        for i in 0..MAX_OPTION_ROWS {
+            assert!(
+                reg.get_by_name(&format!("BarberShopOption{i}")).is_some(),
+                "BarberShopOption{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("BarberShopOption{MAX_OPTION_ROWS}"))
+                .is_none(),
+            "should cap at {MAX_OPTION_ROWS} rows"
+        );
+    }
 }
