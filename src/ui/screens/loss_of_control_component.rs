@@ -58,8 +58,6 @@ pub fn loss_of_control_screen(ctx: &SharedContext) -> Element {
         .get::<LossOfControlState>()
         .expect("LossOfControlState must be in SharedContext");
     let hide = !state.visible;
-    let fill_w = BAR_W * state.progress();
-    let duration_text = state.duration_text();
     rsx! {
         r#frame {
             name: "LossOfControlFrame",
@@ -72,67 +70,65 @@ pub fn loss_of_control_screen(ctx: &SharedContext) -> Element {
                 x: "0",
                 y: "60",
             }
+            {loc_icon()}
+            {loc_ability_name(&state.ability_name)}
+            {loc_countdown_bar(BAR_W * state.progress(), &state.duration_text())}
+        }
+    }
+}
+
+fn loc_icon() -> Element {
+    rsx! {
+        r#frame {
+            name: "LossOfControlIcon",
+            width: {ICON_SIZE},
+            height: {ICON_SIZE},
+            background_color: ICON_BG,
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "0" }
+        }
+    }
+}
+
+fn loc_ability_name(name: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: "LossOfControlName",
+            width: {FRAME_W},
+            height: {NAME_H},
+            text: name,
+            font_size: 12.0,
+            font_color: NAME_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: {-(ICON_SIZE + BAR_GAP)} }
+        }
+    }
+}
+
+fn loc_countdown_bar(fill_w: f32, duration_text: &str) -> Element {
+    let bar_y = -(ICON_SIZE + BAR_GAP + NAME_H + BAR_GAP);
+    rsx! {
+        r#frame {
+            name: "LossOfControlBarBg",
+            width: {BAR_W},
+            height: {BAR_H},
+            background_color: BAR_BG,
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: {bar_y} }
             r#frame {
-                name: "LossOfControlIcon",
-                width: {ICON_SIZE},
-                height: {ICON_SIZE},
-                background_color: ICON_BG,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: "0",
-                }
+                name: "LossOfControlBarFill",
+                width: {fill_w},
+                height: {BAR_H},
+                background_color: BAR_FILL,
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
             fontstring {
-                name: "LossOfControlName",
-                width: {FRAME_W},
-                height: {NAME_H},
-                text: {state.ability_name.as_str()},
-                font_size: 12.0,
-                font_color: NAME_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: {-(ICON_SIZE + BAR_GAP)},
-                }
-            }
-            r#frame {
-                name: "LossOfControlBarBg",
+                name: "LossOfControlDuration",
                 width: {BAR_W},
                 height: {BAR_H},
-                background_color: BAR_BG,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: {-(ICON_SIZE + BAR_GAP + NAME_H + BAR_GAP)},
-                }
-                r#frame {
-                    name: "LossOfControlBarFill",
-                    width: {fill_w},
-                    height: {BAR_H},
-                    background_color: BAR_FILL,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                    }
-                }
-                fontstring {
-                    name: "LossOfControlDuration",
-                    width: {BAR_W},
-                    height: {BAR_H},
-                    text: {duration_text.as_str()},
-                    font_size: 9.0,
-                    font_color: DURATION_COLOR,
-                    justify_h: "CENTER",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                    }
-                }
+                text: duration_text,
+                font_size: 9.0,
+                font_color: DURATION_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
     }
