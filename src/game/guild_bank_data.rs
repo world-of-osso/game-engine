@@ -3,6 +3,22 @@ use bevy::prelude::*;
 use crate::auction_house_data::Money;
 use crate::bag_data::{InventorySlot, ItemQuality};
 
+/// Texture FDIDs for the guild bank frame.
+pub mod textures {
+    /// Frame chrome left panel.
+    pub const FRAME_LEFT: u32 = 132070;
+    /// Frame chrome right panel.
+    pub const FRAME_RIGHT: u32 = 132072;
+    /// Slot grid background.
+    pub const SLOTS_BG: u32 = 132073;
+    /// Tab button texture.
+    pub const TAB_BUTTON: u32 = 132074;
+    /// Vault background.
+    pub const VAULT_BG: u32 = 590068;
+    /// Item slot border (shared).
+    pub const SLOT_BORDER: u32 = 130862;
+}
+
 const SLOTS_PER_TAB: usize = 98;
 const MAX_TABS: usize = 8;
 
@@ -142,5 +158,15 @@ mod tests {
         let mut state = GuildBankState::default();
         state.active_tab = 99;
         assert!(state.active_tab_slots().is_empty());
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME_LEFT, 0);
+        assert_ne!(textures::FRAME_RIGHT, 0);
+        assert_ne!(textures::SLOTS_BG, 0);
+        assert_ne!(textures::TAB_BUTTON, 0);
+        assert_ne!(textures::VAULT_BG, 0);
+        assert_ne!(textures::SLOT_BORDER, 0);
     }
 }
