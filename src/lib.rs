@@ -24,6 +24,8 @@ pub mod char_create_data;
 pub mod character_export;
 #[path = "rendering/character/character_models.rs"]
 pub mod character_models;
+#[path = "game/communities_data.rs"]
+pub mod communities_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
 pub mod csv_util;
