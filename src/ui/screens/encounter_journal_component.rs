@@ -424,12 +424,7 @@ fn boss_detail_panel(
     let detail_x = BOSS_LIST_INSET + BOSS_LIST_W + DETAIL_INSET;
     let detail_w = parent_w - detail_x - DETAIL_INSET;
     let detail_h = parent_h - 2.0 * DETAIL_INSET;
-    let ability_rows: Element = abilities
-        .iter()
-        .enumerate()
-        .take(MAX_ABILITIES)
-        .flat_map(|(i, ability)| ability_row(i, ability, detail_w))
-        .collect();
+    let ability_rows = build_ability_rows(abilities, detail_w);
     rsx! {
         r#frame {
             name: "EJBossDetail",
@@ -441,22 +436,34 @@ fn boss_detail_panel(
                 x: {detail_x},
                 y: {-DETAIL_INSET},
             }
-            fontstring {
-                name: "EJBossDetailName",
-                width: {detail_w},
-                height: {BOSS_NAME_H},
-                text: boss_name,
-                font_size: 14.0,
-                font_color: BOSS_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
+            {boss_detail_name(boss_name, detail_w)}
             {ability_rows}
         }
     }
+}
+
+fn boss_detail_name(name: &str, w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "EJBossDetailName",
+            width: {w},
+            height: {BOSS_NAME_H},
+            text: name,
+            font_size: 14.0,
+            font_color: BOSS_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
+}
+
+fn build_ability_rows(abilities: &[BossAbility], w: f32) -> Element {
+    abilities
+        .iter()
+        .enumerate()
+        .take(MAX_ABILITIES)
+        .flat_map(|(i, ability)| ability_row(i, ability, w))
+        .collect()
 }
 
 fn ability_row(idx: usize, ability: &BossAbility, parent_w: f32) -> Element {
