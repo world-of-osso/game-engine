@@ -165,15 +165,10 @@ fn tab_row(tabs: &[AchievementTab]) -> Element {
 fn tab_button(i: usize, tab: &AchievementTab, tab_w: f32, x: f32, y: f32) -> Element {
     let tab_id = DynName(format!("AchievementTab{i}"));
     let label_id = DynName(format!("AchievementTab{i}Label"));
-    let bg = if tab.active {
-        TAB_BG_ACTIVE
+    let (bg, color) = if tab.active {
+        (TAB_BG_ACTIVE, TAB_TEXT_ACTIVE)
     } else {
-        TAB_BG_INACTIVE
-    };
-    let color = if tab.active {
-        TAB_TEXT_ACTIVE
-    } else {
-        TAB_TEXT_INACTIVE
+        (TAB_BG_INACTIVE, TAB_TEXT_INACTIVE)
     };
     rsx! {
         r#frame {
@@ -187,19 +182,22 @@ fn tab_button(i: usize, tab: &AchievementTab, tab_w: f32, x: f32, y: f32) -> Ele
                 x: {x},
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {tab_w},
-                height: {TAB_H},
-                text: {tab.name.as_str()},
-                font_size: 11.0,
-                font_color: color,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
+            {tab_label(label_id, &tab.name, tab_w, color)}
+        }
+    }
+}
+
+fn tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {TAB_H},
+            text: text,
+            font_size: 11.0,
+            font_color: color,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
         }
     }
 }
