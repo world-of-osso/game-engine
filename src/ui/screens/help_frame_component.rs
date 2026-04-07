@@ -602,4 +602,36 @@ mod tests {
         assert!(reg.get_by_name("HelpTicketDescInput").is_some());
         assert!(reg.get_by_name("HelpTicketSubmitButton").is_some());
     }
+
+    // --- Additional coord validation ---
+
+    fn article_layout_registry() -> FrameRegistry {
+        let mut reg = article_registry();
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    #[test]
+    fn coord_article_list_position() {
+        let reg = article_layout_registry();
+        let frame_x = (1920.0 - FRAME_W) / 2.0;
+        let frame_y = (1080.0 - FRAME_H) / 2.0;
+        let r = rect(&reg, "HelpArticleList");
+        let buttons_h = CATEGORY_BUTTONS.len() as f32 * (BUTTON_H + BUTTON_GAP);
+        let expected_y = frame_y + BUTTON_TOP + buttons_h;
+        assert!((r.x - (frame_x + CONTENT_INSET)).abs() < 1.0);
+        assert!(
+            (r.y - expected_y).abs() < 1.0,
+            "y: expected {expected_y}, got {}",
+            r.y
+        );
+    }
+
+    #[test]
+    fn coord_ticket_submit_button() {
+        let reg = article_layout_registry();
+        let r = rect(&reg, "HelpTicketSubmitButton");
+        assert!((r.width - TICKET_BTN_W).abs() < 1.0);
+        assert!((r.height - TICKET_BTN_H).abs() < 1.0);
+    }
 }
