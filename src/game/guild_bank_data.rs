@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::auction_house_data::Money;
-use crate::bag_data::{InventorySlot, ItemQuality};
+use crate::bag_data::InventorySlot;
 
 /// Texture FDIDs for the guild bank frame.
 pub mod textures {
@@ -110,6 +110,18 @@ impl GuildBankState {
     pub fn can_deposit(&self) -> bool {
         self.has_permission(GuildBankPermission::DepositItems)
     }
+
+    /// Sort transactions so newest (last added) appear first.
+    pub fn sort_transactions_newest_first(&mut self) {
+        self.transactions.reverse();
+    }
+
+    /// Switch to a tab by index (clamped to valid range).
+    pub fn switch_tab(&mut self, index: usize) {
+        if index < self.tabs.len() {
+            self.active_tab = index;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -168,5 +180,128 @@ mod tests {
         assert_ne!(textures::TAB_BUTTON, 0);
         assert_ne!(textures::VAULT_BG, 0);
         assert_ne!(textures::SLOT_BORDER, 0);
+    }
+
+    // --- Tab permission checks ---
+
+    #[test]
+    fn full_permissions_allow_everything() {
+        let state = GuildBankState {
+            permissions: vec![
+                GuildBankPermission::ViewTab,
+                GuildBankPermission::DepositItems,
+                GuildBankPermission::WithdrawItems,
+                GuildBankPermission::DepositMoney,
+                GuildBankPermission::WithdrawMoney,
+            ],
+            ..Default::default()
+        };
+        assert!(state.has_permission(GuildBankPermission::ViewTab));
+        assert!(state.can_deposit());
+        assert!(state.can_withdraw());
+        assert!(state.has_permission(GuildBankPermission::DepositMoney));
+        assert!(state.has_permission(GuildBankPermission::WithdrawMoney));
+    }
+
+    #[test]
+    fn empty_permissions_deny_everything() {
+        let state = GuildBankState {
+            permissions: vec![],
+            ..Default::default()
+        };
+        assert!(!state.has_permission(GuildBankPermission::ViewTab));
+        assert!(!state.can_deposit());
+        assert!(!state.can_withdraw());
+    }
+
+    #[test]
+    fn view_only_permissions() {
+        let state = GuildBankState {
+            permissions: vec![GuildBankPermission::ViewTab],
+            ..Default::default()
+        };
+        assert!(state.has_permission(GuildBankPermission::ViewTab));
+        assert!(!state.can_deposit());
+        assert!(!state.can_withdraw());
+    }
+
+    // --- Transaction log ordering ---
+
+    #[test]
+    fn transaction_log_newest_first() {
+        let mut state = GuildBankState::default();
+        state.transactions = vec![
+            GuildBankTransaction {
+                player: "Alice".into(),
+                action: "deposited".into(),
+                item_name: "Ore".into(),
+                amount: None,
+            },
+            GuildBankTransaction {
+                player: "Bob".into(),
+                action: "withdrew".into(),
+                item_name: "Gem".into(),
+                amount: None,
+            },
+            GuildBankTransaction {
+                player: "Charlie".into(),
+                action: "deposited".into(),
+                item_name: "Bar".into(),
+                amount: None,
+            },
+        ];
+        state.sort_transactions_newest_first();
+        assert_eq!(state.transactions[0].player, "Charlie");
+        assert_eq!(state.transactions[1].player, "Bob");
+        assert_eq!(state.transactions[2].player, "Alice");
+    }
+
+    // --- Tab switching ---
+
+    #[test]
+    fn switch_tab_changes_active_slots() {
+        let mut state = GuildBankState::default();
+        state.tabs.push(GuildBankTabDef {
+            name: "Tab 2".into(),
+            icon_fdid: 0,
+        });
+        state
+            .slots
+            .push(vec![InventorySlot::default(); SLOTS_PER_TAB]);
+        // Place item in tab 0
+        state.slots[0][0] = InventorySlot {
+            icon_fdid: 100,
+            name: "Ore".into(),
+            ..Default::default()
+        };
+        // Place different item in tab 1
+        state.slots[1][0] = InventorySlot {
+            icon_fdid: 200,
+            name: "Gem".into(),
+            ..Default::default()
+        };
+        assert_eq!(state.active_tab_slots()[0].name, "Ore");
+        state.switch_tab(1);
+        assert_eq!(state.active_tab_slots()[0].name, "Gem");
+    }
+
+    #[test]
+    fn switch_tab_out_of_bounds_stays() {
+        let mut state = GuildBankState::default();
+        state.switch_tab(99);
+        assert_eq!(state.active_tab, 0);
+    }
+
+    #[test]
+    fn tab_count_capped_at_max() {
+        let mut state = GuildBankState::default();
+        for i in 1..12 {
+            state.tabs.push(GuildBankTabDef {
+                name: format!("Tab {}", i + 1),
+                icon_fdid: 0,
+            });
+        }
+        assert_eq!(state.tabs.len(), 12);
+        assert_eq!(state.tab_count(), MAX_TABS);
     }
 }
