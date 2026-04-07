@@ -1,16 +1,33 @@
 use bevy::prelude::*;
 
 pub mod textures {
-    /// Reputation frame chrome border.
-    pub const REP_FRAME_BORDER: u32 = 136010;
-    /// Faction icon placeholder (alliance shield).
+    // --- Frame chrome ---
+    /// Reputation bar texture (paperdoll frame).
+    pub const REP_BAR: u32 = 136567;
+    /// Reputation bar highlight (hover).
+    pub const REP_BAR_HIGHLIGHT: u32 = 136566;
+    /// Reputation watch bar (mini bar).
+    pub const REP_WATCH_BAR: u32 = 136581;
+
+    // --- Faction icons ---
+    /// Alliance PvP emblem (faction placeholder).
     pub const FACTION_ICON_ALLIANCE: u32 = 136998;
-    /// Faction icon placeholder (horde emblem).
+    /// Horde PvP emblem (faction placeholder).
     pub const FACTION_ICON_HORDE: u32 = 137000;
-    /// Paragon reward chest icon.
-    pub const PARAGON_REWARD_CHEST: u32 = 1392955;
-    /// Reputation bar fill texture.
-    pub const REP_BAR_FILL: u32 = 4505182;
+    /// Generic faction change icon.
+    pub const FACTION_ICON_GENERIC: u32 = 939373;
+    /// Champions of Azeroth (BfA faction example).
+    pub const FACTION_ICON_CHAMPIONS: u32 = 2032592;
+    /// Tortollan Seekers (BfA faction example).
+    pub const FACTION_ICON_TORTOLLAN: u32 = 2032598;
+
+    // --- Paragon ---
+    /// Treasure chest icon (paragon reward).
+    pub const PARAGON_REWARD_CHEST: u32 = 1542843;
+
+    // --- Bar fill ---
+    /// Casting/health bar fill (shared).
+    pub const BAR_FILL: u32 = 4505182;
 }
 
 // --- Standing ---
@@ -372,10 +389,15 @@ mod tests {
 
     #[test]
     fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::REP_FRAME_BORDER, 0);
+        assert_ne!(textures::REP_BAR, 0);
+        assert_ne!(textures::REP_BAR_HIGHLIGHT, 0);
+        assert_ne!(textures::REP_WATCH_BAR, 0);
         assert_ne!(textures::FACTION_ICON_ALLIANCE, 0);
         assert_ne!(textures::FACTION_ICON_HORDE, 0);
+        assert_ne!(textures::FACTION_ICON_GENERIC, 0);
+        assert_ne!(textures::FACTION_ICON_CHAMPIONS, 0);
+        assert_ne!(textures::FACTION_ICON_TORTOLLAN, 0);
         assert_ne!(textures::PARAGON_REWARD_CHEST, 0);
-        assert_ne!(textures::REP_BAR_FILL, 0);
+        assert_ne!(textures::BAR_FILL, 0);
     }
 }
