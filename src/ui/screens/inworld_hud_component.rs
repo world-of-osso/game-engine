@@ -515,3 +515,65 @@ fn minimap_cluster() -> Element {
 pub fn minimap_screen(_ctx: &SharedContext) -> Element {
     minimap_cluster()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+
+    fn action_bar_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let shared = SharedContext::new();
+        Screen::new(action_bar_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn main_action_bar_builds_root_frame() {
+        let reg = action_bar_registry();
+        assert!(reg.get_by_name("MainActionBar").is_some());
+    }
+
+    #[test]
+    fn main_action_bar_builds_12_slots() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("ActionButton{i}")).is_some(),
+                "ActionButton{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn main_action_bar_slots_have_hotkey_labels() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("ActionButton{i}HotKey")).is_some(),
+                "ActionButton{i}HotKey missing"
+            );
+        }
+    }
+
+    #[test]
+    fn main_action_bar_slots_have_count_labels() {
+        let reg = action_bar_registry();
+        for i in 1..=SLOT_COUNT {
+            assert!(
+                reg.get_by_name(&format!("ActionButton{i}Count")).is_some(),
+                "ActionButton{i}Count missing"
+            );
+        }
+    }
+
+    #[test]
+    fn secondary_bars_build_root_frames() {
+        let reg = action_bar_registry();
+        assert!(reg.get_by_name("MultiBarBottomLeft").is_some());
+        assert!(reg.get_by_name("MultiBarBottomRight").is_some());
+        assert!(reg.get_by_name("MultiBarRight").is_some());
+        assert!(reg.get_by_name("MultiBarLeft").is_some());
+    }
+}
