@@ -268,7 +268,6 @@ fn group_list_panel(groups: &[GroupListEntry]) -> Element {
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
     let list_w = content_w - 2.0 * GROUP_INSET;
-    let header = group_header(list_w);
     let rows: Element = groups
         .iter()
         .enumerate()
@@ -288,32 +287,35 @@ fn group_list_panel(groups: &[GroupListEntry]) -> Element {
                 x: {CONTENT_INSET},
                 y: {content_y},
             }
-            {header}
+            {group_header(list_w)}
             {rows}
-            r#frame {
-                name: "LFGApplyButton",
+            {apply_button(btn_y)}
+        }
+    }
+}
+
+fn apply_button(y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: "LFGApplyButton",
+            width: {APPLY_BTN_W},
+            height: {APPLY_BTN_H},
+            background_color: APPLY_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: {-GROUP_INSET},
+                y: {y},
+            }
+            fontstring {
+                name: "LFGApplyButtonText",
                 width: {APPLY_BTN_W},
                 height: {APPLY_BTN_H},
-                background_color: APPLY_BTN_BG,
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: {-GROUP_INSET},
-                    y: {btn_y},
-                }
-                fontstring {
-                    name: "LFGApplyButtonText",
-                    width: {APPLY_BTN_W},
-                    height: {APPLY_BTN_H},
-                    text: "Apply",
-                    font_size: 10.0,
-                    font_color: APPLY_BTN_TEXT,
-                    justify_h: "CENTER",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                    }
-                }
+                text: "Apply",
+                font_size: 10.0,
+                font_color: APPLY_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
     }
