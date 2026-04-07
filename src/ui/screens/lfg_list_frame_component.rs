@@ -37,7 +37,37 @@ const DROPDOWN_BG: &str = "0.08,0.07,0.06,0.88";
 const DROPDOWN_COLOR: &str = "0.6,0.6,0.6,1.0";
 const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
 
+// Group list layout
+const GROUP_HEADER_H: f32 = 20.0;
+const GROUP_ROW_H: f32 = 28.0;
+const GROUP_ROW_GAP: f32 = 1.0;
+const GROUP_INSET: f32 = 4.0;
+const APPLY_BTN_W: f32 = 80.0;
+const APPLY_BTN_H: f32 = 24.0;
+const GROUP_HEADER_BG: &str = "0.12,0.1,0.08,0.9";
+const GROUP_HEADER_COLOR: &str = "0.8,0.8,0.8,1.0";
+const GROUP_ROW_EVEN: &str = "0.04,0.04,0.04,0.6";
+const GROUP_ROW_ODD: &str = "0.06,0.06,0.06,0.6";
+const GROUP_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const APPLY_BTN_BG: &str = "0.15,0.12,0.05,0.95";
+const APPLY_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
+
 pub const ROLES: &[&str] = &["Tank", "Healer", "DPS"];
+pub const MAX_GROUP_ROWS: usize = 10;
+pub const GROUP_COLUMNS: &[(&str, f32)] = &[
+    ("Leader", 0.25),
+    ("Members", 0.15),
+    ("Activity", 0.30),
+    ("Note", 0.30),
+];
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GroupListEntry {
+    pub leader: String,
+    pub members: String,
+    pub activity: String,
+    pub note: String,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LFGListFrameState {
@@ -46,6 +76,7 @@ pub struct LFGListFrameState {
     pub healer_checked: bool,
     pub dps_checked: bool,
     pub activity: String,
+    pub groups: Vec<GroupListEntry>,
 }
 
 impl Default for LFGListFrameState {
@@ -56,6 +87,7 @@ impl Default for LFGListFrameState {
             healer_checked: false,
             dps_checked: true,
             activity: "Dungeons".into(),
+            groups: vec![],
         }
     }
 }
@@ -82,7 +114,7 @@ pub fn lfg_list_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {role_checkboxes(state)}
             {activity_dropdown(&state.activity)}
-            {content_area()}
+            {group_list_panel(&state.groups)}
         }
     }
 }
@@ -204,10 +236,19 @@ fn activity_dropdown(activity: &str) -> Element {
     }
 }
 
-fn content_area() -> Element {
+fn group_list_panel(groups: &[GroupListEntry]) -> Element {
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    let list_w = content_w - 2.0 * GROUP_INSET;
+    let header = group_header(list_w);
+    let rows: Element = groups
+        .iter()
+        .enumerate()
+        .take(MAX_GROUP_ROWS)
+        .flat_map(|(i, g)| group_row(i, g, list_w))
+        .collect();
+    let btn_y = -(content_h - APPLY_BTN_H - GROUP_INSET);
     rsx! {
         r#frame {
             name: "LFGContentArea",
@@ -220,8 +261,143 @@ fn content_area() -> Element {
                 x: {CONTENT_INSET},
                 y: {content_y},
             }
+            {header}
+            {rows}
+            r#frame {
+                name: "LFGApplyButton",
+                width: {APPLY_BTN_W},
+                height: {APPLY_BTN_H},
+                background_color: APPLY_BTN_BG,
+                anchor {
+                    point: AnchorPoint::TopRight,
+                    relative_point: AnchorPoint::TopRight,
+                    x: {-GROUP_INSET},
+                    y: {btn_y},
+                }
+                fontstring {
+                    name: "LFGApplyButtonText",
+                    width: {APPLY_BTN_W},
+                    height: {APPLY_BTN_H},
+                    text: "Apply",
+                    font_size: 10.0,
+                    font_color: APPLY_BTN_TEXT,
+                    justify_h: "CENTER",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                    }
+                }
+            }
         }
     }
+}
+
+fn group_header(list_w: f32) -> Element {
+    let cols: Element = GROUP_COLUMNS
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (name, _))| {
+            let x = group_col_x(list_w, i);
+            let w = group_col_w(list_w, i);
+            let cell_id = DynName(format!("LFGGroupCol{i}"));
+            rsx! {
+                fontstring {
+                    name: cell_id,
+                    width: {w},
+                    height: {GROUP_HEADER_H},
+                    text: name,
+                    font_size: 9.0,
+                    font_color: GROUP_HEADER_COLOR,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x},
+                        y: "0",
+                    }
+                }
+            }
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "LFGGroupHeader",
+            width: {list_w},
+            height: {GROUP_HEADER_H},
+            background_color: GROUP_HEADER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {GROUP_INSET},
+                y: {-GROUP_INSET},
+            }
+            {cols}
+        }
+    }
+}
+
+fn group_row(idx: usize, group: &GroupListEntry, list_w: f32) -> Element {
+    let row_id = DynName(format!("LFGGroup{idx}"));
+    let y = -(GROUP_INSET + GROUP_HEADER_H + idx as f32 * (GROUP_ROW_H + GROUP_ROW_GAP));
+    let bg = if idx % 2 == 0 {
+        GROUP_ROW_EVEN
+    } else {
+        GROUP_ROW_ODD
+    };
+    let values = [&group.leader, &group.members, &group.activity, &group.note];
+    let cells: Element = values
+        .iter()
+        .enumerate()
+        .flat_map(|(col, text)| {
+            let cell_id = DynName(format!("LFGGroup{idx}Col{col}"));
+            let x = group_col_x(list_w, col);
+            let w = group_col_w(list_w, col);
+            rsx! {
+                fontstring {
+                    name: cell_id,
+                    width: {w},
+                    height: {GROUP_ROW_H},
+                    text: {text.as_str()},
+                    font_size: 9.0,
+                    font_color: GROUP_TEXT_COLOR,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x},
+                        y: "0",
+                    }
+                }
+            }
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {list_w},
+            height: {GROUP_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {GROUP_INSET},
+                y: {y},
+            }
+            {cells}
+        }
+    }
+}
+
+fn group_col_x(list_w: f32, col: usize) -> f32 {
+    let mut x = 4.0;
+    for i in 0..col {
+        x += GROUP_COLUMNS[i].1 * list_w;
+    }
+    x
+}
+
+fn group_col_w(list_w: f32, col: usize) -> f32 {
+    GROUP_COLUMNS[col].1 * list_w
 }
 
 #[cfg(test)]
@@ -333,5 +509,65 @@ mod tests {
         let r = rect(&reg, "LFGActivityDropdown");
         assert!((r.width - DROPDOWN_W).abs() < 1.0);
         assert!((r.height - DROPDOWN_H).abs() < 1.0);
+    }
+
+    // --- Group list tests ---
+
+    fn make_group_state() -> LFGListFrameState {
+        let mut state = make_test_state();
+        state.groups = vec![
+            GroupListEntry {
+                leader: "Arthas".into(),
+                members: "3/5".into(),
+                activity: "Deadmines".into(),
+                note: "Need healer".into(),
+            },
+            GroupListEntry {
+                leader: "Thrall".into(),
+                members: "4/5".into(),
+                activity: "SFK".into(),
+                note: String::new(),
+            },
+        ];
+        state
+    }
+
+    fn group_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_group_state());
+        Screen::new(lfg_list_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn group_list_builds_header_and_rows() {
+        let reg = group_registry();
+        assert!(reg.get_by_name("LFGGroupHeader").is_some());
+        for i in 0..GROUP_COLUMNS.len() {
+            assert!(
+                reg.get_by_name(&format!("LFGGroupCol{i}")).is_some(),
+                "LFGGroupCol{i} missing"
+            );
+        }
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("LFGGroup{i}")).is_some(),
+                "LFGGroup{i} missing"
+            );
+            for col in 0..GROUP_COLUMNS.len() {
+                assert!(
+                    reg.get_by_name(&format!("LFGGroup{i}Col{col}")).is_some(),
+                    "LFGGroup{i}Col{col} missing"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn group_list_has_apply_button() {
+        let reg = group_registry();
+        assert!(reg.get_by_name("LFGApplyButton").is_some());
+        assert!(reg.get_by_name("LFGApplyButtonText").is_some());
     }
 }
