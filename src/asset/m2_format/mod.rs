@@ -8,6 +8,7 @@ pub mod m2_attach;
 pub mod m2_bone_names;
 pub mod m2_light;
 pub mod m2_particle;
+pub mod m2_ribbon;
 pub mod parser;
 pub(crate) use crate::asset::read_bytes::{
     FIXED16_SCALE, fixed16_to_f32, read_f32, read_i16, read_u16, read_u32, read_vec3,
