@@ -190,6 +190,21 @@ fn icon_stacks(id: DynName, text: &str) -> Element {
     }
 }
 
+fn tooltip_line(name: DynName, h: f32, font_size: f32, color: &str, y: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: name,
+            width: {TOOLTIP_W - 8.0},
+            height: {h},
+            text: "",
+            font_size: font_size,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {y} }
+        }
+    }
+}
+
 fn buff_tooltip() -> Element {
     use crate::ui::strata::FrameStrata;
     rsx! {
@@ -204,51 +219,9 @@ fn buff_tooltip() -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
             }
-            fontstring {
-                name: "BuffTooltipTitle",
-                width: {TOOLTIP_W - 8.0},
-                height: 16.0,
-                text: "",
-                font_size: 11.0,
-                font_color: TOOLTIP_TITLE_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "-4",
-                }
-            }
-            fontstring {
-                name: "BuffTooltipDesc",
-                width: {TOOLTIP_W - 8.0},
-                height: 16.0,
-                text: "",
-                font_size: 9.0,
-                font_color: TOOLTIP_DESC_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "-22",
-                }
-            }
-            fontstring {
-                name: "BuffTooltipSource",
-                width: {TOOLTIP_W - 8.0},
-                height: 14.0,
-                text: "",
-                font_size: 8.0,
-                font_color: TOOLTIP_SOURCE_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "-40",
-                }
-            }
+            {tooltip_line(DynName("BuffTooltipTitle".into()), 16.0, 11.0, TOOLTIP_TITLE_COLOR, -4.0)}
+            {tooltip_line(DynName("BuffTooltipDesc".into()), 16.0, 9.0, TOOLTIP_DESC_COLOR, -22.0)}
+            {tooltip_line(DynName("BuffTooltipSource".into()), 14.0, 8.0, TOOLTIP_SOURCE_COLOR, -40.0)}
         }
     }
 }
