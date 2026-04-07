@@ -447,4 +447,127 @@ mod tests {
         let frame = registry.get(frame_id).expect("frame data");
         assert!(frame.hidden, "frame should be hidden when visible=false");
     }
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn equipment_slots_show_item_names() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = make_test_state();
+        state.left_slots[0] = EquipmentSlotState {
+            slot_name: "Head".to_string(),
+            item_name: "Helm of Valor".to_string(),
+        };
+        state.right_slots[2] = EquipmentSlotState {
+            slot_name: "Legs".to_string(),
+            item_name: "Legplates of Might".to_string(),
+        };
+        state.bottom_slots[0] = EquipmentSlotState {
+            slot_name: "Main Hand".to_string(),
+            item_name: "Ashbringer".to_string(),
+        };
+        shared.insert(state);
+        Screen::new(character_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotLeft0Item"),
+            "Helm of Valor"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotRight2Item"),
+            "Legplates of Might"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotBottom0Item"),
+            "Ashbringer"
+        );
+    }
+
+    #[test]
+    fn slot_labels_show_slot_names() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(character_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotLeft0Label"),
+            "Head"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotLeft7Label"),
+            "Wrists"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotRight0Label"),
+            "Hands"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterSlotBottom1Label"),
+            "Off Hand"
+        );
+    }
+
+    #[test]
+    fn stat_rows_render_values() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(character_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(
+            fontstring_text(&registry, "CharacterStatHealthLabel"),
+            "Health:"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterStatHealthValue"),
+            "5000 / 5000"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterStatManaLabel"),
+            "Mana:"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterStatManaValue"),
+            "3000 / 3000"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterStatSpeedLabel"),
+            "Speed:"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterStatSpeedValue"),
+            "100%"
+        );
+    }
+
+    #[test]
+    fn title_bar_and_character_info_text() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(character_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(
+            fontstring_text(&registry, "CharacterFrameTitle"),
+            "Character"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterFrameName"),
+            "Azerothia"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "CharacterFrameLevelClass"),
+            "Level 60 Paladin"
+        );
+    }
 }
