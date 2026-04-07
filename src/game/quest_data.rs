@@ -236,6 +236,16 @@ impl QuestLogState {
     pub fn has_active_dialog(&self) -> bool {
         self.dialog.is_some()
     }
+
+    /// Get quests filtered by zone name.
+    pub fn quests_in_zone(&self, zone: &str) -> Vec<&QuestEntry> {
+        self.entries.iter().filter(|e| e.zone == zone).collect()
+    }
+
+    /// Get quests filtered by type.
+    pub fn quests_by_type(&self, qt: QuestType) -> Vec<&QuestEntry> {
+        self.entries.iter().filter(|e| e.quest_type == qt).collect()
+    }
 }
 
 #[cfg(test)]
@@ -507,5 +517,107 @@ mod tests {
         assert_ne!(textures::REWARD_ICON_SHIELD, 0);
         assert_ne!(textures::REWARD_ICON_GOLD, 0);
         assert_ne!(textures::REWARD_ICON_XP, 0);
+    }
+
+    // --- Zone grouping ---
+
+    #[test]
+    fn quests_in_zone_filters() {
+        let state = QuestLogState {
+            entries: vec![
+                sample_entry(1, "Elwynn Forest", false),
+                sample_entry(2, "Westfall", false),
+                sample_entry(3, "Elwynn Forest", true),
+                sample_entry(4, "Duskwood", false),
+            ],
+            ..Default::default()
+        };
+        let elwynn = state.quests_in_zone("Elwynn Forest");
+        assert_eq!(elwynn.len(), 2);
+        assert_eq!(elwynn[0].quest_id, 1);
+        assert_eq!(elwynn[1].quest_id, 3);
+    }
+
+    #[test]
+    fn quests_in_nonexistent_zone() {
+        let state = QuestLogState {
+            entries: vec![sample_entry(1, "Stormwind", false)],
+            ..Default::default()
+        };
+        assert!(state.quests_in_zone("Nowhere").is_empty());
+    }
+
+    #[test]
+    fn zones_preserves_insertion_order() {
+        let state = QuestLogState {
+            entries: vec![
+                sample_entry(1, "Westfall", false),
+                sample_entry(2, "Elwynn Forest", false),
+                sample_entry(3, "Westfall", false),
+            ],
+            ..Default::default()
+        };
+        let zones = state.zones();
+        assert_eq!(zones, vec!["Westfall", "Elwynn Forest"]);
+    }
+
+    // --- Objective completion ---
+
+    #[test]
+    fn quest_with_no_objectives_not_complete() {
+        let entry = QuestEntry {
+            objectives: vec![],
+            ..sample_entry(1, "Z", false)
+        };
+        assert!(!entry.is_complete());
+    }
+
+    #[test]
+    fn quest_with_multiple_objectives_partial() {
+        let entry = QuestEntry {
+            objectives: vec![
+                sample_objective(5, 5), // done
+                sample_objective(3, 5), // not done
+                sample_objective(5, 5), // done
+            ],
+            ..sample_entry(1, "Z", false)
+        };
+        assert!(!entry.is_complete());
+        assert_eq!(entry.objective_summary(), "2/3");
+    }
+
+    #[test]
+    fn quest_with_all_objectives_complete() {
+        let entry = QuestEntry {
+            objectives: vec![sample_objective(5, 5), sample_objective(10, 10)],
+            ..sample_entry(1, "Z", false)
+        };
+        assert!(entry.is_complete());
+        assert_eq!(entry.objective_summary(), "2/2");
+    }
+
+    #[test]
+    fn selected_quest_id_not_found() {
+        let state = QuestLogState {
+            entries: vec![sample_entry(1, "Z", false)],
+            selected_quest_id: Some(999),
+            ..Default::default()
+        };
+        assert!(state.selected_entry().is_none());
+    }
+
+    // --- Quest type filtering ---
+
+    #[test]
+    fn quests_by_type_filters() {
+        let mut entries = vec![sample_entry(1, "A", false), sample_entry(2, "A", false)];
+        entries[1].quest_type = QuestType::Daily;
+        let state = QuestLogState {
+            entries,
+            ..Default::default()
+        };
+        assert_eq!(state.quests_by_type(QuestType::Normal).len(), 1);
+        assert_eq!(state.quests_by_type(QuestType::Daily).len(), 1);
+        assert!(state.quests_by_type(QuestType::Campaign).is_empty());
     }
 }
