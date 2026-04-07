@@ -66,6 +66,42 @@ const QUALITY_TEXT: &str = "1.0,1.0,1.0,0.9";
 const DETAIL_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 
 pub const MAX_REAGENT_SLOTS: usize = 8;
+pub const MAX_BOOK_RECIPES: usize = 15;
+const BOOK_ROW_H: f32 = 20.0;
+const BOOK_ROW_GAP: f32 = 1.0;
+const BOOK_INSET: f32 = 4.0;
+const SKILL_ORANGE: &str = "1.0,0.5,0.0,1.0";
+const SKILL_YELLOW: &str = "1.0,1.0,0.0,1.0";
+const SKILL_GREEN: &str = "0.25,0.75,0.25,1.0";
+const SKILL_GRAY: &str = "0.5,0.5,0.5,1.0";
+const UNLEARNED_COLOR: &str = "0.4,0.4,0.4,0.6";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SkillUpChance {
+    Orange,
+    Yellow,
+    Green,
+    #[default]
+    Gray,
+}
+
+impl SkillUpChance {
+    pub fn color(self) -> &'static str {
+        match self {
+            Self::Orange => SKILL_ORANGE,
+            Self::Yellow => SKILL_YELLOW,
+            Self::Green => SKILL_GREEN,
+            Self::Gray => SKILL_GRAY,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BookRecipe {
+    pub name: String,
+    pub learned: bool,
+    pub skill_up: SkillUpChance,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RecipeState {
@@ -95,6 +131,7 @@ pub struct ProfessionsFrameState {
     pub tabs: Vec<ProfessionTab>,
     pub recipes: Vec<RecipeState>,
     pub crafting: CraftingDetail,
+    pub book_recipes: Vec<BookRecipe>,
 }
 
 pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
@@ -122,6 +159,7 @@ pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
             {recipe_list(&state.recipes)}
             {recipe_count_footer(state.recipes.len())}
             {crafting_detail_panel(&state.crafting)}
+            {recipe_book_panel(&state.book_recipes)}
         }
     }
 }
@@ -488,6 +526,59 @@ fn crafting_quantity_and_button() -> Element {
     }
 }
 
+// --- Recipe Book ---
+
+fn recipe_book_panel(recipes: &[BookRecipe]) -> Element {
+    let panel_w = FRAME_W - 2.0 * INSET;
+    let panel_h = MAX_BOOK_RECIPES as f32 * (BOOK_ROW_H + BOOK_ROW_GAP);
+    let rows: Element = recipes
+        .iter()
+        .enumerate()
+        .take(MAX_BOOK_RECIPES)
+        .flat_map(|(i, recipe)| {
+            let row_id = DynName(format!("BookRecipe{i}"));
+            let y = -(BOOK_INSET + i as f32 * (BOOK_ROW_H + BOOK_ROW_GAP));
+            let color = if !recipe.learned {
+                UNLEARNED_COLOR
+            } else {
+                recipe.skill_up.color()
+            };
+            rsx! {
+                fontstring {
+                    name: row_id,
+                    width: {panel_w - 2.0 * BOOK_INSET},
+                    height: {BOOK_ROW_H},
+                    text: {recipe.name.as_str()},
+                    font_size: 10.0,
+                    font_color: color,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {BOOK_INSET},
+                        y: {y},
+                    }
+                }
+            }
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "RecipeBookPanel",
+            width: {panel_w},
+            height: {panel_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {INSET},
+                y: {-CONTENT_TOP},
+            }
+            {rows}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,6 +602,7 @@ mod tests {
                 .collect(),
             tabs: vec![],
             crafting: CraftingDetail::default(),
+            book_recipes: vec![],
         }
     }
 
@@ -619,5 +711,39 @@ mod tests {
         assert!(registry.get_by_name("CraftingQualityFill").is_some());
         assert!(registry.get_by_name("CraftingQtyInput").is_some());
         assert!(registry.get_by_name("CraftingCraftButton").is_some());
+    }
+
+    #[test]
+    fn recipe_book_builds_rows() {
+        let mut state = make_test_state(0);
+        state.book_recipes = vec![
+            BookRecipe {
+                name: "Elixir of Wisdom".into(),
+                learned: true,
+                skill_up: SkillUpChance::Orange,
+            },
+            BookRecipe {
+                name: "Minor Healing Potion".into(),
+                learned: true,
+                skill_up: SkillUpChance::Gray,
+            },
+            BookRecipe {
+                name: "Flask of Titans".into(),
+                learned: false,
+                skill_up: SkillUpChance::default(),
+            },
+        ];
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(professions_frame_screen).sync(&shared, &mut registry);
+
+        assert!(registry.get_by_name("RecipeBookPanel").is_some());
+        for i in 0..3 {
+            assert!(
+                registry.get_by_name(&format!("BookRecipe{i}")).is_some(),
+                "BookRecipe{i} missing"
+            );
+        }
     }
 }
