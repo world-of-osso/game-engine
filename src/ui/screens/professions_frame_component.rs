@@ -582,6 +582,7 @@ fn recipe_book_panel(recipes: &[BookRecipe]) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -745,5 +746,42 @@ mod tests {
                 "BookRecipe{i} missing"
             );
         }
+    }
+
+    // --- Coord validation ---
+
+    const FRAME_X: f32 = 20.0;
+    const FRAME_Y: f32 = 80.0;
+
+    fn layout_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state(2));
+        Screen::new(professions_frame_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
+        reg.get(reg.get_by_name(name).expect(name))
+            .and_then(|f| f.layout_rect.clone())
+            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
+    }
+
+    #[test]
+    fn coord_main_frame() {
+        let reg = layout_registry();
+        let r = rect(&reg, "ProfessionsFrame");
+        assert!((r.x - FRAME_X).abs() < 1.0);
+        assert!((r.y - FRAME_Y).abs() < 1.0);
+        assert!((r.width - FRAME_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_search_bar() {
+        let reg = layout_registry();
+        let r = rect(&reg, "ProfessionsSearchBar");
+        assert!((r.x - (FRAME_X + INSET)).abs() < 1.0);
+        assert!((r.height - SEARCH_H).abs() < 1.0);
     }
 }
