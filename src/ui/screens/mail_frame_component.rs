@@ -54,9 +54,7 @@ const SEND_BTN_W: f32 = 80.0;
 const SEND_BTN_H: f32 = 24.0;
 const SEND_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 const SEND_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
-const SEND_INPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const ATTACH_BG: &str = "0.08,0.07,0.06,0.88";
-const MONEY_LABEL_COLOR: &str = "1.0,0.82,0.0,1.0";
 const SEND_BTN_BG: &str = "0.15,0.12,0.05,0.95";
 const SEND_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
 
@@ -309,7 +307,7 @@ fn inbox_sender(id: DynName, text: &str, w: f32, x: f32) -> Element {
 
 // --- Send tab ---
 
-fn send_tab(send: &SendMailState) -> Element {
+fn send_tab(_send: &SendMailState) -> Element {
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
@@ -682,5 +680,117 @@ mod tests {
         let reg = build_registry();
         let id = reg.get_by_name("MailSendTab").expect("send tab");
         assert!(reg.get(id).expect("data").hidden);
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MailFrameTitle"), "Mail");
+    }
+
+    #[test]
+    fn tab_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MailTab0Label"), "Inbox");
+        assert_eq!(fontstring_text(&reg, "MailTab1Label"), "Send");
+    }
+
+    #[test]
+    fn inbox_row_subject_and_sender() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MailInbox0Subject"), "Auction Won");
+        assert_eq!(fontstring_text(&reg, "MailInbox0Sender"), "Auction House");
+        assert_eq!(fontstring_text(&reg, "MailInbox1Subject"), "Hello!");
+        assert_eq!(fontstring_text(&reg, "MailInbox1Sender"), "Alice");
+        assert_eq!(fontstring_text(&reg, "MailInbox2Subject"), "Gold enclosed");
+        assert_eq!(fontstring_text(&reg, "MailInbox2Sender"), "Bob");
+    }
+
+    #[test]
+    fn send_tab_field_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MailSendToLabel"), "To:");
+        assert_eq!(fontstring_text(&reg, "MailSendSubjectLabel"), "Subject:");
+        assert_eq!(fontstring_text(&reg, "MailSendBodyLabel"), "Body:");
+        assert_eq!(fontstring_text(&reg, "MailSendMoneyLabel"), "Money:");
+    }
+
+    #[test]
+    fn send_button_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MailSendButtonText"), "Send Mail");
+    }
+
+    #[test]
+    fn empty_inbox_no_rows() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(MailFrameState {
+            visible: true,
+            ..Default::default()
+        });
+        Screen::new(mail_frame_screen).sync(&shared, &mut reg);
+        assert!(reg.get_by_name("MailInboxList").is_some());
+        assert!(reg.get_by_name("MailInbox0").is_none());
+    }
+
+    #[test]
+    fn inbox_rows_capped() {
+        let inbox: Vec<InboxEntry> = (0..12)
+            .map(|i| InboxEntry {
+                subject: format!("Mail {i}"),
+                sender: format!("Sender {i}"),
+                has_attachment: false,
+                read: false,
+            })
+            .collect();
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(MailFrameState {
+            visible: true,
+            inbox,
+            ..Default::default()
+        });
+        Screen::new(mail_frame_screen).sync(&shared, &mut reg);
+        for i in 0..INBOX_ROWS {
+            assert!(
+                reg.get_by_name(&format!("MailInbox{i}")).is_some(),
+                "MailInbox{i} missing"
+            );
+        }
+        assert!(reg.get_by_name(&format!("MailInbox{INBOX_ROWS}")).is_none());
+    }
+
+    #[test]
+    fn attachment_slot_count() {
+        let reg = build_registry();
+        let total = ATTACH_COLS * 2;
+        for i in 0..total {
+            assert!(
+                reg.get_by_name(&format!("MailSendAttach{i}")).is_some(),
+                "MailSendAttach{i} missing"
+            );
+        }
+        assert!(reg.get_by_name(&format!("MailSendAttach{total}")).is_none());
+    }
+
+    #[test]
+    fn money_input_fields_exist() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("MailSendGoldInput").is_some());
+        assert!(reg.get_by_name("MailSendSilverInput").is_some());
+        assert!(reg.get_by_name("MailSendCopperInput").is_some());
     }
 }
