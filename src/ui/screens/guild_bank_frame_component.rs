@@ -210,76 +210,47 @@ fn guild_slot(index: usize, x: f32, y: f32) -> Element {
 }
 
 fn log_tabs(log_active: bool) -> Element {
-    let items_bg = if log_active {
-        LOG_INACTIVE_BG
+    let (items_bg, items_color) = if log_active {
+        (LOG_INACTIVE_BG, LOG_INACTIVE_COLOR)
     } else {
-        LOG_ACTIVE_BG
+        (LOG_ACTIVE_BG, LOG_ACTIVE_COLOR)
     };
-    let items_color = if log_active {
-        LOG_INACTIVE_COLOR
+    let (log_bg, log_color) = if log_active {
+        (LOG_ACTIVE_BG, LOG_ACTIVE_COLOR)
     } else {
-        LOG_ACTIVE_COLOR
-    };
-    let log_bg = if log_active {
-        LOG_ACTIVE_BG
-    } else {
-        LOG_INACTIVE_BG
-    };
-    let log_color = if log_active {
-        LOG_ACTIVE_COLOR
-    } else {
-        LOG_INACTIVE_COLOR
+        (LOG_INACTIVE_BG, LOG_INACTIVE_COLOR)
     };
     let y = -(FRAME_H - LOG_TAB_H - 8.0);
     rsx! {
+        {guild_bank_tab("GuildBankItemsTab", "Items", items_bg, items_color, GRID_INSET, y)}
+        {guild_bank_tab("GuildBankLogTab", "Log", log_bg, log_color, GRID_INSET + 80.0 + LOG_TAB_GAP, y)}
+    }
+}
+
+fn guild_bank_tab(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
+    let tab_id = DynName(name.into());
+    let label_id = DynName(format!("{name}Label"));
+    rsx! {
         r#frame {
-            name: "GuildBankItemsTab",
+            name: tab_id,
             width: 80.0,
             height: {LOG_TAB_H},
-            background_color: items_bg,
+            background_color: bg,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {GRID_INSET},
+                x: {x},
                 y: {y},
             }
             fontstring {
-                name: "GuildBankItemsTabLabel",
+                name: label_id,
                 width: 80.0,
                 height: {LOG_TAB_H},
-                text: "Items",
+                text: label,
                 font_size: 10.0,
-                font_color: items_color,
+                font_color: color,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-        }
-        r#frame {
-            name: "GuildBankLogTab",
-            width: 80.0,
-            height: {LOG_TAB_H},
-            background_color: log_bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {GRID_INSET + 80.0 + LOG_TAB_GAP},
-                y: {y},
-            }
-            fontstring {
-                name: "GuildBankLogTabLabel",
-                width: 80.0,
-                height: {LOG_TAB_H},
-                text: "Log",
-                font_size: 10.0,
-                font_color: log_color,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
     }
