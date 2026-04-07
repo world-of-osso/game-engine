@@ -34,6 +34,8 @@ pub mod dress_up_data;
 pub mod dump;
 #[path = "game/encounter_journal_data.rs"]
 pub mod encounter_journal_data;
+#[path = "game/friends_data.rs"]
+pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 #[path = "game/equipment/helmet_geoset_data.rs"]
