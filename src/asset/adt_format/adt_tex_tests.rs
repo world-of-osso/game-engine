@@ -509,6 +509,145 @@ fn alpha_at(alpha: &[u8], x: usize, y: usize) -> u8 {
     alpha[x * 64 + y]
 }
 
+// --- Texture layer blending: additional edge cases ---
+
+#[test]
+fn alpha_map_all_zeros() {
+    let mut payload = Vec::new();
+    append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
+    append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+    let mcal = uncompressed_mcal_payload(|_, _| 0);
+    append_subchunk(
+        &mut payload,
+        b"KNCM",
+        tex0_mcnk_payload(
+            mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+            None,
+            mcal,
+        ),
+    );
+
+    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let alpha = parsed.chunk_layers[0].layers[0]
+        .alpha_map
+        .as_ref()
+        .expect("should have alpha");
+    // All interior values should be 0
+    assert_eq!(alpha_at(alpha, 0, 0), 0);
+    assert_eq!(alpha_at(alpha, 30, 30), 0);
+}
+
+#[test]
+fn alpha_map_all_max() {
+    let mut payload = Vec::new();
+    append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
+    append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+    let mcal = uncompressed_mcal_payload(|_, _| 15);
+    append_subchunk(
+        &mut payload,
+        b"KNCM",
+        tex0_mcnk_payload(
+            mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+            None,
+            mcal,
+        ),
+    );
+
+    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let alpha = parsed.chunk_layers[0].layers[0]
+        .alpha_map
+        .as_ref()
+        .expect("should have alpha");
+    // 4-bit 15 → 255 when expanded
+    assert_eq!(alpha_at(alpha, 0, 0), 255);
+    assert_eq!(alpha_at(alpha, 30, 30), 255);
+    assert_eq!(alpha_at(alpha, 63, 63), 255);
+}
+
+#[test]
+fn no_alpha_map_when_flag_not_set() {
+    let layers = build_texture_layers(
+        &mcly_entry_payload(0, 0, 0, 0), // no USE_ALPHA_MAP flag
+        &[0x7F; 4096],
+        None,
+        false,
+    )
+    .expect("should parse");
+    assert!(layers[0].alpha_map.is_none());
+}
+
+#[test]
+fn multiple_layers_independent_alpha() {
+    let mut payload = Vec::new();
+    append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
+    append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[1, 2]));
+    // Layer 0: no alpha; Layer 1: with alpha
+    let mcly = [
+        mcly_entry_payload(0, 0, 0, 0),
+        mcly_entry_payload(1, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+    ]
+    .concat();
+    let mcal = uncompressed_mcal_payload(|_, _| 8);
+    append_subchunk(&mut payload, b"KNCM", tex0_mcnk_payload(mcly, None, mcal));
+
+    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let layers = &parsed.chunk_layers[0].layers;
+    assert_eq!(layers.len(), 2);
+    assert!(layers[0].alpha_map.is_none());
+    assert!(layers[1].alpha_map.is_some());
+}
+
+#[test]
+fn edge_fix_copies_row_62_to_63() {
+    let mut payload = Vec::new();
+    append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
+    append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+    let mcal = uncompressed_mcal_payload(|x, y| {
+        if x == 62 {
+            10
+        } else if y == 62 {
+            7
+        } else {
+            0
+        }
+    });
+    append_subchunk(
+        &mut payload,
+        b"KNCM",
+        tex0_mcnk_payload(
+            mcly_entry_payload(0, MCLY_FLAG_USE_ALPHA_MAP, 0, 0),
+            None,
+            mcal,
+        ),
+    );
+
+    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let alpha = parsed.chunk_layers[0].layers[0]
+        .alpha_map
+        .as_ref()
+        .expect("alpha");
+    // Row 63 should copy from row 62
+    assert_eq!(alpha_at(alpha, 62, 10), 170);
+    assert_eq!(alpha_at(alpha, 63, 10), 170); // copied from x=62
+    assert_eq!(alpha_at(alpha, 10, 62), 119);
+    assert_eq!(alpha_at(alpha, 10, 63), 119); // copied from y=62
+}
+
+#[test]
+fn amplifier_zero_is_valid() {
+    let mut payload = Vec::new();
+    append_subchunk(&mut payload, b"PMAM", 0u32.to_le_bytes().to_vec());
+    append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[3]));
+    append_subchunk(
+        &mut payload,
+        b"KNCM",
+        tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
+    );
+
+    let parsed = load_adt_tex0(&payload).expect("should parse");
+    assert_eq!(parsed.texture_amplifier, Some(0));
+}
+
 // --- MH2O attribute edge cases ---
 
 #[test]
