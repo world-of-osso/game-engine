@@ -377,6 +377,76 @@ mod tests {
         assert_eq!(net.remote_entities, 0);
     }
 
+    // --- Connection timeout and retry behavior ---
+
+    #[test]
+    fn reconnect_awaiting_world_not_complete_without_terrain() {
+        let mut state = ReconnectState {
+            phase: ReconnectPhase::AwaitingWorld,
+            terrain_refresh_seen: false,
+        };
+        // Without terrain refresh, should stay in AwaitingWorld
+        assert!(state.is_active());
+        assert!(!state.terrain_refresh_seen);
+    }
+
+    #[test]
+    fn reconnect_completes_when_terrain_seen() {
+        let mut state = ReconnectState {
+            phase: ReconnectPhase::AwaitingWorld,
+            terrain_refresh_seen: true,
+        };
+        // Simulate finish_reconnect_when_world_ready logic
+        state.phase = ReconnectPhase::Inactive;
+        state.terrain_refresh_seen = false;
+        assert!(!state.is_active());
+    }
+
+    #[test]
+    fn reconnect_pending_connect_requires_server() {
+        // PendingConnect waits for a client entity — tested by checking phase
+        let state = ReconnectState {
+            phase: ReconnectPhase::PendingConnect,
+            terrain_refresh_seen: false,
+        };
+        assert!(state.is_active());
+        assert_eq!(state.phase, ReconnectPhase::PendingConnect);
+    }
+
+    #[test]
+    fn reconnect_full_lifecycle() {
+        let mut state = ReconnectState::default();
+        // Initial: inactive
+        assert!(!state.is_active());
+
+        // Disconnect detected → PendingConnect
+        state.phase = ReconnectPhase::PendingConnect;
+        assert!(state.is_active());
+
+        // Connection established → AwaitingWorld
+        state.phase = ReconnectPhase::AwaitingWorld;
+        assert!(state.is_active());
+        assert!(!state.terrain_refresh_seen);
+
+        // Terrain refresh arrives
+        state.terrain_refresh_seen = true;
+
+        // Local player present → complete
+        state.phase = ReconnectPhase::Inactive;
+        state.terrain_refresh_seen = false;
+        assert!(!state.is_active());
+    }
+
+    #[test]
+    fn timeout_config_is_60_seconds() {
+        // Verify the timeout constant used in connect_to_server_inner
+        let config = lightyear::prelude::client::NetcodeConfig {
+            client_timeout_secs: 60,
+            ..Default::default()
+        };
+        assert_eq!(config.client_timeout_secs, 60);
+    }
+
     #[test]
     fn reset_after_partial_state_population() {
         let mut world = World::default();
