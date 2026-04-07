@@ -52,7 +52,6 @@ const MONEY_H: f32 = 16.0;
 const REPAIR_BTN_BG: &str = "0.15,0.12,0.05,0.95";
 const REPAIR_BTN_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
 const MONEY_COLOR: &str = "1.0,0.82,0.0,1.0";
-const MONEY_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 
 pub const MERCHANT_ITEM_ROWS: usize = 10;
 
@@ -555,6 +554,124 @@ mod tests {
         assert!(
             (spacing - expected).abs() < 1.0,
             "spacing: expected {expected}, got {spacing}"
+        );
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: MerchantFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(merchant_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MerchantFrameTitle"), "Merchant");
+    }
+
+    #[test]
+    fn tab_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MerchantTab0Label"), "Buy");
+        assert_eq!(fontstring_text(&reg, "MerchantTab1Label"), "Sell");
+        assert_eq!(fontstring_text(&reg, "MerchantTab2Label"), "Buyback");
+    }
+
+    #[test]
+    fn item_name_and_price() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MerchantItem0Name"), "Rough Arrow");
+        assert_eq!(fontstring_text(&reg, "MerchantItem0Price"), "10c");
+        assert_eq!(fontstring_text(&reg, "MerchantItem1Name"), "Light Shot");
+        assert_eq!(fontstring_text(&reg, "MerchantItem1Price"), "10c");
+    }
+
+    #[test]
+    fn repair_button_labels() {
+        let reg = build_registry();
+        assert_eq!(
+            fontstring_text(&reg, "MerchantRepairButtonText"),
+            "Repair All"
+        );
+        assert_eq!(
+            fontstring_text(&reg, "MerchantGuildRepairButtonText"),
+            "Guild Repair"
+        );
+    }
+
+    #[test]
+    fn money_display_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MerchantMoneyDisplay"), "0g 0s 0c");
+    }
+
+    #[test]
+    fn money_display_custom() {
+        let mut state = make_test_state();
+        state.player_money = "150g 30s 5c".into();
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "MerchantMoneyDisplay"), "150g 30s 5c");
+    }
+
+    #[test]
+    fn page_label_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MerchantPageLabel"), "Page 1/1");
+    }
+
+    #[test]
+    fn page_label_multipage() {
+        let mut state = make_test_state();
+        state.page = 2;
+        state.total_pages = 5;
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "MerchantPageLabel"), "Page 2/5");
+    }
+
+    #[test]
+    fn page_button_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "MerchantPagePrevText"), "<");
+        assert_eq!(fontstring_text(&reg, "MerchantPageNextText"), ">");
+    }
+
+    #[test]
+    fn item_rows_capped() {
+        let items: Vec<MerchantItem> = (0..15)
+            .map(|i| MerchantItem {
+                name: format!("Item {i}"),
+                price: "1g".into(),
+                icon_fdid: 0,
+            })
+            .collect();
+        let reg = build_with_state(MerchantFrameState {
+            visible: true,
+            items,
+            ..Default::default()
+        });
+        for i in 0..MERCHANT_ITEM_ROWS {
+            assert!(
+                reg.get_by_name(&format!("MerchantItem{i}")).is_some(),
+                "MerchantItem{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("MerchantItem{MERCHANT_ITEM_ROWS}"))
+                .is_none()
         );
     }
 }
