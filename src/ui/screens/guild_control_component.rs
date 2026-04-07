@@ -46,8 +46,18 @@ const CHECKBOX_BG: &str = "0.1,0.1,0.1,0.9";
 const CHECKBOX_CHECK_COLOR: &str = "0.0,1.0,0.0,1.0";
 const PERM_LABEL_COLOR: &str = "1.0,1.0,1.0,1.0";
 
+// Bank tab permissions
+const BANK_PERM_TOP_OFFSET: f32 = 12.0;
+const BANK_TAB_ROW_H: f32 = 22.0;
+const BANK_TAB_ROW_GAP: f32 = 2.0;
+const BANK_TAB_LABEL_W: f32 = 80.0;
+const BANK_TAB_CHECK_GAP: f32 = 20.0;
+const BANK_LIMIT_W: f32 = 60.0;
+const BANK_HEADER_COLOR: &str = "0.8,0.8,0.8,1.0";
+
 pub const MAX_RANKS: usize = 10;
 pub const MAX_PERMISSIONS: usize = 12;
+pub const MAX_BANK_TAB_PERMS: usize = 8;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GuildRank {
@@ -62,11 +72,21 @@ pub struct PermissionRow {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct BankTabPermission {
+    pub tab_name: String,
+    pub can_view: bool,
+    pub can_deposit: bool,
+    pub can_withdraw: bool,
+    pub withdraw_limit: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct GuildControlState {
     pub visible: bool,
     pub ranks: Vec<GuildRank>,
     pub rank_name: String,
     pub permissions: Vec<PermissionRow>,
+    pub bank_tab_permissions: Vec<BankTabPermission>,
 }
 
 impl Default for GuildControlState {
@@ -76,6 +96,7 @@ impl Default for GuildControlState {
             ranks: vec![],
             rank_name: String::new(),
             permissions: vec![],
+            bank_tab_permissions: vec![],
         }
     }
 }
@@ -103,6 +124,7 @@ pub fn guild_control_screen(ctx: &SharedContext) -> Element {
             {rank_sidebar(&state.ranks)}
             {rank_name_editor(&state.rank_name)}
             {permissions_grid(&state.permissions)}
+            {bank_tab_permissions_panel(&state.bank_tab_permissions)}
         }
     }
 }
@@ -310,6 +332,65 @@ fn permission_row(idx: usize, perm: &PermissionRow, x: f32, y: f32) -> Element {
     }
 }
 
+// --- Bank tab permissions ---
+
+fn bank_tab_permissions_panel(tabs: &[BankTabPermission]) -> Element {
+    let panel_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
+    let perm_grid_h = MAX_PERMISSIONS as f32 * (PERM_ROW_H + PERM_ROW_GAP);
+    let panel_y = -(CONTENT_TOP + EDITOR_H + EDITOR_INSET + perm_grid_h + BANK_PERM_TOP_OFFSET);
+    let panel_w = FRAME_W - panel_x - SIDEBAR_INSET;
+    let header = bank_perm_header(panel_x, panel_y);
+    let rows: Element = tabs
+        .iter()
+        .enumerate()
+        .take(MAX_BANK_TAB_PERMS)
+        .flat_map(|(i, tab)| {
+            let y = panel_y - BANK_TAB_ROW_H - i as f32 * (BANK_TAB_ROW_H + BANK_TAB_ROW_GAP);
+            bank_tab_perm_row(i, tab, panel_x, y)
+        })
+        .collect();
+    rsx! {
+        {header}
+        {rows}
+    }
+}
+
+fn bank_perm_header(x: f32, y: f32) -> Element {
+    let col2 = x + BANK_TAB_LABEL_W;
+    let col3 = col2 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
+    let col4 = col3 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
+    let col5 = col4 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
+    rsx! {
+        fontstring { name: "GuildControlBankPermHeaderTab", width: {BANK_TAB_LABEL_W}, height: {BANK_TAB_ROW_H}, text: "Bank Tab", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "LEFT", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} } }
+        fontstring { name: "GuildControlBankPermHeaderView", width: 40.0, height: {BANK_TAB_ROW_H}, text: "View", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col2}, y: {y} } }
+        fontstring { name: "GuildControlBankPermHeaderDeposit", width: 50.0, height: {BANK_TAB_ROW_H}, text: "Deposit", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col3}, y: {y} } }
+        fontstring { name: "GuildControlBankPermHeaderWithdraw", width: 60.0, height: {BANK_TAB_ROW_H}, text: "Withdraw", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col4}, y: {y} } }
+        fontstring { name: "GuildControlBankPermHeaderLimit", width: {BANK_LIMIT_W}, height: {BANK_TAB_ROW_H}, text: "Limit", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col5}, y: {y} } }
+    }
+}
+
+fn bank_tab_perm_row(idx: usize, tab: &BankTabPermission, x: f32, y: f32) -> Element {
+    let name_id = DynName(format!("GuildControlBankTab{idx}Name"));
+    let view_id = DynName(format!("GuildControlBankTab{idx}View"));
+    let dep_id = DynName(format!("GuildControlBankTab{idx}Deposit"));
+    let wit_id = DynName(format!("GuildControlBankTab{idx}Withdraw"));
+    let limit_id = DynName(format!("GuildControlBankTab{idx}Limit"));
+    let col2 = x + BANK_TAB_LABEL_W;
+    let col3 = col2 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
+    let col4 = col3 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
+    let col5 = col4 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
+    let view_text = if tab.can_view { "\u{2713}" } else { "" };
+    let dep_text = if tab.can_deposit { "\u{2713}" } else { "" };
+    let wit_text = if tab.can_withdraw { "\u{2713}" } else { "" };
+    rsx! {
+        fontstring { name: name_id, width: {BANK_TAB_LABEL_W}, height: {BANK_TAB_ROW_H}, text: {tab.tab_name.as_str()}, font_size: 9.0, font_color: PERM_LABEL_COLOR, justify_h: "LEFT", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} } }
+        r#frame { name: view_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col2}, y: {y} } fontstring { name: DynName(format!("GuildControlBankTab{idx}ViewText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: view_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft } } }
+        r#frame { name: dep_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col3}, y: {y} } fontstring { name: DynName(format!("GuildControlBankTab{idx}DepositText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: dep_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft } } }
+        r#frame { name: wit_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col4}, y: {y} } fontstring { name: DynName(format!("GuildControlBankTab{idx}WithdrawText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: wit_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft } } }
+        fontstring { name: limit_id, width: {BANK_LIMIT_W}, height: {BANK_TAB_ROW_H}, text: {tab.withdraw_limit.as_str()}, font_size: 9.0, font_color: PERM_LABEL_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col5}, y: {y} } }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,6 +434,7 @@ mod tests {
                     checked: false,
                 },
             ],
+            bank_tab_permissions: vec![],
         }
     }
 
@@ -459,5 +541,84 @@ mod tests {
         let r = rect(&reg, "GuildControlPerm0Check");
         assert!((r.width - CHECKBOX_SIZE).abs() < 1.0);
         assert!((r.height - CHECKBOX_SIZE).abs() < 1.0);
+    }
+
+    // --- Bank tab permissions tests ---
+
+    fn make_bank_perm_state() -> GuildControlState {
+        let mut state = make_test_state();
+        state.bank_tab_permissions = vec![
+            BankTabPermission {
+                tab_name: "Tab 1".into(),
+                can_view: true,
+                can_deposit: true,
+                can_withdraw: true,
+                withdraw_limit: "50".into(),
+            },
+            BankTabPermission {
+                tab_name: "Tab 2".into(),
+                can_view: true,
+                can_deposit: false,
+                can_withdraw: false,
+                withdraw_limit: "0".into(),
+            },
+        ];
+        state
+    }
+
+    fn bank_perm_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_bank_perm_state());
+        Screen::new(guild_control_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn bank_perm_builds_header() {
+        let reg = bank_perm_registry();
+        assert!(reg.get_by_name("GuildControlBankPermHeaderTab").is_some());
+        assert!(reg.get_by_name("GuildControlBankPermHeaderView").is_some());
+        assert!(
+            reg.get_by_name("GuildControlBankPermHeaderDeposit")
+                .is_some()
+        );
+        assert!(
+            reg.get_by_name("GuildControlBankPermHeaderWithdraw")
+                .is_some()
+        );
+        assert!(reg.get_by_name("GuildControlBankPermHeaderLimit").is_some());
+    }
+
+    #[test]
+    fn bank_perm_builds_tab_rows() {
+        let reg = bank_perm_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("GuildControlBankTab{i}Name"))
+                    .is_some(),
+                "GuildControlBankTab{i}Name missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("GuildControlBankTab{i}View"))
+                    .is_some(),
+                "GuildControlBankTab{i}View missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("GuildControlBankTab{i}Deposit"))
+                    .is_some(),
+                "GuildControlBankTab{i}Deposit missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("GuildControlBankTab{i}Withdraw"))
+                    .is_some(),
+                "GuildControlBankTab{i}Withdraw missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("GuildControlBankTab{i}Limit"))
+                    .is_some(),
+                "GuildControlBankTab{i}Limit missing"
+            );
+        }
     }
 }
