@@ -38,6 +38,8 @@ pub mod encounter_journal_data;
 pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
+#[path = "game/guild_bank_data.rs"]
+pub mod guild_bank_data;
 #[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
 pub mod input_bindings;
