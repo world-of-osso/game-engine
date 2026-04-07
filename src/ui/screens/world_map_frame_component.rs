@@ -451,20 +451,38 @@ fn flight_path_lines(segments: &[FlightPathSegment]) -> Element {
 
 // --- Map legend (bottom-left corner of canvas) ---
 
+fn legend_title() -> Element {
+    rsx! {
+        fontstring {
+            name: "WorldMapLegendTitle",
+            width: {LEGEND_W - 2.0 * LEGEND_INSET},
+            height: {LEGEND_HEADER_H},
+            text: "Legend",
+            font_size: 10.0,
+            font_color: LEGEND_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {LEGEND_INSET}, y: {-LEGEND_INSET} }
+        }
+    }
+}
+
+fn build_legend_rows() -> Element {
+    [
+        (MapPinType::Quest, "Quests"),
+        (MapPinType::FlightPath, "Flight Paths"),
+        (MapPinType::PointOfInterest, "Points of Interest"),
+    ]
+    .iter()
+    .enumerate()
+    .flat_map(|(i, (pt, label))| legend_row(i, *pt, label))
+    .collect()
+}
+
 fn map_legend() -> Element {
     let legend_h = LEGEND_HEADER_H + 3.0 * LEGEND_ROW_H + 2.0 * LEGEND_INSET;
     let legend_x = CANVAS_INSET + 8.0;
     let legend_y = CANVAS_TOP + CANVAS_H - legend_h - 8.0;
-    let entries = [
-        (MapPinType::Quest, "Quests"),
-        (MapPinType::FlightPath, "Flight Paths"),
-        (MapPinType::PointOfInterest, "Points of Interest"),
-    ];
-    let rows: Element = entries
-        .iter()
-        .enumerate()
-        .flat_map(|(i, (pin_type, label))| legend_row(i, *pin_type, label))
-        .collect();
+    let rows = build_legend_rows();
     rsx! {
         r#frame {
             name: "WorldMapLegend",
@@ -477,21 +495,7 @@ fn map_legend() -> Element {
                 x: {legend_x},
                 y: {-legend_y},
             }
-            fontstring {
-                name: "WorldMapLegendTitle",
-                width: {LEGEND_W - 2.0 * LEGEND_INSET},
-                height: {LEGEND_HEADER_H},
-                text: "Legend",
-                font_size: 10.0,
-                font_color: LEGEND_HEADER_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {LEGEND_INSET},
-                    y: {-LEGEND_INSET},
-                }
-            }
+            {legend_title()}
             {rows}
         }
     }
