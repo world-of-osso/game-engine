@@ -2,6 +2,26 @@ use bevy::prelude::*;
 
 use crate::auction_house_data::Money;
 
+/// Texture FDIDs for the mail frame.
+pub mod textures {
+    /// Mail notification icon.
+    pub const MAIL_ICON: u32 = 136382;
+    /// Attachment item border.
+    pub const ITEM_BORDER: u32 = 136383;
+    /// Frame background.
+    pub const FRAME_BG: u32 = 530419;
+    /// Unread letter icon.
+    pub const LETTER_UNREAD: u32 = 133457;
+    /// Read letter icon.
+    pub const LETTER_READ: u32 = 133462;
+    /// Gold coin (shared with auction house).
+    pub const GOLD_ICON: u32 = 237618;
+    /// Silver coin (shared with auction house).
+    pub const SILVER_ICON: u32 = 237620;
+    /// Copper coin (shared with auction house).
+    pub const COPPER_ICON: u32 = 237617;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MailAttachment {
     pub item_name: String,
@@ -142,5 +162,15 @@ mod tests {
         });
         let total = state.total_money_in_inbox();
         assert_eq!(total, Money(53000 + 20000));
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::MAIL_ICON, 0);
+        assert_ne!(textures::ITEM_BORDER, 0);
+        assert_ne!(textures::FRAME_BG, 0);
+        assert_ne!(textures::LETTER_UNREAD, 0);
+        assert_ne!(textures::LETTER_READ, 0);
+        assert_ne!(textures::GOLD_ICON, 0);
     }
 }
