@@ -27,6 +27,7 @@ pub mod login_component;
 pub mod loss_of_control_component;
 pub mod mail_frame_component;
 pub mod merchant_frame_component;
+pub mod objective_tracker_component;
 mod options_menu_active_sections;
 pub mod options_menu_component;
 mod options_menu_sections;
