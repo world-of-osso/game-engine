@@ -20,6 +20,26 @@ pub mod textures {
     pub const BAG_ICON_MEDIUM: u32 = 133625;
 }
 
+/// Texture FDIDs for the bank frame.
+pub mod bank_textures {
+    /// Bank frame main chrome texture.
+    pub const FRAME_CHROME: u32 = 130703;
+    /// Bank frame top-left corner.
+    pub const CORNER_TOP_LEFT: u32 = 130701;
+    /// Bank frame top-right corner.
+    pub const CORNER_TOP_RIGHT: u32 = 130702;
+    /// Bank frame bottom-left corner.
+    pub const CORNER_BOTTOM_LEFT: u32 = 130699;
+    /// Bank frame bottom-right corner.
+    pub const CORNER_BOTTOM_RIGHT: u32 = 130700;
+    /// Bank background fill.
+    pub const BACKGROUND: u32 = 590155;
+    /// Item slot background texture.
+    pub const SLOT_BACKGROUND: u32 = 130862;
+    /// Lock icon for locked/unpurchased slots.
+    pub const LOCK_ICON: u32 = 130944;
+}
+
 /// Returns the appropriate container background FDID for a given row count.
 pub fn bag_background_for_rows(rows: usize) -> u32 {
     match rows {
@@ -278,6 +298,15 @@ mod tests {
         assert_ne!(textures::BAG_BG_1X4, 0);
         assert_ne!(textures::BAG_BG_4X4, 0);
         assert_ne!(textures::BAG_ICON_DEFAULT, 0);
+    }
+
+    #[test]
+    fn bank_texture_fdids_are_nonzero() {
+        assert_ne!(bank_textures::FRAME_CHROME, 0);
+        assert_ne!(bank_textures::CORNER_TOP_LEFT, 0);
+        assert_ne!(bank_textures::BACKGROUND, 0);
+        assert_ne!(bank_textures::SLOT_BACKGROUND, 0);
+        assert_ne!(bank_textures::LOCK_ICON, 0);
     }
 
     #[test]
