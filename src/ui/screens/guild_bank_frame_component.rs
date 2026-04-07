@@ -292,61 +292,40 @@ fn money_row(guild_money: &str) -> Element {
     }
 }
 
-fn deposit_withdraw_buttons() -> Element {
-    let y = -(MONEY_ROW_Y + 20.0);
-    let deposit_x = GRID_INSET;
-    let withdraw_x = GRID_INSET + BTN_W + BTN_GAP;
+fn guild_bank_button(name: &str, label: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
     rsx! {
         r#frame {
-            name: "GuildBankDepositButton",
+            name: btn_id,
             width: {BTN_W},
             height: {BTN_H},
             background_color: BTN_BG,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {deposit_x},
+                x: {x},
                 y: {y},
             }
             fontstring {
-                name: "GuildBankDepositButtonText",
+                name: text_id,
                 width: {BTN_W},
                 height: {BTN_H},
-                text: "Deposit",
+                text: label,
                 font_size: 10.0,
                 font_color: BTN_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
-        r#frame {
-            name: "GuildBankWithdrawButton",
-            width: {BTN_W},
-            height: {BTN_H},
-            background_color: BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {withdraw_x},
-                y: {y},
-            }
-            fontstring {
-                name: "GuildBankWithdrawButtonText",
-                width: {BTN_W},
-                height: {BTN_H},
-                text: "Withdraw",
-                font_size: 10.0,
-                font_color: BTN_TEXT_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-        }
+    }
+}
+
+fn deposit_withdraw_buttons() -> Element {
+    let y = -(MONEY_ROW_Y + 20.0);
+    rsx! {
+        {guild_bank_button("GuildBankDepositButton", "Deposit", GRID_INSET, y)}
+        {guild_bank_button("GuildBankWithdrawButton", "Withdraw", GRID_INSET + BTN_W + BTN_GAP, y)}
     }
 }
 
