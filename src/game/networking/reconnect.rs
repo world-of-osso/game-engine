@@ -142,3 +142,136 @@ pub(crate) fn rand_client_id() -> u64 {
         .unwrap_or_default()
         .as_nanos() as u64
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- ReconnectState transitions ---
+
+    #[test]
+    fn reconnect_state_defaults_to_inactive() {
+        let state = ReconnectState::default();
+        assert_eq!(state.phase, ReconnectPhase::Inactive);
+        assert!(!state.is_active());
+        assert!(!state.terrain_refresh_seen);
+    }
+
+    #[test]
+    fn reconnect_phase_pending_is_active() {
+        let state = ReconnectState {
+            phase: ReconnectPhase::PendingConnect,
+            terrain_refresh_seen: false,
+        };
+        assert!(state.is_active());
+    }
+
+    #[test]
+    fn reconnect_phase_awaiting_is_active() {
+        let state = ReconnectState {
+            phase: ReconnectPhase::AwaitingWorld,
+            terrain_refresh_seen: false,
+        };
+        assert!(state.is_active());
+    }
+
+    #[test]
+    fn reconnect_transition_to_inactive() {
+        let mut state = ReconnectState {
+            phase: ReconnectPhase::AwaitingWorld,
+            terrain_refresh_seen: true,
+        };
+        state.phase = ReconnectPhase::Inactive;
+        state.terrain_refresh_seen = false;
+        assert!(!state.is_active());
+        assert!(!state.terrain_refresh_seen);
+    }
+
+    // --- World reset ---
+
+    #[test]
+    fn reset_network_world_clears_status_snapshots() {
+        let mut world = World::default();
+        let mut snap = game_engine::status::NetworkStatusSnapshot::default();
+        snap.connected = true;
+        snap.game_state = "InWorld".into();
+        snap.remote_entities = 10;
+        world.insert_resource(snap);
+        world.insert_resource(game_engine::status::TerrainStatusSnapshot {
+            loaded_tiles: 5,
+            ..Default::default()
+        });
+
+        reset_status_snapshots(&mut world);
+
+        let net = world
+            .get_resource::<game_engine::status::NetworkStatusSnapshot>()
+            .unwrap();
+        assert!(!net.connected);
+        assert_eq!(net.remote_entities, 0);
+        let terrain = world
+            .get_resource::<game_engine::status::TerrainStatusSnapshot>()
+            .unwrap();
+        assert_eq!(terrain.loaded_tiles, 0);
+    }
+
+    #[test]
+    fn reset_resource_resets_to_default() {
+        let mut world = World::default();
+        world.insert_resource(game_engine::status::CurrenciesStatusSnapshot {
+            entries: vec![game_engine::status::CurrencyEntry {
+                id: 1,
+                name: "Honor".into(),
+                amount: 5000,
+            }],
+        });
+
+        reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(&mut world);
+
+        let snap = world
+            .get_resource::<game_engine::status::CurrenciesStatusSnapshot>()
+            .unwrap();
+        assert!(snap.entries.is_empty());
+    }
+
+    #[test]
+    fn reset_resource_missing_resource_no_panic() {
+        let mut world = World::default();
+        // Resource not inserted — should not panic
+        reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(&mut world);
+    }
+
+    #[test]
+    fn reset_world_resources_clears_zone_and_chat() {
+        let mut world = World::default();
+        world.insert_resource(CurrentZone { zone_id: 42 });
+        world.insert_resource(ChatLog {
+            messages: vec![(
+                "Player".into(),
+                "hello".into(),
+                shared::protocol::ChatType::Say,
+            )],
+        });
+        world.insert_resource(LocalAliveState(false));
+
+        reset_world_resources(&mut world);
+
+        assert_eq!(world.resource::<CurrentZone>().zone_id, 0);
+        assert!(world.resource::<ChatLog>().messages.is_empty());
+        assert!(world.resource::<LocalAliveState>().0);
+    }
+
+    #[test]
+    fn rand_client_id_nonzero() {
+        let id = rand_client_id();
+        assert_ne!(id, 0);
+    }
+
+    #[test]
+    fn rand_client_id_different_calls() {
+        let id1 = rand_client_id();
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        let id2 = rand_client_id();
+        assert_ne!(id1, id2);
+    }
+}
