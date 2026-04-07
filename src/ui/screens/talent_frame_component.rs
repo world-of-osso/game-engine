@@ -350,4 +350,138 @@ mod tests {
             );
         }
     }
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn talent_frame_hidden_when_not_visible() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = make_test_state();
+        state.visible = false;
+        shared.insert(state);
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        let id = registry.get_by_name("TalentFrame").expect("TalentFrame");
+        let frame = registry.get(id).expect("frame data");
+        assert!(frame.hidden, "frame should be hidden when visible=false");
+    }
+
+    #[test]
+    fn spec_tab_labels_show_spec_names() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(
+            fontstring_text(&registry, "TalentSpecTab0Label"),
+            "Protection"
+        );
+        assert_eq!(fontstring_text(&registry, "TalentSpecTab1Label"), "Holy");
+        assert_eq!(
+            fontstring_text(&registry, "TalentSpecTab2Label"),
+            "Retribution"
+        );
+    }
+
+    #[test]
+    fn switching_active_tab_updates_labels() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = make_test_state();
+        // Switch active tab from Protection to Retribution
+        state.spec_tabs[0].active = false;
+        state.spec_tabs[2].active = true;
+        shared.insert(state);
+        let mut screen = Screen::new(talent_frame_screen);
+        screen.sync(&shared, &mut registry);
+
+        // All 3 tabs still present
+        for i in 0..3 {
+            assert!(
+                registry.get_by_name(&format!("TalentSpecTab{i}")).is_some(),
+                "TalentSpecTab{i} missing after switch"
+            );
+        }
+        // Labels unchanged (tabs still show their spec names regardless of active state)
+        assert_eq!(
+            fontstring_text(&registry, "TalentSpecTab0Label"),
+            "Protection"
+        );
+        assert_eq!(
+            fontstring_text(&registry, "TalentSpecTab2Label"),
+            "Retribution"
+        );
+    }
+
+    #[test]
+    fn talent_nodes_show_names_and_points() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = make_test_state();
+        state.talents[0].name = "Shield of the Righteous".to_string();
+        state.talents[0].points = "1/1".to_string();
+        state.talents[0].active = true;
+        state.talents[5].name = "Crusader Strike".to_string();
+        state.talents[5].points = "2/3".to_string();
+        shared.insert(state);
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(
+            fontstring_text(&registry, "TalentNode0Name"),
+            "Shield of the Righteous"
+        );
+        assert_eq!(fontstring_text(&registry, "TalentNode0Points"), "1/1");
+        assert_eq!(
+            fontstring_text(&registry, "TalentNode5Name"),
+            "Crusader Strike"
+        );
+        assert_eq!(fontstring_text(&registry, "TalentNode5Points"), "2/3");
+    }
+
+    #[test]
+    fn grid_builds_all_node_sub_elements() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        for i in 0..TALENT_COUNT {
+            assert!(
+                registry
+                    .get_by_name(&format!("TalentNode{i}Name"))
+                    .is_some(),
+                "TalentNode{i}Name missing"
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("TalentNode{i}Points"))
+                    .is_some(),
+                "TalentNode{i}Points missing"
+            );
+        }
+    }
+
+    #[test]
+    fn title_and_footer_text() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        assert_eq!(fontstring_text(&registry, "TalentFrameTitle"), "Talents");
+        assert_eq!(
+            fontstring_text(&registry, "TalentFramePointsRemaining"),
+            "Points Remaining: 51"
+        );
+    }
 }
