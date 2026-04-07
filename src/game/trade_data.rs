@@ -174,6 +174,38 @@ impl TradeState {
     pub fn total_items(&self) -> usize {
         self.player.filled_slot_count() + self.other.filled_slot_count()
     }
+
+    /// Player accepts the trade.
+    pub fn player_accept(&mut self) {
+        self.player.accept = AcceptState::Accepted;
+    }
+
+    /// Reset both accept states (e.g. when trade contents change).
+    pub fn reset_accepts(&mut self) {
+        self.player.accept = AcceptState::Pending;
+        self.other.accept = AcceptState::Pending;
+    }
+
+    /// Validate that the player's offered money does not exceed their wallet.
+    pub fn validate_player_money(&self, wallet: u32) -> bool {
+        self.player.money.copper <= wallet
+    }
+
+    /// Place an item in the player's next empty slot. Returns the slot index or None if full.
+    pub fn add_player_item(&mut self, item: TradeSlot) -> Option<usize> {
+        let idx = self.player.slots.iter().position(|s| s.is_none())?;
+        self.player.slots[idx] = Some(item);
+        self.reset_accepts();
+        Some(idx)
+    }
+
+    /// Remove an item from a player slot by index.
+    pub fn remove_player_item(&mut self, index: usize) {
+        if index < self.player.slots.len() {
+            self.player.slots[index] = None;
+            self.reset_accepts();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -284,6 +316,121 @@ mod tests {
         state.other.slots[2] = Some(slot("B", 1));
         state.other.slots[4] = Some(slot("C", 1));
         assert_eq!(state.total_items(), 3);
+    }
+
+    // --- Accept state transitions ---
+
+    #[test]
+    fn player_accept_sets_state() {
+        let mut state = TradeState {
+            active: true,
+            ..Default::default()
+        };
+        state.player_accept();
+        assert!(state.player.is_accepted());
+        assert!(!state.other.is_accepted());
+    }
+
+    #[test]
+    fn reset_accepts_clears_both() {
+        let mut state = TradeState {
+            active: true,
+            ..Default::default()
+        };
+        state.player.accept = AcceptState::Accepted;
+        state.other.accept = AcceptState::Accepted;
+        state.reset_accepts();
+        assert!(!state.player.is_accepted());
+        assert!(!state.other.is_accepted());
+    }
+
+    // --- Money validation ---
+
+    #[test]
+    fn validate_money_sufficient() {
+        let mut state = TradeState::default();
+        state.player.money = Money::new(5, 0, 0);
+        assert!(state.validate_player_money(100_000)); // 10g wallet
+    }
+
+    #[test]
+    fn validate_money_exact() {
+        let mut state = TradeState::default();
+        state.player.money = Money::new(10, 0, 0);
+        assert!(state.validate_player_money(100_000)); // exactly 10g
+    }
+
+    #[test]
+    fn validate_money_insufficient() {
+        let mut state = TradeState::default();
+        state.player.money = Money::new(10, 0, 0);
+        assert!(!state.validate_player_money(50_000)); // only 5g
+    }
+
+    #[test]
+    fn validate_money_zero_offered() {
+        let state = TradeState::default();
+        assert!(state.validate_player_money(0));
+    }
+
+    // --- Slot mirroring (panels independent) ---
+
+    #[test]
+    fn player_and_other_slots_independent() {
+        let mut state = TradeState {
+            active: true,
+            ..Default::default()
+        };
+        state.player.slots[0] = Some(slot("Ore", 20));
+        state.other.slots[0] = Some(slot("Gem", 5));
+        assert_eq!(state.player.slots[0].as_ref().unwrap().item_name, "Ore");
+        assert_eq!(state.other.slots[0].as_ref().unwrap().item_name, "Gem");
+        assert_eq!(state.total_items(), 2);
+    }
+
+    #[test]
+    fn add_player_item_fills_next_empty() {
+        let mut state = TradeState::default();
+        let idx0 = state.add_player_item(slot("A", 1));
+        assert_eq!(idx0, Some(0));
+        let idx1 = state.add_player_item(slot("B", 1));
+        assert_eq!(idx1, Some(1));
+        assert_eq!(state.player.filled_slot_count(), 2);
+    }
+
+    #[test]
+    fn add_player_item_full_returns_none() {
+        let mut state = TradeState::default();
+        for i in 0..7 {
+            state.player.slots[i] = Some(slot(&format!("Item{i}"), 1));
+        }
+        assert_eq!(state.add_player_item(slot("Extra", 1)), None);
+    }
+
+    #[test]
+    fn add_item_resets_accepts() {
+        let mut state = TradeState::default();
+        state.player.accept = AcceptState::Accepted;
+        state.other.accept = AcceptState::Accepted;
+        state.add_player_item(slot("New", 1));
+        assert!(!state.player.is_accepted());
+        assert!(!state.other.is_accepted());
+    }
+
+    #[test]
+    fn remove_item_resets_accepts() {
+        let mut state = TradeState::default();
+        state.player.slots[0] = Some(slot("A", 1));
+        state.player.accept = AcceptState::Accepted;
+        state.remove_player_item(0);
+        assert!(state.player.slots[0].is_none());
+        assert!(!state.player.is_accepted());
+    }
+
+    #[test]
+    fn remove_item_out_of_bounds_no_panic() {
+        let mut state = TradeState::default();
+        state.remove_player_item(99); // should not panic
     }
 
     #[test]
