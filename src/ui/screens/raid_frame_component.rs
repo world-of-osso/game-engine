@@ -198,6 +198,33 @@ fn raid_cell(gi: usize, mi: usize, member: Option<&RaidMember>, y: f32) -> Eleme
     }
 }
 
+fn raid_cell_fill(id: DynName, w: f32, color: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {w},
+            height: {FILL_H},
+            background_color: color,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {FILL_INSET}, y: {-FILL_INSET} }
+        }
+    }
+}
+
+fn raid_cell_name(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {CELL_W - 4.0},
+            height: {NAME_H},
+            text: text,
+            font_size: 8.0,
+            font_color: NAME_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "2", y: "-2" }
+        }
+    }
+}
+
 fn filled_cell(
     gi: usize,
     mi: usize,
@@ -206,13 +233,14 @@ fn filled_cell(
     x: f32,
     y: f32,
 ) -> Element {
-    let fill_id = DynName(format!("RaidCell{gi}_{mi}Fill"));
-    let name_id = DynName(format!("RaidCell{gi}_{mi}Name"));
     let frac = member.health_fraction();
     let bar_inner_w = CELL_W - 2.0 * FILL_INSET;
     let fill_w = frac * bar_inner_w;
-    let is_low = frac < LOW_HEALTH_THRESHOLD && frac > 0.0;
-    let fill_color = if is_low { HEALTH_LOW_FILL } else { HEALTH_FILL };
+    let fill_color = if frac < LOW_HEALTH_THRESHOLD && frac > 0.0 {
+        HEALTH_LOW_FILL
+    } else {
+        HEALTH_FILL
+    };
     rsx! {
         r#frame {
             name: cell_id,
@@ -225,33 +253,8 @@ fn filled_cell(
                 x: {x},
                 y: {-y},
             }
-            r#frame {
-                name: fill_id,
-                width: {fill_w},
-                height: {FILL_H},
-                background_color: fill_color,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {FILL_INSET},
-                    y: {-FILL_INSET},
-                }
-            }
-            fontstring {
-                name: name_id,
-                width: {CELL_W - 4.0},
-                height: {NAME_H},
-                text: {member.name.as_str()},
-                font_size: 8.0,
-                font_color: NAME_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "2",
-                    y: "-2",
-                }
-            }
+            {raid_cell_fill(DynName(format!("RaidCell{gi}_{mi}Fill")), fill_w, fill_color)}
+            {raid_cell_name(DynName(format!("RaidCell{gi}_{mi}Name")), &member.name)}
             {raid_incoming_heal(gi, mi, member, bar_inner_w)}
             {raid_ready_check(gi, mi, member.ready_check)}
             {raid_range_fade(gi, mi, member.in_range)}
