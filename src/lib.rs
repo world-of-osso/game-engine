@@ -95,6 +95,8 @@ pub mod trade_data;
 pub mod ui;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;
+#[path = "game/world_map_data.rs"]
+pub mod world_map_data;
 
 #[path = "rendering/character/char_texture_cache.rs"]
 pub mod char_texture_cache;
