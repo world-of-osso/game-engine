@@ -508,3 +508,89 @@ fn uncompressed_mcal_payload(alpha: impl Fn(usize, usize) -> u8) -> Vec<u8> {
 fn alpha_at(alpha: &[u8], x: usize, y: usize) -> u8 {
     alpha[x * 64 + y]
 }
+
+// --- MH2O attribute edge cases ---
+
+#[test]
+fn mh2o_attribute_out_of_bounds() {
+    let attrs = WaterAttributes {
+        fishable: u64::MAX,
+        deep: u64::MAX,
+    };
+    // In-bounds should be true
+    assert!(attrs.is_fishable(0, 0));
+    assert!(attrs.is_deep(7, 7));
+    // Out-of-bounds should return false
+    assert!(!attrs.is_fishable(8, 0));
+    assert!(!attrs.is_fishable(0, 8));
+    assert!(!attrs.is_deep(8, 8));
+}
+
+#[test]
+fn mh2o_attribute_zero_masks() {
+    let attrs = WaterAttributes {
+        fishable: 0,
+        deep: 0,
+    };
+    for y in 0..8 {
+        for x in 0..8 {
+            assert!(!attrs.is_fishable(x, y));
+            assert!(!attrs.is_deep(x, y));
+        }
+    }
+}
+
+#[test]
+fn mh2o_no_attributes_when_offset_zero() {
+    // Use chunk index 0, but build payload with no attributes
+    let payload = mh2o_payload(0, 1, None);
+    let parsed = parse_mh2o(&payload).expect("should parse");
+    assert!(parsed.chunks[0].attributes.is_none());
+}
+
+#[test]
+fn mh2o_no_layers_when_count_zero() {
+    let payload = mh2o_payload(0, 0, None);
+    let parsed = parse_mh2o(&payload).expect("should parse");
+    assert!(parsed.chunks[0].layers.is_empty());
+}
+
+#[test]
+fn mh2o_attribute_bit_position_mapping() {
+    // Bit 9 = y=1, x=1 (y * 8 + x)
+    let attrs = WaterAttributes {
+        fishable: 1 << 9,
+        deep: 0,
+    };
+    assert!(attrs.is_fishable(1, 1));
+    assert!(!attrs.is_fishable(0, 0));
+    assert!(!attrs.is_fishable(1, 0));
+    assert!(!attrs.is_fishable(0, 1));
+}
+
+#[test]
+fn mh2o_default_vertex_format_has_heights() {
+    // liquid_object 0 = default format: height-only vertices
+    let heights: Vec<u8> = [1.0f32, 2.0, 3.0, 4.0]
+        .iter()
+        .flat_map(|h| h.to_le_bytes())
+        .collect();
+    let payload = mh2o_payload_with_vertex_data(0, 1, None, 0, &heights);
+    let parsed = parse_mh2o(&payload).expect("should parse");
+    let layer = &parsed.chunks[0].layers[0];
+    assert_eq!(layer.vertex_heights, vec![1.0, 2.0, 3.0, 4.0]);
+    assert!(layer.vertex_uvs.is_empty());
+    assert!(layer.vertex_depths.is_empty());
+}
+
+#[test]
+fn mh2o_empty_chunk_no_crash() {
+    // All 256 chunks with zero offsets
+    let payload = vec![0u8; 256 * size_of::<Mh2oChunkHeader>()];
+    let parsed = parse_mh2o(&payload).expect("should parse empty MH2O");
+    assert_eq!(parsed.chunks.len(), 256);
+    for chunk in &parsed.chunks {
+        assert!(chunk.layers.is_empty());
+        assert!(chunk.attributes.is_none());
+    }
+}
