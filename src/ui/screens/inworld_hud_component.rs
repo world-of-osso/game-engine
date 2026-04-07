@@ -652,8 +652,57 @@ fn minimap_cluster() -> Element {
             {minimap_display()}
             {minimap_border()}
             {minimap_overlay()}
+            {minimap_buttons()}
         }
     }
+}
+
+const MINIMAP_BTN_SIZE: f32 = 24.0;
+
+fn minimap_buttons() -> Element {
+    let btns = [
+        ("MinimapZoomIn", "+", 90.0, -10.0),
+        ("MinimapZoomOut", "-", 90.0, 14.0),
+        ("MinimapCalendarButton", "Cal", -80.0, -10.0),
+        ("MinimapMailButton", "Mail", -80.0, 14.0),
+        ("MinimapLFGButton", "LFG", -80.0, 38.0),
+    ];
+    btns.iter()
+        .flat_map(|(name, text, x_off, y_off)| {
+            let btn_name = DynName(name.to_string());
+            let txt_name = DynName(format!("{name}Text"));
+            rsx! {
+                r#frame {
+                    name: btn_name,
+                    width: {MINIMAP_BTN_SIZE},
+                    height: {MINIMAP_BTN_SIZE},
+                    background_color: MINIMAP_HEADER_BG,
+                    strata: FrameStrata::High,
+                    frame_level: 12.0,
+                    anchor {
+                        point: AnchorPoint::Center,
+                        relative_to: MINIMAP_DISPLAY,
+                        relative_point: AnchorPoint::Center,
+                        x: {*x_off},
+                        y: {*y_off},
+                    }
+                    fontstring {
+                        name: txt_name,
+                        width: {MINIMAP_BTN_SIZE},
+                        height: {MINIMAP_BTN_SIZE},
+                        text,
+                        font_size: 8.0,
+                        font_color: MINIMAP_ZONE_COLOR,
+                        justify_h: "CENTER",
+                        anchor {
+                            point: AnchorPoint::TopLeft,
+                            relative_point: AnchorPoint::TopLeft,
+                        }
+                    }
+                }
+            }
+        })
+        .collect()
 }
 
 pub fn minimap_screen(_ctx: &SharedContext) -> Element {
@@ -913,5 +962,19 @@ mod tests {
         let frame = reg.get(id).expect("data");
         assert_eq!(frame.width, Dimension::Fixed(MINIMAP_DISPLAY_SIZE));
         assert_eq!(frame.height, Dimension::Fixed(MINIMAP_DISPLAY_SIZE));
+    }
+
+    #[test]
+    fn minimap_builds_buttons_ring() {
+        let reg = minimap_registry();
+        for name in [
+            "MinimapZoomIn",
+            "MinimapZoomOut",
+            "MinimapCalendarButton",
+            "MinimapMailButton",
+            "MinimapLFGButton",
+        ] {
+            assert!(reg.get_by_name(name).is_some(), "{name} missing");
+        }
     }
 }
