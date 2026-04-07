@@ -283,12 +283,17 @@ fn permissions_grid(permissions: &[PermissionRow]) -> Element {
 }
 
 fn permission_row(idx: usize, perm: &PermissionRow, x: f32, y: f32) -> Element {
-    let cb_id = DynName(format!("GuildControlPerm{idx}Check"));
-    let label_id = DynName(format!("GuildControlPerm{idx}Label"));
     let check_text = if perm.checked { "\u{2713}" } else { "" };
     rsx! {
+        {perm_checkbox(DynName(format!("GuildControlPerm{idx}Check")), DynName(format!("GuildControlPerm{idx}CheckText")), check_text, x, y)}
+        {perm_label(DynName(format!("GuildControlPerm{idx}Label")), &perm.label, x + CHECKBOX_SIZE + CHECKBOX_GAP, y)}
+    }
+}
+
+fn perm_checkbox(id: DynName, text_id: DynName, check: &str, x: f32, y: f32) -> Element {
+    rsx! {
         r#frame {
-            name: cb_id,
+            name: id,
             width: {CHECKBOX_SIZE},
             height: {CHECKBOX_SIZE},
             background_color: CHECKBOX_BG,
@@ -299,33 +304,30 @@ fn permission_row(idx: usize, perm: &PermissionRow, x: f32, y: f32) -> Element {
                 y: {y},
             }
             fontstring {
-                name: DynName(format!("GuildControlPerm{idx}CheckText")),
+                name: text_id,
                 width: {CHECKBOX_SIZE},
                 height: {CHECKBOX_SIZE},
-                text: check_text,
+                text: check,
                 font_size: 14.0,
                 font_color: CHECKBOX_CHECK_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
+    }
+}
+
+fn perm_label(id: DynName, text: &str, x: f32, y: f32) -> Element {
+    rsx! {
         fontstring {
-            name: label_id,
+            name: id,
             width: {PERM_LABEL_W},
             height: {PERM_ROW_H},
-            text: {perm.label.as_str()},
+            text: text,
             font_size: 10.0,
             font_color: PERM_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x + CHECKBOX_SIZE + CHECKBOX_GAP},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
         }
     }
 }
