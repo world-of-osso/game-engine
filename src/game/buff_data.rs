@@ -227,4 +227,92 @@ mod tests {
         assert_ne!(textures::NULLIFY_POISON, 0);
         assert_ne!(textures::ANTI_SHADOW, 0);
     }
+
+    // --- Stack count tests ---
+
+    #[test]
+    fn stack_count_preserved_through_tick() {
+        let mut state = AuraState::default();
+        let mut aura = make_buff("Lifebloom", 10.0, 10.0);
+        aura.stacks = 3;
+        state.auras.push(aura);
+        state.tick(5.0);
+        assert_eq!(state.auras[0].stacks, 3);
+        assert!((state.auras[0].remaining - 5.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn zero_stacks_treated_as_no_display() {
+        let aura = make_buff("Fort", 3600.0, 3600.0);
+        // Default stack count is 1, which means "don't show count"
+        assert_eq!(aura.stacks, 1);
+    }
+
+    #[test]
+    fn high_stack_count() {
+        let mut aura = make_buff("Sunder Armor", 30.0, 30.0);
+        aura.stacks = 5;
+        aura.is_debuff = true;
+        aura.debuff_type = DebuffType::None;
+        assert_eq!(aura.stacks, 5);
+        assert!(aura.is_debuff);
+    }
+
+    // --- Debuff classification ---
+
+    #[test]
+    fn debuff_type_classification() {
+        let magic = make_debuff("Polymorph", DebuffType::Magic);
+        assert_eq!(magic.debuff_type, DebuffType::Magic);
+        assert!(magic.is_debuff);
+
+        let poison = make_debuff("Deadly Poison", DebuffType::Poison);
+        assert_eq!(poison.debuff_type, DebuffType::Poison);
+
+        let disease = make_debuff("Plague", DebuffType::Disease);
+        assert_eq!(disease.debuff_type, DebuffType::Disease);
+
+        let curse = make_debuff("Curse of Weakness", DebuffType::Curse);
+        assert_eq!(curse.debuff_type, DebuffType::Curse);
+    }
+
+    // --- Duration countdown edge cases ---
+
+    #[test]
+    fn tick_permanent_aura_stays_at_zero() {
+        let mut state = AuraState::default();
+        state.auras.push(make_buff("Perm", 0.0, 0.0));
+        state.tick(100.0);
+        assert_eq!(state.auras[0].remaining, 0.0);
+    }
+
+    #[test]
+    fn timer_text_boundary_at_60_seconds() {
+        let at_59 = make_buff("A", 60.0, 59.5);
+        assert_eq!(at_59.timer_text(), "1m"); // ceil(59.5) = 60s = 1m
+
+        let at_60 = make_buff("B", 120.0, 60.0);
+        assert_eq!(at_60.timer_text(), "1m");
+    }
+
+    #[test]
+    fn timer_text_boundary_at_3600_seconds() {
+        let at_3599 = make_buff("A", 7200.0, 3599.5);
+        assert_eq!(at_3599.timer_text(), "1h"); // ceil(3599.5) = 3600s = 1h
+
+        let at_3600 = make_buff("B", 7200.0, 3600.0);
+        assert_eq!(at_3600.timer_text(), "1h");
+    }
+
+    #[test]
+    fn remove_expired_with_mixed_debuffs() {
+        let mut state = AuraState::default();
+        state.auras.push(make_debuff("Active", DebuffType::Magic));
+        let mut expired = make_debuff("Expired", DebuffType::Curse);
+        expired.remaining = 0.0;
+        state.auras.push(expired);
+        state.remove_expired();
+        assert_eq!(state.auras.len(), 1);
+        assert_eq!(state.auras[0].name, "Active");
+    }
 }
