@@ -1003,4 +1003,64 @@ mod tests {
         assert!(reg.get_by_name("WorldMapPinTooltipTitle").is_some());
         assert!(reg.get_by_name("WorldMapPinTooltipType").is_some());
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_dropdown_dimensions() {
+        let reg = layout_registry();
+        let cont_r = rect(&reg, "WorldMapContinentDropdown");
+        let zone_r = rect(&reg, "WorldMapZoneDropdown");
+        assert!((cont_r.width - DROPDOWN_W).abs() < 1.0);
+        assert!((cont_r.height - DROPDOWN_H).abs() < 1.0);
+        assert!((zone_r.width - DROPDOWN_W).abs() < 1.0);
+        assert!((zone_r.height - DROPDOWN_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_legend_bottom_left_of_canvas() {
+        let reg = layout_registry();
+        let legend_r = rect(&reg, "WorldMapLegend");
+        // Legend in lower-left area of canvas
+        let canvas_bottom = CANVAS_TOP + CANVAS_H;
+        assert!(legend_r.y + legend_r.height < canvas_bottom + 1.0);
+        assert!((legend_r.x - (CANVAS_INSET + 8.0)).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_second_zone_overlay() {
+        let reg = layout_registry();
+        let ov_r = rect(&reg, "WorldMapZoneOv1");
+        // Northshire: x=0.5, y=0.2, w=0.15, h=0.1
+        let expected_x = CANVAS_INSET + 0.5 * CANVAS_W;
+        let expected_y = CANVAS_TOP + 0.2 * CANVAS_H;
+        assert!((ov_r.x - expected_x).abs() < 1.0);
+        assert!((ov_r.y - expected_y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_tooltip_width() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = sample_state();
+        state.hovered_pin = Some(0);
+        shared.insert(state);
+        Screen::new(world_map_frame_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        let r = rect(&reg, "WorldMapPinTooltip");
+        assert!((r.width - TOOLTIP_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_flight_path_line_bounds() {
+        let reg = layout_registry();
+        let line_r = rect(&reg, "WorldMapFP0Line");
+        // Line between (0.32, 0.52) and (0.6, 0.3)
+        let x1 = CANVAS_INSET + 0.32 * CANVAS_W;
+        let x2 = CANVAS_INSET + 0.6 * CANVAS_W;
+        let expected_x = x1.min(x2);
+        let expected_w = (x2 - x1).abs().max(FP_LINE_H);
+        assert!((line_r.x - expected_x).abs() < 1.0);
+        assert!((line_r.width - expected_w).abs() < 1.0);
+    }
 }
