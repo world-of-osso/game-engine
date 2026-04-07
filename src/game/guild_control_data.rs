@@ -1,5 +1,19 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the guild control frame.
+pub mod textures {
+    /// Checkbox check mark.
+    pub const CHECKBOX_CHECK: u32 = 130751;
+    /// Checkbox pressed/depressed state.
+    pub const CHECKBOX_DOWN: u32 = 130752;
+    /// Checkbox highlight on hover.
+    pub const CHECKBOX_HIGHLIGHT: u32 = 130753;
+    /// Checkbox normal (unchecked) state.
+    pub const CHECKBOX_UP: u32 = 130755;
+    /// Permission tab frame chrome.
+    pub const PERMISSION_TAB: u32 = 132075;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GuildPermFlag {
     InviteMembers,
@@ -178,5 +192,13 @@ mod tests {
         assert!(!s.can_deposit);
         assert!(!s.can_withdraw);
         assert_eq!(s.withdraw_limit, 0);
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::CHECKBOX_CHECK, 0);
+        assert_ne!(textures::CHECKBOX_UP, 0);
+        assert_ne!(textures::CHECKBOX_DOWN, 0);
+        assert_ne!(textures::PERMISSION_TAB, 0);
     }
 }
