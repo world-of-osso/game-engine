@@ -461,3 +461,89 @@ fn antiportal_groups_occlude_groups_behind_them() {
         Visibility::Hidden
     );
 }
+
+// --- Pure function tests ---
+
+#[test]
+fn distance_sq_to_aabb_point_outside() {
+    let min = Vec3::new(10.0, 10.0, 10.0);
+    let max = Vec3::new(20.0, 20.0, 20.0);
+    let point = Vec3::new(0.0, 15.0, 15.0);
+    let dist_sq = distance_sq_to_aabb(point, min, max);
+    // Only X contributes: (10-0)^2 = 100
+    assert!((dist_sq - 100.0).abs() < 0.01);
+}
+
+#[test]
+fn distance_sq_to_aabb_point_inside() {
+    let min = Vec3::new(0.0, 0.0, 0.0);
+    let max = Vec3::new(10.0, 10.0, 10.0);
+    let point = Vec3::new(5.0, 5.0, 5.0);
+    assert_eq!(distance_sq_to_aabb(point, min, max), 0.0);
+}
+
+#[test]
+fn distance_sq_to_aabb_point_on_surface() {
+    let min = Vec3::new(0.0, 0.0, 0.0);
+    let max = Vec3::new(10.0, 10.0, 10.0);
+    let point = Vec3::new(10.0, 5.0, 5.0);
+    assert_eq!(distance_sq_to_aabb(point, min, max), 0.0);
+}
+
+#[test]
+fn distance_sq_to_aabb_corner() {
+    let min = Vec3::new(0.0, 0.0, 0.0);
+    let max = Vec3::new(1.0, 1.0, 1.0);
+    let point = Vec3::new(2.0, 2.0, 2.0);
+    // Distance to corner: (1,1,1) → sqrt(3) → sq = 3
+    assert!((distance_sq_to_aabb(point, min, max) - 3.0).abs() < 0.01);
+}
+
+#[test]
+fn chunk_refs_visible_no_refs_always_visible() {
+    let visible_chunks = HashSet::new();
+    assert!(chunk_refs_visible(None, &visible_chunks));
+}
+
+#[test]
+fn chunk_refs_visible_empty_indices_always_visible() {
+    let refs = ChunkRefs {
+        chunk_indices: vec![],
+    };
+    let visible_chunks = HashSet::new();
+    assert!(chunk_refs_visible(Some(&refs), &visible_chunks));
+}
+
+#[test]
+fn chunk_refs_visible_none_matching() {
+    let refs = ChunkRefs {
+        chunk_indices: vec![5, 6, 7],
+    };
+    let visible_chunks: HashSet<u16> = [1, 2, 3].into_iter().collect();
+    assert!(!chunk_refs_visible(Some(&refs), &visible_chunks));
+}
+
+#[test]
+fn chunk_refs_visible_one_matching() {
+    let refs = ChunkRefs {
+        chunk_indices: vec![5, 6, 7],
+    };
+    let visible_chunks: HashSet<u16> = [6].into_iter().collect();
+    assert!(chunk_refs_visible(Some(&refs), &visible_chunks));
+}
+
+#[test]
+fn doodad_without_chunk_refs_uses_distance_only() {
+    let (mut world, mut state) = setup_world(Vec3::ZERO, 50.0 * 50.0);
+    // No chunk refs → visible if within distance
+    let near = world
+        .spawn((
+            Doodad,
+            Transform::from_xyz(10.0, 0.0, 0.0),
+            Visibility::Visible,
+        ))
+        .id();
+
+    run_cull(&mut world, &mut state);
+    assert_eq!(*world.get::<Visibility>(near).unwrap(), Visibility::Visible);
+}
