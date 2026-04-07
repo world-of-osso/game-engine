@@ -658,23 +658,12 @@ fn loot_rows(items: &[LootItem], parent_w: f32) -> Element {
 
 fn loot_row(idx: usize, item: &LootItem, row_w: f32, top: f32) -> Element {
     let row_id = DynName(format!("EJLoot{idx}"));
-    let icon_id = DynName(format!("EJLoot{idx}Icon"));
-    let name_id = DynName(format!("EJLoot{idx}Name"));
-    let slot_id = DynName(format!("EJLoot{idx}Slot"));
-    let drop_id = DynName(format!("EJLoot{idx}Drop"));
     let y = -(top + idx as f32 * (LOOT_ROW_H + LOOT_ROW_GAP));
     let bg = if idx % 2 == 0 {
         LOOT_ROW_EVEN
     } else {
         LOOT_ROW_ODD
     };
-    let icon_col_w = loot_col_w(row_w, 0);
-    let name_x = loot_col_x(row_w, 1);
-    let name_w = loot_col_w(row_w, 1);
-    let slot_x = loot_col_x(row_w, 2);
-    let slot_w = loot_col_w(row_w, 2);
-    let drop_x = loot_col_x(row_w, 3);
-    let drop_w = loot_col_w(row_w, 3);
     rsx! {
         r#frame {
             name: row_id,
@@ -687,63 +676,37 @@ fn loot_row(idx: usize, item: &LootItem, row_w: f32, top: f32) -> Element {
                 x: {LOOT_INSET},
                 y: {y},
             }
-            r#frame {
-                name: icon_id,
-                width: {LOOT_ICON_SIZE},
-                height: {LOOT_ICON_SIZE},
-                background_color: LOOT_ICON_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "2",
-                    y: "-2",
-                }
-            }
-            fontstring {
-                name: name_id,
-                width: {name_w},
-                height: {LOOT_ROW_H},
-                text: {item.name.as_str()},
-                font_size: 10.0,
-                font_color: LOOT_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {name_x},
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: slot_id,
-                width: {slot_w},
-                height: {LOOT_ROW_H},
-                text: {item.slot.as_str()},
-                font_size: 9.0,
-                font_color: LOOT_SLOT_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {slot_x},
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: drop_id,
-                width: {drop_w},
-                height: {LOOT_ROW_H},
-                text: {item.drop_pct.as_str()},
-                font_size: 9.0,
-                font_color: LOOT_SLOT_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {drop_x},
-                    y: "0",
-                }
-            }
+            {loot_icon(DynName(format!("EJLoot{idx}Icon")))}
+            {loot_cell(DynName(format!("EJLoot{idx}Name")), &item.name, loot_col_w(row_w, 1), loot_col_x(row_w, 1), 10.0, LOOT_NAME_COLOR)}
+            {loot_cell(DynName(format!("EJLoot{idx}Slot")), &item.slot, loot_col_w(row_w, 2), loot_col_x(row_w, 2), 9.0, LOOT_SLOT_COLOR)}
+            {loot_cell(DynName(format!("EJLoot{idx}Drop")), &item.drop_pct, loot_col_w(row_w, 3), loot_col_x(row_w, 3), 9.0, LOOT_SLOT_COLOR)}
+        }
+    }
+}
+
+fn loot_icon(id: DynName) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {LOOT_ICON_SIZE},
+            height: {LOOT_ICON_SIZE},
+            background_color: LOOT_ICON_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "2", y: "-2" }
+        }
+    }
+}
+
+fn loot_cell(id: DynName, text: &str, w: f32, x: f32, font_size: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {LOOT_ROW_H},
+            text: text,
+            font_size: font_size,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "0" }
         }
     }
 }
