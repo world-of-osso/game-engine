@@ -54,8 +54,30 @@ const CHANNEL_COLOR: &str = "0.6,0.6,0.6,1.0";
 const MSG_COLOR: &str = "1.0,1.0,1.0,1.0";
 const MSG_SENDER_COLOR: &str = "0.6,0.8,1.0,1.0";
 
+// Roster tab layout
+const ROSTER_SEARCH_H: f32 = 26.0;
+const ROSTER_SEARCH_INSET: f32 = 4.0;
+const ROSTER_HEADER_H: f32 = 20.0;
+const ROSTER_ROW_H: f32 = 20.0;
+const ROSTER_ROW_GAP: f32 = 1.0;
+const ROSTER_SEARCH_BG: &str = "0.1,0.1,0.1,0.9";
+const ROSTER_SEARCH_TEXT: &str = "0.5,0.5,0.5,0.8";
+const ROSTER_HEADER_BG: &str = "0.12,0.1,0.08,0.9";
+const ROSTER_HEADER_COLOR: &str = "0.8,0.8,0.8,1.0";
+const ROSTER_ROW_EVEN: &str = "0.04,0.04,0.04,0.6";
+const ROSTER_ROW_ODD: &str = "0.06,0.06,0.06,0.6";
+const ROSTER_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const ROSTER_ROLE_COLOR: &str = "0.6,0.8,1.0,1.0";
+
 pub const MAX_COMMUNITIES: usize = 10;
 pub const MAX_CHAT_MESSAGES: usize = 15;
+pub const MAX_ROSTER_MEMBERS: usize = 15;
+pub const ROSTER_COLUMNS: &[(&str, f32)] = &[
+    ("Name", 0.35),
+    ("Rank", 0.20),
+    ("Role", 0.20),
+    ("Status", 0.25),
+];
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CommunityEntry {
@@ -76,12 +98,21 @@ pub struct ChatMessage {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct RosterMember {
+    pub name: String,
+    pub rank: String,
+    pub role: String,
+    pub status: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct CommunitiesFrameState {
     pub visible: bool,
     pub communities: Vec<CommunityEntry>,
     pub tabs: Vec<CommunityTab>,
     pub chat_messages: Vec<ChatMessage>,
     pub chat_channel: String,
+    pub roster_members: Vec<RosterMember>,
 }
 
 impl Default for CommunitiesFrameState {
@@ -105,6 +136,7 @@ impl Default for CommunitiesFrameState {
             ],
             chat_messages: vec![],
             chat_channel: "General".into(),
+            roster_members: vec![],
         }
     }
 }
@@ -132,6 +164,7 @@ pub fn communities_frame_screen(ctx: &SharedContext) -> Element {
             {community_sidebar(&state.communities)}
             {tab_row(&state.tabs)}
             {chat_tab_content(&state.chat_messages, &state.chat_channel)}
+            {roster_tab_content(&state.roster_members)}
         }
     }
 }
@@ -441,6 +474,199 @@ fn chat_input_box(parent_w: f32, parent_h: f32) -> Element {
     }
 }
 
+// --- Roster tab ---
+
+fn roster_tab_content(members: &[RosterMember]) -> Element {
+    let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
+    let content_y = -CONTENT_TOP;
+    let content_w = FRAME_W - content_x - SIDEBAR_INSET;
+    let content_h = FRAME_H - CONTENT_TOP - SIDEBAR_INSET;
+    rsx! {
+        r#frame {
+            name: "CommunitiesRosterTab",
+            width: {content_w},
+            height: {content_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {content_x},
+                y: {content_y},
+            }
+            {roster_search_bar(content_w)}
+            {roster_header(content_w)}
+            {roster_rows(members, content_w)}
+        }
+    }
+}
+
+fn roster_search_bar(parent_w: f32) -> Element {
+    let bar_w = parent_w - 2.0 * ROSTER_SEARCH_INSET;
+    rsx! {
+        r#frame {
+            name: "CommunitiesRosterSearch",
+            width: {bar_w},
+            height: {ROSTER_SEARCH_H},
+            background_color: ROSTER_SEARCH_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {ROSTER_SEARCH_INSET},
+                y: {-ROSTER_SEARCH_INSET},
+            }
+            fontstring {
+                name: "CommunitiesRosterSearchText",
+                width: {bar_w - 8.0},
+                height: {ROSTER_SEARCH_H},
+                text: "Search members...",
+                font_size: 10.0,
+                font_color: ROSTER_SEARCH_TEXT,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
+                }
+            }
+        }
+    }
+}
+
+fn roster_header(parent_w: f32) -> Element {
+    let header_y = -(ROSTER_SEARCH_INSET + ROSTER_SEARCH_H + ROSTER_SEARCH_INSET);
+    let header_w = parent_w - 2.0 * ROSTER_SEARCH_INSET;
+    let cols: Element = ROSTER_COLUMNS
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (name, _))| {
+            let x = roster_col_x(header_w, i);
+            let w = roster_col_w(header_w, i);
+            roster_header_cell(i, name, x, w)
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "CommunitiesRosterHeader",
+            width: {header_w},
+            height: {ROSTER_HEADER_H},
+            background_color: ROSTER_HEADER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {ROSTER_SEARCH_INSET},
+                y: {header_y},
+            }
+            {cols}
+        }
+    }
+}
+
+fn roster_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
+    let cell_id = DynName(format!("CommunitiesRosterCol{idx}"));
+    rsx! {
+        fontstring {
+            name: cell_id,
+            width: {w},
+            height: {ROSTER_HEADER_H},
+            text,
+            font_size: 9.0,
+            font_color: ROSTER_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn roster_rows(members: &[RosterMember], parent_w: f32) -> Element {
+    let row_w = parent_w - 2.0 * ROSTER_SEARCH_INSET;
+    let top = ROSTER_SEARCH_INSET + ROSTER_SEARCH_H + ROSTER_SEARCH_INSET + ROSTER_HEADER_H;
+    members
+        .iter()
+        .enumerate()
+        .take(MAX_ROSTER_MEMBERS)
+        .flat_map(|(i, member)| roster_row(i, member, row_w, top))
+        .collect()
+}
+
+fn roster_row(idx: usize, member: &RosterMember, row_w: f32, top: f32) -> Element {
+    let row_id = DynName(format!("CommunitiesRosterRow{idx}"));
+    let y = -(top + idx as f32 * (ROSTER_ROW_H + ROSTER_ROW_GAP));
+    let bg = if idx % 2 == 0 {
+        ROSTER_ROW_EVEN
+    } else {
+        ROSTER_ROW_ODD
+    };
+    let cells = roster_row_cells(idx, member, row_w);
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {row_w},
+            height: {ROSTER_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {ROSTER_SEARCH_INSET},
+                y: {y},
+            }
+            {cells}
+        }
+    }
+}
+
+fn roster_row_cells(idx: usize, member: &RosterMember, row_w: f32) -> Element {
+    let values = [&member.name, &member.rank, &member.role, &member.status];
+    values
+        .iter()
+        .enumerate()
+        .flat_map(|(col, text)| {
+            let cell_id = DynName(format!("CommunitiesRosterRow{idx}Col{col}"));
+            let x = roster_col_x(row_w, col);
+            let w = roster_col_w(row_w, col);
+            let color = if col == 2 {
+                ROSTER_ROLE_COLOR
+            } else {
+                ROSTER_TEXT_COLOR
+            };
+            rsx! {
+                fontstring {
+                    name: cell_id,
+                    width: {w},
+                    height: {ROSTER_ROW_H},
+                    text: {text.as_str()},
+                    font_size: 9.0,
+                    font_color: color,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: {x},
+                        y: "0",
+                    }
+                }
+            }
+        })
+        .collect()
+}
+
+fn roster_col_x(row_w: f32, col: usize) -> f32 {
+    let mut x = 4.0;
+    for i in 0..col {
+        x += ROSTER_COLUMNS[i].1 * row_w;
+    }
+    x
+}
+
+fn roster_col_w(row_w: f32, col: usize) -> f32 {
+    ROSTER_COLUMNS[col].1 * row_w
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -625,5 +851,80 @@ mod tests {
         let reg = chat_registry();
         assert!(reg.get_by_name("CommunitiesChatInputBox").is_some());
         assert!(reg.get_by_name("CommunitiesChatInputText").is_some());
+    }
+
+    // --- Roster tab tests ---
+
+    fn make_roster_state() -> CommunitiesFrameState {
+        CommunitiesFrameState {
+            visible: true,
+            communities: vec![CommunityEntry {
+                name: "Guild".into(),
+                selected: true,
+            }],
+            roster_members: vec![
+                RosterMember {
+                    name: "Alice".into(),
+                    rank: "Officer".into(),
+                    role: "Tank".into(),
+                    status: "Online".into(),
+                },
+                RosterMember {
+                    name: "Bob".into(),
+                    rank: "Member".into(),
+                    role: "Healer".into(),
+                    status: "Offline".into(),
+                },
+            ],
+            ..Default::default()
+        }
+    }
+
+    fn roster_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_roster_state());
+        Screen::new(communities_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn roster_tab_builds_root_and_search() {
+        let reg = roster_registry();
+        assert!(reg.get_by_name("CommunitiesRosterTab").is_some());
+        assert!(reg.get_by_name("CommunitiesRosterSearch").is_some());
+        assert!(reg.get_by_name("CommunitiesRosterSearchText").is_some());
+    }
+
+    #[test]
+    fn roster_tab_builds_header_columns() {
+        let reg = roster_registry();
+        assert!(reg.get_by_name("CommunitiesRosterHeader").is_some());
+        for i in 0..ROSTER_COLUMNS.len() {
+            assert!(
+                reg.get_by_name(&format!("CommunitiesRosterCol{i}"))
+                    .is_some(),
+                "CommunitiesRosterCol{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn roster_tab_builds_member_rows() {
+        let reg = roster_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("CommunitiesRosterRow{i}"))
+                    .is_some(),
+                "CommunitiesRosterRow{i} missing"
+            );
+            for col in 0..ROSTER_COLUMNS.len() {
+                assert!(
+                    reg.get_by_name(&format!("CommunitiesRosterRow{i}Col{col}"))
+                        .is_some(),
+                    "CommunitiesRosterRow{i}Col{col} missing"
+                );
+            }
+        }
     }
 }
