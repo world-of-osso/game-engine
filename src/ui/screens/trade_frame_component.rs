@@ -137,15 +137,28 @@ fn title_bar() -> Element {
 
 // --- Trade panel (one per player) ---
 
+fn trade_panel_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {PANEL_W},
+            height: {PANEL_LABEL_H},
+            text: text,
+            font_size: 11.0,
+            font_color: PANEL_LABEL_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
 fn trade_panel(prefix: &str, panel: &TradePlayerPanel, x: f32, show_input: bool) -> Element {
     let panel_id = DynName(format!("{prefix}Panel"));
-    let label_id = DynName(format!("{prefix}Label"));
     let panel_h = FRAME_H - CONTENT_TOP - INSET - BTN_H - 8.0;
     let slots: Element = (0..SLOT_COUNT)
         .flat_map(|i| {
-            let slot = panel.slots.get(i);
             let slot_y = PANEL_LABEL_H + 4.0 + i as f32 * (SLOT_SIZE + SLOT_GAP);
-            trade_slot(prefix, i, slot, slot_y)
+            trade_slot(prefix, i, panel.slots.get(i), slot_y)
         })
         .collect();
     let money_y = PANEL_LABEL_H + 4.0 + SLOT_COUNT as f32 * (SLOT_SIZE + SLOT_GAP) + 4.0;
@@ -161,21 +174,7 @@ fn trade_panel(prefix: &str, panel: &TradePlayerPanel, x: f32, show_input: bool)
                 x: {x},
                 y: {-CONTENT_TOP},
             }
-            fontstring {
-                name: label_id,
-                width: {PANEL_W},
-                height: {PANEL_LABEL_H},
-                text: {panel.name.as_str()},
-                font_size: 11.0,
-                font_color: PANEL_LABEL_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
+            {trade_panel_label(DynName(format!("{prefix}Label")), &panel.name)}
             {slots}
             {money_row(prefix, panel.money, money_y, show_input)}
         }
