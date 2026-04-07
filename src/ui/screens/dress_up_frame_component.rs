@@ -199,38 +199,39 @@ fn action_buttons() -> Element {
     [("Reset", 0), ("Link", 1), ("Close", 2)]
         .iter()
         .flat_map(|(label, i)| {
-            let btn_name = DynName(format!("DressUpButton{label}"));
-            let txt_name = DynName(format!("DressUpButton{label}Text"));
             let bx = x_start + *i as f32 * (BUTTON_W + BUTTON_GAP);
-            rsx! {
-                r#frame {
-                    name: btn_name,
-                    width: {BUTTON_W},
-                    height: {BUTTON_H},
-                    background_color: BUTTON_BG,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {bx},
-                        y: {y},
-                    }
-                    fontstring {
-                        name: txt_name,
-                        width: {BUTTON_W},
-                        height: {BUTTON_H},
-                        text: label,
-                        font_size: 10.0,
-                        font_color: BUTTON_TEXT_COLOR,
-                        justify_h: "CENTER",
-                        anchor {
-                            point: AnchorPoint::TopLeft,
-                            relative_point: AnchorPoint::TopLeft,
-                        }
-                    }
-                }
-            }
+            dress_up_button(label, bx, y)
         })
         .collect()
+}
+
+fn dress_up_button(label: &str, x: f32, y: f32) -> Element {
+    let btn_name = DynName(format!("DressUpButton{label}"));
+    let txt_name = DynName(format!("DressUpButton{label}Text"));
+    rsx! {
+        r#frame {
+            name: btn_name,
+            width: {BUTTON_W},
+            height: {BUTTON_H},
+            background_color: BUTTON_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: txt_name,
+                width: {BUTTON_W},
+                height: {BUTTON_H},
+                text: label,
+                font_size: 10.0,
+                font_color: BUTTON_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
