@@ -124,6 +124,30 @@ impl MyAuctionListing {
     }
 }
 
+impl AuctionSearchResult {
+    /// Whether the player can place a bid on this listing.
+    /// Bid must be > 0 and >= current bid, and player must have enough money.
+    pub fn can_bid(&self, amount: Money, player_money: Money) -> bool {
+        amount.0 > 0 && amount.0 >= self.bid_amount.0 && player_money.0 >= amount.0
+    }
+
+    /// Whether the player can buyout this listing.
+    pub fn can_buyout(&self, player_money: Money) -> bool {
+        self.buyout_amount.0 > 0 && player_money.0 >= self.buyout_amount.0
+    }
+}
+
+impl AuctionDuration {
+    /// Duration in hours.
+    pub fn hours(self) -> u32 {
+        match self {
+            Self::Short => 12,
+            Self::Medium => 24,
+            Self::Long => 48,
+        }
+    }
+}
+
 /// Runtime state for the auction house.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct AuctionHouseState {
@@ -223,5 +247,109 @@ mod tests {
         assert_ne!(textures::GOLD_ICON, 0);
         assert_ne!(textures::SILVER_ICON, 0);
         assert_ne!(textures::COPPER_ICON, 0);
+    }
+
+    // --- Bid validation tests ---
+
+    fn sample_listing() -> AuctionSearchResult {
+        AuctionSearchResult {
+            item_name: "Thunderfury".into(),
+            item_level: 80,
+            time_left: AuctionDuration::Long,
+            seller: "Vendor".into(),
+            bid_amount: Money::from_gold_silver_copper(10, 0, 0),
+            buyout_amount: Money::from_gold_silver_copper(50, 0, 0),
+        }
+    }
+
+    #[test]
+    fn can_bid_valid() {
+        let listing = sample_listing();
+        let bid = Money::from_gold_silver_copper(10, 0, 0);
+        let wallet = Money::from_gold_silver_copper(100, 0, 0);
+        assert!(listing.can_bid(bid, wallet));
+    }
+
+    #[test]
+    fn can_bid_above_current() {
+        let listing = sample_listing();
+        let bid = Money::from_gold_silver_copper(15, 0, 0);
+        let wallet = Money::from_gold_silver_copper(100, 0, 0);
+        assert!(listing.can_bid(bid, wallet));
+    }
+
+    #[test]
+    fn cannot_bid_below_current() {
+        let listing = sample_listing();
+        let bid = Money::from_gold_silver_copper(5, 0, 0);
+        let wallet = Money::from_gold_silver_copper(100, 0, 0);
+        assert!(!listing.can_bid(bid, wallet));
+    }
+
+    #[test]
+    fn cannot_bid_zero() {
+        let listing = sample_listing();
+        let wallet = Money::from_gold_silver_copper(100, 0, 0);
+        assert!(!listing.can_bid(Money(0), wallet));
+    }
+
+    #[test]
+    fn cannot_bid_insufficient_funds() {
+        let listing = sample_listing();
+        let bid = Money::from_gold_silver_copper(10, 0, 0);
+        let wallet = Money::from_gold_silver_copper(5, 0, 0);
+        assert!(!listing.can_bid(bid, wallet));
+    }
+
+    #[test]
+    fn can_buyout_with_funds() {
+        let listing = sample_listing();
+        let wallet = Money::from_gold_silver_copper(50, 0, 0);
+        assert!(listing.can_buyout(wallet));
+    }
+
+    #[test]
+    fn cannot_buyout_insufficient_funds() {
+        let listing = sample_listing();
+        let wallet = Money::from_gold_silver_copper(25, 0, 0);
+        assert!(!listing.can_buyout(wallet));
+    }
+
+    #[test]
+    fn cannot_buyout_zero_buyout_price() {
+        let mut listing = sample_listing();
+        listing.buyout_amount = Money(0);
+        let wallet = Money::from_gold_silver_copper(100, 0, 0);
+        assert!(!listing.can_buyout(wallet));
+    }
+
+    // --- Listing expiry tests ---
+
+    #[test]
+    fn duration_hours() {
+        assert_eq!(AuctionDuration::Short.hours(), 12);
+        assert_eq!(AuctionDuration::Medium.hours(), 24);
+        assert_eq!(AuctionDuration::Long.hours(), 48);
+    }
+
+    // --- Money edge cases ---
+
+    #[test]
+    fn money_zero_display() {
+        assert_eq!(Money(0).display(), "0c");
+    }
+
+    #[test]
+    fn money_display_short_copper_only() {
+        assert_eq!(Money(5).display_short(), "5c");
+    }
+
+    #[test]
+    fn money_round_trip() {
+        let m = Money::from_gold_silver_copper(123, 45, 67);
+        assert_eq!(m.gold(), 123);
+        assert_eq!(m.silver(), 45);
+        assert_eq!(m.copper(), 67);
+        assert_eq!(m.0, 1_234_567);
     }
 }
