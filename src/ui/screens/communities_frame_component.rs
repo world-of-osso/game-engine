@@ -395,41 +395,27 @@ fn chat_message_list(messages: &[ChatMessage], parent_w: f32, parent_h: f32) -> 
 }
 
 fn chat_message_row(idx: usize, msg: &ChatMessage, list_w: f32) -> Element {
-    let row_id = DynName(format!("CommunitiesChatMsg{idx}"));
     let sender_id = DynName(format!("CommunitiesChatMsg{idx}Sender"));
     let text_id = DynName(format!("CommunitiesChatMsg{idx}Text"));
     let y = -(idx as f32 * MSG_ROW_H);
     let sender_w = 80.0;
     rsx! {
+        {chat_line(sender_id, &msg.sender, sender_w, MSG_SENDER_COLOR, 0.0, y)}
+        {chat_line(text_id, &msg.text, list_w - sender_w, MSG_COLOR, sender_w, y)}
+    }
+}
+
+fn chat_line(id: DynName, text: &str, w: f32, color: &str, x: f32, y: f32) -> Element {
+    rsx! {
         fontstring {
-            name: sender_id,
-            width: {sender_w},
+            name: id,
+            width: {w},
             height: {MSG_ROW_H},
-            text: {msg.sender.as_str()},
+            text: text,
             font_size: 9.0,
-            font_color: MSG_SENDER_COLOR,
+            font_color: color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
-        }
-        fontstring {
-            name: text_id,
-            width: {list_w - sender_w},
-            height: {MSG_ROW_H},
-            text: {msg.text.as_str()},
-            font_size: 9.0,
-            font_color: MSG_COLOR,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {sender_w},
-                y: {y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
         }
     }
 }
