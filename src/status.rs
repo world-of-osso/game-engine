@@ -449,4 +449,151 @@ mod tests {
         assert_eq!(snapshot.player_z, 0.0);
         assert!(snapshot.waypoint.is_none());
     }
+
+    // --- Serialization round-trip tests ---
+
+    fn round_trip<
+        T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
+    >(
+        val: &T,
+    ) {
+        let json = serde_json::to_string(val).expect("serialize");
+        let deserialized: T = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(*val, deserialized);
+    }
+
+    #[test]
+    fn network_status_round_trip() {
+        let snapshot = NetworkStatusSnapshot {
+            server_addr: Some("127.0.0.1:5000".into()),
+            game_state: "InWorld".into(),
+            connected: true,
+            connected_links: 2,
+            local_client_id: Some(42),
+            zone_id: 12,
+            remote_entities: 15,
+            local_players: 1,
+            chat_messages: 5,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn terrain_status_round_trip() {
+        let snapshot = TerrainStatusSnapshot {
+            map_name: "azeroth".into(),
+            initial_tile: (32, 48),
+            load_radius: 3,
+            loaded_tiles: 12,
+            pending_tiles: 2,
+            failed_tiles: 1,
+            ..Default::default()
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn currencies_status_round_trip() {
+        let snapshot = CurrenciesStatusSnapshot {
+            entries: vec![
+                CurrencyEntry {
+                    id: 1,
+                    name: "Honor".into(),
+                    amount: 15000,
+                },
+                CurrencyEntry {
+                    id: 2,
+                    name: "Conquest".into(),
+                    amount: 1800,
+                },
+            ],
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn character_stats_round_trip() {
+        let snapshot = CharacterStatsSnapshot {
+            character_id: Some(99),
+            name: Some("Tankadin".into()),
+            level: Some(60),
+            race: Some(1),
+            class: Some(2),
+            health_current: Some(5000.0),
+            health_max: Some(5000.0),
+            mana_current: Some(3000.0),
+            mana_max: Some(4000.0),
+            movement_speed: Some(7.0),
+            zone_id: 12,
+            ..Default::default()
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn quest_log_round_trip() {
+        let snapshot = QuestLogStatusSnapshot {
+            entries: vec![QuestEntry {
+                quest_id: 100,
+                title: "The Defias Brotherhood".into(),
+                zone: "Westfall".into(),
+                completed: false,
+                repeatability: QuestRepeatability::Normal,
+                objectives: vec![QuestObjectiveEntry {
+                    text: "Kill 10 Defias".into(),
+                    current: 5,
+                    required: 10,
+                    completed: false,
+                }],
+            }],
+            watched_quest_ids: vec![100],
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn group_status_round_trip() {
+        let snapshot = GroupStatusSnapshot {
+            is_raid: false,
+            members: vec![GroupMemberEntry {
+                name: "Bob".into(),
+                role: GroupRole::Damage,
+                is_leader: false,
+                online: true,
+                subgroup: 1,
+            }],
+            ready_count: 1,
+            total_count: 1,
+            last_server_message: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn default_snapshots_round_trip() {
+        round_trip(&NetworkStatusSnapshot::default());
+        round_trip(&TerrainStatusSnapshot::default());
+        round_trip(&SoundStatusSnapshot::default());
+        round_trip(&CurrenciesStatusSnapshot::default());
+        round_trip(&ReputationsStatusSnapshot::default());
+        round_trip(&CharacterStatsSnapshot::default());
+        round_trip(&GuildVaultStatusSnapshot::default());
+        round_trip(&WarbankStatusSnapshot::default());
+        round_trip(&QuestLogStatusSnapshot::default());
+        round_trip(&GroupStatusSnapshot::default());
+        round_trip(&CombatLogStatusSnapshot::default());
+    }
+
+    #[test]
+    fn network_status_preserves_none_fields() {
+        let snapshot = NetworkStatusSnapshot {
+            server_addr: None,
+            local_client_id: None,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&snapshot).expect("serialize");
+        let decoded: NetworkStatusSnapshot = serde_json::from_str(&json).expect("deserialize");
+        assert!(decoded.server_addr.is_none());
+        assert!(decoded.local_client_id.is_none());
+    }
 }
