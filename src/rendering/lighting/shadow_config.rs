@@ -88,4 +88,16 @@ mod tests {
         let opts = crate::client_options::GraphicsOptions::default();
         assert!(!opts.depth_of_field);
     }
+
+    #[test]
+    fn anti_alias_default_is_taa() {
+        use crate::client_options::AntiAliasMode;
+        assert_eq!(AntiAliasMode::default(), AntiAliasMode::Taa);
+    }
+
+    #[test]
+    fn graphics_options_aa_defaults_to_taa() {
+        let opts = crate::client_options::GraphicsOptions::default();
+        assert_eq!(opts.anti_alias, crate::client_options::AntiAliasMode::Taa);
+    }
 }

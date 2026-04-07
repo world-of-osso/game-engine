@@ -84,6 +84,14 @@ impl CameraOptions {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum AntiAliasMode {
+    None,
+    Msaa4x,
+    #[default]
+    Taa,
+}
+
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GraphicsOptions {
     pub particle_density: u8,
@@ -91,6 +99,7 @@ pub struct GraphicsOptions {
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
     pub depth_of_field: bool,
+    pub anti_alias: AntiAliasMode,
 }
 
 impl Default for GraphicsOptions {
@@ -101,6 +110,7 @@ impl Default for GraphicsOptions {
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
             depth_of_field: false,
+            anti_alias: AntiAliasMode::default(),
         }
     }
 }
@@ -113,6 +123,7 @@ impl GraphicsOptions {
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
             depth_of_field: false,
+            anti_alias: AntiAliasMode::default(),
         }
     }
 

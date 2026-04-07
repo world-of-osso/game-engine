@@ -1,5 +1,5 @@
 use super::*;
-use crate::client_options::GraphicsOptions;
+use crate::client_options::{AntiAliasMode, GraphicsOptions};
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::post_process::bloom::BloomCompositeMode;
 
@@ -25,6 +25,7 @@ fn graphics_options_build_additive_particle_bloom() {
         bloom_enabled: true,
         bloom_intensity: 0.12,
         depth_of_field: false,
+        anti_alias: AntiAliasMode::Taa,
     })
     .expect("expected bloom");
 
@@ -43,6 +44,7 @@ fn disabled_graphics_bloom_returns_none() {
             bloom_enabled: false,
             bloom_intensity: 0.12,
             depth_of_field: false,
+            anti_alias: AntiAliasMode::Taa,
         })
         .is_none()
     );

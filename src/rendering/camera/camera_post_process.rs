@@ -1,11 +1,12 @@
 use bevy::anti_alias::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
+use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::camera::MainPassResolutionOverride;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::post_process::dof::DepthOfField;
 use bevy::prelude::*;
 
-use crate::client_options::GraphicsOptions;
+use crate::client_options::{AntiAliasMode, GraphicsOptions};
 
 const MIN_RENDER_SCALE: f32 = 0.5;
 const MAX_RENDER_SCALE: f32 = 1.0;
@@ -59,12 +60,14 @@ pub(super) fn sync_camera_graphics_post_process(
             Option<&mut MainPassResolutionOverride>,
             Option<&mut ContrastAdaptiveSharpening>,
             Option<&mut DepthOfField>,
+            Option<&Msaa>,
+            Option<&TemporalAntiAliasing>,
         ),
         With<Camera3d>,
     >,
 ) {
     let desired_bloom = additive_particle_glow_bloom(&graphics);
-    for (entity, camera, bloom, resolution_override, cas, dof) in &mut cameras {
+    for (entity, camera, bloom, resolution_override, cas, dof, msaa, taa) in &mut cameras {
         sync_bloom(&mut commands, entity, desired_bloom.clone(), bloom);
         let desired_resolution = camera
             .physical_target_size()
@@ -77,6 +80,7 @@ pub(super) fn sync_camera_graphics_post_process(
         );
         sync_sharpening(&mut commands, entity, graphics.render_scale < 0.999, cas);
         sync_depth_of_field(&mut commands, entity, graphics.depth_of_field, dof);
+        sync_anti_alias(&mut commands, entity, graphics.anti_alias, msaa, taa);
     }
 }
 
@@ -167,5 +171,44 @@ fn sync_sharpening(
                 .remove::<ContrastAdaptiveSharpening>();
         }
         (false, None) => {}
+    }
+}
+
+fn sync_anti_alias(
+    commands: &mut Commands,
+    entity: Entity,
+    mode: AntiAliasMode,
+    msaa: Option<&Msaa>,
+    taa: Option<&TemporalAntiAliasing>,
+) {
+    let current_msaa = msaa.copied().unwrap_or(Msaa::Off);
+    let has_taa = taa.is_some();
+    match mode {
+        AntiAliasMode::None => {
+            if current_msaa != Msaa::Off {
+                commands.entity(entity).insert(Msaa::Off);
+            }
+            if has_taa {
+                commands.entity(entity).remove::<TemporalAntiAliasing>();
+            }
+        }
+        AntiAliasMode::Msaa4x => {
+            if current_msaa != Msaa::Sample4 {
+                commands.entity(entity).insert(Msaa::Sample4);
+            }
+            if has_taa {
+                commands.entity(entity).remove::<TemporalAntiAliasing>();
+            }
+        }
+        AntiAliasMode::Taa => {
+            if current_msaa != Msaa::Off {
+                commands.entity(entity).insert(Msaa::Off);
+            }
+            if !has_taa {
+                commands
+                    .entity(entity)
+                    .insert(TemporalAntiAliasing::default());
+            }
+        }
     }
 }
