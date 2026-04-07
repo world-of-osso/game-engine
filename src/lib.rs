@@ -17,6 +17,8 @@ pub mod buff_data;
 pub mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;
+#[path = "game/casting_data.rs"]
+pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
 pub mod character_export;
