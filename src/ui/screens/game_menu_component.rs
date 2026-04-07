@@ -307,6 +307,25 @@ mod tests {
     }
 
     #[test]
+    fn game_menu_builds_all_buttons() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(model(GameMenuView::MainMenu));
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+
+        for name in [
+            "MenuBtnOptions",
+            "MenuBtnSupport",
+            "MenuBtnAddons",
+            "MenuBtnLogout",
+            "MenuBtnExit",
+            "MenuBtnResume",
+        ] {
+            assert!(reg.get_by_name(name).is_some(), "{name} missing");
+        }
+    }
+
+    #[test]
     fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
