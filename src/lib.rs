@@ -62,6 +62,8 @@ pub mod mail_data;
 #[path = "game/merchant_data.rs"]
 pub mod merchant_data;
 pub mod mesh_asset_stats;
+#[path = "game/minimap_data.rs"]
+pub mod minimap_data;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
 pub mod particle_color_cache;
