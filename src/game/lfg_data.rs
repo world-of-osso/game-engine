@@ -1,5 +1,19 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the LFG frame.
+pub mod textures {
+    /// LFG frame chrome.
+    pub const FRAME: u32 = 337495;
+    /// Role icons (tank/healer/dps combined, color).
+    pub const ROLE_ICONS: u32 = 252190;
+    /// Role icon backgrounds.
+    pub const ROLE_BACKGROUNDS: u32 = 340817;
+    /// Heroic difficulty icon.
+    pub const ICON_HEROIC: u32 = 337496;
+    /// Deadmines activity background.
+    pub const BG_DEADMINES: u32 = 337488;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LFGRole {
     Tank,
@@ -180,5 +194,13 @@ mod tests {
         assert_eq!(state.selected_activity_name(), "All Activities");
         state.selected_activity = Some(1);
         assert_eq!(state.selected_activity_name(), "Dungeons");
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FRAME, 0);
+        assert_ne!(textures::ROLE_ICONS, 0);
+        assert_ne!(textures::ICON_HEROIC, 0);
+        assert_ne!(textures::BG_DEADMINES, 0);
     }
 }
