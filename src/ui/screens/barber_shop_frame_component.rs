@@ -271,61 +271,42 @@ fn cost_display(cost: &str) -> Element {
     }
 }
 
+fn action_button(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(format!("BarberShop{name}Button"));
+    let text_id = DynName(format!("BarberShop{name}ButtonText"));
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {BUTTON_W},
+            height: {BUTTON_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: text_id,
+                width: {BUTTON_W},
+                height: {BUTTON_H},
+                text: label,
+                font_size: 11.0,
+                font_color: color,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn action_buttons() -> Element {
     let total_w = 2.0 * BUTTON_W + BUTTON_GAP;
     let x_start = (FRAME_W - total_w) / 2.0;
     let y = -(FRAME_H - BUTTON_H - 8.0);
     rsx! {
-        r#frame {
-            name: "BarberShopAcceptButton",
-            width: {BUTTON_W},
-            height: {BUTTON_H},
-            background_color: ACCEPT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x_start},
-                y: {y},
-            }
-            fontstring {
-                name: "BarberShopAcceptButtonText",
-                width: {BUTTON_W},
-                height: {BUTTON_H},
-                text: "Accept",
-                font_size: 11.0,
-                font_color: ACCEPT_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-        }
-        r#frame {
-            name: "BarberShopCancelButton",
-            width: {BUTTON_W},
-            height: {BUTTON_H},
-            background_color: CANCEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x_start + BUTTON_W + BUTTON_GAP},
-                y: {y},
-            }
-            fontstring {
-                name: "BarberShopCancelButtonText",
-                width: {BUTTON_W},
-                height: {BUTTON_H},
-                text: "Cancel",
-                font_size: 11.0,
-                font_color: CANCEL_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
-            }
-        }
+        {action_button("Accept", "Accept", ACCEPT_BG, ACCEPT_COLOR, x_start, y)}
+        {action_button("Cancel", "Cancel", CANCEL_BG, CANCEL_COLOR, x_start + BUTTON_W + BUTTON_GAP, y)}
     }
 }
 
