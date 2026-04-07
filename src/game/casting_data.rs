@@ -206,4 +206,102 @@ mod tests {
         assert_ne!(textures::SPARK, 0);
         assert_ne!(textures::FLASH, 0);
     }
+
+    // --- Cast progress interpolation ---
+
+    #[test]
+    fn progress_zero_duration_returns_one() {
+        let cast = ActiveCast {
+            duration: 0.0,
+            ..fireball_cast()
+        };
+        assert_eq!(cast.progress(), 1.0);
+    }
+
+    #[test]
+    fn progress_overcapped_elapsed_clamps() {
+        let cast = ActiveCast {
+            elapsed: 10.0,
+            duration: 2.5,
+            ..fireball_cast()
+        };
+        assert_eq!(cast.progress(), 1.0);
+    }
+
+    #[test]
+    fn channel_progress_overcapped_clamps_to_zero() {
+        let ch = ActiveCast {
+            elapsed: 10.0,
+            ..drain_life_channel()
+        };
+        assert_eq!(ch.progress(), 0.0);
+    }
+
+    #[test]
+    fn remaining_at_start() {
+        let cast = fireball_cast();
+        assert!((cast.remaining() - 2.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn remaining_at_finish() {
+        let cast = ActiveCast {
+            elapsed: 2.5,
+            ..fireball_cast()
+        };
+        assert_eq!(cast.remaining(), 0.0);
+    }
+
+    #[test]
+    fn timer_text_at_zero() {
+        let cast = ActiveCast {
+            elapsed: 2.5,
+            ..fireball_cast()
+        };
+        assert_eq!(cast.timer_text(), "0.0");
+    }
+
+    // --- Interrupt state ---
+
+    #[test]
+    fn interruptible_cast_flag() {
+        let cast = fireball_cast();
+        assert!(cast.interruptible);
+    }
+
+    #[test]
+    fn uninterruptible_cast() {
+        let cast = ActiveCast {
+            spell_name: "Hearthstone".into(),
+            interruptible: false,
+            ..fireball_cast()
+        };
+        assert!(!cast.interruptible);
+    }
+
+    #[test]
+    fn cancel_on_interruptible_channel() {
+        let mut state = CastingState::default();
+        state.start(drain_life_channel());
+        state.tick(2.0);
+        // Interrupt mid-channel
+        let was_active = state.active.is_some();
+        state.cancel();
+        assert!(was_active);
+        assert!(state.active.is_none());
+    }
+
+    #[test]
+    fn tick_on_empty_state_no_panic() {
+        let mut state = CastingState::default();
+        state.tick(1.0); // should not panic
+        assert!(state.active.is_none());
+    }
+
+    #[test]
+    fn clear_finished_on_empty_state() {
+        let mut state = CastingState::default();
+        state.clear_finished(); // should not panic
+        assert!(state.active.is_none());
+    }
 }
