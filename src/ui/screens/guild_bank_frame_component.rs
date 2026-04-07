@@ -584,4 +584,36 @@ mod tests {
         let frame = reg.get(id).expect("data");
         assert!(frame.hidden, "log should be hidden when items tab active");
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_deposit_withdraw_buttons() {
+        let reg = layout_registry();
+        let dep = rect(&reg, "GuildBankDepositButton");
+        let wit = rect(&reg, "GuildBankWithdrawButton");
+        assert!((dep.width - BTN_W).abs() < 1.0);
+        assert!((wit.width - BTN_W).abs() < 1.0);
+        let spacing = wit.x - dep.x;
+        let expected = BTN_W + BTN_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "button spacing: expected {expected}, got {spacing}"
+        );
+    }
+
+    #[test]
+    fn coord_log_tabs_position() {
+        let reg = layout_registry();
+        let items = rect(&reg, "GuildBankItemsTab");
+        let log = rect(&reg, "GuildBankLogTab");
+        assert!((items.x - (FRAME_X + GRID_INSET)).abs() < 1.0);
+        assert!((items.height - LOG_TAB_H).abs() < 1.0);
+        let expected_log_x = FRAME_X + GRID_INSET + 80.0 + LOG_TAB_GAP;
+        assert!(
+            (log.x - expected_log_x).abs() < 1.0,
+            "log tab x: expected {expected_log_x}, got {}",
+            log.x
+        );
+    }
 }
