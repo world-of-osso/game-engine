@@ -49,11 +49,46 @@ const HEALTH_LOW_FILL: &str = "0.7,0.1,0.1,0.95";
 const NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
 const GROUP_LABEL_COLOR: &str = "1.0,0.82,0.0,1.0";
 const EMPTY_CELL_BG: &str = "0.03,0.03,0.03,0.5";
+const RANGE_FADE_BG: &str = "0.0,0.0,0.0,0.55";
+const INCOMING_HEAL_COLOR: &str = "0.3,0.8,0.3,0.45";
+const READY_ICON_SIZE: f32 = 10.0;
+const READY_ACCEPTED_COLOR: &str = "0.0,1.0,0.0,1.0";
+const READY_PENDING_COLOR: &str = "1.0,0.82,0.0,1.0";
+const READY_DECLINED_COLOR: &str = "1.0,0.0,0.0,1.0";
 
 /// Health fraction below which the bar turns red.
 const LOW_HEALTH_THRESHOLD: f32 = 0.3;
 
 // --- Data types ---
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum RaidReadyCheck {
+    #[default]
+    None,
+    Pending,
+    Accepted,
+    Declined,
+}
+
+impl RaidReadyCheck {
+    fn color(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Pending => READY_PENDING_COLOR,
+            Self::Accepted => READY_ACCEPTED_COLOR,
+            Self::Declined => READY_DECLINED_COLOR,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Pending => "?",
+            Self::Accepted => "✓",
+            Self::Declined => "✗",
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RaidMember {
@@ -61,6 +96,10 @@ pub struct RaidMember {
     pub health_current: u32,
     pub health_max: u32,
     pub alive: bool,
+    pub in_range: bool,
+    pub ready_check: RaidReadyCheck,
+    /// Incoming heals as fraction of max health (0.0–1.0).
+    pub incoming_heals: f32,
 }
 
 impl RaidMember {
@@ -150,27 +189,28 @@ fn group_column(group_idx: usize, group: Option<&RaidGroup>) -> Element {
 
 // --- Single raid cell ---
 
-fn raid_cell(group_idx: usize, member_idx: usize, member: Option<&RaidMember>, y: f32) -> Element {
-    let col_x = group_idx as f32 * (CELL_W + GROUP_GAP);
-    let cell_id = DynName(format!("RaidCell{group_idx}_{member_idx}"));
-    let fill_id = DynName(format!("RaidCell{group_idx}_{member_idx}Fill"));
-    let name_id = DynName(format!("RaidCell{group_idx}_{member_idx}Name"));
+fn raid_cell(gi: usize, mi: usize, member: Option<&RaidMember>, y: f32) -> Element {
+    let col_x = gi as f32 * (CELL_W + GROUP_GAP);
+    let cell_id = DynName(format!("RaidCell{gi}_{mi}"));
     match member {
-        Some(m) => filled_cell(cell_id, fill_id, name_id, m, col_x, y),
+        Some(m) => filled_cell(gi, mi, cell_id, m, col_x, y),
         None => empty_cell(cell_id, col_x, y),
     }
 }
 
 fn filled_cell(
+    gi: usize,
+    mi: usize,
     cell_id: DynName,
-    fill_id: DynName,
-    name_id: DynName,
     member: &RaidMember,
     x: f32,
     y: f32,
 ) -> Element {
+    let fill_id = DynName(format!("RaidCell{gi}_{mi}Fill"));
+    let name_id = DynName(format!("RaidCell{gi}_{mi}Name"));
     let frac = member.health_fraction();
-    let fill_w = frac * (CELL_W - 2.0 * FILL_INSET);
+    let bar_inner_w = CELL_W - 2.0 * FILL_INSET;
+    let fill_w = frac * bar_inner_w;
     let is_low = frac < LOW_HEALTH_THRESHOLD && frac > 0.0;
     let fill_color = if is_low { HEALTH_LOW_FILL } else { HEALTH_FILL };
     rsx! {
@@ -212,6 +252,9 @@ fn filled_cell(
                     y: "-2",
                 }
             }
+            {raid_incoming_heal(gi, mi, member, bar_inner_w)}
+            {raid_ready_check(gi, mi, member.ready_check)}
+            {raid_range_fade(gi, mi, member.in_range)}
         }
     }
 }
@@ -233,6 +276,73 @@ fn empty_cell(cell_id: DynName, x: f32, y: f32) -> Element {
     }
 }
 
+fn raid_incoming_heal(gi: usize, mi: usize, member: &RaidMember, bar_w: f32) -> Element {
+    let id = DynName(format!("RaidCell{gi}_{mi}Heal"));
+    let has_heals = member.incoming_heals > 0.0;
+    let hide = !has_heals;
+    let frac = member.health_fraction();
+    let heal_frac = member.incoming_heals.min(1.0 - frac);
+    let heal_w = heal_frac * bar_w;
+    let heal_x = FILL_INSET + frac * bar_w;
+    rsx! {
+        r#frame {
+            name: id,
+            width: {heal_w},
+            height: {FILL_H},
+            hidden: hide,
+            background_color: INCOMING_HEAL_COLOR,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {heal_x},
+                y: {-FILL_INSET},
+            }
+        }
+    }
+}
+
+fn raid_ready_check(gi: usize, mi: usize, state: RaidReadyCheck) -> Element {
+    let id = DynName(format!("RaidCell{gi}_{mi}Ready"));
+    let is_none = state == RaidReadyCheck::None;
+    rsx! {
+        fontstring {
+            name: id,
+            width: {READY_ICON_SIZE},
+            height: {READY_ICON_SIZE},
+            hidden: is_none,
+            text: {state.label()},
+            font_size: 8.0,
+            font_color: {state.color()},
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "-1",
+                y: "0",
+            }
+        }
+    }
+}
+
+fn raid_range_fade(gi: usize, mi: usize, in_range: bool) -> Element {
+    let id = DynName(format!("RaidCell{gi}_{mi}Fade"));
+    rsx! {
+        r#frame {
+            name: id,
+            width: {CELL_W},
+            height: {CELL_H},
+            hidden: in_range,
+            background_color: RANGE_FADE_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "0",
+                y: "0",
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,12 +359,18 @@ mod tests {
                         health_current: 50000,
                         health_max: 50000,
                         alive: true,
+                        in_range: true,
+                        ready_check: RaidReadyCheck::Accepted,
+                        incoming_heals: 0.0,
                     },
                     RaidMember {
                         name: "Healer1".into(),
                         health_current: 30000,
                         health_max: 35000,
                         alive: true,
+                        in_range: false,
+                        ready_check: RaidReadyCheck::None,
+                        incoming_heals: 0.15,
                     },
                 ],
             },
@@ -264,6 +380,9 @@ mod tests {
                     health_current: 5000,
                     health_max: 40000,
                     alive: true,
+                    in_range: true,
+                    ready_check: RaidReadyCheck::Pending,
+                    incoming_heals: 0.0,
                 }],
             },
             RaidGroup::default(),
@@ -359,28 +478,23 @@ mod tests {
 
     // --- Data model tests ---
 
+    fn member(hp: u32, max: u32) -> RaidMember {
+        RaidMember {
+            name: "A".into(),
+            health_current: hp,
+            health_max: max,
+            alive: true,
+            in_range: true,
+            ready_check: RaidReadyCheck::None,
+            incoming_heals: 0.0,
+        }
+    }
+
     #[test]
     fn health_fraction() {
-        let full = RaidMember {
-            name: "A".into(),
-            health_current: 100,
-            health_max: 100,
-            alive: true,
-        };
-        assert!((full.health_fraction() - 1.0).abs() < 0.01);
-
-        let half = RaidMember {
-            health_current: 50,
-            ..full.clone()
-        };
-        assert!((half.health_fraction() - 0.5).abs() < 0.01);
-
-        let zero_max = RaidMember {
-            health_max: 0,
-            health_current: 0,
-            ..full
-        };
-        assert_eq!(zero_max.health_fraction(), 0.0);
+        assert!((member(100, 100).health_fraction() - 1.0).abs() < 0.01);
+        assert!((member(50, 100).health_fraction() - 0.5).abs() < 0.01);
+        assert_eq!(member(0, 0).health_fraction(), 0.0);
     }
 
     // --- Coord validation ---
@@ -456,5 +570,74 @@ mod tests {
         let fill_r = rect(&reg, "RaidCell1_0Fill");
         let expected_w = 0.125 * (CELL_W - 2.0 * FILL_INSET);
         assert!((fill_r.width - expected_w).abs() < 1.0);
+    }
+
+    // --- Overlay tests ---
+
+    #[test]
+    fn builds_overlay_elements_for_filled_cells() {
+        let reg = build_registry();
+        // Cell 0_0 is filled → has overlays
+        assert!(reg.get_by_name("RaidCell0_0Heal").is_some());
+        assert!(reg.get_by_name("RaidCell0_0Ready").is_some());
+        assert!(reg.get_by_name("RaidCell0_0Fade").is_some());
+        // Cell 2_0 is empty → no overlays
+        assert!(reg.get_by_name("RaidCell2_0Heal").is_none());
+    }
+
+    #[test]
+    fn ready_check_hidden_when_none() {
+        let reg = build_registry();
+        // Cell 0_1 (Healer1) has RaidReadyCheck::None
+        let id = reg.get_by_name("RaidCell0_1Ready").expect("rc");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn ready_check_visible_when_active() {
+        let reg = build_registry();
+        // Cell 0_0 (Tank1) has Accepted
+        let id = reg.get_by_name("RaidCell0_0Ready").expect("rc");
+        assert!(!reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn range_fade_hidden_when_in_range() {
+        let reg = build_registry();
+        // Cell 0_0 (Tank1) is in_range=true
+        let id = reg.get_by_name("RaidCell0_0Fade").expect("fade");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn range_fade_visible_when_out_of_range() {
+        let reg = build_registry();
+        // Cell 0_1 (Healer1) is in_range=false
+        let id = reg.get_by_name("RaidCell0_1Fade").expect("fade");
+        assert!(!reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn incoming_heals_hidden_when_zero() {
+        let reg = build_registry();
+        // Cell 0_0 (Tank1) has incoming_heals=0.0
+        let id = reg.get_by_name("RaidCell0_0Heal").expect("heal");
+        assert!(reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn incoming_heals_visible_when_nonzero() {
+        let reg = build_registry();
+        // Cell 0_1 (Healer1) has incoming_heals=0.15
+        let id = reg.get_by_name("RaidCell0_1Heal").expect("heal");
+        assert!(!reg.get(id).expect("data").hidden);
+    }
+
+    #[test]
+    fn ready_check_labels() {
+        assert_eq!(RaidReadyCheck::Accepted.label(), "✓");
+        assert_eq!(RaidReadyCheck::Pending.label(), "?");
+        assert_eq!(RaidReadyCheck::Declined.label(), "✗");
+        assert_eq!(RaidReadyCheck::None.label(), "");
     }
 }
