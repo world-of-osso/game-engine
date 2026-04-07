@@ -538,4 +538,91 @@ mod tests {
         assert!((r.width - ADD_BUTTON_W).abs() < 1.0);
         assert!((r.height - ADD_BUTTON_H).abs() < 1.0);
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn title_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "FriendsFrameTitle"), "Friends");
+    }
+
+    #[test]
+    fn tab_labels() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "FriendsTab0Label"), "Friends");
+        assert_eq!(fontstring_text(&reg, "FriendsTab1Label"), "Who");
+        assert_eq!(fontstring_text(&reg, "FriendsTab2Label"), "Raid");
+        assert_eq!(fontstring_text(&reg, "FriendsTab3Label"), "Quick Join");
+    }
+
+    #[test]
+    fn friend_row_name_and_game() {
+        let reg = friends_registry();
+        assert_eq!(fontstring_text(&reg, "FriendRow0Name"), "Alice#1234");
+        assert_eq!(fontstring_text(&reg, "FriendRow0Game"), "World of Warcraft");
+        assert_eq!(fontstring_text(&reg, "FriendRow1Name"), "Bobchar");
+        assert_eq!(fontstring_text(&reg, "FriendRow1Game"), "");
+    }
+
+    #[test]
+    fn friend_row_status_text() {
+        let reg = friends_registry();
+        assert_eq!(fontstring_text(&reg, "FriendRow0Status"), "Online");
+        assert_eq!(fontstring_text(&reg, "FriendRow1Status"), "Offline");
+    }
+
+    #[test]
+    fn add_button_text() {
+        let reg = friends_registry();
+        assert_eq!(fontstring_text(&reg, "FriendsAddButtonText"), "Add Friend");
+    }
+
+    #[test]
+    fn empty_friends_list_no_rows() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("FriendRow0").is_none());
+        assert!(reg.get_by_name("FriendsAddButton").is_some());
+    }
+
+    #[test]
+    fn max_friends_capped() {
+        let friends: Vec<FriendEntry> = (0..20)
+            .map(|i| FriendEntry {
+                name: format!("Friend{i}"),
+                game: String::new(),
+                status: "Online".into(),
+                online: true,
+                is_bnet: false,
+            })
+            .collect();
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(FriendsFrameState {
+            visible: true,
+            friends,
+            ..Default::default()
+        });
+        Screen::new(friends_frame_screen).sync(&shared, &mut reg);
+        for i in 0..MAX_FRIENDS {
+            assert!(
+                reg.get_by_name(&format!("FriendRow{i}")).is_some(),
+                "FriendRow{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("FriendRow{MAX_FRIENDS}"))
+                .is_none()
+        );
+    }
 }
