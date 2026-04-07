@@ -609,53 +609,51 @@ mod tests {
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
+    fn fac(
+        name: &str,
+        standing: Standing,
+        current: u32,
+        max: u32,
+        paragon: Option<ParagonProgress>,
+    ) -> FactionEntry {
+        FactionEntry {
+            name: name.into(),
+            standing,
+            current,
+            max,
+            paragon,
+        }
+    }
+
     fn sample_categories() -> Vec<FactionCategory> {
         vec![
             FactionCategory {
                 name: "Alliance".into(),
                 collapsed: false,
                 factions: vec![
-                    FactionEntry {
-                        name: "Stormwind".into(),
-                        standing: Standing::Honored,
-                        current: 8000,
-                        max: 12000,
-                        paragon: None,
-                    },
-                    FactionEntry {
-                        name: "Ironforge".into(),
-                        standing: Standing::Friendly,
-                        current: 3000,
-                        max: 6000,
-                        paragon: None,
-                    },
+                    fac("Stormwind", Standing::Honored, 8000, 12000, None),
+                    fac("Ironforge", Standing::Friendly, 3000, 6000, None),
                 ],
             },
             FactionCategory {
                 name: "Horde".into(),
                 collapsed: true,
-                factions: vec![FactionEntry {
-                    name: "Orgrimmar".into(),
-                    standing: Standing::Hated,
-                    current: 0,
-                    max: 36000,
-                    paragon: None,
-                }],
+                factions: vec![fac("Orgrimmar", Standing::Hated, 0, 36000, None)],
             },
             FactionCategory {
                 name: "Neutral".into(),
                 collapsed: false,
-                factions: vec![FactionEntry {
-                    name: "Cenarion Circle".into(),
-                    standing: Standing::Exalted,
-                    current: 0,
-                    max: 0,
-                    paragon: Some(ParagonProgress {
+                factions: vec![fac(
+                    "Cenarion Circle",
+                    Standing::Exalted,
+                    0,
+                    0,
+                    Some(ParagonProgress {
                         current: 5000,
                         max: 10000,
                         reward_pending: true,
                     }),
-                }],
+                )],
             },
         ]
     }
