@@ -31,6 +31,22 @@ const LOG_TAB_GAP: f32 = 4.0;
 
 pub const GUILD_BANK_SLOTS: usize = 98;
 pub const MAX_BANK_TABS: usize = 8;
+pub const MAX_LOG_ENTRIES: usize = 10;
+
+// Money / deposit-withdraw / log layout
+const MONEY_ROW_Y: f32 = FRAME_H - LOG_TAB_H - 8.0 - 30.0;
+const MONEY_LABEL_W: f32 = 100.0;
+const MONEY_VALUE_W: f32 = 120.0;
+const BTN_W: f32 = 80.0;
+const BTN_H: f32 = 22.0;
+const BTN_GAP: f32 = 8.0;
+const LOG_ROW_H: f32 = 16.0;
+const LOG_INSET: f32 = 8.0;
+const MONEY_COLOR: &str = "1.0,0.82,0.0,1.0";
+const MONEY_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
+const BTN_BG: &str = "0.15,0.12,0.05,0.95";
+const BTN_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
+const LOG_TEXT_COLOR: &str = "0.8,0.8,0.8,1.0";
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -49,10 +65,17 @@ pub struct GuildBankTab {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct TransactionEntry {
+    pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct GuildBankFrameState {
     pub visible: bool,
     pub tabs: Vec<GuildBankTab>,
     pub log_tab_active: bool,
+    pub guild_money: String,
+    pub transactions: Vec<TransactionEntry>,
 }
 
 impl Default for GuildBankFrameState {
@@ -70,6 +93,8 @@ impl Default for GuildBankFrameState {
                 },
             ],
             log_tab_active: false,
+            guild_money: "0g 0s 0c".into(),
+            transactions: vec![],
         }
     }
 }
@@ -96,7 +121,10 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {tab_buttons_row(&state.tabs)}
             {slot_grid()}
+            {money_row(&state.guild_money)}
+            {deposit_withdraw_buttons()}
             {log_tabs(state.log_tab_active)}
+            {transaction_log(&state.transactions, state.log_tab_active)}
         }
     }
 }
@@ -257,6 +285,148 @@ fn log_tabs(log_active: bool) -> Element {
     }
 }
 
+fn money_row(guild_money: &str) -> Element {
+    let y = -MONEY_ROW_Y;
+    rsx! {
+        fontstring {
+            name: "GuildBankMoneyLabel",
+            width: {MONEY_LABEL_W},
+            height: 16.0,
+            text: "Guild Gold:",
+            font_size: 10.0,
+            font_color: MONEY_LABEL_COLOR,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {GRID_INSET},
+                y: {y},
+            }
+        }
+        fontstring {
+            name: "GuildBankMoneyValue",
+            width: {MONEY_VALUE_W},
+            height: 16.0,
+            text: guild_money,
+            font_size: 10.0,
+            font_color: MONEY_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {GRID_INSET + MONEY_LABEL_W + 4.0},
+                y: {y},
+            }
+        }
+    }
+}
+
+fn deposit_withdraw_buttons() -> Element {
+    let y = -(MONEY_ROW_Y + 20.0);
+    let deposit_x = GRID_INSET;
+    let withdraw_x = GRID_INSET + BTN_W + BTN_GAP;
+    rsx! {
+        r#frame {
+            name: "GuildBankDepositButton",
+            width: {BTN_W},
+            height: {BTN_H},
+            background_color: BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {deposit_x},
+                y: {y},
+            }
+            fontstring {
+                name: "GuildBankDepositButtonText",
+                width: {BTN_W},
+                height: {BTN_H},
+                text: "Deposit",
+                font_size: 10.0,
+                font_color: BTN_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+        r#frame {
+            name: "GuildBankWithdrawButton",
+            width: {BTN_W},
+            height: {BTN_H},
+            background_color: BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {withdraw_x},
+                y: {y},
+            }
+            fontstring {
+                name: "GuildBankWithdrawButtonText",
+                width: {BTN_W},
+                height: {BTN_H},
+                text: "Withdraw",
+                font_size: 10.0,
+                font_color: BTN_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+    }
+}
+
+fn transaction_log(transactions: &[TransactionEntry], visible: bool) -> Element {
+    let hide = !visible;
+    let grid_rows = (GUILD_BANK_SLOTS + GRID_COLS - 1) / GRID_COLS;
+    let log_y = -(GRID_TOP + grid_rows as f32 * (SLOT_SIZE + SLOT_GAP) + LOG_INSET);
+    let log_w = FRAME_W - 2.0 * LOG_INSET;
+    let rows: Element = transactions
+        .iter()
+        .enumerate()
+        .take(MAX_LOG_ENTRIES)
+        .flat_map(|(i, entry)| {
+            let row_name = DynName(format!("GuildBankLogEntry{i}"));
+            let row_y = -(i as f32 * LOG_ROW_H);
+            rsx! {
+                fontstring {
+                    name: row_name,
+                    width: {log_w},
+                    height: {LOG_ROW_H},
+                    text: {entry.text.as_str()},
+                    font_size: 9.0,
+                    font_color: LOG_TEXT_COLOR,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: "0",
+                        y: {row_y},
+                    }
+                }
+            }
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "GuildBankTransactionLog",
+            width: {log_w},
+            height: 200.0,
+            hidden: hide,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LOG_INSET},
+                y: {log_y},
+            }
+            {rows}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -367,5 +537,51 @@ mod tests {
         assert!((r.x - (FRAME_X + TAB_ROW_INSET)).abs() < 1.0);
         assert!((r.y - (FRAME_Y + HEADER_H)).abs() < 1.0);
         assert!((r.width - TAB_BTN_SIZE).abs() < 1.0);
+    }
+
+    // --- Money / deposit-withdraw / log tests ---
+
+    #[test]
+    fn builds_money_display() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("GuildBankMoneyLabel").is_some());
+        assert!(reg.get_by_name("GuildBankMoneyValue").is_some());
+    }
+
+    #[test]
+    fn builds_deposit_withdraw_buttons() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("GuildBankDepositButton").is_some());
+        assert!(reg.get_by_name("GuildBankWithdrawButton").is_some());
+    }
+
+    #[test]
+    fn builds_transaction_log() {
+        let mut state = make_test_state();
+        state.log_tab_active = true;
+        state.transactions = vec![
+            TransactionEntry {
+                text: "Alice deposited 10g".into(),
+            },
+            TransactionEntry {
+                text: "Bob withdrew Sword".into(),
+            },
+        ];
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(guild_bank_frame_screen).sync(&shared, &mut reg);
+
+        assert!(reg.get_by_name("GuildBankTransactionLog").is_some());
+        assert!(reg.get_by_name("GuildBankLogEntry0").is_some());
+        assert!(reg.get_by_name("GuildBankLogEntry1").is_some());
+    }
+
+    #[test]
+    fn transaction_log_hidden_when_items_tab() {
+        let reg = build_registry();
+        let id = reg.get_by_name("GuildBankTransactionLog").expect("log");
+        let frame = reg.get(id).expect("data");
+        assert!(frame.hidden, "log should be hidden when items tab active");
     }
 }
