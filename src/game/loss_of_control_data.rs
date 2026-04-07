@@ -186,4 +186,100 @@ mod tests {
         assert_ne!(textures::ICON_FEAR, 0);
         assert_ne!(textures::BAR_FILL, 0);
     }
+
+    // --- CC type duration tracking ---
+
+    fn make_cc(cc_type: CCType, duration: f32) -> ActiveCC {
+        ActiveCC {
+            cc_type,
+            ability_name: cc_type.label().into(),
+            icon_fdid: 0,
+            duration,
+            remaining: duration,
+        }
+    }
+
+    #[test]
+    fn different_cc_types_track_independently() {
+        let mut data = LossOfControlData::default();
+        data.apply(make_cc(CCType::Fear, 8.0));
+        assert_eq!(data.active.as_ref().unwrap().cc_type, CCType::Fear);
+        data.tick(3.0);
+        assert!((data.active.as_ref().unwrap().remaining - 5.0).abs() < 0.01);
+
+        // Replace with a different CC
+        data.apply(make_cc(CCType::Root, 4.0));
+        assert_eq!(data.active.as_ref().unwrap().cc_type, CCType::Root);
+        assert!((data.active.as_ref().unwrap().remaining - 4.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn progress_zero_duration() {
+        let cc = ActiveCC {
+            duration: 0.0,
+            remaining: 0.0,
+            ..stun()
+        };
+        assert_eq!(cc.progress(), 0.0);
+    }
+
+    #[test]
+    fn progress_expired() {
+        let cc = ActiveCC {
+            remaining: 0.0,
+            ..stun()
+        };
+        assert_eq!(cc.progress(), 0.0);
+        assert!(cc.is_expired());
+    }
+
+    #[test]
+    fn tick_on_empty_state() {
+        let mut data = LossOfControlData::default();
+        data.tick(5.0); // should not panic
+        assert!(!data.is_active());
+    }
+
+    #[test]
+    fn clear_expired_on_empty_state() {
+        let mut data = LossOfControlData::default();
+        data.clear_expired(); // should not panic
+    }
+
+    #[test]
+    fn duration_text_at_zero() {
+        let cc = ActiveCC {
+            remaining: 0.0,
+            ..stun()
+        };
+        assert_eq!(cc.duration_text(), "0.0s");
+    }
+
+    #[test]
+    fn all_cc_types_have_labels() {
+        let types = [
+            CCType::Stun,
+            CCType::Fear,
+            CCType::Incapacitate,
+            CCType::Disorient,
+            CCType::Root,
+            CCType::Silence,
+            CCType::Polymorph,
+        ];
+        for t in types {
+            assert!(!t.label().is_empty(), "{:?} has empty label", t);
+        }
+    }
+
+    #[test]
+    fn polymorph_prevents_both() {
+        assert!(CCType::Polymorph.prevents_movement());
+        assert!(CCType::Polymorph.prevents_casting());
+    }
+
+    #[test]
+    fn none_prevents_nothing() {
+        assert!(!CCType::None.prevents_movement());
+        assert!(!CCType::None.prevents_casting());
+    }
 }
