@@ -1,5 +1,29 @@
 use bevy::prelude::*;
 
+/// Sample spell icon texture FDIDs for buffs and debuffs.
+pub mod textures {
+    // Buff icons
+    /// Power Word: Fortitude.
+    pub const FORTITUDE: u32 = 135987;
+    /// Power Word: Shield.
+    pub const PW_SHIELD: u32 = 135940;
+    /// Mark of the Wild / Regeneration.
+    pub const MARK_OF_WILD: u32 = 136078;
+    /// Blessing of Protection.
+    pub const BLESSING_PROTECTION: u32 = 135880;
+    // Debuff icons
+    /// Shadow Word: Pain.
+    pub const SHADOW_WORD_PAIN: u32 = 136207;
+    /// Slow (nature).
+    pub const SLOW: u32 = 136091;
+    /// Nullify Poison.
+    pub const NULLIFY_POISON: u32 = 136067;
+    /// Remove Disease.
+    pub const REMOVE_DISEASE: u32 = 136083;
+    /// Anti-Shadow (generic magic debuff).
+    pub const ANTI_SHADOW: u32 = 136121;
+}
+
 /// Debuff dispel type, determines border color.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum DebuffType {
@@ -193,5 +217,14 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::FORTITUDE, 0);
+        assert_ne!(textures::PW_SHIELD, 0);
+        assert_ne!(textures::SHADOW_WORD_PAIN, 0);
+        assert_ne!(textures::NULLIFY_POISON, 0);
+        assert_ne!(textures::ANTI_SHADOW, 0);
     }
 }
