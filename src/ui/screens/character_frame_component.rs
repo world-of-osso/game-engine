@@ -229,36 +229,38 @@ fn equipment_slot(slot_id: DynName, slot: &EquipmentSlotState, x: f32, y: f32) -
                 x: {x},
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {SLOT_SIZE},
-                height: 11.0,
-                text: {slot.slot_name.as_str()},
-                font_size: 8.0,
-                font_color: SLOT_LABEL_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: "-2",
-                }
-            }
-            fontstring {
-                name: item_id,
-                width: {SLOT_SIZE},
-                height: 11.0,
-                text: {slot.item_name.as_str()},
-                font_size: 7.0,
-                font_color: ITEM_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Bottom,
-                    relative_point: AnchorPoint::Bottom,
-                    x: "0",
-                    y: "2",
-                }
-            }
+            {slot_name_label(label_id, &slot.slot_name)}
+            {slot_item_label(item_id, &slot.item_name)}
+        }
+    }
+}
+
+fn slot_name_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {SLOT_SIZE},
+            height: 11.0,
+            text: text,
+            font_size: 8.0,
+            font_color: SLOT_LABEL_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "-2" }
+        }
+    }
+}
+
+fn slot_item_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {SLOT_SIZE},
+            height: 11.0,
+            text: text,
+            font_size: 7.0,
+            font_color: ITEM_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, x: "0", y: "2" }
         }
     }
 }
