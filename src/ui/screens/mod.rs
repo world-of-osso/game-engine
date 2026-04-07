@@ -31,6 +31,7 @@ pub mod objective_tracker_component;
 mod options_menu_active_sections;
 pub mod options_menu_component;
 mod options_menu_sections;
+pub mod party_frame_component;
 pub mod professions_frame_component;
 pub mod pvp_frame_component;
 pub mod quest_dialog_component;
