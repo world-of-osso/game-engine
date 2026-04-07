@@ -73,6 +73,8 @@ pub mod particle_effect_builder;
 pub mod paths;
 #[path = "game/professions_data.rs"]
 pub mod professions_data;
+#[path = "game/pvp_data.rs"]
+pub mod pvp_data;
 pub mod scene_graph_utils;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
