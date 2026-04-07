@@ -531,6 +531,21 @@ fn objective_row(idx: usize, obj: &QuestLogObjective, w: f32, y: f32) -> Element
 
 // --- Reward items row ---
 
+fn rewards_header_label(w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: "QuestLogRewardsLabel",
+            width: {w},
+            height: {REWARD_LABEL_H},
+            text: "Rewards",
+            font_size: 12.0,
+            font_color: REWARD_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
 fn reward_items_row(rewards: &[QuestRewardItem], w: f32, y: f32) -> Element {
     let hide_rewards = rewards.is_empty();
     let items: Element = rewards
@@ -550,21 +565,7 @@ fn reward_items_row(rewards: &[QuestRewardItem], w: f32, y: f32) -> Element {
                 x: "8",
                 y: {-y},
             }
-            fontstring {
-                name: "QuestLogRewardsLabel",
-                width: {w},
-                height: {REWARD_LABEL_H},
-                text: "Rewards",
-                font_size: 12.0,
-                font_color: REWARD_HEADER_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
+            {rewards_header_label(w)}
             {items}
         }
     }
