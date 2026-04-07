@@ -270,4 +270,30 @@ mod tests {
         assert!((r.width - BAR_W).abs() < 1.0);
         assert!((r.height - BAR_H).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_fill_bar_left_aligned_with_background() {
+        let reg = layout_reg(0.5);
+        let bg = rect(&reg, "CastingBarBackground");
+        let fill = rect(&reg, "CastingBarFill");
+        assert!(
+            (fill.x - bg.x).abs() < 1.0,
+            "fill should left-align with background"
+        );
+        assert!((fill.height - BAR_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_spark_follows_fill_edge() {
+        let reg = layout_reg(0.6);
+        let bg = rect(&reg, "CastingBarBackground");
+        let spark = rect(&reg, "CastingBarSpark");
+        let expected_x = bg.x + BAR_W * 0.6 - SPARK_W / 2.0;
+        assert!(
+            (spark.x - expected_x).abs() < 1.0,
+            "spark x: expected {expected_x}, got {}",
+            spark.x
+        );
+        assert!((spark.width - SPARK_W).abs() < 1.0);
+    }
 }
