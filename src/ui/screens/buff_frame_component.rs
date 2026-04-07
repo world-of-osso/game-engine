@@ -136,11 +136,8 @@ fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
     let x = col as f32 * (ICON_SIZE + ICON_GAP);
     let y = -(row as f32 * (ICON_SIZE + ROW_GAP));
     let icon_name = DynName(format!("{prefix}Icon{index}"));
-    let timer_name = DynName(format!("{prefix}Icon{index}Timer"));
-    let stack_name = DynName(format!("{prefix}Icon{index}Stack"));
     let bg = if prefix == "Buff" { BUFF_BG } else { DEBUFF_BG };
-    let show_stacks = buff.stacks > 1;
-    let stack_text = if show_stacks {
+    let stack_text = if buff.stacks > 1 {
         format!("{}", buff.stacks)
     } else {
         String::new()
@@ -157,36 +154,38 @@ fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
                 x: {x},
                 y: {y},
             }
-            fontstring {
-                name: timer_name,
-                width: {ICON_SIZE},
-                height: {TIMER_H},
-                text: {buff.timer_text.as_str()},
-                font_size: 8.0,
-                font_color: TIMER_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Bottom,
-                    relative_point: AnchorPoint::Bottom,
-                    x: "0",
-                    y: {TIMER_H},
-                }
-            }
-            fontstring {
-                name: stack_name,
-                width: {STACK_SIZE},
-                height: {STACK_SIZE},
-                text: {stack_text.as_str()},
-                font_size: 10.0,
-                font_color: STACK_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::BottomRight,
-                    relative_point: AnchorPoint::BottomRight,
-                    x: "-1",
-                    y: "1",
-                }
-            }
+            {icon_timer(DynName(format!("{prefix}Icon{index}Timer")), &buff.timer_text)}
+            {icon_stacks(DynName(format!("{prefix}Icon{index}Stack")), &stack_text)}
+        }
+    }
+}
+
+fn icon_timer(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {ICON_SIZE},
+            height: {TIMER_H},
+            text: text,
+            font_size: 8.0,
+            font_color: TIMER_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, x: "0", y: {TIMER_H} }
+        }
+    }
+}
+
+fn icon_stacks(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {STACK_SIZE},
+            height: {STACK_SIZE},
+            text: text,
+            font_size: 10.0,
+            font_color: STACK_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "-1", y: "1" }
         }
     }
 }
