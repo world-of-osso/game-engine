@@ -112,4 +112,113 @@ mod tests {
         assert_eq!(frame2, vec![20, 30]);
         assert_eq!(frame3, vec![40]);
     }
+
+    // --- Background decode streaming: completion & error recovery ---
+
+    /// Models the `TileLoadResult` success/failure flow without Bevy deps.
+    #[derive(Debug, PartialEq)]
+    enum MockTileResult {
+        Success {
+            tile_y: u32,
+            tile_x: u32,
+        },
+        Failed {
+            tile_y: u32,
+            tile_x: u32,
+            error: String,
+        },
+    }
+
+    #[test]
+    fn streaming_completion_delivered_through_channel() {
+        let (tx, rx) = mpsc::channel::<MockTileResult>();
+        // Simulate background thread completing a tile
+        std::thread::spawn(move || {
+            tx.send(MockTileResult::Success {
+                tile_y: 32,
+                tile_x: 48,
+            })
+            .unwrap();
+        })
+        .join()
+        .unwrap();
+
+        let results: Vec<_> = rx.try_iter().take(1).collect();
+        assert_eq!(results.len(), 1);
+        assert_eq!(
+            results[0],
+            MockTileResult::Success {
+                tile_y: 32,
+                tile_x: 48
+            }
+        );
+    }
+
+    #[test]
+    fn error_recovery_failed_tile_removed_from_pending() {
+        let (tx, rx) = mpsc::channel::<MockTileResult>();
+        tx.send(MockTileResult::Failed {
+            tile_y: 10,
+            tile_x: 20,
+            error: "file not found".into(),
+        })
+        .unwrap();
+
+        // Simulate the main thread's handle_tile_result flow
+        let mut pending: std::collections::HashSet<(u32, u32)> =
+            [(10, 20), (30, 40)].into_iter().collect();
+
+        for result in rx.try_iter().take(max_tiles_per_frame()) {
+            match result {
+                MockTileResult::Success { tile_y, tile_x } => {
+                    pending.remove(&(tile_y, tile_x));
+                }
+                MockTileResult::Failed { tile_y, tile_x, .. } => {
+                    pending.remove(&(tile_y, tile_x));
+                }
+            }
+        }
+        assert!(
+            !pending.contains(&(10, 20)),
+            "failed tile should be removed from pending"
+        );
+        assert!(pending.contains(&(30, 40)), "unrelated tile should remain");
+    }
+
+    #[test]
+    fn mixed_success_and_failure_processed_in_order() {
+        let (tx, rx) = mpsc::channel::<MockTileResult>();
+        tx.send(MockTileResult::Success {
+            tile_y: 1,
+            tile_x: 1,
+        })
+        .unwrap();
+        tx.send(MockTileResult::Failed {
+            tile_y: 2,
+            tile_x: 2,
+            error: "corrupt".into(),
+        })
+        .unwrap();
+        tx.send(MockTileResult::Success {
+            tile_y: 3,
+            tile_x: 3,
+        })
+        .unwrap();
+
+        let results: Vec<_> = rx.try_iter().take(10).collect();
+        assert_eq!(results.len(), 3);
+        assert!(matches!(results[0], MockTileResult::Success { .. }));
+        assert!(matches!(results[1], MockTileResult::Failed { .. }));
+        assert!(matches!(results[2], MockTileResult::Success { .. }));
+    }
+
+    #[test]
+    fn dropped_sender_signals_no_more_tiles() {
+        let (tx, rx) = mpsc::channel::<MockTileResult>();
+        drop(tx);
+        let results: Vec<_> = rx.try_iter().collect();
+        assert!(results.is_empty());
+        // Subsequent try_iter also returns nothing (no panic)
+        assert!(rx.try_iter().next().is_none());
+    }
 }
