@@ -70,6 +70,8 @@ pub mod mesh_asset_stats;
 pub mod minimap_data;
 #[path = "game/missile_data.rs"]
 pub mod missile_data;
+#[path = "game/nameplate_data.rs"]
+pub mod nameplate_data;
 #[path = "game/objective_tracker_data.rs"]
 pub mod objective_tracker_data;
 #[path = "game/equipment/outfit_data.rs"]
