@@ -120,12 +120,22 @@ pub struct SellTabState {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct AuctionListingRow {
+    pub name: String,
+    pub time_left: String,
+    pub bid: String,
+    pub buyout: String,
+    pub status: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct AuctionHouseFrameState {
     pub visible: bool,
     pub tabs: Vec<AuctionTab>,
     pub browse_categories: Vec<BrowseCategory>,
     pub browse_results: Vec<BrowseResultRow>,
     pub sell: SellTabState,
+    pub my_auctions: Vec<AuctionListingRow>,
 }
 
 impl Default for AuctionHouseFrameState {
@@ -152,6 +162,7 @@ impl Default for AuctionHouseFrameState {
                 duration: "24 Hours".into(),
                 ..Default::default()
             },
+            my_auctions: vec![],
         }
     }
 }
@@ -179,6 +190,7 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             {tab_row(&state.tabs)}
             {browse_tab_content(&state.browse_categories, &state.browse_results)}
             {sell_tab_content(&state.sell)}
+            {auctions_tab_content(&state.my_auctions)}
         }
     }
 }
@@ -767,6 +779,204 @@ fn sell_post_button() -> Element {
     }
 }
 
+// --- Auctions tab ---
+
+const AUCTION_INSET: f32 = 4.0;
+const LISTING_ROW_H: f32 = 24.0;
+const LISTING_ROW_GAP: f32 = 1.0;
+const LISTING_HEADER_H: f32 = 22.0;
+const CANCEL_BUTTON_W: f32 = 80.0;
+const CANCEL_BUTTON_H: f32 = 24.0;
+const CANCEL_BUTTON_BG: &str = "0.25,0.08,0.08,0.95";
+const CANCEL_BUTTON_TEXT_COLOR: &str = "1.0,0.4,0.4,1.0";
+
+pub const MAX_LISTING_ROWS: usize = 10;
+pub const LISTING_COLUMNS: &[(&str, f32)] = &[
+    ("Item", 0.30),
+    ("Time Left", 0.15),
+    ("Bid", 0.15),
+    ("Buyout", 0.15),
+    ("Status", 0.15),
+    ("", 0.10),
+];
+
+fn auctions_tab_content(listings: &[AuctionListingRow]) -> Element {
+    let content_y = -CONTENT_TOP;
+    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
+    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    let panel_w = content_w - 2.0 * AUCTION_INSET;
+    let header = listing_header(panel_w);
+    let rows: Element = listings
+        .iter()
+        .enumerate()
+        .take(MAX_LISTING_ROWS)
+        .flat_map(|(i, row)| listing_row(i, row, panel_w))
+        .collect();
+    rsx! {
+        r#frame {
+            name: "AuctionHouseAuctionsTab",
+            width: {content_w},
+            height: {content_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CONTENT_INSET},
+                y: {content_y},
+            }
+            {header}
+            {rows}
+        }
+    }
+}
+
+fn listing_header(panel_w: f32) -> Element {
+    let cols: Element = LISTING_COLUMNS
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (name, _))| {
+            let x = listing_col_x(panel_w, i);
+            let w = listing_col_w(panel_w, i);
+            listing_header_cell(i, name, x, w)
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "AuctionHouseListingHeader",
+            width: {panel_w},
+            height: {LISTING_HEADER_H},
+            background_color: HEADER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {AUCTION_INSET},
+                y: {-AUCTION_INSET},
+            }
+            {cols}
+        }
+    }
+}
+
+fn listing_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
+    let cell_id = DynName(format!("AuctionHouseListingCol{idx}"));
+    rsx! {
+        fontstring {
+            name: cell_id,
+            width: {w},
+            height: {LISTING_HEADER_H},
+            text,
+            font_size: 9.0,
+            font_color: HEADER_TEXT_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn listing_row(idx: usize, row: &AuctionListingRow, panel_w: f32) -> Element {
+    let row_id = DynName(format!("AuctionHouseListing{idx}"));
+    let header_offset = AUCTION_INSET + LISTING_HEADER_H;
+    let y = -(header_offset + idx as f32 * (LISTING_ROW_H + LISTING_ROW_GAP));
+    let bg = if idx % 2 == 0 {
+        ROW_BG_EVEN
+    } else {
+        ROW_BG_ODD
+    };
+    let cells = listing_row_cells(idx, row, panel_w);
+    let cancel = listing_cancel_button(idx, panel_w);
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {panel_w},
+            height: {LISTING_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {AUCTION_INSET},
+                y: {y},
+            }
+            {cells}
+            {cancel}
+        }
+    }
+}
+
+fn listing_row_cells(idx: usize, row: &AuctionListingRow, panel_w: f32) -> Element {
+    let values = [
+        &row.name,
+        &row.time_left,
+        &row.bid,
+        &row.buyout,
+        &row.status,
+    ];
+    values
+        .iter()
+        .enumerate()
+        .flat_map(|(col, text)| {
+            let cell_id = DynName(format!("AuctionHouseListing{idx}Col{col}"));
+            let x = listing_col_x(panel_w, col);
+            let w = listing_col_w(panel_w, col);
+            let color = if col >= 2 && col <= 3 {
+                GOLD_COLOR
+            } else {
+                ROW_TEXT_COLOR
+            };
+            result_cell(cell_id, text, x, w, color)
+        })
+        .collect()
+}
+
+fn listing_cancel_button(idx: usize, panel_w: f32) -> Element {
+    let btn_id = DynName(format!("AuctionHouseListing{idx}Cancel"));
+    let txt_id = DynName(format!("AuctionHouseListing{idx}CancelText"));
+    let x = panel_w - CANCEL_BUTTON_W - 4.0;
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {CANCEL_BUTTON_W},
+            height: {CANCEL_BUTTON_H},
+            background_color: CANCEL_BUTTON_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+            fontstring {
+                name: txt_id,
+                width: {CANCEL_BUTTON_W},
+                height: {CANCEL_BUTTON_H},
+                text: "Cancel",
+                font_size: 9.0,
+                font_color: CANCEL_BUTTON_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+    }
+}
+
+fn listing_col_x(panel_w: f32, col: usize) -> f32 {
+    let mut x = 4.0;
+    for i in 0..col {
+        x += LISTING_COLUMNS[i].1 * panel_w;
+    }
+    x
+}
+
+fn listing_col_w(panel_w: f32, col: usize) -> f32 {
+    LISTING_COLUMNS[col].1 * panel_w
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1016,5 +1226,86 @@ mod tests {
         let reg = build_registry();
         assert!(reg.get_by_name("AuctionHouseSellPostButton").is_some());
         assert!(reg.get_by_name("AuctionHouseSellPostButtonText").is_some());
+    }
+
+    // --- Auctions tab tests ---
+
+    fn make_auctions_state() -> AuctionHouseFrameState {
+        let mut state = make_test_state();
+        state.my_auctions = vec![
+            AuctionListingRow {
+                name: "Arcanite Reaper".into(),
+                time_left: "Long".into(),
+                bid: "50g".into(),
+                buyout: "80g".into(),
+                status: "Active".into(),
+            },
+            AuctionListingRow {
+                name: "Lionheart Helm".into(),
+                time_left: "Short".into(),
+                bid: "200g".into(),
+                buyout: "350g".into(),
+                status: "Sold".into(),
+            },
+        ];
+        state
+    }
+
+    fn auctions_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_auctions_state());
+        Screen::new(auction_house_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn auctions_tab_builds_root_and_header() {
+        let reg = auctions_registry();
+        assert!(reg.get_by_name("AuctionHouseAuctionsTab").is_some());
+        assert!(reg.get_by_name("AuctionHouseListingHeader").is_some());
+        for i in 0..LISTING_COLUMNS.len() {
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseListingCol{i}"))
+                    .is_some(),
+                "AuctionHouseListingCol{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn auctions_tab_builds_listing_rows() {
+        let reg = auctions_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseListing{i}"))
+                    .is_some(),
+                "AuctionHouseListing{i} missing"
+            );
+            for col in 0..5 {
+                assert!(
+                    reg.get_by_name(&format!("AuctionHouseListing{i}Col{col}"))
+                        .is_some(),
+                    "AuctionHouseListing{i}Col{col} missing"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn auctions_tab_builds_cancel_buttons() {
+        let reg = auctions_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseListing{i}Cancel"))
+                    .is_some(),
+                "AuctionHouseListing{i}Cancel missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("AuctionHouseListing{i}CancelText"))
+                    .is_some(),
+                "AuctionHouseListing{i}CancelText missing"
+            );
+        }
     }
 }
