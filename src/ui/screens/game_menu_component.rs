@@ -339,6 +339,41 @@ mod tests {
     }
 
     #[test]
+    fn coord_mount_centered_on_screen() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(model(GameMenuView::MainMenu));
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let mount_id = reg.get_by_name(MENU_MOUNT.0).expect("mount");
+        let mount = reg.get(mount_id).expect("data");
+        let lr = mount.layout_rect.as_ref().expect("layout_rect");
+        let expected_x = (1920.0 - PANEL_W) / 2.0;
+        assert!(
+            (lr.x - expected_x).abs() < 1.0,
+            "x: expected {expected_x}, got {}",
+            lr.x
+        );
+        assert!((lr.width - PANEL_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_button_dimensions() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(model(GameMenuView::MainMenu));
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let id = reg.get_by_name("MenuBtnOptions").expect("options btn");
+        let frame = reg.get(id).expect("data");
+        let lr = frame.layout_rect.as_ref().expect("layout_rect");
+        assert!((lr.width - BUTTON_W).abs() < 1.0);
+        assert!((lr.height - BUTTON_H).abs() < 1.0);
+    }
+
+    #[test]
     fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
