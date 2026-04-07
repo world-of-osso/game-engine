@@ -1,4 +1,5 @@
 pub mod achievement_frame_component;
+pub mod auction_house_frame_component;
 pub mod campsite_component;
 pub mod campsite_popup_component;
 pub mod char_create_component;
