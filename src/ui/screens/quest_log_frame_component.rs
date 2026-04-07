@@ -573,10 +573,8 @@ fn reward_items_row(rewards: &[QuestRewardItem], w: f32, y: f32) -> Element {
 
 fn reward_item_slot(idx: usize, reward: &QuestRewardItem) -> Element {
     let slot_id = DynName(format!("QuestLogReward{idx}"));
-    let icon_id = DynName(format!("QuestLogReward{idx}Icon"));
-    let name_id = DynName(format!("QuestLogReward{idx}Name"));
     let x = idx as f32 * (REWARD_SLOT_W + REWARD_NAME_W + REWARD_GAP);
-    let quantity_label = if reward.quantity > 1 {
+    let label = if reward.quantity > 1 {
         format!("{} x{}", reward.name, reward.quantity)
     } else {
         reward.name.clone()
@@ -592,33 +590,35 @@ fn reward_item_slot(idx: usize, reward: &QuestRewardItem) -> Element {
                 x: {x},
                 y: {-REWARD_LABEL_H},
             }
-            r#frame {
-                name: icon_id,
-                width: {REWARD_ICON_SIZE},
-                height: {REWARD_ICON_SIZE},
-                background_color: REWARD_ICON_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: name_id,
-                width: {REWARD_NAME_W},
-                height: {REWARD_ICON_SIZE},
-                text: {quantity_label.as_str()},
-                font_size: 10.0,
-                font_color: REWARD_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {REWARD_SLOT_W},
-                    y: "0",
-                }
-            }
+            {reward_slot_icon(DynName(format!("QuestLogReward{idx}Icon")))}
+            {reward_slot_name(DynName(format!("QuestLogReward{idx}Name")), &label)}
+        }
+    }
+}
+
+fn reward_slot_icon(id: DynName) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {REWARD_ICON_SIZE},
+            height: {REWARD_ICON_SIZE},
+            background_color: REWARD_ICON_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+        }
+    }
+}
+
+fn reward_slot_name(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {REWARD_NAME_W},
+            height: {REWARD_ICON_SIZE},
+            text: text,
+            font_size: 10.0,
+            font_color: REWARD_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {REWARD_SLOT_W}, y: "0" }
         }
     }
 }
