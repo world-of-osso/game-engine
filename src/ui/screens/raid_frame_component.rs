@@ -353,40 +353,35 @@ mod tests {
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
+    fn rm(
+        name: &str,
+        hp: u32,
+        max: u32,
+        in_range: bool,
+        rc: RaidReadyCheck,
+        heals: f32,
+    ) -> RaidMember {
+        RaidMember {
+            name: name.into(),
+            health_current: hp,
+            health_max: max,
+            alive: hp > 0,
+            in_range,
+            ready_check: rc,
+            incoming_heals: heals,
+        }
+    }
+
     fn sample_groups() -> Vec<RaidGroup> {
         vec![
             RaidGroup {
                 members: vec![
-                    RaidMember {
-                        name: "Tank1".into(),
-                        health_current: 50000,
-                        health_max: 50000,
-                        alive: true,
-                        in_range: true,
-                        ready_check: RaidReadyCheck::Accepted,
-                        incoming_heals: 0.0,
-                    },
-                    RaidMember {
-                        name: "Healer1".into(),
-                        health_current: 30000,
-                        health_max: 35000,
-                        alive: true,
-                        in_range: false,
-                        ready_check: RaidReadyCheck::None,
-                        incoming_heals: 0.15,
-                    },
+                    rm("Tank1", 50000, 50000, true, RaidReadyCheck::Accepted, 0.0),
+                    rm("Healer1", 30000, 35000, false, RaidReadyCheck::None, 0.15),
                 ],
             },
             RaidGroup {
-                members: vec![RaidMember {
-                    name: "Dps1".into(),
-                    health_current: 5000,
-                    health_max: 40000,
-                    alive: true,
-                    in_range: true,
-                    ready_check: RaidReadyCheck::Pending,
-                    incoming_heals: 0.0,
-                }],
+                members: vec![rm("Dps1", 5000, 40000, true, RaidReadyCheck::Pending, 0.0)],
             },
             RaidGroup::default(),
         ]
