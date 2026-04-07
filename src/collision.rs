@@ -209,7 +209,7 @@ pub fn compute_world_aabb(
         Vec3::new(lo.x, hi.y, hi.z),
         Vec3::new(hi.x, hi.y, hi.z),
     ];
-    let mat = transform.compute_matrix();
+    let mat = transform.to_matrix();
     let mut world_min = Vec3::splat(f32::MAX);
     let mut world_max = Vec3::splat(f32::MIN);
     for corner in corners {
