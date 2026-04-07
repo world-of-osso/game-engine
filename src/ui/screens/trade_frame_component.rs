@@ -267,11 +267,38 @@ fn format_money(copper: u32) -> String {
 
 // --- Action buttons ---
 
+fn trade_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {BTN_W},
+            height: {BTN_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: text_id,
+                width: {BTN_W},
+                height: {BTN_H},
+                text: label,
+                font_size: 11.0,
+                font_color: color,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn action_buttons(player_state: &TradeAcceptState, other_state: &TradeAcceptState) -> Element {
     let y = -(FRAME_H - BTN_H - 8.0);
     let center = FRAME_W / 2.0;
-    let accept_x = center - BTN_W - BTN_GAP / 2.0;
-    let cancel_x = center + BTN_GAP / 2.0;
     let both_accepted =
         *player_state == TradeAcceptState::Accepted && *other_state == TradeAcceptState::Accepted;
     let accept_bg = if both_accepted {
@@ -280,50 +307,8 @@ fn action_buttons(player_state: &TradeAcceptState, other_state: &TradeAcceptStat
         ACCEPT_BG
     };
     rsx! {
-        r#frame {
-            name: "TradeAcceptBtn",
-            width: {BTN_W},
-            height: {BTN_H},
-            background_color: accept_bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {accept_x},
-                y: {y},
-            }
-            fontstring {
-                name: "TradeAcceptBtnText",
-                width: {BTN_W},
-                height: {BTN_H},
-                text: "Accept",
-                font_size: 11.0,
-                font_color: ACCEPT_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
-        r#frame {
-            name: "TradeCancelBtn",
-            width: {BTN_W},
-            height: {BTN_H},
-            background_color: CANCEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {cancel_x},
-                y: {y},
-            }
-            fontstring {
-                name: "TradeCancelBtnText",
-                width: {BTN_W},
-                height: {BTN_H},
-                text: "Cancel",
-                font_size: 11.0,
-                font_color: CANCEL_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {trade_btn("TradeAcceptBtn", "Accept", accept_bg, ACCEPT_TEXT, center - BTN_W - BTN_GAP / 2.0, y)}
+        {trade_btn("TradeCancelBtn", "Cancel", CANCEL_BG, CANCEL_TEXT, center + BTN_GAP / 2.0, y)}
     }
 }
 
