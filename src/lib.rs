@@ -44,6 +44,8 @@ pub mod guild_bank_data;
 pub mod guild_control_data;
 #[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
+#[path = "game/help_data.rs"]
+pub mod help_data;
 pub mod input_bindings;
 pub mod ipc;
 #[path = "game/equipment/item_info.rs"]
