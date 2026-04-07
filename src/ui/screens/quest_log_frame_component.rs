@@ -1055,4 +1055,57 @@ mod tests {
         assert!((accept_r.width - ACTION_BTN_W).abs() < 1.0);
         assert!((abandon_r.width - ACTION_BTN_W).abs() < 1.0);
     }
+
+    #[test]
+    fn coord_list_panel_vertical() {
+        let reg = layout_registry();
+        let frame_r = rect(&reg, "QuestLogFrame");
+        let list_r = rect(&reg, "QuestLogList");
+        let expected_y = frame_r.y + CONTENT_TOP;
+        let expected_h = FRAME_H - CONTENT_TOP - INSET;
+        assert!((list_r.y - expected_y).abs() < 1.0);
+        assert!((list_r.height - expected_h).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_detail_panel_vertical() {
+        let reg = layout_registry();
+        let frame_r = rect(&reg, "QuestLogFrame");
+        let detail_r = rect(&reg, "QuestLogDetail");
+        let expected_y = frame_r.y + CONTENT_TOP;
+        let expected_h = FRAME_H - CONTENT_TOP - INSET;
+        assert!((detail_r.y - expected_y).abs() < 1.0);
+        assert!((detail_r.height - expected_h).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_zone_header_inside_list() {
+        let reg = layout_registry();
+        let list_r = rect(&reg, "QuestLogList");
+        let zone_r = rect(&reg, "QuestLogZone0");
+        // Zone header at top of list
+        assert!((zone_r.y - list_r.y).abs() < 1.0);
+        assert!((zone_r.height - ZONE_HEADER_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_quest_row_below_zone_header() {
+        let reg = layout_registry();
+        let zone_r = rect(&reg, "QuestLogZone0");
+        let row_r = rect(&reg, "QuestLogRow0_0");
+        // First quest row starts after zone header + gap
+        let expected_y = zone_r.y + ZONE_HEADER_H + ROW_GAP;
+        assert!((row_r.y - expected_y).abs() < 1.0);
+        assert!((row_r.height - QUEST_ROW_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_title_centered() {
+        let reg = layout_registry();
+        let frame_r = rect(&reg, "QuestLogFrame");
+        let title_r = rect(&reg, "QuestLogFrameTitle");
+        assert!((title_r.x - frame_r.x).abs() < 1.0);
+        assert!((title_r.y - frame_r.y).abs() < 1.0);
+        assert!((title_r.width - FRAME_W).abs() < 1.0);
+    }
 }

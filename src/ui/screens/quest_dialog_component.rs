@@ -17,8 +17,9 @@ impl fmt::Display for DynName {
 
 // --- Layout constants ---
 
-pub const FRAME_W: f32 = 380.0;
-pub const FRAME_H: f32 = 500.0;
+/// Matches wow-ui-sim QuestFrame (350×450).
+pub const FRAME_W: f32 = 350.0;
+pub const FRAME_H: f32 = 450.0;
 const HEADER_H: f32 = 28.0;
 const INSET: f32 = 10.0;
 const CONTENT_TOP: f32 = HEADER_H + 4.0;
@@ -29,7 +30,7 @@ const NPC_NAME_H: f32 = 20.0;
 
 const TEXT_TOP: f32 = CONTENT_TOP + PORTRAIT_SIZE + 8.0;
 const TEXT_INSET: f32 = 12.0;
-const TEXT_AREA_H: f32 = 180.0;
+const TEXT_AREA_H: f32 = 130.0;
 
 const REQ_HEADER_H: f32 = 20.0;
 const REQ_ROW_H: f32 = 28.0;
@@ -639,15 +640,70 @@ mod tests {
     }
 
     #[test]
-    fn coord_buttons_near_bottom() {
+    fn coord_npc_name_right_of_portrait() {
+        let reg = layout_offer_registry();
+        let portrait_r = rect(&reg, "QuestDialogPortrait");
+        let name_r = rect(&reg, "QuestDialogNPCName");
+        let expected_x = portrait_r.x + PORTRAIT_SIZE + 8.0;
+        assert!((name_r.x - expected_x).abs() < 1.0);
+        assert!((name_r.y - portrait_r.y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_text_below_portrait() {
+        let reg = layout_offer_registry();
+        let frame_r = rect(&reg, "QuestDialogFrame");
+        let text_r = rect(&reg, "QuestDialogTextArea");
+        let expected_y = frame_r.y + TEXT_TOP;
+        assert!((text_r.y - expected_y).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_buttons_centered_at_bottom() {
         let reg = layout_offer_registry();
         let frame_r = rect(&reg, "QuestDialogFrame");
         let left_r = rect(&reg, "QuestDialogLeftBtn");
         let right_r = rect(&reg, "QuestDialogRightBtn");
-        let frame_bottom = frame_r.y + frame_r.height;
-        // Buttons within 40px of frame bottom
-        assert!((left_r.y + left_r.height - frame_bottom).abs() < 40.0);
-        // Right button is to the right of left
-        assert!(right_r.x > left_r.x);
+        // Buttons pinned 10px + BTN_H from bottom
+        let expected_btn_y = frame_r.y + FRAME_H - BTN_H - 10.0;
+        assert!((left_r.y - expected_btn_y).abs() < 1.0);
+        assert!((right_r.y - expected_btn_y).abs() < 1.0);
+        // Buttons centered: left_x + BTN_W + gap == right_x
+        let center = frame_r.x + FRAME_W / 2.0;
+        let expected_left_x = center - BTN_W - BTN_GAP / 2.0;
+        let expected_right_x = center + BTN_GAP / 2.0;
+        assert!((left_r.x - expected_left_x).abs() < 1.0);
+        assert!((right_r.x - expected_right_x).abs() < 1.0);
+        assert!((left_r.width - BTN_W).abs() < 1.0);
+        assert!((right_r.width - BTN_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_requirement_rows() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(turnin_state());
+        Screen::new(quest_dialog_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let frame_r = rect(&reg, "QuestDialogFrame");
+        let reqs_r = rect(&reg, "QuestDialogReqs");
+        // Requirements below text area
+        let expected_reqs_y = frame_r.y + TEXT_TOP + TEXT_AREA_H + 8.0;
+        assert!((reqs_r.y - expected_reqs_y).abs() < 1.0);
+        assert!((reqs_r.x - (frame_r.x + INSET)).abs() < 1.0);
+
+        // First row has icon + name + count
+        let row0_r = rect(&reg, "QuestDialogReq0");
+        assert!((row0_r.height - REQ_ROW_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_frame_matches_wowuisim_dimensions() {
+        // wow-ui-sim QuestFrame: 350×450
+        let reg = layout_offer_registry();
+        let r = rect(&reg, "QuestDialogFrame");
+        assert!((r.width - 350.0).abs() < 1.0);
+        assert!((r.height - 450.0).abs() < 1.0);
     }
 }
