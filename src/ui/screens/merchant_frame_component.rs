@@ -234,9 +234,6 @@ fn item_grid(items: &[MerchantItem]) -> Element {
 
 fn merchant_item_row(idx: usize, item: &MerchantItem, parent_w: f32) -> Element {
     let row_id = DynName(format!("MerchantItem{idx}"));
-    let icon_id = DynName(format!("MerchantItem{idx}Icon"));
-    let name_id = DynName(format!("MerchantItem{idx}Name"));
-    let price_id = DynName(format!("MerchantItem{idx}Price"));
     let y = -(ITEM_INSET + idx as f32 * (ITEM_ROW_H + ITEM_ROW_GAP));
     let row_w = parent_w - 2.0 * ITEM_INSET;
     let text_x = ITEM_ICON_SIZE + 8.0;
@@ -251,48 +248,51 @@ fn merchant_item_row(idx: usize, item: &MerchantItem, parent_w: f32) -> Element 
                 x: {ITEM_INSET},
                 y: {y},
             }
-            r#frame {
-                name: icon_id,
-                width: {ITEM_ICON_SIZE},
-                height: {ITEM_ICON_SIZE},
-                background_color: ITEM_ICON_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: {-((ITEM_ROW_H - ITEM_ICON_SIZE) / 2.0)},
-                }
-            }
-            fontstring {
-                name: name_id,
-                width: {row_w - text_x - 60.0},
-                height: 16.0,
-                text: {item.name.as_str()},
-                font_size: 10.0,
-                font_color: ITEM_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {text_x},
-                    y: {-((ITEM_ROW_H - 16.0) / 2.0)},
-                }
-            }
-            fontstring {
-                name: price_id,
-                width: 56.0,
-                height: 16.0,
-                text: {item.price.as_str()},
-                font_size: 9.0,
-                font_color: ITEM_PRICE_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: "0",
-                    y: {-((ITEM_ROW_H - 16.0) / 2.0)},
-                }
-            }
+            {merchant_item_icon(DynName(format!("MerchantItem{idx}Icon")))}
+            {merchant_item_name(DynName(format!("MerchantItem{idx}Name")), &item.name, row_w - text_x - 60.0, text_x)}
+            {merchant_item_price(DynName(format!("MerchantItem{idx}Price")), &item.price)}
+        }
+    }
+}
+
+fn merchant_item_icon(id: DynName) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {ITEM_ICON_SIZE},
+            height: {ITEM_ICON_SIZE},
+            background_color: ITEM_ICON_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {-((ITEM_ROW_H - ITEM_ICON_SIZE) / 2.0)} }
+        }
+    }
+}
+
+fn merchant_item_name(id: DynName, text: &str, w: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: 16.0,
+            text: text,
+            font_size: 10.0,
+            font_color: ITEM_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-((ITEM_ROW_H - 16.0) / 2.0)} }
+        }
+    }
+}
+
+fn merchant_item_price(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: 56.0,
+            height: 16.0,
+            text: text,
+            font_size: 9.0,
+            font_color: ITEM_PRICE_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "0", y: {-((ITEM_ROW_H - 16.0) / 2.0)} }
         }
     }
 }
