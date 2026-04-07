@@ -226,9 +226,6 @@ fn friends_list_content(friends: &[FriendEntry]) -> Element {
 
 fn friend_row(idx: usize, friend: &FriendEntry, parent_w: f32) -> Element {
     let row_id = DynName(format!("FriendRow{idx}"));
-    let name_id = DynName(format!("FriendRow{idx}Name"));
-    let game_id = DynName(format!("FriendRow{idx}Game"));
-    let status_id = DynName(format!("FriendRow{idx}Status"));
     let y = -(FRIEND_INSET + idx as f32 * (FRIEND_ROW_H + FRIEND_ROW_GAP));
     let row_w = parent_w - 2.0 * FRIEND_INSET;
     let status_color = if friend.online {
@@ -247,51 +244,55 @@ fn friend_row(idx: usize, friend: &FriendEntry, parent_w: f32) -> Element {
                 x: {FRIEND_INSET},
                 y: {y},
             }
-            fontstring {
-                name: name_id,
-                width: {row_w * 0.45},
-                height: 16.0,
-                text: {friend.name.as_str()},
-                font_size: 10.0,
-                font_color: FRIEND_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "-2",
-                }
-            }
-            fontstring {
-                name: game_id,
-                width: {row_w * 0.45},
-                height: 14.0,
-                text: {friend.game.as_str()},
-                font_size: 8.0,
-                font_color: FRIEND_GAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "-18",
-                }
-            }
-            fontstring {
-                name: status_id,
-                width: {STATUS_ICON_SIZE},
-                height: {STATUS_ICON_SIZE},
-                text: {friend.status.as_str()},
-                font_size: 8.0,
-                font_color: status_color,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: "0",
-                    y: {-((FRIEND_ROW_H - STATUS_ICON_SIZE) / 2.0)},
-                }
-            }
+            {friend_name_label(DynName(format!("FriendRow{idx}Name")), &friend.name, row_w)}
+            {friend_game_label(DynName(format!("FriendRow{idx}Game")), &friend.game, row_w)}
+            {friend_status_icon(DynName(format!("FriendRow{idx}Status")), &friend.status, status_color)}
+        }
+    }
+}
+
+fn friend_name_label(id: DynName, text: &str, row_w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {row_w * 0.45},
+            height: 16.0,
+            text: text,
+            font_size: 10.0,
+            font_color: FRIEND_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "-2" }
+        }
+    }
+}
+
+fn friend_game_label(id: DynName, text: &str, row_w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {row_w * 0.45},
+            height: 14.0,
+            text: text,
+            font_size: 8.0,
+            font_color: FRIEND_GAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "-18" }
+        }
+    }
+}
+
+fn friend_status_icon(id: DynName, text: &str, color: &str) -> Element {
+    let status_y = -((FRIEND_ROW_H - STATUS_ICON_SIZE) / 2.0);
+    rsx! {
+        fontstring {
+            name: id,
+            width: {STATUS_ICON_SIZE},
+            height: {STATUS_ICON_SIZE},
+            text: text,
+            font_size: 8.0,
+            font_color: color,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "0", y: {status_y} }
         }
     }
 }
