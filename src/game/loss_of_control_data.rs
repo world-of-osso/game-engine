@@ -1,5 +1,17 @@
 use bevy::prelude::*;
 
+/// Texture FDIDs for the loss-of-control frame.
+pub mod textures {
+    /// Stun icon (Hammer of Justice).
+    pub const ICON_STUN: u32 = 135963;
+    /// Root icon (Frost Nova).
+    pub const ICON_ROOT: u32 = 135848;
+    /// Fear icon (Psychic Scream).
+    pub const ICON_FEAR: u32 = 136184;
+    /// Bar fill texture (shared with casting bar).
+    pub const BAR_FILL: u32 = 4505182;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum CCType {
     #[default]
@@ -165,5 +177,13 @@ mod tests {
             ..stun()
         };
         assert_eq!(cc.duration_text(), "3.7s");
+    }
+
+    #[test]
+    fn texture_fdids_are_nonzero() {
+        assert_ne!(textures::ICON_STUN, 0);
+        assert_ne!(textures::ICON_ROOT, 0);
+        assert_ne!(textures::ICON_FEAR, 0);
+        assert_ne!(textures::BAR_FILL, 0);
     }
 }
