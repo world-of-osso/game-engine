@@ -735,3 +735,145 @@ fn minimal_root() -> wmo::WmoRootData {
         skybox_wow_path: None,
     }
 }
+
+// --- Doodad transform application ---
+
+#[test]
+fn wmo_doodad_transform_applies_position_and_scale() {
+    let def = wmo::WmoDoodadDef {
+        name_offset: 0,
+        flags: 0,
+        position: [100.0, 200.0, 50.0],
+        rotation: [0.0, 0.0, 0.0, 1.0], // identity quaternion
+        scale: 2.0,
+        color: [1.0; 4],
+    };
+    let transform = wmo_doodad_transform(&def);
+    assert!((transform.scale.x - 2.0).abs() < 0.01);
+    assert!((transform.scale.y - 2.0).abs() < 0.01);
+    assert!((transform.scale.z - 2.0).abs() < 0.01);
+    // Position is converted from WoW to Bevy coords
+    let pos = transform.translation;
+    assert!(
+        pos.x.abs() + pos.y.abs() + pos.z.abs() > 0.0,
+        "position should be nonzero"
+    );
+}
+
+#[test]
+fn wmo_doodad_transform_unit_scale() {
+    let def = wmo::WmoDoodadDef {
+        name_offset: 0,
+        flags: 0,
+        position: [0.0, 0.0, 0.0],
+        rotation: [0.0, 0.0, 0.0, 1.0],
+        scale: 1.0,
+        color: [1.0; 4],
+    };
+    let transform = wmo_doodad_transform(&def);
+    assert!((transform.scale.x - 1.0).abs() < 0.01);
+}
+
+// --- Doodad set filtering ---
+
+#[test]
+fn doodad_set_range_selects_defs() {
+    let sets = vec![
+        wmo::WmoDoodadSet {
+            name: "Set0".into(),
+            start_doodad: 0,
+            n_doodads: 2,
+        },
+        wmo::WmoDoodadSet {
+            name: "Set1".into(),
+            start_doodad: 2,
+            n_doodads: 1,
+        },
+    ];
+    let defs = vec![
+        wmo::WmoDoodadDef {
+            name_offset: 0,
+            flags: 0,
+            position: [0.0; 3],
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            scale: 1.0,
+            color: [1.0; 4],
+        },
+        wmo::WmoDoodadDef {
+            name_offset: 0,
+            flags: 0,
+            position: [1.0; 3],
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            scale: 1.0,
+            color: [1.0; 4],
+        },
+        wmo::WmoDoodadDef {
+            name_offset: 0,
+            flags: 0,
+            position: [2.0; 3],
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            scale: 1.0,
+            color: [1.0; 4],
+        },
+    ];
+    // Set0: defs[0..2]
+    let start = sets[0].start_doodad as usize;
+    let end = start + sets[0].n_doodads as usize;
+    let set0_defs = &defs[start..end];
+    assert_eq!(set0_defs.len(), 2);
+    assert_eq!(set0_defs[0].position, [0.0; 3]);
+    assert_eq!(set0_defs[1].position, [1.0; 3]);
+    // Set1: defs[2..3]
+    let start = sets[1].start_doodad as usize;
+    let end = start + sets[1].n_doodads as usize;
+    let set1_defs = &defs[start..end];
+    assert_eq!(set1_defs.len(), 1);
+    assert_eq!(set1_defs[0].position, [2.0; 3]);
+}
+
+// --- MODI edge cases ---
+
+#[test]
+fn resolve_doodad_fdid_empty_modi() {
+    let root = wmo::WmoRootData {
+        doodad_names: vec![wmo::WmoDoodadName {
+            offset: 0,
+            name: "torch.m2".into(),
+        }],
+        doodad_file_ids: vec![], // empty MODI
+        ..minimal_root()
+    };
+    // MODI empty → falls through to listfile (returns None in test)
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 0), None);
+}
+
+#[test]
+fn resolve_doodad_fdid_empty_modn() {
+    let root = wmo::WmoRootData {
+        doodad_names: vec![], // empty MODN
+        doodad_file_ids: vec![1001],
+        ..minimal_root()
+    };
+    // No names → can't resolve offset → None
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 0), None);
+}
+
+#[test]
+fn resolve_doodad_fdid_modi_index_beyond_range() {
+    let root = wmo::WmoRootData {
+        doodad_names: vec![
+            wmo::WmoDoodadName {
+                offset: 0,
+                name: "a.m2".into(),
+            },
+            wmo::WmoDoodadName {
+                offset: 5,
+                name: "b.m2".into(),
+            },
+        ],
+        doodad_file_ids: vec![1001], // only 1 entry, name index 1 is out of range
+        ..minimal_root()
+    };
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 0), Some(1001));
+    assert_eq!(resolve_wmo_doodad_fdid(&root, 5), None); // index 1 out of MODI range
+}
