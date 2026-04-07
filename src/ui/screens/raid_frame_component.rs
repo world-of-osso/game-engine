@@ -698,4 +698,71 @@ mod tests {
         // Same X within a group
         assert!((c01.x - c00.x).abs() < 1.0);
     }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    #[test]
+    fn group_label_text() {
+        let reg = build_registry();
+        for gi in 0..NUM_GROUPS {
+            let expected = format!("Group {}", gi + 1);
+            assert_eq!(
+                fontstring_text(&reg, &format!("RaidGroup{gi}Label")),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn member_name_text() {
+        let reg = build_registry();
+        assert_eq!(fontstring_text(&reg, "RaidCell0_0Name"), "Tank1");
+        assert_eq!(fontstring_text(&reg, "RaidCell0_1Name"), "Healer1");
+        assert_eq!(fontstring_text(&reg, "RaidCell1_0Name"), "Dps1");
+    }
+
+    #[test]
+    fn ready_check_icon_text() {
+        let reg = build_registry();
+        // Tank1 = Accepted
+        assert_eq!(fontstring_text(&reg, "RaidCell0_0Ready"), "✓");
+        // Dps1 = Pending
+        assert_eq!(fontstring_text(&reg, "RaidCell1_0Ready"), "?");
+        // Healer1 = None (empty text, hidden)
+        assert_eq!(fontstring_text(&reg, "RaidCell0_1Ready"), "");
+    }
+
+    #[test]
+    fn health_fraction_overcapped() {
+        // health_current > health_max should clamp to 1.0
+        assert_eq!(member(150, 100).health_fraction(), 1.0);
+    }
+
+    #[test]
+    fn fill_width_dead_member() {
+        use ui_toolkit::frame::Dimension;
+        let dead = rm("Dead", 0, 50000, true, RaidReadyCheck::None, 0.0);
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(RaidFrameState {
+            visible: true,
+            groups: vec![RaidGroup {
+                members: vec![dead],
+            }],
+        });
+        Screen::new(raid_frame_screen).sync(&shared, &mut reg);
+        let id = reg.get_by_name("RaidCell0_0Fill").expect("fill");
+        let frame = reg.get(id).expect("data");
+        assert_eq!(frame.width, Dimension::Fixed(0.0));
+    }
 }
