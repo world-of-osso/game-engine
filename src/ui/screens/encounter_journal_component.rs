@@ -1058,4 +1058,58 @@ mod tests {
             );
         }
     }
+
+    // --- Additional coord validation ---
+
+    fn boss_layout_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_boss_state());
+        Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    #[test]
+    fn coord_boss_list_position() {
+        let reg = boss_layout_registry();
+        let content = rect(&reg, "EJContentArea");
+        let bl = rect(&reg, "EJBossList");
+        assert!((bl.x - (content.x + BOSS_LIST_INSET)).abs() < 1.0);
+        assert!((bl.y - (content.y + BOSS_LIST_INSET)).abs() < 1.0);
+        assert!((bl.width - BOSS_LIST_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_boss_detail_right_of_list() {
+        let reg = boss_layout_registry();
+        let content = rect(&reg, "EJContentArea");
+        let detail = rect(&reg, "EJBossDetail");
+        let expected_x = content.x + BOSS_LIST_INSET + BOSS_LIST_W + DETAIL_INSET;
+        assert!(
+            (detail.x - expected_x).abs() < 1.0,
+            "x: expected {expected_x}, got {}",
+            detail.x
+        );
+    }
+
+    #[test]
+    fn coord_loot_tab_filters() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_loot_state());
+        Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let slot_f = rect(&reg, "EJLootSlotFilter");
+        let class_f = rect(&reg, "EJLootClassFilter");
+        assert!((slot_f.width - LOOT_FILTER_W).abs() < 1.0);
+        assert!((class_f.width - LOOT_FILTER_W).abs() < 1.0);
+        let spacing = class_f.x - slot_f.x;
+        let expected = LOOT_FILTER_W + LOOT_FILTER_GAP;
+        assert!(
+            (spacing - expected).abs() < 1.0,
+            "filter spacing: expected {expected}, got {spacing}"
+        );
+    }
 }
