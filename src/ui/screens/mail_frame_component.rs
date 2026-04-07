@@ -432,7 +432,19 @@ fn send_attachments_grid() -> Element {
         .collect()
 }
 
-fn send_money_row(input_w: f32) -> Element {
+fn money_input_field(name: &str, x: f32, y: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: DynName(name.into()),
+            width: {MONEY_INPUT_W},
+            height: {SEND_INPUT_H},
+            background_color: SEND_INPUT_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+        }
+    }
+}
+
+fn send_money_row(_input_w: f32) -> Element {
     let base_y = SEND_INSET
         + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP)
         + SEND_BODY_H
@@ -440,6 +452,7 @@ fn send_money_row(input_w: f32) -> Element {
         + 2.0 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP)
         + SEND_ROW_GAP;
     let x_start = SEND_INSET + SEND_LABEL_W + SEND_INSET;
+    let y = -base_y;
     rsx! {
         fontstring {
             name: "MailSendMoneyLabel",
@@ -449,49 +462,11 @@ fn send_money_row(input_w: f32) -> Element {
             font_size: 10.0,
             font_color: SEND_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEND_INSET},
-                y: {-base_y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {SEND_INSET}, y: {y} }
         }
-        r#frame {
-            name: "MailSendGoldInput",
-            width: {MONEY_INPUT_W},
-            height: {SEND_INPUT_H},
-            background_color: SEND_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x_start},
-                y: {-base_y},
-            }
-        }
-        r#frame {
-            name: "MailSendSilverInput",
-            width: {MONEY_INPUT_W},
-            height: {SEND_INPUT_H},
-            background_color: SEND_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x_start + MONEY_INPUT_W + MONEY_GAP},
-                y: {-base_y},
-            }
-        }
-        r#frame {
-            name: "MailSendCopperInput",
-            width: {MONEY_INPUT_W},
-            height: {SEND_INPUT_H},
-            background_color: SEND_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x_start + 2.0 * (MONEY_INPUT_W + MONEY_GAP)},
-                y: {-base_y},
-            }
-        }
+        {money_input_field("MailSendGoldInput", x_start, y)}
+        {money_input_field("MailSendSilverInput", x_start + MONEY_INPUT_W + MONEY_GAP, y)}
+        {money_input_field("MailSendCopperInput", x_start + 2.0 * (MONEY_INPUT_W + MONEY_GAP), y)}
     }
 }
 
