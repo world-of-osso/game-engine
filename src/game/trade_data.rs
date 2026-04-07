@@ -1,17 +1,36 @@
 use bevy::prelude::*;
 
 pub mod textures {
-    /// Trade frame chrome border.
-    pub const TRADE_FRAME: u32 = 137056;
-    /// Item slot border (shared).
-    pub const SLOT_BORDER: u32 = 130841;
+    // --- Trade frame chrome ---
+    /// Trade player left panel (normal state).
+    pub const TRADE_PLAYER_LEFT: u32 = 137059;
+    /// Trade player right panel (normal state).
+    pub const TRADE_PLAYER_RIGHT: u32 = 137061;
+    /// Trade player left panel (accepted state).
+    pub const TRADE_PLAYER_LEFT_ACCEPT: u32 = 137058;
+    /// Trade target top-left (normal state).
+    pub const TRADE_TARGET_TOP_LEFT: u32 = 137067;
+    /// Trade target top-left (accepted state).
+    pub const TRADE_TARGET_TOP_LEFT_ACCEPT: u32 = 137066;
+
+    // --- Slot borders ---
+    /// Empty item slot background.
+    pub const SLOT_EMPTY: u32 = 130766;
+    /// Item slot background (darker).
+    pub const SLOT_BACKGROUND: u32 = 130862;
+    /// Auction-style item slot frame.
+    pub const SLOT_AUCTION: u32 = 365781;
+
+    // --- Money icons ---
     /// Gold coin icon.
     pub const COIN_GOLD: u32 = 133784;
     /// Silver coin icon.
     pub const COIN_SILVER: u32 = 133785;
     /// Copper coin icon.
     pub const COIN_COPPER: u32 = 133786;
-    /// Accept highlight glow.
+
+    // --- Highlight ---
+    /// Check button highlight glow (accept state).
     pub const ACCEPT_HIGHLIGHT: u32 = 130724;
 }
 
@@ -269,11 +288,21 @@ mod tests {
 
     #[test]
     fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::TRADE_FRAME, 0);
-        assert_ne!(textures::SLOT_BORDER, 0);
+        // Trade frame chrome
+        assert_ne!(textures::TRADE_PLAYER_LEFT, 0);
+        assert_ne!(textures::TRADE_PLAYER_RIGHT, 0);
+        assert_ne!(textures::TRADE_PLAYER_LEFT_ACCEPT, 0);
+        assert_ne!(textures::TRADE_TARGET_TOP_LEFT, 0);
+        assert_ne!(textures::TRADE_TARGET_TOP_LEFT_ACCEPT, 0);
+        // Slot borders
+        assert_ne!(textures::SLOT_EMPTY, 0);
+        assert_ne!(textures::SLOT_BACKGROUND, 0);
+        assert_ne!(textures::SLOT_AUCTION, 0);
+        // Money icons
         assert_ne!(textures::COIN_GOLD, 0);
         assert_ne!(textures::COIN_SILVER, 0);
         assert_ne!(textures::COIN_COPPER, 0);
+        // Highlight
         assert_ne!(textures::ACCEPT_HIGHLIGHT, 0);
     }
 }
