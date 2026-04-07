@@ -32,6 +32,22 @@ const TAB_TEXT_ACTIVE: &str = "1.0,0.82,0.0,1.0";
 const TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
 const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
 
+// Friends list layout
+const FRIEND_ROW_H: f32 = 32.0;
+const FRIEND_ROW_GAP: f32 = 1.0;
+const FRIEND_INSET: f32 = 4.0;
+const ADD_BUTTON_W: f32 = 100.0;
+const ADD_BUTTON_H: f32 = 24.0;
+const STATUS_ICON_SIZE: f32 = 12.0;
+const FRIEND_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
+const FRIEND_GAME_COLOR: &str = "0.6,0.8,1.0,1.0";
+const FRIEND_STATUS_ONLINE: &str = "0.0,1.0,0.0,1.0";
+const FRIEND_STATUS_OFFLINE: &str = "0.5,0.5,0.5,1.0";
+const ADD_BUTTON_BG: &str = "0.15,0.12,0.05,0.95";
+const ADD_BUTTON_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
+
+pub const MAX_FRIENDS: usize = 15;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct FriendsTab {
     pub name: String,
@@ -39,9 +55,19 @@ pub struct FriendsTab {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct FriendEntry {
+    pub name: String,
+    pub game: String,
+    pub status: String,
+    pub online: bool,
+    pub is_bnet: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct FriendsFrameState {
     pub visible: bool,
     pub tabs: Vec<FriendsTab>,
+    pub friends: Vec<FriendEntry>,
 }
 
 impl Default for FriendsFrameState {
@@ -66,6 +92,7 @@ impl Default for FriendsFrameState {
                     active: false,
                 },
             ],
+            friends: vec![],
         }
     }
 }
@@ -91,7 +118,7 @@ pub fn friends_frame_screen(ctx: &SharedContext) -> Element {
             }
             {title_bar()}
             {tab_row(&state.tabs)}
-            {content_area()}
+            {friends_list_content(&state.friends)}
         }
     }
 }
@@ -171,10 +198,16 @@ fn tab_button(i: usize, tab: &FriendsTab, tab_w: f32, x: f32, y: f32) -> Element
     }
 }
 
-fn content_area() -> Element {
+fn friends_list_content(friends: &[FriendEntry]) -> Element {
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    let rows: Element = friends
+        .iter()
+        .enumerate()
+        .take(MAX_FRIENDS)
+        .flat_map(|(i, f)| friend_row(i, f, content_w))
+        .collect();
     rsx! {
         r#frame {
             name: "FriendsContentArea",
@@ -186,6 +219,112 @@ fn content_area() -> Element {
                 relative_point: AnchorPoint::TopLeft,
                 x: {CONTENT_INSET},
                 y: {content_y},
+            }
+            {rows}
+            {add_friend_button(content_w, content_h)}
+        }
+    }
+}
+
+fn friend_row(idx: usize, friend: &FriendEntry, parent_w: f32) -> Element {
+    let row_id = DynName(format!("FriendRow{idx}"));
+    let name_id = DynName(format!("FriendRow{idx}Name"));
+    let game_id = DynName(format!("FriendRow{idx}Game"));
+    let status_id = DynName(format!("FriendRow{idx}Status"));
+    let y = -(FRIEND_INSET + idx as f32 * (FRIEND_ROW_H + FRIEND_ROW_GAP));
+    let row_w = parent_w - 2.0 * FRIEND_INSET;
+    let status_color = if friend.online {
+        FRIEND_STATUS_ONLINE
+    } else {
+        FRIEND_STATUS_OFFLINE
+    };
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {row_w},
+            height: {FRIEND_ROW_H},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {FRIEND_INSET},
+                y: {y},
+            }
+            fontstring {
+                name: name_id,
+                width: {row_w * 0.45},
+                height: 16.0,
+                text: {friend.name.as_str()},
+                font_size: 10.0,
+                font_color: FRIEND_NAME_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "0",
+                    y: "-2",
+                }
+            }
+            fontstring {
+                name: game_id,
+                width: {row_w * 0.45},
+                height: 14.0,
+                text: {friend.game.as_str()},
+                font_size: 8.0,
+                font_color: FRIEND_GAME_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "0",
+                    y: "-18",
+                }
+            }
+            fontstring {
+                name: status_id,
+                width: {STATUS_ICON_SIZE},
+                height: {STATUS_ICON_SIZE},
+                text: {friend.status.as_str()},
+                font_size: 8.0,
+                font_color: status_color,
+                justify_h: "RIGHT",
+                anchor {
+                    point: AnchorPoint::TopRight,
+                    relative_point: AnchorPoint::TopRight,
+                    x: "0",
+                    y: {-((FRIEND_ROW_H - STATUS_ICON_SIZE) / 2.0)},
+                }
+            }
+        }
+    }
+}
+
+fn add_friend_button(parent_w: f32, parent_h: f32) -> Element {
+    let x = (parent_w - ADD_BUTTON_W) / 2.0;
+    let y = -(parent_h - ADD_BUTTON_H - FRIEND_INSET);
+    rsx! {
+        r#frame {
+            name: "FriendsAddButton",
+            width: {ADD_BUTTON_W},
+            height: {ADD_BUTTON_H},
+            background_color: ADD_BUTTON_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: "FriendsAddButtonText",
+                width: {ADD_BUTTON_W},
+                height: {ADD_BUTTON_H},
+                text: "Add Friend",
+                font_size: 10.0,
+                font_color: ADD_BUTTON_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
             }
         }
     }
@@ -297,5 +436,68 @@ mod tests {
         let r = rect(&reg, "FriendsContentArea");
         assert!((r.x - (FRAME_X + CONTENT_INSET)).abs() < 1.0);
         assert!((r.y - (FRAME_Y + CONTENT_TOP)).abs() < 1.0);
+    }
+
+    // --- Friends list tests ---
+
+    fn make_friends_state() -> FriendsFrameState {
+        FriendsFrameState {
+            visible: true,
+            friends: vec![
+                FriendEntry {
+                    name: "Alice#1234".into(),
+                    game: "World of Warcraft".into(),
+                    status: "Online".into(),
+                    online: true,
+                    is_bnet: true,
+                },
+                FriendEntry {
+                    name: "Bobchar".into(),
+                    game: String::new(),
+                    status: "Offline".into(),
+                    online: false,
+                    is_bnet: false,
+                },
+            ],
+            ..Default::default()
+        }
+    }
+
+    fn friends_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_friends_state());
+        Screen::new(friends_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn friends_list_builds_rows() {
+        let reg = friends_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("FriendRow{i}")).is_some(),
+                "FriendRow{i} missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("FriendRow{i}Name")).is_some(),
+                "FriendRow{i}Name missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("FriendRow{i}Game")).is_some(),
+                "FriendRow{i}Game missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("FriendRow{i}Status")).is_some(),
+                "FriendRow{i}Status missing"
+            );
+        }
+    }
+
+    #[test]
+    fn friends_list_has_add_button() {
+        let reg = friends_registry();
+        assert!(reg.get_by_name("FriendsAddButton").is_some());
+        assert!(reg.get_by_name("FriendsAddButtonText").is_some());
     }
 }
