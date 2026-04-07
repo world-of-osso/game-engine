@@ -60,9 +60,31 @@ const ABILITY_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
 const ABILITY_DESC_COLOR: &str = "0.8,0.8,0.8,1.0";
 const ABILITY_ICON_BG: &str = "0.1,0.1,0.1,0.9";
 
+// Loot tab layout
+const LOOT_FILTER_H: f32 = 26.0;
+const LOOT_FILTER_GAP: f32 = 8.0;
+const LOOT_FILTER_W: f32 = 120.0;
+const LOOT_HEADER_H: f32 = 20.0;
+const LOOT_ROW_H: f32 = 26.0;
+const LOOT_ROW_GAP: f32 = 1.0;
+const LOOT_ICON_SIZE: f32 = 22.0;
+const LOOT_INSET: f32 = 4.0;
+const LOOT_FILTER_BG: &str = "0.08,0.07,0.06,0.88";
+const LOOT_FILTER_COLOR: &str = "0.6,0.6,0.6,1.0";
+const LOOT_HEADER_BG: &str = "0.12,0.1,0.08,0.9";
+const LOOT_HEADER_COLOR: &str = "0.8,0.8,0.8,1.0";
+const LOOT_ROW_EVEN: &str = "0.04,0.04,0.04,0.6";
+const LOOT_ROW_ODD: &str = "0.06,0.06,0.06,0.6";
+const LOOT_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
+const LOOT_SLOT_COLOR: &str = "0.7,0.7,0.7,1.0";
+const LOOT_ICON_BG: &str = "0.1,0.1,0.1,0.9";
+
 pub const MAX_INSTANCES: usize = 15;
 pub const MAX_BOSSES: usize = 10;
 pub const MAX_ABILITIES: usize = 8;
+pub const MAX_LOOT_ITEMS: usize = 10;
+pub const LOOT_COLUMNS: &[(&str, f32)] =
+    &[("", 0.08), ("Item", 0.42), ("Slot", 0.25), ("Drop %", 0.25)];
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EJTab {
@@ -90,6 +112,14 @@ pub struct BossAbility {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct LootItem {
+    pub name: String,
+    pub slot: String,
+    pub drop_pct: String,
+    pub icon_fdid: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct EncounterJournalState {
     pub visible: bool,
     pub tabs: Vec<EJTab>,
@@ -97,6 +127,9 @@ pub struct EncounterJournalState {
     pub bosses: Vec<BossEntry>,
     pub selected_boss_name: String,
     pub abilities: Vec<BossAbility>,
+    pub loot_items: Vec<LootItem>,
+    pub loot_slot_filter: String,
+    pub loot_class_filter: String,
 }
 
 impl Default for EncounterJournalState {
@@ -121,6 +154,9 @@ impl Default for EncounterJournalState {
             bosses: vec![],
             selected_boss_name: String::new(),
             abilities: vec![],
+            loot_items: vec![],
+            loot_slot_filter: "All Slots".into(),
+            loot_class_filter: "All Classes".into(),
         }
     }
 }
@@ -148,6 +184,7 @@ pub fn encounter_journal_screen(ctx: &SharedContext) -> Element {
             {sidebar_tabs(&state.tabs)}
             {instance_list(&state.instances)}
             {boss_content(&state.bosses, &state.selected_boss_name, &state.abilities)}
+            {loot_tab(&state.loot_items, &state.loot_slot_filter, &state.loot_class_filter)}
         }
     }
 }
@@ -495,6 +532,256 @@ fn ability_row(idx: usize, ability: &BossAbility, parent_w: f32) -> Element {
     }
 }
 
+// --- Loot tab ---
+
+fn loot_tab(items: &[LootItem], slot_filter: &str, class_filter: &str) -> Element {
+    let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
+    let content_y = -CONTENT_TOP;
+    let content_w = FRAME_W - content_x - SIDEBAR_INSET;
+    let content_h = FRAME_H - CONTENT_TOP - SIDEBAR_INSET;
+    rsx! {
+        r#frame {
+            name: "EJLootTab",
+            width: {content_w},
+            height: {content_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {content_x},
+                y: {content_y},
+            }
+            {loot_filter_row(slot_filter, class_filter)}
+            {loot_header(content_w)}
+            {loot_rows(items, content_w)}
+        }
+    }
+}
+
+fn loot_filter_row(slot_filter: &str, class_filter: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: "EJLootSlotFilter",
+            width: {LOOT_FILTER_W},
+            height: {LOOT_FILTER_H},
+            background_color: LOOT_FILTER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LOOT_INSET},
+                y: {-LOOT_INSET},
+            }
+            fontstring {
+                name: "EJLootSlotFilterText",
+                width: {LOOT_FILTER_W - 8.0},
+                height: {LOOT_FILTER_H},
+                text: slot_filter,
+                font_size: 10.0,
+                font_color: LOOT_FILTER_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
+                }
+            }
+        }
+        r#frame {
+            name: "EJLootClassFilter",
+            width: {LOOT_FILTER_W},
+            height: {LOOT_FILTER_H},
+            background_color: LOOT_FILTER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LOOT_INSET + LOOT_FILTER_W + LOOT_FILTER_GAP},
+                y: {-LOOT_INSET},
+            }
+            fontstring {
+                name: "EJLootClassFilterText",
+                width: {LOOT_FILTER_W - 8.0},
+                height: {LOOT_FILTER_H},
+                text: class_filter,
+                font_size: 10.0,
+                font_color: LOOT_FILTER_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "4",
+                    y: "0",
+                }
+            }
+        }
+    }
+}
+
+fn loot_header(parent_w: f32) -> Element {
+    let header_y = -(LOOT_INSET + LOOT_FILTER_H + LOOT_INSET);
+    let header_w = parent_w - 2.0 * LOOT_INSET;
+    let cols: Element = LOOT_COLUMNS
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (name, _))| {
+            let x = loot_col_x(header_w, i);
+            let w = loot_col_w(header_w, i);
+            loot_header_cell(i, name, x, w)
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "EJLootHeader",
+            width: {header_w},
+            height: {LOOT_HEADER_H},
+            background_color: LOOT_HEADER_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LOOT_INSET},
+                y: {header_y},
+            }
+            {cols}
+        }
+    }
+}
+
+fn loot_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
+    let cell_id = DynName(format!("EJLootCol{idx}"));
+    rsx! {
+        fontstring {
+            name: cell_id,
+            width: {w},
+            height: {LOOT_HEADER_H},
+            text,
+            font_size: 9.0,
+            font_color: LOOT_HEADER_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn loot_rows(items: &[LootItem], parent_w: f32) -> Element {
+    let row_w = parent_w - 2.0 * LOOT_INSET;
+    let top = LOOT_INSET + LOOT_FILTER_H + LOOT_INSET + LOOT_HEADER_H;
+    items
+        .iter()
+        .enumerate()
+        .take(MAX_LOOT_ITEMS)
+        .flat_map(|(i, item)| loot_row(i, item, row_w, top))
+        .collect()
+}
+
+fn loot_row(idx: usize, item: &LootItem, row_w: f32, top: f32) -> Element {
+    let row_id = DynName(format!("EJLoot{idx}"));
+    let icon_id = DynName(format!("EJLoot{idx}Icon"));
+    let name_id = DynName(format!("EJLoot{idx}Name"));
+    let slot_id = DynName(format!("EJLoot{idx}Slot"));
+    let drop_id = DynName(format!("EJLoot{idx}Drop"));
+    let y = -(top + idx as f32 * (LOOT_ROW_H + LOOT_ROW_GAP));
+    let bg = if idx % 2 == 0 {
+        LOOT_ROW_EVEN
+    } else {
+        LOOT_ROW_ODD
+    };
+    let icon_col_w = loot_col_w(row_w, 0);
+    let name_x = loot_col_x(row_w, 1);
+    let name_w = loot_col_w(row_w, 1);
+    let slot_x = loot_col_x(row_w, 2);
+    let slot_w = loot_col_w(row_w, 2);
+    let drop_x = loot_col_x(row_w, 3);
+    let drop_w = loot_col_w(row_w, 3);
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {row_w},
+            height: {LOOT_ROW_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {LOOT_INSET},
+                y: {y},
+            }
+            r#frame {
+                name: icon_id,
+                width: {LOOT_ICON_SIZE},
+                height: {LOOT_ICON_SIZE},
+                background_color: LOOT_ICON_BG,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "2",
+                    y: "-2",
+                }
+            }
+            fontstring {
+                name: name_id,
+                width: {name_w},
+                height: {LOOT_ROW_H},
+                text: {item.name.as_str()},
+                font_size: 10.0,
+                font_color: LOOT_NAME_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {name_x},
+                    y: "0",
+                }
+            }
+            fontstring {
+                name: slot_id,
+                width: {slot_w},
+                height: {LOOT_ROW_H},
+                text: {item.slot.as_str()},
+                font_size: 9.0,
+                font_color: LOOT_SLOT_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {slot_x},
+                    y: "0",
+                }
+            }
+            fontstring {
+                name: drop_id,
+                width: {drop_w},
+                height: {LOOT_ROW_H},
+                text: {item.drop_pct.as_str()},
+                font_size: 9.0,
+                font_color: LOOT_SLOT_COLOR,
+                justify_h: "LEFT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {drop_x},
+                    y: "0",
+                }
+            }
+        }
+    }
+}
+
+fn loot_col_x(row_w: f32, col: usize) -> f32 {
+    let mut x = 0.0;
+    for i in 0..col {
+        x += LOOT_COLUMNS[i].1 * row_w;
+    }
+    x
+}
+
+fn loot_col_w(row_w: f32, col: usize) -> f32 {
+    LOOT_COLUMNS[col].1 * row_w
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -692,6 +979,82 @@ mod tests {
             assert!(
                 reg.get_by_name(&format!("EJAbility{i}Desc")).is_some(),
                 "EJAbility{i}Desc missing"
+            );
+        }
+    }
+
+    // --- Loot tab tests ---
+
+    fn make_loot_state() -> EncounterJournalState {
+        let mut state = make_test_state();
+        state.loot_items = vec![
+            LootItem {
+                name: "Cruel Barb".into(),
+                slot: "One-Hand Sword".into(),
+                drop_pct: "15%".into(),
+                icon_fdid: 11111,
+            },
+            LootItem {
+                name: "Cape of the Brotherhood".into(),
+                slot: "Back".into(),
+                drop_pct: "18%".into(),
+                icon_fdid: 22222,
+            },
+        ];
+        state
+    }
+
+    fn loot_registry() -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_loot_state());
+        Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn loot_tab_builds_filters() {
+        let reg = loot_registry();
+        assert!(reg.get_by_name("EJLootTab").is_some());
+        assert!(reg.get_by_name("EJLootSlotFilter").is_some());
+        assert!(reg.get_by_name("EJLootClassFilter").is_some());
+    }
+
+    #[test]
+    fn loot_tab_builds_header() {
+        let reg = loot_registry();
+        assert!(reg.get_by_name("EJLootHeader").is_some());
+        for i in 0..LOOT_COLUMNS.len() {
+            assert!(
+                reg.get_by_name(&format!("EJLootCol{i}")).is_some(),
+                "EJLootCol{i} missing"
+            );
+        }
+    }
+
+    #[test]
+    fn loot_tab_builds_item_rows() {
+        let reg = loot_registry();
+        for i in 0..2 {
+            assert!(
+                reg.get_by_name(&format!("EJLoot{i}")).is_some(),
+                "EJLoot{i} missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJLoot{i}Icon")).is_some(),
+                "EJLoot{i}Icon missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJLoot{i}Name")).is_some(),
+                "EJLoot{i}Name missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJLoot{i}Slot")).is_some(),
+                "EJLoot{i}Slot missing"
+            );
+            assert!(
+                reg.get_by_name(&format!("EJLoot{i}Drop")).is_some(),
+                "EJLoot{i}Drop missing"
             );
         }
     }
