@@ -57,6 +57,23 @@ const ROW_BG_ODD: &str = "0.06,0.06,0.06,0.6";
 const ROW_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const GOLD_COLOR: &str = "1.0,0.82,0.0,1.0";
 
+// Sell tab layout
+const SELL_INSET: f32 = 12.0;
+const SELL_ITEM_SLOT_SIZE: f32 = 48.0;
+const SELL_INPUT_H: f32 = 26.0;
+const SELL_INPUT_W: f32 = 120.0;
+const SELL_LABEL_W: f32 = 80.0;
+const SELL_ROW_GAP: f32 = 8.0;
+const SELL_DROPDOWN_W: f32 = 140.0;
+const SELL_BUTTON_W: f32 = 100.0;
+const SELL_BUTTON_H: f32 = 28.0;
+const SELL_ITEM_SLOT_BG: &str = "0.08,0.07,0.06,0.88";
+const SELL_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
+const SELL_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
+const SELL_INPUT_TEXT: &str = "1.0,1.0,1.0,1.0";
+const SELL_BUTTON_BG: &str = "0.2,0.15,0.05,0.95";
+const SELL_BUTTON_TEXT: &str = "1.0,0.82,0.0,1.0";
+
 pub const MAX_BROWSE_CATEGORIES: usize = 12;
 pub const MAX_RESULT_ROWS: usize = 8;
 pub const RESULT_COLUMNS: &[(&str, f32)] = &[
@@ -90,12 +107,25 @@ pub struct BrowseResultRow {
     pub buyout: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct SellTabState {
+    /// Name of the item placed in the sell slot (empty = no item).
+    pub item_name: String,
+    /// Starting bid price text.
+    pub bid_price: String,
+    /// Buyout price text.
+    pub buyout_price: String,
+    /// Selected duration label (e.g. "12 Hours", "24 Hours", "48 Hours").
+    pub duration: String,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct AuctionHouseFrameState {
     pub visible: bool,
     pub tabs: Vec<AuctionTab>,
     pub browse_categories: Vec<BrowseCategory>,
     pub browse_results: Vec<BrowseResultRow>,
+    pub sell: SellTabState,
 }
 
 impl Default for AuctionHouseFrameState {
@@ -118,6 +148,10 @@ impl Default for AuctionHouseFrameState {
             ],
             browse_categories: vec![],
             browse_results: vec![],
+            sell: SellTabState {
+                duration: "24 Hours".into(),
+                ..Default::default()
+            },
         }
     }
 }
@@ -144,6 +178,7 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {tab_row(&state.tabs)}
             {browse_tab_content(&state.browse_categories, &state.browse_results)}
+            {sell_tab_content(&state.sell)}
         }
     }
 }
@@ -517,6 +552,221 @@ fn column_w(panel_w: f32, col: usize) -> f32 {
     RESULT_COLUMNS[col].1 * panel_w
 }
 
+// --- Sell tab ---
+
+fn sell_tab_content(sell: &SellTabState) -> Element {
+    let content_y = -CONTENT_TOP;
+    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
+    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    rsx! {
+        r#frame {
+            name: "AuctionHouseSellTab",
+            width: {content_w},
+            height: {content_h},
+            hidden: true,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CONTENT_INSET},
+                y: {content_y},
+            }
+            {sell_item_slot(sell)}
+            {sell_price_row("AuctionHouseSellBid", "Starting Bid:", &sell.bid_price, 0)}
+            {sell_price_row("AuctionHouseSellBuyout", "Buyout Price:", &sell.buyout_price, 1)}
+            {sell_duration_row(&sell.duration)}
+            {sell_post_button()}
+        }
+    }
+}
+
+fn sell_item_slot(sell: &SellTabState) -> Element {
+    let label = if sell.item_name.is_empty() {
+        "Drop item here"
+    } else {
+        sell.item_name.as_str()
+    };
+    rsx! {
+        r#frame {
+            name: "AuctionHouseSellItemSlot",
+            width: {SELL_ITEM_SLOT_SIZE},
+            height: {SELL_ITEM_SLOT_SIZE},
+            background_color: SELL_ITEM_SLOT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SELL_INSET},
+                y: {-SELL_INSET},
+            }
+        }
+        fontstring {
+            name: "AuctionHouseSellItemName",
+            width: 200.0,
+            height: 16.0,
+            text: label,
+            font_size: 11.0,
+            font_color: SELL_LABEL_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SELL_INSET + SELL_ITEM_SLOT_SIZE + 8.0},
+                y: {-(SELL_INSET + 16.0)},
+            }
+        }
+    }
+}
+
+fn sell_price_row(prefix: &str, label: &str, value: &str, row_index: usize) -> Element {
+    let row_name = DynName(format!("{prefix}Row"));
+    let label_name = DynName(format!("{prefix}Label"));
+    let input_name = DynName(format!("{prefix}Input"));
+    let base_y = SELL_INSET + SELL_ITEM_SLOT_SIZE + SELL_ROW_GAP;
+    let y = -(base_y + row_index as f32 * (SELL_INPUT_H + SELL_ROW_GAP));
+    rsx! {
+        r#frame {
+            name: row_name,
+            width: {SELL_LABEL_W + SELL_INPUT_W},
+            height: {SELL_INPUT_H},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SELL_INSET},
+                y: {y},
+            }
+            fontstring {
+                name: label_name,
+                width: {SELL_LABEL_W},
+                height: {SELL_INPUT_H},
+                text: label,
+                font_size: 10.0,
+                font_color: SELL_LABEL_COLOR,
+                justify_h: "RIGHT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+            r#frame {
+                name: input_name,
+                width: {SELL_INPUT_W},
+                height: {SELL_INPUT_H},
+                background_color: SELL_INPUT_BG,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {SELL_LABEL_W},
+                    y: "0",
+                }
+                fontstring {
+                    name: DynName(format!("{prefix}Value")),
+                    width: {SELL_INPUT_W - 8.0},
+                    height: {SELL_INPUT_H},
+                    text: value,
+                    font_size: 10.0,
+                    font_color: SELL_INPUT_TEXT,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: "4",
+                        y: "0",
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn sell_duration_row(duration: &str) -> Element {
+    let base_y = SELL_INSET + SELL_ITEM_SLOT_SIZE + SELL_ROW_GAP;
+    let y = -(base_y + 2.0 * (SELL_INPUT_H + SELL_ROW_GAP));
+    rsx! {
+        r#frame {
+            name: "AuctionHouseSellDurationRow",
+            width: {SELL_LABEL_W + SELL_DROPDOWN_W},
+            height: {SELL_INPUT_H},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SELL_INSET},
+                y: {y},
+            }
+            fontstring {
+                name: "AuctionHouseSellDurationLabel",
+                width: {SELL_LABEL_W},
+                height: {SELL_INPUT_H},
+                text: "Duration:",
+                font_size: 10.0,
+                font_color: SELL_LABEL_COLOR,
+                justify_h: "RIGHT",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+            r#frame {
+                name: "AuctionHouseSellDurationDropdown",
+                width: {SELL_DROPDOWN_W},
+                height: {SELL_INPUT_H},
+                background_color: SELL_INPUT_BG,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {SELL_LABEL_W},
+                    y: "0",
+                }
+                fontstring {
+                    name: "AuctionHouseSellDurationValue",
+                    width: {SELL_DROPDOWN_W - 8.0},
+                    height: {SELL_INPUT_H},
+                    text: duration,
+                    font_size: 10.0,
+                    font_color: SELL_INPUT_TEXT,
+                    justify_h: "LEFT",
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                        x: "4",
+                        y: "0",
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn sell_post_button() -> Element {
+    let base_y = SELL_INSET + SELL_ITEM_SLOT_SIZE + SELL_ROW_GAP;
+    let y = -(base_y + 3.0 * (SELL_INPUT_H + SELL_ROW_GAP));
+    rsx! {
+        r#frame {
+            name: "AuctionHouseSellPostButton",
+            width: {SELL_BUTTON_W},
+            height: {SELL_BUTTON_H},
+            background_color: SELL_BUTTON_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {SELL_INSET + SELL_LABEL_W},
+                y: {y},
+            }
+            fontstring {
+                name: "AuctionHouseSellPostButtonText",
+                width: {SELL_BUTTON_W},
+                height: {SELL_BUTTON_H},
+                text: "Create Auction",
+                font_size: 11.0,
+                font_color: SELL_BUTTON_TEXT,
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -729,5 +979,42 @@ mod tests {
         let expected_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
         assert!((r.width - expected_w).abs() < 1.0);
         assert!((r.height - expected_h).abs() < 1.0);
+    }
+
+    // --- Sell tab tests ---
+
+    #[test]
+    fn sell_tab_builds_item_slot_and_name() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("AuctionHouseSellTab").is_some());
+        assert!(reg.get_by_name("AuctionHouseSellItemSlot").is_some());
+        assert!(reg.get_by_name("AuctionHouseSellItemName").is_some());
+    }
+
+    #[test]
+    fn sell_tab_builds_price_inputs() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("AuctionHouseSellBidRow").is_some());
+        assert!(reg.get_by_name("AuctionHouseSellBidInput").is_some());
+        assert!(reg.get_by_name("AuctionHouseSellBuyoutRow").is_some());
+        assert!(reg.get_by_name("AuctionHouseSellBuyoutInput").is_some());
+    }
+
+    #[test]
+    fn sell_tab_builds_duration_dropdown() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("AuctionHouseSellDurationRow").is_some());
+        assert!(
+            reg.get_by_name("AuctionHouseSellDurationDropdown")
+                .is_some()
+        );
+        assert!(reg.get_by_name("AuctionHouseSellDurationValue").is_some());
+    }
+
+    #[test]
+    fn sell_tab_builds_post_button() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("AuctionHouseSellPostButton").is_some());
+        assert!(reg.get_by_name("AuctionHouseSellPostButtonText").is_some());
     }
 }
