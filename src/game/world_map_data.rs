@@ -1,20 +1,43 @@
 use bevy::prelude::*;
 
 pub mod textures {
-    /// World map frame border.
-    pub const MAP_FRAME_BORDER: u32 = 137073;
-    /// Player arrow indicator on map.
-    pub const PLAYER_ARROW: u32 = 137172;
-    /// Quest pin icon (exclamation mark).
+    // --- Frame chrome (world map border pieces) ---
+    /// World map top-left border.
+    pub const MAP_FRAME_TOP1: u32 = 137185;
+    /// World map top-right border.
+    pub const MAP_FRAME_TOP2: u32 = 137186;
+    /// World map middle-left border.
+    pub const MAP_FRAME_MID1: u32 = 137181;
+    /// World map bottom-left border.
+    pub const MAP_FRAME_BOT1: u32 = 137177;
+
+    // --- Player/party indicators ---
+    /// Player icon on world map.
+    pub const PLAYER_ICON: u32 = 137198;
+    /// Party member icon on world map.
+    pub const PARTY_ICON: u32 = 137197;
+    /// Minimap player arrow (rotating).
+    pub const PLAYER_ARROW: u32 = 136443;
+    /// World map globe icon.
+    pub const WORLD_ICON: u32 = 137176;
+
+    // --- Pin icons ---
+    /// Quest exclamation mark (active quest).
     pub const PIN_QUEST: u32 = 132048;
-    /// Flight path pin icon (boot).
-    pub const PIN_FLIGHT_PATH: u32 = 132057;
-    /// Point of interest pin (star).
-    pub const PIN_POI: u32 = 136441;
-    /// Flight path line dot texture.
-    pub const FP_DOT: u32 = 137171;
-    /// Fog of war overlay.
-    pub const FOG_OVERLAY: u32 = 137166;
+    /// Taxi/gossip icon (flight master).
+    pub const PIN_FLIGHT_MASTER: u32 = 136456;
+    /// POI icons atlas (minimap).
+    pub const PIN_POI_ATLAS: u32 = 136441;
+    /// World map icon (generic).
+    pub const MAP_ICON: u32 = 137195;
+
+    // --- Fog of war ---
+    /// Fog of war overlay texture.
+    pub const FOG_OVERLAY: u32 = 2002950;
+    /// Fog hard edge mask.
+    pub const FOG_MASK_HARD: u32 = 2015282;
+    /// Fog soft edge mask.
+    pub const FOG_MASK_SOFT: u32 = 2015284;
 }
 
 // --- Pin types ---
@@ -320,12 +343,24 @@ mod tests {
 
     #[test]
     fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::MAP_FRAME_BORDER, 0);
+        // Frame chrome
+        assert_ne!(textures::MAP_FRAME_TOP1, 0);
+        assert_ne!(textures::MAP_FRAME_TOP2, 0);
+        assert_ne!(textures::MAP_FRAME_MID1, 0);
+        assert_ne!(textures::MAP_FRAME_BOT1, 0);
+        // Player/party
+        assert_ne!(textures::PLAYER_ICON, 0);
+        assert_ne!(textures::PARTY_ICON, 0);
         assert_ne!(textures::PLAYER_ARROW, 0);
+        assert_ne!(textures::WORLD_ICON, 0);
+        // Pin icons
         assert_ne!(textures::PIN_QUEST, 0);
-        assert_ne!(textures::PIN_FLIGHT_PATH, 0);
-        assert_ne!(textures::PIN_POI, 0);
-        assert_ne!(textures::FP_DOT, 0);
+        assert_ne!(textures::PIN_FLIGHT_MASTER, 0);
+        assert_ne!(textures::PIN_POI_ATLAS, 0);
+        assert_ne!(textures::MAP_ICON, 0);
+        // Fog of war
         assert_ne!(textures::FOG_OVERLAY, 0);
+        assert_ne!(textures::FOG_MASK_HARD, 0);
+        assert_ne!(textures::FOG_MASK_SOFT, 0);
     }
 }
