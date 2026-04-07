@@ -181,12 +181,17 @@ fn role_checkboxes(state: &LFGListFrameState) -> Element {
 }
 
 fn role_checkbox(idx: usize, label: &str, checked: bool, x: f32) -> Element {
-    let cb_id = DynName(format!("LFGRoleCheck{idx}"));
-    let label_id = DynName(format!("LFGRoleLabel{idx}"));
     let check_text = if checked { "\u{2713}" } else { "" };
     rsx! {
+        {role_check_box(DynName(format!("LFGRoleCheck{idx}")), DynName(format!("LFGRoleCheck{idx}Text")), check_text, x)}
+        {role_check_label(DynName(format!("LFGRoleLabel{idx}")), label, x + ROLE_CHECK_SIZE + 4.0)}
+    }
+}
+
+fn role_check_box(id: DynName, text_id: DynName, check: &str, x: f32) -> Element {
+    rsx! {
         r#frame {
-            name: cb_id,
+            name: id,
             width: {ROLE_CHECK_SIZE},
             height: {ROLE_CHECK_SIZE},
             background_color: CHECK_BG,
@@ -197,33 +202,30 @@ fn role_checkbox(idx: usize, label: &str, checked: bool, x: f32) -> Element {
                 y: {-ROLE_ROW_Y},
             }
             fontstring {
-                name: DynName(format!("LFGRoleCheck{idx}Text")),
+                name: text_id,
                 width: {ROLE_CHECK_SIZE},
                 height: {ROLE_CHECK_SIZE},
-                text: check_text,
+                text: check,
                 font_size: 14.0,
                 font_color: CHECK_ON,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             }
         }
+    }
+}
+
+fn role_check_label(id: DynName, text: &str, x: f32) -> Element {
+    rsx! {
         fontstring {
-            name: label_id,
+            name: id,
             width: {ROLE_LABEL_W},
             height: {ROLE_CHECK_SIZE},
-            text: label,
+            text: text,
             font_size: 10.0,
             font_color: ROLE_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x + ROLE_CHECK_SIZE + 4.0},
-                y: {-ROLE_ROW_Y},
-            }
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-ROLE_ROW_Y} }
         }
     }
 }
