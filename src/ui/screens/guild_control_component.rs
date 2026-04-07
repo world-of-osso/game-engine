@@ -178,15 +178,10 @@ fn rank_sidebar(ranks: &[GuildRank]) -> Element {
 fn rank_row(idx: usize, rank: &GuildRank) -> Element {
     let row_id = DynName(format!("GuildControlRank{idx}"));
     let label_id = DynName(format!("GuildControlRank{idx}Label"));
-    let bg = if rank.selected {
-        RANK_SELECTED_BG
+    let (bg, color) = if rank.selected {
+        (RANK_SELECTED_BG, RANK_SELECTED_COLOR)
     } else {
-        RANK_NORMAL_BG
-    };
-    let color = if rank.selected {
-        RANK_SELECTED_COLOR
-    } else {
-        RANK_NORMAL_COLOR
+        (RANK_NORMAL_BG, RANK_NORMAL_COLOR)
     };
     let y = -(idx as f32 * (RANK_ROW_H + RANK_ROW_GAP));
     rsx! {
@@ -201,21 +196,22 @@ fn rank_row(idx: usize, rank: &GuildRank) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {SIDEBAR_W - 8.0},
-                height: {RANK_ROW_H},
-                text: {rank.name.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
+            {rank_row_label(label_id, &rank.name, color)}
+        }
+    }
+}
+
+fn rank_row_label(id: DynName, text: &str, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {SIDEBAR_W - 8.0},
+            height: {RANK_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
         }
     }
 }
