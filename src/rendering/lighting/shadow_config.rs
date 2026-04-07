@@ -56,4 +56,15 @@ mod tests {
             "last cascade should reach ~500 units, got {last}"
         );
     }
+
+    #[test]
+    fn ssao_default_quality_is_high() {
+        use bevy::pbr::{ScreenSpaceAmbientOcclusion, ScreenSpaceAmbientOcclusionQualityLevel};
+        let ssao = ScreenSpaceAmbientOcclusion::default();
+        assert_eq!(
+            ssao.quality_level,
+            ScreenSpaceAmbientOcclusionQualityLevel::High
+        );
+        assert!(ssao.constant_object_thickness > 0.0);
+    }
 }
