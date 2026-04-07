@@ -50,19 +50,10 @@ pub struct BuffIconState {
     pub source: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct BuffFrameState {
     pub buffs: Vec<BuffIconState>,
     pub debuffs: Vec<BuffIconState>,
-}
-
-impl Default for BuffFrameState {
-    fn default() -> Self {
-        Self {
-            buffs: vec![],
-            debuffs: vec![],
-        }
-    }
 }
 
 pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
@@ -424,6 +415,123 @@ mod tests {
             (r.x - expected_x).abs() < 1.0,
             "debuff x: expected {expected_x}, got {}",
             r.x
+        );
+    }
+
+    // --- Text content tests ---
+
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        use ui_toolkit::frame::WidgetData;
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame data");
+        match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(fs)) => fs.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn build_with_state(state: BuffFrameState) -> FrameRegistry {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(buff_frame_screen).sync(&shared, &mut reg);
+        reg
+    }
+
+    #[test]
+    fn timer_text_displayed() {
+        let reg = build_registry(3, 0);
+        assert_eq!(fontstring_text(&reg, "BuffIcon0Timer"), "0m");
+        assert_eq!(fontstring_text(&reg, "BuffIcon1Timer"), "1m");
+        assert_eq!(fontstring_text(&reg, "BuffIcon2Timer"), "2m");
+    }
+
+    #[test]
+    fn stack_count_hidden_at_zero_and_one() {
+        let state = BuffFrameState {
+            buffs: vec![
+                BuffIconState {
+                    stacks: 0,
+                    ..make_icon("5m")
+                },
+                BuffIconState {
+                    stacks: 1,
+                    ..make_icon("3m")
+                },
+            ],
+            debuffs: vec![],
+        };
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "BuffIcon0Stack"), "");
+        assert_eq!(fontstring_text(&reg, "BuffIcon1Stack"), "");
+    }
+
+    #[test]
+    fn stack_count_shown_above_one() {
+        let state = BuffFrameState {
+            buffs: vec![BuffIconState {
+                stacks: 5,
+                ..make_icon("10s")
+            }],
+            debuffs: vec![BuffIconState {
+                stacks: 3,
+                ..make_icon("8s")
+            }],
+        };
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "BuffIcon0Stack"), "5");
+        assert_eq!(fontstring_text(&reg, "DebuffIcon0Stack"), "3");
+    }
+
+    #[test]
+    fn debuff_timer_text() {
+        let reg = build_registry(0, 2);
+        assert_eq!(fontstring_text(&reg, "DebuffIcon0Timer"), "0s");
+        assert_eq!(fontstring_text(&reg, "DebuffIcon1Timer"), "1s");
+    }
+
+    #[test]
+    fn debuff_y_shifts_with_buff_row_count() {
+        let one_row = layout_reg(5, 1);
+        let two_rows = layout_reg(15, 1);
+        let debuff_one = rect(&one_row, "DebuffFrame");
+        let debuff_two = rect(&two_rows, "DebuffFrame");
+        assert!(
+            debuff_two.y > debuff_one.y,
+            "more buff rows should push debuffs further down"
+        );
+        let row_step = ICON_SIZE + ROW_GAP;
+        let shift = debuff_two.y - debuff_one.y;
+        assert!(
+            (shift - row_step).abs() < 1.0,
+            "shift: expected {row_step}, got {shift}"
+        );
+    }
+
+    #[test]
+    fn max_buffs_capped() {
+        let reg = build_registry(40, 0);
+        for i in 0..MAX_BUFFS {
+            assert!(
+                reg.get_by_name(&format!("BuffIcon{i}")).is_some(),
+                "BuffIcon{i} missing"
+            );
+        }
+        assert!(reg.get_by_name(&format!("BuffIcon{MAX_BUFFS}")).is_none());
+    }
+
+    #[test]
+    fn max_debuffs_capped() {
+        let reg = build_registry(0, 20);
+        for i in 0..MAX_DEBUFFS {
+            assert!(
+                reg.get_by_name(&format!("DebuffIcon{i}")).is_some(),
+                "DebuffIcon{i} missing"
+            );
+        }
+        assert!(
+            reg.get_by_name(&format!("DebuffIcon{MAX_DEBUFFS}"))
+                .is_none()
         );
     }
 }
