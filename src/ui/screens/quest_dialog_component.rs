@@ -283,9 +283,6 @@ fn requirement_items(items: &[RequiredItem]) -> Element {
 
 fn requirement_row(idx: usize, item: &RequiredItem, y: f32) -> Element {
     let row_id = DynName(format!("QuestDialogReq{idx}"));
-    let icon_id = DynName(format!("QuestDialogReq{idx}Icon"));
-    let name_id = DynName(format!("QuestDialogReq{idx}Name"));
-    let count_id = DynName(format!("QuestDialogReq{idx}Count"));
     let count_text = item.count_text();
     rsx! {
         r#frame {
@@ -298,48 +295,51 @@ fn requirement_row(idx: usize, item: &RequiredItem, y: f32) -> Element {
                 x: "4",
                 y: {-y},
             }
-            r#frame {
-                name: icon_id,
-                width: {REQ_ICON_SIZE},
-                height: {REQ_ICON_SIZE},
-                background_color: REQ_ICON_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "0",
-                    y: "-2",
-                }
-            }
-            fontstring {
-                name: name_id,
-                width: {REQ_NAME_W},
-                height: {REQ_ROW_H},
-                text: {item.name.as_str()},
-                font_size: 10.0,
-                font_color: REQ_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {REQ_ICON_SIZE + 8.0},
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: count_id,
-                width: 50.0,
-                height: {REQ_ROW_H},
-                text: {count_text.as_str()},
-                font_size: 10.0,
-                font_color: REQ_COUNT_COLOR,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {REQ_ICON_SIZE + 8.0 + REQ_NAME_W},
-                    y: "0",
-                }
-            }
+            {req_icon(DynName(format!("QuestDialogReq{idx}Icon")))}
+            {req_name_label(DynName(format!("QuestDialogReq{idx}Name")), &item.name)}
+            {req_count_label(DynName(format!("QuestDialogReq{idx}Count")), &count_text)}
+        }
+    }
+}
+
+fn req_icon(id: DynName) -> Element {
+    rsx! {
+        r#frame {
+            name: id,
+            width: {REQ_ICON_SIZE},
+            height: {REQ_ICON_SIZE},
+            background_color: REQ_ICON_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "-2" }
+        }
+    }
+}
+
+fn req_name_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {REQ_NAME_W},
+            height: {REQ_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: REQ_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {REQ_ICON_SIZE + 8.0}, y: "0" }
+        }
+    }
+}
+
+fn req_count_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: 50.0,
+            height: {REQ_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: REQ_COUNT_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {REQ_ICON_SIZE + 8.0 + REQ_NAME_W}, y: "0" }
         }
     }
 }
