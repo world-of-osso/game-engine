@@ -297,54 +297,41 @@ fn merchant_item_price(id: DynName, text: &str) -> Element {
     }
 }
 
+fn repair_btn(name: &str, label: &str, x: f32, y: f32) -> Element {
+    let btn_id = DynName(name.into());
+    let text_id = DynName(format!("{name}Text"));
+    rsx! {
+        r#frame {
+            name: btn_id,
+            width: {REPAIR_BTN_W},
+            height: {REPAIR_BTN_H},
+            background_color: REPAIR_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+            fontstring {
+                name: text_id,
+                width: {REPAIR_BTN_W},
+                height: {REPAIR_BTN_H},
+                text: label,
+                font_size: 10.0,
+                font_color: REPAIR_BTN_TEXT_COLOR,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn repair_buttons() -> Element {
     let grid_h = MERCHANT_ITEM_ROWS as f32 * (ITEM_ROW_H + ITEM_ROW_GAP);
     let y = -(CONTENT_TOP + grid_h + 8.0);
     rsx! {
-        r#frame {
-            name: "MerchantRepairButton",
-            width: {REPAIR_BTN_W},
-            height: {REPAIR_BTN_H},
-            background_color: REPAIR_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {y},
-            }
-            fontstring {
-                name: "MerchantRepairButtonText",
-                width: {REPAIR_BTN_W},
-                height: {REPAIR_BTN_H},
-                text: "Repair All",
-                font_size: 10.0,
-                font_color: REPAIR_BTN_TEXT_COLOR,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
-        r#frame {
-            name: "MerchantGuildRepairButton",
-            width: {REPAIR_BTN_W},
-            height: {REPAIR_BTN_H},
-            background_color: REPAIR_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET + REPAIR_BTN_W + REPAIR_GAP},
-                y: {y},
-            }
-            fontstring {
-                name: "MerchantGuildRepairButtonText",
-                width: {REPAIR_BTN_W},
-                height: {REPAIR_BTN_H},
-                text: "Guild Repair",
-                font_size: 10.0,
-                font_color: REPAIR_BTN_TEXT_COLOR,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
+        {repair_btn("MerchantRepairButton", "Repair All", CONTENT_INSET, y)}
+        {repair_btn("MerchantGuildRepairButton", "Guild Repair", CONTENT_INSET + REPAIR_BTN_W + REPAIR_GAP, y)}
     }
 }
 
