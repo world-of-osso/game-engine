@@ -323,43 +323,45 @@ fn dropdown_nav(continent: &str, zone: &str) -> Element {
 
 // --- Zone overlay buttons ---
 
+fn zone_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
+    let id = DynName(format!("WorldMapZoneOv{i}"));
+    let label_id = DynName(format!("WorldMapZoneOv{i}Label"));
+    let x = CANVAS_INSET + ov.x * CANVAS_W;
+    let y = CANVAS_TOP + ov.y * CANVAS_H;
+    let w = ov.w * CANVAS_W;
+    let h = ov.h * CANVAS_H;
+    rsx! {
+        r#frame {
+            name: id,
+            width: {w},
+            height: {h},
+            background_color: ZONE_OVERLAY_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-y},
+            }
+            fontstring {
+                name: label_id,
+                width: {w},
+                height: {h},
+                text: {ov.name.as_str()},
+                font_size: 10.0,
+                font_color: ZONE_OVERLAY_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn zone_overlays(overlays: &[ZoneOverlay]) -> Element {
     overlays
         .iter()
         .enumerate()
         .take(ZONE_OVERLAY_MAX)
-        .flat_map(|(i, ov)| {
-            let id = DynName(format!("WorldMapZoneOv{i}"));
-            let label_id = DynName(format!("WorldMapZoneOv{i}Label"));
-            let x = CANVAS_INSET + ov.x * CANVAS_W;
-            let y = CANVAS_TOP + ov.y * CANVAS_H;
-            let w = ov.w * CANVAS_W;
-            let h = ov.h * CANVAS_H;
-            rsx! {
-                r#frame {
-                    name: id,
-                    width: {w},
-                    height: {h},
-                    background_color: ZONE_OVERLAY_BG,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {-y},
-                    }
-                    fontstring {
-                        name: label_id,
-                        width: {w},
-                        height: {h},
-                        text: {ov.name.as_str()},
-                        font_size: 10.0,
-                        font_color: ZONE_OVERLAY_TEXT,
-                        justify_h: "CENTER",
-                        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                    }
-                }
-            }
-        })
+        .flat_map(|(i, ov)| zone_overlay_frame(i, ov))
         .collect()
 }
 
