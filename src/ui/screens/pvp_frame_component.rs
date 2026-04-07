@@ -38,6 +38,15 @@ const CURRENCY_VALUE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const BRACKET_ROW_H: f32 = 48.0;
 const BRACKET_ROW_GAP: f32 = 4.0;
 const BRACKET_INSET: f32 = 8.0;
+const QUEUE_BTN_W: f32 = 120.0;
+const QUEUE_BTN_H: f32 = 28.0;
+const WARGAME_BTN_W: f32 = 140.0;
+const WARGAME_BTN_H: f32 = 28.0;
+const BTN_GAP: f32 = 12.0;
+const QUEUE_BTN_BG: &str = "0.15,0.25,0.1,0.95";
+const QUEUE_BTN_TEXT: &str = "0.2,1.0,0.2,1.0";
+const WARGAME_BTN_BG: &str = "0.15,0.12,0.05,0.95";
+const WARGAME_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
 const BRACKET_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
 const BRACKET_RATING_COLOR: &str = "1.0,0.82,0.0,1.0";
 const BRACKET_STATS_COLOR: &str = "0.7,0.7,0.7,1.0";
@@ -114,6 +123,7 @@ pub fn pvp_frame_screen(ctx: &SharedContext) -> Element {
             {tab_row(&state.tabs)}
             {currency_display(&state.honor, &state.conquest)}
             {bracket_list(&state.brackets)}
+            {queue_and_wargame_buttons()}
         }
     }
 }
@@ -317,6 +327,59 @@ fn bracket_row(idx: usize, bracket: &BracketEntry, parent_w: f32) -> Element {
     }
 }
 
+fn queue_and_wargame_buttons() -> Element {
+    let y = -(FRAME_H - QUEUE_BTN_H - 8.0);
+    let center = FRAME_W / 2.0;
+    let queue_x = center - QUEUE_BTN_W - BTN_GAP / 2.0;
+    let wargame_x = center + BTN_GAP / 2.0;
+    rsx! {
+        r#frame {
+            name: "PVPQueueButton",
+            width: {QUEUE_BTN_W},
+            height: {QUEUE_BTN_H},
+            background_color: QUEUE_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {queue_x},
+                y: {y},
+            }
+            fontstring {
+                name: "PVPQueueButtonText",
+                width: {QUEUE_BTN_W},
+                height: {QUEUE_BTN_H},
+                text: "Join Queue",
+                font_size: 11.0,
+                font_color: QUEUE_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+        r#frame {
+            name: "PVPWarGamesButton",
+            width: {WARGAME_BTN_W},
+            height: {WARGAME_BTN_H},
+            background_color: WARGAME_BTN_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {wargame_x},
+                y: {y},
+            }
+            fontstring {
+                name: "PVPWarGamesButtonText",
+                width: {WARGAME_BTN_W},
+                height: {WARGAME_BTN_H},
+                text: "War Games",
+                font_size: 11.0,
+                font_color: WARGAME_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -472,5 +535,14 @@ mod tests {
                 "PVPBracket{i}Stats missing"
             );
         }
+    }
+
+    #[test]
+    fn builds_queue_and_wargame_buttons() {
+        let reg = build_registry();
+        assert!(reg.get_by_name("PVPQueueButton").is_some());
+        assert!(reg.get_by_name("PVPQueueButtonText").is_some());
+        assert!(reg.get_by_name("PVPWarGamesButton").is_some());
+        assert!(reg.get_by_name("PVPWarGamesButtonText").is_some());
     }
 }
