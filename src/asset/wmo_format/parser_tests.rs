@@ -1406,3 +1406,110 @@ fn parse_mocv_bgra_to_rgba() {
         ]
     );
 }
+
+// --- Shader variant selection: material flags → shader mapping ---
+
+fn mat_with_shader(shader: u32, flags: u32) -> WmoMaterialDef {
+    WmoMaterialDef {
+        texture_fdid: 0,
+        texture_2_fdid: 0,
+        texture_3_fdid: 0,
+        flags,
+        material_flags: WmoMaterialFlags::default(),
+        sidn_color: [0.0; 4],
+        diff_color: [0.0; 4],
+        ground_type: 0,
+        blend_mode: 0,
+        shader,
+        uv_translation_speed: None,
+    }
+}
+
+#[test]
+fn uses_second_uv_requires_flag_and_shader() {
+    let second_uv_flag = 0x0200_0000;
+    assert!(mat_with_shader(6, second_uv_flag).uses_second_uv_set());
+    assert!(mat_with_shader(9, second_uv_flag).uses_second_uv_set());
+    assert!(mat_with_shader(15, second_uv_flag).uses_second_uv_set());
+    assert!(!mat_with_shader(10, second_uv_flag).uses_second_uv_set());
+    assert!(!mat_with_shader(6, 0).uses_second_uv_set());
+}
+
+#[test]
+fn uses_second_uv_all_valid_shaders() {
+    let flag = 0x0200_0000;
+    for shader in [6, 7, 8, 9, 11, 12, 13, 14, 15] {
+        assert!(
+            mat_with_shader(shader, flag).uses_second_uv_set(),
+            "shader {shader} should use second UV"
+        );
+    }
+}
+
+#[test]
+fn uses_second_uv_invalid_shaders() {
+    let flag = 0x0200_0000;
+    for shader in [0, 1, 2, 3, 4, 5, 10, 16, 17, 18, 100] {
+        assert!(
+            !mat_with_shader(shader, flag).uses_second_uv_set(),
+            "shader {shader} should NOT use second UV"
+        );
+    }
+}
+
+#[test]
+fn uses_generated_tangents_shaders_10_and_14() {
+    assert!(mat_with_shader(10, 0).uses_generated_tangents());
+    assert!(mat_with_shader(14, 0).uses_generated_tangents());
+    assert!(!mat_with_shader(0, 0).uses_generated_tangents());
+    assert!(!mat_with_shader(6, 0).uses_generated_tangents());
+    assert!(!mat_with_shader(15, 0).uses_generated_tangents());
+}
+
+#[test]
+fn uses_third_uv_requires_flag_and_shader_18() {
+    let third_uv_flag = 0x4000_0000;
+    assert!(mat_with_shader(18, third_uv_flag).uses_third_uv_set());
+    assert!(!mat_with_shader(6, third_uv_flag).uses_third_uv_set());
+    assert!(!mat_with_shader(18, 0).uses_third_uv_set());
+}
+
+#[test]
+fn uses_second_color_blend_alpha() {
+    let flag = 0x0100_0000;
+    assert!(mat_with_shader(0, flag).uses_second_color_blend_alpha());
+    assert!(!mat_with_shader(0, 0).uses_second_color_blend_alpha());
+    assert!(mat_with_shader(18, flag).uses_second_color_blend_alpha());
+}
+
+#[test]
+fn material_flags_from_bits_selective() {
+    let flags = WmoMaterialFlags::from_bits(0x01 | 0x04 | 0x10 | 0x40);
+    assert!(flags.unlit);
+    assert!(!flags.unfogged);
+    assert!(flags.unculled);
+    assert!(!flags.exterior_light);
+    assert!(flags.sidn);
+    assert!(flags.window);
+    assert!(!flags.clamp_s);
+    assert!(flags.clamp_t);
+}
+
+#[test]
+fn material_flags_all_zero() {
+    let flags = WmoMaterialFlags::from_bits(0);
+    assert_eq!(flags, WmoMaterialFlags::default());
+}
+
+#[test]
+fn material_flags_all_set() {
+    let flags = WmoMaterialFlags::from_bits(0x7F);
+    assert!(flags.unlit);
+    assert!(flags.unfogged);
+    assert!(flags.unculled);
+    assert!(flags.exterior_light);
+    assert!(flags.sidn);
+    assert!(flags.window);
+    assert!(flags.clamp_s);
+    assert!(flags.clamp_t);
+}
