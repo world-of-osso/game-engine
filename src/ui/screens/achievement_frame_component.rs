@@ -241,13 +241,7 @@ fn category_row(idx: usize, cat: &AchievementCategory, y: f32) -> Element {
     } else {
         CAT_BG_NORMAL
     };
-    let color = if cat.selected {
-        CAT_TEXT_SELECTED
-    } else if cat.is_child {
-        CAT_TEXT_NORMAL
-    } else {
-        CAT_TEXT_HEADER
-    };
+    let color = category_text_color(cat);
     rsx! {
         r#frame {
             name: row_id,
@@ -260,20 +254,36 @@ fn category_row(idx: usize, cat: &AchievementCategory, y: f32) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: label_id,
-                width: {label_w},
-                height: {CAT_ROW_H},
-                text: {cat.name.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {x_offset},
-                    y: "0",
-                }
+            {category_row_label(label_id, &cat.name, label_w, x_offset, color)}
+        }
+    }
+}
+
+fn category_text_color(cat: &AchievementCategory) -> &'static str {
+    if cat.selected {
+        CAT_TEXT_SELECTED
+    } else if cat.is_child {
+        CAT_TEXT_NORMAL
+    } else {
+        CAT_TEXT_HEADER
+    }
+}
+
+fn category_row_label(id: DynName, text: &str, w: f32, x: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {CAT_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
             }
         }
     }
