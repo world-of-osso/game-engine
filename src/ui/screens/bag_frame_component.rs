@@ -74,7 +74,6 @@ fn bag_container(bag: &BagContainerState) -> Element {
     let frame_name = DynName(format!("ContainerFrame{}", bag.bag_index));
     let title_name = DynName(format!("ContainerFrame{}Title", bag.bag_index));
     let x_offset = 300.0 + bag.bag_index as f32 * 20.0;
-    let slots = bag_slot_grid(bag.bag_index, &bag.slots);
     rsx! {
         r#frame {
             name: frame_name,
@@ -89,22 +88,23 @@ fn bag_container(bag: &BagContainerState) -> Element {
                 x: {x_offset},
                 y: "-100",
             }
-            fontstring {
-                name: title_name,
-                width: {frame_w},
-                height: {TITLE_H},
-                text: {bag.title.as_str()},
-                font_size: 13.0,
-                font_color: TITLE_COLOR,
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    x: "0",
-                    y: "0",
-                }
-            }
-            {slots}
+            {bag_title(title_name, &bag.title, frame_w)}
+            {bag_slot_grid(bag.bag_index, &bag.slots)}
+        }
+    }
+}
+
+fn bag_title(id: DynName, text: &str, w: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {w},
+            height: {TITLE_H},
+            text: text,
+            font_size: 13.0,
+            font_color: TITLE_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "0" }
         }
     }
 }
