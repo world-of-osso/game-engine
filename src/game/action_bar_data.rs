@@ -226,4 +226,84 @@ mod tests {
         assert!(!atlas::SLOT_BORDER.is_empty());
         assert!(!atlas::SLOT_FLASH.is_empty());
     }
+
+    #[test]
+    fn cooldown_progress_just_started() {
+        let slot = ActionSlot {
+            cooldown_remaining: 10.0,
+            cooldown_total: 10.0,
+            ..Default::default()
+        };
+        assert!((slot.cooldown_progress() - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn cooldown_progress_finished() {
+        let slot = ActionSlot {
+            cooldown_remaining: 0.0,
+            cooldown_total: 10.0,
+            ..Default::default()
+        };
+        assert!((slot.cooldown_progress() - 1.0).abs() < 0.01);
+        assert!(!slot.is_on_cooldown());
+    }
+
+    #[test]
+    fn tick_cooldowns_across_multiple_bars() {
+        let mut state = ActionBarState::default();
+        state.slot_mut(BarKind::Main, 0).cooldown_remaining = 5.0;
+        state.slot_mut(BarKind::Main, 0).cooldown_total = 10.0;
+        state.slot_mut(BarKind::Right, 3).cooldown_remaining = 2.0;
+        state.slot_mut(BarKind::Right, 3).cooldown_total = 8.0;
+        state.tick_cooldowns(1.5);
+        assert!((state.slot(BarKind::Main, 0).cooldown_remaining - 3.5).abs() < 0.01);
+        assert!((state.slot(BarKind::Right, 3).cooldown_remaining - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn tick_cooldowns_skips_ready_slots() {
+        let mut state = ActionBarState::default();
+        // Slot with no cooldown should stay at 0
+        state.slot_mut(BarKind::Main, 1).name = "Polymorph".into();
+        state.tick_cooldowns(5.0);
+        assert_eq!(state.slot(BarKind::Main, 1).cooldown_remaining, 0.0);
+    }
+
+    #[test]
+    fn slot_content_assignment_and_clear() {
+        let mut state = ActionBarState::default();
+        let slot = state.slot_mut(BarKind::BottomRight, 11);
+        slot.name = "Heroic Strike".into();
+        slot.icon_fdid = 132282;
+        slot.usable = true;
+        slot.count = 3;
+        assert_eq!(state.slot(BarKind::BottomRight, 11).name, "Heroic Strike");
+        assert_eq!(state.slot(BarKind::BottomRight, 11).count, 3);
+
+        // Clear the slot
+        *state.slot_mut(BarKind::BottomRight, 11) = ActionSlot::default();
+        assert!(state.slot(BarKind::BottomRight, 11).is_empty());
+        assert_eq!(state.slot(BarKind::BottomRight, 11).count, 0);
+    }
+
+    #[test]
+    fn usable_on_cooldown_and_out_of_resource() {
+        let slot = ActionSlot {
+            name: "Flash Heal".into(),
+            usable: false,
+            out_of_resource: true,
+            cooldown_remaining: 1.5,
+            cooldown_total: 1.5,
+            ..Default::default()
+        };
+        assert!(!slot.usable);
+        assert!(slot.out_of_resource);
+        assert!(slot.is_on_cooldown());
+        assert!((slot.cooldown_progress() - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn bar_kind_all_covers_five_bars() {
+        assert_eq!(BarKind::ALL.len(), 5);
+    }
 }
