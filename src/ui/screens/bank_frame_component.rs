@@ -520,4 +520,55 @@ mod tests {
         assert!(reg.get_by_name("ReagentBankPurchaseButton").is_some());
         assert!(reg.get_by_name("ReagentBankPurchaseButtonText").is_some());
     }
+
+    // --- Additional coord validation ---
+
+    #[test]
+    fn coord_tabs() {
+        let reg = layout_registry();
+        let tab_count = 2.0_f32;
+        let tab_w = (FRAME_W - 2.0 * TAB_INSET - (tab_count - 1.0) * TAB_GAP) / tab_count;
+        let tab_y = FRAME_Y + HEADER_H + TAB_GAP;
+        let t0 = rect(&reg, "BankTab0");
+        assert!((t0.x - (FRAME_X + TAB_INSET)).abs() < 1.0);
+        assert!((t0.y - tab_y).abs() < 1.0);
+        assert!((t0.width - tab_w).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_reagent_first_slot() {
+        let reg = layout_registry();
+        let tab_x = FRAME_X + INSET;
+        let tab_y = FRAME_Y + REAGENT_GRID_TOP;
+        let r = rect(&reg, "ReagentBankSlot0");
+        assert!(
+            (r.x - tab_x).abs() < 1.0,
+            "x: expected {tab_x}, got {}",
+            r.x
+        );
+        assert!(
+            (r.y - tab_y).abs() < 1.0,
+            "y: expected {tab_y}, got {}",
+            r.y
+        );
+        assert!((r.width - SLOT_SIZE).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_purchase_button_dimensions() {
+        let reg = layout_registry();
+        let r = rect(&reg, "ReagentBankPurchaseButton");
+        assert!((r.width - PURCHASE_BTN_W).abs() < 1.0);
+        assert!((r.height - PURCHASE_BTN_H).abs() < 1.0);
+    }
+
+    #[test]
+    fn coord_second_bank_slot_column() {
+        let reg = layout_registry();
+        let r = rect(&reg, "BankSlot1");
+        let grid_top = HEADER_H + TAB_GAP + TAB_H + TAB_GAP;
+        let expected_x = FRAME_X + INSET + SLOT_SIZE + SLOT_GAP;
+        assert!((r.x - expected_x).abs() < 1.0);
+        assert!((r.y - (FRAME_Y + grid_top)).abs() < 1.0);
+    }
 }
