@@ -295,18 +295,20 @@ fn zone_header(group_idx: usize, zone: &str, y: f32) -> Element {
     }
 }
 
-fn quest_row(group_idx: usize, quest_idx: usize, quest: &QuestLogEntry, y: f32) -> Element {
-    let row_id = DynName(format!("QuestLogRow{group_idx}_{quest_idx}"));
-    let label_id = DynName(format!("QuestLogRow{group_idx}_{quest_idx}Label"));
-    let level_id = DynName(format!("QuestLogRow{group_idx}_{quest_idx}Level"));
-    let level_text = format!("[{}]", quest.level);
-    let color = if quest.selected {
+fn quest_row_color(quest: &QuestLogEntry) -> &'static str {
+    if quest.selected {
         QUEST_SELECTED_COLOR
     } else if quest.is_complete() {
         QUEST_COMPLETE_COLOR
     } else {
         QUEST_NORMAL_COLOR
-    };
+    }
+}
+
+fn quest_row(group_idx: usize, quest_idx: usize, quest: &QuestLogEntry, y: f32) -> Element {
+    let row_id = DynName(format!("QuestLogRow{group_idx}_{quest_idx}"));
+    let level_text = format!("[{}]", quest.level);
+    let color = quest_row_color(quest);
     let bg = if quest.selected {
         QUEST_SELECTED_BG
     } else {
@@ -324,36 +326,38 @@ fn quest_row(group_idx: usize, quest_idx: usize, quest: &QuestLogEntry, y: f32) 
                 x: "2",
                 y: {-y},
             }
-            fontstring {
-                name: level_id,
-                width: 30.0,
-                height: {QUEST_ROW_H},
-                text: {level_text.as_str()},
-                font_size: 10.0,
-                font_color: LEVEL_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
-            fontstring {
-                name: label_id,
-                width: {LIST_W - 42.0},
-                height: {QUEST_ROW_H},
-                text: {quest.title.as_str()},
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "34",
-                    y: "0",
-                }
-            }
+            {quest_level_label(DynName(format!("QuestLogRow{group_idx}_{quest_idx}Level")), &level_text)}
+            {quest_title_label(DynName(format!("QuestLogRow{group_idx}_{quest_idx}Label")), &quest.title, color)}
+        }
+    }
+}
+
+fn quest_level_label(id: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: 30.0,
+            height: {QUEST_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: LEVEL_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+        }
+    }
+}
+
+fn quest_title_label(id: DynName, text: &str, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: id,
+            width: {LIST_W - 42.0},
+            height: {QUEST_ROW_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "34", y: "0" }
         }
     }
 }
