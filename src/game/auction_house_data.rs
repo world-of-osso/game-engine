@@ -148,12 +148,163 @@ impl AuctionDuration {
     }
 }
 
+// --- Search filters ---
+
+/// Column to sort auction search results by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum AuctionSortField {
+    #[default]
+    Name,
+    Level,
+    TimeLeft,
+    Seller,
+    CurrentBid,
+    Buyout,
+}
+
+/// Client-side search filter for auction queries.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct AuctionSearchFilter {
+    pub text: String,
+    pub min_level: Option<u32>,
+    pub max_level: Option<u32>,
+    /// Item quality filter (WoW quality ID: 0=Poor..5=Legendary).
+    pub quality: Option<u8>,
+    pub usable_only: bool,
+    pub sort: AuctionSortField,
+    pub sort_ascending: bool,
+    pub page: u32,
+}
+
+impl AuctionSearchFilter {
+    /// Reset all filters to defaults, keeping sort preferences.
+    pub fn reset(&mut self) {
+        self.text.clear();
+        self.min_level = None;
+        self.max_level = None;
+        self.quality = None;
+        self.usable_only = false;
+        self.page = 0;
+    }
+
+    /// Set the page, clamping to 0 if the filter changed.
+    pub fn set_page(&mut self, page: u32) {
+        self.page = page;
+    }
+
+    /// Toggle sort direction or switch to a new sort field.
+    pub fn set_sort(&mut self, field: AuctionSortField) {
+        if self.sort == field {
+            self.sort_ascending = !self.sort_ascending;
+        } else {
+            self.sort = field;
+            self.sort_ascending = true;
+        }
+        self.page = 0;
+    }
+}
+
+// --- Runtime state ---
+
 /// Runtime state for the auction house.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct AuctionHouseState {
     pub search_results: Vec<AuctionSearchResult>,
     pub my_listings: Vec<MyAuctionListing>,
     pub player_money: Money,
+    /// Total results available on the server (for pagination).
+    pub total_results: u32,
+    /// Whether the auction house window is open.
+    pub is_open: bool,
+    /// Active search filter.
+    pub filter: AuctionSearchFilter,
+}
+
+impl AuctionHouseState {
+    /// Open the auction house, resetting state.
+    pub fn open(&mut self) {
+        self.is_open = true;
+        self.search_results.clear();
+        self.my_listings.clear();
+        self.total_results = 0;
+        self.filter.reset();
+    }
+
+    /// Close the auction house and clear all state.
+    pub fn close(&mut self) {
+        self.is_open = false;
+        self.search_results.clear();
+        self.my_listings.clear();
+        self.total_results = 0;
+    }
+
+    /// Update search results from a server response.
+    pub fn update_results(&mut self, results: Vec<AuctionSearchResult>, total: u32) {
+        self.search_results = results;
+        self.total_results = total;
+    }
+
+    /// Update the player's own auction listings.
+    pub fn update_listings(&mut self, listings: Vec<MyAuctionListing>) {
+        self.my_listings = listings;
+    }
+
+    /// Total pages based on results per page.
+    pub fn page_count(&self, per_page: u32) -> u32 {
+        if per_page == 0 {
+            return 1;
+        }
+        self.total_results.div_ceil(per_page).max(1)
+    }
+}
+
+// --- Client → server intents ---
+
+/// A pending auction house action to send to the server.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AuctionIntent {
+    /// Execute a search with the given filter.
+    Search { filter: AuctionSearchFilter },
+    /// Query the player's own active listings.
+    QueryOwned,
+    /// Query auctions the player has bid on.
+    QueryBids,
+    /// Open the auction house UI.
+    Open,
+    /// Close the auction house UI.
+    Close,
+}
+
+/// Queue of auction intents waiting to be sent to the server.
+#[derive(Resource, Default)]
+pub struct AuctionIntentQueue {
+    pub pending: Vec<AuctionIntent>,
+}
+
+impl AuctionIntentQueue {
+    pub fn search(&mut self, filter: AuctionSearchFilter) {
+        self.pending.push(AuctionIntent::Search { filter });
+    }
+
+    pub fn query_owned(&mut self) {
+        self.pending.push(AuctionIntent::QueryOwned);
+    }
+
+    pub fn query_bids(&mut self) {
+        self.pending.push(AuctionIntent::QueryBids);
+    }
+
+    pub fn open(&mut self) {
+        self.pending.push(AuctionIntent::Open);
+    }
+
+    pub fn close(&mut self) {
+        self.pending.push(AuctionIntent::Close);
+    }
+
+    pub fn drain(&mut self) -> Vec<AuctionIntent> {
+        std::mem::take(&mut self.pending)
+    }
 }
 
 #[cfg(test)]
@@ -351,5 +502,181 @@ mod tests {
         assert_eq!(m.silver(), 45);
         assert_eq!(m.copper(), 67);
         assert_eq!(m.0, 1_234_567);
+    }
+
+    // --- AuctionSearchFilter ---
+
+    #[test]
+    fn filter_default_values() {
+        let filter = AuctionSearchFilter::default();
+        assert!(filter.text.is_empty());
+        assert!(filter.min_level.is_none());
+        assert!(filter.quality.is_none());
+        assert!(!filter.usable_only);
+        assert_eq!(filter.sort, AuctionSortField::Name);
+        assert!(!filter.sort_ascending);
+        assert_eq!(filter.page, 0);
+    }
+
+    #[test]
+    fn filter_reset_clears_text_and_levels() {
+        let mut filter = AuctionSearchFilter {
+            text: "Sword".into(),
+            min_level: Some(10),
+            max_level: Some(60),
+            quality: Some(3),
+            usable_only: true,
+            sort: AuctionSortField::Buyout,
+            sort_ascending: true,
+            page: 5,
+        };
+        filter.reset();
+        assert!(filter.text.is_empty());
+        assert!(filter.min_level.is_none());
+        assert!(filter.quality.is_none());
+        assert!(!filter.usable_only);
+        assert_eq!(filter.page, 0);
+        // Sort preferences preserved.
+        assert_eq!(filter.sort, AuctionSortField::Buyout);
+        assert!(filter.sort_ascending);
+    }
+
+    #[test]
+    fn filter_set_sort_toggles_direction() {
+        let mut filter = AuctionSearchFilter::default();
+        filter.set_sort(AuctionSortField::Buyout);
+        assert_eq!(filter.sort, AuctionSortField::Buyout);
+        assert!(filter.sort_ascending);
+
+        // Same field again → toggle direction.
+        filter.set_sort(AuctionSortField::Buyout);
+        assert!(!filter.sort_ascending);
+    }
+
+    #[test]
+    fn filter_set_sort_new_field_resets_direction() {
+        let mut filter = AuctionSearchFilter {
+            sort: AuctionSortField::Buyout,
+            sort_ascending: false,
+            page: 3,
+            ..Default::default()
+        };
+        filter.set_sort(AuctionSortField::Level);
+        assert_eq!(filter.sort, AuctionSortField::Level);
+        assert!(filter.sort_ascending);
+        assert_eq!(filter.page, 0); // reset on sort change
+    }
+
+    // --- AuctionHouseState lifecycle ---
+
+    #[test]
+    fn state_starts_closed() {
+        let state = AuctionHouseState::default();
+        assert!(!state.is_open);
+    }
+
+    #[test]
+    fn state_open_and_close() {
+        let mut state = AuctionHouseState::default();
+        state.open();
+        assert!(state.is_open);
+        assert!(state.search_results.is_empty());
+
+        state.close();
+        assert!(!state.is_open);
+    }
+
+    #[test]
+    fn state_update_results() {
+        let mut state = AuctionHouseState::default();
+        state.open();
+        let results = vec![sample_listing()];
+        state.update_results(results, 42);
+        assert_eq!(state.search_results.len(), 1);
+        assert_eq!(state.total_results, 42);
+    }
+
+    #[test]
+    fn state_update_listings() {
+        let mut state = AuctionHouseState::default();
+        let listings = vec![MyAuctionListing {
+            item_name: "Axe".into(),
+            time_left: AuctionDuration::Short,
+            bid_amount: Money(100),
+            buyout_amount: Money(200),
+            sold: false,
+        }];
+        state.update_listings(listings);
+        assert_eq!(state.my_listings.len(), 1);
+    }
+
+    #[test]
+    fn state_page_count() {
+        let mut state = AuctionHouseState::default();
+        state.total_results = 25;
+        assert_eq!(state.page_count(10), 3);
+        assert_eq!(state.page_count(25), 1);
+        assert_eq!(state.page_count(0), 1);
+    }
+
+    #[test]
+    fn close_clears_results() {
+        let mut state = AuctionHouseState::default();
+        state.open();
+        state.update_results(vec![sample_listing()], 1);
+        state.close();
+        assert!(state.search_results.is_empty());
+        assert_eq!(state.total_results, 0);
+    }
+
+    // --- AuctionIntentQueue ---
+
+    #[test]
+    fn intent_search() {
+        let mut queue = AuctionIntentQueue::default();
+        let filter = AuctionSearchFilter {
+            text: "Sword".into(),
+            ..Default::default()
+        };
+        queue.search(filter.clone());
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(drained[0], AuctionIntent::Search { filter });
+    }
+
+    #[test]
+    fn intent_query_owned() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.query_owned();
+        let drained = queue.drain();
+        assert_eq!(drained[0], AuctionIntent::QueryOwned);
+    }
+
+    #[test]
+    fn intent_query_bids() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.query_bids();
+        let drained = queue.drain();
+        assert_eq!(drained[0], AuctionIntent::QueryBids);
+    }
+
+    #[test]
+    fn intent_open_close() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.open();
+        queue.close();
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 2);
+        assert_eq!(drained[0], AuctionIntent::Open);
+        assert_eq!(drained[1], AuctionIntent::Close);
+    }
+
+    #[test]
+    fn intent_drain_clears() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.search(AuctionSearchFilter::default());
+        queue.query_owned();
+        assert_eq!(queue.drain().len(), 2);
+        assert!(queue.pending.is_empty());
     }
 }
