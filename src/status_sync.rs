@@ -11,14 +11,15 @@ use game_engine::status::{
     DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
     EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
     GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot, LfgStatusSnapshot,
-    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
-    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
-    TerrainStatusSnapshot, WarbankStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, PresenceStateEntry, ProfessionStatusSnapshot,
+    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
     CombatStatus as NetCombatStatus, EquipmentAppearance as NetEquipmentAppearance,
     Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed, Player as NetPlayer,
+    PresenceStatus as NetPresenceStatus,
 };
 
 use crate::camera::Player;
@@ -39,6 +40,7 @@ type LocalPlayerComponents = (
     Option<&'static NetMana>,
     Option<&'static NetMovementSpeed>,
     Option<&'static NetCombatStatus>,
+    Option<&'static NetPresenceStatus>,
 );
 
 #[derive(SystemParam)]
@@ -150,19 +152,21 @@ fn fill_local_player_stats(
     snapshot: &mut CharacterStatsSnapshot,
     local_player_query: &Query<LocalPlayerComponents, With<networking::LocalPlayer>>,
 ) {
-    if let Some((_, health, mana, speed, in_combat)) = local_player_query.iter().next() {
+    if let Some((_, health, mana, speed, in_combat, presence)) = local_player_query.iter().next() {
         snapshot.health_current = health.map(|v| v.current);
         snapshot.health_max = health.map(|v| v.max);
         snapshot.mana_current = mana.map(|v| v.current);
         snapshot.mana_max = mana.map(|v| v.max);
         snapshot.movement_speed = speed.map(|v| v.0);
         snapshot.in_combat = in_combat.is_some_and(|flag| flag.0);
+        snapshot.presence = presence.copied().map(map_presence_state);
     } else {
         snapshot.health_current = None;
         snapshot.health_max = None;
         snapshot.mana_current = None;
         snapshot.mana_max = None;
         snapshot.movement_speed = None;
+        snapshot.presence = None;
         snapshot.in_combat = false;
     }
 }
@@ -186,7 +190,7 @@ pub fn sync_character_stats_snapshot(
         .or_else(|| {
             local_player_query
                 .iter()
-                .find_map(|(player, _, _, _, _)| player.map(|player| player.name.clone()))
+                .find_map(|(player, _, _, _, _, _)| player.map(|player| player.name.clone()))
         });
     snapshot.level = selected_character.map(|entry| entry.level);
     snapshot.race = selected_character.map(|entry| entry.race);
@@ -194,6 +198,15 @@ pub fn sync_character_stats_snapshot(
     snapshot.appearance = selected_character.map(|entry| entry.appearance);
     snapshot.zone_id = current_zone.zone_id;
     fill_local_player_stats(&mut snapshot, &local_player_query);
+}
+
+fn map_presence_state(state: NetPresenceStatus) -> PresenceStateEntry {
+    match state {
+        NetPresenceStatus::Online => PresenceStateEntry::Online,
+        NetPresenceStatus::Afk => PresenceStateEntry::Afk,
+        NetPresenceStatus::Dnd => PresenceStateEntry::Dnd,
+        NetPresenceStatus::Offline => PresenceStateEntry::Offline,
+    }
 }
 
 pub fn sync_character_roster_status_snapshot(

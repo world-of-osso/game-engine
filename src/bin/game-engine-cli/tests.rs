@@ -159,6 +159,38 @@ fn friends_status_command_maps_to_request() {
 }
 
 #[test]
+fn presence_status_command_maps_to_request() {
+    assert_eq!(
+        presence_request(PresenceCmd::Status).unwrap(),
+        Request::PresenceStatus
+    );
+}
+
+#[test]
+fn presence_afk_command_maps_to_request() {
+    assert_eq!(
+        presence_request(PresenceCmd::Afk).unwrap(),
+        Request::PresenceAfk
+    );
+}
+
+#[test]
+fn presence_dnd_command_maps_to_request() {
+    assert_eq!(
+        presence_request(PresenceCmd::Dnd).unwrap(),
+        Request::PresenceDnd
+    );
+}
+
+#[test]
+fn presence_online_command_maps_to_request() {
+    assert_eq!(
+        presence_request(PresenceCmd::Online).unwrap(),
+        Request::PresenceOnline
+    );
+}
+
+#[test]
 fn ignore_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Ignore).unwrap(),

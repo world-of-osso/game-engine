@@ -293,6 +293,7 @@ fn dispatch(
     if queue_friends_ipc_request(
         &mut world.friends,
         &world.friends_status,
+        ctx.character_stats,
         &cmd.request,
         cmd.respond.clone(),
     ) {

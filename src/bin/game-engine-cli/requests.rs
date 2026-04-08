@@ -9,8 +9,8 @@ use shared::protocol::{
 use crate::{
     AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd, EmoteCmd,
     EquipmentCmd, FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd,
-    MailCmd, MapCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd,
-    TalentCmd, TradeCmd, WaypointCmd,
+    MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd,
+    StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -118,6 +118,16 @@ pub fn friend_request(command: FriendCmd) -> Result<Request, String> {
         FriendCmd::Status => Request::FriendsStatus,
         FriendCmd::Add { name } => Request::FriendAdd { name },
         FriendCmd::Remove { name } => Request::FriendRemove { name },
+    };
+    Ok(request)
+}
+
+pub fn presence_request(command: PresenceCmd) -> Result<Request, String> {
+    let request = match command {
+        PresenceCmd::Status => Request::PresenceStatus,
+        PresenceCmd::Afk => Request::PresenceAfk,
+        PresenceCmd::Dnd => Request::PresenceDnd,
+        PresenceCmd::Online => Request::PresenceOnline,
     };
     Ok(request)
 }

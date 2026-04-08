@@ -250,6 +250,7 @@ fn formats_friends_status_snapshot_with_server_message() {
             class_name: "Mage".into(),
             area: "Zone 12".into(),
             online: true,
+            presence: game_engine::status::PresenceStateEntry::Online,
             note: String::new(),
         }],
         last_server_message: Some("friend added: Alice".into()),
@@ -258,7 +259,7 @@ fn formats_friends_status_snapshot_with_server_message() {
 
     assert!(text.contains("friends: 1"));
     assert!(text.contains("message: friend added: Alice"));
-    assert!(text.contains("Alice level=42 class=Mage area=Zone 12 online=true"));
+    assert!(text.contains("Alice level=42 class=Mage area=Zone 12 online=true presence=online"));
 }
 
 #[test]
@@ -326,6 +327,7 @@ fn formats_character_stats_status_snapshot() {
         mana_current: Some(80.0),
         mana_max: Some(100.0),
         movement_speed: Some(7.0),
+        presence: Some(crate::status::PresenceStateEntry::Afk),
         in_combat: true,
         in_rest_area: true,
         rest_area_kind: Some(crate::status::RestAreaKindEntry::Inn),
@@ -335,6 +337,7 @@ fn formats_character_stats_status_snapshot() {
     });
     assert!(text.contains("name: Thrall"));
     assert!(text.contains("health: 120/150"));
+    assert!(text.contains("presence: afk"));
     assert!(text.contains("movement_speed: 7.00"));
     assert!(text.contains("in_combat: true"));
     assert!(text.contains("in_rest_area: true"));

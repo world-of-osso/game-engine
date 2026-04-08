@@ -119,10 +119,11 @@ fn map_friend_entry(entry: &game_engine::status::FriendEntry) -> UiFriendEntry {
     UiFriendEntry {
         name: entry.name.clone(),
         game: format!("Lvl {} {} {}", entry.level, entry.class_name, entry.area),
-        status: if entry.online {
-            "Online".into()
-        } else {
-            "Offline".into()
+        status: match entry.presence {
+            game_engine::status::PresenceStateEntry::Online => "Online".into(),
+            game_engine::status::PresenceStateEntry::Afk => "Away".into(),
+            game_engine::status::PresenceStateEntry::Dnd => "Busy".into(),
+            game_engine::status::PresenceStateEntry::Offline => "Offline".into(),
         },
         online: entry.online,
         is_bnet: false,

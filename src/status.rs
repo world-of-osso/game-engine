@@ -184,6 +184,14 @@ pub enum RestAreaKindEntry {
     Inn,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PresenceStateEntry {
+    Online,
+    Afk,
+    Dnd,
+    Offline,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub character_id: Option<u64>,
@@ -197,6 +205,7 @@ pub struct CharacterStatsSnapshot {
     pub mana_current: Option<f32>,
     pub mana_max: Option<f32>,
     pub movement_speed: Option<f32>,
+    pub presence: Option<PresenceStateEntry>,
     pub in_combat: bool,
     pub in_rest_area: bool,
     pub rest_area_kind: Option<RestAreaKindEntry>,
@@ -217,6 +226,7 @@ pub struct FriendEntry {
     pub class_name: String,
     pub area: String,
     pub online: bool,
+    pub presence: PresenceStateEntry,
     pub note: String,
 }
 
@@ -946,6 +956,7 @@ mod tests {
                 class_name: "Mage".into(),
                 area: "Zone 12".into(),
                 online: true,
+                presence: PresenceStateEntry::Online,
                 note: String::new(),
             }],
             last_server_message: Some("friend added: Alice".into()),

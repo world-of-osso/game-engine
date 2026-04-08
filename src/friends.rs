@@ -4,10 +4,13 @@ use std::sync::mpsc;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSender};
-use shared::protocol::{AddFriend, FriendsChannel, FriendsStateUpdate, RemoveFriend};
+use shared::components::PresenceStatus;
+use shared::protocol::{
+    AddFriend, FriendsChannel, FriendsStateUpdate, RemoveFriend, SetPresenceStatus,
+};
 
 use crate::ipc::{Request, Response};
-use crate::status::{FriendEntry, FriendsStatusSnapshot};
+use crate::status::{FriendEntry, FriendsStatusSnapshot, PresenceStateEntry};
 
 #[derive(Resource, Default)]
 pub struct FriendsRuntimeState {
@@ -18,6 +21,7 @@ pub struct FriendsRuntimeState {
 enum Action {
     Add { name: String },
     Remove { name: String },
+    SetPresence { presence: PresenceStatus },
 }
 
 pub struct FriendsPlugin;
@@ -32,6 +36,7 @@ impl Plugin for FriendsPlugin {
 pub fn queue_ipc_request(
     runtime: &mut FriendsRuntimeState,
     snapshot: &FriendsStatusSnapshot,
+    character_stats: &crate::status::CharacterStatsSnapshot,
     request: &Request,
     respond: mpsc::Sender<Response>,
 ) -> bool {
@@ -42,6 +47,19 @@ pub fn queue_ipc_request(
         }
         Request::FriendAdd { name } => Action::Add { name: name.clone() },
         Request::FriendRemove { name } => Action::Remove { name: name.clone() },
+        Request::PresenceAfk => Action::SetPresence {
+            presence: PresenceStatus::Afk,
+        },
+        Request::PresenceDnd => Action::SetPresence {
+            presence: PresenceStatus::Dnd,
+        },
+        Request::PresenceOnline => Action::SetPresence {
+            presence: PresenceStatus::Online,
+        },
+        Request::PresenceStatus => {
+            let _ = respond.send(Response::Text(format_presence_status(character_stats)));
+            return true;
+        }
         _ => return false,
     };
     runtime.pending_actions.push_back(action);
@@ -57,6 +75,7 @@ fn format_status(snapshot: &FriendsStatusSnapshot) -> String {
 struct FriendsSenders<'w, 's> {
     add: Query<'w, 's, &'static mut MessageSender<AddFriend>>,
     remove: Query<'w, 's, &'static mut MessageSender<RemoveFriend>>,
+    presence: Query<'w, 's, &'static mut MessageSender<SetPresenceStatus>>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<FriendsRuntimeState>, mut senders: FriendsSenders) {
@@ -64,6 +83,10 @@ fn send_pending_actions(mut runtime: ResMut<FriendsRuntimeState>, mut senders: F
         let sent = match action {
             Action::Add { name } => send_all(&mut senders.add, AddFriend { name }),
             Action::Remove { name } => send_all(&mut senders.remove, RemoveFriend { name }),
+            Action::SetPresence { presence } => send_all(
+                &mut senders.presence,
+                SetPresenceStatus { status: presence },
+            ),
         };
         if !sent && let Some(reply) = runtime.pending_replies.pop_front() {
             let _ = reply.send(Response::Error(
@@ -123,7 +146,8 @@ pub fn apply_friends_state_update(
                 level: entry.level,
                 class_name: entry.class_name,
                 area: entry.area,
-                online: entry.online,
+                online: !matches!(entry.presence, PresenceStatus::Offline),
+                presence: map_presence(entry.presence),
                 note: entry.note,
             })
             .collect();
@@ -134,6 +158,26 @@ pub fn apply_friends_state_update(
 
 pub fn reset_runtime(runtime: &mut FriendsRuntimeState) {
     *runtime = FriendsRuntimeState::default();
+}
+
+fn map_presence(value: PresenceStatus) -> PresenceStateEntry {
+    match value {
+        PresenceStatus::Online => PresenceStateEntry::Online,
+        PresenceStatus::Afk => PresenceStateEntry::Afk,
+        PresenceStatus::Dnd => PresenceStateEntry::Dnd,
+        PresenceStatus::Offline => PresenceStateEntry::Offline,
+    }
+}
+
+fn format_presence_status(snapshot: &crate::status::CharacterStatsSnapshot) -> String {
+    let presence = match snapshot.presence.as_ref() {
+        Some(PresenceStateEntry::Online) => "online",
+        Some(PresenceStateEntry::Afk) => "afk",
+        Some(PresenceStateEntry::Dnd) => "dnd",
+        Some(PresenceStateEntry::Offline) => "offline",
+        None => "-",
+    };
+    format!("presence: {presence}")
 }
 
 #[cfg(test)]
@@ -153,7 +197,7 @@ mod tests {
                         level: 42,
                         class_name: "Mage".into(),
                         area: "Zone 12".into(),
-                        online: true,
+                        presence: shared::components::PresenceStatus::Online,
                         note: String::new(),
                     }],
                 }),
@@ -165,6 +209,7 @@ mod tests {
         assert_eq!(snapshot.entries.len(), 1);
         assert_eq!(snapshot.entries[0].name, "Alice");
         assert!(snapshot.entries[0].online);
+        assert_eq!(snapshot.entries[0].presence, PresenceStateEntry::Online);
         assert_eq!(
             snapshot.last_server_message.as_deref(),
             Some("friend added: Alice")

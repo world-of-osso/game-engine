@@ -318,8 +318,13 @@ pub fn format_friends_status(snapshot: &FriendsStatusSnapshot) -> String {
     }
     lines.extend(snapshot.entries.iter().map(|entry| {
         format!(
-            "{} level={} class={} area={} online={}",
-            entry.name, entry.level, entry.class_name, entry.area, entry.online
+            "{} level={} class={} area={} online={} presence={}",
+            entry.name,
+            entry.level,
+            entry.class_name,
+            entry.area,
+            entry.online,
+            format_presence_state(&entry.presence)
         )
     }));
     lines.join("\n")
@@ -439,7 +444,7 @@ fn opt_float2(value: Option<f32>) -> String {
 
 pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> String {
     format!(
-        "name: {}\nlevel: {}\nrace: {}\nclass: {}\nhealth: {}/{}\nmana: {}/{}\nmovement_speed: {}\nin_combat: {}\nin_rest_area: {}\nrest_area_kind: {}\nrested_xp: {}\nrested_xp_max: {}\nzone_id: {}",
+        "name: {}\nlevel: {}\nrace: {}\nclass: {}\nhealth: {}/{}\nmana: {}/{}\nmovement_speed: {}\npresence: {}\nin_combat: {}\nin_rest_area: {}\nrest_area_kind: {}\nrested_xp: {}\nrested_xp_max: {}\nzone_id: {}",
         snapshot.name.as_deref().unwrap_or("-"),
         opt_int(snapshot.level),
         opt_int(snapshot.race),
@@ -449,6 +454,11 @@ pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> Strin
         opt_float0(snapshot.mana_current),
         opt_float0(snapshot.mana_max),
         opt_float2(snapshot.movement_speed),
+        snapshot
+            .presence
+            .as_ref()
+            .map(format_presence_state)
+            .unwrap_or("-"),
         snapshot.in_combat,
         snapshot.in_rest_area,
         snapshot
@@ -463,6 +473,15 @@ pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> Strin
         snapshot.rested_xp_max,
         snapshot.zone_id,
     )
+}
+
+fn format_presence_state(value: &crate::status::PresenceStateEntry) -> &'static str {
+    match value {
+        crate::status::PresenceStateEntry::Online => "online",
+        crate::status::PresenceStateEntry::Afk => "afk",
+        crate::status::PresenceStateEntry::Dnd => "dnd",
+        crate::status::PresenceStateEntry::Offline => "offline",
+    }
 }
 
 pub fn format_bags_status(snapshot: Option<&AuctionInventorySnapshot>) -> String {

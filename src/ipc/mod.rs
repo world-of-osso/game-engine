@@ -91,6 +91,10 @@ pub enum Request {
     DuelDecline,
     DuelStatus,
     FriendsStatus,
+    PresenceStatus,
+    PresenceAfk,
+    PresenceDnd,
+    PresenceOnline,
     FriendAdd {
         name: String,
     },
