@@ -766,6 +766,88 @@ fn cancel_movement_returns_run_when_running() {
 }
 
 #[test]
+fn swim_direction_mapping_uses_swim_sequences() {
+    assert_eq!(
+        direction_to_anim_id(MoveDirection::None, true, true),
+        ANIM_SWIM_IDLE
+    );
+    assert_eq!(
+        direction_to_anim_id(MoveDirection::Forward, true, true),
+        ANIM_SWIM
+    );
+    assert_eq!(
+        direction_to_anim_id(MoveDirection::Left, true, true),
+        ANIM_SWIM_LEFT
+    );
+    assert_eq!(
+        direction_to_anim_id(MoveDirection::Right, true, true),
+        ANIM_SWIM_RIGHT
+    );
+    assert_eq!(
+        direction_to_anim_id(MoveDirection::Backward, true, true),
+        ANIM_SWIM_BACKWARDS
+    );
+}
+
+#[test]
+fn switch_animation_uses_swim_idle_when_stationary_in_water() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, switch_animation);
+
+    let entity = app
+        .world_mut()
+        .spawn((
+            M2AnimPlayer {
+                current_seq_idx: 0,
+                time_ms: 0.0,
+                looping: true,
+                transition: None,
+            },
+            M2AnimData {
+                bones: Vec::new(),
+                spherical_billboards: Vec::new(),
+                sequences: vec![
+                    M2AnimSequence {
+                        id: ANIM_STAND,
+                        variation_id: 0,
+                        duration: 1000,
+                        movespeed: 0.0,
+                        flags: 0,
+                        blend_time: 150,
+                        next_animation: -1,
+                    },
+                    M2AnimSequence {
+                        id: ANIM_SWIM_IDLE,
+                        variation_id: 0,
+                        duration: 1000,
+                        movespeed: 0.0,
+                        flags: 0,
+                        blend_time: 150,
+                        next_animation: -1,
+                    },
+                ],
+                bone_tracks: Vec::new(),
+                joint_entities: Vec::new(),
+            },
+            MovementState {
+                swimming: true,
+                ..Default::default()
+            },
+        ))
+        .id();
+
+    app.update();
+
+    let player = app
+        .world()
+        .get::<M2AnimPlayer>(entity)
+        .expect("anim player");
+    let data = app.world().get::<M2AnimData>(entity).expect("anim data");
+    assert_eq!(data.sequences[player.current_seq_idx].id, ANIM_SWIM_IDLE);
+}
+
+#[test]
 fn cancel_movement_returns_walk_when_walking() {
     let (anim, _) = cancel_anim_params(AnimCancelReason::Movement, true, false);
     assert_eq!(anim, ANIM_WALK);

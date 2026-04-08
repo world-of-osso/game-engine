@@ -67,6 +67,7 @@ pub struct MovementState {
     pub running: bool,
     pub jumping: bool,
     pub autorun: bool,
+    pub swimming: bool,
 }
 
 impl Default for MovementState {
@@ -76,6 +77,7 @@ impl Default for MovementState {
             running: true, // WoW defaults to running
             jumping: false,
             autorun: false,
+            swimming: false,
         }
     }
 }
@@ -154,6 +156,7 @@ pub(super) const EYE_HEIGHT: f32 = 1.8;
 pub(super) const COLLISION_RECOVERY_SPEED: f32 = 5.0;
 const PITCH_LIMIT: f32 = 88.0_f32 * std::f32::consts::PI / 180.0;
 const LANDING_EPSILON: f32 = 0.05;
+const SWIM_DEPTH_THRESHOLD: f32 = 1.25;
 
 fn apply_keyboard_camera(
     keys: &ButtonInput<KeyCode>,
@@ -409,6 +412,8 @@ fn player_movement(
         return;
     }
 
+    sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
+
     sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
     let (direction, speed) =
         resolve_player_movement_state(&keys, &mouse_buttons, &bindings, &mut movement, facing);
@@ -439,6 +444,8 @@ fn player_movement(
             )
         }),
     });
+
+    sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
 }
@@ -579,6 +586,10 @@ fn apply_jump_input(
     keys: &ButtonInput<KeyCode>,
     mouse_buttons: &ButtonInput<MouseButton>,
 ) {
+    if movement.swimming {
+        movement.jumping = false;
+        return;
+    }
     if bindings.is_just_pressed(InputAction::Jump, keys, mouse_buttons)
         && physics.grounded
         && !movement.jumping
@@ -586,6 +597,29 @@ fn apply_jump_input(
         movement.jumping = true;
         physics.vertical_velocity = collision::JUMP_IMPULSE;
     }
+}
+
+fn sync_swimming_state(
+    position: Vec3,
+    terrain: Option<&TerrainHeightmap>,
+    movement: &mut MovementState,
+) {
+    movement.swimming = terrain.is_some_and(|terrain| is_swimming(position, terrain));
+    if movement.swimming {
+        movement.jumping = false;
+    }
+}
+
+fn is_swimming(position: Vec3, terrain: &TerrainHeightmap) -> bool {
+    let Some(ground_y) = terrain.height_at(position.x, position.z) else {
+        return false;
+    };
+    let depth = terrain
+        .water_surface_at(position.x, position.z)
+        .filter(|surface_y| *surface_y > ground_y)
+        .map(|surface_y| surface_y - ground_y)
+        .unwrap_or(0.0);
+    depth >= SWIM_DEPTH_THRESHOLD
 }
 
 fn finish_jump_if_landed(
@@ -644,7 +678,82 @@ fn cursor_grab(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asset::adt;
     use crate::terrain_heightmap::TerrainHeightmap;
+    use crate::terrain_tile::bevy_to_tile_coords;
+
+    const TEST_WATER_STEP: f32 = adt::CHUNK_SIZE / 8.0;
+
+    fn flat_grid(origin_x: f32, origin_z: f32, height: f32) -> adt::ChunkHeightGrid {
+        adt::ChunkHeightGrid {
+            index_x: 0,
+            index_y: 0,
+            origin_x,
+            origin_z,
+            base_y: height,
+            heights: [0.0; 145],
+        }
+    }
+
+    fn swim_sample_tile() -> (u32, u32) {
+        let sample_x = -TEST_WATER_STEP * 0.25;
+        let sample_z = TEST_WATER_STEP * 0.25;
+        bevy_to_tile_coords(sample_x, sample_z)
+    }
+
+    fn flat_water_layer(height: f32) -> adt::WaterLayer {
+        adt::WaterLayer {
+            liquid_type: 0,
+            liquid_object: 0,
+            min_height: height,
+            max_height: height,
+            x_offset: 0,
+            y_offset: 0,
+            width: 1,
+            height: 1,
+            exists: [1, 0, 0, 0, 0, 0, 0, 0],
+            vertex_heights: vec![height; 4],
+            vertex_uvs: Vec::new(),
+            vertex_depths: Vec::new(),
+        }
+    }
+
+    fn chunk_water(index: usize, water_height: f32) -> adt::ChunkWater {
+        let layers = if index == 0 {
+            vec![flat_water_layer(water_height)]
+        } else {
+            Vec::new()
+        };
+        adt::ChunkWater {
+            layers,
+            attributes: None,
+        }
+    }
+
+    fn swim_adt(ground_height: f32, water_height: f32) -> adt::AdtData {
+        adt::AdtData {
+            chunks: Vec::new(),
+            blend_mesh: None,
+            flight_bounds: None,
+            height_grids: vec![flat_grid(0.0, 0.0, ground_height)],
+            center_surface: [0.0, 0.0, 0.0],
+            chunk_positions: vec![[0.0, 0.0, ground_height]; 256],
+            water: Some(adt::AdtWaterData {
+                chunks: (0..256)
+                    .map(|index| chunk_water(index, water_height))
+                    .collect(),
+            }),
+            water_error: None,
+        }
+    }
+
+    fn swim_heightmap(ground_height: f32, water_height: f32) -> TerrainHeightmap {
+        let (tile_y, tile_x) = swim_sample_tile();
+        let mut heightmap = TerrainHeightmap::default();
+        let adt = swim_adt(ground_height, water_height);
+        heightmap.register_tile(tile_y, tile_x, &adt, None);
+        heightmap
+    }
 
     fn jump_heightmap() -> TerrainHeightmap {
         let data = std::fs::read("data/terrain/azeroth_32_48.adt")
@@ -667,6 +776,7 @@ mod tests {
             running: true,
             jumping: true,
             autorun: false,
+            swimming: false,
         };
         let physics = CharacterPhysics {
             vertical_velocity: -1.0,
@@ -817,6 +927,20 @@ mod tests {
         let backpedal = movement_speed_multiplier(MoveDirection::Backward) * RUN_SPEED;
         assert!(strafe < RUN_SPEED);
         assert!(strafe > backpedal);
+    }
+
+    #[test]
+    fn deep_water_sets_swimming_state() {
+        let heightmap = swim_heightmap(0.0, 2.0);
+        let position = Vec3::new(-TEST_WATER_STEP * 0.25, 0.0, TEST_WATER_STEP * 0.25);
+        assert!(is_swimming(position, &heightmap));
+    }
+
+    #[test]
+    fn shallow_water_does_not_set_swimming_state() {
+        let heightmap = swim_heightmap(0.0, 0.6);
+        let position = Vec3::new(-TEST_WATER_STEP * 0.25, 0.0, TEST_WATER_STEP * 0.25);
+        assert!(!is_swimming(position, &heightmap));
     }
 }
 

@@ -568,6 +568,7 @@ pub(crate) fn sync_local_mount_visual_movement(
                     running: movement.running,
                     jumping: movement.jumping,
                     autorun: movement.autorun,
+                    swimming: movement.swimming,
                 },
             )
         })
@@ -580,6 +581,7 @@ pub(crate) fn sync_local_mount_visual_movement(
         movement.running = parent_movement.running;
         movement.jumping = parent_movement.jumping;
         movement.autorun = parent_movement.autorun;
+        movement.swimming = parent_movement.swimming;
     }
 }
 
@@ -726,6 +728,7 @@ mod tests {
                     running: false,
                     jumping: true,
                     autorun: true,
+                    swimming: false,
                 },
             ))
             .id();

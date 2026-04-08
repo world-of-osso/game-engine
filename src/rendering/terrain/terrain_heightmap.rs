@@ -9,6 +9,21 @@ use crate::rendering::ground_effects::{self, GroundEffectEntry};
 use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
 use crate::terrain_tile::bevy_to_tile_coords;
 
+const WATER_STEP: f32 = CHUNK_SIZE / 8.0;
+
+#[derive(Clone)]
+struct WaterLayerSurface {
+    chunk_origin_wow_x: f32,
+    chunk_origin_wow_y: f32,
+    min_height: f32,
+    x_offset: u8,
+    y_offset: u8,
+    width: u8,
+    height: u8,
+    exists: [u8; 8],
+    vertex_heights: Vec<f32>,
+}
+
 /// Queryable heightmap for terrain collision across multiple tiles.
 #[derive(Resource, Default)]
 pub struct TerrainHeightmap {
@@ -18,6 +33,8 @@ pub struct TerrainHeightmap {
     effects: HashMap<(u32, u32), Vec<Option<GroundEffectEntry>>>,
     /// Per-tile dominant surface class for each chunk.
     surfaces: HashMap<(u32, u32), Vec<FootstepSurface>>,
+    /// Per-tile water layers for cheap swim/depth queries.
+    water_layers: HashMap<(u32, u32), Vec<WaterLayerSurface>>,
 }
 
 impl TerrainHeightmap {
@@ -48,6 +65,7 @@ impl TerrainHeightmap {
         self.tiles.remove(&(tile_y, tile_x));
         self.effects.remove(&(tile_y, tile_x));
         self.surfaces.remove(&(tile_y, tile_x));
+        self.water_layers.remove(&(tile_y, tile_x));
     }
 
     /// Look up terrain height at a Bevy-space (x, z) position across all loaded tiles.
@@ -56,6 +74,16 @@ impl TerrainHeightmap {
             .values()
             .flat_map(|grids| grids.iter().flatten())
             .find_map(|g| sample_chunk_height(g, bx, bz))
+    }
+
+    pub fn water_surface_at(&self, bx: f32, bz: f32) -> Option<f32> {
+        let (tile_y, tile_x) = bevy_to_tile_coords(bx, bz);
+        self.water_layers
+            .get(&(tile_y, tile_x))
+            .into_iter()
+            .flat_map(|layers| layers.iter())
+            .filter_map(|layer| sample_water_layer_height(layer, bx, bz))
+            .max_by(f32::total_cmp)
     }
 
     pub fn insert_tile_surfaces(&mut self, tile_y: u32, tile_x: u32, tex_data: &adt::AdtTexData) {
@@ -78,8 +106,43 @@ impl TerrainHeightmap {
         tex_data: Option<&adt::AdtTexData>,
     ) {
         self.insert_tile(tile_y, tile_x, adt_data);
+        self.insert_tile_water(tile_y, tile_x, adt_data);
         if let Some(tex_data) = tex_data {
             self.insert_tile_surfaces(tile_y, tile_x, tex_data);
+        }
+    }
+
+    fn insert_tile_water(&mut self, tile_y: u32, tile_x: u32, adt_data: &adt::AdtData) {
+        let Some(water) = adt_data.water.as_ref() else {
+            self.water_layers.remove(&(tile_y, tile_x));
+            return;
+        };
+        let mut layers = Vec::new();
+        for (chunk_index, chunk) in water.chunks.iter().enumerate() {
+            let Some(chunk_pos) = adt_data.chunk_positions.get(chunk_index) else {
+                continue;
+            };
+            for layer in &chunk.layers {
+                if !layer_has_water(layer) {
+                    continue;
+                }
+                layers.push(WaterLayerSurface {
+                    chunk_origin_wow_x: chunk_pos[1],
+                    chunk_origin_wow_y: chunk_pos[0],
+                    min_height: layer.min_height,
+                    x_offset: layer.x_offset,
+                    y_offset: layer.y_offset,
+                    width: layer.width,
+                    height: layer.height,
+                    exists: layer.exists,
+                    vertex_heights: layer.vertex_heights.clone(),
+                });
+            }
+        }
+        if layers.is_empty() {
+            self.water_layers.remove(&(tile_y, tile_x));
+        } else {
+            self.water_layers.insert((tile_y, tile_x), layers);
         }
     }
 
@@ -109,6 +172,72 @@ impl TerrainHeightmap {
             .find(|grid| sample_chunk_height(grid, bx, bz).is_some())
             .map(|grid| (grid.index_y * 16 + grid.index_x) as usize)
     }
+}
+
+fn layer_has_water(layer: &adt::WaterLayer) -> bool {
+    (0..layer.height as usize).any(|row| {
+        (0..layer.width as usize)
+            .any(|col| row < 8 && col < 8 && ((layer.exists[row] >> col) & 1 != 0))
+    })
+}
+
+fn sample_water_layer_height(layer: &WaterLayerSurface, bx: f32, bz: f32) -> Option<f32> {
+    if layer.width == 0 || layer.height == 0 {
+        return None;
+    }
+    let wow_x = bx;
+    let wow_y = -bz;
+    let abs_col_f = (layer.chunk_origin_wow_x - wow_x) / WATER_STEP;
+    let abs_row_f = (layer.chunk_origin_wow_y - wow_y) / WATER_STEP;
+    let x_min = f32::from(layer.x_offset);
+    let y_min = f32::from(layer.y_offset);
+    let x_max = x_min + f32::from(layer.width);
+    let y_max = y_min + f32::from(layer.height);
+    if abs_col_f < x_min || abs_col_f >= x_max || abs_row_f < y_min || abs_row_f >= y_max {
+        return None;
+    }
+
+    let abs_col = abs_col_f.floor() as usize;
+    let abs_row = abs_row_f.floor() as usize;
+    let col = abs_col.checked_sub(layer.x_offset as usize)?;
+    let row = abs_row.checked_sub(layer.y_offset as usize)?;
+    if !layer_quad_exists(layer, row, col) {
+        return None;
+    }
+
+    let fx = abs_col_f - abs_col as f32;
+    let fz = abs_row_f - abs_row as f32;
+    Some(interpolate_water_height(layer, row, col, fx, fz))
+}
+
+fn layer_quad_exists(layer: &WaterLayerSurface, row: usize, col: usize) -> bool {
+    row < 8 && col < 8 && ((layer.exists[row] >> col) & 1 != 0)
+}
+
+fn interpolate_water_height(
+    layer: &WaterLayerSurface,
+    row: usize,
+    col: usize,
+    fx: f32,
+    fz: f32,
+) -> f32 {
+    let top =
+        water_vertex_height(layer, row, col).lerp(water_vertex_height(layer, row, col + 1), fx);
+    let bottom = water_vertex_height(layer, row + 1, col)
+        .lerp(water_vertex_height(layer, row + 1, col + 1), fx);
+    top.lerp(bottom, fz)
+}
+
+fn water_vertex_height(layer: &WaterLayerSurface, row: usize, col: usize) -> f32 {
+    if layer.vertex_heights.is_empty() {
+        return layer.min_height;
+    }
+    let width = layer.width as usize + 1;
+    layer
+        .vertex_heights
+        .get(row * width + col)
+        .copied()
+        .unwrap_or(layer.min_height)
 }
 
 fn dominant_surface_for_chunk(
@@ -264,6 +393,22 @@ fn barycentric_height(px: f32, pz: f32, a: [f32; 3], b: [f32; 3], c: [f32; 3]) -
 mod tests {
     use super::*;
 
+    fn empty_adt(
+        height_grids: Vec<adt::ChunkHeightGrid>,
+        water: Option<adt::AdtWaterData>,
+    ) -> adt::AdtData {
+        adt::AdtData {
+            chunks: Vec::new(),
+            blend_mesh: None,
+            flight_bounds: None,
+            height_grids,
+            center_surface: [0.0, 0.0, 0.0],
+            chunk_positions: vec![[0.0, 0.0, 0.0]; 256],
+            water,
+            water_error: None,
+        }
+    }
+
     #[test]
     fn client_heightmap_covers_server_default_spawn() {
         let data = std::fs::read("data/terrain/azeroth_32_48.adt")
@@ -402,5 +547,45 @@ mod tests {
                 terrain_sound_id: 3,
             })
         );
+    }
+
+    #[test]
+    fn water_surface_query_returns_layer_height_inside_existing_quad() {
+        let sample_x = -WATER_STEP * 0.25;
+        let sample_z = WATER_STEP * 0.25;
+        let (tile_y, tile_x) = bevy_to_tile_coords(sample_x, sample_z);
+        let adt = empty_adt(
+            Vec::new(),
+            Some(adt::AdtWaterData {
+                chunks: (0..256)
+                    .map(|index| adt::ChunkWater {
+                        layers: if index == 0 {
+                            vec![adt::WaterLayer {
+                                liquid_type: 0,
+                                liquid_object: 0,
+                                min_height: 5.0,
+                                max_height: 5.0,
+                                x_offset: 0,
+                                y_offset: 0,
+                                width: 1,
+                                height: 1,
+                                exists: [1, 0, 0, 0, 0, 0, 0, 0],
+                                vertex_heights: vec![5.0, 5.0, 5.0, 5.0],
+                                vertex_uvs: Vec::new(),
+                                vertex_depths: Vec::new(),
+                            }]
+                        } else {
+                            Vec::new()
+                        },
+                        attributes: None,
+                    })
+                    .collect(),
+            }),
+        );
+        let mut heightmap = TerrainHeightmap::default();
+
+        heightmap.register_tile(tile_y, tile_x, &adt, None);
+
+        assert_eq!(heightmap.water_surface_at(sample_x, sample_z), Some(5.0));
     }
 }

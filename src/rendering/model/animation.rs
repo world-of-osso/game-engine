@@ -61,6 +61,11 @@ const ANIM_RUN: u16 = 5;
 const ANIM_SHUFFLE_LEFT: u16 = 11;
 const ANIM_SHUFFLE_RIGHT: u16 = 12;
 const ANIM_WALK_BACKWARDS: u16 = 13;
+const ANIM_SWIM_IDLE: u16 = 41;
+const ANIM_SWIM: u16 = 42;
+const ANIM_SWIM_LEFT: u16 = 43;
+const ANIM_SWIM_RIGHT: u16 = 44;
+const ANIM_SWIM_BACKWARDS: u16 = 45;
 const ANIM_JUMP_START: u16 = 37;
 const ANIM_JUMP: u16 = 38; // airborne loop
 const ANIM_JUMP_END: u16 = 39;
@@ -361,7 +366,16 @@ fn emote_anim_id(kind: EmoteKind) -> u16 {
 }
 
 /// Map movement direction to a WoW animation ID.
-fn direction_to_anim_id(dir: MoveDirection, running: bool) -> u16 {
+fn direction_to_anim_id(dir: MoveDirection, running: bool, swimming: bool) -> u16 {
+    if swimming {
+        return match dir {
+            MoveDirection::None => ANIM_SWIM_IDLE,
+            MoveDirection::Forward => ANIM_SWIM,
+            MoveDirection::Backward => ANIM_SWIM_BACKWARDS,
+            MoveDirection::Left => ANIM_SWIM_LEFT,
+            MoveDirection::Right => ANIM_SWIM_RIGHT,
+        };
+    }
     match dir {
         MoveDirection::None => ANIM_STAND,
         MoveDirection::Forward => {
@@ -440,7 +454,8 @@ fn switch_animation(
             continue;
         }
 
-        let target_id = direction_to_anim_id(movement.direction, movement.running);
+        let target_id =
+            direction_to_anim_id(movement.direction, movement.running, movement.swimming);
         if current_id == Some(target_id) {
             continue;
         }
@@ -482,7 +497,9 @@ fn apply_emote_animation(
 
         player.looping = true;
         let target_anim = movement
-            .map(|movement| direction_to_anim_id(movement.direction, movement.running))
+            .map(|movement| {
+                direction_to_anim_id(movement.direction, movement.running, movement.swimming)
+            })
             .unwrap_or(ANIM_STAND);
         if let Some(target_idx) = find_seq_idx(&data.sequences, target_anim) {
             let blend_ms = data.sequences[target_idx].blend_time as f32;
@@ -527,7 +544,8 @@ fn switch_jump(
         // JumpEnd finished → return to movement anim with normal blend
         Some(ANIM_JUMP_END) if anim_finished(player, sequences) => {
             player.looping = true;
-            let target_id = direction_to_anim_id(movement.direction, movement.running);
+            let target_id =
+                direction_to_anim_id(movement.direction, movement.running, movement.swimming);
             if let Some(idx) = find_seq_idx(sequences, target_id) {
                 let blend_ms = sequences[idx].blend_time as f32;
                 start_transition(player, idx, blend_ms);
