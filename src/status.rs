@@ -106,6 +106,30 @@ pub struct ReputationsStatusSnapshot {
     pub entries: Vec<ReputationEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TalentSpecTabEntry {
+    pub name: String,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TalentNodeEntry {
+    pub talent_id: u32,
+    pub name: String,
+    pub points_spent: u8,
+    pub max_points: u8,
+    pub active: bool,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct TalentStatusSnapshot {
+    pub spec_tabs: Vec<TalentSpecTabEntry>,
+    pub talents: Vec<TalentNodeEntry>,
+    pub points_remaining: u16,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub character_id: Option<u64>,

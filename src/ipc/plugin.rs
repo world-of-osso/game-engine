@@ -22,9 +22,10 @@ use crate::status::{
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
     EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
     NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
-    Waypoint,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
+    WarbankStatusSnapshot, Waypoint,
 };
+use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
 use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_request};
 use crate::ui::plugin::UiState;
@@ -117,6 +118,8 @@ struct SceneParams<'w, 's> {
 struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
     trade: ResMut<'w, TradeClientState>,
+    talent: ResMut<'w, TalentRuntimeState>,
+    talent_status: Res<'w, TalentStatusSnapshot>,
     mail: ResMut<'w, MailState>,
 }
 
@@ -201,6 +204,14 @@ fn dispatch(
         return;
     }
     if queue_trade_ipc_request(&mut world.trade, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
+    if queue_talent_ipc_request(
+        &mut world.talent,
+        &world.talent_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
         return;
     }
     if queue_mail_ipc_request(world.mail.as_mut(), &cmd.request, cmd.respond.clone()) {

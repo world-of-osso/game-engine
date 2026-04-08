@@ -1,7 +1,8 @@
 use bevy::prelude::*;
+use game_engine::status::TalentStatusSnapshot;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::talent_frame_component::{
-    TALENT_COUNT, TalentFrameState, TalentNodeState, TalentSpecTab, talent_frame_screen,
+    TalentFrameState, TalentNodeState, TalentSpecTab, talent_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -44,9 +45,10 @@ fn build_talent_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     open: Res<TalentFrameOpen>,
+    snapshot: Res<TalentStatusSnapshot>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&open);
+    let state = build_state(&open, &snapshot);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(talent_frame_screen);
@@ -86,11 +88,12 @@ fn sync_talent_frame_state(
     mut wrap: Option<ResMut<TalentFrameWrap>>,
     mut last_model: Option<ResMut<TalentFrameModel>>,
     open: Res<TalentFrameOpen>,
+    snapshot: Res<TalentStatusSnapshot>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&open);
+    let state = build_state(&open, &snapshot);
     if last_model.0 == state {
         return;
     }
@@ -100,76 +103,26 @@ fn sync_talent_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
-fn build_state(open: &TalentFrameOpen) -> TalentFrameState {
+fn build_state(open: &TalentFrameOpen, snapshot: &TalentStatusSnapshot) -> TalentFrameState {
     TalentFrameState {
         visible: open.0,
-        spec_tabs: placeholder_spec_tabs(),
-        talents: placeholder_talents(),
-        points_remaining: 51,
+        spec_tabs: snapshot
+            .spec_tabs
+            .iter()
+            .map(|tab| TalentSpecTab {
+                name: tab.name.clone(),
+                active: tab.active,
+            })
+            .collect(),
+        talents: snapshot
+            .talents
+            .iter()
+            .map(|talent| TalentNodeState {
+                name: talent.name.clone(),
+                points: format!("{}/{}", talent.points_spent, talent.max_points),
+                active: talent.active,
+            })
+            .collect(),
+        points_remaining: snapshot.points_remaining,
     }
-}
-
-fn placeholder_spec_tabs() -> Vec<TalentSpecTab> {
-    vec![
-        TalentSpecTab {
-            name: "Protection".to_string(),
-            active: true,
-        },
-        TalentSpecTab {
-            name: "Holy".to_string(),
-            active: false,
-        },
-        TalentSpecTab {
-            name: "Retribution".to_string(),
-            active: false,
-        },
-    ]
-}
-
-fn placeholder_talents() -> Vec<TalentNodeState> {
-    const NAMES: [&str; TALENT_COUNT] = [
-        // Row 1
-        "Divine Strength",
-        "Divine Intellect",
-        "Stoicism",
-        "Guardian's Favor",
-        // Row 2
-        "Anticipation",
-        "Conviction",
-        "Toughness",
-        "Improved Devotion Aura",
-        // Row 3
-        "Improved Righteous Fury",
-        "Seal of the Crusader",
-        "Deflection",
-        "Precision",
-        // Row 4
-        "Redoubt",
-        "Combat Expertise",
-        "Spell Warding",
-        "Blessing of Kings",
-        // Row 5
-        "Ardent Defender",
-        "Reckoning",
-        "Shield Specialization",
-        "Holy Shield",
-        // Row 6
-        "One-Handed Weapon Spec",
-        "Weapon Expertise",
-        "Improved Holy Shield",
-        "Sacred Duty",
-        // Row 7
-        "Holy Shield Mastery",
-        "Avenger's Shield",
-        "Hammer of the Righteous",
-        "Touched by the Light",
-    ];
-    NAMES
-        .iter()
-        .map(|name| TalentNodeState {
-            name: name.to_string(),
-            points: "0/1".to_string(),
-            active: false,
-        })
-        .collect()
 }

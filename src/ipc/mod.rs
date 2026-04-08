@@ -68,6 +68,11 @@ pub enum Request {
     },
     TradeConfirm,
     TradeStatus,
+    TalentApply {
+        talent_id: u32,
+    },
+    TalentReset,
+    TalentStatus,
     NetworkStatus,
     TerrainStatus,
     SoundStatus,

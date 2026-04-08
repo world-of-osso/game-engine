@@ -450,6 +450,7 @@ fn register_bevy_plugins(app: &mut App) {
 
 fn register_ui_plugins(app: &mut App) {
     app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
+        .add_plugins(game_engine::talent::TalentPlugin)
         .add_plugins(game_engine::trade::TradePlugin)
         .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
@@ -660,6 +661,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::char_create::CharCreateScenePlugin,
         scenes::char_select::campsite::CampsitePopupScreenPlugin,
         scenes::game_menu::GameMenuScreenPlugin,
+        scenes::talent_frame::TalentFramePlugin,
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));

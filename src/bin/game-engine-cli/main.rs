@@ -12,7 +12,7 @@ use requests::{
     auction_request, collection_request, combat_request, equipment_request,
     export_character_request, export_scene_request, group_request, inventory_request, item_request,
     mail_request, map_request, profession_request, quest_request, reputation_request,
-    spell_request, status_request, trade_request,
+    spell_request, status_request, talent_request, trade_request,
 };
 
 #[derive(Parser)]
@@ -69,6 +69,11 @@ enum Cmd {
     Trade {
         #[command(subcommand)]
         command: TradeCmd,
+    },
+    /// Talent operations via the running engine
+    Talent {
+        #[command(subcommand)]
+        command: TalentCmd,
     },
     /// Runtime subsystem status via the running engine
     Status {
@@ -324,6 +329,16 @@ pub(crate) enum TradeCmd {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum TalentCmd {
+    Status,
+    Apply {
+        #[arg(long)]
+        talent_id: u32,
+    },
+    Reset,
+}
+
+#[derive(Subcommand)]
 pub(crate) enum SpellCmd {
     Cast {
         #[arg(long)]
@@ -444,6 +459,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Auction { command } => handle_auction(socket, command, json),
         Cmd::Mail { command } => handle_mail(socket, command, json),
         Cmd::Trade { command } => handle_trade(socket, command, json),
+        Cmd::Talent { command } => handle_talent(socket, command, json),
         Cmd::Status { command } => handle_status(socket, command, json),
         Cmd::Item { command } => handle_item(socket, command, json),
         Cmd::Inventory { command } => handle_inventory(socket, command, json),
@@ -568,6 +584,10 @@ fn handle_mail(socket: &PathBuf, command: MailCmd, json: bool) -> Result<(), Str
 
 fn handle_trade(socket: &PathBuf, command: TradeCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, trade_request(command)?, json)
+}
+
+fn handle_talent(socket: &PathBuf, command: TalentCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, talent_request(command)?, json)
 }
 
 fn handle_status(socket: &PathBuf, command: StatusCmd, json: bool) -> Result<(), String> {

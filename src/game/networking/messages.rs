@@ -7,7 +7,7 @@ use shared::protocol::{
     GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
     InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot, QuestLogSnapshot,
     QuestRepeatability as QuestRepeatabilitySnapshot, ReputationSnapshot, SetTarget,
-    StorageItemSnapshot, WarbankSnapshot,
+    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -23,7 +23,8 @@ use game_engine::status::{
     GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot, InventoryItemEntry,
     InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionStatusSnapshot, QuestEntry,
     QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
-    ReputationsStatusSnapshot, StorageItemEntry, WarbankStatusSnapshot,
+    ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
+    TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 
@@ -553,6 +554,36 @@ pub(crate) fn receive_warbank_snapshot(
             snapshot.entries = msg.entries.into_iter().map(map_storage_item).collect();
         }
     }
+}
+
+pub(crate) fn apply_talent_state_update(
+    snapshot: &mut TalentStatusSnapshot,
+    update: TalentStateUpdate,
+) {
+    if let Some(talent_snapshot) = update.snapshot {
+        snapshot.spec_tabs = talent_snapshot
+            .spec_tabs
+            .into_iter()
+            .map(|tab| TalentSpecTabEntry {
+                name: tab.name,
+                active: tab.active,
+            })
+            .collect();
+        snapshot.talents = talent_snapshot
+            .talents
+            .into_iter()
+            .map(|talent| TalentNodeEntry {
+                talent_id: talent.talent_id,
+                name: talent.name,
+                points_spent: talent.points_spent,
+                max_points: talent.max_points,
+                active: talent.active,
+            })
+            .collect();
+        snapshot.points_remaining = talent_snapshot.points_remaining;
+    }
+    snapshot.last_server_message = update.message;
+    snapshot.last_error = update.error;
 }
 
 fn map_storage_item(e: StorageItemSnapshot) -> StorageItemEntry {

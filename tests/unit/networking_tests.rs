@@ -217,15 +217,14 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
         recent_targets: vec!["StaleWhisper".into()],
         max_recent: 10,
     });
-    app.insert_resource(game_engine::trade::TradeClientState {
-        phase: Some(shared::protocol::TradePhase::Open),
-        trade: game_engine::trade_data::TradeState {
-            active: true,
-            ..Default::default()
-        },
-        last_message: Some("stale trade".into()),
+    let mut trade_state = game_engine::trade::TradeClientState::default();
+    trade_state.phase = Some(shared::protocol::TradePhase::Open);
+    trade_state.trade = game_engine::trade_data::TradeState {
+        active: true,
         ..Default::default()
-    });
+    };
+    trade_state.last_message = Some("stale trade".into());
+    app.insert_resource(trade_state);
     app.add_observer(handle_client_disconnected);
     app
 }
@@ -530,6 +529,44 @@ fn interpolation_skips_local_player_even_with_remote_marker() {
 
     let pos = app.world().get::<Transform>(entity).unwrap().translation;
     assert_eq!(pos, start);
+}
+
+#[test]
+fn talent_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::TalentStatusSnapshot::default();
+
+    crate::networking_messages::apply_talent_state_update(
+        &mut snapshot,
+        shared::protocol::TalentStateUpdate {
+            snapshot: Some(shared::protocol::TalentSnapshot {
+                spec_tabs: vec![shared::protocol::TalentSpecTabSnapshot {
+                    name: "Protection".into(),
+                    active: true,
+                }],
+                talents: vec![shared::protocol::TalentNodeSnapshot {
+                    talent_id: 101,
+                    name: "Divine Strength".into(),
+                    points_spent: 1,
+                    max_points: 1,
+                    active: true,
+                }],
+                points_remaining: 50,
+            }),
+            message: Some("talent applied".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.spec_tabs.len(), 1);
+    assert_eq!(snapshot.spec_tabs[0].name, "Protection");
+    assert_eq!(snapshot.talents.len(), 1);
+    assert_eq!(snapshot.talents[0].talent_id, 101);
+    assert_eq!(snapshot.points_remaining, 50);
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("talent applied")
+    );
+    assert_eq!(snapshot.last_error, None);
 }
 
 #[test]
