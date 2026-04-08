@@ -12,8 +12,9 @@ use game_engine::status::{
     EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
     GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot, LfgStatusSnapshot,
     MapStatusSnapshot, NetworkStatusSnapshot, PresenceStateEntry, ProfessionStatusSnapshot,
-    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SecondaryResourceEntry,
+    SecondaryResourceKindEntry, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
+    WarbankStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -198,6 +199,9 @@ pub fn sync_character_stats_snapshot(
     snapshot.appearance = selected_character.map(|entry| entry.appearance);
     snapshot.zone_id = current_zone.zone_id;
     fill_local_player_stats(&mut snapshot, &local_player_query);
+    snapshot.secondary_resource = snapshot
+        .class
+        .and_then(default_secondary_resource_for_class);
 }
 
 fn map_presence_state(state: NetPresenceStatus) -> PresenceStateEntry {
@@ -207,6 +211,21 @@ fn map_presence_state(state: NetPresenceStatus) -> PresenceStateEntry {
         NetPresenceStatus::Dnd => PresenceStateEntry::Dnd,
         NetPresenceStatus::Offline => PresenceStateEntry::Offline,
     }
+}
+
+fn default_secondary_resource_for_class(class_id: u8) -> Option<SecondaryResourceEntry> {
+    let (kind, max) = match class_id {
+        2 => (SecondaryResourceKindEntry::HolyPower, 5),
+        4 => (SecondaryResourceKindEntry::ComboPoints, 5),
+        10 => (SecondaryResourceKindEntry::Chi, 6),
+        13 => (SecondaryResourceKindEntry::Essence, 5),
+        _ => return None,
+    };
+    Some(SecondaryResourceEntry {
+        kind,
+        current: 0,
+        max,
+    })
 }
 
 pub fn sync_character_roster_status_snapshot(
@@ -295,6 +314,28 @@ fn apply_equipment_command(equipment: &mut equipment::Equipment, command: Equipm
             };
             equipment.slots.remove(&slot);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paladin_class_maps_to_holy_power() {
+        assert_eq!(
+            default_secondary_resource_for_class(2),
+            Some(SecondaryResourceEntry {
+                kind: SecondaryResourceKindEntry::HolyPower,
+                current: 0,
+                max: 5,
+            })
+        );
+    }
+
+    #[test]
+    fn warrior_class_has_no_secondary_resource_display() {
+        assert_eq!(default_secondary_resource_for_class(1), None);
     }
 }
 

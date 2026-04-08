@@ -326,6 +326,11 @@ fn formats_character_stats_status_snapshot() {
         health_max: Some(150.0),
         mana_current: Some(80.0),
         mana_max: Some(100.0),
+        secondary_resource: Some(crate::status::SecondaryResourceEntry {
+            kind: crate::status::SecondaryResourceKindEntry::HolyPower,
+            current: 3,
+            max: 5,
+        }),
         movement_speed: Some(7.0),
         presence: Some(crate::status::PresenceStateEntry::Afk),
         in_combat: true,
@@ -338,6 +343,7 @@ fn formats_character_stats_status_snapshot() {
     assert!(text.contains("name: Thrall"));
     assert!(text.contains("health: 120/150"));
     assert!(text.contains("presence: afk"));
+    assert!(text.contains("secondary_resource: holy_power 3/5"));
     assert!(text.contains("movement_speed: 7.00"));
     assert!(text.contains("in_combat: true"));
     assert!(text.contains("in_rest_area: true"));

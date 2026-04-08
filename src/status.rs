@@ -192,6 +192,21 @@ pub enum PresenceStateEntry {
     Offline,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SecondaryResourceKindEntry {
+    ComboPoints,
+    HolyPower,
+    Chi,
+    Essence,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SecondaryResourceEntry {
+    pub kind: SecondaryResourceKindEntry,
+    pub current: u8,
+    pub max: u8,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub character_id: Option<u64>,
@@ -204,6 +219,7 @@ pub struct CharacterStatsSnapshot {
     pub health_max: Option<f32>,
     pub mana_current: Option<f32>,
     pub mana_max: Option<f32>,
+    pub secondary_resource: Option<SecondaryResourceEntry>,
     pub movement_speed: Option<f32>,
     pub presence: Option<PresenceStateEntry>,
     pub in_combat: bool,
@@ -901,6 +917,11 @@ mod tests {
             health_max: Some(5000.0),
             mana_current: Some(3000.0),
             mana_max: Some(4000.0),
+            secondary_resource: Some(SecondaryResourceEntry {
+                kind: SecondaryResourceKindEntry::HolyPower,
+                current: 4,
+                max: 5,
+            }),
             movement_speed: Some(7.0),
             zone_id: 12,
             ..Default::default()

@@ -2,6 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 #[path = "inworld_unit_frames_layout.rs"]
@@ -20,6 +21,9 @@ const TARGET_AURA_ICON_GAP: f32 = 2.0;
 const TARGET_AURA_TIMER_COLOR: &str = "1.0,1.0,1.0,0.95";
 const TARGET_AURA_STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
 const TARGET_AURA_DEFAULT_BORDER: &str = "0.08,0.08,0.08,0.95";
+const SECONDARY_RESOURCE_ROW_Y: f32 = 74.0;
+const SECONDARY_RESOURCE_ROW_H: f32 = 8.0;
+const SECONDARY_RESOURCE_GAP: f32 = 2.0;
 pub const UNKNOWN_PORTRAIT_TEXTURE_FILE: &str =
     "/home/osso/Projects/wow/Interface/ICONS/INV_Misc_QuestionMark.blp";
 
@@ -39,6 +43,7 @@ pub struct UnitFrameState {
     pub mana_text: String,
     pub health_fill_width: f32,
     pub mana_fill_width: f32,
+    pub secondary_resource: Option<SecondaryResourceEntry>,
     pub has_mana: bool,
     pub show_combat_icon: bool,
     pub show_resting_icon: bool,
@@ -280,12 +285,13 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
     let visuals = unit_frame_visuals(state, player_side);
     let frame = visuals.frame;
     rsx! {
-        r#frame {
-            name: names.container,
-            stretch: true,
-            {unit_frame_shell_background(&names, state, frame)}
+            r#frame {
+                name: names.container,
+                stretch: true,
+                {unit_frame_shell_background(&names, state, frame)}
             {unit_frame_shell_labels(&names, state, frame, player_side)}
             {unit_frame_shell_bars(prefix, state, &visuals, frame)}
+            {player_secondary_resource_row(prefix, state)}
             {contextual_icons(prefix, player_side, state)}
         }
     }
@@ -453,6 +459,72 @@ fn unit_frame_shell_bars(
             },
         )}
         {resting_label(prefix, state)}
+    }
+}
+
+fn player_secondary_resource_row(prefix: &str, state: &UnitFrameState) -> Element {
+    let Some(resource) = state.secondary_resource.as_ref() else {
+        return Element::default();
+    };
+    if resource.max == 0 {
+        return Element::default();
+    }
+    let row_width = PLAYER_FRAME_CONFIG.health_bar.width;
+    let pip_w = (row_width - SECONDARY_RESOURCE_GAP * (resource.max.saturating_sub(1) as f32))
+        / resource.max as f32;
+    let pips: Element = (0..resource.max)
+        .flat_map(|index| secondary_resource_pip(prefix, resource, index, pip_w))
+        .collect();
+    rsx! {
+        r#frame {
+            name: {dyn_name(format!("{prefix}SecondaryResourceRow"))},
+            width: row_width,
+            height: SECONDARY_RESOURCE_ROW_H,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {PLAYER_FRAME_CONFIG.health_bar.x},
+                y: {-SECONDARY_RESOURCE_ROW_Y},
+            }
+            {pips}
+        }
+    }
+}
+
+fn secondary_resource_pip(
+    prefix: &str,
+    resource: &SecondaryResourceEntry,
+    index: u8,
+    pip_w: f32,
+) -> Element {
+    let x = index as f32 * (pip_w + SECONDARY_RESOURCE_GAP);
+    let filled = index < resource.current;
+    rsx! {
+        r#frame {
+            name: {dyn_name(format!("{prefix}SecondaryResourcePip{index}"))},
+            width: pip_w,
+            height: SECONDARY_RESOURCE_ROW_H,
+            background_color: {secondary_resource_color(resource, filled)},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn secondary_resource_color(resource: &SecondaryResourceEntry, filled: bool) -> &'static str {
+    match (&resource.kind, filled) {
+        (SecondaryResourceKindEntry::ComboPoints, true) => "1.0,0.25,0.12,0.96",
+        (SecondaryResourceKindEntry::ComboPoints, false) => "0.22,0.05,0.03,0.92",
+        (SecondaryResourceKindEntry::HolyPower, true) => "1.0,0.84,0.28,0.96",
+        (SecondaryResourceKindEntry::HolyPower, false) => "0.24,0.19,0.05,0.92",
+        (SecondaryResourceKindEntry::Chi, true) => "0.08,0.96,0.72,0.96",
+        (SecondaryResourceKindEntry::Chi, false) => "0.04,0.20,0.15,0.92",
+        (SecondaryResourceKindEntry::Essence, true) => "0.24,0.78,1.0,0.96",
+        (SecondaryResourceKindEntry::Essence, false) => "0.06,0.14,0.22,0.92",
     }
 }
 
@@ -753,6 +825,7 @@ pub fn default_player_frame_state() -> UnitFrameState {
         mana_text: String::new(),
         health_fill_width: 0.0,
         mana_fill_width: 0.0,
+        secondary_resource: None,
         has_mana: false,
         show_combat_icon: false,
         show_resting_icon: false,
@@ -771,6 +844,7 @@ pub fn fallback_target_frame_state() -> UnitFrameState {
         mana_text: String::new(),
         health_fill_width: 0.0,
         mana_fill_width: 0.0,
+        secondary_resource: None,
         has_mana: false,
         show_combat_icon: false,
         show_resting_icon: false,

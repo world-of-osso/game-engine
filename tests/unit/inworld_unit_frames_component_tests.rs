@@ -1,4 +1,5 @@
 use super::*;
+use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
 use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::TargetAuraIconState;
@@ -275,6 +276,43 @@ fn unit_frame_portrait_textures_render() {
 }
 
 #[test]
+fn secondary_resource_pips_render_with_active_fill() {
+    let reg = unit_frames_registry();
+
+    for index in 0..5 {
+        assert!(
+            reg.get_by_name(&format!("PlayerSecondaryResourcePip{index}"))
+                .is_some(),
+            "PlayerSecondaryResourcePip{index} missing"
+        );
+    }
+
+    let active = reg
+        .get(
+            reg.get_by_name("PlayerSecondaryResourcePip0")
+                .expect("active pip"),
+        )
+        .expect("active pip frame");
+    let inactive = reg
+        .get(
+            reg.get_by_name("PlayerSecondaryResourcePip4")
+                .expect("inactive pip"),
+        )
+        .expect("inactive pip frame");
+
+    assert_eq!(
+        active.background_color,
+        Some([1.0, 0.84, 0.28, 0.96]),
+        "filled holy power pip color"
+    );
+    assert_eq!(
+        inactive.background_color,
+        Some([0.24, 0.19, 0.05, 0.92]),
+        "empty holy power pip color"
+    );
+}
+
+#[test]
 fn target_aura_icons_render_with_timer_and_stacks() {
     let reg = unit_frames_registry();
 
@@ -345,6 +383,11 @@ fn sample_player_frame_state() -> UnitFrameState {
         mana_text: "80 / 80".to_string(),
         health_fill_width: PLAYER_HEALTH_BAR_W,
         mana_fill_width: PLAYER_HEALTH_BAR_W,
+        secondary_resource: Some(SecondaryResourceEntry {
+            kind: SecondaryResourceKindEntry::HolyPower,
+            current: 4,
+            max: 5,
+        }),
         has_mana: true,
         show_combat_icon: true,
         show_resting_icon: true,
@@ -364,6 +407,7 @@ fn sample_target_frame_state() -> UnitFrameState {
         mana_text: "60 / 60".to_string(),
         health_fill_width: TARGET_HEALTH_BAR_W,
         mana_fill_width: TARGET_MANA_BAR_W,
+        secondary_resource: None,
         has_mana: true,
         show_combat_icon: false,
         show_resting_icon: false,

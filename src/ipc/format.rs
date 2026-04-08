@@ -444,7 +444,7 @@ fn opt_float2(value: Option<f32>) -> String {
 
 pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> String {
     format!(
-        "name: {}\nlevel: {}\nrace: {}\nclass: {}\nhealth: {}/{}\nmana: {}/{}\nmovement_speed: {}\npresence: {}\nin_combat: {}\nin_rest_area: {}\nrest_area_kind: {}\nrested_xp: {}\nrested_xp_max: {}\nzone_id: {}",
+        "name: {}\nlevel: {}\nrace: {}\nclass: {}\nhealth: {}/{}\nmana: {}/{}\nsecondary_resource: {}\nmovement_speed: {}\npresence: {}\nin_combat: {}\nin_rest_area: {}\nrest_area_kind: {}\nrested_xp: {}\nrested_xp_max: {}\nzone_id: {}",
         snapshot.name.as_deref().unwrap_or("-"),
         opt_int(snapshot.level),
         opt_int(snapshot.race),
@@ -453,6 +453,7 @@ pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> Strin
         opt_float0(snapshot.health_max),
         opt_float0(snapshot.mana_current),
         opt_float0(snapshot.mana_max),
+        format_secondary_resource(snapshot.secondary_resource.as_ref()),
         opt_float2(snapshot.movement_speed),
         snapshot
             .presence
@@ -472,6 +473,23 @@ pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> Strin
         snapshot.rested_xp,
         snapshot.rested_xp_max,
         snapshot.zone_id,
+    )
+}
+
+fn format_secondary_resource(value: Option<&crate::status::SecondaryResourceEntry>) -> String {
+    let Some(value) = value else {
+        return "-".into();
+    };
+    format!(
+        "{} {}/{}",
+        match value.kind {
+            crate::status::SecondaryResourceKindEntry::ComboPoints => "combo_points",
+            crate::status::SecondaryResourceKindEntry::HolyPower => "holy_power",
+            crate::status::SecondaryResourceKindEntry::Chi => "chi",
+            crate::status::SecondaryResourceKindEntry::Essence => "essence",
+        },
+        value.current,
+        value.max
     )
 }
 

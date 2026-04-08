@@ -181,6 +181,7 @@ fn build_player_state(
 ) -> UnitFrameState {
     let mut state = default_player_frame_state();
     state.portrait_texture_file = portrait_texture_for_player(player, character_stats);
+    state.secondary_resource = character_stats.and_then(|stats| stats.secondary_resource.clone());
     state.name = player
         .map(|player| player.name.clone())
         .or_else(|| character_stats.and_then(|stats| stats.name.clone()))
@@ -388,6 +389,28 @@ mod tests {
             state
                 .portrait_texture_file
                 .ends_with("ClassIcon_Paladin.blp")
+        );
+    }
+
+    #[test]
+    fn player_state_uses_secondary_resource_from_character_stats() {
+        let stats = CharacterStatsSnapshot {
+            class: Some(2),
+            secondary_resource: Some(game_engine::status::SecondaryResourceEntry {
+                kind: game_engine::status::SecondaryResourceKindEntry::HolyPower,
+                current: 3,
+                max: 5,
+            }),
+            ..CharacterStatsSnapshot::default()
+        };
+        let state = build_player_state(Some(&stats), (None, None, None, None, None, None));
+        assert_eq!(
+            state.secondary_resource,
+            Some(game_engine::status::SecondaryResourceEntry {
+                kind: game_engine::status::SecondaryResourceKindEntry::HolyPower,
+                current: 3,
+                max: 5,
+            })
         );
     }
 
