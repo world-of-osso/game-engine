@@ -252,8 +252,7 @@ fn top_left_to_modal_offset(pos: Vec2, reg: &FrameRegistry) -> [f32; 2] {
 }
 
 fn queue_logout(commands: &mut Commands) {
-    close_game_menu(commands);
-    commands.queue(SetStateCommand(GameState::Login));
+    commands.queue(crate::logout::RequestLogoutCommand);
 }
 
 fn queue_apply_current_options(overlay: &mut GameMenuOverlay, commands: &mut Commands) {

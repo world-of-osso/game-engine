@@ -39,6 +39,7 @@ mod csv_util;
 mod dump_systems;
 mod game;
 mod little_endian;
+mod logout;
 mod mesh_asset_stats;
 mod model_path_resolver;
 mod process_limits;
@@ -455,6 +456,7 @@ fn register_ui_plugins(app: &mut App) {
         .add_plugins(game_engine::encounter_journal::EncounterJournalPlugin)
         .add_plugins(game_engine::inspect::InspectPlugin)
         .add_plugins(game_engine::currency::CurrencyPlugin)
+        .add_plugins(logout::LogoutPlugin)
         .add_plugins(game_engine::profession::ProfessionPlugin)
         .add_plugins(game_engine::talent::TalentPlugin)
         .add_plugins(game_engine::trade::TradePlugin)
