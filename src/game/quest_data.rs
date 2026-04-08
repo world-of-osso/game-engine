@@ -246,6 +246,64 @@ impl QuestLogState {
     pub fn quests_by_type(&self, qt: QuestType) -> Vec<&QuestEntry> {
         self.entries.iter().filter(|e| e.quest_type == qt).collect()
     }
+
+    /// Accept a quest (add to log from dialog).
+    pub fn accept_quest(&mut self, entry: QuestEntry) -> bool {
+        if self.entries.iter().any(|e| e.quest_id == entry.quest_id) {
+            return false; // already in log
+        }
+        self.entries.push(entry);
+        true
+    }
+
+    /// Abandon a quest (remove from log).
+    pub fn abandon_quest(&mut self, quest_id: u32) -> bool {
+        let before = self.entries.len();
+        self.entries.retain(|e| e.quest_id != quest_id);
+        self.entries.len() < before
+    }
+
+    /// Turn in a quest (remove from log, marking complete).
+    pub fn turn_in_quest(&mut self, quest_id: u32) -> bool {
+        let entry = self.entries.iter().find(|e| e.quest_id == quest_id);
+        let can_turn_in = entry.is_some_and(|e| e.is_complete());
+        if can_turn_in {
+            self.entries.retain(|e| e.quest_id != quest_id);
+        }
+        can_turn_in
+    }
+}
+
+/// A pending quest interaction to send to the server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum QuestIntent {
+    Accept { quest_id: u32, npc_id: u32 },
+    TurnIn { quest_id: u32, npc_id: u32 },
+    Abandon { quest_id: u32 },
+}
+
+/// Queue of quest intents waiting to be sent to the server.
+#[derive(Resource, Default)]
+pub struct QuestIntentQueue {
+    pub pending: Vec<QuestIntent>,
+}
+
+impl QuestIntentQueue {
+    pub fn accept(&mut self, quest_id: u32, npc_id: u32) {
+        self.pending.push(QuestIntent::Accept { quest_id, npc_id });
+    }
+
+    pub fn turn_in(&mut self, quest_id: u32, npc_id: u32) {
+        self.pending.push(QuestIntent::TurnIn { quest_id, npc_id });
+    }
+
+    pub fn abandon(&mut self, quest_id: u32) {
+        self.pending.push(QuestIntent::Abandon { quest_id });
+    }
+
+    pub fn drain(&mut self) -> Vec<QuestIntent> {
+        std::mem::take(&mut self.pending)
+    }
 }
 
 #[cfg(test)]
@@ -619,5 +677,93 @@ mod tests {
         assert_eq!(state.quests_by_type(QuestType::Normal).len(), 1);
         assert_eq!(state.quests_by_type(QuestType::Daily).len(), 1);
         assert!(state.quests_by_type(QuestType::Campaign).is_empty());
+    }
+
+    // --- Quest accept/turn-in ---
+
+    #[test]
+    fn accept_quest_adds_to_log() {
+        let mut state = QuestLogState::default();
+        let entry = sample_entry(10, "Elwynn", false);
+        assert!(state.accept_quest(entry));
+        assert_eq!(state.quest_count(), 1);
+    }
+
+    #[test]
+    fn accept_duplicate_rejected() {
+        let mut state = QuestLogState::default();
+        state.accept_quest(sample_entry(10, "Z", false));
+        assert!(!state.accept_quest(sample_entry(10, "Z", false)));
+        assert_eq!(state.quest_count(), 1);
+    }
+
+    #[test]
+    fn abandon_quest_removes() {
+        let mut state = QuestLogState::default();
+        state.accept_quest(sample_entry(10, "Z", false));
+        assert!(state.abandon_quest(10));
+        assert_eq!(state.quest_count(), 0);
+    }
+
+    #[test]
+    fn abandon_nonexistent_returns_false() {
+        let mut state = QuestLogState::default();
+        assert!(!state.abandon_quest(999));
+    }
+
+    #[test]
+    fn turn_in_completed_quest() {
+        let mut state = QuestLogState::default();
+        state.accept_quest(sample_entry(10, "Z", true));
+        assert!(state.turn_in_quest(10));
+        assert_eq!(state.quest_count(), 0);
+    }
+
+    #[test]
+    fn turn_in_incomplete_fails() {
+        let mut state = QuestLogState::default();
+        state.accept_quest(sample_entry(10, "Z", false));
+        assert!(!state.turn_in_quest(10));
+        assert_eq!(state.quest_count(), 1);
+    }
+
+    // --- QuestIntentQueue ---
+
+    #[test]
+    fn intent_queue_accept() {
+        let mut queue = QuestIntentQueue::default();
+        queue.accept(100, 5);
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(
+            drained[0],
+            QuestIntent::Accept {
+                quest_id: 100,
+                npc_id: 5
+            }
+        );
+    }
+
+    #[test]
+    fn intent_queue_turn_in() {
+        let mut queue = QuestIntentQueue::default();
+        queue.turn_in(200, 10);
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            QuestIntent::TurnIn {
+                quest_id: 200,
+                npc_id: 10
+            }
+        );
+    }
+
+    #[test]
+    fn intent_queue_abandon() {
+        let mut queue = QuestIntentQueue::default();
+        queue.abandon(300);
+        let drained = queue.drain();
+        assert_eq!(drained[0], QuestIntent::Abandon { quest_id: 300 });
+        assert!(queue.pending.is_empty());
     }
 }
