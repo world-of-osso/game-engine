@@ -58,6 +58,8 @@ pub mod input_bindings;
 pub mod ipc;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
+#[path = "game/item_tooltip_data.rs"]
+pub mod item_tooltip_data;
 #[path = "game/lfg_data.rs"]
 pub mod lfg_data;
 pub mod listfile;
