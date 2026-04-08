@@ -76,6 +76,9 @@ const ANIM_READY_SPELL_OMNI: u16 = 56;
 const ANIM_CHANNEL: u16 = 76;
 const ANIM_WAVE: u16 = 67;
 const ANIM_DANCE: u16 = 69;
+const ANIM_KNEEL: u16 = 75;
+const ANIM_SIT_GROUND: u16 = 97;
+const ANIM_SLEEP: u16 = 100;
 const ANIM_ATTACK_1H: u16 = 46;
 const ANIM_ATTACK_2H: u16 = 48;
 const ANIM_ATTACK_OFF: u16 = 47;
@@ -356,13 +359,85 @@ impl EmoteAnimState {
     pub fn anim_id(&self) -> u16 {
         emote_anim_id(self.kind)
     }
+
+    pub fn loops_until_interrupted(&self) -> bool {
+        looping_emote(self.kind)
+    }
 }
 
 fn emote_anim_id(kind: EmoteKind) -> u16 {
     match kind {
         EmoteKind::Dance => ANIM_DANCE,
         EmoteKind::Wave => ANIM_WAVE,
+        EmoteKind::Sit => ANIM_SIT_GROUND,
+        EmoteKind::Sleep => ANIM_SLEEP,
+        EmoteKind::Kneel => ANIM_KNEEL,
     }
+}
+
+fn looping_emote(kind: EmoteKind) -> bool {
+    matches!(kind, EmoteKind::Sit | EmoteKind::Sleep | EmoteKind::Kneel)
+}
+
+fn movement_interrupts_looping_emote(movement: &MovementState) -> bool {
+    movement.direction != MoveDirection::None || movement.jumping || movement.swimming
+}
+
+fn movement_anim_id(movement: Option<&MovementState>) -> u16 {
+    movement
+        .map(|movement| {
+            direction_to_anim_id(movement.direction, movement.running, movement.swimming)
+        })
+        .unwrap_or(ANIM_STAND)
+}
+
+fn transition_to_anim(
+    player: &mut M2AnimPlayer,
+    sequences: &[M2AnimSequence],
+    anim_id: u16,
+) -> bool {
+    let Some(target_idx) = find_seq_idx(sequences, anim_id) else {
+        return false;
+    };
+    let blend_ms = sequences[target_idx].blend_time as f32;
+    start_transition(player, target_idx, blend_ms);
+    true
+}
+
+fn interrupt_looping_emote(
+    commands: &mut Commands,
+    entity: Entity,
+    player: &mut M2AnimPlayer,
+    data: &M2AnimData,
+    movement: Option<&MovementState>,
+) {
+    player.looping = true;
+    transition_to_anim(player, &data.sequences, movement_anim_id(movement));
+    commands.entity(entity).remove::<EmoteAnimState>();
+}
+
+fn start_emote(
+    player: &mut M2AnimPlayer,
+    data: &M2AnimData,
+    emote_idx: usize,
+    emote: &mut EmoteAnimState,
+) {
+    let blend_ms = data.sequences[emote_idx].blend_time as f32;
+    start_transition(player, emote_idx, blend_ms);
+    player.looping = emote.loops_until_interrupted();
+    emote.started = true;
+}
+
+fn finish_transient_emote(
+    commands: &mut Commands,
+    entity: Entity,
+    player: &mut M2AnimPlayer,
+    data: &M2AnimData,
+    movement: Option<&MovementState>,
+) {
+    player.looping = true;
+    transition_to_anim(player, &data.sequences, movement_anim_id(movement));
+    commands.entity(entity).remove::<EmoteAnimState>();
 }
 
 /// Map movement direction to a WoW animation ID.
@@ -483,11 +558,19 @@ fn apply_emote_animation(
             continue;
         };
 
+        if emote.loops_until_interrupted()
+            && movement.is_some_and(movement_interrupts_looping_emote)
+        {
+            interrupt_looping_emote(&mut commands, entity, &mut player, data, movement);
+            continue;
+        }
+
         if !emote.started {
-            let blend_ms = data.sequences[emote_idx].blend_time as f32;
-            start_transition(&mut player, emote_idx, blend_ms);
-            player.looping = false;
-            emote.started = true;
+            start_emote(&mut player, data, emote_idx, &mut emote);
+            continue;
+        }
+
+        if emote.loops_until_interrupted() {
             continue;
         }
 
@@ -495,17 +578,7 @@ fn apply_emote_animation(
             continue;
         }
 
-        player.looping = true;
-        let target_anim = movement
-            .map(|movement| {
-                direction_to_anim_id(movement.direction, movement.running, movement.swimming)
-            })
-            .unwrap_or(ANIM_STAND);
-        if let Some(target_idx) = find_seq_idx(&data.sequences, target_anim) {
-            let blend_ms = data.sequences[target_idx].blend_time as f32;
-            start_transition(&mut player, target_idx, blend_ms);
-        }
-        commands.entity(entity).remove::<EmoteAnimState>();
+        finish_transient_emote(&mut commands, entity, &mut player, data, movement);
     }
 }
 

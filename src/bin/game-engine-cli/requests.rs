@@ -232,6 +232,9 @@ pub fn emote_request(command: EmoteCmd) -> Result<Request, String> {
     let emote = match command {
         EmoteCmd::Dance => EmoteKind::Dance,
         EmoteCmd::Wave => EmoteKind::Wave,
+        EmoteCmd::Sit => EmoteKind::Sit,
+        EmoteCmd::Sleep => EmoteKind::Sleep,
+        EmoteCmd::Kneel => EmoteKind::Kneel,
     };
     Ok(Request::Emote { emote })
 }

@@ -516,6 +516,9 @@ pub(crate) enum SpellCmd {
 pub(crate) enum EmoteCmd {
     Dance,
     Wave,
+    Sit,
+    Sleep,
+    Kneel,
 }
 
 #[derive(Subcommand)]

@@ -466,6 +466,36 @@ fn emote_wave_command_maps_to_request() {
 }
 
 #[test]
+fn emote_sit_command_maps_to_request() {
+    assert_eq!(
+        emote_request(EmoteCmd::Sit).unwrap(),
+        Request::Emote {
+            emote: shared::protocol::EmoteKind::Sit,
+        }
+    );
+}
+
+#[test]
+fn emote_sleep_command_maps_to_request() {
+    assert_eq!(
+        emote_request(EmoteCmd::Sleep).unwrap(),
+        Request::Emote {
+            emote: shared::protocol::EmoteKind::Sleep,
+        }
+    );
+}
+
+#[test]
+fn emote_kneel_command_maps_to_request() {
+    assert_eq!(
+        emote_request(EmoteCmd::Kneel).unwrap(),
+        Request::Emote {
+            emote: shared::protocol::EmoteKind::Kneel,
+        }
+    );
+}
+
+#[test]
 fn inventory_search_command_maps_to_request() {
     let request = inventory_request(InventoryCmd::Search {
         text: "torch".into(),
