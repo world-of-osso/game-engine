@@ -268,6 +268,33 @@ pub struct PvpStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EncounterJournalBossEntry {
+    pub entry: u32,
+    pub name: String,
+    pub min_level: u16,
+    pub max_level: u16,
+    pub rank: u8,
+    pub ability_count: usize,
+    pub loot_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EncounterJournalInstanceEntry {
+    pub instance_id: u32,
+    pub name: String,
+    pub instance_type: String,
+    pub tier: String,
+    pub source: String,
+    pub bosses: Vec<EncounterJournalBossEntry>,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct EncounterJournalStatusSnapshot {
+    pub instances: Vec<EncounterJournalInstanceEntry>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct LfgStatusSnapshot {
     pub queued: bool,
@@ -670,6 +697,14 @@ mod tests {
     }
 
     #[test]
+    fn encounter_journal_status_snapshot_defaults_to_empty_state() {
+        let snapshot = EncounterJournalStatusSnapshot::default();
+
+        assert!(snapshot.instances.is_empty());
+        assert!(snapshot.last_error.is_none());
+    }
+
+    #[test]
     fn barber_shop_status_snapshot_defaults_to_empty_state() {
         let snapshot = BarberShopStatusSnapshot::default();
 
@@ -986,6 +1021,7 @@ mod tests {
         round_trip(&FriendsStatusSnapshot::default());
         round_trip(&IgnoreListStatusSnapshot::default());
         round_trip(&PvpStatusSnapshot::default());
+        round_trip(&EncounterJournalStatusSnapshot::default());
         round_trip(&LfgStatusSnapshot::default());
         round_trip(&BarberShopStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());

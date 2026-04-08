@@ -286,6 +286,7 @@ pub(crate) enum MailCmd {
 pub(crate) enum StatusCmd {
     Achievements,
     Barber,
+    EncounterJournal,
     Friends,
     Ignore,
     Lfg,

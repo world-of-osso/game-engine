@@ -321,6 +321,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
         StatusCmd::Achievements => Request::AchievementsStatus,
         StatusCmd::Barber => Request::BarberStatus,
+        StatusCmd::EncounterJournal => Request::EncounterJournalStatus,
         StatusCmd::Friends => Request::FriendsStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
         StatusCmd::Lfg => Request::LfgStatus,

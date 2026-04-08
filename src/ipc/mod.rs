@@ -112,6 +112,7 @@ pub enum Request {
     BarberReset,
     BarberApply,
     PvpStatus,
+    EncounterJournalStatus,
     PvpQueueBattleground {
         battleground_id: u32,
     },

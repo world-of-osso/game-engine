@@ -135,6 +135,14 @@ fn barber_status_command_maps_to_request() {
 }
 
 #[test]
+fn encounter_journal_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::EncounterJournal).unwrap(),
+        Request::EncounterJournalStatus
+    );
+}
+
+#[test]
 fn friends_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Friends).unwrap(),

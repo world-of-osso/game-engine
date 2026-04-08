@@ -2,8 +2,9 @@ use super::*;
 use crate::status::{
     AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
     BarberShopStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
-    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendEntry,
-    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EncounterJournalBossEntry,
+    EncounterJournalInstanceEntry, EncounterJournalStatusSnapshot, EquippedGearStatusSnapshot,
+    FriendEntry, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
     InventoryItemEntry, InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry,
     LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
     PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
@@ -138,6 +139,33 @@ fn formats_barber_shop_status_snapshot() {
     assert!(text.contains("pending_cost: 2g 0s 0c"));
     assert!(text.contains("Hair Style: current=Style 1 pending=Style 4"));
     assert!(text.contains("message: barber shop ready"));
+}
+
+#[test]
+fn formats_encounter_journal_status_snapshot() {
+    let text = format_encounter_journal_status(&EncounterJournalStatusSnapshot {
+        instances: vec![EncounterJournalInstanceEntry {
+            instance_id: 1,
+            name: "The Deadmines".into(),
+            instance_type: "Dungeon".into(),
+            tier: "Classic".into(),
+            source: "world.db:test".into(),
+            bosses: vec![EncounterJournalBossEntry {
+                entry: 639,
+                name: "Edwin VanCleef".into(),
+                min_level: 20,
+                max_level: 20,
+                rank: 1,
+                ability_count: 2,
+                loot_count: 2,
+            }],
+        }],
+        last_error: None,
+    });
+
+    assert!(text.contains("instances: 1"));
+    assert!(text.contains("The Deadmines [Dungeon] tier=Classic source=world.db:test bosses=1"));
+    assert!(text.contains("Edwin VanCleef entry=639 level=20 - 20 rank=1 abilities=2 loot=2"));
 }
 
 #[test]

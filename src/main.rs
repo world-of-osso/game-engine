@@ -452,6 +452,7 @@ fn register_ui_plugins(app: &mut App) {
     app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
         .add_plugins(game_engine::collection::CollectionPlugin)
         .add_plugins(game_engine::duel::DuelPlugin)
+        .add_plugins(game_engine::encounter_journal::EncounterJournalPlugin)
         .add_plugins(game_engine::inspect::InspectPlugin)
         .add_plugins(game_engine::currency::CurrencyPlugin)
         .add_plugins(game_engine::profession::ProfessionPlugin)
@@ -675,6 +676,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         game_engine::lfg::LfgPlugin,
         game_engine::pvp::PvpPlugin,
         game_engine::world_map::WorldMapPlugin,
+        scenes::encounter_journal_frame::EncounterJournalFramePlugin,
         scenes::friends_frame::FriendsFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,

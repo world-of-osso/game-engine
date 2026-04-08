@@ -6,11 +6,11 @@ mod format_terrain;
 use crate::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterStatsSnapshot,
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole,
-    GroupStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
-    LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot,
-    SoundStatusSnapshot,
+    CurrenciesStatusSnapshot, EncounterJournalStatusSnapshot, EquippedGearStatusSnapshot,
+    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
+    InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -24,6 +24,9 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
     let text = match &cmd.request {
         Request::AchievementsStatus => format_achievement_status(ctx.achievements_status),
         Request::BarberStatus => format_barber_shop_status(ctx.barber_shop_status),
+        Request::EncounterJournalStatus => {
+            format_encounter_journal_status(ctx.encounter_journal_status)
+        }
         Request::NetworkStatus => format_network_status(ctx.network_status, ctx.connected),
         Request::TerrainStatus => format_terrain_status(ctx.terrain_status),
         Request::SoundStatus => format_sound_status(ctx.sound_status),
@@ -116,6 +119,40 @@ pub fn format_barber_shop_status(snapshot: &BarberShopStatusSnapshot) -> String 
     }
     if let Some(error) = &snapshot.last_error {
         lines.push(format!("error: {error}"));
+    }
+    lines.join("\n")
+}
+
+pub fn format_encounter_journal_status(snapshot: &EncounterJournalStatusSnapshot) -> String {
+    let mut lines = vec![format!("instances: {}", snapshot.instances.len())];
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.instances.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    for instance in &snapshot.instances {
+        lines.push(format!(
+            "{} [{}] tier={} source={} bosses={}",
+            instance.name,
+            instance.instance_type,
+            instance.tier,
+            instance.source,
+            instance.bosses.len()
+        ));
+        for boss in &instance.bosses {
+            lines.push(format!(
+                "  {} entry={} level={} - {} rank={} abilities={} loot={}",
+                boss.name,
+                boss.entry,
+                boss.min_level,
+                boss.max_level,
+                boss.rank,
+                boss.ability_count,
+                boss.loot_count
+            ));
+        }
     }
     lines.join("\n")
 }

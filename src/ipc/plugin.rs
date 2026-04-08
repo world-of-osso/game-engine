@@ -38,12 +38,12 @@ use crate::pvp::{PvpRuntimeState, queue_ipc_request as queue_pvp_ipc_request};
 use crate::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterRosterStatusSnapshot,
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot,
-    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot, Waypoint,
+    CurrenciesStatusSnapshot, DuelStatusSnapshot, EncounterJournalStatusSnapshot,
+    EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot, FriendsStatusSnapshot,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, LfgStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
+    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
+    TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
@@ -80,6 +80,7 @@ pub(crate) type TreeQuery<'w, 's> = Query<'w, 's, crate::dump::TreeQueryData<'st
 struct StatusSnapshotParams<'w> {
     achievements: Res<'w, AchievementsStatusSnapshot>,
     barber_shop: Res<'w, BarberShopStatusSnapshot>,
+    encounter_journal: Res<'w, EncounterJournalStatusSnapshot>,
     network: Res<'w, NetworkStatusSnapshot>,
     terrain: Res<'w, TerrainStatusSnapshot>,
     sound: Res<'w, SoundStatusSnapshot>,
@@ -107,6 +108,7 @@ struct StatusSnapshotParams<'w> {
 pub(crate) struct DispatchContext<'a> {
     pub achievements_status: &'a AchievementsStatusSnapshot,
     pub barber_shop_status: &'a BarberShopStatusSnapshot,
+    pub encounter_journal_status: &'a EncounterJournalStatusSnapshot,
     pub network_status: &'a NetworkStatusSnapshot,
     pub terrain_status: &'a TerrainStatusSnapshot,
     pub sound_status: &'a SoundStatusSnapshot,
@@ -224,6 +226,7 @@ fn build_dispatch_context<'a>(
     DispatchContext {
         achievements_status: &snapshots.achievements,
         barber_shop_status: &snapshots.barber_shop,
+        encounter_journal_status: &snapshots.encounter_journal,
         network_status: &snapshots.network,
         terrain_status: &snapshots.terrain,
         sound_status: &snapshots.sound,
