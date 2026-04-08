@@ -138,6 +138,69 @@ impl ThreatLevel {
     }
 }
 
+/// Quest giver indicator above a nameplate (! or ?).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum QuestIndicator {
+    #[default]
+    None,
+    /// Yellow ! — NPC has a new quest available.
+    Available,
+    /// Yellow ? — NPC can accept a completed quest turn-in.
+    TurnIn,
+    /// Silver ! — NPC has a quest available but requirements not met.
+    Unavailable,
+    /// Blue ! — Daily quest available.
+    DailyAvailable,
+    /// Blue ? — Daily quest turn-in.
+    DailyTurnIn,
+    /// Orange ! — Campaign/legendary quest.
+    CampaignAvailable,
+}
+
+impl QuestIndicator {
+    /// The display glyph (! or ?).
+    pub fn glyph(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Available
+            | Self::Unavailable
+            | Self::DailyAvailable
+            | Self::CampaignAvailable => "!",
+            Self::TurnIn | Self::DailyTurnIn => "?",
+        }
+    }
+
+    /// RGBA color for the indicator.
+    pub fn color(self) -> [f32; 4] {
+        match self {
+            Self::None => [0.0; 4],
+            Self::Available | Self::TurnIn => [1.0, 0.82, 0.0, 1.0],
+            Self::Unavailable => [0.7, 0.7, 0.7, 1.0],
+            Self::DailyAvailable | Self::DailyTurnIn => [0.3, 0.5, 1.0, 1.0],
+            Self::CampaignAvailable => [1.0, 0.5, 0.0, 1.0],
+        }
+    }
+
+    /// Whether any indicator should be shown.
+    pub fn is_visible(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    /// Texture FDID for the indicator icon (from quest_data textures).
+    pub fn icon_fdid(self) -> u32 {
+        match self {
+            Self::None => 0,
+            Self::Available => crate::quest_data::textures::QUEST_BANG_NORMAL,
+            Self::TurnIn => crate::quest_data::textures::QUEST_TURNIN,
+            Self::DailyAvailable | Self::DailyTurnIn => {
+                crate::quest_data::textures::QUEST_BANG_DAILY
+            }
+            Self::CampaignAvailable => crate::quest_data::textures::QUEST_BANG_CAMPAIGN,
+            Self::Unavailable => crate::quest_data::textures::QUEST_BANG_NORMAL,
+        }
+    }
+}
+
 /// Visual state of a nameplate.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NameplateVisuals {
@@ -151,6 +214,8 @@ pub struct NameplateVisuals {
     pub cast: Option<NameplateCastBar>,
     /// Threat/aggro level for glow indicator.
     pub threat: ThreatLevel,
+    /// Quest giver indicator (! or ?).
+    pub quest_indicator: QuestIndicator,
 }
 
 impl Default for NameplateVisuals {
@@ -164,6 +229,7 @@ impl Default for NameplateVisuals {
             health_max: 1.0,
             cast: None,
             threat: ThreatLevel::None,
+            quest_indicator: QuestIndicator::None,
         }
     }
 }
@@ -428,5 +494,73 @@ mod tests {
             ..Default::default()
         };
         assert!(np.threat.has_glow());
+    }
+
+    // --- Quest indicators ---
+
+    #[test]
+    fn quest_indicator_none_not_visible() {
+        assert!(!QuestIndicator::None.is_visible());
+        assert_eq!(QuestIndicator::None.glyph(), "");
+    }
+
+    #[test]
+    fn quest_available_shows_exclamation() {
+        let qi = QuestIndicator::Available;
+        assert!(qi.is_visible());
+        assert_eq!(qi.glyph(), "!");
+        // Yellow color
+        assert!((qi.color()[0] - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn quest_turnin_shows_question() {
+        let qi = QuestIndicator::TurnIn;
+        assert_eq!(qi.glyph(), "?");
+        assert!(qi.is_visible());
+    }
+
+    #[test]
+    fn daily_indicators_are_blue() {
+        let avail = QuestIndicator::DailyAvailable;
+        let turnin = QuestIndicator::DailyTurnIn;
+        assert_eq!(avail.glyph(), "!");
+        assert_eq!(turnin.glyph(), "?");
+        // Blue-ish color
+        assert!(avail.color()[2] > 0.8);
+        assert!(turnin.color()[2] > 0.8);
+    }
+
+    #[test]
+    fn campaign_is_orange() {
+        let qi = QuestIndicator::CampaignAvailable;
+        assert_eq!(qi.glyph(), "!");
+        assert!((qi.color()[0] - 1.0).abs() < 0.01);
+        assert!((qi.color()[1] - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn unavailable_is_gray() {
+        let qi = QuestIndicator::Unavailable;
+        assert_eq!(qi.glyph(), "!");
+        assert!((qi.color()[0] - 0.7).abs() < 0.01);
+    }
+
+    #[test]
+    fn quest_icon_fdids_nonzero() {
+        assert_ne!(QuestIndicator::Available.icon_fdid(), 0);
+        assert_ne!(QuestIndicator::TurnIn.icon_fdid(), 0);
+        assert_ne!(QuestIndicator::DailyAvailable.icon_fdid(), 0);
+        assert_ne!(QuestIndicator::CampaignAvailable.icon_fdid(), 0);
+        assert_eq!(QuestIndicator::None.icon_fdid(), 0);
+    }
+
+    #[test]
+    fn nameplate_with_quest_indicator() {
+        let np = NameplateVisuals {
+            quest_indicator: QuestIndicator::Available,
+            ..Default::default()
+        };
+        assert!(np.quest_indicator.is_visible());
     }
 }
