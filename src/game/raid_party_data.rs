@@ -185,6 +185,86 @@ impl GroupUnitState {
     }
 }
 
+// --- Loot distribution ---
+
+/// How loot is distributed among group members.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LootMethod {
+    /// Anyone can loot any corpse.
+    FreeForAll,
+    /// Members take turns looting.
+    RoundRobin,
+    /// Leader assigns loot manually.
+    MasterLooter,
+    /// Roll on items above threshold (need/greed/pass).
+    #[default]
+    GroupLoot,
+    /// Need before greed rolls on items above threshold.
+    NeedBeforeGreed,
+}
+
+impl LootMethod {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::FreeForAll => "Free For All",
+            Self::RoundRobin => "Round Robin",
+            Self::MasterLooter => "Master Looter",
+            Self::GroupLoot => "Group Loot",
+            Self::NeedBeforeGreed => "Need Before Greed",
+        }
+    }
+}
+
+/// Minimum item quality that triggers the loot roll popup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LootThreshold {
+    /// Gray (poor) — rolls on everything.
+    Poor,
+    /// White (common).
+    Common,
+    /// Green (uncommon) — WoW default.
+    #[default]
+    Uncommon,
+    /// Blue (rare).
+    Rare,
+    /// Purple (epic).
+    Epic,
+    /// Orange (legendary).
+    Legendary,
+}
+
+impl LootThreshold {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Poor => "Poor",
+            Self::Common => "Common",
+            Self::Uncommon => "Uncommon",
+            Self::Rare => "Rare",
+            Self::Epic => "Epic",
+            Self::Legendary => "Legendary",
+        }
+    }
+
+    /// WoW quality ID (0–5).
+    pub fn quality_id(self) -> u8 {
+        match self {
+            Self::Poor => 0,
+            Self::Common => 1,
+            Self::Uncommon => 2,
+            Self::Rare => 3,
+            Self::Epic => 4,
+            Self::Legendary => 5,
+        }
+    }
+}
+
+/// Active loot distribution settings for the group.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct LootSettings {
+    pub method: LootMethod,
+    pub threshold: LootThreshold,
+}
+
 // --- Group ---
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -199,6 +279,7 @@ pub struct RaidGroupData {
 pub struct PartyState {
     pub members: Vec<GroupUnitState>,
     pub ready_check_active: bool,
+    pub loot: LootSettings,
 }
 
 impl PartyState {
@@ -350,6 +431,10 @@ pub enum GroupIntent {
     },
     /// Set the local player's own role.
     SetOwnRole { role: GroupRole },
+    /// Change the group loot distribution method (leader only).
+    SetLootMethod { method: LootMethod },
+    /// Change the loot quality threshold (leader only).
+    SetLootThreshold { threshold: LootThreshold },
 }
 
 /// Queue of group intents waiting to be sent to the server.
@@ -378,6 +463,15 @@ impl GroupIntentQueue {
 
     pub fn set_own_role(&mut self, role: GroupRole) {
         self.pending.push(GroupIntent::SetOwnRole { role });
+    }
+
+    pub fn set_loot_method(&mut self, method: LootMethod) {
+        self.pending.push(GroupIntent::SetLootMethod { method });
+    }
+
+    pub fn set_loot_threshold(&mut self, threshold: LootThreshold) {
+        self.pending
+            .push(GroupIntent::SetLootThreshold { threshold });
     }
 
     pub fn drain(&mut self) -> Vec<GroupIntent> {
@@ -571,6 +665,7 @@ mod tests {
                 },
             ],
             ready_check_active: true,
+            ..Default::default()
         };
         assert!(ready.all_ready());
 
@@ -586,6 +681,7 @@ mod tests {
                 },
             ],
             ready_check_active: true,
+            ..Default::default()
         };
         assert!(!not_ready.all_ready());
     }
@@ -820,6 +916,77 @@ mod tests {
         assert_eq!(state.role_count(GroupRole::Tank), 1);
         assert_eq!(state.role_count(GroupRole::Healer), 1);
         assert_eq!(state.role_count(GroupRole::Dps), 1);
+    }
+
+    // --- Loot distribution ---
+
+    #[test]
+    fn loot_method_labels() {
+        assert_eq!(LootMethod::FreeForAll.label(), "Free For All");
+        assert_eq!(LootMethod::GroupLoot.label(), "Group Loot");
+        assert_eq!(LootMethod::NeedBeforeGreed.label(), "Need Before Greed");
+        assert_eq!(LootMethod::MasterLooter.label(), "Master Looter");
+        assert_eq!(LootMethod::RoundRobin.label(), "Round Robin");
+    }
+
+    #[test]
+    fn loot_method_default_is_group_loot() {
+        assert_eq!(LootMethod::default(), LootMethod::GroupLoot);
+    }
+
+    #[test]
+    fn loot_threshold_labels() {
+        assert_eq!(LootThreshold::Uncommon.label(), "Uncommon");
+        assert_eq!(LootThreshold::Rare.label(), "Rare");
+        assert_eq!(LootThreshold::Epic.label(), "Epic");
+    }
+
+    #[test]
+    fn loot_threshold_default_is_uncommon() {
+        assert_eq!(LootThreshold::default(), LootThreshold::Uncommon);
+    }
+
+    #[test]
+    fn loot_threshold_quality_ids() {
+        assert_eq!(LootThreshold::Poor.quality_id(), 0);
+        assert_eq!(LootThreshold::Common.quality_id(), 1);
+        assert_eq!(LootThreshold::Uncommon.quality_id(), 2);
+        assert_eq!(LootThreshold::Rare.quality_id(), 3);
+        assert_eq!(LootThreshold::Epic.quality_id(), 4);
+        assert_eq!(LootThreshold::Legendary.quality_id(), 5);
+    }
+
+    #[test]
+    fn party_loot_defaults() {
+        let state = PartyState::default();
+        assert_eq!(state.loot.method, LootMethod::GroupLoot);
+        assert_eq!(state.loot.threshold, LootThreshold::Uncommon);
+    }
+
+    #[test]
+    fn group_intent_set_loot_method() {
+        let mut queue = GroupIntentQueue::default();
+        queue.set_loot_method(LootMethod::MasterLooter);
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GroupIntent::SetLootMethod {
+                method: LootMethod::MasterLooter
+            }
+        );
+    }
+
+    #[test]
+    fn group_intent_set_loot_threshold() {
+        let mut queue = GroupIntentQueue::default();
+        queue.set_loot_threshold(LootThreshold::Epic);
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GroupIntent::SetLootThreshold {
+                threshold: LootThreshold::Epic
+            }
+        );
     }
 
     #[test]
