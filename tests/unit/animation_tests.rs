@@ -596,3 +596,88 @@ fn attack_anim_ids_all_distinct() {
     assert_ne!(ids[0], ids[2]);
     assert_ne!(ids[1], ids[2]);
 }
+
+// --- Animation overrides ---
+
+#[test]
+fn override_registry_empty_by_default() {
+    let reg = AnimOverrideRegistry::default();
+    assert!(reg.is_empty());
+    assert!(reg.get(100).is_none());
+}
+
+#[test]
+fn override_insert_and_get() {
+    let mut reg = AnimOverrideRegistry::default();
+    reg.insert(
+        2098, // Kick
+        AnimOverride {
+            anim_id: ANIM_SPELL_CAST_DIRECTED,
+            looping: false,
+        },
+    );
+    let entry = reg.get(2098).unwrap();
+    assert_eq!(entry.anim_id, ANIM_SPELL_CAST_DIRECTED);
+    assert!(!entry.looping);
+}
+
+#[test]
+fn override_resolve_uses_override() {
+    let mut reg = AnimOverrideRegistry::default();
+    reg.insert(
+        2098,
+        AnimOverride {
+            anim_id: ANIM_ATTACK_1H,
+            looping: false,
+        },
+    );
+    assert_eq!(reg.resolve(2098, CastAnimKind::Directed), ANIM_ATTACK_1H);
+}
+
+#[test]
+fn override_resolve_falls_back_to_default() {
+    let reg = AnimOverrideRegistry::default();
+    assert_eq!(
+        reg.resolve(9999, CastAnimKind::Directed),
+        ANIM_SPELL_CAST_DIRECTED
+    );
+    assert_eq!(reg.resolve(9999, CastAnimKind::Channel), ANIM_CHANNEL);
+}
+
+#[test]
+fn override_resolve_looping() {
+    let mut reg = AnimOverrideRegistry::default();
+    reg.insert(
+        200,
+        AnimOverride {
+            anim_id: ANIM_CHANNEL,
+            looping: true,
+        },
+    );
+    assert!(reg.resolve_looping(200, CastAnimKind::Directed));
+    // Unregistered spell falls back to kind default
+    assert!(!reg.resolve_looping(999, CastAnimKind::Directed));
+    assert!(reg.resolve_looping(999, CastAnimKind::Channel));
+}
+
+#[test]
+fn override_insert_replaces() {
+    let mut reg = AnimOverrideRegistry::default();
+    reg.insert(
+        100,
+        AnimOverride {
+            anim_id: 1,
+            looping: false,
+        },
+    );
+    reg.insert(
+        100,
+        AnimOverride {
+            anim_id: 2,
+            looping: true,
+        },
+    );
+    assert_eq!(reg.len(), 1);
+    assert_eq!(reg.get(100).unwrap().anim_id, 2);
+    assert!(reg.get(100).unwrap().looping);
+}

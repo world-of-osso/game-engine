@@ -142,6 +142,62 @@ impl AttackAnimState {
     }
 }
 
+/// An animation override for a specific ability/spell.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AnimOverride {
+    /// The WoW animation ID to play instead of the default.
+    pub anim_id: u16,
+    /// Whether this override loops (like a channel) or plays once.
+    pub looping: bool,
+}
+
+/// Registry mapping spell IDs to animation overrides.
+#[derive(Default, Clone, Debug)]
+pub struct AnimOverrideRegistry {
+    entries: Vec<(u32, AnimOverride)>,
+}
+
+impl AnimOverrideRegistry {
+    /// Register an override for a spell ID.
+    pub fn insert(&mut self, spell_id: u32, anim: AnimOverride) {
+        if let Some(entry) = self.entries.iter_mut().find(|(id, _)| *id == spell_id) {
+            entry.1 = anim;
+        } else {
+            self.entries.push((spell_id, anim));
+        }
+    }
+
+    /// Look up an override for a spell.
+    pub fn get(&self, spell_id: u32) -> Option<&AnimOverride> {
+        self.entries
+            .iter()
+            .find(|(id, _)| *id == spell_id)
+            .map(|(_, anim)| anim)
+    }
+
+    /// Resolve the animation ID for a spell, falling back to the cast kind default.
+    pub fn resolve(&self, spell_id: u32, default_kind: CastAnimKind) -> u16 {
+        self.get(spell_id)
+            .map(|o| o.anim_id)
+            .unwrap_or_else(|| default_kind.cast_anim_id())
+    }
+
+    /// Resolve whether the animation should loop.
+    pub fn resolve_looping(&self, spell_id: u32, default_kind: CastAnimKind) -> bool {
+        self.get(spell_id)
+            .map(|o| o.looping)
+            .unwrap_or_else(|| default_kind.is_looping())
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
 /// Whether a spell has a target (directed) or is area-effect (omni).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum CastAnimKind {
