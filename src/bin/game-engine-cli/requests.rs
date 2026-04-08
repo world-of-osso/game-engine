@@ -8,7 +8,7 @@ use shared::protocol::{
 
 use crate::{
     AuctionCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd, GroupCmd,
-    IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd,
+    IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd,
     ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
@@ -103,6 +103,20 @@ pub fn ignore_request(command: IgnoreCmd) -> Result<Request, String> {
         IgnoreCmd::Status => Request::IgnoreStatus,
         IgnoreCmd::Add { name } => Request::IgnoreAdd { name },
         IgnoreCmd::Remove { name } => Request::IgnoreRemove { name },
+    };
+    Ok(request)
+}
+
+pub fn lfg_request(command: LfgCmd) -> Result<Request, String> {
+    let request = match command {
+        LfgCmd::Status => Request::LfgStatus,
+        LfgCmd::Queue { role, dungeon_ids } => Request::LfgQueue {
+            role: parse_group_role(&role)?,
+            dungeon_ids,
+        },
+        LfgCmd::Dequeue => Request::LfgDequeue,
+        LfgCmd::Accept => Request::LfgAccept,
+        LfgCmd::Decline => Request::LfgDecline,
     };
     Ok(request)
 }
@@ -281,6 +295,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
         StatusCmd::Achievements => Request::AchievementsStatus,
         StatusCmd::Friends => Request::FriendsStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
+        StatusCmd::Lfg => Request::LfgStatus,
         StatusCmd::Network => Request::NetworkStatus,
         StatusCmd::Terrain => Request::TerrainStatus,
         StatusCmd::Sound => Request::SoundStatus,
@@ -293,6 +308,16 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
         StatusCmd::EquippedGear => Request::EquippedGearStatus,
     };
     Ok(request)
+}
+
+fn parse_group_role(value: &str) -> Result<game_engine::status::GroupRole, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "tank" => Ok(game_engine::status::GroupRole::Tank),
+        "healer" | "heal" => Ok(game_engine::status::GroupRole::Healer),
+        "damage" | "dps" => Ok(game_engine::status::GroupRole::Damage),
+        "none" => Ok(game_engine::status::GroupRole::None),
+        _ => Err(format!("unknown role: {value}")),
+    }
 }
 
 pub struct AuctionBrowseRequestArgs {

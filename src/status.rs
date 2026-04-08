@@ -224,6 +224,43 @@ pub struct IgnoreListStatusSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LfgRoleCheckEntry {
+    pub dungeon_id: u32,
+    pub dungeon_name: String,
+    pub assigned_role: GroupRole,
+    pub accepted_count: u8,
+    pub total_count: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LfgMatchMemberEntry {
+    pub name: String,
+    pub role: GroupRole,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LfgMatchFoundEntry {
+    pub dungeon_id: u32,
+    pub dungeon_name: String,
+    pub assigned_role: GroupRole,
+    pub members: Vec<LfgMatchMemberEntry>,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct LfgStatusSnapshot {
+    pub queued: bool,
+    pub selected_role: Option<GroupRole>,
+    pub dungeon_ids: Vec<u32>,
+    pub queue_size: u16,
+    pub average_wait_secs: u32,
+    pub in_demand_roles: Vec<GroupRole>,
+    pub role_check: Option<LfgRoleCheckEntry>,
+    pub match_found: Option<LfgMatchFoundEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StorageItemEntry {
     pub slot: u32,
     pub item_guid: u64,
@@ -579,6 +616,18 @@ mod tests {
     }
 
     #[test]
+    fn lfg_status_snapshot_defaults_to_inactive() {
+        let snapshot = LfgStatusSnapshot::default();
+
+        assert!(!snapshot.queued);
+        assert!(snapshot.selected_role.is_none());
+        assert!(snapshot.dungeon_ids.is_empty());
+        assert!(snapshot.in_demand_roles.is_empty());
+        assert!(snapshot.role_check.is_none());
+        assert!(snapshot.match_found.is_none());
+    }
+
+    #[test]
     fn combat_log_snapshot_defaults_to_no_entries() {
         let snapshot = CombatLogStatusSnapshot::default();
 
@@ -788,6 +837,37 @@ mod tests {
     }
 
     #[test]
+    fn lfg_status_round_trip() {
+        let snapshot = LfgStatusSnapshot {
+            queued: true,
+            selected_role: Some(GroupRole::Tank),
+            dungeon_ids: vec![100],
+            queue_size: 3,
+            average_wait_secs: 42,
+            in_demand_roles: vec![GroupRole::Healer],
+            role_check: Some(LfgRoleCheckEntry {
+                dungeon_id: 100,
+                dungeon_name: "Deadmines".into(),
+                assigned_role: GroupRole::Tank,
+                accepted_count: 2,
+                total_count: 5,
+            }),
+            match_found: Some(LfgMatchFoundEntry {
+                dungeon_id: 100,
+                dungeon_name: "Deadmines".into(),
+                assigned_role: GroupRole::Tank,
+                members: vec![LfgMatchMemberEntry {
+                    name: "Theron".into(),
+                    role: GroupRole::Tank,
+                }],
+            }),
+            last_server_message: Some("role check started".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn default_snapshots_round_trip() {
         round_trip(&NetworkStatusSnapshot::default());
         round_trip(&TerrainStatusSnapshot::default());
@@ -802,6 +882,7 @@ mod tests {
         round_trip(&GroupStatusSnapshot::default());
         round_trip(&FriendsStatusSnapshot::default());
         round_trip(&IgnoreListStatusSnapshot::default());
+        round_trip(&LfgStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());
     }
 

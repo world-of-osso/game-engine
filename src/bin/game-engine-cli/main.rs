@@ -11,9 +11,9 @@ use peercred_ipc::Client;
 use requests::{
     auction_request, collection_request, combat_request, currency_request, duel_request,
     equipment_request, export_character_request, export_scene_request, friend_request,
-    group_request, ignore_request, inspect_request, inventory_request, item_request, mail_request,
-    map_request, profession_request, quest_request, reputation_request, spell_request,
-    status_request, talent_request, trade_request,
+    group_request, ignore_request, inspect_request, inventory_request, item_request, lfg_request,
+    mail_request, map_request, profession_request, quest_request, reputation_request,
+    spell_request, status_request, talent_request, trade_request,
 };
 
 #[derive(Parser)]
@@ -125,6 +125,11 @@ enum Cmd {
     Ignore {
         #[command(subcommand)]
         command: IgnoreCmd,
+    },
+    /// Dungeon finder commands
+    Lfg {
+        #[command(subcommand)]
+        command: LfgCmd,
     },
     /// Spell commands
     Spell {
@@ -271,6 +276,7 @@ pub(crate) enum StatusCmd {
     Achievements,
     Friends,
     Ignore,
+    Lfg,
     Network,
     Terrain,
     Sound,
@@ -352,6 +358,20 @@ pub(crate) enum IgnoreCmd {
         #[arg(long)]
         name: String,
     },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum LfgCmd {
+    Status,
+    Queue {
+        #[arg(long)]
+        role: String,
+        #[arg(long = "dungeon-id", required = true)]
+        dungeon_ids: Vec<u32>,
+    },
+    Dequeue,
+    Accept,
+    Decline,
 }
 
 #[derive(Subcommand)]
@@ -575,6 +595,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Group { command } => handle_group(socket, command, json),
         Cmd::Friend { command } => handle_friend(socket, command, json),
         Cmd::Ignore { command } => handle_ignore(socket, command, json),
+        Cmd::Lfg { command } => handle_lfg(socket, command, json),
         Cmd::Spell { command } => handle_spell(socket, command, json),
         Cmd::Combat { command } => handle_combat(socket, command, json),
         Cmd::Reputation { command } => handle_reputation(socket, command, json),
@@ -734,6 +755,10 @@ fn handle_friend(socket: &PathBuf, command: FriendCmd, json: bool) -> Result<(),
 
 fn handle_ignore(socket: &PathBuf, command: IgnoreCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, ignore_request(command)?, json)
+}
+
+fn handle_lfg(socket: &PathBuf, command: LfgCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, lfg_request(command)?, json)
 }
 
 fn handle_spell(socket: &PathBuf, command: SpellCmd, json: bool) -> Result<(), String> {

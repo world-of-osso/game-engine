@@ -671,6 +671,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         game_engine::achievement::AchievementPlugin,
         game_engine::friends::FriendsPlugin,
         game_engine::ignore_list::IgnoreListPlugin,
+        game_engine::lfg::LfgPlugin,
         game_engine::world_map::WorldMapPlugin,
         scenes::friends_frame::FriendsFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,

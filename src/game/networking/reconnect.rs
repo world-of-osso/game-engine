@@ -154,6 +154,9 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::ignore_list::reset_runtime(&mut ignore_list_state);
     }
+    if let Some(mut lfg_state) = world.get_resource_mut::<game_engine::lfg::LfgRuntimeState>() {
+        game_engine::lfg::reset_runtime(&mut lfg_state);
+    }
     if let Some(mut world_map) =
         world.get_resource_mut::<game_engine::world_map_data::WorldMapState>()
     {
@@ -190,6 +193,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
     reset_resource::<game_engine::status::InspectStatusSnapshot>(world);
     reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
+    reset_resource::<game_engine::status::LfgStatusSnapshot>(world);
     reset_resource::<game_engine::status::MapStatusSnapshot>(world);
     reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
     reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);

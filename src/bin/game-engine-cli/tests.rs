@@ -112,6 +112,11 @@ fn ignore_status_command_maps_to_request() {
 }
 
 #[test]
+fn lfg_status_command_maps_to_request() {
+    assert_eq!(status_request(StatusCmd::Lfg).unwrap(), Request::LfgStatus);
+}
+
+#[test]
 fn network_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Network).unwrap(),
@@ -393,6 +398,36 @@ fn ignore_remove_command_maps_to_request() {
             name: "Alice".into(),
         }
     );
+}
+
+#[test]
+fn lfg_queue_command_maps_to_request() {
+    assert_eq!(
+        lfg_request(LfgCmd::Queue {
+            role: "tank".into(),
+            dungeon_ids: vec![33, 48],
+        })
+        .unwrap(),
+        Request::LfgQueue {
+            role: game_engine::status::GroupRole::Tank,
+            dungeon_ids: vec![33, 48],
+        }
+    );
+}
+
+#[test]
+fn lfg_dequeue_command_maps_to_request() {
+    assert_eq!(lfg_request(LfgCmd::Dequeue).unwrap(), Request::LfgDequeue);
+}
+
+#[test]
+fn lfg_accept_command_maps_to_request() {
+    assert_eq!(lfg_request(LfgCmd::Accept).unwrap(), Request::LfgAccept);
+}
+
+#[test]
+fn lfg_decline_command_maps_to_request() {
+    assert_eq!(lfg_request(LfgCmd::Decline).unwrap(), Request::LfgDecline);
 }
 
 #[test]

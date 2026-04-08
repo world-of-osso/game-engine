@@ -4,9 +4,9 @@ use crate::status::{
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot,
     GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    TerrainStatusSnapshot,
+    InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry,
+    LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -185,6 +185,43 @@ fn formats_ignore_list_status_snapshot_with_server_message() {
     assert!(text.contains("message: ignored: Alice"));
     assert!(text.contains("Alice"));
     assert!(text.contains("Bob"));
+}
+
+#[test]
+fn formats_lfg_status_snapshot_with_role_check_and_match() {
+    let text = format_lfg_status(&LfgStatusSnapshot {
+        queued: true,
+        selected_role: Some(GroupRole::Tank),
+        dungeon_ids: vec![33, 48],
+        queue_size: 8,
+        average_wait_secs: 95,
+        in_demand_roles: vec![GroupRole::Healer],
+        role_check: Some(LfgRoleCheckEntry {
+            dungeon_id: 33,
+            dungeon_name: "Shadowfang Keep".into(),
+            assigned_role: GroupRole::Tank,
+            accepted_count: 4,
+            total_count: 5,
+        }),
+        match_found: Some(LfgMatchFoundEntry {
+            dungeon_id: 33,
+            dungeon_name: "Shadowfang Keep".into(),
+            assigned_role: GroupRole::Tank,
+            members: vec![LfgMatchMemberEntry {
+                name: "Alice".into(),
+                role: GroupRole::Healer,
+            }],
+        }),
+        last_server_message: Some("match found".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("lfg: queued=true role=tank"));
+    assert!(text.contains("dungeons: 33,48"));
+    assert!(text.contains("in_demand=healer"));
+    assert!(text.contains("role_check: Shadowfang Keep role=tank accepted=4/5"));
+    assert!(text.contains("match_found: Shadowfang Keep role=tank members=1"));
+    assert!(text.contains("member: Alice role=healer"));
 }
 
 #[test]

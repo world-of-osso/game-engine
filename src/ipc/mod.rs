@@ -13,6 +13,7 @@ use shared::protocol::{
 
 use crate::item_info::ItemInfoQuery;
 use crate::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
+use crate::status::GroupRole;
 
 /// IPC request from CLI to engine.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -93,6 +94,14 @@ pub enum Request {
     IgnoreRemove {
         name: String,
     },
+    LfgStatus,
+    LfgQueue {
+        role: GroupRole,
+        dungeon_ids: Vec<u32>,
+    },
+    LfgDequeue,
+    LfgAccept,
+    LfgDecline,
     AchievementsStatus,
     NetworkStatus,
     TerrainStatus,

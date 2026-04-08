@@ -73,6 +73,7 @@ pub mod ipc;
 pub mod item_info;
 #[path = "game/item_tooltip_data.rs"]
 pub mod item_tooltip_data;
+pub mod lfg;
 #[path = "game/lfg_data.rs"]
 pub mod lfg_data;
 pub mod listfile;

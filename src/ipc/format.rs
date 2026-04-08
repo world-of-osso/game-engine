@@ -7,9 +7,9 @@ use crate::status::{
     AchievementsStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
     EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
-    ReputationsStatusSnapshot, SoundStatusSnapshot,
+    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -52,6 +52,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
         }
         Request::FriendsStatus => format_friends_status(ctx.friends_status),
         Request::IgnoreStatus => format_ignore_list_status(ctx.ignore_list_status),
+        Request::LfgStatus => format_lfg_status(ctx.lfg_status),
         Request::ProfessionRecipes { text } => {
             format_profession_recipes(ctx.profession_status, text)
         }
@@ -195,6 +196,86 @@ pub fn format_ignore_list_status(snapshot: &IgnoreListStatusSnapshot) -> String 
     }
     lines.extend(snapshot.names.iter().cloned());
     lines.join("\n")
+}
+
+pub fn format_lfg_status(snapshot: &LfgStatusSnapshot) -> String {
+    let mut lines = vec![format!(
+        "lfg: queued={} role={}",
+        snapshot.queued,
+        snapshot
+            .selected_role
+            .as_ref()
+            .map(format_group_role)
+            .unwrap_or("-")
+    )];
+    lines.push(format!(
+        "dungeons: {}",
+        if snapshot.dungeon_ids.is_empty() {
+            "-".into()
+        } else {
+            snapshot
+                .dungeon_ids
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join(",")
+        }
+    ));
+    lines.push(format!(
+        "queue: size={} avg_wait_secs={} in_demand={}",
+        snapshot.queue_size,
+        snapshot.average_wait_secs,
+        if snapshot.in_demand_roles.is_empty() {
+            "-".into()
+        } else {
+            snapshot
+                .in_demand_roles
+                .iter()
+                .map(format_group_role)
+                .collect::<Vec<_>>()
+                .join(",")
+        }
+    ));
+    if let Some(role_check) = &snapshot.role_check {
+        lines.push(format!(
+            "role_check: {} role={} accepted={}/{}",
+            role_check.dungeon_name,
+            format_group_role(&role_check.assigned_role),
+            role_check.accepted_count,
+            role_check.total_count
+        ));
+    }
+    if let Some(match_found) = &snapshot.match_found {
+        lines.push(format!(
+            "match_found: {} role={} members={}",
+            match_found.dungeon_name,
+            format_group_role(&match_found.assigned_role),
+            match_found.members.len()
+        ));
+        lines.extend(match_found.members.iter().map(|member| {
+            format!(
+                "member: {} role={}",
+                member.name,
+                format_group_role(&member.role)
+            )
+        }));
+    }
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    lines.join("\n")
+}
+
+fn format_group_role(role: &GroupRole) -> &'static str {
+    match role {
+        GroupRole::Tank => "tank",
+        GroupRole::Healer => "healer",
+        GroupRole::Damage => "damage",
+        GroupRole::None => "none",
+    }
 }
 
 fn opt_int(value: Option<impl std::fmt::Display>) -> String {
