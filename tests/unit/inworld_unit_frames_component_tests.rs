@@ -221,6 +221,20 @@ fn player_resting_labels_render_when_enabled() {
     assert_eq!(label_font.text, "Resting");
 }
 
+#[test]
+fn player_combat_icon_renders_when_enabled() {
+    let reg = unit_frames_registry();
+
+    let icon = reg.get(reg.get_by_name("PlayerCombatIcon").expect("combat icon"));
+    let Some(ui_toolkit::frame::WidgetData::FontString(icon_font)) =
+        icon.and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("expected PlayerCombatIcon fontstring");
+    };
+
+    assert_eq!(icon_font.text, "⚔");
+}
+
 fn unit_frames_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
@@ -236,6 +250,7 @@ fn unit_frames_registry() -> FrameRegistry {
             health_fill_width: PLAYER_HEALTH_BAR_W,
             mana_fill_width: PLAYER_HEALTH_BAR_W,
             has_mana: true,
+            show_combat_icon: true,
             show_resting_icon: true,
         },
         target: Some(UnitFrameState {
@@ -247,6 +262,7 @@ fn unit_frames_registry() -> FrameRegistry {
             health_fill_width: TARGET_HEALTH_BAR_W,
             mana_fill_width: TARGET_MANA_BAR_W,
             has_mana: true,
+            show_combat_icon: false,
             show_resting_icon: false,
         }),
     });

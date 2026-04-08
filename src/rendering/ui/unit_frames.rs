@@ -187,6 +187,7 @@ fn build_player_state(
         mana.map(|mana| mana.max),
     );
     state.has_mana = mana.is_some();
+    state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
     state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
     state
 }
@@ -256,6 +257,31 @@ mod tests {
         let npc = Npc { template_id: 42 };
         let state = build_target_state((None, None, None, Some(&npc), None));
         assert_eq!(state.name, "Creature 42");
+    }
+
+    #[test]
+    fn player_state_shows_combat_icon_when_snapshot_is_in_combat() {
+        let player = NetPlayer {
+            name: "Thrall".to_string(),
+            race: 0,
+            class: 0,
+            appearance: default(),
+        };
+        let health = NetHealth {
+            current: 100.0,
+            max: 100.0,
+        };
+        let stats = CharacterStatsSnapshot {
+            in_combat: true,
+            ..Default::default()
+        };
+
+        let state = build_player_state(
+            Some(&stats),
+            (Some(&player), Some(&health), None, None, None),
+        );
+
+        assert!(state.show_combat_icon);
     }
 
     #[test]

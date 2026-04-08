@@ -31,6 +31,7 @@ pub struct UnitFrameState {
     pub health_fill_width: f32,
     pub mana_fill_width: f32,
     pub has_mana: bool,
+    pub show_combat_icon: bool,
     pub show_resting_icon: bool,
 }
 
@@ -358,11 +359,37 @@ fn player_portrait_overlay_icons(prefix: &str, state: &UnitFrameState) -> Elemen
             PLAYER_CORNER.y,
         ),
         anchored_top_marker(format!("{prefix}PVPIcon"), PLAYER_PVP.x, PLAYER_PVP.y),
+        combat_icon(prefix, state),
         resting_icon(prefix, state),
     ]
     .into_iter()
     .flatten()
     .collect()
+}
+
+fn combat_icon(prefix: &str, state: &UnitFrameState) -> Element {
+    let hidden = !state.show_combat_icon;
+    rsx! {
+        fontstring {
+            name: {dyn_name(format!("{prefix}CombatIcon"))},
+            width: 18.0,
+            height: 12.0,
+            text: "⚔",
+            hidden: hidden,
+            font: UNIT_NAME_FONT,
+            font_size: 12.0,
+            font_color: "1.0,0.2,0.15,1.0",
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {PLAYER_CORNER.x + 17.0},
+                y: {-PLAYER_CORNER.y - 4.0},
+            }
+        }
+    }
 }
 
 fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
@@ -572,6 +599,7 @@ pub fn default_player_frame_state() -> UnitFrameState {
         health_fill_width: 0.0,
         mana_fill_width: 0.0,
         has_mana: false,
+        show_combat_icon: false,
         show_resting_icon: false,
     }
 }
@@ -586,6 +614,7 @@ pub fn fallback_target_frame_state() -> UnitFrameState {
         health_fill_width: 0.0,
         mana_fill_width: 0.0,
         has_mana: false,
+        show_combat_icon: false,
         show_resting_icon: false,
     }
 }

@@ -197,6 +197,7 @@ pub struct CharacterStatsSnapshot {
     pub mana_current: Option<f32>,
     pub mana_max: Option<f32>,
     pub movement_speed: Option<f32>,
+    pub in_combat: bool,
     pub in_rest_area: bool,
     pub rest_area_kind: Option<RestAreaKindEntry>,
     pub rested_xp: u32,
@@ -647,6 +648,7 @@ mod tests {
 
         assert!(snapshot.name.is_none());
         assert!(snapshot.level.is_none());
+        assert!(!snapshot.in_combat);
         assert_eq!(snapshot.zone_id, 0);
     }
 
