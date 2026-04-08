@@ -165,7 +165,7 @@ impl InputAction {
             Self::StrafeRight => movement_meta("strafe_right", "Strafe Right", KeyCode::KeyD),
             Self::Jump => movement_meta("jump", "Jump", KeyCode::Space),
             Self::RunToggle => movement_meta("run_toggle", "Run / Walk Toggle", KeyCode::KeyZ),
-            Self::AutoRun => movement_meta_without_default("auto_run", "Auto-Run"),
+            Self::AutoRun => movement_meta("auto_run", "Auto-Run", KeyCode::NumLock),
             Self::TurnLeft => camera_meta("turn_left", "Turn Left", KeyCode::ArrowLeft),
             Self::TurnRight => camera_meta("turn_right", "Turn Right", KeyCode::ArrowRight),
             Self::PitchUp => camera_meta("pitch_up", "Pitch Up", KeyCode::ArrowUp),
@@ -390,10 +390,6 @@ fn movement_meta(key: &'static str, label: &'static str, default_key: KeyCode) -
     )
 }
 
-fn movement_meta_without_default(key: &'static str, label: &'static str) -> InputActionMeta {
-    input_action_meta(key, label, BindingSection::Movement, None)
-}
-
 fn camera_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
     input_action_meta(
         key,
@@ -593,6 +589,7 @@ fn key_short_label(key: KeyCode) -> Option<&'static str> {
         KeyCode::ArrowDown => Some("Down Arrow"),
         KeyCode::PageUp => Some("Page Up"),
         KeyCode::PageDown => Some("Page Down"),
+        KeyCode::NumLock => Some("Num Lock"),
         _ => key_alpha_numeric_label(key),
     }
 }
@@ -657,6 +654,7 @@ fn parse_named_key(token: &str) -> Option<KeyCode> {
         "ArrowDown" => Some(KeyCode::ArrowDown),
         "PageUp" => Some(KeyCode::PageUp),
         "PageDown" => Some(KeyCode::PageDown),
+        "NumLock" => Some(KeyCode::NumLock),
         "Home" => Some(KeyCode::Home),
         "End" => Some(KeyCode::End),
         "Insert" => Some(KeyCode::Insert),
@@ -712,5 +710,25 @@ mod tests {
             Some(InputBinding::Keyboard(KeyCode::KeyW))
         );
         assert_eq!(bindings.binding(InputAction::ToggleMute), None);
+    }
+
+    #[test]
+    fn autorun_has_default_num_lock_binding() {
+        assert_eq!(
+            InputAction::AutoRun.default_binding(),
+            Some(InputBinding::Keyboard(KeyCode::NumLock))
+        );
+        assert_eq!(
+            InputBindings::default().binding(InputAction::AutoRun),
+            Some(InputBinding::Keyboard(KeyCode::NumLock))
+        );
+    }
+
+    #[test]
+    fn num_lock_binding_token_round_trips() {
+        let token = binding_token(InputBinding::Keyboard(KeyCode::NumLock));
+        let parsed = parse_binding_token(&token).expect("num lock token should parse");
+        assert_eq!(parsed, InputBinding::Keyboard(KeyCode::NumLock));
+        assert_eq!(key_display(KeyCode::NumLock), "Num Lock");
     }
 }

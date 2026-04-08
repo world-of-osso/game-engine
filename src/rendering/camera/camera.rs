@@ -737,6 +737,56 @@ mod tests {
         assert_eq!(proposed.y, 2.0);
         assert!((proposed.z - 7.0).abs() < 0.001);
     }
+
+    #[test]
+    fn autorun_toggle_sets_forward_animation_without_forward_key() {
+        let keys = ButtonInput::<KeyCode>::default();
+        let mouse_buttons = ButtonInput::<MouseButton>::default();
+        let bindings = InputBindings::default();
+
+        let (direction, anim_dir) = compute_movement_input(
+            &keys,
+            &mouse_buttons,
+            &bindings,
+            true,
+            &CharacterFacing { yaw: 0.0 },
+        );
+
+        assert_eq!(anim_dir, MoveDirection::Forward);
+        assert_eq!(direction, Vec3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn backward_input_cancels_autorun_toggle() {
+        let mut keys = ButtonInput::<KeyCode>::default();
+        let mouse_buttons = ButtonInput::<MouseButton>::default();
+        let bindings = InputBindings::default();
+        let mut movement = MovementState {
+            autorun: true,
+            ..Default::default()
+        };
+
+        keys.press(KeyCode::KeyS);
+        sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
+
+        assert!(!movement.autorun);
+    }
+
+    #[test]
+    fn modal_close_clears_autorun() {
+        let mut movement = MovementState {
+            direction: MoveDirection::Forward,
+            autorun: true,
+            ..Default::default()
+        };
+
+        let modal = crate::scenes::game_menu::UiModalOpen;
+        let closed = close_player_movement_for_modal(Some(&modal), &mut movement);
+
+        assert!(closed);
+        assert!(!movement.autorun);
+        assert_eq!(movement.direction, MoveDirection::None);
+    }
 }
 
 #[cfg(test)]
