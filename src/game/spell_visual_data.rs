@@ -70,6 +70,99 @@ impl SpellVisualKit {
     }
 }
 
+/// A resolved DB2 SpellVisualKit row: animation ID + attached M2 effects.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SpellVisualKitEntry {
+    pub kit_id: u32,
+    /// WoW animation ID to play (0 = use default for cast type).
+    pub anim_id: u16,
+    /// Start animation M2 model FDID (cast wind-up effect).
+    pub start_anim_fdid: u32,
+    /// Cast effect M2 model FDID (sustained during cast bar).
+    pub cast_effect_fdid: u32,
+    /// Impact effect M2 model FDID.
+    pub impact_effect_fdid: u32,
+    /// State (aura) effect M2 model FDID.
+    pub state_effect_fdid: u32,
+    /// Channel effect M2 model FDID.
+    pub channel_effect_fdid: u32,
+    /// Missile model FDID.
+    pub missile_fdid: u32,
+}
+
+impl SpellVisualKitEntry {
+    /// Convert this DB2 entry into a `SpellVisualKit` with resolved effects.
+    pub fn to_visual_kit(&self) -> SpellVisualKit {
+        let mut effects = Vec::new();
+        if self.start_anim_fdid != 0 {
+            effects.push(VisualEffect {
+                phase: VisualPhase::Cast,
+                model_fdid: self.start_anim_fdid,
+                ..Default::default()
+            });
+        }
+        if self.cast_effect_fdid != 0 {
+            effects.push(VisualEffect {
+                phase: VisualPhase::Cast,
+                model_fdid: self.cast_effect_fdid,
+                ..Default::default()
+            });
+        }
+        if self.impact_effect_fdid != 0 {
+            effects.push(VisualEffect {
+                phase: VisualPhase::Impact,
+                model_fdid: self.impact_effect_fdid,
+                ..Default::default()
+            });
+        }
+        if self.state_effect_fdid != 0 {
+            effects.push(VisualEffect {
+                phase: VisualPhase::State,
+                model_fdid: self.state_effect_fdid,
+                ..Default::default()
+            });
+        }
+        if self.channel_effect_fdid != 0 {
+            effects.push(VisualEffect {
+                phase: VisualPhase::Channel,
+                model_fdid: self.channel_effect_fdid,
+                ..Default::default()
+            });
+        }
+        if self.missile_fdid != 0 {
+            effects.push(VisualEffect {
+                phase: VisualPhase::Missile,
+                model_fdid: self.missile_fdid,
+                ..Default::default()
+            });
+        }
+        SpellVisualKit {
+            kit_id: self.kit_id,
+            effects,
+        }
+    }
+
+    /// Whether this entry has a custom animation (non-zero anim_id).
+    pub fn has_custom_anim(&self) -> bool {
+        self.anim_id != 0
+    }
+
+    /// Count of non-zero effect FDIDs.
+    pub fn effect_count(&self) -> usize {
+        [
+            self.start_anim_fdid,
+            self.cast_effect_fdid,
+            self.impact_effect_fdid,
+            self.state_effect_fdid,
+            self.channel_effect_fdid,
+            self.missile_fdid,
+        ]
+        .iter()
+        .filter(|&&fdid| fdid != 0)
+        .count()
+    }
+}
+
 /// Maps spell IDs to visual kits.
 #[derive(Resource, Clone, Debug, Default)]
 pub struct SpellVisualRegistry {
@@ -461,5 +554,78 @@ mod tests {
         stack.add(ActiveVisualEffect::one_shot(1, VisualPhase::Cast, 1.0));
         assert!(stack.has_phase(VisualPhase::Cast));
         assert!(!stack.has_phase(VisualPhase::Impact));
+    }
+
+    // --- SpellVisualKitEntry (DB2 lookup) ---
+
+    #[test]
+    fn kit_entry_to_visual_kit_maps_phases() {
+        let entry = SpellVisualKitEntry {
+            kit_id: 42,
+            anim_id: 51,
+            start_anim_fdid: 100,
+            cast_effect_fdid: 0,
+            impact_effect_fdid: 200,
+            state_effect_fdid: 0,
+            channel_effect_fdid: 0,
+            missile_fdid: 300,
+        };
+        let kit = entry.to_visual_kit();
+        assert_eq!(kit.kit_id, 42);
+        assert!(kit.has_phase(VisualPhase::Cast));
+        assert!(kit.has_phase(VisualPhase::Impact));
+        assert!(kit.has_phase(VisualPhase::Missile));
+        assert!(!kit.has_phase(VisualPhase::Channel));
+        assert!(!kit.has_phase(VisualPhase::State));
+    }
+
+    #[test]
+    fn kit_entry_empty_produces_no_effects() {
+        let entry = SpellVisualKitEntry::default();
+        let kit = entry.to_visual_kit();
+        assert!(kit.effects.is_empty());
+    }
+
+    #[test]
+    fn kit_entry_effect_count() {
+        let entry = SpellVisualKitEntry {
+            cast_effect_fdid: 1,
+            impact_effect_fdid: 2,
+            missile_fdid: 3,
+            ..Default::default()
+        };
+        assert_eq!(entry.effect_count(), 3);
+    }
+
+    #[test]
+    fn kit_entry_has_custom_anim() {
+        let with = SpellVisualKitEntry {
+            anim_id: 51,
+            ..Default::default()
+        };
+        assert!(with.has_custom_anim());
+        assert!(!SpellVisualKitEntry::default().has_custom_anim());
+    }
+
+    #[test]
+    fn kit_entry_all_phases_populated() {
+        let entry = SpellVisualKitEntry {
+            kit_id: 1,
+            anim_id: 0,
+            start_anim_fdid: 10,
+            cast_effect_fdid: 20,
+            impact_effect_fdid: 30,
+            state_effect_fdid: 40,
+            channel_effect_fdid: 50,
+            missile_fdid: 60,
+        };
+        assert_eq!(entry.effect_count(), 6);
+        let kit = entry.to_visual_kit();
+        // start_anim + cast_effect both map to Cast phase
+        assert_eq!(kit.effects_for_phase(VisualPhase::Cast).len(), 2);
+        assert_eq!(kit.effects_for_phase(VisualPhase::Impact).len(), 1);
+        assert_eq!(kit.effects_for_phase(VisualPhase::State).len(), 1);
+        assert_eq!(kit.effects_for_phase(VisualPhase::Channel).len(), 1);
+        assert_eq!(kit.effects_for_phase(VisualPhase::Missile).len(), 1);
     }
 }
