@@ -3,11 +3,12 @@ use lightyear::prelude::*;
 use shared::components::Zone;
 use shared::protocol::{
     ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
-    CombatLogEventKindSnapshot, CombatLogSnapshot, CurrencySnapshot, GroupCommandResponse,
-    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
-    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
-    ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
-    ReputationSnapshot, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
+    CombatLogEventKindSnapshot, CombatLogSnapshot, CurrencySnapshot, DuelStateUpdate,
+    GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
+    InspectStateUpdate, InventorySearchResultSnapshot, LoadTerrain, PlayerInput,
+    ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
+    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationSnapshot, SetTarget,
+    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -17,11 +18,12 @@ use crate::terrain::AdtManager;
 use game_engine::chat_data::{
     ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState,
 };
+use game_engine::duel::apply_duel_state_update as map_duel_state_update;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
     CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, CurrencyEntry,
-    GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
+    DuelStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
     InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry,
     ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry,
     QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
@@ -629,6 +631,10 @@ pub(crate) fn apply_inspect_state_update(
     update: InspectStateUpdate,
 ) {
     map_inspect_state_update(snapshot, update);
+}
+
+pub(crate) fn apply_duel_state_update(snapshot: &mut DuelStatusSnapshot, update: DuelStateUpdate) {
+    map_duel_state_update(snapshot, update);
 }
 
 fn map_storage_item(e: StorageItemSnapshot) -> StorageItemEntry {

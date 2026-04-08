@@ -15,6 +15,7 @@ use super::init;
 use super::{Command, Request, Response};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
+use crate::duel::{DuelClientState, queue_ipc_request_with_snapshot as queue_duel_ipc_request};
 use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc_request};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
@@ -23,11 +24,11 @@ use crate::profession::{
 };
 use crate::status::{
     CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
-    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
-    EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot, Waypoint,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DuelStatusSnapshot,
+    EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot, GroupStatusSnapshot,
+    GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
+    TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
@@ -121,6 +122,8 @@ struct SceneParams<'w, 's> {
 #[derive(bevy::ecs::system::SystemParam)]
 struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
+    duel: ResMut<'w, DuelClientState>,
+    duel_status: Res<'w, DuelStatusSnapshot>,
     profession: ResMut<'w, ProfessionRuntimeState>,
     profession_status: Res<'w, ProfessionStatusSnapshot>,
     inspect: ResMut<'w, InspectRuntimeState>,
@@ -214,6 +217,15 @@ fn dispatch(
     if queue_profession_ipc_request(
         &mut world.profession,
         &world.profession_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_duel_ipc_request(
+        &mut world.duel,
+        &world.duel_status,
+        ctx.current_target,
         &cmd.request,
         cmd.respond.clone(),
     ) {

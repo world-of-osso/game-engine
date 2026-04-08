@@ -7,9 +7,9 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, CollectionCmd, CombatCmd, EquipmentCmd, GroupCmd, InspectCmd, InventoryCmd,
-    ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd,
-    TalentCmd, TradeCmd, WaypointCmd,
+    AuctionCmd, CollectionCmd, CombatCmd, DuelCmd, EquipmentCmd, GroupCmd, InspectCmd,
+    InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd,
+    StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -108,6 +108,16 @@ pub fn trade_request(command: TradeCmd) -> Result<Request, String> {
         TradeCmd::ClearItem { slot } => Request::TradeClearItem { slot },
         TradeCmd::SetMoney { copper } => Request::TradeSetMoney { copper },
         TradeCmd::Confirm => Request::TradeConfirm,
+    };
+    Ok(request)
+}
+
+pub fn duel_request(command: DuelCmd) -> Result<Request, String> {
+    let request = match command {
+        DuelCmd::Status => Request::DuelStatus,
+        DuelCmd::Challenge => Request::DuelChallenge,
+        DuelCmd::Accept => Request::DuelAccept,
+        DuelCmd::Decline => Request::DuelDecline,
     };
     Ok(request)
 }

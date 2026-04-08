@@ -192,6 +192,32 @@ fn talent_reset_command_maps_to_request() {
 }
 
 #[test]
+fn duel_status_command_maps_to_request() {
+    assert_eq!(duel_request(DuelCmd::Status).unwrap(), Request::DuelStatus);
+}
+
+#[test]
+fn duel_challenge_command_maps_to_request() {
+    assert_eq!(
+        duel_request(DuelCmd::Challenge).unwrap(),
+        Request::DuelChallenge
+    );
+}
+
+#[test]
+fn duel_accept_command_maps_to_request() {
+    assert_eq!(duel_request(DuelCmd::Accept).unwrap(), Request::DuelAccept);
+}
+
+#[test]
+fn duel_decline_command_maps_to_request() {
+    assert_eq!(
+        duel_request(DuelCmd::Decline).unwrap(),
+        Request::DuelDecline
+    );
+}
+
+#[test]
 fn inspect_status_command_maps_to_request() {
     assert_eq!(
         inspect_request(InspectCmd::Status).unwrap(),

@@ -116,6 +116,9 @@ fn reset_world_resources(world: &mut World) {
     {
         *trade_state = game_engine::trade::TradeClientState::default();
     }
+    if let Some(mut duel_state) = world.get_resource_mut::<game_engine::duel::DuelClientState>() {
+        game_engine::duel::reset_runtime(&mut duel_state);
+    }
     if let Some(mut profession_state) =
         world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
     {
@@ -142,6 +145,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
     reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);
+    reset_resource::<game_engine::status::DuelStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
     reset_resource::<game_engine::status::GroupStatusSnapshot>(world);

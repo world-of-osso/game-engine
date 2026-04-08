@@ -9,7 +9,7 @@ use game_engine::ipc::{Request, Response, socket_glob};
 use peercred_ipc::Client;
 
 use requests::{
-    auction_request, collection_request, combat_request, equipment_request,
+    auction_request, collection_request, combat_request, duel_request, equipment_request,
     export_character_request, export_scene_request, group_request, inspect_request,
     inventory_request, item_request, mail_request, map_request, profession_request, quest_request,
     reputation_request, spell_request, status_request, talent_request, trade_request,
@@ -69,6 +69,11 @@ enum Cmd {
     Trade {
         #[command(subcommand)]
         command: TradeCmd,
+    },
+    /// Duel operations via the running engine
+    Duel {
+        #[command(subcommand)]
+        command: DuelCmd,
     },
     /// Talent operations via the running engine
     Talent {
@@ -334,6 +339,14 @@ pub(crate) enum TradeCmd {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum DuelCmd {
+    Status,
+    Challenge,
+    Accept,
+    Decline,
+}
+
+#[derive(Subcommand)]
 pub(crate) enum TalentCmd {
     Status,
     Apply {
@@ -479,6 +492,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Auction { command } => handle_auction(socket, command, json),
         Cmd::Mail { command } => handle_mail(socket, command, json),
         Cmd::Trade { command } => handle_trade(socket, command, json),
+        Cmd::Duel { command } => handle_duel(socket, command, json),
         Cmd::Talent { command } => handle_talent(socket, command, json),
         Cmd::Inspect { command } => handle_inspect(socket, command, json),
         Cmd::Status { command } => handle_status(socket, command, json),
@@ -609,6 +623,10 @@ fn handle_trade(socket: &PathBuf, command: TradeCmd, json: bool) -> Result<(), S
 
 fn handle_talent(socket: &PathBuf, command: TalentCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, talent_request(command)?, json)
+}
+
+fn handle_duel(socket: &PathBuf, command: DuelCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, duel_request(command)?, json)
 }
 
 fn handle_inspect(socket: &PathBuf, command: InspectCmd, json: bool) -> Result<(), String> {

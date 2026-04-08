@@ -37,6 +37,7 @@ pub mod creature_display;
 pub mod csv_util;
 #[path = "game/dress_up_data.rs"]
 pub mod dress_up_data;
+pub mod duel;
 pub mod dump;
 #[path = "game/encounter_journal_data.rs"]
 pub mod encounter_journal_data;

@@ -666,6 +666,48 @@ fn inspect_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn duel_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::DuelStatusSnapshot::default();
+
+    crate::networking_messages::apply_duel_state_update(
+        &mut snapshot,
+        shared::protocol::DuelStateUpdate {
+            snapshot: Some(shared::protocol::DuelSnapshot {
+                phase: shared::protocol::DuelPhaseSnapshot::Active,
+                opponent_name: "Alice".into(),
+                boundary: Some(shared::protocol::DuelBoundarySnapshot {
+                    center_x: 10.0,
+                    center_z: 15.0,
+                    radius: 30.0,
+                }),
+                result: Some(shared::protocol::DuelResultSnapshot::Won),
+            }),
+            message: Some("duel started".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(
+        snapshot.phase,
+        Some(game_engine::status::DuelPhaseEntry::Active)
+    );
+    assert_eq!(snapshot.opponent_name.as_deref(), Some("Alice"));
+    assert_eq!(
+        snapshot.boundary.as_ref().map(|boundary| boundary.radius),
+        Some(30.0)
+    );
+    assert_eq!(
+        snapshot.last_result,
+        Some(game_engine::status::DuelResultEntry::Won)
+    );
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("duel started")
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn chat_log_caps_at_max() {
     let mut log = ChatLog::default();
     for i in 0..101 {

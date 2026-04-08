@@ -141,6 +141,39 @@ pub struct InspectStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DuelPhaseEntry {
+    PendingOutgoing,
+    PendingIncoming,
+    Active,
+    Completed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DuelBoundaryEntry {
+    pub center_x: f32,
+    pub center_z: f32,
+    pub radius: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DuelResultEntry {
+    Won,
+    Lost,
+    Declined,
+    Cancelled,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct DuelStatusSnapshot {
+    pub phase: Option<DuelPhaseEntry>,
+    pub opponent_name: Option<String>,
+    pub boundary: Option<DuelBoundaryEntry>,
+    pub last_result: Option<DuelResultEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub character_id: Option<u64>,
