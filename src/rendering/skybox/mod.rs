@@ -9,6 +9,7 @@ use bevy::render::render_resource::{
     Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension,
 };
 
+use super::weather::{ActiveWeather, weather_adjusted_fog};
 use crate::game_state::GameState;
 use crate::scenes::char_select::scene::CharSelectScene;
 use crate::sky_lightdata::{
@@ -400,18 +401,21 @@ fn update_sun_direction(
 fn update_fog(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
+    weather: Option<Res<ActiveWeather>>,
     mut fog_q: Query<&mut DistanceFog, Without<CharSelectScene>>,
     mut last_minutes: Local<f32>,
 ) {
-    if (game_time.minutes - *last_minutes).abs() < 0.01 {
+    let weather_changed = weather.as_ref().is_some_and(|weather| weather.is_changed());
+    if (game_time.minutes - *last_minutes).abs() < 0.01 && !weather_changed {
         return;
     }
     *last_minutes = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+    let (fog_color, directional_color, falloff) = weather_adjusted_fog(&colors, weather.as_deref());
     for mut fog in fog_q.iter_mut() {
-        fog.color = colors.sky_smog;
-        fog.directional_light_color = colors.sky_band2;
-        fog.falloff = fog_falloff_from_colors(&colors);
+        fog.color = fog_color;
+        fog.directional_light_color = directional_color;
+        fog.falloff = falloff.clone();
     }
 }
 

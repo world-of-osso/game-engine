@@ -29,6 +29,9 @@ pub mod m2_spawn;
 #[path = "particles/mod.rs"]
 pub mod particle;
 
+#[path = "weather.rs"]
+pub mod weather;
+
 #[path = "skybox/mod.rs"]
 pub mod sky;
 #[path = "skybox/sky_lightdata.rs"]

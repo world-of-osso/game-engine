@@ -131,6 +131,88 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
 }
 
 #[test]
+fn weather_change_updates_world_fog_without_time_advance() {
+    let mut app = App::new();
+    let sky_smog = Color::srgb(0.7, 0.8, 0.9);
+    let sky_band2 = Color::srgb(0.4, 0.5, 0.6);
+
+    app.insert_resource(GameTime {
+        minutes: 100.0,
+        speed: 0.0,
+    });
+    app.insert_resource(LightKeyframes(vec![LightDataRow {
+        time: 0.0,
+        direct_color: Color::WHITE,
+        ambient_color: Color::WHITE,
+        sky_top: Color::WHITE,
+        sky_middle: Color::WHITE,
+        sky_band1: Color::WHITE,
+        sky_band2,
+        sky_smog,
+        fog_color: Color::WHITE,
+        sun_color: Color::WHITE,
+        sun_halo_color: Color::WHITE,
+        cloud_emissive_color: Color::WHITE,
+        cloud_layer1_ambient_color: Color::WHITE,
+        cloud_layer2_ambient_color: Color::WHITE,
+        ocean_close_color: Color::WHITE,
+        ocean_far_color: Color::WHITE,
+        river_close_color: Color::WHITE,
+        river_far_color: Color::WHITE,
+        horizon_ambient_color: Color::WHITE,
+        fog_end: 1200.0,
+        fog_start: 300.0,
+        glow: 1.0,
+        cloud_density: 0.0,
+        unk1: 0.0,
+        unk2: 0.0,
+    }]));
+    let world_entity = app
+        .world_mut()
+        .spawn(DistanceFog {
+            color: Color::BLACK,
+            directional_light_color: Color::BLACK,
+            directional_light_exponent: 8.0,
+            falloff: FogFalloff::Linear {
+                start: 1.0,
+                end: 2.0,
+            },
+        })
+        .id();
+    app.add_systems(Update, update_fog);
+
+    app.update();
+    let clear_fog = app
+        .world()
+        .entity(world_entity)
+        .get::<DistanceFog>()
+        .expect("clear fog")
+        .clone();
+    assert_eq!(clear_fog.color.to_srgba(), sky_smog.to_srgba());
+
+    app.insert_resource(crate::weather::ActiveWeather::preset(
+        crate::weather::WeatherKind::Sandstorm,
+    ));
+    app.update();
+
+    let weather_fog = app
+        .world()
+        .entity(world_entity)
+        .get::<DistanceFog>()
+        .expect("weather fog");
+    assert_ne!(weather_fog.color.to_srgba(), clear_fog.color.to_srgba());
+    assert_ne!(
+        weather_fog.directional_light_color.to_srgba(),
+        clear_fog.directional_light_color.to_srgba()
+    );
+    assert!(matches!(
+        weather_fog.falloff,
+        FogFalloff::Linear { start, end }
+        if start < 300.0 && end < 1200.0
+    ));
+}
+
+#[test]
 fn resolve_inworld_map_id_prefers_map_name_when_present() {
     let mut adt_manager = AdtManager::default();
     adt_manager.map_name = "azeroth".to_string();
