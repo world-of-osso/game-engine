@@ -8,7 +8,7 @@ use shared::protocol::{
 
 use crate::{
     AuctionCmd, CollectionCmd, CombatCmd, EquipmentCmd, GroupCmd, InventoryCmd, ItemCmd, MailCmd,
-    MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, WaypointCmd,
+    MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -84,6 +84,29 @@ pub fn group_request(command: GroupCmd) -> Result<Request, String> {
         GroupCmd::Status => Request::GroupStatus,
         GroupCmd::Invite { name } => Request::GroupInvite { name },
         GroupCmd::Uninvite { name } => Request::GroupUninvite { name },
+    };
+    Ok(request)
+}
+
+pub fn trade_request(command: TradeCmd) -> Result<Request, String> {
+    let request = match command {
+        TradeCmd::Status => Request::TradeStatus,
+        TradeCmd::Initiate { name } => Request::TradeInitiate { name },
+        TradeCmd::Accept => Request::TradeAccept,
+        TradeCmd::Decline => Request::TradeDecline,
+        TradeCmd::Cancel => Request::TradeCancel,
+        TradeCmd::SetItem {
+            slot,
+            item_guid,
+            stack,
+        } => Request::TradeSetItem {
+            slot,
+            item_guid,
+            stack_count: stack,
+        },
+        TradeCmd::ClearItem { slot } => Request::TradeClearItem { slot },
+        TradeCmd::SetMoney { copper } => Request::TradeSetMoney { copper },
+        TradeCmd::Confirm => Request::TradeConfirm,
     };
     Ok(request)
 }

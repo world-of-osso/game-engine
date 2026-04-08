@@ -450,6 +450,7 @@ fn register_bevy_plugins(app: &mut App) {
 
 fn register_ui_plugins(app: &mut App) {
     app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
+        .add_plugins(game_engine::trade::TradePlugin)
         .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(game_engine::ui::automation::UiAutomationPlugin)

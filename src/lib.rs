@@ -118,6 +118,7 @@ pub mod spell_visual_data;
 pub mod sqlite_util;
 pub mod status;
 pub mod test_harness;
+pub mod trade;
 #[path = "game/trade_data.rs"]
 pub mod trade_data;
 pub mod ui;

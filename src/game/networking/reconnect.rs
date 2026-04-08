@@ -112,6 +112,10 @@ fn reset_world_resources(world: &mut World) {
         whisper_state.reply_target = None;
         whisper_state.recent_targets.clear();
     }
+    if let Some(mut trade_state) = world.get_resource_mut::<game_engine::trade::TradeClientState>()
+    {
+        *trade_state = game_engine::trade::TradeClientState::default();
+    }
     if let Some(mut adt_manager) = world.get_resource_mut::<crate::terrain::AdtManager>() {
         adt_manager.server_requested.clear();
     }

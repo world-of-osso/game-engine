@@ -217,6 +217,15 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
         recent_targets: vec!["StaleWhisper".into()],
         max_recent: 10,
     });
+    app.insert_resource(game_engine::trade::TradeClientState {
+        phase: Some(shared::protocol::TradePhase::Open),
+        trade: game_engine::trade_data::TradeState {
+            active: true,
+            ..Default::default()
+        },
+        last_message: Some("stale trade".into()),
+        ..Default::default()
+    });
     app.add_observer(handle_client_disconnected);
     app
 }
@@ -271,6 +280,12 @@ fn assert_inworld_reconnect_state(app: &App, client: Entity, replicated: Entity)
     let whisper_state = app.world().resource::<WhisperState>();
     assert_eq!(whisper_state.reply_target, None);
     assert!(whisper_state.recent_targets.is_empty());
+    let trade_state = app
+        .world()
+        .resource::<game_engine::trade::TradeClientState>();
+    assert_eq!(trade_state.phase, None);
+    assert!(!trade_state.trade.active);
+    assert_eq!(trade_state.last_message, None);
 }
 
 #[test]

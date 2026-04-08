@@ -26,6 +26,7 @@ use crate::status::{
     Waypoint,
 };
 use crate::targeting::CurrentTarget;
+use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_request};
 use crate::ui::plugin::UiState;
 use shared::protocol::{
     CombatChannel, GroupInviteIntent, GroupUninviteIntent, SpellCastIntent, StopSpellCast,
@@ -115,6 +116,7 @@ struct SceneParams<'w, 's> {
 #[derive(bevy::ecs::system::SystemParam)]
 struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
+    trade: ResMut<'w, TradeClientState>,
     mail: ResMut<'w, MailState>,
 }
 
@@ -196,6 +198,9 @@ fn dispatch(
     sender_params: &mut IpcSenderParams,
 ) {
     if queue_ipc_request(&mut world.auction_house, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
+    if queue_trade_ipc_request(&mut world.trade, &cmd.request, cmd.respond.clone()) {
         return;
     }
     if queue_mail_ipc_request(world.mail.as_mut(), &cmd.request, cmd.respond.clone()) {

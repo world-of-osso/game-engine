@@ -49,6 +49,25 @@ pub enum Request {
         claim: ClaimAuctionMail,
     },
     AuctionStatus,
+    TradeInitiate {
+        name: String,
+    },
+    TradeAccept,
+    TradeDecline,
+    TradeCancel,
+    TradeSetItem {
+        slot: u8,
+        item_guid: u64,
+        stack_count: u16,
+    },
+    TradeClearItem {
+        slot: u8,
+    },
+    TradeSetMoney {
+        copper: u32,
+    },
+    TradeConfirm,
+    TradeStatus,
     NetworkStatus,
     TerrainStatus,
     SoundStatus,
