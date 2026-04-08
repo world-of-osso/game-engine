@@ -39,9 +39,39 @@ pub struct MerchantState {
     pub repair_cost: Money,
     pub page: usize,
     pub items_per_page: usize,
+    /// The server-side entity ID of the vendor NPC (None = window closed).
+    pub npc_entity_id: Option<u64>,
 }
 
 impl MerchantState {
+    pub fn is_open(&self) -> bool {
+        self.npc_entity_id.is_some()
+    }
+
+    /// Open the merchant window for a specific NPC vendor.
+    pub fn open(
+        &mut self,
+        npc_entity_id: u64,
+        inventory: Vec<MerchantItemDef>,
+        player_money: Money,
+        repair_cost: Money,
+    ) {
+        self.npc_entity_id = Some(npc_entity_id);
+        self.inventory = inventory;
+        self.player_money = player_money;
+        self.repair_cost = repair_cost;
+        self.page = 0;
+    }
+
+    /// Close the merchant window and clear all state.
+    pub fn close(&mut self) {
+        self.npc_entity_id = None;
+        self.inventory.clear();
+        self.player_money = Money::default();
+        self.repair_cost = Money::default();
+        self.page = 0;
+    }
+
     pub fn page_count(&self) -> usize {
         if self.items_per_page == 0 {
             return 1;
@@ -88,6 +118,56 @@ impl MerchantState {
     /// Navigate to previous page (clamped).
     pub fn prev_page(&mut self) {
         self.page = self.page.saturating_sub(1);
+    }
+}
+
+// --- Client → server intents ---
+
+/// A pending merchant transaction to send to the server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MerchantIntent {
+    /// Buy an item from the vendor.
+    Buy { item_id: u32, quantity: u32 },
+    /// Sell an item from the player's inventory.
+    Sell { bag: u8, slot: u8 },
+    /// Buy back a recently sold item.
+    Buyback { slot: u8 },
+    /// Repair all equipped items.
+    RepairAll,
+    /// Repair a single item.
+    RepairSingle { bag: u8, slot: u8 },
+}
+
+/// Queue of merchant intents waiting to be sent to the server.
+#[derive(Resource, Default)]
+pub struct MerchantIntentQueue {
+    pub pending: Vec<MerchantIntent>,
+}
+
+impl MerchantIntentQueue {
+    pub fn buy(&mut self, item_id: u32, quantity: u32) {
+        self.pending.push(MerchantIntent::Buy { item_id, quantity });
+    }
+
+    pub fn sell(&mut self, bag: u8, slot: u8) {
+        self.pending.push(MerchantIntent::Sell { bag, slot });
+    }
+
+    pub fn buyback(&mut self, slot: u8) {
+        self.pending.push(MerchantIntent::Buyback { slot });
+    }
+
+    pub fn repair_all(&mut self) {
+        self.pending.push(MerchantIntent::RepairAll);
+    }
+
+    pub fn repair_single(&mut self, bag: u8, slot: u8) {
+        self.pending
+            .push(MerchantIntent::RepairSingle { bag, slot });
+    }
+
+    pub fn drain(&mut self) -> Vec<MerchantIntent> {
+        std::mem::take(&mut self.pending)
     }
 }
 
@@ -275,5 +355,106 @@ mod tests {
         };
         assert_eq!(state.page_count(), 1);
         assert_eq!(state.current_page_items().len(), 5);
+    }
+
+    // --- Open / close lifecycle ---
+
+    #[test]
+    fn state_starts_closed() {
+        let state = MerchantState::default();
+        assert!(!state.is_open());
+        assert!(state.npc_entity_id.is_none());
+    }
+
+    #[test]
+    fn open_and_close() {
+        let mut state = MerchantState {
+            items_per_page: 10,
+            ..Default::default()
+        };
+        let items = vec![make_item("Sword", 5000), make_item("Shield", 3000)];
+        state.open(42, items, Money(10000), Money(500));
+
+        assert!(state.is_open());
+        assert_eq!(state.npc_entity_id, Some(42));
+        assert_eq!(state.inventory.len(), 2);
+        assert_eq!(state.player_money, Money(10000));
+        assert_eq!(state.repair_cost, Money(500));
+        assert_eq!(state.page, 0);
+
+        state.close();
+        assert!(!state.is_open());
+        assert!(state.inventory.is_empty());
+        assert_eq!(state.player_money, Money(0));
+    }
+
+    #[test]
+    fn open_resets_page() {
+        let mut state = MerchantState {
+            page: 3,
+            items_per_page: 10,
+            ..Default::default()
+        };
+        state.open(1, vec![], Money(0), Money(0));
+        assert_eq!(state.page, 0);
+    }
+
+    // --- MerchantIntentQueue ---
+
+    #[test]
+    fn intent_buy() {
+        let mut queue = MerchantIntentQueue::default();
+        queue.buy(100, 5);
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(
+            drained[0],
+            MerchantIntent::Buy {
+                item_id: 100,
+                quantity: 5
+            }
+        );
+    }
+
+    #[test]
+    fn intent_sell() {
+        let mut queue = MerchantIntentQueue::default();
+        queue.sell(0, 3);
+        let drained = queue.drain();
+        assert_eq!(drained[0], MerchantIntent::Sell { bag: 0, slot: 3 });
+    }
+
+    #[test]
+    fn intent_buyback() {
+        let mut queue = MerchantIntentQueue::default();
+        queue.buyback(2);
+        let drained = queue.drain();
+        assert_eq!(drained[0], MerchantIntent::Buyback { slot: 2 });
+    }
+
+    #[test]
+    fn intent_repair_all() {
+        let mut queue = MerchantIntentQueue::default();
+        queue.repair_all();
+        let drained = queue.drain();
+        assert_eq!(drained[0], MerchantIntent::RepairAll);
+    }
+
+    #[test]
+    fn intent_repair_single() {
+        let mut queue = MerchantIntentQueue::default();
+        queue.repair_single(1, 5);
+        let drained = queue.drain();
+        assert_eq!(drained[0], MerchantIntent::RepairSingle { bag: 1, slot: 5 });
+    }
+
+    #[test]
+    fn intent_drain_clears() {
+        let mut queue = MerchantIntentQueue::default();
+        queue.buy(1, 1);
+        queue.sell(0, 0);
+        queue.repair_all();
+        assert_eq!(queue.drain().len(), 3);
+        assert!(queue.pending.is_empty());
     }
 }
