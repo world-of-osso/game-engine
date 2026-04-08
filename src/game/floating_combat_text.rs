@@ -18,6 +18,7 @@ pub enum CombatTextKind {
     Dodge,
     Parry,
     Block,
+    Resist,
     Absorb,
 }
 
@@ -30,7 +31,7 @@ impl CombatTextKind {
             Self::Heal => [0.0, 1.0, 0.0, 1.0],
             Self::CritDamage => [1.0, 0.0, 0.0, 1.0],
             Self::CritHeal => [0.0, 1.0, 0.5, 1.0],
-            Self::Miss | Self::Dodge | Self::Parry => [0.7, 0.7, 0.7, 1.0],
+            Self::Miss | Self::Dodge | Self::Parry | Self::Resist => [0.7, 0.7, 0.7, 1.0],
             Self::Block | Self::Absorb => [0.8, 0.8, 1.0, 1.0],
         }
     }
@@ -39,7 +40,7 @@ impl CombatTextKind {
     pub fn is_label(self) -> bool {
         matches!(
             self,
-            Self::Miss | Self::Dodge | Self::Parry | Self::Block | Self::Absorb
+            Self::Miss | Self::Dodge | Self::Parry | Self::Block | Self::Resist | Self::Absorb
         )
     }
 
@@ -58,6 +59,7 @@ impl CombatTextKind {
             Self::Dodge => "Dodge",
             Self::Parry => "Parry",
             Self::Block => "Block",
+            Self::Resist => "Resist",
             Self::Absorb => "Absorb",
             _ => "",
         }
@@ -182,6 +184,7 @@ mod tests {
         assert!(CombatTextKind::Miss.is_label());
         assert!(CombatTextKind::Dodge.is_label());
         assert!(CombatTextKind::Parry.is_label());
+        assert!(CombatTextKind::Resist.is_label());
         assert!(!CombatTextKind::PhysicalDamage.is_label());
         assert!(!CombatTextKind::Heal.is_label());
     }
@@ -190,6 +193,7 @@ mod tests {
     fn label_text() {
         assert_eq!(CombatTextKind::Miss.label(), "Miss");
         assert_eq!(CombatTextKind::Dodge.label(), "Dodge");
+        assert_eq!(CombatTextKind::Resist.label(), "Resist");
         assert_eq!(CombatTextKind::PhysicalDamage.label(), "");
     }
 

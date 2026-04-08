@@ -27,6 +27,9 @@ use game_engine::chat_data::{
 use game_engine::collection::apply_collection_state_update as map_collection_state_update;
 use game_engine::death::apply_death_state_update as map_death_state_update;
 use game_engine::duel::apply_duel_state_update as map_duel_state_update;
+use game_engine::floating_combat_text::{
+    CombatTextKind, FloatingCombatText, FloatingCombatTextStack,
+};
 use game_engine::ignore_list::is_ignored as is_ignored_sender;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
@@ -271,162 +274,6 @@ fn resolve_emote_visual_entity(
         .unwrap_or(player_entity)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy::ecs::system::RunSystemOnce;
-
-    fn whisper_message(sender: &str, target: &str, content: &str) -> ChatMessage {
-        ChatMessage {
-            sender: sender.into(),
-            content: content.into(),
-            channel: shared::protocol::ChatType::Whisper(target.into()),
-        }
-    }
-
-    fn default_chat_state() -> ChatState {
-        ChatState {
-            max_messages: MAX_CHAT_LOG,
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn map_runtime_chat_channel_maps_emotes() {
-        let (channel, name) =
-            map_runtime_chat_channel(&shared::protocol::ChatType::Emote, "Alice", Some("Theron"));
-        assert_eq!(channel, ChatChannelType::Emote);
-        assert!(name.is_empty());
-    }
-
-    #[test]
-    fn resolve_emote_visual_entity_prefers_mounted_visual_child() {
-        let mut app = App::new();
-        let parent = app.world_mut().spawn_empty().id();
-        let mounted_child = app
-            .world_mut()
-            .spawn(crate::networking_player::MountedVisualRoot)
-            .id();
-        let other_child = app.world_mut().spawn_empty().id();
-        app.world_mut()
-            .entity_mut(parent)
-            .add_children(&[other_child, mounted_child]);
-
-        let entity = app
-            .world_mut()
-            .run_system_once(
-                move |children_query: Query<&Children>,
-                      mounted_visual_roots: Query<
-                    (),
-                    With<crate::networking_player::MountedVisualRoot>,
-                >| {
-                    resolve_emote_visual_entity(
-                        parent.to_bits(),
-                        &children_query,
-                        &mounted_visual_roots,
-                    )
-                },
-            )
-            .expect("resolve emote entity");
-        assert_eq!(entity, mounted_child);
-    }
-
-    #[test]
-    fn outgoing_whisper_updates_recent_targets() {
-        let mut whisper_state = WhisperState {
-            max_recent: 10,
-            ..Default::default()
-        };
-
-        apply_outgoing_chat_message(
-            &whisper_message("Theron", "Alice", "hey"),
-            &mut whisper_state,
-        );
-
-        assert_eq!(whisper_state.reply_target, None);
-        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
-    }
-
-    #[test]
-    fn incoming_whisper_sets_reply_target_and_runtime_message() {
-        let mut chat_log = ChatLog::default();
-        let mut chat_state = default_chat_state();
-        let mut whisper_state = WhisperState {
-            max_recent: 10,
-            ..Default::default()
-        };
-
-        apply_incoming_chat_message(
-            &whisper_message("Alice", "Theron", "psst"),
-            Some("Theron"),
-            &IgnoreListStatusSnapshot::default(),
-            &mut chat_log,
-            &mut chat_state,
-            &mut whisper_state,
-        );
-
-        assert_eq!(chat_log.messages.len(), 1);
-        assert_eq!(whisper_state.reply_target.as_deref(), Some("Alice"));
-        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
-        assert_eq!(chat_state.messages.len(), 1);
-        assert_eq!(
-            chat_state.messages[0].channel_type,
-            ChatChannelType::Whisper
-        );
-        assert_eq!(chat_state.messages[0].channel_name, "");
-    }
-
-    #[test]
-    fn outgoing_whisper_message_tracks_recipient_without_reply_target() {
-        let mut chat_log = ChatLog::default();
-        let mut chat_state = default_chat_state();
-        let mut whisper_state = WhisperState {
-            max_recent: 10,
-            ..Default::default()
-        };
-
-        apply_incoming_chat_message(
-            &whisper_message("Theron", "Alice", "hello"),
-            Some("Theron"),
-            &IgnoreListStatusSnapshot::default(),
-            &mut chat_log,
-            &mut chat_state,
-            &mut whisper_state,
-        );
-
-        assert_eq!(whisper_state.reply_target, None);
-        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
-        assert_eq!(chat_state.messages[0].channel_name, "Alice");
-    }
-
-    #[test]
-    fn ignored_sender_message_is_not_added_to_chat_log() {
-        let mut chat_log = ChatLog::default();
-        let mut chat_state = default_chat_state();
-        let mut whisper_state = WhisperState {
-            max_recent: 10,
-            ..Default::default()
-        };
-        let ignore_list = IgnoreListStatusSnapshot {
-            names: vec!["Alice".into()],
-            ..Default::default()
-        };
-
-        apply_incoming_chat_message(
-            &whisper_message("Alice", "Theron", "psst"),
-            Some("Theron"),
-            &ignore_list,
-            &mut chat_log,
-            &mut chat_state,
-            &mut whisper_state,
-        );
-
-        assert!(chat_log.messages.is_empty());
-        assert!(chat_state.messages.is_empty());
-        assert_eq!(whisper_state.reply_target, None);
-    }
-}
-
 /// Receive LoadTerrain messages from the server and initialize/stream the AdtManager.
 pub(crate) fn receive_load_terrain(
     mut receivers: Query<&mut MessageReceiver<LoadTerrain>>,
@@ -583,13 +430,69 @@ fn combat_event_to_log_entry(msg: &CombatEvent) -> CombatLogEntry {
     let (kind, amount, text) = match msg.event_type {
         CombatEventType::MeleeDamage => (
             CombatLogEventKind::Damage,
-            Some(msg.damage.round() as i32),
+            Some(msg.amount.round() as i32),
             format!(
                 "{} hit {} for {}",
                 msg.attacker,
                 msg.target,
-                msg.damage.round() as i32
+                msg.amount.round() as i32
             ),
+        ),
+        CombatEventType::SpellDamage
+        | CombatEventType::PeriodicDamage
+        | CombatEventType::CriticalHit => (
+            CombatLogEventKind::Damage,
+            Some(msg.amount.round() as i32),
+            format!(
+                "{} damaged {} for {}",
+                msg.attacker,
+                msg.target,
+                msg.amount.round() as i32
+            ),
+        ),
+        CombatEventType::SpellHeal | CombatEventType::PeriodicHeal => (
+            CombatLogEventKind::Heal,
+            Some(msg.amount.round() as i32),
+            format!(
+                "{} healed {} for {}",
+                msg.attacker,
+                msg.target,
+                msg.amount.round() as i32
+            ),
+        ),
+        CombatEventType::Absorb => (
+            CombatLogEventKind::Damage,
+            Some(msg.amount.round() as i32),
+            format!("{} absorbed {}", msg.target, msg.amount.round() as i32),
+        ),
+        CombatEventType::Miss => (
+            CombatLogEventKind::Damage,
+            None,
+            if msg.spell_id == 0 {
+                format!("{} missed {}", msg.attacker, msg.target)
+            } else {
+                format!("{} resisted {}", msg.target, msg.spell_id)
+            },
+        ),
+        CombatEventType::Dodge => (
+            CombatLogEventKind::Damage,
+            None,
+            format!("{} dodged {}", msg.target, msg.attacker),
+        ),
+        CombatEventType::Parry => (
+            CombatLogEventKind::Damage,
+            None,
+            format!("{} parried {}", msg.target, msg.attacker),
+        ),
+        CombatEventType::Block => (
+            CombatLogEventKind::Damage,
+            None,
+            format!("{} blocked {}", msg.target, msg.attacker),
+        ),
+        CombatEventType::Interrupt => (
+            CombatLogEventKind::Interrupt,
+            None,
+            format!("{} interrupted {}", msg.attacker, msg.target),
         ),
         CombatEventType::Death => (
             CombatLogEventKind::Death,
@@ -613,14 +516,61 @@ fn combat_event_to_log_entry(msg: &CombatEvent) -> CombatLogEntry {
     }
 }
 
+fn floating_text_from_combat_event(msg: &CombatEvent) -> Option<(u64, FloatingCombatText)> {
+    let kind = match msg.event_type {
+        CombatEventType::MeleeDamage => CombatTextKind::PhysicalDamage,
+        CombatEventType::SpellDamage | CombatEventType::PeriodicDamage => {
+            CombatTextKind::SpellDamage
+        }
+        CombatEventType::SpellHeal | CombatEventType::PeriodicHeal => CombatTextKind::Heal,
+        CombatEventType::Absorb => CombatTextKind::Absorb,
+        CombatEventType::Miss if msg.spell_id == 0 => CombatTextKind::Miss,
+        CombatEventType::Miss => CombatTextKind::Resist,
+        CombatEventType::Dodge => CombatTextKind::Dodge,
+        CombatEventType::Parry => CombatTextKind::Parry,
+        CombatEventType::Block => CombatTextKind::Block,
+        CombatEventType::CriticalHit
+        | CombatEventType::Interrupt
+        | CombatEventType::Death
+        | CombatEventType::Respawn => {
+            return None;
+        }
+    };
+    Some((
+        msg.target,
+        FloatingCombatText::new(kind, msg.amount.max(0.0).round() as u32),
+    ))
+}
+
+fn push_floating_text(
+    target_bits: u64,
+    text: FloatingCombatText,
+    stacks: &mut Query<&mut FloatingCombatTextStack>,
+    commands: &mut Commands,
+) {
+    let entity = Entity::from_bits(target_bits);
+    if let Ok(mut stack) = stacks.get_mut(entity) {
+        stack.push(text);
+        return;
+    }
+    commands
+        .entity(entity)
+        .insert(FloatingCombatTextStack { texts: vec![text] });
+}
+
 pub(crate) fn receive_combat_events(
     mut receivers: Query<&mut MessageReceiver<CombatEvent>>,
     mut snapshot: ResMut<CombatLogStatusSnapshot>,
+    mut stacks: Query<&mut FloatingCombatTextStack>,
+    mut commands: Commands,
 ) {
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             let entry = combat_event_to_log_entry(&msg);
             append_combat_entry(&mut snapshot, entry);
+            if let Some((target_bits, text)) = floating_text_from_combat_event(&msg) {
+                push_floating_text(target_bits, text, &mut stacks, &mut commands);
+            }
         }
     }
 }
@@ -921,5 +871,229 @@ pub(crate) fn send_player_input(
     };
     for mut sender in senders.iter_mut() {
         sender.send::<InputChannel>(input.clone());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn combat_event(event_type: CombatEventType, amount: f32, spell_id: u32) -> CombatEvent {
+        CombatEvent {
+            attacker: 1,
+            target: 2,
+            amount,
+            spell_id,
+            event_type,
+        }
+    }
+
+    fn whisper_message(sender: &str, target: &str, content: &str) -> ChatMessage {
+        ChatMessage {
+            sender: sender.into(),
+            content: content.into(),
+            channel: shared::protocol::ChatType::Whisper(target.into()),
+        }
+    }
+
+    fn default_chat_state() -> ChatState {
+        ChatState {
+            max_messages: MAX_CHAT_LOG,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn map_runtime_chat_channel_maps_emotes() {
+        let (channel, name) =
+            map_runtime_chat_channel(&shared::protocol::ChatType::Emote, "Alice", Some("Theron"));
+        assert_eq!(channel, ChatChannelType::Emote);
+        assert!(name.is_empty());
+    }
+
+    #[test]
+    fn resolve_emote_visual_entity_prefers_mounted_visual_child() {
+        let mut app = App::new();
+        let parent = app.world_mut().spawn_empty().id();
+        let mounted_child = app
+            .world_mut()
+            .spawn(crate::networking_player::MountedVisualRoot)
+            .id();
+        let other_child = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .entity_mut(parent)
+            .add_children(&[other_child, mounted_child]);
+
+        let entity = app
+            .world_mut()
+            .run_system_once(
+                move |children_query: Query<&Children>,
+                      mounted_visual_roots: Query<
+                    (),
+                    With<crate::networking_player::MountedVisualRoot>,
+                >| {
+                    resolve_emote_visual_entity(
+                        parent.to_bits(),
+                        &children_query,
+                        &mounted_visual_roots,
+                    )
+                },
+            )
+            .expect("resolve emote entity");
+        assert_eq!(entity, mounted_child);
+    }
+
+    #[test]
+    fn outgoing_whisper_updates_recent_targets() {
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+
+        apply_outgoing_chat_message(
+            &whisper_message("Theron", "Alice", "hey"),
+            &mut whisper_state,
+        );
+
+        assert_eq!(whisper_state.reply_target, None);
+        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+    }
+
+    #[test]
+    fn incoming_whisper_sets_reply_target_and_runtime_message() {
+        let mut chat_log = ChatLog::default();
+        let mut chat_state = default_chat_state();
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+
+        apply_incoming_chat_message(
+            &whisper_message("Alice", "Theron", "psst"),
+            Some("Theron"),
+            &IgnoreListStatusSnapshot::default(),
+            &mut chat_log,
+            &mut chat_state,
+            &mut whisper_state,
+        );
+
+        assert_eq!(chat_log.messages.len(), 1);
+        assert_eq!(whisper_state.reply_target.as_deref(), Some("Alice"));
+        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+        assert_eq!(chat_state.messages.len(), 1);
+        assert_eq!(
+            chat_state.messages[0].channel_type,
+            ChatChannelType::Whisper
+        );
+        assert_eq!(chat_state.messages[0].channel_name, "");
+    }
+
+    #[test]
+    fn outgoing_whisper_message_tracks_recipient_without_reply_target() {
+        let mut chat_log = ChatLog::default();
+        let mut chat_state = default_chat_state();
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+
+        apply_incoming_chat_message(
+            &whisper_message("Theron", "Alice", "hello"),
+            Some("Theron"),
+            &IgnoreListStatusSnapshot::default(),
+            &mut chat_log,
+            &mut chat_state,
+            &mut whisper_state,
+        );
+
+        assert_eq!(whisper_state.reply_target, None);
+        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+        assert_eq!(chat_state.messages[0].channel_name, "Alice");
+    }
+
+    #[test]
+    fn ignored_sender_message_is_not_added_to_chat_log() {
+        let mut chat_log = ChatLog::default();
+        let mut chat_state = default_chat_state();
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+        let ignore_list = IgnoreListStatusSnapshot {
+            names: vec!["Alice".into()],
+            ..Default::default()
+        };
+
+        apply_incoming_chat_message(
+            &whisper_message("Alice", "Theron", "psst"),
+            Some("Theron"),
+            &ignore_list,
+            &mut chat_log,
+            &mut chat_state,
+            &mut whisper_state,
+        );
+
+        assert!(chat_log.messages.is_empty());
+        assert!(chat_state.messages.is_empty());
+        assert_eq!(whisper_state.reply_target, None);
+    }
+
+    #[test]
+    fn floating_text_from_combat_event_maps_avoidance_labels() {
+        let cases = [
+            (CombatEventType::Miss, 0, CombatTextKind::Miss, "Miss"),
+            (CombatEventType::Dodge, 0, CombatTextKind::Dodge, "Dodge"),
+            (CombatEventType::Parry, 0, CombatTextKind::Parry, "Parry"),
+            (CombatEventType::Block, 0, CombatTextKind::Block, "Block"),
+        ];
+
+        for (event_type, spell_id, expected_kind, expected_text) in cases {
+            let (_, text) =
+                floating_text_from_combat_event(&combat_event(event_type, 0.0, spell_id))
+                    .expect("floating text");
+            assert_eq!(text.kind, expected_kind);
+            assert_eq!(text.display_text(), expected_text);
+        }
+    }
+
+    #[test]
+    fn floating_text_from_spell_miss_uses_resist_label() {
+        let (_, text) =
+            floating_text_from_combat_event(&combat_event(CombatEventType::Miss, 0.0, 1337))
+                .expect("floating text");
+        assert_eq!(text.kind, CombatTextKind::Resist);
+        assert_eq!(text.display_text(), "Resist");
+    }
+
+    #[test]
+    fn floating_text_from_damage_and_heal_events_preserves_amount() {
+        let (_, damage) =
+            floating_text_from_combat_event(&combat_event(CombatEventType::MeleeDamage, 42.3, 0))
+                .expect("damage text");
+        assert_eq!(damage.kind, CombatTextKind::PhysicalDamage);
+        assert_eq!(damage.amount, 42);
+
+        let (_, heal) =
+            floating_text_from_combat_event(&combat_event(CombatEventType::SpellHeal, 73.8, 17))
+                .expect("heal text");
+        assert_eq!(heal.kind, CombatTextKind::Heal);
+        assert_eq!(heal.amount, 74);
+    }
+
+    #[test]
+    fn floating_text_from_non_display_events_is_ignored() {
+        assert!(
+            floating_text_from_combat_event(&combat_event(CombatEventType::Death, 0.0, 0))
+                .is_none()
+        );
+        assert!(
+            floating_text_from_combat_event(&combat_event(CombatEventType::Respawn, 0.0, 0))
+                .is_none()
+        );
+        assert!(
+            floating_text_from_combat_event(&combat_event(CombatEventType::Interrupt, 0.0, 17))
+                .is_none()
+        );
     }
 }
