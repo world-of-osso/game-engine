@@ -547,6 +547,7 @@ pub fn apply_fps_overlay_visibility(fps: &mut FpsOverlayConfig, visible: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use game_engine::input_bindings::{InputAction, InputBinding};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn unique_test_dir(name: &str) -> PathBuf {
@@ -623,6 +624,30 @@ mod tests {
         assert!(serialized.contains("renderScale:0.67"));
         assert!(serialized.contains("bloomEnabled:false"));
         assert!(serialized.contains("bloomIntensity:0.12"));
+    }
+
+    #[test]
+    fn options_file_round_trips_target_nearest_binding() {
+        let mut bindings = InputBindings::default();
+        bindings.assign(
+            InputAction::TargetNearest,
+            InputBinding::Keyboard(KeyCode::F2),
+        );
+
+        let file = ClientOptionsFile {
+            bindings: bindings.clone(),
+            ..ClientOptionsFile::default()
+        };
+
+        let serialized = ron::ser::to_string(&file).unwrap();
+        let parsed: ClientOptionsFile = ron::de::from_str(&serialized).unwrap();
+
+        assert_eq!(
+            parsed.bindings.binding(InputAction::TargetNearest),
+            Some(InputBinding::Keyboard(KeyCode::F2))
+        );
+        assert!(serialized.contains("TargetNearest"));
+        assert!(serialized.contains("key:F2"));
     }
 
     #[test]

@@ -725,6 +725,30 @@ mod tests {
     }
 
     #[test]
+    fn target_nearest_has_default_tab_binding() {
+        assert_eq!(
+            InputAction::TargetNearest.default_binding(),
+            Some(InputBinding::Keyboard(KeyCode::Tab))
+        );
+        assert_eq!(
+            InputBindings::default().binding(InputAction::TargetNearest),
+            Some(InputBinding::Keyboard(KeyCode::Tab))
+        );
+        assert_eq!(
+            InputAction::TargetNearest.section(),
+            BindingSection::Targeting
+        );
+    }
+
+    #[test]
+    fn target_nearest_tab_binding_token_round_trips() {
+        let token = binding_token(InputBinding::Keyboard(KeyCode::Tab));
+        let parsed = parse_binding_token(&token).expect("tab token should parse");
+        assert_eq!(parsed, InputBinding::Keyboard(KeyCode::Tab));
+        assert_eq!(key_display(KeyCode::Tab), "Tab");
+    }
+
+    #[test]
     fn num_lock_binding_token_round_trips() {
         let token = binding_token(InputBinding::Keyboard(KeyCode::NumLock));
         let parsed = parse_binding_token(&token).expect("num lock token should parse");
