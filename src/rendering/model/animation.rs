@@ -96,6 +96,12 @@ impl CastAnimKind {
             Self::Channel => ANIM_CHANNEL,
         }
     }
+
+    /// Whether this animation should loop until cancelled.
+    /// Channels loop; directed/omni casts play once then hold ready pose.
+    pub fn is_looping(self) -> bool {
+        matches!(self, Self::Channel)
+    }
 }
 
 /// Component that triggers a cast animation on a character model.
@@ -103,8 +109,10 @@ impl CastAnimKind {
 #[derive(Component, Clone, Debug)]
 pub struct CastAnimState {
     pub kind: CastAnimKind,
-    /// Remaining cast time (for knowing when to transition back to Stand).
+    /// Remaining cast/channel time (for knowing when to transition back to Stand).
     pub remaining: f32,
+    /// Whether the animation is in the "hold" phase (ready pose after cast wind-up).
+    pub holding: bool,
 }
 
 impl CastAnimState {
@@ -112,11 +120,35 @@ impl CastAnimState {
         Self {
             kind,
             remaining: duration,
+            holding: false,
+        }
+    }
+
+    /// Create a channel animation state (loops until duration expires).
+    pub fn channel(duration: f32) -> Self {
+        Self {
+            kind: CastAnimKind::Channel,
+            remaining: duration,
+            holding: false,
         }
     }
 
     pub fn is_finished(&self) -> bool {
         self.remaining <= 0.0
+    }
+
+    /// Whether the M2AnimPlayer should loop the current animation.
+    pub fn should_loop(&self) -> bool {
+        self.kind.is_looping() && !self.is_finished()
+    }
+
+    /// The animation ID to play right now.
+    pub fn current_anim_id(&self) -> u16 {
+        if self.holding {
+            self.kind.ready_anim_id()
+        } else {
+            self.kind.cast_anim_id()
+        }
     }
 
     pub fn tick(&mut self, dt: f32) {

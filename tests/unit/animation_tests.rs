@@ -490,3 +490,51 @@ fn cast_anim_state_tick_clamps() {
 fn cast_anim_default_is_directed() {
     assert_eq!(CastAnimKind::default(), CastAnimKind::Directed);
 }
+
+// --- Channel animation loop ---
+
+#[test]
+fn channel_is_looping() {
+    assert!(CastAnimKind::Channel.is_looping());
+    assert!(!CastAnimKind::Directed.is_looping());
+    assert!(!CastAnimKind::Omni.is_looping());
+}
+
+#[test]
+fn channel_state_should_loop_while_active() {
+    let state = CastAnimState::channel(5.0);
+    assert!(state.should_loop());
+    assert_eq!(state.kind, CastAnimKind::Channel);
+}
+
+#[test]
+fn channel_state_stops_looping_when_finished() {
+    let mut state = CastAnimState::channel(0.5);
+    state.tick(1.0);
+    assert!(state.is_finished());
+    assert!(!state.should_loop());
+}
+
+#[test]
+fn directed_cast_does_not_loop() {
+    let state = CastAnimState::new(CastAnimKind::Directed, 2.5);
+    assert!(!state.should_loop());
+}
+
+#[test]
+fn current_anim_id_cast_vs_hold() {
+    let mut state = CastAnimState::new(CastAnimKind::Directed, 2.5);
+    assert_eq!(state.current_anim_id(), ANIM_SPELL_CAST_DIRECTED);
+    state.holding = true;
+    assert_eq!(state.current_anim_id(), ANIM_READY_SPELL_DIRECTED);
+}
+
+#[test]
+fn channel_current_anim_id_always_channel() {
+    let state = CastAnimState::channel(5.0);
+    assert_eq!(state.current_anim_id(), ANIM_CHANNEL);
+    // Channel hold is also ANIM_CHANNEL
+    let mut held = CastAnimState::channel(5.0);
+    held.holding = true;
+    assert_eq!(held.current_anim_id(), ANIM_CHANNEL);
+}
