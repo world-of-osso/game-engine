@@ -64,6 +64,8 @@ pub mod item_tooltip_data;
 pub mod lfg_data;
 pub mod listfile;
 pub mod little_endian;
+#[path = "game/loot_data.rs"]
+pub mod loot_data;
 #[path = "game/loss_of_control_data.rs"]
 pub mod loss_of_control_data;
 pub mod mail;
