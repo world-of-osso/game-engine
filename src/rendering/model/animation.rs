@@ -198,6 +198,51 @@ impl AnimOverrideRegistry {
     }
 }
 
+/// Reason a cast/attack animation was cancelled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnimCancelReason {
+    /// Player started moving — return to walk/run.
+    Movement,
+    /// Spell was interrupted (counterspell, stun, etc.) — return to idle.
+    Interrupt,
+    /// Cast completed naturally — return to idle.
+    Complete,
+}
+
+/// Crossfade blend time in milliseconds for animation cancels.
+const CANCEL_BLEND_MS_FAST: f32 = 100.0;
+const CANCEL_BLEND_MS_NORMAL: f32 = 200.0;
+
+/// Determines the target animation and blend time when cancelling a cast/attack.
+pub fn cancel_anim_params(
+    reason: AnimCancelReason,
+    is_moving: bool,
+    is_running: bool,
+) -> (u16, f32) {
+    let target_anim = match reason {
+        AnimCancelReason::Movement => {
+            if is_running {
+                ANIM_RUN
+            } else {
+                ANIM_WALK
+            }
+        }
+        AnimCancelReason::Interrupt => ANIM_STAND,
+        AnimCancelReason::Complete => {
+            if is_moving {
+                if is_running { ANIM_RUN } else { ANIM_WALK }
+            } else {
+                ANIM_STAND
+            }
+        }
+    };
+    let blend_ms = match reason {
+        AnimCancelReason::Interrupt => CANCEL_BLEND_MS_FAST,
+        _ => CANCEL_BLEND_MS_NORMAL,
+    };
+    (target_anim, blend_ms)
+}
+
 /// Whether a spell has a target (directed) or is area-effect (omni).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum CastAnimKind {

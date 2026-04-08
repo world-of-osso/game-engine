@@ -681,3 +681,50 @@ fn override_insert_replaces() {
     assert_eq!(reg.get(100).unwrap().anim_id, 2);
     assert!(reg.get(100).unwrap().looping);
 }
+
+// --- Animation cancel ---
+
+#[test]
+fn cancel_movement_returns_run_when_running() {
+    let (anim, blend) = cancel_anim_params(AnimCancelReason::Movement, true, true);
+    assert_eq!(anim, ANIM_RUN);
+    assert!((blend - 200.0).abs() < 1.0);
+}
+
+#[test]
+fn cancel_movement_returns_walk_when_walking() {
+    let (anim, _) = cancel_anim_params(AnimCancelReason::Movement, true, false);
+    assert_eq!(anim, ANIM_WALK);
+}
+
+#[test]
+fn cancel_interrupt_returns_stand_fast() {
+    let (anim, blend) = cancel_anim_params(AnimCancelReason::Interrupt, false, false);
+    assert_eq!(anim, ANIM_STAND);
+    assert!((blend - 100.0).abs() < 1.0); // fast blend
+}
+
+#[test]
+fn cancel_complete_while_stationary_returns_stand() {
+    let (anim, _) = cancel_anim_params(AnimCancelReason::Complete, false, false);
+    assert_eq!(anim, ANIM_STAND);
+}
+
+#[test]
+fn cancel_complete_while_moving_returns_run() {
+    let (anim, _) = cancel_anim_params(AnimCancelReason::Complete, true, true);
+    assert_eq!(anim, ANIM_RUN);
+}
+
+#[test]
+fn cancel_complete_while_walking_returns_walk() {
+    let (anim, _) = cancel_anim_params(AnimCancelReason::Complete, true, false);
+    assert_eq!(anim, ANIM_WALK);
+}
+
+#[test]
+fn interrupt_blend_faster_than_normal() {
+    let (_, fast) = cancel_anim_params(AnimCancelReason::Interrupt, false, false);
+    let (_, normal) = cancel_anim_params(AnimCancelReason::Complete, false, false);
+    assert!(fast < normal);
+}
