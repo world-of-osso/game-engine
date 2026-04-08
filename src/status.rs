@@ -336,6 +336,7 @@ pub struct CollectionMountEntry {
     pub mount_id: u32,
     pub name: String,
     pub known: bool,
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -343,12 +344,15 @@ pub struct CollectionPetEntry {
     pub pet_id: u32,
     pub name: String,
     pub known: bool,
+    pub active: bool,
 }
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct CollectionStatusSnapshot {
     pub mounts: Vec<CollectionMountEntry>,
     pub pets: Vec<CollectionPetEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

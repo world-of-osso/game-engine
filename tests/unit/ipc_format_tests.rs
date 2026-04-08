@@ -374,18 +374,42 @@ fn collection_mounts_missing_filters_known_entries() {
                 mount_id: 1,
                 name: "Horse".into(),
                 known: true,
+                active: false,
             },
             crate::status::CollectionMountEntry {
                 mount_id: 2,
                 name: "Wolf".into(),
                 known: false,
+                active: false,
             },
         ],
         pets: vec![],
+        last_server_message: None,
+        last_error: None,
     };
     let text = format_collection_mounts(&snapshot, true);
     assert!(!text.contains("Horse"));
     assert!(text.contains("Wolf"));
+}
+
+#[test]
+fn collection_mounts_format_marks_active_mount_and_message() {
+    let snapshot = CollectionStatusSnapshot {
+        mounts: vec![crate::status::CollectionMountEntry {
+            mount_id: 101,
+            name: "Swift Brown Steed".into(),
+            known: true,
+            active: true,
+        }],
+        pets: vec![],
+        last_server_message: Some("summoned Swift Brown Steed".into()),
+        last_error: None,
+    };
+
+    let text = format_collection_mounts(&snapshot, false);
+
+    assert!(text.contains("message: summoned Swift Brown Steed"));
+    assert!(text.contains("101 Swift Brown Steed known=true active=true"));
 }
 
 #[test]

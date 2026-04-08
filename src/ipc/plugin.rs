@@ -15,6 +15,9 @@ use super::init;
 use super::{Command, Request, Response};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
+use crate::collection::{
+    CollectionRuntimeState, queue_ipc_request as queue_collection_ipc_request,
+};
 use crate::currency::{CurrencyRuntimeState, queue_ipc_request as queue_currency_ipc_request};
 use crate::duel::{DuelClientState, queue_ipc_request_with_snapshot as queue_duel_ipc_request};
 use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc_request};
@@ -123,6 +126,7 @@ struct SceneParams<'w, 's> {
 #[derive(bevy::ecs::system::SystemParam)]
 struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
+    collection: ResMut<'w, CollectionRuntimeState>,
     duel: ResMut<'w, DuelClientState>,
     duel_status: Res<'w, DuelStatusSnapshot>,
     currency: ResMut<'w, CurrencyRuntimeState>,
@@ -215,6 +219,9 @@ fn dispatch(
     sender_params: &mut IpcSenderParams,
 ) {
     if queue_ipc_request(&mut world.auction_house, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
+    if queue_collection_ipc_request(&mut world.collection, &cmd.request, cmd.respond.clone()) {
         return;
     }
     if queue_profession_ipc_request(

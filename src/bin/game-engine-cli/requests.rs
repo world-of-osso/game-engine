@@ -187,6 +187,10 @@ pub fn collection_request(command: CollectionCmd) -> Result<Request, String> {
     let request = match command {
         CollectionCmd::Mounts { missing } => Request::CollectionMounts { missing },
         CollectionCmd::Pets { missing } => Request::CollectionPets { missing },
+        CollectionCmd::SummonMount { mount_id } => Request::CollectionSummonMount { mount_id },
+        CollectionCmd::DismissMount => Request::CollectionDismissMount,
+        CollectionCmd::SummonPet { pet_id } => Request::CollectionSummonPet { pet_id },
+        CollectionCmd::DismissPet => Request::CollectionDismissPet,
     };
     Ok(request)
 }

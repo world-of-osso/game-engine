@@ -124,6 +124,11 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::currency::reset_runtime(&mut currency_state);
     }
+    if let Some(mut collection_state) =
+        world.get_resource_mut::<game_engine::collection::CollectionRuntimeState>()
+    {
+        game_engine::collection::reset_runtime(&mut collection_state);
+    }
     if let Some(mut profession_state) =
         world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
     {

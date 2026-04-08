@@ -352,6 +352,34 @@ fn collection_mounts_missing_command_maps_to_request() {
 }
 
 #[test]
+fn collection_summon_mount_command_maps_to_request() {
+    let request = collection_request(CollectionCmd::SummonMount { mount_id: 101 })
+        .expect("valid collection summon mount command");
+    assert_eq!(request, Request::CollectionSummonMount { mount_id: 101 });
+}
+
+#[test]
+fn collection_dismiss_mount_command_maps_to_request() {
+    let request = collection_request(CollectionCmd::DismissMount)
+        .expect("valid collection dismiss mount command");
+    assert_eq!(request, Request::CollectionDismissMount);
+}
+
+#[test]
+fn collection_summon_pet_command_maps_to_request() {
+    let request = collection_request(CollectionCmd::SummonPet { pet_id: 202 })
+        .expect("valid collection summon pet command");
+    assert_eq!(request, Request::CollectionSummonPet { pet_id: 202 });
+}
+
+#[test]
+fn collection_dismiss_pet_command_maps_to_request() {
+    let request = collection_request(CollectionCmd::DismissPet)
+        .expect("valid collection dismiss pet command");
+    assert_eq!(request, Request::CollectionDismissPet);
+}
+
+#[test]
 fn profession_recipes_command_maps_to_request() {
     let request = profession_request(ProfessionCmd::Recipes {
         text: "potion".into(),

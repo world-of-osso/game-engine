@@ -436,37 +436,67 @@ fn format_combat_entry(entry: &CombatLogEntry) -> String {
 }
 
 pub fn format_collection_mounts(snapshot: &CollectionStatusSnapshot, missing: bool) -> String {
-    let filtered = snapshot
-        .mounts
-        .iter()
-        .filter(|e| !missing || !e.known)
-        .collect::<Vec<_>>();
-    if filtered.is_empty() {
-        return "mounts: 0\n-".into();
-    }
-    let lines = filtered
-        .iter()
-        .map(|e| format!("{} {} known={}", e.mount_id, e.name, e.known))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("mounts: {}\n{lines}", filtered.len())
+    format_collection_entries(
+        "mounts",
+        snapshot.last_server_message.as_deref(),
+        snapshot.last_error.as_deref(),
+        snapshot.mounts.iter(),
+        missing,
+        |entry| entry.known,
+        |entry| {
+            format!(
+                "{} {} known={} active={}",
+                entry.mount_id, entry.name, entry.known, entry.active
+            )
+        },
+    )
 }
 
 pub fn format_collection_pets(snapshot: &CollectionStatusSnapshot, missing: bool) -> String {
-    let filtered = snapshot
-        .pets
-        .iter()
-        .filter(|e| !missing || !e.known)
+    format_collection_entries(
+        "pets",
+        snapshot.last_server_message.as_deref(),
+        snapshot.last_error.as_deref(),
+        snapshot.pets.iter(),
+        missing,
+        |entry| entry.known,
+        |entry| {
+            format!(
+                "{} {} known={} active={}",
+                entry.pet_id, entry.name, entry.known, entry.active
+            )
+        },
+    )
+}
+
+fn format_collection_entries<'a, T>(
+    label: &str,
+    message: Option<&str>,
+    error: Option<&str>,
+    entries: impl Iterator<Item = &'a T>,
+    missing: bool,
+    is_known: impl Fn(&T) -> bool,
+    format_entry: impl Fn(&T) -> String,
+) -> String
+where
+    T: 'a,
+{
+    let filtered = entries
+        .filter(|entry| !missing || !is_known(entry))
         .collect::<Vec<_>>();
-    if filtered.is_empty() {
-        return "pets: 0\n-".into();
+    let mut lines = vec![format!("{label}: {}", filtered.len())];
+    if let Some(message) = message {
+        lines.push(format!("message: {message}"));
     }
-    let lines = filtered
-        .iter()
-        .map(|e| format!("{} {} known={}", e.pet_id, e.name, e.known))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("pets: {}\n{lines}", filtered.len())
+    if let Some(error) = error {
+        lines.push(format!("error: {error}"));
+    }
+    if filtered.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(filtered.into_iter().map(format_entry));
+    lines.join("\n")
 }
 
 pub fn format_profession_recipes(snapshot: &ProfessionStatusSnapshot, text: &str) -> String {

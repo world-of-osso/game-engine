@@ -154,6 +154,14 @@ pub enum Request {
     CollectionPets {
         missing: bool,
     },
+    CollectionSummonMount {
+        mount_id: u32,
+    },
+    CollectionDismissMount,
+    CollectionSummonPet {
+        pet_id: u32,
+    },
+    CollectionDismissPet,
     ProfessionRecipes {
         text: String,
     },

@@ -26,6 +26,7 @@ pub mod character_export;
 pub mod character_models;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
+pub mod collection;
 #[path = "game/combat_feedback.rs"]
 pub mod combat_feedback;
 #[path = "game/communities_data.rs"]

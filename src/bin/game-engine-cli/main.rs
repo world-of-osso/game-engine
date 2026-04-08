@@ -423,6 +423,16 @@ pub(crate) enum CollectionCmd {
         #[arg(long)]
         missing: bool,
     },
+    SummonMount {
+        #[arg(long)]
+        mount_id: u32,
+    },
+    DismissMount,
+    SummonPet {
+        #[arg(long)]
+        pet_id: u32,
+    },
+    DismissPet,
 }
 
 #[derive(Subcommand)]

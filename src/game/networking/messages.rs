@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::components::Zone;
 use shared::protocol::{
-    ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
+    ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel, CombatEvent, CombatEventType,
     CombatLogEventKindSnapshot, CombatLogSnapshot, DuelStateUpdate, GroupCommandResponse,
     GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
     InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
@@ -17,16 +17,17 @@ use crate::terrain::AdtManager;
 use game_engine::chat_data::{
     ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState,
 };
+use game_engine::collection::apply_collection_state_update as map_collection_state_update;
 use game_engine::duel::apply_duel_state_update as map_duel_state_update;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
-    CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
-    CombatLogEventKind, CombatLogStatusSnapshot, DuelStatusSnapshot, GroupMemberEntry, GroupRole,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry,
-    ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry,
-    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, StorageItemEntry,
-    TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot, WarbankStatusSnapshot,
+    CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
+    DuelStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
+    InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry,
+    ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry,
+    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
+    TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 
@@ -448,30 +449,13 @@ pub(crate) fn append_combat_entry(snapshot: &mut CombatLogStatusSnapshot, entry:
     }
 }
 
-pub(crate) fn receive_collection_snapshot(
-    mut receivers: Query<&mut MessageReceiver<CollectionSnapshot>>,
+pub(crate) fn receive_collection_state_update(
+    mut receivers: Query<&mut MessageReceiver<CollectionStateUpdate>>,
     mut snapshot: ResMut<CollectionStatusSnapshot>,
 ) {
     for mut receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.mounts = msg
-                .mounts
-                .into_iter()
-                .map(|mount| CollectionMountEntry {
-                    mount_id: mount.mount_id,
-                    name: mount.name,
-                    known: mount.known,
-                })
-                .collect();
-            snapshot.pets = msg
-                .pets
-                .into_iter()
-                .map(|pet| CollectionPetEntry {
-                    pet_id: pet.pet_id,
-                    name: pet.name,
-                    known: pet.known,
-                })
-                .collect();
+        for update in receiver.receive() {
+            map_collection_state_update(&mut snapshot, update);
         }
     }
 }

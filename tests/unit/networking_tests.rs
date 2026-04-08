@@ -676,6 +676,44 @@ fn currency_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn collection_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::CollectionStatusSnapshot::default();
+
+    game_engine::collection::apply_collection_state_update(
+        &mut snapshot,
+        shared::protocol::CollectionStateUpdate {
+            snapshot: Some(shared::protocol::CollectionSnapshot {
+                mounts: vec![shared::protocol::CollectionMountSnapshot {
+                    mount_id: 101,
+                    name: "Swift Brown Steed".into(),
+                    known: true,
+                    active: true,
+                }],
+                pets: vec![shared::protocol::CollectionPetSnapshot {
+                    pet_id: 202,
+                    name: "Brown Rabbit".into(),
+                    known: true,
+                    active: false,
+                }],
+            }),
+            message: Some("summoned Swift Brown Steed".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.mounts.len(), 1);
+    assert_eq!(snapshot.mounts[0].mount_id, 101);
+    assert!(snapshot.mounts[0].active);
+    assert_eq!(snapshot.pets.len(), 1);
+    assert_eq!(snapshot.pets[0].pet_id, 202);
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("summoned Swift Brown Steed")
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn inspect_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::InspectStatusSnapshot::default();
 
