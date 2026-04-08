@@ -5,8 +5,8 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::components::{
-    EquipmentAppearance as NetEquipmentAppearance, Health as NetHealth, Player as NetPlayer,
-    Position as NetPosition, Rotation as NetRotation,
+    EquipmentAppearance as NetEquipmentAppearance, Health as NetHealth, Mounted,
+    Player as NetPlayer, Position as NetPosition, Rotation as NetRotation,
 };
 
 use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
@@ -28,7 +28,11 @@ use game_engine::outfit_data::OutfitData;
 pub(crate) struct AppliedPlayerAppearance {
     pub(crate) selection: CharacterCustomizationSelection,
     pub(crate) equipment: NetEquipmentAppearance,
+    pub(crate) mount_display_id: Option<u32>,
 }
+
+#[derive(Component)]
+pub(crate) struct MountedVisualRoot;
 
 struct PlayerModelSpawnContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
@@ -55,6 +59,7 @@ pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
         (
             Entity,
             &'static NetPlayer,
+            Option<&'static Mounted>,
             Option<&'static NetEquipmentAppearance>,
             Option<&'static AppliedPlayerAppearance>,
             Option<&'static Children>,
@@ -73,6 +78,7 @@ pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
     >,
     visibility_query: Query<'w, 's, &'static mut Visibility>,
     equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
+    nameplate_query: Query<'w, 's, (), With<crate::rendering::nameplate::Nameplate>>,
     material_query: Query<
         'w,
         's,
@@ -84,9 +90,26 @@ pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
             &'static ChildOf,
         ),
     >,
+    children_query: Query<'w, 's, &'static Children>,
     equipment_query: Query<'w, 's, &'static mut crate::equipment::Equipment>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
+    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
     materials: ResMut<'w, Assets<StandardMaterial>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum DesiredPlayerVisual {
+    Character,
+    Mount { mount_display_id: u32 },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct MountVisualAsset {
+    model_path: PathBuf,
+    skin_fdids: [u32; 3],
+    display_scale: f32,
 }
 
 /// Convert local MovementState + CharacterFacing into a world-space direction vector.
@@ -129,11 +152,19 @@ pub(crate) fn spawn_replicated_player(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<CreatureDisplayMap>,
-    query: Query<(&NetPosition, &NetPlayer, Option<&NetRotation>), With<Replicated>>,
+    query: Query<
+        (
+            &NetPosition,
+            &NetPlayer,
+            Option<&NetRotation>,
+            Option<&Mounted>,
+        ),
+        With<Replicated>,
+    >,
     selected: Option<Res<SelectedCharacterId>>,
 ) {
     let entity = trigger.entity;
-    let Ok((pos, player, rotation)) = query.get(entity) else {
+    let Ok((pos, player, rotation, mounted)) = query.get(entity) else {
         return;
     };
     let is_local = is_local_player_entity(&player.name, selected.as_deref());
@@ -160,16 +191,22 @@ pub(crate) fn spawn_replicated_player(
         inv_bp: &mut inv_bp,
         creature_display_map: &creature_display_map,
     };
-    attach_player_model(&mut ctx, entity, player, is_local);
+    attach_player_model(&mut ctx, entity, player, mounted, is_local);
 }
 
 fn attach_player_model(
     ctx: &mut PlayerModelSpawnContext<'_, '_, '_>,
     entity: Entity,
     player: &NetPlayer,
+    mounted: Option<&Mounted>,
     is_local: bool,
 ) {
-    let model_spawned = try_spawn_player_m2(ctx, entity, player);
+    let model_spawned = match desired_player_visual(mounted) {
+        DesiredPlayerVisual::Character => try_spawn_player_m2(ctx, entity, player),
+        DesiredPlayerVisual::Mount { mount_display_id } => {
+            try_spawn_mounted_player_model(ctx, entity, mount_display_id, is_local)
+        }
+    };
     if !model_spawned {
         let (capsule, material) = build_player_capsule(ctx.meshes, ctx.materials, is_local);
         ctx.commands
@@ -183,7 +220,7 @@ fn try_spawn_player_m2(
     entity: Entity,
     player: &NetPlayer,
 ) -> bool {
-    let Some(model_path) = resolve_player_model_path(player) else {
+    let Some(model_path) = resolve_player_character_model_path(player) else {
         return false;
     };
     let mut m2_ctx = crate::m2_scene::M2SceneSpawnContext {
@@ -208,6 +245,40 @@ fn try_spawn_player_m2(
         });
     }
     spawned
+}
+
+fn try_spawn_mounted_player_model(
+    ctx: &mut PlayerModelSpawnContext<'_, '_, '_>,
+    entity: Entity,
+    mount_display_id: u32,
+    is_local: bool,
+) -> bool {
+    let Some(asset) = resolve_mount_visual_asset(ctx.creature_display_map, mount_display_id) else {
+        return false;
+    };
+    let visual_root =
+        spawn_mounted_visual_root(ctx.commands, entity, asset.display_scale, is_local);
+    let mut assets = crate::m2_spawn::SpawnAssets {
+        meshes: ctx.meshes,
+        materials: ctx.materials,
+        effect_materials: ctx.effect_materials,
+        skybox_materials: None,
+        images: ctx.images,
+        inverse_bindposes: ctx.inv_bp,
+    };
+    ctx.commands.entity(entity).insert(ResolvedModelAssetInfo {
+        model_path: asset.model_path.display().to_string(),
+        skin_path: crate::asset::m2::ensure_primary_skin_path(&asset.model_path)
+            .map(|path| path.display().to_string()),
+        display_scale: Some(asset.display_scale),
+    });
+    crate::m2_spawn::spawn_m2_on_entity(
+        ctx.commands,
+        &mut assets,
+        &asset.model_path,
+        visual_root,
+        &asset.skin_fdids,
+    )
 }
 
 fn build_player_capsule(
@@ -239,47 +310,160 @@ pub(crate) fn net_player_customization_selection(
     }
 }
 
-pub(crate) fn resolve_player_model_path(player: &NetPlayer) -> Option<PathBuf> {
+pub(crate) fn resolve_player_character_model_path(player: &NetPlayer) -> Option<PathBuf> {
     race_model_wow_path(player.race, player.appearance.sex).and_then(ensure_named_model_bundle)
 }
 
-pub(crate) fn sync_replicated_player_customization(
-    mut params: ReplicatedPlayerCustomizationParams,
-) {
-    let mut pending = Vec::new();
-    for (entity, player, equipment_appearance, applied, children) in &params.player_query {
-        let selection = net_player_customization_selection(player);
-        let equipment_snapshot = equipment_appearance.cloned().unwrap_or_default();
-        if applied.is_some_and(|a| a.selection == selection && a.equipment == equipment_snapshot) {
-            continue;
-        }
-        if children.is_none_or(|c| c.is_empty()) {
-            continue;
-        }
-        pending.push((entity, selection, equipment_snapshot));
+pub(crate) fn resolve_player_model_path(player: &NetPlayer) -> Option<PathBuf> {
+    resolve_player_character_model_path(player)
+}
+
+fn desired_player_visual(mounted: Option<&Mounted>) -> DesiredPlayerVisual {
+    mounted
+        .map(|mounted| DesiredPlayerVisual::Mount {
+            mount_display_id: mounted.mount_display_id,
+        })
+        .unwrap_or(DesiredPlayerVisual::Character)
+}
+
+fn resolve_mount_visual_asset(
+    display_map: &CreatureDisplayMap,
+    mount_display_id: u32,
+) -> Option<MountVisualAsset> {
+    let model_fdid = display_map.get_fdid(mount_display_id)?;
+    let model_path = crate::asset::asset_cache::model(model_fdid)?;
+    Some(MountVisualAsset {
+        model_path,
+        skin_fdids: display_map
+            .get_skin_fdids(mount_display_id)
+            .unwrap_or([0, 0, 0]),
+        display_scale: display_map
+            .get_scale(mount_display_id)
+            .filter(|scale| *scale > 0.0)
+            .unwrap_or(1.0),
+    })
+}
+
+fn spawn_mounted_visual_root(
+    commands: &mut Commands,
+    entity: Entity,
+    display_scale: f32,
+    is_local: bool,
+) -> Entity {
+    let mut root = commands.spawn((
+        MountedVisualRoot,
+        Name::new("MountedVisualRoot"),
+        Transform::from_scale(Vec3::splat(display_scale.max(0.01))),
+        Visibility::default(),
+    ));
+    if is_local {
+        root.insert(MovementState::default());
     }
-    for (entity, selection, equipment_snapshot) in pending {
-        apply_player_customization_for_entity(&mut params, entity, selection, equipment_snapshot);
+    let root = root.id();
+    commands.entity(entity).add_child(root);
+    root
+}
+
+fn clear_player_visual_children(
+    commands: &mut Commands,
+    entity: Entity,
+    children_query: &Query<&Children>,
+    nameplate_query: &Query<(), With<crate::rendering::nameplate::Nameplate>>,
+) {
+    let Ok(children) = children_query.get(entity) else {
+        return;
+    };
+    for child in children.iter() {
+        if nameplate_query.get(child).is_ok() {
+            continue;
+        }
+        commands.entity(child).despawn();
     }
 }
 
-fn apply_player_customization_for_entity(
+fn clear_player_visual_components(commands: &mut Commands, entity: Entity) {
+    commands.entity(entity).remove::<(
+        crate::animation::M2AnimData,
+        crate::animation::M2AnimPlayer,
+        crate::equipment::AttachmentPoints,
+        crate::equipment::RenderedEquipment,
+        Mesh3d,
+        MeshMaterial3d<StandardMaterial>,
+        ResolvedModelAssetInfo,
+    )>();
+}
+
+fn reset_player_visual(params: &mut ReplicatedPlayerCustomizationParams, entity: Entity) {
+    clear_player_visual_children(
+        &mut params.commands,
+        entity,
+        &params.children_query,
+        &params.nameplate_query,
+    );
+    clear_player_visual_components(&mut params.commands, entity);
+}
+
+fn apply_mount_fallback_visual(params: &mut ReplicatedPlayerCustomizationParams, entity: Entity) {
+    let (capsule, material) =
+        build_player_capsule(&mut params.meshes, &mut params.materials, false);
+    params
+        .commands
+        .entity(entity)
+        .insert((Mesh3d(capsule), MeshMaterial3d(material)));
+}
+
+fn resolved_mount_model_info(asset: &MountVisualAsset) -> ResolvedModelAssetInfo {
+    ResolvedModelAssetInfo {
+        model_path: asset.model_path.display().to_string(),
+        skin_path: crate::asset::m2::ensure_primary_skin_path(&asset.model_path)
+            .map(|path| path.display().to_string()),
+        display_scale: Some(asset.display_scale),
+    }
+}
+
+fn apply_mounted_visual(
+    params: &mut ReplicatedPlayerCustomizationParams,
+    entity: Entity,
+    mount_display_id: u32,
+) {
+    let Some(asset) = resolve_mount_visual_asset(&CreatureDisplayMap, mount_display_id) else {
+        apply_mount_fallback_visual(params, entity);
+        return;
+    };
+    let visual_root =
+        spawn_mounted_visual_root(&mut params.commands, entity, asset.display_scale, false);
+    let mut assets = crate::m2_spawn::SpawnAssets {
+        meshes: &mut params.meshes,
+        materials: &mut params.materials,
+        effect_materials: &mut params.effect_materials,
+        skybox_materials: None,
+        images: &mut params.images,
+        inverse_bindposes: &mut params.inv_bp,
+    };
+    let _ = crate::m2_spawn::spawn_m2_on_entity(
+        &mut params.commands,
+        &mut assets,
+        &asset.model_path,
+        visual_root,
+        &asset.skin_fdids,
+    );
+    params
+        .commands
+        .entity(entity)
+        .insert(resolved_mount_model_info(&asset));
+}
+
+fn apply_character_visual(
     params: &mut ReplicatedPlayerCustomizationParams,
     entity: Entity,
     selection: CharacterCustomizationSelection,
-    equipment_snapshot: NetEquipmentAppearance,
+    resolved_equipment: &crate::equipment_appearance::ResolvedEquipmentAppearance,
 ) {
-    let resolved_equipment = equipment_appearance::resolve_equipment_appearance(
-        &equipment_snapshot,
-        &params.outfit_data,
-        selection.race,
-        selection.sex,
-    );
     crate::character_customization::apply_character_customization(
         selection,
         &params.customization_db,
         &params.char_tex,
-        Some(&resolved_equipment),
+        Some(resolved_equipment),
         entity,
         &mut params.images,
         &mut params.materials,
@@ -289,16 +473,114 @@ fn apply_player_customization_for_entity(
         &params.equipment_item_query,
         &params.material_query,
     );
+}
+
+fn apply_runtime_equipment_snapshot(
+    params: &mut ReplicatedPlayerCustomizationParams,
+    entity: Entity,
+    resolved_equipment: &crate::equipment_appearance::ResolvedEquipmentAppearance,
+) {
     if let Ok(mut equipment) = params.equipment_query.get_mut(entity) {
-        equipment_appearance::apply_runtime_equipment(&mut equipment, &resolved_equipment);
+        equipment_appearance::apply_runtime_equipment(&mut equipment, resolved_equipment);
+        return;
     }
+    let mut equipment = crate::equipment::Equipment::default();
+    equipment_appearance::apply_runtime_equipment(&mut equipment, resolved_equipment);
+    params.commands.entity(entity).insert(equipment);
+}
+
+pub(crate) fn sync_replicated_player_customization(
+    mut params: ReplicatedPlayerCustomizationParams,
+) {
+    let mut pending = Vec::new();
+    for (entity, player, mounted, equipment_appearance, applied, children) in &params.player_query {
+        let selection = net_player_customization_selection(player);
+        let equipment_snapshot = equipment_appearance.cloned().unwrap_or_default();
+        let mount_display_id = mounted.map(|mounted| mounted.mount_display_id);
+        if applied.is_some_and(|a| {
+            a.selection == selection
+                && a.equipment == equipment_snapshot
+                && a.mount_display_id == mount_display_id
+        }) {
+            continue;
+        }
+        if children.is_none_or(|c| c.is_empty()) {
+            continue;
+        }
+        pending.push((entity, selection, equipment_snapshot, mount_display_id));
+    }
+    for (entity, selection, equipment_snapshot, mount_display_id) in pending {
+        apply_player_customization_for_entity(
+            &mut params,
+            entity,
+            selection,
+            equipment_snapshot,
+            mount_display_id,
+        );
+    }
+}
+
+fn apply_player_customization_for_entity(
+    params: &mut ReplicatedPlayerCustomizationParams,
+    entity: Entity,
+    selection: CharacterCustomizationSelection,
+    equipment_snapshot: NetEquipmentAppearance,
+    mount_display_id: Option<u32>,
+) {
+    let resolved_equipment = equipment_appearance::resolve_equipment_appearance(
+        &equipment_snapshot,
+        &params.outfit_data,
+        selection.race,
+        selection.sex,
+    );
+    reset_player_visual(params, entity);
+
+    if let Some(mount_display_id) = mount_display_id {
+        apply_mounted_visual(params, entity, mount_display_id);
+    } else {
+        apply_character_visual(params, entity, selection, &resolved_equipment);
+    }
+    apply_runtime_equipment_snapshot(params, entity, &resolved_equipment);
     params
         .commands
         .entity(entity)
         .insert(AppliedPlayerAppearance {
             selection,
             equipment: equipment_snapshot,
+            mount_display_id,
         });
+}
+
+pub(crate) fn sync_local_mount_visual_movement(
+    mut queries: ParamSet<(
+        Query<(Entity, &MovementState), With<Player>>,
+        Query<(&ChildOf, &mut MovementState), With<MountedVisualRoot>>,
+    )>,
+) {
+    let parent_states: std::collections::HashMap<Entity, MovementState> = queries
+        .p0()
+        .iter()
+        .map(|(entity, movement)| {
+            (
+                entity,
+                MovementState {
+                    direction: movement.direction,
+                    running: movement.running,
+                    jumping: movement.jumping,
+                    autorun: movement.autorun,
+                },
+            )
+        })
+        .collect();
+    for (parent, mut movement) in &mut queries.p1() {
+        let Some(parent_movement) = parent_states.get(&parent.parent()) else {
+            continue;
+        };
+        movement.direction = parent_movement.direction;
+        movement.running = parent_movement.running;
+        movement.jumping = parent_movement.jumping;
+        movement.autorun = parent_movement.autorun;
+    }
 }
 
 pub(crate) fn is_local_player_entity(
@@ -390,4 +672,80 @@ pub(crate) fn sync_local_alive_state(
         .next()
         .map(|health| health.current > 0.0)
         .unwrap_or(true);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn sample_player() -> NetPlayer {
+        NetPlayer {
+            name: "Alice".into(),
+            race: 1,
+            class: 2,
+            appearance: Default::default(),
+        }
+    }
+
+    #[test]
+    fn desired_player_visual_prefers_mount_when_present() {
+        let mounted = Mounted {
+            mount_display_id: 101,
+        };
+        assert_eq!(
+            desired_player_visual(Some(&mounted)),
+            DesiredPlayerVisual::Mount {
+                mount_display_id: 101
+            }
+        );
+        assert_eq!(desired_player_visual(None), DesiredPlayerVisual::Character);
+    }
+
+    #[test]
+    fn applied_visual_state_includes_mount_display_id() {
+        let selection = net_player_customization_selection(&sample_player());
+        let applied = AppliedPlayerAppearance {
+            selection,
+            equipment: NetEquipmentAppearance::default(),
+            mount_display_id: Some(202),
+        };
+
+        assert_eq!(applied.mount_display_id, Some(202));
+    }
+
+    #[test]
+    fn local_mount_visual_root_copies_parent_movement_state() {
+        let mut app = App::new();
+        let parent = app
+            .world_mut()
+            .spawn((
+                Player,
+                MovementState {
+                    direction: MoveDirection::Forward,
+                    running: false,
+                    jumping: true,
+                    autorun: true,
+                },
+            ))
+            .id();
+        let child = app
+            .world_mut()
+            .spawn((MountedVisualRoot, MovementState::default(), ChildOf(parent)))
+            .id();
+
+        app.world_mut()
+            .run_system_once(sync_local_mount_visual_movement)
+            .expect("sync mount movement");
+
+        let movement = app
+            .world()
+            .entity(child)
+            .get::<MovementState>()
+            .expect("mounted visual movement");
+        assert_eq!(movement.direction, MoveDirection::Forward);
+        assert!(!movement.running);
+        assert!(movement.jumping);
+        assert!(movement.autorun);
+    }
 }

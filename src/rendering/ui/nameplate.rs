@@ -31,7 +31,7 @@ impl Plugin for NameplatePlugin {
 
 /// Marker component on the text entity displaying a nameplate.
 #[derive(Component)]
-struct Nameplate;
+pub(crate) struct Nameplate;
 
 /// Quest giver indicator state on an NPC entity.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]

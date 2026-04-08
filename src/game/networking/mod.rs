@@ -258,6 +258,7 @@ fn register_inworld_sync_systems(app: &mut App) {
             msg::receive_inventory_search_snapshot,
             sync_replicated_transforms,
             crate::networking_player::sync_replicated_player_customization,
+            crate::networking_player::sync_local_mount_visual_movement,
             interpolate_remote_entities,
         )
             .run_if(in_state(GameState::InWorld)),
