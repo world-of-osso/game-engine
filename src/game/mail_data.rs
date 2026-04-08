@@ -107,6 +107,112 @@ impl MailState {
     pub fn send_attachment_count(&self) -> usize {
         self.send_attachments.iter().filter(|s| s.is_some()).count()
     }
+
+    /// Clear the send form fields.
+    pub fn clear_send_form(&mut self) {
+        self.send_recipient.clear();
+        self.send_subject.clear();
+        self.send_body.clear();
+        self.send_money = Money::default();
+        self.send_attachments.clear();
+    }
+
+    /// Find a message by ID.
+    pub fn find_message(&self, mail_id: u64) -> Option<&MailMessage> {
+        self.inbox.iter().find(|m| m.id == mail_id)
+    }
+
+    /// Remove a message from the inbox by ID. Returns true if found.
+    pub fn remove_message(&mut self, mail_id: u64) -> bool {
+        let before = self.inbox.len();
+        self.inbox.retain(|m| m.id != mail_id);
+        self.inbox.len() < before
+    }
+
+    /// Mark a message as read by ID.
+    pub fn mark_read(&mut self, mail_id: u64) {
+        if let Some(m) = self.inbox.iter_mut().find(|m| m.id == mail_id) {
+            m.read = true;
+        }
+    }
+}
+
+// --- Client → server intents ---
+
+/// A pending mail action to send to the server.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MailIntent {
+    /// Send a new mail.
+    Send {
+        recipient: String,
+        subject: String,
+        body: String,
+        money: Money,
+        /// Bag/slot pairs for items to attach.
+        attachments: Vec<(u8, u8)>,
+    },
+    /// Take an item attachment from a received mail.
+    TakeItem { mail_id: u64, attachment_index: u32 },
+    /// Take money from a received mail.
+    TakeMoney { mail_id: u64 },
+    /// Delete a mail from the inbox.
+    Delete { mail_id: u64 },
+    /// Return a mail to its sender.
+    ReturnToSender { mail_id: u64 },
+    /// Open the mailbox (request inbox refresh).
+    OpenMailbox,
+}
+
+/// Queue of mail intents waiting to be sent to the server.
+#[derive(Resource, Default)]
+pub struct MailIntentQueue {
+    pub pending: Vec<MailIntent>,
+}
+
+impl MailIntentQueue {
+    pub fn send_mail(
+        &mut self,
+        recipient: String,
+        subject: String,
+        body: String,
+        money: Money,
+        attachments: Vec<(u8, u8)>,
+    ) {
+        self.pending.push(MailIntent::Send {
+            recipient,
+            subject,
+            body,
+            money,
+            attachments,
+        });
+    }
+
+    pub fn take_item(&mut self, mail_id: u64, attachment_index: u32) {
+        self.pending.push(MailIntent::TakeItem {
+            mail_id,
+            attachment_index,
+        });
+    }
+
+    pub fn take_money(&mut self, mail_id: u64) {
+        self.pending.push(MailIntent::TakeMoney { mail_id });
+    }
+
+    pub fn delete(&mut self, mail_id: u64) {
+        self.pending.push(MailIntent::Delete { mail_id });
+    }
+
+    pub fn return_to_sender(&mut self, mail_id: u64) {
+        self.pending.push(MailIntent::ReturnToSender { mail_id });
+    }
+
+    pub fn open_mailbox(&mut self) {
+        self.pending.push(MailIntent::OpenMailbox);
+    }
+
+    pub fn drain(&mut self) -> Vec<MailIntent> {
+        std::mem::take(&mut self.pending)
+    }
 }
 
 #[cfg(test)]
@@ -334,5 +440,136 @@ mod tests {
             None,
         ];
         assert_eq!(state.send_attachment_count(), 2);
+    }
+
+    // --- MailState management ---
+
+    #[test]
+    fn clear_send_form() {
+        let mut state = MailState {
+            send_recipient: "Alice".into(),
+            send_subject: "Hello".into(),
+            send_body: "Hi there".into(),
+            send_money: Money(5000),
+            send_attachments: vec![Some(MailAttachment {
+                item_name: "X".into(),
+                icon_fdid: 1,
+                count: 1,
+            })],
+            ..Default::default()
+        };
+        state.clear_send_form();
+        assert!(state.send_recipient.is_empty());
+        assert!(state.send_subject.is_empty());
+        assert!(state.send_body.is_empty());
+        assert_eq!(state.send_money, Money(0));
+        assert!(state.send_attachments.is_empty());
+    }
+
+    #[test]
+    fn find_message_by_id() {
+        let mut state = MailState::default();
+        state.inbox = vec![mail(10, false, 3600.0), mail(20, true, 7200.0)];
+        assert_eq!(state.find_message(20).unwrap().id, 20);
+        assert!(state.find_message(99).is_none());
+    }
+
+    #[test]
+    fn remove_message_by_id() {
+        let mut state = MailState::default();
+        state.inbox = vec![mail(10, false, 3600.0), mail(20, true, 7200.0)];
+        assert!(state.remove_message(10));
+        assert_eq!(state.inbox.len(), 1);
+        assert_eq!(state.inbox[0].id, 20);
+        assert!(!state.remove_message(99));
+    }
+
+    #[test]
+    fn mark_read_by_id() {
+        let mut state = MailState::default();
+        state.inbox = vec![mail(10, false, 3600.0)];
+        state.mark_read(10);
+        assert!(state.inbox[0].read);
+    }
+
+    // --- MailIntentQueue ---
+
+    #[test]
+    fn intent_send_mail() {
+        let mut queue = MailIntentQueue::default();
+        queue.send_mail(
+            "Bob".into(),
+            "Hi".into(),
+            "Body".into(),
+            Money(100),
+            vec![(0, 3)],
+        );
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(
+            drained[0],
+            MailIntent::Send {
+                recipient: "Bob".into(),
+                subject: "Hi".into(),
+                body: "Body".into(),
+                money: Money(100),
+                attachments: vec![(0, 3)],
+            }
+        );
+    }
+
+    #[test]
+    fn intent_take_item() {
+        let mut queue = MailIntentQueue::default();
+        queue.take_item(42, 0);
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            MailIntent::TakeItem {
+                mail_id: 42,
+                attachment_index: 0
+            }
+        );
+    }
+
+    #[test]
+    fn intent_take_money() {
+        let mut queue = MailIntentQueue::default();
+        queue.take_money(42);
+        let drained = queue.drain();
+        assert_eq!(drained[0], MailIntent::TakeMoney { mail_id: 42 });
+    }
+
+    #[test]
+    fn intent_delete() {
+        let mut queue = MailIntentQueue::default();
+        queue.delete(5);
+        let drained = queue.drain();
+        assert_eq!(drained[0], MailIntent::Delete { mail_id: 5 });
+    }
+
+    #[test]
+    fn intent_return_to_sender() {
+        let mut queue = MailIntentQueue::default();
+        queue.return_to_sender(7);
+        let drained = queue.drain();
+        assert_eq!(drained[0], MailIntent::ReturnToSender { mail_id: 7 });
+    }
+
+    #[test]
+    fn intent_open_mailbox() {
+        let mut queue = MailIntentQueue::default();
+        queue.open_mailbox();
+        let drained = queue.drain();
+        assert_eq!(drained[0], MailIntent::OpenMailbox);
+    }
+
+    #[test]
+    fn intent_drain_clears() {
+        let mut queue = MailIntentQueue::default();
+        queue.take_money(1);
+        queue.delete(2);
+        assert_eq!(queue.drain().len(), 2);
+        assert!(queue.pending.is_empty());
     }
 }
