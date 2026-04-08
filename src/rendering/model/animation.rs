@@ -69,6 +69,7 @@ const ANIM_SWIM_BACKWARDS: u16 = 45;
 const ANIM_JUMP_START: u16 = 37;
 const ANIM_JUMP: u16 = 38; // airborne loop
 const ANIM_JUMP_END: u16 = 39;
+const ANIM_JUMP_LAND_RUN: u16 = 187;
 const ANIM_SPELL_CAST_DIRECTED: u16 = 51;
 const ANIM_SPELL_CAST_OMNI: u16 = 52;
 const ANIM_READY_SPELL_DIRECTED: u16 = 55;
@@ -503,7 +504,20 @@ fn start_transition(player: &mut M2AnimPlayer, target_idx: usize, blend_ms: f32)
 }
 
 fn is_jump_anim(id: u16) -> bool {
-    matches!(id, ANIM_JUMP_START | ANIM_JUMP | ANIM_JUMP_END)
+    matches!(
+        id,
+        ANIM_JUMP_START | ANIM_JUMP | ANIM_JUMP_END | ANIM_JUMP_LAND_RUN
+    )
+}
+
+fn landing_jump_anim_id(movement: &MovementState, sequences: &[M2AnimSequence]) -> u16 {
+    let wants_land_run = movement.direction == MoveDirection::Forward && movement.running;
+    let has_land_run = wants_land_run && find_seq_idx(sequences, ANIM_JUMP_LAND_RUN).is_some();
+    if has_land_run {
+        ANIM_JUMP_LAND_RUN
+    } else {
+        ANIM_JUMP_END
+    }
 }
 
 fn switch_animation(
@@ -609,13 +623,14 @@ fn switch_jump(
         }
         // Airborne → wait for physics to land (camera.rs controls timing via jump_elapsed)
         Some(ANIM_JUMP) if !movement.jumping => {
-            if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP_END) {
+            let landing_anim = landing_jump_anim_id(movement, sequences);
+            if let Some(idx) = find_seq_idx(sequences, landing_anim) {
                 start_transition(player, idx, JUMP_BLEND_MS);
                 player.looping = false;
             }
         }
         // JumpEnd finished → return to movement anim with normal blend
-        Some(ANIM_JUMP_END) if anim_finished(player, sequences) => {
+        Some(ANIM_JUMP_END | ANIM_JUMP_LAND_RUN) if anim_finished(player, sequences) => {
             player.looping = true;
             let target_id =
                 direction_to_anim_id(movement.direction, movement.running, movement.swimming);

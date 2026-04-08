@@ -38,6 +38,18 @@ fn stand_sequence() -> M2AnimSequence {
     }
 }
 
+fn sequence(anim_id: u16, duration: u32) -> M2AnimSequence {
+    M2AnimSequence {
+        id: anim_id,
+        variation_id: 0,
+        duration,
+        movespeed: 0.0,
+        flags: 0,
+        blend_time: 150,
+        next_animation: -1,
+    }
+}
+
 fn stand_sequence_with_next(
     duration: u32,
     variation_id: u16,
@@ -631,18 +643,6 @@ fn pose_emotes_loop_until_interrupted() {
 
 #[test]
 fn apply_emote_animation_starts_then_clears_finished_wave() {
-    fn sequence(anim_id: u16, duration: u32) -> M2AnimSequence {
-        M2AnimSequence {
-            id: anim_id,
-            variation_id: 0,
-            duration,
-            movespeed: 0.0,
-            flags: 0,
-            blend_time: 150,
-            next_animation: -1,
-        }
-    }
-
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_systems(Update, apply_emote_animation);
@@ -693,18 +693,6 @@ fn apply_emote_animation_starts_then_clears_finished_wave() {
 
 #[test]
 fn apply_emote_animation_keeps_sit_pose_until_movement_interrupts() {
-    fn sequence(anim_id: u16, duration: u32) -> M2AnimSequence {
-        M2AnimSequence {
-            id: anim_id,
-            variation_id: 0,
-            duration,
-            movespeed: 0.0,
-            flags: 0,
-            blend_time: 150,
-            next_animation: -1,
-        }
-    }
-
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_systems(Update, apply_emote_animation);
@@ -751,6 +739,65 @@ fn apply_emote_animation_keeps_sit_pose_until_movement_interrupts() {
     let player = app.world().get::<M2AnimPlayer>(entity).unwrap();
     assert_eq!(player.current_seq_idx, 2, "movement should return to run");
     assert!(app.world().get::<EmoteAnimState>(entity).is_none());
+}
+
+#[test]
+fn switch_jump_uses_land_run_when_moving_forward() {
+    let mut player = M2AnimPlayer {
+        current_seq_idx: 1,
+        time_ms: 200.0,
+        looping: true,
+        transition: None,
+    };
+    let movement = MovementState {
+        direction: MoveDirection::Forward,
+        running: true,
+        jumping: false,
+        autorun: false,
+        swimming: false,
+    };
+    let sequences = vec![
+        sequence(ANIM_STAND, 1000),
+        sequence(ANIM_JUMP, 400),
+        sequence(ANIM_JUMP_END, 200),
+        sequence(ANIM_JUMP_LAND_RUN, 250),
+    ];
+
+    switch_jump(&mut player, &movement, Some(ANIM_JUMP), &sequences);
+
+    assert_eq!(
+        sequences[player.current_seq_idx].id, ANIM_JUMP_LAND_RUN,
+        "forward landing should prefer JumpLandRun when available"
+    );
+}
+
+#[test]
+fn switch_jump_falls_back_to_jump_end_without_land_run() {
+    let mut player = M2AnimPlayer {
+        current_seq_idx: 1,
+        time_ms: 200.0,
+        looping: true,
+        transition: None,
+    };
+    let movement = MovementState {
+        direction: MoveDirection::Forward,
+        running: true,
+        jumping: false,
+        autorun: false,
+        swimming: false,
+    };
+    let sequences = vec![
+        sequence(ANIM_STAND, 1000),
+        sequence(ANIM_JUMP, 400),
+        sequence(ANIM_JUMP_END, 200),
+    ];
+
+    switch_jump(&mut player, &movement, Some(ANIM_JUMP), &sequences);
+
+    assert_eq!(
+        sequences[player.current_seq_idx].id, ANIM_JUMP_END,
+        "models without JumpLandRun should keep the generic landing anim"
+    );
 }
 
 // --- Animation overrides ---
