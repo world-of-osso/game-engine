@@ -200,6 +200,23 @@ pub struct CharacterRosterStatusSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FriendEntry {
+    pub name: String,
+    pub level: u16,
+    pub class_name: String,
+    pub area: String,
+    pub online: bool,
+    pub note: String,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct FriendsStatusSnapshot {
+    pub entries: Vec<FriendEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StorageItemEntry {
     pub slot: u32,
     pub item_guid: u64,
@@ -537,6 +554,15 @@ mod tests {
     }
 
     #[test]
+    fn friends_status_snapshot_defaults_to_empty_entries() {
+        let snapshot = FriendsStatusSnapshot::default();
+
+        assert!(snapshot.entries.is_empty());
+        assert!(snapshot.last_server_message.is_none());
+        assert!(snapshot.last_error.is_none());
+    }
+
+    #[test]
     fn combat_log_snapshot_defaults_to_no_entries() {
         let snapshot = CombatLogStatusSnapshot::default();
 
@@ -719,6 +745,23 @@ mod tests {
     }
 
     #[test]
+    fn friends_status_round_trip() {
+        let snapshot = FriendsStatusSnapshot {
+            entries: vec![FriendEntry {
+                name: "Alice".into(),
+                level: 42,
+                class_name: "Mage".into(),
+                area: "Zone 12".into(),
+                online: true,
+                note: String::new(),
+            }],
+            last_server_message: Some("friend added: Alice".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn default_snapshots_round_trip() {
         round_trip(&NetworkStatusSnapshot::default());
         round_trip(&TerrainStatusSnapshot::default());
@@ -731,6 +774,7 @@ mod tests {
         round_trip(&WarbankStatusSnapshot::default());
         round_trip(&QuestLogStatusSnapshot::default());
         round_trip(&GroupStatusSnapshot::default());
+        round_trip(&FriendsStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());
     }
 

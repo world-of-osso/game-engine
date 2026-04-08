@@ -9,8 +9,8 @@ use game_engine::status::{
     CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DuelStatusSnapshot,
     EquipmentAppearanceStatusSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, InspectStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, InspectStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
     ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
     WarbankStatusSnapshot,
 };
@@ -307,6 +307,7 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(SoundStatusSnapshot::default())
         .insert_resource(CharacterRosterStatusSnapshot::default())
         .insert_resource(CharacterStatsSnapshot::default())
+        .insert_resource(FriendsStatusSnapshot::default())
         .insert_resource(EquippedGearStatusSnapshot::default())
         .insert_resource(EquipmentAppearanceStatusSnapshot::default())
         .insert_resource(MapStatusSnapshot::default())

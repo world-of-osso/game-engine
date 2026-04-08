@@ -96,6 +96,14 @@ fn achievements_status_command_maps_to_request() {
 }
 
 #[test]
+fn friends_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Friends).unwrap(),
+        Request::FriendsStatus
+    );
+}
+
+#[test]
 fn network_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Network).unwrap(),
@@ -324,6 +332,32 @@ fn group_roster_command_maps_to_request() {
     assert_eq!(
         group_request(GroupCmd::Roster).unwrap(),
         Request::GroupRoster
+    );
+}
+
+#[test]
+fn friend_add_command_maps_to_request() {
+    assert_eq!(
+        friend_request(FriendCmd::Add {
+            name: "Alice".into(),
+        })
+        .unwrap(),
+        Request::FriendAdd {
+            name: "Alice".into(),
+        }
+    );
+}
+
+#[test]
+fn friend_remove_command_maps_to_request() {
+    assert_eq!(
+        friend_request(FriendCmd::Remove {
+            name: "Alice".into(),
+        })
+        .unwrap(),
+        Request::FriendRemove {
+            name: "Alice".into(),
+        }
     );
 }
 

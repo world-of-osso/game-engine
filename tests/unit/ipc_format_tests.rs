@@ -2,10 +2,10 @@ use super::*;
 use crate::status::{
     AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    InventoryItemEntry, InventorySearchSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    TerrainStatusSnapshot,
+    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot,
+    GroupRole, GroupStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -150,6 +150,26 @@ fn formats_reputations_status_snapshot_with_server_message() {
     assert!(text.contains("reputations: 1"));
     assert!(text.contains("message: gained 10 reputation with Stormwind"));
     assert!(text.contains("72 Stormwind standing=Friendly value=21010"));
+}
+
+#[test]
+fn formats_friends_status_snapshot_with_server_message() {
+    let text = format_friends_status(&FriendsStatusSnapshot {
+        entries: vec![FriendEntry {
+            name: "Alice".into(),
+            level: 42,
+            class_name: "Mage".into(),
+            area: "Zone 12".into(),
+            online: true,
+            note: String::new(),
+        }],
+        last_server_message: Some("friend added: Alice".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("friends: 1"));
+    assert!(text.contains("message: friend added: Alice"));
+    assert!(text.contains("Alice level=42 class=Mage area=Zone 12 online=true"));
 }
 
 #[test]

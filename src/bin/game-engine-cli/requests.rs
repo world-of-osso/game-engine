@@ -7,9 +7,9 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, GroupCmd, InspectCmd,
-    InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd,
-    StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
+    AuctionCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd, GroupCmd,
+    InspectCmd, InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd,
+    SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -85,6 +85,15 @@ pub fn group_request(command: GroupCmd) -> Result<Request, String> {
         GroupCmd::Status => Request::GroupStatus,
         GroupCmd::Invite { name } => Request::GroupInvite { name },
         GroupCmd::Uninvite { name } => Request::GroupUninvite { name },
+    };
+    Ok(request)
+}
+
+pub fn friend_request(command: FriendCmd) -> Result<Request, String> {
+    let request = match command {
+        FriendCmd::Status => Request::FriendsStatus,
+        FriendCmd::Add { name } => Request::FriendAdd { name },
+        FriendCmd::Remove { name } => Request::FriendRemove { name },
     };
     Ok(request)
 }
@@ -261,6 +270,7 @@ pub fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
 pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
         StatusCmd::Achievements => Request::AchievementsStatus,
+        StatusCmd::Friends => Request::FriendsStatus,
         StatusCmd::Network => Request::NetworkStatus,
         StatusCmd::Terrain => Request::TerrainStatus,
         StatusCmd::Sound => Request::SoundStatus,

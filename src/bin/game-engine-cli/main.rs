@@ -10,8 +10,8 @@ use peercred_ipc::Client;
 
 use requests::{
     auction_request, collection_request, combat_request, currency_request, duel_request,
-    equipment_request, export_character_request, export_scene_request, group_request,
-    inspect_request, inventory_request, item_request, mail_request, map_request,
+    equipment_request, export_character_request, export_scene_request, friend_request,
+    group_request, inspect_request, inventory_request, item_request, mail_request, map_request,
     profession_request, quest_request, reputation_request, spell_request, status_request,
     talent_request, trade_request,
 };
@@ -115,6 +115,11 @@ enum Cmd {
     Group {
         #[command(subcommand)]
         command: GroupCmd,
+    },
+    /// Friends list commands
+    Friend {
+        #[command(subcommand)]
+        command: FriendCmd,
     },
     /// Spell commands
     Spell {
@@ -259,6 +264,7 @@ pub(crate) enum MailCmd {
 #[derive(Subcommand)]
 pub(crate) enum StatusCmd {
     Achievements,
+    Friends,
     Network,
     Terrain,
     Sound,
@@ -311,6 +317,19 @@ pub(crate) enum GroupCmd {
         name: String,
     },
     Uninvite {
+        #[arg(long)]
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum FriendCmd {
+    Status,
+    Add {
+        #[arg(long)]
+        name: String,
+    },
+    Remove {
         #[arg(long)]
         name: String,
     },
@@ -535,6 +554,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Inventory { command } => handle_inventory(socket, command, json),
         Cmd::Quest { command } => handle_quest(socket, command, json),
         Cmd::Group { command } => handle_group(socket, command, json),
+        Cmd::Friend { command } => handle_friend(socket, command, json),
         Cmd::Spell { command } => handle_spell(socket, command, json),
         Cmd::Combat { command } => handle_combat(socket, command, json),
         Cmd::Reputation { command } => handle_reputation(socket, command, json),
@@ -686,6 +706,10 @@ fn handle_quest(socket: &PathBuf, command: QuestCmd, json: bool) -> Result<(), S
 
 fn handle_group(socket: &PathBuf, command: GroupCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, group_request(command)?, json)
+}
+
+fn handle_friend(socket: &PathBuf, command: FriendCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, friend_request(command)?, json)
 }
 
 fn handle_spell(socket: &PathBuf, command: SpellCmd, json: bool) -> Result<(), String> {

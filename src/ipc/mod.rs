@@ -79,6 +79,13 @@ pub enum Request {
     DuelAccept,
     DuelDecline,
     DuelStatus,
+    FriendsStatus,
+    FriendAdd {
+        name: String,
+    },
+    FriendRemove {
+        name: String,
+    },
     AchievementsStatus,
     NetworkStatus,
     TerrainStatus,

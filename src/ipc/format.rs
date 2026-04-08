@@ -6,9 +6,10 @@ mod format_terrain;
 use crate::status::{
     AchievementsStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    EquippedGearStatusSnapshot, GroupRole, GroupStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
+    InventoryItemEntry, InventorySearchSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
+    ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -49,6 +50,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
         Request::CollectionPets { missing } => {
             format_collection_pets(ctx.collection_status, *missing)
         }
+        Request::FriendsStatus => format_friends_status(ctx.friends_status),
         Request::ProfessionRecipes { text } => {
             format_profession_recipes(ctx.profession_status, text)
         }
@@ -152,6 +154,27 @@ pub fn format_reputations_status(snapshot: &ReputationsStatusSnapshot) -> String
         format!(
             "{} {} standing={} value={}",
             e.faction_id, e.faction_name, e.standing, e.value
+        )
+    }));
+    lines.join("\n")
+}
+
+pub fn format_friends_status(snapshot: &FriendsStatusSnapshot) -> String {
+    let mut lines = vec![format!("friends: {}", snapshot.entries.len())];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.entries.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.entries.iter().map(|entry| {
+        format!(
+            "{} level={} class={} area={} online={}",
+            entry.name, entry.level, entry.class_name, entry.area, entry.online
         )
     }));
     lines.join("\n")

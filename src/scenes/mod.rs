@@ -3,6 +3,7 @@ pub mod char_create;
 pub mod char_select;
 pub mod character_frame;
 pub mod dump_tree;
+pub mod friends_frame;
 pub mod game_menu;
 pub mod geoset_debug;
 pub mod inworld_tree;

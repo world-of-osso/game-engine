@@ -669,7 +669,9 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     ));
     app.add_plugins((
         game_engine::achievement::AchievementPlugin,
+        game_engine::friends::FriendsPlugin,
         game_engine::world_map::WorldMapPlugin,
+        scenes::friends_frame::FriendsFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
         scenes::talent_frame::TalentFramePlugin,

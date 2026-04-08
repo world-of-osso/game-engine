@@ -48,6 +48,7 @@ pub mod encounter_journal_data;
 pub mod experience_data;
 #[path = "game/floating_combat_text.rs"]
 pub mod floating_combat_text;
+pub mod friends;
 #[path = "game/friends_data.rs"]
 pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
