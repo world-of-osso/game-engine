@@ -243,9 +243,7 @@ mod tests {
         let orbit_dir = Vec3::NEG_Z;
         let intended = 12.0;
 
-        let adjusted = terrain_adjusted_distance(intended, eye_target, orbit_dir, |_, _| {
-            Some(0.0)
-        });
+        let adjusted = terrain_adjusted_distance(intended, eye_target, orbit_dir, |_, _| Some(0.0));
 
         assert_eq!(adjusted, intended);
     }
@@ -265,6 +263,9 @@ mod tests {
         });
 
         assert!(adjusted < intended, "hill should pull camera forward");
-        assert!(adjusted > 0.5, "camera should still keep a minimum distance");
+        assert!(
+            adjusted > 0.5,
+            "camera should still keep a minimum distance"
+        );
     }
 }
