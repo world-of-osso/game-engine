@@ -378,6 +378,12 @@ fn classify_world_object_model_detects_clickable_prop_types() {
         Some(WorldObjectInteractionKind::Mailbox)
     );
     assert_eq!(
+        classify_world_object_model("world/skillactivated/tradeskillnodes/copper_miningnode_01.m2"),
+        Some(WorldObjectInteractionKind::GatherNode(
+            GatherNodeKind::CopperVein
+        ))
+    );
+    assert_eq!(
         classify_world_object_model("world/expansion02/doodads/anvil/anvil_01.m2"),
         Some(WorldObjectInteractionKind::Anvil)
     );
@@ -454,6 +460,8 @@ fn interact_with_object_mailbox_queues_mail_open() {
         None,
         None,
         None,
+        None,
+        None,
     ));
     assert_eq!(
         queue.pending,
@@ -471,6 +479,8 @@ fn interact_with_object_forge_opens_professions_frame() {
         None,
         Some(&mut open),
         None,
+        None,
+        None,
     ));
     assert!(open.0);
 }
@@ -485,6 +495,8 @@ fn interact_with_object_chair_queues_sit_emote() {
         None,
         None,
         Some(&mut input),
+        None,
+        None,
     ));
     assert_eq!(
         input.0,
@@ -492,6 +504,40 @@ fn interact_with_object_chair_queues_sit_emote() {
             emote: shared::protocol::EmoteKind::Sit,
         })
     );
+}
+
+#[test]
+fn interact_with_object_gather_node_starts_cast_and_blocks_repeat() {
+    let mut queue = game_engine::mail_data::MailIntentQueue::default();
+    let mut profession_runtime = game_engine::profession::ProfessionRuntimeState::default();
+    let mut casting_state = game_engine::casting_data::CastingState::default();
+
+    assert!(interact_with_object(
+        WorldObjectInteractionKind::GatherNode(GatherNodeKind::CopperVein),
+        &mut queue,
+        None,
+        None,
+        None,
+        Some(&mut profession_runtime),
+        Some(&mut casting_state),
+    ));
+    assert!(queue.pending.is_empty());
+    assert_eq!(
+        casting_state
+            .active
+            .as_ref()
+            .map(|cast| cast.spell_name.as_str()),
+        Some("Mining Copper Vein")
+    );
+    assert!(!interact_with_object(
+        WorldObjectInteractionKind::GatherNode(GatherNodeKind::CopperVein),
+        &mut queue,
+        None,
+        None,
+        None,
+        Some(&mut profession_runtime),
+        Some(&mut casting_state),
+    ));
 }
 
 #[test]

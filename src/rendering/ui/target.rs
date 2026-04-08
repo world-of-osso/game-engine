@@ -41,11 +41,37 @@ pub struct WorldObjectInteraction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GatherNodeKind {
+    CopperVein,
+}
+
+impl GatherNodeKind {
+    pub const fn node_id(self) -> u32 {
+        match self {
+            Self::CopperVein => 1,
+        }
+    }
+
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            Self::CopperVein => "Copper Vein",
+        }
+    }
+
+    pub const fn cast_duration_secs(self) -> f32 {
+        match self {
+            Self::CopperVein => 1.5,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorldObjectInteractionKind {
     Mailbox,
     Forge,
     Anvil,
     Chair,
+    GatherNode(GatherNodeKind),
     QuestObject,
 }
 
@@ -76,6 +102,8 @@ struct RightClickInteractionState<'w, 's> {
     mail_frame_open: Option<ResMut<'w, crate::scenes::mail_frame::MailFrameOpen>>,
     professions_open: Option<ResMut<'w, crate::scenes::professions_frame::ProfessionsFrameOpen>>,
     emote_input: Option<ResMut<'w, crate::networking::EmoteInput>>,
+    profession_runtime: Option<ResMut<'w, game_engine::profession::ProfessionRuntimeState>>,
+    casting_state: Option<ResMut<'w, game_engine::casting_data::CastingState>>,
 }
 
 /// Which visual style the target selection circle uses.
@@ -183,6 +211,11 @@ pub(crate) fn classify_world_object_model(model: &str) -> Option<WorldObjectInte
 
     if stem.contains("mailbox") {
         return Some(WorldObjectInteractionKind::Mailbox);
+    }
+    if stem.contains("copper_miningnode") {
+        return Some(WorldObjectInteractionKind::GatherNode(
+            GatherNodeKind::CopperVein,
+        ));
     }
     if stem.contains("anvil") && !stem.contains("anvilmar") {
         return Some(WorldObjectInteractionKind::Anvil);
@@ -516,6 +549,8 @@ fn interact_with_clicked_object(
         state.mail_frame_open.as_deref_mut(),
         state.professions_open.as_deref_mut(),
         state.emote_input.as_deref_mut(),
+        state.profession_runtime.as_deref_mut(),
+        state.casting_state.as_deref_mut(),
     );
     true
 }
@@ -573,6 +608,8 @@ fn interact_with_object(
     mail_frame_open: Option<&mut crate::scenes::mail_frame::MailFrameOpen>,
     professions_open: Option<&mut crate::scenes::professions_frame::ProfessionsFrameOpen>,
     emote_input: Option<&mut crate::networking::EmoteInput>,
+    profession_runtime: Option<&mut game_engine::profession::ProfessionRuntimeState>,
+    casting_state: Option<&mut game_engine::casting_data::CastingState>,
 ) -> bool {
     match kind {
         WorldObjectInteractionKind::Mailbox => {
@@ -598,8 +635,36 @@ fn interact_with_object(
             }
             false
         }
+        WorldObjectInteractionKind::GatherNode(node) => {
+            start_gather_cast(node, profession_runtime, casting_state)
+        }
         WorldObjectInteractionKind::QuestObject => false,
     }
+}
+
+fn start_gather_cast(
+    node: GatherNodeKind,
+    profession_runtime: Option<&mut game_engine::profession::ProfessionRuntimeState>,
+    casting_state: Option<&mut game_engine::casting_data::CastingState>,
+) -> bool {
+    let (Some(profession_runtime), Some(casting_state)) = (profession_runtime, casting_state)
+    else {
+        return false;
+    };
+    if casting_state.active.is_some() {
+        return false;
+    }
+    game_engine::profession::queue_gather_action(profession_runtime, node.node_id());
+    casting_state.start(game_engine::casting_data::ActiveCast {
+        spell_name: format!("Mining {}", node.display_name()),
+        spell_id: 0,
+        icon_fdid: 0,
+        cast_type: game_engine::casting_data::CastType::Cast,
+        interruptible: true,
+        duration: node.cast_duration_secs(),
+        elapsed: 0.0,
+    });
+    true
 }
 
 /// When CurrentTarget changes, spawn or move the selection circle.

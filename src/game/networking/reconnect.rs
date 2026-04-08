@@ -144,6 +144,11 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::profession::reset_runtime(&mut profession_state);
     }
+    if let Some(mut casting_state) =
+        world.get_resource_mut::<game_engine::casting_data::CastingState>()
+    {
+        *casting_state = game_engine::casting_data::CastingState::default();
+    }
     if let Some(mut friends_state) =
         world.get_resource_mut::<game_engine::friends::FriendsRuntimeState>()
     {

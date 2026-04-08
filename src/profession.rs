@@ -23,6 +23,7 @@ pub struct ProfessionRuntimeState {
     queried_inworld: bool,
 }
 
+#[derive(Debug)]
 enum Action {
     Craft(u32),
     Gather(u32),
@@ -62,6 +63,10 @@ pub fn queue_ipc_request(
         }
         _ => false,
     }
+}
+
+pub fn queue_gather_action(runtime: &mut ProfessionRuntimeState, node_id: u32) {
+    runtime.pending_actions.push_back(Action::Gather(node_id));
 }
 
 fn request_professions_on_enter_world(
@@ -199,14 +204,7 @@ fn format_status(snapshot: &ProfessionStatusSnapshot) -> String {
         }
     ));
     lines.push(format!("recipes: {}", snapshot.recipes.len()));
-    lines.push(format!(
-        "gather_nodes: {}",
-        KNOWN_GATHER_NODES
-            .iter()
-            .map(|(id, name)| format!("{id}:{name}"))
-            .collect::<Vec<_>>()
-            .join(", ")
-    ));
+    lines.push(format!("gather_nodes: {}", format_known_gather_nodes()));
     if let Some(message) = &snapshot.last_server_message {
         lines.push(format!("message: {message}"));
     }
@@ -220,6 +218,14 @@ fn format_status(snapshot: &ProfessionStatusSnapshot) -> String {
         lines.push(format!("error: {error}"));
     }
     lines.join("\n")
+}
+
+fn format_known_gather_nodes() -> String {
+    KNOWN_GATHER_NODES
+        .iter()
+        .map(|(id, name)| format!("{id}:{name}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[cfg(test)]
@@ -256,5 +262,17 @@ mod tests {
         assert!(text.contains("recipes: 1"));
         assert!(text.contains("crafted Copper Bracers"));
         assert!(text.contains("skill_up: Blacksmithing 13/75"));
+    }
+
+    #[test]
+    fn queue_gather_action_enqueues_node_request() {
+        let mut runtime = ProfessionRuntimeState::default();
+
+        queue_gather_action(&mut runtime, 1);
+
+        match runtime.pending_actions.front() {
+            Some(Action::Gather(node_id)) => assert_eq!(*node_id, 1),
+            other => panic!("expected queued gather action, got {other:?}"),
+        }
     }
 }
