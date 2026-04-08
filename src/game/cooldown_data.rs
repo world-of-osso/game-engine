@@ -145,6 +145,77 @@ impl GlobalCooldown {
             self.remaining = (self.remaining - dt).max(0.0);
         }
     }
+
+    /// Sweep angle in radians (0 = ready, 2π = just started) for clock-wipe overlay.
+    pub fn sweep_angle(&self) -> f32 {
+        (1.0 - self.progress()) * std::f32::consts::TAU
+    }
+}
+
+/// Resolve the effective cooldown display for an action bar slot.
+/// Shows whichever is longer: the GCD or the spell's individual cooldown.
+pub fn effective_slot_cooldown(
+    gcd: &GlobalCooldown,
+    tracker: &CooldownTracker,
+    spell_id: u32,
+) -> SlotCooldownDisplay {
+    let gcd_remaining = if gcd.is_active() { gcd.remaining } else { 0.0 };
+    let spell_remaining = tracker.remaining(spell_id);
+
+    if spell_remaining > gcd_remaining {
+        // Show spell cooldown (longer)
+        let cd = tracker.get(spell_id);
+        SlotCooldownDisplay {
+            remaining: spell_remaining,
+            duration: cd.map_or(0.0, |c| c.duration),
+            is_gcd: false,
+        }
+    } else if gcd_remaining > 0.0 {
+        // Show GCD
+        SlotCooldownDisplay {
+            remaining: gcd_remaining,
+            duration: gcd.duration,
+            is_gcd: true,
+        }
+    } else {
+        SlotCooldownDisplay::ready()
+    }
+}
+
+/// What to display on an action bar slot's cooldown overlay.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SlotCooldownDisplay {
+    pub remaining: f32,
+    pub duration: f32,
+    /// Whether this is the GCD (shorter, no text) or a spell CD (shows countdown).
+    pub is_gcd: bool,
+}
+
+impl SlotCooldownDisplay {
+    pub fn ready() -> Self {
+        Self {
+            remaining: 0.0,
+            duration: 0.0,
+            is_gcd: false,
+        }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.remaining <= 0.0
+    }
+
+    /// Sweep angle for clock-wipe (0 = ready, 2π = just started).
+    pub fn sweep_angle(&self) -> f32 {
+        if self.duration <= 0.0 {
+            return 0.0;
+        }
+        (self.remaining / self.duration) * std::f32::consts::TAU
+    }
+
+    /// Whether to show the countdown text (only for non-GCD cooldowns > 1.5s).
+    pub fn show_text(&self) -> bool {
+        !self.is_gcd && self.remaining > 1.5
+    }
 }
 
 #[cfg(test)]
@@ -283,5 +354,92 @@ mod tests {
         assert!((gcd.progress() - 0.0).abs() < 0.01);
         gcd.tick(0.75);
         assert!((gcd.progress() - 0.5).abs() < 0.01);
+    }
+
+    // --- GCD display ---
+
+    #[test]
+    fn gcd_sweep_angle_full_at_start() {
+        let mut gcd = GlobalCooldown::default();
+        gcd.trigger();
+        assert!((gcd.sweep_angle() - std::f32::consts::TAU).abs() < 0.01);
+    }
+
+    #[test]
+    fn gcd_sweep_angle_zero_when_ready() {
+        let gcd = GlobalCooldown::default();
+        assert_eq!(gcd.sweep_angle(), 0.0);
+    }
+
+    // --- Effective slot cooldown ---
+
+    #[test]
+    fn slot_ready_when_no_cooldowns() {
+        let gcd = GlobalCooldown::default();
+        let tracker = CooldownTracker::default();
+        let display = effective_slot_cooldown(&gcd, &tracker, 853);
+        assert!(display.is_ready());
+    }
+
+    #[test]
+    fn slot_shows_gcd_when_no_spell_cd() {
+        let mut gcd = GlobalCooldown::default();
+        gcd.trigger();
+        let tracker = CooldownTracker::default();
+        let display = effective_slot_cooldown(&gcd, &tracker, 853);
+        assert!(display.is_gcd);
+        assert!((display.remaining - 1.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn slot_shows_spell_cd_when_longer_than_gcd() {
+        let mut gcd = GlobalCooldown::default();
+        gcd.trigger(); // 1.5s
+        let mut tracker = CooldownTracker::default();
+        tracker.start_cooldown(853, 60.0); // 60s >> 1.5s
+        let display = effective_slot_cooldown(&gcd, &tracker, 853);
+        assert!(!display.is_gcd);
+        assert!((display.remaining - 60.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn slot_show_text_only_for_long_spell_cd() {
+        let display = SlotCooldownDisplay {
+            remaining: 30.0,
+            duration: 60.0,
+            is_gcd: false,
+        };
+        assert!(display.show_text());
+
+        let short = SlotCooldownDisplay {
+            remaining: 1.0,
+            duration: 1.5,
+            is_gcd: false,
+        };
+        assert!(!short.show_text());
+
+        let gcd_display = SlotCooldownDisplay {
+            remaining: 1.0,
+            duration: 1.5,
+            is_gcd: true,
+        };
+        assert!(!gcd_display.show_text());
+    }
+
+    #[test]
+    fn slot_sweep_angle() {
+        let display = SlotCooldownDisplay {
+            remaining: 5.0,
+            duration: 10.0,
+            is_gcd: false,
+        };
+        let expected = 0.5 * std::f32::consts::TAU;
+        assert!((display.sweep_angle() - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn slot_ready_sweep_is_zero() {
+        let display = SlotCooldownDisplay::ready();
+        assert_eq!(display.sweep_angle(), 0.0);
     }
 }
