@@ -61,6 +61,96 @@ fn test_tab_cycles_targets() {
 }
 
 #[test]
+fn test_tab_target_ignores_non_npc_remote_entities() {
+    let mut app = game_engine::test_harness::headless_app();
+    app.init_resource::<CurrentTarget>();
+    app.insert_resource(InputBindings::default());
+    app.insert_resource(ButtonInput::<KeyCode>::default());
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.add_systems(Update, tab_target);
+
+    let _player = app
+        .world_mut()
+        .spawn((Transform::from_xyz(0.0, 0.0, 0.0), Player))
+        .id();
+
+    let ignored_player = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(2.0, 0.0, 0.0),
+            RemoteEntity,
+            shared::components::Player {
+                name: "Friendly".into(),
+                race: 1,
+                class: 2,
+                appearance: Default::default(),
+            },
+        ))
+        .id();
+
+    let npc = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(4.0, 0.0, 0.0),
+            RemoteEntity,
+            Npc { template_id: 42 },
+        ))
+        .id();
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Tab);
+    game_engine::test_harness::run_updates(&mut app, 1);
+
+    let current = app.world().resource::<CurrentTarget>();
+    assert_eq!(current.0, Some(npc));
+    assert_ne!(current.0, Some(ignored_player));
+}
+
+#[test]
+fn test_tab_target_skips_hidden_npcs() {
+    let mut app = game_engine::test_harness::headless_app();
+    app.init_resource::<CurrentTarget>();
+    app.insert_resource(InputBindings::default());
+    app.insert_resource(ButtonInput::<KeyCode>::default());
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.add_systems(Update, tab_target);
+
+    let _player = app
+        .world_mut()
+        .spawn((Transform::from_xyz(0.0, 0.0, 0.0), Player))
+        .id();
+
+    let hidden = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(2.0, 0.0, 0.0),
+            RemoteEntity,
+            Npc { template_id: 1 },
+            Visibility::Hidden,
+        ))
+        .id();
+    let visible = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(4.0, 0.0, 0.0),
+            RemoteEntity,
+            Npc { template_id: 2 },
+            Visibility::Visible,
+        ))
+        .id();
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Tab);
+    game_engine::test_harness::run_updates(&mut app, 1);
+
+    let current = app.world().resource::<CurrentTarget>();
+    assert_eq!(current.0, Some(visible));
+    assert_ne!(current.0, Some(hidden));
+}
+
+#[test]
 fn test_escape_clears_target() {
     let mut app = game_engine::test_harness::headless_app();
     app.init_resource::<CurrentTarget>();

@@ -10,8 +10,12 @@ use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
 use game_engine::input_bindings::{InputAction, InputBindings};
 
-type RemoteTargetQuery<'w, 's> =
-    Query<'w, 's, (Entity, &'static Transform), (With<RemoteEntity>, Without<Player>)>;
+type RemoteTargetQuery<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static Transform, Option<&'static Visibility>),
+    (With<RemoteEntity>, With<Npc>, Without<Player>),
+>;
 
 #[path = "target_visuals.rs"]
 mod target_visuals;
@@ -193,7 +197,15 @@ fn sorted_targets_by_distance(
 ) -> Vec<Entity> {
     let mut entities: Vec<(Entity, f32)> = remote_q
         .iter()
-        .map(|(e, tf)| (e, tf.translation.distance_squared(player_tf.translation)))
+        .filter(|(_, _, visibility)| visibility.is_none_or(|value| *value != Visibility::Hidden))
+        .map(|(entity, transform, _)| {
+            (
+                entity,
+                transform
+                    .translation
+                    .distance_squared(player_tf.translation),
+            )
+        })
         .collect();
     entities.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
     entities.into_iter().map(|(e, _)| e).collect()
