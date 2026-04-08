@@ -509,12 +509,21 @@ fn resolve_player_movement_state(
     let (direction, anim_dir) =
         compute_movement_input(keys, mouse_buttons, bindings, movement.autorun, facing);
     movement.direction = anim_dir;
-    let speed = if movement.running {
+    let base_speed = if movement.running {
         RUN_SPEED
     } else {
         WALK_SPEED
     };
+    let speed = base_speed * movement_speed_multiplier(anim_dir);
     (direction, speed)
+}
+
+fn movement_speed_multiplier(direction: MoveDirection) -> f32 {
+    match direction {
+        MoveDirection::Backward => shared::movement::BACKPEDAL_MULTIPLIER,
+        MoveDirection::Left | MoveDirection::Right => shared::movement::STRAFE_MULTIPLIER,
+        MoveDirection::None | MoveDirection::Forward => 1.0,
+    }
 }
 
 struct HorizontalMovementContext<'a> {
@@ -786,6 +795,28 @@ mod tests {
         assert!(closed);
         assert!(!movement.autorun);
         assert_eq!(movement.direction, MoveDirection::None);
+    }
+
+    #[test]
+    fn backward_speed_uses_shared_backpedal_multiplier() {
+        let speed = movement_speed_multiplier(MoveDirection::Backward) * RUN_SPEED;
+        let expected = RUN_SPEED * shared::movement::BACKPEDAL_MULTIPLIER;
+        assert!((speed - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn strafe_speed_uses_shared_strafe_multiplier() {
+        let speed = movement_speed_multiplier(MoveDirection::Left) * RUN_SPEED;
+        let expected = RUN_SPEED * shared::movement::STRAFE_MULTIPLIER;
+        assert!((speed - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn strafe_speed_remains_faster_than_backpedal() {
+        let strafe = movement_speed_multiplier(MoveDirection::Right) * RUN_SPEED;
+        let backpedal = movement_speed_multiplier(MoveDirection::Backward) * RUN_SPEED;
+        assert!(strafe < RUN_SPEED);
+        assert!(strafe > backpedal);
     }
 }
 
