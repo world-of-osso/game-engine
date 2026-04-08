@@ -13,6 +13,9 @@ type FollowPlayerQuery<'w, 's> =
 type FollowCameraQuery<'w, 's> =
     Query<'w, 's, (&'static mut WowCamera, &'static mut Transform), Without<Player>>;
 
+const TERRAIN_COLLISION_STEPS: usize = 24;
+const TERRAIN_COLLISION_CLEARANCE: f32 = 0.2;
+
 /// Recursively collect all descendant entities into the set.
 fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut HashSet<Entity>) {
     if let Ok(children) = children_q.get(entity) {
@@ -30,6 +33,34 @@ fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>
         Some(hit) if hit < intended_distance => (hit - COLLISION_OFFSET).max(0.5),
         _ => intended_distance,
     }
+}
+
+fn terrain_adjusted_distance(
+    intended_distance: f32,
+    eye_target: Vec3,
+    orbit_dir: Vec3,
+    mut terrain_height_at: impl FnMut(f32, f32) -> Option<f32>,
+) -> f32 {
+    if intended_distance <= 0.0 || orbit_dir.length_squared() == 0.0 {
+        return intended_distance;
+    }
+
+    let intended_pos = eye_target - orbit_dir * intended_distance;
+    for step in 1..=TERRAIN_COLLISION_STEPS {
+        let t = step as f32 / TERRAIN_COLLISION_STEPS as f32;
+        let sample = eye_target.lerp(intended_pos, t);
+        let Some(terrain_y) = terrain_height_at(sample.x, sample.z) else {
+            continue;
+        };
+        if terrain_y + TERRAIN_COLLISION_CLEARANCE <= sample.y {
+            continue;
+        }
+
+        let blocked_distance = eye_target.distance(sample);
+        return (blocked_distance - COLLISION_OFFSET).max(0.5);
+    }
+
+    intended_distance
 }
 
 /// Build the set of entities excluded from camera collision (player + children + sky).
@@ -54,13 +85,21 @@ fn compute_effective_distance(
     eye_target: Vec3,
     orbit_dir: Vec3,
     ray_cast: &mut MeshRayCast,
+    terrain: Option<&TerrainHeightmap>,
     excluded: HashSet<Entity>,
     dt: f32,
 ) -> f32 {
-    let intended_pos = eye_target - orbit_dir * cam.distance;
+    let terrain_distance = terrain
+        .map(|terrain| {
+            terrain_adjusted_distance(cam.distance, eye_target, orbit_dir, |x, z| {
+                terrain.height_at(x, z)
+            })
+        })
+        .unwrap_or(cam.distance);
+    let intended_pos = eye_target - orbit_dir * terrain_distance;
     let ray_dir = (intended_pos - eye_target).normalize_or_zero();
     if ray_dir.length_squared() == 0.0 {
-        return cam.distance;
+        return terrain_distance;
     }
 
     let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
@@ -68,7 +107,7 @@ fn compute_effective_distance(
     let settings = MeshRayCastSettings::default().with_filter(&filter);
     let hits = ray_cast.cast_ray(ray, &settings);
     let closest_hit = hits.first().map(|(_, hit)| hit.distance);
-    let adjusted = collision_adjusted_distance(cam.distance, closest_hit);
+    let adjusted = collision_adjusted_distance(terrain_distance, closest_hit);
     if adjusted < cam.distance {
         cam.collided = true;
         return adjusted;
@@ -119,6 +158,7 @@ pub(super) fn camera_follow(
         eye_target,
         orbit_dir,
         &mut ray_cast,
+        terrain.as_deref(),
         excluded,
         dt,
     );
@@ -195,5 +235,36 @@ mod tests {
             "expected gradual recovery, got {}",
             recovered
         );
+    }
+
+    #[test]
+    fn terrain_occlusion_keeps_full_distance_when_segment_is_clear() {
+        let eye_target = Vec3::new(0.0, 2.0, 0.0);
+        let orbit_dir = Vec3::NEG_Z;
+        let intended = 12.0;
+
+        let adjusted = terrain_adjusted_distance(intended, eye_target, orbit_dir, |_, _| {
+            Some(0.0)
+        });
+
+        assert_eq!(adjusted, intended);
+    }
+
+    #[test]
+    fn terrain_occlusion_pulls_camera_forward_when_hill_blocks_view() {
+        let eye_target = Vec3::new(0.0, 2.0, 0.0);
+        let orbit_dir = Vec3::NEG_Z;
+        let intended = 12.0;
+
+        let adjusted = terrain_adjusted_distance(intended, eye_target, orbit_dir, |x, z| {
+            if x.abs() < 0.5 && z > 5.0 && z < 7.5 {
+                Some(2.4)
+            } else {
+                Some(0.0)
+            }
+        });
+
+        assert!(adjusted < intended, "hill should pull camera forward");
+        assert!(adjusted > 0.5, "camera should still keep a minimum distance");
     }
 }
