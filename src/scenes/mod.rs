@@ -7,6 +7,7 @@ pub mod encounter_journal_frame;
 pub mod friends_frame;
 pub mod game_menu;
 pub mod geoset_debug;
+pub mod group_frames;
 pub mod inworld_tree;
 pub mod loading;
 pub mod login;

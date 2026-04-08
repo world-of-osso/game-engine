@@ -246,6 +246,7 @@ fn filled_cell(
             name: cell_id,
             width: {CELL_W},
             height: {CELL_H},
+            mouse_enabled: true,
             background_color: CELL_BG,
             anchor {
                 point: AnchorPoint::TopLeft,

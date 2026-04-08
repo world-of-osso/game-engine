@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::gossip_data::GossipIntentQueue;
 use game_engine::targeting::CurrentTarget;
+use game_engine::ui::input::find_frame_at;
+use game_engine::ui::plugin::UiState;
 use shared::components::Npc;
 
 use crate::camera::Player;
@@ -139,6 +141,7 @@ fn click_to_target(
     visibility_q: Query<&Visibility>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    ui_state: Option<Res<UiState>>,
     mut current: ResMut<CurrentTarget>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
@@ -151,6 +154,12 @@ fn click_to_target(
     let Some(cursor) = window.cursor_position() else {
         return;
     };
+    if ui_state
+        .as_deref()
+        .is_some_and(|ui| find_frame_at(&ui.registry, cursor.x, cursor.y).is_some())
+    {
+        return;
+    }
     let Ok((camera, cam_tf)) = cameras.single() else {
         return;
     };
@@ -295,9 +304,11 @@ const INTERACT_RANGE: f32 = 5.0;
 /// On right-click, interact with the targeted NPC if within range.
 fn right_click_interact(
     mouse: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     current: Res<CurrentTarget>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    ui_state: Option<Res<UiState>>,
     player_q: Query<&GlobalTransform, With<Player>>,
     npc_q: Query<&GlobalTransform, With<Npc>>,
     mut gossip_queue: ResMut<GossipIntentQueue>,
@@ -306,6 +317,16 @@ fn right_click_interact(
         return;
     }
     if !mouse.just_pressed(MouseButton::Right) {
+        return;
+    }
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    if ui_state
+        .as_deref()
+        .is_some_and(|ui| find_frame_at(&ui.registry, cursor.x, cursor.y).is_some())
+    {
         return;
     }
     let Some(target_entity) = current.0 else {

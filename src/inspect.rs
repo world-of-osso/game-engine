@@ -133,6 +133,11 @@ pub fn reset_runtime(runtime: &mut InspectRuntimeState) {
     *runtime = InspectRuntimeState::default();
 }
 
+pub fn request_query_for_target(runtime: &mut InspectRuntimeState, target: Option<Entity>) {
+    runtime.current_target = target;
+    runtime.pending_query = target.is_some();
+}
+
 pub fn apply_inspect_state_update(
     snapshot: &mut InspectStatusSnapshot,
     update: InspectStateUpdate,

@@ -201,6 +201,7 @@ fn party_unit_frame(idx: usize, member: &PartyMemberState, y: f32) -> Element {
             name: frame_id,
             width: {UNIT_W},
             height: {UNIT_H},
+            mouse_enabled: true,
             background_color: FRAME_BG,
             anchor {
                 point: AnchorPoint::TopLeft,

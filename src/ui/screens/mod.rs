@@ -15,6 +15,7 @@ pub mod dress_up_frame_component;
 pub mod encounter_journal_component;
 pub mod friends_frame_component;
 pub mod game_menu_component;
+pub mod group_frames_component;
 pub mod guild_bank_frame_component;
 pub mod guild_control_component;
 pub mod help_frame_component;
