@@ -303,10 +303,10 @@ fn blit_image_adjacent_tiles_no_gap() {
     blit_image(&mut composite, comp_size, &red, tile_size, 0, 0);
     blit_image(&mut composite, comp_size, &blue, tile_size, 2, 0);
     // Last pixel of red tile (row 0, col 1)
-    let red_end = (0 * comp_size + 1) * 4;
+    let red_end = 4;
     assert_eq!(&composite[red_end..red_end + 4], &[255, 0, 0, 255]);
     // First pixel of blue tile (row 0, col 2)
-    let blue_start = (0 * comp_size + 2) * 4;
+    let blue_start = 8;
     assert_eq!(&composite[blue_start..blue_start + 4], &[0, 0, 255, 255]);
     // No gap between them
     assert_eq!(blue_start - red_end, 4); // exactly 1 pixel apart
@@ -320,10 +320,10 @@ fn blit_image_does_not_overwrite_outside_bounds() {
     let tile = vec![0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255];
     blit_image(&mut composite, comp_size, &tile, tile_size, 0, 0);
     // Pixel at (0, 2) should still be 99 (untouched)
-    let i = (0 * comp_size + 2) * 4;
+    let i = 2 * 4;
     assert_eq!(composite[i], 99);
     // Pixel at (2, 0) should still be 99 (untouched)
-    let i = (2 * comp_size + 0) * 4;
+    let i = (2 * comp_size) * 4;
     assert_eq!(composite[i], 99);
 }
 

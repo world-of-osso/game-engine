@@ -22,6 +22,7 @@ use crate::collection::{
     CollectionRuntimeState, queue_ipc_request as queue_collection_ipc_request,
 };
 use crate::currency::{CurrencyRuntimeState, queue_ipc_request as queue_currency_ipc_request};
+use crate::death::{DeathRuntimeState, queue_ipc_request as queue_death_ipc_request};
 use crate::duel::{DuelClientState, queue_ipc_request_with_snapshot as queue_duel_ipc_request};
 use crate::friends::{FriendsRuntimeState, queue_ipc_request as queue_friends_ipc_request};
 use crate::ignore_list::{
@@ -38,12 +39,12 @@ use crate::pvp::{PvpRuntimeState, queue_ipc_request as queue_pvp_ipc_request};
 use crate::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterRosterStatusSnapshot,
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, DuelStatusSnapshot, EncounterJournalStatusSnapshot,
-    EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot, FriendsStatusSnapshot,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, LfgStatusSnapshot,
-    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
-    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
-    TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
+    CurrenciesStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
+    EncounterJournalStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
+    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
+    LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
@@ -81,6 +82,7 @@ struct StatusSnapshotParams<'w> {
     achievements: Res<'w, AchievementsStatusSnapshot>,
     barber_shop: Res<'w, BarberShopStatusSnapshot>,
     encounter_journal: Res<'w, EncounterJournalStatusSnapshot>,
+    death: Res<'w, DeathStatusSnapshot>,
     network: Res<'w, NetworkStatusSnapshot>,
     terrain: Res<'w, TerrainStatusSnapshot>,
     sound: Res<'w, SoundStatusSnapshot>,
@@ -109,6 +111,7 @@ pub(crate) struct DispatchContext<'a> {
     pub achievements_status: &'a AchievementsStatusSnapshot,
     pub barber_shop_status: &'a BarberShopStatusSnapshot,
     pub encounter_journal_status: &'a EncounterJournalStatusSnapshot,
+    pub death_status: &'a DeathStatusSnapshot,
     pub network_status: &'a NetworkStatusSnapshot,
     pub terrain_status: &'a TerrainStatusSnapshot,
     pub sound_status: &'a SoundStatusSnapshot,
@@ -153,6 +156,8 @@ struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
     barber_shop: ResMut<'w, BarberShopRuntimeState>,
     barber_shop_status: ResMut<'w, BarberShopStatusSnapshot>,
+    death: ResMut<'w, DeathRuntimeState>,
+    death_status: Res<'w, DeathStatusSnapshot>,
     collection: ResMut<'w, CollectionRuntimeState>,
     friends: ResMut<'w, FriendsRuntimeState>,
     friends_status: Res<'w, FriendsStatusSnapshot>,
@@ -227,6 +232,7 @@ fn build_dispatch_context<'a>(
         achievements_status: &snapshots.achievements,
         barber_shop_status: &snapshots.barber_shop,
         encounter_journal_status: &snapshots.encounter_journal,
+        death_status: &snapshots.death,
         network_status: &snapshots.network,
         terrain_status: &snapshots.terrain,
         sound_status: &snapshots.sound,
@@ -266,6 +272,14 @@ fn dispatch(
     if queue_barber_shop_ipc_request(
         &mut world.barber_shop,
         &mut world.barber_shop_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_death_ipc_request(
+        &mut world.death,
+        &world.death_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

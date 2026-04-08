@@ -111,6 +111,10 @@ pub enum Request {
     },
     BarberReset,
     BarberApply,
+    DeathStatus,
+    DeathReleaseSpirit,
+    DeathResurrectAtCorpse,
+    DeathAcceptSpiritHealer,
     PvpStatus,
     EncounterJournalStatus,
     PvpQueueBattleground {

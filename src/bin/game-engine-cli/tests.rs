@@ -135,6 +135,14 @@ fn barber_status_command_maps_to_request() {
 }
 
 #[test]
+fn death_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Death).unwrap(),
+        Request::DeathStatus
+    );
+}
+
+#[test]
 fn encounter_journal_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::EncounterJournal).unwrap(),
@@ -313,6 +321,30 @@ fn talent_reset_command_maps_to_request() {
 #[test]
 fn duel_status_command_maps_to_request() {
     assert_eq!(duel_request(DuelCmd::Status).unwrap(), Request::DuelStatus);
+}
+
+#[test]
+fn death_release_command_maps_to_request() {
+    assert_eq!(
+        death_request(DeathCmd::ReleaseSpirit).unwrap(),
+        Request::DeathReleaseSpirit
+    );
+}
+
+#[test]
+fn death_resurrect_at_corpse_command_maps_to_request() {
+    assert_eq!(
+        death_request(DeathCmd::ResurrectAtCorpse).unwrap(),
+        Request::DeathResurrectAtCorpse
+    );
+}
+
+#[test]
+fn death_accept_spirit_healer_command_maps_to_request() {
+    assert_eq!(
+        death_request(DeathCmd::AcceptSpiritHealer).unwrap(),
+        Request::DeathAcceptSpiritHealer
+    );
 }
 
 #[test]

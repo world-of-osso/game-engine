@@ -6,11 +6,11 @@ mod format_terrain;
 use crate::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterStatsSnapshot,
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EncounterJournalStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
-    InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
-    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    CurrenciesStatusSnapshot, DeathStateEntry, DeathStatusSnapshot, EncounterJournalStatusSnapshot,
+    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
+    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -24,6 +24,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
     let text = match &cmd.request {
         Request::AchievementsStatus => format_achievement_status(ctx.achievements_status),
         Request::BarberStatus => format_barber_shop_status(ctx.barber_shop_status),
+        Request::DeathStatus => format_death_status(ctx.death_status),
         Request::EncounterJournalStatus => {
             format_encounter_journal_status(ctx.encounter_journal_status)
         }
@@ -114,6 +115,49 @@ pub fn format_barber_shop_status(snapshot: &BarberShopStatusSnapshot) -> String 
             crate::barber_shop::option_value(snapshot.pending_appearance, index)
         ));
     }
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    lines.join("\n")
+}
+
+pub fn format_death_status(snapshot: &DeathStatusSnapshot) -> String {
+    let state = snapshot
+        .state
+        .as_ref()
+        .map(|state| match state {
+            DeathStateEntry::Alive => "alive",
+            DeathStateEntry::Dead => "dead",
+            DeathStateEntry::Ghost => "ghost",
+            DeathStateEntry::Resurrecting => "resurrecting",
+        })
+        .unwrap_or("unknown");
+    let corpse = snapshot
+        .corpse
+        .as_ref()
+        .map(|corpse| format!("{:.2},{:.2},{:.2}", corpse.x, corpse.y, corpse.z))
+        .unwrap_or_else(|| "-".into());
+    let graveyard = snapshot
+        .graveyard
+        .as_ref()
+        .map(|graveyard| format!("{:.2},{:.2},{:.2}", graveyard.x, graveyard.y, graveyard.z))
+        .unwrap_or_else(|| "-".into());
+    let mut lines = vec![
+        format!("state: {state}"),
+        format!("corpse: {corpse}"),
+        format!("graveyard: {graveyard}"),
+        format!(
+            "can_resurrect_at_corpse: {}",
+            snapshot.can_resurrect_at_corpse
+        ),
+        format!(
+            "spirit_healer_available: {}",
+            snapshot.spirit_healer_available
+        ),
+    ];
     if let Some(message) = &snapshot.last_server_message {
         lines.push(format!("message: {message}"));
     }
@@ -779,9 +823,13 @@ pub fn format_map_position(snapshot: &MapStatusSnapshot) -> String {
         .waypoint
         .map(|w| format!("{:.2},{:.2}", w.x, w.y))
         .unwrap_or_else(|| "-".into());
+    let graveyard_marker = snapshot
+        .graveyard_marker
+        .map(|w| format!("{:.2},{:.2}", w.x, w.y))
+        .unwrap_or_else(|| "-".into());
     format!(
-        "zone_id: {}\nposition: {:.2},{:.2}\nwaypoint: {}",
-        snapshot.zone_id, snapshot.player_x, snapshot.player_z, waypoint
+        "zone_id: {}\nposition: {:.2},{:.2}\nwaypoint: {}\ngraveyard_marker: {}",
+        snapshot.zone_id, snapshot.player_x, snapshot.player_z, waypoint, graveyard_marker
     )
 }
 

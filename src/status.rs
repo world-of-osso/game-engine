@@ -537,12 +537,40 @@ pub struct Waypoint {
     pub y: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DeathStateEntry {
+    Alive,
+    Dead,
+    Ghost,
+    Resurrecting,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeathPositionEntry {
+    pub map_id: u16,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct DeathStatusSnapshot {
+    pub state: Option<DeathStateEntry>,
+    pub corpse: Option<DeathPositionEntry>,
+    pub graveyard: Option<DeathPositionEntry>,
+    pub can_resurrect_at_corpse: bool,
+    pub spirit_healer_available: bool,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MapStatusSnapshot {
     pub zone_id: u32,
     pub player_x: f32,
     pub player_z: f32,
     pub waypoint: Option<Waypoint>,
+    pub graveyard_marker: Option<Waypoint>,
 }
 
 impl Default for MapStatusSnapshot {
@@ -552,6 +580,7 @@ impl Default for MapStatusSnapshot {
             player_x: 0.0,
             player_z: 0.0,
             waypoint: None,
+            graveyard_marker: None,
         }
     }
 }
@@ -1006,6 +1035,30 @@ mod tests {
     }
 
     #[test]
+    fn death_status_round_trip() {
+        let snapshot = DeathStatusSnapshot {
+            state: Some(DeathStateEntry::Ghost),
+            corpse: Some(DeathPositionEntry {
+                map_id: 0,
+                x: 1.0,
+                y: 2.0,
+                z: 3.0,
+            }),
+            graveyard: Some(DeathPositionEntry {
+                map_id: 0,
+                x: 4.0,
+                y: 5.0,
+                z: 6.0,
+            }),
+            can_resurrect_at_corpse: true,
+            spirit_healer_available: false,
+            last_server_message: Some("released spirit".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn default_snapshots_round_trip() {
         round_trip(&NetworkStatusSnapshot::default());
         round_trip(&TerrainStatusSnapshot::default());
@@ -1024,6 +1077,7 @@ mod tests {
         round_trip(&EncounterJournalStatusSnapshot::default());
         round_trip(&LfgStatusSnapshot::default());
         round_trip(&BarberShopStatusSnapshot::default());
+        round_trip(&DeathStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());
     }
 

@@ -671,6 +671,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     app.add_plugins((
         game_engine::achievement::AchievementPlugin,
         game_engine::barber_shop::BarberShopPlugin,
+        game_engine::death::DeathPlugin,
         game_engine::friends::FriendsPlugin,
         game_engine::ignore_list::IgnoreListPlugin,
         game_engine::lfg::LfgPlugin,

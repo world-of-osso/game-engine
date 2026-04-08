@@ -165,6 +165,15 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::barber_shop::reset_runtime(&mut barber_state);
     }
+    if let Some(mut death_state) = world.get_resource_mut::<game_engine::death::DeathRuntimeState>()
+    {
+        *death_state = game_engine::death::DeathRuntimeState::default();
+    }
+    if let Some(mut death_status) =
+        world.get_resource_mut::<game_engine::status::DeathStatusSnapshot>()
+    {
+        *death_status = game_engine::status::DeathStatusSnapshot::default();
+    }
     if let Some(mut world_map) =
         world.get_resource_mut::<game_engine::world_map_data::WorldMapState>()
     {
@@ -193,6 +202,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
     reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);
+    reset_resource::<game_engine::status::DeathStatusSnapshot>(world);
     reset_resource::<game_engine::status::DuelStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);

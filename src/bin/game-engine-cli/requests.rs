@@ -7,9 +7,10 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd,
-    GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, ProfessionCmd,
-    PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
+    AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd, EquipmentCmd,
+    FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd,
+    ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd,
+    WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -70,6 +71,16 @@ pub fn barber_request(command: BarberCmd) -> Result<Request, String> {
         },
         BarberCmd::Reset => Request::BarberReset,
         BarberCmd::Apply => Request::BarberApply,
+    };
+    Ok(request)
+}
+
+pub fn death_request(command: DeathCmd) -> Result<Request, String> {
+    let request = match command {
+        DeathCmd::Status => Request::DeathStatus,
+        DeathCmd::ReleaseSpirit => Request::DeathReleaseSpirit,
+        DeathCmd::ResurrectAtCorpse => Request::DeathResurrectAtCorpse,
+        DeathCmd::AcceptSpiritHealer => Request::DeathAcceptSpiritHealer,
     };
     Ok(request)
 }
@@ -321,6 +332,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
         StatusCmd::Achievements => Request::AchievementsStatus,
         StatusCmd::Barber => Request::BarberStatus,
+        StatusCmd::Death => Request::DeathStatus,
         StatusCmd::EncounterJournal => Request::EncounterJournalStatus,
         StatusCmd::Friends => Request::FriendsStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
