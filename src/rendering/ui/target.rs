@@ -25,8 +25,15 @@ type RemoteTargetQuery<'w, 's> = Query<
 
 #[path = "target_visuals.rs"]
 mod target_visuals;
+#[path = "target_zone_transition.rs"]
+mod target_zone_transition;
 
 use target_visuals::{spawn_target_circle, update_target_circle};
+use target_zone_transition::{
+    ZoneTransitionContactState, reset_zone_transition_contact, trigger_zone_transition_on_collision,
+};
+#[cfg(test)]
+use target_zone_transition::{player_inside_zone_transition, update_zone_transition_contact};
 
 /// Marker on the selection circle entity.
 #[derive(Component)]
@@ -184,11 +191,17 @@ impl Plugin for TargetPlugin {
         app.init_resource::<TargetCircleStyle>();
         app.init_resource::<GossipIntentQueue>();
         app.init_resource::<MailIntentQueue>();
+        app.init_resource::<ZoneTransitionContactState>();
+        app.add_systems(OnEnter(GameState::InWorld), reset_zone_transition_contact);
         app.add_systems(Update, click_to_target.run_if(targeting_state_active));
         app.add_systems(Update, tab_target.run_if(targeting_state_active));
         app.add_systems(Update, self_target.run_if(targeting_state_active));
         app.add_systems(Update, clear_target.run_if(targeting_state_active));
         app.add_systems(Update, right_click_interact.run_if(targeting_state_active));
+        app.add_systems(
+            Update,
+            trigger_zone_transition_on_collision.run_if(in_state(GameState::InWorld)),
+        );
         app.add_systems(Update, spawn_target_circle.run_if(targeting_state_active));
         app.add_systems(Update, update_target_circle.run_if(targeting_state_active));
     }
@@ -680,3 +693,7 @@ fn start_gather_cast(
 #[cfg(test)]
 #[path = "../../../tests/unit/target_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/target_portal_tests.rs"]
+mod portal_tests;
