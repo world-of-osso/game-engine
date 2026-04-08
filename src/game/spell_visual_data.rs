@@ -130,6 +130,103 @@ impl VisualEffectQueue {
     }
 }
 
+/// An active visual effect attached to an entity with a lifetime.
+#[derive(Component, Clone, Debug)]
+pub struct ActiveVisualEffect {
+    pub spell_id: u32,
+    pub phase: VisualPhase,
+    /// Remaining lifetime in seconds (0 = permanent until cancelled).
+    pub remaining: f32,
+    /// Total duration for progress calculation (0 = permanent).
+    pub duration: f32,
+    /// Whether this effect loops (auras) or plays once (cast/impact).
+    pub looping: bool,
+}
+
+impl ActiveVisualEffect {
+    /// Create a one-shot effect (cast/impact).
+    pub fn one_shot(spell_id: u32, phase: VisualPhase, duration: f32) -> Self {
+        Self {
+            spell_id,
+            phase,
+            remaining: duration,
+            duration,
+            looping: false,
+        }
+    }
+
+    /// Create a persistent aura effect (stays until cancelled).
+    pub fn aura(spell_id: u32) -> Self {
+        Self {
+            spell_id,
+            phase: VisualPhase::State,
+            remaining: 0.0,
+            duration: 0.0,
+            looping: true,
+        }
+    }
+
+    /// Whether this effect has expired (non-looping only).
+    pub fn is_expired(&self) -> bool {
+        !self.looping && self.duration > 0.0 && self.remaining <= 0.0
+    }
+
+    /// Playback progress (0.0–1.0) for one-shot effects.
+    pub fn progress(&self) -> f32 {
+        if self.duration <= 0.0 {
+            return 0.0;
+        }
+        (1.0 - self.remaining / self.duration).clamp(0.0, 1.0)
+    }
+
+    /// Advance the effect timer.
+    pub fn tick(&mut self, dt: f32) {
+        if !self.looping && self.remaining > 0.0 {
+            self.remaining = (self.remaining - dt).max(0.0);
+        }
+    }
+}
+
+/// Manages all active visual effects on a single entity.
+#[derive(Component, Default)]
+pub struct VisualEffectStack {
+    pub effects: Vec<ActiveVisualEffect>,
+}
+
+impl VisualEffectStack {
+    pub fn add(&mut self, effect: ActiveVisualEffect) {
+        self.effects.push(effect);
+    }
+
+    /// Cancel all effects for a given spell.
+    pub fn cancel_spell(&mut self, spell_id: u32) {
+        self.effects.retain(|e| e.spell_id != spell_id);
+    }
+
+    /// Cancel all effects of a given phase.
+    pub fn cancel_phase(&mut self, phase: VisualPhase) {
+        self.effects.retain(|e| e.phase != phase);
+    }
+
+    /// Tick all effects and remove expired ones.
+    pub fn tick(&mut self, dt: f32) {
+        for effect in &mut self.effects {
+            effect.tick(dt);
+        }
+        self.effects.retain(|e| !e.is_expired());
+    }
+
+    /// Number of active effects.
+    pub fn active_count(&self) -> usize {
+        self.effects.len()
+    }
+
+    /// Whether any effect of the given phase is active.
+    pub fn has_phase(&self, phase: VisualPhase) -> bool {
+        self.effects.iter().any(|e| e.phase == phase)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,5 +381,85 @@ mod tests {
         assert_eq!(e.model_fdid, 0);
         assert_eq!(e.scale, 1.0);
         assert_eq!(e.color, [1.0, 1.0, 1.0, 1.0]);
+    }
+
+    // --- ActiveVisualEffect playback ---
+
+    #[test]
+    fn one_shot_expires_after_duration() {
+        let mut effect = ActiveVisualEffect::one_shot(133, VisualPhase::Impact, 0.5);
+        assert!(!effect.is_expired());
+        effect.tick(0.6);
+        assert!(effect.is_expired());
+    }
+
+    #[test]
+    fn one_shot_progress_advances() {
+        let mut effect = ActiveVisualEffect::one_shot(133, VisualPhase::Cast, 2.0);
+        assert!((effect.progress() - 0.0).abs() < 0.01);
+        effect.tick(1.0);
+        assert!((effect.progress() - 0.5).abs() < 0.01);
+        effect.tick(1.0);
+        assert!((effect.progress() - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn aura_never_expires() {
+        let mut effect = ActiveVisualEffect::aura(1000);
+        assert_eq!(effect.phase, VisualPhase::State);
+        assert!(effect.looping);
+        effect.tick(100.0);
+        assert!(!effect.is_expired());
+    }
+
+    #[test]
+    fn aura_progress_is_zero() {
+        let effect = ActiveVisualEffect::aura(1000);
+        assert_eq!(effect.progress(), 0.0);
+    }
+
+    // --- VisualEffectStack ---
+
+    #[test]
+    fn stack_add_and_tick() {
+        let mut stack = VisualEffectStack::default();
+        stack.add(ActiveVisualEffect::one_shot(1, VisualPhase::Cast, 0.5));
+        stack.add(ActiveVisualEffect::aura(2));
+        assert_eq!(stack.active_count(), 2);
+        stack.tick(1.0);
+        // Cast expired, aura remains
+        assert_eq!(stack.active_count(), 1);
+        assert!(stack.has_phase(VisualPhase::State));
+        assert!(!stack.has_phase(VisualPhase::Cast));
+    }
+
+    #[test]
+    fn stack_cancel_spell() {
+        let mut stack = VisualEffectStack::default();
+        stack.add(ActiveVisualEffect::aura(100));
+        stack.add(ActiveVisualEffect::one_shot(200, VisualPhase::Impact, 1.0));
+        stack.cancel_spell(100);
+        assert_eq!(stack.active_count(), 1);
+        assert_eq!(stack.effects[0].spell_id, 200);
+    }
+
+    #[test]
+    fn stack_cancel_phase() {
+        let mut stack = VisualEffectStack::default();
+        stack.add(ActiveVisualEffect::one_shot(1, VisualPhase::Cast, 1.0));
+        stack.add(ActiveVisualEffect::one_shot(2, VisualPhase::Impact, 1.0));
+        stack.add(ActiveVisualEffect::one_shot(3, VisualPhase::Cast, 1.0));
+        stack.cancel_phase(VisualPhase::Cast);
+        assert_eq!(stack.active_count(), 1);
+        assert_eq!(stack.effects[0].phase, VisualPhase::Impact);
+    }
+
+    #[test]
+    fn stack_has_phase() {
+        let mut stack = VisualEffectStack::default();
+        assert!(!stack.has_phase(VisualPhase::Cast));
+        stack.add(ActiveVisualEffect::one_shot(1, VisualPhase::Cast, 1.0));
+        assert!(stack.has_phase(VisualPhase::Cast));
+        assert!(!stack.has_phase(VisualPhase::Impact));
     }
 }
