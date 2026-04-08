@@ -174,6 +174,75 @@ fn bootstrap_terrain_streaming_uses_local_player_tile_when_server_did_not_seed_i
 }
 
 #[test]
+fn replace_streamed_map_clears_old_tiles_and_heightmap() {
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<AdtManager>();
+    app.init_resource::<TerrainHeightmap>();
+
+    let old_root = app.world_mut().spawn_empty().id();
+    {
+        let mut adt_manager = app.world_mut().resource_mut::<AdtManager>();
+        adt_manager.map_name = "azeroth".into();
+        adt_manager.initial_tile = (32, 48);
+        adt_manager.loaded.insert((32, 48), old_root);
+        adt_manager.failed.insert((31, 48));
+        adt_manager.pending.insert((33, 48));
+        adt_manager.server_requested.insert((32, 48));
+        adt_manager.tile_lod.insert((32, 48), DoodadLod::Full);
+        adt_manager
+            .tile_doodad_entities
+            .insert((32, 48), Vec::new());
+        adt_manager.initial_load_reported = true;
+    }
+    app.world_mut()
+        .resource_mut::<TerrainHeightmap>()
+        .register_tile(32, 48, &empty_adt(Vec::new()), None);
+
+    let map_changed = app
+        .world_mut()
+        .run_system_once(
+            |mut commands: Commands,
+             mut adt_manager: ResMut<AdtManager>,
+             mut heightmap: ResMut<TerrainHeightmap>| {
+                replace_streamed_map(
+                    &mut commands,
+                    &mut adt_manager,
+                    &mut heightmap,
+                    "kalimdor".into(),
+                    (20, 21),
+                )
+            },
+        )
+        .expect("replace streamed map");
+    app.update();
+
+    assert!(map_changed);
+    assert!(app.world().get_entity(old_root).is_err());
+
+    let adt_manager = app.world().resource::<AdtManager>();
+    assert_eq!(adt_manager.map_name, "kalimdor");
+    assert_eq!(adt_manager.initial_tile, (20, 21));
+    assert!(adt_manager.loaded.is_empty());
+    assert!(adt_manager.failed.is_empty());
+    assert!(adt_manager.pending.is_empty());
+    assert!(adt_manager.tile_lod.is_empty());
+    assert!(adt_manager.tile_doodad_entities.is_empty());
+    assert_eq!(adt_manager.server_requested.len(), 1);
+    assert!(adt_manager.server_requested.contains(&(20, 21)));
+    assert!(!adt_manager.initial_load_reported);
+    assert_eq!(
+        app.world()
+            .resource::<TerrainHeightmap>()
+            .tile_keys()
+            .count(),
+        0
+    );
+}
+
+#[test]
 #[ignore = "benchmark-style integration test; run explicitly"]
 fn bench_terrain_spawn_headless() {
     const TERRAIN_SPAWN_P99_BUDGET_MS: f64 = 400.0;

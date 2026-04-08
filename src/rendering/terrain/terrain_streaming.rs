@@ -38,10 +38,18 @@ pub(super) fn handle_tile_result(
             handle_tile_success(refs, adt_manager, heightmap, parsed);
         }
         TileLoadResult::Failed {
+            map_name,
             tile_y,
             tile_x,
             error,
         } => {
+            if map_name != adt_manager.map_name {
+                debug!(
+                    "Ignoring stale terrain load failure for map {} tile ({}, {}) while {} is active",
+                    map_name, tile_y, tile_x, adt_manager.map_name
+                );
+                return;
+            }
             adt_manager.pending.remove(&(tile_y, tile_x));
             adt_manager.failed.insert((tile_y, tile_x));
             eprintln!("Cannot load ADT tile ({tile_y}, {tile_x}): {error}");
@@ -55,6 +63,13 @@ fn handle_tile_success(
     heightmap: &mut TerrainHeightmap,
     parsed: Box<ParsedTile>,
 ) {
+    if parsed.map_name != adt_manager.map_name {
+        debug!(
+            "Ignoring stale terrain tile for map {} tile ({}, {}) while {} is active",
+            parsed.map_name, parsed.tile_y, parsed.tile_x, adt_manager.map_name
+        );
+        return;
+    }
     let key = (parsed.tile_y, parsed.tile_x);
     adt_manager.pending.remove(&key);
     eprintln!(
@@ -183,12 +198,15 @@ fn dispatch_single_tile(
     let lod = tile_lod_for_distance(ty, tx, center_y, center_x);
     adt_manager.pending.insert((ty, tx));
     let tx_chan = adt_manager.tile_tx.clone();
+    let map_name = adt_manager.map_name.clone();
     let thread_name = format!("adt-load-{ty}-{tx}");
     let spawn_result = std::thread::Builder::new()
         .name(thread_name)
         .stack_size(2 * 1024 * 1024)
         .spawn(move || {
-            tx_chan.send(parse_tile_background(ty, tx, path, lod)).ok();
+            tx_chan
+                .send(parse_tile_background(map_name, ty, tx, path, lod))
+                .ok();
         });
     if let Err(err) = spawn_result {
         adt_manager.pending.remove(&(ty, tx));

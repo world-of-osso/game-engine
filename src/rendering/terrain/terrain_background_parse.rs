@@ -4,6 +4,7 @@ use crate::terrain_objects;
 use super::*;
 
 pub(super) fn parse_tile_background(
+    map_name: String,
     tile_y: u32,
     tile_x: u32,
     adt_path: PathBuf,
@@ -11,10 +12,11 @@ pub(super) fn parse_tile_background(
 ) -> TileLoadResult {
     let start_mem = crate::terrain_memory_debug::current_process_memory_kb();
     log_tile_background_parse_start(tile_y, tile_x, &adt_path, lod, &start_mem);
-    let parsed = match build_parsed_tile(tile_y, tile_x, adt_path, lod) {
+    let parsed = match build_parsed_tile(map_name.clone(), tile_y, tile_x, adt_path, lod) {
         Ok(parsed) => parsed,
         Err(error) => {
             return TileLoadResult::Failed {
+                map_name,
                 tile_y,
                 tile_x,
                 error,
@@ -26,6 +28,7 @@ pub(super) fn parse_tile_background(
 }
 
 fn build_parsed_tile(
+    map_name: String,
     tile_y: u32,
     tile_x: u32,
     adt_path: PathBuf,
@@ -41,6 +44,7 @@ fn build_parsed_tile(
     let preloaded_wmos = preload_wmo_data(obj_data.as_ref());
 
     Ok(ParsedTile {
+        map_name,
         tile_y,
         tile_x,
         adt_path,

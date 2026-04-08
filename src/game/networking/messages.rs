@@ -13,11 +13,13 @@ use shared::protocol::{
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
+use crate::game_state::GameState;
 use crate::networking::{
     ChatInput, ChatLog, CurrentZone, EmoteInput, MAX_CHAT_LOG, MAX_COMBAT_LOG,
 };
 use crate::networking_auth::SelectedCharacterId;
-use crate::terrain::AdtManager;
+use crate::terrain::{AdtManager, replace_streamed_map};
+use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::achievement::{
     AchievementToastState, apply_achievement_state_update as map_achievement_state_update,
 };
@@ -276,41 +278,67 @@ fn resolve_emote_visual_entity(
 
 /// Receive LoadTerrain messages from the server and initialize/stream the AdtManager.
 pub(crate) fn receive_load_terrain(
+    mut commands: Commands,
     mut receivers: Query<&mut MessageReceiver<LoadTerrain>>,
     mut adt_manager: ResMut<AdtManager>,
+    mut heightmap: ResMut<TerrainHeightmap>,
+    mut next_state: ResMut<NextState<GameState>>,
     reconnect: Option<ResMut<crate::networking::ReconnectState>>,
 ) {
     let mut reconnect = reconnect;
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
-            if let Some(ref mut reconnect) = reconnect
-                && reconnect.is_active()
-            {
-                reconnect.terrain_refresh_seen = true;
-            }
-            let key = (msg.initial_tile_y, msg.initial_tile_x);
-            if adt_manager.map_name.is_empty() {
-                info!(
-                    "Server requested terrain: {} tile ({}, {})",
-                    msg.map_name, msg.initial_tile_y, msg.initial_tile_x
-                );
-                adt_manager.map_name = msg.map_name;
-                adt_manager.initial_tile = key;
-                adt_manager.server_requested.insert(key);
-            } else if adt_manager.loaded.contains_key(&key)
-                || adt_manager.pending.contains(&key)
-                || adt_manager.failed.contains(&key)
-            {
-                continue;
-            } else {
-                debug!(
-                    "Server requested additional tile ({}, {})",
-                    msg.initial_tile_y, msg.initial_tile_x
-                );
-                adt_manager.server_requested.insert(key);
-            }
+            apply_load_terrain_message(
+                &mut commands,
+                &mut adt_manager,
+                &mut heightmap,
+                reconnect.as_deref_mut(),
+                &mut next_state,
+                msg,
+            );
         }
     }
+}
+
+fn apply_load_terrain_message(
+    commands: &mut Commands,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+    reconnect: Option<&mut crate::networking::ReconnectState>,
+    next_state: &mut NextState<GameState>,
+    msg: LoadTerrain,
+) {
+    if let Some(reconnect) = reconnect
+        && reconnect.is_active()
+    {
+        reconnect.terrain_refresh_seen = true;
+    }
+    let key = (msg.initial_tile_y, msg.initial_tile_x);
+    let requested_map = msg.map_name.clone();
+    let map_changed = replace_streamed_map(commands, adt_manager, heightmap, msg.map_name, key);
+    if map_changed {
+        info!(
+            "Server switched terrain map to {} tile ({}, {}), entering Loading",
+            requested_map, key.0, key.1
+        );
+        next_state.set(GameState::Loading);
+        return;
+    }
+    if adt_manager.initial_tile == key && adt_manager.map_name == requested_map {
+        info!(
+            "Server requested terrain: {} tile ({}, {})",
+            requested_map, key.0, key.1
+        );
+        return;
+    }
+    if adt_manager.loaded.contains_key(&key)
+        || adt_manager.pending.contains(&key)
+        || adt_manager.failed.contains(&key)
+    {
+        return;
+    }
+    debug!("Server requested additional tile ({}, {})", key.0, key.1);
+    adt_manager.server_requested.insert(key);
 }
 
 pub(crate) fn receive_quest_log_snapshot(
@@ -875,6 +903,7 @@ pub(crate) fn send_player_input(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::terrain_heightmap::TerrainHeightmap;
     use bevy::ecs::system::RunSystemOnce;
 
     fn combat_event(event_type: CombatEventType, amount: f32, spell_id: u32) -> CombatEvent {
@@ -956,6 +985,51 @@ mod tests {
 
         assert_eq!(whisper_state.reply_target, None);
         assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+    }
+
+    #[test]
+    fn map_change_load_terrain_enters_loading_and_reseeds_map() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<AdtManager>();
+        app.init_resource::<TerrainHeightmap>();
+        app.init_resource::<NextState<GameState>>();
+        {
+            let mut adt_manager = app.world_mut().resource_mut::<AdtManager>();
+            adt_manager.map_name = "azeroth".into();
+            adt_manager.initial_tile = (32, 48);
+        }
+
+        app.world_mut()
+            .run_system_once(
+                |mut commands: Commands,
+                 mut adt_manager: ResMut<AdtManager>,
+                 mut heightmap: ResMut<TerrainHeightmap>,
+                 mut next_state: ResMut<NextState<GameState>>| {
+                    apply_load_terrain_message(
+                        &mut commands,
+                        &mut adt_manager,
+                        &mut heightmap,
+                        None,
+                        &mut next_state,
+                        LoadTerrain {
+                            map_name: "kalimdor".into(),
+                            initial_tile_y: 20,
+                            initial_tile_x: 21,
+                        },
+                    );
+                },
+            )
+            .expect("apply load terrain");
+
+        let adt_manager = app.world().resource::<AdtManager>();
+        assert_eq!(adt_manager.map_name, "kalimdor");
+        assert_eq!(adt_manager.initial_tile, (20, 21));
+        assert!(adt_manager.server_requested.contains(&(20, 21)));
+        assert!(matches!(
+            app.world().resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::Loading)
+        ));
     }
 
     #[test]

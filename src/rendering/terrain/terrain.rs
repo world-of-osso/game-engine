@@ -81,6 +81,7 @@ pub(super) struct PreloadedWmo {
 
 /// Parsed ADT data ready to be spawned on the main thread.
 struct ParsedTile {
+    map_name: String,
     tile_y: u32,
     tile_x: u32,
     adt_path: PathBuf,
@@ -106,6 +107,7 @@ struct ParsedTile {
 enum TileLoadResult {
     Success(Box<ParsedTile>),
     Failed {
+        map_name: String,
         tile_y: u32,
         tile_x: u32,
         error: String,
@@ -159,6 +161,53 @@ impl Default for AdtManager {
             initial_load_reported: false,
         }
     }
+}
+
+impl AdtManager {
+    fn clear_completed_tile_results(&mut self) {
+        let rx = self.tile_rx.lock().unwrap();
+        for _ in rx.try_iter() {}
+    }
+}
+
+pub(crate) fn reset_streamed_terrain(
+    commands: &mut Commands,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+) {
+    for root in adt_manager.loaded.drain().map(|(_, root)| root) {
+        commands.entity(root).despawn();
+    }
+    adt_manager.map_name.clear();
+    adt_manager.failed.clear();
+    adt_manager.pending.clear();
+    adt_manager.server_requested.clear();
+    adt_manager.tile_lod.clear();
+    adt_manager.tile_doodad_entities.clear();
+    adt_manager.initial_tile = (0, 0);
+    adt_manager.initial_load_reported = false;
+    adt_manager.clear_completed_tile_results();
+    *heightmap = TerrainHeightmap::default();
+}
+
+pub(crate) fn replace_streamed_map(
+    commands: &mut Commands,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+    map_name: String,
+    initial_tile: (u32, u32),
+) -> bool {
+    let map_changed = !adt_manager.map_name.is_empty() && adt_manager.map_name != map_name;
+    if map_changed {
+        reset_streamed_terrain(commands, adt_manager, heightmap);
+    }
+    if adt_manager.map_name.is_empty() {
+        adt_manager.map_name = map_name;
+        adt_manager.initial_tile = initial_tile;
+        adt_manager.initial_load_reported = false;
+    }
+    adt_manager.server_requested.insert(initial_tile);
+    map_changed
 }
 
 /// Result of spawning an ADT: camera and ground position for placing models.
