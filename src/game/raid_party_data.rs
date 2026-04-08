@@ -201,6 +201,8 @@ pub enum LootMethod {
     GroupLoot,
     /// Need before greed rolls on items above threshold.
     NeedBeforeGreed,
+    /// Client-side personal loot presentation.
+    PersonalLoot,
 }
 
 impl LootMethod {
@@ -211,6 +213,7 @@ impl LootMethod {
             Self::MasterLooter => "Master Looter",
             Self::GroupLoot => "Group Loot",
             Self::NeedBeforeGreed => "Need Before Greed",
+            Self::PersonalLoot => "Personal Loot",
         }
     }
 }
@@ -927,6 +930,7 @@ mod tests {
         assert_eq!(LootMethod::NeedBeforeGreed.label(), "Need Before Greed");
         assert_eq!(LootMethod::MasterLooter.label(), "Master Looter");
         assert_eq!(LootMethod::RoundRobin.label(), "Round Robin");
+        assert_eq!(LootMethod::PersonalLoot.label(), "Personal Loot");
     }
 
     #[test]

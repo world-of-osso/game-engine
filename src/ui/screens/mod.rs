@@ -25,6 +25,7 @@ pub mod inworld_unit_frames_component;
 pub mod lfg_list_frame_component;
 pub mod loading_component;
 pub mod login_component;
+pub mod loot_rules_frame_component;
 pub mod loss_of_control_component;
 pub mod mail_frame_component;
 pub mod merchant_frame_component;
