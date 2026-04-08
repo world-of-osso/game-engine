@@ -101,21 +101,24 @@ pub fn format_currencies_status(snapshot: &CurrenciesStatusSnapshot) -> String {
 }
 
 pub fn format_reputations_status(snapshot: &ReputationsStatusSnapshot) -> String {
-    if snapshot.entries.is_empty() {
-        return "reputations: 0\n-".into();
+    let mut lines = vec![format!("reputations: {}", snapshot.entries.len())];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
     }
-    let lines = snapshot
-        .entries
-        .iter()
-        .map(|e| {
-            format!(
-                "{} {} standing={} value={}",
-                e.faction_id, e.faction_name, e.standing, e.value
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("reputations: {}\n{lines}", snapshot.entries.len())
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.entries.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.entries.iter().map(|e| {
+        format!(
+            "{} {} standing={} value={}",
+            e.faction_id, e.faction_name, e.standing, e.value
+        )
+    }));
+    lines.join("\n")
 }
 
 fn opt_int(value: Option<impl std::fmt::Display>) -> String {

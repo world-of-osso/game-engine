@@ -7,7 +7,7 @@ use shared::protocol::{
     GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
     InspectStateUpdate, InventorySearchResultSnapshot, LoadTerrain, PlayerInput,
     ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
-    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationSnapshot, SetTarget,
+    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, SetTarget,
     StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
 };
 
@@ -555,23 +555,34 @@ pub(crate) fn receive_currency_snapshot(
 }
 
 pub(crate) fn receive_reputation_snapshot(
-    mut receivers: Query<&mut MessageReceiver<ReputationSnapshot>>,
+    mut receivers: Query<&mut MessageReceiver<ReputationStateUpdate>>,
     mut snapshot: ResMut<ReputationsStatusSnapshot>,
 ) {
     for mut receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.entries = msg
-                .entries
-                .into_iter()
-                .map(|e| ReputationEntry {
-                    faction_id: e.faction_id,
-                    faction_name: e.faction_name,
-                    standing: e.standing,
-                    value: e.value,
-                })
-                .collect();
+        for update in receiver.receive() {
+            apply_reputation_state_update(&mut snapshot, update);
         }
     }
+}
+
+pub(crate) fn apply_reputation_state_update(
+    snapshot: &mut ReputationsStatusSnapshot,
+    update: ReputationStateUpdate,
+) {
+    if let Some(rep_snapshot) = update.snapshot {
+        snapshot.entries = rep_snapshot
+            .entries
+            .into_iter()
+            .map(|e| ReputationEntry {
+                faction_id: e.faction_id,
+                faction_name: e.faction_name,
+                standing: e.standing,
+                value: e.value,
+            })
+            .collect();
+    }
+    snapshot.last_server_message = update.message;
+    snapshot.last_error = update.error;
 }
 
 pub(crate) fn receive_guild_vault_snapshot(

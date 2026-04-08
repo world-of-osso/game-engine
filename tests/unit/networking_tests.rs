@@ -616,6 +616,36 @@ fn profession_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn reputation_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::ReputationsStatusSnapshot::default();
+
+    crate::networking_messages::apply_reputation_state_update(
+        &mut snapshot,
+        shared::protocol::ReputationStateUpdate {
+            snapshot: Some(shared::protocol::ReputationSnapshot {
+                entries: vec![shared::protocol::ReputationEntrySnapshot {
+                    faction_id: 72,
+                    faction_name: "Stormwind".into(),
+                    standing: "Friendly".into(),
+                    value: 21_010,
+                }],
+            }),
+            message: Some("gained 10 reputation with Stormwind".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.entries.len(), 1);
+    assert_eq!(snapshot.entries[0].faction_id, 72);
+    assert_eq!(snapshot.entries[0].standing, "Friendly");
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("gained 10 reputation with Stormwind")
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn inspect_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::InspectStatusSnapshot::default();
 

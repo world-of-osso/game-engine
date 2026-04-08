@@ -92,6 +92,24 @@ fn formats_empty_reputations_status_snapshot() {
 }
 
 #[test]
+fn formats_reputations_status_snapshot_with_server_message() {
+    let text = format_reputations_status(&ReputationsStatusSnapshot {
+        entries: vec![crate::status::ReputationEntry {
+            faction_id: 72,
+            faction_name: "Stormwind".into(),
+            standing: "Friendly".into(),
+            value: 21_010,
+        }],
+        last_server_message: Some("gained 10 reputation with Stormwind".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("reputations: 1"));
+    assert!(text.contains("message: gained 10 reputation with Stormwind"));
+    assert!(text.contains("72 Stormwind standing=Friendly value=21010"));
+}
+
+#[test]
 fn formats_character_stats_status_snapshot() {
     let text = format_character_stats_status(&crate::status::CharacterStatsSnapshot {
         character_id: None,

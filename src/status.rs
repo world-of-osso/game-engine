@@ -104,6 +104,8 @@ pub struct ReputationEntry {
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ReputationsStatusSnapshot {
     pub entries: Vec<ReputationEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
