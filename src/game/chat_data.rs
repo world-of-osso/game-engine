@@ -136,6 +136,59 @@ impl ChatState {
         }
         n
     }
+
+    /// Messages filtered to whispers involving a specific player.
+    pub fn whispers_with(&self, player: &str) -> Vec<&ChatMessage> {
+        let lower = player.to_lowercase();
+        self.messages
+            .iter()
+            .filter(|m| {
+                m.channel_type == ChatChannelType::Whisper
+                    && (m.sender.to_lowercase() == lower || m.channel_name.to_lowercase() == lower)
+            })
+            .collect()
+    }
+}
+
+// --- Whisper state ---
+
+/// Whisper conversation tracking and reply target.
+#[derive(Resource, Clone, Debug, PartialEq, Default)]
+pub struct WhisperState {
+    /// The last player who whispered us (reply target for `/r`).
+    pub reply_target: Option<String>,
+    /// Recent whisper conversation partners, most recent first.
+    pub recent_targets: Vec<String>,
+    /// Maximum recent targets to keep.
+    pub max_recent: usize,
+}
+
+impl WhisperState {
+    /// Record an incoming whisper, updating reply target and recent list.
+    pub fn receive_whisper(&mut self, sender: &str) {
+        self.reply_target = Some(sender.into());
+        self.add_recent_target(sender);
+    }
+
+    /// Record an outgoing whisper, updating recent list.
+    pub fn send_whisper(&mut self, recipient: &str) {
+        self.add_recent_target(recipient);
+    }
+
+    /// Whether there is a reply target available.
+    pub fn can_reply(&self) -> bool {
+        self.reply_target.is_some()
+    }
+
+    fn add_recent_target(&mut self, name: &str) {
+        // Move to front if already present.
+        self.recent_targets
+            .retain(|n| !n.eq_ignore_ascii_case(name));
+        self.recent_targets.insert(0, name.into());
+        if self.max_recent > 0 && self.recent_targets.len() > self.max_recent {
+            self.recent_targets.truncate(self.max_recent);
+        }
+    }
 }
 
 // --- Client → server intents ---
@@ -177,6 +230,11 @@ impl ChatIntentQueue {
             target,
             text,
         });
+    }
+
+    /// Convenience: send a whisper to a player.
+    pub fn whisper(&mut self, recipient: String, text: String) {
+        self.send_message(ChatChannelType::Whisper, recipient, text);
     }
 
     pub fn drain(&mut self) -> Vec<ChatIntent> {
@@ -398,5 +456,136 @@ mod tests {
         queue.leave_channel(1);
         assert_eq!(queue.drain().len(), 2);
         assert!(queue.pending.is_empty());
+    }
+
+    #[test]
+    fn intent_whisper() {
+        let mut queue = ChatIntentQueue::default();
+        queue.whisper("Alice".into(), "Hey".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            ChatIntent::SendMessage {
+                channel_type: ChatChannelType::Whisper,
+                target: "Alice".into(),
+                text: "Hey".into(),
+            }
+        );
+    }
+
+    // --- WhisperState ---
+
+    #[test]
+    fn whisper_state_default() {
+        let state = WhisperState::default();
+        assert!(!state.can_reply());
+        assert!(state.recent_targets.is_empty());
+    }
+
+    #[test]
+    fn receive_whisper_sets_reply_target() {
+        let mut state = WhisperState::default();
+        state.receive_whisper("Alice");
+        assert!(state.can_reply());
+        assert_eq!(state.reply_target.as_deref(), Some("Alice"));
+    }
+
+    #[test]
+    fn receive_whisper_updates_recent() {
+        let mut state = WhisperState::default();
+        state.receive_whisper("Alice");
+        state.receive_whisper("Bob");
+        assert_eq!(state.recent_targets, vec!["Bob", "Alice"]);
+        assert_eq!(state.reply_target.as_deref(), Some("Bob"));
+    }
+
+    #[test]
+    fn send_whisper_updates_recent() {
+        let mut state = WhisperState::default();
+        state.send_whisper("Charlie");
+        assert_eq!(state.recent_targets, vec!["Charlie"]);
+        // send_whisper does NOT set reply_target (only incoming does).
+        assert!(!state.can_reply());
+    }
+
+    #[test]
+    fn recent_targets_dedup_moves_to_front() {
+        let mut state = WhisperState::default();
+        state.receive_whisper("Alice");
+        state.receive_whisper("Bob");
+        state.receive_whisper("Alice");
+        assert_eq!(state.recent_targets, vec!["Alice", "Bob"]);
+    }
+
+    #[test]
+    fn recent_targets_max_limit() {
+        let mut state = WhisperState {
+            max_recent: 3,
+            ..Default::default()
+        };
+        state.receive_whisper("A");
+        state.receive_whisper("B");
+        state.receive_whisper("C");
+        state.receive_whisper("D");
+        assert_eq!(state.recent_targets.len(), 3);
+        assert_eq!(state.recent_targets, vec!["D", "C", "B"]);
+    }
+
+    #[test]
+    fn recent_targets_case_insensitive_dedup() {
+        let mut state = WhisperState::default();
+        state.receive_whisper("Alice");
+        state.receive_whisper("alice");
+        assert_eq!(state.recent_targets.len(), 1);
+        assert_eq!(state.recent_targets[0], "alice");
+    }
+
+    // --- ChatState whisper filtering ---
+
+    #[test]
+    fn whispers_with_filters() {
+        let mut state = ChatState::default();
+        // Incoming whisper from Alice.
+        state.add_message(ChatMessage {
+            channel_type: ChatChannelType::Whisper,
+            channel_name: String::new(),
+            sender: "Alice".into(),
+            text: "Hi".into(),
+            timestamp: 1.0,
+        });
+        // Outgoing whisper to Alice (sender=self, channel_name=Alice).
+        state.add_message(ChatMessage {
+            channel_type: ChatChannelType::Whisper,
+            channel_name: "Alice".into(),
+            sender: "Me".into(),
+            text: "Hey".into(),
+            timestamp: 2.0,
+        });
+        // Whisper from Bob (not Alice).
+        state.add_message(ChatMessage {
+            channel_type: ChatChannelType::Whisper,
+            channel_name: String::new(),
+            sender: "Bob".into(),
+            text: "Yo".into(),
+            timestamp: 3.0,
+        });
+        // Non-whisper message.
+        state.add_message(msg(ChatChannelType::Say, "Alice", "Public"));
+
+        let alice_whispers = state.whispers_with("Alice");
+        assert_eq!(alice_whispers.len(), 2);
+    }
+
+    #[test]
+    fn whispers_with_case_insensitive() {
+        let mut state = ChatState::default();
+        state.add_message(ChatMessage {
+            channel_type: ChatChannelType::Whisper,
+            channel_name: String::new(),
+            sender: "Alice".into(),
+            text: "Hi".into(),
+            timestamp: 1.0,
+        });
+        assert_eq!(state.whispers_with("alice").len(), 1);
     }
 }
