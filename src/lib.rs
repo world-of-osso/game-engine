@@ -97,6 +97,8 @@ pub mod scene_tree;
 pub mod screenshot;
 #[path = "sound/music_zone_cache.rs"]
 pub mod sound_music_zone_cache;
+#[path = "game/spell_list_data.rs"]
+pub mod spell_list_data;
 #[path = "game/spell_visual_data.rs"]
 pub mod spell_visual_data;
 pub mod sqlite_util;
