@@ -7,6 +7,7 @@ use ui_toolkit::widget_def::Element;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
+#[derive(Clone, Debug, PartialEq)]
 struct DynName(String);
 
 impl fmt::Display for DynName {
@@ -22,7 +23,6 @@ const SIDEBAR_W: f32 = 160.0;
 const SIDEBAR_INSET: f32 = 8.0;
 const TAB_H: f32 = 28.0;
 const TAB_GAP: f32 = 4.0;
-const TAB_INSET: f32 = 12.0;
 const COMMUNITY_ROW_H: f32 = 28.0;
 const COMMUNITY_ROW_GAP: f32 = 2.0;
 const CONTENT_TOP: f32 = HEADER_H + TAB_GAP + TAB_H + TAB_GAP;
@@ -44,13 +44,16 @@ const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
 // Chat tab layout
 const INPUT_H: f32 = 26.0;
 const INPUT_INSET: f32 = 4.0;
-const CHANNEL_SELECTOR_W: f32 = 100.0;
-const CHANNEL_SELECTOR_H: f32 = 24.0;
+const CHAT_CHANNEL_TAB_H: f32 = 24.0;
+const CHAT_CHANNEL_TAB_GAP: f32 = 4.0;
+const CHAT_CHANNEL_TAB_INSET: f32 = 4.0;
 const MSG_ROW_H: f32 = 16.0;
 const INPUT_BG: &str = "0.1,0.1,0.1,0.9";
 const INPUT_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
-const CHANNEL_BG: &str = "0.08,0.07,0.06,0.88";
-const CHANNEL_COLOR: &str = "0.6,0.6,0.6,1.0";
+const CHAT_CHANNEL_TAB_BG_ACTIVE: &str = "0.2,0.15,0.05,0.95";
+const CHAT_CHANNEL_TAB_BG_INACTIVE: &str = "0.08,0.07,0.06,0.88";
+const CHAT_CHANNEL_TAB_TEXT_ACTIVE: &str = "1.0,0.82,0.0,1.0";
+const CHAT_CHANNEL_TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
 const MSG_COLOR: &str = "1.0,1.0,1.0,1.0";
 const MSG_SENDER_COLOR: &str = "0.6,0.8,1.0,1.0";
 
@@ -98,6 +101,12 @@ pub struct ChatMessage {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct ChatChannelTab {
+    pub name: String,
+    pub active: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct RosterMember {
     pub name: String,
     pub rank: String,
@@ -110,8 +119,8 @@ pub struct CommunitiesFrameState {
     pub visible: bool,
     pub communities: Vec<CommunityEntry>,
     pub tabs: Vec<CommunityTab>,
+    pub chat_channels: Vec<ChatChannelTab>,
     pub chat_messages: Vec<ChatMessage>,
-    pub chat_channel: String,
     pub roster_members: Vec<RosterMember>,
 }
 
@@ -134,8 +143,21 @@ impl Default for CommunitiesFrameState {
                     active: false,
                 },
             ],
+            chat_channels: vec![
+                ChatChannelTab {
+                    name: "General".into(),
+                    active: true,
+                },
+                ChatChannelTab {
+                    name: "Trade".into(),
+                    active: false,
+                },
+                ChatChannelTab {
+                    name: "LookingForGroup".into(),
+                    active: false,
+                },
+            ],
             chat_messages: vec![],
-            chat_channel: "General".into(),
             roster_members: vec![],
         }
     }
@@ -163,7 +185,7 @@ pub fn communities_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {community_sidebar(&state.communities)}
             {tab_row(&state.tabs)}
-            {chat_tab_content(&state.chat_messages, &state.chat_channel)}
+            {chat_tab_content(&state.chat_messages, &state.chat_channels)}
             {roster_tab_content(&state.roster_members)}
         }
     }
@@ -281,7 +303,7 @@ fn tab_button(i: usize, tab: &CommunityTab, tab_w: f32, x: f32, y: f32) -> Eleme
     };
     rsx! {
         r#frame {
-            name: tab_id,
+            name: {tab_id},
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
@@ -311,7 +333,7 @@ fn communities_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Elemen
     }
 }
 
-fn chat_tab_content(messages: &[ChatMessage], channel: &str) -> Element {
+fn chat_tab_content(messages: &[ChatMessage], channels: &[ChatChannelTab]) -> Element {
     let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - content_x - SIDEBAR_INSET;
@@ -328,49 +350,90 @@ fn chat_tab_content(messages: &[ChatMessage], channel: &str) -> Element {
                 x: {content_x},
                 y: {content_y},
             }
-            {chat_channel_selector(channel, content_w)}
+            {chat_channel_tabs(channels, content_w)}
             {chat_message_list(messages, content_w, content_h)}
             {chat_input_box(content_w, content_h)}
         }
     }
 }
 
-fn chat_channel_selector(channel: &str, parent_w: f32) -> Element {
+fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32) -> Element {
+    let count = channels.len().max(1) as f32;
+    let available_w = parent_w - 2.0 * CHAT_CHANNEL_TAB_INSET;
+    let tab_w = (available_w - (count - 1.0) * CHAT_CHANNEL_TAB_GAP) / count;
+    let tabs: Element = channels
+        .iter()
+        .enumerate()
+        .flat_map(|(i, channel)| {
+            let x = CHAT_CHANNEL_TAB_INSET + i as f32 * (tab_w + CHAT_CHANNEL_TAB_GAP);
+            chat_channel_tab(i, channel, tab_w, x)
+        })
+        .collect();
     rsx! {
         r#frame {
-            name: "CommunitiesChatChannelSelector",
-            width: {CHANNEL_SELECTOR_W},
-            height: {CHANNEL_SELECTOR_H},
-            background_color: CHANNEL_BG,
+            name: "CommunitiesChatChannelTabs",
+            width: {available_w},
+            height: {CHAT_CHANNEL_TAB_H},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
-                x: {INPUT_INSET},
-                y: {-INPUT_INSET},
+                x: {CHAT_CHANNEL_TAB_INSET},
+                y: {-CHAT_CHANNEL_TAB_INSET},
             }
-            fontstring {
-                name: "CommunitiesChatChannelText",
-                width: {CHANNEL_SELECTOR_W - 8.0},
-                height: {CHANNEL_SELECTOR_H},
-                text: channel,
-                font_size: 10.0,
-                font_color: CHANNEL_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+            {tabs}
+        }
+    }
+}
+
+fn chat_channel_tab(_idx: usize, channel: &ChatChannelTab, tab_w: f32, x: f32) -> Element {
+    let (bg, color) = if channel.active {
+        (CHAT_CHANNEL_TAB_BG_ACTIVE, CHAT_CHANNEL_TAB_TEXT_ACTIVE)
+    } else {
+        (CHAT_CHANNEL_TAB_BG_INACTIVE, CHAT_CHANNEL_TAB_TEXT_INACTIVE)
+    };
+    rsx! {
+        r#frame {
+            width: {tab_w},
+            height: {CHAT_CHANNEL_TAB_H},
+            background_color: bg,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+            {chat_channel_tab_label(channel.name.as_str(), tab_w, color)}
+        }
+    }
+}
+
+fn chat_channel_tab_label(text: &str, tab_w: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            width: {tab_w - 2.0 * CHAT_CHANNEL_TAB_INSET},
+            height: {CHAT_CHANNEL_TAB_H},
+            text: text,
+            font_size: 10.0,
+            font_color: color,
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CHAT_CHANNEL_TAB_INSET},
+                y: "0",
             }
         }
     }
 }
 
 fn chat_message_list(messages: &[ChatMessage], parent_w: f32, parent_h: f32) -> Element {
-    let list_y = -(INPUT_INSET + CHANNEL_SELECTOR_H + INPUT_INSET);
-    let list_h =
-        parent_h - INPUT_INSET - CHANNEL_SELECTOR_H - INPUT_INSET - INPUT_H - INPUT_INSET * 2.0;
+    let list_y = -(CHAT_CHANNEL_TAB_INSET + CHAT_CHANNEL_TAB_H + CHAT_CHANNEL_TAB_INSET);
+    let list_h = parent_h
+        - CHAT_CHANNEL_TAB_INSET
+        - CHAT_CHANNEL_TAB_H
+        - CHAT_CHANNEL_TAB_INSET
+        - INPUT_H
+        - INPUT_INSET * 2.0;
     let list_w = parent_w - 2.0 * INPUT_INSET;
     let rows: Element = messages
         .iter()

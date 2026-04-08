@@ -137,7 +137,6 @@ fn make_chat_state() -> CommunitiesFrameState {
                 text: "Hi there".into(),
             },
         ],
-        chat_channel: "Guild".into(),
         ..Default::default()
     }
 }
@@ -151,10 +150,9 @@ fn chat_registry() -> FrameRegistry {
 }
 
 #[test]
-fn chat_tab_builds_channel_selector() {
+fn chat_tab_builds_channel_tabs() {
     let reg = chat_registry();
-    assert!(reg.get_by_name("CommunitiesChatChannelSelector").is_some());
-    assert!(reg.get_by_name("CommunitiesChatChannelText").is_some());
+    assert!(reg.get_by_name("CommunitiesChatChannelTabs").is_some());
 }
 
 #[test]
@@ -275,7 +273,7 @@ fn coord_first_tab() {
 }
 
 #[test]
-fn coord_chat_channel_selector() {
+fn coord_chat_channel_tabs() {
     let reg = {
         let mut r = FrameRegistry::new(1920.0, 1080.0);
         let mut s = SharedContext::new();
@@ -286,10 +284,20 @@ fn coord_chat_channel_selector() {
     };
     let content_x = FRAME_X + SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
     let content_y = FRAME_Y + CONTENT_TOP;
-    let r = rect(&reg, "CommunitiesChatChannelSelector");
-    assert!((r.x - (content_x + INPUT_INSET)).abs() < 1.0);
-    assert!((r.y - (content_y + INPUT_INSET)).abs() < 1.0);
-    assert!((r.width - CHANNEL_SELECTOR_W).abs() < 1.0);
+    let tabs = rect(&reg, "CommunitiesChatChannelTabs");
+    assert!(
+        (tabs.x - (content_x + CHAT_CHANNEL_TAB_INSET)).abs() < 1.0,
+        "tabs.x={} expected={}",
+        tabs.x,
+        content_x + CHAT_CHANNEL_TAB_INSET
+    );
+    assert!(
+        (tabs.y - (content_y + CHAT_CHANNEL_TAB_INSET)).abs() < 1.0,
+        "tabs.y={} expected={}",
+        tabs.y,
+        content_y + CHAT_CHANNEL_TAB_INSET
+    );
+    assert!((tabs.height - CHAT_CHANNEL_TAB_H).abs() < 1.0);
 }
 
 #[test]
