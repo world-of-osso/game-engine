@@ -28,6 +28,8 @@ pub mod character_models;
 pub mod combat_feedback;
 #[path = "game/communities_data.rs"]
 pub mod communities_data;
+#[path = "game/cooldown_data.rs"]
+pub mod cooldown_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
 pub mod csv_util;
