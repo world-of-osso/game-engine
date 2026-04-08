@@ -63,6 +63,66 @@ const ANIM_WALK_BACKWARDS: u16 = 13;
 const ANIM_JUMP_START: u16 = 37;
 const ANIM_JUMP: u16 = 38; // airborne loop
 const ANIM_JUMP_END: u16 = 39;
+const ANIM_SPELL_CAST_DIRECTED: u16 = 51;
+const ANIM_SPELL_CAST_OMNI: u16 = 52;
+const ANIM_READY_SPELL_DIRECTED: u16 = 55;
+const ANIM_READY_SPELL_OMNI: u16 = 56;
+const ANIM_CHANNEL: u16 = 76;
+
+/// Whether a spell has a target (directed) or is area-effect (omni).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum CastAnimKind {
+    #[default]
+    Directed,
+    Omni,
+    Channel,
+}
+
+impl CastAnimKind {
+    /// The WoW animation ID for the cast wind-up.
+    pub fn cast_anim_id(self) -> u16 {
+        match self {
+            Self::Directed => ANIM_SPELL_CAST_DIRECTED,
+            Self::Omni => ANIM_SPELL_CAST_OMNI,
+            Self::Channel => ANIM_CHANNEL,
+        }
+    }
+
+    /// The ready/hold animation for sustained casts.
+    pub fn ready_anim_id(self) -> u16 {
+        match self {
+            Self::Directed => ANIM_READY_SPELL_DIRECTED,
+            Self::Omni => ANIM_READY_SPELL_OMNI,
+            Self::Channel => ANIM_CHANNEL,
+        }
+    }
+}
+
+/// Component that triggers a cast animation on a character model.
+/// Added when a spell cast starts, removed when it ends.
+#[derive(Component, Clone, Debug)]
+pub struct CastAnimState {
+    pub kind: CastAnimKind,
+    /// Remaining cast time (for knowing when to transition back to Stand).
+    pub remaining: f32,
+}
+
+impl CastAnimState {
+    pub fn new(kind: CastAnimKind, duration: f32) -> Self {
+        Self {
+            kind,
+            remaining: duration,
+        }
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.remaining <= 0.0
+    }
+
+    pub fn tick(&mut self, dt: f32) {
+        self.remaining = (self.remaining - dt).max(0.0);
+    }
+}
 
 /// Map movement direction to a WoW animation ID.
 fn direction_to_anim_id(dir: MoveDirection, running: bool) -> u16 {

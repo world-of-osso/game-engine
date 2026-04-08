@@ -439,3 +439,54 @@ fn spherical_billboard_bone_tracks_camera_motion() {
         "billboard orientation should update when camera moves"
     );
 }
+
+// --- Cast animation ---
+
+#[test]
+fn cast_anim_directed_id() {
+    assert_eq!(CastAnimKind::Directed.cast_anim_id(), 51);
+}
+
+#[test]
+fn cast_anim_omni_id() {
+    assert_eq!(CastAnimKind::Omni.cast_anim_id(), 52);
+}
+
+#[test]
+fn cast_anim_channel_id() {
+    assert_eq!(CastAnimKind::Channel.cast_anim_id(), 76);
+}
+
+#[test]
+fn ready_anim_directed_id() {
+    assert_eq!(CastAnimKind::Directed.ready_anim_id(), 55);
+}
+
+#[test]
+fn ready_anim_omni_id() {
+    assert_eq!(CastAnimKind::Omni.ready_anim_id(), 56);
+}
+
+#[test]
+fn cast_anim_state_lifecycle() {
+    let mut state = CastAnimState::new(CastAnimKind::Directed, 2.5);
+    assert!(!state.is_finished());
+    assert_eq!(state.kind, CastAnimKind::Directed);
+    state.tick(1.0);
+    assert!(!state.is_finished());
+    state.tick(2.0);
+    assert!(state.is_finished());
+}
+
+#[test]
+fn cast_anim_state_tick_clamps() {
+    let mut state = CastAnimState::new(CastAnimKind::Omni, 0.5);
+    state.tick(999.0);
+    assert_eq!(state.remaining, 0.0);
+    assert!(state.is_finished());
+}
+
+#[test]
+fn cast_anim_default_is_directed() {
+    assert_eq!(CastAnimKind::default(), CastAnimKind::Directed);
+}
