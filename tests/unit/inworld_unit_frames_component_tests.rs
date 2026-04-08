@@ -1,6 +1,7 @@
 use super::*;
 use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
+use game_engine::ui::screens::inworld_unit_frames_component::TargetAuraIconState;
 use ui_toolkit::layout::recompute_layouts;
 use ui_toolkit::screen::Screen;
 use ui_toolkit::widgets::font_string::{GameFont, Outline};
@@ -235,6 +236,66 @@ fn player_combat_icon_renders_when_enabled() {
     assert_eq!(icon_font.text, "⚔");
 }
 
+#[test]
+fn target_aura_icons_render_with_timer_and_stacks() {
+    let reg = unit_frames_registry();
+
+    let buff = reg
+        .get(
+            reg.get_by_name("TargetBuffIcon0Texture")
+                .expect("target buff texture"),
+        )
+        .expect("target buff texture frame");
+    let debuff = reg
+        .get(
+            reg.get_by_name("TargetDebuffIcon0Texture")
+                .expect("target debuff texture"),
+        )
+        .expect("target debuff texture frame");
+    let buff_timer = reg
+        .get(
+            reg.get_by_name("TargetBuffIcon0Timer")
+                .expect("target buff timer"),
+        )
+        .expect("target buff timer");
+    let debuff_stack = reg
+        .get(
+            reg.get_by_name("TargetDebuffIcon0Stack")
+                .expect("target debuff stack"),
+        )
+        .expect("target debuff stack");
+
+    let Some(ui_toolkit::frame::WidgetData::Texture(buff_texture)) = buff.widget_data.as_ref()
+    else {
+        panic!("expected TargetBuffIcon0Texture texture");
+    };
+    let Some(ui_toolkit::frame::WidgetData::Texture(debuff_texture)) = debuff.widget_data.as_ref()
+    else {
+        panic!("expected TargetDebuffIcon0Texture texture");
+    };
+    let Some(ui_toolkit::frame::WidgetData::FontString(buff_timer_text)) =
+        buff_timer.widget_data.as_ref()
+    else {
+        panic!("expected TargetBuffIcon0Timer fontstring");
+    };
+    let Some(ui_toolkit::frame::WidgetData::FontString(debuff_stack_text)) =
+        debuff_stack.widget_data.as_ref()
+    else {
+        panic!("expected TargetDebuffIcon0Stack fontstring");
+    };
+
+    assert!(matches!(
+        buff_texture.source,
+        crate::ui::widgets::texture::TextureSource::FileDataId(136078)
+    ));
+    assert!(matches!(
+        debuff_texture.source,
+        crate::ui::widgets::texture::TextureSource::FileDataId(136207)
+    ));
+    assert_eq!(buff_timer_text.text, "5m");
+    assert_eq!(debuff_stack_text.text, "3");
+}
+
 fn unit_frames_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
@@ -252,6 +313,8 @@ fn unit_frames_registry() -> FrameRegistry {
             has_mana: true,
             show_combat_icon: true,
             show_resting_icon: true,
+            target_buffs: Vec::new(),
+            target_debuffs: Vec::new(),
         },
         target: Some(UnitFrameState {
             name: "Target".to_string(),
@@ -264,6 +327,18 @@ fn unit_frames_registry() -> FrameRegistry {
             has_mana: true,
             show_combat_icon: false,
             show_resting_icon: false,
+            target_buffs: vec![TargetAuraIconState {
+                icon_fdid: 136078,
+                timer_text: "5m".to_string(),
+                stacks: 1,
+                border_color: "0.85,0.75,0.35,1.0".to_string(),
+            }],
+            target_debuffs: vec![TargetAuraIconState {
+                icon_fdid: 136207,
+                timer_text: "4s".to_string(),
+                stacks: 3,
+                border_color: "0.2,0.6,1.0,1.0".to_string(),
+            }],
         }),
     });
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut reg);

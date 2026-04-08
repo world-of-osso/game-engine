@@ -15,6 +15,12 @@ use inworld_unit_frames_parts::{
     centered_marker, portrait_centered_marker, sized_marker, unit_frame_bar,
 };
 
+const TARGET_AURA_ICON_SIZE: f32 = 18.0;
+const TARGET_AURA_ICON_GAP: f32 = 2.0;
+const TARGET_AURA_TIMER_COLOR: &str = "1.0,1.0,1.0,0.95";
+const TARGET_AURA_STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
+const TARGET_AURA_DEFAULT_BORDER: &str = "0.08,0.08,0.08,0.95";
+
 struct DynName(String);
 
 fn dyn_name(name: String) -> DynName {
@@ -33,6 +39,16 @@ pub struct UnitFrameState {
     pub has_mana: bool,
     pub show_combat_icon: bool,
     pub show_resting_icon: bool,
+    pub target_buffs: Vec<TargetAuraIconState>,
+    pub target_debuffs: Vec<TargetAuraIconState>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TargetAuraIconState {
+    pub icon_fdid: u32,
+    pub timer_text: String,
+    pub stacks: u32,
+    pub border_color: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,7 +114,116 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
 }
 
 fn target_frame_contents(state: &UnitFrameState) -> Element {
-    unit_frame_shell("Target", state, false)
+    rsx! {
+        {unit_frame_shell("Target", state, false)}
+        {target_aura_row("TargetBuff", &state.target_buffs, 17.0)}
+        {target_aura_row("TargetDebuff", &state.target_debuffs, 40.0)}
+    }
+}
+
+fn target_aura_row(prefix: &str, icons: &[TargetAuraIconState], y: f32) -> Element {
+    let hidden = icons.is_empty();
+    let content: Element = icons
+        .iter()
+        .enumerate()
+        .flat_map(|(index, icon)| target_aura_icon(prefix, index, icon))
+        .collect();
+    rsx! {
+        r#frame {
+            name: {dyn_name(format!("{prefix}Row"))},
+            width: {132.0},
+            height: {TARGET_AURA_ICON_SIZE},
+            hidden: {hidden}
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {TARGET_FRAME_CONFIG.health_bar.x},
+                y: {-y},
+            }
+            {content}
+        }
+    }
+}
+
+fn target_aura_icon(prefix: &str, index: usize, icon: &TargetAuraIconState) -> Element {
+    let x = index as f32 * (TARGET_AURA_ICON_SIZE + TARGET_AURA_ICON_GAP);
+    let stack_text = if icon.stacks > 1 {
+        icon.stacks.to_string()
+    } else {
+        String::new()
+    };
+    rsx! {
+        r#frame {
+            name: {dyn_name(format!("{prefix}Icon{index}"))},
+            width: {TARGET_AURA_ICON_SIZE},
+            height: {TARGET_AURA_ICON_SIZE},
+            background_color: {icon.border_color.as_str()},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+            r#frame {
+                name: {dyn_name(format!("{prefix}Icon{index}Inset"))},
+                width: {TARGET_AURA_ICON_SIZE - 2.0},
+                height: {TARGET_AURA_ICON_SIZE - 2.0},
+                background_color: {TARGET_AURA_DEFAULT_BORDER},
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: "1",
+                    y: "-1",
+                }
+                texture {
+                    name: {dyn_name(format!("{prefix}Icon{index}Texture"))},
+                    width: {TARGET_AURA_ICON_SIZE - 2.0},
+                    height: {TARGET_AURA_ICON_SIZE - 2.0},
+                    texture_fdid: {icon.icon_fdid},
+                    anchor {
+                        point: AnchorPoint::TopLeft,
+                        relative_point: AnchorPoint::TopLeft,
+                    }
+                }
+            }
+            fontstring {
+                name: {dyn_name(format!("{prefix}Icon{index}Timer"))},
+                width: {TARGET_AURA_ICON_SIZE + 4.0},
+                height: 10.0,
+                text: {icon.timer_text.as_str()},
+                font: UNIT_NAME_FONT,
+                font_size: 8.0,
+                font_color: TARGET_AURA_TIMER_COLOR,
+                shadow_color: "0.0,0.0,0.0,1.0",
+                shadow_offset: "1,-1",
+                justify_h: "CENTER",
+                anchor {
+                    point: AnchorPoint::Bottom,
+                    relative_point: AnchorPoint::Bottom,
+                    x: "0",
+                    y: "9",
+                }
+            }
+            fontstring {
+                name: {dyn_name(format!("{prefix}Icon{index}Stack"))},
+                width: 12.0,
+                height: 10.0,
+                text: {stack_text.as_str()},
+                font: UNIT_NAME_FONT,
+                font_size: 8.0,
+                font_color: TARGET_AURA_STACK_COLOR,
+                shadow_color: "0.0,0.0,0.0,1.0",
+                shadow_offset: "1,-1",
+                justify_h: "RIGHT",
+                anchor {
+                    point: AnchorPoint::BottomRight,
+                    relative_point: AnchorPoint::BottomRight,
+                    x: "-1",
+                    y: "1",
+                }
+            }
+        }
+    }
 }
 
 struct UnitFrameNames {
@@ -601,6 +726,8 @@ pub fn default_player_frame_state() -> UnitFrameState {
         has_mana: false,
         show_combat_icon: false,
         show_resting_icon: false,
+        target_buffs: Vec::new(),
+        target_debuffs: Vec::new(),
     }
 }
 
@@ -616,6 +743,8 @@ pub fn fallback_target_frame_state() -> UnitFrameState {
         has_mana: false,
         show_combat_icon: false,
         show_resting_icon: false,
+        target_buffs: Vec::new(),
+        target_debuffs: Vec::new(),
     }
 }
 

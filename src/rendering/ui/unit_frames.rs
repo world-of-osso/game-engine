@@ -4,13 +4,14 @@ use shared::components::{Health as NetHealth, Mana as NetMana, Npc, Player as Ne
 use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
+use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
 use game_engine::status::{CharacterStatsSnapshot, RestAreaKindEntry};
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::inworld_unit_frames_component::{
     InWorldUnitFramesState, PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W,
-    UnitFrameState, default_player_frame_state, fallback_target_frame_state, fill_width,
-    format_value_text, inworld_unit_frames_screen, missing_target_name,
+    TargetAuraIconState, UnitFrameState, default_player_frame_state, fallback_target_frame_state,
+    fill_width, format_value_text, inworld_unit_frames_screen, missing_target_name,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -20,6 +21,7 @@ type UnitComponents<'a> = (
     Option<&'a NetMana>,
     Option<&'a Npc>,
     Option<&'a Name>,
+    Option<&'a UnitAuraState>,
 );
 
 struct InWorldUnitFramesRes {
@@ -57,15 +59,17 @@ fn build_inworld_unit_frames_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-    player_query: Query<UnitComponents, With<LocalPlayer>>,
+    player_query: Query<(Entity, UnitComponents), With<LocalPlayer>>,
     entity_query: Query<UnitComponents>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
+    aura_state: Option<Res<AuraState>>,
     current_target: Res<CurrentTarget>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_state(
         character_stats.as_deref(),
+        aura_state.as_deref(),
         &current_target,
         &player_query,
         &entity_query,
@@ -105,9 +109,10 @@ fn sync_inworld_unit_frames_ui(
     mut ui: ResMut<UiState>,
     mut screen_wrap: Option<ResMut<InWorldUnitFramesWrap>>,
     mut last_model: Option<ResMut<InWorldUnitFramesModel>>,
-    player_query: Query<UnitComponents, With<LocalPlayer>>,
+    player_query: Query<(Entity, UnitComponents), With<LocalPlayer>>,
     entity_query: Query<UnitComponents>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
+    aura_state: Option<Res<AuraState>>,
     current_target: Res<CurrentTarget>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
 ) {
@@ -117,6 +122,7 @@ fn sync_inworld_unit_frames_ui(
     };
     let state = build_state(
         character_stats.as_deref(),
+        aura_state.as_deref(),
         &current_target,
         &player_query,
         &entity_query,
@@ -133,21 +139,32 @@ fn sync_inworld_unit_frames_ui(
 
 fn build_state(
     character_stats: Option<&CharacterStatsSnapshot>,
+    aura_state: Option<&AuraState>,
     current_target: &CurrentTarget,
-    player_query: &Query<UnitComponents, With<LocalPlayer>>,
+    player_query: &Query<(Entity, UnitComponents), With<LocalPlayer>>,
     entity_query: &Query<UnitComponents>,
     hud_visibility: Option<&HudVisibilityToggles>,
 ) -> InWorldUnitFramesState {
     let visibility = hud_visibility.cloned().unwrap_or_default();
-    let player = player_query
+    let local_player = player_query
         .iter()
         .next()
-        .map(|unit| build_player_state(character_stats, unit))
+        .map(|(entity, unit)| (entity, build_player_state(character_stats, unit)));
+    let player = local_player
+        .as_ref()
+        .map(|(_, state)| state.clone())
         .unwrap_or_else(default_player_frame_state);
     let target = current_target
         .0
         .and_then(|entity| entity_query.get(entity).ok())
-        .map(build_target_state);
+        .map(|unit| {
+            build_target_state(
+                current_target.0,
+                local_player.as_ref().map(|(entity, _)| *entity),
+                unit,
+                aura_state,
+            )
+        });
     InWorldUnitFramesState {
         show_player_frame: visibility.show_player_frame,
         show_target_frame: visibility.show_target_frame,
@@ -158,7 +175,7 @@ fn build_state(
 
 fn build_player_state(
     character_stats: Option<&CharacterStatsSnapshot>,
-    (player, health, mana, _npc, name): UnitComponents,
+    (player, health, mana, _npc, name, _auras): UnitComponents,
 ) -> UnitFrameState {
     let mut state = default_player_frame_state();
     state.name = player
@@ -192,7 +209,12 @@ fn build_player_state(
     state
 }
 
-fn build_target_state((player, health, mana, npc, name): UnitComponents) -> UnitFrameState {
+fn build_target_state(
+    target_entity: Option<Entity>,
+    local_player_entity: Option<Entity>,
+    (player, health, mana, npc, name, unit_auras): UnitComponents,
+    local_auras: Option<&AuraState>,
+) -> UnitFrameState {
     let mut state = fallback_target_frame_state();
     state.name = player
         .map(|player| player.name.clone())
@@ -215,7 +237,49 @@ fn build_target_state((player, health, mana, npc, name): UnitComponents) -> Unit
         mana.map(|mana| mana.max),
     );
     state.has_mana = mana.is_some();
+    let auras = resolve_target_auras(target_entity, local_player_entity, unit_auras, local_auras);
+    state.target_buffs = auras
+        .iter()
+        .filter(|aura| !aura.is_debuff)
+        .take(6)
+        .map(target_aura_icon)
+        .collect();
+    state.target_debuffs = auras
+        .iter()
+        .filter(|aura| aura.is_debuff)
+        .take(6)
+        .map(target_aura_icon)
+        .collect();
     state
+}
+
+fn resolve_target_auras<'a>(
+    target_entity: Option<Entity>,
+    local_player_entity: Option<Entity>,
+    unit_auras: Option<&'a UnitAuraState>,
+    local_auras: Option<&'a AuraState>,
+) -> &'a [AuraInstance] {
+    if target_entity.is_some() && target_entity == local_player_entity {
+        return local_auras.map_or(&[], |auras| auras.auras.as_slice());
+    }
+    if let Some(unit_auras) = unit_auras {
+        return &unit_auras.auras;
+    }
+    &[]
+}
+
+fn target_aura_icon(aura: &AuraInstance) -> TargetAuraIconState {
+    let border_color = if aura.is_debuff {
+        aura.debuff_type.border_color().to_string()
+    } else {
+        "0.85,0.75,0.35,1.0".to_string()
+    };
+    TargetAuraIconState {
+        icon_fdid: aura.icon_fdid,
+        timer_text: aura.timer_text(),
+        stacks: aura.stacks,
+        border_color,
+    }
 }
 
 fn resting_text(stats: &CharacterStatsSnapshot) -> String {
@@ -236,6 +300,7 @@ fn resting_text(stats: &CharacterStatsSnapshot) -> String {
 mod tests {
     use super::*;
     use bevy::window::PrimaryWindow;
+    use game_engine::buff_data::{self, DebuffType, UnitAuraState, textures};
     use game_engine::targeting::CurrentTarget;
     use game_engine::ui::plugin::UiState;
     use game_engine::ui::{event::EventBus, registry::FrameRegistry};
@@ -248,15 +313,104 @@ mod tests {
             class: 0,
             appearance: default(),
         };
-        let state = build_target_state((Some(&player), None, None, None, None));
+        let state = build_target_state(
+            None,
+            None,
+            (Some(&player), None, None, None, None, None),
+            None,
+        );
         assert_eq!(state.name, "Thrall");
     }
 
     #[test]
     fn target_state_falls_back_to_npc_template_label() {
         let npc = Npc { template_id: 42 };
-        let state = build_target_state((None, None, None, Some(&npc), None));
+        let state =
+            build_target_state(None, None, (None, None, None, Some(&npc), None, None), None);
         assert_eq!(state.name, "Creature 42");
+    }
+
+    #[test]
+    fn target_state_uses_unit_aura_component_for_target_icons() {
+        let name = Name::new("Target");
+        let auras = UnitAuraState {
+            auras: vec![
+                buff_data::AuraInstance {
+                    spell_id: 1,
+                    name: "Fortitude".into(),
+                    description: String::new(),
+                    icon_fdid: textures::FORTITUDE,
+                    source: "Priest".into(),
+                    duration: 120.0,
+                    remaining: 25.2,
+                    stacks: 1,
+                    is_debuff: false,
+                    debuff_type: DebuffType::None,
+                },
+                buff_data::AuraInstance {
+                    spell_id: 2,
+                    name: "Pain".into(),
+                    description: String::new(),
+                    icon_fdid: textures::SHADOW_WORD_PAIN,
+                    source: "Priest".into(),
+                    duration: 18.0,
+                    remaining: 4.4,
+                    stacks: 3,
+                    is_debuff: true,
+                    debuff_type: DebuffType::Magic,
+                },
+            ],
+        };
+
+        let state = build_target_state(
+            None,
+            None,
+            (None, None, None, None, Some(&name), Some(&auras)),
+            None,
+        );
+
+        assert_eq!(state.target_buffs.len(), 1);
+        assert_eq!(state.target_buffs[0].icon_fdid, textures::FORTITUDE);
+        assert_eq!(state.target_buffs[0].timer_text, "26s");
+        assert_eq!(state.target_debuffs.len(), 1);
+        assert_eq!(
+            state.target_debuffs[0].icon_fdid,
+            textures::SHADOW_WORD_PAIN
+        );
+        assert_eq!(state.target_debuffs[0].stacks, 3);
+        assert_eq!(
+            state.target_debuffs[0].border_color,
+            DebuffType::Magic.border_color()
+        );
+    }
+
+    #[test]
+    fn target_state_uses_local_aura_state_when_targeting_self() {
+        let local_auras = AuraState {
+            auras: vec![buff_data::AuraInstance {
+                spell_id: 3,
+                name: "Mark".into(),
+                description: String::new(),
+                icon_fdid: textures::MARK_OF_WILD,
+                source: "Druid".into(),
+                duration: 3600.0,
+                remaining: 3600.0,
+                stacks: 1,
+                is_debuff: false,
+                debuff_type: DebuffType::None,
+            }],
+        };
+
+        let state = build_target_state(
+            Some(Entity::from_bits(1)),
+            Some(Entity::from_bits(1)),
+            (None, None, None, None, None, None),
+            Some(&local_auras),
+        );
+
+        assert_eq!(state.target_buffs.len(), 1);
+        assert_eq!(state.target_buffs[0].icon_fdid, textures::MARK_OF_WILD);
+        assert!(state.target_debuffs.is_empty());
     }
 
     #[test]
@@ -278,7 +432,7 @@ mod tests {
 
         let state = build_player_state(
             Some(&stats),
-            (Some(&player), Some(&health), None, None, None),
+            (Some(&player), Some(&health), None, None, None, None),
         );
 
         assert!(state.show_combat_icon);
@@ -313,6 +467,7 @@ mod tests {
                     max: 100.0,
                 },
                 Name::new("Theron"),
+                UnitAuraState::default(),
             ))
             .id();
         app.world_mut().spawn((

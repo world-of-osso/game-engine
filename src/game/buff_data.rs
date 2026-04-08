@@ -92,6 +92,12 @@ pub struct AuraState {
     pub auras: Vec<AuraInstance>,
 }
 
+/// Optional aura state attached to any world entity for UI consumers like target frames.
+#[derive(Component, Clone, Debug, PartialEq, Default)]
+pub struct UnitAuraState {
+    pub auras: Vec<AuraInstance>,
+}
+
 impl AuraState {
     pub fn buffs(&self) -> impl Iterator<Item = &AuraInstance> {
         self.auras.iter().filter(|a| !a.is_debuff)
@@ -112,6 +118,16 @@ impl AuraState {
     /// Remove expired non-permanent auras.
     pub fn remove_expired(&mut self) {
         self.auras.retain(|a| a.is_permanent() || a.remaining > 0.0);
+    }
+}
+
+impl UnitAuraState {
+    pub fn buffs(&self) -> impl Iterator<Item = &AuraInstance> {
+        self.auras.iter().filter(|a| !a.is_debuff)
+    }
+
+    pub fn debuffs(&self) -> impl Iterator<Item = &AuraInstance> {
+        self.auras.iter().filter(|a| a.is_debuff)
     }
 }
 
