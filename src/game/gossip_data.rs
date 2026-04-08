@@ -110,12 +110,18 @@ impl GossipMenu {
 // --- Runtime gossip state ---
 
 /// Runtime gossip interaction state, held as a Bevy Resource.
+///
+/// Supports multi-level dialog trees: [`navigate_to`](Self::navigate_to)
+/// pushes the current menu onto a history stack so the player can
+/// [`go_back`](Self::go_back) to the previous page.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct GossipState {
     /// The currently open gossip menu, if any.
     pub menu: Option<GossipMenu>,
     /// The server-side entity ID of the NPC being interacted with.
     pub interacting_npc: Option<u64>,
+    /// History stack for dialog tree navigation (most recent on top).
+    history: Vec<GossipMenu>,
 }
 
 impl GossipState {
@@ -123,14 +129,47 @@ impl GossipState {
         self.menu.is_some()
     }
 
+    /// Start a new gossip interaction, clearing any previous history.
     pub fn open(&mut self, npc_entity_id: u64, menu: GossipMenu) {
         self.interacting_npc = Some(npc_entity_id);
         self.menu = Some(menu);
+        self.history.clear();
     }
 
+    /// Close the gossip dialog and clear all navigation history.
     pub fn close(&mut self) {
         self.menu = None;
         self.interacting_npc = None;
+        self.history.clear();
+    }
+
+    /// Navigate to a sub-menu, pushing the current menu onto the history stack.
+    /// No-op if no menu is currently open.
+    pub fn navigate_to(&mut self, menu: GossipMenu) {
+        if let Some(current) = self.menu.take() {
+            self.history.push(current);
+        }
+        self.menu = Some(menu);
+    }
+
+    /// Go back to the previous menu in the dialog tree.
+    /// Returns true if navigation occurred, false if already at root.
+    pub fn go_back(&mut self) -> bool {
+        let Some(previous) = self.history.pop() else {
+            return false;
+        };
+        self.menu = Some(previous);
+        true
+    }
+
+    /// Whether there is a previous menu to go back to.
+    pub fn can_go_back(&self) -> bool {
+        !self.history.is_empty()
+    }
+
+    /// How many levels deep in the dialog tree (0 = root menu).
+    pub fn depth(&self) -> usize {
+        self.history.len()
     }
 
     pub fn greeting(&self) -> &str {
@@ -155,6 +194,8 @@ pub enum GossipIntent {
     Interact { npc_entity_id: u64 },
     /// Player selected a gossip menu option.
     SelectOption { option_id: u32 },
+    /// Player navigated back to the previous dialog page.
+    GoBack,
     /// Player closed the gossip dialog.
     Close,
 }
@@ -172,6 +213,10 @@ impl GossipIntentQueue {
 
     pub fn select_option(&mut self, option_id: u32) {
         self.pending.push(GossipIntent::SelectOption { option_id });
+    }
+
+    pub fn go_back(&mut self) {
+        self.pending.push(GossipIntent::GoBack);
     }
 
     pub fn close(&mut self) {
@@ -380,6 +425,153 @@ mod tests {
         assert_eq!(state.greeting(), "Second");
     }
 
+    // --- Dialog tree navigation ---
+
+    #[test]
+    fn navigate_to_sub_menu() {
+        let mut state = GossipState::default();
+        state.open(
+            1,
+            GossipMenu {
+                greeting_text: "Root".into(),
+                ..Default::default()
+            },
+        );
+        state.navigate_to(GossipMenu {
+            greeting_text: "Page 2".into(),
+            ..Default::default()
+        });
+        assert_eq!(state.greeting(), "Page 2");
+        assert!(state.can_go_back());
+        assert_eq!(state.depth(), 1);
+    }
+
+    #[test]
+    fn go_back_restores_previous() {
+        let mut state = GossipState::default();
+        state.open(
+            1,
+            GossipMenu {
+                greeting_text: "Root".into(),
+                ..Default::default()
+            },
+        );
+        state.navigate_to(GossipMenu {
+            greeting_text: "Sub".into(),
+            ..Default::default()
+        });
+        assert!(state.go_back());
+        assert_eq!(state.greeting(), "Root");
+        assert!(!state.can_go_back());
+        assert_eq!(state.depth(), 0);
+    }
+
+    #[test]
+    fn go_back_at_root_returns_false() {
+        let mut state = GossipState::default();
+        state.open(
+            1,
+            GossipMenu {
+                greeting_text: "Root".into(),
+                ..Default::default()
+            },
+        );
+        assert!(!state.go_back());
+        assert_eq!(state.greeting(), "Root");
+    }
+
+    #[test]
+    fn multi_level_navigation() {
+        let mut state = GossipState::default();
+        state.open(
+            1,
+            GossipMenu {
+                greeting_text: "Level 0".into(),
+                ..Default::default()
+            },
+        );
+        state.navigate_to(GossipMenu {
+            greeting_text: "Level 1".into(),
+            ..Default::default()
+        });
+        state.navigate_to(GossipMenu {
+            greeting_text: "Level 2".into(),
+            ..Default::default()
+        });
+        assert_eq!(state.depth(), 2);
+        assert_eq!(state.greeting(), "Level 2");
+
+        assert!(state.go_back());
+        assert_eq!(state.greeting(), "Level 1");
+        assert_eq!(state.depth(), 1);
+
+        assert!(state.go_back());
+        assert_eq!(state.greeting(), "Level 0");
+        assert_eq!(state.depth(), 0);
+
+        assert!(!state.go_back());
+    }
+
+    #[test]
+    fn open_clears_history() {
+        let mut state = GossipState::default();
+        state.open(
+            1,
+            GossipMenu {
+                greeting_text: "A".into(),
+                ..Default::default()
+            },
+        );
+        state.navigate_to(GossipMenu {
+            greeting_text: "B".into(),
+            ..Default::default()
+        });
+        assert_eq!(state.depth(), 1);
+
+        // Opening a new interaction clears the history.
+        state.open(
+            2,
+            GossipMenu {
+                greeting_text: "Fresh".into(),
+                ..Default::default()
+            },
+        );
+        assert_eq!(state.depth(), 0);
+        assert!(!state.can_go_back());
+    }
+
+    #[test]
+    fn close_clears_history() {
+        let mut state = GossipState::default();
+        state.open(
+            1,
+            GossipMenu {
+                greeting_text: "A".into(),
+                ..Default::default()
+            },
+        );
+        state.navigate_to(GossipMenu {
+            greeting_text: "B".into(),
+            ..Default::default()
+        });
+        state.close();
+        assert_eq!(state.depth(), 0);
+        assert!(!state.is_open());
+    }
+
+    #[test]
+    fn navigate_without_open_sets_menu() {
+        let mut state = GossipState::default();
+        state.navigate_to(GossipMenu {
+            greeting_text: "Direct".into(),
+            ..Default::default()
+        });
+        assert!(state.is_open());
+        assert_eq!(state.greeting(), "Direct");
+        // No previous menu was open, so nothing pushed to history.
+        assert_eq!(state.depth(), 0);
+    }
+
     // --- GossipIntentQueue ---
 
     #[test]
@@ -397,6 +589,14 @@ mod tests {
         queue.select_option(5);
         let drained = queue.drain();
         assert_eq!(drained[0], GossipIntent::SelectOption { option_id: 5 });
+    }
+
+    #[test]
+    fn intent_queue_go_back() {
+        let mut queue = GossipIntentQueue::default();
+        queue.go_back();
+        let drained = queue.drain();
+        assert_eq!(drained[0], GossipIntent::GoBack);
     }
 
     #[test]
