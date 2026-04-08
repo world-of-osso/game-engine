@@ -258,6 +258,7 @@ pub(crate) enum MailCmd {
 
 #[derive(Subcommand)]
 pub(crate) enum StatusCmd {
+    Achievements,
     Network,
     Terrain,
     Sound,

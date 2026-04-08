@@ -1,5 +1,6 @@
 use super::*;
 use crate::status::{
+    AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupRole, GroupStatusSnapshot,
     InventoryItemEntry, InventorySearchSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
@@ -77,6 +78,31 @@ fn formats_sound_status_snapshot() {
     assert!(text.contains("enabled: true"));
     assert!(text.contains("master_volume: 0.80"));
     assert!(text.contains("active_sinks: 2"));
+}
+
+#[test]
+fn formats_achievement_status_with_completion_toast() {
+    let text = format_achievement_status(&AchievementsStatusSnapshot {
+        earned_ids: vec![1],
+        progress: vec![AchievementProgressEntry {
+            achievement_id: 2,
+            current: 12,
+            required: 20,
+            completed: false,
+        }],
+        last_completed: Some(AchievementCompletionEntry {
+            achievement_id: 1,
+            name: "Level 10".into(),
+            points: 10,
+        }),
+        last_server_message: Some("achievement progress updated".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("achievements: 1"));
+    assert!(text.contains("message: achievement progress updated"));
+    assert!(text.contains("completed: 1 Level 10 points=10"));
+    assert!(text.contains("2 current=12 required=20 completed=false"));
 }
 
 #[test]

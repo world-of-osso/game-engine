@@ -129,6 +129,16 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::collection::reset_runtime(&mut collection_state);
     }
+    if let Some(mut completion) =
+        world.get_resource_mut::<game_engine::achievements::AchievementCompletionState>()
+    {
+        *completion = game_engine::achievements::AchievementCompletionState::default();
+    }
+    if let Some(mut toast) =
+        world.get_resource_mut::<game_engine::achievement::AchievementToastState>()
+    {
+        *toast = game_engine::achievement::AchievementToastState::default();
+    }
     if let Some(mut profession_state) =
         world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
     {
@@ -152,6 +162,7 @@ fn reset_world_resources(world: &mut World) {
 fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::CharacterRosterStatusSnapshot>(world);
     reset_resource::<game_engine::status::CharacterStatsSnapshot>(world);
+    reset_resource::<game_engine::status::AchievementsStatusSnapshot>(world);
     reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
     reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);

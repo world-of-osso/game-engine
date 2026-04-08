@@ -88,6 +88,14 @@ fn mail_delete_command_maps_to_delete_request() {
 }
 
 #[test]
+fn achievements_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Achievements).unwrap(),
+        Request::AchievementsStatus
+    );
+}
+
+#[test]
 fn network_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Network).unwrap(),

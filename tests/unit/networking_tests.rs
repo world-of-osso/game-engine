@@ -616,6 +616,53 @@ fn profession_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn achievement_state_update_populates_status_snapshot() {
+    let mut status = game_engine::status::AchievementsStatusSnapshot::default();
+    let mut completion = game_engine::achievements::AchievementCompletionState::default();
+    let mut toast = game_engine::achievement::AchievementToastState::default();
+
+    game_engine::achievement::apply_achievement_state_update(
+        &mut status,
+        &mut completion,
+        &mut toast,
+        shared::protocol::AchievementStateUpdate {
+            snapshot: Some(shared::protocol::AchievementSnapshot {
+                earned_ids: vec![1],
+                progress: vec![shared::protocol::AchievementProgressSnapshot {
+                    achievement_id: 2,
+                    current: 12,
+                    required: 20,
+                    completed: false,
+                }],
+            }),
+            completed: Some(shared::protocol::AchievementToastSnapshot {
+                achievement_id: 1,
+                name: "Level 10".into(),
+                points: 10,
+            }),
+            message: Some("achievement progress updated".into()),
+            error: None,
+        },
+    );
+
+    assert!(completion.earned.contains(&1));
+    assert_eq!(completion.progress.get(&2), Some(&(12, 20)));
+    assert_eq!(status.earned_ids, vec![1]);
+    assert_eq!(
+        status
+            .last_completed
+            .as_ref()
+            .map(|entry| entry.name.as_str()),
+        Some("Level 10")
+    );
+    assert_eq!(toast.queue.len(), 1);
+    assert_eq!(
+        status.last_server_message.as_deref(),
+        Some("achievement progress updated")
+    );
+}
+
+#[test]
 fn reputation_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::ReputationsStatusSnapshot::default();
 

@@ -2,18 +2,22 @@ use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::components::Zone;
 use shared::protocol::{
-    ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel, CombatEvent, CombatEventType,
-    CombatLogEventKindSnapshot, CombatLogSnapshot, DuelStateUpdate, GroupCommandResponse,
-    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
-    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
-    ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
-    ReputationStateUpdate, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
+    AchievementStateUpdate, ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel,
+    CombatEvent, CombatEventType, CombatLogEventKindSnapshot, CombatLogSnapshot, DuelStateUpdate,
+    GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
+    InspectStateUpdate, InventorySearchResultSnapshot, LoadTerrain, PlayerInput,
+    ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
+    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, SetTarget,
+    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::networking::{ChatInput, ChatLog, CurrentZone, MAX_CHAT_LOG, MAX_COMBAT_LOG};
 use crate::networking_auth::SelectedCharacterId;
 use crate::terrain::AdtManager;
+use game_engine::achievement::{
+    AchievementToastState, apply_achievement_state_update as map_achievement_state_update,
+};
 use game_engine::chat_data::{
     ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState,
 };
@@ -21,11 +25,11 @@ use game_engine::collection::apply_collection_state_update as map_collection_sta
 use game_engine::duel::apply_duel_state_update as map_duel_state_update;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
-    CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    DuelStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
-    InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry,
-    ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry,
-    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    AchievementsStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
+    CombatLogStatusSnapshot, DuelStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot,
+    GuildVaultStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
+    ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
+    QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
     ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
     TalentStatusSnapshot, WarbankStatusSnapshot,
 };
@@ -456,6 +460,19 @@ pub(crate) fn receive_collection_state_update(
     for mut receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_collection_state_update(&mut snapshot, update);
+        }
+    }
+}
+
+pub(crate) fn receive_achievement_state_update(
+    mut receivers: Query<&mut MessageReceiver<AchievementStateUpdate>>,
+    mut status: ResMut<AchievementsStatusSnapshot>,
+    mut completion: ResMut<game_engine::achievements::AchievementCompletionState>,
+    mut toast: ResMut<AchievementToastState>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for update in receiver.receive() {
+            map_achievement_state_update(&mut status, &mut completion, &mut toast, update);
         }
     }
 }

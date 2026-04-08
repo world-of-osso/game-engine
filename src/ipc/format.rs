@@ -4,11 +4,11 @@
 mod format_terrain;
 
 use crate::status::{
-    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
-    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, GroupRole,
-    GroupStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
-    ReputationsStatusSnapshot, SoundStatusSnapshot,
+    AchievementsStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
+    CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
+    EquippedGearStatusSnapshot, GroupRole, GroupStatusSnapshot, InventoryItemEntry,
+    InventorySearchSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -20,6 +20,7 @@ use format_terrain::format_terrain_status;
 /// Returns true if the request was a status query and was handled.
 pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
     let text = match &cmd.request {
+        Request::AchievementsStatus => format_achievement_status(ctx.achievements_status),
         Request::NetworkStatus => format_network_status(ctx.network_status, ctx.connected),
         Request::TerrainStatus => format_terrain_status(ctx.terrain_status),
         Request::SoundStatus => format_sound_status(ctx.sound_status),
@@ -55,6 +56,33 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
     };
     let _ = cmd.respond.send(Response::Text(text));
     true
+}
+
+pub fn format_achievement_status(snapshot: &AchievementsStatusSnapshot) -> String {
+    let mut lines = vec![format!("achievements: {}", snapshot.earned_ids.len())];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if let Some(completed) = &snapshot.last_completed {
+        lines.push(format!(
+            "completed: {} {} points={}",
+            completed.achievement_id, completed.name, completed.points
+        ));
+    }
+    if snapshot.progress.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.progress.iter().map(|entry| {
+        format!(
+            "{} current={} required={} completed={}",
+            entry.achievement_id, entry.current, entry.required, entry.completed
+        )
+    }));
+    lines.join("\n")
 }
 
 pub fn format_network_status(snapshot: &NetworkStatusSnapshot, connected: bool) -> String {

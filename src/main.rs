@@ -668,6 +668,8 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::game_menu::GameMenuScreenPlugin,
     ));
     app.add_plugins((
+        game_engine::achievement::AchievementPlugin,
+        scenes::achievement_frame::AchievementFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
         scenes::talent_frame::TalentFramePlugin,
         trash_button_screen::TrashButtonScreenPlugin,

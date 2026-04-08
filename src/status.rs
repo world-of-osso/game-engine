@@ -332,6 +332,30 @@ pub struct CombatLogStatusSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AchievementProgressEntry {
+    pub achievement_id: u32,
+    pub current: u32,
+    pub required: u32,
+    pub completed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AchievementCompletionEntry {
+    pub achievement_id: u32,
+    pub name: String,
+    pub points: u32,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct AchievementsStatusSnapshot {
+    pub earned_ids: Vec<u32>,
+    pub progress: Vec<AchievementProgressEntry>,
+    pub last_completed: Option<AchievementCompletionEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CollectionMountEntry {
     pub mount_id: u32,
     pub name: String,
@@ -520,6 +544,15 @@ mod tests {
     }
 
     #[test]
+    fn achievements_snapshot_defaults_to_empty_lists() {
+        let snapshot = AchievementsStatusSnapshot::default();
+
+        assert!(snapshot.earned_ids.is_empty());
+        assert!(snapshot.progress.is_empty());
+        assert!(snapshot.last_completed.is_none());
+    }
+
+    #[test]
     fn collection_snapshot_defaults_to_empty_lists() {
         let snapshot = CollectionStatusSnapshot::default();
 
@@ -607,6 +640,27 @@ mod tests {
     }
 
     #[test]
+    fn achievements_status_round_trip() {
+        let snapshot = AchievementsStatusSnapshot {
+            earned_ids: vec![1, 2],
+            progress: vec![AchievementProgressEntry {
+                achievement_id: 3,
+                current: 37,
+                required: 40,
+                completed: false,
+            }],
+            last_completed: Some(AchievementCompletionEntry {
+                achievement_id: 2,
+                name: "Level 20".into(),
+                points: 10,
+            }),
+            last_server_message: Some("achievement progress updated".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn character_stats_round_trip() {
         let snapshot = CharacterStatsSnapshot {
             character_id: Some(99),
@@ -669,6 +723,7 @@ mod tests {
         round_trip(&NetworkStatusSnapshot::default());
         round_trip(&TerrainStatusSnapshot::default());
         round_trip(&SoundStatusSnapshot::default());
+        round_trip(&AchievementsStatusSnapshot::default());
         round_trip(&CurrenciesStatusSnapshot::default());
         round_trip(&ReputationsStatusSnapshot::default());
         round_trip(&CharacterStatsSnapshot::default());

@@ -27,12 +27,13 @@ use crate::profession::{
     ProfessionRuntimeState, queue_ipc_request as queue_profession_ipc_request,
 };
 use crate::status::{
-    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
-    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DuelStatusSnapshot,
-    EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot, GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
-    TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
+    AchievementsStatusSnapshot, CharacterRosterStatusSnapshot, CharacterStatsSnapshot,
+    CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
+    DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    Waypoint,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
@@ -67,6 +68,7 @@ pub(crate) type TreeQuery<'w, 's> = Query<'w, 's, crate::dump::TreeQueryData<'st
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct StatusSnapshotParams<'w> {
+    achievements: Res<'w, AchievementsStatusSnapshot>,
     network: Res<'w, NetworkStatusSnapshot>,
     terrain: Res<'w, TerrainStatusSnapshot>,
     sound: Res<'w, SoundStatusSnapshot>,
@@ -88,6 +90,7 @@ struct StatusSnapshotParams<'w> {
 
 /// Plain-struct grouping of snapshot references passed into dispatch.
 pub(crate) struct DispatchContext<'a> {
+    pub achievements_status: &'a AchievementsStatusSnapshot,
     pub network_status: &'a NetworkStatusSnapshot,
     pub terrain_status: &'a TerrainStatusSnapshot,
     pub sound_status: &'a SoundStatusSnapshot,
@@ -189,6 +192,7 @@ fn build_dispatch_context<'a>(
     connected: bool,
 ) -> DispatchContext<'a> {
     DispatchContext {
+        achievements_status: &snapshots.achievements,
         network_status: &snapshots.network,
         terrain_status: &snapshots.terrain,
         sound_status: &snapshots.sound,

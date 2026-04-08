@@ -1,5 +1,6 @@
 extern crate self as game_engine;
 
+pub mod achievement;
 #[path = "game/achievements.rs"]
 pub mod achievements;
 #[path = "game/action_bar_data.rs"]

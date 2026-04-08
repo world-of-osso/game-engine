@@ -260,6 +260,7 @@ pub fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
 
 pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
+        StatusCmd::Achievements => Request::AchievementsStatus,
         StatusCmd::Network => Request::NetworkStatus,
         StatusCmd::Terrain => Request::TerrainStatus,
         StatusCmd::Sound => Request::SoundStatus,

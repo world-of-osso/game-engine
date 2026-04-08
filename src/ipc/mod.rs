@@ -79,6 +79,7 @@ pub enum Request {
     DuelAccept,
     DuelDecline,
     DuelStatus,
+    AchievementsStatus,
     NetworkStatus,
     TerrainStatus,
     SoundStatus,
