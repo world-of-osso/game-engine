@@ -9,11 +9,11 @@ use game_engine::ipc::{Request, Response, socket_glob};
 use peercred_ipc::Client;
 
 use requests::{
-    auction_request, collection_request, combat_request, currency_request, duel_request,
-    equipment_request, export_character_request, export_scene_request, friend_request,
-    group_request, ignore_request, inspect_request, inventory_request, item_request, lfg_request,
-    mail_request, map_request, profession_request, quest_request, reputation_request,
-    spell_request, status_request, talent_request, trade_request,
+    auction_request, barber_request, collection_request, combat_request, currency_request,
+    duel_request, equipment_request, export_character_request, export_scene_request,
+    friend_request, group_request, ignore_request, inspect_request, inventory_request,
+    item_request, lfg_request, mail_request, map_request, profession_request, quest_request,
+    reputation_request, spell_request, status_request, talent_request, trade_request,
 };
 
 #[derive(Parser)]
@@ -90,6 +90,11 @@ enum Cmd {
     Status {
         #[command(subcommand)]
         command: StatusCmd,
+    },
+    /// Barber shop commands
+    Barber {
+        #[command(subcommand)]
+        command: BarberCmd,
     },
     /// Currency wallet operations via the running engine
     Currency {
@@ -274,6 +279,7 @@ pub(crate) enum MailCmd {
 #[derive(Subcommand)]
 pub(crate) enum StatusCmd {
     Achievements,
+    Barber,
     Friends,
     Ignore,
     Lfg,
@@ -358,6 +364,19 @@ pub(crate) enum IgnoreCmd {
         #[arg(long)]
         name: String,
     },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum BarberCmd {
+    Status,
+    Set {
+        #[arg(long)]
+        option: String,
+        #[arg(long)]
+        value: u8,
+    },
+    Reset,
+    Apply,
 }
 
 #[derive(Subcommand)]
@@ -588,6 +607,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Talent { command } => handle_talent(socket, command, json),
         Cmd::Inspect { command } => handle_inspect(socket, command, json),
         Cmd::Status { command } => handle_status(socket, command, json),
+        Cmd::Barber { command } => handle_barber(socket, command, json),
         Cmd::Currency { command } => handle_currency(socket, command, json),
         Cmd::Item { command } => handle_item(socket, command, json),
         Cmd::Inventory { command } => handle_inventory(socket, command, json),
@@ -731,6 +751,10 @@ fn handle_inspect(socket: &PathBuf, command: InspectCmd, json: bool) -> Result<(
 
 fn handle_status(socket: &PathBuf, command: StatusCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, status_request(command)?, json)
+}
+
+fn handle_barber(socket: &PathBuf, command: BarberCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, barber_request(command)?, json)
 }
 
 fn handle_item(socket: &PathBuf, command: ItemCmd, json: bool) -> Result<(), String> {

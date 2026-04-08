@@ -15,6 +15,15 @@ use crate::item_info::ItemInfoQuery;
 use crate::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use crate::status::GroupRole;
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub enum BarberOption {
+    HairStyle,
+    HairColor,
+    FacialHair,
+    SkinColor,
+    Face,
+}
+
 /// IPC request from CLI to engine.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Request {
@@ -94,6 +103,13 @@ pub enum Request {
     IgnoreRemove {
         name: String,
     },
+    BarberStatus,
+    BarberSet {
+        option: BarberOption,
+        value: u8,
+    },
+    BarberReset,
+    BarberApply,
     LfgStatus,
     LfgQueue {
         role: GroupRole,

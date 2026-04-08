@@ -14,6 +14,9 @@ use lightyear::prelude::client::Connected;
 use super::init;
 use super::{Command, Request, Response};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
+use crate::barber_shop::{
+    BarberShopRuntimeState, queue_ipc_request as queue_barber_shop_ipc_request,
+};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
 use crate::collection::{
     CollectionRuntimeState, queue_ipc_request as queue_collection_ipc_request,
@@ -32,13 +35,14 @@ use crate::profession::{
     ProfessionRuntimeState, queue_ipc_request as queue_profession_ipc_request,
 };
 use crate::status::{
-    AchievementsStatusSnapshot, CharacterRosterStatusSnapshot, CharacterStatsSnapshot,
-    CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
-    LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
-    TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
+    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterRosterStatusSnapshot,
+    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
+    CurrenciesStatusSnapshot, DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot,
+    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
+    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
+    WarbankStatusSnapshot, Waypoint,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
@@ -74,6 +78,7 @@ pub(crate) type TreeQuery<'w, 's> = Query<'w, 's, crate::dump::TreeQueryData<'st
 #[derive(bevy::ecs::system::SystemParam)]
 struct StatusSnapshotParams<'w> {
     achievements: Res<'w, AchievementsStatusSnapshot>,
+    barber_shop: Res<'w, BarberShopStatusSnapshot>,
     network: Res<'w, NetworkStatusSnapshot>,
     terrain: Res<'w, TerrainStatusSnapshot>,
     sound: Res<'w, SoundStatusSnapshot>,
@@ -99,6 +104,7 @@ struct StatusSnapshotParams<'w> {
 /// Plain-struct grouping of snapshot references passed into dispatch.
 pub(crate) struct DispatchContext<'a> {
     pub achievements_status: &'a AchievementsStatusSnapshot,
+    pub barber_shop_status: &'a BarberShopStatusSnapshot,
     pub network_status: &'a NetworkStatusSnapshot,
     pub terrain_status: &'a TerrainStatusSnapshot,
     pub sound_status: &'a SoundStatusSnapshot,
@@ -140,6 +146,8 @@ struct SceneParams<'w, 's> {
 #[derive(bevy::ecs::system::SystemParam)]
 struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
+    barber_shop: ResMut<'w, BarberShopRuntimeState>,
+    barber_shop_status: ResMut<'w, BarberShopStatusSnapshot>,
     collection: ResMut<'w, CollectionRuntimeState>,
     friends: ResMut<'w, FriendsRuntimeState>,
     friends_status: Res<'w, FriendsStatusSnapshot>,
@@ -210,6 +218,7 @@ fn build_dispatch_context<'a>(
 ) -> DispatchContext<'a> {
     DispatchContext {
         achievements_status: &snapshots.achievements,
+        barber_shop_status: &snapshots.barber_shop,
         network_status: &snapshots.network,
         terrain_status: &snapshots.terrain,
         sound_status: &snapshots.sound,
@@ -243,6 +252,14 @@ fn dispatch(
     sender_params: &mut IpcSenderParams,
 ) {
     if queue_ipc_request(&mut world.auction_house, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
+    if queue_barber_shop_ipc_request(
+        &mut world.barber_shop,
+        &mut world.barber_shop_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
         return;
     }
     if queue_collection_ipc_request(&mut world.collection, &cmd.request, cmd.respond.clone()) {

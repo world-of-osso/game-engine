@@ -88,10 +88,49 @@ fn mail_delete_command_maps_to_delete_request() {
 }
 
 #[test]
+fn barber_set_command_maps_to_request() {
+    assert_eq!(
+        barber_request(BarberCmd::Set {
+            option: "hair-style".into(),
+            value: 3,
+        })
+        .unwrap(),
+        Request::BarberSet {
+            option: game_engine::ipc::BarberOption::HairStyle,
+            value: 3,
+        }
+    );
+}
+
+#[test]
+fn barber_reset_command_maps_to_request() {
+    assert_eq!(
+        barber_request(BarberCmd::Reset).unwrap(),
+        Request::BarberReset
+    );
+}
+
+#[test]
+fn barber_apply_command_maps_to_request() {
+    assert_eq!(
+        barber_request(BarberCmd::Apply).unwrap(),
+        Request::BarberApply
+    );
+}
+
+#[test]
 fn achievements_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Achievements).unwrap(),
         Request::AchievementsStatus
+    );
+}
+
+#[test]
+fn barber_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Barber).unwrap(),
+        Request::BarberStatus
     );
 }
 

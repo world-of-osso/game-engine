@@ -1,12 +1,13 @@
 use super::*;
 use crate::status::{
     AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
-    CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot,
-    GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry,
-    LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    BarberShopStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendEntry,
+    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
+    InventoryItemEntry, InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry,
+    LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    TerrainStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -104,6 +105,39 @@ fn formats_achievement_status_with_completion_toast() {
     assert!(text.contains("message: achievement progress updated"));
     assert!(text.contains("completed: 1 Level 10 points=10"));
     assert!(text.contains("2 current=12 required=20 completed=false"));
+}
+
+#[test]
+fn formats_barber_shop_status_snapshot() {
+    let text = format_barber_shop_status(&BarberShopStatusSnapshot {
+        current_appearance: shared::components::CharacterAppearance {
+            sex: 0,
+            skin_color: 0,
+            face: 0,
+            eye_color: 0,
+            hair_style: 0,
+            hair_color: 0,
+            facial_style: 0,
+        },
+        pending_appearance: shared::components::CharacterAppearance {
+            sex: 0,
+            skin_color: 1,
+            face: 2,
+            eye_color: 0,
+            hair_style: 3,
+            hair_color: 1,
+            facial_style: 1,
+        },
+        gold: 50_000,
+        pending_cost: 20_000,
+        last_server_message: Some("barber shop ready".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("barber_gold: 5g 0s 0c"));
+    assert!(text.contains("pending_cost: 2g 0s 0c"));
+    assert!(text.contains("Hair Style: current=Style 1 pending=Style 4"));
+    assert!(text.contains("message: barber shop ready"));
 }
 
 #[test]

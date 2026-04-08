@@ -260,6 +260,16 @@ pub struct LfgStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BarberShopStatusSnapshot {
+    pub current_appearance: CharacterAppearance,
+    pub pending_appearance: CharacterAppearance,
+    pub gold: u32,
+    pub pending_cost: u32,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StorageItemEntry {
     pub slot: u32,
@@ -628,6 +638,16 @@ mod tests {
     }
 
     #[test]
+    fn barber_shop_status_snapshot_defaults_to_empty_state() {
+        let snapshot = BarberShopStatusSnapshot::default();
+
+        assert_eq!(snapshot.gold, 0);
+        assert_eq!(snapshot.pending_cost, 0);
+        assert_eq!(snapshot.current_appearance, CharacterAppearance::default());
+        assert_eq!(snapshot.pending_appearance, CharacterAppearance::default());
+    }
+
+    #[test]
     fn combat_log_snapshot_defaults_to_no_entries() {
         let snapshot = CombatLogStatusSnapshot::default();
 
@@ -868,6 +888,35 @@ mod tests {
     }
 
     #[test]
+    fn barber_shop_status_round_trip() {
+        let snapshot = BarberShopStatusSnapshot {
+            current_appearance: CharacterAppearance {
+                sex: 1,
+                skin_color: 2,
+                face: 3,
+                eye_color: 4,
+                hair_style: 5,
+                hair_color: 1,
+                facial_style: 2,
+            },
+            pending_appearance: CharacterAppearance {
+                sex: 1,
+                skin_color: 3,
+                face: 4,
+                eye_color: 4,
+                hair_style: 6,
+                hair_color: 2,
+                facial_style: 3,
+            },
+            gold: 90_000,
+            pending_cost: 20_000,
+            last_server_message: Some("barber shop ready".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn default_snapshots_round_trip() {
         round_trip(&NetworkStatusSnapshot::default());
         round_trip(&TerrainStatusSnapshot::default());
@@ -883,6 +932,7 @@ mod tests {
         round_trip(&FriendsStatusSnapshot::default());
         round_trip(&IgnoreListStatusSnapshot::default());
         round_trip(&LfgStatusSnapshot::default());
+        round_trip(&BarberShopStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());
     }
 

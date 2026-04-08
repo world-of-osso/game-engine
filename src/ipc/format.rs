@@ -4,12 +4,12 @@
 mod format_terrain;
 
 use crate::status::{
-    AchievementsStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
-    CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot,
-    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterStatsSnapshot,
+    CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
+    CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole,
+    GroupStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
+    LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -22,6 +22,7 @@ use format_terrain::format_terrain_status;
 pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
     let text = match &cmd.request {
         Request::AchievementsStatus => format_achievement_status(ctx.achievements_status),
+        Request::BarberStatus => format_barber_shop_status(ctx.barber_shop_status),
         Request::NetworkStatus => format_network_status(ctx.network_status, ctx.connected),
         Request::TerrainStatus => format_terrain_status(ctx.terrain_status),
         Request::SoundStatus => format_sound_status(ctx.sound_status),
@@ -86,6 +87,34 @@ pub fn format_achievement_status(snapshot: &AchievementsStatusSnapshot) -> Strin
             entry.achievement_id, entry.current, entry.required, entry.completed
         )
     }));
+    lines.join("\n")
+}
+
+pub fn format_barber_shop_status(snapshot: &BarberShopStatusSnapshot) -> String {
+    let mut lines = vec![
+        format!(
+            "barber_gold: {}",
+            crate::auction_house_data::Money(snapshot.gold as u64).display()
+        ),
+        format!(
+            "pending_cost: {}",
+            crate::barber_shop::format_cost(snapshot.pending_cost)
+        ),
+    ];
+    for (index, def) in crate::barber_shop_data::CUSTOMIZATIONS.iter().enumerate() {
+        lines.push(format!(
+            "{}: current={} pending={}",
+            def.label,
+            crate::barber_shop::option_value(snapshot.current_appearance, index),
+            crate::barber_shop::option_value(snapshot.pending_appearance, index)
+        ));
+    }
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
     lines.join("\n")
 }
 

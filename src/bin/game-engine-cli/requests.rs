@@ -7,9 +7,9 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd, GroupCmd,
-    IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd,
-    ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
+    AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd,
+    GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, ProfessionCmd,
+    QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -57,6 +57,19 @@ pub fn item_request(command: ItemCmd) -> Result<Request, String> {
         ItemCmd::Info { item_id } => Request::ItemInfo {
             query: ItemInfoQuery { item_id },
         },
+    };
+    Ok(request)
+}
+
+pub fn barber_request(command: BarberCmd) -> Result<Request, String> {
+    let request = match command {
+        BarberCmd::Status => Request::BarberStatus,
+        BarberCmd::Set { option, value } => Request::BarberSet {
+            option: parse_barber_option(&option)?,
+            value,
+        },
+        BarberCmd::Reset => Request::BarberReset,
+        BarberCmd::Apply => Request::BarberApply,
     };
     Ok(request)
 }
@@ -293,6 +306,7 @@ pub fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
 pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
         StatusCmd::Achievements => Request::AchievementsStatus,
+        StatusCmd::Barber => Request::BarberStatus,
         StatusCmd::Friends => Request::FriendsStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
         StatusCmd::Lfg => Request::LfgStatus,
@@ -317,6 +331,19 @@ fn parse_group_role(value: &str) -> Result<game_engine::status::GroupRole, Strin
         "damage" | "dps" => Ok(game_engine::status::GroupRole::Damage),
         "none" => Ok(game_engine::status::GroupRole::None),
         _ => Err(format!("unknown role: {value}")),
+    }
+}
+
+fn parse_barber_option(value: &str) -> Result<game_engine::ipc::BarberOption, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "hair-style" | "hairstyle" | "hair_style" => Ok(game_engine::ipc::BarberOption::HairStyle),
+        "hair-color" | "haircolor" | "hair_color" => Ok(game_engine::ipc::BarberOption::HairColor),
+        "facial-hair" | "facialhair" | "facial_hair" => {
+            Ok(game_engine::ipc::BarberOption::FacialHair)
+        }
+        "skin-color" | "skincolor" | "skin_color" => Ok(game_engine::ipc::BarberOption::SkinColor),
+        "face" => Ok(game_engine::ipc::BarberOption::Face),
+        _ => Err(format!("unknown barber option: {value}")),
     }
 }
 

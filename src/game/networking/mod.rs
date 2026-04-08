@@ -16,10 +16,10 @@ pub use crate::networking_auth::{
 
 use crate::camera::{CharacterFacing, MovementState};
 use game_engine::status::{
-    AchievementsStatusSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot,
-    IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
-    ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CollectionStatusSnapshot,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
+    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot,
+    MapStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
     WarbankStatusSnapshot,
 };
 
@@ -180,6 +180,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<GroupStatusSnapshot>();
     app.init_resource::<CombatLogStatusSnapshot>();
     app.init_resource::<AchievementsStatusSnapshot>();
+    app.init_resource::<BarberShopStatusSnapshot>();
     app.init_resource::<CollectionStatusSnapshot>();
     app.init_resource::<ProfessionStatusSnapshot>();
     app.init_resource::<FriendsStatusSnapshot>();

@@ -11,6 +11,7 @@ pub mod auction_house;
 pub mod auction_house_data;
 #[path = "game/bag_data.rs"]
 pub mod bag_data;
+pub mod barber_shop;
 #[path = "game/barber_shop_data.rs"]
 pub mod barber_shop_data;
 #[path = "game/buff_data.rs"]

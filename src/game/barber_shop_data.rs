@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use shared::components::CharacterAppearance;
 
 use crate::auction_house_data::Money;
 
@@ -76,6 +77,22 @@ impl Default for BarberShopState {
 }
 
 impl BarberShopState {
+    pub fn sync_from_appearance(&mut self, appearance: CharacterAppearance) {
+        let selections = selections_from_appearance(appearance);
+        self.original = selections.clone();
+        self.selections = selections;
+    }
+
+    pub fn preview_appearance(&self, current: CharacterAppearance) -> CharacterAppearance {
+        let mut appearance = current;
+        appearance.hair_style = self.selections.first().copied().unwrap_or(0) as u8;
+        appearance.hair_color = self.selections.get(1).copied().unwrap_or(0) as u8;
+        appearance.facial_style = self.selections.get(2).copied().unwrap_or(0) as u8;
+        appearance.skin_color = self.selections.get(3).copied().unwrap_or(0) as u8;
+        appearance.face = self.selections.get(4).copied().unwrap_or(0) as u8;
+        appearance
+    }
+
     /// Get the display value for a customization index.
     pub fn selected_value(&self, option_index: usize) -> &'static str {
         let sel = self.selections.get(option_index).copied().unwrap_or(0);
@@ -137,6 +154,23 @@ impl BarberShopState {
     pub fn apply(&mut self) {
         self.original = self.selections.clone();
     }
+}
+
+fn selections_from_appearance(appearance: CharacterAppearance) -> Vec<usize> {
+    vec![
+        clamp_choice_index(0, appearance.hair_style),
+        clamp_choice_index(1, appearance.hair_color),
+        clamp_choice_index(2, appearance.facial_style),
+        clamp_choice_index(3, appearance.skin_color),
+        clamp_choice_index(4, appearance.face),
+    ]
+}
+
+fn clamp_choice_index(option_index: usize, value: u8) -> usize {
+    let Some(def) = CUSTOMIZATIONS.get(option_index) else {
+        return 0;
+    };
+    usize::min(value as usize, def.choices.len().saturating_sub(1))
 }
 
 #[cfg(test)]
@@ -277,5 +311,35 @@ mod tests {
         state.next_choice(0); // Style 2 -> Style 3 (new change)
         assert_eq!(state.changed_count(), 1);
         assert_eq!(state.total_cost(), Money(10_000));
+    }
+
+    #[test]
+    fn sync_from_appearance_clamps_to_available_choices() {
+        let mut state = BarberShopState::default();
+        state.sync_from_appearance(CharacterAppearance {
+            sex: 0,
+            skin_color: 99,
+            face: 4,
+            eye_color: 0,
+            hair_style: 2,
+            hair_color: 3,
+            facial_style: 4,
+        });
+
+        assert_eq!(state.selected_value(0), "Style 3");
+        assert_eq!(state.selected_value(3), "Dark");
+    }
+
+    #[test]
+    fn preview_appearance_maps_selections_back_to_fields() {
+        let mut state = BarberShopState::default();
+        state.next_choice(0);
+        state.next_choice(1);
+        state.next_choice(2);
+        let appearance = state.preview_appearance(CharacterAppearance::default());
+
+        assert_eq!(appearance.hair_style, 1);
+        assert_eq!(appearance.hair_color, 1);
+        assert_eq!(appearance.facial_style, 1);
     }
 }
