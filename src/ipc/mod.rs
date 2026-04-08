@@ -119,6 +119,7 @@ pub enum Request {
     DeathReleaseSpirit,
     DeathResurrectAtCorpse,
     DeathAcceptSpiritHealer,
+    DeathStuckEscape,
     PvpStatus,
     EncounterJournalStatus,
     PvpQueueBattleground {

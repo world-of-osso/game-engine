@@ -81,6 +81,7 @@ pub fn death_request(command: DeathCmd) -> Result<Request, String> {
         DeathCmd::ReleaseSpirit => Request::DeathReleaseSpirit,
         DeathCmd::ResurrectAtCorpse => Request::DeathResurrectAtCorpse,
         DeathCmd::AcceptSpiritHealer => Request::DeathAcceptSpiritHealer,
+        DeathCmd::Stuck => Request::DeathStuckEscape,
     };
     Ok(request)
 }

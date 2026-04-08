@@ -380,6 +380,14 @@ fn death_accept_spirit_healer_command_maps_to_request() {
 }
 
 #[test]
+fn death_stuck_command_maps_to_request() {
+    assert_eq!(
+        death_request(DeathCmd::Stuck).unwrap(),
+        Request::DeathStuckEscape
+    );
+}
+
+#[test]
 fn duel_challenge_command_maps_to_request() {
     assert_eq!(
         duel_request(DuelCmd::Challenge).unwrap(),

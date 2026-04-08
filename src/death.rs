@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::protocol::{
     AcceptSpiritHealerResurrection, DeathChannel, DeathPositionSnapshot, DeathStateSnapshot,
-    DeathStateUpdate, QueryDeathStatus, ReleaseSpirit, ResurrectAtCorpse,
+    DeathStateUpdate, QueryDeathStatus, ReleaseSpirit, ResurrectAtCorpse, UseStuckEscape,
 };
 
 use crate::ipc::{Request, Response};
@@ -24,6 +24,7 @@ enum Action {
     ReleaseSpirit,
     ResurrectAtCorpse,
     AcceptSpiritHealer,
+    StuckEscape,
 }
 
 pub struct DeathPlugin;
@@ -66,6 +67,11 @@ pub fn queue_ipc_request(
             runtime.pending_replies.push_back(respond);
             true
         }
+        Request::DeathStuckEscape => {
+            runtime.pending_actions.push_back(Action::StuckEscape);
+            runtime.pending_replies.push_back(respond);
+            true
+        }
         _ => false,
     }
 }
@@ -88,6 +94,7 @@ struct DeathSenders<'w, 's> {
     release: Query<'w, 's, &'static mut MessageSender<ReleaseSpirit>>,
     resurrect: Query<'w, 's, &'static mut MessageSender<ResurrectAtCorpse>>,
     spirit_healer: Query<'w, 's, &'static mut MessageSender<AcceptSpiritHealerResurrection>>,
+    stuck_escape: Query<'w, 's, &'static mut MessageSender<UseStuckEscape>>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<DeathRuntimeState>, mut senders: DeathSenders) {
@@ -98,6 +105,7 @@ fn send_pending_actions(mut runtime: ResMut<DeathRuntimeState>, mut senders: Dea
             Action::AcceptSpiritHealer => {
                 send_all(&mut senders.spirit_healer, AcceptSpiritHealerResurrection)
             }
+            Action::StuckEscape => send_all(&mut senders.stuck_escape, UseStuckEscape),
         };
         if !sent && let Some(reply) = runtime.pending_replies.pop_front() {
             let _ = reply.send(Response::Error(

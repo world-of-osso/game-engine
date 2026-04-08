@@ -417,6 +417,7 @@ pub(crate) enum DeathCmd {
     ReleaseSpirit,
     ResurrectAtCorpse,
     AcceptSpiritHealer,
+    Stuck,
 }
 
 #[derive(Subcommand)]
