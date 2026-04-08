@@ -5,13 +5,15 @@ use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
+use game_engine::char_create_data::class_by_id;
 use game_engine::status::{CharacterStatsSnapshot, RestAreaKindEntry};
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::inworld_unit_frames_component::{
     InWorldUnitFramesState, PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W,
-    TargetAuraIconState, UnitFrameState, default_player_frame_state, fallback_target_frame_state,
-    fill_width, format_value_text, inworld_unit_frames_screen, missing_target_name,
+    TargetAuraIconState, UNKNOWN_PORTRAIT_TEXTURE_FILE, UnitFrameState, default_player_frame_state,
+    fallback_target_frame_state, fill_width, format_value_text, inworld_unit_frames_screen,
+    missing_target_name,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -178,6 +180,7 @@ fn build_player_state(
     (player, health, mana, _npc, name, _auras): UnitComponents,
 ) -> UnitFrameState {
     let mut state = default_player_frame_state();
+    state.portrait_texture_file = portrait_texture_for_player(player, character_stats);
     state.name = player
         .map(|player| player.name.clone())
         .or_else(|| character_stats.and_then(|stats| stats.name.clone()))
@@ -216,6 +219,7 @@ fn build_target_state(
     local_auras: Option<&AuraState>,
 ) -> UnitFrameState {
     let mut state = fallback_target_frame_state();
+    state.portrait_texture_file = portrait_texture_for_target(player);
     state.name = player
         .map(|player| player.name.clone())
         .or_else(|| npc.map(|npc| format!("Creature {}", npc.template_id)))
@@ -237,20 +241,35 @@ fn build_target_state(
         mana.map(|mana| mana.max),
     );
     state.has_mana = mana.is_some();
-    let auras = resolve_target_auras(target_entity, local_player_entity, unit_auras, local_auras);
-    state.target_buffs = auras
-        .iter()
-        .filter(|aura| !aura.is_debuff)
-        .take(6)
-        .map(target_aura_icon)
-        .collect();
-    state.target_debuffs = auras
-        .iter()
-        .filter(|aura| aura.is_debuff)
-        .take(6)
-        .map(target_aura_icon)
-        .collect();
+    populate_target_auras(
+        &mut state,
+        target_entity,
+        local_player_entity,
+        unit_auras,
+        local_auras,
+    );
     state
+}
+
+fn portrait_texture_for_player(
+    player: Option<&NetPlayer>,
+    character_stats: Option<&CharacterStatsSnapshot>,
+) -> String {
+    let class_id = player
+        .map(|player| player.class)
+        .or_else(|| character_stats.and_then(|stats| stats.class));
+    portrait_texture_for_class(class_id)
+}
+
+fn portrait_texture_for_target(player: Option<&NetPlayer>) -> String {
+    portrait_texture_for_class(player.map(|player| player.class))
+}
+
+fn portrait_texture_for_class(class_id: Option<u8>) -> String {
+    class_id
+        .and_then(class_by_id)
+        .map(|class| class.icon_file.to_string())
+        .unwrap_or_else(|| UNKNOWN_PORTRAIT_TEXTURE_FILE.to_string())
 }
 
 fn resolve_target_auras<'a>(
@@ -266,6 +285,28 @@ fn resolve_target_auras<'a>(
         return &unit_auras.auras;
     }
     &[]
+}
+
+fn populate_target_auras(
+    state: &mut UnitFrameState,
+    target_entity: Option<Entity>,
+    local_player_entity: Option<Entity>,
+    unit_auras: Option<&UnitAuraState>,
+    local_auras: Option<&AuraState>,
+) {
+    let auras = resolve_target_auras(target_entity, local_player_entity, unit_auras, local_auras);
+    state.target_buffs = auras
+        .iter()
+        .filter(|aura| !aura.is_debuff)
+        .take(6)
+        .map(target_aura_icon)
+        .collect();
+    state.target_debuffs = auras
+        .iter()
+        .filter(|aura| aura.is_debuff)
+        .take(6)
+        .map(target_aura_icon)
+        .collect();
 }
 
 fn target_aura_icon(aura: &AuraInstance) -> TargetAuraIconState {
@@ -310,7 +351,7 @@ mod tests {
         let player = NetPlayer {
             name: "Thrall".to_string(),
             race: 0,
-            class: 0,
+            class: 7,
             appearance: default(),
         };
         let state = build_target_state(
@@ -320,6 +361,11 @@ mod tests {
             None,
         );
         assert_eq!(state.name, "Thrall");
+        assert!(
+            state
+                .portrait_texture_file
+                .ends_with("ClassIcon_Shaman.blp")
+        );
     }
 
     #[test]
@@ -328,6 +374,21 @@ mod tests {
         let state =
             build_target_state(None, None, (None, None, None, Some(&npc), None, None), None);
         assert_eq!(state.name, "Creature 42");
+        assert_eq!(state.portrait_texture_file, UNKNOWN_PORTRAIT_TEXTURE_FILE);
+    }
+
+    #[test]
+    fn player_state_uses_class_icon_from_character_stats() {
+        let stats = CharacterStatsSnapshot {
+            class: Some(2),
+            ..CharacterStatsSnapshot::default()
+        };
+        let state = build_player_state(Some(&stats), (None, None, None, None, None, None));
+        assert!(
+            state
+                .portrait_texture_file
+                .ends_with("ClassIcon_Paladin.blp")
+        );
     }
 
     #[test]

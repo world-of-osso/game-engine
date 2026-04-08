@@ -20,6 +20,8 @@ const TARGET_AURA_ICON_GAP: f32 = 2.0;
 const TARGET_AURA_TIMER_COLOR: &str = "1.0,1.0,1.0,0.95";
 const TARGET_AURA_STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
 const TARGET_AURA_DEFAULT_BORDER: &str = "0.08,0.08,0.08,0.95";
+pub const UNKNOWN_PORTRAIT_TEXTURE_FILE: &str =
+    "/home/osso/Projects/wow/Interface/ICONS/INV_Misc_QuestionMark.blp";
 
 struct DynName(String);
 
@@ -29,6 +31,7 @@ fn dyn_name(name: String) -> DynName {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnitFrameState {
+    pub portrait_texture_file: String,
     pub name: String,
     pub level_text: String,
     pub resting_text: String,
@@ -280,7 +283,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
         r#frame {
             name: names.container,
             stretch: true,
-            {unit_frame_shell_background(&names, frame)}
+            {unit_frame_shell_background(&names, state, frame)}
             {unit_frame_shell_labels(&names, state, frame, player_side)}
             {unit_frame_shell_bars(prefix, state, &visuals, frame)}
             {contextual_icons(prefix, player_side, state)}
@@ -288,7 +291,11 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
     }
 }
 
-fn unit_frame_shell_background(names: &UnitFrameNames, frame: &FrameConfig) -> Element {
+fn unit_frame_shell_background(
+    names: &UnitFrameNames,
+    state: &UnitFrameState,
+    frame: &FrameConfig,
+) -> Element {
     rsx! {
         texture {
             name: names.shell,
@@ -312,6 +319,28 @@ fn unit_frame_shell_background(names: &UnitFrameNames, frame: &FrameConfig) -> E
                 relative_point: AnchorPoint::TopLeft,
                 x: {frame.portrait.x},
                 y: {-frame.portrait.y},
+            }
+            {unit_frame_portrait_texture(names, state, frame)}
+        }
+    }
+}
+
+fn unit_frame_portrait_texture(
+    names: &UnitFrameNames,
+    state: &UnitFrameState,
+    frame: &FrameConfig,
+) -> Element {
+    let hide_portrait = state.portrait_texture_file.is_empty();
+    rsx! {
+        texture {
+            name: {dyn_name(format!("{}Texture", names.portrait.0))},
+            width: frame.portrait.width,
+            height: frame.portrait.height,
+            texture_file: {state.portrait_texture_file.as_str()},
+            hidden: {hide_portrait}
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
             }
         }
     }
@@ -716,6 +745,7 @@ fn target_right_threat_icons(prefix: &str) -> Element {
 
 pub fn default_player_frame_state() -> UnitFrameState {
     UnitFrameState {
+        portrait_texture_file: UNKNOWN_PORTRAIT_TEXTURE_FILE.into(),
         name: "Player".to_string(),
         level_text: String::new(),
         resting_text: String::new(),
@@ -733,6 +763,7 @@ pub fn default_player_frame_state() -> UnitFrameState {
 
 pub fn fallback_target_frame_state() -> UnitFrameState {
     UnitFrameState {
+        portrait_texture_file: UNKNOWN_PORTRAIT_TEXTURE_FILE.into(),
         name: "No Target".to_string(),
         level_text: String::new(),
         resting_text: String::new(),

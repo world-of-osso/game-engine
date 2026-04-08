@@ -237,6 +237,44 @@ fn player_combat_icon_renders_when_enabled() {
 }
 
 #[test]
+fn unit_frame_portrait_textures_render() {
+    let reg = unit_frames_registry();
+
+    let player = reg
+        .get(
+            reg.get_by_name("PlayerPortraitTexture")
+                .expect("player portrait texture"),
+        )
+        .expect("player portrait texture frame");
+    let target = reg
+        .get(
+            reg.get_by_name("TargetPortraitTexture")
+                .expect("target portrait texture"),
+        )
+        .expect("target portrait texture frame");
+
+    let Some(ui_toolkit::frame::WidgetData::Texture(player_texture)) = player.widget_data.as_ref()
+    else {
+        panic!("expected PlayerPortraitTexture texture");
+    };
+    let Some(ui_toolkit::frame::WidgetData::Texture(target_texture)) = target.widget_data.as_ref()
+    else {
+        panic!("expected TargetPortraitTexture texture");
+    };
+
+    assert!(matches!(
+        &player_texture.source,
+        crate::ui::widgets::texture::TextureSource::File(path)
+            if path.ends_with("ClassIcon_Paladin.blp")
+    ));
+    assert!(matches!(
+        &target_texture.source,
+        crate::ui::widgets::texture::TextureSource::File(path)
+            if path.ends_with("INV_Misc_QuestionMark.blp")
+    ));
+}
+
+#[test]
 fn target_aura_icons_render_with_timer_and_stacks() {
     let reg = unit_frames_registry();
 
@@ -296,50 +334,62 @@ fn target_aura_icons_render_with_timer_and_stacks() {
     assert_eq!(debuff_stack_text.text, "3");
 }
 
+fn sample_player_frame_state() -> UnitFrameState {
+    UnitFrameState {
+        portrait_texture_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Paladin.blp"
+            .to_string(),
+        name: "Player".to_string(),
+        level_text: "10".to_string(),
+        resting_text: "Resting".to_string(),
+        health_text: "100 / 100".to_string(),
+        mana_text: "80 / 80".to_string(),
+        health_fill_width: PLAYER_HEALTH_BAR_W,
+        mana_fill_width: PLAYER_HEALTH_BAR_W,
+        has_mana: true,
+        show_combat_icon: true,
+        show_resting_icon: true,
+        target_buffs: Vec::new(),
+        target_debuffs: Vec::new(),
+    }
+}
+
+fn sample_target_frame_state() -> UnitFrameState {
+    UnitFrameState {
+        portrait_texture_file: "/home/osso/Projects/wow/Interface/ICONS/INV_Misc_QuestionMark.blp"
+            .to_string(),
+        name: "Target".to_string(),
+        level_text: "12".to_string(),
+        resting_text: String::new(),
+        health_text: "90 / 90".to_string(),
+        mana_text: "60 / 60".to_string(),
+        health_fill_width: TARGET_HEALTH_BAR_W,
+        mana_fill_width: TARGET_MANA_BAR_W,
+        has_mana: true,
+        show_combat_icon: false,
+        show_resting_icon: false,
+        target_buffs: vec![TargetAuraIconState {
+            icon_fdid: 136078,
+            timer_text: "5m".to_string(),
+            stacks: 1,
+            border_color: "0.85,0.75,0.35,1.0".to_string(),
+        }],
+        target_debuffs: vec![TargetAuraIconState {
+            icon_fdid: 136207,
+            timer_text: "4s".to_string(),
+            stacks: 3,
+            border_color: "0.2,0.6,1.0,1.0".to_string(),
+        }],
+    }
+}
+
 fn unit_frames_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
-        player: UnitFrameState {
-            name: "Player".to_string(),
-            level_text: "10".to_string(),
-            resting_text: "Resting".to_string(),
-            health_text: "100 / 100".to_string(),
-            mana_text: "80 / 80".to_string(),
-            health_fill_width: PLAYER_HEALTH_BAR_W,
-            mana_fill_width: PLAYER_HEALTH_BAR_W,
-            has_mana: true,
-            show_combat_icon: true,
-            show_resting_icon: true,
-            target_buffs: Vec::new(),
-            target_debuffs: Vec::new(),
-        },
-        target: Some(UnitFrameState {
-            name: "Target".to_string(),
-            level_text: "12".to_string(),
-            resting_text: String::new(),
-            health_text: "90 / 90".to_string(),
-            mana_text: "60 / 60".to_string(),
-            health_fill_width: TARGET_HEALTH_BAR_W,
-            mana_fill_width: TARGET_MANA_BAR_W,
-            has_mana: true,
-            show_combat_icon: false,
-            show_resting_icon: false,
-            target_buffs: vec![TargetAuraIconState {
-                icon_fdid: 136078,
-                timer_text: "5m".to_string(),
-                stacks: 1,
-                border_color: "0.85,0.75,0.35,1.0".to_string(),
-            }],
-            target_debuffs: vec![TargetAuraIconState {
-                icon_fdid: 136207,
-                timer_text: "4s".to_string(),
-                stacks: 3,
-                border_color: "0.2,0.6,1.0,1.0".to_string(),
-            }],
-        }),
+        player: sample_player_frame_state(),
+        target: Some(sample_target_frame_state()),
     });
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut reg);
     recompute_layouts(&mut reg);
