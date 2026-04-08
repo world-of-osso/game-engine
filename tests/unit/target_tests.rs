@@ -372,6 +372,129 @@ fn test_resolve_targetable_ancestor_ignores_hidden_npcs() {
 }
 
 #[test]
+fn classify_world_object_model_detects_clickable_prop_types() {
+    assert_eq!(
+        classify_world_object_model("world/generic/passivedoodads/mailbox/mailboxhuman.m2"),
+        Some(WorldObjectInteractionKind::Mailbox)
+    );
+    assert_eq!(
+        classify_world_object_model("world/expansion02/doodads/anvil/anvil_01.m2"),
+        Some(WorldObjectInteractionKind::Anvil)
+    );
+    assert_eq!(
+        classify_world_object_model("world/generic/passivedoodads/furniture/chairwood01.m2"),
+        Some(WorldObjectInteractionKind::Chair)
+    );
+}
+
+#[test]
+fn classify_world_object_model_avoids_location_false_positives() {
+    assert_eq!(
+        classify_world_object_model("world/wmo/khazmodan/cities/ironforge/ironforge_001.wmo"),
+        None
+    );
+    assert_eq!(
+        classify_world_object_model("world/wmo/dungeon/md_anvilmarpass/anvilmarpass_000.wmo"),
+        None
+    );
+}
+
+#[test]
+fn resolve_interaction_ancestor_finds_world_object_root() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<TargetResolutionResult>();
+
+    let root = app
+        .world_mut()
+        .spawn((
+            Transform::default(),
+            WorldObjectInteraction {
+                kind: WorldObjectInteractionKind::Mailbox,
+            },
+        ))
+        .id();
+    let child = app.world_mut().spawn(Transform::default()).id();
+    app.world_mut().entity_mut(child).insert(ChildOf(root));
+    app.add_systems(
+        Update,
+        move |parent_query: Query<&ChildOf>,
+              npc_query: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+              object_query: Query<&WorldObjectInteraction>,
+              quest_query: Query<(), With<game_engine::quest_tracking::QuestTrackedItem>>,
+              visibility_query: Query<&Visibility>,
+              mut result: ResMut<TargetResolutionResult>| {
+            result.0 = resolve_interaction_ancestor(
+                child,
+                &parent_query,
+                &npc_query,
+                &object_query,
+                &quest_query,
+                &visibility_query,
+            )
+            .map(|target| match target {
+                InteractionTarget::Npc(entity) | InteractionTarget::Object(entity, _) => entity,
+            });
+        },
+    );
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<TargetResolutionResult>().0,
+        Some(root)
+    );
+}
+
+#[test]
+fn interact_with_object_mailbox_queues_mail_open() {
+    let mut queue = game_engine::mail_data::MailIntentQueue::default();
+    assert!(interact_with_object(
+        WorldObjectInteractionKind::Mailbox,
+        &mut queue,
+        None,
+        None,
+        None,
+    ));
+    assert_eq!(
+        queue.pending,
+        vec![game_engine::mail_data::MailIntent::OpenMailbox]
+    );
+}
+
+#[test]
+fn interact_with_object_forge_opens_professions_frame() {
+    let mut queue = game_engine::mail_data::MailIntentQueue::default();
+    let mut open = crate::scenes::professions_frame::ProfessionsFrameOpen(false);
+    assert!(interact_with_object(
+        WorldObjectInteractionKind::Forge,
+        &mut queue,
+        None,
+        Some(&mut open),
+        None,
+    ));
+    assert!(open.0);
+}
+
+#[test]
+fn interact_with_object_chair_queues_sit_emote() {
+    let mut queue = game_engine::mail_data::MailIntentQueue::default();
+    let mut input = crate::networking::EmoteInput(None);
+    assert!(interact_with_object(
+        WorldObjectInteractionKind::Chair,
+        &mut queue,
+        None,
+        None,
+        Some(&mut input),
+    ));
+    assert_eq!(
+        input.0,
+        Some(shared::protocol::EmoteIntent {
+            emote: shared::protocol::EmoteKind::Sit,
+        })
+    );
+}
+
+#[test]
 fn test_convert_opaque_image_to_alpha_mask_uses_luminance() {
     let mut image = Image::new(
         bevy::render::render_resource::Extent3d {

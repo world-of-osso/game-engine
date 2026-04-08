@@ -478,6 +478,11 @@ pub(super) fn spawn_wmo_group_doodad(
         commands.entity(entity).despawn();
         return None;
     }
+    if let Some(kind) = crate::target::classify_world_object_model(&model_path.to_string_lossy()) {
+        commands
+            .entity(entity)
+            .insert(crate::target::WorldObjectInteraction { kind });
+    }
     Some(entity)
 }
 

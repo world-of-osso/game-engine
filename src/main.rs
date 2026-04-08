@@ -687,6 +687,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));
+    app.add_plugins(scenes::mail_frame::MailFramePlugin);
     app.add_plugins(scenes::group_frames::GroupFramesPlugin);
     app.add_plugins(scenes::loot_rules_frame::LootRulesFramePlugin);
     match initial_state {

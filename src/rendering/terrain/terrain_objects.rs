@@ -413,6 +413,9 @@ fn try_spawn_doodad_preloaded(
     }
     let mut entity_commands = commands.entity(entity);
     entity_commands.insert(game_engine::culling::Doodad);
+    if let Some(kind) = crate::target::classify_world_object_model(&pre.path.to_string_lossy()) {
+        entity_commands.insert(crate::target::WorldObjectInteraction { kind });
+    }
     if let Some(collider) = collider {
         entity_commands.insert(collider);
     }
@@ -509,6 +512,9 @@ fn try_spawn_doodad(
     }
     let mut entity_commands = commands.entity(entity);
     entity_commands.insert(game_engine::culling::Doodad);
+    if let Some(kind) = crate::target::classify_world_object_model(&m2_path.to_string_lossy()) {
+        entity_commands.insert(crate::target::WorldObjectInteraction { kind });
+    }
     if let Some(collider) = collider {
         entity_commands.insert(collider);
     }

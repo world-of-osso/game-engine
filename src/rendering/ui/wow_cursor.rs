@@ -1,11 +1,13 @@
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::{CursorIcon, CursorOptions, CustomCursor, CustomCursorImage, PrimaryWindow};
+use game_engine::quest_tracking::QuestTrackedItem;
 use shared::components::Npc;
 
 use crate::asset;
 use crate::camera::{Player, WowCamera};
 use crate::networking::RemoteEntity;
+use crate::target::WorldObjectInteraction;
 
 #[derive(Resource)]
 pub struct WowCursorAssets {
@@ -76,7 +78,9 @@ fn pick_desired_cursor(
     window: &Window,
     camera: (&Camera, &GlobalTransform),
     parent_query: &Query<&ChildOf>,
-    remote_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    object_q: &Query<&WorldObjectInteraction>,
+    quest_q: &Query<(), With<QuestTrackedItem>>,
     visibility_q: &Query<&Visibility>,
     ray_cast: &mut MeshRayCast,
 ) -> Option<ActiveWowCursor> {
@@ -87,10 +91,12 @@ fn pick_desired_cursor(
         .cast_ray(ray, &default())
         .iter()
         .any(|(entity, _)| {
-            crate::target::resolve_targetable_ancestor(
+            crate::target::resolve_interaction_ancestor(
                 *entity,
                 parent_query,
-                remote_q,
+                npc_q,
+                object_q,
+                quest_q,
                 visibility_q,
             )
             .is_some()
@@ -106,7 +112,9 @@ pub fn update_wow_cursor_style(
     windows: Query<(&Window, &CursorOptions, Entity), With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<WowCamera>>,
     parent_query: Query<&ChildOf>,
-    remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    object_q: Query<&WorldObjectInteraction>,
+    quest_q: Query<(), With<QuestTrackedItem>>,
     visibility_q: Query<&Visibility>,
     assets: Option<Res<WowCursorAssets>>,
     active: Option<ResMut<ActiveWowCursor>>,
@@ -128,7 +136,9 @@ pub fn update_wow_cursor_style(
         window,
         camera,
         &parent_query,
-        &remote_q,
+        &npc_q,
+        &object_q,
+        &quest_q,
         &visibility_q,
         &mut ray_cast,
     )

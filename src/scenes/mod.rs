@@ -12,6 +12,7 @@ pub mod inworld_tree;
 pub mod loading;
 pub mod login;
 pub mod loot_rules_frame;
+pub mod mail_frame;
 pub mod particle_debug;
 pub mod professions_frame;
 pub mod scene_tree;
