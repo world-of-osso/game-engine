@@ -269,6 +269,21 @@ pub enum AuctionIntent {
     QueryOwned,
     /// Query auctions the player has bid on.
     QueryBids,
+    /// Post a new auction listing.
+    Post {
+        item_bag: u8,
+        item_slot: u8,
+        stack_count: u32,
+        min_bid: Money,
+        buyout: Money,
+        duration: AuctionDuration,
+    },
+    /// Place a bid on an existing auction.
+    Bid { auction_id: u64, amount: Money },
+    /// Instantly buy out an auction at the listed buyout price.
+    Buyout { auction_id: u64 },
+    /// Cancel one of the player's own active auctions.
+    Cancel { auction_id: u64 },
     /// Open the auction house UI.
     Open,
     /// Close the auction house UI.
@@ -292,6 +307,37 @@ impl AuctionIntentQueue {
 
     pub fn query_bids(&mut self) {
         self.pending.push(AuctionIntent::QueryBids);
+    }
+
+    pub fn post(
+        &mut self,
+        item_bag: u8,
+        item_slot: u8,
+        stack_count: u32,
+        min_bid: Money,
+        buyout: Money,
+        duration: AuctionDuration,
+    ) {
+        self.pending.push(AuctionIntent::Post {
+            item_bag,
+            item_slot,
+            stack_count,
+            min_bid,
+            buyout,
+            duration,
+        });
+    }
+
+    pub fn bid(&mut self, auction_id: u64, amount: Money) {
+        self.pending.push(AuctionIntent::Bid { auction_id, amount });
+    }
+
+    pub fn buyout(&mut self, auction_id: u64) {
+        self.pending.push(AuctionIntent::Buyout { auction_id });
+    }
+
+    pub fn cancel(&mut self, auction_id: u64) {
+        self.pending.push(AuctionIntent::Cancel { auction_id });
     }
 
     pub fn open(&mut self) {
@@ -669,6 +715,55 @@ mod tests {
         assert_eq!(drained.len(), 2);
         assert_eq!(drained[0], AuctionIntent::Open);
         assert_eq!(drained[1], AuctionIntent::Close);
+    }
+
+    #[test]
+    fn intent_post() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.post(0, 5, 20, Money(1000), Money(5000), AuctionDuration::Long);
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(
+            drained[0],
+            AuctionIntent::Post {
+                item_bag: 0,
+                item_slot: 5,
+                stack_count: 20,
+                min_bid: Money(1000),
+                buyout: Money(5000),
+                duration: AuctionDuration::Long,
+            }
+        );
+    }
+
+    #[test]
+    fn intent_bid() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.bid(42, Money(5000));
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            AuctionIntent::Bid {
+                auction_id: 42,
+                amount: Money(5000)
+            }
+        );
+    }
+
+    #[test]
+    fn intent_buyout() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.buyout(99);
+        let drained = queue.drain();
+        assert_eq!(drained[0], AuctionIntent::Buyout { auction_id: 99 });
+    }
+
+    #[test]
+    fn intent_cancel() {
+        let mut queue = AuctionIntentQueue::default();
+        queue.cancel(7);
+        let drained = queue.drain();
+        assert_eq!(drained[0], AuctionIntent::Cancel { auction_id: 7 });
     }
 
     #[test]
