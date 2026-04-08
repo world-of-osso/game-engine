@@ -12,8 +12,9 @@ use requests::{
     auction_request, barber_request, collection_request, combat_request, currency_request,
     duel_request, equipment_request, export_character_request, export_scene_request,
     friend_request, group_request, ignore_request, inspect_request, inventory_request,
-    item_request, lfg_request, mail_request, map_request, profession_request, quest_request,
-    reputation_request, spell_request, status_request, talent_request, trade_request,
+    item_request, lfg_request, mail_request, map_request, profession_request, pvp_request,
+    quest_request, reputation_request, spell_request, status_request, talent_request,
+    trade_request,
 };
 
 #[derive(Parser)]
@@ -135,6 +136,11 @@ enum Cmd {
     Lfg {
         #[command(subcommand)]
         command: LfgCmd,
+    },
+    /// PVP status and queue commands
+    Pvp {
+        #[command(subcommand)]
+        command: PvpCmd,
     },
     /// Spell commands
     Spell {
@@ -283,6 +289,7 @@ pub(crate) enum StatusCmd {
     Friends,
     Ignore,
     Lfg,
+    Pvp,
     Network,
     Terrain,
     Sound,
@@ -391,6 +398,20 @@ pub(crate) enum LfgCmd {
     Dequeue,
     Accept,
     Decline,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum PvpCmd {
+    Status,
+    QueueBattleground {
+        #[arg(long)]
+        battleground_id: u32,
+    },
+    QueueRated {
+        #[arg(long)]
+        bracket: String,
+    },
+    Dequeue,
 }
 
 #[derive(Subcommand)]
@@ -616,6 +637,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Friend { command } => handle_friend(socket, command, json),
         Cmd::Ignore { command } => handle_ignore(socket, command, json),
         Cmd::Lfg { command } => handle_lfg(socket, command, json),
+        Cmd::Pvp { command } => handle_pvp(socket, command, json),
         Cmd::Spell { command } => handle_spell(socket, command, json),
         Cmd::Combat { command } => handle_combat(socket, command, json),
         Cmd::Reputation { command } => handle_reputation(socket, command, json),
@@ -783,6 +805,10 @@ fn handle_ignore(socket: &PathBuf, command: IgnoreCmd, json: bool) -> Result<(),
 
 fn handle_lfg(socket: &PathBuf, command: LfgCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, lfg_request(command)?, json)
+}
+
+fn handle_pvp(socket: &PathBuf, command: PvpCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, pvp_request(command)?, json)
 }
 
 fn handle_spell(socket: &PathBuf, command: SpellCmd, json: bool) -> Result<(), String> {

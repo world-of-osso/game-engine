@@ -156,6 +156,11 @@ fn lfg_status_command_maps_to_request() {
 }
 
 #[test]
+fn pvp_status_command_maps_to_request() {
+    assert_eq!(status_request(StatusCmd::Pvp).unwrap(), Request::PvpStatus);
+}
+
+#[test]
 fn network_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Network).unwrap(),
@@ -467,6 +472,32 @@ fn lfg_accept_command_maps_to_request() {
 #[test]
 fn lfg_decline_command_maps_to_request() {
     assert_eq!(lfg_request(LfgCmd::Decline).unwrap(), Request::LfgDecline);
+}
+
+#[test]
+fn pvp_queue_battleground_command_maps_to_request() {
+    assert_eq!(
+        pvp_request(PvpCmd::QueueBattleground { battleground_id: 1 }).unwrap(),
+        Request::PvpQueueBattleground { battleground_id: 1 }
+    );
+}
+
+#[test]
+fn pvp_queue_rated_command_maps_to_request() {
+    assert_eq!(
+        pvp_request(PvpCmd::QueueRated {
+            bracket: "2v2".into(),
+        })
+        .unwrap(),
+        Request::PvpQueueRated {
+            bracket: shared::protocol::PvpBracketSnapshot::Arena2v2,
+        }
+    );
+}
+
+#[test]
+fn pvp_dequeue_command_maps_to_request() {
+    assert_eq!(pvp_request(PvpCmd::Dequeue).unwrap(), Request::PvpDequeue);
 }
 
 #[test]

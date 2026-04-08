@@ -157,6 +157,9 @@ fn reset_world_resources(world: &mut World) {
     if let Some(mut lfg_state) = world.get_resource_mut::<game_engine::lfg::LfgRuntimeState>() {
         game_engine::lfg::reset_runtime(&mut lfg_state);
     }
+    if let Some(mut pvp_state) = world.get_resource_mut::<game_engine::pvp::PvpRuntimeState>() {
+        game_engine::pvp::reset_runtime(&mut pvp_state);
+    }
     if let Some(mut barber_state) =
         world.get_resource_mut::<game_engine::barber_shop::BarberShopRuntimeState>()
     {
@@ -200,6 +203,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::InspectStatusSnapshot>(world);
     reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
     reset_resource::<game_engine::status::LfgStatusSnapshot>(world);
+    reset_resource::<game_engine::status::PvpStatusSnapshot>(world);
     reset_resource::<game_engine::status::MapStatusSnapshot>(world);
     reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
     reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);

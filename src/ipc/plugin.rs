@@ -34,13 +34,14 @@ use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::profession::{
     ProfessionRuntimeState, queue_ipc_request as queue_profession_ipc_request,
 };
+use crate::pvp::{PvpRuntimeState, queue_ipc_request as queue_pvp_ipc_request};
 use crate::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterRosterStatusSnapshot,
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot,
     EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
     GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
     ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
     WarbankStatusSnapshot, Waypoint,
 };
@@ -96,6 +97,7 @@ struct StatusSnapshotParams<'w> {
     friends: Res<'w, FriendsStatusSnapshot>,
     ignore_list: Res<'w, IgnoreListStatusSnapshot>,
     lfg: Res<'w, LfgStatusSnapshot>,
+    pvp: Res<'w, PvpStatusSnapshot>,
     profession: Res<'w, ProfessionStatusSnapshot>,
     character_roster: Res<'w, CharacterRosterStatusSnapshot>,
     map: ResMut<'w, MapStatusSnapshot>,
@@ -122,6 +124,7 @@ pub(crate) struct DispatchContext<'a> {
     pub friends_status: &'a FriendsStatusSnapshot,
     pub ignore_list_status: &'a IgnoreListStatusSnapshot,
     pub lfg_status: &'a LfgStatusSnapshot,
+    pub pvp_status: &'a PvpStatusSnapshot,
     pub profession_status: &'a ProfessionStatusSnapshot,
     pub character_roster: &'a CharacterRosterStatusSnapshot,
     pub map_status: &'a mut MapStatusSnapshot,
@@ -155,6 +158,8 @@ struct WorldParams<'w> {
     ignore_list_status: Res<'w, IgnoreListStatusSnapshot>,
     lfg: ResMut<'w, LfgRuntimeState>,
     lfg_status: Res<'w, LfgStatusSnapshot>,
+    pvp: ResMut<'w, PvpRuntimeState>,
+    pvp_status: Res<'w, PvpStatusSnapshot>,
     duel: ResMut<'w, DuelClientState>,
     duel_status: Res<'w, DuelStatusSnapshot>,
     currency: ResMut<'w, CurrencyRuntimeState>,
@@ -236,6 +241,7 @@ fn build_dispatch_context<'a>(
         friends_status: &snapshots.friends,
         ignore_list_status: &snapshots.ignore_list,
         lfg_status: &snapshots.lfg,
+        pvp_status: &snapshots.pvp,
         profession_status: &snapshots.profession,
         character_roster: &snapshots.character_roster,
         map_status: snapshots.map.as_mut(),
@@ -284,6 +290,14 @@ fn dispatch(
     if queue_lfg_ipc_request(
         &mut world.lfg,
         &world.lfg_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_pvp_ipc_request(
+        &mut world.pvp,
+        &world.pvp_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

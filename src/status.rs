@@ -246,6 +246,28 @@ pub struct LfgMatchFoundEntry {
     pub members: Vec<LfgMatchMemberEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PvpBracketEntry {
+    pub bracket: String,
+    pub rating: u32,
+    pub season_wins: u32,
+    pub season_losses: u32,
+    pub weekly_wins: u32,
+    pub weekly_losses: u32,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct PvpStatusSnapshot {
+    pub honor: u32,
+    pub honor_max: u32,
+    pub conquest: u32,
+    pub conquest_max: u32,
+    pub queue: Option<String>,
+    pub brackets: Vec<PvpBracketEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct LfgStatusSnapshot {
     pub queued: bool,
@@ -638,6 +660,16 @@ mod tests {
     }
 
     #[test]
+    fn pvp_status_snapshot_defaults_to_empty_state() {
+        let snapshot = PvpStatusSnapshot::default();
+
+        assert_eq!(snapshot.honor, 0);
+        assert_eq!(snapshot.conquest, 0);
+        assert!(snapshot.queue.is_none());
+        assert!(snapshot.brackets.is_empty());
+    }
+
+    #[test]
     fn barber_shop_status_snapshot_defaults_to_empty_state() {
         let snapshot = BarberShopStatusSnapshot::default();
 
@@ -888,6 +920,28 @@ mod tests {
     }
 
     #[test]
+    fn pvp_status_round_trip() {
+        let snapshot = PvpStatusSnapshot {
+            honor: 750,
+            honor_max: 15_000,
+            conquest: 120,
+            conquest_max: 1_800,
+            queue: Some("Warsong Gulch".into()),
+            brackets: vec![PvpBracketEntry {
+                bracket: "2v2".into(),
+                rating: 1516,
+                season_wins: 1,
+                season_losses: 0,
+                weekly_wins: 1,
+                weekly_losses: 0,
+            }],
+            last_server_message: Some("queued for Warsong Gulch".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn barber_shop_status_round_trip() {
         let snapshot = BarberShopStatusSnapshot {
             current_appearance: CharacterAppearance {
@@ -931,6 +985,7 @@ mod tests {
         round_trip(&GroupStatusSnapshot::default());
         round_trip(&FriendsStatusSnapshot::default());
         round_trip(&IgnoreListStatusSnapshot::default());
+        round_trip(&PvpStatusSnapshot::default());
         round_trip(&LfgStatusSnapshot::default());
         round_trip(&BarberShopStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());

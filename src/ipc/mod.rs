@@ -9,6 +9,7 @@ use std::sync::mpsc;
 use serde::{Deserialize, Serialize};
 use shared::protocol::{
     AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
+    PvpBracketSnapshot,
 };
 
 use crate::item_info::ItemInfoQuery;
@@ -110,6 +111,14 @@ pub enum Request {
     },
     BarberReset,
     BarberApply,
+    PvpStatus,
+    PvpQueueBattleground {
+        battleground_id: u32,
+    },
+    PvpQueueRated {
+        bracket: PvpBracketSnapshot,
+    },
+    PvpDequeue,
     LfgStatus,
     LfgQueue {
         role: GroupRole,

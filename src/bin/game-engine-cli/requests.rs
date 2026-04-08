@@ -3,13 +3,13 @@ use game_engine::item_info::ItemInfoQuery;
 use game_engine::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use shared::protocol::{
     AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
-    CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
+    CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid, PvpBracketSnapshot,
 };
 
 use crate::{
     AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd,
     GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, ProfessionCmd,
-    QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
+    PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -130,6 +130,20 @@ pub fn lfg_request(command: LfgCmd) -> Result<Request, String> {
         LfgCmd::Dequeue => Request::LfgDequeue,
         LfgCmd::Accept => Request::LfgAccept,
         LfgCmd::Decline => Request::LfgDecline,
+    };
+    Ok(request)
+}
+
+pub fn pvp_request(command: PvpCmd) -> Result<Request, String> {
+    let request = match command {
+        PvpCmd::Status => Request::PvpStatus,
+        PvpCmd::QueueBattleground { battleground_id } => {
+            Request::PvpQueueBattleground { battleground_id }
+        }
+        PvpCmd::QueueRated { bracket } => Request::PvpQueueRated {
+            bracket: parse_pvp_bracket(&bracket)?,
+        },
+        PvpCmd::Dequeue => Request::PvpDequeue,
     };
     Ok(request)
 }
@@ -310,6 +324,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
         StatusCmd::Friends => Request::FriendsStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
         StatusCmd::Lfg => Request::LfgStatus,
+        StatusCmd::Pvp => Request::PvpStatus,
         StatusCmd::Network => Request::NetworkStatus,
         StatusCmd::Terrain => Request::TerrainStatus,
         StatusCmd::Sound => Request::SoundStatus,
@@ -322,6 +337,16 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
         StatusCmd::EquippedGear => Request::EquippedGearStatus,
     };
     Ok(request)
+}
+
+fn parse_pvp_bracket(value: &str) -> Result<PvpBracketSnapshot, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "2v2" | "arena2v2" => Ok(PvpBracketSnapshot::Arena2v2),
+        "3v3" | "arena3v3" => Ok(PvpBracketSnapshot::Arena3v3),
+        "rbg" | "ratedbg" | "rated-battleground" => Ok(PvpBracketSnapshot::RatedBattleground),
+        "solo" | "solo-shuffle" | "soloshuffle" => Ok(PvpBracketSnapshot::SoloShuffle),
+        _ => Err(format!("unknown pvp bracket '{value}'")),
+    }
 }
 
 fn parse_group_role(value: &str) -> Result<game_engine::status::GroupRole, String> {

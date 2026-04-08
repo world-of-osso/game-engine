@@ -9,7 +9,8 @@ use crate::status::{
     CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole,
     GroupStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
     LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot,
+    SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -54,6 +55,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
         Request::FriendsStatus => format_friends_status(ctx.friends_status),
         Request::IgnoreStatus => format_ignore_list_status(ctx.ignore_list_status),
         Request::LfgStatus => format_lfg_status(ctx.lfg_status),
+        Request::PvpStatus => format_pvp_status(ctx.pvp_status),
         Request::ProfessionRecipes { text } => {
             format_profession_recipes(ctx.profession_status, text)
         }
@@ -115,6 +117,37 @@ pub fn format_barber_shop_status(snapshot: &BarberShopStatusSnapshot) -> String 
     if let Some(error) = &snapshot.last_error {
         lines.push(format!("error: {error}"));
     }
+    lines.join("\n")
+}
+
+pub fn format_pvp_status(snapshot: &PvpStatusSnapshot) -> String {
+    let mut lines = vec![
+        format!("honor: {}/{}", snapshot.honor, snapshot.honor_max),
+        format!("conquest: {}/{}", snapshot.conquest, snapshot.conquest_max),
+        format!("queue: {}", snapshot.queue.as_deref().unwrap_or("-")),
+    ];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.brackets.is_empty() {
+        lines.push("brackets: -".into());
+        return lines.join("\n");
+    }
+    lines.push(format!("brackets: {}", snapshot.brackets.len()));
+    lines.extend(snapshot.brackets.iter().map(|entry| {
+        format!(
+            "{} rating={} season={} - {} weekly={} - {}",
+            entry.bracket,
+            entry.rating,
+            entry.season_wins,
+            entry.season_losses,
+            entry.weekly_wins,
+            entry.weekly_losses
+        )
+    }));
     lines.join("\n")
 }
 

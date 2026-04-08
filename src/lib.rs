@@ -105,6 +105,7 @@ pub mod paths;
 pub mod profession;
 #[path = "game/professions_data.rs"]
 pub mod professions_data;
+pub mod pvp;
 #[path = "game/pvp_data.rs"]
 pub mod pvp_data;
 #[path = "game/quest_data.rs"]

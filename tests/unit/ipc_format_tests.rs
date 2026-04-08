@@ -6,8 +6,8 @@ use crate::status::{
     FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
     InventoryItemEntry, InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry,
     LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    TerrainStatusSnapshot,
+    PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
+    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -138,6 +138,32 @@ fn formats_barber_shop_status_snapshot() {
     assert!(text.contains("pending_cost: 2g 0s 0c"));
     assert!(text.contains("Hair Style: current=Style 1 pending=Style 4"));
     assert!(text.contains("message: barber shop ready"));
+}
+
+#[test]
+fn formats_pvp_status_snapshot() {
+    let text = format_pvp_status(&PvpStatusSnapshot {
+        honor: 750,
+        honor_max: 15_000,
+        conquest: 120,
+        conquest_max: 1_800,
+        queue: Some("Warsong Gulch (1)".into()),
+        brackets: vec![PvpBracketEntry {
+            bracket: "2v2".into(),
+            rating: 1516,
+            season_wins: 1,
+            season_losses: 0,
+            weekly_wins: 1,
+            weekly_losses: 0,
+        }],
+        last_server_message: Some("queued for Warsong Gulch".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("honor: 750/15000"));
+    assert!(text.contains("queue: Warsong Gulch (1)"));
+    assert!(text.contains("2v2 rating=1516 season=1 - 0 weekly=1 - 0"));
+    assert!(text.contains("message: queued for Warsong Gulch"));
 }
 
 #[test]
