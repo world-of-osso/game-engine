@@ -1,8 +1,13 @@
+use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use shared::components::{Npc, Player as NetPlayer};
 
+use crate::asset::asset_cache;
 use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
+use crate::m2_effect_material::M2EffectMaterial;
+use crate::m2_spawn;
+use game_engine::nameplate_data::QuestIndicator;
 
 pub struct NameplatePlugin;
 
@@ -10,12 +15,14 @@ impl Plugin for NameplatePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(spawn_player_nameplate);
         app.add_observer(spawn_npc_nameplate);
+        app.add_observer(despawn_quest_indicator_model);
         app.add_systems(
             Update,
             (
                 sync_nameplate_visibility,
                 billboard_nameplates,
                 fade_nameplates_by_distance,
+                sync_quest_indicators,
             )
                 .run_if(in_state(GameState::InWorld)),
         );
@@ -25,6 +32,14 @@ impl Plugin for NameplatePlugin {
 /// Marker component on the text entity displaying a nameplate.
 #[derive(Component)]
 struct Nameplate;
+
+/// Quest giver indicator state on an NPC entity.
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub struct NpcQuestIndicator(pub QuestIndicator);
+
+/// Marker on the entity subtree spawned for a quest indicator M2.
+#[derive(Component)]
+struct QuestIndicatorModel;
 
 const PLAYER_NAMEPLATE_Y: f32 = 3.0;
 const NPC_NAMEPLATE_Y: f32 = 2.5;
@@ -38,6 +53,8 @@ const TEXT_SCALE: f32 = 0.02;
 const FADE_NEAR: f32 = 20.0;
 /// Fully transparent beyond this distance.
 const FADE_FAR: f32 = 40.0;
+/// Y offset for quest indicator M2 above the NPC origin.
+const QUEST_INDICATOR_Y: f32 = 3.5;
 
 /// Observer: spawn a nameplate child when a NetPlayer is added.
 fn spawn_player_nameplate(
@@ -99,7 +116,7 @@ fn spawn_nameplate_entity(
 
 fn sync_nameplate_visibility(
     hud_visibility: Option<Res<HudVisibilityToggles>>,
-    mut query: Query<&mut Visibility, With<Nameplate>>,
+    mut query: Query<&mut Visibility, Or<(With<Nameplate>, With<QuestIndicatorModel>)>>,
 ) {
     let visible = hud_visibility.is_none_or(|toggles| toggles.show_nameplates);
     for mut visibility in &mut query {
@@ -114,7 +131,7 @@ fn sync_nameplate_visibility(
 /// Rotate nameplates to always face the camera (billboard effect).
 fn billboard_nameplates(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    mut plate_query: Query<&mut Transform, With<Nameplate>>,
+    mut plate_query: Query<&mut Transform, Or<(With<Nameplate>, With<QuestIndicatorModel>)>>,
 ) {
     let Ok(camera_global) = camera_query.single() else {
         return;
@@ -158,6 +175,87 @@ fn fade_nameplates_by_distance(
     }
 }
 
+/// Spawn or update quest indicator M2 models when `NpcQuestIndicator` changes.
+fn sync_quest_indicators(
+    mut commands: Commands,
+    changed: Query<(Entity, &NpcQuestIndicator, Option<&Children>), Changed<NpcQuestIndicator>>,
+    indicator_models: Query<Entity, With<QuestIndicatorModel>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+) {
+    let mut assets = m2_spawn::SpawnAssets {
+        meshes: &mut meshes,
+        materials: &mut materials,
+        effect_materials: &mut effect_materials,
+        skybox_materials: None,
+        images: &mut images,
+        inverse_bindposes: &mut inv_bp,
+    };
+    for (entity, npc_qi, children) in &changed {
+        despawn_indicator_children(&mut commands, children, &indicator_models);
+        if npc_qi.0.is_visible() {
+            spawn_indicator_m2(&mut commands, &mut assets, entity, npc_qi.0);
+        }
+    }
+}
+
+fn despawn_indicator_children(
+    commands: &mut Commands,
+    children: Option<&Children>,
+    indicator_models: &Query<Entity, With<QuestIndicatorModel>>,
+) {
+    let Some(children) = children else { return };
+    for child in children.iter() {
+        if indicator_models.get(child).is_ok() {
+            commands.entity(child).despawn();
+        }
+    }
+}
+
+fn spawn_indicator_m2(
+    commands: &mut Commands,
+    assets: &mut m2_spawn::SpawnAssets<'_>,
+    parent: Entity,
+    indicator: QuestIndicator,
+) {
+    let fdid = indicator.model_fdid();
+    let Some(m2_path) = asset_cache::model(fdid) else {
+        warn!("Quest indicator M2 FDID {fdid} not cached");
+        return;
+    };
+    let indicator_root = commands
+        .spawn((
+            QuestIndicatorModel,
+            Name::new("QuestIndicator"),
+            Transform::from_xyz(0.0, QUEST_INDICATOR_Y, 0.0),
+            Visibility::default(),
+        ))
+        .id();
+    commands.entity(parent).add_child(indicator_root);
+    m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, indicator_root, &[0, 0, 0]);
+}
+
+/// Clean up quest indicator M2 when the component is removed.
+fn despawn_quest_indicator_model(
+    trigger: On<Remove, NpcQuestIndicator>,
+    mut commands: Commands,
+    children: Query<&Children>,
+    indicator_models: Query<Entity, With<QuestIndicatorModel>>,
+) {
+    let entity = trigger.entity;
+    let Ok(kids) = children.get(entity) else {
+        return;
+    };
+    for child in kids.iter() {
+        if indicator_models.get(child).is_ok() {
+            commands.entity(child).despawn();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,5 +288,20 @@ mod tests {
         // Zero opacity at 40yd and beyond.
         assert!((nameplate_alpha(40.0)).abs() < 1e-4);
         assert!((nameplate_alpha(50.0)).abs() < 1e-4);
+    }
+
+    #[test]
+    fn npc_quest_indicator_wraps_enum() {
+        let qi = NpcQuestIndicator(QuestIndicator::Available);
+        assert!(qi.0.is_visible());
+        assert_eq!(qi.0.glyph(), "!");
+
+        let none = NpcQuestIndicator(QuestIndicator::None);
+        assert!(!none.0.is_visible());
+    }
+
+    #[test]
+    fn quest_indicator_y_above_nameplate() {
+        assert!(QUEST_INDICATOR_Y > NPC_NAMEPLATE_Y);
     }
 }

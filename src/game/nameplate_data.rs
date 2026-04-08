@@ -199,6 +199,19 @@ impl QuestIndicator {
             Self::Unavailable => crate::quest_data::textures::QUEST_BANG_NORMAL,
         }
     }
+
+    /// M2 model FDID for the floating 3D quest indicator above the NPC.
+    pub fn model_fdid(self) -> u32 {
+        match self {
+            Self::None => 0,
+            Self::Available => 130731,         // talktome.m2 (yellow !)
+            Self::TurnIn => 130738,            // talktomequestionmark.m2 (yellow ?)
+            Self::Unavailable => 130734,       // talktomegrey.m2 (silver !)
+            Self::DailyAvailable => 130732,    // talktomeblue.m2 (blue !)
+            Self::DailyTurnIn => 130736,       // talktomequestion_ltblue.m2 (blue ?)
+            Self::CampaignAvailable => 650616, // talktome_legendary.m2 (orange !)
+        }
+    }
 }
 
 /// Visual state of a nameplate.
@@ -562,5 +575,35 @@ mod tests {
             ..Default::default()
         };
         assert!(np.quest_indicator.is_visible());
+    }
+
+    #[test]
+    fn quest_model_fdids_nonzero() {
+        assert_ne!(QuestIndicator::Available.model_fdid(), 0);
+        assert_ne!(QuestIndicator::TurnIn.model_fdid(), 0);
+        assert_ne!(QuestIndicator::Unavailable.model_fdid(), 0);
+        assert_ne!(QuestIndicator::DailyAvailable.model_fdid(), 0);
+        assert_ne!(QuestIndicator::DailyTurnIn.model_fdid(), 0);
+        assert_ne!(QuestIndicator::CampaignAvailable.model_fdid(), 0);
+        assert_eq!(QuestIndicator::None.model_fdid(), 0);
+    }
+
+    #[test]
+    fn quest_model_fdids_distinct() {
+        let fdids = [
+            QuestIndicator::Available.model_fdid(),
+            QuestIndicator::TurnIn.model_fdid(),
+            QuestIndicator::Unavailable.model_fdid(),
+            QuestIndicator::DailyAvailable.model_fdid(),
+            QuestIndicator::DailyTurnIn.model_fdid(),
+            QuestIndicator::CampaignAvailable.model_fdid(),
+        ];
+        for (i, a) in fdids.iter().enumerate() {
+            for (j, b) in fdids.iter().enumerate() {
+                if i != j {
+                    assert_ne!(a, b, "variants {i} and {j} share FDID {a}");
+                }
+            }
+        }
     }
 }
