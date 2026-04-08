@@ -760,6 +760,7 @@ fn export_character_payload_includes_stats_appearance_and_equipment() {
             mana_max: Some(500.0),
             movement_speed: Some(7.0),
             zone_id: 12,
+            ..Default::default()
         },
         &EquippedGearStatusSnapshot {
             entries: vec![EquippedGearEntry {

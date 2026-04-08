@@ -439,7 +439,7 @@ fn opt_float2(value: Option<f32>) -> String {
 
 pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> String {
     format!(
-        "name: {}\nlevel: {}\nrace: {}\nclass: {}\nhealth: {}/{}\nmana: {}/{}\nmovement_speed: {}\nzone_id: {}",
+        "name: {}\nlevel: {}\nrace: {}\nclass: {}\nhealth: {}/{}\nmana: {}/{}\nmovement_speed: {}\nin_rest_area: {}\nrest_area_kind: {}\nrested_xp: {}\nrested_xp_max: {}\nzone_id: {}",
         snapshot.name.as_deref().unwrap_or("-"),
         opt_int(snapshot.level),
         opt_int(snapshot.race),
@@ -449,6 +449,17 @@ pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> Strin
         opt_float0(snapshot.mana_current),
         opt_float0(snapshot.mana_max),
         opt_float2(snapshot.movement_speed),
+        snapshot.in_rest_area,
+        snapshot
+            .rest_area_kind
+            .as_ref()
+            .map(|kind| match kind {
+                crate::status::RestAreaKindEntry::City => "city",
+                crate::status::RestAreaKindEntry::Inn => "inn",
+            })
+            .unwrap_or("-"),
+        snapshot.rested_xp,
+        snapshot.rested_xp_max,
         snapshot.zone_id,
     )
 }

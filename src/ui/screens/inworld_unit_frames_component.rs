@@ -25,11 +25,13 @@ fn dyn_name(name: String) -> DynName {
 pub struct UnitFrameState {
     pub name: String,
     pub level_text: String,
+    pub resting_text: String,
     pub health_text: String,
     pub mana_text: String,
     pub health_fill_width: f32,
     pub mana_fill_width: f32,
     pub has_mana: bool,
+    pub show_resting_icon: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -155,7 +157,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
             {unit_frame_shell_background(&names, frame)}
             {unit_frame_shell_labels(&names, state, frame, player_side)}
             {unit_frame_shell_bars(prefix, state, &visuals, frame)}
-            {contextual_icons(prefix, player_side)}
+            {contextual_icons(prefix, player_side, state)}
         }
     }
 }
@@ -295,21 +297,22 @@ fn unit_frame_shell_bars(
                 hidden: visuals.mana_hidden,
             },
         )}
+        {resting_label(prefix, state)}
     }
 }
 
-fn contextual_icons(prefix: &str, player_side: bool) -> Element {
+fn contextual_icons(prefix: &str, player_side: bool, state: &UnitFrameState) -> Element {
     if player_side {
-        player_contextual_icons(prefix)
+        player_contextual_icons(prefix, state)
     } else {
         target_contextual_icons(prefix)
     }
 }
 
-fn player_contextual_icons(prefix: &str) -> Element {
+fn player_contextual_icons(prefix: &str, state: &UnitFrameState) -> Element {
     [
         player_left_status_icons(prefix),
-        player_portrait_overlay_icons(prefix),
+        player_portrait_overlay_icons(prefix, state),
         player_right_badge_icons(prefix),
     ]
     .into_iter()
@@ -347,7 +350,7 @@ fn player_left_status_icons(prefix: &str) -> Element {
     .collect()
 }
 
-fn player_portrait_overlay_icons(prefix: &str) -> Element {
+fn player_portrait_overlay_icons(prefix: &str, state: &UnitFrameState) -> Element {
     [
         anchored_marker(
             format!("{prefix}PlayerPortraitCornerIcon"),
@@ -355,10 +358,61 @@ fn player_portrait_overlay_icons(prefix: &str) -> Element {
             PLAYER_CORNER.y,
         ),
         anchored_top_marker(format!("{prefix}PVPIcon"), PLAYER_PVP.x, PLAYER_PVP.y),
+        resting_icon(prefix, state),
     ]
     .into_iter()
     .flatten()
     .collect()
+}
+
+fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
+    let hidden = !state.show_resting_icon;
+    rsx! {
+        fontstring {
+            name: {dyn_name(format!("{prefix}RestingIcon"))},
+            width: 24.0,
+            height: 12.0,
+            text: "zzz",
+            hidden: hidden,
+            font: UNIT_NAME_FONT,
+            font_size: 12.0,
+            font_color: "1.0,0.85,0.35,1.0",
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {PLAYER_CORNER.x + 2.0},
+                y: {-PLAYER_CORNER.y - 4.0},
+            }
+        }
+    }
+}
+
+fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
+    let hidden = state.resting_text.is_empty();
+    rsx! {
+        fontstring {
+            name: {dyn_name(format!("{prefix}RestingLabel"))},
+            width: 80.0,
+            height: 12.0,
+            text: {state.resting_text.as_str()},
+            hidden: hidden,
+            font: UNIT_NAME_FONT,
+            font_size: 11.0,
+            font_color: "1.0,0.82,0.25,1.0",
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::BottomLeft,
+                relative_point: AnchorPoint::BottomLeft,
+                x: {PLAYER_FRAME_CONFIG.health_bar.x},
+                y: {6.0},
+            }
+        }
+    }
 }
 
 fn player_right_badge_icons(prefix: &str) -> Element {
@@ -512,11 +566,13 @@ pub fn default_player_frame_state() -> UnitFrameState {
     UnitFrameState {
         name: "Player".to_string(),
         level_text: String::new(),
+        resting_text: String::new(),
         health_text: String::new(),
         mana_text: String::new(),
         health_fill_width: 0.0,
         mana_fill_width: 0.0,
         has_mana: false,
+        show_resting_icon: false,
     }
 }
 
@@ -524,11 +580,13 @@ pub fn fallback_target_frame_state() -> UnitFrameState {
     UnitFrameState {
         name: "No Target".to_string(),
         level_text: String::new(),
+        resting_text: String::new(),
         health_text: String::new(),
         mana_text: String::new(),
         health_fill_width: 0.0,
         mana_fill_width: 0.0,
         has_mana: false,
+        show_resting_icon: false,
     }
 }
 

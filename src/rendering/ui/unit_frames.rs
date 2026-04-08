@@ -4,7 +4,7 @@ use shared::components::{Health as NetHealth, Mana as NetMana, Npc, Player as Ne
 use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
-use game_engine::status::CharacterStatsSnapshot;
+use game_engine::status::{CharacterStatsSnapshot, RestAreaKindEntry};
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::inworld_unit_frames_component::{
@@ -170,6 +170,7 @@ fn build_player_state(
         .and_then(|stats| stats.level)
         .map(|level| level.to_string())
         .unwrap_or_default();
+    state.resting_text = character_stats.map(resting_text).unwrap_or_default();
     state.health_text = format_value_text(
         health.map(|health| health.current),
         health.map(|health| health.max),
@@ -186,6 +187,7 @@ fn build_player_state(
         mana.map(|mana| mana.max),
     );
     state.has_mana = mana.is_some();
+    state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
     state
 }
 
@@ -213,6 +215,20 @@ fn build_target_state((player, health, mana, npc, name): UnitComponents) -> Unit
     );
     state.has_mana = mana.is_some();
     state
+}
+
+fn resting_text(stats: &CharacterStatsSnapshot) -> String {
+    if stats.in_rest_area {
+        return "Resting".into();
+    }
+    if stats.rested_xp > 0 {
+        return match stats.rest_area_kind {
+            Some(RestAreaKindEntry::City) => "Rested (city)".into(),
+            Some(RestAreaKindEntry::Inn) => "Rested (inn)".into(),
+            None => "Rested".into(),
+        };
+    }
+    String::new()
 }
 
 #[cfg(test)]

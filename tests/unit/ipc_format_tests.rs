@@ -326,11 +326,18 @@ fn formats_character_stats_status_snapshot() {
         mana_current: Some(80.0),
         mana_max: Some(100.0),
         movement_speed: Some(7.0),
+        in_rest_area: true,
+        rest_area_kind: Some(crate::status::RestAreaKindEntry::Inn),
+        rested_xp: 42,
+        rested_xp_max: 400,
         zone_id: 12,
     });
     assert!(text.contains("name: Thrall"));
     assert!(text.contains("health: 120/150"));
     assert!(text.contains("movement_speed: 7.00"));
+    assert!(text.contains("in_rest_area: true"));
+    assert!(text.contains("rest_area_kind: inn"));
+    assert!(text.contains("rested_xp: 42"));
 }
 
 #[test]

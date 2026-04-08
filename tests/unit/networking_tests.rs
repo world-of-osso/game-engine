@@ -681,6 +681,33 @@ fn world_map_state_update_populates_explored_zones() {
 }
 
 #[test]
+fn rest_state_update_populates_character_stats_snapshot() {
+    let mut snapshot = game_engine::status::CharacterStatsSnapshot::default();
+
+    crate::networking_messages::apply_rest_state_update(
+        &mut snapshot,
+        shared::protocol::RestStateUpdate {
+            snapshot: Some(shared::protocol::RestSnapshot {
+                in_rest_area: true,
+                rest_area_kind: Some(shared::protocol::RestAreaKindSnapshot::Inn),
+                rested_xp: 75,
+                rested_xp_max: 400,
+            }),
+            message: Some("rest state updated".into()),
+            error: None,
+        },
+    );
+
+    assert!(snapshot.in_rest_area);
+    assert_eq!(
+        snapshot.rest_area_kind,
+        Some(game_engine::status::RestAreaKindEntry::Inn)
+    );
+    assert_eq!(snapshot.rested_xp, 75);
+    assert_eq!(snapshot.rested_xp_max, 400);
+}
+
+#[test]
 fn reputation_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::ReputationsStatusSnapshot::default();
 

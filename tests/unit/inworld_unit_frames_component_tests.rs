@@ -197,6 +197,30 @@ fn explicit_size_icon_placeholders_match_wow_spec() {
     );
 }
 
+#[test]
+fn player_resting_labels_render_when_enabled() {
+    let reg = unit_frames_registry();
+
+    let icon = reg.get(reg.get_by_name("PlayerRestingIcon").expect("resting icon"));
+    let label = reg.get(
+        reg.get_by_name("PlayerRestingLabel")
+            .expect("resting label"),
+    );
+    let Some(ui_toolkit::frame::WidgetData::FontString(icon_font)) =
+        icon.and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("expected PlayerRestingIcon fontstring");
+    };
+    let Some(ui_toolkit::frame::WidgetData::FontString(label_font)) =
+        label.and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("expected PlayerRestingLabel fontstring");
+    };
+
+    assert_eq!(icon_font.text, "zzz");
+    assert_eq!(label_font.text, "Resting");
+}
+
 fn unit_frames_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
@@ -206,20 +230,24 @@ fn unit_frames_registry() -> FrameRegistry {
         player: UnitFrameState {
             name: "Player".to_string(),
             level_text: "10".to_string(),
+            resting_text: "Resting".to_string(),
             health_text: "100 / 100".to_string(),
             mana_text: "80 / 80".to_string(),
             health_fill_width: PLAYER_HEALTH_BAR_W,
             mana_fill_width: PLAYER_HEALTH_BAR_W,
             has_mana: true,
+            show_resting_icon: true,
         },
         target: Some(UnitFrameState {
             name: "Target".to_string(),
             level_text: "12".to_string(),
+            resting_text: String::new(),
             health_text: "90 / 90".to_string(),
             mana_text: "60 / 60".to_string(),
             health_fill_width: TARGET_HEALTH_BAR_W,
             mana_fill_width: TARGET_MANA_BAR_W,
             has_mana: true,
+            show_resting_icon: false,
         }),
     });
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut reg);

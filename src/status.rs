@@ -178,6 +178,12 @@ pub struct DuelStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RestAreaKindEntry {
+    City,
+    Inn,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub character_id: Option<u64>,
@@ -191,6 +197,10 @@ pub struct CharacterStatsSnapshot {
     pub mana_current: Option<f32>,
     pub mana_max: Option<f32>,
     pub movement_speed: Option<f32>,
+    pub in_rest_area: bool,
+    pub rest_area_kind: Option<RestAreaKindEntry>,
+    pub rested_xp: u32,
+    pub rested_xp_max: u32,
     pub zone_id: u32,
 }
 

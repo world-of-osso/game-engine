@@ -8,8 +8,8 @@ use shared::protocol::{
     GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
     InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
     ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
-    ReputationStateUpdate, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
-    WorldMapStateUpdate,
+    ReputationStateUpdate, RestAreaKindSnapshot, RestStateUpdate, SetTarget, StorageItemSnapshot,
+    TalentStateUpdate, WarbankSnapshot, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -36,7 +36,7 @@ use game_engine::status::{
     InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry,
     ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot,
     QuestObjectiveEntry, QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot,
-    StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot,
+    RestAreaKindEntry, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot,
     WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
@@ -123,6 +123,17 @@ pub(crate) fn receive_emote_events(
             commands
                 .entity(entity)
                 .insert(crate::animation::EmoteAnimState::new(event.emote));
+        }
+    }
+}
+
+pub(crate) fn receive_rest_state_update(
+    mut receivers: Query<&mut MessageReceiver<RestStateUpdate>>,
+    mut snapshot: ResMut<game_engine::status::CharacterStatsSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for update in receiver.receive() {
+            apply_rest_state_update(&mut snapshot, update);
         }
     }
 }
@@ -223,6 +234,26 @@ fn current_chat_timestamp() -> f64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs_f64())
         .unwrap_or_default()
+}
+
+pub(crate) fn apply_rest_state_update(
+    snapshot: &mut game_engine::status::CharacterStatsSnapshot,
+    update: RestStateUpdate,
+) {
+    let Some(rest) = update.snapshot else {
+        snapshot.in_rest_area = false;
+        snapshot.rest_area_kind = None;
+        snapshot.rested_xp = 0;
+        snapshot.rested_xp_max = 0;
+        return;
+    };
+    snapshot.in_rest_area = rest.in_rest_area;
+    snapshot.rest_area_kind = rest.rest_area_kind.map(|kind| match kind {
+        RestAreaKindSnapshot::City => RestAreaKindEntry::City,
+        RestAreaKindSnapshot::Inn => RestAreaKindEntry::Inn,
+    });
+    snapshot.rested_xp = rest.rested_xp;
+    snapshot.rested_xp_max = rest.rested_xp_max;
 }
 
 fn resolve_emote_visual_entity(
