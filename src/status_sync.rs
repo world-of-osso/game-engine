@@ -9,9 +9,9 @@ use game_engine::status::{
     CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
     EquippedGearEntry, EquippedGearStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot,
-    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot,
+    InspectStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot,
+    TerrainStatusSnapshot, WarbankStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -314,6 +314,7 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(CurrenciesStatusSnapshot::default())
         .insert_resource(GroupStatusSnapshot::default())
         .insert_resource(GuildVaultStatusSnapshot::default())
+        .insert_resource(InspectStatusSnapshot::default())
         .insert_resource(ProfessionStatusSnapshot::default())
         .insert_resource(QuestLogStatusSnapshot::default())
         .insert_resource(TalentStatusSnapshot::default())

@@ -4,7 +4,7 @@ use shared::components::Zone;
 use shared::protocol::{
     ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
     CombatLogEventKindSnapshot, CombatLogSnapshot, CurrencySnapshot, GroupCommandResponse,
-    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
+    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
     InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
     ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
     ReputationSnapshot, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
@@ -17,14 +17,16 @@ use crate::terrain::AdtManager;
 use game_engine::chat_data::{
     ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState,
 };
+use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
     CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, CurrencyEntry,
-    GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry,
-    ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry,
-    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, StorageItemEntry,
-    TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot, WarbankStatusSnapshot,
+    GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
+    InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry,
+    ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry,
+    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
+    TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 
@@ -620,6 +622,13 @@ pub(crate) fn apply_talent_state_update(
     }
     snapshot.last_server_message = update.message;
     snapshot.last_error = update.error;
+}
+
+pub(crate) fn apply_inspect_state_update(
+    snapshot: &mut InspectStatusSnapshot,
+    update: InspectStateUpdate,
+) {
+    map_inspect_state_update(snapshot, update);
 }
 
 fn map_storage_item(e: StorageItemSnapshot) -> StorageItemEntry {

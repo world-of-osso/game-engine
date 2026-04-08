@@ -61,6 +61,7 @@ mod helmet_geoset_data;
 #[path = "game/help_data.rs"]
 pub mod help_data;
 pub mod input_bindings;
+pub mod inspect;
 pub mod ipc;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;

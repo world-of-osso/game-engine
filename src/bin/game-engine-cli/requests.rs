@@ -7,9 +7,9 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, CollectionCmd, CombatCmd, EquipmentCmd, GroupCmd, InventoryCmd, ItemCmd, MailCmd,
-    MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd,
-    WaypointCmd,
+    AuctionCmd, CollectionCmd, CombatCmd, EquipmentCmd, GroupCmd, InspectCmd, InventoryCmd,
+    ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd,
+    TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -117,6 +117,14 @@ pub fn talent_request(command: TalentCmd) -> Result<Request, String> {
         TalentCmd::Status => Request::TalentStatus,
         TalentCmd::Apply { talent_id } => Request::TalentApply { talent_id },
         TalentCmd::Reset => Request::TalentReset,
+    };
+    Ok(request)
+}
+
+pub fn inspect_request(command: InspectCmd) -> Result<Request, String> {
+    let request = match command {
+        InspectCmd::Status => Request::InspectStatus,
+        InspectCmd::Query => Request::InspectQuery,
     };
     Ok(request)
 }

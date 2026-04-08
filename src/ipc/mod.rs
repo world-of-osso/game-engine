@@ -73,6 +73,8 @@ pub enum Request {
     },
     TalentReset,
     TalentStatus,
+    InspectQuery,
+    InspectStatus,
     NetworkStatus,
     TerrainStatus,
     SoundStatus,

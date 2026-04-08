@@ -130,6 +130,17 @@ pub struct TalentStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct InspectStatusSnapshot {
+    pub target_name: Option<String>,
+    pub equipment_appearance: EquipmentAppearance,
+    pub spec_tabs: Vec<TalentSpecTabEntry>,
+    pub talents: Vec<TalentNodeEntry>,
+    pub points_remaining: u16,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CharacterStatsSnapshot {
     pub character_id: Option<u64>,

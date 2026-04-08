@@ -616,6 +616,56 @@ fn profession_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn inspect_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::InspectStatusSnapshot::default();
+
+    crate::networking_messages::apply_inspect_state_update(
+        &mut snapshot,
+        shared::protocol::InspectStateUpdate {
+            snapshot: Some(shared::protocol::InspectSnapshot {
+                target_name: "Alice".into(),
+                equipment_appearance: shared::components::EquipmentAppearance {
+                    entries: vec![shared::components::EquippedAppearanceEntry {
+                        slot: shared::components::EquipmentVisualSlot::Head,
+                        item_id: Some(100),
+                        display_info_id: Some(200),
+                        inventory_type: 1,
+                        hidden: false,
+                    }],
+                },
+                talents: shared::protocol::TalentSnapshot {
+                    spec_tabs: vec![shared::protocol::TalentSpecTabSnapshot {
+                        name: "Protection".into(),
+                        active: true,
+                    }],
+                    talents: vec![shared::protocol::TalentNodeSnapshot {
+                        talent_id: 101,
+                        name: "Divine Strength".into(),
+                        points_spent: 1,
+                        max_points: 1,
+                        active: true,
+                    }],
+                    points_remaining: 50,
+                },
+            }),
+            message: Some("inspect ready".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.target_name.as_deref(), Some("Alice"));
+    assert_eq!(snapshot.equipment_appearance.entries.len(), 1);
+    assert_eq!(snapshot.spec_tabs.len(), 1);
+    assert_eq!(snapshot.talents.len(), 1);
+    assert_eq!(snapshot.points_remaining, 50);
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("inspect ready")
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn chat_log_caps_at_max() {
     let mut log = ChatLog::default();
     for i in 0..101 {

@@ -10,9 +10,9 @@ use peercred_ipc::Client;
 
 use requests::{
     auction_request, collection_request, combat_request, equipment_request,
-    export_character_request, export_scene_request, group_request, inventory_request, item_request,
-    mail_request, map_request, profession_request, quest_request, reputation_request,
-    spell_request, status_request, talent_request, trade_request,
+    export_character_request, export_scene_request, group_request, inspect_request,
+    inventory_request, item_request, mail_request, map_request, profession_request, quest_request,
+    reputation_request, spell_request, status_request, talent_request, trade_request,
 };
 
 #[derive(Parser)]
@@ -74,6 +74,11 @@ enum Cmd {
     Talent {
         #[command(subcommand)]
         command: TalentCmd,
+    },
+    /// Inspect current target via the running engine
+    Inspect {
+        #[command(subcommand)]
+        command: InspectCmd,
     },
     /// Runtime subsystem status via the running engine
     Status {
@@ -339,6 +344,12 @@ pub(crate) enum TalentCmd {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum InspectCmd {
+    Status,
+    Query,
+}
+
+#[derive(Subcommand)]
 pub(crate) enum SpellCmd {
     Cast {
         #[arg(long)]
@@ -469,6 +480,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Mail { command } => handle_mail(socket, command, json),
         Cmd::Trade { command } => handle_trade(socket, command, json),
         Cmd::Talent { command } => handle_talent(socket, command, json),
+        Cmd::Inspect { command } => handle_inspect(socket, command, json),
         Cmd::Status { command } => handle_status(socket, command, json),
         Cmd::Item { command } => handle_item(socket, command, json),
         Cmd::Inventory { command } => handle_inventory(socket, command, json),
@@ -597,6 +609,10 @@ fn handle_trade(socket: &PathBuf, command: TradeCmd, json: bool) -> Result<(), S
 
 fn handle_talent(socket: &PathBuf, command: TalentCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, talent_request(command)?, json)
+}
+
+fn handle_inspect(socket: &PathBuf, command: InspectCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, inspect_request(command)?, json)
 }
 
 fn handle_status(socket: &PathBuf, command: StatusCmd, json: bool) -> Result<(), String> {

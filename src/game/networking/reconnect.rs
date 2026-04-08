@@ -121,6 +121,11 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::profession::reset_runtime(&mut profession_state);
     }
+    if let Some(mut inspect_state) =
+        world.get_resource_mut::<game_engine::inspect::InspectRuntimeState>()
+    {
+        game_engine::inspect::reset_runtime(&mut inspect_state);
+    }
     if let Some(mut talent_state) =
         world.get_resource_mut::<game_engine::talent::TalentRuntimeState>()
     {
@@ -141,6 +146,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
     reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
     reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
+    reset_resource::<game_engine::status::InspectStatusSnapshot>(world);
     reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
     reset_resource::<game_engine::status::MapStatusSnapshot>(world);
     reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);

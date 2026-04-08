@@ -192,6 +192,22 @@ fn talent_reset_command_maps_to_request() {
 }
 
 #[test]
+fn inspect_status_command_maps_to_request() {
+    assert_eq!(
+        inspect_request(InspectCmd::Status).unwrap(),
+        Request::InspectStatus
+    );
+}
+
+#[test]
+fn inspect_query_command_maps_to_request() {
+    assert_eq!(
+        inspect_request(InspectCmd::Query).unwrap(),
+        Request::InspectQuery
+    );
+}
+
+#[test]
 fn item_info_command_maps_to_request() {
     let request = item_request(ItemCmd::Info { item_id: 2589 }).expect("valid item command");
     assert_eq!(

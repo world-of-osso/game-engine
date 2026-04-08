@@ -15,6 +15,7 @@ use super::init;
 use super::{Command, Request, Response};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
+use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc_request};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
 use crate::profession::{
@@ -122,6 +123,8 @@ struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
     profession: ResMut<'w, ProfessionRuntimeState>,
     profession_status: Res<'w, ProfessionStatusSnapshot>,
+    inspect: ResMut<'w, InspectRuntimeState>,
+    inspect_status: Res<'w, crate::status::InspectStatusSnapshot>,
     trade: ResMut<'w, TradeClientState>,
     talent: ResMut<'w, TalentRuntimeState>,
     talent_status: Res<'w, TalentStatusSnapshot>,
@@ -211,6 +214,14 @@ fn dispatch(
     if queue_profession_ipc_request(
         &mut world.profession,
         &world.profession_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_inspect_ipc_request(
+        &mut world.inspect,
+        &world.inspect_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {
