@@ -10,10 +10,10 @@ use peercred_ipc::Client;
 
 use requests::{
     auction_request, barber_request, collection_request, combat_request, currency_request,
-    death_request, duel_request, equipment_request, export_character_request, export_scene_request,
-    friend_request, group_request, ignore_request, inspect_request, inventory_request,
-    item_request, lfg_request, mail_request, map_request, profession_request, pvp_request,
-    quest_request, reputation_request, spell_request, status_request, talent_request,
+    death_request, duel_request, emote_request, equipment_request, export_character_request,
+    export_scene_request, friend_request, group_request, ignore_request, inspect_request,
+    inventory_request, item_request, lfg_request, mail_request, map_request, profession_request,
+    pvp_request, quest_request, reputation_request, spell_request, status_request, talent_request,
     trade_request,
 };
 
@@ -151,6 +151,11 @@ enum Cmd {
     Spell {
         #[command(subcommand)]
         command: SpellCmd,
+    },
+    /// Social emote commands
+    Emote {
+        #[command(subcommand)]
+        command: EmoteCmd,
     },
     /// Combat text views
     Combat {
@@ -494,6 +499,12 @@ pub(crate) enum SpellCmd {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum EmoteCmd {
+    Dance,
+    Wave,
+}
+
+#[derive(Subcommand)]
 pub(crate) enum CombatCmd {
     Log {
         #[arg(long, default_value_t = 30)]
@@ -655,6 +666,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Lfg { command } => handle_lfg(socket, command, json),
         Cmd::Pvp { command } => handle_pvp(socket, command, json),
         Cmd::Spell { command } => handle_spell(socket, command, json),
+        Cmd::Emote { command } => handle_emote(socket, command, json),
         Cmd::Combat { command } => handle_combat(socket, command, json),
         Cmd::Reputation { command } => handle_reputation(socket, command, json),
         Cmd::Collection { command } => handle_collection(socket, command, json),
@@ -833,6 +845,10 @@ fn handle_pvp(socket: &PathBuf, command: PvpCmd, json: bool) -> Result<(), Strin
 
 fn handle_spell(socket: &PathBuf, command: SpellCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, spell_request(command)?, json)
+}
+
+fn handle_emote(socket: &PathBuf, command: EmoteCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, emote_request(command)?, json)
 }
 
 fn handle_combat(socket: &PathBuf, command: CombatCmd, json: bool) -> Result<(), String> {

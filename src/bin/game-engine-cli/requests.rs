@@ -3,14 +3,14 @@ use game_engine::item_info::ItemInfoQuery;
 use game_engine::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use shared::protocol::{
     AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
-    CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid, PvpBracketSnapshot,
+    CancelAuction, ClaimAuctionMail, CreateAuction, EmoteKind, PlaceBid, PvpBracketSnapshot,
 };
 
 use crate::{
-    AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd, EquipmentCmd,
-    FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd,
-    ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd,
-    WaypointCmd,
+    AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd, EmoteCmd,
+    EquipmentCmd, FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd,
+    MailCmd, MapCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd,
+    TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -215,6 +215,14 @@ pub fn spell_request(command: SpellCmd) -> Result<Request, String> {
         SpellCmd::Stop => Request::SpellStop,
     };
     Ok(request)
+}
+
+pub fn emote_request(command: EmoteCmd) -> Result<Request, String> {
+    let emote = match command {
+        EmoteCmd::Dance => EmoteKind::Dance,
+        EmoteCmd::Wave => EmoteKind::Wave,
+    };
+    Ok(Request::Emote { emote })
 }
 
 pub fn combat_request(command: CombatCmd) -> Result<Request, String> {

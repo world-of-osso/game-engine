@@ -6,8 +6,8 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use shared::components::{Position as NetPosition, Rotation as NetRotation};
-use shared::protocol::ChatMessage;
 pub use shared::protocol::ChatType;
+use shared::protocol::{ChatMessage, EmoteIntent};
 
 pub use crate::networking_auth::{
     AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword, LoginUsername,
@@ -79,6 +79,10 @@ pub struct ChatLog {
 /// Resource for other systems to queue outgoing chat messages.
 #[derive(Resource, Default)]
 pub struct ChatInput(pub Option<ChatMessage>);
+
+/// Resource for other systems to queue outgoing social emotes.
+#[derive(Resource, Default)]
+pub struct EmoteInput(pub Option<EmoteIntent>);
 
 /// Interpolation speed: 1 / interval between server ticks (~100ms at 20Hz).
 const INTERPOLATION_SPEED: f32 = 10.0;
@@ -156,6 +160,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
+    app.init_resource::<EmoteInput>();
     app.insert_resource(game_engine::chat_data::ChatState {
         max_messages: MAX_CHAT_LOG,
         ..Default::default()
@@ -222,7 +227,9 @@ fn register_gameplay_net_systems(app: &mut App) {
         (
             msg::send_player_input,
             msg::send_chat_message,
+            msg::send_emote_intent,
             msg::receive_chat_messages,
+            msg::receive_emote_events,
             msg::send_target_to_server,
             msg::track_player_zone,
             crate::status_sync::sync_map_status_snapshot,

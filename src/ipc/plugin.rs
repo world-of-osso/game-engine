@@ -51,7 +51,8 @@ use crate::targeting::CurrentTarget;
 use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_request};
 use crate::ui::plugin::UiState;
 use shared::protocol::{
-    CombatChannel, GroupInviteIntent, GroupUninviteIntent, SpellCastIntent, StopSpellCast,
+    ChatChannel, CombatChannel, EmoteIntent, GroupInviteIntent, GroupUninviteIntent,
+    SpellCastIntent, StopSpellCast,
 };
 
 use super::format::{
@@ -183,6 +184,7 @@ struct WorldParams<'w> {
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct IpcSenderParams<'w, 's> {
+    emote_senders: Query<'w, 's, &'static mut MessageSender<EmoteIntent>>,
     spell_cast_senders: Query<'w, 's, &'static mut MessageSender<SpellCastIntent>>,
     spell_stop_senders: Query<'w, 's, &'static mut MessageSender<StopSpellCast>>,
     group_invite_senders: Query<'w, 's, &'static mut MessageSender<GroupInviteIntent>>,
@@ -570,6 +572,9 @@ fn dispatch_combat_request(
                 &mut sender_params.group_uninvite_senders,
             );
         }
+        Request::Emote { emote } => {
+            handle_emote(cmd, *emote, ctx.connected, &mut sender_params.emote_senders);
+        }
         _ => return false,
     }
     true
@@ -837,6 +842,27 @@ fn handle_group_uninvite(
     }
 }
 
+fn handle_emote(
+    cmd: &Command,
+    emote: shared::protocol::EmoteKind,
+    connected: bool,
+    senders: &mut Query<&mut MessageSender<EmoteIntent>>,
+) {
+    if !connected {
+        let _ = cmd.respond.send(Response::Error(
+            "emote is unavailable: not connected".into(),
+        ));
+    } else if send_social_message(senders, EmoteIntent { emote }) {
+        let _ = cmd
+            .respond
+            .send(Response::Text(format!("emote submitted {:?}", emote)));
+    } else {
+        let _ = cmd
+            .respond
+            .send(Response::Error("emote sender unavailable".into()));
+    }
+}
+
 fn send_combat_message<T: Clone + lightyear::prelude::Message>(
     senders: &mut Query<&mut MessageSender<T>>,
     message: T,
@@ -844,6 +870,18 @@ fn send_combat_message<T: Clone + lightyear::prelude::Message>(
     let mut sent = false;
     for mut sender in senders.iter_mut() {
         sender.send::<CombatChannel>(message.clone());
+        sent = true;
+    }
+    sent
+}
+
+fn send_social_message<T: Clone + lightyear::prelude::Message>(
+    senders: &mut Query<&mut MessageSender<T>>,
+    message: T,
+) -> bool {
+    let mut sent = false;
+    for mut sender in senders.iter_mut() {
+        sender.send::<ChatChannel>(message.clone());
         sent = true;
     }
     sent

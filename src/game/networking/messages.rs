@@ -4,15 +4,18 @@ use shared::components::Zone;
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel,
     CombatEvent, CombatEventType, CombatLogEventKindSnapshot, CombatLogSnapshot, DeathStateUpdate,
-    DuelStateUpdate, GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot,
-    GuildVaultSnapshot, InputChannel, InspectStateUpdate, InventorySearchResultSnapshot,
-    LoadTerrain, PlayerInput, ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
-    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, SetTarget,
-    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot, WorldMapStateUpdate,
+    DuelStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse, GroupRoleSnapshot,
+    GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
+    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
+    ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
+    ReputationStateUpdate, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
+    WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
-use crate::networking::{ChatInput, ChatLog, CurrentZone, MAX_CHAT_LOG, MAX_COMBAT_LOG};
+use crate::networking::{
+    ChatInput, ChatLog, CurrentZone, EmoteInput, MAX_CHAT_LOG, MAX_COMBAT_LOG,
+};
 use crate::networking_auth::SelectedCharacterId;
 use crate::terrain::AdtManager;
 use game_engine::achievement::{
@@ -59,6 +62,24 @@ pub(crate) fn send_chat_message(
     }
 }
 
+/// Send a queued emote intent to the server.
+pub(crate) fn send_emote_intent(
+    mut emote_input: ResMut<EmoteInput>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    mut senders: Query<&mut MessageSender<EmoteIntent>>,
+) {
+    if !crate::networking::gameplay_input_allowed(reconnect) {
+        emote_input.0 = None;
+        return;
+    }
+    let Some(intent) = emote_input.0.take() else {
+        return;
+    };
+    for mut sender in senders.iter_mut() {
+        sender.send::<ChatChannel>(intent.clone());
+    }
+}
+
 /// Receive chat messages from the server and append to the chat log.
 pub(crate) fn receive_chat_messages(
     mut receivers: Query<&mut MessageReceiver<ChatMessage>>,
@@ -81,6 +102,27 @@ pub(crate) fn receive_chat_messages(
                 &mut chat_state,
                 &mut whisper_state,
             );
+        }
+    }
+}
+
+/// Receive social emote events and attach a transient animation state to the target entity.
+pub(crate) fn receive_emote_events(
+    mut commands: Commands,
+    mut receivers: Query<&mut MessageReceiver<EmoteEvent>>,
+    children_query: Query<&Children>,
+    mounted_visual_roots: Query<(), With<crate::networking_player::MountedVisualRoot>>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for event in receiver.receive() {
+            let entity = resolve_emote_visual_entity(
+                event.player_entity,
+                &children_query,
+                &mounted_visual_roots,
+            );
+            commands
+                .entity(entity)
+                .insert(crate::animation::EmoteAnimState::new(event.emote));
         }
     }
 }
@@ -147,6 +189,7 @@ fn map_runtime_chat_channel(
         shared::protocol::ChatType::Yell => (ChatChannelType::Yell, String::new()),
         shared::protocol::ChatType::Party => (ChatChannelType::Party, String::new()),
         shared::protocol::ChatType::Guild => (ChatChannelType::Guild, String::new()),
+        shared::protocol::ChatType::Emote => (ChatChannelType::Emote, String::new()),
         shared::protocol::ChatType::Whisper(target) => {
             let is_outgoing = local_name.is_some_and(|name| sender.eq_ignore_ascii_case(name));
             let channel_name = if is_outgoing {
@@ -182,9 +225,25 @@ fn current_chat_timestamp() -> f64 {
         .unwrap_or_default()
 }
 
+fn resolve_emote_visual_entity(
+    player_entity_bits: u64,
+    children_query: &Query<&Children>,
+    mounted_visual_roots: &Query<(), With<crate::networking_player::MountedVisualRoot>>,
+) -> Entity {
+    let player_entity = Entity::from_bits(player_entity_bits);
+    let Ok(children) = children_query.get(player_entity) else {
+        return player_entity;
+    };
+    children
+        .iter()
+        .find(|child| mounted_visual_roots.get(*child).is_ok())
+        .unwrap_or(player_entity)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
 
     fn whisper_message(sender: &str, target: &str, content: &str) -> ChatMessage {
         ChatMessage {
@@ -199,6 +258,46 @@ mod tests {
             max_messages: MAX_CHAT_LOG,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn map_runtime_chat_channel_maps_emotes() {
+        let (channel, name) =
+            map_runtime_chat_channel(&shared::protocol::ChatType::Emote, "Alice", Some("Theron"));
+        assert_eq!(channel, ChatChannelType::Emote);
+        assert!(name.is_empty());
+    }
+
+    #[test]
+    fn resolve_emote_visual_entity_prefers_mounted_visual_child() {
+        let mut app = App::new();
+        let parent = app.world_mut().spawn_empty().id();
+        let mounted_child = app
+            .world_mut()
+            .spawn(crate::networking_player::MountedVisualRoot)
+            .id();
+        let other_child = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .entity_mut(parent)
+            .add_children(&[other_child, mounted_child]);
+
+        let entity = app
+            .world_mut()
+            .run_system_once(
+                move |children_query: Query<&Children>,
+                      mounted_visual_roots: Query<
+                    (),
+                    With<crate::networking_player::MountedVisualRoot>,
+                >| {
+                    resolve_emote_visual_entity(
+                        parent.to_bits(),
+                        &children_query,
+                        &mounted_visual_roots,
+                    )
+                },
+            )
+            .expect("resolve emote entity");
+        assert_eq!(entity, mounted_child);
     }
 
     #[test]

@@ -597,6 +597,80 @@ fn attack_anim_ids_all_distinct() {
     assert_ne!(ids[1], ids[2]);
 }
 
+#[test]
+fn emote_anim_state_uses_expected_anim_ids() {
+    assert_eq!(
+        EmoteAnimState::new(shared::protocol::EmoteKind::Wave).anim_id(),
+        ANIM_WAVE
+    );
+    assert_eq!(
+        EmoteAnimState::new(shared::protocol::EmoteKind::Dance).anim_id(),
+        ANIM_DANCE
+    );
+}
+
+#[test]
+fn apply_emote_animation_starts_then_clears_finished_wave() {
+    fn sequence(anim_id: u16, duration: u32) -> M2AnimSequence {
+        M2AnimSequence {
+            id: anim_id,
+            variation_id: 0,
+            duration,
+            movespeed: 0.0,
+            flags: 0,
+            blend_time: 150,
+            next_animation: -1,
+        }
+    }
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, apply_emote_animation);
+
+    let entity = app
+        .world_mut()
+        .spawn((
+            M2AnimPlayer {
+                current_seq_idx: 0,
+                time_ms: 0.0,
+                looping: true,
+                transition: None,
+            },
+            M2AnimData {
+                bones: vec![],
+                spherical_billboards: vec![],
+                sequences: vec![sequence(ANIM_STAND, 1000), sequence(ANIM_WAVE, 500)],
+                bone_tracks: vec![],
+                joint_entities: vec![],
+            },
+            EmoteAnimState::new(shared::protocol::EmoteKind::Wave),
+        ))
+        .id();
+
+    app.update();
+
+    let player = app.world().get::<M2AnimPlayer>(entity).unwrap();
+    assert_eq!(
+        player.current_seq_idx, 1,
+        "wave should become the active sequence"
+    );
+    assert!(app.world().get::<EmoteAnimState>(entity).is_some());
+
+    app.world_mut()
+        .entity_mut(entity)
+        .get_mut::<M2AnimPlayer>()
+        .unwrap()
+        .time_ms = 500.0;
+    app.update();
+
+    let player = app.world().get::<M2AnimPlayer>(entity).unwrap();
+    assert_eq!(
+        player.current_seq_idx, 0,
+        "finished wave should return to stand"
+    );
+    assert!(app.world().get::<EmoteAnimState>(entity).is_none());
+}
+
 // --- Animation overrides ---
 
 #[test]

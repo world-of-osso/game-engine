@@ -10,6 +10,7 @@ pub enum ChatChannelType {
     Guild,
     Officer,
     Whisper,
+    Emote,
     System,
     /// Numbered custom or zone channel (General, Trade, LookingForGroup, etc.).
     Custom,
@@ -26,6 +27,7 @@ impl ChatChannelType {
             Self::Guild => [0.25, 1.0, 0.25, 1.0],    // green
             Self::Officer => [0.25, 0.75, 0.25, 1.0], // dark green
             Self::Whisper => [1.0, 0.5, 1.0, 1.0],    // pink
+            Self::Emote => [1.0, 0.5, 0.25, 1.0],     // orange
             Self::System => [1.0, 1.0, 0.0, 1.0],     // yellow
             Self::Custom => [1.0, 0.75, 0.75, 1.0],   // light pink
         }
@@ -41,6 +43,7 @@ impl ChatChannelType {
             Self::Guild => "[Guild]",
             Self::Officer => "[Officer]",
             Self::Whisper => "[Whisper]",
+            Self::Emote => "",
             Self::System => "[System]",
             Self::Custom => "",
         }
@@ -70,6 +73,9 @@ pub struct ChatMessage {
 impl ChatMessage {
     /// Formatted display: "[Channel] Sender: text" or "Sender says: text".
     pub fn formatted(&self) -> String {
+        if self.channel_type == ChatChannelType::Emote {
+            return format!("{} {}", self.sender, self.text);
+        }
         let prefix = self.channel_type.prefix();
         if prefix.is_empty() && !self.channel_name.is_empty() {
             format!("[{}] {}: {}", self.channel_name, self.sender, self.text)
@@ -308,6 +314,18 @@ mod tests {
             timestamp: 0.0,
         };
         assert_eq!(m.formatted(), "[Trade] Bob: WTS Ore");
+    }
+
+    #[test]
+    fn message_formatted_emote_channel() {
+        let m = ChatMessage {
+            channel_type: ChatChannelType::Emote,
+            channel_name: String::new(),
+            sender: "Alice".into(),
+            text: "dances.".into(),
+            timestamp: 0.0,
+        };
+        assert_eq!(m.formatted(), "Alice dances.");
     }
 
     // --- ChatState ---

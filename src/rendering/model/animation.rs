@@ -8,6 +8,7 @@ use crate::asset::m2_anim::{
 use crate::asset::m2_light;
 use crate::game_state::GameState;
 use bevy::prelude::*;
+use shared::protocol::EmoteKind;
 
 use super::m2_spawn::RuntimeM2PointLight;
 pub use billboard::propagate_spherical_billboards;
@@ -68,6 +69,8 @@ const ANIM_SPELL_CAST_OMNI: u16 = 52;
 const ANIM_READY_SPELL_DIRECTED: u16 = 55;
 const ANIM_READY_SPELL_OMNI: u16 = 56;
 const ANIM_CHANNEL: u16 = 76;
+const ANIM_WAVE: u16 = 67;
+const ANIM_DANCE: u16 = 69;
 const ANIM_ATTACK_1H: u16 = 46;
 const ANIM_ATTACK_2H: u16 = 48;
 const ANIM_ATTACK_OFF: u16 = 47;
@@ -330,6 +333,33 @@ impl CastAnimState {
     }
 }
 
+/// Component that triggers a social emote animation on a model.
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+pub struct EmoteAnimState {
+    pub kind: EmoteKind,
+    started: bool,
+}
+
+impl EmoteAnimState {
+    pub fn new(kind: EmoteKind) -> Self {
+        Self {
+            kind,
+            started: false,
+        }
+    }
+
+    pub fn anim_id(&self) -> u16 {
+        emote_anim_id(self.kind)
+    }
+}
+
+fn emote_anim_id(kind: EmoteKind) -> u16 {
+    match kind {
+        EmoteKind::Dance => ANIM_DANCE,
+        EmoteKind::Wave => ANIM_WAVE,
+    }
+}
+
 /// Map movement direction to a WoW animation ID.
 fn direction_to_anim_id(dir: MoveDirection, running: bool) -> u16 {
     match dir {
@@ -387,8 +417,18 @@ fn is_jump_anim(id: u16) -> bool {
     matches!(id, ANIM_JUMP_START | ANIM_JUMP | ANIM_JUMP_END)
 }
 
-fn switch_animation(mut players: Query<(&mut M2AnimPlayer, Option<&MovementState>, &M2AnimData)>) {
-    for (mut player, movement, data) in &mut players {
+fn switch_animation(
+    mut players: Query<(
+        &mut M2AnimPlayer,
+        Option<&MovementState>,
+        &M2AnimData,
+        Option<&EmoteAnimState>,
+    )>,
+) {
+    for (mut player, movement, data, emote) in &mut players {
+        if emote.is_some() {
+            continue;
+        }
         let current_id = data.sequences.get(player.current_seq_idx).map(|s| s.id);
         let in_jump = current_id.is_some_and(is_jump_anim);
         let default_movement = MovementState::default();
@@ -409,6 +449,46 @@ fn switch_animation(mut players: Query<(&mut M2AnimPlayer, Option<&MovementState
         };
         let blend_ms = data.sequences[target_idx].blend_time as f32;
         start_transition(&mut player, target_idx, blend_ms);
+    }
+}
+
+fn apply_emote_animation(
+    mut commands: Commands,
+    mut players: Query<(
+        Entity,
+        &mut M2AnimPlayer,
+        &M2AnimData,
+        Option<&MovementState>,
+        &mut EmoteAnimState,
+    )>,
+) {
+    for (entity, mut player, data, movement, mut emote) in &mut players {
+        let Some(emote_idx) = find_seq_idx(&data.sequences, emote.anim_id()) else {
+            commands.entity(entity).remove::<EmoteAnimState>();
+            continue;
+        };
+
+        if !emote.started {
+            let blend_ms = data.sequences[emote_idx].blend_time as f32;
+            start_transition(&mut player, emote_idx, blend_ms);
+            player.looping = false;
+            emote.started = true;
+            continue;
+        }
+
+        if player.current_seq_idx != emote_idx || !anim_finished(&player, &data.sequences) {
+            continue;
+        }
+
+        player.looping = true;
+        let target_anim = movement
+            .map(|movement| direction_to_anim_id(movement.direction, movement.running))
+            .unwrap_or(ANIM_STAND);
+        if let Some(target_idx) = find_seq_idx(&data.sequences, target_anim) {
+            let blend_ms = data.sequences[target_idx].blend_time as f32;
+            start_transition(&mut player, target_idx, blend_ms);
+        }
+        commands.entity(entity).remove::<EmoteAnimState>();
     }
 }
 
@@ -671,7 +751,12 @@ impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (switch_animation, tick_animation, apply_animation)
+            (
+                apply_emote_animation,
+                switch_animation,
+                tick_animation,
+                apply_animation,
+            )
                 .chain()
                 .run_if(animation_active_state),
         )

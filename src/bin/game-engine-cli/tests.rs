@@ -406,6 +406,26 @@ fn spell_cast_command_maps_to_ipc_request() {
 }
 
 #[test]
+fn emote_dance_command_maps_to_request() {
+    assert_eq!(
+        emote_request(EmoteCmd::Dance).unwrap(),
+        Request::Emote {
+            emote: shared::protocol::EmoteKind::Dance,
+        }
+    );
+}
+
+#[test]
+fn emote_wave_command_maps_to_request() {
+    assert_eq!(
+        emote_request(EmoteCmd::Wave).unwrap(),
+        Request::Emote {
+            emote: shared::protocol::EmoteKind::Wave,
+        }
+    );
+}
+
+#[test]
 fn inventory_search_command_maps_to_request() {
     let request = inventory_request(InventoryCmd::Search {
         text: "torch".into(),

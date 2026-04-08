@@ -8,8 +8,8 @@ use std::sync::mpsc;
 
 use serde::{Deserialize, Serialize};
 use shared::protocol::{
-    AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, PlaceBid,
-    PvpBracketSnapshot,
+    AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, EmoteKind,
+    PlaceBid, PvpBracketSnapshot,
 };
 
 use crate::item_info::ItemInfoQuery;
@@ -189,6 +189,9 @@ pub enum Request {
     },
     GroupUninvite {
         name: String,
+    },
+    Emote {
+        emote: EmoteKind,
     },
     SpellCast {
         spell: String,
