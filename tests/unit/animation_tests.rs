@@ -538,3 +538,61 @@ fn channel_current_anim_id_always_channel() {
     held.holding = true;
     assert_eq!(held.current_anim_id(), ANIM_CHANNEL);
 }
+
+// --- Attack animations ---
+
+#[test]
+fn attack_1h_anim_id() {
+    assert_eq!(MeleeWeaponKind::OneHand.attack_anim_id(), ANIM_ATTACK_1H);
+}
+
+#[test]
+fn attack_2h_anim_id() {
+    assert_eq!(MeleeWeaponKind::TwoHand.attack_anim_id(), ANIM_ATTACK_2H);
+}
+
+#[test]
+fn attack_off_anim_id() {
+    assert_eq!(MeleeWeaponKind::OffHand.attack_anim_id(), ANIM_ATTACK_OFF);
+}
+
+#[test]
+fn parry_1h_uses_1h_anim() {
+    assert_eq!(MeleeWeaponKind::OneHand.parry_anim_id(), ANIM_PARRY_1H);
+    assert_eq!(MeleeWeaponKind::OffHand.parry_anim_id(), ANIM_PARRY_1H);
+}
+
+#[test]
+fn parry_2h_uses_2h_anim() {
+    assert_eq!(MeleeWeaponKind::TwoHand.parry_anim_id(), ANIM_PARRY_2H);
+}
+
+#[test]
+fn ready_stance_by_weapon() {
+    assert_eq!(MeleeWeaponKind::OneHand.ready_anim_id(), ANIM_READY_1H);
+    assert_eq!(MeleeWeaponKind::TwoHand.ready_anim_id(), ANIM_READY_2H);
+    assert_eq!(MeleeWeaponKind::OffHand.ready_anim_id(), ANIM_READY_1H);
+}
+
+#[test]
+fn attack_anim_state_lifecycle() {
+    let mut state = AttackAnimState::new(MeleeWeaponKind::TwoHand, 2.0);
+    assert!(!state.is_finished());
+    assert_eq!(state.anim_id(), ANIM_ATTACK_2H);
+    state.tick(1.0);
+    assert!(!state.is_finished());
+    state.tick(1.5);
+    assert!(state.is_finished());
+}
+
+#[test]
+fn attack_anim_ids_all_distinct() {
+    let ids = [
+        MeleeWeaponKind::OneHand.attack_anim_id(),
+        MeleeWeaponKind::TwoHand.attack_anim_id(),
+        MeleeWeaponKind::OffHand.attack_anim_id(),
+    ];
+    assert_ne!(ids[0], ids[1]);
+    assert_ne!(ids[0], ids[2]);
+    assert_ne!(ids[1], ids[2]);
+}

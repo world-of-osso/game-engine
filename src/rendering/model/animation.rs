@@ -68,6 +68,79 @@ const ANIM_SPELL_CAST_OMNI: u16 = 52;
 const ANIM_READY_SPELL_DIRECTED: u16 = 55;
 const ANIM_READY_SPELL_OMNI: u16 = 56;
 const ANIM_CHANNEL: u16 = 76;
+const ANIM_ATTACK_1H: u16 = 46;
+const ANIM_ATTACK_2H: u16 = 48;
+const ANIM_ATTACK_OFF: u16 = 47;
+const ANIM_PARRY_1H: u16 = 49;
+const ANIM_PARRY_2H: u16 = 50;
+const ANIM_READY_1H: u16 = 53;
+const ANIM_READY_2H: u16 = 54;
+
+/// Melee weapon type, determines which attack animation to play.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MeleeWeaponKind {
+    OneHand,
+    TwoHand,
+    OffHand,
+}
+
+impl MeleeWeaponKind {
+    /// Attack swing animation ID.
+    pub fn attack_anim_id(self) -> u16 {
+        match self {
+            Self::OneHand => ANIM_ATTACK_1H,
+            Self::TwoHand => ANIM_ATTACK_2H,
+            Self::OffHand => ANIM_ATTACK_OFF,
+        }
+    }
+
+    /// Parry animation ID.
+    pub fn parry_anim_id(self) -> u16 {
+        match self {
+            Self::OneHand | Self::OffHand => ANIM_PARRY_1H,
+            Self::TwoHand => ANIM_PARRY_2H,
+        }
+    }
+
+    /// Ready/combat stance animation ID.
+    pub fn ready_anim_id(self) -> u16 {
+        match self {
+            Self::OneHand | Self::OffHand => ANIM_READY_1H,
+            Self::TwoHand => ANIM_READY_2H,
+        }
+    }
+}
+
+/// Component that triggers a melee attack animation.
+/// Plays the attack swing once, then returns to ready stance.
+#[derive(Component, Clone, Debug)]
+pub struct AttackAnimState {
+    pub weapon: MeleeWeaponKind,
+    /// Time remaining for the swing animation.
+    pub remaining: f32,
+}
+
+impl AttackAnimState {
+    pub fn new(weapon: MeleeWeaponKind, swing_time: f32) -> Self {
+        Self {
+            weapon,
+            remaining: swing_time,
+        }
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.remaining <= 0.0
+    }
+
+    pub fn tick(&mut self, dt: f32) {
+        self.remaining = (self.remaining - dt).max(0.0);
+    }
+
+    /// The animation ID to play.
+    pub fn anim_id(&self) -> u16 {
+        self.weapon.attack_anim_id()
+    }
+}
 
 /// Whether a spell has a target (directed) or is area-effect (omni).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
