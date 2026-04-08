@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use game_engine::status::ProfessionStatusSnapshot;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::professions_frame_component::{
-    CraftingDetail, ProfessionsFrameState, RecipeState, professions_frame_screen,
+    CraftingDetail, ProfessionTab, ProfessionsFrameState, RecipeState, professions_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -113,7 +113,18 @@ fn build_state(
         .unwrap_or_default();
     ProfessionsFrameState {
         visible: open.0,
-        tabs: Vec::new(),
+        tabs: snapshot
+            .map(|s| {
+                s.skills
+                    .iter()
+                    .enumerate()
+                    .map(|(index, skill)| ProfessionTab {
+                        name: format!("{} {}/{}", skill.profession, skill.current, skill.max),
+                        active: index == 0,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
         recipes,
         crafting: CraftingDetail::default(),
         book_recipes: Vec::new(),

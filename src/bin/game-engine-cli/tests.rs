@@ -286,6 +286,30 @@ fn profession_recipes_command_maps_to_request() {
 }
 
 #[test]
+fn profession_status_command_maps_to_request() {
+    assert_eq!(
+        profession_request(ProfessionCmd::Status).unwrap(),
+        Request::ProfessionStatus
+    );
+}
+
+#[test]
+fn profession_craft_command_maps_to_request() {
+    assert_eq!(
+        profession_request(ProfessionCmd::Craft { recipe_id: 5001 }).unwrap(),
+        Request::ProfessionCraft { recipe_id: 5001 }
+    );
+}
+
+#[test]
+fn profession_gather_command_maps_to_request() {
+    assert_eq!(
+        profession_request(ProfessionCmd::Gather { node_id: 1 }).unwrap(),
+        Request::ProfessionGather { node_id: 1 }
+    );
+}
+
+#[test]
 fn map_target_command_maps_to_request() {
     assert_eq!(map_request(MapCmd::Target).unwrap(), Request::MapTarget);
 }

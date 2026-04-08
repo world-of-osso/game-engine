@@ -154,7 +154,10 @@ pub fn collection_request(command: CollectionCmd) -> Result<Request, String> {
 
 pub fn profession_request(command: ProfessionCmd) -> Result<Request, String> {
     let request = match command {
+        ProfessionCmd::Status => Request::ProfessionStatus,
         ProfessionCmd::Recipes { text } => Request::ProfessionRecipes { text },
+        ProfessionCmd::Craft { recipe_id } => Request::ProfessionCraft { recipe_id },
+        ProfessionCmd::Gather { node_id } => Request::ProfessionGather { node_id },
     };
     Ok(request)
 }

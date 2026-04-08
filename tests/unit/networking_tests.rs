@@ -570,6 +570,52 @@ fn talent_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn profession_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::ProfessionStatusSnapshot::default();
+
+    crate::networking_messages::apply_profession_state_update(
+        &mut snapshot,
+        shared::protocol::ProfessionStateUpdate {
+            snapshot: Some(shared::protocol::ProfessionSnapshot {
+                skills: vec![shared::protocol::ProfessionSkillSnapshot {
+                    profession: "Mining".into(),
+                    current: 12,
+                    max: 75,
+                }],
+                recipes: vec![shared::protocol::ProfessionRecipeSnapshot {
+                    spell_id: 5001,
+                    profession: "Blacksmithing".into(),
+                    name: "Copper Bracers".into(),
+                    craftable: true,
+                    cooldown: None,
+                }],
+            }),
+            message: Some("gathered Copper Vein".into()),
+            skill_up: Some(shared::protocol::ProfessionSkillSnapshot {
+                profession: "Mining".into(),
+                current: 13,
+                max: 75,
+            }),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.skills.len(), 1);
+    assert_eq!(snapshot.skills[0].profession, "Mining");
+    assert_eq!(snapshot.recipes.len(), 1);
+    assert_eq!(snapshot.recipes[0].spell_id, 5001);
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("gathered Copper Vein")
+    );
+    assert_eq!(
+        snapshot.last_skill_up.as_ref().map(|skill| skill.current),
+        Some(13)
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn chat_log_caps_at_max() {
     let mut log = ChatLog::default();
     for i in 0..101 {

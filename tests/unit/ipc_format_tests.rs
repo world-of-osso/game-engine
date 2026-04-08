@@ -356,6 +356,7 @@ fn collection_mounts_missing_filters_known_entries() {
 #[test]
 fn profession_recipes_filters_by_text() {
     let snapshot = ProfessionStatusSnapshot {
+        skills: Vec::new(),
         recipes: vec![crate::status::ProfessionRecipeEntry {
             spell_id: 100,
             profession: "Alchemy".into(),
@@ -363,6 +364,9 @@ fn profession_recipes_filters_by_text() {
             craftable: true,
             cooldown: None,
         }],
+        last_server_message: None,
+        last_skill_up: None,
+        last_error: None,
     };
     let text = format_profession_recipes(&snapshot, "potion");
     assert!(text.contains("Major Healing Potion"));

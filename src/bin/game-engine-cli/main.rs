@@ -380,9 +380,18 @@ pub(crate) enum CollectionCmd {
 
 #[derive(Subcommand)]
 pub(crate) enum ProfessionCmd {
+    Status,
     Recipes {
         #[arg(long, default_value = "")]
         text: String,
+    },
+    Craft {
+        #[arg(long)]
+        recipe_id: u32,
+    },
+    Gather {
+        #[arg(long)]
+        node_id: u32,
     },
 }
 

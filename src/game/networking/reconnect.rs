@@ -116,6 +116,11 @@ fn reset_world_resources(world: &mut World) {
     {
         *trade_state = game_engine::trade::TradeClientState::default();
     }
+    if let Some(mut profession_state) =
+        world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
+    {
+        game_engine::profession::reset_runtime(&mut profession_state);
+    }
     if let Some(mut talent_state) =
         world.get_resource_mut::<game_engine::talent::TalentRuntimeState>()
     {

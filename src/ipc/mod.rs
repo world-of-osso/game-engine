@@ -143,6 +143,13 @@ pub enum Request {
     ProfessionRecipes {
         text: String,
     },
+    ProfessionStatus,
+    ProfessionCraft {
+        recipe_id: u32,
+    },
+    ProfessionGather {
+        node_id: u32,
+    },
     EquipmentSet {
         slot: String,
         model_path: String,

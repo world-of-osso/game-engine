@@ -93,6 +93,7 @@ pub mod outfit_data;
 pub mod particle_color_cache;
 pub mod particle_effect_builder;
 pub mod paths;
+pub mod profession;
 #[path = "game/professions_data.rs"]
 pub mod professions_data;
 #[path = "game/pvp_data.rs"]

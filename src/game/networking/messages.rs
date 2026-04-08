@@ -5,9 +5,9 @@ use shared::protocol::{
     ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
     CombatLogEventKindSnapshot, CombatLogSnapshot, CurrencySnapshot, GroupCommandResponse,
     GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
-    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot, QuestLogSnapshot,
-    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationSnapshot, SetTarget,
-    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
+    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
+    ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
+    ReputationSnapshot, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -21,10 +21,10 @@ use game_engine::status::{
     CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, CurrencyEntry,
     GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionStatusSnapshot, QuestEntry,
-    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
-    ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
-    TalentStatusSnapshot, WarbankStatusSnapshot,
+    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry,
+    ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry,
+    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, StorageItemEntry,
+    TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 
@@ -480,18 +480,54 @@ pub(crate) fn receive_profession_snapshot(
 ) {
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
-            snapshot.recipes = msg
-                .recipes
-                .into_iter()
-                .map(|recipe| ProfessionRecipeEntry {
-                    spell_id: recipe.spell_id,
-                    profession: recipe.profession,
-                    name: recipe.name,
-                    craftable: recipe.craftable,
-                    cooldown: recipe.cooldown,
-                })
-                .collect();
+            snapshot.skills = msg.skills.into_iter().map(map_profession_skill).collect();
+            snapshot.recipes = msg.recipes.into_iter().map(map_profession_recipe).collect();
         }
+    }
+}
+
+pub(crate) fn apply_profession_state_update(
+    snapshot: &mut ProfessionStatusSnapshot,
+    update: ProfessionStateUpdate,
+) {
+    if let Some(profession_snapshot) = update.snapshot {
+        snapshot.skills = profession_snapshot
+            .skills
+            .into_iter()
+            .map(map_profession_skill)
+            .collect();
+        snapshot.recipes = profession_snapshot
+            .recipes
+            .into_iter()
+            .map(map_profession_recipe)
+            .collect();
+    }
+    snapshot.last_server_message = update.message;
+    snapshot.last_skill_up = update.skill_up.map(|skill| ProfessionSkillUpEntry {
+        profession: skill.profession,
+        current: skill.current,
+        max: skill.max,
+    });
+    snapshot.last_error = update.error;
+}
+
+fn map_profession_skill(skill: shared::protocol::ProfessionSkillSnapshot) -> ProfessionSkillEntry {
+    ProfessionSkillEntry {
+        profession: skill.profession,
+        current: skill.current,
+        max: skill.max,
+    }
+}
+
+fn map_profession_recipe(
+    recipe: shared::protocol::ProfessionRecipeSnapshot,
+) -> ProfessionRecipeEntry {
+    ProfessionRecipeEntry {
+        spell_id: recipe.spell_id,
+        profession: recipe.profession,
+        name: recipe.name,
+        craftable: recipe.craftable,
+        cooldown: recipe.cooldown,
     }
 }
 

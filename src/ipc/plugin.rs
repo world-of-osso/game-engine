@@ -17,6 +17,9 @@ use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
+use crate::profession::{
+    ProfessionRuntimeState, queue_ipc_request as queue_profession_ipc_request,
+};
 use crate::status::{
     CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EquipmentAppearanceStatusSnapshot,
@@ -117,6 +120,8 @@ struct SceneParams<'w, 's> {
 #[derive(bevy::ecs::system::SystemParam)]
 struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
+    profession: ResMut<'w, ProfessionRuntimeState>,
+    profession_status: Res<'w, ProfessionStatusSnapshot>,
     trade: ResMut<'w, TradeClientState>,
     talent: ResMut<'w, TalentRuntimeState>,
     talent_status: Res<'w, TalentStatusSnapshot>,
@@ -201,6 +206,14 @@ fn dispatch(
     sender_params: &mut IpcSenderParams,
 ) {
     if queue_ipc_request(&mut world.auction_house, &cmd.request, cmd.respond.clone()) {
+        return;
+    }
+    if queue_profession_ipc_request(
+        &mut world.profession,
+        &world.profession_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
         return;
     }
     if queue_trade_ipc_request(&mut world.trade, &cmd.request, cmd.respond.clone()) {
