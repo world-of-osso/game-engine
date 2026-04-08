@@ -135,7 +135,8 @@ fn click_to_target(
     cameras: Query<(&Camera, &GlobalTransform)>,
     mut ray_cast: MeshRayCast,
     parent_query: Query<&ChildOf>,
-    remote_q: Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+    remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    visibility_q: Query<&Visibility>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     mut current: ResMut<CurrentTarget>,
@@ -159,7 +160,9 @@ fn click_to_target(
 
     let hits = ray_cast.cast_ray(ray, &default());
     for &(entity, _) in hits {
-        if let Some(target) = resolve_targetable_ancestor(entity, &parent_query, &remote_q) {
+        if let Some(target) =
+            resolve_targetable_ancestor(entity, &parent_query, &remote_q, &visibility_q)
+        {
             current.0 = Some(target);
             return;
         }
@@ -229,12 +232,19 @@ fn pick_next_target(sorted: &[Entity], current: Option<Entity>) -> Option<Entity
 pub(crate) fn resolve_targetable_ancestor(
     entity: Entity,
     parent_query: &Query<&ChildOf>,
-    remote_q: &Query<Entity, (With<RemoteEntity>, Without<Player>)>,
+    remote_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    visibility_q: &Query<&Visibility>,
 ) -> Option<Entity> {
     let mut current = entity;
     loop {
-        if remote_q.get(current).is_ok() {
-            return Some(current);
+        if let Ok(target) = remote_q.get(current) {
+            let is_hidden = visibility_q
+                .get(target)
+                .is_ok_and(|visibility| *visibility == Visibility::Hidden);
+            if !is_hidden {
+                return Some(target);
+            }
+            return None;
         }
         let Ok(parent) = parent_query.get(current) else {
             return None;
