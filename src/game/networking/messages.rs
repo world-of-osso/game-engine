@@ -529,10 +529,8 @@ fn floating_text_from_combat_event(msg: &CombatEvent) -> Option<(u64, FloatingCo
         CombatEventType::Dodge => CombatTextKind::Dodge,
         CombatEventType::Parry => CombatTextKind::Parry,
         CombatEventType::Block => CombatTextKind::Block,
-        CombatEventType::CriticalHit
-        | CombatEventType::Interrupt
-        | CombatEventType::Death
-        | CombatEventType::Respawn => {
+        CombatEventType::CriticalHit => CombatTextKind::CritDamage,
+        CombatEventType::Interrupt | CombatEventType::Death | CombatEventType::Respawn => {
             return None;
         }
     };
@@ -1079,6 +1077,16 @@ mod tests {
                 .expect("heal text");
         assert_eq!(heal.kind, CombatTextKind::Heal);
         assert_eq!(heal.amount, 74);
+    }
+
+    #[test]
+    fn floating_text_from_critical_hit_uses_crit_damage_scaling() {
+        let (_, crit) =
+            floating_text_from_combat_event(&combat_event(CombatEventType::CriticalHit, 99.6, 0))
+                .expect("crit text");
+        assert_eq!(crit.kind, CombatTextKind::CritDamage);
+        assert_eq!(crit.amount, 100);
+        assert!(crit.kind.font_scale() > CombatTextKind::PhysicalDamage.font_scale());
     }
 
     #[test]
