@@ -21,6 +21,9 @@ use crate::collection::{
 use crate::currency::{CurrencyRuntimeState, queue_ipc_request as queue_currency_ipc_request};
 use crate::duel::{DuelClientState, queue_ipc_request_with_snapshot as queue_duel_ipc_request};
 use crate::friends::{FriendsRuntimeState, queue_ipc_request as queue_friends_ipc_request};
+use crate::ignore_list::{
+    IgnoreListRuntimeState, queue_ipc_request as queue_ignore_list_ipc_request,
+};
 use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc_request};
 use crate::item_info::lookup_item_info;
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
@@ -31,8 +34,8 @@ use crate::status::{
     AchievementsStatusSnapshot, CharacterRosterStatusSnapshot, CharacterStatsSnapshot,
     CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
     DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
+    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
     ReputationsStatusSnapshot, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
     WarbankStatusSnapshot, Waypoint,
 };
@@ -85,6 +88,7 @@ struct StatusSnapshotParams<'w> {
     combat_log: Res<'w, CombatLogStatusSnapshot>,
     collection: Res<'w, CollectionStatusSnapshot>,
     friends: Res<'w, FriendsStatusSnapshot>,
+    ignore_list: Res<'w, IgnoreListStatusSnapshot>,
     profession: Res<'w, ProfessionStatusSnapshot>,
     character_roster: Res<'w, CharacterRosterStatusSnapshot>,
     map: ResMut<'w, MapStatusSnapshot>,
@@ -108,6 +112,7 @@ pub(crate) struct DispatchContext<'a> {
     pub combat_log_status: &'a CombatLogStatusSnapshot,
     pub collection_status: &'a CollectionStatusSnapshot,
     pub friends_status: &'a FriendsStatusSnapshot,
+    pub ignore_list_status: &'a IgnoreListStatusSnapshot,
     pub profession_status: &'a ProfessionStatusSnapshot,
     pub character_roster: &'a CharacterRosterStatusSnapshot,
     pub map_status: &'a mut MapStatusSnapshot,
@@ -135,6 +140,8 @@ struct WorldParams<'w> {
     collection: ResMut<'w, CollectionRuntimeState>,
     friends: ResMut<'w, FriendsRuntimeState>,
     friends_status: Res<'w, FriendsStatusSnapshot>,
+    ignore_list: ResMut<'w, IgnoreListRuntimeState>,
+    ignore_list_status: Res<'w, IgnoreListStatusSnapshot>,
     duel: ResMut<'w, DuelClientState>,
     duel_status: Res<'w, DuelStatusSnapshot>,
     currency: ResMut<'w, CurrencyRuntimeState>,
@@ -213,6 +220,7 @@ fn build_dispatch_context<'a>(
         combat_log_status: &snapshots.combat_log,
         collection_status: &snapshots.collection,
         friends_status: &snapshots.friends,
+        ignore_list_status: &snapshots.ignore_list,
         profession_status: &snapshots.profession,
         character_roster: &snapshots.character_roster,
         map_status: snapshots.map.as_mut(),
@@ -237,6 +245,14 @@ fn dispatch(
     if queue_friends_ipc_request(
         &mut world.friends,
         &world.friends_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_ignore_list_ipc_request(
+        &mut world.ignore_list,
+        &world.ignore_list_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

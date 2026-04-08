@@ -3,9 +3,10 @@ use crate::status::{
     AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
     CurrenciesStatusSnapshot, EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot,
-    GroupRole, GroupStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry,
+    InventorySearchSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    TerrainStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -170,6 +171,20 @@ fn formats_friends_status_snapshot_with_server_message() {
     assert!(text.contains("friends: 1"));
     assert!(text.contains("message: friend added: Alice"));
     assert!(text.contains("Alice level=42 class=Mage area=Zone 12 online=true"));
+}
+
+#[test]
+fn formats_ignore_list_status_snapshot_with_server_message() {
+    let text = format_ignore_list_status(&IgnoreListStatusSnapshot {
+        names: vec!["Alice".into(), "Bob".into()],
+        last_server_message: Some("ignored: Alice".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("ignored: 2"));
+    assert!(text.contains("message: ignored: Alice"));
+    assert!(text.contains("Alice"));
+    assert!(text.contains("Bob"));
 }
 
 #[test]

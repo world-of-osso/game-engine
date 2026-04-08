@@ -65,6 +65,7 @@ pub mod guild_roster_data;
 mod helmet_geoset_data;
 #[path = "game/help_data.rs"]
 pub mod help_data;
+pub mod ignore_list;
 pub mod input_bindings;
 pub mod inspect;
 pub mod ipc;

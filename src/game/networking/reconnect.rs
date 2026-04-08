@@ -149,6 +149,11 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::friends::reset_runtime(&mut friends_state);
     }
+    if let Some(mut ignore_list_state) =
+        world.get_resource_mut::<game_engine::ignore_list::IgnoreListRuntimeState>()
+    {
+        game_engine::ignore_list::reset_runtime(&mut ignore_list_state);
+    }
     if let Some(mut world_map) =
         world.get_resource_mut::<game_engine::world_map_data::WorldMapState>()
     {
@@ -180,6 +185,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
     reset_resource::<game_engine::status::FriendsStatusSnapshot>(world);
+    reset_resource::<game_engine::status::IgnoreListStatusSnapshot>(world);
     reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
     reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
     reset_resource::<game_engine::status::InspectStatusSnapshot>(world);

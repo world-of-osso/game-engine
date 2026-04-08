@@ -7,8 +7,8 @@ use crate::status::{
     AchievementsStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
     EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    InventoryItemEntry, InventorySearchSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
-    ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
+    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
     ReputationsStatusSnapshot, SoundStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
@@ -51,6 +51,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
             format_collection_pets(ctx.collection_status, *missing)
         }
         Request::FriendsStatus => format_friends_status(ctx.friends_status),
+        Request::IgnoreStatus => format_ignore_list_status(ctx.ignore_list_status),
         Request::ProfessionRecipes { text } => {
             format_profession_recipes(ctx.profession_status, text)
         }
@@ -177,6 +178,22 @@ pub fn format_friends_status(snapshot: &FriendsStatusSnapshot) -> String {
             entry.name, entry.level, entry.class_name, entry.area, entry.online
         )
     }));
+    lines.join("\n")
+}
+
+pub fn format_ignore_list_status(snapshot: &IgnoreListStatusSnapshot) -> String {
+    let mut lines = vec![format!("ignored: {}", snapshot.names.len())];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.names.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.names.iter().cloned());
     lines.join("\n")
 }
 

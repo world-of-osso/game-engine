@@ -104,6 +104,14 @@ fn friends_status_command_maps_to_request() {
 }
 
 #[test]
+fn ignore_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Ignore).unwrap(),
+        Request::IgnoreStatus
+    );
+}
+
+#[test]
 fn network_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Network).unwrap(),
@@ -356,6 +364,32 @@ fn friend_remove_command_maps_to_request() {
         })
         .unwrap(),
         Request::FriendRemove {
+            name: "Alice".into(),
+        }
+    );
+}
+
+#[test]
+fn ignore_add_command_maps_to_request() {
+    assert_eq!(
+        ignore_request(IgnoreCmd::Add {
+            name: "Alice".into(),
+        })
+        .unwrap(),
+        Request::IgnoreAdd {
+            name: "Alice".into(),
+        }
+    );
+}
+
+#[test]
+fn ignore_remove_command_maps_to_request() {
+    assert_eq!(
+        ignore_request(IgnoreCmd::Remove {
+            name: "Alice".into(),
+        })
+        .unwrap(),
+        Request::IgnoreRemove {
             name: "Alice".into(),
         }
     );

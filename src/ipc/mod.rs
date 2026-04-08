@@ -86,6 +86,13 @@ pub enum Request {
     FriendRemove {
         name: String,
     },
+    IgnoreStatus,
+    IgnoreAdd {
+        name: String,
+    },
+    IgnoreRemove {
+        name: String,
+    },
     AchievementsStatus,
     NetworkStatus,
     TerrainStatus,

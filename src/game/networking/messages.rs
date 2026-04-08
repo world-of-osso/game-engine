@@ -23,15 +23,16 @@ use game_engine::chat_data::{
 };
 use game_engine::collection::apply_collection_state_update as map_collection_state_update;
 use game_engine::duel::apply_duel_state_update as map_duel_state_update;
+use game_engine::ignore_list::is_ignored as is_ignored_sender;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
     AchievementsStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, DuelStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
-    ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
-    QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
-    ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
-    TalentStatusSnapshot, WarbankStatusSnapshot,
+    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry,
+    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry,
+    ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry,
+    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, StorageItemEntry,
+    TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -62,6 +63,7 @@ pub(crate) fn receive_chat_messages(
     mut chat_log: ResMut<ChatLog>,
     mut chat_state: ResMut<ChatState>,
     mut whisper_state: ResMut<WhisperState>,
+    ignore_list: Res<IgnoreListStatusSnapshot>,
     selected_character: Option<Res<SelectedCharacterId>>,
 ) {
     let local_name = selected_character
@@ -72,6 +74,7 @@ pub(crate) fn receive_chat_messages(
             apply_incoming_chat_message(
                 &msg,
                 local_name,
+                &ignore_list,
                 &mut chat_log,
                 &mut chat_state,
                 &mut whisper_state,
@@ -91,10 +94,14 @@ fn apply_outgoing_chat_message(msg: &ChatMessage, whisper_state: &mut WhisperSta
 fn apply_incoming_chat_message(
     msg: &ChatMessage,
     local_name: Option<&str>,
+    ignore_list: &IgnoreListStatusSnapshot,
     chat_log: &mut ChatLog,
     chat_state: &mut ChatState,
     whisper_state: &mut WhisperState,
 ) {
+    if should_hide_message(msg, local_name, ignore_list) {
+        return;
+    }
     chat_log
         .messages
         .push((msg.sender.clone(), msg.content.clone(), msg.channel.clone()));
@@ -115,6 +122,17 @@ fn apply_incoming_chat_message(
         text: msg.content.clone(),
         timestamp,
     });
+}
+
+fn should_hide_message(
+    msg: &ChatMessage,
+    local_name: Option<&str>,
+    ignore_list: &IgnoreListStatusSnapshot,
+) -> bool {
+    if local_name.is_some_and(|name| msg.sender.eq_ignore_ascii_case(name)) {
+        return false;
+    }
+    is_ignored_sender(ignore_list, &msg.sender)
 }
 
 fn map_runtime_chat_channel(
@@ -209,6 +227,7 @@ mod tests {
         apply_incoming_chat_message(
             &whisper_message("Alice", "Theron", "psst"),
             Some("Theron"),
+            &IgnoreListStatusSnapshot::default(),
             &mut chat_log,
             &mut chat_state,
             &mut whisper_state,
@@ -237,6 +256,7 @@ mod tests {
         apply_incoming_chat_message(
             &whisper_message("Theron", "Alice", "hello"),
             Some("Theron"),
+            &IgnoreListStatusSnapshot::default(),
             &mut chat_log,
             &mut chat_state,
             &mut whisper_state,
@@ -245,6 +265,33 @@ mod tests {
         assert_eq!(whisper_state.reply_target, None);
         assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
         assert_eq!(chat_state.messages[0].channel_name, "Alice");
+    }
+
+    #[test]
+    fn ignored_sender_message_is_not_added_to_chat_log() {
+        let mut chat_log = ChatLog::default();
+        let mut chat_state = default_chat_state();
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+        let ignore_list = IgnoreListStatusSnapshot {
+            names: vec!["Alice".into()],
+            ..Default::default()
+        };
+
+        apply_incoming_chat_message(
+            &whisper_message("Alice", "Theron", "psst"),
+            Some("Theron"),
+            &ignore_list,
+            &mut chat_log,
+            &mut chat_state,
+            &mut whisper_state,
+        );
+
+        assert!(chat_log.messages.is_empty());
+        assert!(chat_state.messages.is_empty());
+        assert_eq!(whisper_state.reply_target, None);
     }
 }
 

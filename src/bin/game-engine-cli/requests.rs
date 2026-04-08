@@ -8,8 +8,8 @@ use shared::protocol::{
 
 use crate::{
     AuctionCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, FriendCmd, GroupCmd,
-    InspectCmd, InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd,
-    SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
+    IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd,
+    ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -94,6 +94,15 @@ pub fn friend_request(command: FriendCmd) -> Result<Request, String> {
         FriendCmd::Status => Request::FriendsStatus,
         FriendCmd::Add { name } => Request::FriendAdd { name },
         FriendCmd::Remove { name } => Request::FriendRemove { name },
+    };
+    Ok(request)
+}
+
+pub fn ignore_request(command: IgnoreCmd) -> Result<Request, String> {
+    let request = match command {
+        IgnoreCmd::Status => Request::IgnoreStatus,
+        IgnoreCmd::Add { name } => Request::IgnoreAdd { name },
+        IgnoreCmd::Remove { name } => Request::IgnoreRemove { name },
     };
     Ok(request)
 }
@@ -271,6 +280,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
         StatusCmd::Achievements => Request::AchievementsStatus,
         StatusCmd::Friends => Request::FriendsStatus,
+        StatusCmd::Ignore => Request::IgnoreStatus,
         StatusCmd::Network => Request::NetworkStatus,
         StatusCmd::Terrain => Request::TerrainStatus,
         StatusCmd::Sound => Request::SoundStatus,

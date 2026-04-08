@@ -216,6 +216,13 @@ pub struct FriendsStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct IgnoreListStatusSnapshot {
+    pub names: Vec<String>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StorageItemEntry {
     pub slot: u32,
@@ -563,6 +570,15 @@ mod tests {
     }
 
     #[test]
+    fn ignore_list_status_snapshot_defaults_to_empty_names() {
+        let snapshot = IgnoreListStatusSnapshot::default();
+
+        assert!(snapshot.names.is_empty());
+        assert!(snapshot.last_server_message.is_none());
+        assert!(snapshot.last_error.is_none());
+    }
+
+    #[test]
     fn combat_log_snapshot_defaults_to_no_entries() {
         let snapshot = CombatLogStatusSnapshot::default();
 
@@ -762,6 +778,16 @@ mod tests {
     }
 
     #[test]
+    fn ignore_list_status_round_trip() {
+        let snapshot = IgnoreListStatusSnapshot {
+            names: vec!["Alice".into(), "Bob".into()],
+            last_server_message: Some("ignored: Alice".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
     fn default_snapshots_round_trip() {
         round_trip(&NetworkStatusSnapshot::default());
         round_trip(&TerrainStatusSnapshot::default());
@@ -775,6 +801,7 @@ mod tests {
         round_trip(&QuestLogStatusSnapshot::default());
         round_trip(&GroupStatusSnapshot::default());
         round_trip(&FriendsStatusSnapshot::default());
+        round_trip(&IgnoreListStatusSnapshot::default());
         round_trip(&CombatLogStatusSnapshot::default());
     }
 
