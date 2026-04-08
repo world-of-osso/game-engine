@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
 
 use crate::camera::{self, WowCamera};
-use crate::networking::{LocalPlayer, ServerAddr};
+use crate::networking::{CurrentZone, LocalPlayer, ServerAddr};
 use crate::shadow_config::default_cascade_shadow_config;
 use crate::sky;
 use crate::terrain::AdtManager;
@@ -22,6 +22,12 @@ pub struct StartupScreenTarget(pub GameState);
 #[derive(Resource)]
 pub struct StartupPerfTimer(pub Instant);
 
+#[derive(Resource, Default)]
+struct ZoneTransitionTracker {
+    observed_zone_id: u32,
+    initialized: bool,
+}
+
 /// Resource tracking when we entered the Connecting state (for timeout).
 #[derive(Resource)]
 struct ConnectingStartTime(f64);
@@ -36,6 +42,7 @@ impl Plugin for GameStatePlugin {
         let has_server = app.world().get_resource::<ServerAddr>().is_some();
         let initial_state = app.world().get_resource::<InitialGameState>().map(|s| s.0);
         init_state(app, has_server, initial_state);
+        app.init_resource::<ZoneTransitionTracker>();
         register_state_transitions(app, has_server);
         register_in_world_systems(app);
         app.add_systems(Update, log_screen_switches);
@@ -69,6 +76,7 @@ fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::Loading), on_enter_loading);
     app.add_systems(OnEnter(GameState::TrashButton), on_enter_trash_button);
     app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
+    app.add_systems(OnEnter(GameState::InWorld), reset_zone_transition_tracker);
     if has_server {
         app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
     }
@@ -80,6 +88,10 @@ fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(
         Update,
         check_loading_complete.run_if(in_state(GameState::Loading)),
+    );
+    app.add_systems(
+        Update,
+        handle_zone_transition.run_if(in_state(GameState::InWorld)),
     );
 }
 
@@ -172,6 +184,10 @@ fn on_enter_in_world() {
 
 fn on_enter_trash_button() {
     info!("Entering TrashButton state");
+}
+
+fn reset_zone_transition_tracker(mut tracker: ResMut<ZoneTransitionTracker>) {
+    *tracker = ZoneTransitionTracker::default();
 }
 
 /// Spawn world environment (lights, sky dome) when entering InWorld in server mode.
@@ -319,6 +335,37 @@ fn check_loading_complete(
     }
 }
 
+fn handle_zone_transition(
+    current_zone: Res<CurrentZone>,
+    mut tracker: ResMut<ZoneTransitionTracker>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if !current_zone.is_changed() {
+        return;
+    }
+    let previous_zone_id = tracker.observed_zone_id;
+    if should_enter_loading_for_zone_change(&mut tracker, current_zone.zone_id) {
+        info!(
+            "Zone transition {} -> {}, entering Loading",
+            previous_zone_id, current_zone.zone_id
+        );
+        next_state.set(GameState::Loading);
+    }
+}
+
+fn should_enter_loading_for_zone_change(tracker: &mut ZoneTransitionTracker, zone_id: u32) -> bool {
+    if !tracker.initialized {
+        tracker.observed_zone_id = zone_id;
+        tracker.initialized = true;
+        return false;
+    }
+
+    let previous_zone_id = tracker.observed_zone_id;
+    tracker.observed_zone_id = zone_id;
+
+    previous_zone_id != 0 && zone_id != 0 && zone_id != previous_zone_id
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -433,5 +480,38 @@ mod tests {
                 status_text: "Entering world..."
             }
         );
+    }
+
+    #[test]
+    fn first_observed_zone_does_not_trigger_loading() {
+        let mut tracker = ZoneTransitionTracker::default();
+
+        assert!(!should_enter_loading_for_zone_change(&mut tracker, 12));
+        assert_eq!(tracker.observed_zone_id, 12);
+        assert!(tracker.initialized);
+    }
+
+    #[test]
+    fn zone_change_between_nonzero_zones_triggers_loading() {
+        let mut tracker = ZoneTransitionTracker {
+            observed_zone_id: 12,
+            initialized: true,
+        };
+
+        assert!(should_enter_loading_for_zone_change(&mut tracker, 1519));
+        assert_eq!(tracker.observed_zone_id, 1519);
+    }
+
+    #[test]
+    fn zero_zone_resets_without_triggering_loading() {
+        let mut tracker = ZoneTransitionTracker {
+            observed_zone_id: 12,
+            initialized: true,
+        };
+
+        assert!(!should_enter_loading_for_zone_change(&mut tracker, 0));
+        assert_eq!(tracker.observed_zone_id, 0);
+        assert!(!should_enter_loading_for_zone_change(&mut tracker, 1519));
+        assert_eq!(tracker.observed_zone_id, 1519);
     }
 }

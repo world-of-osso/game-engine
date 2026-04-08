@@ -384,6 +384,14 @@ fn classify_world_object_model_detects_clickable_prop_types() {
         ))
     );
     assert_eq!(
+        classify_world_object_model("world/wmo/outland/darkportal/darkportal.wmo"),
+        Some(WorldObjectInteractionKind::ZoneTransition)
+    );
+    assert_eq!(
+        classify_world_object_model("world/wmo/dungeon/nd_necropolis/nd_necropolisteleport01.wmo"),
+        Some(WorldObjectInteractionKind::ZoneTransition)
+    );
+    assert_eq!(
         classify_world_object_model("world/expansion02/doodads/anvil/anvil_01.m2"),
         Some(WorldObjectInteractionKind::Anvil)
     );
@@ -401,6 +409,10 @@ fn classify_world_object_model_avoids_location_false_positives() {
     );
     assert_eq!(
         classify_world_object_model("world/wmo/dungeon/md_anvilmarpass/anvilmarpass_000.wmo"),
+        None
+    );
+    assert_eq!(
+        classify_world_object_model("world/wmo/test/antiportal_000.wmo"),
         None
     );
 }
@@ -538,6 +550,22 @@ fn interact_with_object_gather_node_starts_cast_and_blocks_repeat() {
         Some(&mut profession_runtime),
         Some(&mut casting_state),
     ));
+}
+
+#[test]
+fn interact_with_object_zone_transition_consumes_click() {
+    let mut queue = game_engine::mail_data::MailIntentQueue::default();
+
+    assert!(interact_with_object(
+        WorldObjectInteractionKind::ZoneTransition,
+        &mut queue,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ));
+    assert!(queue.pending.is_empty());
 }
 
 #[test]

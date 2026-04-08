@@ -72,6 +72,7 @@ pub enum WorldObjectInteractionKind {
     Anvil,
     Chair,
     GatherNode(GatherNodeKind),
+    ZoneTransition,
     QuestObject,
 }
 
@@ -216,6 +217,13 @@ pub(crate) fn classify_world_object_model(model: &str) -> Option<WorldObjectInte
         return Some(WorldObjectInteractionKind::GatherNode(
             GatherNodeKind::CopperVein,
         ));
+    }
+    if stem.contains("darkportal")
+        || stem.contains("landingpad")
+        || stem.contains("teleport")
+        || (stem.contains("portal") && !stem.contains("antiportal"))
+    {
+        return Some(WorldObjectInteractionKind::ZoneTransition);
     }
     if stem.contains("anvil") && !stem.contains("anvilmar") {
         return Some(WorldObjectInteractionKind::Anvil);
@@ -638,6 +646,7 @@ fn interact_with_object(
         WorldObjectInteractionKind::GatherNode(node) => {
             start_gather_cast(node, profession_runtime, casting_state)
         }
+        WorldObjectInteractionKind::ZoneTransition => true,
         WorldObjectInteractionKind::QuestObject => false,
     }
 }
