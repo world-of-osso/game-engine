@@ -155,6 +155,14 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
+    app.insert_resource(game_engine::chat_data::ChatState {
+        max_messages: MAX_CHAT_LOG,
+        ..Default::default()
+    });
+    app.insert_resource(game_engine::chat_data::WhisperState {
+        max_recent: 10,
+        ..Default::default()
+    });
     app.init_resource::<ReconnectState>();
     let server = app
         .world()

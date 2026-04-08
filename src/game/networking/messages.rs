@@ -12,7 +12,11 @@ use shared::protocol::{
 
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::networking::{ChatInput, ChatLog, CurrentZone, MAX_CHAT_LOG, MAX_COMBAT_LOG};
+use crate::networking_auth::SelectedCharacterId;
 use crate::terrain::AdtManager;
+use game_engine::chat_data::{
+    ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState,
+};
 use game_engine::status::{
     CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, CurrencyEntry,
@@ -26,6 +30,7 @@ use game_engine::targeting::CurrentTarget;
 /// Send a queued chat message to the server.
 pub(crate) fn send_chat_message(
     mut chat_input: ResMut<ChatInput>,
+    mut whisper_state: ResMut<WhisperState>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: Query<&mut MessageSender<ChatMessage>>,
 ) {
@@ -36,6 +41,7 @@ pub(crate) fn send_chat_message(
     let Some(msg) = chat_input.0.take() else {
         return;
     };
+    apply_outgoing_chat_message(&msg, &mut whisper_state);
     for mut sender in senders.iter_mut() {
         sender.send::<ChatChannel>(msg.clone());
     }
@@ -45,16 +51,191 @@ pub(crate) fn send_chat_message(
 pub(crate) fn receive_chat_messages(
     mut receivers: Query<&mut MessageReceiver<ChatMessage>>,
     mut chat_log: ResMut<ChatLog>,
+    mut chat_state: ResMut<ChatState>,
+    mut whisper_state: ResMut<WhisperState>,
+    selected_character: Option<Res<SelectedCharacterId>>,
 ) {
+    let local_name = selected_character
+        .as_deref()
+        .and_then(|selected| selected.character_name.as_deref());
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
-            chat_log
-                .messages
-                .push((msg.sender, msg.content, msg.channel));
-            if chat_log.messages.len() > MAX_CHAT_LOG {
-                chat_log.messages.remove(0);
-            }
+            apply_incoming_chat_message(
+                &msg,
+                local_name,
+                &mut chat_log,
+                &mut chat_state,
+                &mut whisper_state,
+            );
         }
+    }
+}
+
+fn apply_outgoing_chat_message(msg: &ChatMessage, whisper_state: &mut WhisperState) {
+    if let shared::protocol::ChatType::Whisper(target) = &msg.channel
+        && !target.trim().is_empty()
+    {
+        whisper_state.send_whisper(target);
+    }
+}
+
+fn apply_incoming_chat_message(
+    msg: &ChatMessage,
+    local_name: Option<&str>,
+    chat_log: &mut ChatLog,
+    chat_state: &mut ChatState,
+    whisper_state: &mut WhisperState,
+) {
+    chat_log
+        .messages
+        .push((msg.sender.clone(), msg.content.clone(), msg.channel.clone()));
+    if chat_log.messages.len() > MAX_CHAT_LOG {
+        chat_log.messages.remove(0);
+    }
+
+    let timestamp = current_chat_timestamp();
+    let (channel_type, channel_name) =
+        map_runtime_chat_channel(&msg.channel, &msg.sender, local_name);
+    if channel_type == ChatChannelType::Whisper {
+        update_whisper_state(whisper_state, msg, local_name);
+    }
+    chat_state.add_message(RuntimeChatMessage {
+        channel_type,
+        channel_name,
+        sender: msg.sender.clone(),
+        text: msg.content.clone(),
+        timestamp,
+    });
+}
+
+fn map_runtime_chat_channel(
+    channel: &shared::protocol::ChatType,
+    sender: &str,
+    local_name: Option<&str>,
+) -> (ChatChannelType, String) {
+    match channel {
+        shared::protocol::ChatType::Say => (ChatChannelType::Say, String::new()),
+        shared::protocol::ChatType::Yell => (ChatChannelType::Yell, String::new()),
+        shared::protocol::ChatType::Party => (ChatChannelType::Party, String::new()),
+        shared::protocol::ChatType::Guild => (ChatChannelType::Guild, String::new()),
+        shared::protocol::ChatType::Whisper(target) => {
+            let is_outgoing = local_name.is_some_and(|name| sender.eq_ignore_ascii_case(name));
+            let channel_name = if is_outgoing {
+                target.clone()
+            } else {
+                String::new()
+            };
+            (ChatChannelType::Whisper, channel_name)
+        }
+    }
+}
+
+fn update_whisper_state(
+    whisper_state: &mut WhisperState,
+    msg: &ChatMessage,
+    local_name: Option<&str>,
+) {
+    let shared::protocol::ChatType::Whisper(target) = &msg.channel else {
+        return;
+    };
+    let is_outgoing = local_name.is_some_and(|name| msg.sender.eq_ignore_ascii_case(name));
+    if is_outgoing {
+        whisper_state.send_whisper(target);
+    } else {
+        whisper_state.receive_whisper(&msg.sender);
+    }
+}
+
+fn current_chat_timestamp() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs_f64())
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn whisper_message(sender: &str, target: &str, content: &str) -> ChatMessage {
+        ChatMessage {
+            sender: sender.into(),
+            content: content.into(),
+            channel: shared::protocol::ChatType::Whisper(target.into()),
+        }
+    }
+
+    fn default_chat_state() -> ChatState {
+        ChatState {
+            max_messages: MAX_CHAT_LOG,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn outgoing_whisper_updates_recent_targets() {
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+
+        apply_outgoing_chat_message(
+            &whisper_message("Theron", "Alice", "hey"),
+            &mut whisper_state,
+        );
+
+        assert_eq!(whisper_state.reply_target, None);
+        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+    }
+
+    #[test]
+    fn incoming_whisper_sets_reply_target_and_runtime_message() {
+        let mut chat_log = ChatLog::default();
+        let mut chat_state = default_chat_state();
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+
+        apply_incoming_chat_message(
+            &whisper_message("Alice", "Theron", "psst"),
+            Some("Theron"),
+            &mut chat_log,
+            &mut chat_state,
+            &mut whisper_state,
+        );
+
+        assert_eq!(chat_log.messages.len(), 1);
+        assert_eq!(whisper_state.reply_target.as_deref(), Some("Alice"));
+        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+        assert_eq!(chat_state.messages.len(), 1);
+        assert_eq!(
+            chat_state.messages[0].channel_type,
+            ChatChannelType::Whisper
+        );
+        assert_eq!(chat_state.messages[0].channel_name, "");
+    }
+
+    #[test]
+    fn outgoing_whisper_message_tracks_recipient_without_reply_target() {
+        let mut chat_log = ChatLog::default();
+        let mut chat_state = default_chat_state();
+        let mut whisper_state = WhisperState {
+            max_recent: 10,
+            ..Default::default()
+        };
+
+        apply_incoming_chat_message(
+            &whisper_message("Theron", "Alice", "hello"),
+            Some("Theron"),
+            &mut chat_log,
+            &mut chat_state,
+            &mut whisper_state,
+        );
+
+        assert_eq!(whisper_state.reply_target, None);
+        assert_eq!(whisper_state.recent_targets, vec!["Alice"]);
+        assert_eq!(chat_state.messages[0].channel_name, "Alice");
     }
 }
 

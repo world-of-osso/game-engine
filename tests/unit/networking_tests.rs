@@ -9,6 +9,7 @@ use crate::networking_player::{
     resolve_player_model_path, sync_local_alive_state,
 };
 use crate::networking_reconnect::{finish_reconnect_when_world_ready, reset_network_world};
+use game_engine::chat_data::WhisperState;
 use shared::components::{CharacterAppearance, Health as NetHealth, Player as NetPlayer};
 
 fn make_state(direction: MoveDirection) -> MovementState {
@@ -211,6 +212,11 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
     app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
+    app.insert_resource(WhisperState {
+        reply_target: Some("StaleWhisper".into()),
+        recent_targets: vec!["StaleWhisper".into()],
+        max_recent: 10,
+    });
     app.add_observer(handle_client_disconnected);
     app
 }
@@ -262,6 +268,9 @@ fn assert_inworld_reconnect_state(app: &App, client: Entity, replicated: Entity)
             .is_none()
     );
     assert!(app.world().resource::<ChatLog>().messages.is_empty());
+    let whisper_state = app.world().resource::<WhisperState>();
+    assert_eq!(whisper_state.reply_target, None);
+    assert!(whisper_state.recent_targets.is_empty());
 }
 
 #[test]

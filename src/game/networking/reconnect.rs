@@ -103,6 +103,15 @@ fn reset_world_resources(world: &mut World) {
     if let Some(mut chat_input) = world.get_resource_mut::<ChatInput>() {
         chat_input.0 = None;
     }
+    if let Some(mut chat_state) = world.get_resource_mut::<game_engine::chat_data::ChatState>() {
+        chat_state.messages.clear();
+    }
+    if let Some(mut whisper_state) =
+        world.get_resource_mut::<game_engine::chat_data::WhisperState>()
+    {
+        whisper_state.reply_target = None;
+        whisper_state.recent_targets.clear();
+    }
     if let Some(mut adt_manager) = world.get_resource_mut::<crate::terrain::AdtManager>() {
         adt_manager.server_requested.clear();
     }
