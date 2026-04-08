@@ -977,6 +977,65 @@ fn switch_animation_uses_swim_idle_when_stationary_in_water() {
 }
 
 #[test]
+fn turn_in_place_direction_tracks_yaw_delta() {
+    assert_eq!(
+        turn_in_place_direction(0.0, 0.04),
+        Some(TurnDirection::Left)
+    );
+    assert_eq!(
+        turn_in_place_direction(0.0, -0.04),
+        Some(TurnDirection::Right)
+    );
+    assert_eq!(turn_in_place_direction(0.0, 0.005), None);
+}
+
+#[test]
+fn switch_animation_uses_turn_left_when_idle_and_rotating() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, (sync_turn_in_place_state, switch_animation).chain());
+
+    let entity = app
+        .world_mut()
+        .spawn((
+            Transform::from_rotation(Quat::from_rotation_y(0.0)),
+            M2AnimPlayer {
+                current_seq_idx: 0,
+                time_ms: 0.0,
+                looping: true,
+                transition: None,
+            },
+            M2AnimData {
+                bones: Vec::new(),
+                spherical_billboards: Vec::new(),
+                sequences: vec![
+                    sequence(ANIM_STAND, 1000),
+                    sequence(ANIM_SHUFFLE_LEFT, 250),
+                    sequence(ANIM_SHUFFLE_RIGHT, 250),
+                ],
+                bone_tracks: Vec::new(),
+                joint_entities: Vec::new(),
+            },
+            MovementState::default(),
+        ))
+        .id();
+
+    app.update();
+
+    app.world_mut()
+        .entity_mut(entity)
+        .insert(Transform::from_rotation(Quat::from_rotation_y(0.08)));
+    app.update();
+
+    let player = app
+        .world()
+        .get::<M2AnimPlayer>(entity)
+        .expect("anim player");
+    let data = app.world().get::<M2AnimData>(entity).expect("anim data");
+    assert_eq!(data.sequences[player.current_seq_idx].id, ANIM_SHUFFLE_LEFT);
+}
+
+#[test]
 fn cancel_movement_returns_walk_when_walking() {
     let (anim, _) = cancel_anim_params(AnimCancelReason::Movement, true, false);
     assert_eq!(anim, ANIM_WALK);

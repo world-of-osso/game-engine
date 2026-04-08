@@ -87,6 +87,19 @@ const ANIM_PARRY_1H: u16 = 49;
 const ANIM_PARRY_2H: u16 = 50;
 const ANIM_READY_1H: u16 = 53;
 const ANIM_READY_2H: u16 = 54;
+const TURN_IN_PLACE_THRESHOLD: f32 = 0.02;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TurnDirection {
+    Left,
+    Right,
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct TurnInPlaceState {
+    pub last_yaw: f32,
+    pub direction: Option<TurnDirection>,
+}
 
 /// Melee weapon type, determines which attack animation to play.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -384,11 +397,12 @@ fn movement_interrupts_looping_emote(movement: &MovementState) -> bool {
     movement.direction != MoveDirection::None || movement.jumping || movement.swimming
 }
 
-fn movement_anim_id(movement: Option<&MovementState>) -> u16 {
+fn movement_anim_id(
+    movement: Option<&MovementState>,
+    turn_in_place: Option<&TurnInPlaceState>,
+) -> u16 {
     movement
-        .map(|movement| {
-            direction_to_anim_id(movement.direction, movement.running, movement.swimming)
-        })
+        .map(|movement| movement_or_turn_anim_id(movement, turn_in_place))
         .unwrap_or(ANIM_STAND)
 }
 
@@ -411,9 +425,14 @@ fn interrupt_looping_emote(
     player: &mut M2AnimPlayer,
     data: &M2AnimData,
     movement: Option<&MovementState>,
+    turn_in_place: Option<&TurnInPlaceState>,
 ) {
     player.looping = true;
-    transition_to_anim(player, &data.sequences, movement_anim_id(movement));
+    transition_to_anim(
+        player,
+        &data.sequences,
+        movement_anim_id(movement, turn_in_place),
+    );
     commands.entity(entity).remove::<EmoteAnimState>();
 }
 
@@ -435,10 +454,36 @@ fn finish_transient_emote(
     player: &mut M2AnimPlayer,
     data: &M2AnimData,
     movement: Option<&MovementState>,
+    turn_in_place: Option<&TurnInPlaceState>,
 ) {
     player.looping = true;
-    transition_to_anim(player, &data.sequences, movement_anim_id(movement));
+    transition_to_anim(
+        player,
+        &data.sequences,
+        movement_anim_id(movement, turn_in_place),
+    );
     commands.entity(entity).remove::<EmoteAnimState>();
+}
+
+fn turn_in_place_anim_id(direction: TurnDirection) -> u16 {
+    match direction {
+        TurnDirection::Left => ANIM_SHUFFLE_LEFT,
+        TurnDirection::Right => ANIM_SHUFFLE_RIGHT,
+    }
+}
+
+fn movement_or_turn_anim_id(
+    movement: &MovementState,
+    turn_in_place: Option<&TurnInPlaceState>,
+) -> u16 {
+    let idle_turn = movement.direction == MoveDirection::None
+        && !movement.jumping
+        && !movement.swimming
+        && turn_in_place.and_then(|state| state.direction).is_some();
+    if idle_turn {
+        return turn_in_place_anim_id(turn_in_place.and_then(|state| state.direction).unwrap());
+    }
+    direction_to_anim_id(movement.direction, movement.running, movement.swimming)
 }
 
 /// Map movement direction to a WoW animation ID.
@@ -464,6 +509,63 @@ fn direction_to_anim_id(dir: MoveDirection, running: bool, swimming: bool) -> u1
         MoveDirection::Backward => ANIM_WALK_BACKWARDS,
         MoveDirection::Left => ANIM_SHUFFLE_LEFT,
         MoveDirection::Right => ANIM_SHUFFLE_RIGHT,
+    }
+}
+
+fn normalize_yaw_delta(delta: f32) -> f32 {
+    let two_pi = std::f32::consts::TAU;
+    ((delta + std::f32::consts::PI).rem_euclid(two_pi)) - std::f32::consts::PI
+}
+
+fn transform_yaw(transform: &Transform) -> f32 {
+    transform.rotation.to_euler(EulerRot::YXZ).0
+}
+
+fn turn_in_place_direction(previous_yaw: f32, current_yaw: f32) -> Option<TurnDirection> {
+    let delta = normalize_yaw_delta(current_yaw - previous_yaw);
+    if delta >= TURN_IN_PLACE_THRESHOLD {
+        Some(TurnDirection::Left)
+    } else if delta <= -TURN_IN_PLACE_THRESHOLD {
+        Some(TurnDirection::Right)
+    } else {
+        None
+    }
+}
+
+fn sync_turn_in_place_state(
+    mut commands: Commands,
+    mut players: Query<
+        (
+            Entity,
+            &Transform,
+            &MovementState,
+            Option<&EmoteAnimState>,
+            Option<&mut TurnInPlaceState>,
+        ),
+        With<M2AnimPlayer>,
+    >,
+) {
+    for (entity, transform, movement, emote, turn_state) in &mut players {
+        let current_yaw = transform_yaw(transform);
+        let idle =
+            movement.direction == MoveDirection::None && !movement.jumping && !movement.swimming;
+        let blocked = emote.is_some();
+        match turn_state {
+            Some(mut state) => {
+                state.direction = if idle && !blocked {
+                    turn_in_place_direction(state.last_yaw, current_yaw)
+                } else {
+                    None
+                };
+                state.last_yaw = current_yaw;
+            }
+            None => {
+                commands.entity(entity).insert(TurnInPlaceState {
+                    last_yaw: current_yaw,
+                    direction: None,
+                });
+            }
+        }
     }
 }
 
@@ -524,11 +626,12 @@ fn switch_animation(
     mut players: Query<(
         &mut M2AnimPlayer,
         Option<&MovementState>,
+        Option<&TurnInPlaceState>,
         &M2AnimData,
         Option<&EmoteAnimState>,
     )>,
 ) {
-    for (mut player, movement, data, emote) in &mut players {
+    for (mut player, movement, turn_in_place, data, emote) in &mut players {
         if emote.is_some() {
             continue;
         }
@@ -543,8 +646,7 @@ fn switch_animation(
             continue;
         }
 
-        let target_id =
-            direction_to_anim_id(movement.direction, movement.running, movement.swimming);
+        let target_id = movement_or_turn_anim_id(movement, turn_in_place);
         if current_id == Some(target_id) {
             continue;
         }
@@ -563,10 +665,11 @@ fn apply_emote_animation(
         &mut M2AnimPlayer,
         &M2AnimData,
         Option<&MovementState>,
+        Option<&TurnInPlaceState>,
         &mut EmoteAnimState,
     )>,
 ) {
-    for (entity, mut player, data, movement, mut emote) in &mut players {
+    for (entity, mut player, data, movement, turn_in_place, mut emote) in &mut players {
         let Some(emote_idx) = find_seq_idx(&data.sequences, emote.anim_id()) else {
             commands.entity(entity).remove::<EmoteAnimState>();
             continue;
@@ -575,7 +678,14 @@ fn apply_emote_animation(
         if emote.loops_until_interrupted()
             && movement.is_some_and(movement_interrupts_looping_emote)
         {
-            interrupt_looping_emote(&mut commands, entity, &mut player, data, movement);
+            interrupt_looping_emote(
+                &mut commands,
+                entity,
+                &mut player,
+                data,
+                movement,
+                turn_in_place,
+            );
             continue;
         }
 
@@ -592,7 +702,14 @@ fn apply_emote_animation(
             continue;
         }
 
-        finish_transient_emote(&mut commands, entity, &mut player, data, movement);
+        finish_transient_emote(
+            &mut commands,
+            entity,
+            &mut player,
+            data,
+            movement,
+            turn_in_place,
+        );
     }
 }
 
@@ -858,6 +975,7 @@ impl Plugin for AnimationPlugin {
         app.add_systems(
             Update,
             (
+                sync_turn_in_place_state,
                 apply_emote_animation,
                 switch_animation,
                 tick_animation,
