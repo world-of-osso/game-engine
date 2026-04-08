@@ -235,6 +235,21 @@ impl PartyState {
         }
     }
 
+    /// Assign a role to a member by name. Returns true if found.
+    pub fn assign_role(&mut self, name: &str, role: GroupRole) -> bool {
+        if let Some(m) = self.members.iter_mut().find(|m| m.name == name) {
+            m.role = role;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Count members with a specific role.
+    pub fn role_count(&self, role: GroupRole) -> usize {
+        self.members.iter().filter(|m| m.role == role).count()
+    }
+
     /// True when ready check is active and all have responded (no Pending).
     pub fn all_responded(&self) -> bool {
         self.ready_check_active
@@ -328,6 +343,13 @@ pub enum GroupIntent {
     AcceptReadyCheck,
     /// Local player declines the ready check.
     DeclineReadyCheck,
+    /// Assign a role to a party/raid member.
+    SetRole {
+        player_name: String,
+        role: GroupRole,
+    },
+    /// Set the local player's own role.
+    SetOwnRole { role: GroupRole },
 }
 
 /// Queue of group intents waiting to be sent to the server.
@@ -347,6 +369,15 @@ impl GroupIntentQueue {
 
     pub fn decline_ready_check(&mut self) {
         self.pending.push(GroupIntent::DeclineReadyCheck);
+    }
+
+    pub fn set_role(&mut self, player_name: String, role: GroupRole) {
+        self.pending
+            .push(GroupIntent::SetRole { player_name, role });
+    }
+
+    pub fn set_own_role(&mut self, role: GroupRole) {
+        self.pending.push(GroupIntent::SetOwnRole { role });
     }
 
     pub fn drain(&mut self) -> Vec<GroupIntent> {
@@ -721,11 +752,74 @@ mod tests {
     }
 
     #[test]
+    fn group_intent_set_role() {
+        let mut queue = GroupIntentQueue::default();
+        queue.set_role("Alice".into(), GroupRole::Tank);
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GroupIntent::SetRole {
+                player_name: "Alice".into(),
+                role: GroupRole::Tank,
+            }
+        );
+    }
+
+    #[test]
+    fn group_intent_set_own_role() {
+        let mut queue = GroupIntentQueue::default();
+        queue.set_own_role(GroupRole::Healer);
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GroupIntent::SetOwnRole {
+                role: GroupRole::Healer
+            }
+        );
+    }
+
+    #[test]
     fn group_intent_drain_clears() {
         let mut queue = GroupIntentQueue::default();
         queue.initiate_ready_check();
         assert_eq!(queue.drain().len(), 1);
         assert!(queue.pending.is_empty());
+    }
+
+    // --- Role assignment on PartyState ---
+
+    #[test]
+    fn party_assign_role() {
+        let mut state = PartyState {
+            members: vec![named_unit("Alice"), named_unit("Bob")],
+            ..Default::default()
+        };
+        assert!(state.assign_role("Alice", GroupRole::Tank));
+        assert_eq!(state.members[0].role, GroupRole::Tank);
+        assert_eq!(state.members[1].role, GroupRole::Dps); // unchanged
+    }
+
+    #[test]
+    fn party_assign_role_not_found() {
+        let mut state = PartyState {
+            members: vec![named_unit("Alice")],
+            ..Default::default()
+        };
+        assert!(!state.assign_role("Unknown", GroupRole::Healer));
+    }
+
+    #[test]
+    fn party_role_count() {
+        let mut state = PartyState {
+            members: vec![named_unit("A"), named_unit("B"), named_unit("C")],
+            ..Default::default()
+        };
+        state.assign_role("A", GroupRole::Tank);
+        state.assign_role("B", GroupRole::Healer);
+        // C remains Dps (default)
+        assert_eq!(state.role_count(GroupRole::Tank), 1);
+        assert_eq!(state.role_count(GroupRole::Healer), 1);
+        assert_eq!(state.role_count(GroupRole::Dps), 1);
     }
 
     #[test]
