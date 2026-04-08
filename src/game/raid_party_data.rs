@@ -211,6 +211,38 @@ impl PartyState {
             .iter()
             .all(|m| m.ready_check == ReadyCheck::Accepted)
     }
+
+    /// Begin a new ready check, setting all members to Pending.
+    pub fn start_ready_check(&mut self) {
+        self.ready_check_active = true;
+        for m in &mut self.members {
+            m.ready_check = ReadyCheck::Pending;
+        }
+    }
+
+    /// Record a member's ready check response by name.
+    pub fn respond_ready_check(&mut self, name: &str, response: ReadyCheck) {
+        if let Some(m) = self.members.iter_mut().find(|m| m.name == name) {
+            m.ready_check = response;
+        }
+    }
+
+    /// End the ready check, resetting all member states.
+    pub fn finish_ready_check(&mut self) {
+        self.ready_check_active = false;
+        for m in &mut self.members {
+            m.ready_check = ReadyCheck::None;
+        }
+    }
+
+    /// True when ready check is active and all have responded (no Pending).
+    pub fn all_responded(&self) -> bool {
+        self.ready_check_active
+            && self
+                .members
+                .iter()
+                .all(|m| m.ready_check != ReadyCheck::Pending)
+    }
 }
 
 /// Raid state: up to 8 groups of 5.
@@ -238,6 +270,87 @@ impl RaidState {
             .iter()
             .flat_map(|g| &g.members)
             .all(|m| m.ready_check == ReadyCheck::Accepted)
+    }
+}
+
+// --- Ready check popup state ---
+
+/// Ready check lifecycle state shown as a popup to the local player.
+#[derive(Resource, Clone, Debug, PartialEq, Default)]
+pub struct ReadyCheckState {
+    /// Whether a ready check is currently in progress.
+    pub active: bool,
+    /// Name of the player who initiated the check.
+    pub initiator: String,
+    /// Seconds remaining before the check times out.
+    pub remaining_secs: f32,
+    /// The local player's response.
+    pub local_response: ReadyCheck,
+}
+
+/// Ready check timeout in seconds (WoW default).
+pub const READY_CHECK_TIMEOUT_SECS: f32 = 30.0;
+
+impl ReadyCheckState {
+    /// Begin a new ready check from the given initiator.
+    pub fn start(&mut self, initiator: String) {
+        self.active = true;
+        self.initiator = initiator;
+        self.remaining_secs = READY_CHECK_TIMEOUT_SECS;
+        self.local_response = ReadyCheck::Pending;
+    }
+
+    /// Record the local player's response.
+    pub fn respond(&mut self, response: ReadyCheck) {
+        self.local_response = response;
+    }
+
+    /// Whether the local player still needs to respond.
+    pub fn awaiting_response(&self) -> bool {
+        self.active && self.local_response == ReadyCheck::Pending
+    }
+
+    /// End the ready check (timeout or all responded).
+    pub fn finish(&mut self) {
+        self.active = false;
+        self.remaining_secs = 0.0;
+    }
+}
+
+// --- Client → server intents ---
+
+/// A pending group/party action to send to the server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GroupIntent {
+    /// Leader initiates a ready check.
+    InitiateReadyCheck,
+    /// Local player accepts the ready check.
+    AcceptReadyCheck,
+    /// Local player declines the ready check.
+    DeclineReadyCheck,
+}
+
+/// Queue of group intents waiting to be sent to the server.
+#[derive(Resource, Default)]
+pub struct GroupIntentQueue {
+    pub pending: Vec<GroupIntent>,
+}
+
+impl GroupIntentQueue {
+    pub fn initiate_ready_check(&mut self) {
+        self.pending.push(GroupIntent::InitiateReadyCheck);
+    }
+
+    pub fn accept_ready_check(&mut self) {
+        self.pending.push(GroupIntent::AcceptReadyCheck);
+    }
+
+    pub fn decline_ready_check(&mut self) {
+        self.pending.push(GroupIntent::DeclineReadyCheck);
+    }
+
+    pub fn drain(&mut self) -> Vec<GroupIntent> {
+        std::mem::take(&mut self.pending)
     }
 }
 
@@ -487,6 +600,132 @@ mod tests {
             ready_check_active: true,
         };
         assert!(state.all_ready());
+    }
+
+    // --- PartyState ready check lifecycle ---
+
+    fn named_unit(name: &str) -> GroupUnitState {
+        GroupUnitState {
+            name: name.into(),
+            ..unit(100, 100)
+        }
+    }
+
+    #[test]
+    fn party_start_ready_check() {
+        let mut state = PartyState {
+            members: vec![named_unit("Alice"), named_unit("Bob")],
+            ..Default::default()
+        };
+        state.start_ready_check();
+        assert!(state.ready_check_active);
+        assert_eq!(state.members[0].ready_check, ReadyCheck::Pending);
+        assert_eq!(state.members[1].ready_check, ReadyCheck::Pending);
+    }
+
+    #[test]
+    fn party_respond_ready_check() {
+        let mut state = PartyState {
+            members: vec![named_unit("Alice"), named_unit("Bob")],
+            ..Default::default()
+        };
+        state.start_ready_check();
+        state.respond_ready_check("Alice", ReadyCheck::Accepted);
+        assert_eq!(state.members[0].ready_check, ReadyCheck::Accepted);
+        assert_eq!(state.members[1].ready_check, ReadyCheck::Pending);
+        assert!(!state.all_responded());
+
+        state.respond_ready_check("Bob", ReadyCheck::Declined);
+        assert!(state.all_responded());
+    }
+
+    #[test]
+    fn party_finish_ready_check() {
+        let mut state = PartyState {
+            members: vec![named_unit("Alice")],
+            ..Default::default()
+        };
+        state.start_ready_check();
+        state.respond_ready_check("Alice", ReadyCheck::Accepted);
+        state.finish_ready_check();
+        assert!(!state.ready_check_active);
+        assert_eq!(state.members[0].ready_check, ReadyCheck::None);
+    }
+
+    #[test]
+    fn party_all_responded_not_active() {
+        let state = PartyState::default();
+        assert!(!state.all_responded());
+    }
+
+    // --- ReadyCheckState ---
+
+    #[test]
+    fn ready_check_state_start() {
+        let mut state = ReadyCheckState::default();
+        state.start("Leader".into());
+        assert!(state.active);
+        assert_eq!(state.initiator, "Leader");
+        assert!(state.awaiting_response());
+        assert!((state.remaining_secs - READY_CHECK_TIMEOUT_SECS).abs() < 0.01);
+    }
+
+    #[test]
+    fn ready_check_state_respond() {
+        let mut state = ReadyCheckState::default();
+        state.start("Leader".into());
+        state.respond(ReadyCheck::Accepted);
+        assert!(!state.awaiting_response());
+        assert_eq!(state.local_response, ReadyCheck::Accepted);
+    }
+
+    #[test]
+    fn ready_check_state_finish() {
+        let mut state = ReadyCheckState::default();
+        state.start("Leader".into());
+        state.respond(ReadyCheck::Accepted);
+        state.finish();
+        assert!(!state.active);
+        assert_eq!(state.remaining_secs, 0.0);
+    }
+
+    #[test]
+    fn ready_check_state_awaiting_only_when_pending() {
+        let mut state = ReadyCheckState::default();
+        assert!(!state.awaiting_response()); // not active
+        state.start("X".into());
+        assert!(state.awaiting_response()); // active + pending
+        state.respond(ReadyCheck::Declined);
+        assert!(!state.awaiting_response()); // responded
+    }
+
+    // --- GroupIntentQueue ---
+
+    #[test]
+    fn group_intent_initiate() {
+        let mut queue = GroupIntentQueue::default();
+        queue.initiate_ready_check();
+        let drained = queue.drain();
+        assert_eq!(drained[0], GroupIntent::InitiateReadyCheck);
+    }
+
+    #[test]
+    fn group_intent_accept_decline() {
+        let mut queue = GroupIntentQueue::default();
+        queue.accept_ready_check();
+        queue.decline_ready_check();
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 2);
+        assert_eq!(drained[0], GroupIntent::AcceptReadyCheck);
+        assert_eq!(drained[1], GroupIntent::DeclineReadyCheck);
+    }
+
+    #[test]
+    fn group_intent_drain_clears() {
+        let mut queue = GroupIntentQueue::default();
+        queue.initiate_ready_check();
+        assert_eq!(queue.drain().len(), 1);
+        assert!(queue.pending.is_empty());
     }
 
     #[test]
