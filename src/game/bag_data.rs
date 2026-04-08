@@ -205,6 +205,75 @@ impl InventoryState {
         self.bags = bags;
         self.slots = slots;
     }
+
+    /// Swap two items between any two slots (drag-and-drop).
+    /// Both slots can be in the same or different bags.
+    pub fn swap_slots(
+        &mut self,
+        from_bag: usize,
+        from_slot: usize,
+        to_bag: usize,
+        to_slot: usize,
+    ) -> bool {
+        if from_bag == to_bag && from_slot == to_slot {
+            return false;
+        }
+        let from_valid = self
+            .slots
+            .get(from_bag)
+            .is_some_and(|b| from_slot < b.len());
+        let to_valid = self.slots.get(to_bag).is_some_and(|b| to_slot < b.len());
+        if !from_valid || !to_valid {
+            return false;
+        }
+        if from_bag == to_bag {
+            self.slots[from_bag].swap(from_slot, to_slot);
+        } else {
+            let from_item = std::mem::take(&mut self.slots[from_bag][from_slot]);
+            let to_item = std::mem::take(&mut self.slots[to_bag][to_slot]);
+            self.slots[from_bag][from_slot] = to_item;
+            self.slots[to_bag][to_slot] = from_item;
+        }
+        true
+    }
+
+    /// Move an item from one slot to an empty slot (shortcut for swap with empty).
+    pub fn move_to_empty(
+        &mut self,
+        from_bag: usize,
+        from_slot: usize,
+        to_bag: usize,
+        to_slot: usize,
+    ) -> bool {
+        let target_empty = self.slot(to_bag, to_slot).is_some_and(|s| s.is_empty());
+        if !target_empty {
+            return false;
+        }
+        self.swap_slots(from_bag, from_slot, to_bag, to_slot)
+    }
+
+    /// Try to stack an item onto a matching item in the target slot.
+    /// Returns true if stacking succeeded (same item name, combined count).
+    pub fn try_stack(
+        &mut self,
+        from_bag: usize,
+        from_slot: usize,
+        to_bag: usize,
+        to_slot: usize,
+    ) -> bool {
+        let from = self.slot(from_bag, from_slot).cloned();
+        let to = self.slot(to_bag, to_slot).cloned();
+        let (Some(from_item), Some(to_item)) = (from, to) else {
+            return false;
+        };
+        if from_item.name.is_empty() || from_item.name != to_item.name {
+            return false;
+        }
+        let combined = from_item.count.max(1) + to_item.count.max(1);
+        self.slots[to_bag][to_slot].count = combined;
+        self.clear_slot(from_bag, from_slot);
+        true
+    }
 }
 
 /// A bank bag slot that may or may not be purchased.
@@ -761,5 +830,118 @@ mod tests {
         assert_eq!(inv.bags[0].name, "New Backpack");
         assert_eq!(inv.total_slots(), 20);
         assert_eq!(inv.total_free_slots(), 20);
+    }
+
+    // --- Item drag-and-drop ---
+
+    fn item(name: &str) -> InventorySlot {
+        InventorySlot {
+            icon_fdid: 1,
+            count: 1,
+            quality: ItemQuality::Common,
+            name: name.into(),
+        }
+    }
+
+    #[test]
+    fn swap_within_same_bag() {
+        let mut inv = InventoryState::default();
+        inv.set_item(0, 0, item("Sword"));
+        inv.set_item(0, 1, item("Shield"));
+        assert!(inv.swap_slots(0, 0, 0, 1));
+        assert_eq!(inv.slot(0, 0).unwrap().name, "Shield");
+        assert_eq!(inv.slot(0, 1).unwrap().name, "Sword");
+    }
+
+    #[test]
+    fn swap_between_bags() {
+        let mut inv = InventoryState::default();
+        inv.add_bag(BagInfo {
+            index: 1,
+            name: "Bag2".into(),
+            size: 4,
+            icon_fdid: 0,
+        });
+        inv.set_item(0, 0, item("Ore"));
+        inv.set_item(1, 2, item("Gem"));
+        assert!(inv.swap_slots(0, 0, 1, 2));
+        assert_eq!(inv.slot(0, 0).unwrap().name, "Gem");
+        assert_eq!(inv.slot(1, 2).unwrap().name, "Ore");
+    }
+
+    #[test]
+    fn swap_with_empty_slot() {
+        let mut inv = InventoryState::default();
+        inv.set_item(0, 0, item("Axe"));
+        assert!(inv.swap_slots(0, 0, 0, 5));
+        assert!(inv.slot(0, 0).unwrap().is_empty());
+        assert_eq!(inv.slot(0, 5).unwrap().name, "Axe");
+    }
+
+    #[test]
+    fn swap_same_slot_returns_false() {
+        let mut inv = InventoryState::default();
+        inv.set_item(0, 0, item("Axe"));
+        assert!(!inv.swap_slots(0, 0, 0, 0));
+    }
+
+    #[test]
+    fn swap_out_of_bounds_returns_false() {
+        let mut inv = InventoryState::default();
+        assert!(!inv.swap_slots(0, 0, 99, 0));
+        assert!(!inv.swap_slots(99, 0, 0, 0));
+    }
+
+    #[test]
+    fn move_to_empty_succeeds() {
+        let mut inv = InventoryState::default();
+        inv.set_item(0, 0, item("Ring"));
+        assert!(inv.move_to_empty(0, 0, 0, 3));
+        assert!(inv.slot(0, 0).unwrap().is_empty());
+        assert_eq!(inv.slot(0, 3).unwrap().name, "Ring");
+    }
+
+    #[test]
+    fn move_to_occupied_fails() {
+        let mut inv = InventoryState::default();
+        inv.set_item(0, 0, item("A"));
+        inv.set_item(0, 1, item("B"));
+        assert!(!inv.move_to_empty(0, 0, 0, 1));
+    }
+
+    #[test]
+    fn try_stack_combines_counts() {
+        let mut inv = InventoryState::default();
+        inv.set_item(
+            0,
+            0,
+            InventorySlot {
+                icon_fdid: 1,
+                count: 10,
+                name: "Iron Ore".into(),
+                ..Default::default()
+            },
+        );
+        inv.set_item(
+            0,
+            1,
+            InventorySlot {
+                icon_fdid: 1,
+                count: 5,
+                name: "Iron Ore".into(),
+                ..Default::default()
+            },
+        );
+        assert!(inv.try_stack(0, 0, 0, 1));
+        assert!(inv.slot(0, 0).unwrap().is_empty());
+        assert_eq!(inv.slot(0, 1).unwrap().count, 15);
+    }
+
+    #[test]
+    fn try_stack_different_items_fails() {
+        let mut inv = InventoryState::default();
+        inv.set_item(0, 0, item("Iron Ore"));
+        inv.set_item(0, 1, item("Gold Ore"));
+        assert!(!inv.try_stack(0, 0, 0, 1));
     }
 }
