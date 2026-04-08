@@ -92,6 +92,10 @@ pub enum GuildIntent {
     SetPublicNote { player_name: String, note: String },
     /// Update a member's officer note.
     SetOfficerNote { player_name: String, note: String },
+    /// Send a message in guild chat.
+    SendGuildChat { message: String },
+    /// Send a message in officer chat.
+    SendOfficerChat { message: String },
     /// Leave the guild (self).
     Leave,
 }
@@ -133,12 +137,75 @@ impl GuildIntentQueue {
             .push(GuildIntent::SetOfficerNote { player_name, note });
     }
 
+    pub fn send_guild_chat(&mut self, message: String) {
+        self.pending.push(GuildIntent::SendGuildChat { message });
+    }
+
+    pub fn send_officer_chat(&mut self, message: String) {
+        self.pending.push(GuildIntent::SendOfficerChat { message });
+    }
+
     pub fn leave(&mut self) {
         self.pending.push(GuildIntent::Leave);
     }
 
     pub fn drain(&mut self) -> Vec<GuildIntent> {
         std::mem::take(&mut self.pending)
+    }
+}
+
+// --- Guild chat ---
+
+/// Whether a guild chat message is in the general or officer channel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum GuildChatChannel {
+    #[default]
+    Guild,
+    Officer,
+}
+
+/// A single message in guild chat.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GuildChatMessage {
+    pub sender: String,
+    pub text: String,
+    pub channel: GuildChatChannel,
+    /// Seconds since epoch (server timestamp).
+    pub timestamp: f64,
+}
+
+/// Runtime guild chat state.
+#[derive(Resource, Clone, Debug, PartialEq, Default)]
+pub struct GuildChatState {
+    pub messages: Vec<GuildChatMessage>,
+    /// Maximum messages to retain in the buffer.
+    pub max_messages: usize,
+}
+
+impl GuildChatState {
+    pub fn add_message(&mut self, msg: GuildChatMessage) {
+        self.messages.push(msg);
+        if self.max_messages > 0 && self.messages.len() > self.max_messages {
+            self.messages.remove(0);
+        }
+    }
+
+    pub fn guild_messages(&self) -> Vec<&GuildChatMessage> {
+        self.messages
+            .iter()
+            .filter(|m| m.channel == GuildChatChannel::Guild)
+            .collect()
+    }
+
+    pub fn officer_messages(&self) -> Vec<&GuildChatMessage> {
+        self.messages
+            .iter()
+            .filter(|m| m.channel == GuildChatChannel::Officer)
+            .collect()
+    }
+
+    pub fn clear(&mut self) {
+        self.messages.clear();
     }
 }
 
@@ -373,6 +440,32 @@ mod tests {
     }
 
     #[test]
+    fn intent_send_guild_chat() {
+        let mut queue = GuildIntentQueue::default();
+        queue.send_guild_chat("Hello guild!".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GuildIntent::SendGuildChat {
+                message: "Hello guild!".into()
+            }
+        );
+    }
+
+    #[test]
+    fn intent_send_officer_chat() {
+        let mut queue = GuildIntentQueue::default();
+        queue.send_officer_chat("Officers only".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GuildIntent::SendOfficerChat {
+                message: "Officers only".into()
+            }
+        );
+    }
+
+    #[test]
     fn intent_drain_clears() {
         let mut queue = GuildIntentQueue::default();
         queue.invite("A".into());
@@ -380,5 +473,90 @@ mod tests {
         queue.leave();
         assert_eq!(queue.drain().len(), 3);
         assert!(queue.pending.is_empty());
+    }
+
+    // --- GuildChatState ---
+
+    fn guild_msg(sender: &str, text: &str, ts: f64) -> GuildChatMessage {
+        GuildChatMessage {
+            sender: sender.into(),
+            text: text.into(),
+            channel: GuildChatChannel::Guild,
+            timestamp: ts,
+        }
+    }
+
+    fn officer_msg(sender: &str, text: &str, ts: f64) -> GuildChatMessage {
+        GuildChatMessage {
+            sender: sender.into(),
+            text: text.into(),
+            channel: GuildChatChannel::Officer,
+            timestamp: ts,
+        }
+    }
+
+    #[test]
+    fn chat_state_empty() {
+        let state = GuildChatState::default();
+        assert!(state.messages.is_empty());
+        assert!(state.guild_messages().is_empty());
+        assert!(state.officer_messages().is_empty());
+    }
+
+    #[test]
+    fn chat_add_message() {
+        let mut state = GuildChatState::default();
+        state.add_message(guild_msg("Alice", "Hello", 100.0));
+        assert_eq!(state.messages.len(), 1);
+        assert_eq!(state.guild_messages().len(), 1);
+        assert!(state.officer_messages().is_empty());
+    }
+
+    #[test]
+    fn chat_filters_by_channel() {
+        let mut state = GuildChatState::default();
+        state.add_message(guild_msg("Alice", "Hi all", 100.0));
+        state.add_message(officer_msg("Bob", "Officer talk", 101.0));
+        state.add_message(guild_msg("Charlie", "Hey", 102.0));
+
+        assert_eq!(state.guild_messages().len(), 2);
+        assert_eq!(state.officer_messages().len(), 1);
+        assert_eq!(state.officer_messages()[0].sender, "Bob");
+    }
+
+    #[test]
+    fn chat_max_messages_trims_oldest() {
+        let mut state = GuildChatState {
+            max_messages: 3,
+            ..Default::default()
+        };
+        state.add_message(guild_msg("A", "1", 1.0));
+        state.add_message(guild_msg("B", "2", 2.0));
+        state.add_message(guild_msg("C", "3", 3.0));
+        state.add_message(guild_msg("D", "4", 4.0));
+
+        assert_eq!(state.messages.len(), 3);
+        assert_eq!(state.messages[0].text, "2");
+        assert_eq!(state.messages[2].text, "4");
+    }
+
+    #[test]
+    fn chat_max_zero_unlimited() {
+        let mut state = GuildChatState {
+            max_messages: 0,
+            ..Default::default()
+        };
+        for i in 0..100 {
+            state.add_message(guild_msg("A", &format!("{i}"), i as f64));
+        }
+        assert_eq!(state.messages.len(), 100);
+    }
+
+    #[test]
+    fn chat_clear() {
+        let mut state = GuildChatState::default();
+        state.add_message(guild_msg("A", "Hello", 1.0));
+        state.clear();
+        assert!(state.messages.is_empty());
     }
 }
