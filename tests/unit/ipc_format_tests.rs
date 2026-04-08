@@ -86,6 +86,23 @@ fn formats_empty_currencies_status_snapshot() {
 }
 
 #[test]
+fn formats_currencies_status_snapshot_with_server_message() {
+    let text = format_currencies_status(&CurrenciesStatusSnapshot {
+        entries: vec![crate::status::CurrencyEntry {
+            id: 1,
+            name: "Honor".into(),
+            amount: 125,
+        }],
+        last_server_message: Some("earned 125 Honor".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("currencies: 1"));
+    assert!(text.contains("message: earned 125 Honor"));
+    assert!(text.contains("1 Honor amount=125"));
+}
+
+#[test]
 fn formats_empty_reputations_status_snapshot() {
     let text = format_reputations_status(&ReputationsStatusSnapshot::default());
     assert_eq!(text, "reputations: 0\n-");

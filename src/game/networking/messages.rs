@@ -3,12 +3,11 @@ use lightyear::prelude::*;
 use shared::components::Zone;
 use shared::protocol::{
     ChatChannel, ChatMessage, CollectionSnapshot, CombatChannel, CombatEvent, CombatEventType,
-    CombatLogEventKindSnapshot, CombatLogSnapshot, CurrencySnapshot, DuelStateUpdate,
-    GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
-    InspectStateUpdate, InventorySearchResultSnapshot, LoadTerrain, PlayerInput,
-    ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
-    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, SetTarget,
-    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
+    CombatLogEventKindSnapshot, CombatLogSnapshot, DuelStateUpdate, GroupCommandResponse,
+    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
+    InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
+    ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
+    ReputationStateUpdate, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -22,13 +21,12 @@ use game_engine::duel::apply_duel_state_update as map_duel_state_update;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
     CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot, CombatLogEntry,
-    CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, CurrencyEntry,
-    DuelStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
-    InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry,
-    ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry,
-    QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
-    ReputationsStatusSnapshot, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry,
-    TalentStatusSnapshot, WarbankStatusSnapshot,
+    CombatLogEventKind, CombatLogStatusSnapshot, DuelStatusSnapshot, GroupMemberEntry, GroupRole,
+    GroupStatusSnapshot, GuildVaultStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry,
+    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry,
+    ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry,
+    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, StorageItemEntry,
+    TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 
@@ -532,25 +530,6 @@ fn map_profession_recipe(
         name: recipe.name,
         craftable: recipe.craftable,
         cooldown: recipe.cooldown,
-    }
-}
-
-pub(crate) fn receive_currency_snapshot(
-    mut receivers: Query<&mut MessageReceiver<CurrencySnapshot>>,
-    mut snapshot: ResMut<CurrenciesStatusSnapshot>,
-) {
-    for mut receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.entries = msg
-                .entries
-                .into_iter()
-                .map(|e| CurrencyEntry {
-                    id: e.id,
-                    name: e.name,
-                    amount: e.amount,
-                })
-                .collect();
-        }
     }
 }
 

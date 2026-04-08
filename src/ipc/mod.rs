@@ -83,6 +83,14 @@ pub enum Request {
     TerrainStatus,
     SoundStatus,
     CurrenciesStatus,
+    CurrencyEarn {
+        currency_id: u32,
+        amount: u32,
+    },
+    CurrencySpend {
+        currency_id: u32,
+        amount: u32,
+    },
     ReputationsStatus,
     CharacterStatsStatus,
     BagsStatus,

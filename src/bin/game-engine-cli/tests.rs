@@ -120,6 +120,44 @@ fn currencies_status_command_maps_to_request() {
 }
 
 #[test]
+fn currency_status_command_maps_to_request() {
+    assert_eq!(
+        currency_request(CurrencyCmd::Status).unwrap(),
+        Request::CurrenciesStatus
+    );
+}
+
+#[test]
+fn currency_earn_command_maps_to_request() {
+    assert_eq!(
+        currency_request(CurrencyCmd::Earn {
+            currency_id: 1,
+            amount: 250,
+        })
+        .unwrap(),
+        Request::CurrencyEarn {
+            currency_id: 1,
+            amount: 250,
+        }
+    );
+}
+
+#[test]
+fn currency_spend_command_maps_to_request() {
+    assert_eq!(
+        currency_request(CurrencyCmd::Spend {
+            currency_id: 2,
+            amount: 80,
+        })
+        .unwrap(),
+        Request::CurrencySpend {
+            currency_id: 2,
+            amount: 80,
+        }
+    );
+}
+
+#[test]
 fn reputations_status_command_maps_to_request() {
     assert_eq!(
         status_request(StatusCmd::Reputations).unwrap(),

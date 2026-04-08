@@ -88,16 +88,24 @@ pub fn format_sound_status(snapshot: &SoundStatusSnapshot) -> String {
 }
 
 pub fn format_currencies_status(snapshot: &CurrenciesStatusSnapshot) -> String {
-    if snapshot.entries.is_empty() {
-        return "currencies: 0\n-".into();
+    let mut lines = vec![format!("currencies: {}", snapshot.entries.len())];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
     }
-    let lines = snapshot
-        .entries
-        .iter()
-        .map(|e| format!("{} {} amount={}", e.id, e.name, e.amount))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("currencies: {}\n{lines}", snapshot.entries.len())
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.entries.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(
+        snapshot
+            .entries
+            .iter()
+            .map(|e| format!("{} {} amount={}", e.id, e.name, e.amount)),
+    );
+    lines.join("\n")
 }
 
 pub fn format_reputations_status(snapshot: &ReputationsStatusSnapshot) -> String {

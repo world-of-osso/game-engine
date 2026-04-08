@@ -119,6 +119,11 @@ fn reset_world_resources(world: &mut World) {
     if let Some(mut duel_state) = world.get_resource_mut::<game_engine::duel::DuelClientState>() {
         game_engine::duel::reset_runtime(&mut duel_state);
     }
+    if let Some(mut currency_state) =
+        world.get_resource_mut::<game_engine::currency::CurrencyRuntimeState>()
+    {
+        game_engine::currency::reset_runtime(&mut currency_state);
+    }
     if let Some(mut profession_state) =
         world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
     {
@@ -258,6 +263,7 @@ mod tests {
                 name: "Honor".into(),
                 amount: 5000,
             }],
+            ..Default::default()
         });
 
         reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(&mut world);

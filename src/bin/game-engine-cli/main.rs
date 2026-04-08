@@ -9,10 +9,11 @@ use game_engine::ipc::{Request, Response, socket_glob};
 use peercred_ipc::Client;
 
 use requests::{
-    auction_request, collection_request, combat_request, duel_request, equipment_request,
-    export_character_request, export_scene_request, group_request, inspect_request,
-    inventory_request, item_request, mail_request, map_request, profession_request, quest_request,
-    reputation_request, spell_request, status_request, talent_request, trade_request,
+    auction_request, collection_request, combat_request, currency_request, duel_request,
+    equipment_request, export_character_request, export_scene_request, group_request,
+    inspect_request, inventory_request, item_request, mail_request, map_request,
+    profession_request, quest_request, reputation_request, spell_request, status_request,
+    talent_request, trade_request,
 };
 
 #[derive(Parser)]
@@ -89,6 +90,11 @@ enum Cmd {
     Status {
         #[command(subcommand)]
         command: StatusCmd,
+    },
+    /// Currency wallet operations via the running engine
+    Currency {
+        #[command(subcommand)]
+        command: CurrencyCmd,
     },
     /// Item information lookups via the running engine
     Item {
@@ -391,6 +397,23 @@ pub(crate) enum ReputationCmd {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum CurrencyCmd {
+    Status,
+    Earn {
+        #[arg(long)]
+        currency_id: u32,
+        #[arg(long)]
+        amount: u32,
+    },
+    Spend {
+        #[arg(long)]
+        currency_id: u32,
+        #[arg(long)]
+        amount: u32,
+    },
+}
+
+#[derive(Subcommand)]
 pub(crate) enum CollectionCmd {
     Mounts {
         #[arg(long)]
@@ -496,6 +519,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Talent { command } => handle_talent(socket, command, json),
         Cmd::Inspect { command } => handle_inspect(socket, command, json),
         Cmd::Status { command } => handle_status(socket, command, json),
+        Cmd::Currency { command } => handle_currency(socket, command, json),
         Cmd::Item { command } => handle_item(socket, command, json),
         Cmd::Inventory { command } => handle_inventory(socket, command, json),
         Cmd::Quest { command } => handle_quest(socket, command, json),
@@ -663,6 +687,10 @@ fn handle_combat(socket: &PathBuf, command: CombatCmd, json: bool) -> Result<(),
 
 fn handle_reputation(socket: &PathBuf, command: ReputationCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, reputation_request(command)?, json)
+}
+
+fn handle_currency(socket: &PathBuf, command: CurrencyCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, currency_request(command)?, json)
 }
 
 fn handle_collection(socket: &PathBuf, command: CollectionCmd, json: bool) -> Result<(), String> {

@@ -15,6 +15,7 @@ use super::init;
 use super::{Command, Request, Response};
 use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
+use crate::currency::{CurrencyRuntimeState, queue_ipc_request as queue_currency_ipc_request};
 use crate::duel::{DuelClientState, queue_ipc_request_with_snapshot as queue_duel_ipc_request};
 use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc_request};
 use crate::item_info::lookup_item_info;
@@ -124,6 +125,8 @@ struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
     duel: ResMut<'w, DuelClientState>,
     duel_status: Res<'w, DuelStatusSnapshot>,
+    currency: ResMut<'w, CurrencyRuntimeState>,
+    currencies_status: Res<'w, CurrenciesStatusSnapshot>,
     profession: ResMut<'w, ProfessionRuntimeState>,
     profession_status: Res<'w, ProfessionStatusSnapshot>,
     inspect: ResMut<'w, InspectRuntimeState>,
@@ -217,6 +220,14 @@ fn dispatch(
     if queue_profession_ipc_request(
         &mut world.profession,
         &world.profession_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_currency_ipc_request(
+        &mut world.currency,
+        &world.currencies_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

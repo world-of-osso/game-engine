@@ -35,6 +35,7 @@ pub mod cooldown_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
 pub mod csv_util;
+pub mod currency;
 #[path = "game/dress_up_data.rs"]
 pub mod dress_up_data;
 pub mod duel;

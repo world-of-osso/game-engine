@@ -646,6 +646,36 @@ fn reputation_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn currency_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::CurrenciesStatusSnapshot::default();
+
+    game_engine::currency::apply_currency_state_update(
+        &mut snapshot,
+        shared::protocol::CurrencyStateUpdate {
+            snapshot: Some(shared::protocol::CurrencySnapshot {
+                entries: vec![shared::protocol::CurrencyEntrySnapshot {
+                    id: 1,
+                    name: "Honor".into(),
+                    amount: 75,
+                }],
+            }),
+            message: Some("earned 75 Honor".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.entries.len(), 1);
+    assert_eq!(snapshot.entries[0].id, 1);
+    assert_eq!(snapshot.entries[0].name, "Honor");
+    assert_eq!(snapshot.entries[0].amount, 75);
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("earned 75 Honor")
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn inspect_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::InspectStatusSnapshot::default();
 

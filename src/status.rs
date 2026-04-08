@@ -91,6 +91,8 @@ pub struct CurrencyEntry {
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct CurrenciesStatusSnapshot {
     pub entries: Vec<CurrencyEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -595,6 +597,7 @@ mod tests {
                     amount: 1800,
                 },
             ],
+            ..Default::default()
         };
         round_trip(&snapshot);
     }

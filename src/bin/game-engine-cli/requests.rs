@@ -7,7 +7,7 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, CollectionCmd, CombatCmd, DuelCmd, EquipmentCmd, GroupCmd, InspectCmd,
+    AuctionCmd, CollectionCmd, CombatCmd, CurrencyCmd, DuelCmd, EquipmentCmd, GroupCmd, InspectCmd,
     InventoryCmd, ItemCmd, MailCmd, MapCmd, ProfessionCmd, QuestCmd, ReputationCmd, SpellCmd,
     StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
 };
@@ -158,6 +158,27 @@ pub fn combat_request(command: CombatCmd) -> Result<Request, String> {
 pub fn reputation_request(command: ReputationCmd) -> Result<Request, String> {
     let request = match command {
         ReputationCmd::List => Request::ReputationList,
+    };
+    Ok(request)
+}
+
+pub fn currency_request(command: CurrencyCmd) -> Result<Request, String> {
+    let request = match command {
+        CurrencyCmd::Status => Request::CurrenciesStatus,
+        CurrencyCmd::Earn {
+            currency_id,
+            amount,
+        } => Request::CurrencyEarn {
+            currency_id,
+            amount,
+        },
+        CurrencyCmd::Spend {
+            currency_id,
+            amount,
+        } => Request::CurrencySpend {
+            currency_id,
+            amount,
+        },
     };
     Ok(request)
 }
