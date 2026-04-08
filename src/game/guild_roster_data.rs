@@ -73,6 +73,75 @@ impl GuildRosterState {
     }
 }
 
+// --- Client → server intents ---
+
+/// A pending guild action to send to the server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GuildIntent {
+    /// Invite a player by name.
+    Invite { player_name: String },
+    /// Remove a member from the guild.
+    Kick { player_name: String },
+    /// Promote a member to the next higher rank.
+    Promote { player_name: String },
+    /// Demote a member to the next lower rank.
+    Demote { player_name: String },
+    /// Update the guild message of the day.
+    SetMotd { text: String },
+    /// Update a member's public note.
+    SetPublicNote { player_name: String, note: String },
+    /// Update a member's officer note.
+    SetOfficerNote { player_name: String, note: String },
+    /// Leave the guild (self).
+    Leave,
+}
+
+/// Queue of guild intents waiting to be sent to the server.
+#[derive(Resource, Default)]
+pub struct GuildIntentQueue {
+    pub pending: Vec<GuildIntent>,
+}
+
+impl GuildIntentQueue {
+    pub fn invite(&mut self, player_name: String) {
+        self.pending.push(GuildIntent::Invite { player_name });
+    }
+
+    pub fn kick(&mut self, player_name: String) {
+        self.pending.push(GuildIntent::Kick { player_name });
+    }
+
+    pub fn promote(&mut self, player_name: String) {
+        self.pending.push(GuildIntent::Promote { player_name });
+    }
+
+    pub fn demote(&mut self, player_name: String) {
+        self.pending.push(GuildIntent::Demote { player_name });
+    }
+
+    pub fn set_motd(&mut self, text: String) {
+        self.pending.push(GuildIntent::SetMotd { text });
+    }
+
+    pub fn set_public_note(&mut self, player_name: String, note: String) {
+        self.pending
+            .push(GuildIntent::SetPublicNote { player_name, note });
+    }
+
+    pub fn set_officer_note(&mut self, player_name: String, note: String) {
+        self.pending
+            .push(GuildIntent::SetOfficerNote { player_name, note });
+    }
+
+    pub fn leave(&mut self) {
+        self.pending.push(GuildIntent::Leave);
+    }
+
+    pub fn drain(&mut self) -> Vec<GuildIntent> {
+        std::mem::take(&mut self.pending)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,5 +278,107 @@ mod tests {
         assert!(state.visible_members().is_empty());
         assert_eq!(state.total_count(), 2);
         assert_eq!(state.online_count(), 0);
+    }
+
+    // --- GuildIntentQueue ---
+
+    #[test]
+    fn intent_invite() {
+        let mut queue = GuildIntentQueue::default();
+        queue.invite("Alice".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GuildIntent::Invite {
+                player_name: "Alice".into()
+            }
+        );
+    }
+
+    #[test]
+    fn intent_kick() {
+        let mut queue = GuildIntentQueue::default();
+        queue.kick("Bob".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GuildIntent::Kick {
+                player_name: "Bob".into()
+            }
+        );
+    }
+
+    #[test]
+    fn intent_promote_demote() {
+        let mut queue = GuildIntentQueue::default();
+        queue.promote("Alice".into());
+        queue.demote("Bob".into());
+        let drained = queue.drain();
+        assert_eq!(drained.len(), 2);
+        assert_eq!(
+            drained[0],
+            GuildIntent::Promote {
+                player_name: "Alice".into()
+            }
+        );
+        assert_eq!(
+            drained[1],
+            GuildIntent::Demote {
+                player_name: "Bob".into()
+            }
+        );
+    }
+
+    #[test]
+    fn intent_set_motd() {
+        let mut queue = GuildIntentQueue::default();
+        queue.set_motd("Hello guild!".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GuildIntent::SetMotd {
+                text: "Hello guild!".into()
+            }
+        );
+    }
+
+    #[test]
+    fn intent_set_notes() {
+        let mut queue = GuildIntentQueue::default();
+        queue.set_public_note("Alice".into(), "Main tank".into());
+        queue.set_officer_note("Alice".into(), "Reliable".into());
+        let drained = queue.drain();
+        assert_eq!(
+            drained[0],
+            GuildIntent::SetPublicNote {
+                player_name: "Alice".into(),
+                note: "Main tank".into()
+            }
+        );
+        assert_eq!(
+            drained[1],
+            GuildIntent::SetOfficerNote {
+                player_name: "Alice".into(),
+                note: "Reliable".into()
+            }
+        );
+    }
+
+    #[test]
+    fn intent_leave() {
+        let mut queue = GuildIntentQueue::default();
+        queue.leave();
+        let drained = queue.drain();
+        assert_eq!(drained[0], GuildIntent::Leave);
+    }
+
+    #[test]
+    fn intent_drain_clears() {
+        let mut queue = GuildIntentQueue::default();
+        queue.invite("A".into());
+        queue.kick("B".into());
+        queue.leave();
+        assert_eq!(queue.drain().len(), 3);
+        assert!(queue.pending.is_empty());
     }
 }
