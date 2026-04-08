@@ -65,10 +65,10 @@ pub(crate) use game::{
 pub use rendering::{
     action_bar, animation, camera, character_customization, character_models, ground, health_bar,
     light_lookup, m2_effect_material, m2_scene, m2_spawn, m2_texture_composite, minimap,
-    minimap_render, nameplate, orbit_camera, particle, shadow_config, sky, sky_lightdata,
-    sky_material, skybox_m2_material, target, terrain, terrain_heightmap, terrain_load_limits,
-    terrain_load_progress, terrain_lod, terrain_material, terrain_memory_debug, terrain_objects,
-    terrain_tile, unit_frames, water_material, wow_cursor,
+    minimap_render, nameplate, orbit_camera, particle, quest_sparkle, shadow_config, sky,
+    sky_lightdata, sky_material, skybox_m2_material, target, terrain, terrain_heightmap,
+    terrain_load_limits, terrain_load_progress, terrain_lod, terrain_material,
+    terrain_memory_debug, terrain_objects, terrain_tile, unit_frames, water_material, wow_cursor,
 };
 
 use animation::AnimationPlugin;
@@ -468,6 +468,7 @@ fn register_world_plugins(app: &mut App) {
         .add_plugins(unit_frames::InWorldUnitFramesPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
+        .add_plugins(quest_sparkle::QuestSparklePlugin)
         .add_plugins(target::TargetPlugin)
         .add_plugins(equipment::EquipmentPlugin)
         .add_plugins(character_customization::CharacterCustomizationPlugin);

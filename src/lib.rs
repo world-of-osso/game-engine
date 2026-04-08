@@ -93,6 +93,8 @@ pub mod professions_data;
 pub mod pvp_data;
 #[path = "game/quest_data.rs"]
 pub mod quest_data;
+#[path = "game/quest_tracking.rs"]
+pub mod quest_tracking;
 #[path = "game/raid_party_data.rs"]
 pub mod raid_party_data;
 #[path = "game/reputation_data.rs"]
