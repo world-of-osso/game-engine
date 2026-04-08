@@ -663,6 +663,24 @@ fn achievement_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn world_map_state_update_populates_explored_zones() {
+    let mut world_map = game_engine::world_map_data::WorldMapState::default();
+
+    game_engine::world_map::apply_world_map_state_update(
+        &mut world_map,
+        shared::protocol::WorldMapStateUpdate {
+            snapshot: Some(shared::protocol::WorldMapSnapshot {
+                discovered_zone_ids: vec![1519, 12, 12],
+            }),
+            message: Some("world map discovery updated".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(world_map.fog.explored_zones, vec![12, 1519]);
+}
+
+#[test]
 fn reputation_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::ReputationsStatusSnapshot::default();
 

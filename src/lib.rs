@@ -131,6 +131,7 @@ pub mod trade_data;
 pub mod ui;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;
+pub mod world_map;
 #[path = "game/world_map_data.rs"]
 pub mod world_map_data;
 

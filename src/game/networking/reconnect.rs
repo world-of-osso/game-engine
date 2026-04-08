@@ -144,6 +144,11 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::profession::reset_runtime(&mut profession_state);
     }
+    if let Some(mut world_map) =
+        world.get_resource_mut::<game_engine::world_map_data::WorldMapState>()
+    {
+        game_engine::world_map::reset_runtime(&mut world_map);
+    }
     if let Some(mut inspect_state) =
         world.get_resource_mut::<game_engine::inspect::InspectRuntimeState>()
     {
@@ -301,6 +306,12 @@ mod tests {
     fn reset_world_resources_clears_zone_and_chat() {
         let mut world = World::default();
         world.insert_resource(CurrentZone { zone_id: 42 });
+        world.insert_resource(game_engine::world_map_data::WorldMapState {
+            fog: game_engine::world_map_data::FogOfWar {
+                explored_zones: vec![12, 1519],
+            },
+            ..Default::default()
+        });
         world.insert_resource(ChatLog {
             messages: vec![(
                 "Player".into(),
@@ -313,6 +324,13 @@ mod tests {
         reset_world_resources(&mut world);
 
         assert_eq!(world.resource::<CurrentZone>().zone_id, 0);
+        assert!(
+            world
+                .resource::<game_engine::world_map_data::WorldMapState>()
+                .fog
+                .explored_zones
+                .is_empty()
+        );
         assert!(world.resource::<ChatLog>().messages.is_empty());
         assert!(world.resource::<LocalAliveState>().0);
     }

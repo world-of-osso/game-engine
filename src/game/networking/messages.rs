@@ -8,7 +8,7 @@ use shared::protocol::{
     InspectStateUpdate, InventorySearchResultSnapshot, LoadTerrain, PlayerInput,
     ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
     QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, SetTarget,
-    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
+    StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -34,6 +34,7 @@ use game_engine::status::{
     TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
+use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
 
 /// Send a queued chat message to the server.
 pub(crate) fn send_chat_message(
@@ -485,6 +486,17 @@ pub(crate) fn receive_profession_snapshot(
         for msg in receiver.receive() {
             snapshot.skills = msg.skills.into_iter().map(map_profession_skill).collect();
             snapshot.recipes = msg.recipes.into_iter().map(map_profession_recipe).collect();
+        }
+    }
+}
+
+pub(crate) fn receive_world_map_state_update(
+    mut receivers: Query<&mut MessageReceiver<WorldMapStateUpdate>>,
+    mut world_map: ResMut<game_engine::world_map_data::WorldMapState>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for update in receiver.receive() {
+            map_world_map_state_update(&mut world_map, update);
         }
     }
 }

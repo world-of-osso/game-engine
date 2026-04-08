@@ -241,6 +241,7 @@ fn register_inworld_sync_systems(app: &mut App) {
             msg::receive_combat_log_snapshot,
             msg::receive_combat_events,
             msg::receive_achievement_state_update,
+            msg::receive_world_map_state_update,
             msg::receive_collection_state_update,
             msg::receive_profession_snapshot,
             msg::receive_reputation_snapshot,
