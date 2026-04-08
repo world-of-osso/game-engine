@@ -22,6 +22,9 @@ pub mod textures {
     pub const COPPER_ICON: u32 = 237617;
 }
 
+/// Maximum number of item attachments per mail (WoW limit).
+pub const MAX_MAIL_ATTACHMENTS: usize = 12;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MailAttachment {
     pub item_name: String,
@@ -134,6 +137,50 @@ impl MailState {
         if let Some(m) = self.inbox.iter_mut().find(|m| m.id == mail_id) {
             m.read = true;
         }
+    }
+
+    /// Add an attachment to the next empty send slot. Returns the slot index, or None if full.
+    pub fn add_send_attachment(&mut self, attachment: MailAttachment) -> Option<usize> {
+        // Fill an existing empty slot first.
+        if let Some(idx) = self.send_attachments.iter().position(|s| s.is_none()) {
+            self.send_attachments[idx] = Some(attachment);
+            return Some(idx);
+        }
+        // Append if under the limit.
+        if self.send_attachments.len() < MAX_MAIL_ATTACHMENTS {
+            let idx = self.send_attachments.len();
+            self.send_attachments.push(Some(attachment));
+            return Some(idx);
+        }
+        None
+    }
+
+    /// Remove an attachment from a send slot. Returns the removed attachment.
+    pub fn remove_send_attachment(&mut self, slot: usize) -> Option<MailAttachment> {
+        self.send_attachments.get_mut(slot)?.take()
+    }
+
+    /// Whether the send attachment slots are full.
+    pub fn send_attachments_full(&self) -> bool {
+        self.send_attachment_count() >= MAX_MAIL_ATTACHMENTS
+    }
+
+    /// Take a single attachment from a received mail message.
+    /// Removes the attachment at the given index and returns it.
+    pub fn take_inbox_attachment(&mut self, mail_id: u64, index: usize) -> Option<MailAttachment> {
+        let msg = self.inbox.iter_mut().find(|m| m.id == mail_id)?;
+        if index >= msg.attachments.len() {
+            return None;
+        }
+        Some(msg.attachments.remove(index))
+    }
+
+    /// Take all attachments from a received mail message.
+    pub fn take_all_inbox_attachments(&mut self, mail_id: u64) -> Vec<MailAttachment> {
+        let Some(msg) = self.inbox.iter_mut().find(|m| m.id == mail_id) else {
+            return vec![];
+        };
+        std::mem::take(&mut msg.attachments)
     }
 }
 
@@ -571,5 +618,127 @@ mod tests {
         queue.delete(2);
         assert_eq!(queue.drain().len(), 2);
         assert!(queue.pending.is_empty());
+    }
+
+    // --- Send attachment management ---
+
+    fn attachment(name: &str) -> MailAttachment {
+        MailAttachment {
+            item_name: name.into(),
+            icon_fdid: 1,
+            count: 1,
+        }
+    }
+
+    #[test]
+    fn add_send_attachment() {
+        let mut state = MailState::default();
+        let idx = state.add_send_attachment(attachment("Sword"));
+        assert_eq!(idx, Some(0));
+        assert_eq!(state.send_attachment_count(), 1);
+        assert_eq!(
+            state.send_attachments[0].as_ref().unwrap().item_name,
+            "Sword"
+        );
+    }
+
+    #[test]
+    fn add_send_attachment_fills_empty_slot() {
+        let mut state = MailState::default();
+        state.send_attachments = vec![Some(attachment("A")), None, Some(attachment("C"))];
+        let idx = state.add_send_attachment(attachment("B"));
+        assert_eq!(idx, Some(1));
+        assert_eq!(state.send_attachment_count(), 3);
+    }
+
+    #[test]
+    fn add_send_attachment_full() {
+        let mut state = MailState::default();
+        for i in 0..MAX_MAIL_ATTACHMENTS {
+            state
+                .send_attachments
+                .push(Some(attachment(&format!("I{i}"))));
+        }
+        assert!(state.send_attachments_full());
+        assert_eq!(state.add_send_attachment(attachment("Extra")), None);
+    }
+
+    #[test]
+    fn remove_send_attachment() {
+        let mut state = MailState::default();
+        state.add_send_attachment(attachment("Sword"));
+        state.add_send_attachment(attachment("Shield"));
+        let removed = state.remove_send_attachment(0);
+        assert_eq!(removed.unwrap().item_name, "Sword");
+        assert!(state.send_attachments[0].is_none());
+        assert_eq!(state.send_attachment_count(), 1);
+    }
+
+    #[test]
+    fn remove_send_attachment_empty_slot() {
+        let mut state = MailState::default();
+        state.send_attachments = vec![None];
+        assert!(state.remove_send_attachment(0).is_none());
+    }
+
+    #[test]
+    fn remove_send_attachment_out_of_range() {
+        let state = MailState::default();
+        assert!(state.send_attachments.get(5).is_none());
+    }
+
+    // --- Inbox attachment handling ---
+
+    #[test]
+    fn take_inbox_attachment() {
+        let mut state = MailState::default();
+        state.inbox = vec![MailMessage {
+            attachments: vec![attachment("Gem"), attachment("Ore")],
+            ..sample_mail()
+        }];
+        let taken = state.take_inbox_attachment(1, 0);
+        assert_eq!(taken.unwrap().item_name, "Gem");
+        assert_eq!(state.inbox[0].attachments.len(), 1);
+        assert_eq!(state.inbox[0].attachments[0].item_name, "Ore");
+    }
+
+    #[test]
+    fn take_inbox_attachment_bad_index() {
+        let mut state = MailState::default();
+        state.inbox = vec![MailMessage {
+            attachments: vec![attachment("A")],
+            ..sample_mail()
+        }];
+        assert!(state.take_inbox_attachment(1, 5).is_none());
+    }
+
+    #[test]
+    fn take_inbox_attachment_bad_mail_id() {
+        let mut state = MailState::default();
+        assert!(state.take_inbox_attachment(999, 0).is_none());
+    }
+
+    #[test]
+    fn take_all_inbox_attachments() {
+        let mut state = MailState::default();
+        state.inbox = vec![MailMessage {
+            attachments: vec![attachment("A"), attachment("B"), attachment("C")],
+            ..sample_mail()
+        }];
+        let taken = state.take_all_inbox_attachments(1);
+        assert_eq!(taken.len(), 3);
+        assert!(state.inbox[0].attachments.is_empty());
+    }
+
+    #[test]
+    fn take_all_inbox_attachments_bad_id() {
+        let mut state = MailState::default();
+        let taken = state.take_all_inbox_attachments(999);
+        assert!(taken.is_empty());
+    }
+
+    #[test]
+    fn max_mail_attachments_is_twelve() {
+        assert_eq!(MAX_MAIL_ATTACHMENTS, 12);
     }
 }
