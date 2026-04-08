@@ -1,7 +1,9 @@
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::gossip_data::GossipIntentQueue;
 use game_engine::targeting::CurrentTarget;
+use shared::components::Npc;
 
 use crate::camera::Player;
 use crate::game_state::GameState;
@@ -98,6 +100,7 @@ impl Plugin for TargetPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentTarget>();
         app.init_resource::<TargetCircleStyle>();
+        app.init_resource::<GossipIntentQueue>();
         app.add_systems(
             Update,
             (
@@ -105,6 +108,7 @@ impl Plugin for TargetPlugin {
                 tab_target,
                 self_target,
                 clear_target,
+                right_click_interact,
                 spawn_target_circle,
                 update_target_circle,
             )
@@ -261,6 +265,41 @@ fn clear_target(
     if keys.just_pressed(KeyCode::Escape) {
         current.0 = None;
     }
+}
+
+/// Maximum distance (world units) at which NPC interaction is allowed.
+const INTERACT_RANGE: f32 = 5.0;
+
+/// On right-click, interact with the targeted NPC if within range.
+fn right_click_interact(
+    mouse: Res<ButtonInput<MouseButton>>,
+    current: Res<CurrentTarget>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    player_q: Query<&GlobalTransform, With<Player>>,
+    npc_q: Query<&GlobalTransform, With<Npc>>,
+    mut gossip_queue: ResMut<GossipIntentQueue>,
+) {
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+        return;
+    }
+    if !mouse.just_pressed(MouseButton::Right) {
+        return;
+    }
+    let Some(target_entity) = current.0 else {
+        return;
+    };
+    let Ok(npc_tf) = npc_q.get(target_entity) else {
+        return;
+    };
+    let Ok(player_tf) = player_q.single() else {
+        return;
+    };
+    let distance = player_tf.translation().distance(npc_tf.translation());
+    if distance > INTERACT_RANGE {
+        return;
+    }
+    gossip_queue.interact(target_entity.to_bits());
 }
 
 /// When CurrentTarget changes, spawn or move the selection circle.

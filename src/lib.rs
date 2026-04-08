@@ -46,6 +46,8 @@ pub mod floating_combat_text;
 pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
+#[path = "game/gossip_data.rs"]
+pub mod gossip_data;
 #[path = "game/guild_bank_data.rs"]
 pub mod guild_bank_data;
 #[path = "game/guild_control_data.rs"]
