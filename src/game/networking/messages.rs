@@ -120,14 +120,22 @@ pub(crate) fn receive_emote_events(
     mut receivers: Query<&mut MessageReceiver<EmoteEvent>>,
     children_query: Query<&Children>,
     mounted_visual_roots: Query<(), With<crate::networking_player::MountedVisualRoot>>,
+    existing_entities: Query<(), ()>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for event in receiver.receive() {
-            let entity = resolve_emote_visual_entity(
+            let Some(entity) = resolve_emote_visual_entity(
                 event.player_entity,
                 &children_query,
                 &mounted_visual_roots,
-            );
+                &existing_entities,
+            ) else {
+                debug!(
+                    "Ignoring emote event for unknown entity bits {}",
+                    event.player_entity
+                );
+                continue;
+            };
             commands
                 .entity(entity)
                 .insert(crate::animation::EmoteAnimState::new(event.emote));
@@ -268,15 +276,21 @@ fn resolve_emote_visual_entity(
     player_entity_bits: u64,
     children_query: &Query<&Children>,
     mounted_visual_roots: &Query<(), With<crate::networking_player::MountedVisualRoot>>,
-) -> Entity {
+    existing_entities: &Query<(), ()>,
+) -> Option<Entity> {
     let player_entity = Entity::from_bits(player_entity_bits);
-    let Ok(children) = children_query.get(player_entity) else {
-        return player_entity;
+    let Ok(()) = existing_entities.get(player_entity) else {
+        return None;
     };
-    children
-        .iter()
-        .find(|child| mounted_visual_roots.get(*child).is_ok())
-        .unwrap_or(player_entity)
+    let Ok(children) = children_query.get(player_entity) else {
+        return Some(player_entity);
+    };
+    Some(
+        children
+            .iter()
+            .find(|child| mounted_visual_roots.get(*child).is_ok())
+            .unwrap_or(player_entity),
+    )
 }
 
 /// Receive LoadTerrain messages from the server and initialize/stream the AdtManager.
@@ -609,9 +623,14 @@ fn push_floating_text(
     target_bits: u64,
     text: FloatingCombatText,
     stacks: &mut Query<&mut FloatingCombatTextStack>,
+    existing_entities: &Query<(), ()>,
     commands: &mut Commands,
 ) {
     let entity = Entity::from_bits(target_bits);
+    if existing_entities.get(entity).is_err() {
+        debug!("Ignoring floating combat text for unknown entity bits {target_bits}");
+        return;
+    }
     if let Ok(mut stack) = stacks.get_mut(entity) {
         stack.push(text);
         return;
@@ -626,6 +645,7 @@ pub(crate) fn receive_combat_events(
     mut snapshot: ResMut<CombatLogStatusSnapshot>,
     mut stacks: Query<&mut FloatingCombatTextStack>,
     mut spell_sounds: Option<ResMut<SpellSoundQueue>>,
+    existing_entities: Query<(), ()>,
     mut commands: Commands,
 ) {
     for mut receiver in receivers.iter_mut() {
@@ -638,7 +658,13 @@ pub(crate) fn receive_combat_events(
                 queue.requests.push(request);
             }
             if let Some((target_bits, text)) = floating_text_from_combat_event(&msg) {
-                push_floating_text(target_bits, text, &mut stacks, &mut commands);
+                push_floating_text(
+                    target_bits,
+                    text,
+                    &mut stacks,
+                    &existing_entities,
+                    &mut commands,
+                );
             }
         }
     }
@@ -1014,16 +1040,42 @@ mod tests {
                       mounted_visual_roots: Query<
                     (),
                     With<crate::networking_player::MountedVisualRoot>,
-                >| {
+                >,
+                      existing_entities: Query<(), ()>| {
                     resolve_emote_visual_entity(
                         parent.to_bits(),
                         &children_query,
                         &mounted_visual_roots,
+                        &existing_entities,
                     )
                 },
             )
             .expect("resolve emote entity");
-        assert_eq!(entity, mounted_child);
+        assert_eq!(entity, Some(mounted_child));
+    }
+
+    #[test]
+    fn resolve_emote_visual_entity_ignores_unknown_entity() {
+        let mut app = App::new();
+        let entity = app
+            .world_mut()
+            .run_system_once(
+                move |children_query: Query<&Children>,
+                      mounted_visual_roots: Query<
+                    (),
+                    With<crate::networking_player::MountedVisualRoot>,
+                >,
+                      existing_entities: Query<(), ()>| {
+                    resolve_emote_visual_entity(
+                        Entity::from_bits(999_999).to_bits(),
+                        &children_query,
+                        &mounted_visual_roots,
+                        &existing_entities,
+                    )
+                },
+            )
+            .expect("resolve emote entity");
+        assert_eq!(entity, None);
     }
 
     #[test]
@@ -1274,6 +1326,34 @@ mod tests {
         );
         assert!(
             spell_sound_from_combat_event(&combat_event(CombatEventType::Death, 0.0, 0,)).is_none()
+        );
+    }
+
+    #[test]
+    fn push_floating_text_ignores_unknown_entity() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+
+        app.world_mut()
+            .run_system_once(
+                |mut commands: Commands,
+                 mut stacks: Query<&mut FloatingCombatTextStack>,
+                 existing_entities: Query<(), ()>| {
+                    push_floating_text(
+                        Entity::from_bits(999_999).to_bits(),
+                        FloatingCombatText::new(CombatTextKind::Miss, 0),
+                        &mut stacks,
+                        &existing_entities,
+                        &mut commands,
+                    );
+                },
+            )
+            .expect("push floating text");
+        app.update();
+
+        assert!(
+            app.world().get_entity(Entity::from_bits(999_999)).is_err(),
+            "malformed combat target should not spawn a fake entity"
         );
     }
 }
