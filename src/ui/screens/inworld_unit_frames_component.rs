@@ -5,31 +5,39 @@ use ui_toolkit::widget_def::Element;
 use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
+#[path = "inworld_unit_frames_aura.rs"]
+mod inworld_unit_frames_aura;
+#[path = "inworld_unit_frames_background.rs"]
+mod inworld_unit_frames_background;
 #[path = "inworld_unit_frames_layout.rs"]
 mod inworld_unit_frames_layout;
 #[path = "inworld_unit_frames_parts.rs"]
 mod inworld_unit_frames_parts;
+#[path = "inworld_unit_frames_state.rs"]
+mod inworld_unit_frames_state;
+use inworld_unit_frames_aura::target_aura_row;
+use inworld_unit_frames_background::unit_frame_shell_background;
 use inworld_unit_frames_layout::*;
 pub use inworld_unit_frames_layout::{PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W};
 use inworld_unit_frames_parts::{
     UnitFrameBarSpec, anchored_marker, anchored_top_marker, anchored_topright_marker,
     centered_marker, portrait_centered_marker, sized_marker, unit_frame_bar,
 };
+pub use inworld_unit_frames_state::{
+    default_player_frame_state, fallback_target_frame_state, fill_width, format_value_text,
+    missing_target_name,
+};
 
-const TARGET_AURA_ICON_SIZE: f32 = 18.0;
-const TARGET_AURA_ICON_GAP: f32 = 2.0;
-const TARGET_AURA_TIMER_COLOR: &str = "1.0,1.0,1.0,0.95";
-const TARGET_AURA_STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
-const TARGET_AURA_DEFAULT_BORDER: &str = "0.08,0.08,0.08,0.95";
 const SECONDARY_RESOURCE_ROW_Y: f32 = 74.0;
 const SECONDARY_RESOURCE_ROW_H: f32 = 8.0;
 const SECONDARY_RESOURCE_GAP: f32 = 2.0;
 pub const UNKNOWN_PORTRAIT_TEXTURE_FILE: &str =
     "/home/osso/Projects/wow/Interface/ICONS/INV_Misc_QuestionMark.blp";
 
-struct DynName(String);
+#[derive(Clone)]
+pub(super) struct DynName(pub(super) String);
 
-fn dyn_name(name: String) -> DynName {
+pub(super) fn dyn_name(name: String) -> DynName {
     DynName(name)
 }
 
@@ -129,112 +137,7 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
     }
 }
 
-fn target_aura_row(prefix: &str, icons: &[TargetAuraIconState], y: f32) -> Element {
-    let hidden = icons.is_empty();
-    let content: Element = icons
-        .iter()
-        .enumerate()
-        .flat_map(|(index, icon)| target_aura_icon(prefix, index, icon))
-        .collect();
-    rsx! {
-        r#frame {
-            name: {dyn_name(format!("{prefix}Row"))},
-            width: {132.0},
-            height: {TARGET_AURA_ICON_SIZE},
-            hidden: {hidden}
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TARGET_FRAME_CONFIG.health_bar.x},
-                y: {-y},
-            }
-            {content}
-        }
-    }
-}
-
-fn target_aura_icon(prefix: &str, index: usize, icon: &TargetAuraIconState) -> Element {
-    let x = index as f32 * (TARGET_AURA_ICON_SIZE + TARGET_AURA_ICON_GAP);
-    let stack_text = if icon.stacks > 1 {
-        icon.stacks.to_string()
-    } else {
-        String::new()
-    };
-    rsx! {
-        r#frame {
-            name: {dyn_name(format!("{prefix}Icon{index}"))},
-            width: {TARGET_AURA_ICON_SIZE},
-            height: {TARGET_AURA_ICON_SIZE},
-            background_color: {icon.border_color.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
-            r#frame {
-                name: {dyn_name(format!("{prefix}Icon{index}Inset"))},
-                width: {TARGET_AURA_ICON_SIZE - 2.0},
-                height: {TARGET_AURA_ICON_SIZE - 2.0},
-                background_color: {TARGET_AURA_DEFAULT_BORDER},
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "1",
-                    y: "-1",
-                }
-                texture {
-                    name: {dyn_name(format!("{prefix}Icon{index}Texture"))},
-                    width: {TARGET_AURA_ICON_SIZE - 2.0},
-                    height: {TARGET_AURA_ICON_SIZE - 2.0},
-                    texture_fdid: {icon.icon_fdid},
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                    }
-                }
-            }
-            fontstring {
-                name: {dyn_name(format!("{prefix}Icon{index}Timer"))},
-                width: {TARGET_AURA_ICON_SIZE + 4.0},
-                height: 10.0,
-                text: {icon.timer_text.as_str()},
-                font: UNIT_NAME_FONT,
-                font_size: 8.0,
-                font_color: TARGET_AURA_TIMER_COLOR,
-                shadow_color: "0.0,0.0,0.0,1.0",
-                shadow_offset: "1,-1",
-                justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Bottom,
-                    relative_point: AnchorPoint::Bottom,
-                    x: "0",
-                    y: "9",
-                }
-            }
-            fontstring {
-                name: {dyn_name(format!("{prefix}Icon{index}Stack"))},
-                width: 12.0,
-                height: 10.0,
-                text: {stack_text.as_str()},
-                font: UNIT_NAME_FONT,
-                font_size: 8.0,
-                font_color: TARGET_AURA_STACK_COLOR,
-                shadow_color: "0.0,0.0,0.0,1.0",
-                shadow_offset: "1,-1",
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::BottomRight,
-                    relative_point: AnchorPoint::BottomRight,
-                    x: "-1",
-                    y: "1",
-                }
-            }
-        }
-    }
-}
-
-struct UnitFrameNames {
+pub(super) struct UnitFrameNames {
     container: DynName,
     shell: DynName,
     portrait: DynName,
@@ -293,61 +196,6 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
             {unit_frame_shell_bars(prefix, state, &visuals, frame)}
             {player_secondary_resource_row(prefix, state)}
             {contextual_icons(prefix, player_side, state)}
-        }
-    }
-}
-
-fn unit_frame_shell_background(
-    names: &UnitFrameNames,
-    state: &UnitFrameState,
-    frame: &FrameConfig,
-) -> Element {
-    rsx! {
-        texture {
-            name: names.shell,
-            width: frame.shell.width,
-            height: frame.shell.height,
-            texture_file: frame.shell.texture,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: frame.shell.anchor_x,
-                y: frame.shell.anchor_y,
-            }
-        }
-        r#frame {
-            name: names.portrait,
-            width: frame.portrait.width,
-            height: frame.portrait.height,
-            background_color: PORTRAIT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {frame.portrait.x},
-                y: {-frame.portrait.y},
-            }
-            {unit_frame_portrait_texture(names, state, frame)}
-        }
-    }
-}
-
-fn unit_frame_portrait_texture(
-    names: &UnitFrameNames,
-    state: &UnitFrameState,
-    frame: &FrameConfig,
-) -> Element {
-    let hide_portrait = state.portrait_texture_file.is_empty();
-    rsx! {
-        texture {
-            name: {dyn_name(format!("{}Texture", names.portrait.0))},
-            width: frame.portrait.width,
-            height: frame.portrait.height,
-            texture_file: {state.portrait_texture_file.as_str()},
-            hidden: {hide_portrait}
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
         }
     }
 }
@@ -813,64 +661,6 @@ fn target_right_threat_icons(prefix: &str) -> Element {
     .into_iter()
     .flatten()
     .collect()
-}
-
-pub fn default_player_frame_state() -> UnitFrameState {
-    UnitFrameState {
-        portrait_texture_file: UNKNOWN_PORTRAIT_TEXTURE_FILE.into(),
-        name: "Player".to_string(),
-        level_text: String::new(),
-        resting_text: String::new(),
-        health_text: String::new(),
-        mana_text: String::new(),
-        health_fill_width: 0.0,
-        mana_fill_width: 0.0,
-        secondary_resource: None,
-        has_mana: false,
-        show_combat_icon: false,
-        show_resting_icon: false,
-        target_buffs: Vec::new(),
-        target_debuffs: Vec::new(),
-    }
-}
-
-pub fn fallback_target_frame_state() -> UnitFrameState {
-    UnitFrameState {
-        portrait_texture_file: UNKNOWN_PORTRAIT_TEXTURE_FILE.into(),
-        name: "No Target".to_string(),
-        level_text: String::new(),
-        resting_text: String::new(),
-        health_text: String::new(),
-        mana_text: String::new(),
-        health_fill_width: 0.0,
-        mana_fill_width: 0.0,
-        secondary_resource: None,
-        has_mana: false,
-        show_combat_icon: false,
-        show_resting_icon: false,
-        target_buffs: Vec::new(),
-        target_debuffs: Vec::new(),
-    }
-}
-
-pub fn fill_width(max_width: f32, current: Option<f32>, max: Option<f32>) -> f32 {
-    let Some(max) = max.filter(|value| *value > 0.0) else {
-        return 0.0;
-    };
-    let pct = current.unwrap_or(0.0).clamp(0.0, max) / max;
-    (max_width * pct).clamp(0.0, max_width)
-}
-
-pub fn format_value_text(current: Option<f32>, max: Option<f32>) -> String {
-    match (current, max) {
-        (Some(current), Some(max)) => format!("{:.0} / {:.0}", current, max),
-        (Some(current), None) => format!("{current:.0}"),
-        _ => String::new(),
-    }
-}
-
-pub fn missing_target_name() -> &'static str {
-    "Target"
 }
 
 #[cfg(test)]
