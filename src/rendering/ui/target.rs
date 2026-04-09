@@ -691,7 +691,7 @@ fn start_gather_cast(
 
 /// When CurrentTarget changes, spawn or move the selection circle.
 #[cfg(test)]
-#[path = "../../../tests/unit/target_tests.rs"]
+#[path = "../../../tests/unit/target_tests/mod.rs"]
 mod tests;
 
 #[cfg(test)]
