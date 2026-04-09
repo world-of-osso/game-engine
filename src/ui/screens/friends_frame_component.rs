@@ -253,7 +253,26 @@ fn content_area(state: &FriendsFrameState) -> Element {
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
-    let body = match state.active_tab {
+    let body = content_area_body(state, content_w, content_h);
+    rsx! {
+        r#frame {
+            name: "FriendsContentArea",
+            width: {content_w},
+            height: {content_h},
+            background_color: CONTENT_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {CONTENT_INSET},
+                y: {content_y},
+            }
+            {body}
+        }
+    }
+}
+
+fn content_area_body(state: &FriendsFrameState, content_w: f32, content_h: f32) -> Element {
+    match state.active_tab {
         FriendsFrameTabKind::Friends => friends_content_body(&state.friends, content_w, content_h),
         FriendsFrameTabKind::Who => who_content_body(
             &state.who_query,
@@ -274,21 +293,6 @@ fn content_area(state: &FriendsFrameState) -> Element {
             content_w,
             content_h,
         ),
-    };
-    rsx! {
-        r#frame {
-            name: "FriendsContentArea",
-            width: {content_w},
-            height: {content_h},
-            background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
-            {body}
-        }
     }
 }
 
