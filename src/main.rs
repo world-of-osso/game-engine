@@ -30,6 +30,7 @@ mod asset {
     pub use game_engine::asset::*;
 }
 mod app_runtime;
+mod asset_lifetime;
 mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;

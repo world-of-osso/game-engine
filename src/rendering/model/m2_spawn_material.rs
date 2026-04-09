@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use bevy::asset::AssetId;
 use bevy::prelude::*;
 
 use crate::asset;
@@ -9,7 +10,7 @@ use crate::skybox_m2_material::{SkyboxM2Material, SkyboxM2Settings};
 
 use super::{BatchMaterial, PLACEHOLDER_COLORS};
 
-static REPEAT_TEXTURE_CACHE: OnceLock<Mutex<std::collections::HashMap<u32, Handle<Image>>>> =
+static REPEAT_TEXTURE_CACHE: OnceLock<Mutex<std::collections::HashMap<u32, AssetId<Image>>>> =
     OnceLock::new();
 
 pub(super) fn load_batch_material(
@@ -138,7 +139,7 @@ fn load_repeat_texture(
     images: &mut Assets<Image>,
 ) -> Option<Handle<Image>> {
     let cache = REPEAT_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
-    if let Some(handle) = cache.lock().unwrap().get(&fdid).cloned() {
+    if let Some(handle) = crate::asset_lifetime::lookup_cached_asset_handle(cache, &fdid, images) {
         return Some(handle);
     }
     let blp_path = asset::asset_cache::texture(fdid)
@@ -150,7 +151,8 @@ fn load_repeat_texture(
     let mut image = crate::rgba_image(pixels, width, height);
     image.sampler = m2_effect_material::repeat_sampler();
     let handle = images.add(image);
-    cache.lock().unwrap().insert(fdid, handle.clone());
+    crate::asset_lifetime::prune_unused_asset_handles(cache, images);
+    cache.lock().unwrap().insert(fdid, handle.id());
     Some(handle)
 }
 

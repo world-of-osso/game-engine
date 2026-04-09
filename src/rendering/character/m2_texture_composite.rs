@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
+use bevy::asset::AssetId;
 use bevy::prelude::*;
 
 use crate::asset;
@@ -15,7 +16,7 @@ pub(crate) struct TextureCacheKey {
 }
 
 pub(crate) static COMPOSITED_TEXTURE_CACHE: OnceLock<
-    Mutex<std::collections::HashMap<TextureCacheKey, Result<Handle<Image>, String>>>,
+    Mutex<std::collections::HashMap<TextureCacheKey, Result<AssetId<Image>, String>>>,
 > = OnceLock::new();
 
 const M2_SHADER_ALPHA_MASK: u16 = 0x8000;
@@ -29,11 +30,14 @@ pub(crate) fn load_composited_texture(
     let key = composited_texture_cache_key(base_path, batch);
     let cache =
         COMPOSITED_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()));
-    if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
+    if let Some(cached) =
+        crate::asset_lifetime::lookup_cached_result_asset_handle(cache, &key, images)
+    {
         return cached;
     }
     let handle = build_composited_texture_handle(base_path, batch, texture_dir, images)?;
-    cache.lock().unwrap().insert(key, Ok(handle.clone()));
+    crate::asset_lifetime::prune_unused_result_asset_handles(cache, images);
+    cache.lock().unwrap().insert(key, Ok(handle.id()));
     Ok(handle)
 }
 

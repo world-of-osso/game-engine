@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use bevy::asset::AssetId;
 use bevy::asset::RenderAssetUsages;
 use bevy::color::LinearRgba;
 use bevy::ecs::query::QueryFilter;
@@ -58,7 +59,7 @@ struct WmoTextureCacheKey {
 }
 
 static WMO_TEXTURE_CACHE: OnceLock<
-    Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<Handle<Image>, String>>>,
+    Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<AssetId<Image>, String>>>,
 > = OnceLock::new();
 
 struct WmoAssets<'a> {

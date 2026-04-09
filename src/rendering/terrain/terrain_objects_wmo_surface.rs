@@ -89,26 +89,22 @@ pub(super) fn load_wmo_material_image(
         texture_3_fdid,
     };
     let cache = wmo_texture_cache();
-    if let Some(cached) = lookup_cached_wmo_material_image(cache, &key) {
+    if let Some(cached) =
+        crate::asset_lifetime::lookup_cached_result_asset_handle(cache, &key, images)
+    {
         return cached;
     }
     let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
     composite_wmo_overlay_layers(&mut pixels, w, h, shader, [texture_2_fdid, texture_3_fdid]);
     let handle = images.add(build_wmo_material_image(pixels, w, h));
-    cache.lock().unwrap().insert(key, Ok(handle.clone()));
+    crate::asset_lifetime::prune_unused_result_asset_handles(cache, images);
+    cache.lock().unwrap().insert(key, Ok(handle.id()));
     Ok(handle)
 }
 
 pub(super) fn wmo_texture_cache()
--> &'static Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<Handle<Image>, String>>> {
+-> &'static Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<AssetId<Image>, String>>> {
     WMO_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
-}
-
-pub(super) fn lookup_cached_wmo_material_image(
-    cache: &Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<Handle<Image>, String>>>,
-    key: &WmoTextureCacheKey,
-) -> Option<Result<Handle<Image>, String>> {
-    cache.lock().unwrap().get(key).cloned()
 }
 
 pub(super) fn composite_wmo_overlay_layers(
