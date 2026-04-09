@@ -331,41 +331,53 @@ mod tests {
 
     fn snapshot() -> ProfessionStatusSnapshot {
         ProfessionStatusSnapshot {
-            skills: vec![
-                ProfessionSkillEntry {
-                    profession: "Alchemy".into(),
-                    current: 25,
-                    max: 75,
-                },
-                ProfessionSkillEntry {
-                    profession: "Mining".into(),
-                    current: 42,
-                    max: 75,
-                },
-            ],
-            recipes: vec![
-                ProfessionRecipeEntry {
-                    spell_id: 1001,
-                    profession: "Alchemy".into(),
-                    name: "Minor Healing Potion".into(),
-                    craftable: true,
-                    cooldown: None,
-                },
-                ProfessionRecipeEntry {
-                    spell_id: 2001,
-                    profession: "Mining".into(),
-                    name: "Smelt Copper".into(),
-                    craftable: false,
-                    cooldown: Some("On Cooldown".into()),
-                },
-            ],
+            skills: sample_skills(),
+            recipes: sample_recipes(),
             last_server_message: None,
-            last_skill_up: Some(ProfessionSkillUpEntry {
-                profession: "Alchemy".into(),
-                current: 26,
-                max: 75,
-            }),
+            last_skill_up: Some(sample_skill_up()),
             last_error: None,
+        }
+    }
+
+    fn sample_skills() -> Vec<ProfessionSkillEntry> {
+        vec![
+            ProfessionSkillEntry {
+                profession: "Alchemy".into(),
+                current: 25,
+                max: 75,
+            },
+            ProfessionSkillEntry {
+                profession: "Mining".into(),
+                current: 42,
+                max: 75,
+            },
+        ]
+    }
+
+    fn sample_recipes() -> Vec<ProfessionRecipeEntry> {
+        vec![
+            ProfessionRecipeEntry {
+                spell_id: 1001,
+                profession: "Alchemy".into(),
+                name: "Minor Healing Potion".into(),
+                craftable: true,
+                cooldown: None,
+            },
+            ProfessionRecipeEntry {
+                spell_id: 2001,
+                profession: "Mining".into(),
+                name: "Smelt Copper".into(),
+                craftable: false,
+                cooldown: Some("On Cooldown".into()),
+            },
+        ]
+    }
+
+    fn sample_skill_up() -> ProfessionSkillUpEntry {
+        ProfessionSkillUpEntry {
+            profession: "Alchemy".into(),
+            current: 26,
+            max: 75,
         }
     }
 
