@@ -177,38 +177,52 @@ fn tab_row(tabs: &[GuildTab]) -> Element {
         .enumerate()
         .flat_map(|(i, tab)| {
             let x = INSET + i as f32 * (tab_w + TAB_GAP);
-            let (bg, color) = if tab.active {
-                (TAB_BG_ACTIVE, TAB_TEXT_ACTIVE)
-            } else {
-                (TAB_BG_INACTIVE, TAB_TEXT_INACTIVE)
-            };
-            rsx! {
-                r#frame {
-                    name: DynName(format!("GuildTab{i}")),
-                    width: {tab_w},
-                    height: {TAB_H},
-                    background_color: bg,
-                    onclick: {tab.action.as_str()},
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {-(HEADER_H + TAB_GAP)},
-                    }
-                    fontstring {
-                        name: DynName(format!("GuildTab{i}Label")),
-                        width: {tab_w},
-                        height: {TAB_H},
-                        text: {tab.name.as_str()},
-                        font_size: 11.0,
-                        font_color: color,
-                        justify_h: "CENTER",
-                        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                    }
-                }
-            }
+            guild_tab_frame(i, tab, tab_w, x)
         })
         .collect()
+}
+
+fn guild_tab_frame(index: usize, tab: &GuildTab, tab_w: f32, x: f32) -> Element {
+    let (bg, color) = guild_tab_style(tab.active);
+    rsx! {
+        r#frame {
+            name: DynName(format!("GuildTab{index}")),
+            width: {tab_w},
+            height: {TAB_H},
+            background_color: bg,
+            onclick: {tab.action.as_str()},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-(HEADER_H + TAB_GAP)},
+            }
+            {guild_tab_label(index, &tab.name, tab_w, color)}
+        }
+    }
+}
+
+fn guild_tab_style(active: bool) -> (&'static str, &'static str) {
+    if active {
+        (TAB_BG_ACTIVE, TAB_TEXT_ACTIVE)
+    } else {
+        (TAB_BG_INACTIVE, TAB_TEXT_INACTIVE)
+    }
+}
+
+fn guild_tab_label(index: usize, name: &str, tab_w: f32, color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: DynName(format!("GuildTab{index}Label")),
+            width: {tab_w},
+            height: {TAB_H},
+            text: name,
+            font_size: 11.0,
+            font_color: color,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+        }
+    }
 }
 
 fn status_line(text: &str) -> Element {
