@@ -270,37 +270,13 @@ fn roster_panel(state: &GuildFrameState) -> Element {
 }
 
 fn roster_header(row_w: f32) -> Element {
-    let columns = [
-        ("Name", 0.18),
-        ("Lvl", 0.08),
-        ("Class", 0.15),
-        ("Rank", 0.14),
-        ("Status", 0.13),
-        ("Officer Note", 0.32),
-    ];
     let mut x = 4.0;
-    let cells: Element = columns
+    let cells: Element = GUILD_ROSTER_HEADER_COLUMNS
         .into_iter()
         .enumerate()
         .flat_map(|(i, (label, frac))| {
             let w = row_w * frac;
-            let cell = rsx! {
-                fontstring {
-                    name: DynName(format!("GuildRosterHeader{i}")),
-                    width: {w},
-                    height: {ROW_H},
-                    text: label,
-                    font_size: 9.0,
-                    font_color: HEADER_TEXT,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: "0",
-                    }
-                }
-            };
+            let cell = roster_header_cell(i, label, w, x);
             x += w;
             cell
         })
@@ -313,6 +289,35 @@ fn roster_header(row_w: f32) -> Element {
             background_color: HEADER_BG,
             anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
             {cells}
+        }
+    }
+}
+
+const GUILD_ROSTER_HEADER_COLUMNS: [(&str, f32); 6] = [
+    ("Name", 0.18),
+    ("Lvl", 0.08),
+    ("Class", 0.15),
+    ("Rank", 0.14),
+    ("Status", 0.13),
+    ("Officer Note", 0.32),
+];
+
+fn roster_header_cell(index: usize, label: &str, width: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: DynName(format!("GuildRosterHeader{index}")),
+            width: {width},
+            height: {ROW_H},
+            text: label,
+            font_size: 9.0,
+            font_color: HEADER_TEXT,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
         }
     }
 }
