@@ -12,12 +12,17 @@ use crate::sound_footsteps::{
 use game_engine::input_bindings::{InputAction, InputBindings};
 
 mod runtime_music;
+mod runtime_spells;
+
+use runtime_spells::{LoadedSpellAudioAssets, load_spell_audio_assets, spell_sound_volume_scale};
 
 pub struct SoundPlugin;
 
 impl Plugin for SoundPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SoundSettings>()
+            .init_resource::<SpellSoundQueue>()
+            .init_resource::<SpellCastSoundState>()
             .insert_resource(MusicPlaybackState::default())
             .add_systems(
                 Startup,
@@ -32,7 +37,12 @@ impl Plugin for SoundPlugin {
             .add_systems(Update, update_audio_volumes)
             .add_systems(Update, runtime_music::maintain_music_playback)
             .add_systems(Update, attach_footstep_tracker)
-            .add_systems(Update, footstep_trigger.after(attach_footstep_tracker));
+            .add_systems(Update, footstep_trigger.after(attach_footstep_tracker))
+            .add_systems(Update, queue_active_spell_sounds)
+            .add_systems(
+                Update,
+                play_queued_spell_sounds.after(queue_active_spell_sounds),
+            );
     }
 }
 
@@ -64,6 +74,11 @@ pub struct SoundAssets {
     pub footstep_light: Handle<AudioSource>,
     pub footstep_heavy: Handle<AudioSource>,
     pub footstep_catalog: LoadedFootstepCatalog,
+    pub spell_cast: Handle<AudioSource>,
+    pub spell_impact: Handle<AudioSource>,
+    pub spell_heal: Handle<AudioSource>,
+    pub spell_miss: Handle<AudioSource>,
+    pub spell_interrupt: Handle<AudioSource>,
     pub ambient_loop: Handle<AudioSource>,
     pub music_loop_fallback: Handle<AudioSource>,
     pub music_tracks: Vec<LoadedMusicTrack>,
@@ -74,6 +89,13 @@ pub struct SoundAssets {
 pub struct LoadedMusicTrack {
     pub handle: Handle<AudioSource>,
     pub name: String,
+}
+
+struct LoadedCoreAudioAssets {
+    footstep_light: Handle<AudioSource>,
+    footstep_heavy: Handle<AudioSource>,
+    ambient_loop: Handle<AudioSource>,
+    music_loop_fallback: Handle<AudioSource>,
 }
 
 #[derive(Component)]
@@ -90,6 +112,31 @@ struct MusicPlaybackState {
     active_zone_id: Option<u32>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpellSoundKind {
+    CastStart,
+    Impact,
+    Heal,
+    Miss,
+    Interrupt,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpellSoundRequest {
+    pub spell_id: u32,
+    pub kind: SpellSoundKind,
+}
+
+#[derive(Resource, Default, Clone, Debug, PartialEq, Eq)]
+pub struct SpellSoundQueue {
+    pub requests: Vec<SpellSoundRequest>,
+}
+
+#[derive(Resource, Default)]
+struct SpellCastSoundState {
+    last_active_spell_id: Option<u32>,
+}
+
 /// Tracks the last footstep trigger point to avoid double-plays.
 #[derive(Component, Default)]
 pub struct FootstepTracker {
@@ -98,25 +145,19 @@ pub struct FootstepTracker {
 }
 
 fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<AudioSource>>) {
-    let light_wav = generate_wav(&generate_footstep_samples(0.3, 60));
-    let footstep_light = audio_assets.add(AudioSource {
-        bytes: light_wav.into(),
-    });
-
-    let heavy_wav = generate_wav(&generate_footstep_samples(0.5, 80));
-    let footstep_heavy = audio_assets.add(AudioSource {
-        bytes: heavy_wav.into(),
-    });
-
-    let ambient_wav = generate_wav(&generate_ambient_samples(30_000));
-    let ambient_loop = audio_assets.add(AudioSource {
-        bytes: ambient_wav.into(),
-    });
-
-    let music_wav = generate_wav(&generate_music_samples(24_000));
-    let music_loop_fallback = audio_assets.add(AudioSource {
-        bytes: music_wav.into(),
-    });
+    let LoadedCoreAudioAssets {
+        footstep_light,
+        footstep_heavy,
+        ambient_loop,
+        music_loop_fallback,
+    } = load_generated_core_audio(&mut audio_assets);
+    let LoadedSpellAudioAssets {
+        spell_cast,
+        spell_impact,
+        spell_heal,
+        spell_miss,
+        spell_interrupt,
+    } = load_spell_audio_assets(&mut audio_assets);
     let footstep_catalog = load_wow_footstep_catalog(&mut audio_assets);
     let (music_tracks, music_tracks_by_zone) = load_external_music_tracks(&mut audio_assets);
 
@@ -124,11 +165,34 @@ fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<Aud
         footstep_light,
         footstep_heavy,
         footstep_catalog,
+        spell_cast,
+        spell_impact,
+        spell_heal,
+        spell_miss,
+        spell_interrupt,
         ambient_loop,
         music_loop_fallback,
         music_tracks,
         music_tracks_by_zone,
     });
+}
+
+fn load_generated_core_audio(audio_assets: &mut Assets<AudioSource>) -> LoadedCoreAudioAssets {
+    LoadedCoreAudioAssets {
+        footstep_light: load_generated_audio(audio_assets, &generate_footstep_samples(0.3, 60)),
+        footstep_heavy: load_generated_audio(audio_assets, &generate_footstep_samples(0.5, 80)),
+        ambient_loop: load_generated_audio(audio_assets, &generate_ambient_samples(30_000)),
+        music_loop_fallback: load_generated_audio(audio_assets, &generate_music_samples(24_000)),
+    }
+}
+
+fn load_generated_audio(
+    audio_assets: &mut Assets<AudioSource>,
+    samples: &[i16],
+) -> Handle<AudioSource> {
+    audio_assets.add(AudioSource {
+        bytes: generate_wav(samples).into(),
+    })
 }
 
 fn spawn_ambient_sound(
@@ -297,6 +361,81 @@ fn footstep_trigger(
         };
         play_footstep(&mut commands, request, &sound_assets, &settings);
     }
+}
+
+fn queue_active_spell_sounds(
+    casting: Option<Res<game_engine::casting_data::CastingState>>,
+    mut state: ResMut<SpellCastSoundState>,
+    mut queue: ResMut<SpellSoundQueue>,
+) {
+    let Some(casting) = casting else {
+        state.last_active_spell_id = None;
+        return;
+    };
+    observe_active_spell(&casting, &mut state.last_active_spell_id, &mut queue);
+}
+
+fn observe_active_spell(
+    casting: &game_engine::casting_data::CastingState,
+    last_spell_id: &mut Option<u32>,
+    queue: &mut SpellSoundQueue,
+) {
+    let active_spell_id = casting.active.as_ref().and_then(|cast| {
+        if cast.spell_id == 0 {
+            None
+        } else {
+            Some(cast.spell_id)
+        }
+    });
+    if active_spell_id != *last_spell_id {
+        if let Some(spell_id) = active_spell_id {
+            queue.requests.push(SpellSoundRequest {
+                spell_id,
+                kind: SpellSoundKind::CastStart,
+            });
+        }
+        *last_spell_id = active_spell_id;
+    }
+}
+
+fn play_queued_spell_sounds(
+    mut commands: Commands,
+    sound_assets: Option<Res<SoundAssets>>,
+    settings: Res<SoundSettings>,
+    mut queue: ResMut<SpellSoundQueue>,
+) {
+    let Some(sound_assets) = sound_assets else {
+        queue.requests.clear();
+        return;
+    };
+    if queue.requests.is_empty() {
+        return;
+    }
+    let volume = compute_effects_volume(&settings);
+    let requests = std::mem::take(&mut queue.requests);
+    for request in requests {
+        play_spell_sound(&mut commands, &sound_assets, volume, &request);
+    }
+}
+
+fn play_spell_sound(
+    commands: &mut Commands,
+    sound_assets: &SoundAssets,
+    base_volume: f32,
+    request: &SpellSoundRequest,
+) {
+    let handle = match request.kind {
+        SpellSoundKind::CastStart => sound_assets.spell_cast.clone(),
+        SpellSoundKind::Impact => sound_assets.spell_impact.clone(),
+        SpellSoundKind::Heal => sound_assets.spell_heal.clone(),
+        SpellSoundKind::Miss => sound_assets.spell_miss.clone(),
+        SpellSoundKind::Interrupt => sound_assets.spell_interrupt.clone(),
+    };
+    let volume = base_volume * spell_sound_volume_scale(request.kind);
+    commands.spawn((
+        AudioPlayer::<AudioSource>::new(handle),
+        PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
+    ));
 }
 
 fn is_movement_anim(id: u16) -> bool {

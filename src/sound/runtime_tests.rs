@@ -171,3 +171,56 @@ fn select_footstep_surface_falls_back_to_terrain_when_outside_wmo() {
 
     assert_eq!(surface, FootstepSurface::Grass);
 }
+
+#[test]
+fn observe_active_spell_queues_cast_sound_once_per_new_spell() {
+    let mut queue = SpellSoundQueue::default();
+    let mut last_spell_id = None;
+    let mut casting = game_engine::casting_data::CastingState::default();
+
+    casting.start(game_engine::casting_data::ActiveCast {
+        spell_name: "Fireball".into(),
+        spell_id: 133,
+        icon_fdid: 135810,
+        cast_type: game_engine::casting_data::CastType::Cast,
+        interruptible: true,
+        duration: 2.5,
+        elapsed: 0.0,
+    });
+
+    observe_active_spell(&casting, &mut last_spell_id, &mut queue);
+    observe_active_spell(&casting, &mut last_spell_id, &mut queue);
+
+    assert_eq!(
+        queue.requests,
+        vec![SpellSoundRequest {
+            spell_id: 133,
+            kind: SpellSoundKind::CastStart,
+        }]
+    );
+}
+
+#[test]
+fn observe_active_spell_ignores_zero_spell_id_and_clears_tracker() {
+    let mut queue = SpellSoundQueue::default();
+    let mut last_spell_id = Some(133);
+    let mut casting = game_engine::casting_data::CastingState::default();
+
+    casting.start(game_engine::casting_data::ActiveCast {
+        spell_name: "Mining Copper Vein".into(),
+        spell_id: 0,
+        icon_fdid: 0,
+        cast_type: game_engine::casting_data::CastType::Cast,
+        interruptible: true,
+        duration: 2.0,
+        elapsed: 0.0,
+    });
+
+    observe_active_spell(&casting, &mut last_spell_id, &mut queue);
+    assert!(queue.requests.is_empty());
+    assert_eq!(last_spell_id, None);
+
+    casting.cancel();
+    observe_active_spell(&casting, &mut last_spell_id, &mut queue);
+    assert_eq!(last_spell_id, None);
+}

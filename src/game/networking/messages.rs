@@ -18,6 +18,7 @@ use crate::networking::{
     ChatInput, ChatLog, CurrentZone, EmoteInput, MAX_CHAT_LOG, MAX_COMBAT_LOG,
 };
 use crate::networking_auth::SelectedCharacterId;
+use crate::sound::{SpellSoundKind, SpellSoundQueue, SpellSoundRequest};
 use crate::terrain::{AdtManager, replace_streamed_map};
 use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::achievement::{
@@ -570,6 +571,31 @@ fn floating_text_from_combat_event(msg: &CombatEvent) -> Option<(u64, FloatingCo
     ))
 }
 
+fn spell_sound_from_combat_event(msg: &CombatEvent) -> Option<SpellSoundRequest> {
+    if msg.spell_id == 0 {
+        return None;
+    }
+    let kind = match msg.event_type {
+        CombatEventType::SpellDamage
+        | CombatEventType::PeriodicDamage
+        | CombatEventType::CriticalHit => SpellSoundKind::Impact,
+        CombatEventType::SpellHeal | CombatEventType::PeriodicHeal => SpellSoundKind::Heal,
+        CombatEventType::Miss => SpellSoundKind::Miss,
+        CombatEventType::Interrupt => SpellSoundKind::Interrupt,
+        CombatEventType::MeleeDamage
+        | CombatEventType::Absorb
+        | CombatEventType::Dodge
+        | CombatEventType::Parry
+        | CombatEventType::Block
+        | CombatEventType::Death
+        | CombatEventType::Respawn => return None,
+    };
+    Some(SpellSoundRequest {
+        spell_id: msg.spell_id,
+        kind,
+    })
+}
+
 fn push_floating_text(
     target_bits: u64,
     text: FloatingCombatText,
@@ -590,12 +616,18 @@ pub(crate) fn receive_combat_events(
     mut receivers: Query<&mut MessageReceiver<CombatEvent>>,
     mut snapshot: ResMut<CombatLogStatusSnapshot>,
     mut stacks: Query<&mut FloatingCombatTextStack>,
+    mut spell_sounds: Option<ResMut<SpellSoundQueue>>,
     mut commands: Commands,
 ) {
     for mut receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             let entry = combat_event_to_log_entry(&msg);
             append_combat_entry(&mut snapshot, entry);
+            if let Some(request) = spell_sound_from_combat_event(&msg)
+                && let Some(queue) = spell_sounds.as_mut()
+            {
+                queue.requests.push(request);
+            }
             if let Some((target_bits, text)) = floating_text_from_combat_event(&msg) {
                 push_floating_text(target_bits, text, &mut stacks, &mut commands);
             }
@@ -1190,6 +1222,45 @@ mod tests {
         assert!(
             floating_text_from_combat_event(&combat_event(CombatEventType::Interrupt, 0.0, 17))
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn spell_sound_from_combat_event_maps_spell_categories() {
+        let cast =
+            spell_sound_from_combat_event(&combat_event(CombatEventType::SpellDamage, 40.0, 133))
+                .expect("spell impact");
+        assert_eq!(cast.kind, crate::sound::SpellSoundKind::Impact);
+        assert_eq!(cast.spell_id, 133);
+
+        let heal =
+            spell_sound_from_combat_event(&combat_event(CombatEventType::SpellHeal, 55.0, 2061))
+                .expect("spell heal");
+        assert_eq!(heal.kind, crate::sound::SpellSoundKind::Heal);
+        assert_eq!(heal.spell_id, 2061);
+
+        let miss = spell_sound_from_combat_event(&combat_event(CombatEventType::Miss, 0.0, 17))
+            .expect("spell miss");
+        assert_eq!(miss.kind, crate::sound::SpellSoundKind::Miss);
+
+        let interrupt =
+            spell_sound_from_combat_event(&combat_event(CombatEventType::Interrupt, 0.0, 2139))
+                .expect("spell interrupt");
+        assert_eq!(interrupt.kind, crate::sound::SpellSoundKind::Interrupt);
+    }
+
+    #[test]
+    fn spell_sound_from_combat_event_ignores_non_spell_events() {
+        assert!(
+            spell_sound_from_combat_event(&combat_event(CombatEventType::MeleeDamage, 22.0, 0,))
+                .is_none()
+        );
+        assert!(
+            spell_sound_from_combat_event(&combat_event(CombatEventType::SpellDamage, 22.0, 0,))
+                .is_none()
+        );
+        assert!(
+            spell_sound_from_combat_event(&combat_event(CombatEventType::Death, 0.0, 0,)).is_none()
         );
     }
 }
