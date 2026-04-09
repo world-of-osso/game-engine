@@ -15,6 +15,9 @@ use shared::components::{
     CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
 };
 
+use crate::command_dispatch::{
+    execute_text_request_output, format_text_response_output, serialize_json,
+};
 use crate::requests::*;
 use crate::*;
 
