@@ -3,8 +3,8 @@ use lightyear::prelude::*;
 use shared::components::{EquipmentAppearance as NetEquipmentAppearance, Player as NetPlayer};
 use shared::protocol::{
     AuthChannel, CharacterListEntry, CharacterListUpdate, CreateCharacterResponse,
-    DeleteCharacterResponse, EnterWorldResponse, LoginRequest, LoginResponse, RegisterRequest,
-    RegisterResponse, SelectCharacter,
+    DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, LoginRequest, LoginResponse,
+    RegisterRequest, RegisterResponse, SelectCharacter,
 };
 use std::path::PathBuf;
 
@@ -229,6 +229,17 @@ pub fn receive_login_response(
                 server,
                 &mut commands,
             );
+        }
+    }
+}
+
+pub fn receive_forced_disconnect(
+    mut receivers: Query<&mut MessageReceiver<ForcedDisconnect>>,
+    mut pending: ResMut<crate::networking::PendingForcedDisconnect>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for notice in receiver.receive() {
+            pending.0 = Some(notice);
         }
     }
 }
@@ -593,6 +604,11 @@ fn user_facing_login_error(err: &str) -> &str {
         || normalized.contains("password")
     {
         "Incorrect username or password"
+    } else if normalized.contains("banned")
+        || normalized.contains("pending admin approval")
+        || normalized.contains("register first")
+    {
+        err
     } else {
         "Login failed. Please try again."
     }

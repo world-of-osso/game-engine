@@ -7,7 +7,7 @@ use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use shared::components::{Position as NetPosition, Rotation as NetRotation};
 pub use shared::protocol::ChatType;
-use shared::protocol::{ChatMessage, EmoteIntent};
+use shared::protocol::{ChatMessage, EmoteIntent, ForcedDisconnect};
 
 pub use crate::networking_auth::{
     AuthToken, AuthUiFeedback, CharacterList, LoginMode, LoginPassword, LoginUsername,
@@ -129,6 +129,9 @@ impl ReconnectState {
     }
 }
 
+#[derive(Resource, Default, Clone)]
+pub struct PendingForcedDisconnect(pub Option<ForcedDisconnect>);
+
 #[derive(Component)]
 struct ReconnectOverlayRoot;
 
@@ -171,6 +174,7 @@ fn register_net_resources(app: &mut App) {
         ..Default::default()
     });
     app.init_resource::<ReconnectState>();
+    app.init_resource::<PendingForcedDisconnect>();
     let server = app
         .world()
         .get_resource::<ServerHostname>()
@@ -312,6 +316,7 @@ fn register_auth_net_systems(app: &mut App) {
     app.add_systems(
         Update,
         (
+            auth::receive_forced_disconnect,
             auth::receive_login_response,
             auth::receive_create_character_response,
             auth::receive_delete_character_response,
@@ -428,6 +433,7 @@ fn handle_client_disconnected(
     auth_token: Option<Res<AuthToken>>,
     selected: Option<Res<SelectedCharacterId>>,
     reconnect: Option<ResMut<ReconnectState>>,
+    mut forced_disconnect: ResMut<PendingForcedDisconnect>,
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut next_state: ResMut<NextState<crate::game_state::GameState>>,
     mut commands: Commands,
@@ -435,6 +441,7 @@ fn handle_client_disconnected(
     let Ok(disconnected) = disconnected_q.get(trigger.entity) else {
         return;
     };
+    let forced_notice = forced_disconnect.0.take();
     let auth_token_label = auth_token
         .as_deref()
         .map(|token| crate::networking_auth::token_debug_label(token.0.as_deref()))
@@ -442,7 +449,11 @@ fn handle_client_disconnected(
     let selected_name = selected.as_deref().and_then(|s| s.character_name.clone());
     let selected_id = selected.as_deref().and_then(|s| s.character_id);
     let reconnect_phase = reconnect.as_deref().map(|s| s.phase);
-    let reason = disconnected.reason.as_deref().unwrap_or("connection lost");
+    let reason = forced_notice
+        .as_ref()
+        .map(|notice| notice.message.as_str())
+        .or(disconnected.reason.as_deref())
+        .unwrap_or("connection lost");
     warn!(
         "Client entity {:?} disconnected in {:?}: {reason}; token={} selected_id={selected_id:?} selected_name={selected_name:?} reconnect_phase={reconnect_phase:?}",
         trigger.entity,
@@ -457,6 +468,7 @@ fn handle_client_disconnected(
             reconnect,
             selected_name: selected_name.as_deref(),
         },
+        forced_notice,
         &mut auth_feedback,
         &mut next_state,
         &mut commands,
@@ -474,6 +486,7 @@ struct DisconnectInputs<'a, 'b, 'c, 'd> {
 fn handle_disconnect_by_state(
     state: &Res<State<crate::game_state::GameState>>,
     inputs: DisconnectInputs<'_, '_, '_, '_>,
+    forced_notice: Option<ForcedDisconnect>,
     auth_feedback: &mut ResMut<AuthUiFeedback>,
     next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
     commands: &mut Commands,
@@ -485,6 +498,17 @@ fn handle_disconnect_by_state(
         reconnect,
         selected_name,
     } = inputs;
+    if let Some(notice) = forced_notice {
+        handle_forced_disconnect(
+            state.get(),
+            reconnect,
+            notice,
+            auth_feedback,
+            next_state,
+            commands,
+        );
+        return;
+    }
     match *state.get() {
         crate::game_state::GameState::CharSelect => {
             handle_disconnect_from_charselect(auth_token, reconnect, auth_feedback, commands);
@@ -505,6 +529,27 @@ fn handle_disconnect_by_state(
         ),
         crate::game_state::GameState::Connecting => handle_disconnect_while_connecting(entity),
         _ => handle_disconnect_to_login_fallback(state.get(), entity, auth_feedback, next_state),
+    }
+}
+
+fn handle_forced_disconnect(
+    state: &crate::game_state::GameState,
+    reconnect: Option<ResMut<ReconnectState>>,
+    notice: ForcedDisconnect,
+    auth_feedback: &mut ResMut<AuthUiFeedback>,
+    next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
+    commands: &mut Commands,
+) {
+    if let Some(mut reconnect) = reconnect
+        && reconnect.is_active()
+    {
+        reconnect.phase = ReconnectPhase::Inactive;
+        reconnect.terrain_refresh_seen = false;
+    }
+    commands.queue(crate::networking_reconnect::reset_network_world);
+    auth_feedback.0 = Some(notice.message);
+    if *state != crate::game_state::GameState::Login {
+        next_state.set(crate::game_state::GameState::Login);
     }
 }
 

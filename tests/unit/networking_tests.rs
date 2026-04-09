@@ -11,6 +11,7 @@ use crate::networking_player::{
 use crate::networking_reconnect::{finish_reconnect_when_world_ready, reset_network_world};
 use game_engine::chat_data::WhisperState;
 use shared::components::{CharacterAppearance, Health as NetHealth, Player as NetPlayer};
+use shared::protocol::ForcedDisconnect;
 
 fn make_state(direction: MoveDirection) -> MovementState {
     MovementState {
@@ -113,6 +114,7 @@ fn charselect_disconnect_app(token: Option<&str>) -> App {
     app.insert_state(crate::game_state::GameState::CharSelect);
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
+    app.init_resource::<PendingForcedDisconnect>();
     app.insert_resource(AuthToken(token.map(|t| t.to_string())));
     app.insert_resource(LoginMode::Login);
     app.insert_resource(LoginUsername("stale-user".to_string()));
@@ -177,12 +179,38 @@ fn disconnect_during_charselect_without_token_stays_offline() {
 }
 
 #[test]
+fn forced_disconnect_during_charselect_with_token_returns_to_login() {
+    let mut app = charselect_disconnect_app(Some("saved-token"));
+    app.world_mut().resource_mut::<PendingForcedDisconnect>().0 = Some(ForcedDisconnect {
+        message: "Account banned: cheating".to_string(),
+        reconnect_allowed: false,
+    });
+    trigger_disconnect(&mut app);
+    app.update();
+    app.update();
+
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
+    assert_eq!(*state.get(), crate::game_state::GameState::Login);
+    assert_eq!(
+        app.world().resource::<AuthUiFeedback>().0.as_deref(),
+        Some("Account banned: cheating")
+    );
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::Inactive
+    );
+}
+
+#[test]
 fn disconnect_during_connecting_is_ignored() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(crate::game_state::GameState::Connecting);
     app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<PendingForcedDisconnect>();
     app.add_observer(handle_client_disconnected);
     trigger_disconnect(&mut app);
     app.update();
@@ -203,6 +231,7 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
     app.insert_state(state);
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
+    app.init_resource::<PendingForcedDisconnect>();
     app.insert_resource(AuthToken(Some("saved-token".to_string())));
     app.insert_resource(selected_with_name("Theron"));
     app.insert_resource(game_engine::targeting::CurrentTarget(Some(
@@ -297,6 +326,35 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
     app.update();
 
     assert_inworld_reconnect_state(&app, client, replicated);
+}
+
+#[test]
+fn forced_disconnect_during_inworld_goes_to_login_without_reconnect() {
+    let mut app = inworld_disconnect_base_app();
+    let (client, replicated) = populate_inworld_disconnect_entities(&mut app);
+    app.world_mut().resource_mut::<PendingForcedDisconnect>().0 = Some(ForcedDisconnect {
+        message: "You were kicked: testing".to_string(),
+        reconnect_allowed: false,
+    });
+    trigger_disconnect_entity(&mut app, client);
+
+    app.update();
+    app.update();
+
+    let state = app
+        .world()
+        .resource::<State<crate::game_state::GameState>>();
+    assert_eq!(*state.get(), crate::game_state::GameState::Login);
+    assert_eq!(
+        app.world().resource::<AuthUiFeedback>().0.as_deref(),
+        Some("You were kicked: testing")
+    );
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::Inactive
+    );
+    assert!(app.world().get_entity(client).is_err());
+    assert!(app.world().get_entity(replicated).is_err());
 }
 
 #[test]

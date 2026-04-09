@@ -303,6 +303,27 @@ fn login_failure_despawns_live_client() {
 }
 
 #[test]
+fn banned_login_failure_preserves_server_message() {
+    let result = run_login_response_for_test(
+        LoginResponse {
+            success: false,
+            token: String::new(),
+            characters: Vec::new(),
+            error: Some("Account banned: cheating".to_string()),
+        },
+        Vec::new(),
+        crate::networking::ReconnectState::default(),
+        false,
+    );
+
+    assert_eq!(
+        result.feedback.0.as_deref(),
+        Some("Account banned: cheating")
+    );
+    assert!(result.goes_login);
+}
+
+#[test]
 fn login_success_auto_enter_falls_back_to_charselect_when_list_is_empty() {
     assert_eq!(
         decide_login_success_action(&[], None, true, None),
