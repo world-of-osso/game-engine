@@ -144,6 +144,23 @@ fn bag_bar_builds_backpack_and_slots() {
 }
 
 #[test]
+fn bag_buttons_expose_toggle_actions() {
+    let reg = action_bar_registry();
+    let backpack = reg
+        .get(
+            reg.get_by_name("MainMenuBarBackpackButton")
+                .expect("backpack"),
+        )
+        .expect("backpack frame");
+    assert_eq!(backpack.onclick.as_deref(), Some("bag_toggle:0"));
+
+    let bag0 = reg
+        .get(reg.get_by_name("CharacterBag0Slot").expect("bag0"))
+        .expect("bag0 frame");
+    assert_eq!(bag0.onclick.as_deref(), Some("bag_toggle:1"));
+}
+
+#[test]
 fn bag_bar_has_money_display() {
     let reg = action_bar_registry();
     assert!(

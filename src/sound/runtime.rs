@@ -13,8 +13,11 @@ use game_engine::input_bindings::{InputAction, InputBindings};
 
 mod runtime_music;
 mod runtime_spells;
+mod runtime_ui;
 
 use runtime_spells::{LoadedSpellAudioAssets, load_spell_audio_assets, spell_sound_volume_scale};
+use runtime_ui::{LoadedUiAudioAssets, load_ui_audio_assets};
+pub use runtime_ui::{UiSoundKind, UiSoundQueue, queue_ui_sound};
 
 pub struct SoundPlugin;
 
@@ -23,6 +26,7 @@ impl Plugin for SoundPlugin {
         app.init_resource::<SoundSettings>()
             .init_resource::<SpellSoundQueue>()
             .init_resource::<SpellCastSoundState>()
+            .init_resource::<UiSoundQueue>()
             .insert_resource(MusicPlaybackState::default())
             .add_systems(
                 Startup,
@@ -39,9 +43,14 @@ impl Plugin for SoundPlugin {
             .add_systems(Update, attach_footstep_tracker)
             .add_systems(Update, footstep_trigger.after(attach_footstep_tracker))
             .add_systems(Update, queue_active_spell_sounds)
+            .add_systems(Update, runtime_ui::queue_button_click_sound)
             .add_systems(
                 Update,
                 play_queued_spell_sounds.after(queue_active_spell_sounds),
+            )
+            .add_systems(
+                Update,
+                runtime_ui::play_queued_ui_sounds.after(runtime_ui::queue_button_click_sound),
             );
     }
 }
@@ -79,6 +88,9 @@ pub struct SoundAssets {
     pub spell_heal: Handle<AudioSource>,
     pub spell_miss: Handle<AudioSource>,
     pub spell_interrupt: Handle<AudioSource>,
+    pub ui_button_click: Handle<AudioSource>,
+    pub ui_bag_open: Handle<AudioSource>,
+    pub ui_bag_close: Handle<AudioSource>,
     pub ambient_loop: Handle<AudioSource>,
     pub music_loop_fallback: Handle<AudioSource>,
     pub music_tracks: Vec<LoadedMusicTrack>,
@@ -145,36 +157,50 @@ pub struct FootstepTracker {
 }
 
 fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<AudioSource>>) {
-    let LoadedCoreAudioAssets {
-        footstep_light,
-        footstep_heavy,
-        ambient_loop,
-        music_loop_fallback,
-    } = load_generated_core_audio(&mut audio_assets);
-    let LoadedSpellAudioAssets {
-        spell_cast,
-        spell_impact,
-        spell_heal,
-        spell_miss,
-        spell_interrupt,
-    } = load_spell_audio_assets(&mut audio_assets);
-    let footstep_catalog = load_wow_footstep_catalog(&mut audio_assets);
-    let (music_tracks, music_tracks_by_zone) = load_external_music_tracks(&mut audio_assets);
+    commands.insert_resource(build_sound_assets(&mut audio_assets));
+}
 
-    commands.insert_resource(SoundAssets {
-        footstep_light,
-        footstep_heavy,
+fn build_sound_assets(audio_assets: &mut Assets<AudioSource>) -> SoundAssets {
+    let core_audio = load_generated_core_audio(audio_assets);
+    let spell_audio = load_spell_audio_assets(audio_assets);
+    let ui_audio = load_ui_audio_assets(audio_assets);
+    let footstep_catalog = load_wow_footstep_catalog(audio_assets);
+    let (music_tracks, music_tracks_by_zone) = load_external_music_tracks(audio_assets);
+    assemble_sound_assets(
+        core_audio,
+        spell_audio,
+        ui_audio,
         footstep_catalog,
-        spell_cast,
-        spell_impact,
-        spell_heal,
-        spell_miss,
-        spell_interrupt,
-        ambient_loop,
-        music_loop_fallback,
         music_tracks,
         music_tracks_by_zone,
-    });
+    )
+}
+
+fn assemble_sound_assets(
+    core_audio: LoadedCoreAudioAssets,
+    spell_audio: LoadedSpellAudioAssets,
+    ui_audio: LoadedUiAudioAssets,
+    footstep_catalog: LoadedFootstepCatalog,
+    music_tracks: Vec<LoadedMusicTrack>,
+    music_tracks_by_zone: HashMap<u32, Vec<usize>>,
+) -> SoundAssets {
+    SoundAssets {
+        footstep_light: core_audio.footstep_light,
+        footstep_heavy: core_audio.footstep_heavy,
+        footstep_catalog,
+        spell_cast: spell_audio.spell_cast,
+        spell_impact: spell_audio.spell_impact,
+        spell_heal: spell_audio.spell_heal,
+        spell_miss: spell_audio.spell_miss,
+        spell_interrupt: spell_audio.spell_interrupt,
+        ui_button_click: ui_audio.ui_button_click,
+        ui_bag_open: ui_audio.ui_bag_open,
+        ui_bag_close: ui_audio.ui_bag_close,
+        ambient_loop: core_audio.ambient_loop,
+        music_loop_fallback: core_audio.music_loop_fallback,
+        music_tracks,
+        music_tracks_by_zone,
+    }
 }
 
 fn load_generated_core_audio(audio_assets: &mut Assets<AudioSource>) -> LoadedCoreAudioAssets {
@@ -186,7 +212,7 @@ fn load_generated_core_audio(audio_assets: &mut Assets<AudioSource>) -> LoadedCo
     }
 }
 
-fn load_generated_audio(
+pub(super) fn load_generated_audio(
     audio_assets: &mut Assets<AudioSource>,
     samples: &[i16],
 ) -> Handle<AudioSource> {

@@ -3,6 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
 use crate::ui::screens::guild_frame_component::ACTION_GUILD_TOGGLE;
 use crate::ui::strata::FrameStrata;
@@ -522,6 +523,7 @@ fn money_display() -> Element {
 fn bag_slot(name: &str, index: usize) -> Element {
     let slot_name = DynName(name.to_string());
     let x = index as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+    let action = bag_toggle_action(index);
     rsx! {
         button {
             name: slot_name,
@@ -530,6 +532,7 @@ fn bag_slot(name: &str, index: usize) -> Element {
             text: "",
             font_size: 8.0,
             background_color: BAG_SLOT_BG,
+            onclick: {action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,

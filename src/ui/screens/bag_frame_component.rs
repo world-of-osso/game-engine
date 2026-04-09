@@ -25,6 +25,12 @@ const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const SLOT_BG: &str = "0.08,0.07,0.06,0.88";
 
+pub const ACTION_BAG_TOGGLE_PREFIX: &str = "bag_toggle:";
+
+pub fn bag_toggle_action(index: usize) -> String {
+    format!("{ACTION_BAG_TOGGLE_PREFIX}{index}")
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct BagSlotState {
     pub icon_fdid: u32,
