@@ -336,39 +336,15 @@ fn roster_row(index: usize, row: &GuildMemberRow, row_w: f32) -> Element {
         ROW_ODD
     };
     let top = -((index + 1) as f32 * ROW_H);
-    let values = [
-        row.name.clone(),
-        row.level.to_string(),
-        row.class_name.clone(),
-        row.rank_name.clone(),
-        row.status.clone(),
-        row.officer_note.clone(),
-    ];
-    let widths = [0.18, 0.08, 0.15, 0.14, 0.13, 0.32];
+    let values = roster_row_values(row);
     let mut x = 4.0;
     let cells: Element = values
         .into_iter()
-        .zip(widths)
+        .zip(GUILD_ROSTER_HEADER_COLUMNS.map(|(_, frac)| frac))
         .enumerate()
         .flat_map(|(col, (value, frac))| {
             let w = row_w * frac;
-            let cell = rsx! {
-                fontstring {
-                    name: DynName(format!("GuildRosterRow{index}Col{col}")),
-                    width: {w},
-                    height: {ROW_H},
-                    text: {value.as_str()},
-                    font_size: 9.0,
-                    font_color: TEXT,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: "0",
-                    }
-                }
-            };
+            let cell = roster_row_cell(index, col, &value, w, x);
             x += w;
             cell
         })
@@ -386,6 +362,37 @@ fn roster_row(index: usize, row: &GuildMemberRow, row_w: f32) -> Element {
                 y: {top},
             }
             {cells}
+        }
+    }
+}
+
+fn roster_row_values(row: &GuildMemberRow) -> [String; 6] {
+    [
+        row.name.clone(),
+        row.level.to_string(),
+        row.class_name.clone(),
+        row.rank_name.clone(),
+        row.status.clone(),
+        row.officer_note.clone(),
+    ]
+}
+
+fn roster_row_cell(index: usize, col: usize, value: &str, width: f32, x: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: DynName(format!("GuildRosterRow{index}Col{col}")),
+            width: {width},
+            height: {ROW_H},
+            text: value,
+            font_size: 9.0,
+            font_color: TEXT,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
         }
     }
 }
