@@ -156,7 +156,15 @@ mod tests {
 
     // Setup: 3 groups connected linearly: 0 --portal0--> 1 --portal1--> 2
     fn linear_portals() -> (Vec<WmoPortal>, Vec<WmoPortalRef>, Vec<(u16, u16)>) {
-        let portals = vec![
+        (
+            linear_portal_defs(),
+            linear_portal_refs(),
+            linear_group_ranges(),
+        )
+    }
+
+    fn linear_portal_defs() -> Vec<WmoPortal> {
+        vec![
             // Portal 0: at x=5, normal pointing +X (from group 0 to group 1)
             WmoPortal {
                 vertices: vec![[5.0, 0.0, 0.0]],
@@ -167,8 +175,11 @@ mod tests {
                 vertices: vec![[10.0, 0.0, 0.0]],
                 normal: [1.0, 0.0, 0.0],
             },
-        ];
-        let portal_refs = vec![
+        ]
+    }
+
+    fn linear_portal_refs() -> Vec<WmoPortalRef> {
+        vec![
             // Group 0 (x<5) portal ref → portal 0, connects to group 1, group 0 on neg side
             WmoPortalRef {
                 portal_index: 0,
@@ -193,14 +204,15 @@ mod tests {
                 group_index: 1,
                 side: 1,
             },
-        ];
-        // (start_portal_ref_index, count) for each group
-        let group_ranges = vec![
+        ]
+    }
+
+    fn linear_group_ranges() -> Vec<(u16, u16)> {
+        vec![
             (0, 1), // group 0: ref[0]
             (1, 2), // group 1: ref[1..3]
             (3, 1), // group 2: ref[3]
-        ];
-        (portals, portal_refs, group_ranges)
+        ]
     }
 
     #[test]
