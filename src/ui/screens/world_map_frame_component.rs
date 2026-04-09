@@ -5,6 +5,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
+use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -303,40 +304,20 @@ fn nav_dropdown(
     x: f32,
     y: f32,
 ) -> Element {
-    rsx! {
-        r#frame {
-            name: DynName(frame_name.into()),
-            width: {DROPDOWN_W},
-            height: {DROPDOWN_H},
-            background_color: DROPDOWN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
-            fontstring {
-                name: DynName(label_name.into()),
-                width: {DROPDOWN_W - 20.0},
-                height: {DROPDOWN_H},
-                text: text,
-                font_size: 10.0,
-                font_color: DROPDOWN_TEXT_COLOR,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "6", y: "0" }
-            }
-            fontstring {
-                name: DynName(arrow_name.into()),
-                width: 14.0,
-                height: {DROPDOWN_H},
-                text: "▼",
-                font_size: 9.0,
-                font_color: DROPDOWN_ARROW_COLOR,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
-            }
-        }
-    }
+    dropdown_button(DropdownButton {
+        frame_name,
+        label_name,
+        arrow_name,
+        text,
+        width: DROPDOWN_W,
+        height: DROPDOWN_H,
+        x,
+        y,
+        background_color: DROPDOWN_BG,
+        text_color: DROPDOWN_TEXT_COLOR,
+        arrow_color: DROPDOWN_ARROW_COLOR,
+        onclick: None,
+    })
 }
 
 fn dropdown_nav(continent: &str, zone: &str) -> Element {

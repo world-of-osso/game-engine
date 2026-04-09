@@ -5,6 +5,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
+use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -62,7 +63,6 @@ const FORM_BTN_W: f32 = 100.0;
 const FORM_BTN_H: f32 = 26.0;
 const FORM_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 const FORM_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
-const FORM_INPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const FORM_BTN_BG: &str = "0.15,0.12,0.05,0.95";
 const FORM_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
 
@@ -232,35 +232,20 @@ fn role_check_label(id: DynName, text: &str, x: f32) -> Element {
 
 fn activity_dropdown(activity: &str) -> Element {
     let x = FRAME_W - DROPDOWN_W - ROLE_INSET;
-    rsx! {
-        r#frame {
-            name: "LFGActivityDropdown",
-            width: {DROPDOWN_W},
-            height: {DROPDOWN_H},
-            background_color: DROPDOWN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-ROLE_ROW_Y},
-            }
-            fontstring {
-                name: "LFGActivityDropdownText",
-                width: {DROPDOWN_W - 8.0},
-                height: {DROPDOWN_H},
-                text: activity,
-                font_size: 10.0,
-                font_color: DROPDOWN_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
-            }
-        }
-    }
+    dropdown_button(DropdownButton {
+        frame_name: "LFGActivityDropdown",
+        label_name: "LFGActivityDropdownText",
+        arrow_name: "LFGActivityDropdownArrow",
+        text: activity,
+        width: DROPDOWN_W,
+        height: DROPDOWN_H,
+        x,
+        y: -ROLE_ROW_Y,
+        background_color: DROPDOWN_BG,
+        text_color: DROPDOWN_COLOR,
+        arrow_color: DROPDOWN_COLOR,
+        onclick: None,
+    })
 }
 
 fn group_list_panel(groups: &[GroupListEntry]) -> Element {
@@ -424,7 +409,6 @@ fn group_col_w(list_w: f32, col: usize) -> f32 {
 fn create_group_form(form: &CreateGroupForm) -> Element {
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
-    let form_w = content_w - 2.0 * FORM_INSET;
     let voice_text = if form.voice_chat { "\u{2713}" } else { "" };
     rsx! {
         r#frame {
@@ -447,7 +431,7 @@ fn create_group_form(form: &CreateGroupForm) -> Element {
     }
 }
 
-fn form_row(prefix: &str, label: &str, value: &str, row: usize) -> Element {
+fn form_row(prefix: &str, label: &str, _value: &str, row: usize) -> Element {
     let label_name = DynName(format!("{prefix}Label"));
     let input_name = DynName(format!("{prefix}Input"));
     let y = -(FORM_INSET + row as f32 * (FORM_INPUT_H + FORM_ROW_GAP));

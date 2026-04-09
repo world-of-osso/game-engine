@@ -8,8 +8,8 @@ use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::find_frame_at;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::group_frames_component::{
-    ACTION_GROUP_MENU_CLOSE, ACTION_GROUP_MENU_INSPECT, ACTION_GROUP_MENU_TARGET, GROUP_MENU_H,
-    GROUP_MENU_W, GroupContextMenuState, GroupFramesState, group_frames_screen,
+    ACTION_GROUP_MENU_CLOSE, ACTION_GROUP_MENU_INSPECT, ACTION_GROUP_MENU_TARGET, GROUP_MENU_W,
+    GroupContextMenuState, GroupFramesState, group_frames_screen, group_menu_height,
 };
 use game_engine::ui::screens::party_frame_component::{
     PartyFrameState, PartyMemberState, PartyRole, ReadyCheckState,
@@ -553,7 +553,7 @@ fn clamp_menu_position(
     registry: &game_engine::ui::registry::FrameRegistry,
 ) -> (f32, f32) {
     let max_x = (registry.screen_width - GROUP_MENU_W).max(0.0);
-    let max_y = (registry.screen_height - GROUP_MENU_H).max(0.0);
+    let max_y = (registry.screen_height - group_menu_height()).max(0.0);
     (cursor.x.clamp(0.0, max_x), cursor.y.clamp(0.0, max_y))
 }
 

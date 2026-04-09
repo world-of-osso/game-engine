@@ -5,6 +5,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
+use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -567,32 +568,22 @@ fn loot_filter_row(slot_filter: &str, class_filter: &str) -> Element {
 }
 
 fn loot_filter_dropdown(name: &str, text: &str, x: f32) -> Element {
-    let frame_id = DynName(name.into());
-    let text_id = DynName(format!("{name}Text"));
-    rsx! {
-        r#frame {
-            name: frame_id,
-            width: {LOOT_FILTER_W},
-            height: {LOOT_FILTER_H},
-            background_color: LOOT_FILTER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-LOOT_INSET},
-            }
-            fontstring {
-                name: text_id,
-                width: {LOOT_FILTER_W - 8.0},
-                height: {LOOT_FILTER_H},
-                text: text,
-                font_size: 10.0,
-                font_color: LOOT_FILTER_COLOR,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
-            }
-        }
-    }
+    let text_name = format!("{name}Text");
+    let arrow_name = format!("{name}Arrow");
+    dropdown_button(DropdownButton {
+        frame_name: name,
+        label_name: text_name.as_str(),
+        arrow_name: arrow_name.as_str(),
+        text,
+        width: LOOT_FILTER_W,
+        height: LOOT_FILTER_H,
+        x,
+        y: -LOOT_INSET,
+        background_color: LOOT_FILTER_BG,
+        text_color: LOOT_FILTER_COLOR,
+        arrow_color: LOOT_FILTER_COLOR,
+        onclick: None,
+    })
 }
 
 fn loot_header(parent_w: f32) -> Element {

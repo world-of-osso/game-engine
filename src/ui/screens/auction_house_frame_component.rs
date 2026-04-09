@@ -5,6 +5,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
+use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -700,7 +701,20 @@ fn sell_duration_row(duration: &str) -> Element {
                 y: {y},
             }
             {sell_row_label(DynName("AuctionHouseSellDurationLabel".into()), "Duration:")}
-            {sell_row_input(DynName("AuctionHouseSellDurationDropdown".into()), DynName("AuctionHouseSellDurationValue".into()), duration, SELL_DROPDOWN_W)}
+            {dropdown_button(DropdownButton {
+                frame_name: "AuctionHouseSellDurationDropdown",
+                label_name: "AuctionHouseSellDurationValue",
+                arrow_name: "AuctionHouseSellDurationArrow",
+                text: duration,
+                width: SELL_DROPDOWN_W,
+                height: SELL_INPUT_H,
+                x: SELL_LABEL_W,
+                y: 0.0,
+                background_color: SELL_INPUT_BG,
+                text_color: SELL_INPUT_TEXT,
+                arrow_color: SELL_INPUT_TEXT,
+                onclick: None,
+            })}
         }
     }
 }
