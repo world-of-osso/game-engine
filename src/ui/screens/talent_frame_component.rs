@@ -27,6 +27,10 @@ const GRID_COLS: usize = 4;
 const GRID_ROWS: usize = 7;
 const GRID_INSET: f32 = 16.0;
 const FOOTER_H: f32 = 28.0;
+const RESET_BTN_W: f32 = 104.0;
+const RESET_BTN_H: f32 = 22.0;
+const RESET_BTN_X: f32 = FRAME_W - GRID_INSET - RESET_BTN_W;
+const RESET_BTN_Y: f32 = -(FRAME_H - FOOTER_H + 2.0);
 
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -40,14 +44,20 @@ const NODE_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
 const NODE_POINTS_ACTIVE: &str = "1.0,0.82,0.0,1.0";
 const NODE_POINTS_INACTIVE: &str = "0.5,0.5,0.5,1.0";
 const FOOTER_COLOR: &str = "0.8,0.8,0.8,1.0";
+const RESET_BTN_BG: &str = "0.2,0.15,0.05,0.95";
+const RESET_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
 
 pub const TALENT_COUNT: usize = GRID_ROWS * GRID_COLS;
+pub const ACTION_TALENT_APPLY_PREFIX: &str = "talent_apply:";
+pub const ACTION_TALENT_RESET: &str = "talent_reset";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TalentNodeState {
+    pub talent_id: u32,
     pub name: String,
     pub points: String,
     pub active: bool,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -86,6 +96,7 @@ pub fn talent_frame_screen(ctx: &SharedContext) -> Element {
             {talent_title_bar()}
             {spec_tab_row(&state.spec_tabs)}
             {talent_grid(&state.talents)}
+            {reset_button()}
             {points_remaining_footer(state.points_remaining)}
         }
     }
@@ -193,6 +204,7 @@ fn talent_node(idx: usize, talent: &TalentNodeState, x: f32, y: f32) -> Element 
             width: {NODE_W},
             height: {NODE_H},
             background_color: bg,
+            onclick: {talent.action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -201,6 +213,35 @@ fn talent_node(idx: usize, talent: &TalentNodeState, x: f32, y: f32) -> Element 
             }
             {talent_node_name(idx, &talent.name)}
             {talent_node_points(idx, &talent.points, talent.active)}
+        }
+    }
+}
+
+fn reset_button() -> Element {
+    let text_id = DynName("TalentFrameResetButtonText".into());
+    rsx! {
+        r#frame {
+            name: "TalentFrameResetButton",
+            width: {RESET_BTN_W},
+            height: {RESET_BTN_H},
+            background_color: RESET_BTN_BG,
+            onclick: ACTION_TALENT_RESET,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {RESET_BTN_X},
+                y: {RESET_BTN_Y},
+            }
+            fontstring {
+                name: text_id,
+                width: {RESET_BTN_W},
+                height: {RESET_BTN_H},
+                text: "Reset Talents",
+                font_size: 10.0,
+                font_color: RESET_BTN_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
         }
     }
 }
@@ -299,9 +340,11 @@ mod tests {
             ],
             talents: (0..TALENT_COUNT)
                 .map(|i| TalentNodeState {
+                    talent_id: i as u32 + 100,
                     name: format!("Talent{i}"),
                     points: "0/1".to_string(),
                     active: false,
+                    action: format!("{ACTION_TALENT_APPLY_PREFIX}{}", i + 100),
                 })
                 .collect(),
             points_remaining: 51,
@@ -482,6 +525,34 @@ mod tests {
         assert_eq!(
             fontstring_text(&registry, "TalentFramePointsRemaining"),
             "Points Remaining: 51"
+        );
+    }
+
+    #[test]
+    fn talent_nodes_expose_apply_actions() {
+        use ui_toolkit::frame::Frame;
+
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        let id = registry.get_by_name("TalentNode0").expect("TalentNode0");
+        let frame: &Frame = registry.get(id).expect("frame data");
+        assert_eq!(frame.onclick.as_deref(), Some("talent_apply:100"));
+    }
+
+    #[test]
+    fn reset_button_is_rendered() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(make_test_state());
+        Screen::new(talent_frame_screen).sync(&shared, &mut registry);
+
+        assert!(registry.get_by_name("TalentFrameResetButton").is_some());
+        assert_eq!(
+            fontstring_text(&registry, "TalentFrameResetButtonText"),
+            "Reset Talents"
         );
     }
 }

@@ -46,17 +46,25 @@ pub fn queue_ipc_request(
             true
         }
         Request::TalentApply { talent_id } => {
-            runtime.pending_actions.push_back(Action::Apply(*talent_id));
+            queue_apply(runtime, *talent_id);
             runtime.pending_replies.push_back(respond);
             true
         }
         Request::TalentReset => {
-            runtime.pending_actions.push_back(Action::Reset);
+            queue_reset(runtime);
             runtime.pending_replies.push_back(respond);
             true
         }
         _ => false,
     }
+}
+
+pub fn queue_apply(runtime: &mut TalentRuntimeState, talent_id: u32) {
+    runtime.pending_actions.push_back(Action::Apply(talent_id));
+}
+
+pub fn queue_reset(runtime: &mut TalentRuntimeState) {
+    runtime.pending_actions.push_back(Action::Reset);
 }
 
 fn request_talents_on_enter_world(
@@ -86,12 +94,10 @@ fn send_pending_actions(mut runtime: ResMut<TalentRuntimeState>, mut senders: Ta
             }
             Action::Reset => send_all(&mut senders.reset, ResetTalents),
         };
-        if !sent {
-            if let Some(reply) = runtime.pending_replies.pop_front() {
-                let _ = reply.send(Response::Error(
-                    "talents are unavailable: not connected".into(),
-                ));
-            }
+        if !sent && let Some(reply) = runtime.pending_replies.pop_front() {
+            let _ = reply.send(Response::Error(
+                "talents are unavailable: not connected".into(),
+            ));
         }
     }
 }
@@ -234,5 +240,31 @@ mod tests {
         assert!(text.contains("tabs=Protection"));
         assert!(text.contains("selected=1"));
         assert!(text.contains("Divine Strength"));
+    }
+
+    #[test]
+    fn queue_apply_enqueues_pending_action() {
+        let mut runtime = TalentRuntimeState::default();
+
+        queue_apply(&mut runtime, 101);
+
+        assert_eq!(runtime.pending_actions.len(), 1);
+        assert!(matches!(
+            runtime.pending_actions.front(),
+            Some(Action::Apply(101))
+        ));
+    }
+
+    #[test]
+    fn queue_reset_enqueues_pending_action() {
+        let mut runtime = TalentRuntimeState::default();
+
+        queue_reset(&mut runtime);
+
+        assert_eq!(runtime.pending_actions.len(), 1);
+        assert!(matches!(
+            runtime.pending_actions.front(),
+            Some(Action::Reset)
+        ));
     }
 }
