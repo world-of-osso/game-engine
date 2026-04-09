@@ -686,6 +686,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::encounter_journal_frame::EncounterJournalFramePlugin,
         scenes::friends_frame::FriendsFramePlugin,
         scenes::guild_frame::GuildFramePlugin,
+        scenes::inspect_frame::InspectFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
         scenes::calendar_frame::CalendarFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
