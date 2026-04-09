@@ -229,19 +229,53 @@ fn sync_quest_indicators(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
 ) {
-    let mut assets = m2_spawn::SpawnAssets {
-        meshes: &mut meshes,
-        materials: &mut materials,
-        effect_materials: &mut effect_materials,
-        skybox_materials: None,
-        images: &mut images,
-        inverse_bindposes: &mut inv_bp,
-    };
+    let mut assets = quest_indicator_spawn_assets(
+        &mut meshes,
+        &mut materials,
+        &mut effect_materials,
+        &mut images,
+        &mut inv_bp,
+    );
     for (entity, npc_qi, children) in &changed {
-        despawn_indicator_children(&mut commands, children, &indicator_models);
-        if npc_qi.0.is_visible() {
-            spawn_indicator_m2(&mut commands, &mut assets, entity, npc_qi.0);
-        }
+        sync_indicator_for_entity(
+            &mut commands,
+            &mut assets,
+            &indicator_models,
+            entity,
+            npc_qi,
+            children,
+        );
+    }
+}
+
+fn quest_indicator_spawn_assets<'a>(
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<StandardMaterial>,
+    effect_materials: &'a mut Assets<M2EffectMaterial>,
+    images: &'a mut Assets<Image>,
+    inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
+) -> m2_spawn::SpawnAssets<'a> {
+    m2_spawn::SpawnAssets {
+        meshes,
+        materials,
+        effect_materials,
+        skybox_materials: None,
+        images,
+        inverse_bindposes,
+    }
+}
+
+fn sync_indicator_for_entity(
+    commands: &mut Commands,
+    assets: &mut m2_spawn::SpawnAssets<'_>,
+    indicator_models: &Query<Entity, With<QuestIndicatorModel>>,
+    entity: Entity,
+    npc_qi: &NpcQuestIndicator,
+    children: Option<&Children>,
+) {
+    despawn_indicator_children(commands, children, indicator_models);
+    if npc_qi.0.is_visible() {
+        spawn_indicator_m2(commands, assets, entity, npc_qi.0);
     }
 }
 
