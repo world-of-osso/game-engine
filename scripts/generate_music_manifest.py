@@ -2,12 +2,15 @@
 
 import csv
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+if "GAME_ENGINE_SHARED_DATA_DIR" in os.environ:
+    DATA_DIR = Path(os.environ["GAME_ENGINE_SHARED_DATA_DIR"])
 MUSIC_DIR = DATA_DIR / "music"
 LISTFILE = DATA_DIR / "community-listfile.csv"
 SOUND_KIT_ENTRY = DATA_DIR / "SoundKitEntry.csv"
@@ -91,6 +94,13 @@ def unique_sorted(items):
     return sorted(set(item for item in items if item))
 
 
+def display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT.resolve()))
+    except ValueError:
+        return str(path)
+
+
 def build_manifest():
     listfile_rows, path_by_fdid = load_listfile()
     kits_by_fdid, fdids_by_kit = load_sound_kit_entries()
@@ -148,7 +158,7 @@ def build_manifest():
                 "fdid": fdid,
                 "ext": ext.lstrip("."),
                 "extracted": "1" if extracted else "0",
-                "extracted_path": str(extracted_path.relative_to(ROOT)) if extracted else "",
+                "extracted_path": display_path(extracted_path) if extracted else "",
                 "wow_path": wow_path,
                 "path_category": path_category,
                 "path_hint": path_hint,
@@ -253,9 +263,9 @@ def build_manifest():
         json.dump(summary, handle, indent=2, sort_keys=False)
 
     missing = [row["fdid"] for row in manifest_rows if row["extracted"] == "0"]
-    print(f"wrote {MANIFEST_CSV.relative_to(ROOT)}")
-    print(f"wrote {ZONE_LINKS_CSV.relative_to(ROOT)}")
-    print(f"wrote {ZONE_INDEX_JSON.relative_to(ROOT)}")
+    print(f"wrote {display_path(MANIFEST_CSV)}")
+    print(f"wrote {display_path(ZONE_LINKS_CSV)}")
+    print(f"wrote {display_path(ZONE_INDEX_JSON)}")
     print(f"expected_audio_entries={summary['expected_audio_entries']}")
     print(f"extracted_audio_entries={summary['extracted_audio_entries']}")
     print(f"exact_zone_music_matches={summary['exact_zone_music_matches']}")

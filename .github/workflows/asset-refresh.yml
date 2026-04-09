@@ -1,0 +1,102 @@
+name: Asset Refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * *"
+
+concurrency:
+  group: asset-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-assets:
+    runs-on:
+      - self-hosted
+      - linux
+
+    steps:
+      - name: Checkout game-engine
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: false
+
+      - name: Checkout shared-protocol
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/shared-protocol
+          path: deps/shared-protocol
+
+      - name: Checkout ui-toolkit
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/ui-toolkit
+          path: deps/ui-toolkit
+
+      - name: Checkout ui-toolkit-macros
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/ui-toolkit-macros
+          path: deps/ui-toolkit-macros
+
+      - name: Checkout asset-resolver
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/asset-resolver
+          path: deps/asset-resolver
+
+      - name: Link sibling path dependencies
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE/deps/shared-protocol" "$GITHUB_WORKSPACE/../shared-protocol"
+          ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit" "$GITHUB_WORKSPACE/../ui-toolkit"
+          ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit-macros" "$GITHUB_WORKSPACE/../ui-toolkit-macros"
+          ln -sfn "$GITHUB_WORKSPACE/deps/asset-resolver" "$GITHUB_WORKSPACE/../asset-resolver"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.0
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Refresh shared asset data
+        run: ./scripts/refresh_asset_data.sh
+
+      - name: Capture refreshed asset status
+        run: |
+          {
+            echo '## Refreshed asset files'
+            echo
+            echo '```text'
+            git status --short --ignored=matching -- \
+              data/casc/root.bin \
+              data/casc/encoding.bin \
+              data/casc/resolution.sqlite \
+              data/music_manifest.csv \
+              data/music_zone_links.csv \
+              data/music_zone_index.json \
+              data/textures/145513.blp \
+              data/textures/4219004.blp \
+              data/textures/4239595.blp \
+              data/textures/4226685.blp
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload refreshed asset outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: refreshed-asset-data
+          if-no-files-found: warn
+          path: |
+            data/casc/root.bin
+            data/casc/encoding.bin
+            data/casc/resolution.sqlite
+            data/music_manifest.csv
+            data/music_zone_links.csv
+            data/music_zone_index.json
+            data/textures/145513.blp
+            data/textures/4219004.blp
+            data/textures/4239595.blp
+            data/textures/4226685.blp

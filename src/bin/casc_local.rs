@@ -11,13 +11,12 @@ use cascette_crypto::EncodingKey;
 use cascette_crypto::TactKeyStore;
 use cascette_formats::blte::BlteFile;
 use game_engine::listfile;
+use game_engine::paths;
 use osso_asset_resolver::casc_cache::CascResolutionCache;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
-const CACHE_DIR: &str = "data/casc";
 const LOCAL_CASC_HEADER_SIZE: usize = 30;
-const EXTERNAL_TACT_KEYS_PATH: &str = "data/tactkeys/WoW.txt";
 
 #[tokio::main]
 async fn main() {
@@ -30,8 +29,9 @@ async fn main() {
 
     let data_root = PathBuf::from(WOW_PATH).join("Data");
     let install = open_and_initialize(&data_root).await;
-    let cache = CascResolutionCache::open(Path::new(CACHE_DIR))
-        .expect("failed to open CASC resolution cache");
+    let cache_dir = paths::shared_data_path("casc");
+    let cache =
+        CascResolutionCache::open(&cache_dir).expect("failed to open CASC resolution cache");
 
     let (mut ok, mut fail) = (0u32, 0u32);
     for fdid in &fdids {
@@ -67,7 +67,7 @@ fn parse_args(args: &[String]) -> (Vec<u32>, PathBuf) {
             i += 1;
         }
     }
-    (fdids, output_dir)
+    (fdids, resolve_output_dir(&output_dir))
 }
 
 async fn open_and_initialize(data_root: &Path) -> Installation {
@@ -130,13 +130,21 @@ async fn read_file_by_encoding_key_with_keys(
 
 fn load_tact_keys() -> TactKeyStore {
     let mut keys = TactKeyStore::new();
-    if let Ok(content) = std::fs::read_to_string(EXTERNAL_TACT_KEYS_PATH) {
+    let key_path = paths::shared_data_path("tactkeys/WoW.txt");
+    if let Ok(content) = std::fs::read_to_string(&key_path) {
         let loaded = keys.load_from_txt(&content);
         if loaded > 0 {
-            eprintln!("Loaded {loaded} external TACT keys from {EXTERNAL_TACT_KEYS_PATH}");
+            eprintln!(
+                "Loaded {loaded} external TACT keys from {}",
+                key_path.display()
+            );
         }
     }
     keys
+}
+
+fn resolve_output_dir(path: &Path) -> PathBuf {
+    paths::remap_to_shared_data_path(path)
 }
 
 fn decode_archive_entry_with_keys(
@@ -188,7 +196,8 @@ fn extension_from_listfile_path(path: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::extension_from_listfile_path;
+    use super::{extension_from_listfile_path, resolve_output_dir};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn resolves_extension_from_listfile_path_case_insensitively() {
@@ -204,5 +213,22 @@ mod tests {
             extension_from_listfile_path("spells/test.texture.BLP"),
             Some("blp".to_string())
         );
+    }
+
+    #[test]
+    fn remaps_data_output_dir_to_shared_root() {
+        unsafe {
+            std::env::set_var(
+                "GAME_ENGINE_SHARED_DATA_DIR",
+                "/tmp/game-engine-shared-data",
+            );
+        }
+        assert_eq!(
+            resolve_output_dir(Path::new("data/textures")),
+            PathBuf::from("/tmp/game-engine-shared-data/textures")
+        );
+        unsafe {
+            std::env::remove_var("GAME_ENGINE_SHARED_DATA_DIR");
+        }
     }
 }

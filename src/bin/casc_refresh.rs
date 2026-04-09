@@ -1,11 +1,11 @@
 use cascette_client_storage::Installation;
 use cascette_client_storage::resolver::ContentResolver;
 use cascette_crypto::{ContentKey, EncodingKey};
+use game_engine::paths;
 use osso_asset_resolver::casc_cache;
 use std::path::{Path, PathBuf};
 
 const WOW_PATH: &str = "/syncthing/World of Warcraft";
-const OUT_DIR: &str = "data/casc";
 
 #[tokio::main]
 async fn main() {
@@ -21,11 +21,15 @@ async fn run() -> Result<(), String> {
     let install = open_local_installation(&data_root).await?;
     let encoding_data = read_encoding_data(&install, &refresh.encoding_ekey).await?;
     let root_data = read_root_data(&install, &encoding_data, &refresh.root_ckey).await?;
-    write_refresh_outputs(&encoding_data, &root_data)?;
-    eprintln!("Refreshed {OUT_DIR}/encoding.bin and {OUT_DIR}/root.bin from local CASC");
+    let out_dir = casc_output_dir();
+    write_refresh_outputs(&out_dir, &encoding_data, &root_data)?;
+    eprintln!(
+        "Refreshed {}/encoding.bin and {}/root.bin from local CASC",
+        out_dir.display(),
+        out_dir.display()
+    );
 
-    let casc_dir = PathBuf::from(OUT_DIR);
-    casc_cache::build_resolution_cache(&casc_dir)?;
+    casc_cache::build_resolution_cache(&out_dir)?;
 
     Ok(())
 }
@@ -37,6 +41,10 @@ struct CascRefreshTargets {
 
 fn casc_data_root() -> PathBuf {
     PathBuf::from(WOW_PATH).join("Data")
+}
+
+fn casc_output_dir() -> PathBuf {
+    paths::shared_data_path("casc")
 }
 
 fn resolve_refresh_targets(data_root: &Path) -> Result<CascRefreshTargets, String> {
@@ -102,9 +110,12 @@ fn load_encoding_resolver(encoding_data: &[u8]) -> Result<ContentResolver, Strin
     Ok(resolver)
 }
 
-fn write_refresh_outputs(encoding_data: &[u8], root_data: &[u8]) -> Result<(), String> {
-    let out_dir = PathBuf::from(OUT_DIR);
-    std::fs::create_dir_all(&out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
+fn write_refresh_outputs(
+    out_dir: &Path,
+    encoding_data: &[u8],
+    root_data: &[u8],
+) -> Result<(), String> {
+    std::fs::create_dir_all(out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
     std::fs::write(out_dir.join("encoding.bin"), encoding_data)
         .map_err(|e| format!("write encoding.bin: {e}"))?;
     std::fs::write(out_dir.join("root.bin"), root_data)
@@ -178,4 +189,26 @@ fn config_line_value<'a>(config: &'a str, field: &str) -> Result<&'a str, String
         .lines()
         .find_map(|line| line.strip_prefix(&prefix))
         .ok_or_else(|| format!("missing `{field}` in build config"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::casc_output_dir;
+
+    #[test]
+    fn casc_output_dir_uses_shared_data_root() {
+        unsafe {
+            std::env::set_var(
+                "GAME_ENGINE_SHARED_DATA_DIR",
+                "/tmp/game-engine-shared-data",
+            );
+        }
+        assert_eq!(
+            casc_output_dir(),
+            std::path::PathBuf::from("/tmp/game-engine-shared-data/casc")
+        );
+        unsafe {
+            std::env::remove_var("GAME_ENGINE_SHARED_DATA_DIR");
+        }
+    }
 }
