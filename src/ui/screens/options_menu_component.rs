@@ -131,6 +131,7 @@ impl OptionsCategory {
 pub struct GraphicsOptionsView {
     pub particle_density: f32,
     pub render_scale: f32,
+    pub ui_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }
@@ -441,7 +442,9 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
         OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
-        OptionsCategory::Accessibility => options_menu_sections::accessibility_body(),
+        OptionsCategory::Accessibility => {
+            options_menu_active_sections::accessibility_body(&model.graphics)
+        }
         OptionsCategory::Keybindings => {
             options_menu_active_sections::keybindings_body(&model.bindings)
         }

@@ -36,6 +36,8 @@ const OPTIONS_TOGGLE_TEXT_IDLE: &str = "0.70,0.66,0.56,1.0";
 const OPTIONS_TOGGLE_TEXT_ACTIVE: &str = "0.95,0.90,0.74,1.0";
 const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
+const UI_SCALE_MIN: f32 = 0.75;
+const UI_SCALE_MAX: f32 = 1.5;
 const BINDING_VALUE_W: f32 = 180.0;
 const KEYBINDING_TAB_LEAD_X: f32 = 11.0;
 const KEYBINDING_TAB_H: f32 = 32.0;
@@ -80,6 +82,50 @@ pub fn interface_body(hud: &HudOptionsView) -> Element {
         .flatten()
         .collect(),
     )
+}
+
+pub fn accessibility_body(graphics: &GraphicsOptionsView) -> Element {
+    content_stack(
+        [
+            accessibility_ui_scale_item(graphics.ui_scale),
+            accessibility_info_rows(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
+}
+
+fn accessibility_ui_scale_item(ui_scale: f32) -> Element {
+    slider_row("ui_scale", "UI Scale", ui_scale, UI_SCALE_MIN, UI_SCALE_MAX)
+}
+
+fn accessibility_info_rows() -> Element {
+    [
+        options_menu_sections::info_row(
+            "access_text",
+            "Readable Text",
+            "Scales the full HUD, menus, and overlays without changing 3D render resolution",
+        ),
+        options_menu_sections::info_row(
+            "access_motion",
+            "Reduced Motion",
+            "Animation dampening hooks reserved",
+        ),
+        options_menu_sections::info_row(
+            "access_subtitles",
+            "Subtitles",
+            "Dialog subtitle pipeline not landed yet",
+        ),
+        options_menu_sections::ghost_button_row(
+            "access_color",
+            "Color Assist",
+            "Future contrast and color filters",
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 pub fn hud_body(hud: &HudOptionsView) -> Element {

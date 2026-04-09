@@ -39,36 +39,6 @@ pub fn controls_body() -> Element {
     )
 }
 
-pub fn accessibility_body() -> Element {
-    section_stack(
-        [
-            info_row(
-                "access_text",
-                "Readable Text",
-                "UI scale and larger text pass planned",
-            ),
-            info_row(
-                "access_motion",
-                "Reduced Motion",
-                "Animation dampening hooks reserved",
-            ),
-            info_row(
-                "access_subtitles",
-                "Subtitles",
-                "Dialog subtitle pipeline not landed yet",
-            ),
-            ghost_button_row(
-                "access_color",
-                "Color Assist",
-                "Future contrast and color filters",
-            ),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
-}
-
 pub fn macros_body() -> Element {
     section_stack(
         [

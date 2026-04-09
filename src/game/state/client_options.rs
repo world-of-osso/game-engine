@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::prelude::*;
 use directories::ProjectDirs;
+use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
 
 use crate::sound::SoundSettings;
@@ -37,7 +38,11 @@ impl Plugin for ClientOptionsPlugin {
             })
             .add_systems(
                 Update,
-                (apply_loaded_client_options, sync_hud_visibility_toggles),
+                (
+                    apply_loaded_client_options,
+                    sync_hud_visibility_toggles,
+                    sync_ui_scale,
+                ),
             );
     }
 }
@@ -96,6 +101,7 @@ pub enum AntiAliasMode {
 pub struct GraphicsOptions {
     pub particle_density: u8,
     pub render_scale: f32,
+    pub ui_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
     pub depth_of_field: bool,
@@ -107,6 +113,7 @@ impl Default for GraphicsOptions {
         Self {
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
+            ui_scale: default_ui_scale(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
             depth_of_field: false,
@@ -120,6 +127,7 @@ impl GraphicsOptions {
         Self {
             particle_density: file.particle_density.clamp(10, 100),
             render_scale: file.render_scale.clamp(0.5, 1.0),
+            ui_scale: file.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
             depth_of_field: false,
@@ -302,6 +310,8 @@ struct GraphicsOptionsFile {
     particle_density: u8,
     #[serde(default = "default_render_scale", rename = "renderScale")]
     render_scale: f32,
+    #[serde(default = "default_ui_scale", rename = "uiScale")]
+    ui_scale: f32,
     #[serde(default = "default_bloom_enabled", rename = "bloomEnabled")]
     bloom_enabled: bool,
     #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
@@ -313,6 +323,7 @@ impl Default for GraphicsOptionsFile {
         Self {
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
+            ui_scale: default_ui_scale(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
         }
@@ -404,6 +415,7 @@ fn build_options_file(
         graphics: GraphicsOptionsFile {
             particle_density: graphics.particle_density.clamp(10, 100),
             render_scale: graphics.render_scale.clamp(0.5, 1.0),
+            ui_scale: graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
             bloom_enabled: graphics.bloom_enabled,
             bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
         },
@@ -442,6 +454,10 @@ const fn default_render_scale() -> f32 {
     1.0
 }
 
+const fn default_ui_scale() -> f32 {
+    1.0
+}
+
 const fn default_bloom_enabled() -> bool {
     false
 }
@@ -449,6 +465,9 @@ const fn default_bloom_enabled() -> bool {
 const fn default_bloom_intensity() -> f32 {
     0.08
 }
+
+pub const MIN_UI_SCALE: f32 = 0.75;
+pub const MAX_UI_SCALE: f32 = 1.5;
 
 fn load_options_file() -> ClientOptionsFile {
     let path = load_options_path();
@@ -547,6 +566,22 @@ fn sync_hud_visibility_toggles(
     }
 }
 
+fn sync_ui_scale(
+    graphics: Res<GraphicsOptions>,
+    mut ui_camera: Query<&mut Projection, With<UiCamera>>,
+) {
+    if !graphics.is_changed() {
+        return;
+    }
+    let Ok(mut projection) = ui_camera.single_mut() else {
+        return;
+    };
+    let Projection::Orthographic(orthographic) = projection.as_mut() else {
+        return;
+    };
+    orthographic.scale = 1.0 / graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE);
+}
+
 pub fn apply_fps_overlay_visibility(fps: &mut FpsOverlayConfig, visible: bool) {
     fps.enabled = visible;
     fps.frame_time_graph_config.enabled = visible;
@@ -609,6 +644,7 @@ mod tests {
         let defaults = GraphicsOptions::default();
         assert_eq!(defaults.particle_density, 100);
         assert!((defaults.render_scale - 1.0).abs() < 0.0001);
+        assert!((defaults.ui_scale - 1.0).abs() < 0.0001);
         assert!(!defaults.bloom_enabled);
         assert!((defaults.bloom_intensity - 0.08).abs() < 0.0001);
         assert!((defaults.particle_density_multiplier() - 1.0).abs() < 0.0001);
@@ -620,6 +656,7 @@ mod tests {
             graphics: GraphicsOptionsFile {
                 particle_density: 80,
                 render_scale: 0.67,
+                ui_scale: 1.2,
                 bloom_enabled: false,
                 bloom_intensity: 0.12,
             },
@@ -630,6 +667,7 @@ mod tests {
 
         assert!(serialized.contains("particleDensity:80"));
         assert!(serialized.contains("renderScale:0.67"));
+        assert!(serialized.contains("uiScale:1.2"));
         assert!(serialized.contains("bloomEnabled:false"));
         assert!(serialized.contains("bloomIntensity:0.12"));
     }
@@ -729,6 +767,7 @@ mod tests {
             graphics: GraphicsOptionsFile {
                 particle_density: 60,
                 render_scale: 0.8,
+                ui_scale: 1.3,
                 bloom_enabled: true,
                 bloom_intensity: 0.2,
             },
@@ -752,11 +791,53 @@ mod tests {
         assert!(!loaded.sound.music_enabled);
         assert!(loaded.camera.invert_y);
         assert_eq!(loaded.graphics.particle_density, 60);
+        assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
         assert!(!loaded.hud.show_minimap);
         assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));
         assert_eq!(
             loaded.bindings.binding(InputAction::TargetNearest),
             Some(InputBinding::Keyboard(KeyCode::F3))
         );
+    }
+
+    #[test]
+    fn graphics_options_file_clamps_ui_scale_range() {
+        let low = GraphicsOptionsFile {
+            ui_scale: 0.1,
+            ..GraphicsOptionsFile::default()
+        };
+        let high = GraphicsOptionsFile {
+            ui_scale: 5.0,
+            ..GraphicsOptionsFile::default()
+        };
+
+        assert!((GraphicsOptions::from_file(&low).ui_scale - MIN_UI_SCALE).abs() < 0.0001);
+        assert!((GraphicsOptions::from_file(&high).ui_scale - MAX_UI_SCALE).abs() < 0.0001);
+    }
+
+    #[test]
+    fn sync_ui_scale_updates_ui_camera_projection() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(GraphicsOptions {
+            ui_scale: 1.25,
+            ..GraphicsOptions::default()
+        });
+        app.add_systems(Update, sync_ui_scale);
+        app.world_mut().spawn((
+            UiCamera,
+            Projection::Orthographic(OrthographicProjection::default_2d()),
+        ));
+
+        app.update();
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Projection, With<UiCamera>>();
+        let projection = query.single(app.world()).expect("ui camera projection");
+        let Projection::Orthographic(orthographic) = projection else {
+            panic!("expected orthographic ui camera");
+        };
+        assert!((orthographic.scale - 0.8).abs() < 0.0001);
     }
 }

@@ -22,6 +22,7 @@ fn graphics_options_build_additive_particle_bloom() {
     let bloom = camera_post_process::additive_particle_glow_bloom(&GraphicsOptions {
         particle_density: 100,
         render_scale: 1.0,
+        ui_scale: 1.0,
         bloom_enabled: true,
         bloom_intensity: 0.12,
         depth_of_field: false,
@@ -41,6 +42,7 @@ fn disabled_graphics_bloom_returns_none() {
         camera_post_process::additive_particle_glow_bloom(&GraphicsOptions {
             particle_density: 100,
             render_scale: 1.0,
+            ui_scale: 1.0,
             bloom_enabled: false,
             bloom_intensity: 0.12,
             depth_of_field: false,

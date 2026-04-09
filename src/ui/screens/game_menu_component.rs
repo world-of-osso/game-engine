@@ -247,6 +247,7 @@ mod tests {
         GraphicsOptionsView {
             particle_density: 100.0,
             render_scale: 1.0,
+            ui_scale: 1.0,
             bloom_enabled: false,
             bloom_intensity: 0.08,
         }
@@ -479,6 +480,15 @@ mod tests {
     }
 
     #[test]
+    fn accessibility_screen_includes_ui_scale_slider() {
+        let reg = options_registry_for_category(OptionsCategory::Accessibility);
+
+        assert!(reg.get_by_name("SliderRowui_scale").is_some());
+        assert!(reg.get_by_name("Sliderui_scale").is_some());
+        assert!(reg.get_by_name("Sliderui_scaleHandle").is_some());
+    }
+
+    #[test]
     fn slider_thumb_rect_moves_when_value_changes() {
         let low = options_registry_with_master_volume(0.2);
         let high = options_registry_with_master_volume(0.8);
@@ -672,16 +682,10 @@ mod tests {
     }
 
     fn options_registry_for_category(category: OptionsCategory) -> FrameRegistry {
-        let _guard = options_registry_test_lock().lock().unwrap();
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
         view.options.position = [0.0, 0.0];
         view.options.category = category;
-        shared.insert(view);
-        Screen::new(game_menu_screen).sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
-        reg
+        options_registry_with_view(view)
     }
 
     fn options_registry_with_view(view: GameMenuViewModel) -> FrameRegistry {
@@ -695,29 +699,17 @@ mod tests {
     }
 
     fn options_registry_with_master_volume(master_volume: f32) -> FrameRegistry {
-        let _guard = options_registry_test_lock().lock().unwrap();
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
         view.options.position = [0.0, 0.0];
         view.options.sound.master_volume = master_volume;
-        shared.insert(view);
-        Screen::new(game_menu_screen).sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
-        reg
+        options_registry_with_view(view)
     }
 
     fn options_registry_with_muted(muted: bool) -> FrameRegistry {
-        let _guard = options_registry_test_lock().lock().unwrap();
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
         let mut view = model(GameMenuView::Options);
         view.options.position = [0.0, 0.0];
         view.options.sound.muted = muted;
-        shared.insert(view);
-        Screen::new(game_menu_screen).sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
-        reg
+        options_registry_with_view(view)
     }
 
     fn rect_by_name(reg: &FrameRegistry, name: &str) -> crate::ui::layout::LayoutRect {

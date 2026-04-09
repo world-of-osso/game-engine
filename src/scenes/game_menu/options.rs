@@ -22,6 +22,7 @@ pub enum DragCapture {
 pub enum SliderField {
     ParticleDensity,
     RenderScale,
+    UiScale,
     BloomIntensity,
     MasterVolume,
     MusicVolume,
@@ -73,6 +74,7 @@ pub struct SoundDraft {
 pub struct GraphicsDraft {
     pub particle_density: f32,
     pub render_scale: f32,
+    pub ui_scale: f32,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }
@@ -130,6 +132,7 @@ pub fn graphics_draft(graphics: &GraphicsOptions) -> GraphicsDraft {
     GraphicsDraft {
         particle_density: graphics.particle_density as f32,
         render_scale: graphics.render_scale,
+        ui_scale: graphics.ui_scale,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity,
     }
@@ -161,6 +164,7 @@ fn graphics_to_view(g: &GraphicsDraft) -> GraphicsOptionsView {
     GraphicsOptionsView {
         particle_density: g.particle_density,
         render_scale: g.render_scale,
+        ui_scale: g.ui_scale,
         bloom_enabled: g.bloom_enabled,
         bloom_intensity: g.bloom_intensity,
     }
@@ -248,6 +252,7 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
     Some(match action.strip_prefix("options_slider:")? {
         "particle_density" => SliderField::ParticleDensity,
         "render_scale" => SliderField::RenderScale,
+        "ui_scale" => SliderField::UiScale,
         "bloom_intensity" => SliderField::BloomIntensity,
         "master_volume" => SliderField::MasterVolume,
         "music_volume" => SliderField::MusicVolume,
@@ -266,6 +271,10 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
     match field {
         SliderField::ParticleDensity => (10.0, 100.0),
         SliderField::RenderScale => (0.5, 1.0),
+        SliderField::UiScale => (
+            crate::client_options::MIN_UI_SCALE,
+            crate::client_options::MAX_UI_SCALE,
+        ),
         SliderField::BloomIntensity => (0.0, 1.0),
         SliderField::MasterVolume
         | SliderField::MusicVolume
@@ -282,6 +291,7 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
     match field {
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
         SliderField::RenderScale => model.draft_graphics.render_scale = value,
+        SliderField::UiScale => model.draft_graphics.ui_scale = value,
         SliderField::BloomIntensity => model.draft_graphics.bloom_intensity = value,
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
         SliderField::MusicVolume => model.draft_sound.music_volume = value,
@@ -349,6 +359,14 @@ fn apply_graphics_step(key: &str, step: f32, g: &mut GraphicsDraft) -> bool {
             g.particle_density = clamp_step(g.particle_density, 5.0 * step, 10.0, 100.0).round()
         }
         "render_scale" => g.render_scale = clamp_step(g.render_scale, 0.05 * step, 0.5, 1.0),
+        "ui_scale" => {
+            g.ui_scale = clamp_step(
+                g.ui_scale,
+                0.05 * step,
+                crate::client_options::MIN_UI_SCALE,
+                crate::client_options::MAX_UI_SCALE,
+            )
+        }
         "bloom_intensity" => {
             g.bloom_intensity = clamp_step(g.bloom_intensity, 0.05 * step, 0.0, 1.0)
         }
@@ -455,6 +473,10 @@ pub fn apply_snapshot(model: &mut OverlayModel) -> ApplySnapshot {
 pub fn apply_graphics_snapshot(graphics: &mut GraphicsOptions, draft: &GraphicsDraft) {
     graphics.particle_density = draft.particle_density.round().clamp(10.0, 100.0) as u8;
     graphics.render_scale = draft.render_scale.clamp(0.5, 1.0);
+    graphics.ui_scale = draft.ui_scale.clamp(
+        crate::client_options::MIN_UI_SCALE,
+        crate::client_options::MAX_UI_SCALE,
+    );
     graphics.bloom_enabled = draft.bloom_enabled;
     graphics.bloom_intensity = draft.bloom_intensity.clamp(0.0, 1.0);
 }
@@ -557,6 +579,13 @@ mod tests {
     }
 
     #[test]
+    fn slider_apply_ui_scale_updates_graphics_draft() {
+        let mut model = default_model();
+        apply_slider_value(SliderField::UiScale, 1.25, &mut model);
+        assert!((model.draft_graphics.ui_scale - 1.25).abs() < 0.001);
+    }
+
+    #[test]
     fn slider_apply_min_distance_normalizes_camera_limits() {
         let mut model = default_model();
         model.draft_camera.max_distance = 15.0;
@@ -572,6 +601,7 @@ mod tests {
         for field in [
             SliderField::ParticleDensity,
             SliderField::RenderScale,
+            SliderField::UiScale,
             SliderField::MasterVolume,
             SliderField::LookSensitivity,
             SliderField::MinDistance,
@@ -590,6 +620,7 @@ mod tests {
         let actions = [
             ("options_slider:master_volume", SliderField::MasterVolume),
             ("options_slider:render_scale", SliderField::RenderScale),
+            ("options_slider:ui_scale", SliderField::UiScale),
             ("options_slider:min_distance", SliderField::MinDistance),
         ];
         for (action, expected) in actions {
