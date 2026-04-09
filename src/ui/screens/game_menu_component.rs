@@ -626,6 +626,47 @@ mod tests {
         assert_eq!(font.outline, Outline::None);
     }
 
+    #[test]
+    fn keybinding_capturing_row_shows_listening_prompt() {
+        let mut view = model(GameMenuView::Options);
+        view.options.category = OptionsCategory::Keybindings;
+        view.options.bindings.capture_action = Some(InputAction::Jump);
+        for row in &mut view.options.bindings.rows {
+            row.capturing = row.action == InputAction::Jump;
+        }
+
+        let reg = options_registry_with_view(view);
+        let value = reg
+            .get(reg.get_by_name("KeybindingValuejump").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(font)) = value.widget_data.as_ref() else {
+            panic!("expected jump keybinding value font string");
+        };
+
+        assert_eq!(font.text, "Press a key or mouse button...");
+    }
+
+    #[test]
+    fn keybinding_unbound_row_omits_clear_action() {
+        let mut view = model(GameMenuView::Options);
+        view.options.category = OptionsCategory::Keybindings;
+        let row = view
+            .options
+            .bindings
+            .rows
+            .iter_mut()
+            .find(|row| row.action == InputAction::MoveForward)
+            .expect("move forward row");
+        row.binding_text = "Unbound".to_string();
+        row.can_clear = false;
+
+        let reg = options_registry_with_view(view);
+        let clear = reg
+            .get(reg.get_by_name("KeybindingClearmove_forward").unwrap())
+            .unwrap();
+        assert!(clear.onclick.is_none());
+    }
+
     fn options_registry() -> FrameRegistry {
         options_registry_with_master_volume(0.8)
     }
@@ -637,6 +678,16 @@ mod tests {
         let mut view = model(GameMenuView::Options);
         view.options.position = [0.0, 0.0];
         view.options.category = category;
+        shared.insert(view);
+        Screen::new(game_menu_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn options_registry_with_view(view: GameMenuViewModel) -> FrameRegistry {
+        let _guard = options_registry_test_lock().lock().unwrap();
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
         shared.insert(view);
         Screen::new(game_menu_screen).sync(&shared, &mut reg);
         recompute_layouts(&mut reg);

@@ -487,21 +487,39 @@ fn keybinding_value(row: &KeybindingRowView) -> Element {
 }
 
 fn keybinding_clear_button(row: &KeybindingRowView) -> Element {
-    let action = keybinding_clear_action(row.action);
-    rsx! {
-        button {
-            name: {DynName(format!("KeybindingClear{}", row.action.key()))},
-            width: 72.0,
-            height: 28.0,
-            text: "Clear",
-            font_size: 13.0,
-            onclick: {&action},
-            disabled: {!row.can_clear},
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
-            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-84" }
+    let clear_name = DynName(format!("KeybindingClear{}", row.action.key()));
+    if row.can_clear {
+        let action = keybinding_clear_action(row.action);
+        rsx! {
+            button {
+                name: {clear_name},
+                width: 72.0,
+                height: 28.0,
+                text: "Clear",
+                font_size: 13.0,
+                onclick: {&action},
+                button_atlas_up: "defaultbutton-nineslice-up",
+                button_atlas_pressed: "defaultbutton-nineslice-pressed",
+                button_atlas_highlight: "defaultbutton-nineslice-highlight",
+                button_atlas_disabled: "defaultbutton-nineslice-disabled",
+                anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-84" }
+            }
+        }
+    } else {
+        rsx! {
+            button {
+                name: {clear_name},
+                width: 72.0,
+                height: 28.0,
+                text: "Clear",
+                font_size: 13.0,
+                disabled: true,
+                button_atlas_up: "defaultbutton-nineslice-up",
+                button_atlas_pressed: "defaultbutton-nineslice-pressed",
+                button_atlas_highlight: "defaultbutton-nineslice-highlight",
+                button_atlas_disabled: "defaultbutton-nineslice-disabled",
+                anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-84" }
+            }
         }
     }
 }
