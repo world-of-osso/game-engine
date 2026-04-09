@@ -1,12 +1,16 @@
 //! Bevy plugin that integrates the IPC server with the render pipeline.
 
+#[path = "plugin/combat.rs"]
+mod plugin_combat;
+#[path = "plugin/scene.rs"]
+mod plugin_scene;
+
 use std::path::Path;
 use std::sync::mpsc;
 
 use bevy::camera::primitives::Aabb;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use lightyear::prelude::MessageSender;
 use lightyear::prelude::client::Connected;
 
@@ -55,14 +59,15 @@ use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_reques
 use crate::ui::plugin::UiState;
 use crate::who::{WhoRuntimeState, queue_ipc_request as queue_who_ipc_request};
 use shared::protocol::{
-    ChatChannel, CombatChannel, EmoteIntent, GroupInviteIntent, GroupUninviteIntent,
-    SpellCastIntent, StopSpellCast,
+    EmoteIntent, GroupInviteIntent, GroupUninviteIntent, SpellCastIntent, StopSpellCast,
 };
 
 use super::format::{
     build_inventory_entries, format_bags_status, format_inventory_list, format_inventory_search,
     format_inventory_whereis, format_map_position, format_map_target, inventory_search_snapshot,
 };
+use plugin_combat::dispatch_combat_request;
+use plugin_scene::dispatch_scene_request;
 
 /// Channel sender to reply to an IPC caller waiting for a screenshot.
 #[derive(Component)]
@@ -401,80 +406,6 @@ fn dispatch_character_runtime_request(
 }
 
 /// Returns true if the request was handled.
-fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
-    match &cmd.request {
-        Request::Ping => reply_scene_ping(cmd),
-        Request::Screenshot => queue_scene_screenshot(cmd, scene),
-        Request::DumpTree { filter } => reply_scene_tree_dump(cmd, scene, filter.as_deref()),
-        Request::DumpUiTree { filter } => reply_scene_ui_tree_dump(cmd, scene, filter.as_deref()),
-        Request::DumpScene { filter: _ } => reply_scene_dump(cmd, scene),
-        Request::ExportScene { output_path } => reply_scene_export(cmd, scene, output_path),
-        _ => return false,
-    }
-    true
-}
-
-fn reply_scene_ping(cmd: &Command) {
-    let _ = cmd.respond.send(Response::Pong);
-}
-
-fn queue_scene_screenshot(cmd: &Command, scene: &mut SceneParams) {
-    scene
-        .commands
-        .spawn(Screenshot::primary_window())
-        .insert(ScreenshotReply(cmd.respond.clone()))
-        .observe(on_screenshot_captured);
-}
-
-fn reply_scene_tree_dump(cmd: &Command, scene: &SceneParams, filter: Option<&str>) {
-    let tree = crate::dump::build_tree(&scene.tree_query, &scene.parent_query, filter);
-    let _ = cmd.respond.send(Response::Tree(tree));
-}
-
-fn reply_scene_ui_tree_dump(cmd: &Command, scene: &SceneParams, filter: Option<&str>) {
-    let tree = crate::dump::build_ui_tree(&scene.ui_state.registry, filter);
-    let _ = cmd.respond.send(Response::Tree(tree));
-}
-
-fn reply_scene_dump(cmd: &Command, scene: &mut SceneParams) {
-    let text = build_scene_dump_text(scene);
-    let _ = cmd.respond.send(Response::Tree(text));
-}
-
-fn build_scene_dump_text(scene: &mut SceneParams) -> String {
-    match &scene.scene_tree {
-        Some(tree) => crate::dump::build_scene_tree(
-            tree,
-            &scene.transform_query,
-            &scene.global_transform_query,
-            &scene.parent_query,
-            &scene.aabb_query,
-            &scene.camera_query,
-            &mut scene.ray_cast,
-        ),
-        None => "(no scene tree)".into(),
-    }
-}
-
-fn reply_scene_export(cmd: &Command, scene: &SceneParams, output_path: &str) {
-    let response = match export_scene(scene, output_path) {
-        Ok(message) => Response::Text(message),
-        Err(error) => Response::Error(error),
-    };
-    let _ = cmd.respond.send(response);
-}
-
-fn export_scene(scene: &SceneParams, output_path: &str) -> Result<String, String> {
-    let tree = scene
-        .scene_tree
-        .as_ref()
-        .ok_or_else(|| "no scene tree available to export".to_string())?;
-    let snapshot = crate::scene_tree::snapshot_scene_tree(tree, &scene.transform_query);
-    crate::scene_tree::write_scene_snapshot_file(Path::new(output_path), &snapshot)
-        .map(|_| format!("scene exported to {output_path}"))
-}
-
-/// Returns true if the request was handled.
 fn dispatch_inventory_request(
     cmd: &Command,
     auction_house: &mut AuctionHouseState,
@@ -550,50 +481,6 @@ fn dispatch_item_info(cmd: &Command, auction_house: &AuctionHouseState, item_id:
             let _ = cmd.respond.send(Response::Error(error));
         }
     }
-}
-
-/// Returns true if the request was handled.
-fn dispatch_combat_request(
-    cmd: &Command,
-    ctx: &DispatchContext,
-    sender_params: &mut IpcSenderParams,
-) -> bool {
-    match &cmd.request {
-        Request::SpellCast { spell, target } => {
-            handle_spell_cast(
-                cmd,
-                spell.clone(),
-                target.clone(),
-                ctx.current_target,
-                ctx.connected,
-                &mut sender_params.spell_cast_senders,
-            );
-        }
-        Request::SpellStop => {
-            handle_spell_stop(cmd, ctx.connected, &mut sender_params.spell_stop_senders);
-        }
-        Request::GroupInvite { name } => {
-            handle_group_invite(
-                cmd,
-                name.clone(),
-                ctx.connected,
-                &mut sender_params.group_invite_senders,
-            );
-        }
-        Request::GroupUninvite { name } => {
-            handle_group_uninvite(
-                cmd,
-                name.clone(),
-                ctx.connected,
-                &mut sender_params.group_uninvite_senders,
-            );
-        }
-        Request::Emote { emote } => {
-            handle_emote(cmd, *emote, ctx.connected, &mut sender_params.emote_senders);
-        }
-        _ => return false,
-    }
-    true
 }
 
 fn dispatch_map_and_equipment_request(
@@ -731,196 +618,4 @@ fn handle_export_character(
         payload.name,
         output.display()
     )));
-}
-
-fn resolve_spell_cast_intent(
-    cmd: &Command,
-    spell: &str,
-    target: Option<&str>,
-    current_target: &CurrentTarget,
-) -> Option<SpellCastIntent> {
-    let target_bits = match super::format::resolve_spell_target(target, current_target) {
-        Ok(bits) => bits,
-        Err(error) => {
-            let _ = cmd.respond.send(Response::Error(error));
-            return None;
-        }
-    };
-    let (spell_id, spell_token) = match super::format::resolve_spell_identifier(spell) {
-        Ok(value) => value,
-        Err(error) => {
-            let _ = cmd.respond.send(Response::Error(error));
-            return None;
-        }
-    };
-    Some(SpellCastIntent {
-        spell_id,
-        spell: spell_token,
-        target_entity: target_bits,
-    })
-}
-
-fn handle_spell_cast(
-    cmd: &Command,
-    spell: String,
-    target: Option<String>,
-    current_target: &CurrentTarget,
-    connected: bool,
-    senders: &mut Query<&mut MessageSender<SpellCastIntent>>,
-) {
-    if !connected {
-        let _ = cmd.respond.send(Response::Error(
-            "spell cast is unavailable: not connected".into(),
-        ));
-        return;
-    }
-    let Some(intent) = resolve_spell_cast_intent(cmd, &spell, target.as_deref(), current_target)
-    else {
-        return;
-    };
-    if send_combat_message(senders, intent.clone()) {
-        let target_text = intent
-            .target_entity
-            .map(|b| b.to_string())
-            .unwrap_or_else(|| "-".into());
-        let _ = cmd.respond.send(Response::Text(format!(
-            "spell cast submitted spell={} target={target_text}",
-            intent.spell
-        )));
-    } else {
-        let _ = cmd.respond.send(Response::Error(
-            "spell cast is unavailable: not connected".into(),
-        ));
-    }
-}
-
-fn handle_spell_stop(
-    cmd: &Command,
-    connected: bool,
-    senders: &mut Query<&mut MessageSender<StopSpellCast>>,
-) {
-    if !connected {
-        let _ = cmd.respond.send(Response::Error(
-            "spell stop is unavailable: not connected".into(),
-        ));
-        return;
-    }
-    if send_combat_message(senders, StopSpellCast) {
-        let _ = cmd
-            .respond
-            .send(Response::Text("spell stop submitted".into()));
-    } else {
-        let _ = cmd.respond.send(Response::Error(
-            "spell stop is unavailable: not connected".into(),
-        ));
-    }
-}
-
-fn handle_group_invite(
-    cmd: &Command,
-    name: String,
-    connected: bool,
-    senders: &mut Query<&mut MessageSender<GroupInviteIntent>>,
-) {
-    if !connected {
-        let _ = cmd.respond.send(Response::Error(
-            "group invite is unavailable: not connected".into(),
-        ));
-    } else if send_combat_message(senders, GroupInviteIntent { name: name.clone() }) {
-        let _ = cmd
-            .respond
-            .send(Response::Text(format!("group invite submitted for {name}")));
-    } else {
-        let _ = cmd
-            .respond
-            .send(Response::Error("group invite sender unavailable".into()));
-    }
-}
-
-fn handle_group_uninvite(
-    cmd: &Command,
-    name: String,
-    connected: bool,
-    senders: &mut Query<&mut MessageSender<GroupUninviteIntent>>,
-) {
-    if !connected {
-        let _ = cmd.respond.send(Response::Error(
-            "group uninvite is unavailable: not connected".into(),
-        ));
-    } else if send_combat_message(senders, GroupUninviteIntent { name: name.clone() }) {
-        let _ = cmd.respond.send(Response::Text(format!(
-            "group uninvite submitted for {name}"
-        )));
-    } else {
-        let _ = cmd
-            .respond
-            .send(Response::Error("group uninvite sender unavailable".into()));
-    }
-}
-
-fn handle_emote(
-    cmd: &Command,
-    emote: shared::protocol::EmoteKind,
-    connected: bool,
-    senders: &mut Query<&mut MessageSender<EmoteIntent>>,
-) {
-    if !connected {
-        let _ = cmd.respond.send(Response::Error(
-            "emote is unavailable: not connected".into(),
-        ));
-    } else if send_social_message(senders, EmoteIntent { emote }) {
-        let _ = cmd
-            .respond
-            .send(Response::Text(format!("emote submitted {:?}", emote)));
-    } else {
-        let _ = cmd
-            .respond
-            .send(Response::Error("emote sender unavailable".into()));
-    }
-}
-
-fn send_combat_message<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
-    message: T,
-) -> bool {
-    let mut sent = false;
-    for mut sender in senders.iter_mut() {
-        sender.send::<CombatChannel>(message.clone());
-        sent = true;
-    }
-    sent
-}
-
-fn send_social_message<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
-    message: T,
-) -> bool {
-    let mut sent = false;
-    for mut sender in senders.iter_mut() {
-        sender.send::<ChatChannel>(message.clone());
-        sent = true;
-    }
-    sent
-}
-
-/// Per-entity observer triggered when this screenshot is captured.
-fn on_screenshot_captured(
-    trigger: On<ScreenshotCaptured>,
-    query: Query<&ScreenshotReply>,
-    mut commands: Commands,
-) {
-    let entity = trigger.event_target();
-    let Ok(reply) = query.get(entity) else {
-        return;
-    };
-    let response = encode_screenshot(&trigger.image);
-    let _ = reply.0.send(response);
-    commands.entity(entity).despawn();
-}
-
-fn encode_screenshot(img: &bevy::image::Image) -> Response {
-    match crate::screenshot::encode_webp(img, 15.0) {
-        Ok(webp_data) => Response::Screenshot(webp_data),
-        Err(err) => Response::Error(err),
-    }
 }
