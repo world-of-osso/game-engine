@@ -8,8 +8,8 @@ use std::sync::mpsc;
 
 use serde::{Deserialize, Serialize};
 use shared::protocol::{
-    AuctionSearchQuery, BuyoutAuction, CancelAuction, ClaimAuctionMail, CreateAuction, EmoteKind,
-    PlaceBid, PvpBracketSnapshot,
+    AuctionSearchQuery, BuyoutAuction, CalendarSignupStatusSnapshot, CancelAuction,
+    ClaimAuctionMail, CreateAuction, EmoteKind, PlaceBid, PvpBracketSnapshot,
 };
 
 use crate::item_info::ItemInfoQuery;
@@ -90,6 +90,18 @@ pub enum Request {
     DuelAccept,
     DuelDecline,
     DuelStatus,
+    CalendarStatus,
+    CalendarQuery,
+    CalendarSchedule {
+        title: String,
+        starts_in_minutes: u32,
+        max_signups: u8,
+        is_raid: bool,
+    },
+    CalendarSignup {
+        event_id: u64,
+        status: CalendarSignupStatusSnapshot,
+    },
     FriendsStatus,
     WhoStatus,
     WhoQuery {

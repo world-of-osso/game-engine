@@ -270,6 +270,37 @@ pub struct WhoStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum CalendarSignupStateEntry {
+    Confirmed,
+    Tentative,
+    Declined,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CalendarSignupEntry {
+    pub character_name: String,
+    pub status: CalendarSignupStateEntry,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CalendarEventEntry {
+    pub event_id: u64,
+    pub title: String,
+    pub organizer_name: String,
+    pub starts_at_unix_secs: u64,
+    pub max_signups: u8,
+    pub is_raid: bool,
+    pub signups: Vec<CalendarSignupEntry>,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct CalendarStatusSnapshot {
+    pub events: Vec<CalendarEventEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct IgnoreListStatusSnapshot {
     pub names: Vec<String>,
@@ -1048,6 +1079,27 @@ mod tests {
                 area: "Zone 12".into(),
             }],
             last_server_message: Some("who: 1 result(s)".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn calendar_status_round_trip() {
+        let snapshot = CalendarStatusSnapshot {
+            events: vec![CalendarEventEntry {
+                event_id: 7,
+                title: "Karazhan".into(),
+                organizer_name: "Theron".into(),
+                starts_at_unix_secs: 1_710_000_000,
+                max_signups: 10,
+                is_raid: true,
+                signups: vec![CalendarSignupEntry {
+                    character_name: "Alice".into(),
+                    status: CalendarSignupStateEntry::Confirmed,
+                }],
+            }],
+            last_server_message: Some("calendar updated".into()),
             last_error: None,
         };
         round_trip(&snapshot);

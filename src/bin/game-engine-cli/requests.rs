@@ -3,13 +3,14 @@ use game_engine::item_info::ItemInfoQuery;
 use game_engine::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use shared::protocol::{
     AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
-    CancelAuction, ClaimAuctionMail, CreateAuction, EmoteKind, PlaceBid, PvpBracketSnapshot,
+    CalendarSignupStatusSnapshot, CancelAuction, ClaimAuctionMail, CreateAuction, EmoteKind,
+    PlaceBid, PvpBracketSnapshot,
 };
 
 use crate::{
-    AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd, EmoteCmd,
-    EquipmentCmd, FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd,
-    MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd,
+    AuctionCmd, BarberCmd, CalendarCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd,
+    EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd,
+    LfgCmd, MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd,
     StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
 };
 
@@ -119,6 +120,36 @@ pub fn friend_request(command: FriendCmd) -> Result<Request, String> {
         FriendCmd::Status => Request::FriendsStatus,
         FriendCmd::Add { name } => Request::FriendAdd { name },
         FriendCmd::Remove { name } => Request::FriendRemove { name },
+    };
+    Ok(request)
+}
+
+pub fn calendar_request(command: CalendarCmd) -> Result<Request, String> {
+    let request = match command {
+        CalendarCmd::Query => Request::CalendarQuery,
+        CalendarCmd::Schedule {
+            title,
+            in_minutes,
+            max_signups,
+            raid,
+        } => Request::CalendarSchedule {
+            title,
+            starts_in_minutes: in_minutes,
+            max_signups,
+            is_raid: raid,
+        },
+        CalendarCmd::Confirm { event_id } => Request::CalendarSignup {
+            event_id,
+            status: CalendarSignupStatusSnapshot::Confirmed,
+        },
+        CalendarCmd::Tentative { event_id } => Request::CalendarSignup {
+            event_id,
+            status: CalendarSignupStatusSnapshot::Tentative,
+        },
+        CalendarCmd::Decline { event_id } => Request::CalendarSignup {
+            event_id,
+            status: CalendarSignupStatusSnapshot::Declined,
+        },
     };
     Ok(request)
 }
@@ -361,6 +392,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
     let request = match command {
         StatusCmd::Achievements => Request::AchievementsStatus,
         StatusCmd::Barber => Request::BarberStatus,
+        StatusCmd::Calendar => Request::CalendarStatus,
         StatusCmd::Death => Request::DeathStatus,
         StatusCmd::EncounterJournal => Request::EncounterJournalStatus,
         StatusCmd::Friends => Request::FriendsStatus,

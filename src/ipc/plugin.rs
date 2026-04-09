@@ -17,6 +17,7 @@ use crate::auction_house::{AuctionHouseState, queue_ipc_request};
 use crate::barber_shop::{
     BarberShopRuntimeState, queue_ipc_request as queue_barber_shop_ipc_request,
 };
+use crate::calendar::{CalendarRuntimeState, queue_ipc_request as queue_calendar_ipc_request};
 use crate::character_export::{build_export_character_payload, write_export_character_file};
 use crate::collection::{
     CollectionRuntimeState, queue_ipc_request as queue_collection_ipc_request,
@@ -37,9 +38,9 @@ use crate::profession::{
 };
 use crate::pvp::{PvpRuntimeState, queue_ipc_request as queue_pvp_ipc_request};
 use crate::status::{
-    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterRosterStatusSnapshot,
-    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
+    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CalendarStatusSnapshot,
+    CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
+    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
     EncounterJournalStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
     FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
     LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
@@ -84,6 +85,7 @@ pub(crate) type TreeQuery<'w, 's> = Query<'w, 's, crate::dump::TreeQueryData<'st
 struct StatusSnapshotParams<'w> {
     achievements: Res<'w, AchievementsStatusSnapshot>,
     barber_shop: Res<'w, BarberShopStatusSnapshot>,
+    calendar: Res<'w, CalendarStatusSnapshot>,
     encounter_journal: Res<'w, EncounterJournalStatusSnapshot>,
     death: Res<'w, DeathStatusSnapshot>,
     network: Res<'w, NetworkStatusSnapshot>,
@@ -114,6 +116,7 @@ struct StatusSnapshotParams<'w> {
 pub(crate) struct DispatchContext<'a> {
     pub achievements_status: &'a AchievementsStatusSnapshot,
     pub barber_shop_status: &'a BarberShopStatusSnapshot,
+    pub calendar_status: &'a CalendarStatusSnapshot,
     pub encounter_journal_status: &'a EncounterJournalStatusSnapshot,
     pub death_status: &'a DeathStatusSnapshot,
     pub network_status: &'a NetworkStatusSnapshot,
@@ -161,6 +164,8 @@ struct WorldParams<'w> {
     auction_house: ResMut<'w, AuctionHouseState>,
     barber_shop: ResMut<'w, BarberShopRuntimeState>,
     barber_shop_status: ResMut<'w, BarberShopStatusSnapshot>,
+    calendar: ResMut<'w, CalendarRuntimeState>,
+    calendar_status: Res<'w, CalendarStatusSnapshot>,
     death: ResMut<'w, DeathRuntimeState>,
     death_status: Res<'w, DeathStatusSnapshot>,
     collection: ResMut<'w, CollectionRuntimeState>,
@@ -239,6 +244,7 @@ fn build_dispatch_context<'a>(
     DispatchContext {
         achievements_status: &snapshots.achievements,
         barber_shop_status: &snapshots.barber_shop,
+        calendar_status: &snapshots.calendar,
         encounter_journal_status: &snapshots.encounter_journal,
         death_status: &snapshots.death,
         network_status: &snapshots.network,
@@ -281,6 +287,14 @@ fn dispatch(
     if queue_barber_shop_ipc_request(
         &mut world.barber_shop,
         &mut world.barber_shop_status,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_calendar_ipc_request(
+        &mut world.calendar,
+        &world.calendar_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

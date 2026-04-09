@@ -16,12 +16,12 @@ pub use crate::networking_auth::{
 
 use crate::camera::{CharacterFacing, MovementState};
 use game_engine::status::{
-    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CollectionStatusSnapshot,
-    CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DeathStatusSnapshot, FriendsStatusSnapshot,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
-    InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot, ProfessionStatusSnapshot,
-    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, WarbankStatusSnapshot,
-    WhoStatusSnapshot,
+    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CalendarStatusSnapshot,
+    CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
+    DeathStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot,
+    IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
+    ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    WarbankStatusSnapshot, WhoStatusSnapshot,
 };
 
 /// Marker for entities spawned from server replication.
@@ -190,6 +190,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<DeathStatusSnapshot>();
     app.init_resource::<CollectionStatusSnapshot>();
     app.init_resource::<ProfessionStatusSnapshot>();
+    app.init_resource::<CalendarStatusSnapshot>();
     app.init_resource::<FriendsStatusSnapshot>();
     app.init_resource::<WhoStatusSnapshot>();
     app.init_resource::<IgnoreListStatusSnapshot>();

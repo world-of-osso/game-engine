@@ -19,6 +19,7 @@ pub mod buff_data;
 pub mod cache_metadata;
 mod cache_source_mtime;
 mod cache_sqlite;
+pub mod calendar;
 #[path = "game/casting_data.rs"]
 pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]

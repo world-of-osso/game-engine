@@ -1,4 +1,5 @@
 pub mod achievement_frame;
+pub mod calendar_frame;
 pub mod casting_bar_frame;
 pub mod char_create;
 pub mod char_select;

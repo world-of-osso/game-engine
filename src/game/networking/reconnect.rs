@@ -144,6 +144,11 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::profession::reset_runtime(&mut profession_state);
     }
+    if let Some(mut calendar_state) =
+        world.get_resource_mut::<game_engine::calendar::CalendarRuntimeState>()
+    {
+        game_engine::calendar::reset_runtime(&mut calendar_state);
+    }
     if let Some(mut casting_state) =
         world.get_resource_mut::<game_engine::casting_data::CastingState>()
     {
@@ -220,6 +225,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::DurabilityStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
+    reset_resource::<game_engine::status::CalendarStatusSnapshot>(world);
     reset_resource::<game_engine::status::FriendsStatusSnapshot>(world);
     reset_resource::<game_engine::status::WhoStatusSnapshot>(world);
     reset_resource::<game_engine::status::IgnoreListStatusSnapshot>(world);

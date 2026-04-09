@@ -263,4 +263,11 @@ fn minimap_builds_buttons_ring() {
     ] {
         assert!(reg.get_by_name(name).is_some(), "{name} missing");
     }
+    let frame = reg
+        .get(
+            reg.get_by_name("MinimapCalendarButton")
+                .expect("MinimapCalendarButton"),
+        )
+        .expect("calendar frame");
+    assert_eq!(frame.onclick.as_deref(), Some("calendar_toggle"));
 }

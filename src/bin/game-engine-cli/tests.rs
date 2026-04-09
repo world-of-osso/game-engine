@@ -164,6 +164,14 @@ fn who_status_command_maps_to_request() {
 }
 
 #[test]
+fn calendar_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Calendar).unwrap(),
+        Request::CalendarStatus
+    );
+}
+
+#[test]
 fn presence_status_command_maps_to_request() {
     assert_eq!(
         presence_request(PresenceCmd::Status).unwrap(),
@@ -559,6 +567,36 @@ fn who_query_command_maps_to_request() {
         who_request(WhoCmd::Query { text: "ali".into() }).unwrap(),
         Request::WhoQuery {
             query: "ali".into(),
+        }
+    );
+}
+
+#[test]
+fn calendar_schedule_command_maps_to_request() {
+    assert_eq!(
+        calendar_request(CalendarCmd::Schedule {
+            title: "Karazhan".into(),
+            in_minutes: 60,
+            max_signups: 10,
+            raid: true,
+        })
+        .unwrap(),
+        Request::CalendarSchedule {
+            title: "Karazhan".into(),
+            starts_in_minutes: 60,
+            max_signups: 10,
+            is_raid: true,
+        }
+    );
+}
+
+#[test]
+fn calendar_confirm_command_maps_to_request() {
+    assert_eq!(
+        calendar_request(CalendarCmd::Confirm { event_id: 7 }).unwrap(),
+        Request::CalendarSignup {
+            event_id: 7,
+            status: shared::protocol::CalendarSignupStatusSnapshot::Confirmed,
         }
     );
 }

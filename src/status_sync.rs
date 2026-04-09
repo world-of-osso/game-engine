@@ -7,15 +7,16 @@ use bevy::mesh::Mesh;
 use bevy::prelude::*;
 use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
-    BarberShopStatusSnapshot, CharacterRosterStatusSnapshot, CharacterStatsSnapshot,
-    CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    DuelStatusSnapshot, DurabilityStatusSnapshot, EquipmentAppearanceStatusSnapshot,
-    EquippedGearEntry, EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot, LfgStatusSnapshot,
-    MapStatusSnapshot, NetworkStatusSnapshot, PresenceStateEntry, ProfessionStatusSnapshot,
-    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SecondaryResourceEntry,
-    SecondaryResourceKindEntry, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot, WhoStatusSnapshot,
+    BarberShopStatusSnapshot, CalendarStatusSnapshot, CharacterRosterStatusSnapshot,
+    CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
+    CurrenciesStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot,
+    EquipmentAppearanceStatusSnapshot, EquippedGearEntry, EquippedGearStatusSnapshot,
+    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
+    InspectStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    PresenceStateEntry, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
+    ReputationsStatusSnapshot, SecondaryResourceEntry, SecondaryResourceKindEntry,
+    SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    WhoStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -364,6 +365,7 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(CharacterRosterStatusSnapshot::default())
         .insert_resource(CharacterStatsSnapshot::default())
         .insert_resource(BarberShopStatusSnapshot::default())
+        .insert_resource(CalendarStatusSnapshot::default())
         .insert_resource(FriendsStatusSnapshot::default())
         .insert_resource(WhoStatusSnapshot::default())
         .insert_resource(IgnoreListStatusSnapshot::default())

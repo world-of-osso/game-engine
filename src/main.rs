@@ -686,11 +686,13 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::encounter_journal_frame::EncounterJournalFramePlugin,
         scenes::friends_frame::FriendsFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
+        scenes::calendar_frame::CalendarFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
         scenes::talent_frame::TalentFramePlugin,
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));
+    app.add_plugins(game_engine::calendar::CalendarPlugin);
     app.add_plugins(game_engine::who::WhoPlugin);
     app.add_plugins(game_engine::reputation::ReputationPlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);

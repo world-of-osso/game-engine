@@ -3,6 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
 use crate::ui::strata::FrameStrata;
 
 const SLOT_COUNT: usize = 12;
@@ -675,30 +676,61 @@ fn minimap_buttons() -> Element {
 fn minimap_btn(name: &str, text: &str, x_off: f32, y_off: f32) -> Element {
     let btn_name = DynName(name.to_string());
     let txt_name = DynName(format!("{name}Text"));
-    rsx! {
-        r#frame {
-            name: btn_name,
-            width: {MINIMAP_BTN_SIZE},
-            height: {MINIMAP_BTN_SIZE},
-            background_color: MINIMAP_HEADER_BG,
-            strata: FrameStrata::High,
-            frame_level: 12.0,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: MINIMAP_DISPLAY,
-                relative_point: AnchorPoint::Center,
-                x: {x_off},
-                y: {y_off},
-            }
-            fontstring {
-                name: txt_name,
+    if name == "MinimapCalendarButton" {
+        rsx! {
+            r#frame {
+                name: btn_name,
                 width: {MINIMAP_BTN_SIZE},
                 height: {MINIMAP_BTN_SIZE},
-                text,
-                font_size: 8.0,
-                font_color: MINIMAP_ZONE_COLOR,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                background_color: MINIMAP_HEADER_BG,
+                strata: FrameStrata::High,
+                frame_level: 12.0,
+                onclick: ACTION_CALENDAR_TOGGLE,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_to: MINIMAP_DISPLAY,
+                    relative_point: AnchorPoint::Center,
+                    x: {x_off},
+                    y: {y_off},
+                }
+                fontstring {
+                    name: txt_name,
+                    width: {MINIMAP_BTN_SIZE},
+                    height: {MINIMAP_BTN_SIZE},
+                    text,
+                    font_size: 8.0,
+                    font_color: MINIMAP_ZONE_COLOR,
+                    justify_h: "CENTER",
+                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                }
+            }
+        }
+    } else {
+        rsx! {
+            r#frame {
+                name: btn_name,
+                width: {MINIMAP_BTN_SIZE},
+                height: {MINIMAP_BTN_SIZE},
+                background_color: MINIMAP_HEADER_BG,
+                strata: FrameStrata::High,
+                frame_level: 12.0,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_to: MINIMAP_DISPLAY,
+                    relative_point: AnchorPoint::Center,
+                    x: {x_off},
+                    y: {y_off},
+                }
+                fontstring {
+                    name: txt_name,
+                    width: {MINIMAP_BTN_SIZE},
+                    height: {MINIMAP_BTN_SIZE},
+                    text,
+                    font_size: 8.0,
+                    font_color: MINIMAP_ZONE_COLOR,
+                    justify_h: "CENTER",
+                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                }
             }
         }
     }

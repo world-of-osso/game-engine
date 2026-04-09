@@ -4,14 +4,14 @@
 mod format_terrain;
 
 use crate::status::{
-    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CharacterStatsSnapshot,
-    CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    CurrenciesStatusSnapshot, DeathStateEntry, DeathStatusSnapshot, EncounterJournalStatusSnapshot,
-    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot,
-    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    WhoStatusSnapshot,
+    AchievementsStatusSnapshot, BarberShopStatusSnapshot, CalendarSignupStateEntry,
+    CalendarStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
+    CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DeathStateEntry,
+    DeathStatusSnapshot, EncounterJournalStatusSnapshot, EquippedGearStatusSnapshot,
+    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
+    InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -29,6 +29,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
         Request::EncounterJournalStatus => {
             format_encounter_journal_status(ctx.encounter_journal_status)
         }
+        Request::CalendarStatus => format_calendar_status(ctx.calendar_status),
         Request::NetworkStatus => format_network_status(ctx.network_status, ctx.connected),
         Request::TerrainStatus => format_terrain_status(ctx.terrain_status),
         Request::SoundStatus => format_sound_status(ctx.sound_status),
@@ -356,6 +357,50 @@ pub fn format_who_status(snapshot: &WhoStatusSnapshot) -> String {
         format!(
             "{} level={} class={} area={}",
             entry.name, entry.level, entry.class_name, entry.area
+        )
+    }));
+    lines.join("\n")
+}
+
+pub fn format_calendar_status(snapshot: &CalendarStatusSnapshot) -> String {
+    let mut lines = vec![format!("calendar_events: {}", snapshot.events.len())];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.events.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.events.iter().map(|event| {
+        let confirmed = event
+            .signups
+            .iter()
+            .filter(|signup| signup.status == CalendarSignupStateEntry::Confirmed)
+            .count();
+        let tentative = event
+            .signups
+            .iter()
+            .filter(|signup| signup.status == CalendarSignupStateEntry::Tentative)
+            .count();
+        let declined = event
+            .signups
+            .iter()
+            .filter(|signup| signup.status == CalendarSignupStateEntry::Declined)
+            .count();
+        format!(
+            "{} title={} organizer={} raid={} starts_at={} confirmed={}/{} tentative={} declined={}",
+            event.event_id,
+            event.title,
+            event.organizer_name,
+            event.is_raid,
+            event.starts_at_unix_secs,
+            confirmed,
+            event.max_signups,
+            tentative,
+            declined
         )
     }));
     lines.join("\n")

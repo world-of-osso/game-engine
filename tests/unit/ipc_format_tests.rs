@@ -1,7 +1,8 @@
 use super::*;
 use crate::status::{
     AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
-    BarberShopStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
+    BarberShopStatusSnapshot, CalendarEventEntry, CalendarSignupEntry, CalendarSignupStateEntry,
+    CalendarStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EncounterJournalBossEntry,
     EncounterJournalInstanceEntry, EncounterJournalStatusSnapshot, EquippedGearEntry,
     EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
@@ -281,6 +282,32 @@ fn formats_who_status_snapshot_with_server_message() {
     assert!(text.contains("who_results: 1"));
     assert!(text.contains("message: who: 1 result(s)"));
     assert!(text.contains("Alice level=42 class=Mage area=Zone 12"));
+}
+
+#[test]
+fn formats_calendar_status_snapshot_with_server_message() {
+    let text = format_calendar_status(&CalendarStatusSnapshot {
+        events: vec![CalendarEventEntry {
+            event_id: 7,
+            title: "Karazhan".into(),
+            organizer_name: "Theron".into(),
+            starts_at_unix_secs: 1_710_000_000,
+            max_signups: 10,
+            is_raid: true,
+            signups: vec![CalendarSignupEntry {
+                character_name: "Alice".into(),
+                status: CalendarSignupStateEntry::Confirmed,
+            }],
+        }],
+        last_server_message: Some("calendar updated".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("calendar_events: 1"));
+    assert!(text.contains("message: calendar updated"));
+    assert!(text.contains(
+        "7 title=Karazhan organizer=Theron raid=true starts_at=1710000000 confirmed=1/10 tentative=0 declined=0"
+    ));
 }
 
 #[test]
