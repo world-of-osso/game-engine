@@ -187,18 +187,46 @@ fn build_player_state(
     (player, health, mana, _npc, name, _auras): UnitComponents,
 ) -> UnitFrameState {
     let mut state = default_player_frame_state();
+    populate_player_identity(&mut state, player, character_stats, name);
+    populate_player_resources(&mut state, health, mana);
+    state
+}
+
+fn populate_player_identity(
+    state: &mut UnitFrameState,
+    player: Option<&NetPlayer>,
+    character_stats: Option<&CharacterStatsSnapshot>,
+    name: Option<&Name>,
+) {
     state.portrait_texture_file = portrait_texture_for_player(player, character_stats);
     state.secondary_resource = character_stats.and_then(|stats| stats.secondary_resource.clone());
-    state.name = player
-        .map(|player| player.name.clone())
-        .or_else(|| character_stats.and_then(|stats| stats.name.clone()))
-        .or_else(|| name.map(|name| name.as_str().to_string()))
-        .unwrap_or_else(|| "Player".to_string());
+    state.name = resolve_player_name(player, character_stats, name);
     state.level_text = character_stats
         .and_then(|stats| stats.level)
         .map(|level| level.to_string())
         .unwrap_or_default();
     state.resting_text = character_stats.map(resting_text).unwrap_or_default();
+    state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
+    state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
+}
+
+fn resolve_player_name(
+    player: Option<&NetPlayer>,
+    character_stats: Option<&CharacterStatsSnapshot>,
+    name: Option<&Name>,
+) -> String {
+    player
+        .map(|player| player.name.clone())
+        .or_else(|| character_stats.and_then(|stats| stats.name.clone()))
+        .or_else(|| name.map(|name| name.as_str().to_string()))
+        .unwrap_or_else(|| "Player".to_string())
+}
+
+fn populate_player_resources(
+    state: &mut UnitFrameState,
+    health: Option<&NetHealth>,
+    mana: Option<&NetMana>,
+) {
     state.health_text = format_value_text(
         health.map(|health| health.current),
         health.map(|health| health.max),
@@ -215,9 +243,6 @@ fn build_player_state(
         mana.map(|mana| mana.max),
     );
     state.has_mana = mana.is_some();
-    state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
-    state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
-    state
 }
 
 fn build_target_state(
