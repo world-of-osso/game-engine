@@ -4,12 +4,15 @@ use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
 
 use crate::sky::SkyDome;
+use crate::taxi::TaxiCameraTarget;
 use crate::terrain_heightmap::TerrainHeightmap;
 
 use super::{COLLISION_OFFSET, COLLISION_RECOVERY_SPEED, EYE_HEIGHT, GROUND_Y, Player, WowCamera};
 
 type FollowPlayerQuery<'w, 's> =
     Query<'w, 's, (Entity, &'static Transform), (With<Player>, Without<WowCamera>)>;
+type FollowTaxiQuery<'w, 's> =
+    Query<'w, 's, (Entity, &'static Transform), (With<TaxiCameraTarget>, Without<WowCamera>)>;
 type FollowCameraQuery<'w, 's> =
     Query<'w, 's, (&'static mut WowCamera, &'static mut Transform), Without<Player>>;
 
@@ -128,16 +131,30 @@ fn compute_effective_distance(
     cam.distance
 }
 
+fn follow_target(
+    taxi_q: &FollowTaxiQuery<'_, '_>,
+    player_q: &FollowPlayerQuery<'_, '_>,
+) -> Option<(Entity, Vec3)> {
+    if let Ok((entity, transform)) = taxi_q.single() {
+        return Some((entity, transform.translation));
+    }
+    let Ok((entity, transform)) = player_q.single() else {
+        return None;
+    };
+    Some((entity, transform.translation))
+}
+
 pub(super) fn camera_follow(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
+    taxi_q: FollowTaxiQuery<'_, '_>,
     player_q: FollowPlayerQuery<'_, '_>,
     mut camera_q: FollowCameraQuery<'_, '_>,
     mut ray_cast: MeshRayCast,
     sky_q: Query<Entity, With<SkyDome>>,
     children_q: Query<&Children>,
 ) {
-    let Ok((player_entity, player_tf)) = player_q.single() else {
+    let Some((player_entity, target_translation)) = follow_target(&taxi_q, &player_q) else {
         return;
     };
     let Ok((mut cam, mut cam_tf)) = camera_q.single_mut() else {
@@ -148,7 +165,7 @@ pub(super) fn camera_follow(
     let zoom_t = (cam.zoom_speed * dt).min(1.0);
     cam.distance = cam.distance.lerp(cam.target_distance, zoom_t);
     let follow_t = (cam.follow_speed * dt).min(1.0);
-    let eye_target = player_tf.translation + Vec3::Y * EYE_HEIGHT;
+    let eye_target = target_translation + Vec3::Y * EYE_HEIGHT;
     let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
     let orbit_dir = rotation * Vec3::NEG_Z;
     let excluded = build_collision_excluded_set(player_entity, &children_q, &sky_q);

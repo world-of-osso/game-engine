@@ -62,6 +62,7 @@ const TOOLTIP_LINE_H: f32 = 16.0;
 const TOOLTIP_INSET: f32 = 6.0;
 
 pub const ACTION_WORLD_MAP_CLOSE: &str = "world_map_close";
+pub const ACTION_WORLD_MAP_TAXI_PIN_PREFIX: &str = "world_map_taxi_pin:";
 
 // --- Colors ---
 
@@ -418,31 +419,86 @@ fn fog_overlays(overlays: &[ZoneOverlay]) -> Element {
 
 fn map_pin_frame(i: usize, pin: &MapPin) -> Element {
     let id = DynName(format!("WorldMapPin{i}"));
-    let label_id = DynName(format!("WorldMapPin{i}Symbol"));
     let x = CANVAS_INSET + pin.x * CANVAS_W - PIN_SIZE / 2.0;
     let y = CANVAS_TOP + pin.y * CANVAS_H - PIN_SIZE / 2.0;
-    rsx! {
-        r#frame {
-            name: id,
-            width: {PIN_SIZE},
-            height: {PIN_SIZE},
-            background_color: {pin.pin_type.color()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-y},
-            }
-            fontstring {
-                name: label_id,
+    if pin.pin_type != MapPinType::FlightPath {
+        return plain_map_pin_frame(id, i, pin, x, y);
+    }
+    let action = format!("{ACTION_WORLD_MAP_TAXI_PIN_PREFIX}{i}");
+    clickable_map_pin_frame(id, i, pin, x, y, &action)
+}
+
+fn plain_map_pin_frame(id: DynName, index: usize, pin: &MapPin, x: f32, y: f32) -> Element {
+    let label_id = DynName(format!("WorldMapPin{index}Symbol"));
+    map_pin_backdrop(id, pin, x, y, None, map_pin_symbol(label_id, pin))
+}
+
+fn clickable_map_pin_frame(
+    id: DynName,
+    index: usize,
+    pin: &MapPin,
+    x: f32,
+    y: f32,
+    action: &str,
+) -> Element {
+    let label_id = DynName(format!("WorldMapPin{index}Symbol"));
+    map_pin_backdrop(id, pin, x, y, Some(action), map_pin_symbol(label_id, pin))
+}
+
+fn map_pin_backdrop(
+    id: DynName,
+    pin: &MapPin,
+    x: f32,
+    y: f32,
+    onclick: Option<&str>,
+    content: Element,
+) -> Element {
+    match onclick {
+        Some(onclick) => rsx! {
+            r#frame {
+                name: id,
                 width: {PIN_SIZE},
                 height: {PIN_SIZE},
-                text: {pin.pin_type.symbol()},
-                font_size: 10.0,
-                font_color: "1.0,1.0,1.0,1.0",
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                background_color: {pin.pin_type.color()},
+                onclick: {onclick},
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {x},
+                    y: {-y},
+                }
+                {content}
             }
+        },
+        None => rsx! {
+            r#frame {
+                name: id,
+                width: {PIN_SIZE},
+                height: {PIN_SIZE},
+                background_color: {pin.pin_type.color()},
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {x},
+                    y: {-y},
+                }
+                {content}
+            }
+        },
+    }
+}
+
+fn map_pin_symbol(label_id: DynName, pin: &MapPin) -> Element {
+    rsx! {
+        fontstring {
+            name: label_id,
+            width: {PIN_SIZE},
+            height: {PIN_SIZE},
+            text: {pin.pin_type.symbol()},
+            font_size: 10.0,
+            font_color: "1.0,1.0,1.0,1.0",
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
         }
     }
 }

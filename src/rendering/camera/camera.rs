@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
 use crate::pathing::PathingState;
+use crate::taxi::TaxiState;
 use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::input_bindings::{InputAction, InputBindings};
 
@@ -262,12 +263,16 @@ fn camera_input(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    taxi: Option<Res<TaxiState>>,
     options: Res<crate::client_options::CameraOptions>,
     bindings: Res<InputBindings>,
     mut camera_q: Query<&mut WowCamera>,
     mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+        || taxi.as_deref().is_some_and(TaxiState::is_active)
+    {
         return;
     }
     let Ok(mut cam) = camera_q.single_mut() else {
@@ -396,6 +401,7 @@ fn player_movement(
     terrain: Option<Res<TerrainHeightmap>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    taxi: Option<Res<TaxiState>>,
     mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
     bindings: Res<InputBindings>,
     mut pathing: ResMut<PathingState>,
@@ -418,6 +424,11 @@ fn player_movement(
     let Ok((mut transform, mut movement, mut facing, mut physics)) = player_q.single_mut() else {
         return;
     };
+    if taxi.as_deref().is_some_and(TaxiState::is_active) {
+        movement.autorun = false;
+        movement.direction = MoveDirection::None;
+        return;
+    }
 
     if close_player_movement_for_modal(modal_open.as_deref(), &mut movement) {
         return;

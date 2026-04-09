@@ -86,6 +86,15 @@ fn builds_frame_and_elements() {
 }
 
 #[test]
+fn flight_path_pin_exposes_taxi_click_action() {
+    let reg = build_registry();
+    let pin_id = reg.get_by_name("WorldMapPin1").expect("flight path pin");
+    let pin = reg.get(pin_id).expect("flight path pin data");
+
+    assert_eq!(pin.onclick.as_deref(), Some("world_map_taxi_pin:1"));
+}
+
+#[test]
 fn hidden_when_not_visible() {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
