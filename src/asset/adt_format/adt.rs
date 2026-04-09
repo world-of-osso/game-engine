@@ -1489,5 +1489,5 @@ pub(crate) fn load_lod_adt(data: &[u8]) -> Result<ParsedLodData, String> {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
+#[path = "adt_tests/mod.rs"]
 mod tests;

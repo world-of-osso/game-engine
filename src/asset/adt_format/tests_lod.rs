@@ -1,4 +1,4 @@
-use super::{LodHeader, LodLevel, LodQuadTreeNode, append_subchunk, load_lod_adt};
+use super::{LodHeader, LodLevel, LodQuadTreeNode, fixtures::append_subchunk, load_lod_adt};
 use crate::asset::adt_format::adt::LodLiquidDirectory;
 
 const TEST_M2_LOD_FLAGS: u32 = 0x55AA;
