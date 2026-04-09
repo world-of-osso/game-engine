@@ -366,17 +366,8 @@ pub fn save_client_options(
     modal_offset: [f32; 2],
 ) -> Result<(), String> {
     let file = build_options_file(sound, camera, graphics, hud, bindings, modal_offset);
-    let pretty = ron::ser::PrettyConfig::new();
-    let serialized = ron::ser::to_string_pretty(&file, pretty)
-        .map_err(|err| format!("failed to serialize client options: {err}"))?;
     let path = options_path();
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
-    }
-    info!("Saving client options to {}", path.display());
-    fs::write(&path, serialized)
-        .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
+    save_options_file_to_path(&path, &file)
 }
 
 pub fn save_client_options_values(
@@ -430,6 +421,19 @@ fn build_options_file(
     }
 }
 
+fn save_options_file_to_path(path: &Path, file: &ClientOptionsFile) -> Result<(), String> {
+    let pretty = ron::ser::PrettyConfig::new();
+    let serialized = ron::ser::to_string_pretty(file, pretty)
+        .map_err(|err| format!("failed to serialize client options: {err}"))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
+    }
+    info!("Saving client options to {}", path.display());
+    fs::write(path, serialized)
+        .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
+}
+
 const fn default_particle_density() -> u8 {
     100
 }
@@ -448,19 +452,7 @@ const fn default_bloom_intensity() -> f32 {
 
 fn load_options_file() -> ClientOptionsFile {
     let path = load_options_path();
-    if !path.exists() {
-        info!(
-            "No client options file found at {}; using defaults",
-            path.display()
-        );
-        return ClientOptionsFile::default();
-    }
-
-    info!("Loading client options from {}", path.display());
-    let Ok(raw) = fs::read_to_string(&path) else {
-        return ClientOptionsFile::default();
-    };
-    ron::de::from_str::<ClientOptionsFile>(&raw).unwrap_or_default()
+    load_options_file_from_path(&path)
 }
 
 fn load_options_path() -> PathBuf {
@@ -507,6 +499,22 @@ fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {
         return legacy_path.to_path_buf();
     }
     config_path.to_path_buf()
+}
+
+fn load_options_file_from_path(path: &Path) -> ClientOptionsFile {
+    if !path.exists() {
+        info!(
+            "No client options file found at {}; using defaults",
+            path.display()
+        );
+        return ClientOptionsFile::default();
+    }
+
+    info!("Loading client options from {}", path.display());
+    let Ok(raw) = fs::read_to_string(path) else {
+        return ClientOptionsFile::default();
+    };
+    ron::de::from_str::<ClientOptionsFile>(&raw).unwrap_or_default()
 }
 
 fn apply_loaded_client_options(
@@ -690,5 +698,65 @@ mod tests {
         let selected = select_load_options_path(&config_path, &legacy_path);
 
         assert_eq!(selected, config_path);
+    }
+
+    #[test]
+    fn save_options_file_to_path_persists_and_loads_back() {
+        let test_dir = unique_test_dir("persist-options");
+        let path = test_dir.join("config").join(OPTIONS_FILE_NAME);
+        let mut bindings = InputBindings::default();
+        bindings.assign(
+            InputAction::TargetNearest,
+            InputBinding::Keyboard(KeyCode::F3),
+        );
+        let file = ClientOptionsFile {
+            sound: SoundOptionsFile {
+                master_volume: 0.25,
+                ambient_volume: 0.5,
+                effects_volume: 0.75,
+                music_volume: 0.9,
+                music_enabled: false,
+                muted: true,
+            },
+            camera: CameraOptionsFile {
+                look_sensitivity: 0.02,
+                invert_y: true,
+                follow_speed: 6.0,
+                zoom_speed: 3.0,
+                min_distance: 4.0,
+                max_distance: 28.0,
+            },
+            graphics: GraphicsOptionsFile {
+                particle_density: 60,
+                render_scale: 0.8,
+                bloom_enabled: true,
+                bloom_intensity: 0.2,
+            },
+            hud: HudOptionsFile {
+                show_minimap: false,
+                show_action_bars: true,
+                show_nameplates: false,
+                show_health_bars: true,
+                show_target_marker: false,
+                show_fps_overlay: false,
+            },
+            bindings: bindings.clone(),
+            modal_offset: Some([123.0, -45.0]),
+            modal_position: None,
+        };
+
+        save_options_file_to_path(&path, &file).unwrap();
+        let loaded = load_options_file_from_path(&path);
+
+        assert_eq!(loaded.sound.master_volume, 0.25);
+        assert!(!loaded.sound.music_enabled);
+        assert!(loaded.camera.invert_y);
+        assert_eq!(loaded.graphics.particle_density, 60);
+        assert!(!loaded.hud.show_minimap);
+        assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));
+        assert_eq!(
+            loaded.bindings.binding(InputAction::TargetNearest),
+            Some(InputBinding::Keyboard(KeyCode::F3))
+        );
     }
 }
