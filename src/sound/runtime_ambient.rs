@@ -158,7 +158,15 @@ fn load_zone_ambient_catalog_inner(
     let path = paths::shared_data_path("music_manifest.csv");
     let mut reader = open_music_manifest_reader(&path)?;
     let manifest_columns = load_manifest_columns(&mut reader, &path)?;
+    read_zone_ambient_rows(&mut reader, &path, &manifest_columns, track_index_by_fdid)
+}
 
+fn read_zone_ambient_rows(
+    reader: &mut BufReader<std::fs::File>,
+    path: &std::path::Path,
+    manifest_columns: &ManifestColumns,
+    track_index_by_fdid: &HashMap<u32, usize>,
+) -> Result<HashMap<u32, Vec<usize>>, String> {
     let mut by_zone = HashMap::new();
     let mut seen: HashMap<u32, HashSet<usize>> = HashMap::new();
     let mut line = String::new();
