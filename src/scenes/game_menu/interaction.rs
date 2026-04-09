@@ -268,6 +268,7 @@ fn slider_rect(slider: SliderField, reg: &FrameRegistry) -> Option<ui_toolkit::l
 
 fn slider_widget_name(slider: SliderField) -> &'static str {
     match slider {
+        SliderField::MouseSensitivity => "Slidermouse_sensitivity",
         SliderField::ParticleDensity => "Sliderparticle_density",
         SliderField::RenderScale => "Sliderrender_scale",
         SliderField::UiScale => "Sliderui_scale",
@@ -288,6 +289,7 @@ fn slider_widget_name(slider: SliderField) -> &'static str {
 
 fn slider_row(slider: SliderField) -> f32 {
     match slider {
+        SliderField::MouseSensitivity => 1.0,
         SliderField::ParticleDensity => 3.0,
         SliderField::RenderScale => 1.0,
         SliderField::UiScale => 1.0,

@@ -20,6 +20,7 @@ pub enum DragCapture {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
+    MouseSensitivity,
     ParticleDensity,
     RenderScale,
     UiScale,
@@ -84,6 +85,7 @@ pub struct GraphicsDraft {
 
 #[derive(Debug, Clone)]
 pub struct CameraDraft {
+    pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
     pub invert_y: bool,
     pub zoom_speed: f32,
@@ -146,6 +148,7 @@ pub fn graphics_draft(graphics: &GraphicsOptions) -> GraphicsDraft {
 
 pub fn camera_draft(camera: &CameraOptions) -> CameraDraft {
     CameraDraft {
+        mouse_sensitivity: camera.mouse_sensitivity,
         look_sensitivity: camera.look_sensitivity,
         invert_y: camera.invert_y,
         zoom_speed: camera.zoom_speed,
@@ -192,6 +195,7 @@ fn sound_to_view(s: &SoundDraft) -> SoundOptionsView {
 
 fn camera_to_view(c: &CameraDraft) -> CameraOptionsView {
     CameraOptionsView {
+        mouse_sensitivity: c.mouse_sensitivity,
         look_sensitivity: c.look_sensitivity,
         invert_y: c.invert_y,
         zoom_speed: c.zoom_speed,
@@ -261,6 +265,7 @@ fn bindings_view(
 
 pub fn parse_slider_action(action: &str) -> Option<SliderField> {
     Some(match action.strip_prefix("options_slider:")? {
+        "mouse_sensitivity" => SliderField::MouseSensitivity,
         "particle_density" => SliderField::ParticleDensity,
         "render_scale" => SliderField::RenderScale,
         "ui_scale" => SliderField::UiScale,
@@ -282,6 +287,10 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
 
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
     match field {
+        SliderField::MouseSensitivity => (
+            crate::client_options::MIN_MOUSE_SENSITIVITY,
+            crate::client_options::MAX_MOUSE_SENSITIVITY,
+        ),
         SliderField::ParticleDensity => (10.0, 100.0),
         SliderField::RenderScale => (0.5, 1.0),
         SliderField::UiScale => (
@@ -310,6 +319,7 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
 
 pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayModel) {
     match field {
+        SliderField::MouseSensitivity => model.draft_camera.mouse_sensitivity = value,
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
         SliderField::RenderScale => model.draft_graphics.render_scale = value,
         SliderField::UiScale => model.draft_graphics.ui_scale = value,
@@ -441,6 +451,14 @@ fn apply_hud_step(key: &str, step: f32, hud: &mut HudDraft) -> bool {
 
 fn apply_camera_step(key: &str, step: f32, c: &mut CameraDraft) {
     match key {
+        "mouse_sensitivity" => {
+            c.mouse_sensitivity = clamp_step(
+                c.mouse_sensitivity,
+                0.0005 * step,
+                crate::client_options::MIN_MOUSE_SENSITIVITY,
+                crate::client_options::MAX_MOUSE_SENSITIVITY,
+            )
+        }
         "look_sensitivity" => {
             c.look_sensitivity = clamp_step(c.look_sensitivity, 0.001 * step, 0.002, 0.03)
         }
@@ -548,6 +566,10 @@ pub fn apply_sound_snapshot(s: &mut SoundSettings, d: &SoundDraft) {
 }
 
 pub fn apply_camera_snapshot(c: &mut CameraOptions, d: &CameraDraft) {
+    c.mouse_sensitivity = d.mouse_sensitivity.clamp(
+        crate::client_options::MIN_MOUSE_SENSITIVITY,
+        crate::client_options::MAX_MOUSE_SENSITIVITY,
+    );
     c.look_sensitivity = d.look_sensitivity;
     c.invert_y = d.invert_y;
     c.zoom_speed = d.zoom_speed;
@@ -658,6 +680,13 @@ mod tests {
     }
 
     #[test]
+    fn slider_apply_mouse_sensitivity_updates_camera_draft() {
+        let mut model = default_model();
+        apply_slider_value(SliderField::MouseSensitivity, 0.006, &mut model);
+        assert!((model.draft_camera.mouse_sensitivity - 0.006).abs() < 0.001);
+    }
+
+    #[test]
     fn slider_apply_ui_scale_updates_graphics_draft() {
         let mut model = default_model();
         apply_slider_value(SliderField::UiScale, 1.25, &mut model);
@@ -692,6 +721,7 @@ mod tests {
     #[test]
     fn slider_bounds_are_valid_ranges() {
         for field in [
+            SliderField::MouseSensitivity,
             SliderField::ParticleDensity,
             SliderField::RenderScale,
             SliderField::UiScale,
@@ -713,6 +743,10 @@ mod tests {
     #[test]
     fn parse_slider_action_round_trips_all_fields() {
         let actions = [
+            (
+                "options_slider:mouse_sensitivity",
+                SliderField::MouseSensitivity,
+            ),
             ("options_slider:master_volume", SliderField::MasterVolume),
             ("options_slider:render_scale", SliderField::RenderScale),
             ("options_slider:ui_scale", SliderField::UiScale),

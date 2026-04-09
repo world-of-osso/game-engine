@@ -23,6 +23,7 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::m2_spawn::GeosetMesh;
 use crate::model_path_resolver::resolve_model_path;
+use crate::orbit_camera::scaled_orbit_delta;
 use crate::scenes::char_create::CharCreateState;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::customization_data::CustomizationDb;
@@ -61,7 +62,6 @@ struct CharCreateOrbit {
     base_pitch: f32,
 }
 
-const ORBIT_SENSITIVITY: f32 = 0.003;
 const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
 
@@ -130,16 +130,16 @@ fn apply_orbit_transform(orbit: &CharCreateOrbit, transform: &mut Transform) {
 fn orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
+    options: Res<crate::client_options::CameraOptions>,
     mut query: Query<(&mut CharCreateOrbit, &mut Transform)>,
 ) {
     if !mouse_buttons.pressed(MouseButton::Left) || motion.delta == Vec2::ZERO {
         return;
     }
+    let orbit_delta = scaled_orbit_delta(motion.delta, options.mouse_sensitivity);
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw = (orbit.yaw - motion.delta.x * ORBIT_SENSITIVITY)
-            .clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
-        orbit.pitch = (orbit.pitch + motion.delta.y * ORBIT_SENSITIVITY)
-            .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        orbit.yaw = (orbit.yaw + orbit_delta.x).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
+        orbit.pitch = (orbit.pitch + orbit_delta.y).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
         apply_orbit_transform(&orbit, &mut transform);
     }
 }

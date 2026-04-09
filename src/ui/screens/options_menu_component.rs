@@ -149,6 +149,7 @@ pub struct SoundOptionsView {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CameraOptionsView {
+    pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
     pub invert_y: bool,
     pub zoom_speed: f32,

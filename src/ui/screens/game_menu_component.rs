@@ -256,6 +256,7 @@ mod tests {
 
     fn camera_view() -> CameraOptionsView {
         CameraOptionsView {
+            mouse_sensitivity: 0.003,
             look_sensitivity: 0.01,
             invert_y: false,
             zoom_speed: 8.0,
@@ -497,6 +498,15 @@ mod tests {
 
         assert!(reg.get_by_name("ToggleRowcolorblind_mode").is_some());
         assert!(reg.get_by_name("ToggleSwitchcolorblind_mode").is_some());
+    }
+
+    #[test]
+    fn camera_screen_includes_mouse_sensitivity_slider() {
+        let reg = options_registry_for_category(OptionsCategory::Camera);
+
+        assert!(reg.get_by_name("SliderRowmouse_sensitivity").is_some());
+        assert!(reg.get_by_name("Slidermouse_sensitivity").is_some());
+        assert!(reg.get_by_name("Slidermouse_sensitivityHandle").is_some());
     }
 
     #[test]

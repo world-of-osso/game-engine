@@ -55,6 +55,7 @@ pub struct LoginCredentials {
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CameraOptions {
+    pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
     pub invert_y: bool,
     pub follow_speed: f32,
@@ -66,6 +67,7 @@ pub struct CameraOptions {
 impl Default for CameraOptions {
     fn default() -> Self {
         Self {
+            mouse_sensitivity: default_mouse_sensitivity(),
             look_sensitivity: 0.01,
             invert_y: false,
             follow_speed: 10.0,
@@ -79,6 +81,9 @@ impl Default for CameraOptions {
 impl CameraOptions {
     fn from_file(file: &CameraOptionsFile) -> Self {
         Self {
+            mouse_sensitivity: file
+                .mouse_sensitivity
+                .clamp(MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY),
             look_sensitivity: file.look_sensitivity,
             invert_y: file.invert_y,
             follow_speed: file.follow_speed,
@@ -309,6 +314,8 @@ impl SoundOptionsFile {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CameraOptionsFile {
+    #[serde(default = "default_mouse_sensitivity", rename = "mouseSensitivity")]
+    mouse_sensitivity: f32,
     look_sensitivity: f32,
     invert_y: bool,
     follow_speed: f32,
@@ -350,6 +357,7 @@ impl Default for CameraOptionsFile {
     fn default() -> Self {
         let defaults = CameraOptions::default();
         Self {
+            mouse_sensitivity: defaults.mouse_sensitivity,
             look_sensitivity: defaults.look_sensitivity,
             invert_y: defaults.invert_y,
             follow_speed: defaults.follow_speed,
@@ -441,6 +449,9 @@ fn build_sound_options_file(sound: Option<&SoundSettings>) -> SoundOptionsFile {
 
 fn build_camera_options_file(camera: &CameraOptions) -> CameraOptionsFile {
     CameraOptionsFile {
+        mouse_sensitivity: camera
+            .mouse_sensitivity
+            .clamp(MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY),
         look_sensitivity: camera.look_sensitivity,
         invert_y: camera.invert_y,
         follow_speed: camera.follow_speed,
@@ -517,6 +528,8 @@ const fn default_bloom_intensity() -> f32 {
 
 pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;
+pub const MIN_MOUSE_SENSITIVITY: f32 = 0.001;
+pub const MAX_MOUSE_SENSITIVITY: f32 = 0.01;
 pub const MIN_NAMEPLATE_DISTANCE: f32 = 20.0;
 pub const MAX_NAMEPLATE_DISTANCE: f32 = 80.0;
 pub const DEFAULT_NAMEPLATE_DISTANCE: f32 = 40.0;
@@ -529,6 +542,10 @@ const fn default_nameplate_distance() -> f32 {
 
 const fn default_chat_font_size() -> f32 {
     10.0
+}
+
+const fn default_mouse_sensitivity() -> f32 {
+    0.003
 }
 
 fn load_options_file() -> ClientOptionsFile {
@@ -742,6 +759,12 @@ mod tests {
     }
 
     #[test]
+    fn camera_defaults_include_mouse_sensitivity() {
+        let defaults = CameraOptions::default();
+        assert!((defaults.mouse_sensitivity - default_mouse_sensitivity()).abs() < 0.0001);
+    }
+
+    #[test]
     fn options_file_round_trips_target_nearest_binding() {
         let mut bindings = InputBindings::default();
         bindings.assign(
@@ -826,6 +849,7 @@ mod tests {
                 muted: true,
             },
             camera: CameraOptionsFile {
+                mouse_sensitivity: 0.006,
                 look_sensitivity: 0.02,
                 invert_y: true,
                 follow_speed: 6.0,
@@ -861,6 +885,7 @@ mod tests {
 
         assert_eq!(loaded.sound.master_volume, 0.25);
         assert!(!loaded.sound.music_enabled);
+        assert!((loaded.camera.mouse_sensitivity - 0.006).abs() < 0.0001);
         assert!(loaded.camera.invert_y);
         assert_eq!(loaded.graphics.particle_density, 60);
         assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
@@ -888,6 +913,27 @@ mod tests {
 
         assert!((GraphicsOptions::from_file(&low).ui_scale - MIN_UI_SCALE).abs() < 0.0001);
         assert!((GraphicsOptions::from_file(&high).ui_scale - MAX_UI_SCALE).abs() < 0.0001);
+    }
+
+    #[test]
+    fn camera_options_file_clamps_mouse_sensitivity_range() {
+        let low = CameraOptionsFile {
+            mouse_sensitivity: 0.0,
+            ..CameraOptionsFile::default()
+        };
+        let high = CameraOptionsFile {
+            mouse_sensitivity: 99.0,
+            ..CameraOptionsFile::default()
+        };
+
+        assert!(
+            (CameraOptions::from_file(&low).mouse_sensitivity - MIN_MOUSE_SENSITIVITY).abs()
+                < 0.0001
+        );
+        assert!(
+            (CameraOptions::from_file(&high).mouse_sensitivity - MAX_MOUSE_SENSITIVITY).abs()
+                < 0.0001
+        );
     }
 
     #[test]

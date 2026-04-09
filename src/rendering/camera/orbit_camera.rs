@@ -57,6 +57,7 @@ pub fn orbit_camera_system(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
     scroll: Res<AccumulatedMouseScroll>,
+    options: Res<crate::client_options::CameraOptions>,
     mut query: Query<(&mut OrbitCamera, &mut Transform)>,
 ) {
     for (mut orbit, mut transform) in &mut query {
@@ -66,10 +67,27 @@ pub fn orbit_camera_system(
         }
         orbit.distance = orbit.distance.lerp(orbit.target_distance, ORBIT_ZOOM_LERP);
         if mouse_buttons.pressed(MouseButton::Left) && motion.delta != Vec2::ZERO {
-            orbit.yaw -= motion.delta.x * ORBIT_SENSITIVITY;
-            orbit.pitch += motion.delta.y * ORBIT_SENSITIVITY;
+            let orbit_delta = scaled_orbit_delta(motion.delta, options.mouse_sensitivity);
+            orbit.yaw += orbit_delta.x;
+            orbit.pitch += orbit_delta.y;
         }
         let eye = orbit.eye_position();
         *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+    }
+}
+
+pub fn scaled_orbit_delta(delta: Vec2, sensitivity: f32) -> Vec2 {
+    Vec2::new(-delta.x * sensitivity, delta.y * sensitivity)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scaled_orbit_delta_uses_requested_sensitivity() {
+        let delta = scaled_orbit_delta(Vec2::new(10.0, -4.0), 0.005);
+        assert!((delta.x + 0.05).abs() < 0.0001);
+        assert!((delta.y + 0.02).abs() < 0.0001);
     }
 }

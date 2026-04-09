@@ -339,6 +339,7 @@ fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
 
 fn snapshot_camera_options(snapshot: &ApplySnapshot) -> CameraOptions {
     CameraOptions {
+        mouse_sensitivity: snapshot.camera.mouse_sensitivity,
         look_sensitivity: snapshot.camera.look_sensitivity,
         invert_y: snapshot.camera.invert_y,
         follow_speed: snapshot.camera.follow_speed,

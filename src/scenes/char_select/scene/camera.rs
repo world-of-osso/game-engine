@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use game_engine::customization_data::ModelPresentation;
 
 use crate::camera::additive_particle_glow_tonemapping;
+use crate::orbit_camera::scaled_orbit_delta;
 use crate::terrain_heightmap::TerrainHeightmap;
 
 use super::{CharSelectModelRoot, CharSelectScene};
@@ -24,7 +25,6 @@ pub(super) struct CharSelectOrbit {
     pub(super) base_pitch: f32,
 }
 
-const ORBIT_SENSITIVITY: f32 = 0.003;
 const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
@@ -188,6 +188,7 @@ pub(super) fn spawn_char_select_camera(
 pub(super) fn char_select_orbit_camera(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
+    options: Res<crate::client_options::CameraOptions>,
     heightmap: Option<Res<TerrainHeightmap>>,
     mut query: Query<(&mut CharSelectOrbit, &mut Transform)>,
 ) {
@@ -198,11 +199,10 @@ pub(super) fn char_select_orbit_camera(
     if delta == Vec2::ZERO {
         return;
     }
+    let orbit_delta = scaled_orbit_delta(delta, options.mouse_sensitivity);
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw =
-            (orbit.yaw - delta.x * ORBIT_SENSITIVITY).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
-        orbit.pitch = (orbit.pitch + delta.y * ORBIT_SENSITIVITY)
-            .clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        orbit.yaw = (orbit.yaw + orbit_delta.x).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
+        orbit.pitch = (orbit.pitch + orbit_delta.y).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
         let eye = clamp_char_select_eye(orbit_eye(&orbit), heightmap.as_deref());
         *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
     }

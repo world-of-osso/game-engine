@@ -38,6 +38,8 @@ const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
 const UI_SCALE_MIN: f32 = 0.75;
 const UI_SCALE_MAX: f32 = 1.5;
+const MOUSE_SENSITIVITY_MIN: f32 = 0.001;
+const MOUSE_SENSITIVITY_MAX: f32 = 0.01;
 const NAMEPLATE_DISTANCE_MIN: f32 = 20.0;
 const NAMEPLATE_DISTANCE_MAX: f32 = 80.0;
 const CHAT_FONT_SIZE_MIN: f32 = 8.0;
@@ -326,6 +328,13 @@ fn camera_items(camera: &CameraOptionsView) -> Element {
 
 fn camera_sensitivity_sliders(camera: &CameraOptionsView) -> Element {
     [
+        slider_row(
+            "mouse_sensitivity",
+            "Mouse Sensitivity",
+            camera.mouse_sensitivity,
+            MOUSE_SENSITIVITY_MIN,
+            MOUSE_SENSITIVITY_MAX,
+        ),
         slider_row(
             "look_sensitivity",
             "Look Sensitivity",
