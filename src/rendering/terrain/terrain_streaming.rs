@@ -72,6 +72,11 @@ fn handle_tile_success(
     }
     let key = (parsed.tile_y, parsed.tile_x);
     adt_manager.pending.remove(&key);
+    register_heightmap_tile(heightmap, &parsed);
+    record_loaded_tile_entities(refs, adt_manager, heightmap, key, &parsed);
+}
+
+fn register_heightmap_tile(heightmap: &mut TerrainHeightmap, parsed: &ParsedTile) {
     eprintln!(
         "handle_tile_success before register_tile ({}, {}) {}",
         parsed.tile_y,
@@ -90,14 +95,23 @@ fn handle_tile_success(
         parsed.tile_x,
         parsed.adt_path.display()
     );
-    let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, &parsed);
+}
+
+fn record_loaded_tile_entities(
+    refs: &mut SpawnRefs,
+    adt_manager: &mut AdtManager,
+    heightmap: &mut TerrainHeightmap,
+    key: (u32, u32),
+    parsed: &ParsedTile,
+) {
+    let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, parsed);
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);
     adt_manager
         .tile_doodad_entities
         .insert(key, doodad_entities);
     log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
-    log_tile_memory_stats(refs, &parsed);
+    log_tile_memory_stats(refs, parsed);
 }
 
 fn log_tile_memory_stats(refs: &SpawnRefs, parsed: &ParsedTile) {
