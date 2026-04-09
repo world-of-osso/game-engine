@@ -88,6 +88,13 @@ fn strip_local_player_components(world: &mut World) {
 }
 
 fn reset_world_resources(world: &mut World) {
+    reset_core_world_resources(world);
+    reset_chat_resources(world);
+    reset_runtime_states(world);
+    reset_world_tracking_resources(world);
+}
+
+fn reset_core_world_resources(world: &mut World) {
     if let Some(mut t) = world.get_resource_mut::<game_engine::targeting::CurrentTarget>() {
         t.0 = None;
     }
@@ -97,6 +104,9 @@ fn reset_world_resources(world: &mut World) {
     if let Some(mut alive) = world.get_resource_mut::<LocalAliveState>() {
         alive.0 = true;
     }
+}
+
+fn reset_chat_resources(world: &mut World) {
     if let Some(mut log) = world.get_resource_mut::<ChatLog>() {
         log.messages.clear();
     }
@@ -112,6 +122,9 @@ fn reset_world_resources(world: &mut World) {
         whisper_state.reply_target = None;
         whisper_state.recent_targets.clear();
     }
+}
+
+fn reset_runtime_states(world: &mut World) {
     if let Some(mut trade_state) = world.get_resource_mut::<game_engine::trade::TradeClientState>()
     {
         *trade_state = game_engine::trade::TradeClientState::default();
@@ -187,6 +200,9 @@ fn reset_world_resources(world: &mut World) {
     {
         game_engine::barber_shop::reset_runtime(&mut barber_state);
     }
+}
+
+fn reset_world_tracking_resources(world: &mut World) {
     if let Some(mut death_state) = world.get_resource_mut::<game_engine::death::DeathRuntimeState>()
     {
         *death_state = game_engine::death::DeathRuntimeState::default();
@@ -314,10 +330,12 @@ mod tests {
     #[test]
     fn reset_network_world_clears_status_snapshots() {
         let mut world = World::default();
-        let mut snap = game_engine::status::NetworkStatusSnapshot::default();
-        snap.connected = true;
-        snap.game_state = "InWorld".into();
-        snap.remote_entities = 10;
+        let snap = game_engine::status::NetworkStatusSnapshot {
+            connected: true,
+            game_state: "InWorld".into(),
+            remote_entities: 10,
+            ..Default::default()
+        };
         world.insert_resource(snap);
         world.insert_resource(game_engine::status::TerrainStatusSnapshot {
             loaded_tiles: 5,
@@ -517,7 +535,7 @@ mod tests {
 
     #[test]
     fn reconnect_awaiting_world_not_complete_without_terrain() {
-        let mut state = ReconnectState {
+        let state = ReconnectState {
             phase: ReconnectPhase::AwaitingWorld,
             terrain_refresh_seen: false,
         };
