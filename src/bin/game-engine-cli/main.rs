@@ -731,12 +731,107 @@ fn resolve_socket(cli_socket: Option<PathBuf>) -> PathBuf {
 }
 
 fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), String> {
+    if is_scene_export_command(&command) {
+        return dispatch_scene_export_command(socket, command, json);
+    }
+    if is_social_status_command(&command) {
+        return dispatch_social_status_command(socket, command, json);
+    }
+    dispatch_world_action_command(socket, command, json)
+}
+
+fn is_scene_export_command(command: &Cmd) -> bool {
+    matches!(
+        command,
+        Cmd::Ping
+            | Cmd::Screenshot { .. }
+            | Cmd::DumpTree { .. }
+            | Cmd::DumpUiTree { .. }
+            | Cmd::DumpScene { .. }
+            | Cmd::ExportCharacter { .. }
+            | Cmd::ExportScene { .. }
+    )
+}
+
+fn is_social_status_command(command: &Cmd) -> bool {
+    matches!(
+        command,
+        Cmd::Auction { .. }
+            | Cmd::Mail { .. }
+            | Cmd::Trade { .. }
+            | Cmd::Duel { .. }
+            | Cmd::Talent { .. }
+            | Cmd::Inspect { .. }
+            | Cmd::Status { .. }
+            | Cmd::Barber { .. }
+            | Cmd::Death { .. }
+            | Cmd::Currency { .. }
+            | Cmd::Item { .. }
+            | Cmd::Inventory { .. }
+            | Cmd::Quest { .. }
+            | Cmd::Group { .. }
+            | Cmd::Friend { .. }
+            | Cmd::Guild { .. }
+            | Cmd::Calendar { .. }
+            | Cmd::Who { .. }
+            | Cmd::Presence { .. }
+            | Cmd::Ignore { .. }
+    )
+}
+
+fn dispatch_scene_export_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), String> {
     match command {
         Cmd::Ping => handle_ping(socket, json),
         Cmd::Screenshot { output } => handle_screenshot(socket, &output, json),
         Cmd::DumpTree { filter } => handle_dump_tree(socket, filter, json),
         Cmd::DumpUiTree { filter } => handle_dump_ui_tree(socket, filter, json),
         Cmd::DumpScene { filter } => handle_dump_scene(socket, filter, json),
+        Cmd::ExportCharacter {
+            output,
+            name,
+            character_id,
+        } => handle_export_character(socket, output, name, character_id, json),
+        Cmd::ExportScene { output } => handle_export_scene(socket, output, json),
+        _ => unreachable!("command routed to wrong scene/export dispatcher"),
+    }
+}
+
+fn dispatch_social_status_command(
+    socket: &PathBuf,
+    command: Cmd,
+    json: bool,
+) -> Result<(), String> {
+    match command {
+        Cmd::Auction { .. }
+        | Cmd::Mail { .. }
+        | Cmd::Trade { .. }
+        | Cmd::Duel { .. }
+        | Cmd::Talent { .. }
+        | Cmd::Inspect { .. }
+        | Cmd::Status { .. }
+        | Cmd::Barber { .. }
+        | Cmd::Death { .. }
+        | Cmd::Currency { .. } => dispatch_runtime_status_command(socket, command, json),
+        Cmd::Item { .. }
+        | Cmd::Inventory { .. }
+        | Cmd::Quest { .. }
+        | Cmd::Group { .. }
+        | Cmd::Friend { .. }
+        | Cmd::Guild { .. }
+        | Cmd::Calendar { .. }
+        | Cmd::Who { .. }
+        | Cmd::Presence { .. }
+        | Cmd::Ignore { .. } => dispatch_roster_query_command(socket, command, json),
+        _ => unreachable!("command routed to wrong social/status dispatcher"),
+    }
+}
+
+fn dispatch_runtime_status_command(
+    socket: &PathBuf,
+    command: Cmd,
+    json: bool,
+) -> Result<(), String> {
+    match command {
         Cmd::Auction { command } => handle_auction(socket, command, json),
         Cmd::Mail { command } => handle_mail(socket, command, json),
         Cmd::Trade { command } => handle_trade(socket, command, json),
@@ -747,6 +842,12 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Barber { command } => handle_barber(socket, command, json),
         Cmd::Death { command } => handle_death(socket, command, json),
         Cmd::Currency { command } => handle_currency(socket, command, json),
+        _ => unreachable!("command routed to wrong runtime/status dispatcher"),
+    }
+}
+
+fn dispatch_roster_query_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), String> {
+    match command {
         Cmd::Item { command } => handle_item(socket, command, json),
         Cmd::Inventory { command } => handle_inventory(socket, command, json),
         Cmd::Quest { command } => handle_quest(socket, command, json),
@@ -757,6 +858,12 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Who { command } => handle_who(socket, command, json),
         Cmd::Presence { command } => handle_presence(socket, command, json),
         Cmd::Ignore { command } => handle_ignore(socket, command, json),
+        _ => unreachable!("command routed to wrong roster/query dispatcher"),
+    }
+}
+
+fn dispatch_world_action_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), String> {
+    match command {
         Cmd::Lfg { command } => handle_lfg(socket, command, json),
         Cmd::Pvp { command } => handle_pvp(socket, command, json),
         Cmd::Spell { command } => handle_spell(socket, command, json),
@@ -767,12 +874,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Profession { command } => handle_profession(socket, command, json),
         Cmd::Map { command } => handle_map(socket, command, json),
         Cmd::Equipment { command } => handle_equipment(socket, command, json),
-        Cmd::ExportCharacter {
-            output,
-            name,
-            character_id,
-        } => handle_export_character(socket, output, name, character_id, json),
-        Cmd::ExportScene { output } => handle_export_scene(socket, output, json),
+        _ => unreachable!("command routed to wrong world/action dispatcher"),
     }
 }
 
