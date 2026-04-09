@@ -212,10 +212,16 @@ fn mail_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
     }
 }
 
+fn content_bounds() -> (f32, f32, f32) {
+    (
+        FRAME_W - 2.0 * CONTENT_INSET,
+        FRAME_H - CONTENT_TOP - CONTENT_INSET,
+        -CONTENT_TOP,
+    )
+}
+
 fn inbox_list(inbox: &[InboxEntry]) -> Element {
-    let content_y = -CONTENT_TOP;
-    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
-    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    let (content_w, content_h, content_y) = content_bounds();
     let rows: Element = inbox
         .iter()
         .enumerate()
@@ -307,10 +313,28 @@ fn inbox_sender(id: DynName, text: &str, w: f32, x: f32) -> Element {
 
 // --- Send tab ---
 
+fn send_fields_x() -> f32 {
+    SEND_INSET + SEND_LABEL_W + SEND_INSET
+}
+
+fn send_body_y() -> f32 {
+    -(SEND_INSET + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP))
+}
+
+fn send_attachments_base_y() -> f32 {
+    SEND_INSET + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP) + SEND_BODY_H + SEND_ROW_GAP
+}
+
+fn send_money_y() -> f32 {
+    -(send_attachments_base_y() + 2.0 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP) + SEND_ROW_GAP)
+}
+
+fn send_button_y() -> f32 {
+    send_money_y() - SEND_INPUT_H - SEND_ROW_GAP
+}
+
 fn send_tab(_send: &SendMailState) -> Element {
-    let content_y = -CONTENT_TOP;
-    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
-    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
+    let (content_w, content_h, content_y) = content_bounds();
     let input_w = content_w - SEND_LABEL_W - 3.0 * SEND_INSET;
     rsx! {
         r#frame {
@@ -370,7 +394,7 @@ fn send_input_row(prefix: &str, label: &str, row: usize, input_w: f32) -> Elemen
 }
 
 fn send_body_area(input_w: f32) -> Element {
-    let y = -(SEND_INSET + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP));
+    let y = send_body_y();
     rsx! {
         fontstring {
             name: "MailSendBodyLabel",
@@ -403,31 +427,33 @@ fn send_body_area(input_w: f32) -> Element {
 }
 
 fn send_attachments_grid() -> Element {
-    let base_y = SEND_INSET + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP) + SEND_BODY_H + SEND_ROW_GAP;
-    let x_start = SEND_INSET + SEND_LABEL_W + SEND_INSET;
+    let base_y = send_attachments_base_y();
+    let x_start = send_fields_x();
     (0..(ATTACH_COLS * 2))
-        .flat_map(|i| {
-            let col = i % ATTACH_COLS;
-            let row = i / ATTACH_COLS;
-            let x = x_start + col as f32 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP);
-            let y = -(base_y + row as f32 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP));
-            let slot_name = DynName(format!("MailSendAttach{i}"));
-            rsx! {
-                r#frame {
-                    name: slot_name,
-                    width: {ATTACH_SLOT_SIZE},
-                    height: {ATTACH_SLOT_SIZE},
-                    background_color: ATTACH_BG,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {y},
-                    }
-                }
-            }
-        })
+        .flat_map(|i| attachment_slot(i, x_start, base_y))
         .collect()
+}
+
+fn attachment_slot(index: usize, x_start: f32, base_y: f32) -> Element {
+    let col = index % ATTACH_COLS;
+    let row = index / ATTACH_COLS;
+    let x = x_start + col as f32 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP);
+    let y = -(base_y + row as f32 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP));
+    let slot_name = DynName(format!("MailSendAttach{index}"));
+    rsx! {
+        r#frame {
+            name: slot_name,
+            width: {ATTACH_SLOT_SIZE},
+            height: {ATTACH_SLOT_SIZE},
+            background_color: ATTACH_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {y},
+            }
+        }
+    }
 }
 
 fn money_input_field(name: &str, x: f32, y: f32) -> Element {
@@ -443,14 +469,8 @@ fn money_input_field(name: &str, x: f32, y: f32) -> Element {
 }
 
 fn send_money_row(_input_w: f32) -> Element {
-    let base_y = SEND_INSET
-        + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP)
-        + SEND_BODY_H
-        + SEND_ROW_GAP
-        + 2.0 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP)
-        + SEND_ROW_GAP;
-    let x_start = SEND_INSET + SEND_LABEL_W + SEND_INSET;
-    let y = -base_y;
+    let x_start = send_fields_x();
+    let y = send_money_y();
     rsx! {
         fontstring {
             name: "MailSendMoneyLabel",
@@ -484,15 +504,7 @@ fn send_btn_label() -> Element {
 }
 
 fn send_button() -> Element {
-    let base_y = SEND_INSET
-        + 2.0 * (SEND_INPUT_H + SEND_ROW_GAP)
-        + SEND_BODY_H
-        + SEND_ROW_GAP
-        + 2.0 * (ATTACH_SLOT_SIZE + ATTACH_SLOT_GAP)
-        + SEND_ROW_GAP
-        + SEND_INPUT_H
-        + SEND_ROW_GAP;
-    let x = SEND_INSET + SEND_LABEL_W + SEND_INSET;
+    let x = send_fields_x();
     rsx! {
         r#frame {
             name: "MailSendButton",
@@ -503,7 +515,7 @@ fn send_button() -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: {x},
-                y: {-base_y},
+                y: {send_button_y()},
             }
             {send_btn_label()}
         }
