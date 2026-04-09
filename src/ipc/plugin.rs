@@ -85,7 +85,6 @@ pub(crate) type TreeQuery<'w, 's> = Query<'w, 's, crate::dump::TreeQueryData<'st
 #[derive(bevy::ecs::system::SystemParam)]
 struct StatusSnapshotParams<'w> {
     achievements: Res<'w, AchievementsStatusSnapshot>,
-    barber_shop: Res<'w, BarberShopStatusSnapshot>,
     calendar: Res<'w, CalendarStatusSnapshot>,
     encounter_journal: Res<'w, EncounterJournalStatusSnapshot>,
     death: Res<'w, DeathStatusSnapshot>,
@@ -117,7 +116,6 @@ struct StatusSnapshotParams<'w> {
 /// Plain-struct grouping of snapshot references passed into dispatch.
 pub(crate) struct DispatchContext<'a> {
     pub achievements_status: &'a AchievementsStatusSnapshot,
-    pub barber_shop_status: &'a BarberShopStatusSnapshot,
     pub calendar_status: &'a CalendarStatusSnapshot,
     pub encounter_journal_status: &'a EncounterJournalStatusSnapshot,
     pub death_status: &'a DeathStatusSnapshot,
@@ -248,7 +246,6 @@ fn build_dispatch_context<'a>(
 ) -> DispatchContext<'a> {
     DispatchContext {
         achievements_status: &snapshots.achievements,
-        barber_shop_status: &snapshots.barber_shop,
         calendar_status: &snapshots.calendar,
         encounter_journal_status: &snapshots.encounter_journal,
         death_status: &snapshots.death,

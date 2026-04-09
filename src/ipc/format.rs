@@ -25,7 +25,6 @@ use format_terrain::format_terrain_status;
 pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
     let text = match &cmd.request {
         Request::AchievementsStatus => format_achievement_status(ctx.achievements_status),
-        Request::BarberStatus => format_barber_shop_status(ctx.barber_shop_status),
         Request::DeathStatus => format_death_status(ctx.death_status),
         Request::EncounterJournalStatus => {
             format_encounter_journal_status(ctx.encounter_journal_status)

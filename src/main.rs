@@ -14,6 +14,7 @@
 use bevy::{
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
     prelude::*,
+    render::view::screenshot::{Screenshot, ScreenshotCaptured},
     window::WindowPlugin,
 };
 use game_engine::ipc::IpcPlugin;
@@ -101,6 +102,10 @@ fn main() {
         return;
     }
     let cli = parse_cli_flags(&args);
+    if args.iter().any(|arg| arg == "--screenshot-regression") {
+        run_screenshot_regression_app(&args, cli.screenshot);
+        return;
+    }
     if cli.dump_ui_tree && !cli.dump_tree && cli.screenshot.is_none() {
         run_headless_ui_dump_app(cli.initial_state);
         return;
@@ -442,6 +447,76 @@ fn default_plugins() -> bevy::app::PluginGroupBuilder {
         }),
         ..default()
     })
+}
+
+fn run_screenshot_regression_app(args: &[String], screenshot: Option<ScreenshotRequest>) {
+    let screenshot = screenshot.unwrap_or_else(|| {
+        eprintln!("--screenshot-regression requires `screenshot <OUT>`");
+        std::process::exit(1);
+    });
+    if parse_asset_path_from_args(args).is_none() {
+        eprintln!("--screenshot-regression requires an explicit asset path");
+        std::process::exit(1);
+    }
+
+    let mut app = App::new();
+    app.add_plugins(default_plugins());
+    app.init_state::<game_state::GameState>();
+    app.insert_state(game_state::GameState::InWorld);
+    app.insert_resource(game_engine::ui::plugin::UiState {
+        registry: game_engine::ui::registry::FrameRegistry::new(1920.0, 1080.0),
+        event_bus: game_engine::ui::event::EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
+        GameBlpLoader,
+    )));
+    app.insert_resource(client_options::GraphicsOptions::default());
+    app.insert_resource(networking::CurrentZone::default());
+    app.init_resource::<terrain::AdtManager>();
+    app.init_resource::<terrain_heightmap::TerrainHeightmap>();
+    insert_data_resources(&mut app);
+    app.add_plugins((
+        terrain_material::TerrainMaterialPlugin,
+        m2_effect_material::M2EffectMaterialPlugin,
+        skybox_m2_material::SkyboxM2MaterialPlugin,
+        water_material::WaterMaterialPlugin,
+        sky::SkyPlugin,
+    ));
+    app.insert_resource(screenshot);
+    app.add_systems(Startup, log_window_backend);
+    app.add_systems(PostStartup, setup_explicit_asset_scene);
+    app.add_systems(Update, take_regression_screenshot);
+    app.run();
+}
+
+fn take_regression_screenshot(mut commands: Commands, req: Option<ResMut<ScreenshotRequest>>) {
+    let Some(mut req) = req else { return };
+    if req.frames_remaining > 0 {
+        req.frames_remaining -= 1;
+        return;
+    }
+    commands.remove_resource::<ScreenshotRequest>();
+    let output = req.output.clone();
+    commands.spawn(Screenshot::primary_window()).observe(
+        move |trigger: On<ScreenshotCaptured>, mut exit: MessageWriter<AppExit>| {
+            save_regression_screenshot(&trigger.image, &output);
+            exit.write(AppExit::Success);
+        },
+    );
+}
+
+fn save_regression_screenshot(img: &bevy::image::Image, output: &PathBuf) {
+    let webp_data = match game_engine::screenshot::encode_webp(img, 15.0) {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
+    std::fs::write(output, &webp_data)
+        .unwrap_or_else(|err| panic!("failed to write {}: {err}", output.display()));
+    println!("Saved {} ({} bytes)", output.display(), webp_data.len());
 }
 
 fn register_bevy_plugins(app: &mut App) {
