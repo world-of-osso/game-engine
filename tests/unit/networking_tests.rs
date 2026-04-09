@@ -768,6 +768,49 @@ fn currency_state_update_populates_status_snapshot() {
 }
 
 #[test]
+fn durability_state_update_populates_status_snapshot() {
+    let mut snapshot = game_engine::status::DurabilityStatusSnapshot::default();
+
+    game_engine::durability::apply_durability_state_update(
+        &mut snapshot,
+        shared::protocol::DurabilityStateUpdate {
+            snapshot: Some(shared::protocol::DurabilitySnapshot {
+                total_repair_cost: 330,
+                slots: vec![
+                    shared::protocol::DurabilitySlotSnapshot {
+                        slot: shared::components::EquipmentVisualSlot::Head,
+                        current: 60,
+                        max: 70,
+                        repair_cost: 150,
+                    },
+                    shared::protocol::DurabilitySlotSnapshot {
+                        slot: shared::components::EquipmentVisualSlot::Chest,
+                        current: 70,
+                        max: 80,
+                        repair_cost: 180,
+                    },
+                ],
+            }),
+            message: Some("durability updated".into()),
+            error: None,
+        },
+    );
+
+    assert_eq!(snapshot.entries.len(), 2);
+    assert_eq!(
+        snapshot.entries[0].slot,
+        shared::components::EquipmentVisualSlot::Head
+    );
+    assert_eq!(snapshot.entries[0].current, 60);
+    assert_eq!(snapshot.total_repair_cost, 330);
+    assert_eq!(
+        snapshot.last_server_message.as_deref(),
+        Some("durability updated")
+    );
+    assert_eq!(snapshot.last_error, None);
+}
+
+#[test]
 fn collection_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::CollectionStatusSnapshot::default();
 

@@ -836,7 +836,14 @@ fn export_character_payload_includes_stats_appearance_and_equipment() {
             entries: vec![EquippedGearEntry {
                 slot: "MainHand".into(),
                 path: "data/models/club_1h_torch_a_01.m2".into(),
+                durability_current: None,
+                durability_max: None,
+                repair_cost: 0,
+                broken: false,
             }],
+            total_repair_cost: 0,
+            last_server_message: None,
+            last_error: None,
         },
         &EquipmentAppearanceStatusSnapshot {
             appearance: EquipmentAppearance {
@@ -881,6 +888,10 @@ fn export_character_payload_includes_stats_appearance_and_equipment() {
             equipped_gear: vec![EquippedGearEntry {
                 slot: "MainHand".into(),
                 path: "data/models/club_1h_torch_a_01.m2".into(),
+                durability_current: None,
+                durability_max: None,
+                repair_cost: 0,
+                broken: false,
             }],
             equipment_appearance: EquipmentAppearance {
                 entries: vec![EquippedAppearanceEntry {

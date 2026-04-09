@@ -258,6 +258,7 @@ fn register_inworld_sync_systems(app: &mut App) {
             msg::receive_world_map_state_update,
             msg::receive_rest_state_update,
             msg::receive_death_state_update,
+            msg::receive_durability_state_update,
             msg::receive_collection_state_update,
             msg::receive_profession_snapshot,
             msg::receive_reputation_snapshot,

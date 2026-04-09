@@ -556,13 +556,39 @@ pub fn format_equipped_gear_status(snapshot: &EquippedGearStatusSnapshot) -> Str
     if snapshot.entries.is_empty() {
         return "equipped_gear: 0\n-".into();
     }
-    let lines = snapshot
-        .entries
-        .iter()
-        .map(|e| format!("{} {}", e.slot, e.path))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("equipped_gear: {}\n{lines}", snapshot.entries.len())
+    let mut lines = vec![
+        format!("equipped_gear: {}", snapshot.entries.len()),
+        format!(
+            "repair_cost: {}",
+            crate::auction_house_data::Money(snapshot.total_repair_cost as u64).display()
+        ),
+    ];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    lines.extend(snapshot.entries.iter().map(|entry| {
+        let durability = match (entry.durability_current, entry.durability_max) {
+            (Some(current), Some(max)) => format!(" durability={current}/{max}"),
+            _ => String::new(),
+        };
+        let broken = if entry.broken { " broken=true" } else { "" };
+        let repair_cost = if entry.repair_cost > 0 {
+            format!(
+                " repair={}",
+                crate::auction_house_data::Money(entry.repair_cost as u64).display()
+            )
+        } else {
+            String::new()
+        };
+        format!(
+            "{} {}{}{}{}",
+            entry.slot, entry.path, durability, repair_cost, broken
+        )
+    }));
+    lines.join("\n")
 }
 
 pub fn format_item_info(item: &crate::item_info::ItemStaticInfo, appearance_known: bool) -> String {

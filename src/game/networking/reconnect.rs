@@ -209,6 +209,7 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);
     reset_resource::<game_engine::status::DeathStatusSnapshot>(world);
     reset_resource::<game_engine::status::DuelStatusSnapshot>(world);
+    reset_resource::<game_engine::status::DurabilityStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
     reset_resource::<game_engine::status::FriendsStatusSnapshot>(world);

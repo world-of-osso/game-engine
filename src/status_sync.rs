@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use bevy::ecs::system::SystemParam;
@@ -8,8 +9,8 @@ use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
 use game_engine::status::{
     BarberShopStatusSnapshot, CharacterRosterStatusSnapshot, CharacterStatsSnapshot,
     CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    DuelStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
-    EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
+    DuelStatusSnapshot, DurabilityStatusSnapshot, EquipmentAppearanceStatusSnapshot,
+    EquippedGearEntry, EquippedGearStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot,
     GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot, LfgStatusSnapshot,
     MapStatusSnapshot, NetworkStatusSnapshot, PresenceStateEntry, ProfessionStatusSnapshot,
     PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SecondaryResourceEntry,
@@ -242,15 +243,29 @@ pub fn sync_character_roster_status_snapshot(
 
 pub fn sync_equipped_gear_status_snapshot(
     mut snapshot: ResMut<EquippedGearStatusSnapshot>,
+    durability: Res<DurabilityStatusSnapshot>,
     local_player_query: Query<&equipment::Equipment, With<Player>>,
 ) {
     snapshot.entries.clear();
+    snapshot.total_repair_cost = durability.total_repair_cost;
+    snapshot.last_server_message = durability.last_server_message.clone();
+    snapshot.last_error = durability.last_error.clone();
     if let Some(equipment) = local_player_query.iter().next() {
+        let durability_by_slot = durability
+            .entries
+            .iter()
+            .map(|entry| (format!("{:?}", entry.slot), entry))
+            .collect::<HashMap<_, _>>();
         let mut entries = Vec::with_capacity(equipment.slots.len());
         for (slot, path) in &equipment.slots {
+            let durability = durability_by_slot.get(&format!("{slot:?}")).copied();
             entries.push(EquippedGearEntry {
                 slot: format!("{slot:?}"),
                 path: path.display().to_string(),
+                durability_current: durability.map(|entry| entry.current),
+                durability_max: durability.map(|entry| entry.max),
+                repair_cost: durability.map_or(0, |entry| entry.repair_cost),
+                broken: durability.is_some_and(|entry| entry.max > 0 && entry.current == 0),
             });
         }
         entries.sort_by(|a, b| a.slot.cmp(&b.slot));
@@ -322,28 +337,6 @@ fn apply_equipment_command(equipment: &mut equipment::Equipment, command: Equipm
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn paladin_class_maps_to_holy_power() {
-        assert_eq!(
-            default_secondary_resource_for_class(2),
-            Some(SecondaryResourceEntry {
-                kind: SecondaryResourceKindEntry::HolyPower,
-                current: 0,
-                max: 5,
-            })
-        );
-    }
-
-    #[test]
-    fn warrior_class_has_no_secondary_resource_display() {
-        assert_eq!(default_secondary_resource_for_class(1), None);
-    }
-}
-
 fn parse_equipment_slot(value: &str) -> Option<equipment::EquipmentSlot> {
     match value.to_ascii_lowercase().as_str() {
         "mainhand" | "main-hand" | "main" | "mh" => Some(equipment::EquipmentSlot::MainHand),
@@ -375,6 +368,7 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(IgnoreListStatusSnapshot::default())
         .insert_resource(PvpStatusSnapshot::default())
         .insert_resource(LfgStatusSnapshot::default())
+        .insert_resource(DurabilityStatusSnapshot::default())
         .insert_resource(EquippedGearStatusSnapshot::default())
         .insert_resource(EquipmentAppearanceStatusSnapshot::default())
         .insert_resource(MapStatusSnapshot::default())
@@ -408,4 +402,26 @@ pub(crate) fn register_status_sync_systems(app: &mut App) {
         )
             .run_if(in_state(crate::game_state::GameState::InWorld)),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paladin_class_maps_to_holy_power() {
+        assert_eq!(
+            default_secondary_resource_for_class(2),
+            Some(SecondaryResourceEntry {
+                kind: SecondaryResourceKindEntry::HolyPower,
+                current: 0,
+                max: 5,
+            })
+        );
+    }
+
+    #[test]
+    fn warrior_class_has_no_secondary_resource_display() {
+        assert_eq!(default_secondary_resource_for_class(1), None);
+    }
 }

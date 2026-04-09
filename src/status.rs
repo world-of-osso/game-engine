@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use shared::components::{CharacterAppearance, EquipmentAppearance};
+use shared::components::{CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot};
 use shared::protocol::CharacterListEntry;
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -380,11 +380,34 @@ pub struct WarbankStatusSnapshot {
 pub struct EquippedGearEntry {
     pub slot: String,
     pub path: String,
+    pub durability_current: Option<u32>,
+    pub durability_max: Option<u32>,
+    pub repair_cost: u32,
+    pub broken: bool,
 }
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct EquippedGearStatusSnapshot {
     pub entries: Vec<EquippedGearEntry>,
+    pub total_repair_cost: u32,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DurabilityEntry {
+    pub slot: EquipmentVisualSlot,
+    pub current: u32,
+    pub max: u32,
+    pub repair_cost: u32,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct DurabilityStatusSnapshot {
+    pub entries: Vec<DurabilityEntry>,
+    pub total_repair_cost: u32,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
 }
 
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -699,6 +722,15 @@ mod tests {
         let snapshot = EquippedGearStatusSnapshot::default();
 
         assert!(snapshot.entries.is_empty());
+        assert_eq!(snapshot.total_repair_cost, 0);
+    }
+
+    #[test]
+    fn durability_status_defaults_to_empty_list() {
+        let snapshot = DurabilityStatusSnapshot::default();
+
+        assert!(snapshot.entries.is_empty());
+        assert_eq!(snapshot.total_repair_cost, 0);
     }
 
     #[test]

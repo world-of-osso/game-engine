@@ -4,8 +4,8 @@ use shared::components::Zone;
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel,
     CombatEvent, CombatEventType, CombatLogEventKindSnapshot, CombatLogSnapshot, DeathStateUpdate,
-    DuelStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse, GroupRoleSnapshot,
-    GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
+    DuelStateUpdate, DurabilityStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse,
+    GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel, InspectStateUpdate,
     InventorySearchResultSnapshot, LoadTerrain, PlayerInput, ProfessionSnapshot,
     ProfessionStateUpdate, QuestLogSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
     ReputationStateUpdate, RestAreaKindSnapshot, RestStateUpdate, SetTarget, StorageItemSnapshot,
@@ -29,6 +29,7 @@ use game_engine::chat_data::{
 use game_engine::collection::apply_collection_state_update as map_collection_state_update;
 use game_engine::death::apply_death_state_update as map_death_state_update;
 use game_engine::duel::apply_duel_state_update as map_duel_state_update;
+use game_engine::durability::apply_durability_state_update as map_durability_state_update;
 use game_engine::floating_combat_text::{
     CombatTextKind, FloatingCombatText, FloatingCombatTextStack,
 };
@@ -36,13 +37,13 @@ use game_engine::ignore_list::is_ignored as is_ignored_sender;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::status::{
     AchievementsStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
-    CombatLogStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot, GroupMemberEntry, GroupRole,
-    GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot,
-    InventoryItemEntry, InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry,
-    ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot,
-    QuestObjectiveEntry, QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot,
-    RestAreaKindEntry, StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot,
-    WarbankStatusSnapshot,
+    CombatLogStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot,
+    GroupMemberEntry, GroupRole, GroupStatusSnapshot, GuildVaultStatusSnapshot,
+    IgnoreListStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
+    ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
+    QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    ReputationsStatusSnapshot, RestAreaKindEntry, StorageItemEntry, TalentNodeEntry,
+    TalentSpecTabEntry, TalentStatusSnapshot, WarbankStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -664,6 +665,17 @@ pub(crate) fn receive_death_state_update(
     for mut receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_death_state_update(&mut status, &mut map_status, update);
+        }
+    }
+}
+
+pub(crate) fn receive_durability_state_update(
+    mut receivers: Query<&mut MessageReceiver<DurabilityStateUpdate>>,
+    mut snapshot: ResMut<DurabilityStatusSnapshot>,
+) {
+    for mut receiver in receivers.iter_mut() {
+        for update in receiver.receive() {
+            map_durability_state_update(&mut snapshot, update);
         }
     }
 }

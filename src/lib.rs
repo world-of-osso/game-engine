@@ -44,6 +44,7 @@ pub mod death;
 pub mod dress_up_data;
 pub mod duel;
 pub mod dump;
+pub mod durability;
 pub mod encounter_journal;
 #[path = "game/encounter_journal_data.rs"]
 pub mod encounter_journal_data;

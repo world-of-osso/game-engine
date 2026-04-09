@@ -3,12 +3,12 @@ use crate::status::{
     AchievementCompletionEntry, AchievementProgressEntry, AchievementsStatusSnapshot,
     BarberShopStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EncounterJournalBossEntry,
-    EncounterJournalInstanceEntry, EncounterJournalStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendEntry, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
-    InventoryItemEntry, InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry,
-    LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
-    ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    EncounterJournalInstanceEntry, EncounterJournalStatusSnapshot, EquippedGearEntry,
+    EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
+    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgMatchFoundEntry,
+    LfgMatchMemberEntry, LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot,
+    ProfessionStatusSnapshot, PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -375,6 +375,28 @@ fn formats_empty_warbank_status_snapshot() {
 fn formats_empty_equipped_gear_status_snapshot() {
     let text = format_equipped_gear_status(&EquippedGearStatusSnapshot::default());
     assert_eq!(text, "equipped_gear: 0\n-");
+}
+
+#[test]
+fn formats_equipped_gear_status_with_durability_and_repair_cost() {
+    let text = format_equipped_gear_status(&EquippedGearStatusSnapshot {
+        entries: vec![EquippedGearEntry {
+            slot: "Chest".into(),
+            path: "data/models/chest.m2".into(),
+            durability_current: Some(70),
+            durability_max: Some(80),
+            repair_cost: 180,
+            broken: false,
+        }],
+        total_repair_cost: 180,
+        last_server_message: Some("durability updated".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("equipped_gear: 1"));
+    assert!(text.contains("repair_cost: 1s 80c"));
+    assert!(text.contains("message: durability updated"));
+    assert!(text.contains("Chest data/models/chest.m2 durability=70/80 repair=1s 80c"));
 }
 
 #[test]
