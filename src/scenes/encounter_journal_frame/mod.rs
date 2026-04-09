@@ -123,7 +123,32 @@ fn build_state(
     snapshot: Option<&EncounterJournalStatusSnapshot>,
     open: &EncounterJournalFrameOpen,
 ) -> EncounterJournalState {
-    let tabs = vec![
+    let tabs = encounter_journal_tabs();
+    let Some(snapshot) = snapshot else {
+        return EncounterJournalState {
+            visible: open.0,
+            tabs,
+            ..EncounterJournalState::default()
+        };
+    };
+    let visible_instances = visible_dungeon_instances(snapshot);
+    let selected_instance = select_instance(&visible_instances);
+    let selected_boss = select_boss(selected_instance);
+    EncounterJournalState {
+        visible: open.0,
+        tabs,
+        instances: map_instance_entries(&visible_instances, selected_instance),
+        bosses: map_boss_entries(selected_instance, selected_boss),
+        selected_boss_name: selected_boss_name(selected_boss),
+        abilities: selected_boss_abilities(selected_boss),
+        loot_items: selected_boss_loot(selected_boss),
+        loot_slot_filter: "All Slots".into(),
+        loot_class_filter: "All Classes".into(),
+    }
+}
+
+fn encounter_journal_tabs() -> Vec<EJTab> {
+    vec![
         EJTab {
             name: "Dungeons".into(),
             active: true,
@@ -136,68 +161,95 @@ fn build_state(
             name: "Tier".into(),
             active: false,
         },
-    ];
-    let Some(snapshot) = snapshot else {
-        return EncounterJournalState {
-            visible: open.0,
-            tabs,
-            ..EncounterJournalState::default()
-        };
-    };
-    let visible_instances = snapshot
+    ]
+}
+
+fn visible_dungeon_instances(
+    snapshot: &EncounterJournalStatusSnapshot,
+) -> Vec<&game_engine::status::EncounterJournalInstanceEntry> {
+    snapshot
         .instances
         .iter()
         .filter(|instance| instance.instance_type == "Dungeon")
-        .collect::<Vec<_>>();
-    let selected_instance = visible_instances
+        .collect()
+}
+
+fn select_instance<'a>(
+    visible_instances: &'a [&'a game_engine::status::EncounterJournalInstanceEntry],
+) -> Option<&'a game_engine::status::EncounterJournalInstanceEntry> {
+    visible_instances
         .iter()
         .find(|instance| instance.bosses.iter().any(|boss| boss.ability_count > 0))
         .copied()
-        .or_else(|| visible_instances.first().copied());
-    let selected_boss = selected_instance.and_then(|instance| {
+        .or_else(|| visible_instances.first().copied())
+}
+
+fn select_boss(
+    selected_instance: Option<&game_engine::status::EncounterJournalInstanceEntry>,
+) -> Option<&game_engine::status::EncounterJournalBossEntry> {
+    selected_instance.and_then(|instance| {
         instance
             .bosses
             .iter()
             .find(|boss| boss.ability_count > 0 || boss.loot_count > 0)
             .or_else(|| instance.bosses.first())
-    });
-    let abilities = selected_boss
+    })
+}
+
+fn map_instance_entries(
+    visible_instances: &[&game_engine::status::EncounterJournalInstanceEntry],
+    selected_instance: Option<&game_engine::status::EncounterJournalInstanceEntry>,
+) -> Vec<InstanceEntry> {
+    visible_instances
+        .iter()
+        .map(|instance| InstanceEntry {
+            name: instance.name.clone(),
+            selected: Some(instance.instance_id)
+                == selected_instance.map(|instance| instance.instance_id),
+        })
+        .collect()
+}
+
+fn map_boss_entries(
+    selected_instance: Option<&game_engine::status::EncounterJournalInstanceEntry>,
+    selected_boss: Option<&game_engine::status::EncounterJournalBossEntry>,
+) -> Vec<BossEntry> {
+    selected_instance
+        .map(|instance| {
+            instance
+                .bosses
+                .iter()
+                .map(|boss| BossEntry {
+                    name: boss.name.clone(),
+                    selected: Some(boss.entry) == selected_boss.map(|boss| boss.entry),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn selected_boss_name(
+    selected_boss: Option<&game_engine::status::EncounterJournalBossEntry>,
+) -> String {
+    selected_boss
+        .map(|boss| boss.name.clone())
+        .unwrap_or_default()
+}
+
+fn selected_boss_abilities(
+    selected_boss: Option<&game_engine::status::EncounterJournalBossEntry>,
+) -> Vec<BossAbility> {
+    selected_boss
         .map(|boss| map_abilities(abilities_for_boss(boss.entry)))
-        .unwrap_or_default();
-    let loot_items = selected_boss
+        .unwrap_or_default()
+}
+
+fn selected_boss_loot(
+    selected_boss: Option<&game_engine::status::EncounterJournalBossEntry>,
+) -> Vec<LootItem> {
+    selected_boss
         .map(|boss| map_loot(loot_for_boss(boss.entry)))
-        .unwrap_or_default();
-    EncounterJournalState {
-        visible: open.0,
-        tabs,
-        instances: visible_instances
-            .iter()
-            .map(|instance| InstanceEntry {
-                name: instance.name.clone(),
-                selected: Some(instance.instance_id)
-                    == selected_instance.map(|instance| instance.instance_id),
-            })
-            .collect(),
-        bosses: selected_instance
-            .map(|instance| {
-                instance
-                    .bosses
-                    .iter()
-                    .map(|boss| BossEntry {
-                        name: boss.name.clone(),
-                        selected: Some(boss.entry) == selected_boss.map(|boss| boss.entry),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default(),
-        selected_boss_name: selected_boss
-            .map(|boss| boss.name.clone())
-            .unwrap_or_default(),
-        abilities,
-        loot_items,
-        loot_slot_filter: "All Slots".into(),
-        loot_class_filter: "All Classes".into(),
-    }
+        .unwrap_or_default()
 }
 
 fn map_abilities(entries: Vec<&AbilityDef>) -> Vec<BossAbility> {
