@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
+use game_engine::auction_house_data::Money;
 use game_engine::input_bindings::{InputAction, InputBindings};
+use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::frame::{Dimension, WidgetData};
 use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -51,6 +53,7 @@ struct ActionBarsUi {
     bottom_right_slots: [u64; SLOT_COUNT],
     right_slots: [u64; SLOT_COUNT],
     left_slots: [u64; SLOT_COUNT],
+    money_display: u64,
     edit_banner: u64,
     edit_banner_text: u64,
     guide_v: u64,
@@ -74,6 +77,7 @@ impl Plugin for ActionBarPlugin {
             (
                 toggle_edit_mode,
                 update_action_bar_slot_flash,
+                sync_action_bar_money_display,
                 sync_action_bar_visibility,
             )
                 .run_if(in_state(GameState::InWorld)),
@@ -84,6 +88,7 @@ impl Plugin for ActionBarPlugin {
 fn build_action_bars(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
+    character_stats: Option<Res<CharacterStatsSnapshot>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
@@ -91,6 +96,9 @@ fn build_action_bars(
         return;
     }
     let bars = create_action_bars(&mut ui.registry);
+    if let Some(stats) = character_stats {
+        update_money_display(&mut ui.registry, &bars, stats.gold);
+    }
     commands.insert_resource(bars);
     commands.insert_resource(ActionBarEditState::default());
 }
@@ -170,6 +178,17 @@ fn sync_action_bar_visibility(
     set_action_bar_visibility(&mut ui.registry, &bars, &edit, visible);
 }
 
+fn sync_action_bar_money_display(
+    mut ui: ResMut<UiState>,
+    bars: Option<Res<ActionBarsUi>>,
+    character_stats: Option<Res<CharacterStatsSnapshot>>,
+) {
+    let (Some(bars), Some(character_stats)) = (bars, character_stats) else {
+        return;
+    };
+    update_money_display(&mut ui.registry, &bars, character_stats.gold);
+}
+
 fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
     mount_action_bar_screen(reg);
     let bars = resolve_action_bars(reg);
@@ -193,6 +212,7 @@ fn resolve_action_bars(reg: &FrameRegistry) -> ActionBarsUi {
         bottom_right_slots: slot_ids(reg, "MultiBarBottomRightButton"),
         right_slots: slot_ids(reg, "MultiBarRightButton"),
         left_slots: slot_ids(reg, "MultiBarLeftButton"),
+        money_display: frame_id(reg, "BagsBarMoneyDisplay"),
         edit_banner: frame_id(reg, "ActionBarEditBanner"),
         edit_banner_text: frame_id(reg, "ActionBarEditBannerText"),
         guide_v: frame_id(reg, "ActionBarGuideVertical"),
@@ -350,6 +370,16 @@ fn update_root_backgrounds(reg: &mut FrameRegistry, bars: &ActionBarsUi, enabled
     }
 }
 
+fn update_money_display(reg: &mut FrameRegistry, bars: &ActionBarsUi, gold: u32) {
+    set_font_string_right(
+        reg,
+        bars.money_display,
+        &Money(gold as u64).display(),
+        11.0,
+        [1.0, 0.82, 0.0, 1.0],
+    );
+}
+
 fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
@@ -369,6 +399,18 @@ fn set_font_string_left(reg: &mut FrameRegistry, id: u64, text: &str, size: f32,
             font_size: size,
             color,
             justify_h: JustifyH::Left,
+            ..Default::default()
+        }));
+    }
+}
+
+fn set_font_string_right(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.widget_data = Some(WidgetData::FontString(FontStringData {
+            text: text.to_string(),
+            font_size: size,
+            color,
+            justify_h: JustifyH::Right,
             ..Default::default()
         }));
     }
@@ -426,6 +468,15 @@ fn slot_action(index: usize) -> InputAction {
 mod tests {
     use super::*;
 
+    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame");
+        let Some(WidgetData::FontString(data)) = &frame.widget_data else {
+            panic!("{name} is not a font string");
+        };
+        data.text.clone()
+    }
+
     #[test]
     fn action_bar_screen_builds_wow_style_bar_tree() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -457,5 +508,18 @@ mod tests {
         assert_eq!((root.width, root.height), (MAIN_W, MAIN_H));
         assert!((root.x - 517.0).abs() < 1.0);
         assert_eq!((slot.width, slot.height), (SLOT_W, SLOT_H));
+    }
+
+    #[test]
+    fn money_display_uses_character_gold() {
+        let mut registry = FrameRegistry::new(1600.0, 1200.0);
+        let bars = create_action_bars(&mut registry);
+
+        update_money_display(&mut registry, &bars, 123_456);
+
+        assert_eq!(
+            fontstring_text(&registry, "BagsBarMoneyDisplay"),
+            "12g 34s 56c"
+        );
     }
 }

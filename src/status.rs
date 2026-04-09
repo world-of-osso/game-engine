@@ -221,6 +221,7 @@ pub struct CharacterStatsSnapshot {
     pub mana_max: Option<f32>,
     pub secondary_resource: Option<SecondaryResourceEntry>,
     pub movement_speed: Option<f32>,
+    pub gold: u32,
     pub presence: Option<PresenceStateEntry>,
     pub in_combat: bool,
     pub in_rest_area: bool,
@@ -674,6 +675,7 @@ mod tests {
 
         assert!(snapshot.name.is_none());
         assert!(snapshot.level.is_none());
+        assert_eq!(snapshot.gold, 0);
         assert!(!snapshot.in_combat);
         assert_eq!(snapshot.zone_id, 0);
     }
@@ -923,6 +925,7 @@ mod tests {
                 max: 5,
             }),
             movement_speed: Some(7.0),
+            gold: 12_345,
             zone_id: 12,
             ..Default::default()
         };

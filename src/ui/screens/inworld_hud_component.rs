@@ -472,12 +472,12 @@ fn bag_bar() -> Element {
             }
             {backpack}
             {bags}
-            {money_display(total_w)}
+            {money_display()}
         }
     }
 }
 
-fn money_display(parent_w: f32) -> Element {
+fn money_display() -> Element {
     rsx! {
         fontstring {
             name: "BagsBarMoneyDisplay",

@@ -332,6 +332,7 @@ fn formats_character_stats_status_snapshot() {
             max: 5,
         }),
         movement_speed: Some(7.0),
+        gold: 50_000,
         presence: Some(crate::status::PresenceStateEntry::Afk),
         in_combat: true,
         in_rest_area: true,
@@ -345,6 +346,7 @@ fn formats_character_stats_status_snapshot() {
     assert!(text.contains("presence: afk"));
     assert!(text.contains("secondary_resource: holy_power 3/5"));
     assert!(text.contains("movement_speed: 7.00"));
+    assert!(text.contains("gold: 5g 0s 0c"));
     assert!(text.contains("in_combat: true"));
     assert!(text.contains("in_rest_area: true"));
     assert!(text.contains("rest_area_kind: inn"));
