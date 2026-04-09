@@ -31,14 +31,33 @@ pub struct MerchantItemDef {
     pub max_stack: u32,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct MerchantBuybackItemDef {
+    pub slot: u8,
+    pub item_id: u32,
+    pub name: String,
+    pub icon_fdid: u32,
+    pub buyback_price: Money,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum MerchantTabKind {
+    #[default]
+    Buy,
+    Sell,
+    Buyback,
+}
+
 /// Runtime merchant state.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct MerchantState {
     pub inventory: Vec<MerchantItemDef>,
+    pub buyback_inventory: Vec<MerchantBuybackItemDef>,
     pub player_money: Money,
     pub repair_cost: Money,
     pub page: usize,
     pub items_per_page: usize,
+    pub active_tab: MerchantTabKind,
     /// The server-side entity ID of the vendor NPC (None = window closed).
     pub npc_entity_id: Option<u64>,
 }
@@ -53,13 +72,16 @@ impl MerchantState {
         &mut self,
         npc_entity_id: u64,
         inventory: Vec<MerchantItemDef>,
+        buyback_inventory: Vec<MerchantBuybackItemDef>,
         player_money: Money,
         repair_cost: Money,
     ) {
         self.npc_entity_id = Some(npc_entity_id);
         self.inventory = inventory;
+        self.buyback_inventory = buyback_inventory;
         self.player_money = player_money;
         self.repair_cost = repair_cost;
+        self.active_tab = MerchantTabKind::Buy;
         self.page = 0;
     }
 
@@ -67,32 +89,38 @@ impl MerchantState {
     pub fn close(&mut self) {
         self.npc_entity_id = None;
         self.inventory.clear();
+        self.buyback_inventory.clear();
         self.player_money = Money::default();
         self.repair_cost = Money::default();
+        self.active_tab = MerchantTabKind::Buy;
         self.page = 0;
     }
 
     pub fn page_count(&self) -> usize {
+        let item_count = self.active_item_count();
+        if item_count == 0 {
+            return 1;
+        }
         if self.items_per_page == 0 {
             return 1;
         }
-        self.inventory.len().div_ceil(self.items_per_page).max(1)
+        item_count.div_ceil(self.items_per_page).max(1)
     }
 
     pub fn current_page_items(&self) -> &[MerchantItemDef] {
-        if self.items_per_page == 0 {
-            return &self.inventory;
-        }
-        let start = self.page * self.items_per_page;
-        let end = (start + self.items_per_page).min(self.inventory.len());
-        if start >= self.inventory.len() {
-            return &[];
-        }
-        &self.inventory[start..end]
+        self.page_slice(&self.inventory)
+    }
+
+    pub fn current_page_buyback_items(&self) -> &[MerchantBuybackItemDef] {
+        self.page_slice(&self.buyback_inventory)
     }
 
     pub fn can_afford(&self, item: &MerchantItemDef) -> bool {
         self.player_money.0 >= item.buy_price.0
+    }
+
+    pub fn can_afford_buyback(&self, item: &MerchantBuybackItemDef) -> bool {
+        self.player_money.0 >= item.buyback_price.0
     }
 
     pub fn can_repair(&self) -> bool {
@@ -118,6 +146,37 @@ impl MerchantState {
     /// Navigate to previous page (clamped).
     pub fn prev_page(&mut self) {
         self.page = self.page.saturating_sub(1);
+    }
+
+    pub fn current_tab(&self) -> MerchantTabKind {
+        self.active_tab
+    }
+
+    pub fn set_tab(&mut self, tab: MerchantTabKind) {
+        if self.active_tab != tab {
+            self.active_tab = tab;
+            self.page = 0;
+        }
+    }
+
+    fn active_item_count(&self) -> usize {
+        match self.active_tab {
+            MerchantTabKind::Buy => self.inventory.len(),
+            MerchantTabKind::Sell => 0,
+            MerchantTabKind::Buyback => self.buyback_inventory.len(),
+        }
+    }
+
+    fn page_slice<'a, T>(&self, items: &'a [T]) -> &'a [T] {
+        if self.items_per_page == 0 {
+            return items;
+        }
+        let start = self.page * self.items_per_page;
+        let end = (start + self.items_per_page).min(items.len());
+        if start >= items.len() {
+            return &[];
+        }
+        &items[start..end]
     }
 }
 
@@ -183,6 +242,16 @@ mod tests {
             buy_price: Money(price_copper),
             sell_price: Money(price_copper / 4),
             max_stack: 20,
+        }
+    }
+
+    fn make_buyback_item(slot: u8, name: &str, price_copper: u64) -> MerchantBuybackItemDef {
+        MerchantBuybackItemDef {
+            slot,
+            item_id: u32::from(slot) + 1000,
+            name: name.into(),
+            icon_fdid: 0,
+            buyback_price: Money(price_copper),
         }
     }
 
@@ -373,11 +442,12 @@ mod tests {
             ..Default::default()
         };
         let items = vec![make_item("Sword", 5000), make_item("Shield", 3000)];
-        state.open(42, items, Money(10000), Money(500));
+        state.open(42, items, vec![], Money(10000), Money(500));
 
         assert!(state.is_open());
         assert_eq!(state.npc_entity_id, Some(42));
         assert_eq!(state.inventory.len(), 2);
+        assert!(state.buyback_inventory.is_empty());
         assert_eq!(state.player_money, Money(10000));
         assert_eq!(state.repair_cost, Money(500));
         assert_eq!(state.page, 0);
@@ -385,6 +455,7 @@ mod tests {
         state.close();
         assert!(!state.is_open());
         assert!(state.inventory.is_empty());
+        assert!(state.buyback_inventory.is_empty());
         assert_eq!(state.player_money, Money(0));
     }
 
@@ -395,8 +466,48 @@ mod tests {
             items_per_page: 10,
             ..Default::default()
         };
-        state.open(1, vec![], Money(0), Money(0));
+        state.open(1, vec![], vec![], Money(0), Money(0));
         assert_eq!(state.page, 0);
+    }
+
+    #[test]
+    fn buyback_tab_uses_buyback_inventory_for_paging() {
+        let mut state = MerchantState {
+            buyback_inventory: vec![
+                make_buyback_item(0, "Bent Sword", 2500),
+                make_buyback_item(1, "Cracked Shield", 1800),
+                make_buyback_item(2, "Torn Cloak", 900),
+            ],
+            items_per_page: 2,
+            ..Default::default()
+        };
+
+        state.set_tab(MerchantTabKind::Buyback);
+
+        assert_eq!(state.page_count(), 2);
+        assert_eq!(state.current_page_buyback_items().len(), 2);
+        assert_eq!(state.current_page_buyback_items()[0].slot, 0);
+
+        state.next_page();
+
+        assert_eq!(state.current_page_buyback_items().len(), 1);
+        assert_eq!(state.current_page_buyback_items()[0].slot, 2);
+    }
+
+    #[test]
+    fn switching_to_buyback_resets_page() {
+        let mut state = MerchantState {
+            inventory: (0..20).map(|i| make_item(&format!("I{i}"), 100)).collect(),
+            buyback_inventory: vec![make_buyback_item(0, "Bent Sword", 2500)],
+            items_per_page: 10,
+            page: 1,
+            ..Default::default()
+        };
+
+        state.set_tab(MerchantTabKind::Buyback);
+
+        assert_eq!(state.page, 0);
+        assert_eq!(state.current_tab(), MerchantTabKind::Buyback);
     }
 
     // --- MerchantIntentQueue ---

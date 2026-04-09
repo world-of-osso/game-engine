@@ -52,13 +52,23 @@ const MONEY_H: f32 = 16.0;
 const REPAIR_BTN_BG: &str = "0.15,0.12,0.05,0.95";
 const REPAIR_BTN_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
 const MONEY_COLOR: &str = "1.0,0.82,0.0,1.0";
+const EMPTY_TEXT_COLOR: &str = "0.72,0.72,0.72,1.0";
 
 pub const MERCHANT_ITEM_ROWS: usize = 10;
+pub const ACTION_CLOSE: &str = "merchant_close";
+pub const ACTION_PAGE_PREV: &str = "merchant_page_prev";
+pub const ACTION_PAGE_NEXT: &str = "merchant_page_next";
+pub const ACTION_REPAIR_ALL: &str = "merchant_repair_all";
+pub const ACTION_GUILD_REPAIR: &str = "merchant_guild_repair";
+pub const ACTION_TAB_PREFIX: &str = "merchant_tab:";
+pub const ACTION_BUY_PREFIX: &str = "merchant_buy:";
+pub const ACTION_BUYBACK_PREFIX: &str = "merchant_buyback:";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MerchantTab {
     pub name: String,
     pub active: bool,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,6 +76,7 @@ pub struct MerchantItem {
     pub name: String,
     pub price: String,
     pub icon_fdid: u32,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -76,6 +87,7 @@ pub struct MerchantFrameState {
     pub page: usize,
     pub total_pages: usize,
     pub player_money: String,
+    pub empty_text: Option<String>,
 }
 
 impl Default for MerchantFrameState {
@@ -86,20 +98,24 @@ impl Default for MerchantFrameState {
                 MerchantTab {
                     name: "Buy".into(),
                     active: true,
+                    action: format!("{ACTION_TAB_PREFIX}buy"),
                 },
                 MerchantTab {
                     name: "Sell".into(),
                     active: false,
+                    action: format!("{ACTION_TAB_PREFIX}sell"),
                 },
                 MerchantTab {
                     name: "Buyback".into(),
                     active: false,
+                    action: format!("{ACTION_TAB_PREFIX}buyback"),
                 },
             ],
             items: vec![],
             page: 1,
             total_pages: 1,
             player_money: "0g 0s 0c".into(),
+            empty_text: None,
         }
     }
 }
@@ -125,7 +141,7 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
             }
             {title_bar()}
             {tab_row(&state.tabs)}
-            {item_grid(&state.items)}
+            {item_grid(&state.items, state.empty_text.as_deref())}
             {repair_buttons()}
             {money_display(&state.player_money)}
             {page_buttons(state.page, state.total_pages)}
@@ -180,6 +196,7 @@ fn tab_button(i: usize, tab: &MerchantTab, tab_w: f32, x: f32, y: f32) -> Elemen
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
+            onclick: {tab.action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -206,7 +223,7 @@ fn merchant_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
     }
 }
 
-fn item_grid(items: &[MerchantItem]) -> Element {
+fn item_grid(items: &[MerchantItem], empty_text: Option<&str>) -> Element {
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let rows: Element = items
         .iter()
@@ -214,6 +231,15 @@ fn item_grid(items: &[MerchantItem]) -> Element {
         .take(MERCHANT_ITEM_ROWS)
         .flat_map(|(i, item)| merchant_item_row(i, item, content_w))
         .collect();
+    let content: Element = if items.is_empty() {
+        empty_text
+            .and_then(empty_state_text)
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        rows
+    };
     rsx! {
         r#frame {
             name: "MerchantItemGrid",
@@ -226,7 +252,7 @@ fn item_grid(items: &[MerchantItem]) -> Element {
                 x: {CONTENT_INSET},
                 y: {-CONTENT_TOP},
             }
-            {rows}
+            {content}
         }
     }
 }
@@ -241,6 +267,7 @@ fn merchant_item_row(idx: usize, item: &MerchantItem, parent_w: f32) -> Element 
             name: row_id,
             width: {row_w},
             height: {ITEM_ROW_H},
+            onclick: {item.action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -252,6 +279,24 @@ fn merchant_item_row(idx: usize, item: &MerchantItem, parent_w: f32) -> Element 
             {merchant_item_price(DynName(format!("MerchantItem{idx}Price")), &item.price)}
         }
     }
+}
+
+fn empty_state_text(text: &str) -> Option<Element> {
+    Some(rsx! {
+        fontstring {
+            name: "MerchantEmptyText",
+            width: {FRAME_W - 2.0 * CONTENT_INSET - 2.0 * ITEM_INSET},
+            height: 18.0,
+            text: text,
+            font_size: 11.0,
+            font_color: EMPTY_TEXT_COLOR,
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::Center,
+                relative_point: AnchorPoint::Center,
+            }
+        }
+    })
 }
 
 fn merchant_item_icon(id: DynName) -> Element {
@@ -299,12 +344,18 @@ fn merchant_item_price(id: DynName, text: &str) -> Element {
 fn repair_btn(name: &str, label: &str, x: f32, y: f32) -> Element {
     let btn_id = DynName(name.into());
     let text_id = DynName(format!("{name}Text"));
+    let action = match name {
+        "MerchantRepairButton" => ACTION_REPAIR_ALL,
+        "MerchantGuildRepairButton" => ACTION_GUILD_REPAIR,
+        _ => "",
+    };
     rsx! {
         r#frame {
             name: btn_id,
             width: {REPAIR_BTN_W},
             height: {REPAIR_BTN_H},
             background_color: REPAIR_BTN_BG,
+            onclick: action,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -359,12 +410,18 @@ fn money_display(money: &str) -> Element {
 fn page_nav_button(name: &str, label: &str, x: f32, y: f32) -> Element {
     let btn_id = DynName(name.into());
     let text_id = DynName(format!("{name}Text"));
+    let action = match name {
+        "MerchantPagePrev" => ACTION_PAGE_PREV,
+        "MerchantPageNext" => ACTION_PAGE_NEXT,
+        _ => "",
+    };
     rsx! {
         r#frame {
             name: btn_id,
             width: {PAGE_BTN_W},
             height: {PAGE_BTN_H},
             background_color: PAGE_BTN_BG,
+            onclick: action,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -420,11 +477,13 @@ mod tests {
                     name: "Rough Arrow".into(),
                     price: "10c".into(),
                     icon_fdid: 0,
+                    action: "merchant_buy:1".into(),
                 },
                 MerchantItem {
                     name: "Light Shot".into(),
                     price: "10c".into(),
                     icon_fdid: 0,
+                    action: "merchant_buy:2".into(),
                 },
             ],
             ..Default::default()
@@ -656,6 +715,7 @@ mod tests {
                 name: format!("Item {i}"),
                 price: "1g".into(),
                 icon_fdid: 0,
+                action: format!("merchant_buy:{i}"),
             })
             .collect();
         let reg = build_with_state(MerchantFrameState {
@@ -672,6 +732,71 @@ mod tests {
         assert!(
             reg.get_by_name(&format!("MerchantItem{MERCHANT_ITEM_ROWS}"))
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn renders_buyback_items_when_buyback_tab_is_active() {
+        let reg = build_with_state(MerchantFrameState {
+            visible: true,
+            tabs: vec![
+                MerchantTab {
+                    name: "Buy".into(),
+                    active: false,
+                    action: format!("{ACTION_TAB_PREFIX}buy"),
+                },
+                MerchantTab {
+                    name: "Sell".into(),
+                    active: false,
+                    action: format!("{ACTION_TAB_PREFIX}sell"),
+                },
+                MerchantTab {
+                    name: "Buyback".into(),
+                    active: true,
+                    action: format!("{ACTION_TAB_PREFIX}buyback"),
+                },
+            ],
+            items: vec![MerchantItem {
+                name: "Bent Sword".into(),
+                price: "25s".into(),
+                icon_fdid: 0,
+                action: "merchant_buyback:3".into(),
+            }],
+            ..Default::default()
+        });
+
+        assert_eq!(fontstring_text(&reg, "MerchantItem0Name"), "Bent Sword");
+        assert_eq!(fontstring_text(&reg, "MerchantItem0Price"), "25s");
+    }
+
+    #[test]
+    fn renders_empty_text_for_empty_buyback_tab() {
+        let reg = build_with_state(MerchantFrameState {
+            visible: true,
+            tabs: vec![
+                MerchantTab {
+                    name: "Buy".into(),
+                    active: false,
+                    action: format!("{ACTION_TAB_PREFIX}buy"),
+                },
+                MerchantTab {
+                    name: "Sell".into(),
+                    active: false,
+                    action: format!("{ACTION_TAB_PREFIX}sell"),
+                },
+                MerchantTab {
+                    name: "Buyback".into(),
+                    active: true,
+                    action: format!("{ACTION_TAB_PREFIX}buyback"),
+                },
+            ],
+            empty_text: Some("No items available for buyback.".into()),
+            ..Default::default()
+        });
+
+        assert_eq!(
+            fontstring_text(&reg, "MerchantEmptyText"),
+            "No items available for buyback."
         );
     }
 }
