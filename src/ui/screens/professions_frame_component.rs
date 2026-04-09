@@ -67,6 +67,9 @@ const DETAIL_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
 
 pub const MAX_REAGENT_SLOTS: usize = 8;
 pub const MAX_BOOK_RECIPES: usize = 15;
+pub const ACTION_PROFESSION_TAB_PREFIX: &str = "profession_tab:";
+pub const ACTION_PROFESSION_RECIPE_PREFIX: &str = "profession_recipe:";
+pub const ACTION_PROFESSION_CRAFT: &str = "profession_craft";
 const BOOK_ROW_H: f32 = 20.0;
 const BOOK_ROW_GAP: f32 = 1.0;
 const BOOK_INSET: f32 = 4.0;
@@ -105,16 +108,20 @@ pub struct BookRecipe {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RecipeState {
+    pub recipe_id: u32,
     pub name: String,
     pub profession: String,
     pub craftable: bool,
     pub cooldown: String,
+    pub active: bool,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProfessionTab {
     pub name: String,
     pub active: bool,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -211,6 +218,7 @@ fn profession_tab_button(i: usize, tab: &ProfessionTab, w: f32, x: f32) -> Eleme
             width: {w},
             height: {TAB_H},
             background_color: bg,
+            onclick: {tab.action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -287,12 +295,14 @@ fn recipe_row(idx: usize, recipe: &RecipeState, y: f32) -> Element {
     let row_id = DynName(format!("ProfessionRecipe{idx}"));
     let row_w = FRAME_W - 2.0 * INSET;
     let col_w = row_w / 3.0;
+    let row_bg = if recipe.active { TAB_BG_ACTIVE } else { ROW_BG };
     rsx! {
         r#frame {
             name: row_id,
             width: {row_w},
             height: {ROW_H},
-            background_color: ROW_BG,
+            background_color: row_bg,
+            onclick: {recipe.action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -412,7 +422,7 @@ fn crafting_detail_panel(detail: &CraftingDetail) -> Element {
             name: "CraftingDetailPanel",
             width: {panel_w},
             height: 160.0,
-            hidden: true,
+            hidden: {detail.recipe_name.is_empty()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -495,6 +505,7 @@ fn craft_button(x: f32, y: f32) -> Element {
             width: {CRAFT_BTN_W},
             height: {CRAFT_BTN_H},
             background_color: CRAFT_BTN_BG,
+            onclick: ACTION_PROFESSION_CRAFT,
             anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
             fontstring {
                 name: "CraftingCraftButtonText",
@@ -573,7 +584,7 @@ fn recipe_book_panel(recipes: &[BookRecipe]) -> Element {
             name: "RecipeBookPanel",
             width: {panel_w},
             height: {panel_h},
-            hidden: true,
+            hidden: {recipes.is_empty()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,

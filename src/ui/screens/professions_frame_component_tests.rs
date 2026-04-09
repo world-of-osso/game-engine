@@ -8,6 +8,7 @@ fn make_test_state(count: usize) -> ProfessionsFrameState {
         visible: true,
         recipes: (0..count)
             .map(|i| RecipeState {
+                recipe_id: i as u32 + 1,
                 name: format!("Recipe{i}"),
                 profession: "Alchemy".to_string(),
                 craftable: i % 2 == 0,
@@ -16,9 +17,15 @@ fn make_test_state(count: usize) -> ProfessionsFrameState {
                 } else {
                     "1h 30m".to_string()
                 },
+                active: i == 0,
+                action: format!("{ACTION_PROFESSION_RECIPE_PREFIX}{}", i + 1),
             })
             .collect(),
-        tabs: vec![],
+        tabs: vec![ProfessionTab {
+            name: "Alchemy".into(),
+            active: true,
+            action: format!("{ACTION_PROFESSION_TAB_PREFIX}Alchemy"),
+        }],
         crafting: CraftingDetail::default(),
         book_recipes: vec![],
     }
@@ -77,10 +84,12 @@ fn professions_frame_builds_tabs() {
         ProfessionTab {
             name: "Alchemy".into(),
             active: true,
+            action: format!("{ACTION_PROFESSION_TAB_PREFIX}Alchemy"),
         },
         ProfessionTab {
             name: "Blacksmithing".into(),
             active: false,
+            action: format!("{ACTION_PROFESSION_TAB_PREFIX}Blacksmithing"),
         },
     ];
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -200,4 +209,43 @@ fn coord_search_bar() {
     let r = rect(&reg, "ProfessionsSearchBar");
     assert!((r.x - (FRAME_X + INSET)).abs() < 1.0);
     assert!((r.height - SEARCH_H).abs() < 1.0);
+}
+
+#[test]
+fn recipe_rows_expose_selection_actions() {
+    use ui_toolkit::frame::Frame;
+
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(make_test_state(2));
+    Screen::new(professions_frame_screen).sync(&shared, &mut registry);
+
+    let id = registry
+        .get_by_name("ProfessionRecipe0")
+        .expect("ProfessionRecipe0");
+    let frame: &Frame = registry.get(id).expect("frame data");
+    assert_eq!(frame.onclick.as_deref(), Some("profession_recipe:1"));
+}
+
+#[test]
+fn craft_button_exposes_craft_action() {
+    use ui_toolkit::frame::Frame;
+
+    let mut state = make_test_state(1);
+    state.crafting = CraftingDetail {
+        recipe_name: "Recipe0".into(),
+        reagent_count: 0,
+        quality: 1.0,
+        quality_text: "Ready".into(),
+    };
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    Screen::new(professions_frame_screen).sync(&shared, &mut registry);
+
+    let id = registry
+        .get_by_name("CraftingCraftButton")
+        .expect("CraftingCraftButton");
+    let frame: &Frame = registry.get(id).expect("frame data");
+    assert_eq!(frame.onclick.as_deref(), Some(ACTION_PROFESSION_CRAFT));
 }

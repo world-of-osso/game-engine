@@ -52,7 +52,7 @@ pub fn queue_ipc_request(
             true
         }
         Request::ProfessionCraft { recipe_id } => {
-            runtime.pending_actions.push_back(Action::Craft(*recipe_id));
+            queue_craft_action(runtime, *recipe_id);
             runtime.pending_replies.push_back(respond);
             true
         }
@@ -63,6 +63,10 @@ pub fn queue_ipc_request(
         }
         _ => false,
     }
+}
+
+pub fn queue_craft_action(runtime: &mut ProfessionRuntimeState, recipe_id: u32) {
+    runtime.pending_actions.push_back(Action::Craft(recipe_id));
 }
 
 pub fn queue_gather_action(runtime: &mut ProfessionRuntimeState, node_id: u32) {
@@ -273,6 +277,18 @@ mod tests {
         match runtime.pending_actions.front() {
             Some(Action::Gather(node_id)) => assert_eq!(*node_id, 1),
             other => panic!("expected queued gather action, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn queue_craft_action_enqueues_recipe_request() {
+        let mut runtime = ProfessionRuntimeState::default();
+
+        queue_craft_action(&mut runtime, 5001);
+
+        match runtime.pending_actions.front() {
+            Some(Action::Craft(recipe_id)) => assert_eq!(*recipe_id, 5001),
+            other => panic!("expected queued craft action, got {other:?}"),
         }
     }
 }
