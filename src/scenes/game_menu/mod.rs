@@ -21,8 +21,14 @@ use crate::scenes::game_menu::options::{
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::{BindingSection, InputBindings};
 
+mod escape_stack;
 mod interaction;
 pub mod options;
+
+use self::escape_stack::{
+    InWorldEscapePanelMut, InWorldEscapeStack, close_topmost_tracked_panel, close_tracked_panel,
+    sync_inworld_escape_stack,
+};
 
 const DRAG_THRESHOLD: f32 = 4.0;
 const OPTIONS_W: f32 = 860.0;
@@ -52,11 +58,18 @@ pub struct GameMenuScreenPlugin;
 
 impl Plugin for GameMenuScreenPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<InWorldEscapeStack>();
         app.add_systems(OnEnter(GameState::GameMenu), open_menu_overlay);
         app.add_systems(OnExit(GameState::GameMenu), close_menu_overlay);
         app.add_systems(
             Update,
-            open_inworld_menu_on_escape.run_if(in_state(GameState::InWorld)),
+            sync_inworld_escape_stack.run_if(in_state(GameState::InWorld)),
+        );
+        app.add_systems(
+            Update,
+            open_inworld_menu_on_escape
+                .after(sync_inworld_escape_stack)
+                .run_if(in_state(GameState::InWorld)),
         );
         app.add_systems(
             Update,
@@ -209,6 +222,8 @@ fn open_inworld_menu_on_escape(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     overlay: Option<Res<GameMenuOverlay>>,
     spellbook_runtime: Option<NonSend<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+    mut escape_stack: ResMut<InWorldEscapeStack>,
+    mut panels: InWorldEscapePanelMut,
     mut ui: ResMut<UiState>,
     mut commands: Commands,
 ) {
@@ -222,6 +237,13 @@ fn open_inworld_menu_on_escape(
         return;
     }
     if !keys.just_pressed(KeyCode::Escape) {
+        return;
+    }
+    if close_topmost_tracked_panel(&mut escape_stack, |panel| {
+        close_tracked_panel(panel, &mut panels)
+    })
+    .is_some()
+    {
         return;
     }
     open_game_menu(&mut ui, &mut commands, GameState::InWorld);

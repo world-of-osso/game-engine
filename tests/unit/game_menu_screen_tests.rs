@@ -1,5 +1,7 @@
+use super::escape_stack::{InWorldEscapePanel, close_bag_panel, close_inspect_panel};
 use super::*;
 use crate::scenes::game_menu::options::HudDraft;
+use game_engine::status::InspectStatusSnapshot;
 use game_engine::ui::{event::EventBus, plugin::UiState};
 
 #[test]
@@ -108,4 +110,63 @@ fn escape_opens_game_menu_inworld() {
     assert!(app.world().contains_resource::<UiModalOpen>());
     let ui = app.world().resource::<UiState>();
     assert!(ui.registry.get_by_name(GAME_MENU_ROOT.0).is_some());
+}
+
+#[test]
+fn escape_stack_tracks_open_order_and_reopen_promotion() {
+    let mut stack = InWorldEscapeStack::default();
+
+    stack.sync(InWorldEscapePanel::Character, true);
+    stack.sync(InWorldEscapePanel::WorldMap, true);
+    stack.sync(InWorldEscapePanel::Character, false);
+    stack.sync(InWorldEscapePanel::Character, true);
+
+    assert_eq!(
+        stack.ordered_panels(),
+        vec![InWorldEscapePanel::WorldMap, InWorldEscapePanel::Character]
+    );
+}
+
+#[test]
+fn close_topmost_tracked_panel_skips_stale_entries() {
+    let mut stack = InWorldEscapeStack::with_open_order(&[
+        InWorldEscapePanel::Character,
+        InWorldEscapePanel::WorldMap,
+        InWorldEscapePanel::Calendar,
+    ]);
+    let mut attempted = Vec::new();
+
+    let closed = close_topmost_tracked_panel(&mut stack, |panel| {
+        attempted.push(panel);
+        panel == InWorldEscapePanel::WorldMap
+    });
+
+    assert_eq!(closed, Some(InWorldEscapePanel::WorldMap));
+    assert_eq!(
+        attempted,
+        vec![InWorldEscapePanel::Calendar, InWorldEscapePanel::WorldMap]
+    );
+    assert_eq!(stack.ordered_panels(), vec![InWorldEscapePanel::Character]);
+}
+
+#[test]
+fn close_bag_panel_clears_all_open_bags() {
+    let mut open = crate::scenes::bag_frame::BagFrameOpenState::default();
+    open.toggle(0);
+    open.toggle(2);
+
+    assert!(close_bag_panel(Some(&mut open)));
+    assert!(!open.any_open());
+}
+
+#[test]
+fn close_inspect_panel_resets_snapshot() {
+    let mut snapshot = InspectStatusSnapshot {
+        target_name: Some("Valeera".into()),
+        last_server_message: Some("inspect ready".into()),
+        ..Default::default()
+    };
+
+    assert!(close_inspect_panel(Some(&mut snapshot)));
+    assert_eq!(snapshot, InspectStatusSnapshot::default());
 }

@@ -19,11 +19,19 @@ pub struct BagFrameOpenState {
 }
 
 impl BagFrameOpenState {
-    fn is_open(&self, bag_index: usize) -> bool {
+    pub fn is_open(&self, bag_index: usize) -> bool {
         self.open_bags.contains(&bag_index)
     }
 
-    fn toggle(&mut self, bag_index: usize) -> bool {
+    pub fn any_open(&self) -> bool {
+        !self.open_bags.is_empty()
+    }
+
+    pub fn close_all(&mut self) {
+        self.open_bags.clear();
+    }
+
+    pub fn toggle(&mut self, bag_index: usize) -> bool {
         if self.open_bags.remove(&bag_index) {
             false
         } else {
