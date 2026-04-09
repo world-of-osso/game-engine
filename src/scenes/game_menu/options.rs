@@ -77,6 +77,7 @@ pub struct GraphicsDraft {
     pub particle_density: f32,
     pub render_scale: f32,
     pub ui_scale: f32,
+    pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }
@@ -137,6 +138,7 @@ pub fn graphics_draft(graphics: &GraphicsOptions) -> GraphicsDraft {
         particle_density: graphics.particle_density as f32,
         render_scale: graphics.render_scale,
         ui_scale: graphics.ui_scale,
+        colorblind_mode: graphics.colorblind_mode,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity,
     }
@@ -171,6 +173,7 @@ fn graphics_to_view(g: &GraphicsDraft) -> GraphicsOptionsView {
         particle_density: g.particle_density,
         render_scale: g.render_scale,
         ui_scale: g.ui_scale,
+        colorblind_mode: g.colorblind_mode,
         bloom_enabled: g.bloom_enabled,
         bloom_intensity: g.bloom_intensity,
     }
@@ -456,6 +459,10 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
             model.draft_graphics.bloom_enabled = !model.draft_graphics.bloom_enabled;
             true
         }
+        "colorblind_mode" => {
+            model.draft_graphics.colorblind_mode = !model.draft_graphics.colorblind_mode;
+            true
+        }
         "muted" => {
             model.draft_sound.muted = !model.draft_sound.muted;
             true
@@ -526,6 +533,7 @@ pub fn apply_graphics_snapshot(graphics: &mut GraphicsOptions, draft: &GraphicsD
         crate::client_options::MIN_UI_SCALE,
         crate::client_options::MAX_UI_SCALE,
     );
+    graphics.colorblind_mode = draft.colorblind_mode;
     graphics.bloom_enabled = draft.bloom_enabled;
     graphics.bloom_intensity = draft.bloom_intensity.clamp(0.0, 1.0);
 }
@@ -632,6 +640,14 @@ mod tests {
         reset_category_defaults(&mut model);
         assert!(!model.draft_graphics.bloom_enabled);
         assert!((model.draft_graphics.bloom_intensity - 0.08).abs() < 0.0001);
+    }
+
+    #[test]
+    fn toggling_colorblind_mode_updates_graphics_draft() {
+        let mut model = default_model();
+        assert!(!model.draft_graphics.colorblind_mode);
+        apply_toggle("colorblind_mode", &mut model);
+        assert!(model.draft_graphics.colorblind_mode);
     }
 
     #[test]

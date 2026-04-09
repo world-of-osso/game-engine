@@ -132,6 +132,7 @@ pub struct GraphicsOptionsView {
     pub particle_density: f32,
     pub render_scale: f32,
     pub ui_scale: f32,
+    pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
 }

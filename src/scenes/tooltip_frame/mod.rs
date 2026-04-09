@@ -11,6 +11,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
 
+use crate::client_options::GraphicsOptions;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 
@@ -165,6 +166,7 @@ fn sync_tooltip_frame_state(
     local_player: Query<Entity, With<LocalPlayer>>,
     target_auras: Query<&UnitAuraState>,
     aura_state: Option<Res<AuraState>>,
+    graphics_options: Option<Res<GraphicsOptions>>,
     spellbook_runtime: Option<NonSend<SpellbookUiRuntime>>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
@@ -179,6 +181,7 @@ fn sync_tooltip_frame_state(
         local_player.iter().next(),
         &target_auras,
         aura_state.as_deref(),
+        graphics_options.as_deref(),
         spellbook_runtime.as_deref(),
     );
     if last_model.0 == state {
@@ -198,6 +201,7 @@ fn build_state(
     local_player: Option<Entity>,
     target_auras: &Query<&UnitAuraState>,
     aura_state: Option<&AuraState>,
+    graphics_options: Option<&GraphicsOptions>,
     spellbook_runtime: Option<&SpellbookUiRuntime>,
 ) -> TooltipFrameState {
     let Some(cursor) = window.cursor_position() else {
@@ -216,6 +220,7 @@ fn build_state(
                 local_player,
                 target_auras,
                 aura_state,
+                graphics_options,
             )
         })
     else {
@@ -250,6 +255,7 @@ fn hovered_target_aura_tooltip(
     local_player: Option<Entity>,
     target_auras: &Query<&UnitAuraState>,
     aura_state: Option<&AuraState>,
+    graphics_options: Option<&GraphicsOptions>,
 ) -> Option<TooltipFrameState> {
     let hovered = hovered_target_aura(registry, frame_id)?;
     let aura = resolve_hovered_aura(
@@ -259,7 +265,8 @@ fn hovered_target_aura_tooltip(
         target_auras,
         aura_state,
     )?;
-    Some(aura_tooltip(aura))
+    let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
+    Some(aura_tooltip(aura, colorblind_mode))
 }
 
 fn place_tooltip(
@@ -322,7 +329,7 @@ fn spell_tooltip(spell: SpellbookSpell) -> TooltipFrameState {
     }
 }
 
-fn aura_tooltip(aura: &AuraInstance) -> TooltipFrameState {
+fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState {
     let mut lines = Vec::new();
     if !aura.description.is_empty() {
         lines.push(TooltipLineState::new(aura.description.clone()));
@@ -350,7 +357,7 @@ fn aura_tooltip(aura: &AuraInstance) -> TooltipFrameState {
         y: 0.0,
         title: aura.name.clone(),
         title_color: if aura.is_debuff {
-            parse_rgba(aura.debuff_type.border_color())
+            parse_rgba(aura.debuff_type.border_color_for_mode(colorblind_mode))
         } else {
             TOOLTIP_BUFF_COLOR
         },
@@ -649,11 +656,23 @@ mod tests {
 
     #[test]
     fn aura_tooltip_shows_description_duration_stacks_and_source() {
-        let tooltip = aura_tooltip(&sample_aura());
+        let tooltip = aura_tooltip(&sample_aura(), false);
         assert_eq!(tooltip.title, "Blessing of Kings");
         assert_eq!(tooltip.lines[0].left_text, "Increases all stats.");
         assert_eq!(tooltip.lines[1].right_text, "2m");
         assert_eq!(tooltip.lines[2].right_text, "2");
         assert_eq!(tooltip.lines[3].right_text, "Uther");
+    }
+
+    #[test]
+    fn aura_tooltip_uses_colorblind_debuff_title_color_when_enabled() {
+        let mut aura = sample_aura();
+        aura.is_debuff = true;
+        aura.debuff_type = game_engine::buff_data::DebuffType::Poison;
+        let tooltip = aura_tooltip(&aura, true);
+        assert_eq!(
+            tooltip.title_color,
+            parse_rgba(aura.debuff_type.border_color_for_mode(true))
+        );
     }
 }

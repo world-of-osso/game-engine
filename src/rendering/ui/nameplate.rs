@@ -3,11 +3,13 @@ use bevy::prelude::*;
 use shared::components::{Npc, Player as NetPlayer};
 
 use crate::asset::asset_cache;
-use crate::client_options::{DEFAULT_NAMEPLATE_DISTANCE, HudOptions, HudVisibilityToggles};
+use crate::client_options::{
+    DEFAULT_NAMEPLATE_DISTANCE, GraphicsOptions, HudOptions, HudVisibilityToggles,
+};
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
-use game_engine::nameplate_data::QuestIndicator;
+use game_engine::nameplate_data::{QuestIndicator, UnitReaction};
 
 pub struct NameplatePlugin;
 
@@ -20,6 +22,7 @@ impl Plugin for NameplatePlugin {
             Update,
             (
                 sync_nameplate_visibility,
+                sync_nameplate_colors,
                 billboard_nameplates,
                 fade_nameplates_by_distance,
                 sync_quest_indicators,
@@ -32,6 +35,12 @@ impl Plugin for NameplatePlugin {
 /// Marker component on the text entity displaying a nameplate.
 #[derive(Component)]
 pub(crate) struct Nameplate;
+
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+enum NameplateKind {
+    Player,
+    Npc,
+}
 
 /// Quest giver indicator state on an NPC entity.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
@@ -67,6 +76,7 @@ fn spawn_player_nameplate(
         Color::WHITE,
         PLAYER_FONT_SIZE,
         PLAYER_NAMEPLATE_Y,
+        NameplateKind::Player,
     );
     commands.entity(entity).add_child(nameplate);
 }
@@ -82,6 +92,7 @@ fn spawn_npc_nameplate(trigger: On<Add, Npc>, mut commands: Commands, query: Que
         NPC_NAME_COLOR,
         NPC_FONT_SIZE,
         NPC_NAMEPLATE_Y,
+        NameplateKind::Npc,
     );
     commands.entity(entity).add_child(nameplate);
 }
@@ -93,10 +104,12 @@ fn spawn_nameplate_entity(
     color: Color,
     font_size: f32,
     y_offset: f32,
+    kind: NameplateKind,
 ) -> Entity {
     commands
         .spawn((
             Nameplate,
+            kind,
             Text2d::new(text),
             TextFont {
                 font_size,
@@ -120,6 +133,16 @@ fn sync_nameplate_visibility(
         } else {
             Visibility::Hidden
         };
+    }
+}
+
+fn sync_nameplate_colors(
+    graphics_options: Option<Res<GraphicsOptions>>,
+    mut query: Query<(&NameplateKind, &mut TextColor), With<Nameplate>>,
+) {
+    let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
+    for (kind, mut color) in &mut query {
+        color.0 = nameplate_text_color(*kind, colorblind_mode);
     }
 }
 
@@ -179,6 +202,20 @@ fn fade_nameplates_by_distance(
         let alpha = nameplate_alpha(dist, fade_far);
         text_color.0 = text_color.0.with_alpha(alpha);
     }
+}
+
+fn nameplate_text_color(kind: NameplateKind, colorblind_mode: bool) -> Color {
+    let rgba = match kind {
+        NameplateKind::Player => {
+            if colorblind_mode {
+                UnitReaction::Friendly.name_color_for_mode(true)
+            } else {
+                [1.0, 1.0, 1.0, 1.0]
+            }
+        }
+        NameplateKind::Npc => UnitReaction::Neutral.name_color_for_mode(colorblind_mode),
+    };
+    Color::srgba(rgba[0], rgba[1], rgba[2], rgba[3])
 }
 
 /// Spawn or update quest indicator M2 models when `NpcQuestIndicator` changes.
@@ -298,6 +335,15 @@ mod tests {
         assert!((nameplate_alpha(30.0, 60.0) - 1.0).abs() < 1e-4);
         assert!((nameplate_alpha(45.0, 60.0) - 0.5).abs() < 1e-4);
         assert!((nameplate_alpha(60.0, 60.0)).abs() < 1e-4);
+    }
+
+    #[test]
+    fn colorblind_player_nameplate_uses_friendly_palette() {
+        let srgba = nameplate_text_color(NameplateKind::Player, true).to_srgba();
+        let expected = UnitReaction::Friendly.name_color_for_mode(true);
+        assert!((srgba.red - expected[0]).abs() < 1e-4);
+        assert!((srgba.green - expected[1]).abs() < 1e-4);
+        assert!((srgba.blue - expected[2]).abs() < 1e-4);
     }
 
     #[test]

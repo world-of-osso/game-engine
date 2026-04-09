@@ -18,6 +18,17 @@ pub enum UnitReaction {
 impl UnitReaction {
     /// Health bar color for this reaction.
     pub fn health_bar_color(self) -> [f32; 4] {
+        self.health_bar_color_for_mode(false)
+    }
+
+    pub fn health_bar_color_for_mode(self, colorblind_mode: bool) -> [f32; 4] {
+        if colorblind_mode {
+            return match self {
+                Self::Hostile => [1.0, 0.45, 0.0, 1.0],
+                Self::Neutral => [1.0, 0.88, 0.2, 1.0],
+                Self::Friendly => [0.0, 0.78, 1.0, 1.0],
+            };
+        }
         match self {
             Self::Hostile => [0.8, 0.0, 0.0, 1.0],
             Self::Neutral => [0.9, 0.9, 0.0, 1.0],
@@ -27,6 +38,17 @@ impl UnitReaction {
 
     /// Name text color for this reaction.
     pub fn name_color(self) -> [f32; 4] {
+        self.name_color_for_mode(false)
+    }
+
+    pub fn name_color_for_mode(self, colorblind_mode: bool) -> [f32; 4] {
+        if colorblind_mode {
+            return match self {
+                Self::Hostile => [1.0, 0.6, 0.25, 1.0],
+                Self::Neutral => [1.0, 0.92, 0.35, 1.0],
+                Self::Friendly => [0.45, 0.9, 1.0, 1.0],
+            };
+        }
         match self {
             Self::Hostile => [1.0, 0.2, 0.2, 1.0],
             Self::Neutral => [1.0, 1.0, 0.0, 1.0],
@@ -258,22 +280,30 @@ impl NameplateVisuals {
 
     /// Health bar color — class color for friendly players, reaction color otherwise.
     pub fn health_bar_color(&self) -> [f32; 4] {
+        self.health_bar_color_for_mode(false)
+    }
+
+    pub fn health_bar_color_for_mode(&self, colorblind_mode: bool) -> [f32; 4] {
         if self.reaction == UnitReaction::Friendly
             && let Some(class) = self.class_color
         {
             let [r, g, b] = class.rgb();
             return [r, g, b, 1.0];
         }
-        self.reaction.health_bar_color()
+        self.reaction.health_bar_color_for_mode(colorblind_mode)
     }
 
     /// Name text color — class color for players, reaction color for NPCs.
     pub fn name_text_color(&self) -> [f32; 4] {
+        self.name_text_color_for_mode(false)
+    }
+
+    pub fn name_text_color_for_mode(&self, colorblind_mode: bool) -> [f32; 4] {
         if let Some(class) = self.class_color {
             let [r, g, b] = class.rgb();
             return [r, g, b, 1.0];
         }
-        self.reaction.name_color()
+        self.reaction.name_color_for_mode(colorblind_mode)
     }
 }
 
@@ -319,6 +349,18 @@ mod tests {
         assert_ne!(
             UnitReaction::Hostile.name_color(),
             UnitReaction::Friendly.name_color()
+        );
+    }
+
+    #[test]
+    fn colorblind_reaction_colors_stay_distinct() {
+        assert_ne!(
+            UnitReaction::Hostile.health_bar_color_for_mode(true),
+            UnitReaction::Friendly.health_bar_color_for_mode(true)
+        );
+        assert_ne!(
+            UnitReaction::Hostile.name_color_for_mode(true),
+            UnitReaction::Friendly.name_color_for_mode(true)
         );
     }
 
@@ -418,9 +460,11 @@ mod tests {
             class_color: Some(ClassColor::Shaman),
             ..Default::default()
         };
-        let [r, g, b] = ClassColor::Shaman.rgb();
         let color = np.name_text_color();
-        assert!((color[0] - r).abs() < 0.01);
+        assert_eq!(color, {
+            let [r, g, b] = ClassColor::Shaman.rgb();
+            [r, g, b, 1.0]
+        });
     }
 
     #[test]
@@ -431,6 +475,19 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(np.name_text_color(), UnitReaction::Hostile.name_color());
+    }
+
+    #[test]
+    fn name_color_uses_colorblind_reaction_for_npcs() {
+        let np = NameplateVisuals {
+            reaction: UnitReaction::Friendly,
+            class_color: None,
+            ..Default::default()
+        };
+        assert_eq!(
+            np.name_text_color_for_mode(true),
+            UnitReaction::Friendly.name_color_for_mode(true)
+        );
     }
 
     // --- NameplateCastBar ---

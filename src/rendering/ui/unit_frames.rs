@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use shared::components::{Health as NetHealth, Mana as NetMana, Npc, Player as NetPlayer};
 
-use crate::client_options::HudVisibilityToggles;
+use crate::client_options::{GraphicsOptions, HudVisibilityToggles};
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
@@ -67,6 +67,7 @@ fn build_inworld_unit_frames_ui(
     aura_state: Option<Res<AuraState>>,
     current_target: Res<CurrentTarget>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
+    graphics_options: Option<Res<GraphicsOptions>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_state(
@@ -76,6 +77,7 @@ fn build_inworld_unit_frames_ui(
         &player_query,
         &entity_query,
         hud_visibility.as_deref(),
+        graphics_options.as_deref(),
     );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
@@ -117,6 +119,7 @@ fn sync_inworld_unit_frames_ui(
     aura_state: Option<Res<AuraState>>,
     current_target: Res<CurrentTarget>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
+    graphics_options: Option<Res<GraphicsOptions>>,
 ) {
     let (Some(mut screen_wrap), Some(mut last_model)) = (screen_wrap.take(), last_model.take())
     else {
@@ -129,6 +132,7 @@ fn sync_inworld_unit_frames_ui(
         &player_query,
         &entity_query,
         hud_visibility.as_deref(),
+        graphics_options.as_deref(),
     );
     if last_model.0 == state {
         return;
@@ -146,8 +150,10 @@ fn build_state(
     player_query: &Query<(Entity, UnitComponents), With<LocalPlayer>>,
     entity_query: &Query<UnitComponents>,
     hud_visibility: Option<&HudVisibilityToggles>,
+    graphics_options: Option<&GraphicsOptions>,
 ) -> InWorldUnitFramesState {
     let visibility = hud_visibility.cloned().unwrap_or_default();
+    let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
     let local_player = player_query
         .iter()
         .next()
@@ -165,6 +171,7 @@ fn build_state(
                 local_player.as_ref().map(|(entity, _)| *entity),
                 unit,
                 aura_state,
+                colorblind_mode,
             )
         });
     InWorldUnitFramesState {
@@ -218,6 +225,7 @@ fn build_target_state(
     local_player_entity: Option<Entity>,
     (player, health, mana, npc, name, unit_auras): UnitComponents,
     local_auras: Option<&AuraState>,
+    colorblind_mode: bool,
 ) -> UnitFrameState {
     let mut state = fallback_target_frame_state();
     state.portrait_texture_file = portrait_texture_for_target(player);
@@ -248,6 +256,7 @@ fn build_target_state(
         local_player_entity,
         unit_auras,
         local_auras,
+        colorblind_mode,
     );
     state
 }
@@ -294,25 +303,28 @@ fn populate_target_auras(
     local_player_entity: Option<Entity>,
     unit_auras: Option<&UnitAuraState>,
     local_auras: Option<&AuraState>,
+    colorblind_mode: bool,
 ) {
     let auras = resolve_target_auras(target_entity, local_player_entity, unit_auras, local_auras);
     state.target_buffs = auras
         .iter()
         .filter(|aura| !aura.is_debuff)
         .take(6)
-        .map(target_aura_icon)
+        .map(|aura| target_aura_icon(aura, colorblind_mode))
         .collect();
     state.target_debuffs = auras
         .iter()
         .filter(|aura| aura.is_debuff)
         .take(6)
-        .map(target_aura_icon)
+        .map(|aura| target_aura_icon(aura, colorblind_mode))
         .collect();
 }
 
-fn target_aura_icon(aura: &AuraInstance) -> TargetAuraIconState {
+fn target_aura_icon(aura: &AuraInstance, colorblind_mode: bool) -> TargetAuraIconState {
     let border_color = if aura.is_debuff {
-        aura.debuff_type.border_color().to_string()
+        aura.debuff_type
+            .border_color_for_mode(colorblind_mode)
+            .to_string()
     } else {
         "0.85,0.75,0.35,1.0".to_string()
     };
@@ -360,6 +372,7 @@ mod tests {
             None,
             (Some(&player), None, None, None, None, None),
             None,
+            false,
         );
         assert_eq!(state.name, "Thrall");
         assert!(
@@ -372,8 +385,13 @@ mod tests {
     #[test]
     fn target_state_falls_back_to_npc_template_label() {
         let npc = Npc { template_id: 42 };
-        let state =
-            build_target_state(None, None, (None, None, None, Some(&npc), None, None), None);
+        let state = build_target_state(
+            None,
+            None,
+            (None, None, None, Some(&npc), None, None),
+            None,
+            false,
+        );
         assert_eq!(state.name, "Creature 42");
         assert_eq!(state.portrait_texture_file, UNKNOWN_PORTRAIT_TEXTURE_FILE);
     }
@@ -451,6 +469,7 @@ mod tests {
             None,
             (None, None, None, None, Some(&name), Some(&auras)),
             None,
+            false,
         );
 
         assert_eq!(state.target_buffs.len(), 1);
@@ -465,6 +484,38 @@ mod tests {
         assert_eq!(
             state.target_debuffs[0].border_color,
             DebuffType::Magic.border_color()
+        );
+    }
+
+    #[test]
+    fn target_state_uses_colorblind_debuff_borders_when_enabled() {
+        let name = Name::new("Target");
+        let auras = UnitAuraState {
+            auras: vec![buff_data::AuraInstance {
+                spell_id: 2,
+                name: "Poison".into(),
+                description: String::new(),
+                icon_fdid: textures::NULLIFY_POISON,
+                source: "Rogue".into(),
+                duration: 12.0,
+                remaining: 6.2,
+                stacks: 1,
+                is_debuff: true,
+                debuff_type: DebuffType::Poison,
+            }],
+        };
+
+        let state = build_target_state(
+            None,
+            None,
+            (None, None, None, None, Some(&name), Some(&auras)),
+            None,
+            true,
+        );
+
+        assert_eq!(
+            state.target_debuffs[0].border_color,
+            DebuffType::Poison.border_color_for_mode(true)
         );
     }
 
@@ -490,6 +541,7 @@ mod tests {
             Some(Entity::from_bits(1)),
             (None, None, None, None, None, None),
             Some(&local_auras),
+            false,
         );
 
         assert_eq!(state.target_buffs.len(), 1);

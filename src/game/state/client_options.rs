@@ -102,6 +102,7 @@ pub struct GraphicsOptions {
     pub particle_density: u8,
     pub render_scale: f32,
     pub ui_scale: f32,
+    pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
     pub depth_of_field: bool,
@@ -114,6 +115,7 @@ impl Default for GraphicsOptions {
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
             ui_scale: default_ui_scale(),
+            colorblind_mode: default_colorblind_mode(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
             depth_of_field: false,
@@ -128,6 +130,7 @@ impl GraphicsOptions {
             particle_density: file.particle_density.clamp(10, 100),
             render_scale: file.render_scale.clamp(0.5, 1.0),
             ui_scale: file.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
+            colorblind_mode: file.colorblind_mode,
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
             depth_of_field: false,
@@ -322,6 +325,8 @@ struct GraphicsOptionsFile {
     render_scale: f32,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     ui_scale: f32,
+    #[serde(default = "default_colorblind_mode", rename = "colorblindMode")]
+    colorblind_mode: bool,
     #[serde(default = "default_bloom_enabled", rename = "bloomEnabled")]
     bloom_enabled: bool,
     #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
@@ -334,6 +339,7 @@ impl Default for GraphicsOptionsFile {
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
             ui_scale: default_ui_scale(),
+            colorblind_mode: default_colorblind_mode(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
         }
@@ -449,6 +455,7 @@ fn build_graphics_options_file(graphics: &GraphicsOptions) -> GraphicsOptionsFil
         particle_density: graphics.particle_density.clamp(10, 100),
         render_scale: graphics.render_scale.clamp(0.5, 1.0),
         ui_scale: graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
+        colorblind_mode: graphics.colorblind_mode,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
     }
@@ -494,6 +501,10 @@ const fn default_render_scale() -> f32 {
 
 const fn default_ui_scale() -> f32 {
     1.0
+}
+
+const fn default_colorblind_mode() -> bool {
+    false
 }
 
 const fn default_bloom_enabled() -> bool {
@@ -700,6 +711,7 @@ mod tests {
         assert_eq!(defaults.particle_density, 100);
         assert!((defaults.render_scale - 1.0).abs() < 0.0001);
         assert!((defaults.ui_scale - 1.0).abs() < 0.0001);
+        assert!(!defaults.colorblind_mode);
         assert!(!defaults.bloom_enabled);
         assert!((defaults.bloom_intensity - 0.08).abs() < 0.0001);
         assert!((defaults.particle_density_multiplier() - 1.0).abs() < 0.0001);
@@ -712,6 +724,7 @@ mod tests {
                 particle_density: 80,
                 render_scale: 0.67,
                 ui_scale: 1.2,
+                colorblind_mode: false,
                 bloom_enabled: false,
                 bloom_intensity: 0.12,
             },
@@ -723,6 +736,7 @@ mod tests {
         assert!(serialized.contains("particleDensity:80"));
         assert!(serialized.contains("renderScale:0.67"));
         assert!(serialized.contains("uiScale:1.2"));
+        assert!(serialized.contains("colorblindMode:false"));
         assert!(serialized.contains("bloomEnabled:false"));
         assert!(serialized.contains("bloomIntensity:0.12"));
     }
@@ -823,6 +837,7 @@ mod tests {
                 particle_density: 60,
                 render_scale: 0.8,
                 ui_scale: 1.3,
+                colorblind_mode: true,
                 bloom_enabled: true,
                 bloom_intensity: 0.2,
             },
@@ -849,6 +864,7 @@ mod tests {
         assert!(loaded.camera.invert_y);
         assert_eq!(loaded.graphics.particle_density, 60);
         assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
+        assert!(loaded.graphics.colorblind_mode);
         assert!(!loaded.hud.show_minimap);
         assert!((loaded.hud.nameplate_distance - 60.0).abs() < 0.0001);
         assert!((loaded.hud.chat_font_size - 13.0).abs() < 0.0001);

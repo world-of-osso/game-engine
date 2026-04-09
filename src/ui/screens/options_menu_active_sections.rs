@@ -100,6 +100,11 @@ pub fn accessibility_body(graphics: &GraphicsOptionsView) -> Element {
     content_stack(
         [
             accessibility_ui_scale_item(graphics.ui_scale),
+            toggle_row(
+                "colorblind_mode",
+                "Colorblind Mode",
+                graphics.colorblind_mode,
+            ),
             accessibility_info_rows(),
         ]
         .into_iter()
@@ -120,6 +125,11 @@ fn accessibility_info_rows() -> Element {
             "Scales the full HUD, menus, and overlays without changing 3D render resolution",
         ),
         options_menu_sections::info_row(
+            "access_colorblind",
+            "Nameplates and Debuffs",
+            "Swaps red/green status cues to higher-contrast colors for nameplates and debuff borders",
+        ),
+        options_menu_sections::info_row(
             "access_motion",
             "Reduced Motion",
             "Animation dampening hooks reserved",
@@ -128,11 +138,6 @@ fn accessibility_info_rows() -> Element {
             "access_subtitles",
             "Subtitles",
             "Dialog subtitle pipeline not landed yet",
-        ),
-        options_menu_sections::ghost_button_row(
-            "access_color",
-            "Color Assist",
-            "Future contrast and color filters",
         ),
     ]
     .into_iter()

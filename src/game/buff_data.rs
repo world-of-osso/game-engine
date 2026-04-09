@@ -38,6 +38,19 @@ pub enum DebuffType {
 impl DebuffType {
     /// RGBA border color for this debuff type.
     pub fn border_color(self) -> &'static str {
+        self.border_color_for_mode(false)
+    }
+
+    pub fn border_color_for_mode(self, colorblind_mode: bool) -> &'static str {
+        if colorblind_mode {
+            return match self {
+                Self::None => "0.5,0.2,0.2,1.0",
+                Self::Magic => "0.1,0.7,1.0,1.0",
+                Self::Curse => "1.0,0.3,1.0,1.0",
+                Self::Disease => "1.0,0.55,0.0,1.0",
+                Self::Poison => "0.0,0.85,0.75,1.0",
+            };
+        }
         match self {
             Self::None => "0.5,0.0,0.0,1.0",
             Self::Magic => "0.2,0.6,1.0,1.0",
@@ -225,6 +238,27 @@ mod tests {
         ]
         .iter()
         .map(|t| t.border_color())
+        .collect();
+        for (i, a) in colors.iter().enumerate() {
+            for (j, b) in colors.iter().enumerate() {
+                if i != j {
+                    assert_ne!(a, b, "types {i} and {j} should have different colors");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn colorblind_debuff_border_colors_are_distinct() {
+        let colors: Vec<&str> = [
+            DebuffType::None,
+            DebuffType::Magic,
+            DebuffType::Curse,
+            DebuffType::Disease,
+            DebuffType::Poison,
+        ]
+        .iter()
+        .map(|t| t.border_color_for_mode(true))
         .collect();
         for (i, a) in colors.iter().enumerate() {
             for (j, b) in colors.iter().enumerate() {

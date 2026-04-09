@@ -248,6 +248,7 @@ mod tests {
             particle_density: 100.0,
             render_scale: 1.0,
             ui_scale: 1.0,
+            colorblind_mode: false,
             bloom_enabled: false,
             bloom_intensity: 0.08,
         }
@@ -488,6 +489,14 @@ mod tests {
         assert!(reg.get_by_name("SliderRowui_scale").is_some());
         assert!(reg.get_by_name("Sliderui_scale").is_some());
         assert!(reg.get_by_name("Sliderui_scaleHandle").is_some());
+    }
+
+    #[test]
+    fn accessibility_screen_includes_colorblind_toggle() {
+        let reg = options_registry_for_category(OptionsCategory::Accessibility);
+
+        assert!(reg.get_by_name("ToggleRowcolorblind_mode").is_some());
+        assert!(reg.get_by_name("ToggleSwitchcolorblind_mode").is_some());
     }
 
     #[test]
