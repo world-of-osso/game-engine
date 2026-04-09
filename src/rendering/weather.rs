@@ -248,6 +248,30 @@ fn teardown_weather_effects(
 }
 
 fn build_weather_effect(active_weather: &ActiveWeather) -> EffectAsset {
+    let (module, init_age, init_lifetime, init_position, init_velocity, acceleration) =
+        weather_effect_module(active_weather);
+    let effect = weather_effect_asset(
+        active_weather,
+        module,
+        init_age,
+        init_lifetime,
+        init_position,
+        init_velocity,
+        acceleration,
+    );
+    effect.render(OrientModifier::new(weather_orient_mode(active_weather)))
+}
+
+fn weather_effect_module(
+    active_weather: &ActiveWeather,
+) -> (
+    bevy_hanabi::prelude::Module,
+    SetAttributeModifier,
+    SetAttributeModifier,
+    SetPositionSphereModifier,
+    SetAttributeModifier,
+    AccelModifier,
+) {
     let writer = ExprWriter::new();
     let init_age = SetAttributeModifier::new(Attribute::AGE, writer.lit(0.0).expr());
     let init_lifetime = SetAttributeModifier::new(
@@ -271,8 +295,26 @@ fn build_weather_effect(active_weather: &ActiveWeather) -> EffectAsset {
             .expr(),
     );
     let module = writer.finish();
+    (
+        module,
+        init_age,
+        init_lifetime,
+        init_position,
+        init_velocity,
+        acceleration,
+    )
+}
 
-    let mut effect = EffectAsset::new(
+fn weather_effect_asset(
+    active_weather: &ActiveWeather,
+    module: bevy_hanabi::prelude::Module,
+    init_age: SetAttributeModifier,
+    init_lifetime: SetAttributeModifier,
+    init_position: SetPositionSphereModifier,
+    init_velocity: SetAttributeModifier,
+    acceleration: AccelModifier,
+) -> EffectAsset {
+    EffectAsset::new(
         active_weather.capacity(),
         SpawnerSettings::rate((active_weather.spawn_rate * active_weather.intensity).into()),
         module,
@@ -291,13 +333,14 @@ fn build_weather_effect(active_weather: &ActiveWeather) -> EffectAsset {
     })
     .render(ColorOverLifetimeModifier::new(weather_color_gradient(
         active_weather.color,
-    )));
+    )))
+}
 
-    effect = effect.render(OrientModifier::new(match active_weather.orientation {
+fn weather_orient_mode(active_weather: &ActiveWeather) -> OrientMode {
+    match active_weather.orientation {
         WeatherOrientation::FaceCamera => OrientMode::FaceCameraPosition,
         WeatherOrientation::AlongVelocity => OrientMode::AlongVelocity,
-    }));
-    effect
+    }
 }
 
 fn weather_color_gradient(color: [f32; 4]) -> Gradient<Vec4> {
