@@ -325,6 +325,37 @@ fn detail_panel(state: &CalendarFrameState) -> Element {
 }
 
 fn detail_content(detail: &CalendarDetailState) -> Element {
+    let header = detail_header(detail);
+    let signup_controls = detail_signup_controls(detail);
+    rsx! {
+        {header}
+        {signup_controls}
+    }
+}
+
+fn detail_header(detail: &CalendarDetailState) -> Element {
+    let title = detail_title(&detail.title);
+    let organizer = detail_meta_line("CalendarDetailOrganizer", &detail.organizer, -30.0);
+    let schedule = detail_meta_line("CalendarDetailSchedule", &detail.schedule_text, -46.0);
+    let event_type = detail_meta_line("CalendarDetailType", &detail.type_text, -62.0);
+    let signup_summary =
+        detail_meta_line("CalendarDetailSignupSummary", &detail.signup_text, -78.0);
+    let player_status = detail_meta_line(
+        "CalendarDetailPlayerStatus",
+        &detail.player_status_text,
+        -94.0,
+    );
+    rsx! {
+        {title}
+        {organizer}
+        {schedule}
+        {event_type}
+        {signup_summary}
+        {player_status}
+    }
+}
+
+fn detail_signup_controls(detail: &CalendarDetailState) -> Element {
     let signup_buttons = [
         ("CalendarConfirmButton", "Confirm", "confirmed", 8.0),
         ("CalendarTentativeButton", "Tentative", "tentative", 96.0),
@@ -348,11 +379,18 @@ fn detail_content(detail: &CalendarDetailState) -> Element {
         .flat_map(|(index, signup)| signup_row(index, signup))
         .collect();
     rsx! {
+        {buttons}
+        {signup_rows}
+    }
+}
+
+fn detail_title(text: &str) -> Element {
+    rsx! {
         fontstring {
             name: "CalendarDetailTitle",
             width: "300",
             height: "18",
-            text: {detail.title.as_str()},
+            text,
             font_size: 14.0,
             font_color: TITLE_COLOR,
             justify_h: "LEFT",
@@ -363,11 +401,17 @@ fn detail_content(detail: &CalendarDetailState) -> Element {
                 y: "-8",
             }
         }
+    }
+}
+
+fn detail_meta_line(name: &str, text: &str, y: f32) -> Element {
+    let line_name = DynName(name.to_string());
+    rsx! {
         fontstring {
-            name: "CalendarDetailOrganizer",
+            name: line_name,
             width: "320",
             height: "14",
-            text: {detail.organizer.as_str()},
+            text,
             font_size: 11.0,
             font_color: SECONDARY_TEXT,
             justify_h: "LEFT",
@@ -375,71 +419,9 @@ fn detail_content(detail: &CalendarDetailState) -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: "8",
-                y: "-30",
+                y: {y},
             }
         }
-        fontstring {
-            name: "CalendarDetailSchedule",
-            width: "320",
-            height: "14",
-            text: {detail.schedule_text.as_str()},
-            font_size: 11.0,
-            font_color: SECONDARY_TEXT,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-46",
-            }
-        }
-        fontstring {
-            name: "CalendarDetailType",
-            width: "320",
-            height: "14",
-            text: {detail.type_text.as_str()},
-            font_size: 11.0,
-            font_color: SECONDARY_TEXT,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-62",
-            }
-        }
-        fontstring {
-            name: "CalendarDetailSignupSummary",
-            width: "320",
-            height: "14",
-            text: {detail.signup_text.as_str()},
-            font_size: 11.0,
-            font_color: SECONDARY_TEXT,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-78",
-            }
-        }
-        fontstring {
-            name: "CalendarDetailPlayerStatus",
-            width: "320",
-            height: "14",
-            text: {detail.player_status_text.as_str()},
-            font_size: 11.0,
-            font_color: SECONDARY_TEXT,
-            justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-94",
-            }
-        }
-        {buttons}
-        {signup_rows}
     }
 }
 
