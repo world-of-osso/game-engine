@@ -1,4 +1,5 @@
 use bevy::anti_alias::taa::TemporalAntiAliasing;
+use bevy::audio::SpatialListener;
 use bevy::core_pipeline::prepass::{DepthPrepass, NormalPrepass};
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::light::ShadowFilteringMethod;
@@ -140,6 +141,7 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
             additive_particle_glow_tonemapping(),
             Transform::default(),
             WowCamera::default(),
+            SpatialListener::new(0.3),
             ShadowFilteringMethod::Gaussian,
         ))
         .id()
@@ -783,6 +785,17 @@ mod tests {
             grounded: true,
         };
         (transform, movement, physics)
+    }
+
+    #[test]
+    fn spawn_wow_camera_adds_spatial_listener() {
+        let mut world = World::new();
+        let entity = spawn_wow_camera(&mut world.commands());
+        world.flush();
+        let listener = world
+            .get::<SpatialListener>(entity)
+            .expect("camera should have spatial listener");
+        assert!(listener.right_ear_offset.x > listener.left_ear_offset.x);
     }
 
     #[test]

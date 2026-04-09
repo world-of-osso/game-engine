@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::f32::consts::TAU;
 use std::path::{Path, PathBuf};
 
-use bevy::audio::{AudioSinkPlayback, Volume};
+use bevy::audio::{AudioSinkPlayback, AudioSource, Volume};
 use bevy::prelude::*;
 
 use crate::sound_footsteps::{
@@ -137,6 +137,7 @@ pub enum SpellSoundKind {
 pub struct SpellSoundRequest {
     pub spell_id: u32,
     pub kind: SpellSoundKind,
+    pub emitter_entity: Option<Entity>,
 }
 
 #[derive(Resource, Default, Clone, Debug, PartialEq, Eq)]
@@ -325,6 +326,7 @@ fn footstep_trigger(
     >,
     mut player_q: Query<
         (
+            Entity,
             &crate::animation::M2AnimPlayer,
             &crate::animation::M2AnimData,
             &Transform,
@@ -340,7 +342,7 @@ fn footstep_trigger(
         return;
     };
 
-    for (anim_player, anim_data, transform, mut tracker) in &mut player_q {
+    for (entity, anim_player, anim_data, transform, mut tracker) in &mut player_q {
         let seq = &anim_data.sequences[anim_player.current_seq_idx];
         let Some(movement) = movement_from_anim(seq.id) else {
             tracker.last_seq_idx = anim_player.current_seq_idx;
@@ -385,7 +387,7 @@ fn footstep_trigger(
             movement,
             seed: (anim_player.current_seq_idx as u64) << 8 | u64::from(current_half),
         };
-        play_footstep(&mut commands, request, &sound_assets, &settings);
+        play_footstep(&mut commands, request, &sound_assets, &settings, entity);
     }
 }
 
@@ -418,6 +420,7 @@ fn observe_active_spell(
             queue.requests.push(SpellSoundRequest {
                 spell_id,
                 kind: SpellSoundKind::CastStart,
+                emitter_entity: None,
             });
         }
         *last_spell_id = active_spell_id;
@@ -428,6 +431,8 @@ fn play_queued_spell_sounds(
     mut commands: Commands,
     sound_assets: Option<Res<SoundAssets>>,
     settings: Res<SoundSettings>,
+    local_player_q: Query<Entity, With<crate::camera::Player>>,
+    transforms: Query<&GlobalTransform>,
     mut queue: ResMut<SpellSoundQueue>,
 ) {
     let Some(sound_assets) = sound_assets else {
@@ -439,8 +444,16 @@ fn play_queued_spell_sounds(
     }
     let volume = compute_effects_volume(&settings);
     let requests = std::mem::take(&mut queue.requests);
+    let local_player = local_player_q.iter().next();
     for request in requests {
-        play_spell_sound(&mut commands, &sound_assets, volume, &request);
+        play_spell_sound(
+            &mut commands,
+            &sound_assets,
+            volume,
+            &request,
+            local_player,
+            &transforms,
+        );
     }
 }
 
@@ -449,6 +462,8 @@ fn play_spell_sound(
     sound_assets: &SoundAssets,
     base_volume: f32,
     request: &SpellSoundRequest,
+    local_player: Option<Entity>,
+    transforms: &Query<&GlobalTransform>,
 ) {
     let handle = match request.kind {
         SpellSoundKind::CastStart => sound_assets.spell_cast.clone(),
@@ -458,10 +473,8 @@ fn play_spell_sound(
         SpellSoundKind::Interrupt => sound_assets.spell_interrupt.clone(),
     };
     let volume = base_volume * spell_sound_volume_scale(request.kind);
-    commands.spawn((
-        AudioPlayer::<AudioSource>::new(handle),
-        PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
-    ));
+    let emitter_entity = resolve_spell_sound_emitter(request, local_player);
+    play_effect_sound(commands, handle, volume, emitter_entity, transforms);
 }
 
 fn is_movement_anim(id: u16) -> bool {
@@ -503,6 +516,7 @@ fn play_footstep(
     request: FootstepRequest,
     sound_assets: &SoundAssets,
     settings: &SoundSettings,
+    emitter_entity: Entity,
 ) {
     let handle = sound_assets
         .footstep_catalog
@@ -512,6 +526,54 @@ fn play_footstep(
             _ => sound_assets.footstep_light.clone(),
         });
     let volume = compute_effects_volume(settings) * footstep_volume_scale(request.movement);
+    spawn_spatial_audio_child(commands, emitter_entity, handle, volume);
+}
+
+fn resolve_spell_sound_emitter(
+    request: &SpellSoundRequest,
+    local_player: Option<Entity>,
+) -> Option<Entity> {
+    request.emitter_entity.or_else(|| {
+        (request.kind == SpellSoundKind::CastStart)
+            .then_some(local_player)
+            .flatten()
+    })
+}
+
+fn play_effect_sound(
+    commands: &mut Commands,
+    handle: Handle<AudioSource>,
+    volume: f32,
+    emitter_entity: Option<Entity>,
+    transforms: &Query<&GlobalTransform>,
+) {
+    if let Some(entity) = emitter_entity
+        && transforms.get(entity).is_ok()
+    {
+        spawn_spatial_audio_child(commands, entity, handle, volume);
+        return;
+    }
+    spawn_non_spatial_audio(commands, handle, volume);
+}
+
+fn spawn_spatial_audio_child(
+    commands: &mut Commands,
+    emitter_entity: Entity,
+    handle: Handle<AudioSource>,
+    volume: f32,
+) {
+    commands.entity(emitter_entity).with_children(|parent| {
+        parent.spawn((
+            AudioPlayer::<AudioSource>::new(handle),
+            PlaybackSettings::DESPAWN
+                .with_volume(Volume::Linear(volume))
+                .with_spatial(true),
+            Transform::default(),
+        ));
+    });
+}
+
+fn spawn_non_spatial_audio(commands: &mut Commands, handle: Handle<AudioSource>, volume: f32) {
     commands.spawn((
         AudioPlayer::<AudioSource>::new(handle),
         PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),

@@ -593,7 +593,16 @@ fn spell_sound_from_combat_event(msg: &CombatEvent) -> Option<SpellSoundRequest>
     Some(SpellSoundRequest {
         spell_id: msg.spell_id,
         kind,
+        emitter_entity: Some(spell_sound_emitter_entity(msg, kind)),
     })
+}
+
+fn spell_sound_emitter_entity(msg: &CombatEvent, kind: SpellSoundKind) -> Entity {
+    let bits = match kind {
+        SpellSoundKind::Impact | SpellSoundKind::Heal | SpellSoundKind::Miss => msg.target,
+        SpellSoundKind::Interrupt | SpellSoundKind::CastStart => msg.attacker,
+    };
+    Entity::from_bits(bits)
 }
 
 fn push_floating_text(
@@ -1232,21 +1241,25 @@ mod tests {
                 .expect("spell impact");
         assert_eq!(cast.kind, crate::sound::SpellSoundKind::Impact);
         assert_eq!(cast.spell_id, 133);
+        assert_eq!(cast.emitter_entity, Some(Entity::from_bits(2)));
 
         let heal =
             spell_sound_from_combat_event(&combat_event(CombatEventType::SpellHeal, 55.0, 2061))
                 .expect("spell heal");
         assert_eq!(heal.kind, crate::sound::SpellSoundKind::Heal);
         assert_eq!(heal.spell_id, 2061);
+        assert_eq!(heal.emitter_entity, Some(Entity::from_bits(2)));
 
         let miss = spell_sound_from_combat_event(&combat_event(CombatEventType::Miss, 0.0, 17))
             .expect("spell miss");
         assert_eq!(miss.kind, crate::sound::SpellSoundKind::Miss);
+        assert_eq!(miss.emitter_entity, Some(Entity::from_bits(2)));
 
         let interrupt =
             spell_sound_from_combat_event(&combat_event(CombatEventType::Interrupt, 0.0, 2139))
                 .expect("spell interrupt");
         assert_eq!(interrupt.kind, crate::sound::SpellSoundKind::Interrupt);
+        assert_eq!(interrupt.emitter_entity, Some(Entity::from_bits(1)));
     }
 
     #[test]

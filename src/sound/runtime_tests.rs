@@ -196,6 +196,7 @@ fn observe_active_spell_queues_cast_sound_once_per_new_spell() {
         vec![SpellSoundRequest {
             spell_id: 133,
             kind: SpellSoundKind::CastStart,
+            emitter_entity: None,
         }]
     );
 }
@@ -223,4 +224,49 @@ fn observe_active_spell_ignores_zero_spell_id_and_clears_tracker() {
     casting.cancel();
     observe_active_spell(&casting, &mut last_spell_id, &mut queue);
     assert_eq!(last_spell_id, None);
+}
+
+#[test]
+fn resolve_spell_sound_emitter_uses_local_player_for_cast_start() {
+    let local_player = Entity::from_bits(42);
+    let request = SpellSoundRequest {
+        spell_id: 133,
+        kind: SpellSoundKind::CastStart,
+        emitter_entity: None,
+    };
+
+    let emitter = resolve_spell_sound_emitter(&request, Some(local_player));
+
+    assert_eq!(emitter, Some(local_player));
+}
+
+#[test]
+fn resolve_spell_sound_emitter_prefers_explicit_entity() {
+    let explicit = Entity::from_bits(7);
+    let request = SpellSoundRequest {
+        spell_id: 2061,
+        kind: SpellSoundKind::Heal,
+        emitter_entity: Some(explicit),
+    };
+
+    let emitter = resolve_spell_sound_emitter(&request, Some(Entity::from_bits(42)));
+
+    assert_eq!(emitter, Some(explicit));
+}
+
+#[test]
+fn spawn_spatial_audio_child_marks_playback_spatial() {
+    let mut world = World::new();
+    let emitter = world.spawn(Transform::default()).id();
+    let handle = Handle::<AudioSource>::default();
+
+    spawn_spatial_audio_child(&mut world.commands(), emitter, handle, 0.5);
+    world.flush();
+
+    let children = world.get::<Children>(emitter).expect("child sound entity");
+    let child = children.first().expect("spawned sound child");
+    let settings = world
+        .get::<PlaybackSettings>(*child)
+        .expect("playback settings");
+    assert!(settings.spatial);
 }
