@@ -305,26 +305,34 @@ fn talent_row(index: usize, row: &InspectTalentRow) -> Element {
                 x: "0",
                 y: {-((index + 1) as f32 * ROW_H)},
             }
-            fontstring {
-                name: DynName(format!("InspectTalentRow{index}Name")),
-                width: {PANEL_W - 44.0},
-                height: {ROW_H},
-                text: {row.name.as_str()},
-                font_size: 9.0,
-                font_color: TEXT,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
-            }
-            fontstring {
-                name: DynName(format!("InspectTalentRow{index}Points")),
-                width: {36.0},
-                height: {ROW_H},
-                text: {row.points_text.as_str()},
-                font_size: 9.0,
-                font_color: TITLE_COLOR,
-                justify_h: "RIGHT",
-                anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
-            }
+            {talent_row_cells(index, row)}
+        }
+    }
+}
+
+fn talent_row_cells(index: usize, row: &InspectTalentRow) -> Element {
+    let name = DynName(format!("InspectTalentRow{index}Name"));
+    let points = DynName(format!("InspectTalentRow{index}Points"));
+    rsx! {
+        fontstring {
+            name,
+            width: {PANEL_W - 44.0},
+            height: {ROW_H},
+            text: {row.name.as_str()},
+            font_size: 9.0,
+            font_color: TEXT,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+        }
+        fontstring {
+            name: points,
+            width: 36.0,
+            height: {ROW_H},
+            text: {row.points_text.as_str()},
+            font_size: 9.0,
+            font_color: TITLE_COLOR,
+            justify_h: "RIGHT",
+            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
         }
     }
 }
