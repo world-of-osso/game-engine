@@ -270,3 +270,13 @@ fn spawn_spatial_audio_child_marks_playback_spatial() {
         .expect("playback settings");
     assert!(settings.spatial);
 }
+
+#[test]
+fn strip_ambient_tracks_from_music_catalog_removes_overlap() {
+    let mut music_tracks_by_zone = HashMap::from([(5, vec![0usize, 1usize, 2usize])]);
+    let ambient_tracks_by_zone = HashMap::from([(5, vec![1usize])]);
+
+    strip_ambient_tracks_from_music_catalog(&mut music_tracks_by_zone, &ambient_tracks_by_zone);
+
+    assert_eq!(music_tracks_by_zone.get(&5), Some(&vec![0, 2]));
+}

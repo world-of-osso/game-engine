@@ -230,6 +230,7 @@ mod tests {
             ambient_loop: Handle::default(),
             music_loop_fallback: Handle::default(),
             music_tracks: Vec::new(),
+            ambient_tracks_by_zone: Default::default(),
             music_tracks_by_zone: Default::default(),
         };
         let mut state = MusicPlaybackState::default();
@@ -265,6 +266,7 @@ mod tests {
                     name: "b".to_string(),
                 },
             ],
+            ambient_tracks_by_zone: Default::default(),
             music_tracks_by_zone: [(5, vec![0, 1])].into_iter().collect(),
         };
         let mut state = MusicPlaybackState::default();

@@ -11,10 +11,12 @@ use crate::sound_footsteps::{
 };
 use game_engine::input_bindings::{InputAction, InputBindings};
 
+mod runtime_ambient;
 mod runtime_music;
 mod runtime_spells;
 mod runtime_ui;
 
+use runtime_ambient::load_zone_ambient_catalog;
 use runtime_spells::{LoadedSpellAudioAssets, load_spell_audio_assets, spell_sound_volume_scale};
 use runtime_ui::{LoadedUiAudioAssets, load_ui_audio_assets};
 pub use runtime_ui::{UiSoundKind, UiSoundQueue, queue_ui_sound};
@@ -27,18 +29,20 @@ impl Plugin for SoundPlugin {
             .init_resource::<SpellSoundQueue>()
             .init_resource::<SpellCastSoundState>()
             .init_resource::<UiSoundQueue>()
+            .insert_resource(AmbientPlaybackState::default())
             .insert_resource(MusicPlaybackState::default())
             .add_systems(
                 Startup,
                 (
                     load_sound_assets,
-                    spawn_ambient_sound,
+                    runtime_ambient::spawn_ambient_sound,
                     runtime_music::spawn_music_sound,
                 )
                     .chain(),
             )
             .add_systems(Update, toggle_mute)
             .add_systems(Update, update_audio_volumes)
+            .add_systems(Update, runtime_ambient::maintain_ambient_playback)
             .add_systems(Update, runtime_music::maintain_music_playback)
             .add_systems(Update, attach_footstep_tracker)
             .add_systems(Update, footstep_trigger.after(attach_footstep_tracker))
@@ -94,6 +98,7 @@ pub struct SoundAssets {
     pub ambient_loop: Handle<AudioSource>,
     pub music_loop_fallback: Handle<AudioSource>,
     pub music_tracks: Vec<LoadedMusicTrack>,
+    pub ambient_tracks_by_zone: HashMap<u32, Vec<usize>>,
     pub music_tracks_by_zone: HashMap<u32, Vec<usize>>,
 }
 
@@ -115,6 +120,13 @@ pub struct AmbientSound;
 
 #[derive(Component)]
 pub struct MusicSound;
+
+#[derive(Resource, Default)]
+struct AmbientPlaybackState {
+    next_zone_track_idx: HashMap<u32, usize>,
+    active_track_name: Option<String>,
+    active_zone_id: Option<u32>,
+}
 
 #[derive(Resource, Default)]
 struct MusicPlaybackState {
@@ -166,13 +178,17 @@ fn build_sound_assets(audio_assets: &mut Assets<AudioSource>) -> SoundAssets {
     let spell_audio = load_spell_audio_assets(audio_assets);
     let ui_audio = load_ui_audio_assets(audio_assets);
     let footstep_catalog = load_wow_footstep_catalog(audio_assets);
-    let (music_tracks, music_tracks_by_zone) = load_external_music_tracks(audio_assets);
+    let (music_tracks, mut music_tracks_by_zone, track_index_by_fdid) =
+        load_external_music_tracks(audio_assets);
+    let ambient_tracks_by_zone = load_zone_ambient_catalog(&track_index_by_fdid);
+    strip_ambient_tracks_from_music_catalog(&mut music_tracks_by_zone, &ambient_tracks_by_zone);
     assemble_sound_assets(
         core_audio,
         spell_audio,
         ui_audio,
         footstep_catalog,
         music_tracks,
+        ambient_tracks_by_zone,
         music_tracks_by_zone,
     )
 }
@@ -183,6 +199,7 @@ fn assemble_sound_assets(
     ui_audio: LoadedUiAudioAssets,
     footstep_catalog: LoadedFootstepCatalog,
     music_tracks: Vec<LoadedMusicTrack>,
+    ambient_tracks_by_zone: HashMap<u32, Vec<usize>>,
     music_tracks_by_zone: HashMap<u32, Vec<usize>>,
 ) -> SoundAssets {
     SoundAssets {
@@ -200,6 +217,7 @@ fn assemble_sound_assets(
         ambient_loop: core_audio.ambient_loop,
         music_loop_fallback: core_audio.music_loop_fallback,
         music_tracks,
+        ambient_tracks_by_zone,
         music_tracks_by_zone,
     }
 }
@@ -220,19 +238,6 @@ pub(super) fn load_generated_audio(
     audio_assets.add(AudioSource {
         bytes: generate_wav(samples).into(),
     })
-}
-
-fn spawn_ambient_sound(
-    mut commands: Commands,
-    sound_assets: Res<SoundAssets>,
-    settings: Res<SoundSettings>,
-) {
-    let volume = compute_ambient_volume(&settings);
-    commands.spawn((
-        AmbientSound,
-        AudioPlayer::<AudioSource>::new(sound_assets.ambient_loop.clone()),
-        PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
-    ));
 }
 
 fn compute_ambient_volume(settings: &SoundSettings) -> f32 {
@@ -590,7 +595,11 @@ fn footstep_volume_scale(movement: FootstepMovement) -> f32 {
 
 fn load_external_music_tracks(
     audio_assets: &mut Assets<AudioSource>,
-) -> (Vec<LoadedMusicTrack>, HashMap<u32, Vec<usize>>) {
+) -> (
+    Vec<LoadedMusicTrack>,
+    HashMap<u32, Vec<usize>>,
+    HashMap<u32, usize>,
+) {
     let mut tracks = Vec::new();
     let mut track_index_by_fdid = HashMap::new();
     for dir in ["data/sound/music", "data/music"] {
@@ -602,7 +611,20 @@ fn load_external_music_tracks(
         );
     }
     let tracks_by_zone = crate::sound_music_catalog::load_zone_music_catalog(&track_index_by_fdid);
-    (tracks, tracks_by_zone)
+    (tracks, tracks_by_zone, track_index_by_fdid)
+}
+
+fn strip_ambient_tracks_from_music_catalog(
+    music_tracks_by_zone: &mut HashMap<u32, Vec<usize>>,
+    ambient_tracks_by_zone: &HashMap<u32, Vec<usize>>,
+) {
+    for (zone_id, music_indices) in music_tracks_by_zone.iter_mut() {
+        let Some(ambient_indices) = ambient_tracks_by_zone.get(zone_id) else {
+            continue;
+        };
+        music_indices.retain(|track_idx| !ambient_indices.contains(track_idx));
+    }
+    music_tracks_by_zone.retain(|_, track_indices| !track_indices.is_empty());
 }
 
 fn load_external_music_tracks_from_dir(
