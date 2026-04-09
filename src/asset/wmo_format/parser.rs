@@ -765,5 +765,5 @@ pub fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
 }
 
 #[cfg(test)]
-#[path = "parser_tests.rs"]
+#[path = "parser_tests/mod.rs"]
 mod tests;
